@@ -171,7 +171,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     // IE Dialect level
     IE::buildAdjustPrecisionPipeline(pm, log);
 
-    pm.addPass(IE::createSplitFCInputByRowsPass(log));
+    pm.addPass(IE::createUnrollBatchPass(log));
     pm.addPass(IE::createConvertFCToConvPass(log));
     pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     pm.addPass(IE::createConvertScaleShiftToDWPass(log));
@@ -240,7 +240,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, bool enableProfil
     IE::buildAdjustPrecisionPipeline(pm, log);
 
     if (pipelineOptions->enableConvertFCToConv.getValue()) {
-        pm.addPass(IE::createSplitFCInputByRowsPass(log));
+        pm.addPass(IE::createUnrollBatchPass(log));
         pm.addPass(IE::createConvertFCToConvPass(log));
     }
     if (pipelineOptions->enableConvertAvgPoolToDWConv.getValue())

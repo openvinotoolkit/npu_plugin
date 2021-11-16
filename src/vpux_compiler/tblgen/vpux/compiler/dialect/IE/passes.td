@@ -230,10 +230,10 @@ def ConvertFCToConv : PassBase<"convert-fc-to-conv", "vpux::FunctionPass"> {
 }
 
 //
-// SplitFCInputByRows
+// UnrollBatch
 //
 
-def SplitFCInputByRows : PassBase<"split-fc-input-by-rows", "vpux::FunctionPass"> {
+def UnrollBatch : PassBase<"unroll-batch", "vpux::FunctionPass"> {
     let summary = "Split FullyConnected inputs with multiple rows";
 
     let description = [{
@@ -243,7 +243,7 @@ def SplitFCInputByRows : PassBase<"split-fc-input-by-rows", "vpux::FunctionPass"
         Resulting vector rows go to corresponding `FullyConnected` operations and the outputs are concatenated.
     }];
 
-    let constructor = "vpux::IE::createSplitFCInputByRowsPass()";
+    let constructor = "vpux::IE::createUnrollBatchPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

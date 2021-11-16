@@ -66,7 +66,7 @@ std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger
 std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertToMemPermutePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createSplitFCInputByRowsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createUnrollBatchPass(Logger log = Logger::global());
 
 //
 // Low precision transformations.

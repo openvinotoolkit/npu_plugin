@@ -28,12 +28,12 @@ using namespace vpux;
 namespace {
 
 //
-// SplitFCInputByRowsPass
+// UnrollBatchPass
 //
 
-class SplitFCInputByRowsPass final : public IE::SplitFCInputByRowsBase<SplitFCInputByRowsPass> {
+class UnrollBatchPass final : public IE::UnrollBatchBase<UnrollBatchPass> {
 public:
-    explicit SplitFCInputByRowsPass(Logger log) {
+    explicit UnrollBatchPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -48,7 +48,7 @@ private:
 // FullyConnectedOpConverter
 //
 
-class SplitFCInputByRowsPass::FullyConnectedOpConverter final : public mlir::OpRewritePattern<IE::FullyConnectedOp> {
+class UnrollBatchPass::FullyConnectedOpConverter final : public mlir::OpRewritePattern<IE::FullyConnectedOp> {
 public:
     FullyConnectedOpConverter(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<IE::FullyConnectedOp>(ctx), _log(log) {
@@ -61,13 +61,9 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult SplitFCInputByRowsPass::FullyConnectedOpConverter::matchAndRewrite(
-        IE::FullyConnectedOp origOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult UnrollBatchPass::FullyConnectedOpConverter::matchAndRewrite(IE::FullyConnectedOp origOp,
+                                                                                mlir::PatternRewriter& rewriter) const {
     const auto input1Shape = getShape(origOp.input());
-    if (input1Shape.size() < 1) {
-        return mlir::failure();
-    }
-
     const auto batchDim = Dim(0);
     const auto rowCount = input1Shape[batchDim];
     if (rowCount <= 1) {
@@ -86,11 +82,7 @@ mlir::LogicalResult SplitFCInputByRowsPass::FullyConnectedOpConverter::matchAndR
         auto newSubViewOp = rewriter.createOrFold<IE::SliceOp>(origOp->getLoc(), origOp.input(), staticOffsetsAttr,
                                                                staticSizesAttr);
 
-        const int64_t rowWidth = input1Shape[Dim(1)];
-        Shape rowShape{1, rowWidth};
-        const auto rowShapeAttr = getIntArrayAttr(rewriter.getContext(), rowShape);
-        auto row2d = rewriter.createOrFold<IE::ReshapeOp>(origOp->getLoc(), newSubViewOp, nullptr, false, rowShapeAttr);
-        rowSlices.push_back(row2d);
+        rowSlices.push_back(newSubViewOp);
     }
 
     SmallVector<mlir::Value> fullyConnectedSlices;
@@ -101,11 +93,7 @@ mlir::LogicalResult SplitFCInputByRowsPass::FullyConnectedOpConverter::matchAndR
         fullyConnectedSlices.push_back(op.output());
     }
 
-    auto newConcat = rewriter.create<IE::ConcatOp>(origOp->getLoc(), fullyConnectedSlices, 0);
-
-    const auto outShape = getShape(origOp.output());
-    const auto outShapeAttr = getIntArrayAttr(rewriter.getContext(), outShape);
-    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, newConcat, nullptr, false, outShapeAttr);
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, fullyConnectedSlices, batchDim.ind());
 
     return mlir::success();
 }
@@ -114,23 +102,19 @@ mlir::LogicalResult SplitFCInputByRowsPass::FullyConnectedOpConverter::matchAndR
 // safeRunOnFunc
 //
 
-void SplitFCInputByRowsPass::safeRunOnFunc() {
+void UnrollBatchPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::FullyConnectedOp>([](IE::FullyConnectedOp op) -> bool {
         const auto inputShape = getShape(op.input());
-        if (inputShape.size() < 1) {
-            // No idea what to do with such shape. Let it be legal.
-            return true;
-        }
         const auto rowCount = inputShape[Dim(0)];
         return rowCount == 1;
     });
-    target.addLegalOp<IE::ConvolutionOp>();
     target.addLegalOp<IE::ReshapeOp>();
     target.addLegalOp<IE::ConcatOp>();
     target.addLegalOp<IE::SliceOp>();
+    target.addLegalOp<Const::DeclareOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<FullyConnectedOpConverter>(&ctx, _log);
@@ -144,9 +128,9 @@ void SplitFCInputByRowsPass::safeRunOnFunc() {
 }  // namespace
 
 //
-// createSplitFCInputByRowsPass
+// createUnrollBatchPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createSplitFCInputByRowsPass(Logger log) {
-    return std::make_unique<SplitFCInputByRowsPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createUnrollBatchPass(Logger log) {
+    return std::make_unique<UnrollBatchPass>(log);
 }

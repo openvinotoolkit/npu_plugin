@@ -1,7 +1,7 @@
-// RUN: vpux-opt --split-input-file --split-fc-input-by-rows %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --unroll-batch %s | FileCheck %s
 
-// CHECK-LABEL: @SplitFullyConnectedInputByRows
-func @SplitFullyConnectedInputByRows(%arg0: tensor<2x16xf32>) -> tensor<2x64xf32> {
+// CHECK-LABEL: @UnrollFullyConnectedBatch
+func @UnrollFullyConnectedBatch(%arg0: tensor<2x16xf32>) -> tensor<2x64xf32> {
     %cst = const.Declare tensor<64x16xf16> = #const.Content<dense<1.0> : tensor<64x16xf32>, [#const.ConvertElemType<f16>]>
     %0 = IE.Convert(%arg0) {dstElemType = f16} : tensor<2x16xf32> -> tensor<2x16xf16>
     %1 = IE.FullyConnected(%0, %cst) : tensor<2x16xf16>, tensor<64x16xf16> -> tensor<2x64xf16>
@@ -18,7 +18,6 @@ func @SplitFullyConnectedInputByRows(%arg0: tensor<2x16xf32>) -> tensor<2x64xf32
     // CHECK:       %[[FC_2:.*]] = IE.FullyConnected(%[[INPUT_SLICE_2]], %[[WEIGHTS]]) : tensor<1x16xf16>, tensor<64x16xf16> -> tensor<1x64xf16>
     // CHECK:       %[[FC_CONCAT:.*]] = IE.Concat(%[[FC_1]], %[[FC_2]])
     // CHECK-SAME:      {per_axis = {axis = 0 : i64}} : tensor<1x64xf16>, tensor<1x64xf16> -> tensor<2x64xf16>
-    // CHECK:       %[[OUT_RESHAPE:.*]] = IE.Reshape(%[[FC_CONCAT]]) {shape_value = [2, 64]} : tensor<2x64xf16> -> tensor<2x64xf16>
-    // CHECK:       %[[OUT:.*]] = IE.Convert(%[[OUT_RESHAPE]]) {dstElemType = f32} : tensor<2x64xf16> -> tensor<2x64xf32>
+    // CHECK:       %[[OUT:.*]] = IE.Convert(%[[FC_CONCAT]]) {dstElemType = f32} : tensor<2x64xf16> -> tensor<2x64xf32>
     // CHECK:       return %[[OUT]] : tensor<2x64xf32>
 }

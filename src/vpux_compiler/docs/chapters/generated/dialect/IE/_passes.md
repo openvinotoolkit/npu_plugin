@@ -117,7 +117,7 @@ It replaces IE::StridedSlice with dense<1> strides strides with a simple IE::Sli
 The pass is a part of `LowPrecision` pipeline.
 
 It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
-### `-split-fc-input-by-rows`: Split FullyConnected inputs with multiple rows
+### `-unroll-batch`: Split FullyConnected inputs with multiple rows
 This pass splits `FullyConnected` inputs by rows.
 
 For example, `FullyConnected` input with 2x64 geometry will be split by two inputs with 1x64 dimensions.
