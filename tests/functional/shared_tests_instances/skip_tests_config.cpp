@@ -188,7 +188,17 @@ std::vector<std::string> disabledTestPatterns() {
             ".*KmbConversionLayerTest.*ConvertLike.*",
 
             // TensorIterator layer is not supported
-            ".*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*"
+            ".*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*",
+            ".*SetBlobTest.*",
+            ".*OVInferRequestDynamicTests.*",
+            ".*OVInferenceChaining.*",
+            ".*OVInferRequestCallbackTests.ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*",
+            
+            // CumSum layer is not supported
+            ".*SetBlobTest.*",
+
+            // Abs layer is not supported by MTL/dKMB platform
+            ".*PrePostProcessTest.*"
             }
         );
 
@@ -208,40 +218,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*SetBlobTest.*",
                 ".*InferRequestCallbackTests.*",
                 ".*PrePostProcessTest.*"
-            }
-        );
-
-        _skipRegistry.addPatterns(
-            backendName.isZero(),  
-            "CumSum layer is not supported by MTL platform",
-            {
-                ".*SetBlobTest.*",
-            }
-        );
-
-        _skipRegistry.addPatterns(
-            backendName.isZero(),  
-            "TensorIterator layer is not supported by MTL/dKMB platform",
-            {
-                ".*SetBlobTest.*",
-                ".*OVInferRequestWaitTests.*",
-                ".*OVInferRequestMultithreadingTests.*"
-            }
-        );
-
-        _skipRegistry.addPatterns(
-            backendName.isZero(),
-            "Abs layer is not supported by MTL/dKMB platform",
-            {
-                ".*PrePostProcessTest.*"
-            }
-        );
-
-        _skipRegistry.addPatterns(
-            platform.isARM(),  
-            "CumSum layer is not supported by ARM platform",
-            {
-                ".*SetBlobTest.*",
             }
         );
 
