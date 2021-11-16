@@ -403,13 +403,15 @@ std::weak_ptr<ie::Core> ieCore;
 
 void setupInferenceEngine() {
     auto flagDevice = FLAGS_device;
+    auto ieCoreShared = ieCore.lock();
+    IE_ASSERT(!ieCore.expired()) << "ieCore object expired";
 
     if (!FLAGS_log_level.empty()) {
-        ieCore.lock()->SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, flagDevice);
+        ieCoreShared->SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, flagDevice);
     }
 
     if (FLAGS_device == "CPU") {
-        ieCore.lock()->SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, flagDevice);
+        ieCoreShared->SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, flagDevice);
     }
 
     if (!FLAGS_config.empty()) {
@@ -422,7 +424,7 @@ void setupInferenceEngine() {
                 continue;
             }
 
-            ieCore.lock()->SetConfig({{key, value}}, flagDevice);
+            ieCoreShared->SetConfig({{key, value}}, flagDevice);
         }
     }
 }
@@ -430,8 +432,10 @@ void setupInferenceEngine() {
 ie::ExecutableNetwork importNetwork(const std::string& filePath) {
     std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
     IE_ASSERT(file.is_open()) << "Can't open file " << filePath << " for read";
-
-    return ieCore.lock()->ImportNetwork(file, FLAGS_device);
+    if (auto ieCoreShared = ieCore.lock()) {
+        return ieCoreShared->ImportNetwork(file, FLAGS_device);
+    }
+    THROW_IE_EXCEPTION << "ieCore object expired";
 }
 
 ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs, const std::vector<std::string>& dumpedInputsPaths) {
