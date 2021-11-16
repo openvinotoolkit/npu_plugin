@@ -31,7 +31,7 @@ public:
     }
 
 private:
-    void safeRunOnFunc() final;
+    void safeRunOnModule() override final;
 };
 
 //
@@ -81,11 +81,8 @@ public:
             outputCMXTensors.push_back(allocOp.memref());
         }
 
-        mlir::Type integerType = mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Unsigned);
-
-        auto sw_kernel_op = _rewriter.get().create<VPUIP::SW_KernelOp>(_origOp->getLoc(), inputCMXTensors,
-                                                                       outputCMXTensors, builtInFunction,
-                                                                       mlir::IntegerAttr::get(integerType, tileIndex));
+        auto sw_kernel_op = _rewriter.get().create<VPUIP::SW_KernelOp>(
+                _origOp->getLoc(), inputCMXTensors, outputCMXTensors, builtInFunction, getIntAttr(ctx, tileIndex));
 
         initSwKernel(sw_kernel_op, inputCMXTensors, outputCMXTensors);
 
@@ -103,11 +100,11 @@ public:
 
 private:
     mlir::memref::AllocOp createCMXTensor(mlir::Value source) const {
-        auto type = source.getType().template dyn_cast<mlir::MemRefType>();
+        auto type = source.getType().cast<mlir::MemRefType>();
 
         const auto cmxMemSpaceAttr =
                 VPUIP::PhysicalMemoryAttr::get(_rewriter.get().getContext(), VPUIP::PhysicalMemory::CMX_NN);
-        const auto dataTypeCMX = changeMemSpace(type, cmxMemSpaceAttr);
+        const auto dataTypeCMX = changeMemSpace(eraseTiledInfo(type), cmxMemSpaceAttr);
 
         // TODO : how tile index should be used ???
         return _rewriter.get().create<mlir::memref::AllocOp>(source.getLoc(), dataTypeCMX);
@@ -134,7 +131,7 @@ private:
         llvm::SmallVector<mlir::arith::ConstantOp> constantArgs;
         for (auto&& arg : _args) {
             constantArgs.push_back(
-                    swKernelBlockBuilder.template create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(_ctx), arg));
+                    swKernelBlockBuilder.create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(_ctx), arg));
         }
 
         // pack input/outputs and constants into single call to sw_kernel_run
@@ -148,8 +145,7 @@ private:
         fetchOperands(blockArgs);
         fetchOperands(constantArgs);
 
-        swKernelBlockBuilder.template create<VPUIP::SW_Kernel_run>(mlir::UnknownLoc::get(_ctx),
-                                                                   mlir::ValueRange(operands));
+        swKernelBlockBuilder.create<VPUIP::SW_Kernel_run>(mlir::UnknownLoc::get(_ctx), mlir::ValueRange(operands));
     }
 
     mlir::SymbolRefAttr createBuiltInFunction() const {
@@ -170,7 +166,7 @@ private:
         auto builtInFunction =
                 mlir::SymbolRefAttr::get(_ctx, innerModule.getName().getValue(), {builtInFunctionInternal});
 
-        mlir::SmallVector<mlir::Type, 12> inputTypes;
+        mlir::SmallVector<mlir::Type> inputTypes;
 
         auto fetchByUnrankedType = [&inputTypes](auto& cnt) {
             for (auto&& arg : cnt) {
@@ -179,13 +175,13 @@ private:
                             mlir::UnrankedMemRefType::get(memref.getElementType(), memref.getMemorySpace());
                     inputTypes.push_back(unrankedMemref);
                 } else {
-                    inputTypes.template emplace_back<mlir::Type>(arg.getType());
+                    inputTypes.emplace_back<mlir::Type>(arg.getType());
                 }
             }
         };
         auto fetchByType = [&inputTypes](auto& cnt) {
             for (auto&& arg : cnt) {
-                inputTypes.template emplace_back<mlir::Type>(arg.getType());
+                inputTypes.emplace_back<mlir::Type>(arg.getType());
             }
         };
         fetchByUnrankedType(_inputs);
@@ -194,8 +190,7 @@ private:
 
         const auto funcType = mlir::FunctionType::get(_ctx, inputTypes, mlir::TypeRange{});
 
-        auto buildInOp =
-                innerModuleBuilder.template create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx), built_in_name, funcType);
+        auto buildInOp = innerModuleBuilder.create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx), built_in_name, funcType);
 
         // modifying attributes
         buildInOp.sym_visibilityAttr(mlir::StringAttr::get(_ctx, "private"));
@@ -254,10 +249,9 @@ protected:
     mlir::ModuleOp _mainModule;
 };
 
-void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
+void ConvertSWLayers2VPUIPPass::safeRunOnModule() {
     auto& ctx = getContext();
-    auto func = getFunction();
-    auto module = func->getParentOfType<mlir::ModuleOp>();
+    auto module = getOperation();
     const auto arch = VPUIP::getArch(module);
     if (arch != VPUIP::ArchKind::MTL) {
         _log.trace("ConvertSWLayers2VPUIPPass enabled only for MTL device, but not for {0}", arch);
@@ -265,6 +259,7 @@ void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
     }
 
     mlir::ConversionTarget target(ctx);
+    target.addLegalOp<mlir::ModuleOp>();
     target.addIllegalDialect<IERT::IERTDialect>();
     target.addLegalDialect<mlir::async::AsyncDialect>();
     target.addLegalDialect<Const::ConstDialect>();
@@ -287,7 +282,7 @@ void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
     patterns.insert<RewriteSoftmaxMTL>(&ctx, _log, module);
     patterns.insert<RewriteSigmoidMTL>(&ctx, _log, module);
 
-    if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyFullConversion(module, target, std::move(patterns)))) {
         signalPassFailure();
     }
 }

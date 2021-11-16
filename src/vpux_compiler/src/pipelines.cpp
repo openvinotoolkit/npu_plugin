@@ -144,6 +144,9 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, bool enableProf
         pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     }
 
+    // Partially lower IERT->VPUIP (Act shave tasks only)
+    pm.addPass(createConvertSWLayers2VPUIPPass(log));
+
     // IERT Dialect level
     IERT::buildAsyncSchedulingPipeline(pm, log);
     pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
