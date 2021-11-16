@@ -41,7 +41,7 @@ endif()
 # TODO: [Track number: S#46168] Investigate hddlunite build issue for ARM
 ie_dependent_option(ENABLE_CUSTOM_HDDLUNITE "Use custom build hddlunite" OFF "NOT AARCH64" OFF)
 
-ie_dependent_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON "HAVE_HDDL_UNITE_PACKAGE OR ENABLE_CUSTOM_HDDLUNITE" OFF)
+ie_dependent_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON "HAVE_HDDL_UNITE_PACKAGE OR ENABLE_CUSTOM_HDDLUNITE" ON)
 ie_dependent_option(ENABLE_HDDL2_TESTS "Enable Unit and Functional tests for HDDL2 Plugin" ON "ENABLE_HDDL2;ENABLE_TESTS" OFF)
 if(ENABLE_HDDL2)
     add_definitions(-DENABLE_HDDL2)
