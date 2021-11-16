@@ -260,10 +260,11 @@ void InferRequest::InferAsync() {
         execPreprocessing(_inputs);
 #else
         _logger->info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
+        moveBlobsForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
         execDataPreprocessing(_inputs);
 #endif
         updateRemoteBlobs(_inputs, preProcMap);
-        _executorPtr->push(_inputs);
+        _executorPtr->push(_inputs, preProcMap);
     }
     if (std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH") != nullptr) {
         dumpBlobs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"), "input");

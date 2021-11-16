@@ -253,7 +253,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         updatedInputs[foundInputBlob->first] = prepareInputForInference(foundInputBlob->second, deviceInputLayout);
     }
 
-    _inferDataPtr->setPreprocessFlag(needUnitePreProcessing);
+    _inferDataPtr->setPreprocessFlag(needUnitePreProcessing && isPreProcessingSupported(preProcMap));
 
     // TODO Should we use deviceInputs instead of networkInputs here?
     for (const auto& networkInput : networkInputs) {
