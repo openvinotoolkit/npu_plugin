@@ -13,6 +13,7 @@
 
 #include "test_model/kmb_test_base.hpp"
 #include "vpux/vpux_plugin_params.hpp"
+#include "vpux_private_config.hpp"
 #include "vpux/utils/IE/blob.hpp"
 #include <hddl2_helpers/helper_calc_cpu_ref.h>
 #include <hddl2_helpers/helper_remote_memory.h>
@@ -23,9 +24,10 @@
 
 namespace {
 IE::Blob::Ptr inferAndGetResult(IE::ExecutableNetwork& net, const std::string& inputName,
-    const IE::Blob::Ptr& inputBlob, const std::string& outputName, const IE::Blob::Ptr& outputRefBlob) {
+    const IE::Blob::Ptr& inputBlob, const std::string& outputName, const IE::Blob::Ptr& outputRefBlob,
+    const IE::PreProcessInfo& preProcInfo) {
     auto inferRequest = net.CreateInferRequest();
-    inferRequest.SetBlob(inputName, inputBlob);
+    inferRequest.SetBlob(inputName, inputBlob, preProcInfo);
     inferRequest.Infer();
     return inferRequest.GetBlob(outputName);
 }
@@ -141,6 +143,7 @@ TestNetwork VpuxRemoteBlobRoiTests::buildSimpleNet(const std::string& netName, c
             .build()
         .setUserOutput(PortInfo("sum"), precision, layout)
         .addNetOutput(PortInfo("sum"))
+        .setCompileConfig({{VPUX_CONFIG_KEY(COMPILER_TYPE), VPUX_CONFIG_VALUE(MLIR)}})
         .finalize(netName);
 
     return testNet;
@@ -149,21 +152,21 @@ TestNetwork VpuxRemoteBlobRoiTests::buildSimpleNet(const std::string& netName, c
 TEST_P(VpuxRemoteBlobRoiTests, inferRemoteBlobWithRoi) {
     // Preprocessing - we have to use IE preprocessing
     // HddlUnite preprocessing supports only NV12 input format, so it will be refused
-    auto preprocInfo = _inputInfo->getPreProcess();
-    preprocInfo.setColorFormat(IE::ColorFormat::BGR);
-    preprocInfo.setResizeAlgorithm(IE::ResizeAlgorithm::RESIZE_BILINEAR);
+    auto preProcInfo = _inputInfo->getPreProcess();
+    preProcInfo.setColorFormat(IE::ColorFormat::BGR);
+    preProcInfo.setResizeAlgorithm(IE::ResizeAlgorithm::RESIZE_BILINEAR);
 
     // Generate input data
     const auto inputBlob = genBlobUniform(_inputInfo->getTensorDesc(), rd, _minValue, _maxValue);
 
     // Calculate reference with ROI on CPU
     const auto inputRoiBlob = inputBlob->createROI(_roiBegin, _roiEnd);
-    const auto outputRefBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(_cnnNet, inputRoiBlob, false, &preprocInfo);
+    const auto outputRefBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(_cnnNet, inputRoiBlob, false, &preProcInfo);
 
     // Calculate reference with ROI on VPU
     const auto remoteRoiBlob = createRemoteRoiBlob(inputBlob, _workloadId, _remoteContext, _remoteMemoryHelper,
         _roiBegin, _roiEnd);
-    const auto outputBlob = inferAndGetResult(_exeNet, "input", remoteRoiBlob, "sum", outputRefBlob);
+    const auto outputBlob = inferAndGetResult(_exeNet, "input", remoteRoiBlob, "sum", outputRefBlob, preProcInfo);
 
     KmbTestBase::compareOutputs(outputRefBlob, outputBlob, 0, CompareMethod::Absolute);
 }
