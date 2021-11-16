@@ -1,7 +1,7 @@
 // {% copyright %}
 
-#ifndef MV_SUBSOACES_H_
-#define MV_SUBSOACES_H_
+#ifndef MV_SUBSPACES_H_
+#define MV_SUBSPACES_H_
 #include <mv_types.h>
 #include <array>
 #include <algorithm>
@@ -276,4 +276,4 @@ INLINE_ATTRIBUTE bool isOrderNDValid(NDOrder ndOrder);
 #include "../src/mvSubspaces.cpp"
 #endif
 
-#endif  // MV_SUBSOACES_H_
+#endif  // MV_SUBSPACES_H_
