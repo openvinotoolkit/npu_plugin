@@ -145,7 +145,6 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Mish,     {{1.0f}}},
     {Floor,    {{1.0f}}},
     {Sqrt,     {{1.0f}}},
-    {Sinh,     {{1.0f}}},
     {Erf,      {{1.0f}}},
     {Gelu,     {{1.0f}}},
     {Exp,      {{1.0f}}},
@@ -176,20 +175,16 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesFP16Only = {
-    {Ceiling,  {{1.0f}}},
+    {Sinh,     {{1.0f}}},
 };
 
-//const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesSinh = {
-//     {Sinh,     {{1.0f}}},
-//};
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesFP16FP16Only = {
+    {Sinh,     {{1.0f}}},
+};
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
     {{1, 50, 1, 1}, {{}}},
     {{1, 128, 1, 1}, {{}}},
-};
-
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> SinhBasic = {
-    {{1, 50, 1, 1}, {{}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
@@ -243,14 +238,15 @@ const auto basicFP16OnlyCases = ::testing::Combine(
     ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-const auto basicSinhCases = ::testing::Combine(
-    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
+// For operations that only support FP16 input values in 'vpuip_2'
+const auto basicFP16OnlyCasesSinh = ::testing::Combine(
+    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesFP16FP16Only)),
     ::testing::ValuesIn(netPrecisions),
     ::testing::Values(InferenceEngine::Precision::FP16),
     ::testing::Values(InferenceEngine::Precision::FP16),
-    ::testing::Values(InferenceEngine::Layout::NCHW),
-    ::testing::Values(InferenceEngine::Layout::NCHW),
-    ::testing::ValuesIn(CommonTestUtils::combineParams(SinhBasic)),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
@@ -285,4 +281,6 @@ const auto basicCasesMTL = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest_MTL, basicCasesMTL, ActivationLayerTest::getTestCaseName);
 
 
+
 }  // namespace
+
