@@ -172,13 +172,6 @@ void FeasibleAllocationPass::updateAsyncExecuteOpDependencies(
         }
     }
     depsInfo.updateTokenDependencies();
-
-    // std::cout << "Mateusz: Dump async execute\n";
-    // for (auto opIt = scheduledOps.begin(); opIt != scheduledOps.end(); opIt++) {
-    //     std::cout << "-------------------\n";
-    //     depsInfo.getExecuteOpAtIndex(opIt->op_).dump();
-    //     std::cout << "-------------------\n";
-    // }
 }
 
 void FeasibleAllocationPass::safeRunOnModule() {
