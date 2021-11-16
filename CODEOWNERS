@@ -25,9 +25,9 @@
 # Files / Folders
 #
 # Protected files. Shouldn't be modified without approval
-.clang-format @ArtemySkrebkov-intel
-.gitmodules  @ArtemySkrebkov-intel
-.gitignore  @ArtemySkrebkov-intel
+.clang-format @ArtemySkrebkov-intel @vinograd47
+.gitmodules  @ArtemySkrebkov-intel @vinograd47
+.gitignore  @ArtemySkrebkov-intel @vinograd47
 CODEOWNERS @vinograd47 @mmineeva @ArtemySkrebkov-intel
 CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 #
@@ -35,17 +35,17 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /artifacts @ArtemySkrebkov-intel @mznamens
 #
 # src folder
-/src/custom_cpp_kernels @nikita-kud
-/src/custom_extension_library @lerbelintel
+/src/custom_cpp_kernels @nikita-kud @maxim-kurin
+/src/custom_extension_library @lerbelintel @VladyslavTsilytskyiIntel @maxim-kurin
 /src/custom_ocl_kernels @mikhailk62 @maxim-kurin
 /src/emulator_backend @ArtemySkrebkov-intel @ZoranZomborat
 /src/frontend_mcm @ArtemySkrebkov-intel @mmineeva
 /src/hddl2_backend @ArtemySkrebkov-intel @mznamens
 /src/mcmCompiler @syao-2015 @mmineeva
-/src/mcmCompiler/src/pass/optimization @adeflume
-/src/utils @briangrifiin
-/src/vpual_backend @briangrifiin @ArtemySkrebkov-intel
-/src/vpux_al @ArtemySkrebkov-intel @mznamens
+/src/mcmCompiler/src/pass/optimization @adeflume @bradyjohn @MateuszDareckiIntel
+/src/utils @briangrifiin @mznamens
+/src/vpual_backend @briangrifiin @ArtemySkrebkov-intel @alpkn
+/src/vpux_al @ArtemySkrebkov-intel @mznamens @sshumihi
 /src/vpux_compiler @vinograd47 @nikita-kud
 /src/vpux_elf @gladilov-gleb @AndrewBakalinIntel 
 /src/vpux_ngraph_transformations @shokinal @maxim-kurin
@@ -61,5 +61,5 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /tools @shokinal @mmineeva
 #
 # Validation folder
-/validation @maxim-kurin
+/validation @maxim-kurin @sshumihi @andrejsokolov
 #
