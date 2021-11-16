@@ -226,7 +226,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:          name: "scratch_buffer",
 // CHECK:          locale: "GFEmbeddedKernel",
 // CHECK:          locale_offset: 4,
-// CHECK:          data_offset: 808,
+// CHECK:          data_offset: 56,
 // CHECK:          referenced_data_size: 65536
 // CHECK:        }
 // CHECK:     }
@@ -259,7 +259,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                  locale: "GFEmbeddedKernel",
 // CHECK:                  locale_offset: 5,
 // CHECK:                  data_offset: 276,
-// CHECK:                  referenced_data_size: 624
+// CHECK:                  referenced_data_size: 1376
 // CHECK:                }
 // CHECK:              },
 // CHECK:              invocations: [

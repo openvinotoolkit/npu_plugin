@@ -127,7 +127,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
 // CHECK:   net_output: [
 // CHECK:     {
-// CHECK:       name: "ACT-shave",
+// CHECK:       name: "softmax",
 // CHECK:       dimensions: [
 // CHECK:         1,
 // CHECK:         1,
@@ -149,7 +149,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:     }
 // CHECK:   ],
 
-// CHECK:   task_count: 3,
+// CHECK:   task_count: 5,
 
 // CHECK:   options: [
 // CHECK:   ],
@@ -162,15 +162,15 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:         1000
 // CHECK:       ],
 // CHECK:       strides: [
-// CHECK:         4.0,
-// CHECK:         4000.0,
-// CHECK:         4.0
+// CHECK:         2.0,
+// CHECK:         2000.0,
+// CHECK:         2.0
 // CHECK:       ],
 // CHECK:       data: {
 // CHECK:         data_index: 0
 // CHECK:       },
 // CHECK:       locale: "ProgrammableInput",
-// CHECK:       data_dtype: "FP32"
+// CHECK:       data_dtype: "FP16"
 // CHECK:     }
 // CHECK:   ],
 
@@ -182,14 +182,14 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:         1000
 // CHECK:       ],
 // CHECK:       strides: [
-// CHECK:         4.0,
-// CHECK:         4000.0,
-// CHECK:         4.0
+// CHECK:         2.0,
+// CHECK:         2000.0,
+// CHECK:         2.0
 // CHECK:       ],
 // CHECK:       data: {
 // CHECK:         data_index: 0
 // CHECK:       },
 // CHECK:       locale: "ProgrammableOutput",
-// CHECK:       data_dtype: "FP32"
+// CHECK:       data_dtype: "FP16"
 // CHECK:     }
 // CHECK:   ]
