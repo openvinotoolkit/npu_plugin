@@ -38,6 +38,7 @@ using AttrCreateFunc = std::function<mlir::Attribute(mlir::MLIRContext*, StringR
 
 std::unique_ptr<mlir::Pass> createOptimizeCopiesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCopyOpHoistingPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createCMXConcatPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFeasibleAllocationPass(AttrCreateFunc memSpaceCb,

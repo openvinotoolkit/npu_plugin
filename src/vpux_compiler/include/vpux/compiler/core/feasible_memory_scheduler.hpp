@@ -203,9 +203,9 @@ public:
     // Eviction priority policy for buffers
     struct EvictionPriority {
         bool operator()(const EvictionCandidate& ec1, const EvictionCandidate& ec2) const {
-            // first - lowest eviction priority
+            // first - highest eviction priority
             if (ec1.priority_ != ec2.priority_) {
-                return ec1.priority_ < ec2.priority_;
+                return ec1.priority_ > ec2.priority_;
             }
 
             // second - smaller size

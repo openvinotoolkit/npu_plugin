@@ -466,13 +466,15 @@ operationIdxType FeasibleMemoryScheduler::retrieveBufferWriter(mlir::Value buffe
 }
 
 size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
-    // TODO: EISW-21937 add other conditions such as:
-    // cmx concatable, pipelined, multiple outdegree (prefetch)
+    // TODO: EISW-21936 add other conditions such as:
+    // pipelined, multiple outdegree (prefetch)
 
-    // Eviction priority:
-    // HIGH (0)   - buffers which are not going to be used by any active/ready compute ops
-    // MEDIUM (1) - buffers which are result of dataOp
-    // LOW (2)    - all others
+    // Eviction priority (evict largest first):
+    // 0    - buffers that are CMX Concatable
+    // 1    - buffers which are not going to be used by any active/ready compute ops
+    // 2    - buffers which are result of dataOp
+    // 3    - all others
+
     bool isBufferUsedByReadyOp = false;
     for (auto& active : _activeComputeOps) {
         auto op = _depsInfo.getExecuteOpAtIndex(active.first).getOperation();
@@ -494,12 +496,21 @@ size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
         }
     }
 
-    if (!isBufferUsedByReadyOp) {
+    bool cmxConcatable = false;
+    for (auto bufferUser : buffer.getUsers()) {
+        if (bufferUser->hasAttr("CMXConcat")) {
+            cmxConcatable = true;
+        }
+    }
+
+    if (cmxConcatable) {
         return 0;
-    } else if (isDataOp(retrieveBufferWriter(buffer))) {
+    } else if (!isBufferUsedByReadyOp) {
         return 1;
-    } else {
+    } else if (isDataOp(retrieveBufferWriter(buffer))) {
         return 2;
+    } else {
+        return 3;
     }
 }
 
@@ -535,6 +546,13 @@ void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
     // select a candidate op to be spilled
     auto evictionCandidate = chooseCandidateForEviction(aliveBuffers);
     _log.nest().trace("Candidate selected for eviction {0}", evictionCandidate.bufferWriterIdx_);
+
+    // TEMP LOG
+    for (auto bufferUser : evictionCandidate.buffer_.getUsers()) {
+        if (bufferUser->hasAttr("CMXConcat")) {
+            std::cout << "spilling CMX-ed Concat: " << evictionCandidate.bufferWriterIdx_ << std::endl;
+        }
+    }
 
     // free the memory space by freeing the op output buffer
     evictActiveOp(evictionCandidate);
@@ -711,6 +729,8 @@ llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemorySchedu
                 }
             }
         }
+        // std::cout << "op = " << op.op_ << "\t type = " << op.opTypeName().data() << "\t time = " << op.time_ << "\t "
+        //           << resourceInfo << std::endl;
         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
     }
     _log = _log.unnest();
