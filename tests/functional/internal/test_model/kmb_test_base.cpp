@@ -271,7 +271,8 @@ Blob::Ptr KmbTestBase::getBlobByName(const std::string& blobName) {
 ExecutableNetwork KmbTestBase::getExecNetwork(
         const std::function<CNNNetwork()>& netCreator,
         const std::function<CompileConfig()>& configCreator,
-        const bool forceCompilation) {
+        const bool forceCompilation,
+        const RemoteContext::Ptr& remoteContext) {
     ExecutableNetwork exeNet;
 
     if (RUN_COMPILER || forceCompilation) {
@@ -287,7 +288,11 @@ ExecutableNetwork KmbTestBase::getExecNetwork(
         }
         std::cout << ostr.str() << std::endl;
 
-        exeNet = core->LoadNetwork(netCreator(), DEVICE_NAME, config);
+        if (remoteContext != nullptr) {
+            exeNet = core->LoadNetwork(netCreator(), remoteContext, config);
+        } else {
+            exeNet = core->LoadNetwork(netCreator(), DEVICE_NAME, config);
+        }
 
         if (EXPORT_NETWORK) {
             std::cout << "    === EXPORT NETWORK" << std::endl;
@@ -609,7 +614,10 @@ ExecutableNetwork KmbLayerTestBase::getExecNetwork(
         },
         [&testNet]() {
             return testNet.compileConfig();
-        });
+        },
+        false,
+        testNet.getRemoteContext()
+        );
 }
 
 BlobMap KmbLayerTestBase::getRefOutputs(

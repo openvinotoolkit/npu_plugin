@@ -111,6 +111,10 @@ public:
         return _exts;
     }
 
+    const RemoteContext::Ptr& getRemoteContext() const {
+        return _remoteContext;
+    }
+
     TestNetwork& disableMcmPasses(const std::vector<std::pair<std::string, std::string>>& banList) {
         const auto passFold = [](std::string list, const std::pair<std::string, std::string>& pass) {
             return std::move(list) + pass.first + "," + pass.second + ";";
@@ -151,6 +155,10 @@ public:
         _compileConfig = compileConfig;
         return *this;
     }
+    TestNetwork& setRemoteContext(const RemoteContext::Ptr& remoteContext) {
+        _remoteContext = remoteContext;
+        return *this;
+    }
 
 private:
     std::unordered_map<std::string, NodePtr> _nodes;
@@ -167,6 +175,7 @@ private:
     std::shared_ptr<ngraph::Function> _func;
 
     std::map<std::string, std::string> _compileConfig;
+    RemoteContext::Ptr _remoteContext;
 
     static const std::string _customOclLayerXmlDefault;
     static const std::string _customCppLayerXmlDefault;
