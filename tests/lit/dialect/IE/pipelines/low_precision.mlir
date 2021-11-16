@@ -2,6 +2,7 @@
 
 !qElemType0 = type !quant.uniform<u8<0:254>:f32:0, {0.0078740157480314959:127,0.0086614175105658095:127,0.0094488192731001247:127,0.010236220096978615:127}>
 !qElemType1 = type !quant.uniform<u8:f32, 1.000000e+00>
+!qElemType2 = type !quant.uniform<u8:f32, 5.000000e-01>
 
 // CHECK-LABEL: @QuantizedConv
 // CHECK-SAME:      ([[INPUT:%.*]]: tensor<1x3x62x62xui8>) -> tensor<1x4x60x60xf32>
@@ -42,17 +43,22 @@ func @QuantizedConv(%input: tensor<1x3x62x62xui8>) -> tensor<1x4x60x60xf32> {
 
     return %last_fq : tensor<1x4x60x60xf32>
 
-    // CHECK:     [[WEIGHTS:%.*]] = const.Declare
-    // CHECK-SAME:    #const.Content<dense<128> : tensor<4x3x3x3xui8>,
-    // CHECK-SAME:    [#const.ConvertElemType<f32>, #const.ConvertElemType<ui8>, #const.QuantCast<!qElemType0>]>
+    // CHECK:     [[WEIGHTS:%.*]] = const.Declare tensor<4x3x3x3x!qElemType0> =
+    // CHECK:           #const.Content<dense<128> : tensor<4x3x3x3xui8>,
+    // CHECK:           [#const.ConvertElemType<f32>, #const.ConvertElemType<ui8>, #const.QuantCast<!qElemType0>]>
 
     // CHECK:     [[INPUT_QUANT:%.*]] = IE.QuantizeCast([[INPUT]]) {dstElemType = !qElemType1} :
-    // CHECK-SAME:     tensor<1x3x62x62xui8> -> tensor<1x3x62x62x!qElemType1>
+    // CHECK:           tensor<1x3x62x62xui8> -> tensor<1x3x62x62x!qElemType1>
 
     // CHECK:     [[CONV:%.*]] = IE.Convolution([[INPUT_QUANT]], [[WEIGHTS]])
+    // CHECK:           {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} :
+    // CHECK:           tensor<1x3x62x62x!qElemType1>, tensor<4x3x3x3x!qElemType0> -> tensor<1x4x60x60x!qElemType1>
 
-    // CHECK:     [[OUT_DEQ:%.*]] = IE.And([[CONV]], [[CONV]]) {auto_broadcast = "NONE_OR_EXPLICIT"}
-    // CHECK-SAME:     -> tensor<1x4x60x60xf32>
+    // CHECK:     [[OUT_QUANT_CAST:%.*]] = IE.QuantizeCast([[CONV]]) {dstElemType = !qElemType2} :
+    // CHECK:           tensor<1x4x60x60x!qElemType1> -> tensor<1x4x60x60x!qElemType2>
+
+    // CHECK:     [[OUT_DEQ:%.*]] = IE.Add([[OUT_QUANT_CAST]], [[OUT_QUANT_CAST]]) {auto_broadcast = "NONE_OR_EXPLICIT"} :
+    // CHECK:           tensor<1x4x60x60x!qElemType2>, tensor<1x4x60x60x!qElemType2> -> tensor<1x4x60x60xf32>
 
     // CHECK:     return [[OUT_DEQ]]
 }
