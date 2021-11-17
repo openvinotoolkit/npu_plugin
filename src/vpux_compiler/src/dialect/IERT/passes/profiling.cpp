@@ -205,7 +205,11 @@ void DPUProfilingPass::safeRunOnModule() {
 
     unsigned elementSize = 2;
     unsigned output_size = dpuTasks.size() * elementSize;
-    auto cmxMemType = mlir::MemRefType::get({output_size}, getUInt64Type(ctx), {}, _memSpace);
+    auto someMemType = mlir::MemRefType::get({output_size}, getUInt64Type(ctx));  // , {}, _memSpace);
+
+    auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
+    auto cmxMemType = changeMemSpace(someMemType, cmxMemSpaceAttr);
+
     auto outputResult = mlir::MemRefType::get({output_size}, getUInt64Type(ctx));
 
     builder.setInsertionPointAfter(&netFunc.getBody().front().front());
@@ -218,7 +222,8 @@ void DPUProfilingPass::safeRunOnModule() {
     for (auto& dpuTask : dpuTasks) {
         auto cluster = dpuTask.first;
         builder.setInsertionPointAfter(cluster);
-        auto timestampType = mlir::MemRefType::get({elementSize}, getUInt64Type(ctx), {}, _memSpace);
+        auto temptimestampType = mlir::MemRefType::get({elementSize}, getUInt64Type(ctx));  //, {}, _memSpace);
+        auto timestampType = changeMemSpace(temptimestampType, cmxMemSpaceAttr);
         auto sub = builder.create<IERT::SubViewOp>(mlir::NameLoc::get(mlir::Identifier::get("subview", ctx)), memOp,
                                                    SmallVector<int64_t>({static_cast<int>(dpu_id * elementSize)}),
                                                    timestampType.getShape());
@@ -265,7 +270,7 @@ void DPUProfilingPass::safeRunOnModule() {
     auto outputOp = builder.create<IERT::CopyOp>(copyLoc2, concatview.output(), profilngResult);
 
     // Adding output to the user info
-    auto outputUserResult = getTensorType(outputResult.getShape(), outputResult.getElementType(),
+    auto outputUserResult = getTensorType(getShape(outputResult), outputResult.getElementType(),
                                           DimsOrder::fromType(outputResult), nullptr);
     auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.outputsInfo().front(), &builderLog);
     userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "profilingOutput"),
