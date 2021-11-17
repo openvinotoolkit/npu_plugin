@@ -149,7 +149,7 @@ void VPUIP::ELFBlobSerializer::setNetworkIO(llvm::ArrayRef<mlir::ShapedType> inp
         inputOrOutputSym->setName(symbolName);  // TODO: get name of tensor?
         inputOrOutputSym->setType(symbolType);
         inputOrOutputSym->setValue(i);
-        inputOrOutputSym->setSize(inputOrOutput.getSizeInBits());
+        inputOrOutputSym->setSize(inputOrOutput.getSizeInBits() / CHAR_BIT);
 
         TensorLocation loc;
         loc.memLocation = VPUIP::MemoryLocation::ProgrammableInput;
