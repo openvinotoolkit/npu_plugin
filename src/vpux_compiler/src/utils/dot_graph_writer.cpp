@@ -238,7 +238,7 @@ bool GraphWriter::printNodeAttributes(mlir::Operation* op, llvm::raw_ostream& os
     return false;
 }
 
-std::string htmlEncode(StringRef data) {
+const std::string htmlEncode(StringRef data) {
     std::string buffer;
     buffer.reserve(data.size());
     for (size_t pos = 0; pos != data.size(); ++pos) {
@@ -259,7 +259,7 @@ std::string htmlEncode(StringRef data) {
             buffer.append("&gt;");
             break;
         default:
-            buffer.append(data[pos], 1);
+            buffer.push_back(data[pos]);
             break;
         }
     }
@@ -270,13 +270,11 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
     std::string ostr;
     llvm::raw_string_ostream os(ostr);
 
-    auto htmlBegin = "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">";
-    auto htmlMiddle = " </FONT></TD>\n<TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">";
-    auto htmlEnd = " </FONT></TD></TR>\n";
-
+    auto htmlBegin = "<tr><td align='left'><font point-size='11.0'>";
+    auto htmlMiddle = " </font></td>\n<td align='right'><font point-size='11.0'>";
+    auto htmlEnd = " </font></td></tr>\n";
     if (_params.htmlLike) {
-        os << "<TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" << op->getName() << "</B>"
-           << htmlEnd;
+        os << "<tr><td align='center' colspan='2'><font point-size='14.0'><b>" << op->getName() << "</b>" << htmlEnd;
     } else {
         os << op->getName() << "\n";
     }
@@ -335,7 +333,13 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
                     os << " at " << memref.getMemorySpace();
                 }
             } else {
-                os << type;
+                std::string temp_str;
+                llvm::raw_string_ostream temp_os(temp_str);
+                temp_os << type;
+                if (_params.htmlLike) {
+                    temp_str = htmlEncode(temp_str);
+                }
+                os << temp_str;
             }
 
             os << ", ";
