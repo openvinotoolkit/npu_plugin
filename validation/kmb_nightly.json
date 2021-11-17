@@ -4259,7 +4259,6 @@
             "name" : "MTL_por_onnx_FP16_resnet-50-pytorch",
             "ir" : "por/resnet-50-pytorch/onnx/FP16/resnet-50-pytorch.xml",
             "category" : "MLIR",
-            "disabled" : true,
             "3720": {
                 "disabled" : false
             },
@@ -4279,11 +4278,23 @@
             "BenchmarkApp" : {
                 "disabled" : true
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
             },
-            "NetTest-Validate" : {
-                "disabled" : true
+            "NetTest-Validate": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
                 "disabled" : true
@@ -4298,7 +4309,6 @@
             "name" : "MTL_por_onnx_FP16_mobilenet-v2",
             "ir" : "por/mobilenet-v2/onnx/FP16/mobilenet-v2.xml",
             "category" : "MLIR",
-            "disabled" : true,
             "3720": {
                 "disabled" : false
             },
@@ -4318,11 +4328,23 @@
             "BenchmarkApp" : {
                 "disabled" : true
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
             },
-            "NetTest-Validate" : {
-                "disabled" : true
+            "NetTest-Validate": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
                 "disabled" : true
@@ -4747,6 +4769,101 @@
                 "blob_name" : "bdk_edsr3",
                 "special" : true
             }
+        },
+
+        {
+            "name" : "MTL_por_onnx_FP16_INT8_resnet-50-pytorch",
+            "ir" : "por/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
+            },
+            "NetTest-Validate": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_por_onnx_FP16_INT8_resnet-50-pytorch"
+            }
+        },
+
+        {
+            "name" : "MTL_por_onnx_FP16_INT8_mobilenet-v2",
+            "ir" : "por/mobilenet-v2/onnx/FP16-INT8/mobilenet-v2.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
+            },
+            "NetTest-Validate": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_por_onnx_FP16_INT8_mobilenet-v2"
+            }
         }
+
     ]
 }
