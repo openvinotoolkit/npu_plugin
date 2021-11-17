@@ -4686,6 +4686,7 @@
         {
             "name" : "BDK_edsr3",
             "ir" : "models/clientmodels/BDK3/edsr3/FP16-INT8/edsr.xml",
+            "category" : "MLIR",
             "3900" : {
                 "disabled" : true
             },
@@ -4711,7 +4712,6 @@
                 "config": "edsr3.yml",
                 "subsample_size": 50
             },
-            "category" : "MLIR",
             "CI-options" : {
                 "blob_name" : "bdk_edsr3",
                 "special" : true
