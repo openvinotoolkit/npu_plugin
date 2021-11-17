@@ -3163,6 +3163,8 @@
             }
         },
 
+        
+
         {
             "name" : "BDK_FP16-INT8_hg-s8-b1-mpii",
             "ir" : "models/clientmodels/BDK3/StackedHourglass/Surface/FP16-INT8/hg-s8-b1-mpii.xml",
@@ -4710,6 +4712,47 @@
             },
             "CI-options" : {
                 "blob_name" : "bdk3_modnet_custom",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "MTL_BDK_caffe2_FP16-INT8_resnet-50-pytorch",
+            "ir" : "models/clientmodels/BDK3/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
+
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : false
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_bdk_resnet-50-pytorch",
                 "special" : true
             }
         }
