@@ -264,6 +264,7 @@ private:
     operationIdxType retrieveBufferWriter(mlir::Value buffer);
     EvictionCandidate chooseCandidateForEviction(mlir::DenseSet<mlir::Value> aliveBuffers);
     void forceScheduleActiveOpEviction();
+    size_t getOpBufferOutputIdx(operationIdxType opIdx, mlir::Value buffer);
 
 private:
     Logger _log;
