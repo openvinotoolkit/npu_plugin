@@ -179,12 +179,15 @@ mlir::LogicalResult TransposeWeights::matchAndRewrite(IE::MatMulOp matmulOp, mli
     if (transWeights) {
         return mlir::failure();
     }
-    const auto input2Shape = getShape(matmulOp.input2());
-    auto perm = SmallVector<unsigned>(input2Shape.size(), 0);
+    const auto rhsShape = getShape(matmulOp.input2());
+    SmallVector<unsigned> perm(rhsShape.size(), 0);
     for (size_t dimIdx = 0; dimIdx < perm.size(); dimIdx++) {
         perm[dimIdx] = dimIdx;
     }
     const auto weightsRank = perm.size();
+    if (weightsRank < 2) {
+        return mlir::failure();
+    }
     const auto weightsColIdx = weightsRank - 1;
     const auto weightsRowIdx = weightsRank - 2;
     perm[weightsColIdx] = weightsRowIdx;
