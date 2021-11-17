@@ -4695,11 +4695,8 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS":"2",
-                "VPUX_INFERENCE_TIMEOUT": "100000"
-            },
-            "Compile" : {
-                "input_precision" : "FP32"
+                "VPUX_INFERENCE_TIMEOUT": "100000",
+                "VPUX_COMPILATION_MODE": "ReferenceSW"
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -4714,7 +4711,7 @@
                 "config": "edsr3.yml",
                 "subsample_size": 50
             },
-            "category" : "MLIR/dKMB",
+            "category" : "MLIR",
             "CI-options" : {
                 "blob_name" : "bdk_edsr3",
                 "special" : true
