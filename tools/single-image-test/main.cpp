@@ -399,17 +399,19 @@ void dumpBlob(const ie::MemoryBlob::Ptr& blob, const std::string& filePath) {
 // Inference Engine
 //
 
-ie::Core ieCore;
+std::weak_ptr<ie::Core> ieCore;
 
 void setupInferenceEngine() {
     auto flagDevice = FLAGS_device;
+    auto ieCoreShared = ieCore.lock();
+    IE_ASSERT(!ieCore.expired()) << "ieCore object expired";
 
     if (!FLAGS_log_level.empty()) {
-        ieCore.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, flagDevice);
+        ieCoreShared->SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, flagDevice);
     }
 
     if (FLAGS_device == "CPU") {
-        ieCore.SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, flagDevice);
+        ieCoreShared->SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, flagDevice);
     }
 
     if (!FLAGS_config.empty()) {
@@ -422,7 +424,7 @@ void setupInferenceEngine() {
                 continue;
             }
 
-            ieCore.SetConfig({{key, value}}, flagDevice);
+            ieCoreShared->SetConfig({{key, value}}, flagDevice);
         }
     }
 }
@@ -430,8 +432,10 @@ void setupInferenceEngine() {
 ie::ExecutableNetwork importNetwork(const std::string& filePath) {
     std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
     IE_ASSERT(file.is_open()) << "Can't open file " << filePath << " for read";
-
-    return ieCore.ImportNetwork(file, FLAGS_device);
+    if (auto ieCoreShared = ieCore.lock()) {
+        return ieCoreShared->ImportNetwork(file, FLAGS_device);
+    }
+    THROW_IE_EXCEPTION << "ieCore object expired";
 }
 
 ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs, const std::vector<std::string>& dumpedInputsPaths) {
@@ -811,6 +815,9 @@ bool testYoloV3(const ie::BlobMap& actBlobs,
 
 int main(int argc, char* argv[]) {
     try {
+        std::shared_ptr<ie::Core> ieCoreShared = std::make_shared<ie::Core>();
+        ieCore = ieCoreShared;
+
         parseCommandLine(argc, argv);
 
         const std::unordered_set<std::string> allowedPrecision = {"U8", "FP16", "FP32"};
@@ -846,7 +853,7 @@ int main(int argc, char* argv[]) {
         if (strEq(FileUtils::fileExt(FLAGS_network), "xml")) {
             std::cout << "Load network " << FLAGS_network << std::endl;
 
-            auto cnnNet = ieCore.ReadNetwork(FLAGS_network);
+            auto cnnNet = ieCoreShared->ReadNetwork(FLAGS_network);
 
             // Input precision
             ie::InputsDataMap inputInfo(cnnNet.getInputsInfo());
@@ -905,7 +912,7 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            exeNet = ieCore.LoadNetwork(cnnNet, FLAGS_device);
+            exeNet = ieCoreShared->LoadNetwork(cnnNet, FLAGS_device);
         } else {
             std::cout << "Import network " << FLAGS_network << std::endl;
 
