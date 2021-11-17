@@ -153,9 +153,21 @@ private:
         vpux::OpBuilderLogger builderLog(_log.nest());
 
         auto mainModuleBuilder = mlir::OpBuilder::atBlockBegin(mainModuleLoc.getBody(), &builderLog);
-        auto innerModule = mainModuleBuilder.create<mlir::ModuleOp>(mlir::UnknownLoc::get(_ctx), StringRef("VPU.SW"));
+        auto mainBlock = mainModuleBuilder.getBlock();
+        auto vpuSWModuleName = StringRef("VPU.SW");
+        auto innerOps = mainBlock->getOps<mlir::ModuleOp>();
+        mlir::ModuleOp innerModule;
+        for (auto&& innerOp : innerOps) {
+            if (innerOp.getName().getValue() == vpuSWModuleName) {
+                innerModule = innerOp;
+                break;
+            }
+        }
+        // creating VPU.SW module if it is not yet created
+        if (!innerModule) {
+            innerModule = mainModuleBuilder.create<mlir::ModuleOp>(mlir::UnknownLoc::get(_ctx), vpuSWModuleName);
+        }
 
-        auto innerModuleBuilder = mlir::OpBuilder::atBlockBegin(innerModule.getBody(), &builderLog);
         llvm::SmallString<128> built_in_name{"builtin_"};
         auto nonNamespaceOpName = _origOp->getName().getStringRef().slice(
                 _origOp->getName().getDialectNamespace().size() + 1, mlir::StringRef::npos);
@@ -165,6 +177,17 @@ private:
 
         auto builtInFunction =
                 mlir::SymbolRefAttr::get(_ctx, innerModule.getName().getValue(), {builtInFunctionInternal});
+
+        // checking that function name is unique
+        auto builtInFunctionOps = innerModule.getOps<mlir::FuncOp>();
+        for (auto&& function : builtInFunctionOps) {
+            if (function.getName() == built_in_name) {
+                // function exists
+                return builtInFunction;
+            }
+        }
+
+        auto innerModuleBuilder = mlir::OpBuilder::atBlockBegin(innerModule.getBody(), &builderLog);
 
         mlir::SmallVector<mlir::Type> inputTypes;
 
