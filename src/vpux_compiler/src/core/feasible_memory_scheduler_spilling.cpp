@@ -246,17 +246,17 @@ FeasibleMemorySchedulerSpilling::SpillUsersUpdate::getUsersOfSpilledOpThatNeedUp
 
 unsigned int FeasibleMemorySchedulerSpilling::SpillUsersUpdate::getOperandIndexForSpillResultUser(
         mlir::async::ExecuteOp spillResultUser) {
-    _spillingParentObj->_log.trace("Mateusz: master buffer user operands");
+    //_spillingParentObj->_log.trace("Mateusz: master buffer user operands");
     // For a given user of result of spilled operation identify the
     // operand index for this dependency
     unsigned int operandIndex = 0;
     for (const auto& operand : spillResultUser.getOperands()) {
         if (operand.getType().isa<mlir::async::ValueType>()) {
             if (operand.getDefiningOp() == _opThatWasSpilled.getOperation()) {
-                std::cout << "-------------------\n";
-                _spillingParentObj->_log.trace("  operand - '{0}'", operand.getType());
-                // operand.dump();
-                std::cout << "-------------------\n";
+                // std::cout << "-------------------\n";
+                // _spillingParentObj->_log.trace("  operand - '{0}'", operand.getType());
+                // // operand.dump();
+                // std::cout << "-------------------\n";
                 break;
             }
             operandIndex++;
@@ -269,17 +269,17 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::updateSpillResultUsers(m
                                                                                mlir::Value newResult) {
     // Find operations which should be excluded from operand update to result of spillRead.
     // Those are all operations which appear in IR before spillRead
-    _spillingParentObj->_log.trace("  opThatWasSpilledResult users");
+    //_spillingParentObj->_log.trace("  opThatWasSpilledResult users");
     llvm::SmallPtrSet<mlir::Operation*, 1> excludedUsersFromOperandsUpdate;
     for (auto* user : oldResult.getUsers()) {
-        _spillingParentObj->_log.trace("  user - '{0}'", *user);
+        //_spillingParentObj->_log.trace("  user - '{0}'", *user);
 
         if (mlir::isa_and_nonnull<mlir::async::ExecuteOp>(user) &&
             user->isBeforeInBlock(_spillReadExecOp.getOperation())) {
             excludedUsersFromOperandsUpdate.insert(user);
-            _spillingParentObj->_log.trace("  Exclude");
+            //_spillingParentObj->_log.trace("  Exclude");
         }
-        std::cout << "-------------------\n";
+        // std::cout << "-------------------\n";
     }
 
     // Update connections opThatWasSpilled -> SpillWrite -> SpillRead -> UserOfSpilledBuffer
@@ -295,7 +295,7 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::updateSpillBufferUsers(m
     for (auto* user : oldBuffer.getUsers()) {
         if (user != nullptr) {
             if (user->getParentOp()->isBeforeInBlock(_spillReadExecOp)) {
-                _spillingParentObj->_log.trace("  user 3 - '{0}'", *user);
+                //_spillingParentObj->_log.trace("  user 3 - '{0}'", *user);
                 excludedUsersFromOrigBufferUpdate.insert(user);
             }
         }
@@ -314,11 +314,11 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage(
 
     _spillingParentObj->_log.trace("  opThatWasSpilled - '{0}'", _opThatWasSpilled);
 
-    _spillingParentObj->_log.trace("  opThatWasSpilledResult users");
-    for (auto* user : opThatWasSpilledResult.getUsers()) {
-        _spillingParentObj->_log.trace("  user - '{0}'", *user);
-        std::cout << "-------------------\n";
-    }
+    // _spillingParentObj->_log.trace("  opThatWasSpilledResult users");
+    // for (auto* user : opThatWasSpilledResult.getUsers()) {
+    //     _spillingParentObj->_log.trace("  user - '{0}'", *user);
+    //     std::cout << "-------------------\n";
+    // }
 
     // If size of result of spilled operation is smaller than size of the spilled buffer
     // that means that operation is using just part of some master buffer and other users
@@ -362,15 +362,15 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage(
                 // to be used in the body through newly inserted view op
                 auto arg = userOfSpilledOpBodyBlock->getArgument(operandIndex);
                 // for (const auto& arg : userOfSpilledOpBodyBlock->getArguments()) {
-                std::cout << "-------------------\n";
-                _spillingParentObj->_log.trace("  args - '{0}'", arg.getType());
-                std::cout << "-------------------\n";
-                for (auto* user : arg.getUsers()) {
-                    if (user != nullptr) {
-                        _spillingParentObj->_log.trace("  user - '{0}'", *user);
-                        std::cout << "-------------------\n";
-                    }
-                }
+                // std::cout << "-------------------\n";
+                // _spillingParentObj->_log.trace("  args - '{0}'", arg.getType());
+                // std::cout << "-------------------\n";
+                // for (auto* user : arg.getUsers()) {
+                //     if (user != nullptr) {
+                //         _spillingParentObj->_log.trace("  user - '{0}'", *user);
+                //         std::cout << "-------------------\n";
+                //     }
+                // }
                 arg.replaceAllUsesWith(newViewOp->getOpResult(0));
                 auto finalType = newViewOp->getOpOperand(0).get().getType();
                 //_log.trace("oldType - '{0}'", oldType);
