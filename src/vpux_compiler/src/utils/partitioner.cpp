@@ -277,15 +277,9 @@ AddressType vpux::Partitioner::useGap(size_t pos, AddressType alignedBegin, Addr
     return alignedBegin;
 }
 
-#include <iostream>
 AddressType vpux::Partitioner::chooseMinimalGap(AddressType size, AddressType alignment, Direction dir) {
     if (_gaps.empty()) {
         return InvalidAddress;
-    }
-
-    std::cout << "GAPS: size=" << size << "\n";
-    for (auto _gap : _gaps) {
-        std::cout << _gap.end - _gap.begin << "(B:" << _gap.begin << " E:" << _gap.end << ")\n";
     }
 
     const auto numGaps = _gaps.size();
