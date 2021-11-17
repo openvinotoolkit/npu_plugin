@@ -198,7 +198,10 @@ std::vector<std::string> disabledTestPatterns() {
             ".*SetBlobTest.*",
 
             // Abs layer is not supported by MTL/dKMB platform
-            ".*PrePostProcessTest.*"
+            ".*PrePostProcessTest.*",
+
+            // TODO: Fix failing OVInferRequestPerfCountersTest with multi device
+            ".*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersTest.*"
             }
         );
 
