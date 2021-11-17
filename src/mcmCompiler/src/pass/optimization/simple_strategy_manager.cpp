@@ -1307,6 +1307,15 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
                         {
                             if(clustering.get<std::string>() != "SplitOverH")
                                 continue;
+                        }
+
+                        // for mobilenet-v3
+                        std::vector<std::string> mobilenet_v3_Ops = { "input_pad"
+                        };
+                        auto mobilenet_iter = std::find(mobilenet_v3_Ops.begin(), mobilenet_v3_Ops.end(), op.getName());
+                        if(mobilenet_iter != mobilenet_v3_Ops.end()){
+                          mv::Attribute temp(std::string("SplitOverH"));
+                          s["clustering"] = temp;
                         }                                                                         
 
                         // manually tuning for style transfer
