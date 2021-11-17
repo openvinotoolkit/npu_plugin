@@ -15,19 +15,6 @@ func @ConvertConstToAttr(%arg0: tensor<1x16x200x300xf32>) -> tensor<1x16x300x200
 
 // -----
 
-func @FoldTranspose(%arg0: tensor<1x16x2x3xf32>) -> tensor<1x16x2x3xf32> {
-    %0 = const.Declare tensor<4xsi64> = #const.Content<dense<[0, 1, 2, 3]> : tensor<4xsi64>>
-    %1 = IE.Transpose(%arg0, %0) :
-        tensor<1x16x2x3xf32>, tensor<4xsi64> -> tensor<1x16x2x3xf32>
-    return %1 : tensor<1x16x2x3xf32>
-
-    // CHECK-NOT: IE.Constant
-    // CHECK-NOT: IE.Transpose
-    // CHECK:     return %arg0 : tensor<1x16x2x3xf32>
-}
-
-// -----
-
 // CHECK: #map = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
 func @FuseTransposes(%arg0: tensor<1x16x2x3xf32>) -> tensor<1x3x16x2xf32> {

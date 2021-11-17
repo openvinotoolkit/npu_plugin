@@ -212,9 +212,5 @@ mlir::OpFoldResult vpux::IE::TransposeOp::fold(ArrayRef<mlir::Attribute> operand
         }
     }
 
-    if (input().getType() != output().getType()) {
-        return nullptr;
-    }
-
-    return input();
+    return nullptr;
 }
