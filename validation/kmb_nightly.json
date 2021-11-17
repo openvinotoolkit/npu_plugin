@@ -3198,6 +3198,37 @@
         {
             "name" : "BDK_INT8_StyleTransfer",
             "ir" : "models/clientmodels/BDK3/StyleTransfer/Cyberlink/INT8/StyleTransfer.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "bdk_StyleTransfer",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_INT8_StyleTransfer",
+            "ir" : "models/clientmodels/BDK3/StyleTransfer/Cyberlink/INT8/StyleTransfer.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
