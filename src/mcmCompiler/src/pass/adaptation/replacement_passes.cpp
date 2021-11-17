@@ -799,14 +799,16 @@ void initializeValues(mv::Shape& outputShape, mv::Shape& inputShape, mv::Data::T
                         std::size_t& inWidth, std::size_t& inHeight, std::size_t& inChannels,
                         std::size_t& outWidth, std::size_t& outHeight, std::size_t& outChannels, mv::Data::OpListIterator& opIt)
 {
-    bool isSplit= opIt->hasAttr("isSplit") ? opIt->get<bool>("isSplit"): false;
-    bool lastSplit= opIt->hasAttr("lastSplit") ? opIt->get<bool>("lastSplit"): false;
+    bool isHSplit= opIt->hasAttr("isHSplit") ? opIt->get<bool>("isHSplit"): false;
+    bool isWSplit= opIt->hasAttr("isWSplit") ? opIt->get<bool>("isWSplit"): false;
+    bool lastHSplit= opIt->hasAttr("lastHSplit") ? opIt->get<bool>("lastHSplit"): false;
+    bool lastWSplit= opIt->hasAttr("lastWSplit") ? opIt->get<bool>("lastWSplit"): false;
     outputTensor = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
     outputShape = outputTensor->getShape();
     sourceTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
     inputShape = sourceTensor->getShape();
-    inWidth = inputShape[mv::IO_WIDTH_DIMENSION];
-    inHeight = isSplit && !lastSplit ? inputShape[mv::IO_HEIGHT_DIMENSION]-1 : inputShape[mv::IO_HEIGHT_DIMENSION];
+    inWidth = isWSplit && !lastWSplit ? inputShape[mv::IO_WIDTH_DIMENSION]-1 : inputShape[mv::IO_WIDTH_DIMENSION];
+    inHeight = isHSplit && !lastHSplit ? inputShape[mv::IO_HEIGHT_DIMENSION]-1 : inputShape[mv::IO_HEIGHT_DIMENSION];
     inChannels = inputShape[mv::IO_CHANNEL_DIMENSION];
     outWidth = outputShape[mv::IO_WIDTH_DIMENSION];
     outHeight = outputShape[mv::IO_HEIGHT_DIMENSION];
@@ -953,38 +955,8 @@ bool isConvStreaming (mv::ComputationModel& model, mv::Data::OpListIterator opIt
 {
     auto opname=opIt->getName(); 
     if (opname == "tl_unet1x2x4x/Decoder_2/resize_images/ResizeBilinear_identityConv"){
-        std::cout<<"SOK\n";
+        std::cout<<"  SOK enabled\n";
         return false;
-    }
-    
-    if (opname == "tl_unet1x2x4x/Decoder_1/resize_images/ResizeBilinear_identityConv"){
-        std::cout<<"SOH\n";
-//        return false;
-    }
-    
-    if (opname == "tl_unet1x2x4x/Decoder_0/resize_images/ResizeBilinear_identityConv"){
-        std::cout<<"SOH\n";
-//        return false;
-    }
-    
-    if (opname == "tl_unet1x2x4x/Decoder_2x/resize_images/ResizeBilinear_identityConv"){
-        std::cout<<"SOH\n";
-//        return false;
-    }
-    
-    if (opname == "tl_unet1x2x4x/Decoder_4x/resize_images/ResizeBilinear_identityConv"){
-        std::cout<<"SOH\n";
-//        return false;
-    }
-    
-    if (opname == "tl_unet1x2x4x/resize_images/ResizeBilinear_identityConv"){
-        std::cout<<"SOH\n";
-//        return false;
-    }
-    
-    if (opname == "tl_unet1x2x4x/resize_images_1/ResizeBilinear_identityConv"){
-        std::cout<<"SOH\n";
-//        return false;
     }
     
     auto globalParams = model.getGlobalConfigParams();
@@ -1058,11 +1030,19 @@ mv::Data::TensorIterator addNeutralConv(mv::ComputationModel& model, mv::Data::O
     identityConv->setQuantParams(outQuantParams);
     auto identityConvOp = om.getSourceOp(identityConv);
     // pass split attrs
-    if (opIt->hasAttr("isSplit")){
-        identityConvOp->set<bool>("isSplit", opIt->get<bool>("isSplit"));
+    if (opIt->hasAttr("isHSplit")){
+        std::cout<<"  set H split label to identity conv"<<std::endl;
+        identityConvOp->set<bool>("isHSplit", opIt->get<bool>("isHSplit"));
     }
-    if (opIt->hasAttr("lastSplit")){
-        identityConvOp->set<bool>("lastSplit", opIt->get<bool>("lastSplit"));
+    if (opIt->hasAttr("isWSplit")){
+        std::cout<<"  set W split label to identity conv"<<std::endl;
+        identityConvOp->set<bool>("isWSplit", opIt->get<bool>("isWSplit"));
+    }
+    if (opIt->hasAttr("lastHSplit")){
+        identityConvOp->set<bool>("lastHSplit", opIt->get<bool>("lastHSplit"));
+    }
+    if (opIt->hasAttr("lastWSplit")){
+        identityConvOp->set<bool>("lastWSplit", opIt->get<bool>("lastWSplit"));
     }
     identityConvOp->set<std::size_t>("storageElementRightPadding", padding_right);
     identityConvOp->set<std::size_t>("storageElementBottomPadding", padding_bottom);
@@ -1081,7 +1061,7 @@ mv::Data::TensorIterator addNeutralConv(mv::ComputationModel& model, mv::Data::O
         linkNewOperationsRemove(opIt, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT), om, identityConvOp);
         return opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
     }
-    std::cout<<"Interp Replaced with identityOp\n";
+    std::cout<<"  Interp Replaced\n";
     // Mark Resample to be converted to implicit in later pass
     opIt->set<bool>("isImplicit", true);
     // Mark Identity Conv to add SE map in later pass
@@ -1159,6 +1139,7 @@ void splitInterpOverH(mv::ComputationModel& model, mv::Data::OpListIterator opIt
     auto outputQuantParams =opIt->getOutputTensor(0)->getQuantParams(); 
     int h_slice= input->getShape()[1]/split_h;
     int last_h= input->getShape()[1]%split_h;
+    // ** work only with divisible **
     if(last_h!=0){
         h_slice+=1;
         last_h= split_h * h_slice - input->getShape()[1];
@@ -1212,9 +1193,9 @@ void splitInterpOverH(mv::ComputationModel& model, mv::Data::OpListIterator opIt
         interp_out->setQuantParams(outputQuantParams);
         om.getSourceOp(interp_out)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
         auto interp_op = om.getSourceOp(interp_out);
-        interp_op->set<bool>("isSplit", true);
+        interp_op->set<bool>("isHSplit", true);
         if (i== split_h-1){
-            interp_op->set<bool>("lastSplit", true);
+            interp_op->set<bool>("lastHSplit", true);
         }
         interp_ops.push_back(interp_op);
     }
@@ -1236,9 +1217,164 @@ void splitInterpOverH(mv::ComputationModel& model, mv::Data::OpListIterator opIt
         auto inputs= sinkOp->getInputTensor();
         for ( unsigned i=0; i< inputs.size(); ++i){
             if (om.getSourceOp(inputs[i])->getName() == opIt->getName()){
-                std::cout<<"connected to "<<sinkOp->getName()<<": "<<i<<std::endl;
+                std::cout<<"  All slices connected to "<<sinkOp->getName()<<": "<<i<<std::endl;
                 sinkOp->setInputTensor(concat_out, i, false);
                 om.defineFlow(concat_out, sinkOp, i);
+            }
+        }
+    }
+    om.removeOp(opIt);
+}
+
+void spatialSplitInterp(mv::ComputationModel& model, mv::Data::OpListIterator opIt, int split_h= 4, int split_w= 4){
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    
+    auto input= opIt->getInputTensor(0);
+    auto quantParams = input->getQuantParams();
+    auto outputQuantParams =opIt->getOutputTensor(0)->getQuantParams(); 
+    int h_slice= input->getShape()[1]/split_h;
+    int last_h= input->getShape()[1]%split_h;
+    std::vector<int> h_slices(split_h, h_slice);
+    for (int i=0; i< split_h; ++i){
+        if(i< last_h){
+            h_slices[i]+=1;
+        }
+    }
+    int w_slice= input->getShape()[0]/split_w;
+    int last_w= input->getShape()[0]%split_w;
+    std::vector<int> w_slices(split_w, w_slice);
+    for (int i=0; i< split_w; ++i){
+        if(i< last_w){
+            w_slices[i]+=1;
+        }
+    }
+    auto begin = mv::Shape({0, 0, 0, 0});
+    auto size  = input->getShape();
+    std::vector<mv::Data::TensorIterator> firstLevelConcats;
+    
+    for (int i=0; i< split_h; ++i){
+        size[1]= h_slices[i];
+        // crop extra row
+        if (i!= split_h-1){
+             size[1]+= 1;
+        }
+//        std::cout<<"  begin: "<<begin[1]<<", size: "<<size[1]<<std::endl;
+        auto slice_out = om.slice(opIt->getName() + "_sliceH" + std::to_string(i),
+                                input,
+                                begin,
+                                size);
+        slice_out->setQuantParams(quantParams);
+        auto slice_op = om.getSourceOp(slice_out);
+        slice_op->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+        begin[1]+= h_slices[i];
+        std::vector<mv::Data::TensorIterator> w_concats;
+        auto w_begin = mv::Shape({0, 0, 0, 0});
+        auto w_size  = slice_out->getShape();
+        
+        bool SEP= true;
+        for (int j=0; j< split_w; ++j){
+            w_size[0]= w_slices[j];
+            if (j!= split_w-1){
+              w_size[0]+= 1;
+            }
+//            std::cout<<"  w begin: "<<w_begin[0]<<", w size: "<<w_size[0]<<std::endl;
+            
+            auto w_slice_out = om.slice(opIt->getName() + "_sliceH" + std::to_string(i) + "_sliceW" + std::to_string(j),
+                                slice_out,
+                                w_begin,
+                                w_size);
+            w_slice_out->setQuantParams(quantParams);
+            auto w_slice_op = om.getSourceOp(w_slice_out);
+            w_slice_op->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+            w_begin[0]+= w_slices[j];
+            
+            auto max_pool= om.maxPool(w_slice_op->getName() + "_MaxPool",
+                                  w_slice_op->getOutputTensor(0), {1, 1}, {1, 1}, {0, 0, 0, 0}, false);
+            max_pool->setQuantParams(quantParams);
+            max_pool->setDType(w_slice_op->getOutputTensor(0)->getDType());
+            auto max_pool_op= om.getSourceOp(max_pool);
+            max_pool_op->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+            
+            auto w= 2* w_slice_op->getOutputTensor(0)->getShape()[0];
+            auto h= 2* (w_slice_op->getOutputTensor(0)->getShape()[1]);
+            if (i!= split_h-1 && SEP){
+                h-=2;
+            }
+            if (j!= split_w-1 && SEP){
+                w-=2;
+            }
+            
+            auto interp_out = om.interp(opIt->getName() + "_splitH" + std::to_string(i) + "_splitW" + std::to_string(j), max_pool_op->getOutputTensor(0),
+                                    1.0, 0, 0, h, w, false);
+            interp_out->setDType(opIt->getOutputTensor(0)->getDType());
+            interp_out->setQuantParams(outputQuantParams);
+            auto interp_op = om.getSourceOp(interp_out);
+            interp_op->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+            if (SEP){
+                interp_op->set<bool>("isHSplit", split_h!=1);
+                interp_op->set<bool>("isWSplit", split_w!=1);
+                if (i!=0 && i== split_h-1){
+                    interp_op->set<bool>("lastHSplit", true);
+                }
+                if (j!=0 && j== split_w-1){
+                    interp_op->set<bool>("lastWSplit", true);
+                }
+            }
+            
+            if (j!= split_w-1 && !SEP){
+                auto width= interp_out->getShape()[0];
+                auto croppedTensor = om.crop(interp_op->getName() + "_cropW" + std::to_string(j),
+                                interp_op->getOutputTensor(0),
+                                width-2,
+                                mv::IO_WIDTH_DIMENSION);
+                croppedTensor->setQuantParams(outputQuantParams);
+                croppedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
+                auto cropOp = om.getSourceOp(croppedTensor);
+                cropOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+                w_concats.push_back(croppedTensor);
+            }else{
+                w_concats.push_back(interp_out);
+            }
+        }
+        auto wconcat_out= om.concat(opIt->getName() + "_wconcat_"+ std::to_string(i), w_concats, "W");
+        wconcat_out->setDType(opIt->getOutputTensor(0)->getDType());
+        wconcat_out->setQuantParams(outputQuantParams);
+        om.getSourceOp(wconcat_out)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+        
+        if (i!= split_h-1 && !SEP){
+            auto height= wconcat_out->getShape()[1];
+            auto croppedTensor = om.crop(opIt->getName() + "_cropH" + std::to_string(i),
+                            wconcat_out,
+                            height-2,
+                            mv::IO_HEIGHT_DIMENSION);
+            croppedTensor->setQuantParams(outputQuantParams);
+            croppedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
+            auto cropOp = om.getSourceOp(croppedTensor);
+            cropOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+            firstLevelConcats.push_back(croppedTensor);
+        }else{
+            firstLevelConcats.push_back(wconcat_out);
+        }
+    }
+    auto hconcat_out= om.concat(opIt->getName()+"_hconcat", firstLevelConcats, "H");
+    hconcat_out->setDType(opIt->getOutputTensor(0)->getDType());
+    hconcat_out->setQuantParams(outputQuantParams);
+    om.getSourceOp(hconcat_out)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+    
+    // Update all the sink operations input tensor to newly created concat output
+    std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, opIt->getOutputTensor(0));
+    for (auto& sinkOp : sinkOperators)
+    {
+        auto inputs= sinkOp->getInputTensor();
+        for ( unsigned i=0; i< inputs.size(); ++i){
+            if (om.getSourceOp(inputs[i])->getName() == opIt->getName()){
+                std::cout<<"  All slices connected to "<<sinkOp->getName()<<": "<<i<<std::endl;
+                sinkOp->setInputTensor(hconcat_out, i, false);
+//                sinkOp->setInputTensor(crop_ops[0]->getOutputTensor(0), i, false);
+                om.defineFlow(hconcat_out, sinkOp, i);
+//                om.defineFlow(crop_ops[0]->getOutputTensor(0), sinkOp, i);
+//                sinkOp->getOutputTensor(0)->setShape(mv::Shape({192, unsigned (h_slice)*2, 80, 1}));
             }
         }
     }
@@ -1255,27 +1391,30 @@ void bilinearInterpAsDPUSFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
     auto interpOps = om.getOps("Interp");
     
-    // split
+    // split big interps
     for (auto& opIt : interpOps){
         auto input= opIt->getInputTensor(0);
-        int w= input->getShape()[0], ch = input->getShape()[2];
+        int w= input->getShape()[0];
 
         if (w==48){
-            std::cout<<"split "+ opIt->getName()<<std::endl;
-            splitInterpOverH(model, opIt, 8);
+            if (opIt->getName() == "tl_unet1x2x4x/Decoder_1/resize_images/ResizeBilinear") {
+                std::cout << "split " + opIt->getName() << std::endl;
+                splitInterpOverH(model, opIt, 8);
+            }
         }else if(w==96){
-            std::cout<<"split "+ opIt->getName()<<std::endl;
-            splitInterpOverH(model, opIt, 16);
+            if (opIt->getName() == "tl_unet1x2x4x/Decoder_0/resize_images/ResizeBilinear"){
+                std::cout<<"split "+ opIt->getName()<<std::endl;
+                splitInterpOverH(model, opIt, 16);
+            }
         }else if(w==192){
-//            std::cout<<"split "+ opIt->getName()<<std::endl;
-//            splitInterpOverH(model, opIt, 32); // new crop solution show it better
-//            splitInterpOverH(model, opIt, 20); // old shows split 20 accuracy is better 
+            if (opIt->getName() == "tl_unet1x2x4x/Decoder_2x/resize_images/ResizeBilinear"){
+                std::cout<<"spatial split "+ opIt->getName()<<std::endl;
+                spatialSplitInterp(model, opIt, 12, 12);
+            }
         }else if(w==384){
-//            std::cout<<"split "+ opIt->getName()<<std::endl;
-            if (ch>3){
-//                splitInterpOverH(model, opIt, 96);
-            }else{
-//                splitInterpOverH(model, opIt, 64);    
+            if (opIt->getName() == "tl_unet1x2x4x/Decoder_4x/resize_images/ResizeBilinear"){
+                std::cout<<"spatial split "+ opIt->getName()<<std::endl;
+                spatialSplitInterp(model, opIt, 24, 24);
             }
         }
     }

@@ -545,12 +545,13 @@ void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpu
     auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
     long int channelIncrement = inputChannels * (input->getDType().getSizeInBits() / 8) ;
 
-    bool isSplit= dpuTaskOp->hasAttr("isSplit") ? dpuTaskOp->get<bool>("isSplit"): false;
-    bool lastSplit= dpuTaskOp->hasAttr("lastSplit") ? dpuTaskOp->get<bool>("lastSplit"): false;
-    std::cout<<"split "<<isSplit<<std::endl;
+    bool isHSplit= dpuTaskOp->hasAttr("isHSplit") ? dpuTaskOp->get<bool>("isHSplit"): false;
+    bool isWSplit= dpuTaskOp->hasAttr("isWSplit") ? dpuTaskOp->get<bool>("isWSplit"): false;
+    bool lastHSplit= dpuTaskOp->hasAttr("lastHSplit") ? dpuTaskOp->get<bool>("lastHSplit"): false;
+    bool lastWSplit= dpuTaskOp->hasAttr("lastWSplit") ? dpuTaskOp->get<bool>("lastWSplit"): false;
     auto originalShape = activationStorageElement->get<mv::Shape>("originalShape");
-    auto old_width = originalShape[mv::IO_WIDTH_DIMENSION];
-    auto old_height = isSplit && !lastSplit ? originalShape[mv::IO_HEIGHT_DIMENSION]-1: originalShape[mv::IO_HEIGHT_DIMENSION];
+    auto old_width = isWSplit && !lastWSplit ? originalShape[mv::IO_WIDTH_DIMENSION]-1: originalShape[mv::IO_WIDTH_DIMENSION];
+    auto old_height = isHSplit && !lastHSplit ? originalShape[mv::IO_HEIGHT_DIMENSION]-1: originalShape[mv::IO_HEIGHT_DIMENSION];
     auto new_width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
     auto new_height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
     auto scale_factor_width = int(new_width/old_width);
@@ -571,13 +572,14 @@ void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpu
     }
 
     // Populate SEP table
-    std::cout<<"new_height, scale: "<<new_height<<", "<< scale_factor_height<< std::endl;
-    std::cout<<"new_width, scale: "<<new_width<<", "<< scale_factor_width<< std::endl;
-    std::cout<<"old_height, old_width: "<<old_height<<", "<< old_width<<std::endl;
-    std::cout<<channelIncrement<<", "<< SHIFT_FOR_STORAGE_ELEMENT<<std::endl;
+//    std::cout<<"new_height, scale: "<<new_height<<", "<< scale_factor_height<< std::endl;
+//    std::cout<<"new_width, scale: "<<new_width<<", "<< scale_factor_width<< std::endl;
+//    std::cout<<"old_height, old_width: "<<old_height<<", "<< old_width<<std::endl;
+//    std::cout<<channelIncrement<<", "<< SHIFT_FOR_STORAGE_ELEMENT<<std::endl;
+    int old_width_step= isWSplit && !lastWSplit ? old_width + 1 : old_width;
     for (auto row=0; row < int(new_height / scale_factor_height); ++row){
         for (auto col=0; col < int(new_width / scale_factor_width); ++col){
-            auto old_offset = (row*old_width + col) * channelIncrement;
+            auto old_offset = (row*old_width_step + col) * channelIncrement;
 //            std::cout<<"row, col= "<< row<<" "<< col<<"; old_offset= "<<old_offset<<std::endl;
             for (auto new_row=0; new_row < scale_factor_height; ++new_row){
                 for (auto new_col=0; new_col < scale_factor_width; ++new_col){
@@ -591,13 +593,33 @@ void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpu
 
     if (padding_width)
     {
-        auto rounded_width = scale_factor_width * old_width;
-        for (auto row=0; row < int (new_height / scale_factor_height); ++row){
-            for (auto new_row=0; new_row < scale_factor_height; ++new_row){
-                for (std::size_t col=0; col < padding_col; ++col){
-                    auto new_offset = col + rounded_width + new_width * new_row + new_width * scale_factor_height * row;
-                    auto old_offset = new_offset - 1;
-                    unpopulated_offsets[new_offset] = unpopulated_offsets[old_offset];
+        if (isWSplit && !lastWSplit){ 
+            auto new_offset=0;
+            std::cout<<"  Process extra col"<<std::endl;
+            std::cout<<"  base sep: "<<(unpopulated_offsets[new_width-2]>>SHIFT_FOR_STORAGE_ELEMENT)<<std::endl;
+            for (std::size_t col=0; col < padding_col; ++col){
+                for (std::size_t row=0; row < old_height; ++row){
+//                    std::cout<< "row, col: "<<row<<" "<<col<<std::endl;
+                    auto old_offset = ((row+1)*(old_width+1+col) -1) * channelIncrement;
+                    for (auto new_row=0; new_row < scale_factor_width; ++new_row){
+                        new_offset =  ( (row * scale_factor_width + 1 + new_row) * new_width) - 1 ;
+//                        std::cout<<"old offset, new offset: "<< old_offset<< " "<< new_offset<<std::endl;
+                        unpopulated_offsets[new_offset] = (old_offset << SHIFT_FOR_STORAGE_ELEMENT);
+                    }
+                }
+            }
+        }else {
+            std::cout << "  padding width\n";
+            auto rounded_width = scale_factor_width * old_width;
+            for (auto row = 0; row < int(new_height / scale_factor_height); ++row) {
+                for (auto new_row = 0; new_row < scale_factor_height; ++new_row) {
+                    for (std::size_t col = 0; col < padding_col; ++col) {
+                        auto new_offset =
+                                col + rounded_width + new_width * new_row + new_width * scale_factor_height * row;
+                        auto old_offset = new_offset - 1;
+//                        std::cout<<"new offset, old offset:  "<<new_offset<<" "<<(unpopulated_offsets[old_offset]>>SHIFT_FOR_STORAGE_ELEMENT)<<std::endl;
+                        unpopulated_offsets[new_offset] = unpopulated_offsets[old_offset];
+                    }
                 }
             }
         }
@@ -605,14 +627,14 @@ void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpu
 
     if (padding_height)
     {
-        if (isSplit && !lastSplit ){
-            auto new_offset=0;
+        if (isHSplit && !lastHSplit ){ 
+            auto new_offset=0, old_offset=0;
             std::cout<<"Process extra row"<<std::endl;
             std::cout<<"last sep: "<<(unpopulated_offsets[new_width*(new_height-1)-1]>>SHIFT_FOR_STORAGE_ELEMENT)<<std::endl;
             for (std::size_t row=0; row < padding_row; ++row){
                 for (std::size_t col=0; col < old_width; ++col){
 //                    std::cout<< "row, col: "<<row<<" "<<col<<std::endl;
-                    auto old_offset = ((old_height+ row)*old_width + col) * channelIncrement;
+                    old_offset = ((old_height+ row)*old_width_step + col) * channelIncrement;
                     for (auto new_col=0; new_col < scale_factor_width; ++new_col){
                         new_offset = col * scale_factor_width + new_col + ( (row + new_height - padding_row) * new_width);
 //                        std::cout<<"old offset, new offset: "<< old_offset<< " "<< new_offset<<std::endl;
@@ -620,9 +642,13 @@ void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpu
                     }
                 }
             }
-            unpopulated_offsets[new_offset+1] = unpopulated_offsets[new_offset];
+            if (isWSplit && !lastWSplit){
+                unpopulated_offsets[new_offset+1] = old_offset + channelIncrement;
+            }else{
+                unpopulated_offsets[new_offset+1] = unpopulated_offsets[new_offset];    
+            }
         }else{
-            std::cout<< "padding height\n";
+            std::cout<< "  padding height\n";
             for (std::size_t row=0; row < padding_row; ++row){
                 for (std::size_t col=0; col < new_width; ++col){
                     auto new_offset = col + ( (row + new_height - padding_row) * new_width);
