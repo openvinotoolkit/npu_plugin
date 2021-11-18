@@ -1,5 +1,6 @@
 #! /bin/bash
 env_is_set=1
+optimization=-O3
 
 if [ -z ${MV_TOOLS_DIR} ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
 if [ -z ${MV_TOOLS_VERSION} ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
@@ -9,7 +10,7 @@ if [ $env_is_set = 0 ]; then exit 1; fi
 
 rm -f ${KERNEL_DIR}/prebuild/sigmoid_fp16_3010xx.o ${KERNEL_DIR}/prebuild/sigmoid_fp16_3010xx.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.sigmoid_fp16.3010xx.text ${KERNEL_DIR}/prebuild/act_shave_bin/sk.sigmoid_fp16.3010xx.data
 
-${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx -O3 \
+${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx ${optimization} \
  -c ${KERNEL_DIR}/sigmoid_fp16.c -o ${KERNEL_DIR}/prebuild/sigmoid_fp16_3010xx.o \
  -I ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION} \
  -I ${KERNEL_DIR}/inc \

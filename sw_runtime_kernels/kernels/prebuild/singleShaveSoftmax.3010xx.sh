@@ -27,7 +27,7 @@ if [ $? -ne 0 ]; then exit $?; fi
 
 if [ -z ${alwaye_inline} ]
  then
-${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx -O3 \
+${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx ${optimization} \
  -c ${KERNEL_DIR}/common/src/mvSubspaces.cpp -o ${KERNEL_DIR}/prebuild/mvSubspaces_3010xx.o \
  -I ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION} \
  -I ${KERNEL_DIR}/inc \
@@ -38,7 +38,7 @@ ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx -O3 \
 
 if [ $? -ne 0 ]; then exit $?; fi
 
-${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx -O3 \
+${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx ${optimization}  \
  -c ${KERNEL_DIR}/3720/dma_shave_nn.cpp -o ${KERNEL_DIR}/prebuild/dma_shave_nn_3010xx.o \
  -I ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION} \
  -I ${KERNEL_DIR}/inc \
