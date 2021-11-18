@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
@@ -114,7 +115,26 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE_Cluster information");
 
     const auto numClusters = nceResOp.count();
-    const auto maxNumBarriers = std::min(MAX_BARRIERS_PER_INFERENCE, BARRIERS_PER_CLUSTER * numClusters);
+
+    int64_t maxBarriersForArch = 0;
+    int64_t maxNumClustersForArch = 0;
+    const auto kind = VPUIP::getArch(module);
+    switch (kind) {
+    case VPUIP::ArchKind::KMB:
+        maxBarriersForArch = 64;
+        maxNumClustersForArch = 4;
+        break;
+    case VPUIP::ArchKind::MTL:
+        maxBarriersForArch = 64;
+        maxNumClustersForArch = 2;
+        break;
+    default:
+        maxBarriersForArch = 64;
+        maxNumClustersForArch = 4;
+    }
+    const auto maxBarriersPerInference = maxBarriersForArch / 2;
+    const auto barriersPerCluster = maxBarriersPerInference / maxNumClustersForArch;
+    const auto maxNumBarriers = std::min(maxBarriersPerInference, barriersPerCluster * numClusters);
 
     const auto numBarriers = _numBarriersOpt.hasValue() ? _numBarriersOpt.getValue() : maxNumBarriers;
     VPUX_THROW_UNLESS(numBarriers > 0 && numBarriers <= maxNumBarriers,
