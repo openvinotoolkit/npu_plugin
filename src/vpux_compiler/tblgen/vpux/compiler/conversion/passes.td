@@ -125,6 +125,21 @@ def ConvertLayers2VPUIP : PassBase<"convert-layers-to-VPUIP", "vpux::FunctionPas
 }
 
 //
+// ConvertSWLayers2VPUIP
+//
+
+def ConvertSWLayers2VPUIP : PassBase<"convert-sw-layers-to-VPUIP", "vpux::ModulePass"> {
+    let summary = "Convert Software Layers Operations to VPUIP SW_kernel";
+
+    let constructor = "vpux::createConvertSWLayers2VPUIPPass()";
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect",
+        "mlir::arith::ArithmeticDialect"
+    ];
+
+}
+//
 // ConvertDeclarations2VPUIP
 //
 

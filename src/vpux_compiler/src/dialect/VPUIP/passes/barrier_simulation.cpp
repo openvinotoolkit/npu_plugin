@@ -115,6 +115,8 @@ void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
         return taskInfo;
     };
 
+    // The task lists have to be populated in the same order as during the serialization phase
+    // to ensure that the correct simulation occurs
     func.walk([&](VPUIP::TaskOpInterface taskOp) {
         switch (taskOp.getTaskType()) {
         case VPUIP::TaskType::UPADMA:

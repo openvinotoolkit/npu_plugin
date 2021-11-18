@@ -21,7 +21,7 @@
 
 #include <samples/common.hpp>
 #include <samples/args_helper.hpp>
-#include <samples/classification_results.h>
+#include "classification_results_o.h"
 #include <samples/slog.hpp>
 
 #include "classification_sample.h"
@@ -201,10 +201,10 @@ int main(int argc, char *argv[]) {
             classificationOut = outputBlob;
         }
 
-        ClassificationResult classificationResult(classificationOut, imageNames,
+        ClassificationResultO classificationResultO(classificationOut, imageNames,
                                                   batchSize, printedResultsCount,
                                                   labels);
-        classificationResult.print();
+        classificationResultO.print();
 
         std::string outFilePath = "./output.dat";
         std::ofstream outFile(outFilePath, std::ios::binary);

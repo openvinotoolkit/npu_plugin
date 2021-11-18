@@ -147,14 +147,14 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
 SmallVector<uint8_t, 128> vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Operation* op, size_t dataOffset) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
 
-    auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
-    VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
+    auto swKernelTask = mlir::dyn_cast<VPUIP::SW_KernelOp>(op);
+    VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_KernelOp Task", op->getName());
 
     vpux::InvocationBuilder invocationBuilder(_log, dataOffset);
 
     for (auto&& kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
         auto insSize = swKernelTask.inputs().size();
-        auto outsSize = swKernelTask.outputs().size();
+        auto outsSize = swKernelTask.output_buffs().size();
 
         for (auto&& operand : kernelRun.args()) {
             auto blockArg = operand.dyn_cast_or_null<mlir::BlockArgument>();
@@ -182,8 +182,8 @@ SmallVector<uint8_t, 128> vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Op
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
 
-    auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
-    VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
+    auto swKernelTask = mlir::dyn_cast<VPUIP::SW_KernelOp>(op);
+    VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_KernelOp Task", op->getName());
 
     // extracting kernel source code or compiled code
 

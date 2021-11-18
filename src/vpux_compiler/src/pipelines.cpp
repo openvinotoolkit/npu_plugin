@@ -144,6 +144,9 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, bool enableProf
         pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     }
 
+    // Partially lower IERT->VPUIP (Act shave tasks only)
+    pm.addPass(createConvertSWLayers2VPUIPPass(log));
+
     // IERT Dialect level
     IERT::buildAsyncSchedulingPipeline(pm, log);
     pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
@@ -171,6 +174,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     // IE Dialect level
     IE::buildAdjustPrecisionPipeline(pm, log);
 
+    pm.addPass(IE::createUnrollBatchPass(log));
     pm.addPass(IE::createConvertFCToConvPass(log));
     pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     pm.addPass(IE::createConvertScaleShiftToDWPass(log));
@@ -201,6 +205,9 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     // Partially lower IERT->VPUIP (NCE Operations only)
     pm.addPass(createConvertToNCEOpsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    // Partially lower IERT->VPUIP (Act shave tasks only)
+    pm.addPass(createConvertSWLayers2VPUIPPass(log));
 
     // IERT Dialect level (cont.)
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
@@ -238,8 +245,10 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, bool enableProfil
     // IE Dialect level
     IE::buildAdjustPrecisionPipeline(pm, log);
 
-    if (pipelineOptions->enableConvertFCToConv.getValue())
+    if (pipelineOptions->enableConvertFCToConv.getValue()) {
+        pm.addPass(IE::createUnrollBatchPass(log));
         pm.addPass(IE::createConvertFCToConvPass(log));
+    }
     if (pipelineOptions->enableConvertAvgPoolToDWConv.getValue())
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     if (pipelineOptions->enableConvertScaleShiftDW.getValue())
@@ -276,6 +285,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, bool enableProfil
     // Partially lower IERT->VPUIP (NCE Operations only)
     pm.addPass(createConvertToNCEOpsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    // Partially lower IERT->VPUIP (Act shave tasks only)
+    pm.addPass(createConvertSWLayers2VPUIPPass(log));
 
     // IERT Dialect level (cont.)
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));

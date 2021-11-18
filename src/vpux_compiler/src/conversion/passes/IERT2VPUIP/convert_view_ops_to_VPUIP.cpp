@@ -172,6 +172,11 @@ void ConvertViewOps2VPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
 
+    target.addLegalOp<VPUIP::SW_KernelOp>();
+    target.markOpRecursivelyLegal<VPUIP::SW_KernelOp>([&](mlir::Operation*) {
+        return true;
+    });
+
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ViewLikeRewrite>(&ctx, &aliasInfo, _log);
     populateWithGenerated(patterns);
