@@ -2733,10 +2733,10 @@ def VPUIP_SW_Kernel_run
 }
 
 //
-// VPUIP_SW_Kernel
+// VPUIP_SW_KernelOp
 //
 
-def VPUIP_SW_Kernel :
+def VPUIP_SW_KernelOp :
         VPUIP_TaskOp<1, "SW.Kernel",
             [
                 MultiViewOpInterface,
@@ -2754,7 +2754,7 @@ def VPUIP_SW_Kernel :
     let arguments = (ins
         SymbolRefAttr:$kernelFunction,
         Variadic<AnyMemRef>:$inputs,
-        Variadic<AnyMemRef>:$outputs,
+        Variadic<AnyMemRef>:$output_buffs,
         OptionalAttr<IntAttr>:$tileIndex,
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers
@@ -2769,7 +2769,9 @@ def VPUIP_SW_Kernel :
     let builders = [
         OpBuilder<(ins
             "mlir::ValueRange":$inputs,
-            "mlir::ValueRange":$outputs
+            "mlir::ValueRange":$output_buffs,
+            "mlir::SymbolRefAttr":$kernelFunction,
+            "mlir::IntegerAttr":$tileIndex
         )>
     ];
 
@@ -2779,7 +2781,7 @@ def VPUIP_SW_Kernel :
         $kernelFunction
 
         `inputs` `(`$inputs `:` type($inputs)`)`
-        `outputs` `(`$outputs `:` type($outputs)`)`
+        `outputs` `(`$output_buffs `:` type($output_buffs)`)`
         (`on` `tile` $tileIndex^)?
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
@@ -2793,7 +2795,10 @@ def VPUIP_SW_Kernel :
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::ACTShave;
         }
-    }] # IERT_InferLayerReturnTypes<1>.impl;
+        static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
+                                                    mlir::ValueRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
+                                                    mlir::SmallVectorImpl<mlir::Type>& inferredTypes);
+    }];
 }
 
 

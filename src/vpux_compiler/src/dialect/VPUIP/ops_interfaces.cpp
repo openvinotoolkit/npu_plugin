@@ -90,6 +90,8 @@ mlir::Attribute vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op, uint32_t& nu
         return VPUIP::getDMAEngine(numUnits, op->getContext(), VPUIP::DMAEngine::DMA_NN);
     case VPUIP::TaskType::NCE2:
         return VPUIP::getPhysicalProcessor(numUnits, op, VPUIP::PhysicalProcessor::NCE_Cluster, 1);
+    case VPUIP::TaskType::ACTShave:
+        return VPUIP::getPhysicalProcessor(numUnits, op, VPUIP::PhysicalProcessor::SHAVE_NN, 1);
     case VPUIP::TaskType::UPA: {
         auto upaTask = mlir::cast<VPUIP::UPATaskOpInterface>(op);
         return VPUIP::getPhysicalProcessor(numUnits, op, VPUIP::PhysicalProcessor::SHAVE_UPA, upaTask.maxShaves());
