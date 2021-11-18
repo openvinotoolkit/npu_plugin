@@ -92,7 +92,7 @@ public:
     
     void initActKernel(std::vector<char> elfBlob, std::string name);
     void addActKernel();
-    void addActInvocation(float* tensor_in, float* tensor_out, uint32_t tensor_size);
+    void addActInvocation();
     void finalizeActKernelWrappers();
 
     void setDDRScratch(size_t ddrScratch);
