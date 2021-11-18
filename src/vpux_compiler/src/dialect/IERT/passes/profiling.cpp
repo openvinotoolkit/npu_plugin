@@ -196,8 +196,9 @@ void DPUProfilingPass::safeRunOnModule() {
 
         auto dpuIt = nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>();
         auto count = std::distance(dpuIt.begin(), dpuIt.end());
-        llvm::errs() << "Task: " << nceClusterTaskOp->getName() << "|" << nceClusterTaskOp->getLoc() << "Size:" << count
-                     << "\n";
+        // llvm::errs() << "Task: " << nceClusterTaskOp->getName() << "|" << nceClusterTaskOp->getLoc() << "Size:" <<
+        // count
+        //              << "\n";
         dpuTasks.push_back({nceClusterTaskOp, count});
     });
 

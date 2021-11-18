@@ -130,13 +130,13 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
     // Update dependencies map and get new operation index
     _depsInfo.insertNewExecOpToDepsMap(spillWriteExecOp);
 
-    std::cout << "-------------------\n";
-    spillBuffer.dump();
-    std::cout << "\n-------------------\n";
+    // std::cout << "-------------------\n";
+    // spillBuffer.dump();
+    // std::cout << "\n-------------------\n";
 
-    std::cout << "-------------------\n";
-    spillWriteExecOp.dump();
-    std::cout << "\n-------------------\n";
+    // std::cout << "-------------------\n";
+    // spillWriteExecOp.dump();
+    // std::cout << "\n-------------------\n";
 
     return spillWriteExecOp;
 }
@@ -197,13 +197,13 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     // Update dependencies map and get new operation index
     _depsInfo.insertNewExecOpToDepsMap(spillReadExecOp);
 
-    std::cout << "-------------------\n";
-    newBuffer.dump();
-    std::cout << "-------------------\n";
+    // std::cout << "-------------------\n";
+    // newBuffer.dump();
+    // std::cout << "-------------------\n";
 
-    std::cout << "-------------------\n";
-    spillReadExecOp.dump();
-    std::cout << "-------------------\n";
+    // std::cout << "-------------------\n";
+    // spillReadExecOp.dump();
+    // std::cout << "-------------------\n";
 
     return spillReadExecOp;
 }
@@ -336,13 +336,13 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage(
         mlir::Operation* viewOpForMasterBuffer = getViewOpForMasterBuffer();
 
         if (viewOpForMasterBuffer && usersOfSpilledOpThatNeedUpdate.size() > 0) {
-            std::cout << "-------------------\n";
-            viewOpForMasterBuffer->dump();
-            std::cout << "-------------------\n";
-            for (auto userOfMasterBuffer : usersOfSpilledOpThatNeedUpdate) {
-                userOfMasterBuffer->dump();
-                std::cout << "-------------------\n";
-            }
+            // std::cout << "-------------------\n";
+            // viewOpForMasterBuffer->dump();
+            // std::cout << "-------------------\n";
+            // for (auto userOfMasterBuffer : usersOfSpilledOpThatNeedUpdate) {
+            //     userOfMasterBuffer->dump();
+            //     std::cout << "-------------------\n";
+            // }
 
             for (auto userOfSpilledOpThatNeedUpdate : usersOfSpilledOpThatNeedUpdate) {
                 auto userOfSpilledOpBodyBlock = &userOfSpilledOpThatNeedUpdate.body().front();
@@ -442,8 +442,8 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::Value buff
         SpillUsersUpdate spillUsersUpdateHandler(this, opThatWasSpilled, spillReadExecOp, bufferToSpill);
         spillUsersUpdateHandler.resolveSpillBufferUsage();
 
-        _log.trace("Mateusz: Concat op state:");
-        _log.trace("{0}", _depsInfo.getExecuteOpAtIndex(179));
+        // _log.trace("Mateusz: Concat op state:");
+        // _log.trace("{0}", _depsInfo.getExecuteOpAtIndex(179));
     }
 }
 
@@ -576,6 +576,6 @@ void FeasibleMemorySchedulerSpilling::insertSpillCopyOps(
     _log.trace("Spill copyOps resolved");
 
     // mateusz
-    _log.trace("Mateusz: Concat op:");
-    _log.trace("{0}", _depsInfo.getExecuteOpAtIndex(179));
+    // _log.trace("Mateusz: Concat op:");
+    // _log.trace("{0}", _depsInfo.getExecuteOpAtIndex(179));
 }
