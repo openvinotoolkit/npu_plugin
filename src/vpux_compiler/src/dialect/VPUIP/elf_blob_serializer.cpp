@@ -90,6 +90,8 @@ void VPUIP::ELFBlobSerializer::initActKernel(std::vector<char> elfBlob, std::str
 
     isReaderInit = true;
 
+    m_inputElfSecNum = m_reader.getSectionsNum();
+
     m_kernelName = name;
 
     m_kernelsNum++;
@@ -163,21 +165,20 @@ void VPUIP::ELFBlobSerializer::addActKernel(){
     //set kernelEntry_
     std::memcpy(&(temp_actKernelRange.kernelEntry_), &my_actKernelEntry, sizeof(Elf32_Addr));
 
-    for (size_t i = 0; i < m_reader.getSectionsNum(); ++i) {
+    for (unsigned int i = 0; i < m_inputElfSecNum; ++i) {
         auto section = m_reader.getSection(i);
         const auto sec_name = section.getName();
         const auto sectionHeader = section.getHeader();
-
 
         if (strcmp(sec_name, ".text") == 0){
             temp_actKernelRange.codeSize_ = sectionHeader->sh_size;
 
             const auto sec_size =  sectionHeader->sh_size;
-            const char* sec_data = section.getData<char>();
-            
-            auto actKernelSection = m_writer.addBinaryDataSection<char>();
+            auto sec_data = section.getData<uint8_t>();
+
+            auto actKernelSection = m_writer.addBinaryDataSection<uint8_t>();
             actKernelSection->setName(".text." + m_kernelName);
-            actKernelSection->addData(sec_data, sec_size);
+            actKernelSection->appendData(sec_data, sec_size);
             actKernelSection->setFlags(SHF_EXECINSTR + SHF_ALLOC);
             actKernelSection->setAddrAlign(16);
 
@@ -189,28 +190,26 @@ void VPUIP::ELFBlobSerializer::addActKernel(){
 
             std::vector<std::string> empty_vec;
             m_actKernelsMapping[actKernelSection->getName()] = empty_vec;
-            
         }
 
-        if (strcmp(sec_name, ".data") == 0 || strcmp(sec_name, ".arg.data") == 0) //just data perhaps
+        if (strcmp(sec_name, ".data") == 0 || strcmp(sec_name, ".arg.data") == 0){ //just data perhaps
             temp_actKernelRange.dataSecSize_ = sectionHeader->sh_size;
+        }
     }
 
-
     // ACTUAL STRUCT SERIALIZATION & RELOCS
-    m_temp_actKernelRanges->addData(&temp_actKernelRange, sizeof(temp_actKernelRange));
+    m_temp_actKernelRanges->appendData(&temp_actKernelRange, sizeof(temp_actKernelRange));
     m_temp_actKernelRanges->setFlags(SHF_EXECINSTR);
     m_temp_actKernelRanges->setAddrAlign(64);
 
     auto actKernelRangeRelocation = m_temp_actKernelRangeRela->addRelocationEntry();
     actKernelRangeRelocation->setSymbol(actKernelSymbol);
-    actKernelRangeRelocation->setType(R_VPU_64);
+    actKernelRangeRelocation->setType(R_VPU_32); //use 32 bit reloc
     actKernelRangeRelocation->setOffset((m_kernelsNum -1) * sizeof(host_parsing::ActKernelRange) + offsetof(host_parsing::ActKernelRange, textWindowBase_));
     actKernelRangeRelocation->setAddend(0);
-
 }
 
-void VPUIP::ELFBlobSerializer::addActInvocation(){
+void VPUIP::ELFBlobSerializer::addActInvocation(float* tensor_in, float* tensor_out, uint32_t tensor_size){
 
     if (!isReaderInit){
         std::cout<<"READER NOT INIT\n";
@@ -218,32 +217,105 @@ void VPUIP::ELFBlobSerializer::addActInvocation(){
     }
 
     std::string textSecName = ".text." + m_kernelName;
-    
+
     if (m_actKernelsMapping.find(textSecName) == m_actKernelsMapping.end()){
         addActKernel();
     }
 
-    ActKernelInvocation temp_actKernelInvo;
-    elf::writer::Symbol* actKernelDataSymbol = nullptr;
-
     auto dataSections = m_actKernelsMapping[textSecName];
     int inv_count = dataSections.size();
+
+    ActKernelInvocation temp_actKernelInvo;
+
+    // set barriers_ & kernel_args
+    host_parsing::BarrierConfig dummy_barrierConfig;
+
+    dummy_barrierConfig.group = 0;
+    dummy_barrierConfig.mask = 0;
+    dummy_barrierConfig.consumer_mask = 0;
+    dummy_barrierConfig.producer_mask = 0;
+
+    std::memcpy(&(temp_actKernelInvo.barriers_), &dummy_barrierConfig, sizeof(host_parsing::BarrierConfig));
+
+    host_parsing::slf_kernel_params kernel_params;
+
+    kernel_params.p_operation.ih = 256;
+    kernel_params.p_operation.iw = 256;
+    kernel_params.p_operation.ic = 1;
+
+    auto kernelParamsSection = m_writer.addBinaryDataSection<slf_kernel_params>();
+    kernelParamsSection->setName(textSecName + std::to_string(inv_count) + ".params");
+    kernelParamsSection->appendData(&kernel_params, sizeof(kernel_params));
+    kernelParamsSection->setFlags(SHF_EXECINSTR + SHF_ALLOC);
+    kernelParamsSection->setAddrAlign(64);
+
+    auto kernelParamsSymbol = m_actKernel_symbols->addSymbolEntry();
+    kernelParamsSymbol->setName(m_kernelName + std::to_string(inv_count) + ".params");
+    kernelParamsSymbol->setRelatedSection(kernelParamsSection);
+    kernelParamsSymbol->setType(STT_SECTION);
+    kernelParamsSymbol->setSize(kernelParamsSection->getDataSize());
+
+
+    auto tensorInSection = m_writer.addBinaryDataSection<float>();
+    tensorInSection->setName(textSecName + std::to_string(inv_count) + ".input");
+    tensorInSection->appendData(tensor_in, tensor_size);
+    tensorInSection->setFlags(SHF_EXECINSTR + SHF_ALLOC);
+    tensorInSection->setAddrAlign(64);
+
+    auto tensorInSymbol = m_actKernel_symbols->addSymbolEntry();
+    tensorInSymbol->setName(m_kernelName + std::to_string(inv_count) + ".input");
+    tensorInSymbol->setRelatedSection(tensorInSection);
+    tensorInSymbol->setType(STT_SECTION);
+    tensorInSymbol->setSize(tensorInSection->getDataSize());
+
+
+    auto tensorOutSection = m_writer.addBinaryDataSection<float>();
+    tensorOutSection->setName(textSecName + std::to_string(inv_count) + ".output");
+    tensorOutSection->appendData(tensor_out, tensor_size);
+    tensorOutSection->setFlags(SHF_EXECINSTR + SHF_ALLOC);
+    tensorOutSection->setAddrAlign(64);
+
+    auto tensorOutSymbol = m_actKernel_symbols->addSymbolEntry();
+    tensorOutSymbol->setName(m_kernelName + std::to_string(inv_count) + ".output");
+    tensorOutSymbol->setRelatedSection(tensorOutSection);
+    tensorOutSymbol->setType(STT_SECTION);
+    tensorOutSymbol->setSize(tensorOutSection->getDataSize());
+
+    auto kernelParamsRela = m_writer.addRelocationSection();
+    kernelParamsRela->setName(".rela." + m_kernelName + std::to_string(inv_count) + ".params");
+    kernelParamsRela->setSymbolTable(m_actKernel_symbols);
+    kernelParamsRela->setSectionToPatch(kernelParamsSection);
+
+    auto kernelParamsReloc_in = kernelParamsRela->addRelocationEntry();
+    kernelParamsReloc_in->setSymbol(tensorInSymbol);
+    kernelParamsReloc_in->setType(R_VPU_32);
+    kernelParamsReloc_in->setOffset(offsetof(host_parsing::slf_kernel_params, p_act_data));
+    kernelParamsReloc_in->setAddend(0);
+
+    auto kernelParamsReloc_out = kernelParamsRela->addRelocationEntry();
+    kernelParamsReloc_out->setSymbol(tensorOutSymbol);
+    kernelParamsReloc_out->setType(R_VPU_32);
+    kernelParamsReloc_in->setOffset(offsetof(host_parsing::slf_kernel_params, p_act_out));
+    kernelParamsReloc_out->setAddend(0);
+
+    elf::writer::Symbol* actKernelDataSymbol = nullptr;
 
     std::string dataSecName = ".data." + m_kernelName + std::to_string(inv_count);
     std::string dataSymbolName = m_kernelName + std::to_string(inv_count);
 
-    for (size_t i = 0; i < m_reader.getSectionsNum(); ++i) {
+    for (size_t i = 0; i < m_inputElfSecNum; ++i) {
         auto section = m_reader.getSection(i);
         const auto sec_name = section.getName();
         const auto sectionHeader = section.getHeader();
-    
+
         if (strcmp(sec_name, ".data") == 0 || strcmp(sec_name, ".arg.data") == 0){ //just data perhaps
+
             const auto sec_size =  sectionHeader->sh_size;
-            const char* sec_data = section.getData<char>();
+            auto sec_data = section.getData<uint8_t>();
             
-            auto actKernelDataSection = m_writer.addBinaryDataSection<char>();
+            auto actKernelDataSection = m_writer.addBinaryDataSection<uint8_t>();
             actKernelDataSection->setName(dataSecName);
-            actKernelDataSection->addData(sec_data, sec_size);
+            actKernelDataSection->appendData(sec_data, sec_size);
             actKernelDataSection->setFlags(SHF_EXECINSTR + SHF_ALLOC);
             actKernelDataSection->setAddrAlign(4);
 
@@ -255,13 +327,14 @@ void VPUIP::ELFBlobSerializer::addActInvocation(){
 
             dataSections.push_back(dataSecName);
             m_actKernelsMapping[textSecName] = dataSections;
+
         } 
         
     }
 
     // ACTUAL STRUCT SERIALIZATION & RELOCS
     // CREATE 1 SECTION, and then add data every time 
-    m_temp_actKernelInvocations->addData(&temp_actKernelInvo, sizeof(temp_actKernelInvo));
+    m_temp_actKernelInvocations->appendData(&temp_actKernelInvo, sizeof(temp_actKernelInvo));
     m_temp_actKernelInvocations->setFlags(SHF_EXECINSTR);
     m_temp_actKernelInvocations->setAddrAlign(64);
 
@@ -272,9 +345,16 @@ void VPUIP::ELFBlobSerializer::addActInvocation(){
                                                 + offsetof(host_parsing::ActKernelInvocation, range_));
     actKernelInvoRelocation_range->setAddend(0);
 
+    auto actKernelInvoRelocation_args = m_temp_actKernelInvocationRela->addRelocationEntry();
+    actKernelInvoRelocation_args->setSymbol(kernelParamsSymbol);
+    actKernelInvoRelocation_args->setType(R_VPU_32);
+    actKernelInvoRelocation_args->setOffset(((m_kernelsNum -1) + inv_count) * sizeof(host_parsing::ActKernelInvocation) 
+                                                + offsetof(host_parsing::ActKernelInvocation, kernelArgs_));
+    actKernelInvoRelocation_args->setAddend(0);
+
     auto actKernelInvoRelocation_window = m_temp_actKernelInvocationRela->addRelocationEntry();
     actKernelInvoRelocation_window->setSymbol(actKernelDataSymbol);
-    actKernelInvoRelocation_window->setType(R_VPU_64);
+    actKernelInvoRelocation_window->setType(R_VPU_32); //use 32 bit reloc
     actKernelInvoRelocation_window->setOffset(((m_kernelsNum -1) + inv_count) * sizeof(host_parsing::ActKernelInvocation) 
                                                 + offsetof(host_parsing::ActKernelInvocation, dataWindowBase_));
     actKernelInvoRelocation_window->setAddend(0);
@@ -296,7 +376,7 @@ void VPUIP::ELFBlobSerializer::finalizeActKernelWrappers(){
 
     final_actKernelRange.kInvoCount_ = m_actKernelsMapping[textSecName].size();
 
-    m_actKernelRanges->addData(&final_actKernelRange, sizeof(final_actKernelRange));
+    m_actKernelRanges->appendData(&final_actKernelRange, sizeof(final_actKernelRange));
     m_actKernelRanges->setFlags(SHF_EXECINSTR);
     m_actKernelRanges->setAddrAlign(64);
 
@@ -307,6 +387,8 @@ void VPUIP::ELFBlobSerializer::finalizeActKernelWrappers(){
                                                 + offsetof(host_parsing::ActKernelRangeWrapper, kRange_));
     actKernelRangeWrapperRelocation->setAddend((m_kernelsNum -1) * sizeof(host_parsing::ActKernelRange));
 
+    m_mappedInference.actKRanges.count = m_kernelsNum;
+
 
 
     // INVOCATION
@@ -314,10 +396,18 @@ void VPUIP::ELFBlobSerializer::finalizeActKernelWrappers(){
 
     host_parsing::ActKernelInvocationWrapper final_actKernelInvo;
 
+    // struct BarrierConfig {
+    //     uint8_t group;
+    //     uint8_t mask;
+    //     uint64_t consumer_mask;
+    //     uint64_t producer_mask;
+    // };
+
     final_actKernelInvo.kRangeIndex_ = m_kernelsNum - 1; // set last fields of ActKernelInvoWrapper
+    final_actKernelInvo.tile_ = 0;
 
     for (int i = 0; i < inv_count; i++){
-        m_actKernelInvocations->addData(&final_actKernelInvo, sizeof(final_actKernelInvo));
+        m_actKernelInvocations->appendData(&final_actKernelInvo, sizeof(final_actKernelInvo));
         m_actKernelInvocations->setFlags(SHF_EXECINSTR);
         m_actKernelInvocations->setAddrAlign(64); // 64 default
 
@@ -329,6 +419,8 @@ void VPUIP::ELFBlobSerializer::finalizeActKernelWrappers(){
         actKernelInvoWrapperRelocation->setAddend(((m_kernelsNum -1) + i) * sizeof(host_parsing::ActKernelInvocation));
     }
 
+    m_mappedInference.actKInvocations.count = m_actKernelInvocations->getDataSize() / sizeof(host_parsing::ActKernelInvocationWrapper);
+    std::cout<<m_mappedInference.actKInvocations.count<<'\n';
 }
 
 
@@ -540,7 +632,7 @@ void VPUIP::ELFBlobSerializer::finalize() {
         auto mappedInferenceActKernelRangeRelocation = mappedInferenceActKernelsRelaSection->addRelocationEntry();
         mappedInferenceActKernelRangeRelocation->setSymbol(m_actKernelRangeWrapperSymbol);
         mappedInferenceActKernelRangeRelocation->setType(R_VPU_64);
-        mappedInferenceActKernelRangeRelocation->setOffset(offsetof(MappedInference, actKRanges) +
+        mappedInferenceActKernelRangeRelocation->setOffset(offsetof(host_parsing::MappedInference, actKRanges) +
                                                 offsetof(TaskReference<ActKernelRangeWrapper>, address));
         mappedInferenceActKernelRangeRelocation->setAddend(0);
         // segment->addSection(m_actKernelRanges);
@@ -548,7 +640,7 @@ void VPUIP::ELFBlobSerializer::finalize() {
         auto mappedInferenceActKernelInvocationRelocation = mappedInferenceActKernelsRelaSection->addRelocationEntry();
         mappedInferenceActKernelInvocationRelocation->setSymbol(m_actKernelInvocationWrapperSymbol);
         mappedInferenceActKernelInvocationRelocation->setType(R_VPU_64);
-        mappedInferenceActKernelInvocationRelocation->setOffset(offsetof(MappedInference, actKInvocations) +
+        mappedInferenceActKernelInvocationRelocation->setOffset(offsetof(host_parsing::MappedInference, actKInvocations) +
                                                 offsetof(TaskReference<ActKernelInvocationWrapper>, address));
         mappedInferenceActKernelInvocationRelocation->setAddend(0);
         // segment->addSection(m_actKernelInvocations);

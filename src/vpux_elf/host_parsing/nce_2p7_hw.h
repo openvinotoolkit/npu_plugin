@@ -7,6 +7,8 @@
 
 namespace host_parsing {
 
+
+// Act Kernel stuff
 typedef void *actKernelDataBuffer;
 typedef void *actKernelTextBuffer;
 typedef void act_kernel_args;
@@ -14,6 +16,36 @@ typedef void (*actKernelEntry)(act_kernel_args *);
 typedef void (*actRuntimeEntry)(const uint32_t);
 
 enum class ActWLType : uint8_t { WL_KERNEL = 0x00, WL_DEBUG = 0x04, WL_UNKNOWN };
+
+// hswish params
+typedef struct {
+    uint16_t iw; // used by hswish - input width
+    uint16_t ih; // used by hswish - input height
+    uint16_t ic; // used by hswish - input channels?
+    uint16_t ow;
+    uint16_t oh;
+    uint16_t oc;
+    uint16_t fw : 8;
+    uint16_t fh : 8;
+    uint16_t stride_w : 8;
+    uint16_t stride_h : 8;
+    float leaky_relu_alpha;
+}kernel_op;
+
+// pointers -> uint32_t
+// embed kernel_op struct
+typedef struct {
+    kernel_op p_operation;
+    uint32_t p_act_data;
+    uint32_t p_act_out;
+}slf_kernel_params;
+
+typedef struct {
+    slf_kernel_params params;
+    kernel_op operations;
+}slf_kernel_asds;
+
+
 
 
 // Bit field for fine-grained configuration of DMA job

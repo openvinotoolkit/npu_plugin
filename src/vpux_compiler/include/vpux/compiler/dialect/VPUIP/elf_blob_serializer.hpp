@@ -23,6 +23,7 @@
 
 #include <host_parsed_inference.h>
 
+#include <map>
 #include <unordered_map>
 
 namespace vpux {
@@ -91,7 +92,7 @@ public:
     
     void initActKernel(std::vector<char> elfBlob, std::string name);
     void addActKernel();
-    void addActInvocation();
+    void addActInvocation(float* tensor_in, float* tensor_out, uint32_t tensor_size);
     void finalizeActKernelWrappers();
 
     void setDDRScratch(size_t ddrScratch);
@@ -176,10 +177,12 @@ private:
     elf::Reader32 m_reader;
     bool isReaderInit = false;
 
+    size_t m_inputElfSecNum = 0;
+
     int m_kernelsNum = 0;
     std::string m_kernelName = "actKernel";
     elf::writer::SymbolSection* m_actKernel_symbols = nullptr;
-    std::unordered_map<std::string, std::vector<std::string>> m_actKernelsMapping;
+    std::map<std::string, std::vector<std::string>> m_actKernelsMapping;
 
     // Act Kernel Ranges
     elf::writer::Symbol* m_actKernelRangeSymbol = nullptr;

@@ -12,4 +12,3 @@
 #
 
 add_subdirectory(act_kernels_elf_poc)
-add_subdirectory(elf_blob_example)
