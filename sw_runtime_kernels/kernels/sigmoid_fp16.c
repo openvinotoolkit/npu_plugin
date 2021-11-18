@@ -18,7 +18,6 @@ void sigmoid_fp16(uint32_t lParamsAddr) {
     half act = 0;
 
     for (i = 0; i!= lParams->input.numDims; i++ ) {
-        // TODO: where pointers patch should be???
         // TODO: check overflow
         nElements *=  pDims[i];
     }
