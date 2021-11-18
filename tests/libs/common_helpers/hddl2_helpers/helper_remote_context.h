@@ -23,6 +23,7 @@
 #include "hddl2/hddl2_params.hpp"
 #include "vpux/vpux_plugin_params.hpp"
 #include <ie_core.hpp>
+#include "functional_test_utils/plugin_cache.hpp"
 
 //------------------------------------------------------------------------------
 //      class Remote_Context_Helper
@@ -38,7 +39,6 @@ public:
 
 protected:
     WorkloadContext_Helper _workloadContext;
-    InferenceEngine::Core ie;
     std::string pluginName;
 };
 
@@ -48,7 +48,7 @@ protected:
 inline Remote_Context_Helper::Remote_Context_Helper() {
     pluginName = std::getenv("IE_KMB_TESTS_DEVICE_NAME") != nullptr ? std::getenv("IE_KMB_TESTS_DEVICE_NAME") : "VPUX";
     auto params = wrapWorkloadIdToMap(_workloadContext.getWorkloadId());
-    remoteContextPtr = ie.CreateContext(pluginName, params);
+    remoteContextPtr = PluginCache::get().ie()->CreateContext(pluginName, params);
 }
 
 inline InferenceEngine::ParamMap
