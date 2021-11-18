@@ -72,8 +72,8 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
 
     bool spillBufferInsteadOfAsyncResult = false;
 
-    if (getTotalSize(opToSpillMemRefType).count() <
-        getTotalSize(bufferToSpill.getType().dyn_cast<mlir::MemRefType>()).count()) {
+    if (getCompactSize(opToSpillMemRefType).count() <
+        getCompactSize(bufferToSpill.getType().dyn_cast<mlir::MemRefType>()).count()) {
         _log.trace("Mateusz: Need to spill master buffer");
         spillBufferInsteadOfAsyncResult = true;
         opToSpillMemRefType = bufferToSpill.getType().dyn_cast<mlir::MemRefType>();
@@ -323,8 +323,8 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage(
     // If size of result of spilled operation is smaller than size of the spilled buffer
     // that means that operation is using just part of some master buffer and other users
     // referring to this buffer need to be properly updated to now refer to result of spillRead
-    if (getTotalSize(opToSpillMemRefType).count() <
-        getTotalSize(_bufferToSpill.getType().dyn_cast<mlir::MemRefType>()).count()) {
+    if (getCompactSize(opToSpillMemRefType).count() <
+        getCompactSize(_bufferToSpill.getType().dyn_cast<mlir::MemRefType>()).count()) {
         _spillingParentObj->_log.trace("Mateusz: Need to spill master buffer");
         // spillBufferInsteadOfAsyncResult = true;
 
