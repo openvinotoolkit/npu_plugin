@@ -4354,6 +4354,36 @@
                 "blob_name" : "bdk_edsr3",
                 "special" : true
             }
+        },
+
+        {
+            "name" : "scale_tf_FP16-INT8_se-resnext-50",
+            "ir" : "scale/se-resnext-50/tf/FP16-INT8/se-resnext-50.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "se-resnext-50.yml",
+                "subsample_size": 100
+            },
+            "NetTest": {
+                "inputs" : [[""]],
+                "params" : [
+                    "--mode", "classification"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "se-resnext-50"
+            }
         }
     ]
 }

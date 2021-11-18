@@ -1,0 +1,13 @@
+models:
+  - name: se-resnext-50
+    launchers:
+      - framework: dlsdk
+        adapter: classification
+
+    datasets:
+      - name: ImageNet2015
+        preprocessing:
+          - type: resize
+            size: 256
+          - type: crop
+            size: 224
