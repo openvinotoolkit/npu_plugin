@@ -349,7 +349,9 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::Value buff
         if (bufferAlias.getType().isa<mlir::async::ValueType>()) {
             if (const auto execOpWithSpilledResult =
                         mlir::dyn_cast<mlir::async::ExecuteOp>(bufferAlias.getDefiningOp())) {
-                opsThatWereSpilled.push_back(execOpWithSpilledResult);
+                if (execOpWithSpilledResult->isBeforeInBlock(spillReadExecOp)) {
+                    opsThatWereSpilled.push_back(execOpWithSpilledResult);
+                }
             }
         }
     }
