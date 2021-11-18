@@ -84,7 +84,9 @@ DECLARE_VPUX_CONFIG_KEY(CSRAM_SIZE);
 
 /**
  * @brief [Only for VPUX Plugin]
- * Type: bool, default is 0.
+ * Type: bool, default is true.
+ * When true, Executor is created after ExecutableNetwork compilation
+ * When false, ExecutableNetwork is compiled without creating an Executor and loading to the device
  */
 DECLARE_VPUX_CONFIG_KEY(CREATE_EXECUTOR);
 

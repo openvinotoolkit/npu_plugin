@@ -24,6 +24,8 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
     {{VPUX_CONFIG_KEY(CSRAM_SIZE), "2097152"}},
+    {{VPUX_CONFIG_KEY(CREATE_EXECUTOR), CONFIG_VALUE(YES)}},
+    {{VPUX_CONFIG_KEY(CREATE_EXECUTOR), CONFIG_VALUE(NO)}},
 
     // Private options
     {{"VPUX_GRAPH_COLOR_FORMAT", "RGB"}},
@@ -51,6 +53,7 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
     {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
     {{VPUX_CONFIG_KEY(CSRAM_SIZE), "-3"}},
+    {{VPUX_CONFIG_KEY(CREATE_EXECUTOR), "WHO"}},
 
     // Private options
     {{"VPUX_GRAPH_COLOR_FORMAT", "NV12"}},

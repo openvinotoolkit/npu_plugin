@@ -156,6 +156,10 @@ IE::ITaskExecutor::Ptr ExecutableNetwork::getNextTaskExecutor() {
 //------------------------------------------------------------------------------
 IE::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const IE::InputsDataMap networkInputs,
                                                                          const IE::OutputsDataMap networkOutputs) {
+    if (!_executorPtr) {
+        _executorPtr = createExecutor(_networkPtr, _config, _device);
+        ConfigureStreamsExecutor(_networkName);
+    }
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
     return std::make_shared<InferRequest>(networkInputs, networkOutputs, inferExecutor, _config, _networkName,
@@ -163,6 +167,10 @@ IE::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const I
 }
 
 InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequest() {
+    if (!_executorPtr) {
+        _executorPtr = createExecutor(_networkPtr, _config, _device);
+        ConfigureStreamsExecutor(_networkName);
+    }
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
     auto syncRequestImpl = std::make_shared<InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config,
