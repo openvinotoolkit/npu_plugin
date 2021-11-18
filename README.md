@@ -213,3 +213,4 @@ For any questions regarding this component please refer to [G-API-VPU project] m
 [OpenVINO Project]: https://github.com/openvinotoolkit/openvino
 [KMB Plugin Project]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin
 [G-API-VPU project]: https://gitlab-icv.inn.intel.com/G-API/g-api-vpu.git
+
