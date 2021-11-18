@@ -89,14 +89,27 @@ mlir::ShapedType vpux::Const::ReorderAttr::inferOutputType(mlir::ShapedType inpu
     return changeDimsOrder(input, order);
 }
 
+static SmallVector<uint32_t> computeOrder(const DimsOrder inOrder, const DimsOrder outOrder) {
+    auto inPerm = inOrder.toPermutation();
+    auto outPerm = outOrder.toPermutation();
+    SmallVector<uint32_t> memPerm(inPerm.size());
+    for (auto p : outPerm | indexed) {
+        memPerm[p.index()] = static_cast<uint32_t>(inOrder.dimPos(p.value()));
+    }
+    return memPerm;
+}
+
 //
 // ReorderAttr::transform
 //
 
 Const::Content vpux::Const::ReorderAttr::transform(vpux::Const::Content& input) const {
     const auto outType = inferOutputType(input.getType());
+    const auto inOrder = DimsOrder::fromType(input.getType());
     const auto outOrder = DimsOrder::fromType(outType);
-    return Const::details::reorderTransformation(input, outType, outOrder);
+    const auto memPerm =
+            mlir::AffineMap::getPermutationMap(makeArrayRef(computeOrder(inOrder, outOrder)), getContext());
+    return Const::details::memPermuteTransformation(input, outType, memPerm);
 }
 
 //

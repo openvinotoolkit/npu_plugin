@@ -24,31 +24,28 @@
 using namespace vpux;
 
 //
-// reorderTransformation
+// memPermuteTransformation
 //
 
-Const::Content Const::details::reorderTransformation(Const::Content& input, mlir::ShapedType outType,
-                                                     DimsOrder outOrder) {
-    auto output = Const::Content::allocTempBuffer(outType, input.getStorageElemType(), input.isSplat());
-
-    const auto inBuf = input.getRawStorageBuf();
-    auto outBuf = output.getRawTempBuf();
-    VPUX_THROW_UNLESS(outBuf.size() == inBuf.size(), "Storage buffer size mismatch in 'ReorderAttr'");
-
+Const::Content Const::details::memPermuteTransformation(vpux::Const::Content& input, mlir::ShapedType outType,
+                                                        mlir::AffineMap memPerm) {
     const auto inOrder = DimsOrder::fromType(input.getType());
+    const auto outOrder = DimsOrder::fromType(outType);
+    const auto permOrder = DimsOrder::fromAffineMap(memPerm);
     VPUX_THROW_UNLESS(inOrder.numDims() == outOrder.numDims(), "Can't reorder from '{0}' to '{1}'", inOrder, outOrder);
+    VPUX_THROW_UNLESS(inOrder.numDims() == permOrder.numDims(), "Can't reorder from '{0}' to '{1}'", inOrder,
+                      permOrder);
 
-    if (input.isSplat() || inOrder == outOrder) {
-        std::copy_n(inBuf.data(), inBuf.size(), outBuf.data());
+    if (input.isSplat() || memPerm.isIdentity()) {
+        return Const::Content::moveBuffer(outType, std::move(input));
     } else {
         const Byte elemSize = getElemTypeSize(input.getStorageElemType());
-        const auto shape = getShape(output.getType());
+        const auto inShape = getShape(input.getType());
+        const auto inMemShape = inOrder.toMemoryOrder(inShape);
 
-        static const std::unordered_set<std::pair<DimsOrder, DimsOrder>> optimizedCases = {
-                {DimsOrder::NCHW, DimsOrder::NHWC},
-                {DimsOrder::NHWC, DimsOrder::NCHW},
-                {DimsOrder::NCDHW, DimsOrder::NDHWC},
-                {DimsOrder::NDHWC, DimsOrder::NCDHW},
+        static const std::unordered_set<DimsOrder> optimizedCases = {
+                {DimsOrder::NHWC},
+                {DimsOrder::NDHWC},
         };
 
         static const std::unordered_map<size_t, InferenceEngine::Precision> elemSizeToPrecision = {
@@ -60,14 +57,19 @@ Const::Content Const::details::reorderTransformation(Const::Content& input, mlir
         };
 
         const auto precision = elemSizeToPrecision.find(checked_cast<size_t>(elemSize.count()));
+        auto output = Const::Content::allocTempBuffer(outType, input.getStorageElemType(), input.isSplat());
+        auto outBuf = output.getRawTempBuf();
+        const auto inBuf = input.getRawStorageBuf();
+        VPUX_THROW_UNLESS(outBuf.size() == inBuf.size(), "Storage buffer size mismatch in 'memPermuteTransformation'");
 
-        if (optimizedCases.count({inOrder, outOrder}) != 0 && precision != elemSizeToPrecision.end()) {
+        if (optimizedCases.count(permOrder) != 0 && precision != elemSizeToPrecision.end()) {
             // Use optimized algorithm from IE core
 
-            const InferenceEngine::SizeVector ieShape(shape.begin(), shape.end());
+            const InferenceEngine::SizeVector ieShape(inMemShape.begin(), inMemShape.end());
 
-            const InferenceEngine::TensorDesc inDesc(precision->second, ieShape, inOrder.toIE());
-            const InferenceEngine::TensorDesc outDesc(precision->second, ieShape, outOrder.toIE());
+            const InferenceEngine::TensorDesc inDesc(precision->second, ieShape,
+                                                     InferenceEngine::TensorDesc::getLayoutByDims(ieShape));
+            const InferenceEngine::TensorDesc outDesc(precision->second, ieShape, permOrder.toIE());
 
             const auto inBlob = makeBlob(inDesc, nullptr, const_cast<char*>(inBuf.data()));
             const auto outBlob = makeBlob(outDesc, nullptr, outBuf.data());
@@ -75,27 +77,24 @@ Const::Content Const::details::reorderTransformation(Const::Content& input, mlir
             cvtBlobLayout(inBlob, outBlob);
         } else {
             // Use generic algorithm
+            const auto outShape = getShape(outType);
+            const auto outMemShape = outOrder.toMemoryOrder(outShape);
 
-            const auto inMemShape = inOrder.toMemoryOrder(shape);
-            const auto outMemShape = outOrder.toMemoryOrder(shape);
-
-            loop_1d(LoopExecPolicy::Parallel, output.getType().getNumElements(), [&](int64_t outMemInd1D) {
-                const auto outMemIndND = getMemIndexND(outMemInd1D, outMemShape);
-                const auto indND = outOrder.toLogicalOrder(outMemIndND);
-                const auto inMemIndND = inOrder.toMemoryOrder(indND);
-                const auto inMemInd1D = getMemIndex1D(inMemIndND, inMemShape);
+            loop_1d(LoopExecPolicy::Parallel, input.getType().getNumElements(), [&](int64_t inMemInd1D) {
+                const auto inMemIndND = getMemIndexND(inMemInd1D, inMemShape);
+                const auto outMemIndND = permOrder.toMemoryOrder(ShapeRef(inMemIndND.raw()));
+                const auto outMemInd1D = getMemIndex1D(outMemIndND, outMemShape);
 
                 const auto inMemRawInd = checked_cast<size_t>(inMemInd1D * elemSize.count());
-                VPUX_THROW_UNLESS(inMemRawInd < inBuf.size(), "Out-of-bound access in 'ReorderAttr'");
+                VPUX_THROW_UNLESS(inMemRawInd < inBuf.size(), "Out-of-bound access in 'memPermuteTransformation'");
 
                 const auto outMemRawInd = checked_cast<size_t>(outMemInd1D * elemSize.count());
-                VPUX_THROW_UNLESS(outMemRawInd < outBuf.size(), "Out-of-bound access in 'ReorderAttr'");
+                VPUX_THROW_UNLESS(outMemRawInd < outBuf.size(), "Out-of-bound access in 'memPermuteTransformation'");
 
                 std::copy_n(inBuf.data() + inMemRawInd, checked_cast<size_t>(elemSize.count()),
                             outBuf.data() + outMemRawInd);
             });
         }
+        return output;
     }
-
-    return output;
 }

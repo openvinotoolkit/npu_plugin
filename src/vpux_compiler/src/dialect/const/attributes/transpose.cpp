@@ -101,11 +101,12 @@ mlir::ShapedType vpux::Const::TransposeAttr::inferOutputType(mlir::ShapedType in
 
 Const::Content vpux::Const::TransposeAttr::transform(vpux::Const::Content& input) const {
     // This is basically reorder with subsequent reshape.
-    const auto transposeType = input.getType();
-    const auto transposeOrder = DimsOrder::fromAffineMap(getOrder().getValue());
-    auto output = Const::details::reorderTransformation(input, transposeType, transposeOrder);
+    const auto outType = inferOutputType(input.getType());
+    const auto inputOrder = DimsOrder::fromType(input.getType());
+    const auto inPerm = inputOrder.toAffineMap(getContext());
+    const auto memPerm = inPerm.compose(getOrder().getValue());
 
-    return Const::Content::moveBuffer(inferOutputType(input.getType()), std::move(output));
+    return Const::details::memPermuteTransformation(input, outType, memPerm);
 }
 
 //

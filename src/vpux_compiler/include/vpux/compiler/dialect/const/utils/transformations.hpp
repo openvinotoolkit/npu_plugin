@@ -20,10 +20,11 @@ namespace Const {
 namespace details {
 
 //
-// reorderTransformation
+// memPermuteTransformation
 //
 
-vpux::Const::Content reorderTransformation(vpux::Const::Content& input, mlir::ShapedType outType, DimsOrder outOrder);
+vpux::Const::Content memPermuteTransformation(vpux::Const::Content& input, mlir::ShapedType outType,
+                                              mlir::AffineMap memPerm);
 
 }  // namespace details
 }  // namespace Const
