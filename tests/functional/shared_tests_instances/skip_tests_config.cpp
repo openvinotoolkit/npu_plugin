@@ -196,21 +196,21 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: Issue: 63469
             ".*KmbConversionLayerTest.*ConvertLike.*",
 
-            // TensorIterator layer is not supported
-            ".*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*",
-            ".*SetBlobTest.*",
-            ".*OVInferRequestDynamicTests.*",
-            ".*OVInferenceChaining.*",
-            ".*OVInferRequestCallbackTests.ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*",
+            // // TensorIterator layer is not supported
+            // ".*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*",
+            // ".*SetBlobTest.*",
+            // ".*OVInferRequestDynamicTests.*",
+            // ".*OVInferenceChaining.*",
+            // ".*OVInferRequestCallbackTests.ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*",
             
-            // CumSum layer is not supported
-            ".*SetBlobTest.*",
+            // // CumSum layer is not supported
+            // ".*SetBlobTest.*",
 
-            // Abs layer is not supported by MTL/dKMB platform
-            ".*PrePostProcessTest.*",
+            // // Abs layer is not supported by MTL/dKMB platform
+            // ".*PrePostProcessTest.*",
 
-            // TODO: Fix failing OVInferRequestPerfCountersTest with multi device
-            ".*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersTest.*"
+            // // TODO: Fix failing OVInferRequestPerfCountersTest with multi device
+            // ".*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersTest.*"
             }
         );
 
