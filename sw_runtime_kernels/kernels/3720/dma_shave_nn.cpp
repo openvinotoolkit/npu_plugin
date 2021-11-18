@@ -2,23 +2,15 @@
 #include <string.h>
 #include <algorithm>
 
-#define uncached(x) (x)
-
-DmaAlShave::DmaAlShave() {
-}
-
-DmaAlShave::~DmaAlShave() {
-}
-
-bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength) {
-    memcpy(a_dst, a_src, byteLength);
+INLINE_ATTRIBUTE bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength) {
+    memcpy_s(a_dst, byteLength, a_src, byteLength);
     return true;
 }
 
-void DmaAlShave::wait() {
+INLINE_ATTRIBUTE void DmaAlShave::wait() {
 }
 
-bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
+INLINE_ATTRIBUTE bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
            uint32_t srcStride, uint32_t dstStride) {
 
     // Do not alter the state of the member variables.
@@ -31,7 +23,7 @@ bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength, uint
     for (uint32_t si = 0, di = 0, length = byteLength; length > 0;)
     {
         const uint32_t chunk = std::min(std::min(srcWidth - si, dstWidth - di), length);
-        std::copy(src, src + chunk, dst);
+        memcpy_s(dst, chunk, src, chunk);
 
         si += chunk;
         di += chunk;
@@ -69,7 +61,7 @@ bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength, uint
 //    wait();
 //}
 //
-bool DmaAlShave::start_pa(const void *src, void *dst, uint32_t byteLength) {
+INLINE_ATTRIBUTE bool DmaAlShave::start_pa(const void *src, void *dst, uint32_t byteLength) {
     patch_va_ = false;
 //    auto result = start(reinterpret_cast<uint32_t>(src), reinterpret_cast<uint32_t>(dst), byteLength);
     auto result = start(src, dst, byteLength);
@@ -77,7 +69,7 @@ bool DmaAlShave::start_pa(const void *src, void *dst, uint32_t byteLength) {
     return result;
 }
 
-bool DmaAlShave::start_pa(const void *src, void *dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
+INLINE_ATTRIBUTE bool DmaAlShave::start_pa(const void *src, void *dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
                           uint32_t srcStride, uint32_t dstStride) {
     patch_va_ = false;
 //    auto result = start(reinterpret_cast<uint32_t>(src), reinterpret_cast<uint32_t>(dst), byteLength,
@@ -88,14 +80,13 @@ bool DmaAlShave::start_pa(const void *src, void *dst, uint32_t byteLength, uint3
     return result;
 }
 
-bool DmaAlShave::start_pa(const void *src, void *dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
-                          uint32_t srcStride, uint32_t dstStride, uint32_t numPlanes, uint32_t srcPlaneStride,
-                          uint32_t dstPlaneStride) {
-    patch_va_ = false;
-    auto result = start(reinterpret_cast<uint32_t>(src), reinterpret_cast<uint32_t>(dst), byteLength,
-        srcWidth, dstWidth, srcStride, dstStride, numPlanes, srcPlaneStride, dstPlaneStride);
-    patch_va_ = true;
-    return result;
+INLINE_ATTRIBUTE void DmaAlShave::patch(uint64_t &a) const
+{
+#ifdef CONFIG_NN_L2C_PAGE_TABLE
+    if (patch_va_)
+        if (a >= 0x8000'0000ull)
+            a |= static_cast<uint64_t>(CONFIG_NN_L2C_PAGE_TABLE) << 31;
+#endif
 }
 
 //bool DmaAlShave::start(const void *src, void *dst, uint32_t byteLength) {

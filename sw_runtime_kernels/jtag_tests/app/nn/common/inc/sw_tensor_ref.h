@@ -4,7 +4,6 @@
 #pragma once
 
 #include <mv_types.h>
-#include <nn_relocation.h>
 #include <mvSubspaces.h>
 #include <limits.h>
 #include "common_types.h"
@@ -21,13 +20,12 @@ namespace nn {
 
 using namespace subspace;
 
-u32 getBpp(DataType type);
+uint32_t getBpp(DataType type);
 
 struct TensorRefNDData
 {
     DataType dType = NN_FP16;
     NDOrder ndOrder = ND_NHWC;
-    inference_runtime::RelativeAddress dataAddr;
     uint8_t* addr = nullptr;
     int32_t ndims = 0;
     int32_t dims[MAX_ND_DIMS]{};
@@ -112,9 +110,9 @@ public:
         addr = reinterpret_cast<uint8_t *>(data.dataAddr);
         ndims = (data.numDims > (uint32_t)MAX_ND_DIMS) ? (uint32_t)MAX_ND_DIMS : data.numDims;
         memcpy_s(dims, ndims * sizeof(int32_t), reinterpret_cast<uint8_t *>(data.dimsAddr), ndims * sizeof(int32_t));
-        memcpy_s(strides, ndims * sizeof(int32_t), reinterpret_cast<uint8_t *>(data.stridesAddr), ndims * sizeof(int32_t));
+        memcpy_s(stridesBits, ndims * sizeof(int64_t), reinterpret_cast<uint8_t *>(data.stridesAddr), ndims * sizeof(int64_t));
         for (int i = 0; i < ndims; i++) {
-            stridesBits[i] = strides[i] << 3;
+            strides[i] = stridesBits[i] / CHAR_BIT;
         }
         bitsPerPixel = nn::getBpp(dType) * CHAR_BIT;
     };

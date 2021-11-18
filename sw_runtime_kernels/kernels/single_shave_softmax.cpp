@@ -1,34 +1,25 @@
 // {% copyright %}
 
-#include <sw_layer.h>
-
-#include <sw_shave_res_manager.h>
+#ifdef CONFIG_HAS_LRT_SRCS
 #include <nn_log.h>
-#include <mvSubspaces.h>
+#else
+#define nnLog(level, ...)
+#endif
 #include <param_softmax.h>
-
-#include <mv_types.h>
-#include <math.h>
-#include <moviVectorTypes.h>
+#include <mvSubspaces.h>
+#define INFINITY (1.0f /0.0f)
 #include <moviVectorConvert.h>
 
-#include <svuCommonShave.h>
-
 #ifdef CONFIG_TARGET_SOC_3720
-#include <dma_shave_params_nn.h>
+#include <dma_shave_nn.h>
 #else
-#include <dma_shave_params.h>
+#include <dma_shave.h>
 #endif
 
-#define SOFTMAX_SET_LENGTH 200
-
-using namespace nn;
-using namespace shave_lib;
 using namespace sw_params;
+using namespace subspace;
 
 namespace {
-
-using namespace subspace;
 
 typedef half* phalf;
 
@@ -352,9 +343,8 @@ void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
     void (*calculate)(const int dimX, int n, half* input, half* output,
             int istride1, int istride2, int ostride1, int ostride2);
     calculate = (p->axis > 0) ? calculateSoftMaxOuter : calculateSoftMaxInner;
-
     {
-        sets_per_step = (2 * WORK_BUFFER_SIZE) / (sizeof(half) * p->axisDim);
+        sets_per_step = (p->inputInCmx && p->outputInCmx) ? p->toProcess : (2 * WORK_BUFFER_SIZE) / (sizeof(half) * p->axisDim);
         int i = p->start;
         subspace::getCoord(i, dims, ndims, setCoords);
         s32 r_step;
@@ -384,9 +374,8 @@ void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
             if (p->outputInCmx) {
                 p_output0 = (half*)((u8*)out + outOffset);
             }
-            calculate(r_step, p->axisDim, p_input0, p_output0,
-                    1, *ir_stride, 1, *or_stride);
-            if (!p->outputInCmx) {
+            calculate(r_step, p->axisDim, p_input0, p_output0, 1, *ir_stride, 1, *or_stride);
+            if (!(p->outputInCmx)) {
                 dmaRTask.start((u8 *)p_output0, (u8*)out + outOffset,
                       sizeof(fp16) * p->axisDim * r_step,
                       sizeof(fp16) * dmaWidth[0],
@@ -403,7 +392,6 @@ void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
 
 }  // namespace
 
-
 using namespace subspace;
 
 namespace nn {
@@ -412,67 +400,35 @@ namespace shave_lib {
 extern "C" {
 
 void singleShaveSoftmax(uint32_t lParams) {
+    uint8_t * cmxData = nullptr;   // TODO: Restore the possibility of working with DDR tensors 
+    int32_t availableCmxBytes = 0;
     // Special DMA to copy layer params from physical DDR
-//    CustomLayerCppParams local_params;
-//    dmaShaveParams(local_params, layerParams);
-//    const CustomLayerCppParams *cfg = & local_params;
+    half* p_act_data = (half*)(reinterpret_cast<SoftmaxParams*>(lParams)->input.dataAddr); // 0x1F000000
+    half* p_act_out = (half*)(reinterpret_cast<SoftmaxParams*>(lParams)->output.dataAddr); // 0x1F004000
     const SoftmaxParams * layerParams = reinterpret_cast<const SoftmaxParams *>(lParams);
     t_MvSoftMaxParamNClasses softmaxParamsCMX;
     t_MvSoftMaxParamNClasses* sp = &softmaxParamsCMX;
 
-    // a workaround until a solution is found to obtain these parameters
-    uint8_t * cmxData = 0; // not used
-    int32_t availableCmxBytes = 100000;
-
-//    uint32_t *data = cmxData;//(uint32_t *)cfg->argBuffer;
-//    uint32_t argSize = data[0]; // in bytes including the size of opId and the size of this field.
-
     // parameters specific for softmax in customCpp parameter buffer
     sp->axis = layerParams->axis;  // axis in arguments in memory notation because tensors are represented as TensorRefNDData
                          // which is in memory notation too
-//    uint32_t* inOuts = ((uint32_t*)data) + (argSize + sizeof(uint32_t) - 1) / sizeof(uint32_t);
-//    uint32_t numInputs = inOuts[0];  // numInputs, numOutputs are not used
-//    uint32_t numOutputs = inOuts[1];  // because we know that should be one input and one output
-    TensorRef inputData(layerParams->input);
-    TensorRef outputData(layerParams->output);
-    sp->inputInCmx = (layerParams->input.location == sw_params::Location::NN_CMX || layerParams->input.location == sw_params::Location::UPA_CMX);
-    sp->outputInCmx = (layerParams->output.location == sw_params::Location::NN_CMX || layerParams->output.location == sw_params::Location::UPA_CMX);
-//    memcpy_s(inOut, 2 * sizeof(TensorRefNDData), inOuts + 2, 2 * sizeof(TensorRefNDData));
-//    memcpy_s(inOut, sizeof(TensorRefNDData), inOuts + 2, sizeof(TensorRefNDData));
-//    memcpy_s(inOut + 1, sizeof(TensorRefNDData), (uint8_t*)(inOuts + 2) + sizeof(TensorRefNDData), sizeof(TensorRefNDData));
-//    TensorRefNDData& inputData = inOut[0];
-//    TensorRefNDData& outputData = inOut[1];
+    sp->inputInCmx = true;//(layerParams->input.location == sw_params::Location::NN_CMX || layerParams->input.location == sw_params::Location::UPA_CMX);
+    sp->outputInCmx = true;//(layerParams->output.location == sw_params::Location::NN_CMX || layerParams->output.location == sw_params::Location::UPA_CMX);
+    sp->ndims = layerParams->input.numDims;
 
-//    *** Part of code copied from parser with commented out fragments ***
+    int32_t *pDims     = (int32_t *)(layerParams->input.dimsAddr);
+    int64_t *iPStrides = (int64_t *)(layerParams->input.stridesAddr);
+    int64_t *oPStrides = (int64_t *)(layerParams->output.stridesAddr);
 
-//    bool success = false;
-//    NDDims indices = orderNDToIndices(inOut[0].ndOrder, success);
-//    for (int i = 0; i < layer->getInputs()[0].ndims; i++) {
-//        nnLog(MVLOG_DEBUG, "SoftmaxParser::parse dim=%d) input: %d(%d), output: %d(%d), indices: %d\n", i,
-//                layer->getInputs()[0].dims[i], layer->getInputs()[0].strides[i],
-//                layer->getOutputs()[0].dims[i], layer->getOutputs()[0].strides[i], indices[i]);
-//    }
-
-//    TensorRef& inputData = layer->getInputs()[0];
-//    TensorRef& outputData = layer->getOutputs()[0];
-//    int gfAxis = gfParams->axis();
-//    int axis = iif(gfAxis < 0, -(gfAxis + 1), gfAxis);
-//
-//    if (axis >= static_cast<unsigned int>(inputData.ndims)) {
-//        nnLog(MVLOG_ERROR, "Softmax: invalid axis %d", axis);
-//        return false;
-//    }
-//    sp->axis = indices[sp->axis];  // axis in arguments in memory notation because tensors are represented as TensorRefNDData
-//    sp->axis = indices[axis];      // which is in memory notation too
-//    if (layer->getInputs()[0].dims[sp->axis] == 1) {
-//        nnLog(MVLOG_ERROR, "Softmax on 1 element doesn't make sense (dim along the 'axis' equal 1)");
-//        return false;
-//    }
-
-    memcpy_s(sp->in_dims,     MAX_ND_DIMS * sizeof(int32_t), inputData.dims,     MAX_ND_DIMS * sizeof(int32_t));
-    memcpy_s(sp->in_strides,  MAX_ND_DIMS * sizeof(int32_t), inputData.strides,  MAX_ND_DIMS * sizeof(int32_t));
-    memcpy_s(sp->out_strides, MAX_ND_DIMS * sizeof(int32_t), outputData.strides, MAX_ND_DIMS * sizeof(int32_t));
-    sp->ndims = inputData.ndims;
+    p_act_out[15 + 0] = iPStrides[0];
+    p_act_out[15 + 1] = iPStrides[1];
+    p_act_out[15 + 2] = iPStrides[2];
+    p_act_out[15 + 3] = iPStrides[3];
+    for (int i = 0; i < layerParams->input.numDims; i++) {
+        sp->in_dims[i] = pDims[i];
+        sp->in_strides[i] = iPStrides[i] / CHAR_BIT;
+        sp->out_strides[i] = oPStrides[i] / CHAR_BIT;
+    }
 
     // excluding dim == 1 from dims
     for (int i = sp->ndims - 1; i >= 0; --i) {
@@ -519,28 +475,15 @@ void singleShaveSoftmax(uint32_t lParams) {
     arrayElementExclude(sp->in_dims, sp->axis, sp->ndims);
     sp->ndims = arraysElementExclude(sp->in_strides, sp->out_strides, sp->axis, sp->ndims);
 
-//    if (sp->axisDim > (int)(SHAVE_LIB_DATA_SIZE / 2 - 8 * sizeof(half) / sizeof(half))) {
-//        nnLog(MVLOG_ERROR, "CMX memory is not enough!");
-//        return false;
-//    }
-
 //    *** Part of code copied from parser with commented out fragments  END***
 
-
-
-
-
-
-//    t_MvSoftMaxParamNClasses softmaxParamsCMX;
-//    dmaShaveParams(softmaxParamsCMX, layerParams);
     const auto *lp = &softmaxParamsCMX;
 
     int to_process = getTotal(lp->in_dims, lp->ndims);
-    unsigned int shaves_no = 1;//std::min<int>(to_process, resMgr->getMaximumShaves());
+    unsigned int shaves_no = 1;
     int32_t firstShave = 0;
     int32_t lastShave = firstShave + static_cast<int>(shaves_no) - 1;
     nnLog(MVLOG_DEBUG, "singleShaveSoftmax: run on %d SHAVEs\n", shaves_no);
-    //    softmax_ret_status = 0;
 
     {
         nnLog(MVLOG_DEBUG, "softMaxParamNClasses %d\n", __LINE__);
@@ -559,10 +502,12 @@ void singleShaveSoftmax(uint32_t lParams) {
             int to_process_on_shave = step_size + ((step_size_rem-- > 0) ? 1 : 0);
             nnLog(MVLOG_DEBUG, "i %d, to_process_on_shave %d lines, started from %d\n", i, to_process_on_shave, processed);
 
-            softMaxParamNClasses->input = reinterpret_cast<half *>(inputData.addr);
-            softMaxParamNClasses->inLocation = layerParams->input.location;
-            softMaxParamNClasses->output = reinterpret_cast<half *>(outputData.addr);
-            softMaxParamNClasses->outLocation = layerParams->output.location;
+            softMaxParamNClasses->input = reinterpret_cast<half *>(p_act_data);
+            softMaxParamNClasses->inLocation = sw_params::Location::NN_CMX;//layerParams->input.location;
+            softMaxParamNClasses->inputInCmx = true;//layerParams->input.location;
+            softMaxParamNClasses->output = reinterpret_cast<half *>(p_act_out);
+            softMaxParamNClasses->outLocation = sw_params::Location::NN_CMX;//layerParams->output.location;
+            softMaxParamNClasses->outputInCmx = true;//layerParams->input.location;
 
             softMaxParamNClasses->cmxslice = cmxData;
             softMaxParamNClasses->availableCmxBytes = availableCmxBytes;

@@ -47,6 +47,26 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
     return builder.Finish();
 }
 
+static void readBinary(SmallString<128>& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment) {
+    std::string err;
+    auto elfFile = mlir::openInputFile(path, &err);
+    if (!elfFile) {
+        VPUX_THROW("Could not open {0} binary, err:{1}", path.c_str(), err);
+    }
+
+    auto elfBuffer = elfFile->getBuffer();
+    std::copy(elfBuffer.begin(), elfBuffer.end(), std::back_inserter(buffer));
+
+    if (alignment & (alignment - 1)) {
+        VPUX_THROW("Could not align to now power of 2:{1}", alignment);
+    }
+    auto totalBytes = std::distance(elfBuffer.begin(), elfBuffer.end());
+    auto padBytes = -totalBytes & (alignment - 1);
+    if (padBytes) {
+        std::fill_n(std::back_inserter(buffer), padBytes, 0);
+    }
+}
+
 static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
                                 SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
     std::string mvToolsDir = movitools::getMoviToolsDir();
@@ -92,7 +112,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
 
     // Generate linker script name - and copy it from
     SmallString<128> linkerScriptPath(genDir);
-    sys::path::append(linkerScriptPath, "build");
+    sys::path::append(linkerScriptPath, "prebuild");
     sys::path::append(linkerScriptPath, "shave_kernel.ld");
 
     SmallString<128> srcPath(genDir);
@@ -160,28 +180,46 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         }
     }
 
-    auto readBinary = [](SmallString<128>& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment = 1) {
-        std::string err;
-        auto elfFile = mlir::openInputFile(path, &err);
-        if (!elfFile) {
-            VPUX_THROW("Could not open {0} binary, err:{1}", path.c_str(), err);
-        }
-
-        auto elfBuffer = elfFile->getBuffer();
-        std::copy(elfBuffer.begin(), elfBuffer.end(), std::back_inserter(buffer));
-
-        if (alignment & (alignment - 1)) {
-            VPUX_THROW("Could not align to now power of 2:{1}", alignment);
-        }
-        auto totalBytes = std::distance(elfBuffer.begin(), elfBuffer.end());
-        auto padBytes = -totalBytes & (alignment - 1);
-        if (padBytes) {
-            std::fill_n(std::back_inserter(buffer), padBytes, 0);
-        }
-    };
-
     readBinary(textPath, textBinary, 0x10);
     readBinary(dataPath, dataBinary, 0x10);
+}
+
+static void getActShaveBinaries(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
+                                SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
+    SmallString<128> genDir;
+    if (sys::fs::exists(KERNEL_DIRECTORY) && sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
+        genDir = sys::path::parent_path(LIBRARY_OUTPUT_DIRECTORY);
+    } else {
+        // probe for OV_BUILD_DIR
+        const auto ovBuildDir = std::getenv("OV_BUILD_DIR");
+        VPUX_THROW_UNLESS(ovBuildDir,
+                          "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels");
+        VPUX_THROW_UNLESS(sys::fs::exists(ovBuildDir),
+                          "OpenVino build directory {0}, taken from OV_BUILD_DIR env variable is not exist", genDir);
+
+        genDir = ovBuildDir;
+    }
+    sys::path::append(genDir, "act-kernels");
+
+    VPUX_THROW_UNLESS(sys::fs::exists(genDir), "{0}} directory is not exist", genDir);
+
+    std::string entryPoint = unitDesc.entry.str();
+
+    SmallString<128> prebuiltKernelBinariesPath(genDir);
+    sys::path::append(prebuiltKernelBinariesPath, "prebuild");
+    sys::path::append(prebuiltKernelBinariesPath, "act_shave_bin");
+
+    SmallString<128> prebuiltKernelText(prebuiltKernelBinariesPath);
+    sys::path::append(prebuiltKernelText, "sk." + entryPoint + "." + params.cpu + ".text");
+    SmallString<128> prebuiltKernelData(prebuiltKernelBinariesPath);
+    sys::path::append(prebuiltKernelData, "sk." + entryPoint + "." + params.cpu + ".data");
+
+    if (sys::fs::exists(prebuiltKernelText) && sys::fs::exists(prebuiltKernelData)) {
+        readBinary(prebuiltKernelText, textBinary, 0x10);
+        readBinary(prebuiltKernelData, dataBinary, 0x10);
+    } else {
+        compileAndLinkSHAVE(params, unitDesc, textBinary, dataBinary);
+    }
 }
 
 ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
@@ -190,7 +228,7 @@ ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
     // and then using objcopy teardown elf into text and data sections
     SmallVector<uint8_t, 128> textBinary;
     SmallVector<uint8_t, 128> dataBinary;
-    compileAndLinkSHAVE(params, unitDesc, textBinary, dataBinary);
+    getActShaveBinaries(params, unitDesc, textBinary, dataBinary);
 
     // lets pad textBinary by 1K array at the end with FC CC FC CC
     for (int i = 0; i != 512; i++) {

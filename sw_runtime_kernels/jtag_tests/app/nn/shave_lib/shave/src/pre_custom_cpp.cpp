@@ -43,8 +43,8 @@ void execCleanupCustomLayerCpp(const LayerParams *params, ShaveResourceManager *
 namespace {
     unsigned int getTotalBytes(sw_params::MemRefData &tensor) {
         const uint32_t * dims = reinterpret_cast<uint32_t*>(tensor.dimsAddr);
-        const uint32_t * strides = reinterpret_cast<uint32_t*>(tensor.stridesAddr);
-        return dims[tensor.numDims - 1] * strides[tensor.numDims - 1];
+        const uint64_t * stridesBits = reinterpret_cast<uint64_t*>(tensor.stridesAddr);
+        return dims[tensor.numDims - 1] * stridesBits[tensor.numDims - 1] / CHAR_BIT;
     }
 }  // namespace
 
