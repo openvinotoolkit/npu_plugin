@@ -49,6 +49,9 @@ public:
     PerformanceHint performanceHint() const {
         return _performanceHint;
     }
+    bool createExecutor() const {
+        return _createExecutor;
+    }
 
     // Private options
     InferenceEngine::ColorFormat graphColorFormat() const {
@@ -105,6 +108,7 @@ protected:
     int32_t _csramSize = 0;
     std::string _pipelineOptions;
     PerformanceHint _performanceHint = PerformanceHint::None;
+    bool _createExecutor = true;
 
     // Private options
     InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;

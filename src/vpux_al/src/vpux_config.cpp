@@ -25,6 +25,7 @@ vpux::VPUXConfig::VPUXConfig() {
                                                                                VPUX_CONFIG_KEY(PLATFORM),
                                                                                VPUX_CONFIG_KEY(COMPILER_TYPE),
                                                                                VPUX_CONFIG_KEY(COMPILATION_MODE),
+                                                                               VPUX_CONFIG_KEY(CREATE_EXECUTOR),
                                                                        });
     _runTimeOptions = merge(vpux::VPUXConfigBase::getRunTimeOptions(), {
                                                                                CONFIG_KEY(PERF_COUNT),
@@ -117,6 +118,8 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
             {CONFIG_VALUE(LATENCY), PerformanceHint::Latency},
             {CONFIG_VALUE(THROUGHPUT), PerformanceHint::Throughput}};
     setOption(_performanceHint, performanceHints, config, CONFIG_KEY(PERFORMANCE_HINT));
+
+    setOption(_createExecutor, switches, config, VPUX_CONFIG_KEY(CREATE_EXECUTOR));
 
     // Private options
     setOption(_inferenceTimeoutMs, config, VPUX_CONFIG_KEY(INFERENCE_TIMEOUT), parseInt);

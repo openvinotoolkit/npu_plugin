@@ -82,5 +82,11 @@ DECLARE_VPUX_CONFIG_KEY(INFERENCE_SHAVES);
  */
 DECLARE_VPUX_CONFIG_KEY(CSRAM_SIZE);
 
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: bool, default is 0.
+ */
+DECLARE_VPUX_CONFIG_KEY(CREATE_EXECUTOR);
+
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine
