@@ -79,23 +79,9 @@ SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::
 
 }  // namespace
 
-const movitools::MoviCompileParams& vpux::VPUIP::BlobWriter::compileParams() {
-    static const movitools::MoviCompileParams params = {
+const ActShaveCompileParams& vpux::VPUIP::BlobWriter::compileParams() {
+    static const ActShaveCompileParams params = {
             /*cpu=*/"3010xx",
-            /*moviCompile=*/"linux64/bin/moviCompile",
-            /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
-            /*mdkObjCopy=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy",
-            /*mdkLibDir=*/"common/moviCompile/lib/30xxxx-leon",
-            /*mdkLibs=*/
-            {
-                    "mlibm.a",
-                    "mlibcxx.a",
-                    "mlibneon.a",
-                    "mlibVecUtils.a",
-                    "mlibc_lite.a",
-                    "mlibc_lite_lgpl.a",
-                    "mlibcrt.a",
-            },
     };
 
     return params;
@@ -147,7 +133,7 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
 }
 
 ActKernelDesc vpux::VPUIP::BlobWriter::compileKernelData(const CompilationUnitDesc& unitDesc) {
-    const movitools::MoviCompileParams params = compileParams();
+    const ActShaveCompileParams params = compileParams();
 
     return compileKernelForACTShave(unitDesc, params);
 }
@@ -155,7 +141,7 @@ ActKernelDesc vpux::VPUIP::BlobWriter::compileKernelData(const CompilationUnitDe
 ActKernelDesc vpux::VPUIP::BlobWriter::compileManagementKernelData() {
     const auto& listDesc = managementKernelCompilationDesc();
 
-    const movitools::MoviCompileParams params = compileParams();
+    const ActShaveCompileParams params = compileParams();
 
     return compileKernelForACTShave(listDesc, params);
 }
@@ -220,7 +206,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
                       swKernelTask.kernelFunctionAttr());
 
     // TODO : check that arguments in given function
-    CompilationUnitDesc compilationDesc = {kernelFunc.getName(), kernelEntryPoint.getValue(), kernelCode.getValue()};
+    CompilationUnitDesc compilationDesc = {kernelFunc.getName(), kernelEntryPoint.getValue()};
     auto actKernelDesc = compileKernelData(compilationDesc);
 
     // this is the only supported storage so far

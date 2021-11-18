@@ -40,21 +40,6 @@ using namespace llvm;  // NOLINT
 
 namespace vpux {
 
-bool checkVpuip2Dir() {
-    const auto envDir = llvm::sys::Process::GetEnv("VPUIP_2_Directory");
-    return envDir.hasValue();
-}
-
-std::string getVpuip2Dir() {
-    const auto envDir = llvm::sys::Process::GetEnv("VPUIP_2_Directory");
-    VPUX_THROW_UNLESS(envDir.hasValue(), "VPUIP_2_Directory env var must be set");
-
-    SmallString vpuip2Dir(envDir.getValue());
-    VPUX_THROW_UNLESS(sys::fs::is_directory(vpuip2Dir), "{0} is not a directory", vpuip2Dir.str());
-
-    return vpuip2Dir.str().str();
-}
-
 flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBuilder& fbb,
                                                        llvm::ArrayRef<uint8_t> content) {
     auto packedData = fbb.CreateVector(content.data(), content.size());
@@ -64,10 +49,10 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
     return builder.Finish();
 }
 
-static void getActShaveBinaries(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
-                                SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
+static void getActShaveBinaries(const ActShaveCompileParams& params, const CompilationUnitDesc& unitDesc,
+                                SmallVector<uint8_t>& textBinary, SmallVector<uint8_t>& dataBinary) {
     SmallString genDir;
-    if (sys::fs::exists(KERNEL_DIRECTORY) && sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
+    if (sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
         genDir = sys::path::parent_path(LIBRARY_OUTPUT_DIRECTORY);
     } else {
         // probe for OV_BUILD_DIR
@@ -86,8 +71,6 @@ static void getActShaveBinaries(const movitools::MoviCompileParams& params, cons
     std::string entryPoint = unitDesc.entry.str();
 
     SmallString prebuiltKernelBinariesPath(genDir);
-    sys::path::append(prebuiltKernelBinariesPath, "prebuild");
-    sys::path::append(prebuiltKernelBinariesPath, "act_shave_bin");
 
     SmallString prebuiltKernelText(prebuiltKernelBinariesPath);
     sys::path::append(prebuiltKernelText, "sk." + entryPoint + "." + params.cpu + ".text");
@@ -114,169 +97,15 @@ static void getActShaveBinaries(const movitools::MoviCompileParams& params, cons
         }
     };
 
+    // Use moviCompile to compile and link C source code into an ELF binary.
+    // and then using objcopy teardown elf into text and data sections
     readBinary(prebuiltKernelText, textBinary, 0x10);
     readBinary(prebuiltKernelData, dataBinary, 0x10);
 }
 
-static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, const CompilationListDesc& listDesc,
-                                SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
-    std::string mvToolsDir = movitools::getMoviToolsDir();
-    std::string vpuip2Dir = getVpuip2Dir();
-
-    const StringRef genDir = KERNEL_DIRECTORY;
-
-    std::string entryPoint = listDesc.entry.str();
-
-    SmallString srcNamePath = listDesc.codePath[0];
-    SmallString srcNameNoExt = sys::path::filename(srcNamePath);
-    sys::path::replace_extension(srcNameNoExt, "");
-
-    SmallString buildDirPath;
-    {
-        SmallString tmpPath(LIBRARY_OUTPUT_DIRECTORY);
-        sys::path::append(tmpPath, "act-kernels-build");
-        sys::path::append(tmpPath, srcNamePath);
-        buildDirPath = sys::path::parent_path(tmpPath);
-        sys::fs::create_directories(buildDirPath);
-    }
-
-    SmallString elfPath(buildDirPath);
-    sys::path::append(elfPath, srcNameNoExt + ".elf");
-
-    SmallString objPaths;
-
-    SmallString singleLib(mvToolsDir);
-    sys::path::append(singleLib, params.mdkLibDir);
-    sys::path::append(singleLib, params.mdkLibs[0]);
-
-    SmallString moviCompile(mvToolsDir);
-    sys::path::append(moviCompile, params.moviCompile);
-
-    SmallString extraOptions;
-    for (int i = 0; i < (int)listDesc.defines.size(); ++i) {
-        extraOptions += StringRef(" -D");
-        extraOptions += listDesc.defines[i];
-    }
-    for (int i = 0; i < (int)listDesc.includePaths.size(); ++i) {
-        SmallString inc(vpuip2Dir);
-        sys::path::append(inc, listDesc.includePaths[i]);
-        extraOptions += StringRef(" -I");
-        extraOptions += inc;
-    }
-
-    for (int i = 0; i < (int)listDesc.codePath.size(); ++i) {
-        SmallString srcNamePath = listDesc.codePath[i];
-
-        SmallString srcNameNoExt = sys::path::filename(srcNamePath);
-        sys::path::replace_extension(srcNameNoExt, "");
-
-        SmallString srcPath(vpuip2Dir);
-        sys::path::append(srcPath, srcNamePath);
-
-        SmallString incPath(genDir);
-        sys::path::append(incPath, "inc");
-
-        SmallString objPath(buildDirPath);
-        sys::path::append(objPath, srcNameNoExt + ".o");
-        objPaths += StringRef(" ");
-        objPaths += objPath;
-
-        {
-            auto compileCmd = formatv("{1} -mcpu={2} -c {3} -o {4} -I {5} -I{6}{7}", genDir, moviCompile, params.cpu,
-                                      srcPath, objPath, mvToolsDir, incPath, extraOptions)
-                                      .str();
-            if (std::system(compileCmd.c_str())) {
-                VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
-            }
-        }
-
-#ifdef GEN_SYM_FILE
-        SmallString symPath(genDir);
-        sys::path::append(symPath, "build");
-        sys::path::append(symPath, srcName + ".s");
-
-        {
-            auto compileCmd = formatv("cd {0}; {1} -mcpu={2} -S {3} -o {4} -I {5} -I {6} -I {7} ", genDir, moviCompile,
-                                      params.cpu, srcPath, symPath, mvToolsDir, incPath, incPath2)
-                                      .str();
-            // IVLOG(1, compileCmd);
-            if (std::system(compileCmd.c_str())) {
-                VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
-            }
-        }
-#endif  // GEN_SYM_FILE
-    }
-
-    // Generate linker script name - and copy it from
-    SmallString linkerScriptPath(genDir);
-    sys::path::append(linkerScriptPath, "build");
-    sys::path::append(linkerScriptPath, "shave_rt_kernel.ld");
-
-    SmallString linker(mvToolsDir);
-    sys::path::append(linker, params.mdkLinker);
-    auto linkCmd = formatv("{0} -zmax-page-size=16 --script {1}"
-                           " -entry {2} --gc-sections --strip-debug --discard-all  {3}"
-                           " -EL {4} --output {5}",
-                           linker, linkerScriptPath, entryPoint.c_str(), objPaths, singleLib, elfPath)
-                           .str();
-    if (std::system(linkCmd.c_str())) {
-        VPUX_THROW((std::string("linker failed: ") + linkCmd).c_str());
-    }
-
-    SmallString objcopy(mvToolsDir);
-    sys::path::append(objcopy, params.mdkObjCopy);
-
-    SmallString textPath(buildDirPath);
-    sys::path::append(textPath, "sk." + srcNameNoExt + "." + params.cpu + ".text");
-
-    {
-        auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}", objcopy, elfPath, textPath).str();
-        if (std::system(objCopyCmd.c_str())) {
-            VPUX_THROW((std::string("objcopy failed: ") + objCopyCmd).c_str());
-        }
-    }
-
-    SmallString dataPath(buildDirPath);
-    sys::path::append(dataPath, "sk." + srcNameNoExt + "." + params.cpu + ".data");
-
-    {
-        auto objCopyCmd = formatv("{0} -O binary --only-section=.arg.data {1} {2}", objcopy, elfPath, dataPath).str();
-
-        if (std::system(objCopyCmd.c_str())) {
-            VPUX_THROW((std::string("objcopy failed: ") + objCopyCmd).c_str());
-        }
-    }
-
-    auto readBinary = [](SmallString& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment = 1) {
-        std::string err;
-        auto elfFile = mlir::openInputFile(path, &err);
-        if (!elfFile) {
-            VPUX_THROW("Could not open {0} binary, err:{1}", path.c_str(), err);
-        }
-
-        auto elfBuffer = elfFile->getBuffer();
-        std::copy(elfBuffer.begin(), elfBuffer.end(), std::back_inserter(buffer));
-
-        if (alignment & (alignment - 1)) {
-            VPUX_THROW("Could not align to now power of 2:{1}", alignment);
-        }
-        auto totalBytes = std::distance(elfBuffer.begin(), elfBuffer.end());
-        auto padBytes = -totalBytes & (alignment - 1);
-        if (padBytes) {
-            std::fill_n(std::back_inserter(buffer), padBytes, 0);
-        }
-    };
-
-    readBinary(textPath, textBinary, 0x10);
-    readBinary(dataPath, dataBinary, 0x10);
-}
-
-ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
-                                       const movitools::MoviCompileParams& params) {
-    // Use moviCompile to compile and link C source code into an ELF binary.
-    // and then using objcopy teardown elf into text and data sections
-    SmallVector<uint8_t, 128> textBinary;
-    SmallVector<uint8_t, 128> dataBinary;
+ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, const ActShaveCompileParams& params) {
+    SmallVector<uint8_t> textBinary;
+    SmallVector<uint8_t> dataBinary;
     getActShaveBinaries(params, unitDesc, textBinary, dataBinary);
 
     // lets pad textBinary by 1K array at the end with FC CC FC CC
@@ -294,64 +123,19 @@ ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
     return result;
 }
 
-ActKernelDesc compileKernelForACTShave(const CompilationListDesc& listDesc,
-                                       const movitools::MoviCompileParams& params) {
-    // Use moviCompile to compile and link C source code into an ELF binary.
-    // and then using objcopy teardown elf into text and data sections
-    SmallVector<uint8_t, 128> textBinary;
-    SmallVector<uint8_t, 128> dataBinary;
-    compileAndLinkSHAVE(params, listDesc, textBinary, dataBinary);
-
-    // lets pad textBinary by 1K array at the end with FC CC FC CC
-    for (int i = 0; i != 512; i++) {
-        textBinary.push_back(0xFC);
-        textBinary.push_back(0xCC);
-    }
-
-    ActKernelDesc result;
-    result.text = {listDesc.name.data(), textBinary, textBinary.size() - 1024};
-
-    auto dataName = std::string(listDesc.name) + ".data";
-    result.data = {dataName, dataBinary, dataBinary.size()};
-
-    return result;
-}
-
-const CompilationListDesc& managementKernelCompilationDesc() {
-    static const CompilationListDesc listDesc{
+const CompilationUnitDesc& managementKernelCompilationDesc() {
+    static const CompilationUnitDesc unitDesc{
             "nnActEntry",
             "nnActEntry",
-            {// sources: relative to VPUIP2
-             "system/nn_mtl/act_runtime/src/nnActEntry.cpp", "drivers/shave/svuShared_3600/src/HglShaveId.c",
-             "system/nn_mtl/common_runtime/src/nn_fifo_manager.cpp"},
-            {
-                    // -D defines
-                    "CONFIG_TARGET_SOC_3720",
-                    "__shave_nn__",
-            },
-            {
-                    // include paths: relative to VPUIP2
-                    "drivers/hardware/registerMap/inc",  // #include <DrvRegUtils.h>
-                    "drivers/hardware/utils/inc",        // #include <mv_types.h>
-                    "drivers/shave/svuL1c/inc",          // #include <DrvSvuL1Cache.h>
-                    "drivers/errors/errorCodes/inc",     // #include <DrvErrors.h>
-                    "system/shave/svuCtrl_3600/inc",     // #include <ShaveId.h>
-                    "drivers/shave/svuShared_3600/inc",  // #include <HglShaveId.h>
-                    "drivers/shave/svuCtrl_3600/inc",    // #include <HglShaveLogging.h>
-                    "drivers/nn/inc",                    // #include <nn_barrier.h>
-                    "drivers/resource/barrier/inc",      // #include <HglBarrier.h>
-                    "system/nn_mtl/common_runtime/inc",  // #include <nn_fifo_manager.h>
-                    "system/nn_mtl/act_runtime/inc",     // #include <nnActRtDebug.h>
-                    "system/nn_mtl/common/inc",          // #include <nn_runtime_types.h>
-            }};
+    };
 
-    return listDesc;
+    return unitDesc;
 }
 
-ActKernelDesc compileManagementKernelForACTShave(const movitools::MoviCompileParams& params) {
-    const auto& listDesc = managementKernelCompilationDesc();
+ActKernelDesc compileManagementKernelForACTShave(const ActShaveCompileParams& params) {
+    const auto& unitDesc = managementKernelCompilationDesc();
 
-    return compileKernelForACTShave(listDesc, params);
+    return compileKernelForACTShave(unitDesc, params);
 }
 
 }  // namespace vpux

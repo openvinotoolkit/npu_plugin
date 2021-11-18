@@ -20,9 +20,6 @@
 using namespace vpux;
 
 TEST(ManagementKernel, Compile) {
-    if (!checkVpuip2Dir()) {
-        GTEST_SKIP() << "Skip due to VPUIP_2_Directory environment variable isn't set";
-    }
 
     const auto params = vpux::VPUIP::BlobWriter::compileParams();
 

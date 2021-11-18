@@ -358,7 +358,6 @@ target_compile_definitions(${OBJ_TARGET_NAME}
         IMPLEMENT_INFERENCE_ENGINE_PLUGIN
         "DEVICE_NAME=\"${VPUX_DEVICE_NAME}\""
         "LIBRARY_OUTPUT_DIRECTORY=\"${CMAKE_LIBRARY_OUTPUT_DIRECTORY}\""
-        "KERNEL_DIRECTORY=\"${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels\""
 )
 
 # either copy sources or binaries to output folder

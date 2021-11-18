@@ -215,7 +215,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:          name: "scratch_buffer",
 // CHECK:          locale: "GFEmbeddedKernel",
 // CHECK:          locale_offset: 4,
-// CHECK:          data_offset: 760,
 // CHECK:          referenced_data_size: 65536
 // CHECK:        }
 // CHECK:     }
@@ -247,7 +246,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                  name: "builtin_hswish",
 // CHECK:                  locale: "GFEmbeddedKernel",
 // CHECK:                  locale_offset: 5,
-// CHECK:                  data_offset: 256,
 // CHECK:                  referenced_data_size: 1760
 // CHECK:                }
 // CHECK:              },
@@ -265,13 +263,11 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                    name: "builtin_hswish_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
 // CHECK:                    locale_offset: 6,
-// CHECK:                    data_offset: 540
 // CHECK:                  },
 // CHECK:                  invocationArgs: {
 // CHECK:                    name: "builtin_hswish_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
 // CHECK:                    locale_offset: 6,
-// CHECK:                    data_offset: 540,
 // CHECK:                    referenced_data_size: 168
 // CHECK:                  }
 // CHECK:                }
