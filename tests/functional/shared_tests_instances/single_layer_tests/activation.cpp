@@ -60,7 +60,6 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
 class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationParam;
-
         std::tie(activationParam,
                  std::ignore, std::ignore, std::ignore, std::ignore,
                  std::ignore, std::ignore, std::ignore) = GetParam();
@@ -126,8 +125,7 @@ using namespace ngraph::helpers;
 namespace {
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
+    InferenceEngine::Precision::FP32
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -175,10 +173,10 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesFP16Only = {
-    {Sinh,     {{1.0f}}},
+    {Ceiling,  {{1.0f}}},
 };
 
-const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesFP16FP16Only = {
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesDoubleFP16 = {
     {Sinh,     {{1.0f}}},
 };
 
@@ -239,8 +237,8 @@ const auto basicFP16OnlyCases = ::testing::Combine(
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 // For operations that only support FP16 input values in 'vpuip_2'
-const auto basicFP16OnlyCasesSinh = ::testing::Combine(
-    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesFP16FP16Only)),
+const auto basicDoubleFP16OnlyCases = ::testing::Combine(
+    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesDoubleFP16)),
     ::testing::ValuesIn(netPrecisions),
     ::testing::Values(InferenceEngine::Precision::FP16),
     ::testing::Values(InferenceEngine::Precision::FP16),
@@ -248,7 +246,6 @@ const auto basicFP16OnlyCasesSinh = ::testing::Combine(
     ::testing::Values(InferenceEngine::Layout::ANY),
     ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
-
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_PRelu, KmbActivationLayerTest, basicPReluCases, ActivationLayerTest::getTestCaseName);
@@ -282,5 +279,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest_MTL, basi
 
 
 
-}  // namespace
 
+}  // namespace
