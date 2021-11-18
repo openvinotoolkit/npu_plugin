@@ -1309,6 +1309,46 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
                                 continue;
                         }                                                                         
 
+                        // manually tuning for style transfer
+                        std::vector<std::string> splitNodeList = {"style/encode/conv1",
+                                                                  "McmScale_1804_DepthwiseConv",
+                                                                  "style/encode/conv2",
+                                                                  "McmScale_1800_DepthwiseConv",
+                                                                  "McmScale_1796_DepthwiseConv",
+                                                                  "style/transfer/fireres1_fire_s1",
+                                                                  "style/transfer/fireres1_fire_e1",
+                                                                  "style/transfer/fireres1_fire_e3",
+                                                                  "McmScale_1792_DepthwiseConv",
+                                                                  "style/transfer/fireres2_fire_s1",
+                                                                  "style/transfer/fireres2_fire_e1",
+                                                                  "style/transfer/fireres2_fire_e3",
+                                                                  "McmScale_1788_DepthwiseConv",
+                                                                  "style/transfer/fireres3_fire_s1",
+                                                                  "style/transfer/fireres3_fire_e1",
+                                                                  "style/transfer/fireres3_fire_e3",
+                                                                  "McmScale_1784_DepthwiseConv",
+                                                                  "style/transfer/fireres4_fire_s1",
+                                                                  "style/transfer/fireres4_fire_e1",
+                                                                  "style/transfer/fireres4_fire_e3",
+                                                                  "McmScale_1780_DepthwiseConv",
+                                                                  "style/transfer/fireres5_fire_s1",
+                                                                  "style/transfer/fireres5_fire_e1",
+                                                                  "style/transfer/fireres5_fire_e3",
+                                                                  "McmScale_1776_DepthwiseConv",
+                                                                  "style/decode/conv_t1",
+                                                                  "McmScale_1772_DepthwiseConv",
+                                                                  "style/decode/conv_t2",
+                                                                  "McmScale_1768_DepthwiseConv",
+                                                                  "style/decode/conv_t3",
+                                                                  "McmScale_1764_DepthwiseConv",
+                                                                  "style/output/add_DepthwiseConv"
+                        };
+                        auto iter = std::find(splitNodeList.begin(), splitNodeList.end(), op.getName());
+                        if(iter != splitNodeList.end()){
+                            mv::Attribute soh(std::string("SplitOverH"));
+                            s["clustering"] = soh;
+                        }
+
                         strategyVec.push_back(s);
 
                         //    std::cout << "Name: " + op.getName() << " ID " << s["id"].toString()<< std::endl;
