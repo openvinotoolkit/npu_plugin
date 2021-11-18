@@ -105,13 +105,7 @@ Const::Content vpux::Const::TransposeAttr::transform(vpux::Const::Content& input
     const auto transposeOrder = DimsOrder::fromAffineMap(getOrder().getValue());
     auto output = Const::details::reorderTransformation(input, transposeType, transposeOrder);
 
-    auto outBuf = output.getRawTempBuf();
-    auto transposedOutput = Const::Content::allocTempBuffer(inferOutputType(input.getType()),
-                                                            input.getStorageElemType(), input.isSplat());
-    auto transposedOutputBuf = transposedOutput.getRawTempBuf();
-    std::copy_n(outBuf.data(), outBuf.size(), transposedOutputBuf.data());
-
-    return transposedOutput;
+    return Const::Content::moveBuffer(inferOutputType(input.getType()), std::move(output));
 }
 
 //
