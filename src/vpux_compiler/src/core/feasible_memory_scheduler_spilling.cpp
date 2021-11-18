@@ -216,7 +216,7 @@ mlir::Operation* FeasibleMemorySchedulerSpilling::SpillUsersUpdate::getViewOpFor
     for (auto& op : bodyBlock->getOperations()) {
         if (auto viewOp = mlir::dyn_cast<mlir::ViewLikeOpInterface>(op)) {
             if (viewOp.getViewSource() == _bufferToSpill) {
-                _spillingParentObj->_log.trace("Mateusz: ViewOp defininig reference to master buffer");
+                //_spillingParentObj->_log.trace("Mateusz: ViewOp defininig reference to master buffer");
                 VPUX_THROW_UNLESS(viewOpForMasterBuffer == nullptr,
                                   "Corresponding viewOp was already identified. Only 1 is supported");
                 viewOpForMasterBuffer = viewOp.getOperation();
@@ -235,9 +235,9 @@ FeasibleMemorySchedulerSpilling::SpillUsersUpdate::getUsersOfSpilledOpThatNeedUp
     llvm::SmallVector<mlir::async::ExecuteOp> usersOfSpilledOpThatNeedUpdate;
     for (auto* user : opThatWasSpilledResult.getUsers()) {
         if (mlir::isa_and_nonnull<mlir::async::ExecuteOp>(user) && !user->isBeforeInBlock(_spillReadExecOp)) {
-            _spillingParentObj->_log.trace(
-                    "Mateusz: Users of result of op that referred to spilled master buffer and are "
-                    "after spill_read");
+            // _spillingParentObj->_log.trace(
+            //         "Mateusz: Users of result of op that referred to spilled master buffer and are "
+            //         "after spill_read");
             usersOfSpilledOpThatNeedUpdate.push_back(mlir::dyn_cast_or_null<mlir::async::ExecuteOp>(user));
         }
     }
@@ -290,7 +290,7 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::updateSpillBufferUsers(m
                                                                                mlir::Value newBuffer) {
     // Get information about the users of original output buffer that should still refer to it
     // (e.g. operations that appear in IR before)
-    _spillingParentObj->_log.trace("Mateusz: Check spilled buffer direct users");
+    //_spillingParentObj->_log.trace("Mateusz: Check spilled buffer direct users");
     llvm::SmallPtrSet<mlir::Operation*, 1> excludedUsersFromOrigBufferUpdate;
     for (auto* user : oldBuffer.getUsers()) {
         if (user != nullptr) {
@@ -312,7 +312,7 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage(
     auto opToSpillAsyncType = opThatWasSpilledResult.getType().dyn_cast<mlir::async::ValueType>();
     auto opToSpillMemRefType = opToSpillAsyncType.getValueType().cast<mlir::MemRefType>();
 
-    _spillingParentObj->_log.trace("  opThatWasSpilled - '{0}'", _opThatWasSpilled);
+    //_spillingParentObj->_log.trace("  opThatWasSpilled - '{0}'", _opThatWasSpilled);
 
     // _spillingParentObj->_log.trace("  opThatWasSpilledResult users");
     // for (auto* user : opThatWasSpilledResult.getUsers()) {
@@ -325,7 +325,7 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage(
     // referring to this buffer need to be properly updated to now refer to result of spillRead
     if (getCompactSize(opToSpillMemRefType).count() <
         getCompactSize(_bufferToSpill.getType().dyn_cast<mlir::MemRefType>()).count()) {
-        _spillingParentObj->_log.trace("Mateusz: Need to spill master buffer");
+        //_spillingParentObj->_log.trace("Mateusz: Need to spill master buffer");
         // spillBufferInsteadOfAsyncResult = true;
 
         llvm::SmallVector<mlir::async::ExecuteOp> usersOfSpilledOpThatNeedUpdate =
@@ -356,7 +356,7 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage(
                 // Get asyncExecOp argument index related to result of spilled asyncExecOp
                 auto operandIndex = getOperandIndexForSpillResultUser(userOfSpilledOpThatNeedUpdate);
 
-                _spillingParentObj->_log.trace("Mateusz: master buffer user arguments");
+                //_spillingParentObj->_log.trace("Mateusz: master buffer user arguments");
 
                 // Get argument of asyncExecOp block that would need to be updated
                 // to be used in the body through newly inserted view op
@@ -380,17 +380,24 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage(
         }
     }
 
+    //_spillingParentObj->_log.trace("Mateusz: '{0}'", __LINE__);
     auto spillReadExecOpResult = _spillReadExecOp.results()[0];
+    //_spillingParentObj->_log.trace("Mateusz: '{0}'", __LINE__);
 
     updateSpillResultUsers(opThatWasSpilledResult, spillReadExecOpResult);
 
+    //_spillingParentObj->_log.trace("Mateusz: '{0}'", __LINE__);
     // Add tokens matching those new data dependencies
-    for (auto* user : spillReadExecOpResult.getUsers()) {
-        if (auto userAsyncOp = mlir::dyn_cast_or_null<mlir::async::ExecuteOp>(user)) {
-            userAsyncOp.dependenciesMutable().append(makeArrayRef(_spillReadExecOp.token()));
-        }
-    }
-
+    // Mateusz: token dependencies wil be added by t -> t+1 alg. Aslo data dependency implies value dependency
+    // for (auto* user : spillReadExecOpResult.getUsers()) {
+    //     if (auto userAsyncOp = mlir::dyn_cast_or_null<mlir::async::ExecuteOp>(user)) {
+    //         _spillingParentObj->_log.trace("Mateusz: '{0}'", __LINE__);
+    //         _spillingParentObj->_log.trace("Mateusz: addDep for '{0}'",
+    //                                        _spillingParentObj->_depsInfo.getIndex(userAsyncOp));
+    //         userAsyncOp.dependenciesMutable().append(makeArrayRef(_spillReadExecOp.token()));
+    //     }
+    // }
+    //_spillingParentObj->_log.trace("Mateusz: '{0}'", __LINE__);
     // Get new output buffer that is the result of spillRead
     auto newOutputBuffer = _spillingParentObj->getBufferFromAsyncResult(spillReadExecOpResult);
 
@@ -414,8 +421,10 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::Value buff
         if (bufferAlias.getType().isa<mlir::async::ValueType>()) {
             if (const auto execOpWithSpilledResult =
                         mlir::dyn_cast<mlir::async::ExecuteOp>(bufferAlias.getDefiningOp())) {
-                _log.trace("Mateusz: Master buffer user - '{0}'", execOpWithSpilledResult);
-                opsThatWereSpilled.push_back(execOpWithSpilledResult);
+                //_log.trace("Mateusz: Master buffer user - '{0}'", execOpWithSpilledResult);
+                if (execOpWithSpilledResult->isBeforeInBlock(spillReadExecOp)) {
+                    opsThatWereSpilled.push_back(execOpWithSpilledResult);
+                }
             }
         }
     }
@@ -425,10 +434,16 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::Value buff
                   return execOp2.getOperation()->isBeforeInBlock(execOp1.getOperation());
               });
 
+    _log.trace("Mateusz: ops that were spilled size - {0}", opsThatWereSpilled.size());
     for (auto& opThatWasSpilled : opsThatWereSpilled) {
-        _log.trace("Resolve users of operation: '{0}'", opThatWasSpilled->getLoc());
+        _log.trace("Resolve users of operation: '{0}'",
+                   _depsInfo.getIndex(opThatWasSpilled) /*opThatWasSpilled->getLoc()*/);
+
         SpillUsersUpdate spillUsersUpdateHandler(this, opThatWasSpilled, spillReadExecOp, bufferToSpill);
         spillUsersUpdateHandler.resolveSpillBufferUsage();
+
+        _log.trace("Mateusz: Concat op state:");
+        _log.trace("{0}", _depsInfo.getExecuteOpAtIndex(179));
     }
 }
 
@@ -559,4 +574,8 @@ void FeasibleMemorySchedulerSpilling::insertSpillCopyOps(
     }
     _log = _log.unnest();
     _log.trace("Spill copyOps resolved");
+
+    // mateusz
+    _log.trace("Mateusz: Concat op:");
+    _log.trace("{0}", _depsInfo.getExecuteOpAtIndex(179));
 }
