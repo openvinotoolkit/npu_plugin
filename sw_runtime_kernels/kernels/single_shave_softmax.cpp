@@ -411,7 +411,7 @@ namespace shave_lib {
 
 extern "C" {
 
-void singleShaveSoftmax(uint32_t lParams, uint8_t * cmxData, int32_t availableCmxBytes) {
+void singleShaveSoftmax(uint32_t lParams) {
     // Special DMA to copy layer params from physical DDR
 //    CustomLayerCppParams local_params;
 //    dmaShaveParams(local_params, layerParams);
@@ -419,6 +419,10 @@ void singleShaveSoftmax(uint32_t lParams, uint8_t * cmxData, int32_t availableCm
     const SoftmaxParams * layerParams = reinterpret_cast<const SoftmaxParams *>(lParams);
     t_MvSoftMaxParamNClasses softmaxParamsCMX;
     t_MvSoftMaxParamNClasses* sp = &softmaxParamsCMX;
+
+    // a workaround until a solution is found to obtain these parameters
+    uint8_t * cmxData = 0; // not used
+    int32_t availableCmxBytes = 100000;
 
 //    uint32_t *data = cmxData;//(uint32_t *)cfg->argBuffer;
 //    uint32_t argSize = data[0]; // in bytes including the size of opId and the size of this field.
