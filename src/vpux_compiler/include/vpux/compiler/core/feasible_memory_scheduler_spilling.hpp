@@ -50,8 +50,8 @@ private:
     mlir::async::ExecuteOp insertSpillReadCopyOp(mlir::async::ExecuteOp opThatWasSpilled,
                                                  mlir::async::ExecuteOp spillWriteExecOp,
                                                  mlir::async::ExecuteOp insertAfterExecOp, size_t allocatedAddress);
-    void updateSpillWriteReadUsers(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value bufferToSpill,
-                                   mlir::async::ExecuteOp spillWriteExecOp, mlir::async::ExecuteOp spillReadExecOp);
+    void updateSpillWriteReadUsers(mlir::Value bufferToSpill, mlir::async::ExecuteOp spillWriteExecOp,
+                                   mlir::async::ExecuteOp spillReadExecOp);
     mlir::Value getAsyncResultForBuffer(mlir::Value buffer);
     mlir::Value getBufferFromAsyncResult(mlir::Value asyncResult);
 
