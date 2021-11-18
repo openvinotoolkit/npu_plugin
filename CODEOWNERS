@@ -60,14 +60,18 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 # Tests folder
 /tests @alpkn
 #
-#/tests/functional/behavior ?
-#/tests/functional/common ?
-#/tests/functional/compile ?
-#/tests/functional/internal ?
-#/tests/functional/shared_test_classes ?
-#/tests/functional/shared_test_instances ?
-#/tests/functional/single_layer_tests ?
-#/tests/functional/subgraph_tests ?
+/tests/functional/behavior @ArtemySkrebkov-intel @mznamens @alpkn
+/tests/functional/common @ArtemySkrebkov-intel @mznamens
+/tests/functional/compile @ArtemySkrebkov-intel @mznamens
+/tests/functional/internal @ArtemySkrebkov-intel @mznamens
+/tests/functional/shared_test_classes @alpkn
+/tests/functional/shared_test_instances @alpkn
+#/tests/functional/shared_test_instances/behavior ?
+#/tests/functional/shared_test_instances/blob_tests ?
+#/tests/functional/shared_test_instances/single_layer_tests ?
+#/tests/functional/shared_test_instances/subgraph_tests ?
+/tests/functional/single_layer_tests @maxim-kurin @alpkn
+/tests/functional/subgraph_tests @maxim-kurin @vinograd47 @alpkn
 #
 /tests/libs @alpkn
 /tests/lit @vinograd47 @nikita-kud
