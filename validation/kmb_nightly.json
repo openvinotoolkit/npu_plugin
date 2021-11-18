@@ -4376,7 +4376,7 @@
                 "subsample_size": 100
             },
             "NetTest": {
-                "inputs" : [[""]],
+                "inputs" : [["224x224/watch.bmp"]],
                 "params" : [
                     "--mode", "classification"
                 ]
