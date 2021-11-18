@@ -129,6 +129,15 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     auto nClusters = std::get<2>(compilationConfigs);
     auto pad = std::get<3>(compilationConfigs);
     auto workloadCost = std::get<4>(compilationConfigs);
+    // Specific mobilenet v3 fp16 workloadCost for best performance
+    auto Ops = om.getOps("DPUTask");
+    for(auto Op:Ops){
+      if(Op->getName() == "MobilenetV3/expanded_conv/add"){
+        workloadCost = 3300;
+        break;
+      }
+    }
+    std::cout<<"workload: "<<workloadCost<<std::endl;
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     auto referenceDevice = globalParams->get<std::string>("referenceDevice");
     auto target = td.getTarget();
