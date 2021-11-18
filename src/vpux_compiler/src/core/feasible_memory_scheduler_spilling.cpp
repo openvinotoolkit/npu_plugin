@@ -420,6 +420,11 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::Value buff
         }
     }
 
+    std::sort(opsThatWereSpilled.begin(), opsThatWereSpilled.end(),
+              [](mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execOp2) {
+                  return execOp2.getOperation()->isBeforeInBlock(execOp1.getOperation());
+              });
+
     for (auto& opThatWasSpilled : opsThatWereSpilled) {
         _log.trace("Resolve users of operation: '{0}'", opThatWasSpilled->getLoc());
         SpillUsersUpdate spillUsersUpdateHandler(this, opThatWasSpilled, spillReadExecOp, bufferToSpill);
