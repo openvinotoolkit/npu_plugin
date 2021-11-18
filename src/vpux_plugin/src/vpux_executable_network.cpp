@@ -93,11 +93,6 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
         _logger->warning("Failed to read NGraph network");
         IE_THROW() << "Failed to read NGraph network";
     }
-
-    if (config.createExecutor()) {
-        _executorPtr = createExecutor(_networkPtr, _config, device);
-        ConfigureStreamsExecutor(network.getName());
-    }
 }
 
 //------------------------------------------------------------------------------

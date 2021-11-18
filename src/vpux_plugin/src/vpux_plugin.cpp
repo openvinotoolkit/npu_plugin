@@ -220,8 +220,6 @@ IE::Parameter Engine::GetConfig(const std::string& name,
         return IE::Parameter(_parsedConfig.numberOfNnCoreShaves());
     } else if (name == VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS)) {
         return IE::Parameter(_parsedConfig.pipelineOptions());
-    } else if (name == VPUX_CONFIG_KEY(CREATE_EXECUTOR)) {
-        return IE::Parameter(_parsedConfig.createExecutor());
     } else {
         IE_THROW(NotImplemented);
     }
