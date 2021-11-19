@@ -109,6 +109,7 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
 
             // TODO: temporary FQ propagation
             if (inputFQ != nullptr && outputFQ != nullptr && (i != 0 || j != 0)) {
+                slicedInput->setOperand(0, inputFQ->getOperand(0));
                 slicedInput = createFQ(rewriter, slicedInput, inputFQ);
             }
 

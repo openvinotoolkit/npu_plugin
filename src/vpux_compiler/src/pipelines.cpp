@@ -178,6 +178,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     pm.addPass(IE::createConvertFCToConvPass(log));
     pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     pm.addPass(IE::createConvertScaleShiftToDWPass(log));
+    pm.addPass(IE::createSplitConvWithMultipleFQPass(log));
     // Canonicalize group convolution if necessary.
     pm.addPass(mlir::createCanonicalizerPass(grc));
     IE::buildAdjustForVPUPipeline(pm, log);

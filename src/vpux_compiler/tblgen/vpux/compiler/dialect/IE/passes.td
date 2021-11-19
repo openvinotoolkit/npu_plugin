@@ -378,6 +378,27 @@ def ConvertToMemPermute : PassBase<"convert-to-mem-permute", "vpux::FunctionPass
     ];
 }
 
+// SplitConvWithMultipleFQ
+//
+
+def SplitConvWithMultipleFQ : PassBase<"split-conv-with-multiple-fq", "vpux::FunctionPass"> {
+    let summary = "Splits Convolution for multiple FakeQuantize";
+
+    let description = [{
+        The pass is a part of `HardwareMode` pipeline.
+
+        It splits `Convolution` operation with multiple consumers with `FakeQuantize` operations,
+        into multiple `Convolution` operations, one for each consumer. This transformation is needed to be
+        able to quantize convolution and fuse bias and post-processing operations.
+    }];
+
+    let constructor = "vpux::IE::createSplitConvWithMultipleFQPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 //
 // HandleLargeStrides
 //
