@@ -766,3 +766,37 @@ TEST_F(MLIR_ConstContentAttrTest, BitPackQuant) {
 
     EXPECT_TRUE(std::equal(actVals.begin(), actVals.end(), expectedResult.begin()));
 }
+
+TEST_F(MLIR_ConstContentAttrTest, Transpose) {
+    const int64_t N = 512;
+    const int64_t C = 40;
+    const auto baseType = mlir::RankedTensorType::get({N, C}, mlir::Float32Type::get(&ctx));
+
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto permutationMap = mlir::AffineMap::getPermutationMap(SmallVector<unsigned>{1, 0}, &ctx);
+    const auto orderAttr = DimsOrder::fromAffineMap(permutationMap);
+    const auto contentAttr = baseContentAttr.transpose(orderAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_NE(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_NE(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto contentVals = content.getValues<float>();
+    EXPECT_EQ(contentVals.size(), vals.size());
+
+    for (int64_t n = 0; n < N; ++n) {
+        for (int64_t c = 0; c < C; ++c) {
+            const auto origIndex = n * C + c * 1;
+            const auto newIndex =  n * 1 + c * N;
+            EXPECT_EQ(contentVals[newIndex], vals[origIndex]) << n << " " << c << " ";
+        }
+    }
+}

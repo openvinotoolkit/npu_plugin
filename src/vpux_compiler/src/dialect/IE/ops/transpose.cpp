@@ -204,10 +204,13 @@ void vpux::IE::TransposeOp::getCanonicalizationPatterns(mlir::OwningRewritePatte
     patterns.insert<FuseTransposes>(context);
 }
 
-mlir::OpFoldResult vpux::IE::TransposeOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() != output().getType()) {
-        return nullptr;
+mlir::OpFoldResult vpux::IE::TransposeOp::fold(ArrayRef<mlir::Attribute> operands) {
+    if (const auto cst = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
+        if (order_value().hasValue()) {
+            const auto orderAttr = DimsOrder::fromAffineMap(order_value().getValue());
+            return cst.transpose(orderAttr);
+        }
     }
 
-    return input();
+    return nullptr;
 }
