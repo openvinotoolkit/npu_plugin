@@ -329,7 +329,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     // Generate linker script name - and copy it from
     SmallString<128> linkerScriptPath(genDir);
     sys::path::append(linkerScriptPath, "build");
-    sys::path::append(linkerScriptPath, "shave_kernel.ld");
+    sys::path::append(linkerScriptPath, "shave_rt_kernel.ld");
 
     SmallString<128> linker(mvToolsDir);
     sys::path::append(linker, params.mdkLinker);
