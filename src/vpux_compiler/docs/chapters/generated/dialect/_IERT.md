@@ -1260,6 +1260,64 @@ operation ::= `IERT.LeakyRelu` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.LessEqual` (vpux::IERT::LessEqualOp)
+
+InferenceEngine run-time LessEqual layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.LessEqual` attr-dict
+              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float or 32-bit float values
+`input2` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.Less` (vpux::IERT::LessOp)
+
+InferenceEngine run-time Less layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Less` attr-dict
+              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float or 32-bit float values
+`input2` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Log` (vpux::IERT::LogOp)
 
 InferenceEngine run-time Log layer

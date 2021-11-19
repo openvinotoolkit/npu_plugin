@@ -109,6 +109,8 @@ std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypes = {
 
 std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypes_MLIR = {
         ngraph::helpers::ComparisonTypes::EQUAL,
+        ngraph::helpers::ComparisonTypes::LESS,
+        ngraph::helpers::ComparisonTypes::LESS_EQUAL,
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
