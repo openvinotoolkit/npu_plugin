@@ -42,13 +42,27 @@ FeasibleMemorySchedulerSpilling::FeasibleMemorySchedulerSpilling(mlir::FuncOp ne
 
 mlir::Value FeasibleMemorySchedulerSpilling::getAsyncResultForBuffer(mlir::async::ExecuteOp opThatWasSpilled,
                                                                      mlir::Value buffer) {
-    for (auto bufferAlias : _aliasInfo.getAllAliases(buffer)) {
-        if (bufferAlias.getType().isa<mlir::async::ValueType>() &&
-            bufferAlias.getDefiningOp() == opThatWasSpilled.getOperation()) {
-            return bufferAlias;
+    llvm::SmallVector<mlir::Value> buffersToCheck = {buffer};
+
+    // Search if this buffer is a replacement for some original buffer which got spilled
+    // If such original buffer is located use it for aliases as this information is not updated
+    // with new buffers in dependant operations
+    for (auto& replacementPairs : _bufferReplacementAfterSpillRead) {
+        if (replacementPairs.second == buffer) {
+            buffersToCheck.push_back(replacementPairs.first);
         }
     }
-    VPUX_THROW("No async result matched for a given buffer");
+    for (auto& bufferToCheck : buffersToCheck) {
+        for (auto bufferAlias : _aliasInfo.getAllAliases(bufferToCheck)) {
+            if (bufferAlias.getType().isa<mlir::async::ValueType>() &&
+                bufferAlias.getDefiningOp() == opThatWasSpilled.getOperation()) {
+                return bufferAlias;
+            }
+        }
+    }
+
+    VPUX_THROW("No async result matched for a given buffer\n buffer - {0}\n opThatWasSpilled - {1}", buffer,
+               opThatWasSpilled);
 }
 
 mlir::Value FeasibleMemorySchedulerSpilling::getBufferFromAsyncResult(mlir::Value asyncResult) {
@@ -133,6 +147,7 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
 }
 
 mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(mlir::async::ExecuteOp opThatWasSpilled,
+                                                                              mlir::Value bufferToSpill,
                                                                               mlir::async::ExecuteOp spillWriteExecOp,
                                                                               mlir::async::ExecuteOp insertAfterExecOp,
                                                                               size_t allocatedAddress) {
@@ -153,6 +168,23 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     builder.setInsertionPoint(_allocOpInsertionPoint);
     auto newBuffer = builder.create<mlir::memref::AllocOp>(spillReadNameLoc, newBufferMemType);
     _scan.handler().setAddress(newBuffer.memref(), allocatedAddress);
+
+    _log.trace("newBuffer - '{0}'", newBuffer);
+
+    // Store information about what buffer replaces original buffer that was marked for spilling
+    // If such replacement pair already exists, then update it with a new buffer
+    bool replacementPairFound = false;
+    for (auto& replacementPairs : _bufferReplacementAfterSpillRead) {
+        if (replacementPairs.second == bufferToSpill) {
+            replacementPairs.second = newBuffer.memref();
+            replacementPairFound = true;
+            break;
+        }
+    }
+    // If this buffer didn't correspond to any exisitng buffer replacement pair then insert a new one
+    if (!replacementPairFound) {
+        _bufferReplacementAfterSpillRead.insert({bufferToSpill, newBuffer.memref()});
+    }
 
     // Create new AsyncExecOp in correct place
     builder.setInsertionPointAfter(insertAfterExecOp);
@@ -386,8 +418,14 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
     // of the original operation which result had to be spilled
     auto opThatWasSpilled = _depsInfo.getExecuteOpAtIndex(schedOp.op_);
 
+    auto spillBuffer = schedOpBuffer;
+    if (_bufferReplacementAfterSpillRead.find(schedOpBuffer) != _bufferReplacementAfterSpillRead.end()) {
+        spillBuffer = _bufferReplacementAfterSpillRead[schedOpBuffer];
+    }
+    _log.trace("Create Spill Write for buffer - '{0}'", spillBuffer);
+
     auto spillWriteExecOp =
-            insertSpillWriteCopyOp(opThatWasSpilled, spillWriteInsertionPoint, schedOpBuffer, schedOp.beginResource(0));
+            insertSpillWriteCopyOp(opThatWasSpilled, spillWriteInsertionPoint, spillBuffer, schedOp.beginResource(0));
     _opIdAndSpillWritePairs.push_back({schedOpBuffer, spillWriteExecOp});
 
     size_t spillWriteIndex = _depsInfo.getIndex(spillWriteExecOp);
@@ -435,11 +473,17 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
     // In scheduledOpInfo structure op_ identifier for a spillRead operation contains id
     // of the original operation which result had to be spilled
     auto opThatWasSpilled = _depsInfo.getExecuteOpAtIndex(schedOp.op_);
-    auto spillReadExecOp = insertSpillReadCopyOp(opThatWasSpilled, spillWriteExecOp, spillReadInsertionPoint,
-                                                 schedOp.beginResource(0));
+
+    auto spillBuffer = schedOpBuffer;
+    if (_bufferReplacementAfterSpillRead.find(schedOpBuffer) != _bufferReplacementAfterSpillRead.end()) {
+        spillBuffer = _bufferReplacementAfterSpillRead[schedOpBuffer];
+    }
+    _log.trace("Create Spill Read for buffer - '{0}'", spillBuffer);
+    auto spillReadExecOp = insertSpillReadCopyOp(opThatWasSpilled, spillBuffer, spillWriteExecOp,
+                                                 spillReadInsertionPoint, schedOp.beginResource(0));
 
     // After both SpillWrite and SpillRead are inserted update connections
-    updateSpillWriteReadUsers(schedOpBuffer, spillWriteExecOp, spillReadExecOp);
+    updateSpillWriteReadUsers(spillBuffer, spillWriteExecOp, spillReadExecOp);
 
     // Remove given spillWrite operation from opId-spillWrite pair vector storage
     // after it was used to prevent from invalid usage once same buffer gets
@@ -458,8 +502,6 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
              otherSchedOp.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_READ) &&
             otherSchedOp.getBuffer(0) == schedOpBuffer) {
             otherSchedOp.op_ = spillReadIndex;
-            // Get new output buffer that is the result of spillRead
-            otherSchedOp.resourceInfo_[0].buffer_ = getBufferFromAsyncResult(spillReadExecOp.results()[0]);
         }
     }
     // After implicit spillRead operation has been replaced with a proper copy op task then update

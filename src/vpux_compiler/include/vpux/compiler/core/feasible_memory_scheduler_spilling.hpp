@@ -47,7 +47,7 @@ private:
     mlir::async::ExecuteOp insertSpillWriteCopyOp(mlir::async::ExecuteOp opThatWasSpilled,
                                                   mlir::async::ExecuteOp insertAfterExecOp, mlir::Value bufferToSpill,
                                                   size_t allocatedAddress);
-    mlir::async::ExecuteOp insertSpillReadCopyOp(mlir::async::ExecuteOp opThatWasSpilled,
+    mlir::async::ExecuteOp insertSpillReadCopyOp(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value bufferToSpill,
                                                  mlir::async::ExecuteOp spillWriteExecOp,
                                                  mlir::async::ExecuteOp insertAfterExecOp, size_t allocatedAddress);
     void updateSpillWriteReadUsers(mlir::Value bufferToSpill, mlir::async::ExecuteOp spillWriteExecOp,
@@ -98,6 +98,9 @@ private:
     // Vector of pairs of operation ID and inserted spill-write exec-op that doesn't have yet corresponding spill-read
     // op
     llvm::SmallVector<std::pair<mlir::Value, mlir::async::ExecuteOp>> _opIdAndSpillWritePairs;
+    // Map storing new buffers replacing spilled buffers: key - original spilled buffer, value - new allocated buffer
+    // after spill-read
+    llvm::DenseMap<mlir::Value, mlir::Value> _bufferReplacementAfterSpillRead;
 };
 
 }  // namespace vpux
