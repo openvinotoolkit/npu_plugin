@@ -41,7 +41,10 @@ void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
 
     configuration[VPUX_CONFIG_KEY(INFERENCE_SHAVES)] = DEFAULT_IE_KMB_TESTS_INFERENCE_SHAVES;
-    configuration[VPUX_CONFIG_KEY(PLATFORM)] = envConfig.IE_KMB_TESTS_PLATFORM;
+    if(configuration.count(VPUX_CONFIG_KEY(PLATFORM)) == 0) {
+        configuration[VPUX_CONFIG_KEY(PLATFORM)] = envConfig.IE_KMB_TESTS_PLATFORM;
+    }
+
     ConfigureNetwork();
 }
 
@@ -266,6 +269,10 @@ void KmbLayerTestsCommon::setReferenceSoftwareModeMLIR() {
 
 void KmbLayerTestsCommon::setReferenceHardwareModeMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "DefaultHW";
+}
+
+void KmbLayerTestsCommon::setPlatformMTL() {
+    configuration[VPUX_CONFIG_KEY(PLATFORM)] = "VPU3720";
 }
 
 bool KmbLayerTestsCommon::isCompilerMCM() const {
