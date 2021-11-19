@@ -146,7 +146,7 @@ DECLARE_VPUX_CONFIG_KEY(INFERENCE_TIMEOUT);
 
 /**
  * @brief [Only for VPUX Plugin]
- * Type: string, default is MCM.
+ * Type: string, default is MLIR.
  * Type of VPU compiler to be used for compilation of a network
  */
 enum class CompilerType { MCM, MLIR };
