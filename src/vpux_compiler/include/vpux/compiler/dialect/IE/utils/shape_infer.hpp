@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
 
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
@@ -27,5 +28,8 @@ mlir::FailureOr<SmallVector<int64_t>> broadcastEltwiseShape(ArrayRef<int64_t> sh
 
 mlir::FailureOr<SmallVector<int64_t>> broadcastEltwiseShape(ArrayRef<ArrayRef<int64_t>> shapes,
                                                             AutoBroadcastType broadcastType, mlir::Location loc);
+
+mlir::FailureOr<SmallVector<int64_t>> constInputToData(mlir::Location loc, const mlir::Value& value);
+
 }  // namespace IE
 }  // namespace vpux

@@ -197,6 +197,23 @@ def VPUIP_PoolLayerType :
 }
 
 //
+// ReduceLayerType
+//
+
+def VPUIP_ReduceLayerType :
+        StrEnumAttr<
+            "ReduceLayerType",
+            "Type of Reduce layer",
+            [
+                StrEnumAttrCase<"MAX">,
+                StrEnumAttrCase<"SUM">,
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
+}
+
+//
 // EltwiseLayerType
 //
 

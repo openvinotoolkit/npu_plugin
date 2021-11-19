@@ -155,6 +155,8 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Sigmoid>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LRN>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::LRN_IE>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceMax>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceSum>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Unsqueeze>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Minimum>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Maximum>& origNode);
@@ -268,6 +270,8 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Sigmoid),
             MAP_ENTRY(opset_latest::LRN),
             MAP_ENTRY(ngraph::op::LRN_IE),
+            MAP_ENTRY(opset_latest::ReduceMax),
+            MAP_ENTRY(opset_latest::ReduceSum),
             MAP_ENTRY(opset_latest::Unsqueeze),
             MAP_ENTRY(opset_latest::Minimum),
             MAP_ENTRY(opset_latest::Maximum),
@@ -914,6 +918,34 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
         op = builder.create<IE::BroadcastOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], mode);
     }
 
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceMax>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::ReduceMax>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph ReduceMax node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto keep_dims = origNode->get_keep_dims();
+
+    auto op = builder.create<IE::ReduceMaxOp>(createLocation(origNode), inputs[0], inputs[1], keep_dims);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceSum>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::ReduceSum>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph ReduceSum node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto keep_dims = origNode->get_keep_dims();
+
+    auto op = builder.create<IE::ReduceSumOp>(createLocation(origNode), inputs[0], inputs[1], keep_dims);
     addOutputs(origNode, op);
 }
 
@@ -2004,6 +2036,8 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
     passConfig->disable<ngraph::pass::LSTMCellDecomposition>();
     passConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+    passConfig->disable<ngraph::pass::ConvertReduceMaxToPooling>();
+    passConfig->disable<ngraph::pass::ConvertReduceSumToPooling>();
     passConfig->enable<ngraph::pass::ConvertGather1ToGather7>();
     passConfig->disable<ngraph::pass::ConvertGather7ToGather1>();
 

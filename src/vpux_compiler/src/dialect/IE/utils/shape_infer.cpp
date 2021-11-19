@@ -121,3 +121,17 @@ mlir::FailureOr<SmallVector<int64_t>> vpux::IE::broadcastEltwiseShape(ArrayRef<A
 
     return errorAt(loc, "Unsupported BroadcastType '{0}'", broadcastType);
 }
+
+mlir::FailureOr<SmallVector<int64_t>> vpux::IE::constInputToData(mlir::Location loc, const mlir::Value& value) {
+    if (value == nullptr) {
+        return errorAt(loc, "Target shape was not provided");
+    }
+
+    auto valueConst = value.getDefiningOp<Const::DeclareOp>();
+    if (valueConst == nullptr) {
+        return errorAt(loc, "Only constant input is supported");
+    }
+
+    const auto valueContent = valueConst.content();
+    return to_small_vector(valueContent.getValues<int64_t>());
+}

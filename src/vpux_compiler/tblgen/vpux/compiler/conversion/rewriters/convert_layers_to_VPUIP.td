@@ -131,6 +131,46 @@ def RewriteBroadcast :
         >;
 
 //
+// IERT.ReduceMax -> VPUIP.Reduce
+//
+
+def createReduceMaxUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReduceUPAOp>(
+                $_loc, $0, $1, $2, $3,
+                vpux::VPUIP::ReduceLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::ReduceLayerType::MAX
+                ))
+        }]>;
+
+def RewriteReduceMax :
+        Pat<
+                (IERT_ReduceMaxOp $input, $axes, $output, $keep_dims),
+                (createReduceMaxUPAOp $input, $axes, $output, $keep_dims)
+        >;
+
+//
+// IERT.ReduceSum -> VPUIP.Reduce
+//
+
+def createReduceSumUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReduceUPAOp>(
+                $_loc, $0, $1, $2, $3,
+                vpux::VPUIP::ReduceLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::ReduceLayerType::SUM
+                ))
+        }]>;
+
+def RewriteReduceSum :
+        Pat<
+                (IERT_ReduceSumOp $input, $axes, $output, $keep_dims),
+                (createReduceSumUPAOp $input, $axes, $output, $keep_dims)
+        >;
+
+//
 // IERT.MaxPool -> VPUIP.PoolingUPA
 //
 

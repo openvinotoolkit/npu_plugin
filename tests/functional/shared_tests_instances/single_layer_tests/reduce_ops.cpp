@@ -12,6 +12,14 @@
 
 namespace LayerTestsDefinitions {
     class KmbReduceOpsLayerTest : public ReduceOpsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        void SkipBeforeLoad() override {
+            const auto testName =
+                    std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
+            const auto skipMCM = testName.find("smoke_Reduce_from_networks_SKIP_MCM") != std::string::npos;
+            if(skipMCM && isCompilerMCM()) {
+                throw LayerTestsUtils::KmbSkipTestException("Skip load for MCM");
+            }
+        }
         void SkipBeforeValidate() override {
             const auto testName =
                     std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
@@ -183,6 +191,23 @@ namespace {
         KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
     );
 
+    INSTANTIATE_TEST_CASE_P(
+        smoke_ReduceMax,
+        KmbReduceOpsLayerWithSpecificInputTest,
+        testing::Combine(
+                testing::ValuesIn(decltype(axes) {{0}}),
+                testing::Values(opTypes[1]),
+                testing::Values(true, false),
+                testing::Values(ngraph::helpers::ReductionType::Max),
+                testing::Values(InferenceEngine::Precision::FP32),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Layout::ANY),
+                testing::Values(std::vector<size_t> {1, 512, 7, 7}),
+                testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+        KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
+    );
+
     // Test hangs on x86 when executes test-case
     // smoke_Reduce_Axes/KmbReduceOpsLayerTest.CompareWithRefs/IS=(10.20.30.40)_axes=(1)_opType=VECTOR_
     // type=Mean_KeepDims_netPRC=FP32_inPRC=UNSPECIFIED_outPRC=UNSPECIFIED_inL=ANY_trgDev=KMB
@@ -215,7 +240,8 @@ namespace {
                 testing::Values(opTypes[1]),
                 testing::Values(true, false),
                 testing::Values(ngraph::helpers::ReductionType::Mean,
-                                ngraph::helpers::ReductionType::Max),
+                                ngraph::helpers::ReductionType::Max,
+                                ngraph::helpers::ReductionType::Sum),
                 testing::Values(InferenceEngine::Precision::FP32),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -234,7 +260,30 @@ namespace {
                     testing::ValuesIn(decltype(axes) { {2, 3} }),
                     testing::Values(opTypes[1]),
                     testing::Values(true, false),
-                    testing::Values(ngraph::helpers::ReductionType::Mean),
+                    testing::Values(ngraph::helpers::ReductionType::Mean,
+                                    ngraph::helpers::ReductionType::Max),
+                    testing::Values(InferenceEngine::Precision::FP32),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Layout::ANY),
+                    testing::Values(
+                        std::vector<size_t> {1, 512, 7, 7},     // resnet_18
+                        std::vector<size_t> {1, 2048, 7, 7},    // resnet_50
+                        std::vector<size_t> {1, 1280, 7, 7},    // mobilenet_v2
+                        std::vector<size_t> {1, 1664, 7, 7}     // densenet
+                    ),
+                    testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+            KmbReduceOpsLayerTest::getTestCaseName
+    );
+
+    INSTANTIATE_TEST_SUITE_P(
+            smoke_Reduce_from_networks_SKIP_MCM,
+            KmbReduceOpsLayerTest,
+            testing::Combine(
+                    testing::ValuesIn(decltype(axes) { {2, 3} }),
+                    testing::Values(opTypes[1]),
+                    testing::Values(true, false),
+                    testing::Values(ngraph::helpers::ReductionType::Sum),
                     testing::Values(InferenceEngine::Precision::FP32),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),

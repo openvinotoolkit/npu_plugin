@@ -743,6 +743,18 @@ mlir::Operation* createRTLayer(IE::BroadcastOp origOp, ArrayRef<mlir::Value> all
                                        newOp.output_buff(), origOp.modeAttr());
 }
 
+mlir::Operation* createRTLayer(IE::ReduceMaxOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReduceMaxOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ReduceMaxOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
+                                       origOp.keep_dimsAttr());
+}
+
+mlir::Operation* createRTLayer(IE::ReduceSumOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReduceSumOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ReduceSumOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
+                                       origOp.keep_dimsAttr());
+}
+
 mlir::Operation* createRTLayer(IE::PerAxisTileOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::PerAxisTileOp::Adaptor newOp(allBufs);
     return b.create<IERT::PerAxisTileOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axisAttr(),
@@ -962,6 +974,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::MishOp)
     CASE(IE::ErfOp)
     CASE(IE::BroadcastOp)
+    CASE(IE::ReduceMaxOp)
+    CASE(IE::ReduceSumOp)
     CASE(IE::TanhOp)
     CASE(IE::SqrtOp)
     CASE(IE::LogOp)

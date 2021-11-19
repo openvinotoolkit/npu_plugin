@@ -984,6 +984,50 @@ def IE_BroadcastOp :
 }
 
 //
+// ReduceMaxOp
+//
+
+def IE_ReduceMaxOp :
+        IE_LayerOp<
+            "ReduceMax"
+        > {
+    let summary = "InferenceEngine ReduceMax layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[SI64, SI32]>:$axes,
+
+        BoolAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ReduceSumOp
+//
+
+def IE_ReduceSumOp :
+        IE_LayerOp<
+            "ReduceSum"
+        > {
+    let summary = "InferenceEngine ReduceSum layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[SI64, SI32]>:$axes,
+
+        BoolAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
 // MinimumOp
 //
 

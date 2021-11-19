@@ -627,6 +627,72 @@ def IERT_LRN_IEOp :
 }
 
 //
+// ReduceMaxOp
+//
+
+def IERT_ReduceMaxOp :
+        IERT_LayerOp<1, "ReduceMax",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time reduceMax layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$axes,
+
+        AnyMemRef:$output_buff,
+
+        BoolAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ReduceSumOp
+//
+
+def IERT_ReduceSumOp :
+        IERT_LayerOp<1, "ReduceSum",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReduceSum layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$axes,
+
+        AnyMemRef:$output_buff,
+
+        BoolAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ClampOp
 //
 

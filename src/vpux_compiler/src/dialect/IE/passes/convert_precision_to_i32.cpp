@@ -55,6 +55,8 @@ void ConvertPrecisionToI32Pass::safeRunOnModule() {
     target.addLegalDialect<Const::ConstDialect>();
     target.addDynamicallyLegalOp<IE::GatherOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::BroadcastOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::ReduceMaxOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::ReduceSumOp>(isLegalOp);
 
     auto module = getOperation();
     if (mlir::failed(runConvertPrecision(module, typeConverter, target, _log))) {
