@@ -109,6 +109,14 @@ The pass is a part of `IECommon` pipeline.
 
 This pass tries to optimize out Reorder operations for common cases
 by propagating them from inputs to outputs and merging into layers.
+### `-prefetch-tiling`: Tile layers into smaller tiles to enable prefetch pipeline
+The pass performs tiling on layers to enable prefetch pipeline.
+
+The pass tries run tiles in parallel.
+The 'prefetch' means that the next tile could be loaded in advance when the current tile is computing.
+
+The pass does not consider cost models,
+only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
 ### `-resolve-strided-slice`: Decouple strided slice to slice + reshape
 The pass is a part of `AdjustForVPU` pipeline.
 It replaces IE::StridedSlice with non zero masks to a simpler IE::StridedSlice with zero masks + IE::Reshape

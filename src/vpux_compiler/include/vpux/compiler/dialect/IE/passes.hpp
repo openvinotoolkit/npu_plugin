@@ -91,6 +91,8 @@ std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = L
 
 std::unique_ptr<mlir::Pass> createIsolatedTilingPass(Logger log = Logger::global());
 
+std::unique_ptr<mlir::Pass> createPrefetchTilingPass(Logger log = Logger::global());
+
 //
 // Registration
 //
