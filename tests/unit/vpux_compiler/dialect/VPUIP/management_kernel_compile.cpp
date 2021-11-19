@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/act_kernels/act_kernel_gen.h"
+#include <vpux/compiler/act_kernels/compilation.h>
 
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 

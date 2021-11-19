@@ -33,7 +33,7 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include <vpux/compiler/act_kernels/act_kernel_gen.h>
+#include <vpux/compiler/act_kernels/compilation.h>
 
 #include <algorithm>
 
