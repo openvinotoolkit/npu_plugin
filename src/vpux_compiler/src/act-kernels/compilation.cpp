@@ -456,6 +456,7 @@ const CompilationListDesc& managementKernelCompilationDesc() {
                     "drivers/errors/errorCodes/inc",     // #include <DrvErrors.h>
                     "system/shave/svuCtrl_3600/inc",     // #include <ShaveId.h>
                     "drivers/shave/svuShared_3600/inc",  // #include <HglShaveId.h>
+                    "drivers/shave/svuCtrl_3600/inc",    // #include <HglShaveLogging.h>
                     "drivers/nn/inc",                    // #include <nn_barrier.h>
                     "drivers/resource/barrier/inc",      // #include <HglBarrier.h>
                     "system/nn_mtl/common_runtime/inc",  // #include <nn_fifo_manager.h>
