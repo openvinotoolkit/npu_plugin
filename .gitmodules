@@ -3,13 +3,13 @@
 	url = ssh://git@gitlab-icv.inn.intel.com/G-API/g-api-vpu.git
 [submodule "thirdparty/flatbuffers"]
 	path = thirdparty/flatbuffers
-	url = git@github.com:google/flatbuffers.git
+	url = https://github.com/google/flatbuffers.git
 [submodule "thirdparty/graphFile-schema"]
 	path = thirdparty/graphFile-schema
 	url = git@github.com:intel-innersource/libraries.ai.vpu.graphfile.git
 [submodule "thirdparty/llvm-project"]
 	path = thirdparty/llvm-project
-	url = git@github.com:plaidml/llvm-project.git
+	url = https://github.com/plaidml/llvm-project.git
 [submodule "thirdparty/bitcompactor"]
 	path = thirdparty/bitcompactor
 	url = ssh://git@gitlab-icv.inn.intel.com/movidius/btc_models.git
@@ -18,7 +18,7 @@
 	url = ssh://git@gitlab-icv.inn.intel.com/movidius/hddlunite.git
 [submodule "thirdparty/level-zero"]
 	path = thirdparty/level-zero
-	url = git@github.com:oneapi-src/level-zero.git
+	url = https://github.com/oneapi-src/level-zero.git
 [submodule "mcm-emulator"]
 	path = src/vpux_emulator
 	url = ssh://git@gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git
