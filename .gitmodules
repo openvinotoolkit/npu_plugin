@@ -10,6 +10,7 @@
 [submodule "thirdparty/llvm-project"]
 	path = thirdparty/llvm-project
 	url = https://github.com/plaidml/llvm-project.git
+	shallow = true
 [submodule "thirdparty/bitcompactor"]
 	path = thirdparty/bitcompactor
 	url = https://gitlab-icv.inn.intel.com/movidius/btc_models.git
