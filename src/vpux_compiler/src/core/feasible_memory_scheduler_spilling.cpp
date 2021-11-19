@@ -176,8 +176,7 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
 
 // This function will update operands of users of spilled buffer
 // and make proper connections
-void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::async::ExecuteOp opThatWasSpilled,
-                                                                mlir::Value bufferToSpill,
+void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::Value bufferToSpill,
                                                                 mlir::async::ExecuteOp spillWriteExecOp,
                                                                 mlir::async::ExecuteOp spillReadExecOp) {
     _log.trace("Update users of Spill Write-Read pair: '{0}' -> '{1}'", spillWriteExecOp->getLoc(),
@@ -190,7 +189,8 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::async::Exe
     // By default this is always spillWrite operation
     llvm::SmallPtrSet<mlir::Operation*, 1> excludedUsersFromOperandsUpdate = {spillWriteExecOp.getOperation()};
     for (auto* user : opThatWasSpilledResult.getUsers()) {
-        if (user != nullptr && user->isBeforeInBlock(spillWriteExecOp.getOperation())) {
+        if (mlir::isa_and_nonnull<mlir::async::ExecuteOp>(user) &&
+            user->isBeforeInBlock(spillReadExecOp.getOperation())) {
             excludedUsersFromOperandsUpdate.insert(user);
         }
     }
@@ -213,9 +213,8 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::async::Exe
     llvm::SmallPtrSet<mlir::Operation*, 1> excludedUsersFromOrigBufferUpdate;
     for (auto* user : bufferToSpill.getUsers()) {
         if (user != nullptr) {
-            if (user->getParentOp() == opThatWasSpilled.getOperation()) {
-                excludedUsersFromOrigBufferUpdate.insert(user);
-            } else if (user->isBeforeInBlock(opThatWasSpilled)) {
+            if (mlir::isa_and_nonnull<mlir::async::ExecuteOp>(user->getParentOp()) &&
+                user->getParentOp()->isBeforeInBlock(spillReadExecOp.getOperation())) {
                 excludedUsersFromOrigBufferUpdate.insert(user);
             }
         }
@@ -307,7 +306,7 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
                                                  schedOp.beginResource(0));
 
     // After both SpillWrite and SpillRead are inserted update connections
-    updateSpillWriteReadUsers(opThatWasSpilled, schedOpBuffer, spillWriteExecOp, spillReadExecOp);
+    updateSpillWriteReadUsers(schedOpBuffer, spillWriteExecOp, spillReadExecOp);
 
     // Remove given spillWrite operation from opId-spillWrite pair vector storage
     // after it was used to prevent from invalid usage once same buffer gets
