@@ -222,7 +222,7 @@ public:
     mlir::LogicalResult matchAndRewrite(IERT::SoftMaxOp origOp, mlir::PatternRewriter& rewriter) const final {
         mlir::SmallVector<mlir::Attribute> args = {origOp.axisIndAttr()};
         SWLayerRewriter(getContext(), origOp.getOperation(), rewriter, _log, _mainModule, {origOp.input()},
-                        {origOp.output()}, {origOp.output_buff()}, args, "softmax_fp16", "softmax_fp16.cpp")
+                        {origOp.output()}, {origOp.output_buff()}, args, "softmax_fp16", "single_shave_softmax.cpp")
                 .rewrite();
         return mlir::success();
     }
@@ -239,7 +239,7 @@ public:
     }
     mlir::LogicalResult matchAndRewrite(IERT::SigmoidOp origOp, mlir::PatternRewriter& rewriter) const final {
         SWLayerRewriter(getContext(), origOp.getOperation(), rewriter, _log, _mainModule, {origOp.input()},
-                        {origOp.output()}, {origOp.output_buff()}, {}, "sigmoid_fp16", "sigmoid_fp16.cpp")
+                        {origOp.output()}, {origOp.output_buff()}, {}, "sigmoid_fp16", "sigmoid_fp16.c")
                 .rewrite();
         return mlir::success();
     }
@@ -259,17 +259,8 @@ void ConvertSWLayers2VPUIPPass::safeRunOnModule() {
     }
 
     mlir::ConversionTarget target(ctx);
-    target.addLegalOp<mlir::ModuleOp>();
-    target.addIllegalDialect<IERT::IERTDialect>();
-    target.addLegalDialect<mlir::async::AsyncDialect>();
-    target.addLegalDialect<Const::ConstDialect>();
-    target.addLegalDialect<VPUIP::VPUIPDialect>();
-    target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
-    target.addLegalOp<Const::DeclareOp, IERT::StaticAllocOp>();
-    target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();
-    target.addLegalOp<IERT::GenericReshapeOp, IERT::PermuteCastOp>();
-    target.addLegalOp<IERT::QuantizeCastOp>();
-    target.addLegalOp<IERT::TimestampOp>();
+    target.addIllegalOp<IERT::SigmoidOp>();
+    target.addIllegalOp<IERT::SoftMaxOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<IERT::CopyOp>();
     target.addLegalOp<VPUIP::SW_KernelOp>();
@@ -278,11 +269,10 @@ void ConvertSWLayers2VPUIPPass::safeRunOnModule() {
     });
 
     mlir::RewritePatternSet patterns(&ctx);
-
     patterns.insert<RewriteSoftmaxMTL>(&ctx, _log, module);
     patterns.insert<RewriteSigmoidMTL>(&ctx, _log, module);
 
-    if (mlir::failed(mlir::applyFullConversion(module, target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
         signalPassFailure();
     }
 }

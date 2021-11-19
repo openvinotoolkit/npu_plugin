@@ -110,6 +110,7 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> nu
         addMem(VPUIP::PhysicalMemory::CMX_NN, MTL_CMX_WORKSPACE_SIZE, 1.0, 32);
 
         resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
+        resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_NN), 1);
 
         nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster),
                                            getNumOfDPUGroupsVal(MTL_MAX_DPU_GROUPS), true);

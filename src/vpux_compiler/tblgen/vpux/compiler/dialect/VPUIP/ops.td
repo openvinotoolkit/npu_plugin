@@ -2760,7 +2760,7 @@ def VPUIP_SW_KernelOp :
         Variadic<VPUIP_Barrier>:$updateBarriers
     );
 
-     let results = (outs Variadic<AnyMemRef>:$results);
+    let results = (outs Variadic<AnyMemRef>:$results);
 
     let regions = (region
         SizedRegion<1>:$body

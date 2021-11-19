@@ -294,20 +294,5 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
 
 // CHECK:   kernel_data: [
-// CHECK:      {
-// CHECK:        length: 4096,
-// CHECK:      },
-// CHECK:      {
-// CHECK:        length: 4096,
-// CHECK:      },
-// CHECK:      {
-// CHECK:        length: 4096,
-// CHECK:      },
-// CHECK:      {
-// CHECK:        length: 4096,
-// CHECK:      },
-// CHECK:      {
-// CHECK:        length: 66560,
-// CHECK:      },
 // CHECK:      ]
 
