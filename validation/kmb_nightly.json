@@ -4372,7 +4372,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "se-resnext-50.yml",
+                "config": "se-resnext-50-tf.yml",
                 "subsample_size": 100
             },
             "NetTest": {
