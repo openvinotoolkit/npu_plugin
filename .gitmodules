@@ -6,7 +6,7 @@
 	url = https://github.com/google/flatbuffers.git
 [submodule "thirdparty/graphFile-schema"]
 	path = thirdparty/graphFile-schema
-	url = git@github.com:intel-innersource/libraries.ai.vpu.graphfile.git
+	url = https://github.com/intel-innersource/libraries.ai.vpu.graphfile.git
 [submodule "thirdparty/llvm-project"]
 	path = thirdparty/llvm-project
 	url = https://github.com/plaidml/llvm-project.git
@@ -24,4 +24,4 @@
 	url = ssh://git@gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git
 [submodule "thirdparty/json"]
 	path = thirdparty/json
-	url = git@github.com:nlohmann/json.git
+	url = https://github.com/nlohmann/json.git
