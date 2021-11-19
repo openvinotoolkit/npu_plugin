@@ -66,10 +66,10 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /tests/functional/internal @ArtemySkrebkov-intel @mznamens
 /tests/functional/shared_test_classes @alpkn
 /tests/functional/shared_test_instances @alpkn
-#/tests/functional/shared_test_instances/behavior ?
-#/tests/functional/shared_test_instances/blob_tests ?
-#/tests/functional/shared_test_instances/single_layer_tests ?
-#/tests/functional/shared_test_instances/subgraph_tests ?
+/tests/functional/shared_test_instances/behavior @ArtemySkrebkov-intel @mznamens @alpkn
+/tests/functional/shared_test_instances/blob_tests @ArtemySkrebkov-intel @mznamens @alpkn
+/tests/functional/shared_test_instances/single_layer_tests @maxim-kurin @vinograd47 @alpkn
+/tests/functional/shared_test_instances/subgraph_tests @maxim-kurin @vinograd47 @alpkn
 /tests/functional/single_layer_tests @maxim-kurin @alpkn
 /tests/functional/subgraph_tests @maxim-kurin @vinograd47 @alpkn
 #
