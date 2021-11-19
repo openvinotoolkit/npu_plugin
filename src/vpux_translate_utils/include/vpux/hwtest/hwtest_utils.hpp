@@ -134,13 +134,6 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 std::vector<int32_t> getInstructionListVals(nb::ActivationType pwlType,
                                             llvm::ArrayRef<int64_t> instructionList_data_shape);
 
-mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation, ArrayRef<int64_t> shape,
-                               mlir::Type elemType, DimsOrder order);
-
-vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
-                                                   ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
-                                                   int locale, size_t offset);
-
 mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op);
 
 mlir::OpResult getConstResult(vpux::Const::DeclareOp op);
@@ -182,12 +175,21 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 std::vector<int32_t> getInstructionListVals(nb::ActivationType pwlType,
                                             llvm::ArrayRef<int64_t> instructionList_data_shape);
 
-mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
-                               mlir::Type type, SmallVector<mlir::AffineMap> affineMaps);
+mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation, ArrayRef<int64_t> shape,
+                               mlir::Type elemType, DimsOrder order = DimsOrder::NHWC);
+mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation, ArrayRef<int64_t> shape,
+                               mlir::Type elemType, StridesRef strides, DimsOrder order = DimsOrder::NHWC);
 
-vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
-                                                   SmallVector<int64_t> shape, mlir::Type type,
-                                                   SmallVector<mlir::AffineMap> affineMaps, int locale, int offset);
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
+                                                   ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
+                                                   int locale, size_t offset);
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
+                                                   ArrayRef<int64_t> shape, mlir::Type elemType, StridesRef strides,
+                                                   DimsOrder order, int locale, size_t offset);
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,
+                                                   size_t offset);
 
 mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op);
 

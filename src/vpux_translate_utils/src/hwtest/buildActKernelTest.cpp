@@ -63,15 +63,13 @@ void buildActKernelTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     constexpr int64_t inputCmxOffset = 0;
     constexpr int64_t outputCmxOffset = 2 * 8 * 8;
 
-    const auto ioAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(ioShape));
-
     // Build the function.
     // Note that we add a dummy output type because CNNNetwork requires it.
-    auto inputMemrefType = mlir::MemRefType::get(
-            makeArrayRef(ioShape), builder.getF16Type(), ioAffineMaps,
+    auto inputMemrefType = getMemRefType(
+            ShapeRef(ioShape), builder.getF16Type(), DimsOrder::NHWC,
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableInput));
-    auto outputMemrefType = mlir::MemRefType::get(
-            makeArrayRef(ioShape), builder.getF16Type(), ioAffineMaps,
+    auto outputMemrefType = getMemRefType(
+            ShapeRef(ioShape), builder.getF16Type(), DimsOrder::NHWC,
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableOutput));
     SmallVector<mlir::Type, 2> inputMemrefTypes{inputMemrefType, outputMemrefType};
     auto funcType = builder.getFunctionType(inputMemrefTypes, mlir::TypeRange{outputMemrefType});
@@ -80,14 +78,15 @@ void buildActKernelTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
     // Set up the tensor types.
-    SmallVector<mlir::Type, 2> inputTensorTypes{getTensorType(ioShape, builder.getF16Type(), DimsOrder::NHWC, nullptr),
-                                                getTensorType(ioShape, builder.getF16Type(), DimsOrder::NHWC, nullptr)};
+    SmallVector<mlir::Type, 2> inputTensorTypes{
+            getTensorType(ShapeRef(ioShape), builder.getF16Type(), DimsOrder::NHWC, nullptr),
+            getTensorType(ShapeRef(ioShape), builder.getF16Type(), DimsOrder::NHWC, nullptr)};
     SmallVector<mlir::Type, 2> outputTensorTypes{
-            getTensorType(ioShape, builder.getF16Type(), DimsOrder::NHWC, nullptr)};
+            getTensorType(ShapeRef(ioShape), builder.getF16Type(), DimsOrder::NHWC, nullptr)};
 
     // Declare input and output CMX tensors.
     auto cmxMemLoc = VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    auto cmxMemType = mlir::MemRefType::get(ioShape, builder.getF16Type(), ioAffineMaps, cmxMemLoc);
+    auto cmxMemType = getMemRefType(ShapeRef(ioShape), builder.getF16Type(), DimsOrder::NHWC, cmxMemLoc);
     auto inputCmx = funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), cmxMemType,
                                                                VPUIP::MemoryLocation::VPU_CMX_NN, 0, inputCmxOffset);
     auto outputCmx = funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), cmxMemType,

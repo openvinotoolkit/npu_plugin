@@ -57,17 +57,13 @@ void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc,
     const auto WEIGHTS_CMX_OFFSET = WEIGHTSTABLE_CMX_OFFSET + weightsTable_totalsize;
 
     SmallVector<mlir::Type> inputTypes;
-    const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
     auto memSpaceAttr_in =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableInput);
-    inputTypes.push_back(mlir::MemRefType::get(makeArrayRef(in_shape), inputType, inputAffineMaps, memSpaceAttr_in));
+    inputTypes.push_back(getMemRefType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, memSpaceAttr_in));
     auto memSpaceAttr_out =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableOutput);
-    const auto outputAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(out_shape));
-    auto outputParamType =
-            mlir::MemRefType::get(makeArrayRef(out_shape), outputType, outputAffineMaps, memSpaceAttr_out);
+    auto outputParamType = getMemRefType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, memSpaceAttr_out);
     inputTypes.push_back(outputParamType);
-    SmallVector<ArrayRef<mlir::AffineMap>> argsAffineMaps{inputAffineMaps, outputAffineMaps};
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
@@ -88,9 +84,8 @@ void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc,
     // weights data
     auto weight_data_ddr_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    const auto weightDataAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wt_data_shape));
-    auto weightData_ddr_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape), weightsType, weightDataAffineMaps,
-                                                     weight_data_ddr_memSpaceAttr);
+    auto weightData_ddr_type =
+            getMemRefType(ShapeRef(wt_data_shape), weightsType, DimsOrder::NHWC, weight_data_ddr_memSpaceAttr);
 
     auto wt_data_vals = generateWeights(wt_data_shape, weightsType, builder.getContext(), weight_file_name);
     auto wt_data_attr = Const::ContentAttr::get(wt_data_vals);
@@ -103,8 +98,8 @@ void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc,
     // weights cmx tensor
     auto wtData_cmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    auto wtData_cmx_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape), weightsType, weightDataAffineMaps,
-                                                 wtData_cmx_memSpaceAttr);
+    auto wtData_cmx_type =
+            getMemRefType(ShapeRef(wt_data_shape), weightsType, DimsOrder::NHWC, wtData_cmx_memSpaceAttr);
     auto wtData_cmx = funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), wtData_cmx_type,
                                                                  VPUIP::MemoryLocation::VPU_CMX_NN, /*locale index=*/0,
                                                                  /*data idx=*/WEIGHTS_CMX_OFFSET);
@@ -112,15 +107,13 @@ void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc,
     // input - output cmx tensors
     auto inputcmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    auto inputcmx_type =
-            mlir::MemRefType::get(makeArrayRef(in_shape), inputType, inputAffineMaps, inputcmx_memSpaceAttr);
+    auto inputcmx_type = getMemRefType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, inputcmx_memSpaceAttr);
     auto inputcmx = funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), inputcmx_type,
                                                                VPUIP::MemoryLocation::VPU_CMX_NN, 0, INPUT_CMX_OFFSET);
 
     auto outputcmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    auto outputcmx_type =
-            mlir::MemRefType::get(makeArrayRef(out_shape), outputType, outputAffineMaps, outputcmx_memSpaceAttr);
+    auto outputcmx_type = getMemRefType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, outputcmx_memSpaceAttr);
     auto outputcmx = funcbuilder.create<VPUIP::DeclareTensorOp>(
             builder.getUnknownLoc(), outputcmx_type, VPUIP::MemoryLocation::VPU_CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
@@ -132,10 +125,9 @@ void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc,
     // weights table ddr tensor
     auto weightTbl_data_ddr_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    const auto weightTblAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wtTbl_data_shape));
     auto weightTblData_ddr_type =
-            mlir::MemRefType::get(makeArrayRef(wtTbl_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
-                                  weightTblAffineMaps, weightTbl_data_ddr_memSpaceAttr);
+            getMemRefType(ShapeRef(wtTbl_data_shape), builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC,
+                          weightTbl_data_ddr_memSpaceAttr);
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
@@ -150,9 +142,8 @@ void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc,
     // weights table cmx tensor
     auto wtTbl_cmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    auto wtTbl_cmx_type =
-            mlir::MemRefType::get(makeArrayRef(wtTbl_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
-                                  weightTblAffineMaps, wtTbl_cmx_memSpaceAttr);
+    auto wtTbl_cmx_type = getMemRefType(ShapeRef(wtTbl_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
+                                        DimsOrder::NHWC, wtTbl_cmx_memSpaceAttr);
     auto wtTbl_cmx = funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), wtTbl_cmx_type,
                                                                 VPUIP::MemoryLocation::VPU_CMX_NN, /*locale index=*/0,
                                                                 /*data idx=*/WEIGHTSTABLE_CMX_OFFSET);
@@ -200,11 +191,9 @@ void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc,
         std::size_t numberOfInstructions = 25;
         std::size_t alignedInstructions = round_up(numberOfInstructions, 16);
         llvm::SmallVector<int64_t> instructionList_data_shape = {1, 1, 1, static_cast<int64_t>(alignedInstructions)};
-        const auto instructionListAffineMaps =
-                DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(instructionList_data_shape));
-        auto instructionList_ddr_type = mlir::MemRefType::get(
-                makeArrayRef(instructionList_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
-                instructionListAffineMaps, instructionList_ddr_memSpaceAttr);
+        auto instructionList_ddr_type =
+                getMemRefType(ShapeRef(instructionList_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
+                              DimsOrder::NHWC, instructionList_ddr_memSpaceAttr);
         /* const auto instructionList_ddr_valueType = */
         mlir::RankedTensorType::get(instructionList_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
@@ -217,15 +206,14 @@ void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc,
                 Const::ContentAttr::get(instructionList_vals).reorder(DimsOrder::NHWC));
 
         auto weights_totalsize = totalTensorSize(wt_data_shape, weightsType);
-        ;
         const auto INSTRUCTIONLIST_CMX_OFFSET = WEIGHTS_CMX_OFFSET + weights_totalsize;
 
         // instructionList cmx tensor
         auto instructionList_cmx_memSpaceAttr =
                 VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-        auto instructionList_cmx_type = mlir::MemRefType::get(
-                makeArrayRef(instructionList_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
-                instructionListAffineMaps, instructionList_cmx_memSpaceAttr);
+        auto instructionList_cmx_type =
+                getMemRefType(ShapeRef(instructionList_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
+                              DimsOrder::NHWC, instructionList_cmx_memSpaceAttr);
         auto instructionList_cmx =
                 funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), instructionList_cmx_type,
                                                            VPUIP::MemoryLocation::VPU_CMX_NN, /*locale index=*/0,
@@ -269,8 +257,8 @@ void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc,
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
     // IE.CNNNetwork
-    buildCNNOp(builder, func.getName(), {getTensorType(in_shape, inputType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(out_shape, outputType, DimsOrder::NHWC, nullptr)});
+    buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest

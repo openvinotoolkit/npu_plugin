@@ -1040,18 +1040,37 @@ void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::Ar
     }
 }
 
-mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
-                               mlir::Type type, SmallVector<mlir::AffineMap> affineMaps) {
-    auto op_memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
-    return mlir::MemRefType::get(makeArrayRef(shape), type, affineMaps, op_memSpaceAttr);
+mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation, ArrayRef<int64_t> shape,
+                               mlir::Type elemType, DimsOrder order) {
+    const auto memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
+    return vpux::getMemRefType(ShapeRef(shape), elemType, order, memSpaceAttr);
 }
 
-vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
-                                                   SmallVector<int64_t> shape, mlir::Type type,
-                                                   SmallVector<mlir::AffineMap> affineMaps, int locale, int offset) {
-    auto op_memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
-    auto op_type = mlir::MemRefType::get(makeArrayRef(shape), type, affineMaps, op_memSpaceAttr);
-    auto op = builder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), op_type, memlocation, locale, offset);
+mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation, ArrayRef<int64_t> shape,
+                               mlir::Type elemType, StridesRef strides, DimsOrder order) {
+    const auto memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
+    return vpux::getMemRefType(ShapeRef(shape), elemType, order, strides, memSpaceAttr);
+}
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
+                                                   ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
+                                                   int locale, size_t offset) {
+    const auto type = getMemRefType(builder, memlocation, shape, elemType, order);
+    return builder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), type, memlocation, locale, offset);
+}
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
+                                                   ArrayRef<int64_t> shape, mlir::Type elemType, StridesRef strides,
+                                                   DimsOrder order, int locale, size_t offset) {
+    const auto type = getMemRefType(builder, memlocation, shape, elemType, strides, order);
+    return builder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), type, memlocation, locale, offset);
+}
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,
+                                                   size_t offset) {
+    auto op = builder.create<VPUIP::DeclareTensorOp>(
+            builder.getUnknownLoc(), type, type.getMemorySpace().dyn_cast<VPUIP::MemoryLocationAttr>().getValue(),
+            locale, offset);
     return op;
 }
 
@@ -1143,17 +1162,12 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
     return wt_data_vals;
 }
 
-mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation, ArrayRef<int64_t> shape,
-                               mlir::Type elemType, DimsOrder order) {
-    const auto memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
-    return vpux::getMemRefType(ShapeRef(shape), elemType, order, memSpaceAttr);
+mlir::DenseElementsAttr splitWeightsOverC(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape, mlir::Type dtype,
+                                          mlir::MLIRContext* ctx, size_t start_C, size_t end_C) {
+    auto qType = dtype.dyn_cast<mlir::quant::UniformQuantizedType>();
+    if (!((dtype.isF16() || (qType && qType.getStorageType().isUnsignedInteger(8)))))
         throw std::domain_error{
                 llvm::formatv("splitWeightsOverC only supports weight data type fp16 or uint8; got {0}", dtype).str()};
-vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
-                                                   ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
-                                                   int locale, size_t offset) {
-    const auto type = getMemRefType(builder, memlocation, shape, elemType, order);
-    return builder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), type, memlocation, locale, offset);
 
     if (dtype.isF16()) {
         float16 elementType = 0;

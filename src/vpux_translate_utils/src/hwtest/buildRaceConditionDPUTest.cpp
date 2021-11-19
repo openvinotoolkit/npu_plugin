@@ -38,15 +38,13 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     const auto WEIGHTS_0_CMX_OFFSET = WEIGHTSTABLE_1_CMX_OFFSET + weightsTable_totalsize;
     const auto WEIGHTS_1_CMX_OFFSET = WEIGHTS_0_CMX_OFFSET + weights_totalsize;
 
-    const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
     const auto memSpaceAttr_in =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableInput);
-    const auto inType = mlir::MemRefType::get(makeArrayRef(in_shape), inputType, inputAffineMaps, memSpaceAttr_in);
+    const auto inType = getMemRefType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, memSpaceAttr_in);
 
-    const auto outputAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
     const auto memSpaceAttr_out =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableOutput);
-    const auto outType = mlir::MemRefType::get(makeArrayRef(out_shape), outputType, outputAffineMaps, memSpaceAttr_out);
+    const auto outType = getMemRefType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, memSpaceAttr_out);
 
     const auto funcType = builder.getFunctionType(makeArrayRef(std::vector<mlir::Type>{inType, outType, outType}),
                                                   makeArrayRef(std::vector<mlir::Type>{outType, outType}));
@@ -63,31 +61,26 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
 
     const auto inputcmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    const auto inputcmx_type =
-            mlir::MemRefType::get(makeArrayRef(in_shape), inputType, inputAffineMaps, inputcmx_memSpaceAttr);
+    const auto inputcmx_type = getMemRefType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, inputcmx_memSpaceAttr);
 
     const auto outputcmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    const auto outputcmx_type =
-            mlir::MemRefType::get(makeArrayRef(out_shape), outputType, outputAffineMaps, outputcmx_memSpaceAttr);
+    const auto outputcmx_type = getMemRefType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, outputcmx_memSpaceAttr);
 
-    const auto weightDataAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wt_data_shape));
     const auto weight_data_ddr_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    const auto weightData_ddr_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape), weightsType,
-                                                           weightDataAffineMaps, weight_data_ddr_memSpaceAttr);
+    const auto weightData_ddr_type =
+            getMemRefType(ShapeRef(wt_data_shape), weightsType, DimsOrder::NHWC, weight_data_ddr_memSpaceAttr);
 
     const auto wtData_cmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    const auto wtData_cmx_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape), weightsType, weightDataAffineMaps,
-                                                       wtData_cmx_memSpaceAttr);
+    const auto wtData_cmx_type =
+            getMemRefType(ShapeRef(wt_data_shape), weightsType, DimsOrder::NHWC, wtData_cmx_memSpaceAttr);
 
     const auto weightTbl_data_ddr_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    const auto weightTblAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wtTbl_data_shape));
-    const auto weightTblData_ddr_type =
-            mlir::MemRefType::get(makeArrayRef(wtTbl_data_shape), builder.getIntegerType(32, true), weightTblAffineMaps,
-                                  weightTbl_data_ddr_memSpaceAttr);
+    const auto weightTblData_ddr_type = getMemRefType(ShapeRef(wtTbl_data_shape), builder.getIntegerType(32, true),
+                                                      DimsOrder::NHWC, weightTbl_data_ddr_memSpaceAttr);
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, true));
     const std::vector<int32_t> wtTbl_0_data_values_vec =
@@ -102,8 +95,8 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
 
     const auto wtTbl_cmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    const auto wtTbl_cmx_type = mlir::MemRefType::get(makeArrayRef(wtTbl_data_shape), builder.getIntegerType(32, true),
-                                                      weightTblAffineMaps, wtTbl_cmx_memSpaceAttr);
+    const auto wtTbl_cmx_type = getMemRefType(ShapeRef(wtTbl_data_shape), builder.getIntegerType(32, true),
+                                              DimsOrder::NHWC, wtTbl_cmx_memSpaceAttr);
 
     auto wt_data_attr = Const::ContentAttr::get(wt_data_vals);
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
@@ -240,9 +233,9 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
     // IE.CNNNetwork
-    buildCNNOp(builder, func.getName(), {getTensorType(in_shape, inputType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(out_shape, outputType, DimsOrder::NHWC, nullptr),
-                getTensorType(out_shape, outputType, DimsOrder::NHWC, nullptr)});
+    buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, nullptr),
+                getTensorType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest

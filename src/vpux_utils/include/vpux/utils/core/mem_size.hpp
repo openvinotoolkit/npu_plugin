@@ -127,6 +127,9 @@ public:
     MemSize(const MemSize<OTHER>& size, require_t<details::HasMemMultiplier<TYPE, OTHER>>* = nullptr) {
         constexpr auto mult = MemMultiplier<TYPE, OTHER>::value;
 
+        if (size.count() % mult != 0) {
+            std::cout << "BP" << std::endl;
+        }
         VPUX_THROW_UNLESS(size.count() % mult == 0, "Can't convert {0} {1} to {2}", size.count(), OTHER, TYPE);
         _size = size.count() / mult;
     }

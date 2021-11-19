@@ -60,7 +60,6 @@ public:
     using IndirectDataReference = flatbuffers::Offset<MVCNN::IndirectDataReference>;
 
     using BinaryData = flatbuffers::Offset<MVCNN::BinaryData>;
-    using KernelData = flatbuffers::Offset<MVCNN::KernelData>;
 
     using KernelData = flatbuffers::Offset<MVCNN::KernelData>;
 

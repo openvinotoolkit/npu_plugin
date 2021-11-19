@@ -25,15 +25,13 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor&, mlir::ModuleOp
     const auto OUTPUT_0_CMX_OFFSET = 0;
     const auto OUTPUT_1_CMX_OFFSET = OUTPUT_0_CMX_OFFSET + totalsize;
 
-    const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
     const auto memSpaceAttr_in =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableInput);
-    const auto inType = mlir::MemRefType::get(makeArrayRef(in_shape), inputType, inputAffineMaps, memSpaceAttr_in);
+    const auto inType = getMemRefType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, memSpaceAttr_in);
 
-    const auto outputAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(out_shape));
     const auto memSpaceAttr_out =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableOutput);
-    const auto outType = mlir::MemRefType::get(makeArrayRef(out_shape), outputType, outputAffineMaps, memSpaceAttr_out);
+    const auto outType = getMemRefType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, memSpaceAttr_out);
 
     const auto funcType = builder.getFunctionType(makeArrayRef(std::vector<mlir::Type>{inType, outType, outType}),
                                                   makeArrayRef(std::vector<mlir::Type>{outType, outType}));
@@ -50,8 +48,7 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor&, mlir::ModuleOp
 
     const auto inputcmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    const auto inputcmx_type =
-            mlir::MemRefType::get(makeArrayRef(in_shape), inputType, inputAffineMaps, inputcmx_memSpaceAttr);
+    const auto inputcmx_type = getMemRefType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, inputcmx_memSpaceAttr);
 
     auto output_0 = funcBuilder.create<VPUIP::DeclareTensorOp>(
             builder.getUnknownLoc(), inputcmx_type, VPUIP::MemoryLocation::VPU_CMX_NN, 0, OUTPUT_0_CMX_OFFSET);
@@ -89,9 +86,9 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor&, mlir::ModuleOp
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
     // IE.CNNNetwork
-    buildCNNOp(builder, func.getName(), {getTensorType(in_shape, inputType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(out_shape, outputType, DimsOrder::NHWC, nullptr),
-                getTensorType(out_shape, outputType, DimsOrder::NHWC, nullptr)});
+    buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, nullptr),
+                getTensorType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest

@@ -26,9 +26,9 @@ mlir::LogicalResult verifyTensorSize(mlir::Location loc, mlir::Value tensor) {
     // According to the documentation total transfer length (LEN) field is stored in 24 bits
     // that means max value is 16MB
     static const auto limitSize = static_cast<Byte>(16_MB);
-    const auto size = static_cast<Byte>(getCompactSize(tensor));
+    const auto size = static_cast<Bit>(getCompactSize(tensor));
 
-    if (size <= limitSize) {
+    if (size <= static_cast<Bit>(limitSize)) {
         return mlir::success();
     }
 

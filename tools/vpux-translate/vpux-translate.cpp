@@ -144,7 +144,7 @@ int main(int argc, char* argv[]) {
         mlir::TranslateToMLIRRegistration("import-HWTEST", importHWTEST);
         mlir::TranslateToMLIRRegistration("import-VPUIP", importVPUIP);
         mlir::TranslateFromMLIRRegistration("export-VPUIP", exportVPUIP, registerDialects);
-        mlir::TranslateFromMLIRRegistration("export-HWTEST", exportHWTEST, registerDialects);
+        // mlir::TranslateFromMLIRRegistration("export-HWTEST", exportHWTEST, registerDialects);
 
         return mlir::asMainReturnCode(mlir::mlirTranslateMain(argc, argv, "VPUX Translation Testing Tool"));
     } catch (const std::exception& e) {

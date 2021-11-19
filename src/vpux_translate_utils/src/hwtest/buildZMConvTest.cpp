@@ -60,10 +60,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto WEIGHTS_CMX_OFFSET = vpux::alignVal<int64_t>(
             WEIGHTSTABLE_CMX_OFFSET + 4 * weightsTableShape[0] * weightsTableShape[3], weights_alignment);
 
-    const auto getMemRef = [&builder](ArrayRef<std::int64_t> shape, mlir::Type elemType,
+    const auto getMemRef = [&builder](const llvm::SmallVector<std::int64_t>& shape, mlir::Type type,
                                       vpux::VPUIP::MemoryLocation location) {
-        const auto memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), location);
-        return vpux::getMemRefType(ShapeRef(shape), elemType, DimsOrder::NHWC, memSpaceAttr);
+        const auto memSpaceAttr = vpux::VPUIP::MemoryLocationAttr::get(builder.getContext(), location);
+        return getMemRefType(ShapeRef(shape), type, DimsOrder::NHWC, memSpaceAttr);
     };
 
     const auto outputParamType = getMemRef(outputShape, outputType, vpux::VPUIP::MemoryLocation::ProgrammableOutput);
@@ -207,7 +207,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(vpux::VPUIP::createSetCompileParamsPass(vpux::VPUIP::ArchKind::MTL,
-                                                       vpux::VPUIP::CompilationMode::DefaultHW, None, log));
+                                                       vpux::VPUIP::CompilationMode::ReferenceHW, None, log));
 
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));

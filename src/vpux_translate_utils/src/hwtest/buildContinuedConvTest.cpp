@@ -74,10 +74,10 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     const auto INPUT_CONV_0_CMX_OFFSET = INPUT_CMX_OFFSET;
     const auto INPUT_CONV_1_CMX_OFFSET = INPUT_CONV_0_CMX_OFFSET + totalTensorSize(inputShape, inputType) / 2;
 
-    const auto getMemRef = [&builder](ArrayRef<std::int64_t> shape, mlir::Type elemType,
+    const auto getMemRef = [&builder](const llvm::SmallVector<std::int64_t>& shape, mlir::Type type,
                                       vpux::VPUIP::MemoryLocation location) {
-        const auto memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), location);
-        return vpux::getMemRefType(ShapeRef(shape), elemType, DimsOrder::NHWC, memSpaceAttr);
+        const auto memSpaceAttr = vpux::VPUIP::MemoryLocationAttr::get(builder.getContext(), location);
+        return getMemRefType(ShapeRef(shape), type, DimsOrder::NHWC, memSpaceAttr);
     };
 
     const auto outputParamType = getMemRef(outputShape, outputType, vpux::VPUIP::MemoryLocation::ProgrammableOutput);
@@ -257,7 +257,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(vpux::VPUIP::createSetCompileParamsPass(vpux::VPUIP::ArchKind::MTL,
-                                                       vpux::VPUIP::CompilationMode::DefaultHW, None, log));
+                                                       vpux::VPUIP::CompilationMode::ReferenceHW, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
