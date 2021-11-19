@@ -21,9 +21,7 @@
 	url = https://github.com/oneapi-src/level-zero.git
 [submodule "mcm-emulator"]
 	path = src/vpux_emulator
-	url = ssh://git@gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git
+	url = https://gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git
 [submodule "thirdparty/json"]
 	path = thirdparty/json
 	url = https://github.com/nlohmann/json.git
-[submodule "src/vpux_emulator"]
-	url = https://gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git
