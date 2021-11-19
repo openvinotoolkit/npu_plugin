@@ -23,6 +23,10 @@ static void validateVerticalAdds(const mv::pass::PassEntry& pass,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                                         mv::Element&);
 
+static void hackPReLUFcn(const mv::pass::PassEntry& pass,
+                                        mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
+                                        mv::Element&);
+
 namespace mv
 {
     namespace pass
@@ -48,12 +52,32 @@ namespace mv
         .setDescription(
                 "Transforms the subgraphs after streaming to vertical fusion ones.");
     }
+
+    namespace pass
+    {
+        MV_REGISTER_PASS(hackPReLU)
+        .setFunc(hackPReLUFcn)
+        .setDescription(".");
+    }
 }
 
+static std::vector<std::string> LEAKYRELULIST = {
+//        "LeakyReLU_52096550"
+//        , "LeakyReLU_52166486"
+        "LeakyReLU_52236546"
+        , "LeakyReLU_52136454"
+        , "LeakyReLU_52056566"
+        , "LeakyReLU_52316498"
+        , "LeakyReLU_52116526"
+        , "LeakyReLU_52156538"
+        , "LeakyReLU_52176558"
+        , "LeakyReLU_52286494"
+        , "LeakyReLU_52306474"
+};
 ///////////////////////// PASS STATIC PARAMETERS ///////////////////////////////
 static size_t MAXIMUM_STATIC_OVERLAPING_OPS_IN_SUBGRAPH = 3UL;
 static size_t MAXIMUM_HEIGHT_WORTHY_FOR_VF = 38UL;
-static size_t CMX_TO_AVOID_FRAGMENTATION = 360800;
+static size_t CMX_TO_AVOID_FRAGMENTATION = 360800 * 10;
 ////////////////////////////////////////////////////////////////////////////////
 
 bool hasLargeKernel(mv::Data::OpListIterator testOp, size_t kSize)
@@ -86,6 +110,7 @@ void populateCandidateVerticalFusionOps(std::vector<std::string> & candidateVert
     {
         auto layerNameStrategy = *layerStrategy;
         std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+        
         // large kernels set large overlaps, so no value adding to VF subgraph
         if (hasLargeKernel(om.getOp(nodeName), 7))
             continue;
@@ -634,16 +659,6 @@ static bool isYoloV4(mv::OpModel& om)
     return false;
 }
 
-static bool isYoloV4NumberOfSubgraphs(bool double_tail, std::size_t numberOfSubgraphs)
-{
-    if (!double_tail && numberOfSubgraphs == YOLO_V4_NUMBER_OF_SUBS_SINGLE_TAIL)
-        return true;
-    else if (double_tail && numberOfSubgraphs >= YOLO_V4_NUMBER_OF_SUBS_DOUBLE_TAIL)
-        return true;
-
-    return false;
-}
-
 static bool isYoloV4VerticalFusionSubgraphsSize(bool double_tail, std::size_t verticalFusionSubgraphsSize)
 {
     if (verticalFusionSubgraphsSize == YOLO_V3_NUMBER_OF_SUBS_SINGLE_TAIL || verticalFusionSubgraphsSize == YOLO_V4_NUMBER_OF_SUBS_SINGLE_TAIL ||
@@ -674,8 +689,6 @@ void computeSubgraphs(mv::ComputationModel& model,
 
     if (!globalParams->hasAttr("streaming_strategy"))
         return;
-
-    int min_subgraph_depth = passDesc.hasAttr("min_subgraph_depth") ? passDesc.get<int>("min_subgraph_depth"): 2;
 
     auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
     //step-1: read the strategies and populate a map with the candidate vertical fusion ops, whis means all the ops
@@ -744,61 +757,16 @@ void computeSubgraphs(mv::ComputationModel& model,
     //step-4: for every op go and locate the vertical fusion subgraphs
     std::vector<std::list<std::string>> verticalFusionSubgraphs;
     std::vector<std::string> excludedVFnodes;
-    std::size_t numberOfSubgraphs = 0;
     bool yolov4 = isYoloV4(om);
-
-    for (auto name = candidateVerticalFusionOpsSorted.begin(); name != candidateVerticalFusionOpsSorted.end(); ++name)
-    {
-        if (alreadyInSubgraph(*name, verticalFusionSubgraphs))
-            continue;
-        if (double_tail)
+    
+    // feed the hacked leakyRelu to the subgraphs only for SuperResAA
+    size_t inputNumber = om.getNumNetworkInputs();
+    if (inputNumber == 3) {
+        for (auto& leakyReLUName : LEAKYRELULIST)
         {
-            //NOTE: jump the huge operation after first concat subgraph
-            if (after_concat(*name, om))
-            {
-                excludedVFnodes.push_back(*name);
-                continue;
-            }
+            verticalFusionSubgraphs.push_back({leakyReLUName+"1_PPEConv", leakyReLUName+"0_PPEConv",
+                                            leakyReLUName+"PPEeltwise"});
         }
-        auto root_subgraph = *name;
-        verticalFusionSubgraphs.push_back({root_subgraph});
-
-        for (auto node = candidateVerticalFusionOpsSorted.begin(); node != candidateVerticalFusionOpsSorted.end(); ++node)
-        {
-            if (alreadyInSubgraph(*node, verticalFusionSubgraphs) || (excludedFromSubgraphs(*node, excludedVFnodes)))
-                continue;
-
-            //NOTE: the target here is to find out that all the ops that belong to the same subgraph will be
-            //divisible with the maximum number of streams
-            bool streamPossible = willMaxStreamingBePossible(om, strategyList, verticalFusionSubgraphs[numberOfSubgraphs], *node, globalParams->get<int>("Number_of_Clusters"));
-
-            bool isNeighbour = nodeIsNeighbour(om, dm, *node, verticalFusionSubgraphs[numberOfSubgraphs]);
-            bool kernelLargeOverlapFlag = kernelLargeOverlap(om, verticalFusionSubgraphs[numberOfSubgraphs], *node);
-            if (isNeighbour && streamPossible && !kernelLargeOverlapFlag)
-            {
-                //step-4.1: special for yolo architectures, prune to eltwise as last node
-                verticalFusionSubgraphs[numberOfSubgraphs].push_back(*node);
-                if (double_tail)
-                {
-                    if (om.getOp(*node)->getOpType() == "Concat")
-                        break;
-                }
-                else
-                {
-                    if (om.getOp(*node)->getOpType() == "Eltwise")
-                        break;
-                }
-            }
-        }
-        if (verticalFusionSubgraphs[numberOfSubgraphs].size() <= std::size_t(min_subgraph_depth))
-            verticalFusionSubgraphs.erase(verticalFusionSubgraphs.begin() + numberOfSubgraphs);
-        //NOTE: normally this condition should check if the tail kernel != stride and the tail that is later than the head
-        else if (yolov4 && isYoloV4NumberOfSubgraphs(double_tail, numberOfSubgraphs))
-            verticalFusionSubgraphs.erase(verticalFusionSubgraphs.begin() + numberOfSubgraphs);
-        else if (!double_tail && isNotValidSubgraph(om, verticalFusionSubgraphs[numberOfSubgraphs]))
-            verticalFusionSubgraphs.erase(verticalFusionSubgraphs.begin() + numberOfSubgraphs);
-        else
-            numberOfSubgraphs++;
     }
 
     //NOTE: this idx value will be used for hardcoding the vertical fusion tiling size in order to avoid overfitting cmx
@@ -822,34 +790,6 @@ void computeSubgraphs(mv::ComputationModel& model,
     {
         auto head = subgraph->front();
         auto tail = subgraph->back();
-        for (auto it = subgraph->begin(); it != subgraph->end(); ++it)
-            om.getOp(*it)->set<bool>("verticalFusion", true);
-
-        om.getOp(head)->set<bool>("verticalFusionSubgraphHead", true);
-        om.getOp(tail)->set<bool>("verticalFusionSubgraphTail", true);
-        om.getOp(head)->set<bool>("verticalFusion", false);
-        om.getOp(tail)->set<bool>("verticalFusion", false);
-
-        if (double_tail)
-        {
-            bool subgraphHasAnOpFollowedConcat = subgraphHasAnOpFollowedFromConcat(*subgraph, followedFromConcatOps);
-            for (auto it = subgraph->begin(); it != subgraph->end(); ++it)
-            {
-                bool concatExists = (std::find(followedFromConcatOps.begin(), followedFromConcatOps.end(), *it) != followedFromConcatOps.end());
-                if (concatExists)
-                {
-                    om.getOp(*it)->set<bool>("verticalFusionSubgraphTail", true);
-                    om.getOp(*it)->set<bool>("verticalFusion", false);
-                }
-                //remove previous tails
-                else if (subgraphHasAnOpFollowedConcat)
-                    om.getOp(*it)->set<bool>("verticalFusionSubgraphTail", false);
-
-                if (*it != head)
-                    om.getOp(*it)->set<bool>("verticalFusionSubgraphHead", false);
-            }
-        }
-
         std::set<int> streamNumbers = {};
         int maxStream = 0;
         for (auto it = subgraph->begin(); it != subgraph->end(); ++it)
@@ -947,7 +887,7 @@ void computeSubgraphs(mv::ComputationModel& model,
         saveNewStreamingStrategiesToJson(newStreamingStrategies);
     }
 
-    // printVerticalFusionSubgraphs(verticalFusionSubgraphs, newStreamingStrategies);
+     printVerticalFusionSubgraphs(verticalFusionSubgraphs, newStreamingStrategies);
     if (double_tail)
         storeOverlappingEltwiseLines(verticalFusionSubgraphs, om);
 }
@@ -992,7 +932,7 @@ void recognizeVerticalFusionPatternsFcn(const mv::pass::PassEntry&,
     bool yolo_v4 = om.getInput()->hasAttr("yolo_v4") && om.getInput()->get<bool>("yolo_v4");
     if (yolo_v4)
         computeSubgraphs(model, passDesc, yolo_v4);
-    // printSubgraphsAfterComputation(model);
+     printSubgraphsAfterComputation(model);
 }
 
 void verticalFusionTransformationFcn(const mv::pass::PassEntry&,
@@ -1264,4 +1204,76 @@ void validateVerticalAdds(const mv::pass::PassEntry&,
             om.defineFlow(slice, nextOp, idx);
         }
     }
+}
+
+
+
+void removeInnerConcat(mv::ComputationModel& model, mv::Data::OpListIterator& concat, 
+                       std::string headName, std::string tailName, std::size_t idx)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    std::vector<mv::Data::OpListIterator> headStreams;
+    for (std::size_t i = 0; i < concat->inputSlots(); i++)
+    {
+        auto preOp = om.getSourceOp(concat->getInputTensor(i));
+        concat->getInputTensor(i)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
+        headStreams.push_back(preOp);
+    }
+
+    std::vector<mv::Data::OpListIterator> tailStreams;
+    auto tailSliceOps = mv::findSinkLayers(dm, concat->getOutputTensor(0));
+    for (auto sliceOp : tailSliceOps)
+    {
+        if (sliceOp->getOpType() != "Slice")
+            continue;
+        auto curTailStream = mv::findSinkLayers(dm, sliceOp->getOutputTensor(0))[0];
+        tailStreams.push_back(curTailStream);
+        om.undefineFlow(sliceOp.leftmostInput());
+        om.undefineFlow(sliceOp.leftmostOutput());
+        om.removeOp(sliceOp);
+    }
+
+    if (headStreams.size() != tailStreams.size())
+        std::cout<<"WRONG!!"<<std::endl;
+
+    auto streamSize = headStreams.size();
+    for (std::size_t i = 0; i < streamSize; i++)
+    {
+        auto headOp = om.getOp(headName + std::to_string(i));
+        auto tailOp = om.getOp(tailName + std::to_string(i));
+        tailOp->setInputTensor(headOp->getOutputTensor(0), idx, false);
+        headOp->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
+        om.defineFlow(headOp->getOutputTensor(0), tailOp, idx);
+        std::cout<<"connecting "<<headOp->getName() << " with " << tailOp->getName()<<std::endl;
+    }
+    om.removeOp(concat);
+    return;
+}
+
+void hackPReLUFcn(const mv::pass::PassEntry&,
+                   mv::ComputationModel& model,
+                   mv::TargetDescriptor&,
+                   mv::Element& ,
+                   mv::Element&)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    size_t inputNumber = om.getNumNetworkInputs();
+    if (inputNumber == 3) {
+        for (auto& leakyReLUName : LEAKYRELULIST)
+        {
+            std::string headConcatName1 = leakyReLUName+"0_PPEConvconcat_";
+            std::string headConcatName2 = leakyReLUName+"1_PPEConvconcat_";
+            // step 1. head streams to add streams
+            auto headConcat1 = om.getOp(headConcatName1);
+            removeInnerConcat(model, headConcat1, leakyReLUName+"0_PPEConv_streamH",
+                            leakyReLUName+"PPEeltwise_streamH", 0);
+            auto headConcat2 = om.getOp(headConcatName2);
+            removeInnerConcat(model, headConcat2, leakyReLUName+"1_PPEConv_streamH",
+                            leakyReLUName+"PPEeltwise_streamH", 1);
+        }
+    }
+    return;
 }

@@ -932,7 +932,26 @@ bool HeuristicGraphOptimizer::hasLayerWorkaroundAvoidStrategy(mv::Data::OpListIt
             if (outputShape[mv::IO_CHANNEL_DIMENSION] == 24 && weightsShape[mv::KERNEL_INPUT_CHANNELS] == 144 && weightsShape[mv::KERNEL_HEIGHT] == 1)
                 return true;
         }
+    }
+    
+    bool DpuChild = false;
+    bool UpaChild = false;
+    if(target == mv::Target::ma2490 && opType == "DepthwiseConv" && clustering != "Clustering")
+    {
+        auto outputShape = opIt->getOutputTensor(0)->getShape();
+        auto sinkFlow = opIt.leftmostOutput();
+        while(sinkFlow != model_.flowEnd())
+        {
+            auto childOp = sinkFlow.sink();
+            if(childOp->isUPA() || (childOp->hasAttr("softwareExecuted") && childOp->get<bool>("softwareExecuted")))
+                UpaChild = true;
+            else if(childOp->isHardwarizable())
+                DpuChild = true;
+            ++sinkFlow;
+        }
 
+        if(DpuChild && UpaChild && (outputShape[mv::IO_CHANNEL_DIMENSION] % 16))
+               return true;     
     }
 
     return false;

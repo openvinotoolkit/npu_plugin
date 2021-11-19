@@ -124,7 +124,7 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
         max.clear();
         for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
         {
-            zp.push_back(255 - weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint()[k]);
+            zp.push_back(weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint()[k]);
             scale.push_back(alpha*weightsTensor->get<mv::QuantizationParams>("quantParams").getScale()[k]);
             min.push_back(weightsTensor->get<mv::QuantizationParams>("quantParams").getMin()[k]);
             max.push_back(weightsTensor->get<mv::QuantizationParams>("quantParams").getMax()[k]);
@@ -136,7 +136,7 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
                     for (size_t w = 0; w < kernelShape[mv::KERNEL_WIDTH]; w++)
                     {
                         auto currWeight = (int64_t)weightsTensor->at({w,h,c,k});
-                        weightsData.push_back(255 - currWeight);
+                        weightsData.push_back(currWeight);
                     }
                 }
             }
@@ -163,7 +163,7 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
                         previousOp->get<unsigned>("dilationFactor"),
                         previousOp->get<unsigned>("group"));
     conv->setDType(mv::DType("UInt8"));
-    conv->setQuantParams(adjustFQtoHalfSum(quantParams, false));
+    conv->setQuantParams(adjustFQtoHalfSum(quantParams, true));
     auto convOp = om.getSourceOp(conv);
 
     if (hasBias)
@@ -188,7 +188,7 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
                 biasOldScale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale()[k]
                         * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0];
                 real_bias = ((int64_t) biasTensor->at(k)) * biasOldScale;
-                real_bias = -alpha * real_bias;
+                real_bias = alpha * real_bias;
                 auto newQuantizedValue = std::round(real_bias
                                     /(scale[k] * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0]));
                 if (newQuantizedValue > 2147483647)
@@ -347,13 +347,11 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
             else
             {
                 conv1 = portConv(model, leakyReluOp, parentOp, i);
-                relu1 = portRelu(model, conv1->getOutputTensor(0), conv1, leakyReluQuantParams);
-                depthwise1 = portDepthwise(model, relu1->getOutputTensor(0), leakyReluOp, leakyReluQuantParams);
             }
         }
         std::vector<mv::Data::TensorIterator> inputs;
         inputs.push_back(relu0->getOutputTensor(0));
-        inputs.push_back(depthwise1->getOutputTensor(0));
+        inputs.push_back(conv1->getOutputTensor(0));
         auto add0 = portAdd(om, inputs, leakyReluOp, leakyReluQuantParams);
         auto backup = parentOp.leftmostOutput();
         om.undefineFlow(backup);

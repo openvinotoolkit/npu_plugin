@@ -686,11 +686,277 @@ void reduceConversionsPatterns(mv::ComputationModel& model)
     }
 }
 
+void addClamp(mv::ComputationModel& model){
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto quantizeOps = om.getOps("FakeQuantize");
+    for(auto& quantizeOp : quantizeOps){
+        if(quantizeOp->getName() != "g_net/enc3_2_2_1/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/enc2_3_2_1/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/dec2_2_2/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/enc3_4_2/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/enc2_3_2_2/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/enc3_2_2_2/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/enc3_3_2_2/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/dec2_2_2_2/Conv2D/fq_input_0")
+            // quantizeOp->getName() != "g_net/add_1/fq_input_1_scale_aligned" &&
+            // quantizeOp->getName() != "g_net/add_1/fq_input_0" &&
+            // quantizeOp->getName() != "g_net/ResizeBilinear/fq_input_0" &&
+            // quantizeOp->getName() != "g_net/add_6/fq_input_0" &&
+            // quantizeOp->getName() != "g_net/ResizeBilinear_1/fq_input_0")
+            continue;
+        
+        // add clamp Operation
+        auto name = quantizeOp->getName();
+        auto consumerOps = mv::findSinkLayers(dm, quantizeOp->getOutputTensor(0));
+
+        auto min_input = quantizeOp->getOutputTensor(0);
+        auto min = om.minimum(name + "_new_minimum", min_input, quantizeOp->getInputTensor(2)->getDoubleData()[0]);
+        // std::cout<<"######: "<<quantizeOp->getName()<<std::endl;
+        // std::cout<<"******: "<<quantizeOp->getInputTensor(2)->getDoubleData()[0]<<std::endl;
+        min->setQuantParams(mv::QuantizationParams::initial());
+        auto minOp = om.getSourceOp(min);
+        minOp->set<unsigned>("opId", quantizeOp->get<unsigned>("opId"));
+
+        auto max = om.maximum(name + "_new_maximum", min, quantizeOp->getInputTensor(3)->getDoubleData()[0]);
+        // std::cout<<"******: "<<quantizeOp->getInputTensor(3)->getDoubleData()[0]<<std::endl;
+        max->setQuantParams(mv::QuantizationParams::initial());
+        auto maxOp = om.getSourceOp(max);
+        maxOp->set<unsigned>("opId", minOp->get<unsigned>("opId"));
+
+        for(auto& consumerOp: consumerOps){
+            std::size_t i = 0;
+            for (; i < consumerOp->inputSlots(); ++i){
+                if (consumerOp->getInputTensor(i)->getName() == min_input->getName())
+                    break;
+            }
+            auto inputFlow = consumerOp.leftmostInput();
+            while (inputFlow != om.flowEnd()){
+                if (inputFlow->getTensor()->getName() == min_input->getName())
+                    break;
+                ++inputFlow;
+            }
+            om.undefineFlow(inputFlow);
+            consumerOp->setInputTensor(max, i, false);
+            om.defineFlow(max, consumerOp, i);
+        }
+
+        
+    }
+}
+
+void removeInterp(mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto interpOps = om.getOps("Interp");
+    for (auto opIt:interpOps){
+        if(opIt->getName()=="g_net/resize_images_4/ResizeBilinear"){
+            auto inputShape = opIt->getInputTensor(0)->getShape();
+            auto outputShape = opIt->getOutputTensor(0)->getShape();
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+
+            auto sourceTensor = parentOpIt->getOutputTensor(0);
+            opIt = linkNewOperationsRemove(parentOpIt, sourceTensor, om, opIt);
+        }
+    }
+}
+
+void fuseScaleAddWithConvBiasAndPadInput(mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    
+    // restrict just for mobilenet v3
+    auto convOps = om.getOps("Conv");
+    bool flag = false;
+    for (auto convOp:convOps){
+      if(convOp->getName() == "MobilenetV3/Conv/BatchNorm/FusedBatchNorm/variance/Fused_Add_"){
+        flag = true;
+        break;
+      }
+    }
+
+    // TODO how to restrict for mobilenet-v3
+    if (flag){
+      auto inputOps = om.getOps("Input");
+      auto inputOp = inputOps[0];
+      auto scaleOp = mv::findSinkLayers(dm, inputOp->getOutputTensor(0))[0];
+      auto addOp = mv::findSinkLayers(dm, scaleOp->getOutputTensor(0))[0];
+      auto convOp = mv::findSinkLayers(dm, addOp->getOutputTensor(0))[0];
+      auto biasOp = mv::findSinkLayers(dm, convOp->getOutputTensor(0))[0];
+      auto hswishOp = mv::findSinkLayers(dm, biasOp->getOutputTensor(0))[0];
+
+      auto scaleDate = scaleOp->getInputTensor(1)->getDoubleData();
+      auto addData = addOp->getInputTensor(1)->getDoubleData();
+      auto weightData = convOp->getInputTensor(1)->getDoubleData();
+      auto biasData = biasOp->getInputTensor(1)->getDoubleData();
+
+      // padding Op for input
+      auto inputShape = inputOp->getOutputTensor(0)->getShape();
+
+      auto newPad = om.pad(inputOp->getName()+"_pad", inputOp->getOutputTensor(0), 
+                            {0, 0, 0, 0},
+                            {0, 0, 1, 1},
+                            "constant",
+                            1.0/scaleDate[0]);
+      newPad->setQuantParams(mv::QuantizationParams::initial());
+      newPad->setDType(inputOp->getOutputTensor(0)->getDType());
+      auto newPadOp = om.getSourceOp(newPad);
+      newPadOp->set<unsigned>("opId", inputOp->get<unsigned>("opId"));
+
+      std::vector<double> newWeightData;
+      std::vector<double> newBiasData;
+      // new convOp
+      for (size_t i =0; i<weightData.size();i++)
+        newWeightData.push_back(weightData[i]*scaleDate[0]);
+      auto newWeight = om.constant(convOp->getName() + "_const", newWeightData, 
+                                    convOp->getInputTensor(1)->getShape(), mv::DType("Float32"), mv::Order("NCHW"));
+      newWeight->setQuantParams(convOp->getInputTensor(1)->getQuantParams());
+      auto newConv = om.conv(convOp->getName()+"_new", newPad, newWeight,
+                              convOp->get<std::array<unsigned short, 2>>("stride"),
+                              {0, 0, 0, 0},
+                              convOp->get<unsigned>("dilationFactor"),
+                              convOp->get<unsigned>("group"));
+      newConv->setDType(convOp->getOutputTensor(0)->getDType());
+      newConv->setQuantParams(convOp->getOutputTensor(0)->getQuantParams());
+      auto newWeightOp = om.getSourceOp(newWeight);
+      auto newConvOp = om.getSourceOp(newConv);
+      newWeightOp->set<unsigned>("opId", convOp->get<unsigned>("opId"));
+      newConvOp->set<unsigned>("opId", convOp->get<unsigned>("opId"));
+
+      // new bais Op
+      for (size_t j =0;j<biasData.size();j++){
+        double temp = 0;
+        for (size_t k =0; k<27; k++)
+          temp += weightData[j*27+k];
+        temp *= addData[0];
+        newBiasData.push_back(temp+biasData[j]);
+      }
+      auto newBiasPar = om.constant(biasOp->getName() + "_const", newBiasData, 
+                                    biasOp->getInputTensor(1)->getShape(), mv::DType("Float32"), mv::Order("W"));
+      newBiasPar->setQuantParams(biasOp->getInputTensor(1)->getQuantParams());
+      auto newBias = om.bias(biasOp->getName() + "_new", 
+                              newConvOp->getOutputTensor(0), newBiasPar);
+      newBias->setQuantParams(newConvOp->getOutputTensor(0)->getQuantParams());
+      newBias->setDType(biasOp->getOutputTensor(0)->getDType());
+      auto newBiasParOp = om.getSourceOp(newBiasPar);
+      auto newBiasOp = om.getSourceOp(newBias);
+      newBiasParOp->set<unsigned>("opId", biasOp->get<unsigned>("opId"));
+      newBiasOp->set<unsigned>("opId", biasOp->get<unsigned>("opId"));
+      
+      // set connect
+      om.undefineFlow(scaleOp.leftmostInput());
+      newPadOp->setInputTensor(inputOp->getOutputTensor(0), 0, false);
+      
+      om.undefineFlow(hswishOp.leftmostInput());
+      hswishOp->setInputTensor(newBiasOp->getOutputTensor(0), 0, false);
+      om.defineFlow(newBiasOp->getOutputTensor(0), hswishOp, 0);
+
+      // remove scale and add Ops
+      om.removeOp(om.getSourceOp(convOp->getInputTensor(1)));
+      om.removeOp(om.getSourceOp(biasOp->getInputTensor(1)));
+      om.removeOp(convOp);
+      om.removeOp(biasOp);
+      om.removeOp(om.getSourceOp(scaleOp->getInputTensor(1)));
+      om.removeOp(om.getSourceOp(addOp->getInputTensor(1)));
+      om.removeOp(scaleOp);
+      om.removeOp(addOp);
+    }
+}
+
+void hswishReplacement(mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);   
+    auto hswishOps = om.getOps("HSwish");
+    for(auto& hswishOp: hswishOps)
+    {
+        auto name = hswishOp->getName();
+        auto inputTensor = hswishOp->getInputTensor(0);
+        auto outputTensor = hswishOp->getOutputTensor(0);
+        auto childOps = mv::findSinkLayers(dm, hswishOp->getOutputTensor(0));
+        unsigned opId = hswishOp->get<unsigned>("opId");
+        auto quantParam = inputTensor->getQuantParams();
+        auto outQuantParam = outputTensor->getQuantParams();
+        auto outputDtype = outputTensor->getDType();
+
+        // Populate identity weights
+        const int64_t weightsValue_i = 1;
+        auto K = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+
+        std::vector<int64_t> weightsData_i(K, 0);
+        for (auto i = 0u; i < K; ++i)
+            weightsData_i.at(i) = weightsValue_i;
+        mv::Data::TensorIterator weights_i = om.constantInt("",
+                            weightsData_i,
+                            {1, 1, K, 1},
+                            mv::DType("UInt8"),
+                            mv::Order(mv::Order::getRowMajorID(4)));
+        weights_i->setQuantParams(mv::QuantizationParams({0},{1.0 / 6},{0},{255.0 / 6}));
+
+        // Insert identity Conv
+        auto identityConv = om.depthwiseConv(name + "_scale_conv", inputTensor, weights_i, {1,1}, {0, 0, 0, 0}, 1);
+        identityConv->setQuantParams(mv::QuantizationParams::initial());
+        auto identityConvOp = om.getSourceOp(identityConv);
+
+        auto weightsOp_i = om.getSourceOp(weights_i);
+        identityConvOp->set<unsigned>("opId", opId);
+        weightsOp_i->set<unsigned>("opId", opId);
+
+        std::vector<double> biasValue(inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], 0.5);
+        auto biasConst = om.constant(name + "_bias_const", biasValue, {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float32"), mv::Order("W"));
+        biasConst->setQuantParams(mv::QuantizationParams::initial());
+        auto biasConstOp = om.getSourceOp(biasConst);
+        biasConstOp->set<unsigned>("opId", opId);
+        auto bias = om.bias(name + "_new_bias", identityConv, biasConst);
+        bias->setQuantParams(mv::QuantizationParams::initial());
+        auto biasOp = om.getSourceOp(bias);
+        biasOp->set<unsigned>("opId", opId);
+
+        auto min = om.minimum(name + "_new_minimum", bias, 1);
+        min->setQuantParams(mv::QuantizationParams::initial());
+        auto minOp = om.getSourceOp(min);
+        minOp->set<unsigned>("opId", opId);
+
+        auto max = om.maximum(name + "_new_maximum", min, 0);
+        max->setQuantParams(mv::QuantizationParams::initial());
+        auto maxOp = om.getSourceOp(max);
+        maxOp->set<unsigned>("opId", opId);
+
+        auto eltwiseMul = om.eltwise(name + "_new_eltwise", {inputTensor, max}, "Multiply");
+        eltwiseMul->setQuantParams(outQuantParam);
+        eltwiseMul->setDType(outputDtype);
+        auto eltwiseMulOp = om.getSourceOp(eltwiseMul);
+        eltwiseMulOp->set<unsigned>("opId", opId);
+
+        om.removeOp(hswishOp);
+
+        for(auto& childOp: childOps)
+        {
+            int idx = childOp->getOpType() == "Eltwise"? 1: 0;
+            if(childOp->getName() == "MobilenetV3/expanded_conv_10/squeeze_excite/mul"
+            || childOp->getName() == "MobilenetV3/expanded_conv_11/squeeze_excite/mul"
+            || childOp->getName() == "MobilenetV3/expanded_conv_12/squeeze_excite/mul"
+            || childOp->getName() == "MobilenetV3/expanded_conv_13/squeeze_excite/mul"
+            || childOp->getName() == "MobilenetV3/expanded_conv_14/squeeze_excite/mul")
+                idx = 0;
+            om.defineFlow(eltwiseMul, childOp, idx);
+            childOp->setInputTensor(eltwiseMul, idx, false);
+        }
+    }
+}
+
 void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS);
-
     mv::OpModel om(model);
+
+    // fuse input scale + add into later conv + bias for mobilenet-v3 model
+    fuseScaleAddWithConvBiasAndPadInput(model);
+
+    // replace hswish with dpu layers
+    hswishReplacement(model);
 
     if (om.getOps("FakeQuantize").empty())
         return;
@@ -714,12 +980,18 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
         return;
     }
 
+    // remove deblur model useless interpolate OP
+    removeInterp(model);
+    
     quantizeScaleShift(model, pass);
 
     propagateActivationParameters(model);
 
     quantizeConst(model);
     quantizeBias(model);
+
+    // replace quantize-dequantize opertation with clamp Op ( min-max )
+    addClamp(model);
 
     removeFQ(pass, model);
 

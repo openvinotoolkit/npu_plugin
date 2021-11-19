@@ -1271,6 +1271,93 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
                         if(strategyCheck != FailCause::Pass)
                             continue;
 
+                        std::vector<std::string> manuallyModifyLeakylayers = {
+                            "LeakyReLU_52156538",
+                            "LeakyReLU_52176558",
+                            "LeakyReLU_52286494",
+                            "LeakyReLU_52116526",
+                            "LeakyReLU_52316498",
+//                             "LeakyReLU_52306474",
+                             "LeakyReLU_52056566",
+                            "LeakyReLU_52136454",
+                            // "LeakyReLU_52066518",
+                            // "LeakyReLU_52326542",
+                            "LeakyReLU_52096550",
+                            "LeakyReLU_52166486",
+                            "LeakyReLU_52326542",
+                            "LeakyReLU_52066518",
+                            // "LeakyReLU_52276506" // converted from constant elt-add, SOH make perf worse? maybe stream makes the DPU start ealier
+                        };
+
+                        std::vector<std::string> manuallyModifylayers = {
+                            "tl_unet1x2x4x/out4x/Add",
+                            // "tl_unet1x2x4x/out2x/Add_1",
+                            // "tl_unet1x2x4x/Decoder_2/Add",
+                            "tl_unet1x2x4x/Encoder_1/AvgPool_DepthwiseConv",
+                        };
+
+                        for(auto& leakyLayer: manuallyModifyLeakylayers)
+                        {
+                            manuallyModifylayers.push_back(leakyLayer + "0_PPEConv");
+                            manuallyModifylayers.push_back(leakyLayer + "1_PPEConv");
+                            manuallyModifylayers.push_back(leakyLayer + "PPEeltwise");
+                        }
+
+                        if(std::find(manuallyModifylayers.begin(), manuallyModifylayers.end(), op.getName()) != manuallyModifylayers.end())
+                        {
+                            if(clustering.get<std::string>() != "SplitOverH")
+                                continue;
+                        }
+
+                        // for mobilenet-v3
+                        std::vector<std::string> mobilenet_v3_Ops = { "input_pad"
+                        };
+                        auto mobilenet_iter = std::find(mobilenet_v3_Ops.begin(), mobilenet_v3_Ops.end(), op.getName());
+                        if(mobilenet_iter != mobilenet_v3_Ops.end()){
+                          mv::Attribute temp(std::string("SplitOverH"));
+                          s["clustering"] = temp;
+                        }                                                                         
+
+                        // manually tuning for style transfer
+                        std::vector<std::string> splitNodeList = {"style/encode/conv1",
+                                                                  "McmScale_1804_DepthwiseConv",
+                                                                  "style/encode/conv2",
+                                                                  "McmScale_1800_DepthwiseConv",
+                                                                  "McmScale_1796_DepthwiseConv",
+                                                                  "style/transfer/fireres1_fire_s1",
+                                                                  "style/transfer/fireres1_fire_e1",
+                                                                  "style/transfer/fireres1_fire_e3",
+                                                                  "McmScale_1792_DepthwiseConv",
+                                                                  "style/transfer/fireres2_fire_s1",
+                                                                  "style/transfer/fireres2_fire_e1",
+                                                                  "style/transfer/fireres2_fire_e3",
+                                                                  "McmScale_1788_DepthwiseConv",
+                                                                  "style/transfer/fireres3_fire_s1",
+                                                                  "style/transfer/fireres3_fire_e1",
+                                                                  "style/transfer/fireres3_fire_e3",
+                                                                  "McmScale_1784_DepthwiseConv",
+                                                                  "style/transfer/fireres4_fire_s1",
+                                                                  "style/transfer/fireres4_fire_e1",
+                                                                  "style/transfer/fireres4_fire_e3",
+                                                                  "McmScale_1780_DepthwiseConv",
+                                                                  "style/transfer/fireres5_fire_s1",
+                                                                  "style/transfer/fireres5_fire_e1",
+                                                                  "style/transfer/fireres5_fire_e3",
+                                                                  "McmScale_1776_DepthwiseConv",
+                                                                  "style/decode/conv_t1",
+                                                                  "McmScale_1772_DepthwiseConv",
+                                                                  "style/decode/conv_t2",
+                                                                  "McmScale_1768_DepthwiseConv",
+                                                                  "style/decode/conv_t3",
+                                                                  "McmScale_1764_DepthwiseConv",
+                                                                  "style/output/add_DepthwiseConv"
+                        };
+                        auto iter = std::find(splitNodeList.begin(), splitNodeList.end(), op.getName());
+                        if(iter != splitNodeList.end()){
+                            mv::Attribute soh(std::string("SplitOverH"));
+                            s["clustering"] = soh;
+                        }
+
                         strategyVec.push_back(s);
 
                         //    std::cout << "Name: " + op.getName() << " ID " << s["id"].toString()<< std::endl;
