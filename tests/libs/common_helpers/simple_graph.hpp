@@ -46,6 +46,7 @@ inline std::shared_ptr<InferenceEngine::ExecutableNetwork> getExeNetwork(
     std::string devId = deviceId;
     InferenceEngine::Core ie;
     std::map<std::string, std::string> config = {};
+    config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
     if (deviceId == "VPUX" ) {
         const auto availDevices = ie.GetAvailableDevices();
         auto vpuxDevIt = std::find_if(availDevices.cbegin(), availDevices.cend(), [](const std::string& devName) -> bool {

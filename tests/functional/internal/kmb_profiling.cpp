@@ -35,6 +35,8 @@ void KmbProfilingTest::runTest(const std::string output_name, bool mlir, bool pr
     }
     if (mlir) {
         netConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+    } else {
+        netConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
     }
 
     registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {

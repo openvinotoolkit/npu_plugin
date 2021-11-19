@@ -44,7 +44,8 @@ void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
     if(configuration.count(VPUX_CONFIG_KEY(PLATFORM)) == 0) {
         configuration[VPUX_CONFIG_KEY(PLATFORM)] = envConfig.IE_KMB_TESTS_PLATFORM;
     }
-
+    if(configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE)) == configuration.end())
+        configuration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
     ConfigureNetwork();
 }
 
@@ -339,8 +340,8 @@ void KmbLayerTestsCommon::setPlatformMTL() {
 bool KmbLayerTestsCommon::isCompilerMCM() const {
     const auto it = configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE));
     if (it == configuration.end()) {
-        // Default value for COMPILER_TYPE is MCM
-        return true;
+        // Default value for COMPILER_TYPE is MLIR
+        return false;
     }
 
     return it->second == VPUX_CONFIG_VALUE(MCM);
@@ -349,8 +350,8 @@ bool KmbLayerTestsCommon::isCompilerMCM() const {
 bool KmbLayerTestsCommon::isCompilerMLIR() const {
     const auto it = configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE));
     if (it == configuration.end()) {
-        // Default value for COMPILER_TYPE is MCM
-        return false;
+        // Default value for COMPILER_TYPE is MLIR
+        return true;
     }
 
     return it->second == VPUX_CONFIG_VALUE(MLIR);
