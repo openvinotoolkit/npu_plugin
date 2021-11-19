@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/act_kernels/act_kernel_gen.h"
+#include "vpux/compiler/act_kernels/compilation.h"
 
 #include <algorithm>
 #include <string>

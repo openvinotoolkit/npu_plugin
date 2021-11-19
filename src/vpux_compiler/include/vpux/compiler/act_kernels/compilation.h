@@ -44,7 +44,6 @@ struct SerializedKernelDataDesc {
     size_t size;
 };
 
-
 struct CompilationUnitDesc {
     mlir::StringRef name;
     mlir::StringRef entry;

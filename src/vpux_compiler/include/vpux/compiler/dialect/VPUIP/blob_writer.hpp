@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include <vpux/compiler/act_kernels/act_kernel_gen.h>
+#include <vpux/compiler/act_kernels/compilation.h>
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
@@ -82,9 +82,6 @@ public:
 
 public:
     SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
-
-    // invocation args layout right after .data section, so dataOffset is a size of .data section
-    llvm::SmallVector<uint8_t, 128> createInvocationArgs(mlir::Operation* op, size_t dataOffset);
 
     SpecificTask createSW_KernelTask(mlir::Operation* op);
 
