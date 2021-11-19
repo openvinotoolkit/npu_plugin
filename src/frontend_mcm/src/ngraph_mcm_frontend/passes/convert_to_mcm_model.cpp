@@ -319,7 +319,7 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
     // MCM Compiler requirements
     mcmModel.output(result->get_friendly_name(), mcmInputs.at(0), outputType);
 
-    mcmModel.getOp(result->get_friendly_name())->set<mv::Order>("order", layoutToOrder(outputLayout));;
+    mcmModel.getOp(result->get_friendly_name())->set<mv::Order>("order", layoutToOrder(outputLayout));
 }
 
 void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
