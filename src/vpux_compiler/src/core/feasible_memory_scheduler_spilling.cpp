@@ -439,12 +439,28 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::Value buff
         _log.trace("Resolve users of operation: '{0}'",
                    _depsInfo.getIndex(opThatWasSpilled) /*opThatWasSpilled->getLoc()*/);
 
+        if (_depsInfo.getIndex(opThatWasSpilled) == 355) {
+            _log.trace("Mateusz: opThatWasSpilled - {0}", opThatWasSpilled);
+            _log.trace("Mateusz: spillReadExecOp - {0}", spillReadExecOp);
+            _log.trace("Mateusz: bufferToSpill - {0}", bufferToSpill);
+            _log.trace("Mateusz: Concat op state - {0}", _depsInfo.getExecuteOpAtIndex(802));
+        }
+
         SpillUsersUpdate spillUsersUpdateHandler(this, opThatWasSpilled, spillReadExecOp, bufferToSpill);
         spillUsersUpdateHandler.resolveSpillBufferUsage();
 
+        auto concatExecOp = _depsInfo.getExecuteOpAtIndex(802);
+        if (concatExecOp.verify().failed()) {
+            _log.trace("Mateusz: Concat op verify failed");
+            _log.trace("Mateusz: Concat op state:");
+            _log.trace("{0}", _depsInfo.getExecuteOpAtIndex(802));
+            VPUX_THROW("ERROR");
+        }
         // _log.trace("Mateusz: Concat op state:");
         // _log.trace("{0}", _depsInfo.getExecuteOpAtIndex(179));
     }
+    _log.trace("Mateusz: Concat op state:");
+    _log.trace("{0}", _depsInfo.getExecuteOpAtIndex(802));
 }
 
 // Create Spill Write operation based on data from feasible scheduler
