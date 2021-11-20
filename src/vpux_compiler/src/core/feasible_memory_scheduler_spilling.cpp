@@ -319,13 +319,6 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage(
 
     updateSpillResultUsers(opThatWasSpilledResult, spillReadExecOpResult);
 
-    // Add tokens matching those new data dependencies
-    for (auto* user : spillReadExecOpResult.getUsers()) {
-        if (auto userAsyncOp = mlir::dyn_cast_or_null<mlir::async::ExecuteOp>(user)) {
-            userAsyncOp.dependenciesMutable().append(makeArrayRef(_spillReadExecOp.token()));
-        }
-    }
-
     // Get new output buffer that is the result of spillRead
     auto newOutputBuffer = _spillingParentObj->getBufferFromAsyncResult(spillReadExecOpResult);
 
