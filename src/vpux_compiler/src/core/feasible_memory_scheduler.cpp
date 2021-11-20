@@ -334,7 +334,21 @@ mlir::DenseSet<operationIdxType> FeasibleMemoryScheduler::getNonEmptyOpDemandLis
 bool FeasibleMemoryScheduler::isReadyComputeOperationSchedulable(operationIdxType opIdx) {
     // are resources available and can be allocated
     auto sortedBuffers = getSortedBuffers(opIdx);
-    return _scan.canAlloc(sortedBuffers);
+
+    vpux::AddressType opMemDemand = 0;
+
+    if (_scan.canAlloc(sortedBuffers)) {
+        return true;
+    }
+
+    for (auto& buf : sortedBuffers) {
+        opMemDemand += _scan.handler().getSize(buf);
+    }
+    VPUX_THROW_UNLESS(opMemDemand <= _scan.totalSize(),
+                      "Operation demands more resources ({0}) than total memory ({1}), op - {2}", opMemDemand,
+                      _scan.totalSize(), _depsInfo.getExecuteOpAtIndex(opIdx));
+
+    return false;
 }
 
 void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType inputIdx) {
