@@ -1,6 +1,7 @@
 import sys, argparse
 from lxml import etree as et, objectify
 from pathlib import Path
+import os
 
 def getOption(args=sys.argv[1:]):
    parser = argparse.ArgumentParser()
@@ -112,10 +113,11 @@ if tree is None:
 delLayers(tree, options.layername);
 
 #save to new file
-file_name = origin_path.parent / (origin_path.stem + "-cut-" + options.layername.replace('/', '-') + origin_path.suffix);
-tree.write(str(file_name), pretty_print=True);
+new_file_name = origin_path.parent / (origin_path.stem + "-cut-" + options.layername.replace('/', '-') + origin_path.suffix);
+tree.write(str(new_file_name), pretty_print=True);
 
-
-
-
-
+#create symlink to the *.bin file
+old_bin_path = origin_path.parent / (origin_path.stem + ".bin")
+new_bin_path = origin_path.parent / (new_file_name.stem + ".bin")
+if not os.path.lexists(new_bin_path):
+    os.symlink(old_bin_path, new_bin_path)
