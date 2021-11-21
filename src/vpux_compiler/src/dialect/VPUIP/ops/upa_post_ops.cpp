@@ -404,6 +404,13 @@ void vpux::VPUIP::ScaleShiftUPAOp::build(mlir::OpBuilder& builder, mlir::Operati
     build(builder, state, input, weights, biases, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
 }
 
+void vpux::VPUIP::ScaleShiftUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+    // Investigate perfromance degradation for NHWC layout
+    // [Track number: E#25601]
+    IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info,
+                                                    {DimsOrder::NCHW, DimsOrder::CHW, DimsOrder::NC, DimsOrder::C});
+}
+
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ScaleShiftUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto scaleShift = MVCNN::CreateScaleShiftParams(writer);
 
