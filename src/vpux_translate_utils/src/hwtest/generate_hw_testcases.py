@@ -1110,9 +1110,6 @@ class Pad:
 
 def filter_issues(args, p: DPUPipeline) -> bool:
     # TODO: Add arguments to selectively filter by issues.
-    if 'EISW-13321' in p.issues:
-        # Filter int4
-        return True
     return True
 
 
