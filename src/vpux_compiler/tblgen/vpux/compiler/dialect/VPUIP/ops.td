@@ -1633,6 +1633,10 @@ def VPUIP_ScaleShiftUPAOp :
             )
         >
     ];
+    
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
         attr-dict
