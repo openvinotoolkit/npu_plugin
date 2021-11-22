@@ -234,6 +234,7 @@ void DMATaskProfilingPass::safeRunOnModule() {
 
     VPUX_THROW_UNLESS(executeOps.size(), "No TimestampOp was added");
 
+    // Runtime expects memory block for 2 64bit integer
     int output_size = executeOps.size() * 2;
     auto cmxMemType = getMemRefType(ShapeRef({output_size}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
     auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
@@ -259,12 +260,11 @@ void DMATaskProfilingPass::safeRunOnModule() {
             } else {
                 builder.setInsertionPoint(op);
             }
-            auto sub = builder.create<IERT::SubViewOp>(mlir::NameLoc::get(mlir::Identifier::get("subview", ctx)), memOp,
-                                                       SmallVector<int64_t>({static_cast<int64_t>(dma_id)}),
-                                                       timestampType.getShape());
+            auto sub = builder.create<IERT::SubViewOp>(
+                    mlir::NameLoc::get(mlir::Identifier::get("dmaProfilingSubview", ctx)), memOp,
+                    SmallVector<int64_t>({static_cast<int64_t>(dma_id)}), timestampType.getShape());
             std::string curTaskName;
-            curTaskName = "[DMA_DMA]";
-            curTaskName += stringifyLocation(op->getLoc());
+            curTaskName = stringifyLocation(op->getLoc());
             auto name = mlir::NameLoc::get(mlir::Identifier::get(
                     curTaskName + ((!after) ? (timestampsOps.size() == 0 ? "_PROFBEGIN" : "_PROFTASKBEGIN")
                                             : ("_PROFTASKEND_" + std::to_string(dma_id - 1) + "_" +
@@ -330,7 +330,7 @@ void DMATaskProfilingPass::safeRunOnModule() {
     auto profilngResult = netFunc.getBody().front().addArgument(outputResult);
 
     // Adding output to the user info
-    outputUserResult = getTensorType(getShape(outputResult), outputResult.getElementType(),
+    auto outputUserResult = getTensorType(getShape(outputResult), outputResult.getElementType(),
                                           DimsOrder::fromType(outputResult), nullptr);
     auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.profilingOutputsInfo().front().front(), &builderLog);
     userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "dma"),
@@ -349,8 +349,8 @@ void DMATaskProfilingPass::safeRunOnModule() {
     }
     auto bodyBlock = &execOp.body().front();
     builder.setInsertionPointToStart(bodyBlock);
-    auto concatview = builder.create<IERT::ConcatViewOp>(mlir::NameLoc::get(mlir::Identifier::get("concatview", ctx)),
-                                                         values, memOp.memref());
+    auto concatview = builder.create<IERT::ConcatViewOp>(
+            mlir::NameLoc::get(mlir::Identifier::get("dmaProfilingConcat", ctx)), values, memOp.memref());
     auto outputOp = builder.create<IERT::CopyOp>(copyLoc, concatview.output(), profilngResult);
     builder.create<mlir::async::YieldOp>(copyLoc, outputOp->getResults());
 
@@ -364,7 +364,6 @@ void DMATaskProfilingPass::safeRunOnModule() {
 
     builder.setInsertionPointAfter(execOp);
     auto waitOp = builder.create<mlir::async::AwaitOp>(execOp->getLoc(), execOp.results()[0]);
-    waitOp.dump();
 
     // And new result(outputBuffer) to the returnOp
     netFunc.walk([&](mlir::ReturnOp op) {
@@ -418,9 +417,9 @@ void DPUProfilingPass::safeRunOnModule() {
         auto cluster = dpuTask.first;
         builder.setInsertionPointAfter(cluster);
         auto timestampType = getMemRefType({elementSize}, getUInt64Type(ctx), DimsOrder::C, _memSpace);
-        auto sub = builder.create<IERT::SubViewOp>(mlir::NameLoc::get(mlir::Identifier::get("subview", ctx)), memOp,
-                                                   SmallVector<int64_t>({static_cast<int>(dpu_id * elementSize)}),
-                                                   timestampType.getShape());
+        auto sub = builder.create<IERT::SubViewOp>(
+                mlir::NameLoc::get(mlir::Identifier::get("dpuProfilingSubview", ctx)), memOp,
+                SmallVector<int64_t>({static_cast<int>(dpu_id * elementSize)}), timestampType.getShape());
 
         SmallVector<mlir::Type> newResultTypes(cluster.getResultTypes());
         newResultTypes.push_back(timestampType);
@@ -456,10 +455,10 @@ void DPUProfilingPass::safeRunOnModule() {
     netFunc.setType(newFunctionType);
     auto profilngResult = netFunc.getBody().front().addArgument(outputResult);
 
-    auto copyLoc2 = mlir::NameLoc::get(mlir::Identifier::get("profilingCMX2DDR", ctx));
+    auto copyLoc2 = mlir::NameLoc::get(mlir::Identifier::get("dpuProfilingCMX2DDR", ctx));
     builder.setInsertionPoint(netFunc.getBody().front().getTerminator());
-    auto concatview = builder.create<IERT::ConcatViewOp>(mlir::NameLoc::get(mlir::Identifier::get("concatview", ctx)),
-                                                         dpuProfilingOutputs, memOp.memref());
+    auto concatview = builder.create<IERT::ConcatViewOp>(
+            mlir::NameLoc::get(mlir::Identifier::get("dpuProfilingConcat", ctx)), dpuProfilingOutputs, memOp.memref());
 
     auto outputOp = builder.create<IERT::CopyOp>(copyLoc2, concatview.output(), profilngResult);
 

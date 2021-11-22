@@ -19,7 +19,7 @@
 
 #include <blob_factory.hpp>
 
-#include "mcm/utils/profiling_parser.hpp"
+#include "vpux/utils/core/profiling_parser.hpp"
 
 #include <functional>
 #include <iostream>
@@ -726,6 +726,7 @@ std::map<std::string, IE::InferenceEngineProfileInfo> ZeroExecutor::getLayerStat
         return perfCounts;
     }
 
+    /* TODO
     std::vector<mv::utils::ProfInfo> deviceProfiling;
     mv::utils::getProfilingInfo(blob, profilingOutputBlob->second.data(), deviceProfiling);
 
@@ -743,6 +744,7 @@ std::map<std::string, IE::InferenceEngineProfileInfo> ZeroExecutor::getLayerStat
         info.exec_type[length] = '\0';
         perfCounts[profilingEntry.name] = info;
     }
+    */
 
     return perfCounts;
 }

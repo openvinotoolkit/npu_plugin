@@ -201,10 +201,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
 
-    if (enableProfiling) {
-        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
-    }
-
     // Partially lower IERT->VPUIP (NCE Operations only)
     pm.addPass(createConvertToNCEOpsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
@@ -221,10 +217,9 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     pm.addPass(IERT::createOptimizeCopiesPass(log));
     pm.addPass(IERT::createCopyOpHoistingPass(log));
     IERT::buildAsyncSchedulingPipeline(pm, log);
-    // TODO Uncomment once full profiling feature will be enabled
-    // if (enableProfiling) {
-    //     pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
-    // }
+    if (enableProfiling) {
+        pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    }
     pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>,
                                                   getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));

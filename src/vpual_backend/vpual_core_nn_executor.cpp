@@ -29,7 +29,7 @@
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/logger.hpp>
 
-#include "mcm/utils/profiling_parser.hpp"
+#include "vpux/utils/core/profiling_parser.hpp"
 
 #if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
 #include "mmapped_pointer.hpp"
@@ -941,44 +941,64 @@ bool VpualCoreNNExecutor::isPreProcessingSupported(const PreprocMap&) const {
 std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLayerStatistics() {
     std::map<std::string, ie::InferenceEngineProfileInfo> perfCounts;
 
-    const auto blob = _networkDescription->getCompiledNetwork().data();
+    const auto blob = _networkDescription->getCompiledNetwork();
     ie::BlobMap deviceOutputs;
+    ie::BlobMap::iterator profilingOutputBlob;
     if (_profilingOutputPhysAddrs.size()) {
         deviceOutputs = extractProfilingOutputsFromPhysAddr(_profilingOutputPhysAddrs.at(0));
     }
-    auto profilingOutputBlob = deviceOutputs.find("profilingOutput");
-    if (profilingOutputBlob == deviceOutputs.end()) {
+    if (!deviceOutputs.size()) {
         deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
-    }
-    profilingOutputBlob = deviceOutputs.find("profilingOutput");
-    if (profilingOutputBlob == deviceOutputs.end()) {
-        _logger->warning("No profiling output. Blob was compiled without profiling enabled or does not contain "
-                         "profiling info.");
-        return perfCounts;
+        profilingOutputBlob = deviceOutputs.find("profilingOutput");
+        if (profilingOutputBlob == deviceOutputs.end()) {
+            _logger->warning("No profiling output. Blob was compiled without profiling enabled or does not contain "
+                             "profiling info.");
+            return perfCounts;
+        }
+    } else {
+        profilingOutputBlob = deviceOutputs.begin();
     }
 
     const auto profilingMemoryBlob = ie::as<ie::MemoryBlob>(profilingOutputBlob->second);
     if (profilingMemoryBlob == nullptr) {
         IE_THROW() << "VPUX Plugin profiling blob is null: " << profilingOutputBlob->first;
     }
-    const auto& profilingOutput = ie::as<ie::MemoryBlob>(profilingOutputBlob->second)->rmap().as<const void*>();
+    const auto& profilingOutput = profilingMemoryBlob->rmap().as<const void*>();
 
-    std::vector<mv::utils::ProfInfo> deviceProfiling;
-    mv::utils::getProfilingInfo(blob, profilingOutput, deviceProfiling);
+    std::vector<vpux::profiling_layer_info> layerProfiling;
+    vpux::getLayerProfilingInfo(blob.data(), blob.size(), profilingOutput, 0xFFFFF, layerProfiling);
 
     int execution_index = 0;
-    ie::InferenceEngineProfileInfo info;
-    for (const auto& profilingEntry : deviceProfiling) {
+    std::map<std::string, int> layerNames;
+    for (const auto& layer : layerProfiling) {
+        ie::InferenceEngineProfileInfo info;
+        auto name = std::string(layer.name);
+
+        // Prevent existence of the same layer names
+        auto layerNameIt = layerNames.find(name);
+        if (layerNameIt != layerNames.end()) {
+            layerNames[name]++;
+            name += "/" + std::to_string(layerNames[name]);
+        } else
+            layerNames[name] = 0;
+
         info.status = ie::InferenceEngineProfileInfo::EXECUTED;
-        info.cpu_uSec = info.realTime_uSec = profilingEntry.time;
+        info.realTime_uSec = layer.duration_ns / 1000;
         info.execution_index = execution_index++;
-        size_t typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
-        std::size_t length = profilingEntry.layer_type.copy(info.layer_type, typeLen, 0);
-        info.layer_type[length] = '\0';
-        typeLen = sizeof(info.exec_type) / sizeof(info.exec_type[0]);
-        length = profilingEntry.exec_type.copy(info.exec_type, typeLen, 0);
-        info.exec_type[length] = '\0';
-        perfCounts[profilingEntry.name] = info;
+        auto typeLen = sizeof(info.exec_type) / sizeof(info.exec_type[0]);
+        if (layer.sw_ns > 0) {
+            info.cpu_uSec = layer.sw_ns / 1000;
+            strncpy(info.exec_type, "SW", typeLen);
+        } else if (layer.dpu_ns > 0) {
+            info.cpu_uSec = layer.dpu_ns / 1000;
+            strncpy(info.exec_type, "DPU", typeLen);
+        } else {
+            info.cpu_uSec = 0;
+            strncpy(info.exec_type, "DMA", typeLen);
+        }
+        typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
+        strncpy(info.layer_type, layer.layer_type, typeLen);
+        perfCounts[name] = info;
     }
 
     return perfCounts;
