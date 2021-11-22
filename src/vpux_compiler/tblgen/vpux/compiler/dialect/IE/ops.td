@@ -2394,14 +2394,14 @@ def IE_EqualOp :
     let summary = "InferenceEngine Equal layer";
 
     let arguments = (ins
-        AnyRankedTensor:$input1,
-        AnyRankedTensor:$input2,
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
 
         IE_AutoBroadcastType:$auto_broadcast
     );
 
     let results = (outs
-        AnyRankedTensor:$output
+        RankedTensorOf<[F16, F32]>:$output
     );
 }
 
@@ -2453,14 +2453,14 @@ def IE_NotEqualOp :
     let summary = "InferenceEngine NotEqual layer";
 
     let arguments = (ins
-        AnyRankedTensor:$input1,
-        AnyRankedTensor:$input2,
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
 
         IE_AutoBroadcastType:$auto_broadcast
     );
 
     let results = (outs
-        AnyRankedTensor:$output
+        RankedTensorOf<[F16, F32]>:$output
     );
 }
 

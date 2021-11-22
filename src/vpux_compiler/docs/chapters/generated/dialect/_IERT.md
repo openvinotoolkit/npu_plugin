@@ -648,15 +648,15 @@ operation ::= `IERT.Equal` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of any type values
-`input2` | memref of any type values
-`output_buff` | memref of any type values
+`input1` | memref of 16-bit float or 32-bit float values
+`input2` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`output` | memref of 16-bit float or 32-bit float values
 
 ### `IERT.Erf` (vpux::IERT::ErfOp)
 
@@ -1683,15 +1683,15 @@ operation ::= `IERT.NotEqual` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of any type values
-`input2` | memref of any type values
-`output_buff` | memref of any type values
+`input1` | memref of 16-bit float or 32-bit float values
+`input2` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`output` | memref of 16-bit float or 32-bit float values
 
 ### `IERT.PRelu` (vpux::IERT::PReluOp)
 

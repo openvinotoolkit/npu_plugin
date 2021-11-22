@@ -664,14 +664,14 @@ operation ::= `IE.Equal` `(` operands `)` attr-dict `:` type(operands) `->` type
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | ranked tensor of any type values
-`input2` | ranked tensor of any type values
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of any type values
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.Erf` (vpux::IE::ErfOp)
 
@@ -1643,14 +1643,14 @@ operation ::= `IE.NotEqual` `(` operands `)` attr-dict `:` type(operands) `->` t
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | ranked tensor of any type values
-`input2` | ranked tensor of any type values
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of any type values
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.PRelu` (vpux::IE::PReluOp)
 
