@@ -1698,13 +1698,14 @@ void pipelineShaveDPUFcn(const mv::pass::PassEntry&,
         auto concatInputs = eluParent->getInputTensor();
         for(auto concatInput : concatInputs)
         {
+            concatInput->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
             auto concatInputOp = om.getSourceOp(concatInput);
             auto originalFlow = concatInputOp.leftmostOutput();
             auto sinkInputSlot = originalFlow->get<std::size_t>("sinkInput");
 
             // std::cout << "Found flow: " << sinkInputSlot << " : " << originalFlow->getName() << std::endl;
             auto newElu = om.elu(eluName + "_"+ concatInput->getName(), concatInput, eluAlpha);
-            newElu->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+            newElu->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
 
             om.getSourceOp(newElu)->set<std::string>("splitStrategy", eluStrategy);
             om.getSourceOp(newElu)->set<unsigned>("opId", eluOpId);

@@ -237,7 +237,7 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
         if (opType == "UPATask")
         {
             auto taskOp = opIt->get<std::string>("taskOp");
-            if (taskOp == "Dummy")
+            if (taskOp == "Dummy" || taskOp == "Elu")
             {
                 ++opIt;
                 continue;

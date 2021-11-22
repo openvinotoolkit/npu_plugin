@@ -133,7 +133,7 @@ void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry&, mv::Computati
     for(auto& opIt : upaTasks)
     {
         std::string taskOp = opIt->get<std::string>("taskOp");
-        if(taskOp == "Dummy")
+        if(taskOp == "Dummy" || taskOp == "Elu")
             continue;
         auto opId = opIt->get<unsigned>("opId");
         unsigned n = opIt->inputSlots();

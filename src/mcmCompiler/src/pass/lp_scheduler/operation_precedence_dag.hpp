@@ -1681,7 +1681,7 @@ class Operation_Dag {
 
 
     bool does_the_op_run_on_hardware(operation_t op) const {
-      return (op->getOpType() == "DMATask") || (op->getOpType() == "DPUTask");
+      return (op->getOpType() == "DMATask") || (op->getOpType() == "DPUTask") || (op->hasAttr("taskOp") && op->get<std::string>("taskOp") == "Elu");
     }
 
     bool is_dma_op_moving_data_from_cmx_to_ddr(operation_t op) const {
