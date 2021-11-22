@@ -173,7 +173,7 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
                 parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
                 outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
                 mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::CONV, kernel_size, strides, kernel_padding,
-                actChannelLength, /*is_continued*/ nullptr, /*odu_permutation*/ nullptr);
+                actChannelLength, /*is_continued*/ nullptr, /*odu_permutation*/ nullptr, /*sp_pattern*/ nullptr);
 
         nceTask.addPPETask(funcBuilder);
 

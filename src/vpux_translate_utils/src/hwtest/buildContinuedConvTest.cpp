@@ -218,7 +218,8 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             builder.getUnknownLoc(), inputPartial0CMX.memory(), weightsPartial0CMX.memory(), weightsTable0CMX.memory(),
             /*activation_window=*/nullptr, inputPartial0CMX.memory(), output0CMX.memory(), output0CMX.memory(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
-            /*activation_window_channel_length=*/nullptr, isContinued, /*odu_permutation=*/nullptr);
+            /*activation_window_channel_length=*/nullptr, isContinued, /*odu_permutation=*/nullptr,
+            /*sp_pattern*/ nullptr);
 
     // DPU task 0
     nceTask_0.waitBarriersMutable().append(barriers[0]);
@@ -243,7 +244,8 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr,
             /*is_continued*/ nullptr,
-            /*odu_permutation=*/nullptr);
+            /*odu_permutation=*/nullptr,
+            /*sp_pattern*/ nullptr);
 
     // DPU task 1
     nceTask_1.waitBarriersMutable().append(barriers[1]);

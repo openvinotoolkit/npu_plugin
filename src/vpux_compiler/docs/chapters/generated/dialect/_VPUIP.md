@@ -1342,6 +1342,7 @@ mutually exclusive.
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 `is_continued` | ::mlir::UnitAttr | unit attribute
 `odu_permutation` | vpux::VPUIP::ODUPermutationAttr | ODU Permutation
+`cm_sp_pattern` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 

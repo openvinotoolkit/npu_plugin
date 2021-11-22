@@ -227,7 +227,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
             parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
             mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::DWCONV,
             filtersize, strides, kernel_padding, actChannelLength, /*is_continued*/ nullptr,
-            /*odu_permutation=*/nullptr);
+            /*odu_permutation=*/nullptr, /*sp_pattern*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 

@@ -120,7 +120,7 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
             mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::ELTWISE, mlir::ArrayAttr(), mlir::ArrayAttr(),
-            mlir::ArrayAttr(), actChannelLength, nullptr, /*odu_permutation*/ nullptr);
+            mlir::ArrayAttr(), actChannelLength, nullptr, /*odu_permutation*/ nullptr, /*sp_pattern*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 

@@ -1045,6 +1045,10 @@ mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation me
     auto op_memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
     return mlir::MemRefType::get(makeArrayRef(shape), type, affineMaps, op_memSpaceAttr);
 }
+mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
+                               mlir::Type type, DimsOrder order) {
+    return getMemRefType(builder, memlocation, shape, type, order.toAffineMapsList(builder.getContext(), Shape{shape}));
+}
 
 vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
                                                    SmallVector<int64_t> shape, mlir::Type type,
@@ -1053,6 +1057,14 @@ vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUI
     auto op_type = mlir::MemRefType::get(makeArrayRef(shape), type, affineMaps, op_memSpaceAttr);
     auto op = builder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), op_type, memlocation, locale, offset);
     return op;
+}
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
+                                                   SmallVector<int64_t> shape, mlir::Type type, int locale,
+                                                   size_t offset, DimsOrder order) {
+    auto memRef = getMemRefType(builder, memlocation, shape, type,
+                                order.toAffineMapsList(builder.getContext(), Shape{shape}));
+    return builder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), memRef, memlocation, locale, offset);
 }
 
 mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op) {
