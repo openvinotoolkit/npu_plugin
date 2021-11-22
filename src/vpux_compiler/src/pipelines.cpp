@@ -166,6 +166,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, bool enableProf
 
 void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
+    pm.addPass(IE::createFCInputsTo2dPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IE Dialect level
@@ -234,6 +235,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, bool enableProfil
                                       StringRef pipelineConfig) {
     auto pipelineOptions = MyPipelineOptions::createFromString(pipelineConfig);
     const auto grc = getDefaultGreedyRewriteConfig();
+    pm.addPass(IE::createFCInputsTo2dPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IE Dialect level

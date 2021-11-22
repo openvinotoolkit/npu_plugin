@@ -72,6 +72,11 @@ The pass is a part of `buildHardwareModePipeline` pipeline.
 
 This pass processes operations, which can be compile as a DPU tasks and
     expands channels number to number divisible by 16 in case they doesn't satisfy hardware requirements
+### `-fc-inputs-to-2d`: Convert FullyConnected inputs to 2d
+This pass converts `FullyConnected` inputs to 2d.
+
+For example, `FullyConnected` input with 4x1x64 geometry will be split to four inputs with 1x64 dimensions.
+Resulting inputs with filters go to `FullyConnected` operations and the outputs are concatenated.
 ### `-fuse-convert-with-quantize`: Fuse Convert with Quantize into QuantCast operation
 Pass detects pattern Convert(i8/ui8 -> FP16) -> Quantize(FP16 -> !quant.uniform<...>)
 and fuses it into single QuantCast(i8/ui8 -> !quant.uniform<...>) operation.

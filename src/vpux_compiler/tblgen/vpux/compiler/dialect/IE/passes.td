@@ -251,6 +251,27 @@ def SplitFCInputByRows : PassBase<"split-fc-input-by-rows", "vpux::FunctionPass"
 }
 
 //
+// FCInputsTo2d
+//
+
+def FCInputsTo2d : PassBase<"fc-inputs-to-2d", "vpux::FunctionPass"> {
+    let summary = "Convert FullyConnected inputs to 2d";
+
+    let description = [{
+        This pass converts `FullyConnected` inputs to 2d.
+
+        For example, `FullyConnected` input with 4x1x64 geometry will be split to four inputs with 1x64 dimensions.
+        Resulting inputs with filters go to `FullyConnected` operations and the outputs are concatenated.
+    }];
+
+    let constructor = "vpux::IE::createFCInputsTo2dPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertScaleShiftToDW
 //
 
