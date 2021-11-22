@@ -494,6 +494,35 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::GroupConvolutionO
 }
 
 //
+// verifyPrefetchCMX
+//
+
+//mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchConvCMX(mlir::Location loc, mlir::ModuleOp module,
+//                                                             mlir::ShapedType inputType, mlir::ShapedType filterType,
+//                                                             mlir::ShapedType outputType, Logger log) {
+//    log.setName("NCEInvariant");
+//
+//    const auto filterShape = getShape(filterType);
+//    // consider alignment when calculating required CMX
+//    const auto OC = filterShape[Dims4D::Filter::OC];
+//    const auto requiredCMX = getRequiredCMX({inputType, filterType, outputType}, OC);
+//
+//    const auto cmxSize = getCMXSize(module);
+//    if (requiredCMX > cmxSize) {
+//        log.trace("[{0}] CMX memory is not enough for Convolution, available '{1}', required '{2}'", loc, cmxSize,
+//                  requiredCMX);
+//        return mlir::failure();
+//    }
+//
+//    return mlir::success();
+//}
+
+//mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(ArrayRef<IE::ConvolutionOp> origOps, Logger log) {
+//    
+//}
+
+
+//
 // verifyKernel
 //
 

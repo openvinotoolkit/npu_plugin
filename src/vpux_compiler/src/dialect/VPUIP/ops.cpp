@@ -185,6 +185,93 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     });
 }
 
+bool supportPrefetchTiling(IE::ConvolutionOp /*origOp*/, const Shape& tileAxis, Logger /*log*/) {
+    // Temporal strategy: only consider if the first n tiles (n >= 2) could be fit into the CMX memory at the same time,
+    // Should consider the cost model as a final version.
+
+    // Nested tiling is unsupported yet
+    // TODO tiling axis check function
+    bool isSingleTile = false;
+    Dim tileDim = Dim(0);
+    for (unsigned i = 0; i < tileAxis.size(); i++) {
+        if (tileAxis[Dim(i)]) {
+            tileDim = Dim(i);
+            if (isSingleTile)
+                return false;
+            else
+                isSingleTile = true;
+        }
+    }
+    // TODO
+    if (tileDim == Dims4D::Act::H || tileDim == Dims4D::Act::W) {
+        // check prefetch tile over H
+        return true;
+    }
+    else if (tileDim == Dims4D::Act::C) {
+        // check prefetch tile over C
+        return true;
+    }
+    else return false;  // TODO warning log
+}
+
+bool supportPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, const Shape& tileAxis, Logger /*log*/) {
+    // Temporal strategy: only consider if the first n tiles (n >= 2) could be fit into the CMX memory at the same time,
+    // Should consider the cost model as a final version.
+
+    // Nested tiling is unsupported yet
+    // TODO tiling axis check function
+    bool isSingleTile = false;
+    Dim tileDim = Dim(0);
+    for (unsigned i = 0; i < tileAxis.size(); i++) {
+        if (tileAxis[Dim(i)]) {
+            tileDim = Dim(i);
+            if (isSingleTile)
+                return false;
+            else
+                isSingleTile = true;
+        }
+    }
+    // TODO
+    if (tileDim == Dims4D::Act::H || tileDim == Dims4D::Act::W) {
+        // check prefetch tile over H
+        return true;
+    }
+    else if (tileDim == Dims4D::Act::C) {
+        // check prefetch tile over C
+        return true;
+    }
+    else return false;  // TODO warning log
+}
+
+bool supportPrefetchTiling(IE::MaxPoolOp /*origOp*/, const Shape& tileAxis, Logger /*log*/) {
+    // Temporal strategy: only consider if the first n tiles (n >= 2) could be fit into the CMX memory at the same time,
+    // Should consider the cost model as a final version.
+
+    // Nested tiling is unsupported yet
+    // TODO tiling axis check function
+    bool isSingleTile = false;
+    Dim tileDim = Dim(0);
+    for (unsigned i = 0; i < tileAxis.size(); i++) {
+        if (tileAxis[Dim(i)]) {
+            tileDim = Dim(i);
+            if (isSingleTile)
+                return false;
+            else
+                isSingleTile = true;
+        }
+    }
+    // TODO
+    if (tileDim == Dims4D::Act::H || tileDim == Dims4D::Act::W) {
+        // check prefetch tile over H
+        return true;
+    }
+    else if (tileDim == Dims4D::Act::C) {
+        // check prefetch tile over C
+        return true;
+    }
+    else return false;  // TODO warning log
+}
+
 template <class MainOpType>
 class NCETilingInfoOpModel final :
         public IE::TilingInfoOpInterface::ExternalModel<NCETilingInfoOpModel<MainOpType>, MainOpType> {
@@ -199,6 +286,10 @@ public:
 
     bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) const {
         return ::isSupportedTiling(mlir::cast<MainOpType>(origOp), tiles, log);
+    }
+    
+    bool supportPrefetchTiling(mlir::Operation* origOp, const Shape& tileAxis, Logger log) const {
+        return ::supportPrefetchTiling(mlir::cast<MainOpType>(origOp), tileAxis, log);
     }
 
 private:
@@ -238,6 +329,10 @@ public:
                     VPUIP::NCEInvariant::verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
                                                           input1TileType, input2TileType, outputTileType, log));
         });
+    }
+
+    bool supportPrefetchTiling(mlir::Operation* /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) const {
+        return false;
     }
 
 private:
