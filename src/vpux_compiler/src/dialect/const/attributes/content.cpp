@@ -158,28 +158,8 @@ Const::Content wrapBaseContent(mlir::ElementsAttr baseContent) {
         const auto bytes = opaque.getValue();
         data = makeArrayRef(bytes.data(), bytes.size());
 
-        // DenseElementsAttr::isValidRawBuffer checks only trivial cases:
-        // - data has only one element
-        // - storageWidth == 1 bit and buffer consists of either all 0's or all 1's.
         VPUX_THROW_UNLESS(mlir::DenseElementsAttr::isValidRawBuffer(baseContent.getType(), data, isSplat),
                           "Got invalid opaque buffer");
-
-        // Check that the buffer consists of the same elements:
-        if (!isSplat) {
-            const auto elemTypeSize = static_cast<Byte>(getElemTypeSize(baseContent.getElementType()));
-            const auto storageSize = static_cast<size_t>(elemTypeSize.count());
-
-            isSplat = true;
-            const auto datSize = data.size();
-            for (size_t i = storageSize; i < datSize; i += storageSize) {
-                if (memcmp(data.data(), &data[i], storageSize) != 0) {
-                    isSplat = false;
-                    break;
-                }
-            }
-
-            data = isSplat ? data.take_front(storageSize) : data;
-        }
     }
 
     return Const::Content::fromRawBuffer(baseContent.getType(), data, baseContent.getType().getElementType(), isSplat);
