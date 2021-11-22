@@ -337,13 +337,18 @@ bool FeasibleMemoryScheduler::isReadyComputeOperationSchedulable(operationIdxTyp
 
     vpux::AddressType opMemDemand = 0;
 
+    for (auto& buf : sortedBuffers) {
+        opMemDemand += _scan.handler().getSize(buf);
+    }
+    _log.trace(" op - {0} demand - {1}", opIdx, opMemDemand);
+
     if (_scan.canAlloc(sortedBuffers)) {
         return true;
     }
 
-    for (auto& buf : sortedBuffers) {
-        opMemDemand += _scan.handler().getSize(buf);
-    }
+    // for (auto& buf : sortedBuffers) {
+    //     opMemDemand += _scan.handler().getSize(buf);
+    // }
     VPUX_THROW_UNLESS(opMemDemand <= _scan.totalSize(),
                       "Operation demands more resources ({0}) than total memory ({1}), op - {2}", opMemDemand,
                       _scan.totalSize(), _depsInfo.getExecuteOpAtIndex(opIdx));
@@ -361,7 +366,7 @@ void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType input
 
 void FeasibleMemoryScheduler::scheduleSpilledInputOpForComputeOp(operationIdxType inputIdx, mlir::Value* buffer) {
     // schedule the spilled dependency
-    _log.nest().trace("Scheduling spilled input for compute op:'{0}'", inputIdx);
+    _log.nest().trace("Scheduling spilled input for compute op:'{0}', buffer - {1}", inputIdx, *buffer);
     auto _opOutput = _opOutputTable.find(inputIdx);
     if (!_opOutput->second.spillIdx_.empty()) {
         _opOutput->second.spillIdx_.erase(getOpBufferOutputIdx(inputIdx, *buffer));
@@ -405,6 +410,10 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
 
     // allocate buffers using LinearScan
     _log.nest().trace("Allocate memory for the alive buffers");
+    for (auto& buf : buffersNeedingAllocation) {
+        _log.nest().trace(" buf - {0}", buf);
+    }
+
     VPUX_THROW_UNLESS(_scan.alloc(buffersNeedingAllocation, /*allowSpills*/ false),
                       "Failed to statically allocate '{0}' memory", _memSpace);
 
@@ -423,13 +432,14 @@ void FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
 
     // Step 3: schedule the compute op
     size_t opStartTime = _currentTime + maxInputDelay;
+    _log.nest().trace("Scheduling compute op:'{0}'", opIdx);
     pushToStartTimeHeap(HeapElement(opIdx, opStartTime, EOpType::ORIGINAL_OP));
 }
 
 void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
         std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort>& readyList) {
     SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledOps;
-    _log.trace("Scheduling all possible ready ops");
+    _log.trace("Scheduling all possible ready ops, size - {0}", readyList.size());
     _log = _log.nest();
     // schedule ops that fit in CMX
     for (auto& readyOp : readyList) {
@@ -592,7 +602,8 @@ void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
         _activeComputeOps.erase(notActive);
         _readyComputeOps.insert(notActive);
     }
-
+    _log.nest().trace("Scheduling spill write for compute op:'{0}', buffer - {1}", evictionCandidate.bufferWriterIdx_,
+                      evictionCandidate.buffer_);
     // add with a spilled write state
     pushToStartTimeHeap(HeapElement(evictionCandidate.bufferWriterIdx_, _currentTime, EOpType::IMPLICIT_OP_WRITE,
                                     evictionCandidate.buffer_));
@@ -602,6 +613,7 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     SmallVector<IntervalInfo> intervals;
     // store scheduled information
     if (scheduledOp.isImplicitWriteOp()) {
+        _log.trace("populateScheduledOps (SPILLING WRITE) - {0}", scheduledOp.op_);
         // special case for a spill write with deallocation
         IntervalInfo interval;
         auto output = scheduledOp.spillBuffer_;
@@ -612,7 +624,9 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
         intervals.push_back(interval);
         // deallocate only after addresses stored
         _scan.handler().deallocate(output);
+        _log.trace(" deallocate - {0}", output);
     } else {
+        _log.trace("populateScheduledOps - {0}", scheduledOp.op_);
         // retrieve interval information, operation can have multiple output buffers
         auto* bodyBlock = &_depsInfo.getExecuteOpAtIndex(scheduledOp.op_).body().front();
         for (auto& op : bodyBlock->getOperations()) {
@@ -652,6 +666,22 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     scheduled.time_ = scheduledOp.time_;
     scheduled.resourceInfo_ = intervals;
     _scheduledOps.push_back(scheduled);
+
+    for (const auto& op : _scheduledOps) {
+        std::string resourceInfo = "<none>";
+        if (op.hasActiveResource()) {
+            resourceInfo = "";
+            for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
+                if (op.isActiveResource(resourceIdx)) {
+                    resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
+                                    std::to_string(op.endResource(resourceIdx)) + "] size = " +
+                                    std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
+                                    ", ";
+                }
+            }
+        }
+        _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
+    }
 }
 
 void FeasibleMemoryScheduler::clearLists() {
