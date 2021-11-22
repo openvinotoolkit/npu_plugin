@@ -184,10 +184,15 @@ std::vector<int32_t> getInstructionListVals(nb::ActivationType pwlType,
 
 mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
                                mlir::Type type, SmallVector<mlir::AffineMap> affineMaps);
+mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memLocation, SmallVector<int64_t> shape,
+                               mlir::Type type, DimsOrder order = DimsOrder::NHWC);
 
 vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
                                                    SmallVector<int64_t> shape, mlir::Type type,
                                                    SmallVector<mlir::AffineMap> affineMaps, int locale, int offset);
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
+                                                   SmallVector<int64_t> shape, mlir::Type type, int locale,
+                                                   size_t offset, DimsOrder order = DimsOrder::NHWC);
 
 mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op);
 

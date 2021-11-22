@@ -2403,7 +2403,8 @@ def VPUIP_NCEClusterTaskOp :
         OptionalAttr<I64ArrayAttr>:$kernel_padding,
         OptionalAttr<IntAttr>:$activation_window_channel_length,
         OptionalAttr<UnitAttr>:$is_continued,
-        OptionalAttr<VPUIP_ODUPermutation>:$odu_permutation
+        OptionalAttr<VPUIP_ODUPermutation>:$odu_permutation,
+        OptionalAttr<IntAttr>:$cm_sp_pattern
     );
 
     let results = (outs
@@ -2424,7 +2425,8 @@ def VPUIP_NCEClusterTaskOp :
             "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "mlir::ArrayAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
             "mlir::UnitAttr":$is_continued,
-            "vpux::VPUIP::ODUPermutationAttr":$odu_permutation
+            "vpux::VPUIP::ODUPermutationAttr":$odu_permutation,
+            CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern
         )>
     ];
 

@@ -15,6 +15,7 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -46,31 +47,67 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const llvm::SmallVector<std::int64_t> inputShape(input.shape.begin(), input.shape.end());
     const llvm::SmallVector<std::int64_t> outputShape(output.shape.begin(), output.shape.end());
-    const llvm::SmallVector<std::int64_t> weightsShape{weights.shape[0], weights.shape[1], weights.shape[2],
-                                                       weights.shape[3]};
+    const llvm::SmallVector<std::int64_t> weightsShape{weights.shape.begin(), weights.shape.end()};
     const llvm::SmallVector<std::int64_t> weightsTableShape{weightsShape[0], 1, 1, 4};
 
     const char* weightsFileName = "weights.dat";
 
-    const auto weights_alignment = 16 * 1024;
-    const auto OUTPUT_CMX_OFFSET = 0;
-    const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + totalTensorSize(outputShape, outputType);
-    const auto WEIGHTSTABLE_CMX_OFFSET =
-            vpux::alignVal<int64_t>(INPUT_CMX_OFFSET + totalTensorSize(inputShape, inputType), weights_alignment);
-    const auto WEIGHTS_CMX_OFFSET = vpux::alignVal<int64_t>(
-            WEIGHTSTABLE_CMX_OFFSET + 4 * weightsTableShape[0] * weightsTableShape[3], weights_alignment);
+    auto inputCMXShape = inputShape;
+    auto paddedInputCMXShape = inputShape;
+    auto paddedWeightsCMXShape = weightsShape;
+    auto weightsCMXShape = weightsShape;
 
-    const auto getMemRef = [&builder](const llvm::SmallVector<std::int64_t>& shape, mlir::Type type,
-                                      vpux::VPUIP::MemoryLocation location) {
-        const auto memSpaceAttr = vpux::VPUIP::MemoryLocationAttr::get(builder.getContext(), location);
-        const auto affineMaps = vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), vpux::ShapeRef{shape});
-        return mlir::MemRefType::get(llvm::makeArrayRef(shape), type, affineMaps, memSpaceAttr);
-    };
+    const auto inputChannelsIndex = vpux::Dims4D::Act::C.ind();
+    const auto inputChannels = inputShape[inputChannelsIndex];
+    const auto inputHeightIndex = vpux::Dims4D::Act::H.ind();
+    const auto inputHeight = inputShape[inputHeightIndex];
+    const auto inputWidthIndex = vpux::Dims4D::Act::W.ind();
+    const auto inputWidth = inputShape[inputWidthIndex];
 
-    const auto outputParamType = getMemRef(outputShape, outputType, vpux::VPUIP::MemoryLocation::ProgrammableOutput);
+    const auto alignmentRequirement = 16;
+    const auto subLineLength = 4;
+    const auto isCompressedFormatEnabled = inputChannels <= subLineLength;
+    const auto isInputPaddingRequired = inputChannels < alignmentRequirement;
+
+    if (isInputPaddingRequired) {
+        inputCMXShape[inputChannelsIndex] = alignmentRequirement;
+        paddedInputCMXShape[inputChannelsIndex] = alignmentRequirement;
+        paddedWeightsCMXShape[vpux::Dims4D::Filter::IC.ind()] = alignmentRequirement;
+
+        if (isCompressedFormatEnabled) {
+            inputCMXShape[inputChannelsIndex] = subLineLength;
+            inputCMXShape[inputHeightIndex] = 1;
+            inputCMXShape[inputWidthIndex] =
+                    vpux::alignVal(inputHeight * inputWidth, static_cast<std::int64_t>(subLineLength));
+        }
+    }
+
+    const auto weightsCMXSize = vpux::hwtest::totalTensorSize(paddedWeightsCMXShape, weightsType);
+    const auto outputCMXSize = vpux::hwtest::totalTensorSize(outputShape, outputType);
+    const auto inputCMXSize = vpux::hwtest::totalTensorSize(inputCMXShape, inputType);
+
+    const auto alignment = alignmentRequirement * static_cast<vpux::Byte>(getElemTypeSize(inputType)).count();
+    const auto WEIGHTS_CMX_OFFSET = 0;
+    VPUX_THROW_UNLESS(WEIGHTS_CMX_OFFSET % alignment == 0, "WEIGHTS_CMX_OFFSET must be multiple of {0}, got {1}",
+                      alignment, WEIGHTS_CMX_OFFSET);
+
+    const auto OUTPUT_CMX_OFFSET = WEIGHTS_CMX_OFFSET + weightsCMXSize;
+    VPUX_THROW_UNLESS(OUTPUT_CMX_OFFSET % alignment == 0, "OUTPUT_CMX_OFFSET must be multiple of {0}, got {1}",
+                      alignment, OUTPUT_CMX_OFFSET);
+
+    const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + outputCMXSize;
+    VPUX_THROW_UNLESS(INPUT_CMX_OFFSET % alignment == 0, "INPUT_CMX_OFFSET must be multiple of {0}, got {1}", alignment,
+                      INPUT_CMX_OFFSET);
+
+    const auto WEIGHTSTABLE_CMX_OFFSET = INPUT_CMX_OFFSET + inputCMXSize;
+    VPUX_THROW_UNLESS(WEIGHTSTABLE_CMX_OFFSET % alignment == 0,
+                      "WEIGHTSTABLE_CMX_OFFSET must be multiple of {0}, got {1}", alignment, WEIGHTSTABLE_CMX_OFFSET);
+
+    const auto outputParamType =
+            getMemRefType(builder, vpux::VPUIP::MemoryLocation::ProgrammableOutput, outputShape, outputType);
 
     llvm::SmallVector<mlir::Type, 2> inputTypes;
-    inputTypes.push_back(getMemRef(inputShape, inputType, vpux::VPUIP::MemoryLocation::ProgrammableInput));
+    inputTypes.push_back(getMemRefType(builder, vpux::VPUIP::MemoryLocation::ProgrammableInput, inputShape, inputType));
     inputTypes.push_back(outputParamType);
 
     const auto funcType = builder.getFunctionType(llvm::makeArrayRef(inputTypes), outputParamType);
@@ -81,12 +118,14 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
-    const auto getCMXTensor = [&builder, &functionBuilder, getMemRef](const llvm::SmallVector<std::int64_t>& shape,
-                                                                      mlir::Type type, std::size_t offset) {
-        const auto CMXType = getMemRef(shape, type, vpux::VPUIP::MemoryLocation::VPU_CMX_NN);
-        return functionBuilder.create<vpux::VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), CMXType,
-                                                                    vpux::VPUIP::MemoryLocation::VPU_CMX_NN, 0, offset);
-    };
+    //    const auto getCMXTensor = [&builder, &functionBuilder, getMemRef](const llvm::SmallVector<std::int64_t>&
+    //    shape,
+    //                                                                      mlir::Type type, std::size_t offset) {
+    //        const auto CMXType = getMemRef(shape, type, vpux::VPUIP::MemoryLocation::VPU_CMX_NN);
+    //        return functionBuilder.create<vpux::VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), CMXType,
+    //                                                                    vpux::VPUIP::MemoryLocation::VPU_CMX_NN, 0,
+    //                                                                    offset);
+    //    };
 
     auto functionInput = function.getArgument(0);
     auto functionOutput = function.getArgument(1);
@@ -124,7 +163,47 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     }
     weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::NHWC);
 
-    auto weightsCMX = getCMXTensor(weightsShape, weightsType, WEIGHTS_CMX_OFFSET);
+    const auto weightsDDRType =
+            getMemRefType(builder, vpux::VPUIP::MemoryLocation::GraphFile, weightsShape, weightsType);
+    auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType,
+                                                                     weightsAttribute.reorder(vpux::DimsOrder::OYXI));
+
+    auto weightsStrides = vpux::getStrides(weightsDDRType);
+    auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
+    if (isInputPaddingRequired) {
+        const auto weightsOutputChannelsStrideInBytes = weightsOutputChannelsStrideInBits.count() / CHAR_BIT;
+        const auto weightsElementSizeInBits = getElemTypeSize(weightsType).count();
+        const auto weightsElememtSizeInBytes = weightsElementSizeInBits / CHAR_BIT;
+        const auto weightsOutputChannelsStrideInElements =
+                weightsOutputChannelsStrideInBytes / weightsElememtSizeInBytes;
+        const auto alignedWeightsOutputChannelStrideInElements =
+                vpux::alignVal(weightsOutputChannelsStrideInElements, static_cast<std::int64_t>(alignmentRequirement));
+        const auto alignedWeightsOutputChannelsStrideInBits =
+                alignedWeightsOutputChannelStrideInElements * weightsElementSizeInBits;
+        weightsOutputChannelsStrideInBits = vpux::Bit(alignedWeightsOutputChannelsStrideInBits);
+    }
+
+    auto weightsCMX = createDeclareTensorOp(
+            functionBuilder, vpux::VPUIP::MemoryLocation::VPU_CMX_NN, weightsShape, weightsType,
+            vpux::DimsOrder::OYXI.toAffineMapsList(builder.getContext(), vpux::Bit(vpux::getElemTypeSize(weightsType)),
+                                                   weightsStrides),
+            0, WEIGHTS_CMX_OFFSET);
+
+    auto inputCMX = createDeclareTensorOp(
+            functionBuilder, vpux::VPUIP::MemoryLocation::VPU_CMX_NN, inputShape, inputType,
+            vpux::DimsOrder::NHWC.toAffineMapsList(
+                    builder.getContext(), vpux::Shape({inputCMXShape[vpux::Dims4D::Act::N.ind()],
+                                                       inputCMXShape[inputChannelsIndex], inputHeight, inputWidth})),
+            0, INPUT_CMX_OFFSET);
+
+    auto paddedInputCMX = inputCMX;
+    auto paddedWeightsCMX = weightsCMX;
+    if (isInputPaddingRequired) {
+        paddedInputCMX = createDeclareTensorOp(functionBuilder, vpux::VPUIP::MemoryLocation::VPU_CMX_NN,
+                                               paddedInputCMXShape, inputType, 0, INPUT_CMX_OFFSET);
+        paddedWeightsCMX = createDeclareTensorOp(functionBuilder, vpux::VPUIP::MemoryLocation::VPU_CMX_NN,
+                                                 paddedWeightsCMXShape, weightsType, 0, WEIGHTS_CMX_OFFSET);
+    }
 
     if (qty != nullptr && qty.getStorageType().isInteger(4)) {
         // swizzling doesn't work for int4/uint4 weights case yet
@@ -134,22 +213,30 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         weightsCMX.swizzlingKeyAttr(vpux::getIntAttr(builder.getContext(), swizzling_key));
     }
 
-    const auto weightsDDRType = getMemRef(weightsShape, weightsType, vpux::VPUIP::MemoryLocation::GraphFile);
+    // const auto weightsDDRType = getMemRef(weightsShape, weightsType, vpux::VPUIP::MemoryLocation::GraphFile);
 
-    auto weightsDDR =
-            functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType, weightsAttribute);
+    //    auto weightsDDR =
+    //            functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType,
+    //            weightsAttribute);
 
-    auto inputCMX = getCMXTensor(inputShape, inputType, INPUT_CMX_OFFSET);
-    auto outputCMX = getCMXTensor(outputShape, outputType, OUTPUT_CMX_OFFSET);
+    //    auto inputCMX = getCMXTensor(inputShape, inputType, INPUT_CMX_OFFSET);
+    //    auto outputCMX = getCMXTensor(outputShape, outputType, OUTPUT_CMX_OFFSET);
+
+    auto outputCMX = createDeclareTensorOp(functionBuilder, vpux::VPUIP::MemoryLocation::VPU_CMX_NN, outputShape,
+                                           outputType, 0, OUTPUT_CMX_OFFSET);
 
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
     const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
-            static_cast<std::int32_t>(weights.shape[1] * weights.shape[2] * weights.shape[3] *
-                                      getElemTypeSize(weightsType).count() / 8),
-            static_cast<std::int32_t>(16777215), vpux::VPUIP::ArchKind::MTL, output.shape[1], weightsType);
+            //            static_cast<std::int32_t>(weights.shape[1] * weights.shape[2] * weights.shape[3] *
+            //                                      getElemTypeSize(weightsType).count() / 8),
+            //            static_cast<std::int32_t>(16777215), vpux::VPUIP::ArchKind::MTL, output.shape[1],
+            //            weightsType);
+            static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
+            static_cast<std::int32_t>(0xFFFFFF), vpux::VPUIP::ArchKind::MTL, output.shape[1], weightsType);
 
-    const auto weightsTableDDRMemRef = getMemRef(weightsTableShape, int32, vpux::VPUIP::MemoryLocation::GraphFile);
+    const auto weightsTableDDRMemRef =
+            getMemRefType(builder, vpux::VPUIP::MemoryLocation::GraphFile, weightsTableShape, int32);
     const auto weightsTableValues =
             mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
     auto weightsTableContentAttr = vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC);
@@ -158,7 +245,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     }
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
             builder.getUnknownLoc(), weightsTableDDRMemRef, weightsTableContentAttr);
-    auto weightsTableCMX = getCMXTensor(weightsTableShape, int32, WEIGHTSTABLE_CMX_OFFSET);
+
+    auto weightsTableCMX = createDeclareTensorOp(functionBuilder, vpux::VPUIP::MemoryLocation::VPU_CMX_NN,
+                                                 weightsTableShape, int32, 0, WEIGHTSTABLE_CMX_OFFSET);
 
     auto barrier0 = functionBuilder.create<vpux::VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
     auto barrier1 = functionBuilder.create<vpux::VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
@@ -184,10 +273,13 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto odu_permutation =
             vpux::VPUIP::ODUPermutationAttr::get(builder.getContext(), testDesc.getODUPermutation());
 
+    const auto sparsityPattern = isInputPaddingRequired ? ((1 << inputChannels) - 1) : 0;
+
     auto nceTask = functionBuilder.create<vpux::VPUIP::NCEClusterTaskOp>(
-            builder.getUnknownLoc(), inputCMX.memory(), weightsCMX.memory(), weightsTableCMX.memory(), nullptr,
-            inputCMX.memory(), outputCMX.memory(), outputCMX.memory(), vpux::VPUIP::NCETaskType::CONV, kernelSize,
-            strides, kernelPaddings, nullptr, nullptr, odu_permutation);
+            builder.getUnknownLoc(), paddedInputCMX.memory(), paddedWeightsCMX.memory(), weightsTableCMX.memory(),
+            nullptr, paddedInputCMX.memory(), outputCMX.memory(), outputCMX.memory(), vpux::VPUIP::NCETaskType::CONV,
+            kernelSize, strides, kernelPaddings, nullptr, nullptr, odu_permutation,
+            vpux::getIntAttr(builder.getContext(), sparsityPattern));
 
     nceTask.waitBarriersMutable().append(barrier0.barrier());
     nceTask.updateBarriersMutable().append(barrier1.barrier());

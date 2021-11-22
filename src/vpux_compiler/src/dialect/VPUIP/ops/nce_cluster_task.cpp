@@ -35,12 +35,12 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
                                           mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
-                                          mlir::UnitAttr is_continued,
-                                          vpux::VPUIP::ODUPermutationAttr odu_permutation) {
+                                          mlir::UnitAttr is_continued, vpux::VPUIP::ODUPermutationAttr odu_permutation,
+                                          mlir::IntegerAttr cm_sp_pattern) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
           parent_output, output_buff, mlir::ValueRange{}, mlir::ValueRange{},
           vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size, kernel_strides,
-          kernel_padding, activation_window_channel_length, is_continued, odu_permutation);
+          kernel_padding, activation_window_channel_length, is_continued, odu_permutation, cm_sp_pattern);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -683,6 +683,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     int32_t out_channel_offset = 0;
     bool is_segmented = false;
     bool is_continued = false;
+    uint16_t cm_sp_pattern = 0;
 
     if ((kernel_sizeAttr() != nullptr) && (getDPULayerType(task_type()) != MVCNN::DPULayerType_ELTWISE)) {
         const auto kernelSize = parseIntArrayAttr<int64_t>(kernel_sizeAttr());
@@ -711,6 +712,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     MVCNN::Permutation oduPermutation = MVCNN::Permutation_ZXY;
     if (odu_permutationAttr() != nullptr) {
         oduPermutation = getODUPermutationType(odu_permutationAttr().getValue());
+    }
+
+    if (cm_sp_patternAttr() != nullptr) {
+        cm_sp_pattern = checked_cast<uint16_t>(cm_sp_patternAttr().getValue().getSExtValue());
     }
 
     const auto inputData = writer.getTensor(input());
@@ -770,8 +775,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                             is_continued,                   // is_continued
                                             false,                          // is_superdense
                                             0,                              // segment_height
-                                            oduPermutation                  // odu_permutation
-            );
+                                            oduPermutation,                 // odu_permutation
+                                            cm_sp_pattern);
 
     MVCNN::NCE2TaskBuilder builder(writer);
     builder.add_variant(variant);
