@@ -119,4 +119,5 @@ tree.write(str(new_file_name), pretty_print=True);
 #create symlink to the *.bin file
 old_bin_path = origin_path.parent / (origin_path.stem + ".bin")
 new_bin_path = origin_path.parent / (new_file_name.stem + ".bin")
-copyfile(old_bin_path, new_bin_path)
+if not new_bin_path.is_file():
+    copyfile(old_bin_path, new_bin_path)
