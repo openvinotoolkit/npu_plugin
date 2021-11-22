@@ -86,7 +86,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto outputCMXSize = vpux::hwtest::totalTensorSize(outputShape, outputType);
     const auto inputCMXSize = vpux::hwtest::totalTensorSize(inputCMXShape, inputType);
 
-    const auto alignment = alignmentRequirement * static_cast<vpux::Byte>(getElemTypeSize(inputType)).count();
+    const auto alignment =
+            (alignmentRequirement * static_cast<vpux::Bit>(getElemTypeSize(inputType)).count()) / CHAR_BIT;
     const auto WEIGHTS_CMX_OFFSET = 0;
     VPUX_THROW_UNLESS(WEIGHTS_CMX_OFFSET % alignment == 0, "WEIGHTS_CMX_OFFSET must be multiple of {0}, got {1}",
                       alignment, WEIGHTS_CMX_OFFSET);
@@ -161,12 +162,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     if (qty != nullptr) {
         weightsAttribute = weightsAttribute.quantCast(qty);
     }
-    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::NHWC);
+    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
 
     const auto weightsDDRType =
             getMemRefType(builder, vpux::VPUIP::MemoryLocation::GraphFile, weightsShape, weightsType);
-    auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType,
-                                                                     weightsAttribute.reorder(vpux::DimsOrder::OYXI));
 
     auto weightsStrides = vpux::getStrides(weightsDDRType);
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
@@ -189,6 +188,17 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                                    weightsStrides),
             0, WEIGHTS_CMX_OFFSET);
 
+    if (qty != nullptr && qty.getStorageType().isInteger(4)) {
+        // swizzling doesn't work for int4/uint4 weights case yet
+        weightsAttribute = weightsAttribute.bitPack(4);
+    } else {
+        weightsAttribute = weightsAttribute.swizzle(swizzling_key);
+        weightsCMX.swizzlingKeyAttr(vpux::getIntAttr(builder.getContext(), swizzling_key));
+    }
+
+    auto weightsDDR =
+            functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType, weightsAttribute);
+
     auto inputCMX = createDeclareTensorOp(
             functionBuilder, vpux::VPUIP::MemoryLocation::VPU_CMX_NN, inputShape, inputType,
             vpux::DimsOrder::NHWC.toAffineMapsList(
@@ -203,14 +213,6 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                                paddedInputCMXShape, inputType, 0, INPUT_CMX_OFFSET);
         paddedWeightsCMX = createDeclareTensorOp(functionBuilder, vpux::VPUIP::MemoryLocation::VPU_CMX_NN,
                                                  paddedWeightsCMXShape, weightsType, 0, WEIGHTS_CMX_OFFSET);
-    }
-
-    if (qty != nullptr && qty.getStorageType().isInteger(4)) {
-        // swizzling doesn't work for int4/uint4 weights case yet
-        weightsAttribute = weightsAttribute.bitPack(4);
-    } else {
-        weightsAttribute = weightsAttribute.swizzle(swizzling_key);
-        weightsCMX.swizzlingKeyAttr(vpux::getIntAttr(builder.getContext(), swizzling_key));
     }
 
     // const auto weightsDDRType = getMemRef(weightsShape, weightsType, vpux::VPUIP::MemoryLocation::GraphFile);
