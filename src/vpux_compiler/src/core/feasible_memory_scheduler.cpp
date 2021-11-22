@@ -320,12 +320,30 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::getSortedBuffers(operationIdxT
     return orderedBufs;
 }
 
-mlir::DenseSet<operationIdxType> FeasibleMemoryScheduler::getNonEmptyOpDemandList(operationIdxType opIdx) {
+mlir::DenseSet<operationIdxType> FeasibleMemoryScheduler::getNonEmptyOpDemandList(
+        operationIdxType opIdx, SmallVector<mlir::Value>& neededBuffers) {
     // return all buffers of an op that require allocation
     mlir::DenseSet<operationIdxType> demandList;
     for (auto& dep : _depsInfo.getOpDeps(opIdx)) {
-        if (_opOutputTable.find(dep) == _opOutputTable.end() || _opOutputTable[dep].spilled()) {
+        if (_opOutputTable.find(dep) == _opOutputTable.end()) {
             demandList.insert(dep);
+        } else {
+            bool demandOpFound = false;
+            // Get asyncExecOp result corresponding to given operation index and check
+            // using aliases info if any of needed buffers is produced by this asyncExecOp
+            auto asyncExecOp = _depsInfo.getExecuteOpAtIndex(dep);
+            for (auto res : asyncExecOp.results()) {
+                for (auto& buffer : neededBuffers) {
+                    if (_aliasInfo.getRoot(res) == buffer) {
+                        demandList.insert(dep);
+                        demandOpFound = true;
+                        break;
+                    }
+                }
+                if (demandOpFound) {
+                    break;
+                }
+            }
         }
     }
     return demandList;
@@ -363,7 +381,7 @@ void FeasibleMemoryScheduler::scheduleSpilledInputOpForComputeOp(operationIdxTyp
 size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opIdx,
                                                            SmallVector<mlir::Value>& sortedBuffers) {
     // retrieve op demand list - input ops
-    auto demandList = getNonEmptyOpDemandList(opIdx);
+    auto demandList = getNonEmptyOpDemandList(opIdx, sortedBuffers);
     size_t maxInputDelay = demandList.empty() ? 0 : 1;
 
     // retrieve buffers that need allocation

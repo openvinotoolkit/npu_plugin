@@ -239,7 +239,8 @@ private:
     llvm::SmallVector<operationIdxType> reduceInDegreeOfAdjacentOperations(operationIdxType opIdx);
     bool isReadyComputeOperationSchedulable(operationIdxType opIdx);
     SmallVector<mlir::Value> getSortedBuffers(operationIdxType opIdx);
-    mlir::DenseSet<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx);
+    mlir::DenseSet<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx,
+                                                             SmallVector<mlir::Value>& neededBuffers);
     void scheduleInputOpForComputeOp(operationIdxType inputIdx);
     void scheduleSpilledInputOpForComputeOp(operationIdxType inputIdx, mlir::Value* buffer);
     size_t allocateBuffersAndInputOps(operationIdxType opIdx, SmallVector<mlir::Value>& sortedBuffers);
