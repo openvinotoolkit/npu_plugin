@@ -62,6 +62,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
         break;
     case VPUIP::EltwiseLayerType::LESS_EQUAL:
         type = writer.createString("comparele");
+        break;
     case VPUIP::EltwiseLayerType::NOT_EQUAL:
         type = writer.createString("comparene");
         break;
