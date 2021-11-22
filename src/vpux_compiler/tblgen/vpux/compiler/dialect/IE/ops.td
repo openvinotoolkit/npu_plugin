@@ -2386,6 +2386,7 @@ def IE_EqualOp :
         IE_LayerOp<
             "Equal",
             [
+                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -2444,6 +2445,7 @@ def IE_NotEqualOp :
         IE_LayerOp<
             "NotEqual",
             [
+                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
