@@ -2659,6 +2659,10 @@
                 "VPUX_THROUGHPUT_STREAMS": "1",
                 "VPUX_EXECUTOR_STREAMS":"1"
             },
+            "Compile" : {
+                "input_precision" : "FP32",
+                "output_precision" : "FP32"
+            },
             "BenchmarkApp" : {
                 "input_folder" : "1280x720"
             },
