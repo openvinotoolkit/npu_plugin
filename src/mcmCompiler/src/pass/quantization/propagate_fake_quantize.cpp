@@ -799,7 +799,7 @@ void fuseScaleAddWithConvBiasAndPadInput(mv::ComputationModel& model) {
                             {0, 0, 0, 0},
                             {0, 0, 1, 1},
                             "constant",
-                            1.0/scaleDate[0]);
+                            -1.0 * addData[0]/scaleDate[0]);
       newPad->setQuantParams(mv::QuantizationParams::initial());
       newPad->setDType(inputOp->getOutputTensor(0)->getDType());
       auto newPadOp = om.getSourceOp(newPad);

@@ -1314,7 +1314,7 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
                         };
                         auto mobilenet_iter = std::find(mobilenet_v3_Ops.begin(), mobilenet_v3_Ops.end(), op.getName());
                         if(mobilenet_iter != mobilenet_v3_Ops.end()){
-                          mv::Attribute temp(std::string("SplitOverH"));
+                          mv::Attribute temp(std::string("SplitOverHOverlapped"));
                           s["clustering"] = temp;
                         }                                                                         
 
