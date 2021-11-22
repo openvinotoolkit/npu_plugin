@@ -2649,6 +2649,10 @@ def VPUIP_PadUPAOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`

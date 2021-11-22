@@ -230,6 +230,27 @@ def ConvertFCToConv : PassBase<"convert-fc-to-conv", "vpux::FunctionPass"> {
 }
 
 //
+// SplitFCInputByRows
+//
+
+def SplitFCInputByRows : PassBase<"split-fc-input-by-rows", "vpux::FunctionPass"> {
+    let summary = "Split FullyConnected inputs with multiple rows";
+
+    let description = [{
+        This pass splits `FullyConnected` inputs by rows.
+
+        For example, `FullyConnected` input with 2x64 geometry will be split by two inputs with 1x64 dimensions.
+        Resulting vector rows go to corresponding `FullyConnected` operations and the outputs are concatenated.
+    }];
+
+    let constructor = "vpux::IE::createSplitFCInputByRowsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertScaleShiftToDW
 //
 
