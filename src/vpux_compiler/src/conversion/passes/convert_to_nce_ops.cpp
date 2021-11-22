@@ -378,6 +378,9 @@ public:
     mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    llvm::Optional<double> calculateQuantScaleVectorForEltwise(IERT::LayerOpInterface layerOp) const;
+
+private:
     const int64_t _numDPU;
     vpux::VPUIP::ArchKind _arch;
     VPUIP::PPELayerType _ppeType;
@@ -385,7 +388,9 @@ private:
 };
 
 // This operation based on input and output of Eltwise op will prepare final quantization scale value
-llvm::Optional<double> calculateQuantScaleVectorForEltwise(IERT::LayerOpInterface layerOp) {
+template <class ConcreteOp>
+llvm::Optional<double> GenericEltwiseConverter<ConcreteOp>::calculateQuantScaleVectorForEltwise(
+        IERT::LayerOpInterface layerOp) const {
     if (layerOp == nullptr || layerOp.getInputs().size() < 2) {
         return ::llvm::None;
     }
@@ -414,7 +419,9 @@ llvm::Optional<double> calculateQuantScaleVectorForEltwise(IERT::LayerOpInterfac
 
     // floats in the compute pipeline are represented as S16.16 values
     // In order to convert from I32 to S16.16 and back, we need to multiply/divide by 1<<16
-    const auto fp16_scale = static_cast<double>(1.0 / 65536.0);
+    // Depends on target hardware
+    const double fp16_scale = (VPUIP::ArchKind::MTL == _arch) ? (1.0) : (1.0 / 65536);
+
     if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>()) {
         scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
         scaleInput1 = fp16_scale;
@@ -426,18 +433,19 @@ llvm::Optional<double> calculateQuantScaleVectorForEltwise(IERT::LayerOpInterfac
         scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
     }
 
-    auto ppeScale = scaleInput1;
-    // For Eltwise Multiply ppeScale = scaleInput1*scaleInput2/scaleOutput
-    // For Eltwise Add/Subtract/And ppeScale = scaleInput1/scaleOutput
-    if (mlir::isa<IERT::MultiplyOp>(layerOp)) {
-        const auto scaleInput2 = extractScalesAndZeroPoints(input2ElementType).first.front();
-        ppeScale *= scaleInput2;
-    }
-
     VPUX_THROW_UNLESS(scaleInput1 != 0, "Invalid input scale value '0'");
     VPUX_THROW_UNLESS(scaleOutput != 0, "Invalid output scale value '0'");
 
-    ppeScale /= scaleOutput;
+    double ppeScale = 1.0;
+
+    if (mlir::isa<IERT::MultiplyOp>(layerOp)) {
+        const auto scaleInput2 = extractScalesAndZeroPoints(input2ElementType).first.front();
+        VPUX_THROW_UNLESS(scaleInput2 != 0, "Invalid input scale value '0'");
+        ppeScale = scaleInput1 * scaleInput2 / scaleOutput;
+    } else {  // Add, Subtract, And
+        ppeScale = scaleInput1 / scaleOutput;
+    }
+
     return {ppeScale};
 }
 
