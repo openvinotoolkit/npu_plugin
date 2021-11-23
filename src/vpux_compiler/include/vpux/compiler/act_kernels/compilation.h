@@ -47,27 +47,24 @@ struct SerializedKernelDataDesc {
 struct CompilationUnitDesc {
     mlir::StringRef name;
     mlir::StringRef entry;
-    mlir::StringRef codePath;
+//    mlir::StringRef codePath;
 };
 
-struct CompilationListDesc {
-    mlir::StringRef name;
-    mlir::StringRef entry;
-    mlir::SmallVector<StringRef> codePath = {};
-    mlir::SmallVector<StringRef> defines = {};
-    mlir::SmallVector<StringRef> includePaths = {};
-};
-
-bool checkVpuip2Dir();
-std::string getVpuip2Dir();
+//struct CompilationListDesc {
+//    mlir::StringRef name;
+//    mlir::StringRef entry;
+//    mlir::SmallVector<StringRef> codePath = {};
+//    mlir::SmallVector<StringRef> defines = {};
+//    mlir::SmallVector<StringRef> includePaths = {};
+//};
 
 ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
                                        const movitools::MoviCompileParams& params);
 
-ActKernelDesc compileKernelForACTShave(const CompilationListDesc & listDesc,
-                                       const movitools::MoviCompileParams& params);
+//ActKernelDesc compileKernelForACTShave(const CompilationListDesc & listDesc,
+//                                       const movitools::MoviCompileParams& params);
 
-const CompilationListDesc& managementKernelCompilationDesc();
+const CompilationUnitDesc& managementKernelCompilationDesc();
 
 ActKernelDesc compileManagementKernelForACTShave(const movitools::MoviCompileParams& params);
 
