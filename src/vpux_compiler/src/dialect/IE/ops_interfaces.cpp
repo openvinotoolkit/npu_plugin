@@ -313,14 +313,14 @@ OutputTiling vpux::IE::generatePrefetchTiles(mlir::Operation* op, Logger /*log*/
 
     Shape nTilesOnDim(getShape(outputType).size(), 1);
 
-//    auto sliceOp = op->getOperand(0).getDefiningOp<IE::SliceOp>();
-//    const auto inputShape = getShape(sliceOp.input());
-//    const auto outputShape = getShape(sliceOp.output());
-//
-//    for (unsigned index = 0; index < inputShape.size(); ++index) {
-//        if (inputShape[Dim(index)] != outputShape[Dim(index)])
-//            nTilesOnDim[Dim(index)] = 2;
-//    }
+    auto sliceOp = op->getOperand(0).getDefiningOp<IE::SliceOp>();
+    const auto sliceInputShape = getShape(sliceOp.source());
+    const auto sliceOutputShape = getShape(sliceOp.result());
+
+    for (unsigned index = 0; index < outputShape.size(); ++index) {
+        if (sliceInputShape[Dim(index)] != sliceOutputShape[Dim(index)])
+            nTilesOnDim[Dim(index)]++;
+    }
 
     return fillDividedTiles(nTilesOnDim, outputShape);
 }

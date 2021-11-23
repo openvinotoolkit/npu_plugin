@@ -37,6 +37,7 @@ private:
 
 mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
                                                    mlir::PatternRewriter& rewriter) const {
+    std::cout<<"=== matchAndRewrite ===" <<std::endl;
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
 
     const auto tiles = origOp.generatePrefetchTiling(_log.nest());
@@ -44,6 +45,7 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
     _log.nest(1).trace("Create {0} tiles:", tiles.size());
     for (const auto& outputTile : tiles) {
         _log.nest(2).trace("{0}", outputTile);
+        std::cout<< llvm::formatv("{0}", outputTile).str()<<std::endl;
     }
 
     SmallVector<mlir::Value> resultTileVals;
