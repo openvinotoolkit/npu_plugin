@@ -44,17 +44,6 @@ void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffe
             effects.emplace_back(mlir::MemoryEffects::Write::get(), output, resource.getValue());
         }
     }
-
-    auto task = mlir::dyn_cast<TaskOpInterface>(op);
-    VPUX_THROW_UNLESS(task != nullptr, "Got non Task Operation '{0}' in getTaskEffects", op->getName());
-
-    for (const auto waitBarrier : task.waitBarriers()) {
-        effects.emplace_back(mlir::MemoryEffects::Read::get(), waitBarrier, VPUIP::BarrierResource::get());
-    }
-
-    for (const auto updateBarrier : task.updateBarriers()) {
-        effects.emplace_back(mlir::MemoryEffects::Write::get(), updateBarrier, VPUIP::BarrierResource::get());
-    }
 }
 
 mlir::Attribute vpux::VPUIP::getDMAEngine(uint32_t& numUnits, mlir::MLIRContext* ctx, VPUIP::DMAEngine engine) {
@@ -159,22 +148,6 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
         if (upaTask.maxShaves().getValue() > available.count()) {
             return errorAt(op, "maxShaves attribute '{0}' exceeds available count '{1}'", upaTask.maxShaves(),
                            available.count());
-        }
-    }
-
-    if (upaTask.isTrailingSWLayer()) {
-        for (auto updateBarrier : task.updateBarriers()) {
-            for (auto* depOp : updateBarrier.getUsers()) {
-                auto depTask = mlir::dyn_cast<VPUIP::TaskOpInterface>(depOp);
-
-                if (depTask == nullptr) {
-                    return errorAt(op, "Trailing UPA Task has non-SW dependency : '{0}'", depOp->getLoc());
-                }
-
-                if (depTask.getTaskType() != VPUIP::TaskType::UPA) {
-                    return errorAt(op, "Trailing UPA Task has non-SW dependency : '{0}'", depOp->getLoc());
-                }
-            }
         }
     }
 

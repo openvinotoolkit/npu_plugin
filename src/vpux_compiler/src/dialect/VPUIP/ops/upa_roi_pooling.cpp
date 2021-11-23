@@ -72,8 +72,7 @@ void vpux::VPUIP::ROIPoolingUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::
                                          mlir::Value input, mlir::Value coords, mlir::Value output,
                                          mlir::ArrayAttr output_size, mlir::FloatAttr spatial_scale,
                                          IE::ROIPoolingMethodAttr method) {
-    build(odsBuilder, odsState, input, coords, output, mlir::ValueRange{}, mlir::ValueRange{}, output_size,
-          spatial_scale, method, nullptr, nullptr);
+    build(odsBuilder, odsState, input, coords, output, output_size, spatial_scale, method, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {

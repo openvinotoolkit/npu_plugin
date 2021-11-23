@@ -59,24 +59,24 @@ module @VPU.SW {
 
 func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
-    %in_tile0_cmx  = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
-    %out_tile0_cmx = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    %in_tile0_cmx  = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    %out_tile0_cmx = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
 
-    %b0 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-    %b1 = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
+    %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
+    %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
 
-
-    %4 = VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) updates(%b0 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    VPURT.Task updates(%b0 : !VPURT.Barrier) op : {
+        VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    }
 
     // Genetic Kernel information for the scheduler.
+    VPURT.Task  waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) op : {
     %softmax_krn =
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_softmax            // The reference to the Kernel function.
                     inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">)     // Inputs/outputs buffers for generic operation interface
                     outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">)   // and their mapping to inner region.
                     on tile 0                           // The tile index to execute on.
-                    waits(%b0  : !VPUIP.Barrier)
-                    updates(%b1  : !VPUIP.Barrier)
         -> memref<1x1x1x1000xf16, "VPU_CMX_NN"> {
 
             ^bb0(%arg0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">, %arg1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">):
@@ -90,9 +90,12 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
                     , memref<1x1x1x1000xf16, "VPU_CMX_NN">
                     , i64
         }
+    }
 
-    %6 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%2 : memref<1x1x1x1000xf16>) waits(%b1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
-    return %6: memref<1x1x1x1000xf16>
+    VPURT.Task waits(%b1 : !VPURT.Barrier) op : {
+        VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%2 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+    }
+    return %2: memref<1x1x1x1000xf16>
 
 }
 

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,27 +11,26 @@
 // included with the Software Package for additional details.
 //
 
-#ifndef VPUX_COMPILER_DIALECT_VPUIP_TYPES
-#define VPUX_COMPILER_DIALECT_VPUIP_TYPES
+#pragma once
 
-include "vpux/compiler/dialect/VPUIP/dialect.td"
+#include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
+
+#include <mlir/IR/OpDefinition.h>
+#include <mlir/IR/Operation.h>
+#include <mlir/Interfaces/SideEffectInterfaces.h>
+
+namespace vpux {
+namespace VPURT {
+
+using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
+void getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
+
+}  // namespace VPURT
+}  // namespace vpux
 
 //
-// Base classes
+// Generated
 //
 
-class VPUIP_Type<string name> : TypeDef<VPUIP_Dialect, name> {
-    let mnemonic = name;
-}
-
-//
-// Barrier
-//
-
-def VPUIP_Barrier : VPUIP_Type<"Barrier"> {
-    let summary = "VPUIP Barrier Type";
-
-    let description = "This object represents closely a Barrier in the device";
-}
-
-#endif
+#include <vpux/compiler/dialect/VPURT/generated/ops_interfaces.hpp.inc>

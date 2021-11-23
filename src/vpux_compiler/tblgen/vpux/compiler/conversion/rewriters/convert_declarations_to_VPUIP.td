@@ -25,7 +25,7 @@ include "mlir/IR/OpBase.td"
 
 class createDeclareTensorOp<string memoryLocation> :
         NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::DeclareTensorOp>(
+            $_builder.create<vpux::VPURT::DeclareBufferOp>(
                 $_loc, $0.getType(),
                 vpux::VPUIP::MemoryLocation::}] # memoryLocation # [{,
                 $1.getInt()

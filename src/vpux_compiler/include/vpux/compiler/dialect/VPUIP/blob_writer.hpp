@@ -79,6 +79,7 @@ public:
 
 public:
     Task createTask(mlir::Operation* op);
+    void setAliasForSerializedTensors(mlir::Operation* op);
 
 public:
     SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
@@ -168,9 +169,6 @@ public:
     operator flatbuffers::FlatBufferBuilder&() {
         return impl();
     }
-
-private:
-    void setAliasForSerializedTensors(mlir::Operation* op);
 
 private:
     using TaskMap = std::unordered_map<mlir::Operation*, Task>;

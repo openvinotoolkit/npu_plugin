@@ -19,7 +19,7 @@ using namespace vpux;
 
 void vpux::VPUIP::GatherElementsUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                              mlir::Value indices, mlir::Value output, mlir::IntegerAttr axis) {
-    build(builder, state, input, indices, output, mlir::ValueRange{}, mlir::ValueRange{}, axis, nullptr, nullptr);
+    build(builder, state, input, indices, output, axis, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GatherElementsUPAOp::serialize(VPUIP::BlobWriter& writer) {

@@ -15,6 +15,7 @@
 #include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/core/numeric.hpp"
@@ -120,7 +121,7 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
     if (!declareConstOp) {
         return mlir::failure();
     }
-    auto declareTensorOp = origOp.output_buff().getDefiningOp<VPUIP::DeclareTensorOp>();
+    auto declareTensorOp = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
     if (!declareTensorOp) {
         return mlir::failure();
     }
@@ -154,7 +155,7 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
     const auto elemTypeU8 = getUInt8Type(rewriter.getContext());
     const Shape flatDstTensorShape{checked_cast<int64_t>(dataVec.size()), 1, 1, 1};
     auto dstTensorType = getMemRefType(flatDstTensorShape, elemTypeU8, DimsOrder::NCHW, dstMemSpace);
-    auto dstTensor = rewriter.create<VPUIP::DeclareTensorOp>(origOp->getLoc(), dstTensorType, location,
+    auto dstTensor = rewriter.create<VPURT::DeclareBufferOp>(origOp->getLoc(), dstTensorType, location,
                                                              parseIntArrayAttr<int64_t>(localeIndex), dataIndex);
     const Shape flatSrcTensorShape{checked_cast<int64_t>(compressedData.size()), 1, 1, 1};
     const auto dataStorageType = mlir::RankedTensorType::get(flatSrcTensorShape.raw(), elemTypeU8);
@@ -172,8 +173,7 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
             });
     VPUX_THROW_WHEN(nonTrivialDims > 1, "NNDMAOpConverter::matchAndRewrite: source tensor is not flat");
     // Introducing CompressedDMAOp which drops IERT_SameShape interface, since it is not applicable for compression.
-    rewriter.create<VPUIP::CompressedDMAOp>(origOp->getLoc(), srcTensor, dstTensor, origOp.waitBarriers(),
-                                            origOp.updateBarriers());
+    rewriter.create<VPUIP::CompressedDMAOp>(origOp->getLoc(), srcTensor, dstTensor);
     _log.trace("Compressing weights for {0}", origOp->getLoc());
     rewriter.replaceOp(origOp, {declareTensorOp});
 

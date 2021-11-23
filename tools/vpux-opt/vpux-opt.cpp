@@ -19,6 +19,8 @@
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/passes.hpp"
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/pipelines.hpp"
 
@@ -40,6 +42,7 @@ int main(int argc, char* argv[]) {
         vpux::IERT::registerIERTPasses();
         vpux::IERT::registerIERTPipelines();
         vpux::VPUIP::registerVPUIPPasses();
+        vpux::VPURT::registerVPURTPasses();
         vpux::registerConversionPasses();
         vpux::registerConversionPipelines();
         vpux::registerPipelines();

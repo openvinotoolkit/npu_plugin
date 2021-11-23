@@ -22,8 +22,7 @@ void vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::build(mlir::OpBuilder& builder, m
                                                      mlir::Value input, mlir::Value sequenceLength,
                                                      mlir::Value blankIndex, mlir::Value output,
                                                      mlir::Value outputLength, mlir::UnitAttr mergeRepeated) {
-    build(builder, state, input, sequenceLength, blankIndex, output, outputLength, mlir::ValueRange{},
-          mlir::ValueRange{}, mergeRepeated, nullptr, nullptr);
+    build(builder, state, input, sequenceLength, blankIndex, output, outputLength, mergeRepeated, nullptr);
 }
 
 void vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {

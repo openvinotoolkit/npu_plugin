@@ -21,6 +21,7 @@
 
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
@@ -34,6 +35,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     registerDialects(registry);
     ctx->appendDialectRegistry(registry);
     ctx->loadDialect<VPUIP::VPUIPDialect>();
+    ctx->loadDialect<VPURT::VPURTDialect>();
 
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef("mainModule"));
     auto log = Logger{"vpux-hwtest", LogLevel::Trace};

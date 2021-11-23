@@ -23,7 +23,6 @@ include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
-include "vpux/compiler/dialect/VPUIP/types.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/CopyOpInterface.td"
@@ -52,9 +51,7 @@ class VPUIP_TaskOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
             !listconcat(
                 traits,
                 [
-                    AttrSizedOperandSegments,
                     InferTypeOpInterface,
-                    MemoryEffectsOpInterface,
                     DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
                     IERT_AsyncLayerOpInterface,
                     DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
@@ -107,145 +104,6 @@ def VPUIP_GraphOp :
     }];
 }
 
-//
-// DeclareTensorOp
-//
-
-def VPUIP_DeclareTensorOp :
-        VPUIP_Op<
-            "DeclareTensor",
-            [
-                NoSideEffect,
-                DeclarationOp,
-                DotInterface
-            ]
-        > {
-    let summary = "TensorReference value declaration";
-
-    let arguments = (ins
-        VPUIP_MemoryLocation:$locale,
-        I64ArrayAttr:$localeIndex,
-
-        IntAttr:$dataIndex,
-        OptionalAttr<IntAttr>:$sparsityIndex,
-        OptionalAttr<IntAttr>:$storageElementIndex,
-        OptionalAttr<IntAttr>:$storageElementSize,
-
-        OptionalAttr<IntAttr>:$leadingOffset,
-        OptionalAttr<IntAttr>:$trailingOffset
-    );
-
-    let results = (outs
-        AnyMemRef:$memory
-    );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint64_t":$dataIndex)
-        >,
-        OpBuilder<
-            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint32_t":$localeIndex, "uint64_t":$dataIndex)
-        >,
-        OpBuilder<
-            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "ArrayRef<int64_t>":$localeIndex, "uint64_t":$dataIndex)
-        >
-    ];
-
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
-
-    let assemblyFormat = [{
-        $locale custom<LocaleIndex>($localeIndex) `<` $dataIndex `>` attr-dict `->` type(results)
-    }];
-
-    let extraClassDeclaration = [{
-        static mlir::ParseResult parseLocaleIndex(mlir::OpAsmParser& parser, mlir::ArrayAttr& localeIndex);
-        static void printLocaleIndex(mlir::OpAsmPrinter& printer, vpux::VPUIP::DeclareTensorOp& op, mlir::ArrayAttr localeIndex);
-
-        vpux::DotNodeColor getNodeColor() {
-            return vpux::DotNodeColor::ORANGE;
-        }
-    }];
-}
-
-//
-// DeclareVirtualBarrierOp
-//
-
-def VPUIP_DeclareVirtualBarrierOp :
-        VPUIP_Op<
-            "DeclareVirtualBarrier",
-            [
-                NoSideEffect,
-                DeclarationOp
-            ]
-        > {
-    let summary = "VPUIP virtual Barrier declaration";
-
-    let results = (outs
-        VPUIP_Barrier:$barrier
-    );
-
-    let assemblyFormat = [{
-        attr-dict `->` type(results)
-    }];
-}
-
-//
-// ConfigureBarrierOp
-//
-
-def VPUIP_ConfigureBarrierOp :
-        VPUIP_Op<"ConfigureBarrier",
-            [
-                MemoryEffectsOpInterface,
-                AttrSizedOperandSegments,
-                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>,
-                DeclarationOp,
-                DotInterface
-            ]
-        > {
-    let summary = "A task to configure the setup for a barrier";
-
-    let arguments = (ins
-        IntAttr:$id,
-
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers
-    );
-
-    let results = (outs
-        VPUIP_Barrier:$barrier
-    );
-
-    let builders = [
-        OpBuilder<(ins "int64_t":$id)>
-    ];
-
-    let extraClassDeclaration = [{
-        static vpux::VPUIP::TaskType getTaskType() {
-            return vpux::VPUIP::TaskType::Controller;
-        }
-
-        vpux::DotNodeColor getNodeColor() {
-            return vpux::DotNodeColor::AQUA;
-        }
-
-        bool printAttributes(llvm::raw_ostream& os) {
-            os << "id: " << idAttr().getInt();
-            return true;
-        }
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        `<` $id `>`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-        `->` type(results)
-    }];
-}
 
 //
 // EmptyOp
@@ -254,16 +112,10 @@ def VPUIP_ConfigureBarrierOp :
 def VPUIP_EmptyOp :
         VPUIP_Op<"Empty",
             [
-                AttrSizedOperandSegments,
                 DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
             ]
         > {
     let summary = "Empty management task";
-
-    let arguments = (ins
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers
-    );
 
     let extraClassDeclaration = [{
         static vpux::VPUIP::TaskType getTaskType() {
@@ -273,8 +125,6 @@ def VPUIP_EmptyOp :
 
     let assemblyFormat = [{
         attr-dict
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
     }];
 }
 
@@ -295,21 +145,12 @@ def VPUIP_UPADMAOp :
 
     let arguments = (ins
         AnyMemRef:$input,
-        AnyMemRef:$output_buff,
-
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers
+        AnyMemRef:$output_buff
     );
 
     let results = (outs
         AnyMemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$src, "mlir::Value":$dst)
-        >
-    ];
 
     let extraClassDeclaration = [{
         static vpux::VPUIP::TaskType getTaskType() {
@@ -321,8 +162,6 @@ def VPUIP_UPADMAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -351,9 +190,6 @@ def VPUIP_NNDMAOp :
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         DefaultValuedAttr<IntAttr, "0">:$port,
         DefaultValuedAttr<BoolAttr, "true">:$set_ord,
         DefaultValuedAttr<BoolAttr, "false">:$set_crit
@@ -362,12 +198,6 @@ def VPUIP_NNDMAOp :
     let results = (outs
         AnyMemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$src, "mlir::Value":$dst)
-        >
-    ];
 
     let extraClassDeclaration = [{
         static vpux::VPUIP::TaskType getTaskType() {
@@ -385,8 +215,6 @@ def VPUIP_NNDMAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -414,9 +242,6 @@ def VPUIP_CompressedDMAOp :
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         DefaultValuedAttr<IntAttr, "0">:$port
     );
 
@@ -440,8 +265,6 @@ def VPUIP_CompressedDMAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -464,17 +287,13 @@ def VPUIP_ConvertUPAOp :
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         OptionalAttr<F64Attr>:$scale,
         OptionalAttr<F64Attr>:$bias,
         UnitAttr:$fromDetectionOutput,
         UnitAttr:$haveBatch,
         OptionalAttr<IntAttr>:$batchID,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -495,8 +314,6 @@ def VPUIP_ConvertUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -520,13 +337,9 @@ def VPUIP_SoftMaxUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         IntAttr:$axisInd,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -550,8 +363,6 @@ def VPUIP_SoftMaxUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -574,9 +385,6 @@ def VPUIP_PoolingUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         VPUIP_PoolLayerType:$type,
         I64ArrayAttr:$kernel,
         I64ArrayAttr:$strides,
@@ -584,8 +392,7 @@ def VPUIP_PoolingUPAOp :
         I64ArrayAttr:$padsEnd,
         UnitAttr:$excludePad,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -612,8 +419,6 @@ def VPUIP_PoolingUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -637,17 +442,13 @@ def VPUIP_ConvolutionUPAOp :
         Optional<F16MemRef>:$bias,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         I64ArrayAttr:$strides,
         I64ArrayAttr:$dilations,
         I64ArrayAttr:$padsBegin,
         I64ArrayAttr:$padsEnd,
         IntAttr:$groups,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves   
     );
 
     let results = (outs
@@ -669,8 +470,6 @@ def VPUIP_ConvolutionUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $filter `:` type($filter) (`,` $bias^ `:` type($bias))? `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -703,11 +502,7 @@ def VPUIP_ReLUUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -728,8 +523,6 @@ def VPUIP_ReLUUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -754,11 +547,7 @@ def VPUIP_SigmoidUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -779,8 +568,6 @@ def VPUIP_SigmoidUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -805,11 +592,7 @@ def VPUIP_HSwishUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -830,8 +613,6 @@ def VPUIP_HSwishUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -856,11 +637,7 @@ def VPUIP_ErfUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -881,8 +658,6 @@ def VPUIP_ErfUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -907,11 +682,7 @@ def VPUIP_MishUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -932,8 +703,6 @@ def VPUIP_MishUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -958,11 +727,7 @@ def VPUIP_FloorUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -983,8 +748,6 @@ def VPUIP_FloorUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1009,13 +772,9 @@ def VPUIP_RoundUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         IE_RoundMode:$mode,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1039,8 +798,6 @@ def VPUIP_RoundUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
        }];
 } 
@@ -1065,14 +822,10 @@ def VPUIP_ClampUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         F64Attr:$min,
         F64Attr:$max,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1096,8 +849,6 @@ def VPUIP_ClampUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1122,13 +873,9 @@ def VPUIP_EluUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         F64Attr:$x,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1152,8 +899,6 @@ def VPUIP_EluUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1178,11 +923,7 @@ def VPUIP_TanhUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1203,8 +944,6 @@ def VPUIP_TanhUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1229,11 +968,7 @@ def VPUIP_SqrtUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1254,8 +989,6 @@ def VPUIP_SqrtUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1280,11 +1013,7 @@ def VPUIP_LogUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1305,8 +1034,6 @@ def VPUIP_LogUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1331,11 +1058,7 @@ def VPUIP_ExpUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1356,8 +1079,6 @@ def VPUIP_ExpUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1380,17 +1101,13 @@ def VPUIP_FakeQuantizeUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         IntAttr:$levels,
         Const_ContentAttr:$input_low,
         Const_ContentAttr:$input_high,
         Const_ContentAttr:$output_low,
         Const_ContentAttr:$output_high,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1416,8 +1133,6 @@ def VPUIP_FakeQuantizeUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1440,11 +1155,7 @@ def VPUIP_QuantCastUPAOp :
         MemRefOf<[F16, quant_QuantizedType]>:$input,
         MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1463,8 +1174,6 @@ def VPUIP_QuantCastUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -1491,11 +1200,7 @@ def VPUIP_PReluUPAOp :
         F16MemRef:$negative_slope,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1515,8 +1220,6 @@ def VPUIP_PReluUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $negative_slope `:` type($negative_slope) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1538,13 +1241,9 @@ def VPUIP_LeakyReluUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         F64Attr:$negative_slope,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1564,8 +1263,6 @@ def VPUIP_LeakyReluUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1588,13 +1285,9 @@ def VPUIP_EltwiseUPAOp :
         F16MemRef:$input2,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         VPUIP_EltwiseLayerType:$type,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1615,8 +1308,6 @@ def VPUIP_EltwiseUPAOp :
         attr-dict
         `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1628,6 +1319,7 @@ def VPUIP_EltwiseUPAOp :
 def VPUIP_DetectionOutputUPAOp :
         VPUIP_UPATaskOp<1, "DetectionOutputUPA",
             [
+                AttrSizedOperandSegments,
                 ViewLikeOpInterface,
                 IERT_AnyDimsOrder
             ]
@@ -1643,13 +1335,9 @@ def VPUIP_DetectionOutputUPAOp :
 
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         IE_DetectionOutputAttrs:$attr,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1670,8 +1358,6 @@ def VPUIP_DetectionOutputUPAOp :
         attr-dict
         `inputs` `(` $in_box_logits `:` type($in_box_logits) `,` $in_class_preds `:` type($in_class_preds) `,` $in_proposals `:` type($in_proposals) (`,` $in_additional_preds^ `:` type($in_additional_preds))? (`,` $in_additional_proposals^ `:` type($in_additional_proposals))? `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1693,13 +1379,9 @@ def VPUIP_SwishUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         F64Attr:$beta_value,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1719,8 +1401,6 @@ def VPUIP_SwishUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1742,13 +1422,9 @@ def VPUIP_GRNUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         F64Attr:$bias,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1768,8 +1444,6 @@ def VPUIP_GRNUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1793,14 +1467,10 @@ def VPUIP_ReduceUPAOp :
 
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         BoolAttr:$keep_dims,
         VPUIP_ReduceLayerType:$type,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1821,8 +1491,6 @@ def VPUIP_ReduceUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1845,17 +1513,13 @@ def VPUIP_NormUPAOp :
 
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         F64Attr:$alpha,
         F64Attr:$beta,
         F64Attr:$bias,
         IntAttr:$local_size,
         IE_LRN_IERegion:$region,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1877,8 +1541,6 @@ def VPUIP_NormUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -1907,13 +1569,9 @@ def VPUIP_BroadcastUPAOp :
 
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         OptionalAttr<IE_BroadcastType>:$mode,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1934,8 +1592,6 @@ def VPUIP_BroadcastUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -1947,6 +1603,7 @@ def VPUIP_BroadcastUPAOp :
 def VPUIP_ScaleShiftUPAOp :
         VPUIP_UPATaskOp<1, "ScaleShiftUPA",
             [
+                AttrSizedOperandSegments,
                 ViewLikeOpInterface,
                 IERT_SameElementType,
                 IERT_SameDimsOrder,
@@ -1961,11 +1618,7 @@ def VPUIP_ScaleShiftUPAOp :
         Optional<F16MemRef>:$biases,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -1985,8 +1638,6 @@ def VPUIP_ScaleShiftUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) (`,` $weights^ `:` type($weights))? (`,` $biases^ `:` type($biases))? `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -2012,14 +1663,10 @@ def VPUIP_PerAxisTileUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         IntAttr:$axis,
         IntAttr:$tiles,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2039,8 +1686,6 @@ def VPUIP_PerAxisTileUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -2062,11 +1707,7 @@ def VPUIP_NegativeUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2083,8 +1724,6 @@ def VPUIP_NegativeUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -2108,13 +1747,9 @@ def VPUIP_ProposalUPAOp :
         F16MemRef:$image_shape,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         IE_ProposalAttrs:$proposal_attrs,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2134,8 +1769,6 @@ def VPUIP_ProposalUPAOp :
         attr-dict
         `inputs` `(` $class_probs `:` type($class_probs) `,` $bbox_deltas `:` type($bbox_deltas) `,` $image_shape `:` type($image_shape) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -2158,15 +1791,11 @@ def VPUIP_ROIPoolingUPAOp :
         F16MemRef:$coords,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         I64ArrayAttr:$output_size,
         F64Attr:$spatial_scale,
         IE_ROIPoolingMethod:$method,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2187,8 +1816,6 @@ def VPUIP_ROIPoolingUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -2211,17 +1838,13 @@ def VPUIP_ROIAlignUPAOp :
         MemRefOf<[SI32]>:$roisIdx,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         IntAttr:$pooled_h,
         IntAttr:$pooled_w,
         IntAttr:$sampling_ratio,
         F64Attr:$spatial_scale,
         IE_ROIAlignMethod:$poolingMode,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2242,8 +1865,6 @@ def VPUIP_ROIAlignUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `,` $roisIdx `:` type($roisIdx)`)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -2264,13 +1885,9 @@ def VPUIP_PermuteUPAOp :
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         OptionalAttr<AffineMapAttr>:$order_value,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2290,8 +1907,6 @@ def VPUIP_PermuteUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -2433,6 +2048,7 @@ def VPUIP_PPETaskOp :
 def VPUIP_NCEClusterTaskOp :
         VPUIP_TaskOp<1, "NCEClusterTask",
             [
+                AttrSizedOperandSegments,
                 ViewLikeOpInterface,
                 NoRegionArguments,
                 OpAsmOpInterface
@@ -2468,9 +2084,6 @@ def VPUIP_NCEClusterTaskOp :
         AnyMemRef:$parent_output,
 
         MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
-
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
 
         VPUIP_NCETaskType:$task_type,
         OptionalAttr<I64ArrayAttr>:$kernel_size,
@@ -2510,8 +2123,6 @@ def VPUIP_NCEClusterTaskOp :
         `parent_input` `(` $parent_input `:` type($parent_input) `)`
         `parent_output` `(` $parent_output `:` type($parent_output) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
         `variants` `:` $variants
         `PPE` `:` $ppe
@@ -2560,13 +2171,9 @@ def VPUIP_CTCGreedyDecoderUPAOp :
         F16MemRef:$sequenceLengths,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         UnitAttr:$mergeRepeated,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2591,8 +2198,6 @@ def VPUIP_CTCGreedyDecoderUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $sequenceLengths `:` type($sequenceLengths) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -2620,13 +2225,9 @@ def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
         MemRefOf<[SI32]>:$output_buff,
         MemRefOf<[SI32]>:$outputLength_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         UnitAttr:$mergeRepeated,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2648,8 +2249,6 @@ def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $sequenceLength `:` type($sequenceLength) `,` ($blankIndex^ `:` type($blankIndex))? `)`
         `outputs` `(` $output_buff `:` type($output_buff) `,` $outputLength_buff `:` type($outputLength_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -2675,16 +2274,12 @@ def VPUIP_PadUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         I64ArrayAttr:$pads_begin,
         I64ArrayAttr:$pads_end,
         OptionalAttr<F64Attr>:$pad_value,
         IE_PadMode:$mode,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2706,8 +2301,6 @@ def VPUIP_PadUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -2734,11 +2327,7 @@ def VPUIP_LSTMCellUPAOp :
         F16MemRef:$outputHiddenState_buff,
         F16MemRef:$outputCellState_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2762,8 +2351,6 @@ def VPUIP_LSTMCellUPAOp :
         `,` $initialCellState `:` type($initialCellState) `,` $weights `:` type($weights) `,` $biases `:` type($biases) `)`
         `outputs` `(` $outputHiddenState_buff `:` type($outputHiddenState_buff)
         `,` $outputCellState_buff `:` type($outputCellState_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -2793,7 +2380,8 @@ def VPUIP_SW_KernelOp :
         VPUIP_TaskOp<1, "SW.Kernel",
             [
                 MultiViewOpInterface,
-                IsolatedFromAbove
+                IsolatedFromAbove,
+                AttrSizedOperandSegments
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -2808,9 +2396,7 @@ def VPUIP_SW_KernelOp :
         SymbolRefAttr:$kernelFunction,
         Variadic<AnyMemRef>:$inputs,
         Variadic<AnyMemRef>:$output_buffs,
-        OptionalAttr<IntAttr>:$tileIndex,
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers
+        OptionalAttr<IntAttr>:$tileIndex
     );
 
     let results = (outs Variadic<AnyMemRef>:$results);
@@ -2836,8 +2422,6 @@ def VPUIP_SW_KernelOp :
         `inputs` `(`$inputs `:` type($inputs)`)`
         `outputs` `(`$output_buffs `:` type($output_buffs)`)`
         (`on` `tile` $tileIndex^)?
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
 
         $body
@@ -2878,14 +2462,10 @@ def VPUIP_LSTMSequenceUPAOp :
         F16MemRef:$outputCellState_buff,
         F16MemRef:$outputHiddenState_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         IntAttr:$sequenceLength,
         IE_RNNSequenceDirection:$direction,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2912,8 +2492,6 @@ def VPUIP_LSTMSequenceUPAOp :
         `outputs` `(` $outputHiddenValues_buff `:` type($outputHiddenValues_buff)
         `,` $outputCellState_buff `:` type($outputCellState_buff)
         `,` $outputHiddenState_buff `:` type($outputHiddenState_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -2940,16 +2518,12 @@ def VPUIP_InterpolateUPAOp :
 
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         IE_InterpolateMode:$mode,
         IE_InterpolateCoordMode:$coord_mode,
         IE_InterpolateNearestMode:$nearest_mode,
         UnitAttr:$antialias,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2973,8 +2547,6 @@ def VPUIP_InterpolateUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -2998,15 +2570,11 @@ def VPUIP_StridedSliceUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         I64ArrayAttr:$begins,
         I64ArrayAttr:$ends,
         I64ArrayAttr:$strides,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -3027,8 +2595,6 @@ def VPUIP_StridedSliceUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -3051,10 +2617,7 @@ def VPUIP_FullyConnectedUPAOp :
         Optional<F16MemRef>:$bias,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -3077,8 +2640,6 @@ def VPUIP_FullyConnectedUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $weights `:` type($weights) (`,` $bias^ `:` type($bias))? `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -3105,10 +2666,7 @@ def VPUIP_RegionYoloUPAOp :
         OptionalAttr<BoolAttr>:$do_softmax,
         OptionalAttr<I64ArrayAttr>:$mask,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -3133,8 +2691,6 @@ def VPUIP_RegionYoloUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 
@@ -3162,15 +2718,11 @@ def VPUIP_MVNUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         OptionalAttr<BoolAttr>:$across_channels,
         OptionalAttr<BoolAttr>:$normalize_variance,
         F64Attr:$eps,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -3197,8 +2749,6 @@ def VPUIP_MVNUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -3221,13 +2771,9 @@ def VPUIP_GatherUPAOp :
         MemRefOf<[SI32]>:$indices,
         AnyMemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         IntAttr:$axis,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -3253,8 +2799,6 @@ def VPUIP_GatherUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -3279,11 +2823,7 @@ def VPUIP_CeilingUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -3304,8 +2844,6 @@ def VPUIP_CeilingUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -3327,13 +2865,9 @@ def VPUIP_GatherElementsUPAOp :
         MemRefOf<[SI64, SI32]>:$indices,
         AnyMemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         IntAttr:$axis,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -3355,8 +2889,6 @@ def VPUIP_GatherElementsUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
@@ -3379,15 +2911,11 @@ def VPUIP_NormalizeIEUPAOp :
         F16MemRef:$weights,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         F64Attr:$eps,
         BoolAttr:$across_spatial,
         BoolAttr:$channel_shared,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -3411,8 +2939,6 @@ def VPUIP_NormalizeIEUPAOp :
         attr-dict
         `inputs` `(` $data `:` type($data) `,` $weights `:` type($weights) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }

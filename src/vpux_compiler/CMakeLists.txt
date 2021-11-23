@@ -265,8 +265,12 @@ add_dialect("VPUIP")
 add_op_interfaces("dialect/VPUIP")
 add_enum_attrs("VPUIP")
 add_struct_attrs("VPUIP")
-add_types("VPUIP")
 add_passes("dialect/VPUIP" "VPUIP")
+
+add_dialect("VPURT")
+add_op_interfaces("dialect/VPURT")
+add_types("VPURT")
+add_passes("dialect/VPURT" "VPURT")
 
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")

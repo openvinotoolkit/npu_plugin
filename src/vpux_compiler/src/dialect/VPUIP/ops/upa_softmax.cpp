@@ -40,7 +40,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(SoftMaxUPAOp op) {
 
 void vpux::VPUIP::SoftMaxUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                       mlir::Value output, mlir::IntegerAttr axisInd) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, axisInd, nullptr, nullptr);
+    build(builder, state, input, output, axisInd, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftMaxUPAOp::serialize(VPUIP::BlobWriter& writer) {

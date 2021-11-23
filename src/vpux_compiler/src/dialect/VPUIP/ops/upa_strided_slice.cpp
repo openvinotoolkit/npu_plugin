@@ -20,8 +20,7 @@ using namespace vpux;
 void vpux::VPUIP::StridedSliceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                            mlir::Value output, mlir::ArrayAttr begins, mlir::ArrayAttr ends,
                                            mlir::ArrayAttr strides) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, begins, ends, strides, nullptr,
-          nullptr);
+    build(builder, state, input, output, begins, ends, strides, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::StridedSliceUPAOp::serialize(VPUIP::BlobWriter& writer) {

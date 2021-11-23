@@ -26,8 +26,7 @@ VPUIP::BlobWriter::SpecificTask SW_KernelOp::serialize(vpux::VPUIP::BlobWriter& 
 void SW_KernelOp::build(mlir::OpBuilder& builder, mlir::OperationState& opState, mlir::ValueRange inputs,
                         mlir::ValueRange results, mlir::SymbolRefAttr kernelFunction, mlir::IntegerAttr tileIndex) {
     // looks this is a result types
-    build(builder, opState, results.getTypes(), kernelFunction, inputs, results, tileIndex, mlir::ValueRange{},
-          mlir::ValueRange{});
+    build(builder, opState, results.getTypes(), kernelFunction, inputs, results, tileIndex);
 }
 
 mlir::LogicalResult SW_KernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc,

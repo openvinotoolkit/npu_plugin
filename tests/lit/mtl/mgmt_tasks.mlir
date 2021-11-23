@@ -27,11 +27,17 @@ module @mainModule attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Refe
     ExecutorResource 2 of "DMA_NN"
   }
   func private @"mgmt_task_test!quant.uniform<u8:f32, 1.000000e+00>_!quant.uniform<u8:f32, 1.000000e+00>_f16"(%arg0: memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "ProgrammableInput">, %arg1: memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">) -> memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput"> {
-    %1 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-    %2 = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
-    VPUIP.Empty updates(%1 : !VPUIP.Barrier)
-    VPUIP.Empty waits(%1 : !VPUIP.Barrier) updates(%2 : !VPUIP.Barrier)
-    VPUIP.Empty waits(%2 : !VPUIP.Barrier)
+    %1 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
+    %2 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
+    VPURT.Task updates(%1 : !VPURT.Barrier) op :  {
+      VPUIP.Empty
+    }
+    VPURT.Task waits(%1 : !VPURT.Barrier) updates(%2 : !VPURT.Barrier) op :  {
+      VPUIP.Empty
+    }
+    VPURT.Task waits(%2 : !VPURT.Barrier) op :  {
+      VPUIP.Empty
+    }
     return %arg1 : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">
   }
   IE.CNNNetwork entryPoint : @"mgmt_task_test!quant.uniform<u8:f32, 1.000000e+00>_!quant.uniform<u8:f32, 1.000000e+00>_f16" inputsInfo :  {

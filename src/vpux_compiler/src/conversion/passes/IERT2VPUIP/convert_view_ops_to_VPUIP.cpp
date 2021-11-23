@@ -51,7 +51,7 @@ Byte ViewLikeRewrite::calculateOffset(mlir::Value val) const {
         offset = calculateOffset(source);
     }
 
-    if (auto declareOp = mlir::dyn_cast_or_null<VPUIP::DeclareTensorOp>(val.getDefiningOp())) {
+    if (auto declareOp = mlir::dyn_cast_or_null<VPURT::DeclareBufferOp>(val.getDefiningOp())) {
         offset += Byte(declareOp.dataIndex());
     }
 
@@ -86,7 +86,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
     VPUIP::MemoryLocation locale = VPUIP::MemoryLocation::VPU_DDR_Heap;
     SmallVector<int64_t> localeIndex;
 
-    if (auto declareOp = rootVal.getDefiningOp<VPUIP::DeclareTensorOp>()) {
+    if (auto declareOp = rootVal.getDefiningOp<VPURT::DeclareBufferOp>()) {
         _log.nest().trace("It aliases internal buffer produced by '{0}'", declareOp->getLoc());
 
         locale = declareOp.locale();
@@ -136,7 +136,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
     }
 
     const auto outType = origOp->getResult(0).getType();
-    rewriter.replaceOpWithNewOp<VPUIP::DeclareTensorOp>(origOp, outType, locale, localeIndex, dataOffset.count());
+    rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, locale, localeIndex, dataOffset.count());
 
     return mlir::success();
 }
@@ -170,6 +170,7 @@ void ConvertViewOps2VPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<mlir::async::AsyncDialect>();
     target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
+    target.addLegalDialect<VPURT::VPURTDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
 
     target.addLegalOp<VPUIP::SW_KernelOp>();

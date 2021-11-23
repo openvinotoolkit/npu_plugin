@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 #include "vpux/utils/core/format.hpp"
 
@@ -21,12 +21,7 @@ using namespace vpux;
 // ConfigureBarrierOp
 //
 
-void vpux::VPUIP::ConfigureBarrierOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, int64_t id) {
-    build(builder, state, vpux::VPUIP::BarrierType::get(builder.getContext()), id, mlir::ValueRange{},
-          mlir::ValueRange{});
-}
-
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConfigureBarrierOp::serialize(VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask vpux::VPURT::ConfigureBarrierOp::serialize(VPUIP::BlobWriter& writer) {
     const auto barrier = writer.createBarrier(this->barrier(), this->id());
 
     MVCNN::BarrierConfigurationTaskBuilder subBuilder(writer);

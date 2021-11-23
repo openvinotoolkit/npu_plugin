@@ -133,3 +133,22 @@ func @WithAsyncRegions(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<1
     // CHECK:       [[VAR2:%.+]] = async.await [[F2]] : !async.value<memref<10xf16>>
     // CHECK:       return [[VAR2]] : memref<10xf16>
 }
+
+// CHECK-LABEL: @TimestampLayer
+func @TimestampLayer(%arg0: memref<1xui32>) -> memref<1xui32> {
+    %0 = IERT.StaticAlloc<0> -> memref<1xui32, "CMX_NN">
+    %1 = IERT.Timestamp(%0 : memref<1xui32, "CMX_NN">) -> memref<1xui32, "CMX_NN">
+    %2 = IERT.Copy inputs(%1 : memref<1xui32, "CMX_NN">) outputs(%arg0 : memref<1xui32>) -> memref<1xui32>
+    return %2: memref<1xui32>
+
+    // CHECK:       [[VAR0:%.*]] = IERT.StaticAlloc<0>
+    // CHECK-NOT:       IERT.Timestamp
+    // CHECK:       [[VAR1:%.*]] = VPURT.DeclareBuffer "AbsoluteAddr" [0]
+    // CHECK:       [[VAR2:%.*]] = VPUIP.NNDMA 
+    // CHECK-SAME:           inputs([[VAR1]] : memref<1xui32, "AbsoluteAddr">) 
+    // CHECK-SAME:           outputs([[VAR0]] : memref<1xui32, "CMX_NN">)
+    // CHECK:       [[VAR3:%.*]] = VPUIP.NNDMA 
+    // CHECK:           inputs([[VAR2]] : memref<1xui32, "CMX_NN">) 
+    // CHECK:           outputs(%arg0 : memref<1xui32>)
+    // CHECK:       return [[VAR3]] : memref<1xui32>
+}

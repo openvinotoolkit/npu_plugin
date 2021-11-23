@@ -21,7 +21,7 @@ using namespace vpux;
 
 void vpux::VPUIP::EltwiseUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input1,
                                       mlir::Value input2, mlir::Value output, VPUIP::EltwiseLayerTypeAttr type) {
-    build(builder, state, input1, input2, output, mlir::ValueRange{}, mlir::ValueRange{}, type, nullptr, nullptr);
+    build(builder, state, input1, input2, output, type, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::BlobWriter& writer) {

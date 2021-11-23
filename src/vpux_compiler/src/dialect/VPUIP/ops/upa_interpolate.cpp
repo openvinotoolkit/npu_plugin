@@ -50,8 +50,7 @@ void vpux::VPUIP::InterpolateUPAOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::Value output, vpux::IE::InterpolateModeAttr mode,
                                           vpux::IE::InterpolateCoordModeAttr coord_mode,
                                           vpux::IE::InterpolateNearestModeAttr nearest_mode, mlir::UnitAttr antialias) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, mode, coord_mode, nearest_mode,
-          antialias, nullptr, nullptr);
+    build(builder, state, input, output, mode, coord_mode, nearest_mode, antialias, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::InterpolateUPAOp::serialize(VPUIP::BlobWriter& writer) {

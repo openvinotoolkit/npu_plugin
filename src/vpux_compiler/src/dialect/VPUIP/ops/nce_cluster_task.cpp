@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
@@ -37,9 +38,8 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
-          parent_output, output_buff, mlir::ValueRange{}, mlir::ValueRange{},
-          vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size, kernel_strides,
-          kernel_padding, activation_window_channel_length, is_continued);
+          parent_output, output_buff, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
+          kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -550,14 +550,14 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
 
     // Find corresponding DeclaretensorOp to get all the data needed to build
     // new TensorReference
-    VPUIP::DeclareTensorOp tensorOp;
-    if (mlir::isa<VPUIP::DeclareTensorOp>(nceTask->output_buff().getDefiningOp())) {
-        tensorOp = nceTask->output_buff().getDefiningOp<VPUIP::DeclareTensorOp>();
-    } else if (mlir::isa<VPUIP::DeclareTensorOp>(nceTask->parent_output().getDefiningOp())) {
-        tensorOp = nceTask->parent_output().getDefiningOp<VPUIP::DeclareTensorOp>();
+    VPURT::DeclareBufferOp tensorOp;
+    if (mlir::isa<VPURT::DeclareBufferOp>(nceTask->output_buff().getDefiningOp())) {
+        tensorOp = nceTask->output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
+    } else if (mlir::isa<VPURT::DeclareBufferOp>(nceTask->parent_output().getDefiningOp())) {
+        tensorOp = nceTask->parent_output().getDefiningOp<VPURT::DeclareBufferOp>();
     }
 
-    VPUX_THROW_UNLESS(tensorOp != nullptr, "Unable to find parent DeclareTensorOp to build new TensorReference");
+    VPUX_THROW_UNLESS(tensorOp != nullptr, "Unable to find parent DeclareBufferOp to build new TensorReference");
 
     ArrayRef<uint8_t> zeroPointsArrRef = makeArrayRef(quantZeroPoints);
 

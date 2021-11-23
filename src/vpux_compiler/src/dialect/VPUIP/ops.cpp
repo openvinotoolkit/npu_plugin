@@ -507,11 +507,6 @@ void vpux::VPUIP::VPUIPDialect::initialize() {
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/VPUIP/generated/ops.cpp.inc>
             >();
-
-    addTypes<
-#define GET_TYPEDEF_LIST
-#include <vpux/compiler/dialect/VPUIP/generated/types.cpp.inc>
-            >();
 }
 
 //

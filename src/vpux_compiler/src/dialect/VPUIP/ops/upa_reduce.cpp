@@ -21,8 +21,7 @@ using namespace vpux;
 void vpux::VPUIP::ReduceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                      mlir::Value axes, mlir::Value output, mlir::BoolAttr keep_dims,
                                      VPUIP::ReduceLayerTypeAttr type) {
-    build(builder, state, input, axes, output, mlir::ValueRange{}, mlir::ValueRange{}, keep_dims, type, nullptr,
-          nullptr);
+    build(builder, state, input, axes, output, keep_dims, type, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceUPAOp::serialize(VPUIP::BlobWriter& writer) {
