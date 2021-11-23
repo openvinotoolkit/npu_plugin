@@ -49,10 +49,10 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
     return builder.Finish();
 }
 
-static void getActShaveBinaries(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
-                                SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
+static void getActShaveBinaries(const ActShaveCompileParams& params, const CompilationUnitDesc& unitDesc,
+                                SmallVector<uint8_t>& textBinary, SmallVector<uint8_t>& dataBinary) {
     SmallString genDir;
-    if (sys::fs::exists(KERNEL_DIRECTORY) && sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
+    if (sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
         genDir = sys::path::parent_path(LIBRARY_OUTPUT_DIRECTORY);
     } else {
         // probe for OV_BUILD_DIR
@@ -101,8 +101,7 @@ static void getActShaveBinaries(const movitools::MoviCompileParams& params, cons
     readBinary(prebuiltKernelData, dataBinary, 0x10);
 }
 
-ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
-                                       const movitools::MoviCompileParams& params) {
+ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, const ActShaveCompileParams& params) {
     // Use moviCompile to compile and link C source code into an ELF binary.
     // and then using objcopy teardown elf into text and data sections
     SmallVector<uint8_t, 128> textBinary;
@@ -124,29 +123,6 @@ ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
     return result;
 }
 
-// ActKernelDesc compileKernelForACTShave(const CompilationListDesc& listDesc,
-//                                       const movitools::MoviCompileParams& params) {
-//    // Use moviCompile to compile and link C source code into an ELF binary.
-//    // and then using objcopy teardown elf into text and data sections
-//    SmallVector<uint8_t, 128> textBinary;
-//    SmallVector<uint8_t, 128> dataBinary;
-//    compileAndLinkSHAVE(params, listDesc, textBinary, dataBinary);
-//
-//    // lets pad textBinary by 1K array at the end with FC CC FC CC
-//    for (int i = 0; i != 512; i++) {
-//        textBinary.push_back(0xFC);
-//        textBinary.push_back(0xCC);
-//    }
-//
-//    ActKernelDesc result;
-//    result.text = {listDesc.name.data(), textBinary, textBinary.size() - 1024};
-//
-//    auto dataName = std::string(listDesc.name) + ".data";
-//    result.data = {dataName, dataBinary, dataBinary.size()};
-//
-//    return result;
-//}
-
 const CompilationUnitDesc& managementKernelCompilationDesc() {
     static const CompilationUnitDesc unitDesc{
             "nnActEntry",
@@ -156,7 +132,7 @@ const CompilationUnitDesc& managementKernelCompilationDesc() {
     return unitDesc;
 }
 
-ActKernelDesc compileManagementKernelForACTShave(const movitools::MoviCompileParams& params) {
+ActKernelDesc compileManagementKernelForACTShave(const ActShaveCompileParams& params) {
     const auto& unitDesc = managementKernelCompilationDesc();
 
     return compileKernelForACTShave(unitDesc, params);
