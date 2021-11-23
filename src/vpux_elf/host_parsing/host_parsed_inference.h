@@ -69,37 +69,37 @@ struct BarrierWrapper {
 };
 
 extern "C" struct ActKernelRange {
-    ActWLType type_{ActWLType::WL_UNKNOWN};
-    actKernelEntry kernelEntry_{nullptr}; // entry point to main func (hswish etc)
-    actKernelTextBuffer textWindowBase_{nullptr}; // pointer to real address of text window (not 1d)
+    ActWLType type_;
+    actKernelEntry kernelEntry_; 
+    actKernelTextBuffer textWindowBase_; 
 
-    uint32_t codeSize_{0};
-    uint32_t dataSecSize_{0};
+    uint32_t codeSize_;
+    uint32_t dataSecSize_;
 };
 
 extern "C" struct ActKernelInvocation {
-    ActKernelRange *range_{nullptr};
-    act_kernel_args *kernelArgs_{nullptr}; //
-    actKernelDataBuffer dataWindowBase_{nullptr}; //pointer to real address of data window (not 1e)
+    ActKernelRange range_;   
+    act_kernel_args kernelArgs_; 
+    actKernelDataBuffer dataWindowBase_; 
 
-    BarrierConfig barriers_{};
-    // BarrierGpioConfig barriers_gpio_{}; NOT PRESENT IN DPU INVARIANT AS WELL
-    unsigned int invo_index_{0};
+    BarrierConfig barriers_;
+    // BarrierGpioConfig barriers_gpio_{}; 
+    uint32_t invo_index_;
 };
+
+
 extern "C" struct ActKernelRuntimeConfigs_backend {
-    unsigned int stackFrames_[4]{0}; // AS_TOTAL = AS_PER_TILE * MAX_TILES = 4 * 4
-    unsigned int stackSize_{0};
-    bool useScheduleEmbeddedRt_{false};
+    uint32_t stackFrames_[4];
+    uint32_t stackSize_;
+    bool useScheduleEmbeddedRt_;
 
     // when useScheduleEmbeddedRt = true
-    // this is a windowed address
-    // idk what dis is
-    actRuntimeEntry runtimeEntry_{nullptr};
+    actRuntimeEntry runtimeEntry_;
 
     // when useScheduleEmbeddedRt = false; FW copies ActRt to this buffer
     // when useScheduleEmbeddedRt = true; buffer already contains the ActRt
-    unsigned char *actRtWindowBase_{nullptr};
-    unsigned int codeWindowBufferSize_{0};
+    uint32_t actRtWindowBase_; 
+    uint32_t codeWindowBufferSize_;
 };
 
 struct ActKernelRuntimeConfigs {
@@ -111,15 +111,15 @@ struct ActKernelRuntimeConfigs {
 struct ActKernelRangeWrapper {
     ActKernelRange kRange_;
     // RelativeAddress kernelTextBuffer_;
-    unsigned int kInvoCount_;
+    uint32_t kInvoCount_;
 };
 
 struct ActKernelInvocationWrapper {
     ActKernelInvocation kInvo_;
     // RelativeAddress kernelDataBuffer_;
     // RelativeAddress args_;
-    unsigned int kRangeIndex_;
-    unsigned int tile_;
+    uint32_t kRangeIndex_;
+    uint32_t tile_;
 };
 
 struct MappedInference {
@@ -133,7 +133,7 @@ struct MappedInference {
     // TBD - one of these lists may go away depending on final SW layer design
     TaskReference<ActKernelRangeWrapper> actKRanges;
     TaskReference<ActKernelInvocationWrapper> actKInvocations;
-    ActKernelRuntimeConfigs actRtConfigs;
+    // ActKernelRuntimeConfigs actRtConfigs;
 
 };
 

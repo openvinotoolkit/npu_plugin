@@ -38,21 +38,7 @@ int main(int argc, char* argv[]) {
 
     blobSerializer.addActKernel();
 
-    // auto in_out_size = 256 * 256 * 1; // iw * ih * ic
-
-    // float input[in_out_size];
-    // float output[in_out_size];
-
-    // for (int i = 0; i < 256*256*1; i++){
-    //     input[i] = 0;
-    //     output[i] = 0;
-    // }
-
-    // uint32_t tensor_size = 256 * 56;
-
-
     blobSerializer.addActInvocation();
-    // blobSerializer.addActInvocation();
 
     blobSerializer.finalizeActKernelWrappers();
 

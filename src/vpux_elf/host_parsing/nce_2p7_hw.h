@@ -9,19 +9,19 @@ namespace host_parsing {
 
 
 // Act Kernel stuff
-typedef void *actKernelDataBuffer;
-typedef void *actKernelTextBuffer;
-typedef void act_kernel_args;
-typedef void (*actKernelEntry)(act_kernel_args *);
-typedef void (*actRuntimeEntry)(const uint32_t);
+typedef uint32_t actKernelDataBuffer;
+typedef uint32_t actKernelTextBuffer;
+typedef uint32_t act_kernel_args;
+typedef uint32_t actKernelEntry;
+typedef uint32_t actRuntimeEntry;
 
-enum class ActWLType : uint8_t { WL_KERNEL = 0x00, WL_DEBUG = 0x04, WL_UNKNOWN };
+enum ActWLType : uint8_t { WL_KERNEL = 0x00, WL_DEBUG = 0x04, WL_UNKNOWN };
 
 // hswish params
 typedef struct {
     uint16_t iw; // used by hswish - input width
     uint16_t ih; // used by hswish - input height
-    uint16_t ic; // used by hswish - input channels?
+    uint16_t ic; // used by hswish - input channels
     uint16_t ow;
     uint16_t oh;
     uint16_t oc;
@@ -29,7 +29,7 @@ typedef struct {
     uint16_t fh : 8;
     uint16_t stride_w : 8;
     uint16_t stride_h : 8;
-    float leaky_relu_alpha;
+    uint32_t leaky_relu_alpha; // uint32, was float
 }kernel_op;
 
 // pointers -> uint32_t

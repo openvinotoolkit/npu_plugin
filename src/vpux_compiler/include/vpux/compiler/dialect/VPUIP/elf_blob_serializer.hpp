@@ -193,8 +193,6 @@ private:
 
     // Act Kernel Invocations
     elf::writer::Symbol* m_actKernelInvocationSymbol = nullptr;
-    elf::writer::BinaryDataSection<host_parsing::ActKernelInvocation>* m_temp_actKernelInvocations = nullptr;
-    elf::writer::RelocationSection* m_temp_actKernelInvocationRela = nullptr;
     elf::writer::BinaryDataSection<host_parsing::ActKernelInvocationWrapper>* m_actKernelInvocations = nullptr;
     elf::writer::RelocationSection* m_actKernelInvocationRela = nullptr;
 };
