@@ -57,6 +57,35 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 # SW Runtime kernels folder
 /sw_runtime_kernels @vmskv @esmirno
 #
+# Tests folder
+/tests @alpkn
+#
+/tests/functional/behavior @ArtemySkrebkov-intel @mznamens @alpkn
+/tests/functional/common @ArtemySkrebkov-intel @mznamens
+/tests/functional/compile @ArtemySkrebkov-intel @mznamens
+/tests/functional/internal @ArtemySkrebkov-intel @mznamens
+/tests/functional/shared_test_classes @alpkn
+/tests/functional/shared_test_instances @alpkn
+/tests/functional/shared_test_instances/behavior @ArtemySkrebkov-intel @mznamens @alpkn
+/tests/functional/shared_test_instances/blob_tests @ArtemySkrebkov-intel @mznamens @alpkn
+/tests/functional/shared_test_instances/single_layer_tests @maxim-kurin @vinograd47 @alpkn
+/tests/functional/shared_test_instances/subgraph_tests @maxim-kurin @vinograd47 @alpkn
+/tests/functional/single_layer_tests @maxim-kurin @alpkn
+/tests/functional/subgraph_tests @maxim-kurin @vinograd47 @alpkn
+#
+/tests/libs @alpkn
+/tests/lit @vinograd47 @nikita-kud
+#
+/tests/unit/frontend_mcm @ArtemySkrebkov-intel @mmineeva
+/tests/unit/hddl2_tests @ArtemySkrebkov-intel @mznamens
+/tests/unit/kmb @ArtemySkrebkov-intel @mznamens
+/tests/unit/mcmCompiler @syao-2015 @mmineeva
+/tests/unit/mtl @gladilov-gleb @MikhailPedus @briangrifiin
+/tests/unit/vpux_compiler @vinograd47 @nikita-kud
+/tests/unit/vpux_elf @gladilov-gleb @AndrewBakalinIntel 
+/tests/unit/vpux_utils @vinograd47 @nikita-kud
+/tests/unit/CMakeLists.txt @alpkn
+#
 # tools folder
 /tools @shokinal @mmineeva
 #
