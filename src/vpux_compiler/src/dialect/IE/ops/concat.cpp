@@ -108,17 +108,16 @@ mlir::FailureOr<Shape> inferOutShapeWithAxis(IE::ConcatOpAdaptor concat, mlir::L
             return errorAt(loc, "Concat inputs have mismatched ranks: '{0}' vs '{1}'", curShape.size(),
                            outShape.size());
         }
-
         outShape[axis] += curShape[axis];
     }
 
-    const auto offset = concat.per_axis().offset() ? concat.per_axis().offset().getValue().getSExtValue() : 0;
-    const auto stride = concat.per_axis().stride() ? concat.per_axis().stride().getValue().getSExtValue() : 1;
+    // const auto offset = concat.per_axis().offset() ? concat.per_axis().offset().getValue().getSExtValue() : 0;
+    // const auto stride = concat.per_axis().stride() ? concat.per_axis().stride().getValue().getSExtValue() : 1;
 
-    if (offset > outShape[axis] || offset + stride > outShape[axis]) {
-        return errorAt(loc, "Concat offset '{0}' and stride '{1}' are larger than output dimension '{2}'", offset,
-                       stride, outShape[axis]);
-    }
+    // if (offset > outShape[axis] || offset + stride > outShape[axis]) {
+    //     return errorAt(loc, "Concat offset '{0}' and stride '{1}' are larger than output dimension '{2}'", offset,
+    //                    stride, outShape[axis]);
+    // }
 
     return outShape;
 }
