@@ -425,6 +425,10 @@ mlir::LogicalResult FuseWithEltwiseConverter<ConcreteOp>::matchAndRewrite(IE::Qu
         return mlir::failure();
     }
 
+    if (VPUIP::NCEInvariant::verifyKernel(eltwiseOp, _log).failed()) {
+        return mlir::failure();
+    }
+
     if (eltwiseOp.input1().getType().template cast<mlir::ShapedType>().getShape() !=
         eltwiseOp.input2().getType().template cast<mlir::ShapedType>().getShape()) {
         return mlir::failure();

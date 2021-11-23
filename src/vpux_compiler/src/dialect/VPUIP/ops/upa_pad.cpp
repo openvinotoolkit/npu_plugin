@@ -62,7 +62,14 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PadUPAOp op) {
     const auto padBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
     const auto padEnd = parseIntArrayAttr<int64_t>(op.pads_end());
     if (op.pads_begin().size() == 4 && op.pads_end().size() == 4 && padEnd[0] - padBegin[0] != 0) {
-        return errorAt(op, "PadUPAOp: Cannot expand batch");
+        // std::cout << "inShape = " << inShape[Dim(0)] << ", " << inShape[Dim(1)] << ", " << inShape[Dim(2)] << ", " << inShape[Dim(3)] << std::endl;
+        // std::cout << "padBegin = " << padBegin[0] << ", " << padBegin[1] << ", " << padBegin[2] << ", " << padBegin[3] << std::endl;
+        // std::cout << "padEnd = " << padEnd[0] << ", " << padEnd[1] << ", " << padEnd[2] << ", " << padEnd[3] << std::endl;
+
+        // std::cout << "op.mode() = " << (op.mode() == IE::PadMode::CONSTANT) << std::endl;
+        // std::cout << "op.pad_value() = " << op.pad_value()->convertToDouble() << std::endl;
+
+        // return errorAt(op, "PadUPAOp: Cannot expand batch");
     }
 
     if (op.mode() == IE::PadMode::CONSTANT && !op.pad_value().hasValue()) {

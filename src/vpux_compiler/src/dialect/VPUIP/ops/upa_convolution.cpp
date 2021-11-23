@@ -34,6 +34,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ConvolutionUPAOp op) {
     const auto filterLayout = DimsOrder::fromValue(op.filter());
 
     if (filterLayout != expectedFilterLayout) {
+        // return errorAt(op, "filter layout must be {0}, got {1}", expectedFilterLayout, filterLayout);
         return errorAt(op, "filter layout must be {0}, got {1}", expectedFilterLayout, filterLayout);
     }
 
