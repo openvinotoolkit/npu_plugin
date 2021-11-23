@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include <llvm/ADT/TypeSwitch.h>
+
 using namespace vpux;
 using namespace mlir;
 
@@ -54,6 +56,21 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
     inferredTypes.push_back(inType);
 
     return mlir::success();
+}
+
+IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
+    return llvm::TypeSwitch<mlir::Operation*, IERT::KernelInfo>(origOp)
+            .Case<IERT::SigmoidOp>([&](IERT::SigmoidOp) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"sigmoid_fp16"}, {"sigmoid_fp16.c"}};
+            })
+            .Case<IERT::SoftMaxOp>([&](IERT::SoftMaxOp softmax) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{softmax.axisIndAttr()},
+                                        {"singleShaveSoftmax"},
+                                        {"single_shave_softmax.cpp"}};
+            })
+            .Default([](mlir::Operation* unknownOp) -> IERT::KernelInfo {
+                VPUX_THROW("Operation '{0}' is not supported by the act-shaves", unknownOp->getName());
+            });
 }
 
 }  // namespace VPUIP

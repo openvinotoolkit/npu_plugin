@@ -2439,6 +2439,8 @@ def VPUIP_SwKernelOp :
         static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
                                                     mlir::ValueRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
                                                     mlir::SmallVectorImpl<mlir::Type>& inferredTypes);
+
+        static vpux::IERT::KernelInfo getKernelInfo(mlir::Operation* origOp);
     }];
 }
 

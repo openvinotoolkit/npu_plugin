@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
+#include "vpux/utils/core/small_string.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/IR/DialectInterface.h>
@@ -160,6 +161,16 @@ public:
 //
 
 bool isPureViewOp(mlir::Operation* op);
+
+//
+// SoftwareLayerOpInterface
+//
+
+struct KernelInfo final {
+    SmallVector<mlir::Attribute> args;
+    SmallString entryName;
+    SmallString sourceFileName;
+};
 
 }  // namespace IERT
 }  // namespace vpux

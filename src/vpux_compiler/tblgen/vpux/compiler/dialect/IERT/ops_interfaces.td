@@ -120,6 +120,23 @@ def IERT_AsyncLayerOpInterface : OpInterface<"AsyncLayerOpInterface"> {
 }
 
 //
+// SoftwareLayerOpInterface
+//
+
+def IERT_SoftwareLayerOpInterface : OpInterface<"SoftwareLayerOpInterface"> {
+    let description = "Interface for layers that will be executed on SHAVEs. (For MTL only)";
+
+    let cppNamespace = "vpux::IERT";
+
+    let methods = [
+        InterfaceMethod<
+            "Get information about kernel's arguments, entry point and etc.",
+            "vpux::IERT::KernelInfo", "getKernelInfo", (ins)
+        >
+    ];
+}
+
+//
 // SameShape
 //
 
