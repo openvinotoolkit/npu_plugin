@@ -151,20 +151,31 @@ private:
     mlir::SymbolRefAttr createBuiltInFunction() const {
         auto mainModuleLoc = _mainModule;
         vpux::OpBuilderLogger builderLog(_log.nest());
+        auto vpuSwModuleName = StringRef("VPU.SW");
 
-        auto mainModuleBuilder = mlir::OpBuilder::atBlockBegin(mainModuleLoc.getBody(), &builderLog);
-        auto innerModule = mainModuleBuilder.create<mlir::ModuleOp>(mlir::UnknownLoc::get(_ctx), StringRef("VPU.SW"));
+        auto innerModule = mainModuleLoc.lookupSymbol<mlir::ModuleOp>(vpuSwModuleName);
+        // creating VPU.SW module if it is not yet created
+        if (!innerModule) {
+            auto mainModuleBuilder = mlir::OpBuilder::atBlockBegin(mainModuleLoc.getBody(), &builderLog);
+            innerModule = mainModuleBuilder.create<mlir::ModuleOp>(mlir::UnknownLoc::get(_ctx), vpuSwModuleName);
+        }
 
-        auto innerModuleBuilder = mlir::OpBuilder::atBlockBegin(innerModule.getBody(), &builderLog);
-        llvm::SmallString<128> built_in_name{"builtin_"};
+        llvm::SmallString<128> builtInFunctionName{"builtin_"};
         auto nonNamespaceOpName = _origOp->getName().getStringRef().slice(
                 _origOp->getName().getDialectNamespace().size() + 1, mlir::StringRef::npos);
-        built_in_name.append(nonNamespaceOpName);
+        builtInFunctionName.append(nonNamespaceOpName);
 
-        auto builtInFunctionInternal = mlir::SymbolRefAttr::get(_ctx, built_in_name);
+        auto builtInFlatFunction = mlir::SymbolRefAttr::get(_ctx, builtInFunctionName);
 
-        auto builtInFunction =
-                mlir::SymbolRefAttr::get(_ctx, innerModule.getName().getValue(), {builtInFunctionInternal});
+        auto builtInFunction = mlir::SymbolRefAttr::get(_ctx, innerModule.getName().getValue(), {builtInFlatFunction});
+
+        // check if this builtInFunction already created - consider names are unique - e.g. no overloads
+        auto prebuiltFunction = innerModule.lookupSymbol<mlir::FuncOp>(builtInFunctionName);
+        if (prebuiltFunction) {
+            return builtInFunction;
+        }
+
+        auto innerModuleBuilder = mlir::OpBuilder::atBlockBegin(innerModule.getBody(), &builderLog);
 
         mlir::SmallVector<mlir::Type> inputTypes;
 
@@ -190,7 +201,8 @@ private:
 
         const auto funcType = mlir::FunctionType::get(_ctx, inputTypes, mlir::TypeRange{});
 
-        auto buildInOp = innerModuleBuilder.create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx), built_in_name, funcType);
+        auto buildInOp =
+                innerModuleBuilder.create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx), builtInFunctionName, funcType);
 
         // modifying attributes
         buildInOp.sym_visibilityAttr(mlir::StringAttr::get(_ctx, "private"));
