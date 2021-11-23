@@ -303,6 +303,28 @@ OutputTiling vpux::IE::generateTiles(mlir::Operation* op, Logger log) {
     return fillDividedTiles(nTilesOnDim, outputShape);
 }
 
+
+OutputTiling vpux::IE::generatePrefetchTiles(mlir::Operation* op, Logger /*log*/) {
+    VPUX_THROW_UNLESS(op->getNumResults() == 1,
+                      "Unsupported operation '{0}' at '{1}', it must have one and only one result", op->getName(),
+                      op->getLoc());
+    const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
+    const auto outputShape = getShape(outputType);
+
+    Shape nTilesOnDim(getShape(outputType).size(), 1);
+
+//    auto sliceOp = op->getOperand(0).getDefiningOp<IE::SliceOp>();
+//    const auto inputShape = getShape(sliceOp.input());
+//    const auto outputShape = getShape(sliceOp.output());
+//
+//    for (unsigned index = 0; index < inputShape.size(); ++index) {
+//        if (inputShape[Dim(index)] != outputShape[Dim(index)])
+//            nTilesOnDim[Dim(index)] = 2;
+//    }
+
+    return fillDividedTiles(nTilesOnDim, outputShape);
+}
+
 //
 // TilingInfoOpInterface
 //

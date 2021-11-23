@@ -22,26 +22,52 @@ namespace {
 // PrefetchTiling
 //
 
-//class PrefetchTiling final : public mlir::OpInterfaceRewritePattern<IE::TilingBuilderOpInterface> {
-//public:
-//    PrefetchTiling(mlir::MLIRContext* ctx, Logger log)
-//            : mlir::OpInterfaceRewritePattern<IE::TilingBuilderOpInterface>(ctx), _log(log) {
-//        this->setDebugName("PrefetchTiling");
-//    }
-//    mlir::LogicalResult matchAndRewrite(IE::TilingBuilderOpInterface origOp,
-//                                        mlir::PatternRewriter& rewriter) const final;
-//
-//private:
-//    Logger _log;
-//};
-//
-//mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
-//                                                   mlir::PatternRewriter& rewriter) const {
-//    _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
-//    
-////    const auto tiles = origOp.generatePrefetchTiling(_log.nest());
-//    
-//}
+class PrefetchTiling final : public mlir::OpInterfaceRewritePattern<IE::TilingBuilderOpInterface> {
+public:
+    PrefetchTiling(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpInterfaceRewritePattern<IE::TilingBuilderOpInterface>(ctx), _log(log) {
+        this->setDebugName("PrefetchTiling");
+    }
+    mlir::LogicalResult matchAndRewrite(IE::TilingBuilderOpInterface origOp,
+                                        mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
+                                                   mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
+
+    const auto tiles = origOp.generatePrefetchTiling(_log.nest());
+
+    _log.nest(1).trace("Create {0} tiles:", tiles.size());
+    for (const auto& outputTile : tiles) {
+        _log.nest(2).trace("{0}", outputTile);
+    }
+
+    SmallVector<mlir::Value> resultTileVals;
+    SmallVector<ShapeRef> resultTileOffsets;
+
+    resultTileVals.reserve(tiles.size());
+    resultTileOffsets.reserve(tiles.size());
+
+    for (const auto& outputTile : tiles) {
+        const auto tiledRes = origOp.reifyTile(outputTile, rewriter);
+
+        const auto tiledShape = getShape(tiledRes);
+        VPUX_THROW_UNLESS(tiledShape == outputTile.shape,
+                          "Inferred tiled output shape '{0}' doesn't match with generated '{1}'", tiledShape,
+                          outputTile.shape);
+
+        resultTileVals.push_back(tiledRes);
+        resultTileOffsets.push_back(outputTile.offsets);
+    }
+
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, origOp->getResult(0).getType(), mlir::ValueRange(resultTileVals),
+                                              makeArrayRef(resultTileOffsets));
+    return mlir::success();
+}
 
 //
 // PrefetchTilingPass
@@ -77,10 +103,9 @@ void PrefetchTilingPass::safeRunOnFunc() {
             return true;
 
         // get isolated tiling axis
-        const auto inputShape = getShape(convOp.input());
+        const auto inputShape = getShape(sliceOp.source());
         const auto outputShape = getShape(convOp.input());
         Shape tileDim(inputShape.size(), 0);
-        
         for (unsigned index = 0; index < inputShape.size(); ++index) {
             if (inputShape[Dim(index)] != outputShape[Dim(index)])
                 tileDim[Dim(index)] = 1;
@@ -93,9 +118,13 @@ void PrefetchTilingPass::safeRunOnFunc() {
         return true;
     };
     target.markUnknownOpDynamicallyLegal(isUnPrefetchable);
+
+    mlir::RewritePatternSet patterns(&ctx);
+    patterns.add<PrefetchTiling>(&ctx, _log);
+    if (mlir::failed(mlir::applyPartialConversion(getFunction(), target, std::move(patterns)))) {
+        signalPassFailure();
+    }
 }
-
-
 } // namespace
 
 std::unique_ptr<mlir::Pass> vpux::IE::createPrefetchTilingPass(Logger log) {

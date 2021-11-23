@@ -204,6 +204,8 @@ mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Val
 
 OutputTiling generateTiles(mlir::Operation* op, Logger log);
 
+OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log);
+
 //
 // TilingInfoOpInterface
 //

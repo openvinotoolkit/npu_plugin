@@ -176,6 +176,16 @@ def IE_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
             "mlir::Value", "reifyTile",
             (ins "const vpux::TileInfo&":$outputTile, "mlir::OpBuilder&":$builder)
         >,
+
+        InterfaceMethod<
+            "Generate prefetch tiling for the operation",
+            "vpux::OutputTiling", "generatePrefetchTiling",
+            (ins "vpux::Logger":$log),
+            [{}],
+            [{
+            return vpux::IE::generatePrefetchTiles($_op, log);
+            }]
+        >,
     ];
 }
 

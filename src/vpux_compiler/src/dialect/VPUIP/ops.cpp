@@ -185,12 +185,12 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     });
 }
 
-bool supportPrefetchTiling(IE::ConvolutionOp /*origOp*/, const Shape& tileAxis, Logger /*log*/) {
+bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logger /*log*/) {
     // Temporal strategy: only consider if the first n tiles (n >= 2) could be fit into the CMX memory at the same time,
     // Should consider the cost model as a final version.
+    // Nested tiling is unsupported
+    // TODO check the cmx memory for overlapping
 
-    // Nested tiling is unsupported yet
-    // TODO tiling axis check function
     bool isSingleTile = false;
     Dim tileDim = Dim(0);
     for (unsigned i = 0; i < tileAxis.size(); i++) {
@@ -202,74 +202,35 @@ bool supportPrefetchTiling(IE::ConvolutionOp /*origOp*/, const Shape& tileAxis, 
                 isSingleTile = true;
         }
     }
-    // TODO
-    if (tileDim == Dims4D::Act::H || tileDim == Dims4D::Act::W) {
-        // check prefetch tile over H
-        return true;
+    auto outputShape = getShape(origOp.output());
+    Shape nTilesOnDim(outputShape.size(), 1);
+    nTilesOnDim[tileDim]++;
+    
+    auto isDivisibleTile = [&origOp, nTilesOnDim, tileDim]() -> bool {
+        auto outputShape = getShape(origOp.output());
+        auto kernelSize = getShape(origOp.filter());
+        if (tileDim == Dims4D::Act::C) {
+            // TODO replace '16' with correct parameter
+            return (outputShape[tileDim] / nTilesOnDim[tileDim] >= 16) && 
+                   (outputShape[tileDim] % nTilesOnDim[tileDim] == 0);
+        }
+        else {
+            return outputShape[tileDim] / nTilesOnDim[tileDim] >= kernelSize[tileDim];
+        }
+    };
+    
+    while (!isDivisibleTile()) {
+        nTilesOnDim[tileDim]++;
     }
-    else if (tileDim == Dims4D::Act::C) {
-        // check prefetch tile over C
-        return true;
-    }
-    else return false;  // TODO warning log
+    return isDivisibleTile();  // TODO warning log
 }
 
-bool supportPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, const Shape& tileAxis, Logger /*log*/) {
-    // Temporal strategy: only consider if the first n tiles (n >= 2) could be fit into the CMX memory at the same time,
-    // Should consider the cost model as a final version.
-
-    // Nested tiling is unsupported yet
-    // TODO tiling axis check function
-    bool isSingleTile = false;
-    Dim tileDim = Dim(0);
-    for (unsigned i = 0; i < tileAxis.size(); i++) {
-        if (tileAxis[Dim(i)]) {
-            tileDim = Dim(i);
-            if (isSingleTile)
-                return false;
-            else
-                isSingleTile = true;
-        }
-    }
-    // TODO
-    if (tileDim == Dims4D::Act::H || tileDim == Dims4D::Act::W) {
-        // check prefetch tile over H
-        return true;
-    }
-    else if (tileDim == Dims4D::Act::C) {
-        // check prefetch tile over C
-        return true;
-    }
-    else return false;  // TODO warning log
+bool supportPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) {
+    return false;
 }
 
-bool supportPrefetchTiling(IE::MaxPoolOp /*origOp*/, const Shape& tileAxis, Logger /*log*/) {
-    // Temporal strategy: only consider if the first n tiles (n >= 2) could be fit into the CMX memory at the same time,
-    // Should consider the cost model as a final version.
-
-    // Nested tiling is unsupported yet
-    // TODO tiling axis check function
-    bool isSingleTile = false;
-    Dim tileDim = Dim(0);
-    for (unsigned i = 0; i < tileAxis.size(); i++) {
-        if (tileAxis[Dim(i)]) {
-            tileDim = Dim(i);
-            if (isSingleTile)
-                return false;
-            else
-                isSingleTile = true;
-        }
-    }
-    // TODO
-    if (tileDim == Dims4D::Act::H || tileDim == Dims4D::Act::W) {
-        // check prefetch tile over H
-        return true;
-    }
-    else if (tileDim == Dims4D::Act::C) {
-        // check prefetch tile over C
-        return true;
-    }
-    else return false;  // TODO warning log
+bool supportPrefetchTiling(IE::MaxPoolOp /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) {
+    return false;
 }
 
 template <class MainOpType>
