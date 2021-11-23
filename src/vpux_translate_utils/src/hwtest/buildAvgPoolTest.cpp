@@ -141,8 +141,9 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto nceTask = vpux::VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
             outputcmx_type, inputcmx.getOperation()->getResult(0), mlir::Value(), mlir::Value(), mlir::Value(),
-            parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
-            outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::AVEPOOL, filtersize, strides, kernel_padding,
+            /*instruction_table_list*/ nullptr, parent_inputcmx.getOperation()->getResult(0),
+            parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
+            VPUIP::NCETaskType::AVEPOOL, filtersize, strides, kernel_padding,
             /*actChannelLength*/ nullptr, /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
     // Since AvgPool operation doesn't have weights table it requires final quantization scaling

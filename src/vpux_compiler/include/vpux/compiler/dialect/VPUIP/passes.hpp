@@ -34,6 +34,7 @@ namespace VPUIP {
 //
 
 std::unique_ptr<mlir::Pass> createConvertWeightsTableOp2ConstPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertInstructionListTableOp2ConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDumpStatisticsOfTaskOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCompressWeightsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUPAProfilingPass(Logger log = Logger::global());

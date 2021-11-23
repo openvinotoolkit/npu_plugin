@@ -214,6 +214,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertNCEClusterTilingToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
+    pm.addPass(VPUIP::createConvertInstructionListTableOp2ConstPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // Level 2 : Abstract RunTime
@@ -243,7 +244,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     pm.addPass(IERT::createConvertScalarToTensorPass(log));
 
     // Lowering
-
     buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
     pm.addPass(IERT::createPatchWeightsTablePass(log));
 
@@ -310,6 +310,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(IE::createUnrollBatchPass(log));
     pm.addPass(IE::createResolvePWLPostOpsPass(log));
+    if (options.enableLowPrecision) {
+        pm.addPass(IE::createConvertQuantizeOpsToEltwisePass(log));
+    }
 
     if (options.enableUpstreamSlice) {
         pm.addPass(IE::createUpstreamSlicePass(log));
@@ -352,6 +355,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertNCEClusterTilingToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
+    pm.addPass(VPUIP::createConvertInstructionListTableOp2ConstPass(log));
 
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
@@ -391,6 +395,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
     pm.addPass(IERT::createConvertScalarToTensorPass(log));
+
+    // Lowering
 
     buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
     // Handle WeightsTable, which requires statically allocated memory

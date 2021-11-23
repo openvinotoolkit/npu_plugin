@@ -17,6 +17,10 @@
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
+#include "vpux/compiler/utils/custom_pwl_table.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
@@ -41,6 +45,7 @@ struct PwlQuantReqs {
 extern const EnumMap<VPU::PPEMode, PwlQuantReqs> pwlQuantReqs;
 
 PwlQuantReqs getPwlQuantReqs(VPU::PPEMode ppeType);
+std::unique_ptr<VPU::PwlQuantReqs> getCustomPwlQuantReqs(IE::LayerWithPostOpInterface origOp);
 
 int64_t getPwlPostShift(const VPU::PPEMode ppeType);
 int64_t getPwlClamp(const mlir::Type inElemType, const mlir::Type outElemType, const VPU::PPEMode ppeType,

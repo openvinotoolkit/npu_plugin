@@ -41,7 +41,8 @@ private:
                                         mlir::PatternRewriter& rewriter) const final;
 
     mlir::LogicalResult ensureRequantizationRange(IE::LayerWithPostOpInterface origOp, mlir::PatternRewriter& rewriter,
-                                                  const VPU::PwlQuantReqs& quantReqs) const;
+                                                  const VPU::PwlQuantReqs& quantReqs,
+                                                  const bool isRequantizeNeeded) const;
 
     template <class PostOpType>
     mlir::LogicalResult unfusePostOp(IE::LayerWithPostOpInterface origOp, llvm::StringRef postOpName,
@@ -53,7 +54,8 @@ private:
 
 mlir::LogicalResult FusableOpRewriter::ensureRequantizationRange(IE::LayerWithPostOpInterface origOp,
                                                                  mlir::PatternRewriter& rewriter,
-                                                                 const VPU::PwlQuantReqs& quantReqs) const {
+                                                                 const VPU::PwlQuantReqs& quantReqs,
+                                                                 const bool isRequantizeNeeded) const {
     _log.nest().trace("Ensure requantization range for {0}", origOp->getName());
 
     const auto origType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
@@ -73,6 +75,8 @@ mlir::LogicalResult FusableOpRewriter::ensureRequantizationRange(IE::LayerWithPo
     const auto alreadyRequantized = [&](mlir::Operation* user) {
         if (auto quantizeCastOp = mlir::dyn_cast<IE::QuantizeCastOp>(user)) {
             return quantizeCastOp.input().getType() == pwlInType && quantizeCastOp.output().getType() == pwlOutType;
+        } else if (auto dequantizeOp = mlir::dyn_cast<IE::DequantizeOp>(user)) {
+            return dequantizeOp.input().getType() == pwlInType;
         }
         return false;
     };
@@ -80,12 +84,20 @@ mlir::LogicalResult FusableOpRewriter::ensureRequantizationRange(IE::LayerWithPo
         return matchFailed(_log.nest(), rewriter, origOp, "Operation is already requantized");
     }
 
-    _log.nest().trace("Adding QuantizeCast output operation");
-
     auto clone = rewriter.clone(*origOp.getOperation());
     clone->getResult(0).setType(pwlInType);
-    rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(origOp, pwlOutType, clone->getResult(0), pwlOutElemType);
+    if (isRequantizeNeeded) {
+        _log.nest().trace("Adding QuantizeCast output operation");
+        rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(origOp, pwlOutType, clone->getResult(0), pwlOutElemType);
+    } else {
+        auto realElemType = mlir::FloatType::getF16(getContext());
 
+        _log.nest().trace("Insert Dequantize op '{0}' -> '{1}'", pwlInElemType, realElemType);
+        auto dequantizeOp = rewriter.create<IE::DequantizeOp>(origOp.getLoc(), clone->getResult(0), realElemType);
+
+        _log.nest().trace("Insert Quantize op '{0}' -> '{1}'", realElemType, pwlOutElemType);
+        rewriter.replaceOpWithNewOp<IE::QuantizeOp>(origOp, dequantizeOp.getResult(), pwlOutElemType);
+    }
     return mlir::success();
 }
 
@@ -94,7 +106,8 @@ mlir::LogicalResult FusableOpRewriter::unfusePostOp(IE::LayerWithPostOpInterface
                                                     mlir::PatternRewriter& rewriter) const {
     _log.nest().trace("Unfusing post-op {0} from {1}", postOpName, origOp->getName());
     rewriter.setInsertionPointAfter(origOp);
-    auto postOp = rewriter.create<PostOpType>(origOp->getLoc(), origOp->getResult(0));
+    auto postOp =
+            rewriter.create<PostOpType>(origOp->getLoc(), origOp->getResult(0), origOp.getPostOpAttrs().getValue());
     origOp->getResult(0).replaceAllUsesExcept(postOp->getResult(0), llvm::SmallPtrSet<mlir::Operation*, 1>{postOp});
     origOp.clearPostOp();
 
@@ -130,15 +143,26 @@ mlir::LogicalResult FusableOpRewriter::matchAndRewrite(IE::LayerWithPostOpInterf
 
     if (postOpName == IE::SigmoidOp::getOperationName()) {
         if (isQuantizedPerTensor(origOp)) {
-            return ensureRequantizationRange(origOp, rewriter, VPU::getPwlQuantReqs(VPU::PPEMode::SIGMOID));
+            return ensureRequantizationRange(origOp, rewriter, VPU::getPwlQuantReqs(VPU::PPEMode::SIGMOID), true);
         } else {
             return unfusePostOp<IE::SigmoidOp>(origOp, postOpName, rewriter);
         }
     } else if (postOpName == IE::TanhOp::getOperationName()) {
         if (isQuantizedPerTensor(origOp)) {
-            return ensureRequantizationRange(origOp, rewriter, VPU::getPwlQuantReqs(VPU::PPEMode::TANH));
+            return ensureRequantizationRange(origOp, rewriter, VPU::getPwlQuantReqs(VPU::PPEMode::TANH), true);
         } else {
             return unfusePostOp<IE::TanhOp>(origOp, postOpName, rewriter);
+        }
+    } else if (postOpName == IE::LeakyReluOp::getOperationName()) {
+        if (isQuantizedPerTensor(origOp)) {
+            const auto requantCustomPWL = VPU::getCustomPwlQuantReqs(origOp);
+            if (requantCustomPWL == nullptr) {
+                return matchFailed(_log.nest(), rewriter, origOp, "QuantizeCast or Requantize is not needed");
+            }
+
+            return ensureRequantizationRange(origOp, rewriter, *requantCustomPWL, false);
+        } else {
+            return unfusePostOp<IE::LeakyReluOp>(origOp, postOpName, rewriter);
         }
     }
 
