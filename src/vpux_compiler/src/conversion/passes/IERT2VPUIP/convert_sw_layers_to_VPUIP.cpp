@@ -81,7 +81,7 @@ public:
             outputCMXTensors.push_back(allocOp.memref());
         }
 
-        auto sw_kernel_op = _rewriter.get().create<VPUIP::SW_KernelOp>(
+        auto sw_kernel_op = _rewriter.get().create<VPUIP::SwKernelOp>(
                 _origOp->getLoc(), inputCMXTensors, outputCMXTensors, builtInFunction, getIntAttr(ctx, tileIndex));
 
         initSwKernel(sw_kernel_op, inputCMXTensors, outputCMXTensors);
@@ -110,7 +110,7 @@ private:
         return _rewriter.get().create<mlir::memref::AllocOp>(source.getLoc(), dataTypeCMX);
     }
 
-    void initSwKernel(VPUIP::SW_KernelOp& sw_kernel_op, mlir::ValueRange inputs, mlir::ValueRange output_bufs) const {
+    void initSwKernel(VPUIP::SwKernelOp& sw_kernel_op, mlir::ValueRange inputs, mlir::ValueRange output_bufs) const {
         OpBuilderLogger builderLog(_log.nest());
         auto& bodyRegion = sw_kernel_op.body();
         auto& sw_kernel_block = bodyRegion.emplaceBlock();
@@ -134,7 +134,7 @@ private:
                     swKernelBlockBuilder.create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(_ctx), arg));
         }
 
-        // pack input/outputs and constants into single call to sw_kernel_run
+        // pack input/outputs and constants into single call to SwKernelRun
         llvm::SmallVector<mlir::Value> operands;
         auto fetchOperands = [&operands](auto& cnt) {
             for (auto&& arg : cnt) {
@@ -145,7 +145,7 @@ private:
         fetchOperands(blockArgs);
         fetchOperands(constantArgs);
 
-        swKernelBlockBuilder.create<VPUIP::SW_Kernel_run>(mlir::UnknownLoc::get(_ctx), mlir::ValueRange(operands));
+        swKernelBlockBuilder.create<VPUIP::SwKernelRun>(mlir::UnknownLoc::get(_ctx), mlir::ValueRange(operands));
     }
 
     mlir::SymbolRefAttr createBuiltInFunction() const {
@@ -275,8 +275,8 @@ void ConvertSWLayers2VPUIPPass::safeRunOnModule() {
     target.addIllegalOp<IERT::SoftMaxOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<IERT::CopyOp>();
-    target.addLegalOp<VPUIP::SW_KernelOp>();
-    target.markOpRecursivelyLegal<VPUIP::SW_KernelOp>([&](mlir::Operation*) {
+    target.addLegalOp<VPUIP::SwKernelOp>();
+    target.markOpRecursivelyLegal<VPUIP::SwKernelOp>([&](mlir::Operation*) {
         return true;
     });
 

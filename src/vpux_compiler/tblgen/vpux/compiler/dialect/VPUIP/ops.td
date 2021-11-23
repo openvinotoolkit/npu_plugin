@@ -2360,10 +2360,10 @@ def VPUIP_LSTMCellUPAOp :
 }
 
 //
-// VPUIP_SW_Kernel_run
+// VPUIP_SwKernelRun
 //
 
-def VPUIP_SW_Kernel_run
+def VPUIP_SwKernelRun
     : VPUIP_Op<"SW.Kernel.run"> {
 
     let arguments  = (ins
@@ -2377,10 +2377,10 @@ def VPUIP_SW_Kernel_run
 }
 
 //
-// VPUIP_SW_KernelOp
+// VPUIP_SwKernelOp
 //
 
-def VPUIP_SW_KernelOp :
+def VPUIP_SwKernelOp :
         VPUIP_TaskOp<1, "SW.Kernel",
             [
                 MultiViewOpInterface,

@@ -19,23 +19,23 @@ using namespace mlir;
 namespace vpux {
 namespace VPUIP {
 
-VPUIP::BlobWriter::SpecificTask SW_KernelOp::serialize(vpux::VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask SwKernelOp::serialize(vpux::VPUIP::BlobWriter& writer) {
     return writer.createSW_KernelTask(*this);
 }
 
-void SW_KernelOp::build(mlir::OpBuilder& builder, mlir::OperationState& opState, mlir::ValueRange inputs,
-                        mlir::ValueRange results, mlir::SymbolRefAttr kernelFunction, mlir::IntegerAttr tileIndex) {
+void SwKernelOp::build(mlir::OpBuilder& builder, mlir::OperationState& opState, mlir::ValueRange inputs,
+                       mlir::ValueRange results, mlir::SymbolRefAttr kernelFunction, mlir::IntegerAttr tileIndex) {
     // looks this is a result types
     build(builder, opState, results.getTypes(), kernelFunction, inputs, results, tileIndex);
 }
 
-mlir::LogicalResult SW_KernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc,
-                                                  mlir::ValueRange operands, mlir::DictionaryAttr attrs,
-                                                  mlir::RegionRange /*regions*/,
-                                                  mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
+mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc,
+                                                 mlir::ValueRange operands, mlir::DictionaryAttr attrs,
+                                                 mlir::RegionRange /*regions*/,
+                                                 mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    VPUIP::SW_KernelOpAdaptor swKernelOp(operands, attrs);
+    VPUIP::SwKernelOpAdaptor swKernelOp(operands, attrs);
     if (mlir::failed(swKernelOp.verify(loc))) {
         return mlir::failure();
     }

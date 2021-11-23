@@ -173,8 +173,8 @@ void ConvertViewOps2VPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<VPURT::VPURTDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
 
-    target.addLegalOp<VPUIP::SW_KernelOp>();
-    target.markOpRecursivelyLegal<VPUIP::SW_KernelOp>([&](mlir::Operation*) {
+    target.addLegalOp<VPUIP::SwKernelOp>();
+    target.markOpRecursivelyLegal<VPUIP::SwKernelOp>([&](mlir::Operation*) {
         return true;
     });
 

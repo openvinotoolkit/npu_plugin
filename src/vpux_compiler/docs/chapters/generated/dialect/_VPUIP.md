@@ -1780,64 +1780,6 @@ operation ::= `VPUIP.RoundUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
-### `VPUIP.SW.Kernel` (vpux::VPUIP::SW_KernelOp)
-
-Software Layer Task
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.SW.Kernel` attr-dict
-              $kernelFunction
-              `inputs` `(`$inputs `:` type($inputs)`)`
-              `outputs` `(`$output_buffs `:` type($output_buffs)`)`
-              (`on` `tile` $tileIndex^)?
-              `->` type(results)
-              $body
-```
-
-This operation defines Activation shave task
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`kernelFunction` | ::mlir::SymbolRefAttr | symbol reference attribute
-`tileIndex` | mlir::IntegerAttr | Integer attribute
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`inputs` | memref of any type values
-`output_buffs` | memref of any type values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`results` | memref of any type values
-
-### `VPUIP.SW.Kernel.run` (vpux::VPUIP::SW_Kernel_run)
-
-
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.SW.Kernel.run` attr-dict
-              `(` operands `)` `:` type(operands)
-```
-
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`args` | any type
-
 ### `VPUIP.ScaleShiftUPA` (vpux::VPUIP::ScaleShiftUPAOp)
 
 ScaleShift UPA SHAVE kernel
@@ -2013,6 +1955,64 @@ operation ::= `VPUIP.StridedSlice` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float values
+
+### `VPUIP.SW.Kernel` (vpux::VPUIP::SwKernelOp)
+
+Software Layer Task
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SW.Kernel` attr-dict
+              $kernelFunction
+              `inputs` `(`$inputs `:` type($inputs)`)`
+              `outputs` `(`$output_buffs `:` type($output_buffs)`)`
+              (`on` `tile` $tileIndex^)?
+              `->` type(results)
+              $body
+```
+
+This operation defines Activation shave task
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`kernelFunction` | ::mlir::SymbolRefAttr | symbol reference attribute
+`tileIndex` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputs` | memref of any type values
+`output_buffs` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`results` | memref of any type values
+
+### `VPUIP.SW.Kernel.run` (vpux::VPUIP::SwKernelRun)
+
+
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SW.Kernel.run` attr-dict
+              `(` operands `)` `:` type(operands)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`args` | any type
 
 ### `VPUIP.SwishUPA` (vpux::VPUIP::SwishUPAOp)
 
