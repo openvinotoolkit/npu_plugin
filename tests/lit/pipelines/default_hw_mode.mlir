@@ -40,6 +40,8 @@ module @Convolution {
         // CHECK-DAG:   const.Declare memref<48x16x3x3xf16, #NHWC>
         // CHECK-DAG:   const.Declare memref<48x1x1x4xsi32>
 
+        // CHECK:       VPURT.Task
+        // CHECK-SAME:      updates(%{{[0-9]+}} : !VPURT.Barrier)
         // CHECK:       VPUIP.NCEClusterTask
         // CHECK-SAME:          task_type = "CONV"
         // CHECK-SAME:      input(%{{[0-9]+}} : memref<1x16x62x62xf16, #NHWC, "CMX_NN">)
@@ -48,8 +50,6 @@ module @Convolution {
         // CHECK-SAME:      parent_input(%{{[0-9]+}} : memref<1x16x62x62xf16, #NHWC, "CMX_NN">)
         // CHECK-SAME:      parent_output(%{{[0-9]+}} : memref<1x48x60x60xf16, #NHWC, "CMX_NN">)
         // CHECK-SAME:      outputs(%{{[0-9]+}} : memref<1x48x60x60xf16, #NHWC, "CMX_NN">)
-        // CHECK-SAME:      waits(%{{[0-9]+}} : !VPUIP.Barrier)
-        // CHECK-SAME:      updates(%{{[0-9]+}} : !VPUIP.Barrier)
         // CHECK:               DPUTask
   }
 }

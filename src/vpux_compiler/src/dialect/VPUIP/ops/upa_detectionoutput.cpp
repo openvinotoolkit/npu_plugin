@@ -26,7 +26,7 @@ void vpux::VPUIP::DetectionOutputUPAOp::build(mlir::OpBuilder& builder, mlir::Op
                                               mlir::Value in_additional_proposals, mlir::Value output,
                                               vpux::IE::DetectionOutputAttr attr) {
     build(builder, state, in_box_logits, in_class_preds, in_proposals, in_additional_preds, in_additional_proposals,
-          output, mlir::ValueRange{}, mlir::ValueRange{}, attr, nullptr, nullptr);
+          output, attr, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DetectionOutputUPAOp::serialize(VPUIP::BlobWriter& writer) {

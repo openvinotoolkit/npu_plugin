@@ -27,36 +27,6 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
 
     let methods = [
         InterfaceMethod<
-            "Barriers that will free this task to run",
-            "mlir::ValueRange", "waitBarriers", (ins),
-            [{
-                return $_op.waitBarriers();
-            }]
-        >,
-        InterfaceMethod<
-            "Barriers that will free this task to run",
-            "mlir::MutableOperandRange", "waitBarriersMutable", (ins),
-            [{
-                return $_op.waitBarriersMutable();
-            }]
-        >,
-
-        InterfaceMethod<
-            "Barriers that will be at least partially unlocked when this task is complete",
-            "mlir::ValueRange", "updateBarriers", (ins),
-            [{
-                return $_op.updateBarriers();
-            }]
-        >,
-        InterfaceMethod<
-            "Barriers that will be at least partially unlocked when this task is complete",
-            "mlir::MutableOperandRange", "updateBarriersMutable", (ins),
-            [{
-                return $_op.updateBarriersMutable();
-            }]
-        >,
-
-        InterfaceMethod<
             "Serialize the Task to BLOB format",
             "vpux::VPUIP::BlobWriter::SpecificTask",
             "serialize", (ins "vpux::VPUIP::BlobWriter&":$writer)
@@ -107,22 +77,6 @@ def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
                 $_op.maxShavesAttr(vpux::getIntAttr($_op.getContext(), maxShaves));
             }]
         >,
-
-        InterfaceMethod<
-            "Is current task the trailing SW layer",
-            "bool", "isTrailingSWLayer", (ins),
-            [{
-                return $_op.isTrailingSWLayer();
-            }]
-        >,
-        InterfaceMethod<
-            "Mark current task as trailing SW layer",
-            "void", "markAsTrailingSWLayer", (ins),
-            [{}],
-            [{
-                $_op.isTrailingSWLayerAttr(mlir::UnitAttr::get($_op.getContext()));
-            }]
-        >
     ];
 
     let verify = [{

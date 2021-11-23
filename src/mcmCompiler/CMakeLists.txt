@@ -25,6 +25,9 @@ else()
 
     # TODO: check if we really need this.
     add_compile_options(--no-gnu-unique)
+    # FIXME: this flag is forced while building in a single tree with OV
+    # but code cannot be compiled with the flag
+    add_compile_options("-Wno-error=suggest-override")
 endif()
 
 set(CMAKE_C_VISIBILITY_PRESET default)

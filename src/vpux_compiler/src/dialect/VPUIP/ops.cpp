@@ -388,6 +388,8 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::SwishOp, OpModelForSW<VPUIP::SwishUPAOp>>();
     registry.addOpInterface<IE::GRNOp, OpModelForSW<VPUIP::GRNUPAOp>>();
     registry.addOpInterface<IE::LRN_IEOp, OpModelForSW<VPUIP::NormUPAOp>>();
+    registry.addOpInterface<IE::ReduceMaxOp, OpModelForSW<VPUIP::ReduceUPAOp>>();
+    registry.addOpInterface<IE::ReduceSumOp, OpModelForSW<VPUIP::ReduceUPAOp>>();
     registry.addOpInterface<IE::TileOp, OpModelForSW<VPUIP::PerAxisTileUPAOp>>();
     registry.addOpInterface<IE::PerAxisTileOp, OpModelForSW<VPUIP::PerAxisTileUPAOp>>();
     registry.addOpInterface<IE::NegativeOp, OpModelForSW<VPUIP::NegativeUPAOp>>();
@@ -412,6 +414,8 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::CeilingOp, OpModelForSW<VPUIP::CeilingUPAOp>>();
     registry.addOpInterface<IE::NormalizeIEOp, OpModelForSW<VPUIP::NormalizeIEUPAOp>>();
     registry.addOpInterface<IE::EqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::LessOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::LessEqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
 }
 
 //
@@ -463,6 +467,8 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::SwishOp, OpModelForSW>();
     registry.addOpInterface<IERT::GRNOp, OpModelForSW>();
     registry.addOpInterface<IERT::LRN_IEOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ReduceMaxOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ReduceSumOp, OpModelForSW>();
     registry.addOpInterface<IERT::TileOp, OpModelForSW>();
     registry.addOpInterface<IERT::PerAxisTileOp, OpModelForSW>();
     registry.addOpInterface<IERT::NegativeOp, OpModelForSW>();
@@ -486,6 +492,8 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::CeilingOp, OpModelForSW>();
     registry.addOpInterface<IERT::NormalizeIEOp, OpModelForSW>();
     registry.addOpInterface<IERT::EqualOp, OpModelForSW>();
+    registry.addOpInterface<IERT::LessOp, OpModelForSW>();
+    registry.addOpInterface<IERT::LessEqualOp, OpModelForSW>();
 }
 
 }  // namespace
@@ -498,11 +506,6 @@ void vpux::VPUIP::VPUIPDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/VPUIP/generated/ops.cpp.inc>
-            >();
-
-    addTypes<
-#define GET_TYPEDEF_LIST
-#include <vpux/compiler/dialect/VPUIP/generated/types.cpp.inc>
             >();
 }
 

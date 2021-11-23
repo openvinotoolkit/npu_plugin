@@ -29,14 +29,14 @@ func @StaticAlloc(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) 
 
     return %4: memref<1x1x1x1000xf16>
 
-    // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
+    // CHECK:       [[VAR0:%.*]] = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
 
     // CHECK:       [[VAR1:%.*]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:      axisInd = 3
     // CHECK-SAME:      inputs(%arg0 : memref<1x1x1x1000xf16>)
     // CHECK-SAME:      outputs([[VAR0]] : memref<1x1x1x1000xf16, "DDR">)
 
-    // CHECK:       [[VAR2:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <2048> -> memref<1x1x1x1000xf16, "DDR">
+    // CHECK:       [[VAR2:%.*]] = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <2048> -> memref<1x1x1x1000xf16, "DDR">
 
     // CHECK:       [[VAR3:%.*]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:      axisInd = 3
@@ -64,7 +64,7 @@ func @ReshapeInGraph(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memr
 
     // CHECK:       [[VAR0:%.*]] = IERT.GenericReshape inputs(%arg0 : memref<1x512xf16>) -> memref<1x512x1x1xf16>
 
-    // CHECK:       [[VAR1:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x512x1x1xf16, "DDR">
+    // CHECK:       [[VAR1:%.*]] = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<1x512x1x1xf16, "DDR">
 
     // CHECK:       [[VAR2:%.*]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:      axisInd = 1
@@ -99,7 +99,7 @@ func @WithAsyncRegions(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<1
     %2 = async.await %f2 : !async.value<memref<10xf16>>
     return %2 : memref<10xf16>
 
-    // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<10xf16, "DDR">
+    // CHECK:       [[VAR0:%.*]] = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<10xf16, "DDR">
 
     // CHECK:       [[T1:%.+]], [[F1:%.+]] = async.execute
     // CHECK:           [[VAR1:%.*]] = VPUIP.NNDMA

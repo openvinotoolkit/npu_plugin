@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPURT/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/utils/core/optional.hpp"
@@ -153,13 +154,14 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, bool enableProf
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
+    pm.addPass(IERT::createBreakDataFlowPass(log));
 
     // Lower IERT->VPUIP (SW mode)
     buildLowerIERT2VPUIPPipeline(pm, log);
 
     // VPUIP Dialect level
-    pm.addPass(VPUIP::createAssignPhysicalBarriersPass(log));
-    pm.addPass(VPUIP::createBarrierSimulationPass(log));
+    pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
+    pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }
 
@@ -220,6 +222,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
+    pm.addPass(IERT::createBreakDataFlowPass(log));
 
     // Handle WeightsTable, which requires statically allocated memory
     pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
@@ -228,8 +231,8 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     buildLowerIERT2VPUIPPipeline(pm, log);
 
     // VPUIP Dialect level
-    pm.addPass(VPUIP::createAssignPhysicalBarriersPass(log));
-    pm.addPass(VPUIP::createBarrierSimulationPass(log));
+    pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
+    pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }
 
@@ -304,6 +307,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, bool enableProfil
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     if (pipelineOptions->enableOptimizeAsyncDeps.getValue())
         pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
+    pm.addPass(IERT::createBreakDataFlowPass(log));
 
     // Handle WeightsTable, which requires statically allocated memory
     pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
@@ -312,8 +316,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, bool enableProfil
     buildLowerIERT2VPUIPPipeline(pm, log);
 
     // VPUIP Dialect level
-    pm.addPass(VPUIP::createAssignPhysicalBarriersPass(log));
-    pm.addPass(VPUIP::createBarrierSimulationPass(log));
+    pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
+    pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }
 

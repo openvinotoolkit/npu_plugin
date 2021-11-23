@@ -14,6 +14,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -21,19 +22,6 @@
 #include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
-
-mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const mlir::Value& value) {
-    if (value != nullptr) {
-        auto valueConst = value.getDefiningOp<Const::DeclareOp>();
-        if (valueConst == nullptr) {
-            return errorAt(loc, "Only constant input is supported for target shape");
-        }
-
-        const auto valueContent = valueConst.content();
-        return to_small_vector(valueContent.getValues<int64_t>());
-    }
-    return errorAt(loc, "Target shape was not provided");
-}
 
 SmallVector<int64_t> getResultShapeBidirectional(SmallVector<int64_t>& inShape, SmallVector<int64_t>& targetShape) {
     const auto targetPaddedRank = std::max(inShape.size(), targetShape.size());
@@ -71,7 +59,7 @@ mlir::LogicalResult vpux::IE::BroadcastOp::inferReturnTypeComponents(
     }
 
     auto inShape = to_small_vector(broadcast.input().getType().cast<mlir::ShapedType>().getShape());
-    auto targetShape = extractIntVector(loc, broadcast.target_shape()).getValue();
+    auto targetShape = IE::constInputToData(loc, broadcast.target_shape()).getValue();
     const auto inType = broadcast.input().getType().cast<mlir::ShapedType>().getElementType();
     const auto broadcastMode = broadcast.mode().getValue();
 

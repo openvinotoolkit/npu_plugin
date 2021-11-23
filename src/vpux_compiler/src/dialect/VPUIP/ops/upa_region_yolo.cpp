@@ -23,8 +23,7 @@ using namespace vpux;
 void vpux::VPUIP::RegionYoloUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                          mlir::Value output, mlir::IntegerAttr coords, mlir::IntegerAttr classes,
                                          mlir::IntegerAttr regions, mlir::BoolAttr do_softmax, mlir::ArrayAttr mask) {
-    build(builder, state, input, output, coords, classes, regions, do_softmax, mask, mlir::ValueRange{},
-          mlir::ValueRange{}, nullptr, nullptr);
+    build(builder, state, input, output, coords, classes, regions, do_softmax, mask, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RegionYoloUPAOp::serialize(VPUIP::BlobWriter& writer) {

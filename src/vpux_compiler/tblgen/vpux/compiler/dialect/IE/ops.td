@@ -503,6 +503,58 @@ def IE_FloorModOp :
 }
 
 //
+// LessOp
+//
+
+def IE_LessOp :
+        IE_LayerOp<
+            "Less",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Less layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// LessEqualOp
+//
+
+def IE_LessEqualOp :
+        IE_LayerOp<
+            "LessEqual",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine LessEqual layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // MultiplyOp
 //
 
@@ -976,6 +1028,50 @@ def IE_BroadcastOp :
         Optional<1DTensorOf<[SI64, SI32]>>:$axes_mapping,
 
         OptionalAttr<IE_BroadcastType>:$mode
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ReduceMaxOp
+//
+
+def IE_ReduceMaxOp :
+        IE_LayerOp<
+            "ReduceMax"
+        > {
+    let summary = "InferenceEngine ReduceMax layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[SI64, SI32]>:$axes,
+
+        BoolAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ReduceSumOp
+//
+
+def IE_ReduceSumOp :
+        IE_LayerOp<
+            "ReduceSum"
+        > {
+    let summary = "InferenceEngine ReduceSum layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[SI64, SI32]>:$axes,
+
+        BoolAttr:$keep_dims
     );
 
     let results = (outs

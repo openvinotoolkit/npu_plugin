@@ -30,6 +30,7 @@ public:
     bool IE_KMB_TESTS_EXPORT_REF = false;
     bool IE_KMB_TESTS_IMPORT_INPUT = false;
     bool IE_KMB_TESTS_IMPORT_REF = false;
+    bool IE_KMB_TESTS_RUN_INFER_VPUIP = false;
 
     bool IE_KMB_TESTS_RAW_EXPORT = false;
     bool IE_KMB_TESTS_LONG_FILE_NAME = false;

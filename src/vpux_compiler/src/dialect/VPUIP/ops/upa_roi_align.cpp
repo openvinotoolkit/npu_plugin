@@ -39,8 +39,8 @@ void vpux::VPUIP::ROIAlignUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::Op
                                        mlir::IntegerAttr pooled_h, mlir::IntegerAttr pooled_w,
                                        mlir::IntegerAttr sampling_ratio, mlir::FloatAttr spatial_scale,
                                        IE::ROIAlignMethodAttr poolingMode) {
-    build(odsBuilder, odsState, input, coords, roisIdx, output, mlir::ValueRange{}, mlir::ValueRange{}, pooled_h,
-          pooled_w, sampling_ratio, spatial_scale, poolingMode, nullptr, nullptr);
+    build(odsBuilder, odsState, input, coords, roisIdx, output, pooled_h, pooled_w, sampling_ratio, spatial_scale,
+          poolingMode, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIAlignUPAOp::serialize(VPUIP::BlobWriter& writer) {

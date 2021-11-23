@@ -19,7 +19,7 @@ using namespace vpux;
 
 void vpux::VPUIP::GRNUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                   mlir::Value output, mlir::FloatAttr bias) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, bias, nullptr, nullptr);
+    build(builder, state, input, output, bias, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GRNUPAOp::serialize(VPUIP::BlobWriter& writer) {

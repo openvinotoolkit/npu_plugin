@@ -19,7 +19,7 @@ using namespace vpux;
 
 void vpux::VPUIP::NegativeUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                        mlir::Value output) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
+    build(builder, state, input, output, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NegativeUPAOp::serialize(VPUIP::BlobWriter& writer) {

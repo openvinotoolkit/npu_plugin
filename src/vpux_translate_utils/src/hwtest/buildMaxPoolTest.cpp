@@ -23,6 +23,8 @@
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
@@ -86,12 +88,13 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto parent_outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
 
     // barrier config
-    auto barrier0 = funcbuilder.create<VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
-    auto barrier1 = funcbuilder.create<VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
+    auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
+    auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     // DMA input-->cmx
-    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), funcinput0, input0cmx.getOperation()->getResult(0),
-                                       mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+                                                builder.getUnknownLoc(), funcinput0,
+                                                input0cmx.getOperation()->getResult(0), false);
 
     mlir::Type uderlyingInputType = inputType.isa<mlir::quant::QuantizedType>()
                                             ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
@@ -126,9 +129,9 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
             getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, sparsity_shape, elemType, DimsOrder::NHWC);
     auto actWindow_cmx = createDeclareTensorOp(funcbuilder, actWindow_cmx_type, 0, ACTIVATIONWINDOW_CMX_OFFSET);
 
-    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), dataConstOp.getOperation()->getResult(0),
-                                       actWindow_cmx.getOperation()->getResult(0), mlir::ValueRange(),
-                                       mlir::ValueRange(barrier0.barrier()), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+                                                builder.getUnknownLoc(), dataConstOp.getOperation()->getResult(0),
+                                                actWindow_cmx.getOperation()->getResult(0), false);
     // weights table ddr tensor
     SmallVector<int64_t> wtTbl_data_shape{sparsity_shape[0], 1, 1, 4};
     auto weightTblData_ddr_type = getMemRefType(builder, VPUIP::MemoryLocation::GraphFile, wtTbl_data_shape,
@@ -154,21 +157,21 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto wtTbl_cmx = createDeclareTensorOp(funcbuilder, wtTbl_cmx_type, 0, WEIGHTSTABLE_CMX_OFFSET);
 
     // weights table dma ddr->cmx
-    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), weightTbl_data_ddr.getOperation()->getResult(0),
-                                       wtTbl_cmx.getOperation()->getResult(0), mlir::ValueRange(),
-                                       mlir::ValueRange(barrier0.barrier()), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(
+            funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), builder.getUnknownLoc(),
+            weightTbl_data_ddr.getOperation()->getResult(0), wtTbl_cmx.getOperation()->getResult(0), false);
 
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
     auto strides = getIntArrayAttr(builder, stride_vec);
     auto kernel_padding = getIntArrayAttr(builder, padding_vec);
 
-    auto nceTask = funcbuilder.create<VPUIP::NCEClusterTaskOp>(
+    auto nceTask = vpux::VPURT::WrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
+            funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()),
             builder.getUnknownLoc(), outputcmx_type, input0cmx.getOperation()->getResult(0), mlir::Value(),
             wtTbl_cmx.getOperation()->getResult(0), actWindow_cmx.getOperation()->getResult(0),
             parent_input0cmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
-            outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
-            mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::MAXPOOL, filtersize, strides, kernel_padding,
+            outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::MAXPOOL, filtersize, strides, kernel_padding,
             actChannelLength, nullptr);
 
     nceTask.addPPETask(funcbuilder);
@@ -188,8 +191,9 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), ctx);
 
     variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad, VPUIP::MPEMode::CUBOID_16x16);
-    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0), funcoutput,
-                                       mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
+                                                builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0),
+                                                funcoutput, false);
 
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
     // set runtime resources

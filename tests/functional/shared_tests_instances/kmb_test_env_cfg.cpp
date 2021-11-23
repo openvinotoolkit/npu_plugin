@@ -87,6 +87,10 @@ KmbTestEnvConfig::KmbTestEnvConfig() {
     if (auto var = std::getenv("IE_KMB_TESTS_PLATFORM")) {
         IE_KMB_TESTS_PLATFORM = var;
     }
+
+    if(auto var = std::getenv("IE_KMB_TESTS_RUN_INFER_VPUIP")) {
+        IE_KMB_TESTS_RUN_INFER_VPUIP = var;
+    }
 }
 
 }  // namespace LayerTestsUtils

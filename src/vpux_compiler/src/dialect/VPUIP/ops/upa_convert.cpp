@@ -55,8 +55,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ConvertUPAOp op) {
 
 void vpux::VPUIP::ConvertUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                       mlir::Value output) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr, false, false,
-          nullptr, nullptr, false);
+    build(builder, state, input, output, nullptr, nullptr, false, false, nullptr, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvertUPAOp::serialize(VPUIP::BlobWriter& writer) {

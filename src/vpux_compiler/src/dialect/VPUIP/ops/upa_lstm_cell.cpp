@@ -20,7 +20,7 @@ void vpux::VPUIP::LSTMCellUPAOp::build(mlir::OpBuilder& builder, mlir::Operation
                                        mlir::Value weights, mlir::Value biases, mlir::Value outputHiddenState,
                                        mlir::Value outputCellState) {
     build(builder, state, inputData, initialHiddenState, initialCellState, weights, biases, outputHiddenState,
-          outputCellState, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
+          outputCellState, nullptr);
 }
 
 vpux::VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LSTMCellUPAOp::serialize(VPUIP::BlobWriter& writer) {

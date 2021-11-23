@@ -11,9 +11,9 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/types.hpp"
+#include "vpux/compiler/dialect/VPURT/types.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 #include <llvm/ADT/TypeSwitch.h>
 
@@ -24,14 +24,14 @@ using namespace vpux;
 //
 
 #define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/VPUIP/generated/types.cpp.inc>
+#include <vpux/compiler/dialect/VPURT/generated/types.cpp.inc>
 #undef GET_TYPEDEF_CLASSES
 
 //
 // Dialect hooks
 //
 
-mlir::Type vpux::VPUIP::VPUIPDialect::parseType(mlir::DialectAsmParser& parser) const {
+mlir::Type vpux::VPURT::VPURTDialect::parseType(mlir::DialectAsmParser& parser) const {
     StringRef mnemonic;
     if (mlir::failed(parser.parseKeyword(&mnemonic))) {
         printTo(parser.emitError(parser.getCurrentLocation()), "Failed to get VPUIP Type mnemonic");
@@ -46,6 +46,6 @@ mlir::Type vpux::VPUIP::VPUIPDialect::parseType(mlir::DialectAsmParser& parser) 
     return type;
 }
 
-void vpux::VPUIP::VPUIPDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& os) const {
+void vpux::VPURT::VPURTDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& os) const {
     VPUX_THROW_UNLESS(mlir::succeeded(generatedTypePrinter(type, os)), "Got unsupported Type : {}", type);
 }

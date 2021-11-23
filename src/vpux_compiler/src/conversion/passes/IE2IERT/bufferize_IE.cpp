@@ -743,6 +743,18 @@ mlir::Operation* createRTLayer(IE::BroadcastOp origOp, ArrayRef<mlir::Value> all
                                        newOp.output_buff(), origOp.modeAttr());
 }
 
+mlir::Operation* createRTLayer(IE::ReduceMaxOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReduceMaxOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ReduceMaxOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
+                                       origOp.keep_dimsAttr());
+}
+
+mlir::Operation* createRTLayer(IE::ReduceSumOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReduceSumOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ReduceSumOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
+                                       origOp.keep_dimsAttr());
+}
+
 mlir::Operation* createRTLayer(IE::PerAxisTileOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::PerAxisTileOp::Adaptor newOp(allBufs);
     return b.create<IERT::PerAxisTileOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axisAttr(),
@@ -909,6 +921,16 @@ mlir::Operation* createRTLayer(IE::EqualOp origOp, ArrayRef<mlir::Value> allBufs
     return b.create<IERT::EqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::LessOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::LessOp::Adaptor newOp(allBufs);
+    return b.create<IERT::LessOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::LessEqualOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::LessEqualOp::Adaptor newOp(allBufs);
+    return b.create<IERT::LessEqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -962,6 +984,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::MishOp)
     CASE(IE::ErfOp)
     CASE(IE::BroadcastOp)
+    CASE(IE::ReduceMaxOp)
+    CASE(IE::ReduceSumOp)
     CASE(IE::TanhOp)
     CASE(IE::SqrtOp)
     CASE(IE::LogOp)
@@ -1003,6 +1027,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::CeilingOp)
     CASE(IE::NormalizeIEOp)
     CASE(IE::EqualOp)
+    CASE(IE::LessOp)
+    CASE(IE::LessEqualOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

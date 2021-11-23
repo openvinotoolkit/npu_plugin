@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/frontend/VPUIP.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -120,6 +121,7 @@ vpux::VPUIP::BlobReader::BlobReader(mlir::MLIRContext* ctx, ArrayRef<char> blob,
     ctx->loadDialect<IE::IEDialect>();
     ctx->loadDialect<IERT::IERTDialect>();
     ctx->loadDialect<VPUIP::VPUIPDialect>();
+    ctx->loadDialect<VPURT::VPURTDialect>();
 
     _mainFuncName = mlir::FlatSymbolRefAttr::get(_ctx, "main");
     _graphFile = MVCNN::GetGraphFile(blob.data());
@@ -372,7 +374,7 @@ mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, co
         VPUX_THROW("Location {0} is not supported", tensorRef->locale());
     }
 
-    return builder.create<VPUIP::DeclareTensorOp>(mlir::UnknownLoc::get(_ctx), importedType, location,
+    return builder.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(_ctx), importedType, location,
                                                   tensorRef->locale_index()->Get(0), tensorRef->data()->data_index());
 }
 
@@ -478,6 +480,7 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_GatherParams, &BlobReader::parseGather},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_GatherElementsParams, &BlobReader::parseGatherElements},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_BroadcastParams, &BlobReader::parseBroadcast},
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReduceParams, &BlobReader::parseReduce},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_TileParams, &BlobReader::parseTile}};
 
     VPUX_THROW_UNLESS(_graphFile->task_lists(), "Blob contains no task lists");
@@ -485,9 +488,25 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
     while (!taskIterator.tasksEnded()) {
         const auto task = taskIterator.next();
 
-        mlir::Operation* op{};
         SmallVector<mlir::Value> inputs;
         SmallVector<mlir::Value> outputs;
+        SmallVector<mlir::Value> waitBarriers;
+        SmallVector<mlir::Value> updateBarriers;
+
+        mlir::OpBuilder::InsertPoint lastInsertPoint;
+        if (task->task_type() != MVCNN::SpecificTask_ControllerTask) {
+            const auto processBarriers = [this](const flatbuffers::Vector<uint32_t>* barrierIDs,
+                                                SmallVector<mlir::Value>& barriers) {
+                for (const auto& barrierID : *barrierIDs) {
+                    VPUX_THROW_UNLESS(barrierID < _barriers.size(), "Barrier with {0} id has not been processed",
+                                      barrierID);
+                    barriers.push_back(_barriers[barrierID]);
+                }
+            };
+
+            processBarriers(task->associated_barriers()->wait_barriers(), waitBarriers);
+            processBarriers(task->associated_barriers()->update_barriers(), updateBarriers);
+        }
 
         if (const auto upaTask = task->task_as_UPALayerTask()) {
             VPUX_THROW_UNLESS(upaTask->inputs(), "upaTask has no inputs");
@@ -506,7 +525,13 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             VPUX_THROW_UNLESS(dispatchIt != softLayersDispatchMap.end(), "Unsupported operation type {0}",
                               upaTask->softLayerParams_type());
             const auto parser = dispatchIt->second;
-            op = (this->*parser)(opsBuilder, inputs, outputs, upaTask);
+
+            auto taskOp = opsBuilder.create<VPURT::TaskOp>(mlir::UnknownLoc::get(_ctx), waitBarriers, updateBarriers);
+            auto& block = taskOp.op().emplaceBlock();
+            lastInsertPoint = opsBuilder.saveInsertionPoint();
+            opsBuilder.setInsertionPointToStart(&block);
+            (this->*parser)(opsBuilder, inputs, outputs, upaTask);
+            opsBuilder.restoreInsertionPoint(lastInsertPoint);
         } else if (const auto nnDMATask = task->task_as_NNDMATask()) {
             VPUX_THROW_UNLESS(nnDMATask->src(), "nnDMATask has no input");
             VPUX_THROW_UNLESS(nnDMATask->dst(), "nnDMATask has no output");
@@ -516,37 +541,23 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             const auto dst = nnDMATask->dst();
             outputs.push_back(createTensorOp(opsBuilder, dst));
 
-            op = opsBuilder.create<VPUIP::NNDMAOp>(mlir::NameLoc::get(mlir::Identifier::get("1", _ctx)), inputs.front(),
-                                                   outputs.front());
+            auto taskOp = opsBuilder.create<VPURT::TaskOp>(mlir::UnknownLoc::get(_ctx), waitBarriers, updateBarriers);
+            auto& block = taskOp.op().emplaceBlock();
+            lastInsertPoint = opsBuilder.saveInsertionPoint();
+            opsBuilder.setInsertionPointToStart(&block);
+            opsBuilder.create<VPUIP::NNDMAOp>(mlir::NameLoc::get(mlir::Identifier::get("1", _ctx)), inputs.front(),
+                                              outputs.front());
+            opsBuilder.restoreInsertionPoint(lastInsertPoint);
         } else if (const auto controllerTask = task->task_as_ControllerTask()) {
             const auto barrierTask = controllerTask->task_as_BarrierConfigurationTask();
             VPUX_THROW_UNLESS(barrierTask, "Unsupported controller task type {0}", controllerTask->task_type());
             VPUX_THROW_UNLESS(barrierTask->target(), "Barrier has no target");
-            auto barrier = opsBuilder.create<VPUIP::ConfigureBarrierOp>(mlir::UnknownLoc::get(_ctx),
+            auto barrier = opsBuilder.create<VPURT::ConfigureBarrierOp>(mlir::UnknownLoc::get(_ctx),
                                                                         barrierTask->target()->barrier_id());
             _barriers.push_back(barrier.barrier());
-            op = barrier;
         } else {
             VPUX_THROW("Unsupported task type {0}", task->task_type());
         }
-
-        SmallVector<mlir::Value> waitBarriers;
-        SmallVector<mlir::Value> updateBarriers;
-        const auto processBarriers = [this](const flatbuffers::Vector<uint32_t>* barrierIDs,
-                                            SmallVector<mlir::Value>& barriers) {
-            for (const auto& barrierID : *barrierIDs) {
-                VPUX_THROW_UNLESS(barrierID < _barriers.size(), "Barrier with {0} id has not been processed",
-                                  barrierID);
-                barriers.push_back(_barriers[barrierID]);
-            }
-        };
-
-        processBarriers(task->associated_barriers()->wait_barriers(), waitBarriers);
-        processBarriers(task->associated_barriers()->update_barriers(), updateBarriers);
-
-        auto createdTaskOp = mlir::dyn_cast<VPUIP::TaskOpInterface>(op);
-        createdTaskOp.waitBarriersMutable().append(waitBarriers);
-        createdTaskOp.updateBarriersMutable().append(updateBarriers);
     }
 
     const auto functionOutArguments = mlir::ValueRange{func.getArguments().begin() + _inputTypes.size(),

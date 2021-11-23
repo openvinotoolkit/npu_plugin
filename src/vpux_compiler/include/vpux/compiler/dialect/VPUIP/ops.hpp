@@ -21,7 +21,6 @@
 #include "vpux/compiler/dialect/VPUIP/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
@@ -54,7 +53,6 @@ namespace VPUIP {
 constexpr Bit FP16_SIZE = 16_Bit;
 constexpr KB SHAVE_LIB_DATA_SIZE = 112_KB;
 
-mlir::LogicalResult verifyOp(DeclareTensorOp op);
 mlir::LogicalResult verifyOp(ConvertUPAOp op);
 mlir::LogicalResult verifyOp(SoftMaxUPAOp op);
 mlir::LogicalResult verifyOp(PoolingUPAOp op);

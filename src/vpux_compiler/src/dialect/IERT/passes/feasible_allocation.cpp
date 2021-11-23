@@ -63,7 +63,7 @@ mlir::LogicalResult AllocRewrite::matchAndRewrite(mlir::memref::AllocOp origOp, 
     }
 
     const auto offset = checked_cast<int64_t>(_allocInfo.getAddress(val));
-    _log.trace("Replace with statically allocated VPUIP.DeclareTensorOp (offset = {0})", offset);
+    _log.trace("Replace with statically allocated VPURT.DeclareBufferOp (offset = {0})", offset);
     rewriter.replaceOpWithNewOp<IERT::StaticAllocOp>(origOp, val.getType(), offset);
 
     return mlir::success();

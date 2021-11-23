@@ -120,8 +120,7 @@ void vpux::VPUIP::PoolingUPAOp::build(mlir::OpBuilder& builder, mlir::OperationS
                                       mlir::Value output, VPUIP::PoolLayerTypeAttr type, mlir::ArrayAttr kernel,
                                       mlir::ArrayAttr strides, mlir::ArrayAttr padsBegin, mlir::ArrayAttr padsEnd,
                                       mlir::UnitAttr excludePad) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, type, kernel, strides, padsBegin,
-          padsEnd, excludePad, nullptr, nullptr);
+    build(builder, state, input, output, type, kernel, strides, padsBegin, padsEnd, excludePad, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {

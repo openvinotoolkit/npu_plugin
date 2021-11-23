@@ -257,14 +257,14 @@ mlir::LogicalResult TimestampRewrite::matchAndRewrite(IERT::TimestampOp origOp, 
     const auto timerType =
             changeMemSpace(origType, VPUIP::MemoryLocationAttr::get(getContext(), VPUIP::MemoryLocation::AbsoluteAddr));
 
-    auto declareOp = rewriter.create<VPUIP::DeclareTensorOp>(mlir::UnknownLoc::get(getContext()), timerType,
+    auto declareOp = rewriter.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(getContext()), timerType,
                                                              VPUIP::MemoryLocation::AbsoluteAddr, 0,
                                                              VPUIP::HW_TIMER_ABSOLUTE_ADDR);
 
     auto dmaOp = rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, declareOp.memory(), origOp.output_buff());
     dmaOp.set_ordAttr(mlir::BoolAttr::get(getContext(), true));
 
-    _log.trace("Replaced with 'VPUIP.DeclareTensorOp'");
+    _log.trace("Replaced with 'VPURT::DeclareBufferOp'");
 
     return mlir::success();
 }  // namespace
@@ -297,6 +297,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<mlir::async::AsyncDialect>();
     target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
+    target.addLegalDialect<VPURT::VPURTDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<Const::DeclareOp, IERT::StaticAllocOp>();
     target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();

@@ -131,6 +131,46 @@ def RewriteBroadcast :
         >;
 
 //
+// IERT.ReduceMax -> VPUIP.Reduce
+//
+
+def createReduceMaxUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReduceUPAOp>(
+                $_loc, $0, $1, $2, $3,
+                vpux::VPUIP::ReduceLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::ReduceLayerType::MAX
+                ))
+        }]>;
+
+def RewriteReduceMax :
+        Pat<
+                (IERT_ReduceMaxOp $input, $axes, $output, $keep_dims),
+                (createReduceMaxUPAOp $input, $axes, $output, $keep_dims)
+        >;
+
+//
+// IERT.ReduceSum -> VPUIP.Reduce
+//
+
+def createReduceSumUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReduceUPAOp>(
+                $_loc, $0, $1, $2, $3,
+                vpux::VPUIP::ReduceLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::ReduceLayerType::SUM
+                ))
+        }]>;
+
+def RewriteReduceSum :
+        Pat<
+                (IERT_ReduceSumOp $input, $axes, $output, $keep_dims),
+                (createReduceSumUPAOp $input, $axes, $output, $keep_dims)
+        >;
+
+//
 // IERT.MaxPool -> VPUIP.PoolingUPA
 //
 
@@ -442,7 +482,7 @@ def RewriteTile :
         >;
 
 //
-// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|And|Equal]Pool -> VPUIP.EltwiseUPA
+// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|And|Equal|Less|LessEqual]Pool -> VPUIP.EltwiseUPA
 //
 
 class createEltwiseUPAOp<string method> :
@@ -522,6 +562,18 @@ def RewriteEqual :
         Pat<
             (IERT_EqualOp $input1, $input2, $output),
             (createEltwiseUPAOp<"EQUAL"> $input1, $input2, $output)
+        >;
+
+def RewriteLess :
+        Pat<
+            (IERT_LessOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"LESS"> $input1, $input2, $output)
+        >;
+
+def RewriteLessEqual :
+        Pat<
+            (IERT_LessEqualOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"LESS_EQUAL"> $input1, $input2, $output)
         >;
 
 //

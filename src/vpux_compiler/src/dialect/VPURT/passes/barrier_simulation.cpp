@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 using namespace vpux;
 
@@ -29,13 +29,13 @@ public:
     enum class UpdateStatus { Success, Skip, Fail };
 
     struct TaskInfo {
-        VPUIP::TaskOpInterface taskOp;
+        VPURT::TaskOp taskOp;
         SmallVector<int64_t> waitBarriers;
         SmallVector<int64_t> updateBarriers;
 
         TaskInfo() {
         }
-        TaskInfo(VPUIP::TaskOpInterface taskOp): taskOp(taskOp) {
+        TaskInfo(VPURT::TaskOp taskOp): taskOp(taskOp) {
         }
     };
 
@@ -56,7 +56,7 @@ public:
 
     void buildTaskLists(mlir::FuncOp func);
     void assignVirtualIds(mlir::FuncOp func);
-    int64_t getVirtualId(VPUIP::ConfigureBarrierOp op);
+    int64_t getVirtualId(VPURT::ConfigureBarrierOp op);
     mlir::LogicalResult checkProducerCount();
     mlir::LogicalResult run();
 
@@ -69,7 +69,7 @@ private:
     SmallVector<TaskInfo> _nceTasks;
     SmallVector<TaskInfo> _upaTasks;
     std::array<SmallVector<TaskInfo>, MAX_DMA_ENGINES> _dmaTasks;
-    SmallVector<VPUIP::ConfigureBarrierOp> _barrierOps;
+    SmallVector<VPURT::ConfigureBarrierOp> _barrierOps;
 
     std::map<int64_t, VirtualBarrierInfo> _virtualBarriers;
     SmallVector<int64_t> _barrierConfig;
@@ -82,22 +82,22 @@ private:
 
 void BarrierSimulator::assignVirtualIds(mlir::FuncOp func) {
     int64_t virtualId = 0;
-    func.walk([&](VPUIP::ConfigureBarrierOp op) {
+    func.walk([&](VPURT::ConfigureBarrierOp op) {
         op->setAttr(virtualIdAttrName, getIntAttr(_ctx, virtualId++));
     });
 }
 
-int64_t BarrierSimulator::getVirtualId(VPUIP::ConfigureBarrierOp op) {
+int64_t BarrierSimulator::getVirtualId(VPURT::ConfigureBarrierOp op) {
     return checked_cast<int64_t>(op->getAttr(virtualIdAttrName).cast<mlir::IntegerAttr>().getInt());
 }
 
 void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
     _log.trace("Building task lists");
 
-    auto getTaskInfo = [&](VPUIP::TaskOpInterface taskOp, const int64_t count = 1) {
+    auto getTaskInfo = [&](VPURT::TaskOp taskOp, const int64_t count = 1) {
         TaskInfo taskInfo(taskOp);
         for (auto waitBarrier : taskOp.waitBarriers()) {
-            if (auto barrierOp = mlir::dyn_cast<VPUIP::ConfigureBarrierOp>(waitBarrier.getDefiningOp())) {
+            if (auto barrierOp = mlir::dyn_cast<VPURT::ConfigureBarrierOp>(waitBarrier.getDefiningOp())) {
                 const auto virtualId = getVirtualId(barrierOp);
                 taskInfo.waitBarriers.push_back(virtualId);
                 _virtualBarriers[virtualId].consumerCount += count;
@@ -105,7 +105,7 @@ void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
             }
         }
         for (auto updateBarrier : taskOp.updateBarriers()) {
-            if (auto barrierOp = mlir::dyn_cast<VPUIP::ConfigureBarrierOp>(updateBarrier.getDefiningOp())) {
+            if (auto barrierOp = mlir::dyn_cast<VPURT::ConfigureBarrierOp>(updateBarrier.getDefiningOp())) {
                 const auto virtualId = getVirtualId(barrierOp);
                 taskInfo.updateBarriers.push_back(virtualId);
                 _virtualBarriers[virtualId].producerCount += count;
@@ -117,13 +117,23 @@ void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
 
     // The task lists have to be populated in the same order as during the serialization phase
     // to ensure that the correct simulation occurs
-    func.walk([&](VPUIP::TaskOpInterface taskOp) {
+    func.walk([&](VPURT::ConfigureBarrierOp barrierOp) {
+        _barrierOps.push_back(barrierOp);
+        const auto virtualId = getVirtualId(barrierOp);
+        _virtualBarriers[virtualId].realId = barrierOp.id();
+        _numRealBarriers = std::max(_numRealBarriers, barrierOp.id() + 1);
+    });
+
+    func.walk([&](VPURT::TaskOp taskOp) {
+        auto& block = taskOp.op().getBlocks().front();
+        auto wrappedTaskOp = block.begin();
         switch (taskOp.getTaskType()) {
         case VPUIP::TaskType::UPADMA:
         case VPUIP::TaskType::NNDMA: {
             int64_t port = 0;
-            if (auto dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(taskOp.getOperation()))
-                port = dmaOp.port();
+            auto dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(wrappedTaskOp);
+            VPUX_THROW_UNLESS(dmaOp != nullptr, "Could not cast to DMA task");
+            port = dmaOp.port();
             VPUX_THROW_UNLESS(port < MAX_DMA_ENGINES,
                               "NNDMAOp port value ({0}) larger than maximum number of engines ({1})", port,
                               MAX_DMA_ENGINES);
@@ -131,7 +141,8 @@ void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
             break;
         }
         case VPUIP::TaskType::NCE2: {
-            auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(taskOp.getOperation());
+            auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
+            VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
             _nceTasks.push_back(getTaskInfo(taskOp, nceOp.getNumVariants()));
             break;
         }
@@ -139,16 +150,6 @@ void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
         case VPUIP::TaskType::ACTShave:
         case VPUIP::TaskType::UPA: {
             _upaTasks.push_back(getTaskInfo(taskOp));
-            break;
-        }
-        case VPUIP::TaskType::Controller: {
-            if (mlir::dyn_cast<VPUIP::EmptyOp>(taskOp.getOperation()))
-                break;
-            auto barrierOp = mlir::dyn_cast<VPUIP::ConfigureBarrierOp>(taskOp.getOperation());
-            _barrierOps.push_back(barrierOp);
-            const auto virtualId = getVirtualId(barrierOp);
-            _virtualBarriers[virtualId].realId = barrierOp.id();
-            _numRealBarriers = std::max(_numRealBarriers, barrierOp.id() + 1);
             break;
         }
         default:
@@ -266,7 +267,9 @@ mlir::LogicalResult BarrierSimulator::run() {
         }
 
         for (; nce < _nceTasks.size(); ++nce) {
-            auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(_nceTasks[nce].taskOp.getOperation());
+            auto& block = _nceTasks[nce].taskOp.op().getBlocks().front();
+            auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(block.begin());
+            VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
             const auto status = updateTaskBarriers(_nceTasks[nce], nceOp.getNumVariants());
             if (status == UpdateStatus::Skip)
                 break;
@@ -324,7 +327,7 @@ void BarrierSimulator::logDebugInfo(const size_t barrier, const std::array<size_
 // BarrierSimulationPass
 //
 
-class BarrierSimulationPass final : public VPUIP::BarrierSimulationBase<BarrierSimulationPass> {
+class BarrierSimulationPass final : public VPURT::BarrierSimulationBase<BarrierSimulationPass> {
 public:
     explicit BarrierSimulationPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
@@ -366,6 +369,6 @@ void BarrierSimulationPass::safeRunOnFunc() {
 // createBarrierSimulationPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createBarrierSimulationPass(Logger log) {
+std::unique_ptr<mlir::Pass> vpux::VPURT::createBarrierSimulationPass(Logger log) {
     return std::make_unique<BarrierSimulationPass>(log);
 }

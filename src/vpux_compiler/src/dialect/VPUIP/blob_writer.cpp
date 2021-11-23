@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
@@ -32,6 +33,8 @@
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
+
+#include <vpux/compiler/act_kernels/compilation.h>
 
 #include <algorithm>
 
@@ -76,52 +79,8 @@ SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::
 
 }  // namespace
 
-VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op) {
-    _log.trace("Create BLOB Task for {0}", *op);
-
-    auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op);
-    VPUX_THROW_UNLESS(task != nullptr, "Got non Task operation {0}", op->getName());
-
-    VPUX_THROW_UNLESS(_tasks.count(op) == 0, "Operation {0} was already serialized", *op);
-
-    setAliasForSerializedTensors(op);
-
-    String name = createString(StringRef(stringifyLocation(op->getLoc())));
-
-    const auto waitBarriers = createVector(task.waitBarriers() | transformed([this](mlir::Value val) {
-                                               return getBarrierVirtualID(val);
-                                           }));
-    const auto updateBarriers = createVector(task.updateBarriers() | transformed([this](mlir::Value val) {
-                                                 return getBarrierVirtualID(val);
-                                             }));
-
-    MVCNN::BarrierReferenceBuilder barriersBuilder(_impl);
-    barriersBuilder.add_wait_barriers(waitBarriers);
-    barriersBuilder.add_virtual_wait_barriers(waitBarriers);
-    barriersBuilder.add_update_barriers(updateBarriers);
-    barriersBuilder.add_virtual_update_barriers(updateBarriers);
-    const auto barriers = barriersBuilder.Finish();
-
-    const auto specifics = task.serialize(*this);
-    const auto curID = _tasks.size();
-
-    MVCNN::TaskBuilder builder(_impl);
-    if (!name.IsNull()) {
-        builder.add_name(name);
-    }
-    builder.add_nodeID(checked_cast<uint32_t>(curID));
-    builder.add_associated_barriers(barriers);
-    builder.add_task_type(specifics.type);
-    builder.add_task(specifics.obj);
-    const auto off = builder.Finish();
-
-    _tasks.insert({op, off});
-
-    return off;
-}
-
-ActKernelDesc vpux::VPUIP::BlobWriter::compileKernelData(const CompilationUnitDesc& unitDesc) {
-    movitools::MoviCompileParams params = {
+const movitools::MoviCompileParams& vpux::VPUIP::BlobWriter::compileParams() {
+    static const movitools::MoviCompileParams params = {
             /*cpu=*/"3010xx",
             /*moviCompile=*/"linux64/bin/moviCompile",
             /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
@@ -139,7 +98,66 @@ ActKernelDesc vpux::VPUIP::BlobWriter::compileKernelData(const CompilationUnitDe
             },
     };
 
+    return params;
+}
+
+VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op) {
+    _log.trace("Create BLOB Task for {0}", *op);
+
+    VPUX_THROW_UNLESS(_tasks.count(op) == 0, "Operation {0} was already serialized", *op);
+
+    String name = createString(StringRef(stringifyLocation(op->getLoc())));
+
+    auto serializeInterface = mlir::dyn_cast<VPURT::SerializeInterface>(op);
+    VPUX_THROW_UNLESS(serializeInterface != nullptr, "Got non serialized operation {0}", op->getName());
+
+    const auto specifics = serializeInterface.serialize(*this);
+    const auto curID = _tasks.size();
+
+    flatbuffers::Offset<MVCNN::BarrierReference> barriers;
+    if (auto task = mlir::dyn_cast<VPURT::TaskOp>(op)) {
+        const auto waitBarriers = createVector(task.waitBarriers() | transformed([this](mlir::Value val) {
+                                                   return getBarrierVirtualID(val);
+                                               }));
+        const auto updateBarriers = createVector(task.updateBarriers() | transformed([this](mlir::Value val) {
+                                                     return getBarrierVirtualID(val);
+                                                 }));
+
+        MVCNN::BarrierReferenceBuilder barriersBuilder(_impl);
+        barriersBuilder.add_wait_barriers(waitBarriers);
+        barriersBuilder.add_virtual_wait_barriers(waitBarriers);
+        barriersBuilder.add_update_barriers(updateBarriers);
+        barriersBuilder.add_virtual_update_barriers(updateBarriers);
+        barriers = barriersBuilder.Finish();
+    }
+
+    MVCNN::TaskBuilder builder(_impl);
+    if (!name.IsNull()) {
+        builder.add_name(name);
+    }
+    builder.add_nodeID(checked_cast<uint32_t>(curID));
+    builder.add_associated_barriers(barriers);
+    builder.add_task_type(specifics.type);
+    builder.add_task(specifics.obj);
+    const auto off = builder.Finish();
+
+    _tasks.insert({op, off});
+
+    return off;
+}
+
+ActKernelDesc vpux::VPUIP::BlobWriter::compileKernelData(const CompilationUnitDesc& unitDesc) {
+    const movitools::MoviCompileParams params = compileParams();
+
     return compileKernelForACTShave(unitDesc, params);
+}
+
+ActKernelDesc vpux::VPUIP::BlobWriter::compileManagementKernelData() {
+    const auto& listDesc = managementKernelCompilationDesc();
+
+    const movitools::MoviCompileParams params = compileParams();
+
+    return compileKernelForACTShave(listDesc, params);
 }
 
 const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::getKernelData() const {
@@ -218,12 +236,15 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
 
     auto kernel = kernelbuilder.Finish();
 
+    auto taskOp = op->getParentOfType<VPURT::TaskOp>();
+    VPUX_THROW_WHEN(taskOp == nullptr, "VPUIP task is doesn`t have VPURT TaskOp as a parent");
+
     const auto getBarrierIdCb = [this](mlir::Value val) {
         return getBarrierVirtualID(val);
     };
 
-    const auto waitBarriers = createVector(swKernelTask.waitBarriers() | transformed(getBarrierIdCb));
-    const auto updateBarriers = createVector(swKernelTask.updateBarriers() | transformed(getBarrierIdCb));
+    const auto waitBarriers = createVector(taskOp.waitBarriers() | transformed(getBarrierIdCb));
+    const auto updateBarriers = createVector(taskOp.updateBarriers() | transformed(getBarrierIdCb));
 
     auto barrierReference = MVCNN::CreateBarrierReference(_impl, waitBarriers, updateBarriers);
 
@@ -293,7 +314,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     VPUX_THROW_UNLESS(upaTask != nullptr, "Operation '{0}' is not a UPA Task", op->getName());
 
     const auto maxShaves = upaTask.maxShaves();
-    const auto isTrailingSWLayer = upaTask.isTrailingSWLayer();
+
+    auto taskOp = op->getParentOfType<VPURT::TaskOp>();
+    VPUX_THROW_WHEN(taskOp == nullptr, "VPUIP task is doesn`t have VPURT TaskOp as a parent");
+    const auto isTrailingSWLayer = taskOp.isTrailingSWLayer();
 
     const auto getTensorCb = [this](mlir::Value val) {
         return getTensor(val);
@@ -460,25 +484,25 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
         VPUX_THROW_UNLESS(effect.getResource() == BarrierResource::get(),
                           "Barrier Value {0} has non Barrier Resource for Operation {1}", val, *userOp);
 
-        if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
-            if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(userOp)) {
+        unsigned usesCount = 1;
+        if (auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(userOp)) {
+            auto& block = taskOp.op().getBlocks().front();
+            VPUX_THROW_UNLESS(block.getOperations().size() == 1,
+                              "Unable to find child task in VPURT::TaskOp for get createBarrier");
+            auto& op = *block.begin();
+            if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(op)) {
+                usesCount = 0;
                 for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
                     VPUX_UNUSED(dpuTaskOp);
-                    ++numConsumers;
+                    ++usesCount;
                 }
-            } else {
-                ++numConsumers;
             }
-        } else if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
-            if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(userOp)) {
-                for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
-                    VPUX_UNUSED(dpuTaskOp);
-                    ++numProducers;
-                }
-            } else {
-                ++numProducers;
-            }
+        }
 
+        if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
+            numConsumers += usesCount;
+        } else if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
+            numProducers += usesCount;
         } else {
             VPUX_THROW("Barrier Value {0} has unsupported Effect in Operation {1}", val, *userOp);
         }

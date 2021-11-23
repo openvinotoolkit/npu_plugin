@@ -20,6 +20,8 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
@@ -160,14 +162,14 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto parent_outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
 
     // barrier config
-    auto barrier0 = funcbuilder.create<VPUIP::ConfigureBarrierOp>(loc, 0);
-    auto barrier1 = funcbuilder.create<VPUIP::ConfigureBarrierOp>(loc, 1);
+    auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 0);
+    auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 1);
 
     // DMAs
-    funcbuilder.create<VPUIP::NNDMAOp>(loc, funcinput, inputcmx.getOperation()->getResult(0), mlir::ValueRange(),
-                                       mlir::ValueRange(barrier0.barrier()), false);
-    funcbuilder.create<VPUIP::NNDMAOp>(loc, weight_data_ddr, wtData_cmx.getOperation()->getResult(0),
-                                       mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+                                                loc, funcinput, inputcmx.getOperation()->getResult(0), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+                                                loc, weight_data_ddr, wtData_cmx.getOperation()->getResult(0), false);
 
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
             makeArrayRef(filter_size), stride_vec[0],
@@ -203,9 +205,9 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto actWindow_cmx = createDeclareTensorOp(funcbuilder, actWindow_cmx_type, 0, ACTIVATIONWINDOW_CMX_OFFSET);
 
     // activation window dma ddr->cmx
-    funcbuilder.create<VPUIP::NNDMAOp>(loc, activationWindow_ddr.getOperation()->getResult(0),
-                                       actWindow_cmx.getOperation()->getResult(0), mlir::ValueRange(),
-                                       mlir::ValueRange(barrier0.barrier()), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+                                                loc, activationWindow_ddr.getOperation()->getResult(0),
+                                                actWindow_cmx.getOperation()->getResult(0), false);
 
     // weights table ddr tensor
     SmallVector<int64_t> wtTbl_data_shape{sparsity_shape[0], 1, 1, 4};
@@ -244,21 +246,21 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto wtTbl_cmx = createDeclareTensorOp(funcbuilder, wtTbl_cmx_type, 0, WEIGHTSTABLE_CMX_OFFSET);
 
     // weights table dma ddr->cmx
-    funcbuilder.create<VPUIP::NNDMAOp>(loc, weightTbl_data_ddr.getOperation()->getResult(0),
-                                       wtTbl_cmx.getOperation()->getResult(0), mlir::ValueRange(),
-                                       mlir::ValueRange(barrier0.barrier()), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+                                                loc, weightTbl_data_ddr.getOperation()->getResult(0),
+                                                wtTbl_cmx.getOperation()->getResult(0), false);
 
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
     auto strides = getIntArrayAttr(builder, stride_vec);
     auto kernel_padding = getIntArrayAttr(builder, padding_vec);
 
-    auto nceTask = funcbuilder.create<VPUIP::NCEClusterTaskOp>(
-            loc, outputcmx_type, inputcmx.getOperation()->getResult(0), wtData_cmx.getOperation()->getResult(0),
+    auto nceTask = vpux::VPURT::WrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
+            funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
+            outputcmx_type, inputcmx.getOperation()->getResult(0), wtData_cmx.getOperation()->getResult(0),
             wtTbl_cmx.getOperation()->getResult(0), actWindow_cmx.getOperation()->getResult(0),
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
-            outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
-            mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::DWCONV, filtersize, strides, kernel_padding,
+            outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::DWCONV, filtersize, strides, kernel_padding,
             actChannelLength, nullptr);
 
     nceTask.addPPETask(funcbuilder);
@@ -279,8 +281,8 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     variantbuilder.create<VPUIP::DPUTaskOp>(loc, start, end, pad, VPUIP::MPEMode::CUBOID_16x16);
 
-    funcbuilder.create<VPUIP::NNDMAOp>(loc, outputcmx.getOperation()->getResult(0), funcoutput,
-                                       mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
+                                                loc, outputcmx.getOperation()->getResult(0), funcoutput, false);
 
     funcbuilder.create<mlir::ReturnOp>(loc, funcoutput);
 

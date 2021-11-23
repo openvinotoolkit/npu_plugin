@@ -24,8 +24,7 @@ void vpux::VPUIP::LSTMSequenceUPAOp::build(mlir::OpBuilder& builder, mlir::Opera
                                            mlir::Value outputCellState, mlir::Value outputHiddenState,
                                            mlir::IntegerAttr sequenceLength, IE::RNNSequenceDirectionAttr direction) {
     build(builder, state, inputData, initialHiddenState, initialCellState, weights, biases, outputHiddenValues,
-          outputHiddenState, outputCellState, mlir::ValueRange{}, mlir::ValueRange{}, sequenceLength, direction,
-          nullptr, nullptr);
+          outputHiddenState, outputCellState, sequenceLength, direction, nullptr);
 }
 
 vpux::VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LSTMSequenceUPAOp::serialize(VPUIP::BlobWriter& writer) {

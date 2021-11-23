@@ -12,7 +12,6 @@
 //
 
 #include "vpux/compiler/conversion.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
@@ -49,6 +48,7 @@ void ConvertDeclarations2VPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<mlir::async::AsyncDialect>();
     target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
+    target.addLegalDialect<VPURT::VPURTDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::PermuteCastOp>();

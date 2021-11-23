@@ -1230,6 +1230,68 @@ operation ::= `IE.LeakyRelu` `(` operands `)` attr-dict `:` type(operands) `->` 
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.LessEqual` (vpux::IE::LessEqualOp)
+
+InferenceEngine LessEqual layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LessEqual` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.Less` (vpux::IE::LessOp)
+
+InferenceEngine Less layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Less` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Log` (vpux::IE::LogOp)
 
 InferenceEngine Log layer
@@ -1897,6 +1959,68 @@ operation ::= `IE.ReLU` `(` operands `)` attr-dict `:` type(operands) `->` type(
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.ReduceMax` (vpux::IE::ReduceMaxOp)
+
+InferenceEngine ReduceMax layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReduceMax` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `IE.ReduceSum` (vpux::IE::ReduceSumOp)
+
+InferenceEngine ReduceSum layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReduceSum` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
 
 ### `IE.RegionYolo` (vpux::IE::RegionYoloOp)
 

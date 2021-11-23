@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -29,16 +30,6 @@ using namespace vpux;
 
 namespace {
 
-mlir::FailureOr<SmallVector<int64_t>> constInputToData(mlir::Location loc, mlir::Value input) {
-    auto constantOp = input.getDefiningOp<Const::DeclareOp>();
-    if (constantOp == nullptr) {
-        return errorAt(loc, "Only constant input is supported");
-    }
-
-    const auto content = constantOp.content();
-    return to_small_vector(content.getValues<int64_t>());
-}
-
 struct StridedSliceInputData final {
     SmallVector<int64_t> begins;
     SmallVector<int64_t> ends;
@@ -47,9 +38,9 @@ struct StridedSliceInputData final {
 
 mlir::FailureOr<StridedSliceInputData> extractData(mlir::Location loc, IE::StridedSliceOpAdaptor stridedSlice) {
     if (stridedSlice.begins() != nullptr) {
-        auto begins = constInputToData(loc, stridedSlice.begins());
-        auto ends = constInputToData(loc, stridedSlice.ends());
-        auto strides = constInputToData(loc, stridedSlice.strides());
+        auto begins = IE::constInputToData(loc, stridedSlice.begins());
+        auto ends = IE::constInputToData(loc, stridedSlice.ends());
+        auto strides = IE::constInputToData(loc, stridedSlice.strides());
 
         if (mlir::failed(begins) || mlir::failed(ends) || mlir::failed(strides)) {
             return mlir::failure();

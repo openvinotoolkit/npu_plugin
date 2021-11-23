@@ -21,7 +21,7 @@ using namespace vpux;
 
 void vpux::VPUIP::EltwiseUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input1,
                                       mlir::Value input2, mlir::Value output, VPUIP::EltwiseLayerTypeAttr type) {
-    build(builder, state, input1, input2, output, mlir::ValueRange{}, mlir::ValueRange{}, type, nullptr, nullptr);
+    build(builder, state, input1, input2, output, type, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::BlobWriter& writer) {
@@ -56,6 +56,12 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
         break;
     case VPUIP::EltwiseLayerType::EQUAL:
         type = writer.createString("compareeq");
+        break;
+    case VPUIP::EltwiseLayerType::LESS:
+        type = writer.createString("comparelt");
+        break;
+    case VPUIP::EltwiseLayerType::LESS_EQUAL:
+        type = writer.createString("comparele");
         break;
     default:
         VPUX_THROW("Unsupported EltwiseLayerType {0}", this->type());
@@ -96,6 +102,10 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseEltwise(mlir::OpBuilder& builder,
         type = EltwiseLayerType::AND;
     } else if (strType == "equal") {
         type = EltwiseLayerType::EQUAL;
+    } else if (strType == "comparelt") {
+        type = EltwiseLayerType::LESS;
+    } else if (strType == "comparele") {
+        type = EltwiseLayerType::LESS_EQUAL;
     } else {
         VPUX_THROW("Unsupported EltwiseLayerType {0}", strType);
     }
