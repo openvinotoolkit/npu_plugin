@@ -1275,7 +1275,6 @@ def VPUIP_EltwiseUPAOp :
         VPUIP_UPATaskOp<1, "EltwiseUPA",
             [
                 ViewLikeOpInterface,
-                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "Eltwise UPA SHAVE kernel";
@@ -1303,6 +1302,10 @@ def VPUIP_EltwiseUPAOp :
             )
         >
     ];
+
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
         attr-dict
