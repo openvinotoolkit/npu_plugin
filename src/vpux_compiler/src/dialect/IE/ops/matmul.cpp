@@ -182,7 +182,7 @@ mlir::LogicalResult TransposeWeights::matchAndRewrite(IE::MatMulOp matmulOp, mli
     const auto rhsShape = getShape(matmulOp.input2());
     SmallVector<unsigned> perm(rhsShape.size(), 0);
     for (size_t dimIdx = 0; dimIdx < perm.size(); dimIdx++) {
-        perm[dimIdx] = dimIdx;
+        perm[dimIdx] = checked_cast<unsigned>(dimIdx);
     }
     const auto weightsRank = perm.size();
     if (weightsRank < 2) {
@@ -190,8 +190,8 @@ mlir::LogicalResult TransposeWeights::matchAndRewrite(IE::MatMulOp matmulOp, mli
     }
     const auto weightsColIdx = weightsRank - 1;
     const auto weightsRowIdx = weightsRank - 2;
-    perm[weightsColIdx] = weightsRowIdx;
-    perm[weightsRowIdx] = weightsColIdx;
+    perm[weightsColIdx] = checked_cast<unsigned>(weightsRowIdx);
+    perm[weightsRowIdx] = checked_cast<unsigned>(weightsColIdx);
     const auto orderAttr = mlir::AffineMapAttr::get(mlir::AffineMap::getPermutationMap(perm, matmulOp->getContext()));
 
     auto transpose = rewriter.create<IE::TransposeOp>(matmulOp->getLoc(), matmulOp.input2(), nullptr, orderAttr);
