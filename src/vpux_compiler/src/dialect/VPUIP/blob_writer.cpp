@@ -30,6 +30,7 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
 #include "vpux/utils/core/numeric.hpp"
+#include "vpux/utils/core/small_string.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -265,7 +266,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
         invocationArgsAndData.push_back(0xCC);
     }
 
-    llvm::SmallString<128> uniqueInvocationName(kernelFunc.getName());
+    SmallString uniqueInvocationName(kernelFunc.getName());
     uniqueInvocationName.append("_invo");
 
     auto kernelMapEntries = _actKernelsData.count(uniqueInvocationName.c_str());

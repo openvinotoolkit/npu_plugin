@@ -15,6 +15,7 @@
 #include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/utils/core/logger.hpp"
+#include "vpux/utils/core/small_string.hpp"
 
 using namespace vpux;
 
@@ -160,7 +161,7 @@ private:
             innerModule = mainModuleBuilder.create<mlir::ModuleOp>(mlir::UnknownLoc::get(_ctx), vpuSwModuleName);
         }
 
-        llvm::SmallString<128> builtInFunctionName{"builtin_"};
+        SmallString builtInFunctionName{"builtin_"};
         auto nonNamespaceOpName = _origOp->getName().getStringRef().slice(
                 _origOp->getName().getDialectNamespace().size() + 1, mlir::StringRef::npos);
         builtInFunctionName.append(nonNamespaceOpName);
