@@ -319,7 +319,8 @@ mlir::LogicalResult ReorderWithConvert::matchAndRewrite(IE::ConvertOp convertOp,
     auto newReorderOp =
             rewriter.create<IE::ReorderOp>(origReorderOp->getLoc(), convertOp.input(), origReorderOp.dstOrderAttr());
 
-    rewriter.replaceOpWithNewOp<IE::ConvertOp>(origReorderOp, newReorderOp.output(), convertOp.dstElemTypeAttr());
+    rewriter.replaceOpWithNewOp<IE::ConvertOp>(origReorderOp, origReorderOp.getType(), newReorderOp.output(),
+                                               convertOp.dstElemTypeAttr());
 
     return mlir::success();
 }
