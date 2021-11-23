@@ -3196,6 +3196,38 @@
         },
 
         {
+            "name" : "BDK_FP16-INT8_hg-s8-b1-mpii",
+            "ir" : "models/clientmodels/BDK3/StackedHourglass/Surface/FP16-INT8/hg-s8-b1-mpii.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : true
+            },
+            "3900": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "hg-s8-b1-mpii-caffe2.yml",
+                "subsample_size": 100
+            },
+            "CI-options" : {
+                "blob_name" : "bdk_StackedHourglass"
+            }
+        },
+
+        {
             "name" : "BDK_INT8_StyleTransfer",
             "ir" : "models/clientmodels/BDK3/StyleTransfer/Cyberlink/INT8/StyleTransfer.xml",
             "category" : "MLIR",
