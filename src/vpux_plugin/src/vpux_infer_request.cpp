@@ -134,6 +134,7 @@ void InferRequest::moveBlobsForPreprocessingToInputs(
         const auto& preProcDataIt = preProcData.find(inputName);
         if (preProcDataIt != preProcData.end()) {
             const IE::Blob::Ptr& blobForPreProcessing = preProcDataIt->second->getRoiBlob();
+            std::cout << "Preprocessing blob is remote = " << blobForPreProcessing->is<IE::RemoteBlob>() << std::endl;
             if (preProcessingRequired(input.second, blobForPreProcessing)) {
                 IE::Blob::Ptr blobForPreProc = preProcDataIt->second->getRoiBlob();
                 /// If pre-processing required, we need use PP blobs instead of NN for inputs
@@ -245,6 +246,13 @@ void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
 }
 #endif
 
+IE::BlobMap copyBlobMap(const IE::BlobMap& orig) {
+    IE::BlobMap retMap;
+    for (const auto iter = orig.cbegin(); iter != orig.cend(); ++iter) {
+        retMap.insert({iter->first, vpux::copyBlob()})
+    }
+}
+
 void InferRequest::InferAsync() {
     // TODO [Track number: S#36866]
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "InferAsync");
@@ -261,7 +269,10 @@ void InferRequest::InferAsync() {
 #else
         _logger->info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
         moveBlobsForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
+        std::cout << "First input is remote = " << _inputs.begin()->second->is<IE::RemoteBlob>() << std::endl;
         execDataPreprocessing(_inputs);
+        std::cout << "After preprocessing: first input is remote = " << _inputs.begin()->second->is<IE::RemoteBlob>()
+                  << std::endl;
 #endif
         updateRemoteBlobs(_inputs, preProcMap);
         _executorPtr->push(_inputs, preProcMap);
