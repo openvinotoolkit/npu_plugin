@@ -248,9 +248,15 @@ void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
 
 IE::BlobMap copyBlobMap(const IE::BlobMap& orig) {
     IE::BlobMap retMap;
-    for (const auto iter = orig.cbegin(); iter != orig.cend(); ++iter) {
-        retMap.insert({iter->first, vpux::copyBlob()})
+    for (auto iter = orig.cbegin(); iter != orig.cend(); ++iter) {
+        const auto origBlob = iter->second;
+        auto addBlob = make_blob_with_precision(origBlob->getTensorDesc());
+        addBlob->allocate();
+        vpux::copyBlob(IE::as<IE::MemoryBlob>(origBlob), IE::as<IE::MemoryBlob>(addBlob));
+        retMap.insert({iter->first, addBlob});
     }
+    std::cout << "Copy blob map: copied " << retMap.size() << " blobs" << std::endl;
+    return retMap;
 }
 
 void InferRequest::InferAsync() {
@@ -259,6 +265,7 @@ void InferRequest::InferAsync() {
 
     const auto preProcMap = preparePreProcessing(_networkInputs, _preProcData);
     if (_executorPtr->isPreProcessingSupported(preProcMap)) {
+        // VPU preprocessing
         moveBlobsForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
         updateRemoteBlobs(_inputs, preProcMap);
         _executorPtr->push(_inputs, preProcMap);
@@ -267,8 +274,12 @@ void InferRequest::InferAsync() {
 #ifdef __aarch64__
         execPreprocessing(_inputs);
 #else
+        // CPU preprocessing
         _logger->info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
-        moveBlobsForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
+        if (isRemoteAnyBlob(_preProcData.cbegin()->second->getRoiBlob())) {
+            auto copyInputs = copyBlobMap(_inputs);
+        }
+        // moveBlobsForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
         std::cout << "First input is remote = " << _inputs.begin()->second->is<IE::RemoteBlob>() << std::endl;
         execDataPreprocessing(_inputs);
         std::cout << "After preprocessing: first input is remote = " << _inputs.begin()->second->is<IE::RemoteBlob>()
