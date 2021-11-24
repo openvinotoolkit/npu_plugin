@@ -41,7 +41,7 @@ INSTANTIATE_TEST_SUITE_P(
         testing::Combine(
            testing::ValuesIn(inShapes),
            testing::Values(dType),   // elem Type
-           testing::Values(true),    // conv_to_RGB
+           testing::Values(true, false), // conv_to_RGB
            testing::Values(true),    // is_single_plane
            testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
         KmbConvertColorNV12LayerTest::getTestCaseName
