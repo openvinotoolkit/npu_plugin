@@ -42,11 +42,6 @@ addIeTargetTest(
         KMB
 )
 
-install(DIRECTORY "${InferenceEngineVPUXPlugin_SOURCE_DIR}/src/mcmCompiler/config/"
-        DESTINATION ${IE_CPACK_RUNTIME_PATH}/mcm_config
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
-
 if(MSVC)
     # Enforce standards conformance on MSVC
     target_compile_options(${TARGET_NAME}
