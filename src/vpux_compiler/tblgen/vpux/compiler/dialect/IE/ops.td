@@ -2437,4 +2437,34 @@ def IE_AffineReshapeOp :
     let checkInferredMemSpace = 1;
 }
 
+//
+// YuvToRgbOp
+//  Conversions:
+//   NV12toRGB, NV12toBGR,
+//   I420toRGB, I420toBGR
+//
+
+def IE_YuvToRgbOp :
+        IE_LayerOp<
+            "YuvToRgb",
+            [
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "InferenceEngine NV12/I420 to RGB/BGR layer";
+
+    let arguments = (ins
+                 4DTensorOf<[I8, F16, F32]> :$input1,
+        Optional<4DTensorOf<[I8, F16, F32]>>:$input2,
+        Optional<4DTensorOf<[I8, F16, F32]>>:$input3,
+
+        IE_ColorFmt:$inFmt,
+        IE_ColorFmt:$outFmt
+    );
+
+    let results = (outs
+        4DTensorOf<[I8, F16, F32]>:$output
+    );
+}
+
 #endif

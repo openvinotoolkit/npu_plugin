@@ -66,6 +66,7 @@ mlir::LogicalResult verifyOp(CTCGreedyDecoderUPAOp op);
 mlir::LogicalResult verifyOp(MVNUPAOp op);
 mlir::LogicalResult verifyOp(PadUPAOp op);
 mlir::LogicalResult verifyOp(GatherUPAOp op);
+mlir::LogicalResult verifyOp(YuvToRgbUPAOp op);
 mlir::LogicalResult verifyOp(ConvolutionUPAOp op);
 mlir::LogicalResult verifyOp(NCEClusterTaskOp op);
 mlir::LogicalResult verifyOp(DPUTaskOp op);

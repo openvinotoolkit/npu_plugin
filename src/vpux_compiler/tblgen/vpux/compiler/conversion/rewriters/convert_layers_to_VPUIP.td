@@ -820,6 +820,25 @@ def RewriteGather :
         >;
 
 //
+// IERT.YuvToRgb -> VPUIP.YuvToRgbUPA
+//
+
+def createYuvToRgbUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::YuvToRgbUPAOp>(
+                $_loc, $0,
+                $1.size() == 1 ? $1[0] : nullptr,
+                $2.size() == 1 ? $2[0] : nullptr,
+                $3, $4, $5)
+        }]>;
+
+def RewriteYuvToRgb :
+        Pat<
+            (IERT_YuvToRgbOp $input1, $input2, $input3, $output, $inFmt, $outFmt),
+            (createYuvToRgbUPAOp $input1, $input2, $input3, $output, $inFmt, $outFmt)
+        >;
+
+//
 // IERT.GatherElements -> VPUIP.GatherElements
 //
 

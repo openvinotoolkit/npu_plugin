@@ -2683,4 +2683,39 @@ def IERT_EqualOp :
     }];
 }
 
+//
+// YuvToRgbOp
+//
+
+def IERT_YuvToRgbOp :
+        IERT_LayerOp<1, "YuvToRgb",
+            [
+                ViewLikeOpInterface,
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "InferenceEngine run-time YUV-to-RGB layer";
+
+    let arguments = (ins
+                 MemRefOf<[I8, F16, F32]> :$input1,
+        Optional<MemRefOf<[I8, F16, F32]>>:$input2,
+        Optional<MemRefOf<[I8, F16, F32]>>:$input3,
+                 MemRefOf<[I8, F16, F32]> :$output_buff,
+
+        IE_ColorFmt:$inFmt,
+        IE_ColorFmt:$outFmt
+    );
+
+    let results = (outs
+        MemRefOf<[I8, F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) (`,` $input2^ `:` type($input2))? (`,` $input3^ `:` type($input3))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif

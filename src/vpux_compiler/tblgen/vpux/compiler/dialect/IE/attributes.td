@@ -431,4 +431,22 @@ def IE_ConcatAttrs :
             ]
         >;
 
+//
+// Color Formats
+//
+
+def IE_ColorFmt :
+        I64EnumAttr<
+            "ColorFmt",
+            "YUV, RGB color formats",
+            [
+                I64EnumAttrCase<"NV12", 0>,
+                I64EnumAttrCase<"I420", 1>,
+                I64EnumAttrCase<"RGB",  2>,
+                I64EnumAttrCase<"BGR",  3>
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+}
+
 #endif

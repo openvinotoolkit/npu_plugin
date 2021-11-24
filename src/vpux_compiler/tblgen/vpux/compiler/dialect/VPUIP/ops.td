@@ -2946,4 +2946,61 @@ def VPUIP_NormalizeIEUPAOp :
         `->` type(results)
     }];
 }
+
+//
+// YuvToRgbOp
+//
+
+def VPUIP_YuvToRgbUPAOp :
+        VPUIP_UPATaskOp<1,"YuvToRgbUPA",
+            [
+                ViewLikeOpInterface,
+                AttrSizedOperandSegments,
+                IERT_AnyDimsOrder
+            ]
+        > {
+    let summary = "Yuv-to-Rgb UPA SHAVE kernel";
+
+    let arguments = (ins
+                 MemRefOf<[I8, F16, F32]> :$input1,
+        Optional<MemRefOf<[I8, F16, F32]>>:$input2,
+        Optional<MemRefOf<[I8, F16, F32]>>:$input3,
+                 MemRefOf<[I8, F16, F32]> :$output_buff,
+
+        IE_ColorFmt:$inFmt,
+        IE_ColorFmt:$outFmt,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        MemRefOf<[I8, F16, F32]>:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input1,
+                "mlir::Value":$input2,
+                "mlir::Value":$input3,
+                "mlir::Value":$output,
+                "IE::ColorFmtAttr":$inFmt,
+                "IE::ColorFmtAttr":$outFmt
+            )
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) (`,` $input2^ `:` type($input2))? (`,` $input3^ `:` type($input3))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+
+}
+
 #endif
