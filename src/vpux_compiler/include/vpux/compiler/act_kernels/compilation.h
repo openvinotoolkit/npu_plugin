@@ -30,7 +30,7 @@ struct ActShaveCompileParams {
 struct KernelDataDesc {
     std::string name;
     //flatbuffers::Offset<MVCNN::KernelData> data;
-    llvm::SmallVector<uint8_t, 128> data;
+    llvm::SmallVector<uint8_t> data;
     // unpadded size
     size_t size;
 };

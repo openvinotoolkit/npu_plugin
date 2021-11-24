@@ -104,8 +104,8 @@ static void getActShaveBinaries(const ActShaveCompileParams& params, const Compi
 }
 
 ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, const ActShaveCompileParams& params) {
-    SmallVector<uint8_t, 128> textBinary;
-    SmallVector<uint8_t, 128> dataBinary;
+    SmallVector<uint8_t> textBinary;
+    SmallVector<uint8_t> dataBinary;
     getActShaveBinaries(params, unitDesc, textBinary, dataBinary);
 
     // lets pad textBinary by 1K array at the end with FC CC FC CC
