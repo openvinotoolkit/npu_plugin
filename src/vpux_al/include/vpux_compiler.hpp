@@ -166,12 +166,10 @@ public:
         return _actual->getNetworkModelSize();
     }
 
-    ~NetworkDescription() {
-        _actual = nullptr;
-    }
+    ~NetworkDescription() = default;
 
 private:
-    INetworkDescription::Ptr _actual = nullptr;
+    INetworkDescription::Ptr _actual;
     InferenceEngine::details::SharedObjectLoader _plg;
 };
 
