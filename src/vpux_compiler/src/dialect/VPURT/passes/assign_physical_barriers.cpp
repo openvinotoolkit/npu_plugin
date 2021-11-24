@@ -10,7 +10,8 @@
 // to the "third-party-programs.txt" or other similarly-named text file
 // included with the Software Package for additional details.
 //
-
+#include "vpux/compiler/core/token_barrier_scheduler.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
@@ -112,7 +113,11 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
-    const auto nceAttr = VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::NCE);
+    // Barrier scheduler
+    TokenBasedBarrierScheduler barrierScheduler(&ctx,func, 8, 256, _log);
+    barrierScheduler.schedule();
+
+    const auto nceAttr = VPUIP::PhysicalProcessorAttr::get(&ctx, VPUIP::PhysicalProcessor::NCE_Cluster);
     auto nceResOp = resOp.getExecutor(nceAttr);
     VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE Executor information");
 
