@@ -45,6 +45,7 @@
 #include "vpux/compiler/core/barrier_resource_state.hpp"
 #include "vpux/compiler/core/op_resource_state.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 namespace vpux {
 
@@ -129,7 +130,7 @@ protected:
     //std::unordered_map<mlir::Operation*, size_t> _operationInDegree;
     //std::unordered_map<mlir::Operation*, size_t> _operationOutDegree;
     SmallVector<IERT::LayerOpInterface> _allTaskOps;
-    SmallVector<VPUIP::DeclareVirtualBarrierOp> _allBarrierOps;
+    SmallVector<VPURT::DeclareVirtualBarrierOp> _allBarrierOps;
     static std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap;
     static std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierConsumersMap;
     
