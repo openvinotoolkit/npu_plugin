@@ -224,7 +224,7 @@ void FeasibleScheduleGenerator::init_resource_state(const resource_state_t& star
 
 SmallVector<mlir::Operation*> FeasibleScheduleGenerator::getConsumerOps(mlir::Operation* op) {
     SmallVector<mlir::Operation*> consumerOps;
-    if (auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op)) {
+    if (auto task = mlir::dyn_cast<VPURT::TaskOp>(op)) {
         for (auto updateBarrier : task.updateBarriers()) {
             if (auto barrierOp = updateBarrier.getDefiningOp()) {
 
@@ -257,7 +257,7 @@ std::string FeasibleScheduleGenerator::printOpType(mlir::Operation* op) {
 }
 
 mlir::IntegerAttr FeasibleScheduleGenerator::getUniqueID(mlir::Operation* op) {
-    if (auto taskOp = mlir::dyn_cast<VPUIP::TaskOpInterface>(op))
+    if (auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op))
         return taskOp->getAttr(uniqueIdAttrName).dyn_cast_or_null<mlir::IntegerAttr>();
 }
 
@@ -357,12 +357,12 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
 
 void FeasibleScheduleGenerator::assignUniqueIds(mlir::FuncOp func) {
     int64_t uniqueId = 0;
-    auto assignUniqueIDs = [&](VPUIP::TaskOpInterface taskOp) {
+    auto assignUniqueIDs = [&](VPURT::TaskOp taskOp) {
         taskOp->setAttr(uniqueIdAttrName, getIntAttr(_ctx, uniqueId++));
         std::cout << "Assigning ID " << uniqueId << " to operation " << printOpType(taskOp.getOperation()) << std::endl;
     };
 
-    func.walk([&](VPUIP::TaskOpInterface taskOp) {
+    func.walk([&](VPURT::TaskOp taskOp) {
         switch (taskOp.getTaskType()) {
         case VPUIP::TaskType::UPADMA: {
             assignUniqueIDs(taskOp);
@@ -386,12 +386,12 @@ void FeasibleScheduleGenerator::assignUniqueIds(mlir::FuncOp func) {
 }
 
 void FeasibleScheduleGenerator::printInfo(mlir::FuncOp func) {
-    auto getTaskInfo = [&](VPUIP::TaskOpInterface taskOp, const int64_t count = 1) {
+    auto getTaskInfo = [&](VPURT::TaskOp taskOp, const int64_t count = 1) {
         std::cout << printOpType(taskOp.getOperation()) << " # wait barriers " << taskOp.waitBarriers().size()
                   << std::endl;
     };
 
-    func.walk([&](VPUIP::TaskOpInterface taskOp) {
+    func.walk([&](VPURT::TaskOp taskOp) {
         switch (taskOp.getTaskType()) {
         case VPUIP::TaskType::UPADMA:
         case VPUIP::TaskType::NNDMA: {
@@ -414,7 +414,7 @@ void FeasibleScheduleGenerator::printInfo(mlir::FuncOp func) {
 
 void FeasibleScheduleGenerator::getAllBarriersProducersAndConsumers() {
     // Get all producers and consumers of barriers (NCE,UPA, DMA) only
-    _allBarrierOps = to_small_vector(_func.getOps<VPUIP::DeclareVirtualBarrierOp>());
+    _allBarrierOps = to_small_vector(_func.getOps<VPURT::DeclareVirtualBarrierOp>());
 
     for (auto& barrierOp : _allBarrierOps) {
         SmallVector<mlir::Operation*> producers;
@@ -476,7 +476,7 @@ void FeasibleScheduleGenerator::compute_op_indegree(operation_in_degree_t& in_de
     printInfo(_func);
     _allTaskOps = to_small_vector(_func.getOps<IERT::LayerOpInterface>());
     for (auto taskOp : _allTaskOps) {
-        if (auto op = mlir::dyn_cast<VPUIP::TaskOpInterface>(taskOp.getOperation())) {
+        if (auto op = mlir::dyn_cast<VPURT::TaskOp>(taskOp.getOperation())) {
             size_t waitBarrierIncomingEdges = 0;
 
             for (const auto waitBarrier : op.waitBarriers()) {

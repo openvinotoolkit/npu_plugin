@@ -244,7 +244,7 @@ public:
              mlir::OpBuilder builder(sinfo.op_);
 
              builder.setInsertionPointAfter(sinfo.op_);
-             mlir::Operation* newBarrier = builder.create<VPUIP::ConfigureBarrierOp>(sinfo.op_->getLoc(), barrier_task_id);
+             mlir::Operation* newBarrier = builder.create<VPURT::ConfigureBarrierOp>(sinfo.op_->getLoc(), barrier_task_id);
 
              std::set<mlir::Operation*> newBarrierProducers{};
              std::set<mlir::Operation*> newBarrierConsumers{};            
