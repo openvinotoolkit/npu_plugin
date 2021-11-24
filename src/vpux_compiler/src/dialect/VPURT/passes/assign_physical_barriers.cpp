@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
@@ -21,8 +22,8 @@ using namespace vpux;
 
 namespace {
 
-constexpr int64_t MAX_BARRIERS_PER_INFERENCE = 32;
-constexpr int64_t BARRIERS_PER_CLUSTER = 8;
+// Same value for all architectures for now
+constexpr int64_t MAX_BARRIERS_FOR_ARCH = 64;
 
 //
 // BarrierAllocation
@@ -112,9 +113,14 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     const auto nceAttr = VPUIP::PhysicalProcessorAttr::get(&ctx, VPUIP::PhysicalProcessor::NCE_Cluster);
     auto nceResOp = resOp.getExecutor(nceAttr);
     VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE_Cluster information");
-
     const auto numClusters = nceResOp.count();
-    const auto maxNumBarriers = std::min(MAX_BARRIERS_PER_INFERENCE, BARRIERS_PER_CLUSTER * numClusters);
+
+    const auto maxNumClustersForArch = vpux::VPUIP::getMaxDPUClusterNum(module);
+    VPUX_THROW_UNLESS(maxNumClustersForArch != 0, "Failed to get maxNumClustersForArch");
+
+    constexpr auto maxBarriersPerInference = MAX_BARRIERS_FOR_ARCH / 2;  // half barries are used
+    const auto barriersPerCluster = maxBarriersPerInference / maxNumClustersForArch;
+    const auto maxNumBarriers = std::min(maxBarriersPerInference, barriersPerCluster * numClusters);
 
     const auto numBarriers = _numBarriersOpt.hasValue() ? _numBarriersOpt.getValue() : maxNumBarriers;
     VPUX_THROW_UNLESS(numBarriers > 0 && numBarriers <= maxNumBarriers,
