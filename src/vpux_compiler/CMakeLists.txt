@@ -272,6 +272,20 @@ add_op_interfaces("dialect/VPURT")
 add_types("VPURT")
 add_passes("dialect/VPURT" "VPURT")
 
+add_dialect("ELF")
+#add_op_interfaces("dialect/ELF")
+add_enum_attrs("ELF")
+#add_struct_attrs("ELF")
+add_types("ELF")
+add_passes("dialect/ELF" "ELF")
+
+add_dialect("VPUIPRegMapped")
+add_op_interfaces("dialect/VPUIPRegMapped")
+add_enum_attrs("VPUIPRegMapped")
+add_struct_attrs("VPUIPRegMapped")
+add_types("VPUIPRegMapped")
+add_passes("dialect/VPUIPRegMapped" "VPUIPRegMapped")
+
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")
 
