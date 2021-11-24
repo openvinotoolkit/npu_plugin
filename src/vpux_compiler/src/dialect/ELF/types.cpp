@@ -17,7 +17,7 @@
 
 #include <llvm/ADT/TypeSwitch.h>
 
-#include "llvm/Support/Debug.h"  // Alex: 2021_10_05
+#include "llvm/Support/Debug.h"
 
 using namespace vpux;
 
@@ -41,8 +41,7 @@ mlir::Type vpux::ELF::ELFDialect::parseType(mlir::DialectAsmParser& parser) cons
     }
 
     mlir::Type type;
-    if (!generatedTypeParser(parser, mnemonic, type).hasValue()) {  // Alex: 2021_11_03
-        // Alex: if (!generatedTypeParser(getContext(), parser, mnemonic, type).hasValue()) {
+    if (!generatedTypeParser(parser, mnemonic, type).hasValue()) {
         printTo(parser.emitError(parser.getCurrentLocation()), "Unknown ELF Type '{0}'", mnemonic);
     }
 

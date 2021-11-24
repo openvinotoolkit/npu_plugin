@@ -21,19 +21,6 @@ using namespace vpux;
 // EmptyOp
 //
 
-// VPUIPRegMapped::BlobWriter::SpecificTask vpux::VPUIPRegMapped::EmptyOp::serialize(VPUIPRegMapped::BlobWriter& writer)
-// {
 void vpux::VPUIPRegMapped::EmptyOp::serialize(std::vector<char>& buffer) {
-    /*
-    MVCNN::EmptyTaskBuilder subBuilder(writer);
-    const auto subTask = subBuilder.Finish();
-
-    MVCNN::ControllerTaskBuilder builder(writer);
-    builder.add_task_type(MVCNN::ControllerSubTask_EmptyTask);
-    builder.add_task(subTask.Union());
-
-    return {builder.Finish().Union(), MVCNN::SpecificTask_ControllerTask};
-    */
-
     (void)buffer;
 }

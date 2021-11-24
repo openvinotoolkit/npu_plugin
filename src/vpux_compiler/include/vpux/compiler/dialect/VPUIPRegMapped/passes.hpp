@@ -38,11 +38,13 @@ std::unique_ptr<mlir::Pass> createSetCompileParamsPass(ArchKind arch, Compilatio
                                                        Optional<int> numOfDPUGroups = None,
                                                        Logger log = Logger::global());
 
+/*
 // Alex:
 std::unique_ptr<mlir::Pass> createSetCompileParamsPass2();
 std::unique_ptr<mlir::Pass> createSetCompileParamsPass2(ArchKind arch, CompilationMode compilationMode,
                                                         Optional<int> numOfDPUGroups = None,
                                                         Logger log = Logger::global());
+*/
 
 std::unique_ptr<mlir::Pass> createAssignPhysicalBarriersPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertWeightsTableOp2ConstPass(Logger log = Logger::global());

@@ -12,7 +12,6 @@
 //
 
 #include "vpux/compiler/dialect/ELF/ops.hpp"
-//#include "vpux/compiler/dialect/VPUIP/ops.hpp"  // 2021_10_06
 
 //
 // initialize
@@ -21,7 +20,7 @@
 void vpux::ELF::ELFDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
-#include <vpux/compiler/dialect/ELF/generated/ops.cpp.inc>  // 2021_10_01
+#include <vpux/compiler/dialect/ELF/generated/ops.cpp.inc>
             >();
 
     addTypes<
@@ -31,7 +30,7 @@ void vpux::ELF::ELFDialect::initialize() {
 }
 
 //
-// Generated // Added by Alex on 2021_10_01
+// Generated
 //
 
 #include <vpux/compiler/dialect/ELF/generated/dialect.cpp.inc>

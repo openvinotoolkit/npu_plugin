@@ -58,12 +58,6 @@ def VPUIPRegMapped_TaskOpInterface : OpInterface<"TaskOpInterface"> {
 
         InterfaceMethod<
             "Serialize the Task to BLOB format",
-            //"vpux::VPUIPRegMapped::BlobWriter::SpecificTask",
-            //"serialize", (ins "vpux::VPUIPRegMapped::BlobWriter&":$writer)
-            ///"void",
-            ///"serialize", (ins)
-            ////"char*",
-            ////"serialize", (ins "int&":$resBufferSize)
             "void",
             "serialize", (ins "std::vector<char>&":$buffer)
         >,
