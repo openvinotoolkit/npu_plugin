@@ -126,7 +126,7 @@ mlir::LogicalResult vpux::IERT::inferLayerReturnTypes(mlir::ValueRange operands,
                                                       SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
     const auto inNum = getLastMemRefPosition(operands);
 
-    VPUX_THROW_UNLESS(numResults < checked_cast<size_t>(inNum),
+    VPUX_THROW_UNLESS(numResults <= checked_cast<size_t>(inNum),
                       "Call inferLayerReturnTypes for non RT Layer Operation");
 
     inferredReturnTypes.reserve(numResults);
