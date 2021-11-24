@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,23 +11,39 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#ifndef VPUX_COMPILER_DIALECT_ELF_TYPES
+#define VPUX_COMPILER_DIALECT_ELF_TYPES
 
-#include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
-#include "vpux/compiler/dialect/const/ops_interfaces.hpp"  // 2021_10_22
-
-#include "vpux/utils/core/logger.hpp"
-
-#include <mlir/IR/Dialect.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/Transforms/DialectConversion.h>
+include "vpux/compiler/dialect/ELF/dialect.td"
 
 //
-// Generated
+// Base classes
 //
 
-#include <vpux/compiler/dialect/const/generated/dialect.hpp.inc>
+class ELF_Type<string name> : TypeDef<ELF_Dialect, name> {
+    let mnemonic = name;
+}
 
-#define GET_OP_CLASSES
-#include <vpux/compiler/dialect/const/generated/ops.hpp.inc>
+//
+// Symbol
+//
+
+def ELF_Symbol : ELF_Type<"Symbol"> {
+    let summary = "ELF Symbol Type";
+
+    let description = "This object represents closely a Symbol";
+}
+
+
+
+//
+// Section
+//
+
+def ELF_Section : ELF_Type<"Section"> {
+    let summary = "ELF Section Type";
+
+    let description = "This object represents closely a Section";
+}
+
+#endif

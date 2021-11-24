@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,23 +11,16 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 
-#include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
-#include "vpux/compiler/dialect/const/ops_interfaces.hpp"  // 2021_10_22
+using namespace vpux;
 
-#include "vpux/utils/core/logger.hpp"
+VPUIPRegMapped::GraphOp vpux::VPUIPRegMapped::GraphOp::getFromModule(mlir::ModuleOp module) {
+    auto graphOps = to_small_vector(module.getOps<GraphOp>());
 
-#include <mlir/IR/Dialect.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/Transforms/DialectConversion.h>
+    VPUX_THROW_UNLESS(graphOps.size() == 1,
+                      "Can't have more than one 'VPUIPRegMapped::GraphOp' Operation in Module, got '{0}'",
+                      graphOps.size());
 
-//
-// Generated
-//
-
-#include <vpux/compiler/dialect/const/generated/dialect.hpp.inc>
-
-#define GET_OP_CLASSES
-#include <vpux/compiler/dialect/const/generated/ops.hpp.inc>
+    return graphOps.front();
+}

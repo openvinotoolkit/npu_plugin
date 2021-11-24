@@ -56,6 +56,17 @@ void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, const LowerIERT
 }
 
 //
+// LowerVPUIP2VPUIPRegMapped
+//
+
+void vpux::buildLowerVPUIP2VPUIPRegMappedAndELFPipeline(mlir::OpPassManager& pm, Logger log) {
+    // const auto grc = getDefaultGreedyRewriteConfig();
+
+    pm.addPass(createConvertVPUIP2VPUIPRegMappedPass(log));
+    pm.addPass(createConvert2VPUIPRegMappedAndELFPass(log));
+}
+
+//
 // registerConversionPipelines
 //
 
@@ -69,5 +80,11 @@ void vpux::registerConversionPipelines() {
             "lower-IERT-to-VPUIP", "Performs full lowering from the IERT Dialect to VPUIP Dialect",
             [](mlir::OpPassManager& pm, const LowerIERT2VPUIPOptions& options) {
                 buildLowerIERT2VPUIPPipeline(pm, options);
+            });
+    mlir::PassPipelineRegistration<>(
+            "VPUIP-to-VPUIPRegMappedAndELF",
+            "Performs full lowering from the VPUIP Dialect to the VPUIPRegMapped and ELF Dialects",
+            [](mlir::OpPassManager& pm) {
+                buildLowerVPUIP2VPUIPRegMappedAndELFPipeline(pm);
             });
 }

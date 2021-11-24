@@ -13,21 +13,38 @@
 
 #pragma once
 
-#include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
-#include "vpux/compiler/dialect/const/ops_interfaces.hpp"  // 2021_10_22
+//#include "vpux/compiler/dialect/ELF/attributes/enums.hpp"
+#include "vpux/compiler/dialect/ELF/ops.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"
+#include "vpux/utils/core/optional.hpp"
 
-#include <mlir/IR/Dialect.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/Transforms/DialectConversion.h>
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/Pass/Pass.h>
+
+#include <memory>
+
+namespace vpux {
+namespace ELF {
+
+//
+// Passes
+//
+std::unique_ptr<mlir::Pass> createSetCompileParamsPass2();
 
 //
 // Generated
 //
 
-#include <vpux/compiler/dialect/const/generated/dialect.hpp.inc>
+#define GEN_PASS_CLASSES
+#include <vpux/compiler/dialect/ELF/generated/passes.hpp.inc>
+#undef GEN_PASS_CLASSES
 
-#define GET_OP_CLASSES
-#include <vpux/compiler/dialect/const/generated/ops.hpp.inc>
+#define GEN_PASS_REGISTRATION
+#include <vpux/compiler/dialect/ELF/generated/passes.hpp.inc>
+#undef GEN_PASS_REGISTRATION
+
+}  // namespace ELF
+}  // namespace vpux

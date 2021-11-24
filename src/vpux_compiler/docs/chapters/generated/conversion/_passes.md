@@ -14,12 +14,14 @@ This pass bufferizes **IE Dialect** into **IERT Dialect**:
 A bufferize pass that bufferizes std.func ops.
 In contrast to MLIR standard analogue pass, this pass uses vpux::BufferizeTypeConverter
 to process encoding attribute in mlir::RankedTensorType
+### `-convert-VPUIP-to-VPUIPRegMapped`: Convert VPUIP Dialect to VPUIPRegMapped Dialect
 ### `-convert-async-ops-to-VPUIP`: Convert Async Dialect Operations to VPUIP Dialect
 This pass inlines 'async.execute' body to parent Block and replaces '!async.token' based dependencies with
 VPUIP virtual barriers.
 ### `-convert-declarations-to-VPUIP`: Convert declarations (constants and memory buffers) to VPUIP Dialect
 ### `-convert-layers-to-VPUIP`: Convert Layers Operations to VPUIP Dialect (UPA and DMA tasks)
 ### `-convert-sw-layers-to-VPUIP`: Convert Software Layers Operations to VPUIP SW_kernel
+### `-convert-to-VPUIPRegMapped-and-ELF`: Convert to VPUIPRegMapped Dialect and ELF Dialect
 ### `-convert-to-nce-ops`: Convert to NCE2 ops
 Convert ops which can be executed on NCE to explicit NCE ops.
 ### `-convert-view-ops-to-VPUIP`: Convert view-like Operations to VPUIP Dialect

@@ -13,10 +13,12 @@
 
 #include "vpux/compiler/init.hpp"
 
+#include "vpux/compiler/dialect/ELF/ops.hpp"  // Alex: 2021_09_30
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"  // Alex: 2021_09_24
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
@@ -46,7 +48,10 @@ void vpux::registerDialects(mlir::DialectRegistry& registry) {
                     vpux::VPU::VPUDialect,      //
                     vpux::IERT::IERTDialect,    //
                     vpux::VPUIP::VPUIPDialect,  //
-                    vpux::VPURT::VPURTDialect>();
+                    vpux::VPURT::VPURTDialect,
+                    vpux::VPUIPRegMapped::VPUIPRegMappedDialect,  // Alex: 2021_09_24
+                    vpux::ELF::ELFDialect                         // Alex: 2021_09_30
+                    >();
 
     registry.insert<mlir::StandardOpsDialect,          //
                     mlir::async::AsyncDialect,         //
