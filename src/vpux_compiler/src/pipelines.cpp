@@ -57,6 +57,9 @@ struct MyPipelineOptions : mlir::PassPipelineOptions<MyPipelineOptions> {
     BoolOption enableExpandActivationChannels{*this, "expand-activation-channels",
                                               ::llvm::cl::desc("Enable expand-activation-channels pass"),
                                               ::llvm::cl::init(true)};
+    BoolOption enablePrefetchTiling{*this, "prefetch-tiling",
+                                    ::llvm::cl::desc("Enable prefetch-tiling pass"),
+                                    ::llvm::cl::init(true)};
     BoolOption enableOptimizeCopies{*this, "optimize-copies", ::llvm::cl::desc("Enable optimize-copies pass"),
                                     ::llvm::cl::init(true)};
     BoolOption enableOptimizeAsyncDeps{*this, "optimize-async-deps",
@@ -273,11 +276,10 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, bool enableProfil
 
     buildIECommonPipeline(pm, log, *pipelineOptions);
 
-    pm.addPass(vpux::createPrintDotPass("./output/beforeIsolatedtiling.dot"));
     pm.addPass(IE::createIsolatedTilingPass(log));
-    pm.addPass(vpux::createPrintDotPass("./output/afterIsolatedtiling.dot"));
-    pm.addPass(IE::createPrefetchTilingPass(log));
-    pm.addPass(vpux::createPrintDotPass("./output/afterPrefetchtiling.dot"));
+    if (pipelineOptions->enablePrefetchTiling.getValue()) {
+        pm.addPass(IE::createPrefetchTilingPass(log));
+    }
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // Lower IE->IERT
