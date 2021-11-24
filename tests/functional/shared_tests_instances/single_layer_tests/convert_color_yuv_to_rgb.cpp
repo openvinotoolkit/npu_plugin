@@ -33,16 +33,18 @@ ov::Shape inShapes[] = {
  {3, 128, 128, 1}
 };
 
-ov::element::Type dType = ov::element::f16;
+ov::element::Type dTypes[] = {
+  ov::element::f16,
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_ConvertColorNV12,
         KmbConvertColorNV12LayerTest,
         testing::Combine(
            testing::ValuesIn(inShapes),
-           testing::Values(dType),   // elem Type
+           testing::ValuesIn(dTypes),    // elem Type
            testing::Values(true, false), // conv_to_RGB
-           testing::Values(true),    // is_single_plane
+           testing::Values(true, false), // is_single_plane
            testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
         KmbConvertColorNV12LayerTest::getTestCaseName
 );
