@@ -2391,6 +2391,42 @@
         },
 
         {
+            "name" : "MTL_ea_caffe_FP16_age-gender-recognition-retail-0013_ww14",
+            "ir" : "age-gender-recognition-retail-0013-ww14/caffe/FP16/age-gender-recognition-retail-0013.xml",
+            "category" : "MLIR",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_ea_caffe_FP16_age-gender-recognition-retail-0013"
+            }
+        },
+
+        {
             "name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013",
             "ir" : "scale/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013.xml",
             "category" : "MLIR/precommit",
