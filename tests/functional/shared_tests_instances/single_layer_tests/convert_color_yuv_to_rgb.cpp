@@ -27,14 +27,19 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 // N,H,W,C
-ov::Shape inShape({1, 4, 8, 1});
+ov::Shape inShapes[] = {
+ {1,   4,   8, 1},
+ {1,  64,  32, 1},
+ {3, 128, 128, 1}
+};
+
 ov::element::Type dType = ov::element::f16;
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_ConvertColorNV12,
         KmbConvertColorNV12LayerTest,
         testing::Combine(
-           testing::Values(inShape),
+           testing::ValuesIn(inShapes),
            testing::Values(dType),   // elem Type
            testing::Values(true),    // conv_to_RGB
            testing::Values(true),    // is_single_plane
