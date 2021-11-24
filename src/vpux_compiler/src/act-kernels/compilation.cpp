@@ -95,13 +95,13 @@ static void getActShaveBinaries(const ActShaveCompileParams& params, const Compi
         }
     };
 
+    // Use moviCompile to compile and link C source code into an ELF binary.
+    // and then using objcopy teardown elf into text and data sections
     readBinary(prebuiltKernelText, textBinary, 0x10);
     readBinary(prebuiltKernelData, dataBinary, 0x10);
 }
 
 ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, const ActShaveCompileParams& params) {
-    // Use moviCompile to compile and link C source code into an ELF binary.
-    // and then using objcopy teardown elf into text and data sections
     SmallVector<uint8_t, 128> textBinary;
     SmallVector<uint8_t, 128> dataBinary;
     getActShaveBinaries(params, unitDesc, textBinary, dataBinary);

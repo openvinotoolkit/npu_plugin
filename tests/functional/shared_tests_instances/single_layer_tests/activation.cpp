@@ -85,13 +85,6 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
 };
 
 class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
-    void SkipBeforeLoad() override {
-        if (std::getenv("MV_TOOLS_DIR") && std::getenv("MV_TOOLS_VERSION")) {
-            return;
-        }
-
-        throw LayerTestsUtils::KmbSkipTestException("Movi tools environment is not set.");
-    }
     void SkipBeforeInfer() override {
         throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
     }
