@@ -249,10 +249,9 @@ def IERT_StaticAllocOp :
 //
 
 def IERT_TimestampOp :
-        IERT_Op<
-            "Timestamp",
+        IERT_LayerOp<1, "Timestamp",
             [
-                NoSideEffect,
+                ViewLikeOpInterface,
                 SameOperandsAndResultElementType,
                 DotInterface
             ]
@@ -275,6 +274,13 @@ def IERT_TimestampOp :
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::BLUE;
         }
+        static mlir::LogicalResult inferReturnTypes(
+                mlir::MLIRContext*,
+                llvm::Optional<mlir::Location>,
+                mlir::ValueRange operands,
+                mlir::DictionaryAttr,
+                mlir::RegionRange,
+                llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes);
     }];
 
     let assemblyFormat = [{
