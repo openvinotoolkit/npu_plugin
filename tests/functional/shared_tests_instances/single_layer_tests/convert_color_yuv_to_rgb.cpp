@@ -9,6 +9,10 @@
 namespace LayerTestsDefinitions {
 
 class KmbConvertColorNV12LayerTest: public ConvertColorNV12LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    // void ConfigureNetwork() override {
+    //    cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
+    //   cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
+    // }
 };
 
 TEST_P(KmbConvertColorNV12LayerTest, CompareWithRefs_MLIR) {
@@ -24,7 +28,7 @@ namespace {
 
 // N,H,W,C
 ov::Shape inShape({1, 4, 8, 1});
-ov::element::Type dType = ov::element::f32; // FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP16);
+ov::element::Type dType = ov::element::f16;
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_ConvertColorNV12,
