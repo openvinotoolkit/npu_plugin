@@ -86,6 +86,8 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
 
     bool spillBufferInsteadOfAsyncResult = false;
 
+    // If size of operation output is smaller then size of buffer to spill this means
+    // that operation refers to a part of some larger master buffer
     if (getCompactSize(opToSpillMemRefType).count() <
         getCompactSize(bufferToSpill.getType().dyn_cast<mlir::MemRefType>()).count()) {
         spillBufferInsteadOfAsyncResult = true;
@@ -111,6 +113,7 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
     mlir::Value copyOpArg;
 
     if (spillBufferInsteadOfAsyncResult) {
+        // As CopyOp input used directly buffer to be spilled
         copyOpArg = bufferToSpill;
     } else {
         // Update operands of new AsyncExecOp to contain result of AsyncExecOp to be spilled
@@ -421,8 +424,8 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
     auto spillBuffer = schedOpBuffer;
     if (_bufferReplacementAfterSpillRead.find(schedOpBuffer) != _bufferReplacementAfterSpillRead.end()) {
         spillBuffer = _bufferReplacementAfterSpillRead[schedOpBuffer];
+        _log.trace("Actual buffer for Spill Write - '{0}'", spillBuffer);
     }
-    _log.trace("Create Spill Write for buffer - '{0}'", spillBuffer);
 
     auto spillWriteExecOp =
             insertSpillWriteCopyOp(opThatWasSpilled, spillWriteInsertionPoint, spillBuffer, schedOp.beginResource(0));
@@ -477,8 +480,8 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
     auto spillBuffer = schedOpBuffer;
     if (_bufferReplacementAfterSpillRead.find(schedOpBuffer) != _bufferReplacementAfterSpillRead.end()) {
         spillBuffer = _bufferReplacementAfterSpillRead[schedOpBuffer];
+        _log.trace("Actual buffer for Spill Read - '{0}'", spillBuffer);
     }
-    _log.trace("Create Spill Read for buffer - '{0}'", spillBuffer);
     auto spillReadExecOp = insertSpillReadCopyOp(opThatWasSpilled, spillBuffer, spillWriteExecOp,
                                                  spillReadInsertionPoint, schedOp.beginResource(0));
 
