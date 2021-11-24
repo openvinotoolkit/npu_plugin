@@ -444,7 +444,6 @@ void OptimizeReordersPass::safeRunOnFunc() {
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
-        vpux::Logger::global().error("signalPassFailure");
         signalPassFailure();
     }
 
@@ -452,7 +451,6 @@ void OptimizeReordersPass::safeRunOnFunc() {
     cleanupPatterns.add<ReorderWithConvert>(&ctx, _log);
     IE::ReorderOp::getCanonicalizationPatterns(cleanupPatterns, &ctx);
 
-    func = getFunction();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(cleanupPatterns),
                                                         getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
