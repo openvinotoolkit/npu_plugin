@@ -71,25 +71,11 @@ void UPAProfilingPass::safeRunOnModule() {
 
     VPUX_THROW_UNLESS(upaTasks.size(), "No TimestampOp was added");
 
-    // UPA task expects 6x32bit value for storing profiling data
-    unsigned elementSize = 6;
+    unsigned elementSize = VPUIP::HW_UPA_PROFILING_SIZE_BYTES / sizeof(uint32_t);
     unsigned output_size = upaTasks.size() * elementSize;
     auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
 
-    //
-    // Declare and create additional output from network
-    //
-    auto funcType = netFunc.getType();
-    auto newResultTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(outputResult)));
-    auto newInputsTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(outputResult)));
-
-    auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, newResultTypes);
-    netFunc.setType(newFunctionType);
-    auto profilngResult = netFunc.getBody().front().addArgument(outputResult);
     unsigned profilingId = netOp.getProfilingOutputsCount();
-
     unsigned upa_id = 0;
     for (auto& upaTask : upaTasks) {
         builder.setInsertionPoint(upaTask);
@@ -102,12 +88,8 @@ void UPAProfilingPass::safeRunOnModule() {
         upa_id++;
     }
 
-    // Adding output to the user info
-    auto outputUserResult = getTensorType(getShape(outputResult), outputResult.getElementType(),
-                                          DimsOrder::fromType(outputResult), nullptr);
-    auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.profilingOutputsInfo().front().front(), &builderLog);
-    userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "upa"),
-                                           mlir::TypeAttr::get(outputUserResult));
+    // Declare and create additional output from network
+    auto profilngResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "upa");
 
     // And to the returnOp
     mlir::ReturnOp returnOp = mlir::dyn_cast_or_null<mlir::ReturnOp>(netFunc.getBody().front().getTerminator());
@@ -141,7 +123,7 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
         op.erase();
     });
     newOutputName.pop_back();
-    std::cout << newOutputName << "\n";
+    std::cout << newOutputName << "=" << total_size << "\n";
 
     // Create new combined profiling output to the user info
     auto newOutputResult = mlir::MemRefType::get({total_size / 4}, getUInt32Type(ctx));
