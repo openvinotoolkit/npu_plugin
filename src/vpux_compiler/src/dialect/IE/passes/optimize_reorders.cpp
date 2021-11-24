@@ -445,6 +445,7 @@ void OptimizeReordersPass::safeRunOnFunc() {
     auto func = getFunction();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
+        return;
     }
 
     mlir::RewritePatternSet cleanupPatterns(&ctx);
