@@ -1,7 +1,7 @@
 #include "include/mcm/pass/pass_entry.hpp"
 
 mv::pass::PassEntry::PassEntry(const std::string& name) :
-name_(name)
+name_(name),description_("")
 {
 
 }

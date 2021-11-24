@@ -243,7 +243,9 @@ bool willMaxStreamingBePossible(mv::OpModel& om, const std::vector<mv::Element>&
     {
         auto layerNameStrategy = *layerStrategy;
         std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+        if(!layerNameStrategy.hasAttr("splits")) continue;
         auto splitList = layerNameStrategy.get<std::vector<mv::Element>>("splits");
+        if(splitList.size() < 2) continue; // Must have a H stream at index 1
 
         if (nodeName == opName || std::find(subgraph.begin(), subgraph.end(), nodeName) != subgraph.end())
             streamNumbers.insert(splitList[1].get<int>("H"));
@@ -515,7 +517,9 @@ void printVerticalFusionSubgraphs(const std::vector<std::list<std::string>> &ver
             {
                 auto layerNameStrategy = *layerStrategy;
                 std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+                if(!layerNameStrategy.hasAttr("splits")) continue;
                 auto splitList = layerNameStrategy.get<std::vector<mv::Element>>("splits");
+                if(splitList.size() < 2) continue; // Must have a H stream at index 1
                 if (nodeName == *opIt)
                 {
                     streamsOnH = splitList[1].get<int>("H");

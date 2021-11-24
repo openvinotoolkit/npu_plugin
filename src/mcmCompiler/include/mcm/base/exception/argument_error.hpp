@@ -9,8 +9,8 @@ namespace mv
     class ArgumentError : public LoggedError
     {
 
-        std::string argName_;
-        std::string argVal_;
+        std::string argName_="";
+        std::string argVal_="";
 
     public:
 

@@ -1565,6 +1565,7 @@ namespace mv
         graph(const std::shared_ptr<std::set<std::shared_ptr<detail::base_node_class<T_node, std::size_t>>,
             id_comparator<detail::base_node_class<T_node, std::size_t>>>>& base_nodes, const std::shared_ptr<std::size_t>& node_id) : 
         base_nodes_(base_nodes), 
+        nodes_(),
         node_id_(node_id),
         edge_id_(std::make_shared<std::size_t>(0)),
         search_node_(std::make_shared<node>(*this, (*node_id_)++))

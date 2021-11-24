@@ -89,7 +89,9 @@ const std::string mv::JSONTextParser::fileComposeKeyword_ = "@FILE@";
 const std::string mv::JSONTextParser::enableMergeKey_ = "@MERGE@";
 
 mv::JSONTextParser::JSONTextParser(bool composable, unsigned bufferLength) :
+bufferStr_(""),
 bufferLength_(bufferLength),
+inputStream_(),
 composable_(composable)
 {
     if (bufferLength_ == 0)
@@ -287,7 +289,10 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
     inputStream_.open(fileName);
 
     if (!inputStream_)
+    {
+        inputStream_.close();
         return false;
+    }
 
     bufferStr_.clear();
 

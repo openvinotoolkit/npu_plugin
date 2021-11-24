@@ -502,6 +502,7 @@ void MetaGraph::write(string dotFileLocation,bool skipInf)
     if (!ostream.is_open())
     {
         //todo::throw exceptions
+        ostream.close();
         throw ArgumentError("MetaGraph", "output", dotFileLocation, "Unable to open output file");
     }
 

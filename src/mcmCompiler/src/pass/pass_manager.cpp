@@ -5,6 +5,7 @@ initialized_(false),
 completed_(false),
 running_(false),
 model_(nullptr),
+currentPass_(passList_.begin()),
 compOutput_("CompilationOutput")
 {
 

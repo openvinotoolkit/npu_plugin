@@ -19,7 +19,8 @@ name_(other.name_)
     MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
 }
 
-mv::Element::Element(const json::Value& content, bool simplifiedTyping, std::string name)
+mv::Element::Element(const json::Value& content, bool simplifiedTyping, std::string name):
+name_(name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     if (content.valueType() != json::JSONType::Object)

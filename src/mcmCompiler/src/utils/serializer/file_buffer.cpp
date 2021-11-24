@@ -39,7 +39,8 @@ namespace mv
                  outputFile.open(bp->getFileName(), std::ios::out | std::ios::binary);
                  if (!(outputFile.is_open()))
                  {
-                     throw mv::ArgumentError("file_buffer", "output", bp->getFileName(), "Unable to open output file");
+                    outputFile.close(); 
+                    throw mv::ArgumentError("file_buffer", "output", bp->getFileName(), "Unable to open output file");
                  }
              }
          }

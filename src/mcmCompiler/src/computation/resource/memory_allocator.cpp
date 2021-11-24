@@ -9,6 +9,10 @@ blockSize(0),
 blockNum(0),
 postAlign(0),
 stage(0),
+leftPad({0,0,0,0}),
+rightPad({0,0,0,0}),
+masterBuffer(),
+slaveBuffers(),
 dataTypeSize(1),
 hasMaster(false)
 {

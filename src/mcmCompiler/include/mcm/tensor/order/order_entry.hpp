@@ -15,7 +15,8 @@ namespace mv
     public:
 
         OrderEntry(const std::string& name) :
-        name_(name)
+        name_(name),
+        contVector_()
         {
 
         }

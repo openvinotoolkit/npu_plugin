@@ -57,10 +57,9 @@ class Attribute_Propagator {
       std::unique_ptr <FILE, mv::utils::RaiiWrapper<FILE, mv::utils::releaseFile>> fptr;
       fptr.reset(fopen(file_name.c_str(), "w"));
 
-      if(!fptr.get()) {
+      if(!fptr.get())
         throw mv::RuntimeError("RecomputeImplicitOpAttr",
           "Can't open file " + file_name);
-      }
 
       std::string const message = "op=%s " + attr_name_ + "=%s\n";
       for (const auto& itr : attr_table_) {

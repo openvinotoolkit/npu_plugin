@@ -91,7 +91,8 @@ namespace mv
         template <class ValueType>
         Attribute(const ValueType& val, std::initializer_list<std::string> traits = {}) : 
         //ptr_(new Object<typename std::decay<ValueType>::type>(std::forward<ValueType>(val)))
-        ptr_(new Object<typename std::decay<ValueType>::type>(val))
+        ptr_(new Object<typename std::decay<ValueType>::type>(val)),
+        traits_()
         {
             for (auto it = traits.begin(); it != traits.end(); ++it)
                 addTrait(*it);
@@ -154,14 +155,15 @@ namespace mv
 
         }
 
-        Attribute() : ptr_(nullptr)
+        Attribute() : ptr_(nullptr), traits_(), fromJSONFunc_(nullptr)
         {
 
         }
 
         Attribute(Attribute& other) :
         ptr_(other.clone_()),
-        traits_(other.traits_)
+        traits_(other.traits_),
+        fromJSONFunc_(nullptr)
         {
 
         }
@@ -176,14 +178,16 @@ namespace mv
 
         Attribute(const Attribute& other) :
         ptr_(other.clone_()),
-        traits_(other.traits_)
+        traits_(other.traits_),
+        fromJSONFunc_(nullptr)
         {
 
         }
 
         Attribute(const Attribute&& other) :
         ptr_(other.clone_()),
-        traits_(other.traits_)
+        traits_(other.traits_),
+        fromJSONFunc_(nullptr)
         {
 
         }

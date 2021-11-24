@@ -70,7 +70,7 @@ class CMX_Concatenation {
         : dpu_in_(), dpu_out_(), reads_(), writes_(),
           concat_root_(operation_t(NULL)),
           representative_dpu_(operation_t(NULL)),
-          representative_dpu_depth_() {}
+          representative_dpu_depth_(), cmx_size_(0) {}
 
       bool is_valid() const {
         return !( (concat_root_ == operation_t(NULL)) || dpu_in_.empty() ||

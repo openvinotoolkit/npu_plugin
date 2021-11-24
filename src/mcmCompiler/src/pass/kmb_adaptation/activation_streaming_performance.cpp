@@ -391,8 +391,10 @@ void saveNewStreamingStrategiesToJson(const mv::pass::PassEntry& pass, const mv:
     std::ofstream jsonOutputFile;
     std::string jsonOutFileName = "./output/mcmCompiler_new_h_streaming_strategy_output.json";
     jsonOutputFile.open(jsonOutFileName, std::ios::out);
-    if (!(jsonOutputFile.is_open()))
+    if (!(jsonOutputFile.is_open())) {
+        jsonOutputFile.close();
         pass.log(mv::Logger::MessageType::Debug, "AddActivationStreaming could not open output file " + jsonOutFileName);
+    }
 
     auto currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::string timeStamp(ctime(&currentTime));

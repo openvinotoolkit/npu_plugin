@@ -644,7 +644,11 @@ void StrategyManager::saveLayerStrategies(StrategyMap& strategiesToSave)
         jsonOutFileName = "./output/mcmCompiler_simple_strategy_output.json";
         jsonOutputFile.open(jsonOutFileName, std::ios::out );
         if (!(jsonOutputFile.is_open()))
+        {
             log(Logger::MessageType::Debug, "GraphOptimizer: Could not open output file " + jsonOutFileName);
+            jsonOutputFile.close();
+            return;
+        }
 
         auto currentTime= chrono::system_clock::to_time_t(chrono::system_clock::now());
         std::string timeStamp(ctime(&currentTime));
@@ -743,7 +747,11 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
         std::ofstream jsonOutputFile;
         jsonOutputFile.open(jsonOutFileName, std::ios::out);
         if (!(jsonOutputFile.is_open()))
+        {
             log(Logger::MessageType::Debug, "GraphOptimizer: Could not open output file " + jsonOutFileName);
+            jsonOutputFile.close();
+            return;
+        }
 
         auto currentTime = chrono::system_clock::to_time_t(chrono::system_clock::now());
         std::string timeStamp(ctime(&currentTime));
