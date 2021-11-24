@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/core/profiling.hpp"
 #include "vpux/compiler/core/async_deps_info.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/strings.hpp"
@@ -168,30 +169,11 @@ void TimestampProfilingPass::safeRunOnModule() {
     auto concatview = builder.create<IERT::ConcatViewOp>(mlir::NameLoc::get(mlir::Identifier::get("concatview", ctx)),
                                                          timestamps, memOp.memref());
 
-    //
-    // Declare and create additional output from network
-    //
-    auto funcType = netFunc.getType();
-    auto newResultTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(outputResult)));
-    auto newInputsTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(outputResult)));
-
-    auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, newResultTypes);
-    netFunc.setType(newFunctionType);
-    auto profilngResult = netFunc.getBody().front().addArgument(outputResult);
-
-    auto copyLoc2 = mlir::NameLoc::get(mlir::Identifier::get("profilingCMX2DDR", ctx));
+    auto profilngResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "profilingOutput");
+    auto copyLoc2 = mlir::NameLoc::get(mlir::Identifier::get("ProfilingCMX2DDR", ctx));
     auto outputOp = builder.create<IERT::CopyOp>(copyLoc2, concatview.output(), profilngResult);
 
-    // Adding output to the user info
-    auto outputUserResult = getTensorType(getShape(outputResult), outputResult.getElementType(),
-                                          DimsOrder::fromType(outputResult), nullptr);
-    auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.profilingOutputsInfo().front().front(), &builderLog);
-    userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "profilingOutput"),
-                                           mlir::TypeAttr::get(outputUserResult));
-
-    // And to the returnOp
+    // Add result to the returnOp
     netFunc.walk([&](mlir::ReturnOp op) {
         op.operandsMutable().append(outputOp.output());
     });
@@ -234,7 +216,7 @@ void DMATaskProfilingPass::safeRunOnModule() {
 
     VPUX_THROW_UNLESS(executeOps.size(), "No TimestampOp was added");
 
-    // Runtime expects memory block for 2 64bit integer
+    // For each measured DMA operations two timestamps will be captured
     int output_size = executeOps.size() * 2;
     auto cmxMemType = getMemRefType(ShapeRef({output_size}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
     auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
@@ -316,25 +298,8 @@ void DMATaskProfilingPass::safeRunOnModule() {
         execOp->erase();
     }
 
-    //
     // Declare and create additional output from network
-    //
-    auto funcType = netFunc.getType();
-    auto newResultTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(outputResult)));
-    auto newInputsTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(outputResult)));
-
-    auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, newResultTypes);
-    netFunc.setType(newFunctionType);
-    auto profilngResult = netFunc.getBody().front().addArgument(outputResult);
-
-    // Adding output to the user info
-    auto outputUserResult = getTensorType(getShape(outputResult), outputResult.getElementType(),
-                                          DimsOrder::fromType(outputResult), nullptr);
-    auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.profilingOutputsInfo().front().front(), &builderLog);
-    userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "dma"),
-                                           mlir::TypeAttr::get(outputUserResult));
+    auto profilngResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "dma");
 
     // Add ExecuteOp with Copy from CMX to DDR
     auto copyLoc = mlir::NameLoc::get(mlir::Identifier::get("profilingCMX2DDR", ctx));
@@ -401,7 +366,7 @@ void DPUProfilingPass::safeRunOnModule() {
 
     VPUX_THROW_UNLESS(dpuTasks.size(), "No TimestampOp was added");
 
-    unsigned elementSize = 2;
+    unsigned elementSize = VPUIP::HW_DPU_PROFILING_SIZE_BYTES / sizeof(uint64_t);
     unsigned output_size = dpuTasks.size() * elementSize;
     auto cmxMemType = getMemRefType({output_size}, getUInt64Type(ctx), DimsOrder::C, _memSpace);
     auto outputResult = mlir::MemRefType::get({output_size}, getUInt64Type(ctx));
@@ -424,9 +389,6 @@ void DPUProfilingPass::safeRunOnModule() {
         auto newCluster = builder.create<VPUIP::NCEClusterTaskOp>(cluster.getLoc(), newResultTypes,
                                                                   cluster->getOperands(), cluster->getAttrs());
 
-        // for (unsigned id = 0; id < cluster.getNumRegions(); id++) {
-        //     newCluster.getRegion(id).takeBody(cluster.getRegion(id));
-        // }
         for (const auto region : llvm::enumerate(cluster.getRegions())) {
             newCluster.getRegion(region.index()).takeBody(*region.value());
         }
@@ -440,34 +402,17 @@ void DPUProfilingPass::safeRunOnModule() {
 
     VPUX_THROW_UNLESS(dpuProfilingOutputs.size(), "No DPU profiling outputs was added");
 
-    //
     // Declare and create additional output from network
-    //
-    auto funcType = netFunc.getType();
-    auto newResultTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(outputResult)));
-    auto newInputsTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(outputResult)));
+    auto profilngResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "dpu");
 
-    auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, newResultTypes);
-    netFunc.setType(newFunctionType);
-    auto profilngResult = netFunc.getBody().front().addArgument(outputResult);
-
+    // Create DMA from CMX to Profiling Output
     auto copyLoc2 = mlir::NameLoc::get(mlir::Identifier::get("dpuProfilingCMX2DDR", ctx));
     builder.setInsertionPoint(netFunc.getBody().front().getTerminator());
     auto concatview = builder.create<IERT::ConcatViewOp>(
             mlir::NameLoc::get(mlir::Identifier::get("dpuProfilingConcat", ctx)), dpuProfilingOutputs, memOp.memref());
-
     auto outputOp = builder.create<IERT::CopyOp>(copyLoc2, concatview.output(), profilngResult);
 
-    // Adding output to the user info
-    auto outputUserResult = getTensorType(getShape(outputResult), outputResult.getElementType(),
-                                          DimsOrder::fromType(outputResult), nullptr);
-    auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.profilingOutputsInfo().front().front(), &builderLog);
-    userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "dpu"),
-                                           mlir::TypeAttr::get(outputUserResult));
-
-    // And to the returnOp
+    // Add result to the returnOp
     mlir::ReturnOp returnOp = mlir::dyn_cast_or_null<mlir::ReturnOp>(netFunc.getBody().front().getTerminator());
     VPUX_THROW_UNLESS(returnOp != nullptr, "No ReturnOp was found");
     returnOp.operandsMutable().append(outputOp.output());

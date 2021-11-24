@@ -22,6 +22,10 @@ namespace vpux {
 namespace VPUIP {
 
 constexpr uint32_t HW_TIMER_ABSOLUTE_ADDR = 0x208200BC;
+// DPU Profiling consist of 2 64bit timestamps(start and stop)
+constexpr uint16_t HW_DPU_PROFILING_SIZE_BYTES = 16;
+// UPA Profiling consist of 2 64bit timestamps(start and stop) + 2 32bit for active and stall counters
+constexpr uint16_t HW_UPA_PROFILING_SIZE_BYTES = 24;
 
 void setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups = None);
 ArchKind getArch(mlir::ModuleOp module);
