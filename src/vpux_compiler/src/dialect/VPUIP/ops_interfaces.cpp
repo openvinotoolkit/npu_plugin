@@ -207,7 +207,7 @@ mlir::LogicalResult vpux::VPUIP::verifyLegacy4D(mlir::Operation* op) {
             }
 
             if (shape.front() != 1) {
-                return errorAt(op, "Batch size != 1 is not supported");
+                // return errorAt(op, "Batch size != 1 is not supported");
             }
         }
     }

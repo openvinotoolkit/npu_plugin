@@ -63,7 +63,9 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(IE::createDequantizeConstPass(log));
     pm.addPass(IE::createFuseConvertWithQuantizePass(log));
+
     pm.addPass(IE::createConvertQuantizeOpsToEltwisePass(log));
+
     pm.addPass(IE::createMergeFakeQuantPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }
