@@ -177,6 +177,67 @@ void TimestampProfilingPass::safeRunOnModule() {
     });
 }
 
+mlir::Value AddCMX2DDRExecuteOp(mlir::OpBuilder& builder, mlir::MLIRContext* ctx, mlir::BlockArgument& profilingResult,
+                                mlir::Value cmxMemOp, SmallVector<mlir::Value>& timestampsOps, unsigned elementSize,
+                                unsigned offset, StringRef name) {
+    const auto resultType =
+            mlir::MemRefType::get({static_cast<int64_t>(timestampsOps.size() * elementSize)}, getUInt32Type(ctx));
+
+    // Add ExecuteOp with Copy from CMX to DDR
+    auto copyLoc = mlir::NameLoc::get(mlir::Identifier::get(name + "ProfilingCMX2DDR" + std::to_string(offset), ctx));
+    auto execOp = builder.create<mlir::async::ExecuteOp>(copyLoc, resultType, None, None);
+
+    SmallVector<mlir::Value> values;
+    for (auto value : timestampsOps) {
+        execOp.operandsMutable().append(value);
+        auto asyncType = value.getType().dyn_cast<mlir::async::ValueType>();
+        values.push_back(execOp.getBody()->addArgument(asyncType.getValueType()));
+    }
+    auto bodyBlock = &execOp.body().front();
+    builder.setInsertionPointToStart(bodyBlock);
+    auto sub = builder.create<IERT::SubViewOp>(
+            mlir::NameLoc::get(mlir::Identifier::get(name + "DDR" + std::to_string(offset), ctx)), profilingResult,
+            SmallVector<int64_t>({static_cast<int64_t>(offset * elementSize)}), resultType.getShape());
+    auto concatview = builder.create<IERT::ConcatViewOp>(
+            mlir::NameLoc::get(mlir::Identifier::get(name + "Profiling" + std::to_string(offset), ctx)), values,
+            cmxMemOp);
+    auto outputOp = builder.create<IERT::CopyOp>(copyLoc, concatview.output(), sub);
+    builder.create<mlir::async::YieldOp>(copyLoc, outputOp->getResults());
+
+    // Add execution attributes to async exec op
+    uint32_t numExecutorUnits = 0;
+    auto newOpExecutor = mlir::dyn_cast_or_null<IERT::AsyncLayerOpInterface>(outputOp.getOperation());
+    auto executor = newOpExecutor.getExecutor(numExecutorUnits);
+    if (executor != nullptr) {
+        IERT::IERTDialect::setExecutor(execOp, executor, numExecutorUnits);
+    }
+    builder.setInsertionPointAfter(execOp);
+    auto waitOp = builder.create<mlir::async::AwaitOp>(execOp->getLoc(), execOp.results()[0]);
+
+    timestampsOps.clear();
+    return waitOp.result();
+};
+
+mlir::Value AddCMX2DDRCopyOp(mlir::OpBuilder& builder, mlir::MLIRContext* ctx, mlir::BlockArgument& profilingResult,
+                             mlir::Value cmxMemOp, SmallVector<mlir::Value>& dpuProfilingOutputs, unsigned elementSize,
+                             unsigned offset, StringRef name) {
+    const auto resultType =
+            mlir::MemRefType::get({static_cast<int64_t>(dpuProfilingOutputs.size() * elementSize)}, getUInt64Type(ctx));
+
+    auto sub = builder.create<IERT::SubViewOp>(
+            mlir::NameLoc::get(mlir::Identifier::get(name + "DDR" + std::to_string(offset), ctx)), profilingResult,
+            SmallVector<int64_t>({static_cast<int64_t>(offset * elementSize)}), resultType.getShape());
+
+    // Create DMA from CMX to Profiling Output
+    auto copyLoc2 = mlir::NameLoc::get(mlir::Identifier::get(name + "ProfilingCMX2DDR" + std::to_string(offset), ctx));
+    auto concatview = builder.create<IERT::ConcatViewOp>(
+            mlir::NameLoc::get(mlir::Identifier::get(name + "ProfilingConcat" + std::to_string(offset), ctx)),
+            dpuProfilingOutputs, cmxMemOp);
+
+    dpuProfilingOutputs.clear();
+    return builder.create<IERT::CopyOp>(copyLoc2, concatview.output(), sub).output();
+};
+
 void DMATaskProfilingPass::safeRunOnModule() {
     auto module = getOperation();
     auto* ctx = module->getContext();
@@ -196,6 +257,7 @@ void DMATaskProfilingPass::safeRunOnModule() {
     SmallVector<mlir::async::ExecuteOp> executeOps;
     auto timestampType = getMemRefType(ShapeRef({1}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
 
+    // Find all execOp which contains CopyOps
     netFunc.walk([&](mlir::async::ExecuteOp execOp) {
         _log.trace("Process Operation '{0}'", execOp->getLoc());
 
@@ -215,16 +277,56 @@ void DMATaskProfilingPass::safeRunOnModule() {
     VPUX_THROW_UNLESS(executeOps.size(), "No TimestampOp was added");
 
     // For each measured DMA operations two timestamps will be captured
-    int output_size = executeOps.size() * 2;
-    auto cmxMemType = getMemRefType(ShapeRef({output_size}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
-    auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
+    const unsigned output_size = executeOps.size() * 2;
+
+    // Calculate number of chunks and DMA operation inside one chunk
+    // based on the maximum CMX buffer size
+    const unsigned total_size_bytes = output_size * sizeof(uint32_t);
+    const unsigned chunks = ceil((double)total_size_bytes / VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE);
+    const unsigned ops_in_chunk = VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE / sizeof(uint32_t);
+    unsigned last_chunk = (total_size_bytes % VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE) / sizeof(uint32_t);
+    if (!last_chunk)
+        last_chunk = ops_in_chunk;
+    llvm::errs() << "total_size_bytes=" << total_size_bytes << "\nchunks=" << chunks
+                 << "\nops_in_chunk=" << ops_in_chunk << "\nlast_chunk=" << last_chunk << "\n";
+
+    const auto cmxMemType = getMemRefType(ShapeRef({ops_in_chunk}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
+    const auto cmxMemTypeLast = getMemRefType(ShapeRef({last_chunk}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
+    const auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
+
+    // Declare and create additional output from network
+    auto profilingResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "dma");
 
     builder.setInsertionPointAfter(&netFunc.getBody().front().front());
-    auto memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx), cmxMemType);
+    mlir::OpBuilder::InsertPoint lastInsertionPoint = builder.saveInsertionPoint();
+    mlir::memref::AllocOp memOp;
 
-    SmallVector<mlir::Value> timestampsOps;
-    unsigned dma_id = 0;
+    unsigned dma_id = 0;                     // Total DMA ops counter
+    unsigned chunk_id = 0;                   // Chunk id
+    unsigned chunk_dma_id = 0;               // DMA id inside current chunk
+    SmallVector<mlir::Value> timestampsOps;  // Collect chunk timestimps(Cleared inside AddCMX2DDRExecuteOp)
+    SmallVector<mlir::Value> waitOps;        // Collect chunk results
     for (auto& execOp : executeOps) {
+        // Start new chunk once we reached the end of the previous one
+        if (chunk_dma_id && ((chunk_dma_id % ops_in_chunk) == 0)) {
+            chunk_dma_id = 0;
+            chunk_id++;
+        }
+        // Beginning of the chunk
+        // Push previous operations to DDR and allocate new memory in CMX
+        if (chunk_dma_id == 0) {
+            if (chunk_id) {
+                waitOps.push_back(AddCMX2DDRExecuteOp(builder, ctx, profilingResult, memOp, timestampsOps, 1,
+                                                      (chunk_id - 1) * ops_in_chunk, "dma"));
+            }
+            builder.restoreInsertionPoint(lastInsertionPoint);
+            memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx),
+                                                          (chunk_id != chunks - 1) ? cmxMemType : cmxMemTypeLast);
+            lastInsertionPoint = builder.saveInsertionPoint();
+        }
+
+        // Walk thought all copyOp inside one async
+        // in order to find the first and the last copyOp inside current execOp
         mlir::Operation* firstCopy = nullptr;
         mlir::Operation* lastCopy = nullptr;
         auto& bodyBlock = execOp.body().front();
@@ -234,6 +336,9 @@ void DMATaskProfilingPass::safeRunOnModule() {
                 firstCopy = lastCopy;
         });
 
+        //
+        // Insertion of Timestamp Ops to the current execOp
+        //
         auto insertDma = [&](mlir::Operation* op, bool after) {
             if (after) {
                 builder.setInsertionPointAfter(op);
@@ -242,24 +347,30 @@ void DMATaskProfilingPass::safeRunOnModule() {
             }
             auto sub = builder.create<IERT::SubViewOp>(
                     mlir::NameLoc::get(mlir::Identifier::get("dmaProfilingSubview", ctx)), memOp,
-                    SmallVector<int64_t>({static_cast<int64_t>(dma_id)}), timestampType.getShape());
+                    SmallVector<int64_t>({static_cast<int64_t>(chunk_dma_id)}), timestampType.getShape());
             std::string curTaskName;
             curTaskName = stringifyLocation(op->getLoc());
-            auto name = mlir::NameLoc::get(mlir::Identifier::get(
-                    curTaskName + ((!after) ? (timestampsOps.size() == 0 ? "_PROFBEGIN" : "_PROFTASKBEGIN")
-                                            : ("_PROFTASKEND_" + std::to_string(dma_id - 1) + "_" +
-                                               std::to_string(dma_id / 2 + 1))),
-                    ctx));
+            auto name = mlir::NameLoc::get(
+                    mlir::Identifier::get(curTaskName + ((!after) ? (dma_id == 0 ? "_PROFBEGIN" : "_PROFTASKBEGIN")
+                                                                  : ("_PROFTASKEND_" + std::to_string(dma_id - 1) +
+                                                                     "_" + std::to_string(dma_id / 2 + 1))),
+                                          ctx));
             dma_id++;
+            chunk_dma_id++;
             return builder.create<IERT::TimestampOp>(name, timestampType, sub).output();
         };
         SmallVector<mlir::Value> localTimestampsOps;
         localTimestampsOps.push_back(insertDma(firstCopy, false));
         localTimestampsOps.push_back(insertDma(lastCopy, true));
+
+        // Prepare for execOp rebuilding: Add new results to the current yieldOp
         auto yieldOp = mlir::dyn_cast<mlir::async::YieldOp>(execOp.body().front().getTerminator());
         unsigned firstTimestampOperandId = yieldOp.operands().size();
         yieldOp.operandsMutable().append(localTimestampsOps);
 
+        //
+        // Rebuild current execOp in order to add new results
+        //
         auto* bodyBlockPtr = &execOp.body().front();
         const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange blockArgs) {
             mlir::BlockAndValueMapping mapper;
@@ -292,47 +403,26 @@ void DMATaskProfilingPass::safeRunOnModule() {
             timestampsOps.push_back(newExecOp.results()[firstTimestampOperandId + id]);
         }
 
+        // Remove old execOp
         execOp->replaceAllUsesWith(newExecOp);
         execOp->erase();
     }
+    // Copy to DDR the last chunk
+    waitOps.push_back(AddCMX2DDRExecuteOp(builder, ctx, profilingResult, memOp, timestampsOps, 1,
+                                          chunk_id * ops_in_chunk, "dma"));
 
-    // Declare and create additional output from network
-    auto profilngResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "dma");
+    //
+    // Concat all chunks together and push to the network returnOp
+    //
+    mlir::ReturnOp returnOp = mlir::dyn_cast_or_null<mlir::ReturnOp>(netFunc.getBody().front().getTerminator());
+    VPUX_THROW_UNLESS(returnOp != nullptr, "No ReturnOp was found");
+    builder.setInsertionPoint(returnOp);
 
-    // Add ExecuteOp with Copy from CMX to DDR
-    auto copyLoc = mlir::NameLoc::get(mlir::Identifier::get("profilingCMX2DDR", ctx));
-    builder.setInsertionPoint(netFunc.getBody().front().getTerminator());
-    auto execOp = builder.create<mlir::async::ExecuteOp>(copyLoc, outputResult, None, None);
-
-    SmallVector<mlir::Value> values;
-    for (auto value : timestampsOps) {
-        execOp.operandsMutable().append(value);
-        auto asyncType = value.getType().dyn_cast<mlir::async::ValueType>();
-        values.push_back(execOp.getBody()->addArgument(asyncType.getValueType()));
-    }
-    auto bodyBlock = &execOp.body().front();
-    builder.setInsertionPointToStart(bodyBlock);
     auto concatview = builder.create<IERT::ConcatViewOp>(
-            mlir::NameLoc::get(mlir::Identifier::get("dmaProfilingConcat", ctx)), values, memOp.memref());
-    auto outputOp = builder.create<IERT::CopyOp>(copyLoc, concatview.output(), profilngResult);
-    builder.create<mlir::async::YieldOp>(copyLoc, outputOp->getResults());
+            mlir::NameLoc::get(mlir::Identifier::get("dmaDDRProfiling", ctx)), waitOps, profilingResult);
+    returnOp.operandsMutable().append(concatview.output());
 
-    // Add execution attributes to async exec op
-    uint32_t numExecutorUnits = 0;
-    auto newOpExecutor = mlir::dyn_cast_or_null<IERT::AsyncLayerOpInterface>(outputOp.getOperation());
-    auto executor = newOpExecutor.getExecutor(numExecutorUnits);
-    if (executor != nullptr) {
-        IERT::IERTDialect::setExecutor(execOp, executor, numExecutorUnits);
-    }
-
-    builder.setInsertionPointAfter(execOp);
-    auto waitOp = builder.create<mlir::async::AwaitOp>(execOp->getLoc(), execOp.results()[0]);
-
-    // And new result(outputBuffer) to the returnOp
-    netFunc.walk([&](mlir::ReturnOp op) {
-        op.operandsMutable().append(waitOp.result());
-    });
-
+    // Recalculate the async Deps Information
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
     depsInfo.updateTokenDependencies();
 }
@@ -364,23 +454,63 @@ void DPUProfilingPass::safeRunOnModule() {
 
     VPUX_THROW_UNLESS(dpuTasks.size(), "No TimestampOp was added");
 
-    unsigned elementSize = VPUIP::HW_DPU_PROFILING_SIZE_BYTES / sizeof(uint64_t);
-    unsigned output_size = dpuTasks.size() * elementSize;
-    auto cmxMemType = getMemRefType({output_size}, getUInt64Type(ctx), DimsOrder::C, _memSpace);
-    auto outputResult = mlir::MemRefType::get({output_size}, getUInt64Type(ctx));
+    const unsigned elementSize = VPUIP::HW_DPU_PROFILING_SIZE_BYTES / sizeof(uint64_t);
+    const unsigned output_size = dpuTasks.size() * elementSize;
+
+    // Calculate number of chunks and DMA operation inside one chunk
+    // based on the maximum CMX buffer size
+    const unsigned total_size_bytes = output_size * sizeof(uint64_t);
+    const unsigned chunks = ceil((double)total_size_bytes / VPUIP::HW_DPU_PROFILING_MAX_BUFFER_SIZE);
+    const unsigned ops_in_chunk = VPUIP::HW_DPU_PROFILING_MAX_BUFFER_SIZE / VPUIP::HW_DPU_PROFILING_SIZE_BYTES;
+    unsigned last_chunk =
+            (total_size_bytes % VPUIP::HW_DPU_PROFILING_MAX_BUFFER_SIZE) / VPUIP::HW_DPU_PROFILING_SIZE_BYTES;
+    if (!last_chunk)
+        last_chunk = ops_in_chunk;
+    llvm::errs() << "total_size_bytes=" << total_size_bytes << "\nchunks=" << chunks
+                 << "\nops_in_chunk=" << ops_in_chunk << "\nlast_chunk=" << last_chunk << "\n";
+
+    const auto cmxMemType =
+            getMemRefType(ShapeRef({ops_in_chunk * elementSize}), getUInt64Type(ctx), DimsOrder::C, _memSpace);
+    const auto cmxMemTypeLast =
+            getMemRefType(ShapeRef({last_chunk * elementSize}), getUInt64Type(ctx), DimsOrder::C, _memSpace);
+    const auto outputResult = mlir::MemRefType::get({output_size}, getUInt64Type(ctx));
+
+    // Declare and create additional output from network
+    auto profilingResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "dpu");
 
     builder.setInsertionPointAfter(&netFunc.getBody().front().front());
-    auto memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx), cmxMemType);
+    mlir::OpBuilder::InsertPoint lastInsertionPoint = builder.saveInsertionPoint();
+    mlir::memref::AllocOp memOp;
 
-    unsigned dpu_id = 0;
+    unsigned chunk_id = 0;      // Chunk id
+    unsigned chunk_dpu_id = 0;  // DPU id inside current chunk
     SmallVector<mlir::Value> dpuProfilingOutputs;
+    SmallVector<mlir::Value> waitOps;  // Collect chunk results
     for (auto& dpuTask : dpuTasks) {
+        // Start new chunk once we reached the end of the previous one
+        if (chunk_dpu_id && ((chunk_dpu_id % ops_in_chunk) == 0)) {
+            chunk_dpu_id = 0;
+            chunk_id++;
+        }
+        // Beginning of the chunk
+        // Push previous operations to DDR and allocate new memory in CMX
+        if (chunk_dpu_id == 0) {
+            if (chunk_id) {
+                waitOps.push_back(AddCMX2DDRCopyOp(builder, ctx, profilingResult, memOp, dpuProfilingOutputs,
+                                                   elementSize, (chunk_id - 1) * ops_in_chunk, "dpu"));
+            }
+            builder.restoreInsertionPoint(lastInsertionPoint);
+            memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx),
+                                                          (chunk_id != chunks - 1) ? cmxMemType : cmxMemTypeLast);
+            lastInsertionPoint = builder.saveInsertionPoint();
+        }
+
         auto cluster = dpuTask.first;
         builder.setInsertionPointAfter(cluster);
         auto timestampType = getMemRefType({elementSize}, getUInt64Type(ctx), DimsOrder::C, _memSpace);
         auto sub = builder.create<IERT::SubViewOp>(
                 mlir::NameLoc::get(mlir::Identifier::get("dpuProfilingSubview", ctx)), memOp,
-                SmallVector<int64_t>({static_cast<int>(dpu_id * elementSize)}), timestampType.getShape());
+                SmallVector<int64_t>({static_cast<int>(chunk_dpu_id * elementSize)}), timestampType.getShape());
 
         SmallVector<mlir::Type> newResultTypes(cluster.getResultTypes());
         newResultTypes.push_back(timestampType);
@@ -395,25 +525,22 @@ void DPUProfilingPass::safeRunOnModule() {
 
         cluster->replaceAllUsesWith(newCluster);
         cluster->erase();
-        dpu_id++;
+        chunk_dpu_id++;
     }
+    // Copy to DDR the last chunk
+    waitOps.push_back(AddCMX2DDRCopyOp(builder, ctx, profilingResult, memOp, dpuProfilingOutputs, elementSize,
+                                       chunk_id * ops_in_chunk, "dpu"));
 
-    VPUX_THROW_UNLESS(dpuProfilingOutputs.size(), "No DPU profiling outputs was added");
-
-    // Declare and create additional output from network
-    auto profilngResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "dpu");
-
-    // Create DMA from CMX to Profiling Output
-    auto copyLoc2 = mlir::NameLoc::get(mlir::Identifier::get("dpuProfilingCMX2DDR", ctx));
-    builder.setInsertionPoint(netFunc.getBody().front().getTerminator());
-    auto concatview = builder.create<IERT::ConcatViewOp>(
-            mlir::NameLoc::get(mlir::Identifier::get("dpuProfilingConcat", ctx)), dpuProfilingOutputs, memOp.memref());
-    auto outputOp = builder.create<IERT::CopyOp>(copyLoc2, concatview.output(), profilngResult);
-
-    // Add result to the returnOp
+    //
+    // Concat all chunks together and push to the network returnOp
+    //
     mlir::ReturnOp returnOp = mlir::dyn_cast_or_null<mlir::ReturnOp>(netFunc.getBody().front().getTerminator());
     VPUX_THROW_UNLESS(returnOp != nullptr, "No ReturnOp was found");
-    returnOp.operandsMutable().append(outputOp.output());
+    builder.setInsertionPoint(returnOp);
+
+    auto concatview = builder.create<IERT::ConcatViewOp>(
+            mlir::NameLoc::get(mlir::Identifier::get("dpuDDRProfiling", ctx)), waitOps, profilingResult);
+    returnOp.operandsMutable().append(concatview.output());
 }
 
 }  // namespace
