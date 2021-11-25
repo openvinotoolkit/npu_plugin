@@ -62,6 +62,7 @@ target_link_libraries(${VPUX_PLUGIN_OBJS_TARGET}
         kmb_utils
         vpux_al
     PRIVATE
+        vpux_utils
         ${GAPI_LIB}
 )
 
@@ -101,6 +102,7 @@ target_link_libraries(${VPUX_PLUGIN_STATIC_TARGET}
         kmb_utils
     PRIVATE
         vpux_al
+        vpux_utils
         ${GAPI_LIB}
 )
 

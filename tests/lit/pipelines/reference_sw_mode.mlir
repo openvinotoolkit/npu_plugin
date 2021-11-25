@@ -122,14 +122,14 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
     // CHECK-SAME:              outputs([[BUF1]] : memref<1x2x2x2xf16, "DDR">)
 
     // CHECK:       VPURT.Task
-    // CHECK-SAME:              waits([[BAR0]], [[BAR1]] : !VPURT.Barrier, !VPURT.Barrier)
+    // CHECK-SAME:              waits([[BAR1]] : !VPURT.Barrier)
     // CHECK-SAME:              updates([[BAR2]] : !VPURT.Barrier)
     // CHECK-NEXT:  VPUIP.NNDMA
     // CHECK-SAME:              inputs([[BUF0]] : memref<1x2x2x2xf16, "DDR">)
     // CHECK-SAME:              outputs([[ARG1]] : memref<1x2x2x2xf16>)
 
     // CHECK:       VPURT.Task
-    // CHECK-SAME:              waits([[BAR1]], [[BAR2]] : !VPURT.Barrier, !VPURT.Barrier)
+    // CHECK-SAME:              waits([[BAR2]] : !VPURT.Barrier)
     // CHECK-NEXT:  VPUIP.NNDMA
     // CHECK-SAME:              inputs([[BUF1]] : memref<1x2x2x2xf16, "DDR">)
     // CHECK-SAME:              outputs([[ARG2]] : memref<1x2x2x2xf16>)

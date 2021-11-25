@@ -103,6 +103,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
 
@@ -190,6 +191,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
 
@@ -292,10 +294,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     }
 
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
-
-    if (options.enableOptimizeAsyncDeps) {
-        pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
-    }
+    pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
 

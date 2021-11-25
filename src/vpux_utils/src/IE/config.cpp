@@ -135,3 +135,15 @@ void vpux::Config::update(const ConfigMap& options, OptionMode mode) {
         _impl[opt.key()] = p.second;
     }
 }
+
+bool vpux::envVarStrToBool(const char* varName, const char* varValue) {
+    try {
+        const auto intVal = std::stoi(varValue);
+        if (intVal != 0 && intVal != 1) {
+            throw std::invalid_argument("Only 0 and 1 values are supported");
+        }
+        return (intVal != 0);
+    } catch (const std::exception& e) {
+        IE_THROW() << "Environment variable " << varName << " has wrong value : " << e.what();
+    }
+}

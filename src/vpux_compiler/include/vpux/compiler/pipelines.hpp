@@ -160,9 +160,6 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 
     BoolOption enableGroupAsyncExecuteOps{*this, "group-async-execute-ops",
                                           llvm::cl::desc("Enable group-async-execute-ops pass"), llvm::cl::init(true)};
-
-    BoolOption enableOptimizeAsyncDeps{*this, "optimize-async-deps", llvm::cl::desc("Enable optimize-async-deps pass"),
-                                       llvm::cl::init(true)};
 };
 
 void buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options,
