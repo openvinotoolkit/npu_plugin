@@ -37,7 +37,9 @@ FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mli
 };
 
 FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func)
-        : _ctx(ctx), _func(func),  heap_(),
+        : _ctx(ctx),
+          _func(func),
+          heap_(),
           current_time_(0),
           candidates_(),
           resource_state_(),
@@ -83,7 +85,6 @@ void FeasibleScheduleGenerator::add_to_candidate_set(mlir::Operation* op) {
 }
 
 void FeasibleScheduleGenerator::add_outgoing_operations_to_candidate_list(mlir::Operation* op) {
-    
     Logger::global().error("Add outgoing operations to candidate list");
 
     // Reduce indegree (number of incoming edges) for consumers of ready data ops
@@ -95,25 +96,25 @@ void FeasibleScheduleGenerator::add_outgoing_operations_to_candidate_list(mlir::
     SmallVector<mlir::Operation*>::iterator itr = opConsumers.begin();
     SmallVector<mlir::Operation*>::iterator itr_end = opConsumers.end();
 
-    for (;itr != itr_end; ++itr) {
-    // decrement the in-degree of &(*itr) and only add to candidate set
-    // if the indegree is zero. This means this op is ready to be scheduled.
+    for (; itr != itr_end; ++itr) {
+        // decrement the in-degree of &(*itr) and only add to candidate set
+        // if the indegree is zero. This means this op is ready to be scheduled.
 
-    mlir::Operation* op = (*itr);
+        mlir::Operation* op = (*itr);
 
-    Logger::global().error("Decrementing the in-degree of operation {0}", getUniqueID(*itr));
+        Logger::global().error("Decrementing the in-degree of operation {0}", getUniqueID(*itr));
 
-    typename operation_in_degree_t::iterator deg_itr = in_degree_.find(op);
-    assert((deg_itr != in_degree_.end()) && (deg_itr->second > 0));
+        typename operation_in_degree_t::iterator deg_itr = in_degree_.find(op);
+        assert((deg_itr != in_degree_.end()) && (deg_itr->second > 0));
 
-    if (deg_itr->second == 1) {
-        Logger::global().error("Adding operation {0} to candidate_list", getUniqueID(*itr));
-        add_to_candidate_set(op);
-        Logger::global().error("Erasing operation {0} from the in_degree table", getUniqueID(*itr));
-        in_degree_.erase(deg_itr);
-    } else {
-        --(deg_itr->second);
-    }
+        if (deg_itr->second == 1) {
+            Logger::global().error("Adding operation {0} to candidate_list", getUniqueID(*itr));
+            add_to_candidate_set(op);
+            Logger::global().error("Erasing operation {0} from the in_degree table", getUniqueID(*itr));
+            in_degree_.erase(deg_itr);
+        } else {
+            --(deg_itr->second);
+        }
     }
 }
 
@@ -135,9 +136,10 @@ bool FeasibleScheduleGenerator::next_schedulable_operation() {
             pushToHeap(heap_element_t(op, op_end_time));
             candidates_.erase(op_itr);
 
-            vpux::BarrierScheduleGenerator::barrier_scheduler_traits::schedule_operation(op, op_resources, resource_state_);
-            schedulable_op_ = op;  
-            Logger::global().error("The schedulable_op_ ID is {0}", getUniqueID(schedulable_op_));  
+            vpux::BarrierScheduleGenerator::barrier_scheduler_traits::schedule_operation(op, op_resources,
+                                                                                         resource_state_);
+            schedulable_op_ = op;
+            Logger::global().error("The schedulable_op_ ID is {0}", getUniqueID(schedulable_op_));
 
         } else if (!heap_.empty()) {
             // no-op found so move up the schedule time to the smallest completion
@@ -159,7 +161,8 @@ bool FeasibleScheduleGenerator::next_schedulable_operation() {
         }
     } while (!schedulable_op_ && !reached_end());
 
-    //Logger::global().error("Returning Op is schedulable, the schedulable_op_ ID is {0}", getUniqueID(schedulable_op_));
+    // Logger::global().error("Returning Op is schedulable, the schedulable_op_ ID is {0}",
+    // getUniqueID(schedulable_op_));
     return schedulable_op_ != NULL;
 }
 
@@ -168,7 +171,6 @@ bool FeasibleScheduleGenerator::is_valid_op(schedulable_ops_iterator_t itr) cons
 }
 
 FeasibleScheduleGenerator::schedulable_ops_iterator_t FeasibleScheduleGenerator::find_schedulable_op() {
-    
     Logger::global().error("Looking for a a scheduleable operation");
 
     schedulable_ops_iterator_t itr = candidates_.end();
@@ -197,7 +199,7 @@ FeasibleScheduleGenerator::schedulable_ops_iterator_t FeasibleScheduleGenerator:
             }
         }
     }
-    //Logger::global().error("Returning operation ID {0} as a schedulable op", getUniqueID(*itr));
+    // Logger::global().error("Returning operation ID {0} as a schedulable op", getUniqueID(*itr));
     return itr;
 }
 
@@ -205,7 +207,7 @@ mlir::Operation*& FeasibleScheduleGenerator::operator*() {
     Logger::global().error("Calling FeasibleScheduleGenerator::operator*()");
     if (!schedulable_op_)
         std::runtime_error("Feasible_Schedule_Generator: Null ptr dereference");
-    
+
     Logger::global().error("Returning operation {0}", getUniqueID(schedulable_op_));
     return schedulable_op_;
 }
@@ -227,7 +229,6 @@ SmallVector<mlir::Operation*> FeasibleScheduleGenerator::getConsumerOps(mlir::Op
     if (auto task = mlir::dyn_cast<VPURT::TaskOp>(op)) {
         for (auto updateBarrier : task.updateBarriers()) {
             if (auto barrierOp = updateBarrier.getDefiningOp()) {
-
                 Logger::global().error("The operation has {0} consumers", barrierConsumersMap[barrierOp].size());
                 Logger::global().error("The operation ID  {0} has {1} consumers ", getUniqueID(op),
                                        barrierConsumersMap[barrierOp].size());
@@ -236,24 +237,18 @@ SmallVector<mlir::Operation*> FeasibleScheduleGenerator::getConsumerOps(mlir::Op
             }
         }
     } else {
-        exit(1); 
+        exit(1);
     }
     return consumerOps;
 }
 
-std::string FeasibleScheduleGenerator::printOpType(mlir::Operation* op) {
-    if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(op))
+std::string FeasibleScheduleGenerator::printOpType(VPURT::TaskOp task) {
+    if (task.getTaskType() == VPUIP::TaskType::NCE2)
         return "NCE task";
-    if (auto DMAOp = mlir::dyn_cast<VPUIP::NNDMAOp>(op))
+    if (task.getTaskType() == VPUIP::TaskType::NNDMA)
         return "DMA task ";
-    if (auto upaOp = mlir::dyn_cast<VPUIP::PermuteUPAOp>(op))
-        return "Permute upa task ";
-    if (auto upaOp = mlir::dyn_cast<VPUIP::ConvertUPAOp>(op))
-        return "Convert upa task ";
-    if (auto upaOp = mlir::dyn_cast<VPUIP::ScaleShiftUPAOp>(op))
-        return "scale shift upa task ";
-    if (auto upaOp = mlir::dyn_cast<VPUIP::QuantCastUPAOp>(op))
-        return "quant upa task ";
+    if (task.getTaskType() == VPUIP::TaskType::UPA)
+        return "Upa task ";
 }
 
 mlir::IntegerAttr FeasibleScheduleGenerator::getUniqueID(mlir::Operation* op) {
@@ -309,10 +304,10 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
                     // in-degree of this node has become zero//
                     Logger::global().error("The in-degree of op operation {0}  has become zero ",
                                            getUniqueID(deg_itr->first));
-                 
+
                     Logger::global().error("The priority of op {0}  has become  {1} ", getUniqueID(deg_itr->first),
                                            (curr_priority + 1));
-                 
+
                     priority_[deg_itr->first] = (curr_priority + 1);
                     zero_in_degree_nodes[(curr_priority + 1) % 2].push_back(deg_itr->first);
 
@@ -359,10 +354,11 @@ void FeasibleScheduleGenerator::assignUniqueIds(mlir::FuncOp func) {
     int64_t uniqueId = 0;
     auto assignUniqueIDs = [&](VPURT::TaskOp taskOp) {
         taskOp->setAttr(uniqueIdAttrName, getIntAttr(_ctx, uniqueId++));
-        std::cout << "Assigning ID " << uniqueId << " to operation " <</* printOpType(taskOp.getOperation())*/ std::endl;
+        std::cout << "Assigning ID " << uniqueId << " to operation "
+                  << printOpType(taskOp) << std::endl;
     };
 
-    func.walk([&](VPURT::TaskOp taskOp) {
+    _func.walk([&](VPURT::TaskOp taskOp) {
         switch (taskOp.getTaskType()) {
         case VPUIP::TaskType::UPADMA: {
             assignUniqueIDs(taskOp);
@@ -387,7 +383,7 @@ void FeasibleScheduleGenerator::assignUniqueIds(mlir::FuncOp func) {
 
 void FeasibleScheduleGenerator::printInfo(mlir::FuncOp func) {
     auto getTaskInfo = [&](VPURT::TaskOp taskOp, const int64_t count = 1) {
-        std::cout << printOpType(taskOp.getOperation()) << " # wait barriers " << taskOp.waitBarriers().size()
+        std::cout << printOpType(taskOp) << " # wait barriers " << taskOp.waitBarriers().size()
                   << std::endl;
     };
 
@@ -445,20 +441,22 @@ void FeasibleScheduleGenerator::getAllBarriersProducersAndConsumers() {
                             userOp->getLoc());
 
             if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
-                if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(userOp)) {
-                    producers.push_back(nceClusterTaskOp);
-                } else if (auto nnDMATaskOp = mlir::dyn_cast<VPUIP::NNDMAOp>(userOp)) {
+                auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
+                if (task.getTaskType() == VPUIP::TaskType::NCE2) {
                     producers.push_back(userOp);
-                } else if (auto upaTaskOp = mlir::dyn_cast<VPUIP::UPATaskOpInterface>(userOp)) {
-                    producers.push_back(upaTaskOp);
+                } else if (task.getTaskType() == VPUIP::TaskType::NNDMA) {
+                    producers.push_back(userOp);
+                } else if (task.getTaskType() == VPUIP::TaskType::UPA) {
+                    producers.push_back(userOp);
                 }
             } else if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
-                if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(userOp)) {
-                    consumers.push_back(nceClusterTaskOp);
-                } else if (auto nnDMATaskOp = mlir::dyn_cast<VPUIP::NNDMAOp>(userOp)) {
+                auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
+                if (task.getTaskType() == VPUIP::TaskType::NCE2) {
                     consumers.push_back(userOp);
-                } else if (auto upaTaskOp = mlir::dyn_cast<VPUIP::UPATaskOpInterface>(userOp)) {
-                    consumers.push_back(upaTaskOp);
+                } else if (task.getTaskType() == VPUIP::TaskType::NNDMA) {
+                    consumers.push_back(userOp);
+                } else if (task.getTaskType() == VPUIP::TaskType::UPA) {
+                    consumers.push_back(userOp);
                 }
             } else {
                 VPUX_THROW("Barrier '{0}' has unsupported Effect in Operation '{1}'", barrierOp->getLoc(),
@@ -473,37 +471,36 @@ void FeasibleScheduleGenerator::getAllBarriersProducersAndConsumers() {
 void FeasibleScheduleGenerator::compute_op_indegree(operation_in_degree_t& in_degree) {
     in_degree.clear();
 
-    //printInfo(_func);
-    _allTaskOps = to_small_vector(_func.getOps<IERT::LayerOpInterface>());
-    for (auto taskOp : _allTaskOps) {
-        if (auto op = mlir::dyn_cast<VPURT::TaskOp>(taskOp.getOperation())) {
-            size_t waitBarrierIncomingEdges = 0;
+    _func.walk([&](VPURT::TaskOp taskOp) {
+        auto& block = taskOp.op().getBlocks().front();
+        auto wrappedTaskOp = block.begin();
+        size_t waitBarrierIncomingEdges = 0;
 
-            for (const auto waitBarrier : op.waitBarriers()) {
-                if (auto barrierOp = waitBarrier.getDefiningOp()) {
-                    waitBarrierIncomingEdges += barrierProducersMap[barrierOp].size();
-                }
+        for (const auto waitBarrier : taskOp.waitBarriers()) {
+            if (auto barrierOp = waitBarrier.getDefiningOp()) {
+                waitBarrierIncomingEdges += barrierProducersMap[barrierOp].size();
             }
-            Logger::global().error("The indegree for the operation {0}  is {1}", getUniqueID(taskOp.getOperation()),
-                                   waitBarrierIncomingEdges);
-
-            in_degree.insert(std::make_pair(taskOp.getOperation(), waitBarrierIncomingEdges));
         }
-    }
+        Logger::global().error("The indegree for the operation {0}  is {1}", getUniqueID(taskOp.getOperation()),
+                               waitBarrierIncomingEdges);
+
+        in_degree.insert(std::make_pair(taskOp.getOperation(), waitBarrierIncomingEdges));
+    });
     std::cout << "The size of indegree table is " << in_degree.size() << std::endl;
 }
 
 bool FeasibleScheduleGenerator::doesOpRunOnNCE(mlir::Operation* op) {
-    if (mlir::isa<VPUIP::NCEClusterTaskOp>(op) || mlir::isa<VPUIP::NNDMAOp>(op))
+    auto task = mlir::dyn_cast<VPURT::TaskOp>(op);
+    if ((mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() ==  VPUIP::TaskType::NCE2) || (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NNDMA))
         return true;
     else
         return false;
 }
 
 unsigned FeasibleScheduleGenerator::countProducerConsumerTasks(mlir::Operation* op) {
-    if (mlir::isa<VPUIP::NCEClusterTaskOp>(op))
+    if (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() ==  VPUIP::TaskType::NCE2)
         return 5;
-    if (mlir::isa<VPUIP::NNDMAOp>(op))
+    if (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() ==  VPUIP::TaskType::NNDMA)
         return 1;
     else
         exit(1);
@@ -526,10 +523,9 @@ void FeasibleScheduleGenerator::create_resource_utility_table_for_barrier_schedu
 }
 
 bool FeasibleScheduleGenerator::init(const resource_state_t& upper_bound) {
-
     Logger::global().error("**Initializing the feasible scheduler **");
 
-    //printInfo(_func);
+    // printInfo(_func);
     assignUniqueIds(_func);
     processed_ops_.clear();
     resource_utility_map_.clear();

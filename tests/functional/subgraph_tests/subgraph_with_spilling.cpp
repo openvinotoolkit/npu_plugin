@@ -44,27 +44,27 @@ class KmbScheduleSubGraphSpillingTest : public LayerTestsUtils::KmbLayerTestsCom
         const ngraph::Shape poolKernel = poolKernelVec;
         const auto pool = std::make_shared<ngraph::opset2::MaxPool>(paramOuts[0], poolStrides, padsBegin, padsEnd, poolKernel);
 
-        const ngraph::Strides strides = test_params._strides;
-        const ngraph::CoordinateDiff pads_begin = test_params._pads_begin;
-        const ngraph::CoordinateDiff pads_end = test_params._pads_end;
-        const ngraph::Strides dilations = {1, 1};
+        // const ngraph::Strides strides = test_params._strides;
+        // const ngraph::CoordinateDiff pads_begin = test_params._pads_begin;
+        // const ngraph::CoordinateDiff pads_end = test_params._pads_end;
+        // const ngraph::Strides dilations = {1, 1};
 
-        std::vector<float> weights1(weights1Shape[0] * weights1Shape[1] * weights1Shape[2] * weights1Shape[3], 1);
-        auto weights1FP32 = std::make_shared<ngraph::op::Constant>(
-                ngraph::element::Type_t::f32, weights1Shape, weights1.data());
+        // std::vector<float> weights1(weights1Shape[0] * weights1Shape[1] * weights1Shape[2] * weights1Shape[3], 1);
+        // auto weights1FP32 = std::make_shared<ngraph::op::Constant>(
+        //         ngraph::element::Type_t::f32, weights1Shape, weights1.data());
 
-        const auto conv1 = std::make_shared<ngraph::opset2::Convolution>(pool, weights1FP32, strides, pads_begin, pads_end, dilations);
+        // const auto conv1 = std::make_shared<ngraph::opset2::Convolution>(pool, weights1FP32, strides, pads_begin, pads_end, dilations);
 
-        std::vector<float> weights2(weights2Shape[0] * weights2Shape[1] * weights2Shape[2] * weights2Shape[3], 1);
-        auto weights2FP32 = std::make_shared<ngraph::op::Constant>(
-                ngraph::element::Type_t::f32, weights2Shape, weights2.data());
+        // std::vector<float> weights2(weights2Shape[0] * weights2Shape[1] * weights2Shape[2] * weights2Shape[3], 1);
+        // auto weights2FP32 = std::make_shared<ngraph::op::Constant>(
+        //         ngraph::element::Type_t::f32, weights2Shape, weights2.data());
 
-        const auto conv2 = std::make_shared<ngraph::opset2::Convolution>(conv1, weights2FP32, strides, pads_begin, pads_end, dilations);
+        // const auto conv2 = std::make_shared<ngraph::opset2::Convolution>(conv1, weights2FP32, strides, pads_begin, pads_end, dilations);
 
-        const auto eltwise = ngraph::builder::makeEltwise(pool, conv2, ngraph::helpers::EltwiseTypes::ADD);
+        // const auto eltwise = ngraph::builder::makeEltwise(pool, conv2, ngraph::helpers::EltwiseTypes::ADD);
 
         const ngraph::ResultVector results{
-            std::make_shared<ngraph::opset1::Result>(eltwise)
+            std::make_shared<ngraph::opset1::Result>(pool)
         };
         function = std::make_shared<ngraph::Function>(results, params, "KmbScheduleSubGraphSpillingTest");
 

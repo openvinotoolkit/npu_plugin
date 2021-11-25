@@ -100,7 +100,7 @@ public:
     bool doesOpRunOnNCE(mlir::Operation* op);
     unsigned countProducerConsumerTasks(mlir::Operation* op);
     static SmallVector<mlir::Operation*> getConsumerOps(mlir::Operation* op);
-    static std::string printOpType(mlir::Operation* op);
+    static std::string printOpType(VPURT::TaskOp taskOp);
     void printInfo(mlir::FuncOp func);
     bool is_valid_op(schedulable_ops_iterator_t itr) const;
     void pushToHeap(const heap_element_t& elem);
