@@ -44,6 +44,7 @@ void vpux::registerDialects(mlir::DialectRegistry& registry) {
     registry.insert<vpux::Const::ConstDialect,  //
                     vpux::IE::IEDialect,        //
                     vpux::VPU::VPUDialect,      //
+                    vpux::EMU::EMUDialect,      //
                     vpux::IERT::IERTDialect,    //
                     vpux::VPUIP::VPUIPDialect,  //
                     vpux::VPURT::VPURTDialect>();

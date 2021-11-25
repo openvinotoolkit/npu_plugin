@@ -16,6 +16,7 @@
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
 
+#include "vpux/compiler/backend/EMU.hpp"
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
@@ -43,6 +44,7 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <description_buffer.hpp>
+#include <device_helpers.hpp>
 
 #include <algorithm>
 
@@ -56,7 +58,12 @@ namespace {
 //
 
 VPU::ArchKind getArchKind(const Config& config) {
-    switch (config.get<PLATFORM>()) {
+    auto platform = config.get<PLATFORM>();
+    if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+        platform = utils::getPlatformByEMUDeviceName(config.get<DEVICE_ID>());
+    }
+
+    switch (platform) {
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
         return VPU::ArchKind::UNKNOWN;
@@ -309,18 +316,27 @@ void buildPipeline(mlir::PassManager& pm, const Config& config, mlir::TimingScop
     if (compilationMode == VPU::CompilationMode::ReferenceSW) {
         const auto options = ReferenceSWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
         options->enableProfiling = enableProfiling;
-
-        buildReferenceSWModePipeline(pm, *options, log.nest());
+        if (config.get<PLATFORM>() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+            buildEMUReferenceSWModePipeline(pm, *options, log.nest());
+        } else {
+            buildReferenceSWModePipeline(pm, *options, log.nest());
+        }
     } else if (compilationMode == VPU::CompilationMode::ReferenceHW) {
         const auto options = ReferenceHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
         options->enableProfiling = enableProfiling;
-
-        buildReferenceHWModePipeline(pm, *options, log.nest());
+        if (config.get<PLATFORM>() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+            buildReferenceHWModePipeline(pm, *options, log.nest());
+        } else {
+            buildEMUReferenceHWModePipeline(pm, *options, log.nest());
+        }
     } else if (compilationMode == VPU::CompilationMode::DefaultHW) {
         const auto options = DefaultHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
         options->enableProfiling = enableProfiling;
-
-        buildDefaultHWModePipeline(pm, *options, log.nest());
+        if (config.get<PLATFORM>() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+            buildDefaultHWModePipeline(pm, *options, log.nest());
+        } else {
+            buildEMUDefaultHWModePipeline(pm, *options, log.nest());
+        }
     } else {
         VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
     }
@@ -359,9 +375,14 @@ void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingSc
 }
 
 auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                  const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log) {
+                  const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log, const Config& config) {
     auto exportTiming = rootTiming.nest("Export to blob");
-    return VPUIP::exportToBlob(module, exportTiming, preprocessInfo, log);
+    switch (config.get<PLATFORM>()) {
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
+        return EMU::exportToBlob(module, exportTiming, preprocessInfo, log);
+    default:
+        return VPUIP::exportToBlob(module, exportTiming, preprocessInfo, log);
+    }
 }
 
 }  // namespace
@@ -394,7 +415,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     std::vector<vpux::PreProcessInfo> preProcInfo;
     const auto module = importNetwork(&ctx, cnnNet, devConf, preProcInfo, rootTiming, config.get<PERF_COUNT>(), log);
     compileNetwork(module.get(), pm, rootTiming);
-    const auto blob = exportToBlob(module.get(), rootTiming, preProcInfo, log);
+    const auto blob = exportToBlob(module.get(), rootTiming, preProcInfo, log, config);
 
     auto finalTiming = rootTiming.nest("Wrap into NetworkDescription");
     std::vector<char> compiledNetwork(blob.size());
