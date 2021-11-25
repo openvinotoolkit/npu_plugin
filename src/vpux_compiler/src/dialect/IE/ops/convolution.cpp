@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
@@ -290,6 +291,14 @@ OutputTiling vpux::IE::GroupConvolutionOp::generateTiling(Logger log) {
     auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(getOperation());
     VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface",
                     getOperationName());
+
+    const auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
+
+    if (arch == VPU::ArchKind::MTL) {
+        // Call common tiling here, no need for W/A
+        return vpux::IE::generateTiles(getOperation(), log);
+    }
 
     const auto outputShape = getShape(output());
 

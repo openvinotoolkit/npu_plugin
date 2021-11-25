@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
@@ -442,11 +443,19 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
-    // Setting more than 16 groups results in worse accuracy.
+    // Setting more than 16 groups results in worse accuracy on KMB.
     // FIXME verify CMX is not a proper place for this. But it is required to fail CMX check during tiling.
     const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
-    if (OC != depthwiseOutChanCount) {
-        log.trace("[{0}] Depthwise convolution must have exactly {1} output channels, got {2}", loc,
+
+    const auto arch = VPU::getArch(module);
+    if (OC != depthwiseOutChanCount && arch != VPU::ArchKind::MTL) {
+        log.debug("[{0}] Depthwise convolution must have exactly {1} output channels, got {2}", loc,
+                  depthwiseOutChanCount, OC);
+        return mlir::failure();
+    }
+
+    if (OC % depthwiseOutChanCount != 0) {
+        log.debug("[{0}] Output channels count of depthwise convolution must be a multiple of {1}, got {2}", loc,
                   depthwiseOutChanCount, OC);
         return mlir::failure();
     }
