@@ -41,3 +41,15 @@ mlir::LogicalResult vpux::IE::CTCGreedyDecoderOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::CTCGreedyDecoderOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::CTCDecoderParamsBuilder builder(writer);
+    builder.add_ctc_merge_repeated(mergeRepeated());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_CTCDecoderParams});
+}

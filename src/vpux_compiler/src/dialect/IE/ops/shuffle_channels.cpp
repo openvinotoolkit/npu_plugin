@@ -31,3 +31,11 @@ mlir::LogicalResult vpux::IE::ShuffleChannelsOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::ShuffleChannelsOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("Unreacheable code, since all ShuffleChannels ops are converted to IE::Reshape IE::Transpose subgraphs.");
+}

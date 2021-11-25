@@ -31,3 +31,13 @@ mlir::LogicalResult vpux::IE::ScatterNDUpdateOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::ScatterNDUpdateOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::ScatterNDUpdateParamsBuilder builder(writer);
+    const auto paramsOff = builder.Finish();
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ScatterNDUpdateParams});
+}

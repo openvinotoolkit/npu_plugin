@@ -58,3 +58,21 @@ mlir::LogicalResult vpux::IE::ReduceSumOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::ReduceSumOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::ReduceParamsBuilder builder(writer);
+
+    EMU::BlobWriter::String type;
+    type = writer.createString("sum");
+
+    builder.add_keep_dims(checked_cast<bool>(keep_dims()));
+    builder.add_operation(type);
+
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ReduceParams});
+}

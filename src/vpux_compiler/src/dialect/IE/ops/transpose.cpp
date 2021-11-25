@@ -214,3 +214,11 @@ mlir::OpFoldResult vpux::IE::TransposeOp::fold(ArrayRef<mlir::Attribute> operand
 
     return nullptr;
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::TransposeOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("Unreacheable code, since all transposes are converted to IE::MemPermute");
+}

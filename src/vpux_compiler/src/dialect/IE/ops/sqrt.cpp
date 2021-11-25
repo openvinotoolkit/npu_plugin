@@ -31,3 +31,18 @@ mlir::LogicalResult vpux::IE::SqrtOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::SqrtOp::serialize(EMU::BlobWriter& writer) {
+    const auto sqrt = MVCNN::CreateSqrtParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_SqrtParams);
+    builder.add_nested_params(sqrt.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

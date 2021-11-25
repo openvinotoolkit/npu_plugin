@@ -31,3 +31,18 @@ mlir::LogicalResult vpux::IE::FloorOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::FloorOp::serialize(EMU::BlobWriter& writer) {
+    const auto floor = MVCNN::CreateFloorParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_FloorParams);
+    builder.add_nested_params(floor.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

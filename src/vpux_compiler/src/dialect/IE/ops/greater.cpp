@@ -41,3 +41,18 @@ mlir::LogicalResult vpux::IE::GreaterOp::inferReturnTypeComponents(
 
     return outShapeRes;
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::GreaterOp::serialize(EMU::BlobWriter& writer) {
+    EMU::BlobWriter::String type;
+    type = writer.createString("comparegt");
+
+    MVCNN::EltwiseParamsBuilder builder(writer);
+    builder.add_operation(type);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_EltwiseParams});
+}

@@ -141,3 +141,14 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::GatherOp gatherOp, m
 void vpux::IE::GatherOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.insert<ConvertConstToAttr>(context);
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::GatherOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::GatherParamsBuilder builder(writer);
+    builder.add_axis(checked_cast<uint32_t>(axis_value().getValue()));
+    const auto paramsOff = builder.Finish();
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GatherParams});
+}

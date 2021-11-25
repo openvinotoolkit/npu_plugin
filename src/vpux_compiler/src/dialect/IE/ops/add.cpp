@@ -129,3 +129,18 @@ mlir::OpFoldResult vpux::IE::AddOp::fold(ArrayRef<mlir::Attribute> operands) {
 
     return nullptr;
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::AddOp::serialize(EMU::BlobWriter& writer) {
+    EMU::BlobWriter::String type;
+    type = writer.createString("sum");
+
+    MVCNN::EltwiseParamsBuilder builder(writer);
+    builder.add_operation(type);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_EltwiseParams});
+}

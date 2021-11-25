@@ -86,3 +86,11 @@ mlir::OpFoldResult vpux::IE::SubtractOp::fold(ArrayRef<mlir::Attribute> operands
 
     return nullptr;
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::SubtractOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("All subtract layers should have been lowered to EMU::NCEClusterTask");
+}

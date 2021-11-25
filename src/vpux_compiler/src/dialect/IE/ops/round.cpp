@@ -15,6 +15,25 @@
 
 using namespace vpux;
 
+namespace {
+
+MVCNN::RoundMode converVPUXRoundModeToMVCNN(vpux::IE::RoundMode vpux_mode) {
+    MVCNN::RoundMode mvcnn_mode;
+    switch (vpux_mode) {
+    case IE::RoundMode::HALF_TO_EVEN:
+        mvcnn_mode = MVCNN::RoundMode::RoundMode_HALF_TO_EVEN;
+        break;
+    case IE::RoundMode::HALF_AWAY_FROM_ZERO:
+        mvcnn_mode = MVCNN::RoundMode::RoundMode_HALF_AWAY_FROM_ZERO;
+        break;
+    default:
+        VPUX_THROW("Unsupported RoundMode {0}", vpux_mode);
+    }
+    return mvcnn_mode;
+}
+
+}  // namespace
+
 mlir::LogicalResult vpux::IE::RoundOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
@@ -30,4 +49,20 @@ mlir::LogicalResult vpux::IE::RoundOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
+}
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::RoundOp::serialize(EMU::BlobWriter& writer) {
+    const auto roundMode = converVPUXRoundModeToMVCNN(mode());
+    const auto round = MVCNN::CreateRoundParams(writer, roundMode);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_RoundParams);
+    builder.add_nested_params(round.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }

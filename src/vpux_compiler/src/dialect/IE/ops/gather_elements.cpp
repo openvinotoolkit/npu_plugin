@@ -34,3 +34,14 @@ mlir::LogicalResult vpux::IE::GatherElementsOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(inIndicesType.getShape(), inInputType.getElementType());
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::GatherElementsOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::GatherElementsParamsBuilder builder(writer);
+    builder.add_axis(checked_cast<int32_t>(axis()));
+    const auto paramsOff = builder.Finish();
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GatherElementsParams});
+}

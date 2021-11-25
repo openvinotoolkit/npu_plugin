@@ -49,6 +49,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /src/vpux_al @ArtemySkrebkov-intel @mznamens @sshumihi
 /src/vpux_compiler @vinograd47 @nikita-kud @sshumihi @andrejsokolov
 /src/vpux_elf @gladilov-gleb @AndrewBakalinIntel 
+/src/vpux_emulator @ZoranZomborat @monicael
 /src/vpux_ngraph_transformations @shokinal @maxim-kurin
 /src/vpux_plugin @ArtemySkrebkov-intel @mznamens
 /src/vpux_translate_utils @gladilov-gleb @MikhailPedus

@@ -31,3 +31,19 @@ mlir::LogicalResult vpux::IE::SoftPlusOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+
+EMU::BlobWriter::SpecificTask vpux::IE::SoftPlusOp::serialize(EMU::BlobWriter& writer) {
+    const auto softPlus = MVCNN::CreateSoftPlusParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_SoftPlusParams);
+    builder.add_nested_params(softPlus.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

@@ -42,3 +42,18 @@ mlir::LogicalResult vpux::IE::PowerOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::PowerOp::serialize(EMU::BlobWriter& writer) {
+    EMU::BlobWriter::String type;
+    type = writer.createString("pow");
+
+    MVCNN::EltwiseParamsBuilder builder(writer);
+    builder.add_operation(type);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_EltwiseParams});
+}

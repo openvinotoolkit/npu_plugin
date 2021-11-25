@@ -60,3 +60,11 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::TopKOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("TopK op without regions is not implemented in low level dialects.");
+}

@@ -41,3 +41,18 @@ mlir::LogicalResult vpux::IE::AndOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::AndOp::serialize(EMU::BlobWriter& writer) {
+    EMU::BlobWriter::String type;
+    type = writer.createString("logicaland");
+
+    MVCNN::EltwiseParamsBuilder builder(writer);
+    builder.add_operation(type);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_EltwiseParams});
+}

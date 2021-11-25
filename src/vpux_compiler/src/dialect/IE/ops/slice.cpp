@@ -132,3 +132,20 @@ mlir::LogicalResult ComposeSlice::matchAndRewrite(IE::SliceOp origOp, mlir::Patt
 void vpux::IE::SliceOp::getCanonicalizationPatterns(mlir::RewritePatternSet& results, mlir::MLIRContext* ctx) {
     results.add<ComposeSlice>(ctx);
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::SliceOp::serialize(EMU::BlobWriter& writer) {
+    const auto begin = writer.createVector(parseIntArrayAttr<uint32_t>(static_offsets()));
+    const auto size = writer.createVector(parseIntArrayAttr<uint32_t>(static_sizes()));
+
+    MVCNN::SliceParamsBuilder builder(writer);
+    builder.add_begin(begin);
+    builder.add_size(size);
+
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SliceParams});
+}

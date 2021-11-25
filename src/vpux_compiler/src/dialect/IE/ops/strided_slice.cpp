@@ -248,3 +248,21 @@ void vpux::IE::StridedSliceOp::getCanonicalizationPatterns(mlir::OwningRewritePa
     patterns.insert<ConvertConstToAttr>(context);
     patterns.insert<ComposeStridedSlice>(context);
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::StridedSliceOp::serialize(EMU::BlobWriter& writer) {
+    auto attrToVector = [&](mlir::ArrayAttr attr) {
+        return to_std_vector(parseIntArrayAttr<uint32_t>(attr));
+    };
+
+    const auto beginsVec = attrToVector(begins_attrAttr());
+    const auto endsVec = attrToVector(ends_attrAttr());
+    const auto stridesVec = attrToVector(strides_attrAttr());
+
+    const auto paramsOff = MVCNN::CreateStridedSliceParamsDirect(writer, &beginsVec, &endsVec, &stridesVec);
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_StridedSliceParams});
+}

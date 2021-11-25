@@ -43,7 +43,8 @@ class VPU_LayerOp<string mnemonic, list<OpTrait> traits = []> :
                 NoSideEffect,
                 InferTypeOpInterface,
                 DeclareOpInterfaceMethods<InferShapedTypeOpInterface, ["inferReturnTypeComponents"]>,
-                DeclareOpInterfaceMethods<IE_LayerOpInterface>
+                DeclareOpInterfaceMethods<IE_LayerOpInterface>,
+                DeclareOpInterfaceMethods<EMUSerializeInterface>
             ] # traits
         > {
     list<string> elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];

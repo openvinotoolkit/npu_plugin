@@ -140,3 +140,12 @@ void vpux::IE::ReverseSequenceOp::getCanonicalizationPatterns(mlir::OwningRewrit
     patterns.insert<NormalizeAxis>(context);
     patterns.insert<ConvertU8ToFP16>(context);
 }
+
+EMU::BlobWriter::SpecificTask vpux::IE::ReverseSequenceOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::ReversesequenceParamsBuilder builder(writer);
+    builder.add_seq_axis(checked_cast<int32_t>(seq_axis()));
+    builder.add_batch_axis(checked_cast<int32_t>(batch_axis()));
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ReversesequenceParams});
+}

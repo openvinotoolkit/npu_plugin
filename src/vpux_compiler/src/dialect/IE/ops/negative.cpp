@@ -34,3 +34,18 @@ mlir::LogicalResult vpux::IE::NegativeOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::NegativeOp::serialize(EMU::BlobWriter& writer) {
+    const auto negative = MVCNN::CreatePowerParams(writer, 0.0f, -1.0f, 1.0f);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_PowerParams);
+    builder.add_nested_params(negative.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

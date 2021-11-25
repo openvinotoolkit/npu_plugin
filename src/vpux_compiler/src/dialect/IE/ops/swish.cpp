@@ -79,3 +79,20 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SwishOp swishOp, mli
 void vpux::IE::SwishOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.insert<ConvertConstToAttr>(context);
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::SwishOp::serialize(EMU::BlobWriter& writer) {
+    const auto beta = beta_valueAttr().getValueAsDouble();
+
+    const auto swish = MVCNN::CreateSwishParams(writer, checked_cast<float>(beta));
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_SwishParams);
+    builder.add_nested_params(swish.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

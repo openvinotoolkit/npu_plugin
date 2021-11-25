@@ -86,3 +86,31 @@ mlir::LogicalResult UseLeakyRelu::matchAndRewrite(IE::PReluOp origOp, mlir::Patt
 void vpux::IE::PReluOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.insert<UseLeakyRelu>(context);
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::PReluOp::serialize(EMU::BlobWriter& writer) {
+    const auto prelu = MVCNN::CreatePReluParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_PReluParams);
+    builder.add_nested_params(prelu.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+EMU::BlobWriter::SpecificTask vpux::IE::LeakyReluOp::serialize(EMU::BlobWriter& writer) {
+    const float negative_slope_val = static_cast<float>(negative_slope().convertToDouble());
+
+    const auto leaky_relu = MVCNN::CreateLeakyReluParams(writer, negative_slope_val);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_LeakyReluParams);
+    builder.add_nested_params(leaky_relu.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

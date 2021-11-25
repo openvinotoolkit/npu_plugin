@@ -59,3 +59,13 @@ mlir::LogicalResult vpux::IE::QuantizeCastOp::inferReturnTypeComponents(
 mlir::OpFoldResult vpux::IE::QuantizeCastOp::fold(vpux::ArrayRef<mlir::Attribute>) {
     return input().getType() == output().getType() ? input() : nullptr;
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::QuantizeCastOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::CopyParamsBuilder builder(writer);
+    const auto paramsOff = builder.Finish();
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_CopyParams});
+}

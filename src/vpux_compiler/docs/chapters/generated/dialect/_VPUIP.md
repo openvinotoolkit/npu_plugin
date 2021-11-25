@@ -1633,7 +1633,7 @@ operation ::= `VPUIP.ProposalUPA` attr-dict
 
 ### `VPUIP.QuantCastUPA` (vpux::VPUIP::QuantCastUPAOp)
 
-FakeQuantize UPA SHAVE kernel
+QuantCast UPA SHAVE kernel
 
 
 Syntax:

@@ -33,3 +33,20 @@ mlir::LogicalResult vpux::IE::EluOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::EluOp::serialize(EMU::BlobWriter& writer) {
+    const float x_val = static_cast<float>(x().convertToDouble());
+
+    const auto elu = MVCNN::CreateEluParams(writer, x_val);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_EluParams);
+    builder.add_nested_params(elu.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

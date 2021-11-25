@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/backend/EMU.hpp"
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/frontend/VPUIP.hpp"
@@ -138,6 +139,19 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
     return mlir::success();
 }
 
+//
+// export-EMU
+//
+
+mlir::LogicalResult exportEMU(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
+    mlir::DefaultTimingManager tm;
+    auto rootTiming = tm.getRootScope();
+    std::vector<vpux::PreProcessInfo> preProcInfo;
+    const auto buf = EMU::exportToBlob(module, rootTiming, preProcInfo);
+    output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
+    return mlir::success();
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -146,6 +160,7 @@ int main(int argc, char* argv[]) {
         mlir::TranslateToMLIRRegistration("import-HWTEST", importHWTEST);
         mlir::TranslateToMLIRRegistration("import-VPUIP", importVPUIP);
         mlir::TranslateFromMLIRRegistration("export-VPUIP", exportVPUIP, registerDialects);
+        mlir::TranslateFromMLIRRegistration("export-EMU", exportEMU, registerDialects);
 
         return mlir::asMainReturnCode(mlir::mlirTranslateMain(argc, argv, "VPUX Translation Testing Tool"));
     } catch (const std::exception& e) {

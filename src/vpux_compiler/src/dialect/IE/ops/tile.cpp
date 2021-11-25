@@ -161,3 +161,21 @@ mlir::LogicalResult vpux::IE::PerAxisTileOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::PerAxisTileOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::TileParamsBuilder builder(writer);
+    builder.add_axis(checked_cast<uint32_t>(axis()));
+    builder.add_tiles(checked_cast<uint32_t>(tiles()));
+
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_TileParams});
+}
+
+EMU::BlobWriter::SpecificTask vpux::IE::TileOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("Unreacheable code, since all tile ops are converted to IE::PerAxisTileOp");
+}

@@ -83,3 +83,22 @@ mlir::OpFoldResult vpux::IE::ExpandOp::fold(ArrayRef<mlir::Attribute>) {
 
     return nullptr;
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::ExpandOp::serialize(EMU::BlobWriter& writer) {
+    const auto padsBegin = writer.createVector(parseIntArrayAttr<uint32_t>(pads_begin()));
+    const auto padsEnd = writer.createVector(parseIntArrayAttr<uint32_t>(pads_end()));
+
+    MVCNN::PadParamsBuilder builder(writer);
+    builder.add_pad_mode(MVCNN::PadMode::PadMode_Constant);
+    builder.add_padValue(0.0);
+    builder.add_pads_begin(padsBegin);
+    builder.add_pads_end(padsEnd);
+
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PadParams});
+}

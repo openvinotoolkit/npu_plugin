@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/EMU/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"

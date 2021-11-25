@@ -50,3 +50,15 @@ mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(ArrayRef<mlir::Attribute>) {
 
     return baseContent.convertElemType(output().getType().cast<mlir::ShapedType>().getElementType());
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::SoftMaxOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::SoftmaxParamsBuilder builder(writer);
+    builder.add_axis(checked_cast<uint32_t>(axisInd()));
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SoftmaxParams});
+}

@@ -31,3 +31,18 @@ mlir::LogicalResult vpux::IE::CeilingOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::CeilingOp::serialize(EMU::BlobWriter& writer) {
+    const auto ceiling = MVCNN::CreateCeilingParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_CeilingParams);
+    builder.add_nested_params(ceiling.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

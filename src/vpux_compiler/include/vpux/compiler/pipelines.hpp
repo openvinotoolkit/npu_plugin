@@ -53,6 +53,8 @@ struct ReferenceSWOptions : mlir::PassPipelineOptions<ReferenceSWOptions> {
 
 void buildReferenceSWModePipeline(mlir::OpPassManager& pm, const ReferenceSWOptions& options,
                                   Logger log = Logger::global());
+void buildEMUReferenceSWModePipeline(mlir::OpPassManager& pm, const ReferenceSWOptions& options,
+                                  Logger log = Logger::global());
 
 //
 // ReferenceHWMode
@@ -113,6 +115,9 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
 };
 
 void buildReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOptions& options,
+                                  Logger log = Logger::global());
+
+void buildEMUReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOptions& options,
                                   Logger log = Logger::global());
 
 //
@@ -184,6 +189,9 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 };
 
 void buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options,
+                                Logger log = Logger::global());
+
+void buildEMUDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options,
                                 Logger log = Logger::global());
 
 }  // namespace vpux

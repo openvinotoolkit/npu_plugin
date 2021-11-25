@@ -14,7 +14,6 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/core/ops_interfaces.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinTypes.h>

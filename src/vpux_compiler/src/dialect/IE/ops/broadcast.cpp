@@ -75,3 +75,28 @@ mlir::LogicalResult vpux::IE::BroadcastOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::BroadcastOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::BroadcastParamsBuilder builder(writer);
+
+    MVCNN::BroadcastMode mvcnn_mode;
+
+    if (this->mode() == IE::BroadcastType::NUMPY) {
+        mvcnn_mode = MVCNN::BroadcastMode::BroadcastMode_NUMPY;
+    } else if (this->mode() == IE::BroadcastType::BIDIRECTIONAL) {
+        mvcnn_mode = MVCNN::BroadcastMode::BroadcastMode_BIDIRECTIONAL;
+    } else if (this->mode() == IE::BroadcastType::EXPLICIT) {
+        mvcnn_mode = MVCNN::BroadcastMode::BroadcastMode_EXPLICIT;
+    } else {
+        VPUX_THROW("Unsupported broadcast mode {0}", this->mode());
+    }
+
+    builder.add_mode(mvcnn_mode);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_BroadcastParams});
+}
