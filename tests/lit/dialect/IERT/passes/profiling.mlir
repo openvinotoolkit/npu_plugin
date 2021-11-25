@@ -43,11 +43,13 @@ module @DmaProfiling {
     //CHECK-NEXT:   [[VAR10:%.+]] = IERT.Timestamp([[VAR9]] : memref<1xui32, "CMX_NN">) -> memref<1xui32, "CMX_NN">
     //CHECK-NEXT:   async.yield [[VAR8]], [[VAR7]], [[VAR10]] : memref<1x16x62x62xf16>, memref<1xui32, "CMX_NN">, memref<1xui32, "CMX_NN">
 
-    //CHECK:        [[VAR12:%.+]] = async.await
+    //CHECK:        [[VAR16:%.+]] = IERT.SubView %arg2 [0] [4] : memref<4xui32> to memref<4xui32>
     //CHECK:        [[token_0:%.*]], [[result_0:%.*]] = async.execute
     //CHECK-NEXT:   [[VAR13:%.+]] = IERT.ConcatView
-    //CHECK-NEXT:   [[VAR14:%.+]] = IERT.Copy inputs([[VAR13]] : memref<4xui32, "CMX_NN">) outputs(%arg2 : memref<4xui32>) -> memref<4xui32>
+    //CHECK-NEXT:   [[VAR14:%.+]] = IERT.Copy inputs([[VAR13]] : memref<4xui32, "CMX_NN">) outputs([[VAR16]] : memref<4xui32>) -> memref<4xui32>
     //CHECK-NEXT:   async.yield [[VAR14]] : memref<4xui32>
     //CHECK:        [[VAR15:%.+]] = async.await [[result_0]] : !async.value<memref<4xui32>>
-    //CHECK-NEXT:   return [[VAR12]], [[VAR15]] : memref<1x16x62x62xf16>, memref<4xui32>
+    //CHECK:        [[VAR12:%.+]] = async.await
+    //CHECK:        [[VAR17:%.+]] = IERT.ConcatView inputs([[VAR15]] : memref<4xui32>) outputs(%arg2 : memref<4xui32>) -> memref<4xui32>
+    //CHECK-NEXT:   return [[VAR12]], [[VAR17]] : memref<1x16x62x62xf16>, memref<4xui32>
 }
