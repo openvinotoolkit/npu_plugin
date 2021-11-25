@@ -208,7 +208,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 }
 
 //
-// DefaultHWMode
+// DefaultHWModez
 //
 
 void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options, Logger log) {
@@ -312,6 +312,157 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 }
 
 //
+// EMU ReferenceSWMode
+//
+
+void vpux::buildEMUReferenceSWModePipeline(mlir::OpPassManager& pm, const ReferenceSWOptions& options, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
+    // Level 3 : Topology
+
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    IE::buildAdjustPrecisionPipeline(pm, IE::AdjustPrecisionOptions(options), log);
+
+    IE::buildAdjustForVPUPipeline(pm, log);
+
+    pm.addPass(IE::createSplitFakeQuantPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+    pm.addPass(IE::createDequantizeConstPass(log));
+    pm.addPass(IE::createMergeFakeQuantPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
+
+    // EMU Dialect lowering
+
+    buildLowerIE2EMUPipeline(pm, log);
+}
+
+//
+// EMUReferenceHWMode
+//
+
+void vpux::buildEMUReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOptions& options, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
+    // Level 3 : Topology
+
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    IE::buildAdjustPrecisionPipeline(pm, IE::AdjustPrecisionOptions(options), log);
+
+    pm.addPass(IE::createUnrollBatchPass(log));
+
+    if (options.enableConvertFCToConv) {
+        pm.addPass(IE::createConvertFCToConvPass(log));
+    }
+    if (options.enableConvertAvgPoolToDWConv) {
+        pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
+    }
+    if (options.enableConvertScaleShiftDW) {
+        pm.addPass(IE::createConvertScaleShiftToDWPass(log));
+    }
+    if (options.enableSplitConvWithMultipleFQ) {
+        pm.addPass(IE::createSplitConvWithMultipleFQPass(log));
+    }
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    IE::buildAdjustForVPUPipeline(pm, log);
+
+    if (options.enableHandleLargeStrides) {
+        pm.addPass(IE::createHandleLargeStridesPass(log));
+    }
+    if (options.enableHandleAsymmetricStrides) {
+        pm.addPass(IE::createHandleAsymmetricStridesPass(log));
+    }
+
+    if (options.enableLowPrecision) {
+        IE::buildLowPrecisionPipeline(pm, log);
+    }
+
+    IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
+
+    // TODO: revisit this pipeline definition after high VPU dialect refactoring
+    // below passes should find their way either by common IE + VPU code or as passes
+    // done on EMU dialect.
+
+    // // Partially lower IERT->VPUIP (NCE Operations only)
+    // pm.addPass(createConvertToNCEOpsPass(log));
+    // pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    // // Handle WeightsTable, which requires statically allocated memory
+    // pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
+
+    // EMU Dialect lowering
+
+    buildLowerIE2EMUPipeline(pm, log);
+}
+
+//
+// EMUDefaultHWMode
+//
+
+void vpux::buildEMUDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
+    // Level 3 : Topology
+
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    IE::buildAdjustPrecisionPipeline(pm, IE::AdjustPrecisionOptions(options), log);
+
+    pm.addPass(IE::createUnrollBatchPass(log));
+    if (options.enableConvertFCToConv) {
+        pm.addPass(IE::createConvertFCToConvPass(log));
+    }
+    if (options.enableConvertAvgPoolToDWConv) {
+        pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
+    }
+    if (options.enableConvertScaleShiftDW) {
+        pm.addPass(IE::createConvertScaleShiftToDWPass(log));
+    }
+    if (options.enableSplitConvWithMultipleFQ) {
+        pm.addPass(IE::createSplitConvWithMultipleFQPass(log));
+    }
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    IE::buildAdjustForVPUPipeline(pm, log);
+
+    if (options.enableHandleLargeStrides) {
+        pm.addPass(IE::createHandleLargeStridesPass(log));
+    }
+    if (options.enableHandleAsymmetricStrides) {
+        pm.addPass(IE::createHandleAsymmetricStridesPass(log));
+    }
+
+    if (options.enableLowPrecision) {
+        IE::buildLowPrecisionPipeline(pm, log);
+    }
+
+    if (options.enableUpstreamSlice) {
+        pm.addPass(IE::createUpstreamSlicePass(log));
+    }
+
+    IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
+
+    // TODO: revisit this pipeline definition after high VPU dialect refactoring
+    // below passes should find their way either by common IE + VPU code or as passes
+    // done on EMU dialect.
+
+    // // Partially lower IERT->VPUIP (NCE Operations only)
+    // pm.addPass(createConvertToNCEOpsPass(log));
+    // pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    // // Handle WeightsTable, which requires statically allocated memory
+    // pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
+
+    // EMU Dialect lowering
+
+    buildLowerIE2EMUPipeline(pm, log);
+}
+
+//
 // registerPipelines
 //
 
@@ -344,4 +495,36 @@ void vpux::registerPipelines() {
 
                 buildDefaultHWModePipeline(pm, options);
             });
+
+    mlir::PassPipelineRegistration<ReferenceSWOptions>(
+            "emu-reference-sw-mode", "Compile IE Network in EMU Reference Software mode (SW only execution)",
+            [](mlir::OpPassManager& pm, const ReferenceSWOptions& options) {
+                const auto archKind = getArchKind(options.arch);
+                pm.addPass(VPUIP::createSetCompileParamsPass(archKind, VPUIP::CompilationMode::ReferenceSW));
+
+                buildEMUReferenceSWModePipeline(pm, options);
+            });
+
+    mlir::PassPipelineRegistration<ReferenceHWOptions>(
+            "emu-reference-hw-mode", "Compile IE Network in EMU Reference Hardware mode (HW and SW execution)",
+            [](mlir::OpPassManager& pm, const ReferenceHWOptions& options) {
+                const auto archKind = getArchKind(options.arch);
+                const auto numOfDPUGroups = getNumOfDPUGroups(options.numberOfDPUGroups);
+                pm.addPass(VPUIP::createSetCompileParamsPass(archKind, VPUIP::CompilationMode::ReferenceHW,
+                                                             numOfDPUGroups));
+
+                buildEMUReferenceHWModePipeline(pm, options);
+            });
+
+    mlir::PassPipelineRegistration<DefaultHWOptions>(
+            "emu-default-hw-mode", "Compile IE Network in EMU Default Hardware mode (HW and SW execution)",
+            [](mlir::OpPassManager& pm, const DefaultHWOptions& options) {
+                const auto archKind = getArchKind(options.arch);
+                const auto numOfDPUGroups = getNumOfDPUGroups(options.numberOfDPUGroups);
+                pm.addPass(
+                        VPUIP::createSetCompileParamsPass(archKind, VPUIP::CompilationMode::DefaultHW, numOfDPUGroups));
+
+                buildEMUDefaultHWModePipeline(pm, options);
+            });
+
 }
