@@ -250,7 +250,7 @@ func @QuantEltwiseMulTest(%arg0: memref<1x64x28x28x!qElemType0, #NHWC>,
 // CHECK-SAME:      variants :
 // CHECK:               DPUTask {
 // CHECK-SAME:              end = [27, 4, 63]
-// CHECK-SAME:              mpe_mode = "VECTOR_FP16"
+// CHECK-SAME:              mpe_mode = "MATRIX"
 // CHECK-SAME:              pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
 // CHECK-SAME:              start = [0, 0, 0]
 
