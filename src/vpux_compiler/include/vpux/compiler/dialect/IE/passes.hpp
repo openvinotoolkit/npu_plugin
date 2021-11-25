@@ -81,6 +81,7 @@ void buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLayoutOption
 std::unique_ptr<mlir::Pass> createUseUserLayout(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAdjustLayoutsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeReordersPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createUniquifyOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertToMemPermutePass(Logger log = Logger::global());
 
 //

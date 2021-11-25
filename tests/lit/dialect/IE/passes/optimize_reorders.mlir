@@ -54,19 +54,13 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
     // CHECK:       [[VAR0:%.+]] = IE.Expand([[ARG0]]
     // CHECK-SAME:      tensor<1x3x30x30xf16, {order = #NHWC}> -> tensor<1x16x30x30xf16, {order = #NHWC}>
 
-    // CHECK:       [[VAR1:%.+]] = IE.Reorder([[VAR0]]) {dstOrder = #NCHW}
-    // CHECK-SAME:      tensor<1x16x30x30xf16, {order = #NHWC}> -> tensor<1x16x30x30xf16>
+    // CHECK:       [[VAR1:%.+]] = IE.MaxPool([[VAR0]])
+    // CHECK-SAME:      tensor<1x16x30x30xf16, {order = #NHWC}> -> tensor<1x16x15x13xf16, {order = #NHWC}>
 
-    // CHECK:       [[VAR2:%.+]] = IE.MaxPool([[VAR1]])
-    // CHECK-SAME:      tensor<1x16x30x30xf16> -> tensor<1x16x15x13xf16>
+    // CHECK:       [[VAR2:%.+]] = IE.Slice [[VAR1]]
+    // CHECK-SAME:      tensor<1x16x15x13xf16, {order = #NHWC}> to tensor<1x3x15x13xf16, {order = #NHWC}>
 
-    // CHECK:       [[VAR3:%.+]] = IE.Slice [[VAR2]]
-    // CHECK-SAME:      tensor<1x16x15x13xf16> to tensor<1x3x15x13xf16>
-
-    // CHECK:       [[VAR4:%.+]] = IE.Reorder([[VAR3]]) {dstOrder = #NHWC}
-    // CHECK-SAME:      tensor<1x3x15x13xf16> -> tensor<1x3x15x13xf16, {order = #NHWC}>
-
-    // CHECK        return [[VAR4]] : tensor<1x3x15x13xf16, {order = #NHWC}>
+    // CHECK        return [[VAR2]] : tensor<1x3x15x13xf16, {order = #NHWC}>
 }
 
 }
