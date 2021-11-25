@@ -344,7 +344,7 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
                 max = std::max(priority_[*jtr], max);
                 ++jtr;
             }
-            std::cout << "Setting the priority of " << printOpType(pitr->first) << " to " << max << std::endl;
+            std::cout << "Setting the priority of " << /*printOpType(pitr->first) <<*/ " to " << max << std::endl;
             pitr->second = max;
         }
     }
@@ -359,7 +359,7 @@ void FeasibleScheduleGenerator::assignUniqueIds(mlir::FuncOp func) {
     int64_t uniqueId = 0;
     auto assignUniqueIDs = [&](VPURT::TaskOp taskOp) {
         taskOp->setAttr(uniqueIdAttrName, getIntAttr(_ctx, uniqueId++));
-        std::cout << "Assigning ID " << uniqueId << " to operation " << printOpType(taskOp.getOperation()) << std::endl;
+        std::cout << "Assigning ID " << uniqueId << " to operation " <</* printOpType(taskOp.getOperation())*/ std::endl;
     };
 
     func.walk([&](VPURT::TaskOp taskOp) {
@@ -473,7 +473,7 @@ void FeasibleScheduleGenerator::getAllBarriersProducersAndConsumers() {
 void FeasibleScheduleGenerator::compute_op_indegree(operation_in_degree_t& in_degree) {
     in_degree.clear();
 
-    printInfo(_func);
+    //printInfo(_func);
     _allTaskOps = to_small_vector(_func.getOps<IERT::LayerOpInterface>());
     for (auto taskOp : _allTaskOps) {
         if (auto op = mlir::dyn_cast<VPURT::TaskOp>(taskOp.getOperation())) {
@@ -529,7 +529,7 @@ bool FeasibleScheduleGenerator::init(const resource_state_t& upper_bound) {
 
     Logger::global().error("**Initializing the feasible scheduler **");
 
-    printInfo(_func);
+    //printInfo(_func);
     assignUniqueIds(_func);
     processed_ops_.clear();
     resource_utility_map_.clear();

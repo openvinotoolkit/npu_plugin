@@ -23,13 +23,12 @@ using namespace vpux;
 // Constructor
 //
 
-TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers, int64_t slotCount,
-                                                       Logger log)
-        : _ctx(ctx), _func(func), barrierCount_(numBarriers), slotCount_(slotCount)  {
+TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers,
+                                                       int64_t slotCount, Logger log)
+        : _ctx(ctx), _func(func), barrierCount_(numBarriers), slotCount_(slotCount) {
 }
 
 size_t TokenBasedBarrierScheduler::schedule() {
-    
     size_t btask_count = 0UL;
 
     // last associated barrier task associated with index //
@@ -42,61 +41,85 @@ size_t TokenBasedBarrierScheduler::schedule() {
         bstructure.init();
     }
     {
-    Logger::global().error("STEP-1: run the scheduler");
-    BarrierScheduleGenerator scheduler_begin(_ctx, _func, barrierCount_, slotCount_);
-    BarrierScheduleGenerator scheduler_end(_ctx, _func);
-    size_t scheduling_number = 0UL;
+        Logger::global().error("STEP-1: run the scheduler");
+        BarrierScheduleGenerator scheduler_begin(_ctx, _func, barrierCount_, slotCount_);
+        BarrierScheduleGenerator scheduler_end(_ctx, _func);
+        size_t scheduling_number = 0UL;
 
-    for (; scheduler_begin != scheduler_end; ++scheduler_begin) {
+        for (; scheduler_begin != scheduler_end; ++scheduler_begin) {
+            const BarrierScheduleGenerator::schedule_info_t& sinfo = *scheduler_begin;
 
-    const BarrierScheduleGenerator::schedule_info_t& sinfo = *scheduler_begin;
+            Logger::global().error("Getting the schedule information sinfo from the Barrier_Schedule_Generator class");
+            Logger::global().error("The time is {0}, the Operation is {1} end time is {1}", sinfo.schedule_time_,
+                                   FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
+            Logger::global().error("The barrier index is {0}, , the slot cout is {1}", sinfo.barrier_index_,
+                                   sinfo.slot_count_);
 
-    Logger::global().error("Getting the schedule information sinfo from the Barrier_Schedule_Generator class");
-    Logger::global().error("The time is {0}, the Operation is {1} end time is {1}", sinfo.schedule_time_, FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
-    Logger::global().error("The barrier index is {0}, , the slot cout is {1}", sinfo.barrier_index_, sinfo.slot_count_);
-    
-    
-    Logger::global().error("Now looking up the barrier association table for the barrier {0} and getting the barrier association table", sinfo.barrier_index_);
+            Logger::global().error("Now looking up the barrier association table for the barrier {0} and getting the "
+                                   "barrier association table",
+                                   sinfo.barrier_index_);
 
-    auto bitr = barrier_association.find(sinfo.barrier_index_);
-    assert(bitr != barrier_association.end());
-    barrier_transition_structure_t& bstructure = bitr->second;
-        
-    //Set scheduling number
-    Logger::global().error("Assigning scheduling number {0} to the Operation {1} ", scheduling_number, FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
-    scheduling_number++;
-    // STEP-2: update barrier structure invariant //
-    bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo);
+            auto bitr = barrier_association.find(sinfo.barrier_index_);
+            assert(bitr != barrier_association.end());
+            barrier_transition_structure_t& bstructure = bitr->second;
 
-    if (new_barrier_task_created) { ++btask_count; }
-    }
+            // Set scheduling number
+            Logger::global().error("Assigning scheduling number {0} to the Operation {1} ", scheduling_number,
+                                   FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
+            scheduling_number++;
+            // STEP-2: update barrier structure invariant //
+            bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo);
+
+            if (new_barrier_task_created) {
+                ++btask_count;
+            }
+        }
     }
 
     // STEP-2.5: process trailing barrier control structures //
-     {
-        for (auto bitr=barrier_association.begin(); bitr!=barrier_association.end(); ++bitr) {
-          barrier_transition_structure_t &bstruct = bitr->second;
-          bstruct.close_barrier_producer_list();
-        }
-      }
-
-
-
-
-    for(auto& barrier: configureBarrierOpProducersMap)
     {
-        Logger::global().error("Barrier ID {0} has the following producers",barrier.first->getAttr("id"));
-        for(auto op : barrier.second)
-            Logger::global().error("producer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(op), barrier.first->getAttr("id"));
+        for (auto bitr = barrier_association.begin(); bitr != barrier_association.end(); ++bitr) {
+            barrier_transition_structure_t& bstruct = bitr->second;
+            bstruct.close_barrier_producer_list();
+        }
     }
 
-    for(auto& barrier: configureBarrierOpConsumersMap)
-    {
-        Logger::global().error("Barrier ID {0} has the following consumers",barrier.first->getAttr("id"));
-        for(auto op : barrier.second)
-            Logger::global().error("consumer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(op), barrier.first->getAttr("id"));
+    for (auto& barrier : configureBarrierOpProducersMap) {
+        Logger::global().error("Barrier ID {0} has the following producers", barrier.first->getAttr("id"));
+        for (auto op : barrier.second)
+            Logger::global().error("producer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(op),
+                                   barrier.first->getAttr("id"));
+    }
+
+    for (auto& barrier : configureBarrierOpConsumersMap) {
+        Logger::global().error("Barrier ID {0} has the following consumers", barrier.first->getAttr("id"));
+        for (auto op : barrier.second)
+            Logger::global().error("consumer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(op),
+                                   barrier.first->getAttr("id"));
     }
 
     std::cout << "Done scheduling" << std::endl;
 
+    _func->walk([](VPURT::DeclareVirtualBarrierOp op) {
+        op.barrier().dropAllUses();
+        op.erase();
+    });
+
+    for (const auto& p : configureBarrierOpProducersMap) {
+        auto barrierOp = mlir::cast<VPURT::ConfigureBarrierOp>(p.first);
+        for (auto* user : p.second) {
+            auto taskOp = mlir::cast<VPURT::TaskOp>(user);
+            taskOp.updateBarriersMutable().append(barrierOp.barrier());
+        }
+    }
+
+    for (const auto& p : configureBarrierOpConsumersMap) {
+        auto barrierOp = mlir::cast<VPURT::ConfigureBarrierOp>(p.first);
+        for (auto* user : p.second) {
+            auto taskOp = mlir::cast<VPURT::TaskOp>(user);
+            taskOp.waitBarriersMutable().append(barrierOp.barrier());
+        }
+    }
+
+    std::cout << "Removed all declare virtual barrier ops" << std::endl;
 }

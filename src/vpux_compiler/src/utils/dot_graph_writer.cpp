@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/dot_graph_writer.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
