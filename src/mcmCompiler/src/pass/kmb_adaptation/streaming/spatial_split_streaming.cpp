@@ -1693,6 +1693,8 @@ void pipelineShaveDPUFcn(const mv::pass::PassEntry&,
         auto eluAlpha = elu->get<double>("alpha");
         auto eluStrategy = elu->get<std::string>("splitStrategy");
         auto eluOpId = elu->get<unsigned>("opId");
+        auto eluQuantParam = elu->getOutputTensor(0)->getQuantParams();
+        auto eluType = elu->getOutputTensor(0)->getDType();
 
         // Do ELU on concat inputs rather than ELU whole output
         auto concatInputs = eluParent->getInputTensor();
@@ -1705,6 +1707,8 @@ void pipelineShaveDPUFcn(const mv::pass::PassEntry&,
             // std::cout << "Found flow: " << sinkInputSlot << " : " << originalFlow->getName() << std::endl;
             auto newElu = om.elu(eluName + "_"+ concatInput->getName(), concatInput, eluAlpha);
             newElu->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+            newElu->setDType(eluType);
+            newElu->setQuantParams(eluQuantParam);
 
             om.getSourceOp(newElu)->set<std::string>("splitStrategy", eluStrategy);
             om.getSourceOp(newElu)->set<unsigned>("opId", eluOpId);
@@ -1715,6 +1719,8 @@ void pipelineShaveDPUFcn(const mv::pass::PassEntry&,
         }
 
         mv::linkNewOperationsRemove(eluParent, eluParent->getOutputTensor(0), om, elu);
+        eluParent->getOutputTensor(0)->setDType(eluType);
+        eluParent->getOutputTensor(0)->setQuantParams(eluQuantParam);
     }
 
 }
