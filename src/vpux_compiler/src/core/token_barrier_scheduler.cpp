@@ -109,6 +109,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
         auto barrierOp = mlir::cast<VPURT::ConfigureBarrierOp>(p.first);
         for (auto* user : p.second) {
             auto taskOp = mlir::cast<VPURT::TaskOp>(user);
+            Logger::global().error("Adding Barrier ID {0} as an update barrier for operation {1}", barrierOp->getAttr("id"),FeasibleScheduleGenerator::getUniqueID(user));
             taskOp.updateBarriersMutable().append(barrierOp.barrier());
         }
     }
@@ -117,6 +118,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
         auto barrierOp = mlir::cast<VPURT::ConfigureBarrierOp>(p.first);
         for (auto* user : p.second) {
             auto taskOp = mlir::cast<VPURT::TaskOp>(user);
+            Logger::global().error("Adding Barrier ID {0} as an wait barrier for operation {1}", barrierOp->getAttr("id"),FeasibleScheduleGenerator::getUniqueID(user));
             taskOp.waitBarriersMutable().append(barrierOp.barrier());
         }
     }
