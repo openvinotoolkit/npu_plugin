@@ -88,3 +88,57 @@ func @HandleConvolutionWithAsymmetricStridesWithFQ(%arg0: tensor<1x16x64x1024xf1
 
   // CHECK        return %[[OUT_FQ]]
 }
+
+// -----
+
+// CHECK-LABEL: @HandleAvgPoolWithAsymmetricStrides
+func @HandleAvgPoolWithAsymmetricStrides(%arg0 : tensor<1x16x30x30xf16>) -> tensor<1x16x28x14xf16> {
+    %0 = IE.AvgPool(%arg0) {
+            exclude_pads,
+            kernel_size = [3, 3],
+            pads_begin = [0, 0],
+            pads_end = [0, 0],
+            rounding_type = "FLOOR",
+            strides = [1, 2]
+    } : tensor<1x16x30x30xf16> -> tensor<1x16x28x14xf16>
+
+    return %0 : tensor<1x16x28x14xf16>
+
+    // CHECK:       %[[VAL0:.*]] = IE.AvgPool(%arg0)
+    // CHECK-SAME:    {exclude_pads, kernel_size = [3, 3], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = "FLOOR", strides = [2, 2]} :
+    // CHECK-SAME:    tensor<1x16x30x30xf16> -> tensor<1x16x14x14xf16>
+
+    // CHECK:       %[[VAL1:.*]] = IE.Slice %arg0 [0, 0, 1, 0] [1, 16, 29, 30] : tensor<1x16x30x30xf16> to tensor<1x16x29x30xf16>
+
+    // CHECK:       %[[VAL2:.*]] = IE.AvgPool(%[[VAL1]])
+    // CHECK-SAME:    {exclude_pads, kernel_size = [3, 3], pads_begin = [0, 0], pads_end = [1, 0], rounding_type = "FLOOR", strides = [2, 2]} :
+    // CHECK-SAME:    tensor<1x16x29x30xf16> -> tensor<1x16x14x14xf16>
+
+    // CHECK:       %[[VAL3:.*]] = IE.Concat(%[[VAL0]], %[[VAL2]])
+    // CHECK-SAME:    {per_axis = {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}} :
+    // CHECK-SAME:    tensor<1x16x14x14xf16>, tensor<1x16x14x14xf16> -> tensor<1x16x28x14xf16>
+
+    // CHECK:       return %[[VAL3]] : tensor<1x16x28x14xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @HandleAvgPoolWithEqualInputAndKernel
+func @HandleAvgPoolWithEqualInputAndKernel(%arg0 : tensor<1x16x7x7xf16>) -> tensor<1x16x1x1xf16> {
+    %0 = IE.AvgPool(%arg0) {
+              exclude_pads,
+              kernel_size = [7, 7],
+              pads_begin = [0, 0],
+              pads_end = [0, 0],
+              rounding_type = "FLOOR",
+              strides = [1, 2]
+        } : tensor<1x16x7x7xf16> -> tensor<1x16x1x1xf16>
+
+    return %0 : tensor<1x16x1x1xf16>
+
+    // CHECK:       %[[VAL0:.*]] = IE.AvgPool(%arg0)
+    // CHECK-SAME:    {exclude_pads, kernel_size = [7, 7], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = "FLOOR", strides = [2, 2]} :
+    // CHECK-SAME:    tensor<1x16x7x7xf16> -> tensor<1x16x1x1xf16>
+
+    // CHECK:       return %[[VAL0]] : tensor<1x16x1x1xf16>
+}

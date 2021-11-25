@@ -186,6 +186,53 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 }
 
 //
+// AvgPoolRewriter
+//
+
+class AvgPoolRewriter final : public mlir::OpRewritePattern<IE::AvgPoolOp> {
+public:
+    AvgPoolRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::AvgPoolOp>(ctx), _log(log) {
+        setDebugName("AvgPoolRewriter");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult AvgPoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got AvgPool layer at '{1}'", getDebugName(), origOp->getLoc());
+
+    const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+    auto SY = strides[0];
+    auto SX = strides[1];
+
+    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+    const auto KY = kernelSize[0];
+    const auto KX = kernelSize[1];
+
+    const auto inputShape = getShape(origOp.input());
+    const auto inH = inputShape[Dims4D::Act::H];
+
+    if ((SY == 1) && (KY == inH)) {
+        SY = SX;
+    }
+
+    std::array<int64_t, 2> newStrides = {SY, SX};
+    auto newStridesAttr = getIntArrayAttr(origOp.getContext(), newStrides);
+
+    return generalSplitter(
+            origOp, rewriter, newStridesAttr, {KY, KX}, origOp.pads_begin(), origOp.pads_end(),
+            [&](mlir::Location loc, mlir::Value input, OperationPart part) -> mlir::Operation* {
+                return rewriter.create<IE::AvgPoolOp>(loc, input, origOp.kernel_sizeAttr(), part.strides, part.padBegin,
+                                                      part.padEnd, origOp.rounding_typeAttr(),
+                                                      origOp.exclude_padsAttr());
+            },
+            _log.nest());
+}
+
+//
 // HandleAsymmetricStridesPass
 //
 
@@ -223,6 +270,13 @@ void HandleAsymmetricStridesPass::safeRunOnFunc() {
         // in case of more generic option, new implementation needed.
         return SY == SX || !(checkStridesRelation(SX, SY, W) || checkStridesRelation(SY, SX, H));
     });
+    target.addDynamicallyLegalOp<IE::AvgPoolOp>([&](IE::AvgPoolOp op) {
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.strides());
+        const auto SY = kernelStrides[0];
+        const auto SX = kernelStrides[1];
+
+        return SY == SX;
+    });
 
     target.addLegalOp<IE::SliceOp>();
     target.addLegalOp<IE::ConcatOp>();
@@ -230,6 +284,7 @@ void HandleAsymmetricStridesPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ConvolutionRewriter>(&ctx, _log);
+    patterns.insert<AvgPoolRewriter>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
