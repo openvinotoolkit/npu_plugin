@@ -25,6 +25,7 @@
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/custom_pwl_table.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -52,6 +53,37 @@ void addPPETask(mlir::OpBuilder& builder, VPUIP::NCEClusterTaskOp& nceOp, VPU::P
                     : nullptr;
     nceOp.addPPETask(builder, ppeAttr.mode(), ppeAttr.clamp_low(), ppeAttr.clamp_high(), ppeAttr.lrelu_mult(),
                      ppeAttr.lrelu_shift(), multList, shiftList, ppeAttr.quant_post_shift());
+}
+
+mlir::Value createInstructionListTableTensor(mlir::OpBuilder& builder, mlir::Location loc, IE::PostOp postOp,
+                                             mlir::Type outElemType) {
+    if (postOp == nullptr) {
+        return nullptr;
+    }
+
+    auto pwlTable = findCustomPWLTable(postOp.name().getValue(), outElemType);
+
+    if (!pwlTable.hasValue()) {
+        return nullptr;
+    }
+
+    auto pwlTableRange = pwlTable.getValue().range;
+    auto pwlTableShift = pwlTable.getValue().shift;
+    auto pwlTableBias = pwlTable.getValue().bias;
+
+    auto ctx = builder.getContext();
+    SmallVector<int64_t> instructionListTableShape{1, 1, 1, 32};
+
+    const auto dataType = mlir::MemRefType::get(instructionListTableShape, getSInt32Type(ctx));
+    auto instructionListTableOp = builder.create<VPUIP::InstructionListTableOp>(
+            loc, dataType, getIntArrayAttr(ctx, makeArrayRef(pwlTableRange)),
+            getIntArrayAttr(ctx, makeArrayRef(pwlTableShift)), getIntArrayAttr(ctx, makeArrayRef(pwlTableBias)));
+
+    const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
+
+    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
+    auto copyOp = builder.create<IERT::CopyOp>(loc, instructionListTableOp.output(), dataAllocOp);
+    return copyOp.output();
 }
 
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value op_input,
@@ -201,6 +233,10 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     auto weightsTable =
             createWeightsTableTensor(rewriter, origOp->getLoc(), OC, newArgs.input(), outputBuffer, newArgs.filter(),
                                      activationWindow, origOp.biasAttr(), origOp.ppeAttr());
+    
+    auto instructionListTable =
+        createInstructionListTableTensor(rewriter, origOp->getLoc(), origOp.post_opAttr(),
+                                            origOp.output().getType().cast<mlir::MemRefType>().getElementType());
 
     //
     // Create NCE per-cluster Operation
@@ -210,7 +246,7 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     const auto taskType = isCMajor ? VPUIP::NCETaskType::CMCONV : VPUIP::NCETaskType::CONV;
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(origOp->getLoc(), newArgs.input(), newArgs.filter(),
-                                                          weightsTable, activationWindow,
+                                                          weightsTable, instructionListTable, activationWindow,
                                                           /*parent_input=*/newArgs.input(),
                                                           /*parent_output=*/outputBuffer,
                                                           /*output_buff=*/outputBuffer, taskType, kernelSizeAttr,
@@ -295,8 +331,8 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, O
     const auto activation_window_channel_length = getIntAttr(getContext(), static_cast<uint32_t>(bitPatternSize));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-            origOp->getLoc(), newArgs.input(), /*weights=*/nullptr, weightsTable, activationWindow,
-            /*parent_input=*/newArgs.input(),
+            origOp->getLoc(), newArgs.input(), /*weights=*/nullptr, weightsTable, /*instruction_table_list=*/nullptr,
+            activationWindow, /*parent_input=*/newArgs.input(),
             /*parent_output=*/outputBuffer,
             /*output_buff=*/outputBuffer, VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),
             origOp.pad(), activation_window_channel_length);
@@ -381,6 +417,9 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
             createWeightsTableTensor(rewriter, origOp->getLoc(), OC, newArgs.input(), outputBuffer, newArgs.filter(),
                                      activationWindow, origOp.biasAttr(), origOp.ppeAttr());
 
+    auto instructionListTable =
+            createInstructionListTableTensor(rewriter, origOp->getLoc(), origOp.post_opAttr(),
+                                             origOp.output().getType().cast<mlir::MemRefType>().getElementType());
     //
     // Create NCE per-cluster Operation
     //
@@ -388,7 +427,7 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-            origOp->getLoc(), newArgs.input(), newArgs.filter(), weightsTable, activationWindow,
+            origOp->getLoc(), newArgs.input(), newArgs.filter(), weightsTable, instructionListTable, activationWindow,
             /*parent_input=*/newArgs.input(),
             /*parent_output=*/outputBuffer,
             /*output_buff=*/outputBuffer, VPUIP::NCETaskType::DWCONV, kernelSizeAttr, origOp.strides(), origOp.pad(),
@@ -446,6 +485,7 @@ mlir::LogicalResult EltwiseRewriter::matchAndRewrite(VPU::NCEEltwiseOp origOp, O
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(origOp->getLoc(), newArgs.input1(), newArgs.input2(),
                                                           /*weightsTable=*/nullptr,
+                                                          /*instruction_table_list=*/nullptr,
                                                           /*activation_window=*/nullptr,
                                                           /*parent_input=*/newArgs.input1(),
                                                           /*parent_output=*/outputBuffer,

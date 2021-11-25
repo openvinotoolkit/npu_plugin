@@ -19,6 +19,7 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
+#include "vpux/compiler/utils/custom_pwl_table.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -111,6 +112,32 @@ PostOpParams getPwlPostOpParams(const mlir::Type inElemType, const mlir::Type ou
                         LreluMult, LreluShift, QuantizationParams{quantMult, quantShift, postShift}};
 }
 
+PostOpParams getCustomPwlPostOpParams(IE::PostOp postOp, mlir::Type outElemType) {
+    auto pwlTable = findCustomPWLTable(postOp.name().getValue(), outElemType);
+
+    VPUX_THROW_UNLESS(pwlTable.hasValue(), "Custom PWL Table was not found for {0} {1}", postOp.name().getValue(),
+                      outElemType);
+
+    auto pwlTableRange = pwlTable.getValue().range;
+
+    const int64_t clampLow = pwlTableRange[0];
+    const int64_t clampHigh = pwlTableRange[pwlTableRange.size() - 1];
+    const int64_t LreluMult = 1;
+    const int64_t LreluShift = 0;
+    const int64_t postShift = pwlTable.getValue().postShift;
+
+    // Dummy values for mult & shift, as the actual values will be computed in the weights table
+    SmallVector<int32_t> quantMult = {1};
+    SmallVector<int32_t> quantShift = {0};
+
+    return PostOpParams{VPU::PPEMode::FLEXARB,
+                        clampLow,
+                        clampHigh,
+                        LreluMult,
+                        LreluShift,
+                        QuantizationParams{quantMult, quantShift, postShift}};
+}
+
 std::pair<int64_t, int64_t> getClampValuesForQuantizedOps(mlir::quant::QuantizedType outElemQType,
                                                           mlir::Type outElemType) {
     const auto zps = extractScalesAndZeroPoints(outElemType).second;
@@ -155,7 +182,7 @@ mlir::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inE
         const int64_t LreluShift = 0;
 
         return PostOpParams{VPU::PPEMode::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
-    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
+    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName() && arch == VPU::ArchKind::MTL) {
         IE::LeakyReluOp::Adaptor leakyRelu(None, postOp.attrs());
         VPUX_THROW_UNLESS(leakyRelu.verify(loc).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp", postOp.attrs(),
                           postOp.name());
@@ -182,8 +209,10 @@ mlir::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inE
         return getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::SIGMOID);
     } else if (postOp.name().getValue() == IE::TanhOp::getOperationName()) {
         return getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::TANH);
+    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
+        return getCustomPwlPostOpParams(postOp, outElemType);
     }
-
+    
     VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
 }
 

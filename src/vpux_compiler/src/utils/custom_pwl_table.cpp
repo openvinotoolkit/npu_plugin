@@ -4,8 +4,8 @@ namespace vpux {
 
 PWLTableMap* customPWLTable_leakyRelu() {
     PWLTableType pwl_type;
-    pwl_type.activation = "LeakyRelu";
-    pwl_type.dtype = mlir::quant::QuantizedType();
+    pwl_type.activation = "IE.LeakyRelu";
+    pwl_type.dtype = mlir::quant::UniformQuantizedType();
 
     std::vector<int> vecRange{-128, -109, -90, -72, -54, -36, -18, 0, 128};
     std::vector<int> vecShift{1, -1, 0, 0, 0, -1, -1, -4};

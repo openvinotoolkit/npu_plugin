@@ -45,7 +45,7 @@ class KmbConvPwlSubGraphTest :
         } else if (postOpType == PostOp::TANH) {
             postOp = std::make_shared<ngraph::opset7::Tanh>(conv);
         } else if (postOpType == PostOp::LRELU) {
-            const auto negativeSlope = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {0.01}, false);
+            const auto negativeSlope = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {0.1}, false);
             postOp = std::make_shared<ngraph::opset7::PRelu>(conv, negativeSlope);
         }
 
@@ -108,10 +108,10 @@ class KmbConvPwlQuantizedSubGraphTest :
             outputFq = ngraph::builder::makeFakeQuantize(postOp, ngraph::element::f32, outLevels, {},
                                                          {-1.0}, {1.0}, {-1.0}, {1.0});
         } else if (postOpType == PostOp::LRELU) {
-            const auto negativeSlope = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {0.01}, false);
+            const auto negativeSlope = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {0.1}, false);
             const auto postOp = std::make_shared<ngraph::op::v0::PRelu>(conv, negativeSlope);
             outputFq = ngraph::builder::makeFakeQuantize(postOp, ngraph::element::f32, outLevels, {},
-                                                         {-128.0}, {127.0}, {-128.0}, {127.0}); // need to check with Harald
+                                                         {-128.0}, {127.0}, {-128.0}, {127.0});
         }
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outputFq)};
