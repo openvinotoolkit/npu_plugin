@@ -126,26 +126,26 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     const auto maxNumClustersForArch = VPU::getMaxDPUClusterNum(module);
     VPUX_THROW_UNLESS(maxNumClustersForArch != 0, "Failed to get maxNumClustersForArch");
 
-    constexpr auto maxBarriersPerInference = MAX_BARRIERS_FOR_ARCH / 2;  // half barries are used
-    const auto barriersPerCluster = maxBarriersPerInference / maxNumClustersForArch;
-    const auto maxNumBarriers = std::min(maxBarriersPerInference, barriersPerCluster * numClusters);
+    // constexpr auto maxBarriersPerInference = MAX_BARRIERS_FOR_ARCH / 2;  // half barries are used
+    // const auto barriersPerCluster = maxBarriersPerInference / maxNumClustersForArch;
+    // const auto maxNumBarriers = std::min(maxBarriersPerInference, barriersPerCluster * numClusters);
 
-    const auto numBarriers = _numBarriersOpt.hasValue() ? _numBarriersOpt.getValue() : maxNumBarriers;
-    VPUX_THROW_UNLESS(numBarriers > 0 && numBarriers <= maxNumBarriers,
-                      "Number of physical barriers '{0}' is out of range '{1}'", numBarriers, maxNumBarriers);
+    // const auto numBarriers = _numBarriersOpt.hasValue() ? _numBarriersOpt.getValue() : maxNumBarriers;
+    // VPUX_THROW_UNLESS(numBarriers > 0 && numBarriers <= maxNumBarriers,
+    //                   "Number of physical barriers '{0}' is out of range '{1}'", numBarriers, maxNumBarriers);
 
-    BarrierAllocation allocInfo(func, numBarriers, _log);
+    // BarrierAllocation allocInfo(func, numBarriers, _log);
 
-    mlir::ConversionTarget target(ctx);
-    target.addIllegalOp<VPURT::DeclareVirtualBarrierOp>();
-    target.addLegalOp<VPURT::ConfigureBarrierOp>();
+    // mlir::ConversionTarget target(ctx);
+    // target.addIllegalOp<VPURT::DeclareVirtualBarrierOp>();
+    // target.addLegalOp<VPURT::ConfigureBarrierOp>();
 
-    mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<VirtualBarrierRewrite>(&ctx, allocInfo, _log);
+    // mlir::RewritePatternSet patterns(&ctx);
+    // patterns.insert<VirtualBarrierRewrite>(&ctx, allocInfo, _log);
 
-    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
-        signalPassFailure();
-    }
+    // if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
+    //     signalPassFailure();
+    // }
 }
 
 }  // namespace

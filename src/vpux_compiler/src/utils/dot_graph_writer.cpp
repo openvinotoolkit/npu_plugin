@@ -178,7 +178,7 @@ EdgeDir GraphWriter::getEdgeDirection(mlir::Operation* source, mlir::Operation* 
 }
 
 bool GraphWriter::isNodeHidden(mlir::Operation* op) const {
-    if (op->hasTrait<mlir::OpTrait::IsTerminator>()) {
+    if (op->hasTrait<mlir::OpTrait::IsTerminator>() || mlir::isa<vpux::VPURT::DeclareBufferOp>(op)) {
         return true;
     }
 
