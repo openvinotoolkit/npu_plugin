@@ -47,7 +47,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /src/utils @briangrifiin @mznamens
 /src/vpual_backend @briangrifiin @ArtemySkrebkov-intel @alpkn
 /src/vpux_al @ArtemySkrebkov-intel @mznamens @sshumihi
-/src/vpux_compiler @vinograd47 @nikita-kud
+/src/vpux_compiler @vinograd47 @nikita-kud @sshumihi @andrejsokolov
 /src/vpux_elf @gladilov-gleb @AndrewBakalinIntel 
 /src/vpux_ngraph_transformations @shokinal @maxim-kurin
 /src/vpux_plugin @ArtemySkrebkov-intel @mznamens
@@ -64,12 +64,12 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /tests/functional/common @ArtemySkrebkov-intel @mznamens
 /tests/functional/compile @ArtemySkrebkov-intel @mznamens
 /tests/functional/internal @ArtemySkrebkov-intel @mznamens
-/tests/functional/shared_test_classes @alpkn @alexeytarakanov
-/tests/functional/shared_test_instances @alpkn @alexeytarakanov
-/tests/functional/shared_test_instances/behavior @ArtemySkrebkov-intel @mznamens @alpkn
-/tests/functional/shared_test_instances/blob_tests @ArtemySkrebkov-intel @mznamens @alpkn
-/tests/functional/shared_test_instances/single_layer_tests @maxim-kurin @vinograd47 @alpkn
-/tests/functional/shared_test_instances/subgraph_tests @maxim-kurin @vinograd47 @alpkn
+/tests/functional/shared_tests_classes @alpkn @alexeytarakanov
+/tests/functional/shared_tests_instances @alpkn @alexeytarakanov
+/tests/functional/shared_tests_instances/behavior @ArtemySkrebkov-intel @mznamens @alpkn
+/tests/functional/shared_tests_instances/blob_tests @ArtemySkrebkov-intel @mznamens @alpkn
+/tests/functional/shared_tests_instances/single_layer_tests @maxim-kurin @vinograd47 @alpkn @sshumihi @andrejsokolov
+/tests/functional/shared_tests_instances/subgraph_tests @maxim-kurin @vinograd47 @alpkn
 /tests/functional/single_layer_tests @maxim-kurin @alpkn
 /tests/functional/subgraph_tests @maxim-kurin @vinograd47 @alpkn
 #
