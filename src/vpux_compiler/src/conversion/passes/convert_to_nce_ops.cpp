@@ -42,10 +42,28 @@ namespace {
 // Utilities
 //
 
-const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
-        {VPUIP::ArchKind::KMB, VPUIP::MPEMode::VECTOR_FP16},   //
-        {VPUIP::ArchKind::TBH, VPUIP::MPEMode::VECTOR_FP16},   //
-        {VPUIP::ArchKind::MTL, VPUIP::MPEMode::CUBOID_16x16},  //
+static VPUIP::MPEMode getMpeForKmb(const mlir::Type inElemType, const mlir::Type outElemType) {
+    if (inElemType.dyn_cast<mlir::quant::QuantizedType>() != nullptr ||
+        outElemType.dyn_cast<mlir::quant::QuantizedType>() != nullptr) {
+        return VPUIP::MPEMode::MATRIX;
+    }
+
+    if (inElemType.isF16() || inElemType.isBF16() || outElemType.isF16() || outElemType.isBF16()) {
+        return VPUIP::MPEMode::VECTOR_FP16;
+    }
+
+    // Let's fall back to vector (might be a bad idea though).
+    return VPUIP::MPEMode::VECTOR;
+}
+
+static VPUIP::MPEMode getMpeForMtl(const mlir::Type, const mlir::Type) {
+    return VPUIP::MPEMode::CUBOID_16x16;
+}
+
+const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode (*)(const mlir::Type, const mlir::Type)> mpeMap = {
+        {VPUIP::ArchKind::KMB, getMpeForKmb},  //
+        {VPUIP::ArchKind::TBH, getMpeForKmb},  //
+        {VPUIP::ArchKind::MTL, getMpeForMtl},  //
 };
 
 mlir::Value retrieveMemrefOfCopyOp(mlir::Value val) {
@@ -223,7 +241,11 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
             kernelPaddingAttr, /*activation_window_channel_length=*/nullptr, /*is_continued*/ nullptr);
 
-    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
+    const auto mpeByType = mpeMap.at(_arch);
+    const auto inElemType = origOp.input().getType().cast<mlir::MemRefType>().getElementType();
+    const auto outElemType = origOutType.getElementType();
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0],
+                mpeByType(inElemType, outElemType));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
         nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
@@ -346,7 +368,11 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),
             kernelPaddingAttr, activation_window_channel_length, /*is_continued*/ nullptr);
 
-    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
+    const auto mpeByType = mpeMap.at(_arch);
+    const auto inElemType = origOp.input().getType().cast<mlir::MemRefType>().getElementType();
+    const auto outElemType = origOutType.getElementType();
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0],
+                mpeByType(inElemType, outElemType));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
         nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
@@ -533,7 +559,10 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
 
     const SmallVector<int64_t> padsBegin = {0, 0};
     const SmallVector<int64_t> padsEnd = {0, 0};
-    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
+    const auto mpeByType = mpeMap.at(_arch);
+    const auto inElemType = origOp.input1().getType().template cast<mlir::MemRefType>().getElementType();
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0],
+                mpeByType(inElemType, outElemType));
 
     //
     // DMA output CMX -> DDR
@@ -636,7 +665,11 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::DWCONV, kernelSizeAttr, origOp.strides(),
             kernelPaddingAttr, actWindowChanLen, /*is_continued*/ nullptr);
 
-    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
+    const auto mpeByType = mpeMap.at(_arch);
+    const auto inElemType = origOp.input().getType().cast<mlir::MemRefType>().getElementType();
+    const auto outElemType = origOutType.getElementType();
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0],
+                mpeByType(inElemType, outElemType));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
         nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
