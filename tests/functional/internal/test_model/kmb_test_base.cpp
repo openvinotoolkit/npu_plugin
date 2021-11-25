@@ -23,25 +23,14 @@
 #include <format_reader_ptr.h>
 #include "vpux_private_config.hpp"
 #include "vpux_private_metrics.hpp"
+#include "vpux/utils/IE/config.hpp"
 
 //
 // KmbTestBase
 //
 
 namespace {
-
-bool strToBool(const char* varName, const char* varValue) {
-    try {
-        const auto intVal = std::stoi(varValue);
-        if (intVal != 0 && intVal != 1) {
-            throw std::invalid_argument("Only 0 and 1 values are supported");
-        }
-        return (intVal != 0);
-    } catch (const std::exception& e) {
-        IE_THROW() << "Environment variable " << varName << " has wrong value : " << e.what();
-    }
-}
-
+    
 std::string cleanName(std::string name) {
     std::replace_if(
         name.begin(), name.end(),
@@ -72,7 +61,7 @@ const std::string KmbTestBase::REF_DEVICE_NAME = []() -> std::string {
 
 const bool KmbTestBase::RUN_COMPILER = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RUN_COMPILER")) {
-        return strToBool("IE_KMB_TESTS_RUN_COMPILER", var);
+        return vpux::envVarStrToBool("IE_KMB_TESTS_RUN_COMPILER", var);
     }
 
     if (KmbTestBase::DEVICE_NAME == "CPU") {
@@ -88,7 +77,7 @@ const bool KmbTestBase::RUN_COMPILER = []() -> bool {
 
 const bool KmbTestBase::RUN_REF_CODE = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RUN_REF_CODE")) {
-        return strToBool("IE_KMB_TESTS_RUN_REF_CODE", var);
+        return vpux::envVarStrToBool("IE_KMB_TESTS_RUN_REF_CODE", var);
     }
 
 #ifdef __aarch64__
@@ -109,7 +98,7 @@ const std::string KmbTestBase::DUMP_PATH = []() -> std::string {
 
 const bool KmbTestBase::EXPORT_NETWORK = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_EXPORT_NETWORK")) {
-        return strToBool("IE_KMB_TESTS_EXPORT_NETWORK", var);
+        return vpux::envVarStrToBool("IE_KMB_TESTS_EXPORT_NETWORK", var);
     }
 
     if (KmbTestBase::DEVICE_NAME == "CPU") {
@@ -121,7 +110,7 @@ const bool KmbTestBase::EXPORT_NETWORK = []() -> bool {
 
 const bool KmbTestBase::RAW_EXPORT = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RAW_EXPORT")) {
-        return strToBool("IE_KMB_TESTS_RAW_EXPORT", var);
+        return vpux::envVarStrToBool("IE_KMB_TESTS_RAW_EXPORT", var);
     }
 
     if (KmbTestBase::DEVICE_NAME != "VPUX" || !KmbTestBase::EXPORT_NETWORK) {
@@ -133,7 +122,7 @@ const bool KmbTestBase::RAW_EXPORT = []() -> bool {
 
 const bool KmbTestBase::GENERATE_BLOBS = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_GENERATE_BLOBS")) {
-        return strToBool("IE_KMB_TESTS_GENERATE_BLOBS", var);
+        return vpux::envVarStrToBool("IE_KMB_TESTS_GENERATE_BLOBS", var);
     }
 
     return KmbTestBase::RUN_REF_CODE;
@@ -141,7 +130,7 @@ const bool KmbTestBase::GENERATE_BLOBS = []() -> bool {
 
 const bool KmbTestBase::EXPORT_BLOBS = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_EXPORT_BLOBS")) {
-        return strToBool("IE_KMB_TESTS_EXPORT_BLOBS", var);
+        return vpux::envVarStrToBool("IE_KMB_TESTS_EXPORT_BLOBS", var);
     }
 
     return KmbTestBase::GENERATE_BLOBS && !KmbTestBase::DUMP_PATH.empty();
@@ -157,7 +146,7 @@ const std::string KmbTestBase::LOG_LEVEL = []() -> std::string {
 
 const bool KmbTestBase::PRINT_PERF_COUNTERS = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_PRINT_PERF_COUNTERS")) {
-        return strToBool("IE_KMB_TESTS_PRINT_PERF_COUNTERS", var);
+        return vpux::envVarStrToBool("IE_KMB_TESTS_PRINT_PERF_COUNTERS", var);
     }
 
     return false;
@@ -174,7 +163,7 @@ void KmbTestBase::SetUp() {
     core = PluginCache::get().ie();
     RUN_INFER = [this]() -> bool {
         if (const auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
-            return strToBool("IE_KMB_TESTS_RUN_INFER", var);
+            return vpux::envVarStrToBool("IE_KMB_TESTS_RUN_INFER", var);
         }
 
         const auto devices = core->GetAvailableDevices();

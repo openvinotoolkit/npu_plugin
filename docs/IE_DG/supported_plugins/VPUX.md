@@ -43,6 +43,12 @@ The table below contains VPU devices and corresponding VPU platform:
 | Intel&reg; Movidius&trade; S 3900V VPU        |   3900    |
 | Intel&reg; Movidius&trade; S 3800V VPU        |   3800    |
 
+To compile without loading to the device set environment variable IE_VPUX_CREATE_EXECUTOR to 0:
+```
+export IE_VPUX_CREATE_EXECUTOR=0
+```
+This is a temporary workaround that will be replaced later.
+
 ### Inference
 
 For inference you should provide device parameter (see the table `Supported Configuration Parameters` below). Here are the examples of the command line running `benchmark_app`:
