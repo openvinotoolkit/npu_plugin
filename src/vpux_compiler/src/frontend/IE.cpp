@@ -1019,7 +1019,6 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
-
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Sinh>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Sinh>::value,
                   "opset operation mismatch");

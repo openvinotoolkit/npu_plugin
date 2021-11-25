@@ -1010,7 +1010,6 @@ def VPUIP_SinhUPAOp :
     }];
 }
 
-
 //
 // LogUPAOp
 //

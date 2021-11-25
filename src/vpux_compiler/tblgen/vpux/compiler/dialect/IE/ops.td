@@ -1304,7 +1304,6 @@ def IE_SqrtOp :
     );
 }
 
-
 //
 // SinhOp
 //

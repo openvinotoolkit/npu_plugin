@@ -106,6 +106,19 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs) {
 }
 
 TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
+    //Sinh
+    // There is difference between actual and expected values during validation step on KMB-board:
+    // KmbLayerTestsCommon::Validate()
+    // LayerTestsCommon::Validate()
+    // openvino/inference-engine/tests/functional/shared_test_classes/include
+    // /shared_test_classes/base/layer_test_utils.hpp:118: Failure
+    // Value of: max != 0 && (diff <= static_cast<float>(threshold))
+    // Actual: false
+    // Expected: true
+    //"Relative comparison of values expected: -11011.552734 and actual:
+    //11016.000000 at index 0 with threshold 0.01 failed"
+//    if (supportedTypesMLIR.find(activationType) ==  supportedTypesMLIR.find(ngraph::helpers::Sinh) )
+//        threshold = 5;
     useCompilerMLIR();
     Run();
 }
@@ -143,6 +156,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Mish,     {{1.0f}}},
     {Floor,    {{1.0f}}},
     {Sqrt,     {{1.0f}}},
+    {Sinh,     {{1.0f}}},
     {Erf,      {{1.0f}}},
     {Gelu,     {{1.0f}}},
     {Exp,      {{1.0f}}},
@@ -174,10 +188,6 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesFP16Only = {
     {Ceiling,  {{1.0f}}},
-};
-
-const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesDoubleFP16 = {
-    {Sinh,     {{1.0f}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
@@ -236,16 +246,6 @@ const auto basicFP16OnlyCases = ::testing::Combine(
     ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-// For operations that only support FP16 input values in 'vpuip_2'
-const auto basicDoubleFP16OnlyCases = ::testing::Combine(
-    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesDoubleFP16)),
-    ::testing::ValuesIn(netPrecisions),
-    ::testing::Values(InferenceEngine::Precision::FP16),
-    ::testing::Values(InferenceEngine::Precision::FP16),
-    ::testing::Values(InferenceEngine::Layout::ANY),
-    ::testing::Values(InferenceEngine::Layout::ANY),
-    ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_PRelu, KmbActivationLayerTest, basicPReluCases, ActivationLayerTest::getTestCaseName);

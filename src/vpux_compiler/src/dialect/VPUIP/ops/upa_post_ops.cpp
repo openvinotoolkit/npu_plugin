@@ -271,7 +271,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SinhUPAOp::serialize(VPUIP::BlobWri
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
-
 //
 // LogUPAOp
 //

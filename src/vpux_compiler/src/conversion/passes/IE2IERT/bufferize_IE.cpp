@@ -610,7 +610,6 @@ mlir::Operation* createRTLayer(IE::SqrtOp origOp, ArrayRef<mlir::Value> allBufs,
     return b.create<IERT::SqrtOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
-
 mlir::Operation* createRTLayer(IE::SinhOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::SinhOp::Adaptor newOp(allBufs);
     return b.create<IERT::SinhOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
