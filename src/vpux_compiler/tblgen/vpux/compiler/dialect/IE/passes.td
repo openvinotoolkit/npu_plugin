@@ -358,6 +358,28 @@ def ConvertConv1DToConv2D : PassBase<"convert-conv1d-to-conv2d", "vpux::Function
     ];
 }
 
+
+//
+// UniquifyOps
+//
+
+def UniquifyOps : PassBase<"uniquify-ops", "vpux::FunctionPass"> {
+    let summary = "Remove duplicating operations with a common producer Value";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass merges operations that are identical to each other, combining consumers.
+    }];
+
+    let constructor = "vpux::IE::createUniquifyOpsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+
 //
 // ConvertToMemPermute
 //

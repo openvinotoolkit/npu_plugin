@@ -188,8 +188,6 @@ mlir::LogicalResult UpstreamSlicePass::GenericSliceUpstreaming::matchAndRewrite(
 void UpstreamSlicePass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    mlir::ConversionTarget target(ctx);
-
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<GenericSliceUpstreaming>(&ctx, _log);
 

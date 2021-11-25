@@ -62,6 +62,9 @@ const std::vector<ngraph::helpers::InputLayerType> inputType = {
 
 const std::vector<InferenceEngine::Layout> layout4D = {
         InferenceEngine::Layout::NCHW,
+        // NHCW layout kernel is not being tested
+        // Eltwise NHWC layers are failing to infer
+        // [Track number: E#25740]
         InferenceEngine::Layout::NHWC
 };
 
