@@ -767,7 +767,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         }
     }
 
-    for(auto inputOp : inputs)
+    for(const auto& inputOp : inputs)
     {
         /* Vector to store original tensor orders */
         std::vector<mv::Order> originalOrders;
