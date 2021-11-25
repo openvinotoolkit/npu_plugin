@@ -5,27 +5,12 @@
 #include "kmb_test_env_cfg.hpp"
 
 #include <details/ie_exception.hpp>
+#include "vpux/utils/IE/config.hpp"
 
 #include <cstdlib>
 #include <stdexcept>
 
 namespace LayerTestsUtils {
-
-namespace {
-
-bool strToBool(const char* varName, const char* varValue) {
-    try {
-        const auto intVal = std::stoi(varValue);
-        if (intVal != 0 && intVal != 1) {
-            throw std::invalid_argument("Only 0 and 1 values are supported");
-        }
-        return (intVal != 0);
-    } catch (const std::exception& e) {
-        IE_THROW() << "Environment variable " << varName << " has wrong value : " << e.what();
-    }
-}
-
-}  // namespace
 
 KmbTestEnvConfig::KmbTestEnvConfig() {
     if (auto var = std::getenv("IE_KMB_TESTS_DEVICE_NAME")) {
@@ -41,47 +26,47 @@ KmbTestEnvConfig::KmbTestEnvConfig() {
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_RUN_COMPILER")) {
-        IE_KMB_TESTS_RUN_COMPILER = strToBool("IE_KMB_TESTS_RUN_COMPILER", var);
+        IE_KMB_TESTS_RUN_COMPILER = vpux::envVarStrToBool("IE_KMB_TESTS_RUN_COMPILER", var);
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_RUN_EXPORT")) {
-        IE_KMB_TESTS_RUN_EXPORT = strToBool("IE_KMB_TESTS_RUN_EXPORT", var);
+        IE_KMB_TESTS_RUN_EXPORT = vpux::envVarStrToBool("IE_KMB_TESTS_RUN_EXPORT", var);
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_RUN_IMPORT")) {
-        IE_KMB_TESTS_RUN_IMPORT = strToBool("IE_KMB_TESTS_RUN_IMPORT", var);
+        IE_KMB_TESTS_RUN_IMPORT = vpux::envVarStrToBool("IE_KMB_TESTS_RUN_IMPORT", var);
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
-        IE_KMB_TESTS_RUN_INFER = strToBool("IE_KMB_TESTS_RUN_INFER", var);
+        IE_KMB_TESTS_RUN_INFER = vpux::envVarStrToBool("IE_KMB_TESTS_RUN_INFER", var);
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_EXPORT_INPUT")) {
-        IE_KMB_TESTS_EXPORT_INPUT = strToBool("IE_KMB_TESTS_EXPORT_INPUT", var);
+        IE_KMB_TESTS_EXPORT_INPUT = vpux::envVarStrToBool("IE_KMB_TESTS_EXPORT_INPUT", var);
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_EXPORT_OUTPUT")) {
-        IE_KMB_TESTS_EXPORT_OUTPUT = strToBool("IE_KMB_TESTS_EXPORT_OUTPUT", var);
+        IE_KMB_TESTS_EXPORT_OUTPUT = vpux::envVarStrToBool("IE_KMB_TESTS_EXPORT_OUTPUT", var);
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_EXPORT_REF")) {
-        IE_KMB_TESTS_EXPORT_REF = strToBool("IE_KMB_TESTS_EXPORT_REF", var);
+        IE_KMB_TESTS_EXPORT_REF = vpux::envVarStrToBool("IE_KMB_TESTS_EXPORT_REF", var);
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_IMPORT_INPUT")) {
-        IE_KMB_TESTS_IMPORT_INPUT = strToBool("IE_KMB_TESTS_IMPORT_INPUT", var);
+        IE_KMB_TESTS_IMPORT_INPUT = vpux::envVarStrToBool("IE_KMB_TESTS_IMPORT_INPUT", var);
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_IMPORT_REF")) {
-        IE_KMB_TESTS_IMPORT_REF = strToBool("IE_KMB_TESTS_IMPORT_REF", var);
+        IE_KMB_TESTS_IMPORT_REF = vpux::envVarStrToBool("IE_KMB_TESTS_IMPORT_REF", var);
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_RAW_EXPORT")) {
-        IE_KMB_TESTS_RAW_EXPORT = strToBool("IE_KMB_TESTS_RAW_EXPORT", var);
+        IE_KMB_TESTS_RAW_EXPORT = vpux::envVarStrToBool("IE_KMB_TESTS_RAW_EXPORT", var);
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_LONG_FILE_NAME")) {
-        IE_KMB_TESTS_LONG_FILE_NAME = strToBool("IE_KMB_TESTS_LONG_FILE_NAME", var);
+        IE_KMB_TESTS_LONG_FILE_NAME = vpux::envVarStrToBool("IE_KMB_TESTS_LONG_FILE_NAME", var);
     }
 
     if (auto var = std::getenv("IE_KMB_TESTS_PLATFORM")) {

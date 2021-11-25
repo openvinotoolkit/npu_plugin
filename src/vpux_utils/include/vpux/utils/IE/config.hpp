@@ -288,4 +288,6 @@ typename Opt::ValueType Config::get() const {
     return Opt::parse(it->second);
 }
 
+bool envVarStrToBool(const char* varName, const char* varValue);
+
 }  // namespace vpux

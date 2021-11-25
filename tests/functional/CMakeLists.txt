@@ -35,6 +35,7 @@ addIeTargetTest(
         common_tests_helpers
         kmb_custom_extension
         custom_extension_library
+        vpux_utils
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\"

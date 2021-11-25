@@ -29,6 +29,7 @@
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 
 // Plugin
+#include "vpux/utils/IE/config.hpp"
 #include "vpux_async_infer_request.h"
 #include "vpux_exceptions.h"
 #include "vpux_executable_network.h"
@@ -94,8 +95,16 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
         IE_THROW() << "Failed to read NGraph network";
     }
 
-    _executorPtr = createExecutor(_networkPtr, _config, device);
-    ConfigureStreamsExecutor(network.getName());
+    // TODO: Fix this WA for EISW-22783, EISW-25449
+    bool IE_VPUX_CREATE_EXECUTOR = true;
+    if (const auto var = std::getenv("IE_VPUX_CREATE_EXECUTOR")) {
+        IE_VPUX_CREATE_EXECUTOR = vpux::envVarStrToBool("IE_VPUX_CREATE_EXECUTOR", var);
+    }
+
+    if (IE_VPUX_CREATE_EXECUTOR) {
+        _executorPtr = createExecutor(_networkPtr, _config, device);
+        ConfigureStreamsExecutor(network.getName());
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -154,6 +163,10 @@ IE::ITaskExecutor::Ptr ExecutableNetwork::getNextTaskExecutor() {
 //------------------------------------------------------------------------------
 IE::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const IE::InputsDataMap networkInputs,
                                                                          const IE::OutputsDataMap networkOutputs) {
+    if (!_executorPtr) {
+        _executorPtr = createExecutor(_networkPtr, _config, _device);
+        ConfigureStreamsExecutor(_networkName);
+    }
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
     return std::make_shared<InferRequest>(networkInputs, networkOutputs, inferExecutor, _config, _networkName,
@@ -161,6 +174,10 @@ IE::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const I
 }
 
 InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequest() {
+    if (!_executorPtr) {
+        _executorPtr = createExecutor(_networkPtr, _config, _device);
+        ConfigureStreamsExecutor(_networkName);
+    }
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
     auto syncRequestImpl = std::make_shared<InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config,
