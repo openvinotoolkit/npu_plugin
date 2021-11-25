@@ -12,8 +12,9 @@
 //
 
 #include "vpux/compiler/movitools/movitools.h"
-#include <mlir/Support/DebugStringHelper.h>
+
 #include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/small_string.hpp"
 
 #include <llvm/ADT/SmallString.h>
 
@@ -41,7 +42,7 @@ std::string getMoviToolsDir() {
     const auto toolsVer = llvm::sys::Process::GetEnv("MV_TOOLS_VERSION");
     VPUX_THROW_UNLESS(toolsVer.hasValue(), "MV_TOOLS_VERSION env var must be set");
 
-    SmallString<128> finalToolsDir(toolsDir.getValue());
+    SmallString finalToolsDir(toolsDir.getValue());
     sys::path::append(finalToolsDir, toolsVer.getValue());
     VPUX_THROW_UNLESS(sys::fs::is_directory(finalToolsDir), "{0} is not a directory", finalToolsDir.str());
 

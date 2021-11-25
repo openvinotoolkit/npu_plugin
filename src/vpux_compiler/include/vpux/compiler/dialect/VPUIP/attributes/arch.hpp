@@ -29,6 +29,7 @@ ArchKind getArch(mlir::ModuleOp module);
 double getMemoryDerateFactor(IERT::MemoryResourceOp mem);
 uint32_t getMemoryBandwidth(IERT::MemoryResourceOp mem);
 double getProcessorFrequency(IERT::ExecutorResourceOp res);
+uint32_t getMaxDPUClusterNum(mlir::ModuleOp module);
 
 StringLiteral getProcessorFrequencyAttrName();
 StringLiteral getBandwidthAttrName();

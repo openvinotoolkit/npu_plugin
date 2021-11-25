@@ -214,7 +214,7 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
 flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer,
                                                                     mlir::ModuleOp /*module*/, mlir::FuncOp netFunc,
                                                                     Logger log) {
-    // only SW_KernelOp operations can generate kernelData, from either built-in functions or from custom
+    // only SwKernelOp operations can generate kernelData, from either built-in functions or from custom
     auto graphHasKernels = false;
     netFunc.walk([&](VPURT::TaskOp taskOp) {
         if (taskOp.getTaskType() == vpux::VPUIP::TaskType::ACTShave) {

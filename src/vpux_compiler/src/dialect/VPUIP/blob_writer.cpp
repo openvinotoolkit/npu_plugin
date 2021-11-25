@@ -30,6 +30,7 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
 #include "vpux/utils/core/numeric.hpp"
+#include "vpux/utils/core/small_string.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -42,7 +43,7 @@ using namespace vpux;
 
 namespace {
 
-SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::SW_KernelOp swKernelOp,
+SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::SwKernelOp swKernelOp,
                                           size_t dataOffset, Logger log) {
     vpux::InvocationBuilder invocationBuilder(dataOffset, log);
 
@@ -51,7 +52,7 @@ SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::
 
     const auto kernelOpArgsCount = insSize + outsSize;
 
-    for (auto&& kernelRun : swKernelOp.body().getOps<VPUIP::SW_Kernel_run>()) {
+    for (auto&& kernelRun : swKernelOp.body().getOps<VPUIP::SwKernelRun>()) {
         for (auto&& operand : kernelRun.args()) {
             auto blockArg = operand.dyn_cast_or_null<mlir::BlockArgument>();
             if (blockArg) {
@@ -202,8 +203,8 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
 
-    auto swKernelTask = mlir::dyn_cast<VPUIP::SW_KernelOp>(op);
-    VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_KernelOp Task", op->getName());
+    auto swKernelTask = mlir::dyn_cast<VPUIP::SwKernelOp>(op);
+    VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SwKernelOp Task", op->getName());
 
     // extracting kernel source code or compiled code
 
@@ -265,7 +266,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
         invocationArgsAndData.push_back(0xCC);
     }
 
-    llvm::SmallString<128> uniqueInvocationName(kernelFunc.getName());
+    SmallString uniqueInvocationName(kernelFunc.getName());
     uniqueInvocationName.append("_invo");
 
     auto kernelMapEntries = _actKernelsData.count(uniqueInvocationName.c_str());
