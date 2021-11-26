@@ -40,8 +40,6 @@ int main(int argc, char* argv[]) {
 
     blobSerializer.addActInvocation();
 
-    blobSerializer.finalizeActKernelWrappers();
-
     const auto final_elf = blobSerializer.getBlob();
 
     std::ofstream out_stream("actKernel_poc.elf", std::ios::out | std::ios::binary);

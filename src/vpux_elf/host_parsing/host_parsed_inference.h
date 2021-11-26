@@ -14,6 +14,8 @@ struct BarrierConfig {
     uint8_t mask;
     uint64_t consumer_mask;
     uint64_t producer_mask;
+    uint16_t start_after_;
+    uint16_t clean_after_;
 };
 
 struct DPUInvariant {
@@ -69,7 +71,7 @@ struct BarrierWrapper {
 };
 
 extern "C" struct ActKernelRange {
-    ActWLType type_;
+    ActWLType type_; 
     actKernelEntry kernelEntry_; 
     actKernelTextBuffer textWindowBase_; 
 
@@ -78,18 +80,16 @@ extern "C" struct ActKernelRange {
 };
 
 extern "C" struct ActKernelInvocation {
-    ActKernelRange range_;   
+    uint32_t range_; 
     act_kernel_args kernelArgs_; 
-    actKernelDataBuffer dataWindowBase_; 
+    actKernelDataBuffer dataWindowBase_;
 
     BarrierConfig barriers_;
-    // BarrierGpioConfig barriers_gpio_{}; 
-    uint32_t invo_index_;
+    // BarrierGpioConfig barriers_gpio_{};
+    uint32_t invo_index_; 
 };
-
-
-extern "C" struct ActKernelRuntimeConfigs_backend {
-    uint32_t stackFrames_[4];
+extern "C" struct ActKernelRuntimeConfigs {
+    uint32_t stackFrames_[4]; // AS_TOTAL = AS_PER_TILE * MAX_TILES = 4 * 4
     uint32_t stackSize_;
     bool useScheduleEmbeddedRt_;
 
@@ -98,12 +98,12 @@ extern "C" struct ActKernelRuntimeConfigs_backend {
 
     // when useScheduleEmbeddedRt = false; FW copies ActRt to this buffer
     // when useScheduleEmbeddedRt = true; buffer already contains the ActRt
-    uint32_t actRtWindowBase_; 
+    uint32_t actRtWindowBase_;
     uint32_t codeWindowBufferSize_;
 };
 
-struct ActKernelRuntimeConfigs {
-    ActKernelRuntimeConfigs_backend asRtCfg_{};
+struct ActKernelRuntimeConfigsWrapper {
+    ActKernelRuntimeConfigs asRtCfg_;
     // RelativeAddress stacks_[AS_TOTAL]{};
     // RelativeAddress kernelDataBuffer_{};
 };
@@ -133,8 +133,7 @@ struct MappedInference {
     // TBD - one of these lists may go away depending on final SW layer design
     TaskReference<ActKernelRangeWrapper> actKRanges;
     TaskReference<ActKernelInvocationWrapper> actKInvocations;
-    // ActKernelRuntimeConfigs actRtConfigs;
-
+    ActKernelRuntimeConfigs actRtConfigs;
 };
 
 struct ResourceRequirements {

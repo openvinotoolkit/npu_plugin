@@ -26,6 +26,11 @@
 #include <map>
 #include <unordered_map>
 
+#define IO_WIDTH 256
+#define IO_HEIGHT 256
+#define IO_CHANNELS 1
+#define IO_TYPE uint32_t
+
 namespace vpux {
 namespace VPUIP {
 
@@ -93,7 +98,7 @@ public:
     void initActKernel(std::vector<char> elfBlob, std::string name);
     void addActKernel();
     void addActInvocation();
-    void finalizeActKernelWrappers();
+    host_parsing::ActKernelRuntimeConfigs setActRtConfigs();
 
     void setDDRScratch(size_t ddrScratch);
     void setResourceRequirements(const host_parsing::ResourceRequirements& resourceRequirements);
@@ -192,9 +197,12 @@ private:
     elf::writer::RelocationSection* m_actKernelRangeRela = nullptr;
 
     // Act Kernel Invocations
-    elf::writer::Symbol* m_actKernelInvocationSymbol = nullptr;
     elf::writer::BinaryDataSection<host_parsing::ActKernelInvocationWrapper>* m_actKernelInvocations = nullptr;
     elf::writer::RelocationSection* m_actKernelInvocationRela = nullptr;
+
+    // Act Kernel Rt Configs
+    elf::writer::Symbol* m_actRtConfigMainSymbol = nullptr;
+
 };
 
 }  // namespace VPUIP
