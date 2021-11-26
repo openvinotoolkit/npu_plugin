@@ -3763,6 +3763,84 @@
         },
 
         {
+            "name" : "MTL_por_onnx_FP16_INT8_resnet-50-pytorch",
+            "ir" : "por/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml",
+            "category" : "MLIR",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "U8",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_resnet-50-pytorch_onnx_fp16_int8"
+            },
+            "comments" : "NHWC layout and FP16 precision set for MTL compilation purposes."
+        },
+
+        {
+            "name" : "MTL_por_onnx_FP16_INT8_mobilenet-v2",
+            "ir" : "por/mobilenet-v2/onnx/FP16-INT8/mobilenet-v2.xml",
+            "category" : "MLIR",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "U8",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_mobilenet-v2_onnx_fp16_int8"
+            },
+            "comments" : "NHWC layout and FP16 precision set for MTL compilation purposes."
+        },
+
+        {
             "name" : "MTL_por_onnx_FP16_resnet-50-pytorch",
             "ir" : "por/resnet-50-pytorch/onnx/FP16/resnet-50-pytorch.xml",
             "category" : "MLIR",
