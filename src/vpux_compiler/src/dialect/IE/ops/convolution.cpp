@@ -34,6 +34,27 @@ using namespace vpux;
 // FuseConvAndBias
 //
 
+void vpux::IE::ConvolutionOp::build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState,
+                                    ::mlir::Type output, ::mlir::Value input, ::mlir::Value filter, ::mlir::Value bias,
+                                    ::mlir::ArrayAttr strides, ::mlir::ArrayAttr pads_begin, ::mlir::ArrayAttr pads_end,
+                                    ::mlir::ArrayAttr dilations, ::vpux::IE::PostOp post_op) {
+    build(odsBuilder, odsState, output, input, filter, bias, strides, pads_begin, pads_end, dilations, post_op, nullptr);
+}
+
+void vpux::IE::ConvolutionOp::build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState,
+                                    ::mlir::Value input, ::mlir::Value filter, ::mlir::Value bias,
+                                    ::mlir::ArrayAttr strides, ::mlir::ArrayAttr pads_begin, ::mlir::ArrayAttr pads_end,
+                                    ::mlir::ArrayAttr dilations, ::vpux::IE::PostOp post_op) {
+    build(odsBuilder, odsState, input, filter, bias, strides, pads_begin, pads_end, dilations, post_op, nullptr);
+}
+
+void vpux::IE::ConvolutionOp::build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState,
+                                    ::mlir::TypeRange resultTypes, ::mlir::Value input, ::mlir::Value filter,
+                                    ::mlir::Value bias, ::mlir::ArrayAttr strides, ::mlir::ArrayAttr pads_begin,
+                                    ::mlir::ArrayAttr pads_end, ::mlir::ArrayAttr dilations, ::vpux::IE::PostOp post_op) {
+    build(odsBuilder, odsState, resultTypes, input, filter, bias, strides, pads_begin, pads_end, dilations, post_op, nullptr);
+}
+
 namespace {
 
 class FuseConvAndBias final : public mlir::OpRewritePattern<IE::ScaleShiftOp> {
@@ -176,7 +197,8 @@ mlir::Value vpux::IE::ConvolutionOp::reifyTile(const TileInfo& outputTile, mlir:
 
     auto tiledOp = builder.create<IE::ConvolutionOp>(tileLoc, tiledResType, inputTileVal, filterTileVal, biasTileVal,
                                                      stridesAttr(), getIntArrayAttr(builder, padsBegin),
-                                                     getIntArrayAttr(builder, padsEnd), dilationsAttr(), post_opAttr());
+                                                     getIntArrayAttr(builder, padsEnd), dilationsAttr(), post_opAttr(),
+                                                     getIntArrayAttr(builder, outputTile.axis));
 
     return tiledOp.output();
 }

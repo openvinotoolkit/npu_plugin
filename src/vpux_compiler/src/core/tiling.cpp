@@ -35,6 +35,7 @@ OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
             for (auto i : irange(dividedTiles.size())) {
                 dividedTiles[i].shape[dim] = origSize;
                 dividedTiles[i].offsets[dim] = 0;
+                dividedTiles[i].axis[dim] = 0;
             }
 
             continue;
@@ -54,6 +55,7 @@ OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
             }
 
             dividedTiles[i].offsets[dim] = offset;
+            dividedTiles[i].axis[dim] = divisors[dim];
 
             const bool incrementOffset = !((i + 1) % repeatCtr);
             if (incrementOffset) {

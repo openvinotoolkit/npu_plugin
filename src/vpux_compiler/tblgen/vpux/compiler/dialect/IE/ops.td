@@ -640,7 +640,8 @@ def IE_ConvolutionOp :
         I64ArrayAttr:$pads_end,
         I64ArrayAttr:$dilations,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<I64ArrayAttr>:$tiling_strategy
     );
 
     let results = (outs
@@ -650,6 +651,43 @@ def IE_ConvolutionOp :
     let hasCanonicalizer = 1;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "::mlir::Type":$output,
+                "::mlir::Value":$input,
+                "::mlir::Value":$filter,
+                "::mlir::Value":$bias,
+                "::mlir::ArrayAttr":$strides,
+                "::mlir::ArrayAttr":$pads_begin,
+                "::mlir::ArrayAttr":$pads_end,
+                "::mlir::ArrayAttr":$dilations,
+                "::vpux::IE::PostOp":$post_op)
+        >,
+        OpBuilder<
+            (ins
+                "::mlir::Value":$input,
+                "::mlir::Value":$filter,
+                "::mlir::Value":$bias,
+                "::mlir::ArrayAttr":$strides,
+                "::mlir::ArrayAttr":$pads_begin,
+                "::mlir::ArrayAttr":$pads_end,
+                "::mlir::ArrayAttr":$dilations,
+                "::vpux::IE::PostOp":$post_op)
+        >,
+        OpBuilder<
+            (ins
+                "::mlir::TypeRange":$resultTypes,
+                "::mlir::Value":$input,
+                "::mlir::Value":$filter,
+                "::mlir::Value":$bias,
+                "::mlir::ArrayAttr":$strides,
+                "::mlir::ArrayAttr":$pads_begin,
+                "::mlir::ArrayAttr":$pads_end,
+                "::mlir::ArrayAttr":$dilations,
+                "::vpux::IE::PostOp":$post_op)
+        >];
 }
 
 //
