@@ -286,6 +286,7 @@ void vpux::IE::GroupConvolutionOp::getCanonicalizationPatterns(mlir::RewritePatt
     patterns.insert<GroupsToAttr>(context);
 }
 
+#if 0
 OutputTiling vpux::IE::GroupConvolutionOp::generateTiling(Logger log) {
     auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(getOperation());
     VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface",
@@ -331,6 +332,7 @@ OutputTiling vpux::IE::GroupConvolutionOp::generateTiling(Logger log) {
 
     return fillDividedTiles(nTilesOnDim, outputShape);
 }
+#endif
 
 mlir::Value vpux::IE::GroupConvolutionOp::reifyTile(const TileInfo& outputTile, mlir::OpBuilder& builder) {
     const auto origInputShape = getShape(input());

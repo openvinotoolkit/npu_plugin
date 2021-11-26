@@ -444,7 +444,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     // Setting more than 16 groups results in worse accuracy.
     // FIXME verify CMX is not a proper place for this. But it is required to fail CMX check during tiling.
     const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
-    if (OC != depthwiseOutChanCount) {
+    if (OC % depthwiseOutChanCount != 0) {
         log.trace("[{0}] Depthwise convolution must have exactly {1} output channels, got {2}", loc,
                   depthwiseOutChanCount, OC);
         return mlir::failure();
