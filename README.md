@@ -1,6 +1,6 @@
 # OpenVINO VPUX Plugins family
 
-## Components in this repository
+## Components in this repository1
 
 * [MCM Compiler](https://docs.intel.com/documents/MovidiusInternal/vpu2/Common/SW/MCM/internal/MCM_compiler_description.html)
 * [VPUX NN Compiler](https://docs.intel.com/documents/MovidiusInternal/vpu2/Common/SW/VPUX_NN_Compiler_SAS/VPUX_NN_Compiler_SAS.html)
