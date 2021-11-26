@@ -29,7 +29,7 @@ const KmbTestEnvConfig KmbLayerTestsCommon::envConfig;
 KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
     IE_ASSERT(core != nullptr);
 
-    const std::string configDevice = testPlatformTargetDevice.substr(0, 
+    const std::string configDevice = testPlatformTargetDevice.substr(0,
                                          testPlatformTargetDevice.find("."));
 
     if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
@@ -328,7 +328,7 @@ void KmbLayerTestsCommon::setReferenceSoftwareModeMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceSW";
 }
 
-void KmbLayerTestsCommon::setReferenceHardwareModeMLIR() {
+void KmbLayerTestsCommon::setDefaultHardwareModeMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "DefaultHW";
 }
 

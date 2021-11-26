@@ -134,7 +134,7 @@
 //
 //TEST_P(KmbEltwiseLayerTest_MLIR, CompareWithRefs_HW) {
 //    useCompilerMLIR();
-//    setReferenceHardwareModeMLIR();
+//    setDefaultHardwareModeMLIR();
 //    Run();
 //}
 //

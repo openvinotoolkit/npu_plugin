@@ -46,7 +46,7 @@
 //
 //TEST_P(EltwiseSameInputTest, MLIR_HW) {
 //    useCompilerMLIR();
-//    setReferenceHardwareModeMLIR();
+//    setDefaultHardwareModeMLIR();
 //    Run();
 //}
 //

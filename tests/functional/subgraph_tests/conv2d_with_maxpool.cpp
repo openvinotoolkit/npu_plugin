@@ -89,7 +89,7 @@ class KmbScheduleSubGraphTest : public LayerTestsUtils::KmbLayerTestsCommon,
 
 TEST_P(KmbScheduleSubGraphTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 

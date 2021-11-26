@@ -59,7 +59,7 @@ TEST_P(KmbMatMulLayerTest, CompareWithRefs_MLIR_SW) {
 
 TEST_P(KmbMatMulLayerTest, CompareWithRefs_MLIR_HW) {
     useCompilerMLIR();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 

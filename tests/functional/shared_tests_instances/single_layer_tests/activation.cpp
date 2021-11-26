@@ -112,7 +112,7 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
 TEST_P(KmbActivationLayerTest_MTL, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     setPlatformMTL();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 

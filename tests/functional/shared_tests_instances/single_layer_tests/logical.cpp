@@ -33,7 +33,7 @@ class KmbLogicalLayerTest_MLIR : public KmbLogicalLayerTest {};
 
 TEST_P(KmbLogicalLayerTest_MLIR, CompareWithRefs_HW) {
     useCompilerMLIR();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 

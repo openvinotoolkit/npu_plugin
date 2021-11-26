@@ -42,7 +42,7 @@ class KmbConvClampSubGraphTest :
 
 TEST_P(KmbConvClampSubGraphTest, CompareWithRefs_MLIR_HW) {
     useCompilerMLIR();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 

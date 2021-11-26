@@ -32,7 +32,7 @@ TEST_P(KmbFakeQuantizeLayerTest, CompareWithRefs_MLIR_SW) {
 
 TEST_P(KmbFakeQuantizeLayerTest_HW, CompareWithRefs_MLIR) {
     useCompilerMLIR();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 

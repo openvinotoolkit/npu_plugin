@@ -84,7 +84,7 @@ TEST_P(KmbConv2dWithBiasTest, CompareWithRefs_MLIR_SW) {
 
 TEST_P(KmbConv2dWithBiasTest, CompareWithRefs_MLIR_HW) {
     useCompilerMLIR();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
