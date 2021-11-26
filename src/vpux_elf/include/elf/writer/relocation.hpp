@@ -11,21 +11,38 @@
 // included with the Software Package for additional details.
 //
 
+#pragma once
+
 #include <elf/types/relocation_entry.hpp>
+#include <elf/writer/symbol_section.hpp>
 
-using namespace elf;
+namespace elf {
+namespace writer {
 
-//! Extract symbol index from info
-Elf_Word elf::elf64RSym(Elf_Xword info) {
-    return info >> 32;
-}
+class RelocationSection;
 
-//! Extract relocation type from info
-Elf_Word elf::elf64RType(Elf_Xword info) {
-    return static_cast<Elf_Word>(info);
-}
+class Relocation {
+public:
+    Elf64_Addr getOffset() const;
+    void setOffset(Elf64_Addr offset);
 
-//! Pack relocation type and symbol index into info
-Elf_Xword elf::elf64RInfo(Elf_Word sym, Elf_Word type) {
-    return (static_cast<Elf_Xword>(sym) << 32) + (static_cast<Elf_Xword>(type));
-}
+    Elf_Word getType() const;
+    void setType(Elf_Word type);
+
+    Elf_Sxword getAddend() const;
+    void setAddend(Elf_Sxword addend);
+
+    const Symbol* getSymbol() const;
+    void setSymbol(const Symbol* symbol);
+
+private:
+    Relocation() = default;
+
+    RelocationAEntry m_relocation{};
+    const Symbol* m_symbol = nullptr;
+
+    friend RelocationSection;
+};
+
+} // namespace writer
+} // namespace elf

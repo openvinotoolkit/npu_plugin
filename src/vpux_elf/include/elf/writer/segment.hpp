@@ -14,35 +14,40 @@
 #pragma once
 
 #include <elf/types/data_types.hpp>
+#include <elf/types/program_header.hpp>
+
+#include <elf/writer/section.hpp>
+
+#include <vector>
+#include <memory>
 
 namespace elf {
 
-///
-/// Refer to https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-54839.html
-/// for the detailed description of the values and structures below
-///
+class Writer;
 
-struct Elf64_Rel {
-    Elf64_Addr r_offset;
-    Elf_Xword  r_info;
+namespace writer {
+
+class Segment {
+public:
+    template <typename T>
+    void appendData(const T* data, size_t sizeInElements) {
+        m_data.insert(m_data.end(), reinterpret_cast<const uint8_t*>(data), reinterpret_cast<const uint8_t*>(data) + sizeInElements  * sizeof(T));
+    }
+    void addSection(Section* section);
+
+    void setType(Elf_Word type);
+    void setAlign(Elf_Xword align);
+
+private:
+    Segment();
+
+    ProgramHeader m_header{};
+
+    std::vector<uint8_t> m_data;
+    std::vector<Section*> m_sections;
+
+    friend Writer;
 };
 
-struct Elf64_Rela {
-    Elf64_Addr r_offset;
-    Elf_Xword  r_info;
-    Elf_Sxword r_addend;
-};
-
-using RelocationEntry = Elf64_Rel;
-using RelocationAEntry = Elf64_Rela;
-
-//! Extract symbol index from info
-Elf_Word elf64RSym(Elf_Xword info);
-
-//! Extract relocation type from info
-Elf_Word elf64RType(Elf_Xword info);
-
-//! Pack relocation type and symbol index into info
-Elf_Xword elf64RInfo(Elf_Word sym, Elf_Word type);
-
+} // namespace writer
 } // namespace elf

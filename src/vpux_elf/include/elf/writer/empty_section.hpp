@@ -11,21 +11,29 @@
 // included with the Software Package for additional details.
 //
 
-#include <elf/types/relocation_entry.hpp>
+#pragma once
 
-using namespace elf;
+#include <elf/writer/section.hpp>
 
-//! Extract symbol index from info
-Elf_Word elf::elf64RSym(Elf_Xword info) {
-    return info >> 32;
-}
+namespace elf {
 
-//! Extract relocation type from info
-Elf_Word elf::elf64RType(Elf_Xword info) {
-    return static_cast<Elf_Word>(info);
-}
+class Writer;
 
-//! Pack relocation type and symbol index into info
-Elf_Xword elf::elf64RInfo(Elf_Word sym, Elf_Word type) {
-    return (static_cast<Elf_Xword>(sym) << 32) + (static_cast<Elf_Xword>(type));
-}
+namespace writer {
+
+class EmptySection final : public Section {
+public:
+    Elf_Xword getSize() const;
+    void setSize(Elf_Xword size);
+
+    Elf_Word getType() const;
+    void setType(Elf_Word type);
+
+private:
+    explicit EmptySection(const std::string& name);
+
+    friend Writer;
+};
+
+} // namespace writer
+} // namespace elf
