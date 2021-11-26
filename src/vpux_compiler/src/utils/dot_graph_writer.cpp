@@ -82,6 +82,9 @@ private:
     mlir::Block& _block;
     llvm::raw_ostream& _os;
     GraphWriterParams _params;
+
+    void appendShapeLabel(llvm::raw_string_ostream& os, ArrayRef<int64_t> shape, const mlir::Type& type,
+                          const DimsOrder& dims) const;
 };
 
 void GraphWriter::writeHeader(StringRef title) {
@@ -303,34 +306,12 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
 
         // Print resultant types
         for (const auto type : op->getResultTypes()) {
-            if (const auto memref = type.dyn_cast<mlir::MemRefType>()) {
-                for (auto dim : memref.getShape()) {
-                    if (mlir::ShapedType::isDynamic(dim)) {
-                        os << '?';
-                    } else {
-                        os << dim;
+            if (const auto shape = type.dyn_cast<mlir::ShapedType>()) {
+                appendShapeLabel(os, shape.getShape(), shape.getElementType(), DimsOrder::fromType(shape));
+                if (const auto memref = type.dyn_cast<mlir::MemRefType>()) {
+                    if (memref.getMemorySpace() != nullptr) {
+                        os << " at " << memref.getMemorySpace();
                     }
-                    os << 'x';
-                }
-
-                std::string temp_str;
-                llvm::raw_string_ostream temp_os(temp_str);
-                memref.getElementType().print(temp_os);
-                if (_params.htmlLike) {
-                    temp_str = htmlEncode(temp_str);
-                }
-
-                if (temp_str.size() < MAX_ATTR_STR_SIZE) {
-                    os << temp_str;
-                } else {
-                    os << temp_str.substr(0, MAX_ATTR_STR_SIZE) << "[...]";
-                }
-
-                os << " #";
-                DimsOrder::fromType(memref).printFormat(os);
-
-                if (memref.getMemorySpace() != nullptr) {
-                    os << " at " << memref.getMemorySpace();
                 }
             } else {
                 std::string temp_str;
@@ -379,6 +360,31 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
     }
 
     return os.str();
+}
+
+void GraphWriter::appendShapeLabel(llvm::raw_string_ostream& os, ArrayRef<int64_t> shape, const mlir::Type& type,
+                                   const DimsOrder& dims) const {
+    for (auto dim : shape) {
+        if (mlir::ShapedType::isDynamic(dim)) {
+            os << '?';
+        } else {
+            os << dim;
+        }
+        os << 'x';
+    }
+    std::string temp_str;
+    llvm::raw_string_ostream temp_os(temp_str);
+    type.print(temp_os);
+    if (_params.htmlLike) {
+        temp_str = htmlEncode(temp_str);
+    }
+    if (temp_str.size() < MAX_ATTR_STR_SIZE) {
+        os << temp_str;
+    } else {
+        os << temp_str.substr(0, MAX_ATTR_STR_SIZE) << "[...]";
+    }
+    os << "#";
+    dims.printFormat(os);
 }
 
 void GraphWriter::writeNode(mlir::Operation* op) {
