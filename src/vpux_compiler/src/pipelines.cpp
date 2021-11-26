@@ -93,17 +93,9 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 2 : Abstract RunTime
 
-    if (options.enableProfiling) {
-        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPU::MemoryKind::DDR>, log));
-    }
-
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
-
-    if (options.enableProfiling) {
-        pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
-    }
 
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
@@ -117,7 +109,9 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
     // Level 1 : VPU RunTime
 
     if (options.enableProfiling) {
-        pm.addPass(VPUIP::createUPAProfilingPass(log));
+        if (options.enableSWProfiling) {
+            pm.addPass(VPUIP::createUPAProfilingPass(log));
+        }
         pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
     }
 
@@ -190,19 +184,15 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 2 : Abstract RunTime
 
-    if (options.enableProfiling) {
-        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
-    }
-
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
-    if (options.enableProfiling) {
+    if (options.enableProfiling && options.enableDPUProfiling) {
         pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     }
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
-    if (options.enableProfiling) {
+    if (options.enableProfiling && options.enableDMAProfiling) {
         pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     }
 
@@ -220,7 +210,9 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     // Level 1 : VPU RunTime
 
     if (options.enableProfiling) {
-        pm.addPass(VPUIP::createUPAProfilingPass(log));
+        if (options.enableSWProfiling) {
+            pm.addPass(VPUIP::createUPAProfilingPass(log));
+        }
         pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
     }
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
@@ -295,10 +287,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     // Level 2 : Abstract RunTime
 
-    if (options.enableProfiling) {
-        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
-    }
-
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
     if (options.enableOptimizeCopies) {
@@ -306,13 +294,13 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
         pm.addPass(IERT::createCopyOpHoistingPass(log));
     }
 
-    if (options.enableProfiling) {
+    if (options.enableProfiling && options.enableDPUProfiling) {
         pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     }
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
-    if (options.enableProfiling) {
+    if (options.enableProfiling && options.enableDMAProfiling) {
         pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     }
 
@@ -336,7 +324,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     // Level 1 : VPU RunTime
 
     if (options.enableProfiling) {
-        pm.addPass(VPUIP::createUPAProfilingPass(log));
+        if (options.enableSWProfiling) {
+            pm.addPass(VPUIP::createUPAProfilingPass(log));
+        }
         pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
     }
 

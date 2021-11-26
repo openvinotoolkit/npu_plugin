@@ -15,7 +15,7 @@
 
 using namespace vpux;
 
-mlir::BlockArgument vpux::AddNewProfilingOutput(mlir::MLIRContext* ctx, mlir::FuncOp& netFunc, IE::CNNNetworkOp& netOp,
+mlir::BlockArgument vpux::addNewProfilingOutput(mlir::MLIRContext* ctx, mlir::FuncOp& netFunc, IE::CNNNetworkOp& netOp,
                                                 mlir::MemRefType outputType, StringRef name) {
     //
     // Declare and create additional output from network

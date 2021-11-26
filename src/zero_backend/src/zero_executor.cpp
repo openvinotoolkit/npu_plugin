@@ -719,33 +719,8 @@ bool ZeroExecutor::isPreProcessingSupported(const PreprocMap&) const {
 std::map<std::string, IE::InferenceEngineProfileInfo> ZeroExecutor::getLayerStatistics() {
     std::map<std::string, IE::InferenceEngineProfileInfo> perfCounts;
 
-    const auto blob = _graph->_blob.data();
-    auto profilingOutputBlob = _pipeline->_outputs_host_mem_map.find("profilingOutput");
-    if (profilingOutputBlob == _pipeline->_outputs_host_mem_map.end()) {
-        _logger.warning(
-                "No profiling output. Blob was compiled without profiling enabled or does not contain profiling info.");
-        return perfCounts;
-    }
-
-    /* TODO
-    std::vector<mv::utils::ProfInfo> deviceProfiling;
-    mv::utils::getProfilingInfo(blob, profilingOutputBlob->second.data(), deviceProfiling);
-
-    unsigned execution_index = 0;
-    IE::InferenceEngineProfileInfo info;
-    for (const auto& profilingEntry : deviceProfiling) {
-        info.status = IE::InferenceEngineProfileInfo::EXECUTED;
-        info.cpu_uSec = info.realTime_uSec = profilingEntry.time;
-        info.execution_index = execution_index++;
-        size_t typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
-        std::size_t length = profilingEntry.layer_type.copy(info.layer_type, typeLen, 0);
-        info.layer_type[length] = '\0';
-        typeLen = sizeof(info.exec_type) / sizeof(info.exec_type[0]);
-        length = profilingEntry.exec_type.copy(info.exec_type, typeLen, 0);
-        info.exec_type[length] = '\0';
-        perfCounts[profilingEntry.name] = info;
-    }
-    */
+    // [Track number: E#26528]
+    // Enable profiling in L0 backend
 
     return perfCounts;
 }

@@ -69,7 +69,9 @@ void UPAProfilingPass::safeRunOnModule() {
         }
     });
 
-    VPUX_THROW_UNLESS(upaTasks.size(), "No TimestampOp was added");
+    if (upaTasks.empty()) {  // No UPA task in the network
+        return;
+    }
 
     unsigned elementSize = VPUIP::HW_UPA_PROFILING_SIZE_BYTES / sizeof(uint32_t);
     unsigned output_size = upaTasks.size() * elementSize;
@@ -89,7 +91,7 @@ void UPAProfilingPass::safeRunOnModule() {
     }
 
     // Declare and create additional output from network
-    auto profilngResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "upa");
+    auto profilngResult = addNewProfilingOutput(ctx, netFunc, netOp, outputResult, "upa");
 
     // And to the returnOp
     mlir::ReturnOp returnOp = mlir::dyn_cast_or_null<mlir::ReturnOp>(netFunc.getBody().front().getTerminator());

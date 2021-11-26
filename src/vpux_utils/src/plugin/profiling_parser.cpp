@@ -108,6 +108,7 @@ static void parseDMATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
     (void)output_len;
     auto output_bin = reinterpret_cast<const uint32_t*>(output);
 
+    unsigned currentPos = 0;
     for (auto task : *dma_taskList) {
         if ((task->task_as_NNDMATask()->src()->name()->str() == "profilingInput:0") ||
             (task->task_as_NNDMATask()->src()->locale() == MVCNN::MemoryLocation_AbsoluteAddr)) {
@@ -148,11 +149,12 @@ static void parseDMATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
                 // Convert to us //
                 profInfoItem.start_time_ns = (uint64_t)output_bin[lastDMAid] * 1000 / frc_speed_mhz;
                 profInfoItem.duration_ns = (uint64_t)diff * 1000 / frc_speed_mhz;
-                profInfoItem.task_id = layerNumber;
+                profInfoItem.task_id = currentPos;
 
                 profInfo.push_back(profInfoItem);
             }
         }
+        currentPos++;
     }
 }
 
@@ -171,6 +173,11 @@ static void parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
 
     unsigned currentPos = 0;
     for (auto task : *upa_taskList) {
+        if (output_upa[currentPos].begin == 0 && output_upa[currentPos].end == 0) {
+            currentPos++;
+            continue;
+        }
+
         ProfilingTaskInfo profInfoItem;
 
         const auto taskName = task->name()->str();
@@ -207,17 +214,22 @@ static void parseDPUTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
     };
 
     (void)output_len;
-    auto output_upa = reinterpret_cast<const dpu_data_t*>(output);
+    auto output_dpu = reinterpret_cast<const dpu_data_t*>(output);
 
     unsigned currentPos = 0;
     for (auto task : *dpu_taskList) {
+        if (output_dpu[currentPos].begin == 0 && output_dpu[currentPos].end == 0) {
+            currentPos++;
+            continue;
+        }
+
         ProfilingTaskInfo profInfoItem;
 
         const auto taskName = task->name()->str();
         profInfoItem.layer_type[0] = '\0';
         profInfoItem.exec_type = ProfilingTaskInfo::exec_type_t::DPU;
-        uint64_t diff = output_upa[currentPos].end - output_upa[currentPos].begin;
-        profInfoItem.start_time_ns = output_upa[currentPos].begin * 1000 / frc_speed_mhz;
+        uint64_t diff = output_dpu[currentPos].end - output_dpu[currentPos].begin;
+        profInfoItem.start_time_ns = output_dpu[currentPos].begin * 1000 / frc_speed_mhz;
         profInfoItem.duration_ns = diff * 1000 / frc_speed_mhz;
         profInfoItem.active_cycles = 0;
         profInfoItem.stall_cycles = 0;
@@ -289,18 +301,21 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
         LayerTimes() {
             dma_end_ns = 0;
             task_start_ns = std::numeric_limits<uint64_t>::max();
+            task_wait_barriers_list = nullptr;
         }
         uint64_t dma_end_ns;
         uint64_t task_start_ns;
+        const flatbuffers::Vector<uint32_t>* task_wait_barriers_list;
     };
     std::map<std::string, LayerTimes> layerInfoTimes;
 
-    uint64_t min_dma_start_ns = std::numeric_limits<uint64_t>::max();
     for (auto& task : taskInfo) {
+        if (task.exec_type == ProfilingTaskInfo::exec_type_t::DMA) {
+            continue;
+        }
+
         LayerTimes* layer;
         auto name = std::string(task.name);
-        auto pos = name.find("/output tile");
-        name = name.substr(0, pos);
 
         auto it = layerInfoTimes.find(name);
         if (it == layerInfoTimes.end()) {
@@ -308,39 +323,78 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
         }
         layer = &layerInfoTimes[name];
 
-        if (task.exec_type == ProfilingTaskInfo::exec_type_t::DMA) {
-            if (task.start_time_ns < min_dma_start_ns) {
-                min_dma_start_ns = task.start_time_ns;
-            }
+        if (task.start_time_ns < layer->task_start_ns) {
+            layer->task_start_ns = task.start_time_ns;
+            auto taskList = (task.exec_type == ProfilingTaskInfo::exec_type_t::DPU) ? dpu_taskList : upa_taskList;
+            layer->task_wait_barriers_list = (*taskList)[task.task_id]->associated_barriers()->wait_barriers();
+        }
+    }
 
-            if (task.start_time_ns > layer->dma_end_ns) {
-                layer->dma_end_ns = task.start_time_ns;
-            }
-        } else {
-            if (task.start_time_ns < layer->task_start_ns) {
-                layer->task_start_ns = task.start_time_ns;
+    uint64_t min_dma_start_ns = std::numeric_limits<uint64_t>::max();
+    for (auto& task : taskInfo) {
+        if (task.exec_type != ProfilingTaskInfo::exec_type_t::DMA) {
+            continue;
+        }
+
+        if (task.start_time_ns < min_dma_start_ns) {
+            min_dma_start_ns = task.start_time_ns;
+        }
+
+        auto task_end_ns = task.start_time_ns + task.duration_ns;
+        LayerTimes* layer;
+        auto name = std::string(task.name);
+
+        auto it = layerInfoTimes.find(name);
+        if (it == layerInfoTimes.end()) {
+            continue;
+        }
+        layer = &layerInfoTimes[name];
+
+        auto barriersList = (*dma_taskList)[task.task_id]->associated_barriers()->update_barriers();
+        if (barriersList == nullptr || layer->task_wait_barriers_list == nullptr) {
+            continue;
+        }
+        for (auto barrier : *layer->task_wait_barriers_list) {
+            if (std::find((*barriersList).begin(), (*barriersList).end(), barrier) != (*barriersList).end()) {
+                if (task_end_ns > layer->dma_end_ns) {
+                    layer->dma_end_ns = task_end_ns;
+                }
             }
         }
     }
 
     uint64_t sum = 0;
     uint32_t count = 0;
+    std::map<uint32_t, uint16_t> diffs;
     for (auto& times : layerInfoTimes) {
         if (times.second.dma_end_ns != 0 && times.second.task_start_ns != std::numeric_limits<uint64_t>::max()) {
-            int64_t diff = (int64_t)times.second.dma_end_ns - times.second.task_start_ns;
+            int64_t diff = ((int64_t)times.second.dma_end_ns - times.second.task_start_ns) / 1000;
+            diffs[diff] = (diffs.find(diff) == diffs.end()) ? 1 : diffs[diff] + 1;
             count++;
             sum += diff;
         }
     }
-    VPUX_THROW_UNLESS(count, "Blob contains no task_lists");
-    int64_t dma_task_timer_diff = sum / count;
+
+    if (diffs.empty())  // Cound not calculate offset between timers -> skip begin time aligment
+        return;
+
+    int64_t dma_task_timer_diff = 0;
+    uint16_t max_entries = 0;
+    for (auto diff : diffs) {
+        if (diff.second > max_entries) {
+            dma_task_timer_diff = diff.first;
+            max_entries = diff.second;
+        }
+    }
 
     for (auto& task : taskInfo) {
+        int64_t start_time_ns = task.start_time_ns;
         if (task.exec_type == ProfilingTaskInfo::exec_type_t::DMA) {
-            task.start_time_ns -= min_dma_start_ns;
+            start_time_ns -= min_dma_start_ns;
         } else {
-            task.start_time_ns += dma_task_timer_diff - min_dma_start_ns;
+            start_time_ns += dma_task_timer_diff * 1000 - min_dma_start_ns;
         }
+        task.start_time_ns = (start_time_ns > 0) ? start_time_ns : 0;
     }
 }
 
@@ -366,15 +420,20 @@ void vpux::getLayerProfilingInfo(const void* data, size_t data_len, const void* 
             strncpy(info.name, task.name, sizeof(ProfilingLayerInfo::name) - 1);
             info.status = ProfilingLayerInfo::layer_status_t::EXECUTED;
             info.start_time_ns = task.start_time_ns;
+            info.duration_ns = 0;
             layerInfo.push_back(info);
             layer = &layerInfo.back();
         } else {
             layer = result.base();
         }
         if (task.start_time_ns < layer->start_time_ns) {
+            layer->duration_ns += layer->start_time_ns - task.start_time_ns;
             layer->start_time_ns = task.start_time_ns;
         }
-        layer->duration_ns += task.duration_ns;
+        auto duration = (int64_t)task.start_time_ns + task.duration_ns - layer->start_time_ns;
+        if (duration > layer->duration_ns) {
+            layer->duration_ns = duration;
+        }
 
         if (task.exec_type == ProfilingTaskInfo::exec_type_t::DPU) {
             layer->dpu_ns += task.duration_ns;

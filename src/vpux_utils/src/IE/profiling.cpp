@@ -42,15 +42,13 @@ std::map<std::string, ie::InferenceEngineProfileInfo> vpux::convertProfilingLaye
         info.execution_index = execution_index++;
         auto typeLen = sizeof(info.exec_type) / sizeof(info.exec_type[0]);
         if (layer.sw_ns > 0) {
-            info.cpu_uSec = layer.sw_ns / 1000;
             strncpy(info.exec_type, "SW", typeLen - 1);
         } else if (layer.dpu_ns > 0) {
-            info.cpu_uSec = layer.dpu_ns / 1000;
             strncpy(info.exec_type, "DPU", typeLen - 1);
         } else {
-            info.cpu_uSec = 0;
             strncpy(info.exec_type, "DMA", typeLen - 1);
         }
+        info.cpu_uSec = (layer.dma_ns + layer.sw_ns + layer.dpu_ns) / 1000;
         typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
         strncpy(info.layer_type, layer.layer_type, typeLen - 1);
         perfCounts[name] = info;
@@ -83,7 +81,8 @@ void vpux::printProfiling(const void* data, size_t data_len, const void* output,
             exec_type_str = "SW";
             std::cout << "Task(" << exec_type_str << "): " << std::setw(50) << task.name
                       << "\tTime: " << (float)task.duration_ns / 1000 << "\tCycles:" << task.active_cycles << "("
-                      << task.stall_cycles << ")" << std::endl;
+                      << task.stall_cycles << ")"
+                      << "\tStart: " << task.start_time_ns / 1000 << std::endl;
             break;
         default:
             break;

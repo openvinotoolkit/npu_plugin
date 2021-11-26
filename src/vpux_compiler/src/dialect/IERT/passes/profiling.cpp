@@ -167,7 +167,7 @@ void TimestampProfilingPass::safeRunOnModule() {
     auto concatview = builder.create<IERT::ConcatViewOp>(mlir::NameLoc::get(mlir::Identifier::get("concatview", ctx)),
                                                          timestamps, memOp.memref());
 
-    auto profilngResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "profilingOutput");
+    auto profilngResult = addNewProfilingOutput(ctx, netFunc, netOp, outputResult, "profilingOutput");
     auto copyLoc2 = mlir::NameLoc::get(mlir::Identifier::get("ProfilingCMX2DDR", ctx));
     auto outputOp = builder.create<IERT::CopyOp>(copyLoc2, concatview.output(), profilngResult);
 
@@ -274,6 +274,10 @@ void DMATaskProfilingPass::safeRunOnModule() {
         }
     });
 
+    if (executeOps.empty()) {  // No ExecuteOps with CopyOp in the network
+        return;
+    }
+
     VPUX_THROW_UNLESS(executeOps.size(), "No TimestampOp was added");
 
     // For each measured DMA operations two timestamps will be captured
@@ -287,15 +291,15 @@ void DMATaskProfilingPass::safeRunOnModule() {
     unsigned last_chunk = (total_size_bytes % VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE) / sizeof(uint32_t);
     if (!last_chunk)
         last_chunk = ops_in_chunk;
-    llvm::errs() << "total_size_bytes=" << total_size_bytes << "\nchunks=" << chunks
-                 << "\nops_in_chunk=" << ops_in_chunk << "\nlast_chunk=" << last_chunk << "\n";
+    _log.trace("total_size_bytes='{0}'\nchunks='{1}'\nops_in_chunk='{2}'\nlast_chunk='{3}'\n", total_size_bytes, chunks,
+               ops_in_chunk, last_chunk);
 
     const auto cmxMemType = getMemRefType(ShapeRef({ops_in_chunk}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
     const auto cmxMemTypeLast = getMemRefType(ShapeRef({last_chunk}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
     const auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
 
     // Declare and create additional output from network
-    auto profilingResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "dma");
+    auto profilingResult = addNewProfilingOutput(ctx, netFunc, netOp, outputResult, "dma");
 
     builder.setInsertionPointAfter(&netFunc.getBody().front().front());
     mlir::OpBuilder::InsertPoint lastInsertionPoint = builder.saveInsertionPoint();
@@ -404,7 +408,8 @@ void DMATaskProfilingPass::safeRunOnModule() {
         }
 
         // Remove old execOp
-        execOp->replaceAllUsesWith(newExecOp);
+        auto newResults = newExecOp->getResults().drop_back(localTimestampsOps.size());
+        execOp->replaceAllUsesWith(newResults);
         execOp->erase();
     }
     // Copy to DDR the last chunk
@@ -452,7 +457,12 @@ void DPUProfilingPass::safeRunOnModule() {
         dpuTasks.push_back({nceClusterTaskOp, count});
     });
 
-    VPUX_THROW_UNLESS(dpuTasks.size(), "No TimestampOp was added");
+    if (dpuTasks.empty()) {  // No DPU task in the network
+        return;
+    }
+
+    // [Track number: E#26531]
+    // Enable profiling for all DPU tasks in the NCE cluster
 
     const unsigned elementSize = VPUIP::HW_DPU_PROFILING_SIZE_BYTES / sizeof(uint64_t);
     const unsigned output_size = dpuTasks.size() * elementSize;
@@ -466,8 +476,8 @@ void DPUProfilingPass::safeRunOnModule() {
             (total_size_bytes % VPUIP::HW_DPU_PROFILING_MAX_BUFFER_SIZE) / VPUIP::HW_DPU_PROFILING_SIZE_BYTES;
     if (!last_chunk)
         last_chunk = ops_in_chunk;
-    llvm::errs() << "total_size_bytes=" << total_size_bytes << "\nchunks=" << chunks
-                 << "\nops_in_chunk=" << ops_in_chunk << "\nlast_chunk=" << last_chunk << "\n";
+    _log.trace("total_size_bytes='{0}'\nchunks='{1}'\nops_in_chunk='{2}'\nlast_chunk='{3}'\n", total_size_bytes, chunks,
+               ops_in_chunk, last_chunk);
 
     const auto cmxMemType =
             getMemRefType(ShapeRef({ops_in_chunk * elementSize}), getUInt64Type(ctx), DimsOrder::C, _memSpace);
@@ -476,7 +486,7 @@ void DPUProfilingPass::safeRunOnModule() {
     const auto outputResult = mlir::MemRefType::get({output_size}, getUInt64Type(ctx));
 
     // Declare and create additional output from network
-    auto profilingResult = AddNewProfilingOutput(ctx, netFunc, netOp, outputResult, "dpu");
+    auto profilingResult = addNewProfilingOutput(ctx, netFunc, netOp, outputResult, "dpu");
 
     builder.setInsertionPointAfter(&netFunc.getBody().front().front());
     mlir::OpBuilder::InsertPoint lastInsertionPoint = builder.saveInsertionPoint();

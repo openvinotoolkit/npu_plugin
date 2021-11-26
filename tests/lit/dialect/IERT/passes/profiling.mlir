@@ -2,6 +2,26 @@
 
 // CHECK-LABEL: @DmaProfiling
 module @DmaProfiling {
+IERT.RunTimeResources
+    availableMemory : {
+        MemoryResource 1073741824 bytes
+        MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
+        MemoryResource 4194304 bytes of "CMX_UPA" {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}
+        MemoryResource 1048576 bytes of "CMX_NN" {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
+    }
+    usedMemory : {
+        MemoryResource 2048 bytes of "DDR"
+        MemoryResource 1048576 bytes of "CMX_NN"
+    }
+    executors : {
+        ExecutorResource 16 of "SHAVE_UPA"
+        ExecutorResource 4 of "NCE" {
+            ExecutorResource 5 of "DPU"
+        }
+        ExecutorResource 1 of "DMA_UPA"
+        ExecutorResource 1 of "DMA_NN"
+    }
+
     IE.CNNNetwork entryPoint : @main inputsInfo :  {
         DataInfo "in" : tensor<1x16x62x62xf16>
     } outputsInfo :  {
@@ -43,8 +63,8 @@ module @DmaProfiling {
     //CHECK-NEXT:   [[VAR10:%.+]] = IERT.Timestamp([[VAR9]] : memref<1xui32, "CMX_NN">) -> memref<1xui32, "CMX_NN">
     //CHECK-NEXT:   async.yield [[VAR8]], [[VAR7]], [[VAR10]] : memref<1x16x62x62xf16>, memref<1xui32, "CMX_NN">, memref<1xui32, "CMX_NN">
 
-    //CHECK:        [[VAR16:%.+]] = IERT.SubView %arg2 [0] [4] : memref<4xui32> to memref<4xui32>
     //CHECK:        [[token_0:%.*]], [[result_0:%.*]] = async.execute
+    //CHECK-NEXT:   [[VAR16:%.+]] = IERT.SubView %arg2 [0] [4] : memref<4xui32> to memref<4xui32>
     //CHECK-NEXT:   [[VAR13:%.+]] = IERT.ConcatView
     //CHECK-NEXT:   [[VAR14:%.+]] = IERT.Copy inputs([[VAR13]] : memref<4xui32, "CMX_NN">) outputs([[VAR16]] : memref<4xui32>) -> memref<4xui32>
     //CHECK-NEXT:   async.yield [[VAR14]] : memref<4xui32>

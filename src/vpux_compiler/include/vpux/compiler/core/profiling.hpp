@@ -17,7 +17,7 @@
 
 namespace vpux {
 
-mlir::BlockArgument AddNewProfilingOutput(mlir::MLIRContext* ctx, mlir::FuncOp& netFunc, IE::CNNNetworkOp& netOp,
+mlir::BlockArgument addNewProfilingOutput(mlir::MLIRContext* ctx, mlir::FuncOp& netFunc, IE::CNNNetworkOp& netOp,
                                           mlir::MemRefType outputType, StringRef name);
 
 }
