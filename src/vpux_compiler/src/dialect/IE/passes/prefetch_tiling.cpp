@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 
 using namespace vpux;
@@ -37,7 +38,6 @@ private:
 
 mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
                                                    mlir::PatternRewriter& rewriter) const {
-    std::cout<<"=== matchAndRewrite ===" <<std::endl;
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
 
     const auto tiles = origOp.generatePrefetchTiling(_log.nest());
@@ -45,7 +45,6 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
     _log.nest(1).trace("Create {0} tiles:", tiles.size());
     for (const auto& outputTile : tiles) {
         _log.nest(2).trace("{0}", outputTile);
-        std::cout<< llvm::formatv("{0}", outputTile).str()<<std::endl;
     }
 
     SmallVector<mlir::Value> resultTileVals;
@@ -98,21 +97,8 @@ void PrefetchTilingPass::safeRunOnFunc() {
         auto convOp = llvm::dyn_cast<IE::ConvolutionOp>(op);
         if (!convOp)
             return true;
-        auto sliceOp = op->getOperand(0).getDefiningOp<IE::SliceOp>();
-        for (unsigned index = 1; (!sliceOp) && (index < op->getNumOperands()); index++)
-            sliceOp = op->getOperand(index).getDefiningOp<IE::SliceOp>();
-        if (!sliceOp)
-            return true;
 
-        // get isolated tiling axis
-        const auto inputShape = getShape(sliceOp.source());
-        const auto outputShape = getShape(convOp.input());
-        Shape tileDim(inputShape.size(), 0);
-        for (unsigned index = 0; index < inputShape.size(); ++index) {
-            if (inputShape[Dim(index)] != outputShape[Dim(index)])
-                tileDim[Dim(index)] = 1;
-        }
-        
+        const auto tileDim = Shape(parseIntArrayAttr<int64_t>(convOp.tiling_strategyAttr()));
         // check prefetchable
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
           return !iface.supportPrefetchTiling(tileDim, _log.nest());
@@ -130,6 +116,5 @@ void PrefetchTilingPass::safeRunOnFunc() {
 } // namespace
 
 std::unique_ptr<mlir::Pass> vpux::IE::createPrefetchTilingPass(Logger log) {
-    std::cout<<"=== createPrefetchTilingPass ===" <<std::endl;
     return std::make_unique<PrefetchTilingPass>(log);
 }

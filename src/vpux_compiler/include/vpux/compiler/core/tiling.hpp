@@ -41,7 +41,7 @@ struct TileInfo final {
     explicit TileInfo(size_t rank): shape(rank), offsets(rank), axis(rank) {
     }
 
-    explicit TileInfo(ShapeRef shape): shape(shape.raw()), offsets(shape.size(), 0), axis(shape.size(), 0) {
+    explicit TileInfo(ShapeRef shape): shape(shape.raw()), offsets(shape.size(), 0), axis(shape.size(), 1) {
     }
 
     void printFormat(llvm::raw_ostream& stream) const {

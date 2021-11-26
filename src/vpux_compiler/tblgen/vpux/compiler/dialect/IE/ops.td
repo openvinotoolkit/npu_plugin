@@ -641,7 +641,7 @@ def IE_ConvolutionOp :
         I64ArrayAttr:$dilations,
 
         OptionalAttr<IE_PostOp>:$post_op,
-        OptionalAttr<I64ArrayAttr>:$tiling_strategy
+        DefaultValuedAttr<I64ArrayAttr, "{1, 1, 1, 1}">:$tiling_strategy
     );
 
     let results = (outs

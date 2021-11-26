@@ -191,12 +191,10 @@ bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logg
     // Nested tiling is unsupported
     // TODO check the cmx memory for overlapping
 
-    std::cout<<"=== supportPrefetchTiling ==="<<std::endl;
-    std::cout<< llvm::formatv("{0}", tileAxis).str()<<std::endl;
     bool isSingleTile = false;
     Dim tileDim = Dim(0);
     for (unsigned i = 0; i < tileAxis.size(); i++) {
-        if (tileAxis[Dim(i)]) {
+        if (tileAxis[Dim(i)] > 1) {
             tileDim = Dim(i);
             if (isSingleTile)
                 return false;
@@ -204,8 +202,9 @@ bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logg
                 isSingleTile = true;
         }
     }
+    if (!isSingleTile)
+        return false;
     auto outputShape = getShape(origOp.output());
-    std::cout<< llvm::formatv("{0}", outputShape).str()<<std::endl;
     Shape nTilesOnDim(outputShape.size(), 1);
     nTilesOnDim[tileDim]++;
     
@@ -220,7 +219,7 @@ bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logg
             return outputShape[tileDim] / nTilesOnDim[tileDim] >= kernelSize[tileDim];
         }
     };
-    
+
     while (!isDivisibleTile() && nTilesOnDim[tileDim] <= 3) {
         nTilesOnDim[tileDim]++;
     }

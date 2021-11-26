@@ -17,6 +17,7 @@
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -313,13 +314,15 @@ OutputTiling vpux::IE::generatePrefetchTiles(mlir::Operation* op, Logger /*log*/
 
     Shape nTilesOnDim(getShape(outputType).size(), 1);
 
-    auto sliceOp = op->getOperand(0).getDefiningOp<IE::SliceOp>();
-    const auto sliceInputShape = getShape(sliceOp.source());
-    const auto sliceOutputShape = getShape(sliceOp.result());
+    auto convOp = llvm::dyn_cast<IE::ConvolutionOp>(op);
+    VPUX_THROW_UNLESS(convOp, "Non ConvOp prefetch tiling is not supported.");
+    const auto isolatedTileStrategy = Shape(parseIntArrayAttr<int64_t>(convOp.tiling_strategyAttr()));
 
-    for (unsigned index = 0; index < outputShape.size(); ++index) {
-        if (sliceInputShape[Dim(index)] != sliceOutputShape[Dim(index)])
+    for (unsigned index = 0; index < isolatedTileStrategy.size(); ++index) {
+        if (isolatedTileStrategy[Dim(index)] > 1) {
             nTilesOnDim[Dim(index)]++;
+            //  Tile by 2 on the same dimension with previous isolated tiling.
+        }
     }
 
     return fillDividedTiles(nTilesOnDim, outputShape);

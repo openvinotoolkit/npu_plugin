@@ -276,11 +276,14 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, bool enableProfil
 
     buildIECommonPipeline(pm, log, *pipelineOptions);
 
+    pm.addPass(vpux::createPrintDotPass("./output/beforecreateIsolatedTilingPass.dot"));
     pm.addPass(IE::createIsolatedTilingPass(log));
+    pm.addPass(vpux::createPrintDotPass("./output/aftercreateIsolatedTilingPass.dot"));
     if (pipelineOptions->enablePrefetchTiling.getValue()) {
         pm.addPass(IE::createPrefetchTilingPass(log));
     }
     pm.addPass(mlir::createCanonicalizerPass(grc));
+    pm.addPass(vpux::createPrintDotPass("./output/test.dot"));
 
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
