@@ -32,3 +32,13 @@ mlir::LogicalResult vpux::EMU::verifyOp(PerAxisTileUPAOp op) {
     }
     return mlir::success();
 }
+
+EMU::BlobWriter::SpecificTask vpux::EMU::PerAxisTileUPAOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::TileParamsBuilder builder(writer);
+    builder.add_axis(checked_cast<uint32_t>(axis()));
+    builder.add_tiles(checked_cast<uint32_t>(tiles()));
+
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_TileParams});
+}

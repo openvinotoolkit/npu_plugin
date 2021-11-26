@@ -29,6 +29,40 @@ using namespace vpux;
 
 namespace {
 
+std::pair<EMU::BlobWriter::Vector<uint16_t>, EMU::BlobWriter::Vector<uint16_t>> serializeScalesAndZeroPoints(
+        mlir::Value input, mlir::Value output, EMU::BlobWriter& writer) {
+    const auto inType = input.getType().cast<mlir::MemRefType>().getElementType();
+    const auto outType = output.getType().cast<mlir::MemRefType>().getElementType();
+
+    const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
+                                                                : outType.cast<mlir::quant::QuantizedType>();
+
+    const auto getRawFP16 = [](auto val) {
+        const auto valFP16 = float16(val);
+        return valFP16.to_bits();
+    };
+
+    const auto getVecFP16 = [&](auto range) {
+        return writer.createVector(range | transformed(getRawFP16));
+    };
+
+    SmallVector<double> scales;
+    SmallVector<int64_t> zeroPoints;
+    if (qType.isa<mlir::quant::UniformQuantizedType>()) {
+        auto quantParams = qType.cast<mlir::quant::UniformQuantizedType>();
+        scales = {quantParams.getScale()};
+        zeroPoints = {quantParams.getZeroPoint()};
+    } else if (qType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
+        auto quantParams = qType.cast<mlir::quant::UniformQuantizedPerAxisType>();
+        scales = {quantParams.getScales().begin(), quantParams.getScales().end()};
+        zeroPoints = {quantParams.getZeroPoints().begin(), quantParams.getZeroPoints().end()};
+    } else {
+        VPUX_THROW("Unsupported quantized type {0}", qType);
+    }
+
+    return {getVecFP16(scales), getVecFP16(zeroPoints)};
+}
+
 }  // namespace
 
 mlir::LogicalResult vpux::EMU::verifyOp(QuantCastUPAOp op) {
@@ -69,4 +103,15 @@ mlir::LogicalResult vpux::EMU::verifyOp(QuantCastUPAOp op) {
     }
 
     return mlir::success();
+}
+
+EMU::BlobWriter::SpecificTask vpux::EMU::QuantCastUPAOp::serialize(BlobWriter& writer) {
+    auto scalesAndZeroPoints = serializeScalesAndZeroPoints(input(), output(), writer);
+
+    MVCNN::QuantizeParamsBuilder builder(writer);
+    builder.add_scale(scalesAndZeroPoints.first);
+    builder.add_zero(scalesAndZeroPoints.second);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_QuantizeParams});
 }

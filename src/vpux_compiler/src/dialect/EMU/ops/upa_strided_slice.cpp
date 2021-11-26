@@ -16,3 +16,17 @@
 
 #include <mlir/IR/BuiltinTypes.h>
 using namespace vpux;
+
+EMU::BlobWriter::SpecificTask vpux::EMU::StridedSliceUPAOp::serialize(EMU::BlobWriter& writer) {
+    auto attrToVector = [&](mlir::ArrayAttr attr) {
+        return to_std_vector(parseIntArrayAttr<uint32_t>(attr));
+    };
+
+    const auto beginsVec = attrToVector(begins());
+    const auto endsVec = attrToVector(ends());
+    const auto stridesVec = attrToVector(strides());
+
+    const auto paramsOff = MVCNN::CreateStridedSliceParamsDirect(writer, &beginsVec, &endsVec, &stridesVec);
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_StridedSliceParams});
+}

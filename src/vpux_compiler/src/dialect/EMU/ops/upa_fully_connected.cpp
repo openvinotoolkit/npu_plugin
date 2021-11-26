@@ -16,3 +16,10 @@
 #include "vpux/compiler/utils/analysis.hpp"
 
 using namespace vpux;
+
+EMU::BlobWriter::SpecificTask vpux::EMU::FullyConnectedUPAOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::FullyConnectedParamsBuilder builder(writer);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_FullyConnectedParams});
+}

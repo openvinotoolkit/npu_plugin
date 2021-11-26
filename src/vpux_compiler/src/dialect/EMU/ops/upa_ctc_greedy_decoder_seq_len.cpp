@@ -16,3 +16,12 @@
 #include "vpux/compiler/utils/subspaces.hpp"
 
 using namespace vpux;
+
+EMU::BlobWriter::SpecificTask vpux::EMU::CTCGreedyDecoderSeqLenUPAOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::CTCGreedyDecoderSeqLenParamsBuilder builder(writer);
+    builder.add_mergeRepeated(mergeRepeated());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this,
+                                     {paramsOff.Union(), MVCNN::SoftwareLayerParams_CTCGreedyDecoderSeqLenParams});
+}

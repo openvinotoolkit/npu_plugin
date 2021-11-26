@@ -16,3 +16,18 @@
 #include "vpux/compiler/utils/subspaces.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
+
+vpux::EMU::BlobWriter::SpecificTask vpux::EMU::LSTMSequenceUPAOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::LSTMCellParamsBuilder builder(writer);
+    builder.add_RNNForward(direction() == IE::RNNSequenceDirection::FORWARD ? 1 : 0);
+    builder.add_nCells(checked_cast<int32_t>(sequenceLength()));
+    const auto inputDataShape = inputData().getType().cast<mlir::ShapedType>().getShape();
+    VPUX_THROW_UNLESS(inputDataShape.size() == 3, "LSTMSequenceUPAOp inputData shape must be 3D");
+    const auto batchSize = inputDataShape[0];
+    builder.add_nBatches(checked_cast<int32_t>(batchSize));
+    builder.add_useCellState(1);
+    builder.add_outputsNumber(3);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_LSTMCellParams});
+}

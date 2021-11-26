@@ -14,6 +14,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/EMU/attributes/enums.hpp"
+#include "vpux/compiler/dialect/EMU/blob_writer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/small_vector.hpp"

@@ -29,3 +29,10 @@ mlir::LogicalResult vpux::EMU::verifyOp(GatherUPAOp op) {
 
     return mlir::success();
 }
+
+EMU::BlobWriter::SpecificTask vpux::EMU::GatherUPAOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::GatherParamsBuilder builder(writer);
+    builder.add_axis(checked_cast<uint32_t>(axis()));
+    const auto paramsOff = builder.Finish();
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GatherParams});
+}

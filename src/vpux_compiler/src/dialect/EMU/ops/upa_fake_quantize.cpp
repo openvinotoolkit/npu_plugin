@@ -96,3 +96,29 @@ mlir::LogicalResult vpux::EMU::verifyOp(FakeQuantizeUPAOp op) {
 
     return mlir::success();
 }
+
+EMU::BlobWriter::SpecificTask vpux::EMU::FakeQuantizeUPAOp::serialize(EMU::BlobWriter& writer) {
+    const auto getRawFP16 = [](const float16& val) {
+        return val.to_bits();
+    };
+
+    const auto getVecFP16 = [&](Const::ContentAttr attr) {
+        const auto attrContent = attr.fold();
+        return writer.createVector(attrContent.getValues<float16>() | transformed(getRawFP16));
+    };
+
+    const auto input_low = getVecFP16(this->input_lowAttr());
+    const auto input_high = getVecFP16(this->input_highAttr());
+    const auto output_low = getVecFP16(this->output_lowAttr());
+    const auto output_high = getVecFP16(this->output_highAttr());
+
+    MVCNN::FakeQuantizeParamsBuilder builder(writer);
+    builder.add_levels(checked_cast<uint32_t>(levels()));
+    builder.add_input_low(input_low);
+    builder.add_input_high(input_high);
+    builder.add_output_low(output_low);
+    builder.add_output_high(output_high);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_FakeQuantizeParams});
+}

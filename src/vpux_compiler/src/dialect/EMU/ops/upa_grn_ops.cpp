@@ -14,3 +14,11 @@
 #include "vpux/compiler/dialect/EMU/ops.hpp"
 
 using namespace vpux;
+
+EMU::BlobWriter::SpecificTask vpux::EMU::GRNUPAOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::GRNParamsBuilder builder(writer);
+    builder.add_bias(static_cast<float>(bias().convertToDouble()));
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GRNParams});
+}

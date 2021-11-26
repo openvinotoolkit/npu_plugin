@@ -25,3 +25,14 @@ mlir::LogicalResult vpux::EMU::verifyOp(ConcatUPAOp /*op*/) {
 
     return mlir::success();
 }
+
+EMU::BlobWriter::SpecificTask vpux::EMU::ConcatUPAOp::serialize(EMU::BlobWriter& writer) {
+    // TODO::Add support for static offsets
+    // As well look into support for offset and stride of per_axis attributes
+
+    MVCNN::ConcatParamsBuilder builder(writer);
+    builder.add_axis(static_cast<uint32_t>(per_axisAttr().axis().getValue().getSExtValue()));
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConcatParams});
+}

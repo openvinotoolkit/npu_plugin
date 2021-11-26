@@ -29,3 +29,16 @@ mlir::LogicalResult vpux::EMU::verifyOp(SplitUPAOp /*op*/) {
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::EMU::SplitUPAOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::SplitParamsBuilder builder(writer);
+    const auto paramsOff = builder.Finish();
+    builder.add_axis(checked_cast<uint32_t>(axisAttr().getValue().getSExtValue()));
+    builder.add_num_splits(checked_cast<uint32_t>(num_splitsAttr().getValue().getSExtValue()));
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SplitParams});
+}
