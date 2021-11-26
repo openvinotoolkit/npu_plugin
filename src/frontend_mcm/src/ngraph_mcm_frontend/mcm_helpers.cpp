@@ -18,23 +18,23 @@
 #include <string>
 #include <vector>
 
-std::string cvtLogLevelToMCM(vpu::LogLevel lvl) {
+std::string cvtLogLevelToMCM(vpux::LogLevel lvl) {
     switch (lvl) {
-    case vpu::LogLevel::None:
+    case vpux::LogLevel::None:
         return "Silent";
 
-    case vpu::LogLevel::Fatal:
-    case vpu::LogLevel::Error:
+    case vpux::LogLevel::Fatal:
+    case vpux::LogLevel::Error:
         return "Error";
 
-    case vpu::LogLevel::Warning:
+    case vpux::LogLevel::Warning:
         return "Warning";
 
-    case vpu::LogLevel::Info:
+    case vpux::LogLevel::Info:
         return "Info";
 
-    case vpu::LogLevel::Debug:
-    case vpu::LogLevel::Trace:
+    case vpux::LogLevel::Debug:
+    case vpux::LogLevel::Trace:
         return "Debug";
 
     default:

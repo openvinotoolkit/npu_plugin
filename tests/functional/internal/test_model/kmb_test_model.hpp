@@ -80,7 +80,6 @@ public:
     TestNetwork& useCustomLayers(KernelType kernelType = KernelType::Native) {
         switch (kernelType) {
             case KernelType::Native:
-                _compileConfig[VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS)] = "";
                 break;
             case KernelType::Ocl:
                 _compileConfig[VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS)] = _customOclLayerXmlDefault;

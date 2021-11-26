@@ -51,23 +51,27 @@ struct PrivateOption : OptionBase<PrivateOption, int64_t> {
 
 class MLIR_ConfigTests : public testing::Test {
 public:
+    std::shared_ptr<OptionsDesc> options;
     Config conf;
+
+    MLIR_ConfigTests(): options(std::make_shared<OptionsDesc>()), conf(options) {
+    }
 
     void SetUp() override {
         testing::Test::SetUp();
 
         Logger::global().setLevel(LogLevel::Warning);
 
-        conf.desc().addOption<SimpleOption>();
-        conf.desc().addOption<PrivateOption>();
+        options->add<SimpleOption>();
+        options->add<PrivateOption>();
     }
 };
 
 TEST_F(MLIR_ConfigTests, GetSupported) {
-    const auto publicOpts = conf.desc().getSupported(false);
+    const auto publicOpts = options->getSupported(false);
     EXPECT_EQ(publicOpts, std::vector<std::string>({"PUBLIC_OPT"}));
 
-    auto allOpts = conf.desc().getSupported(true);
+    auto allOpts = options->getSupported(true);
     std::sort(allOpts.begin(), allOpts.end());
     EXPECT_EQ(allOpts, std::vector<std::string>({"PRIVATE_OPT", "PUBLIC_OPT"}));
 }
@@ -90,7 +94,6 @@ TEST_F(MLIR_ConfigTests, UpdateAndHas) {
 
     conf.update({{"PRIVATE_OPT", "5"}}, OptionMode::RunTime);
     EXPECT_TRUE(conf.has<PrivateOption>());
-
 }
 
 TEST_F(MLIR_ConfigTests, Get) {

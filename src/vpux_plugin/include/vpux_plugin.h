@@ -16,18 +16,24 @@
 // System
 #include <map>
 #include <string>
+
 // IE
-#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "inference_engine.hpp"
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <inference_engine.hpp>
+#include <vpu/utils/logger.hpp>
+
 // Plugin
 #include "vpux.hpp"
 #include "vpux_backends.h"
 #include "vpux_compiler.hpp"
 #include "vpux_metrics.h"
+
 #if defined(__arm__) || defined(__aarch64__)
 #include "vpux_encryption.h"
 #endif
+
+#include "vpux/utils/IE/config.hpp"
 
 namespace vpux {
 
@@ -72,10 +78,11 @@ public:
 private:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetwork(const InferenceEngine::CNNNetwork& network,
                                                                     std::shared_ptr<Device>& device,
-                                                                    const VPUXConfig& networkConfig);
+                                                                    const Config& networkConfig);
 
 private:
-    VPUXConfig _parsedConfig;
+    std::shared_ptr<OptionsDesc> _options;
+    Config _globalConfig;
     VPUXBackends::Ptr _backends;
     Metrics _metrics;
     vpu::Logger _logger;

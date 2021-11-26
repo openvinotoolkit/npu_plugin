@@ -15,6 +15,8 @@
 
 #include "zero_allocator.h"
 
+#include "vpux/al/config/common.hpp"
+
 #include "vpux/utils/IE/blob.hpp"
 
 #include <blob_factory.hpp>
@@ -373,9 +375,10 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
 
 ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle,
                            ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                           const vpux::NetworkDescription::Ptr& networkDescription, const VPUXConfig& config)
+                           const vpux::NetworkDescription::Ptr& networkDescription, const Config& config)
         : _config(config),
-          _logger(std::make_shared<vpu::Logger>("ZeroExecutor", _config.logLevel(), vpu::consoleOutput())),
+          _logger(std::make_shared<vpu::Logger>("ZeroExecutor", toOldLogLevel(_config.get<LOG_LEVEL>()),
+                                                vpu::consoleOutput())),
           _driver_handle(driver_handle),
           _device_handle(device_handle),
           _context(context),
@@ -394,9 +397,10 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
                            ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
                            const vpux::NetworkDescription::Ptr& networkDescription,
                            const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue,
-                           const std::shared_ptr<Graph>& graph, const VPUXConfig& config)
+                           const std::shared_ptr<Graph>& graph, const Config& config)
         : _config(config),
-          _logger(std::make_shared<vpu::Logger>("ZeroExecutor", _config.logLevel(), vpu::consoleOutput())),
+          _logger(std::make_shared<vpu::Logger>("ZeroExecutor", toOldLogLevel(_config.get<LOG_LEVEL>()),
+                                                vpu::consoleOutput())),
           _driver_handle(driver_handle),
           _device_handle(device_handle),
           _context(context),

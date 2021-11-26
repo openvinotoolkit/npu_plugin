@@ -80,7 +80,7 @@ ConcreteAllocator     -up-> IAllocator
 
 ### Supported Compilers
 
-* MCM Compiler 
+* MCM Compiler
 * MLIR Compiler
 
 (TBD links)
@@ -126,8 +126,8 @@ The table below contains VPU devices and corresponding platform:
 VPU devices available in system can be obtained using a sample `hello_query_device`. The output below is an example of output (information about metrics was omitted for readability) for for Intel&reg; Vision Accelerator Design PCIe card with Intel Movidius&trade; S VPU
 
 ```
-user@user:~/openvino/bin/intel64/Release$ ./hello_query_device 
-Available devices: 
+user@user:~/openvino/bin/intel64/Release$ ./hello_query_device
+Available devices:
 	Device: VPUX.3800.0
 
     ...
@@ -203,9 +203,12 @@ where `INFERENCE_PLUGIN_API` macro exports the function and `CompilerImpl` is a 
 
 The selection of a compiler is controlled by a config option `VPUX_COMPILER_TYPE`. Currently, it supports two options: `MLIR` and `MCM` with the default value set to `MCM`.
 A newly added compiler shall be registered:
+
 1. Range of values for `VPUX_COMPILER_TYPE` shall be extended:
-  * \ref vpux_private_config.hpp "vpux_private_config.hpp" to add a new value for the config option
-  * \ref vpux_config.cpp "vpux_config.cpp" to parse the value into `_compilerType`
+
+   * `src/vpux_al/include/vpux_private_config.hpp` to add a new value for the config option.
+   * `src/vpux_al/src/config/compiler.cpp` to parse the value.
+
 2. Factory method \ref vpux::Compiler::create "vpux::Compiler::create" shall be updated to create the new compiler if a corresponding config option is selected.
 
 #### Adding an engine backend

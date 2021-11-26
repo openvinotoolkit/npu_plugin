@@ -64,7 +64,7 @@ const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const std::string& specif
 }
 
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const InferenceEngine::ParamMap& paramMap) const {
-    return std::make_shared<VideoWorkloadDevice>(paramMap);
+    return std::make_shared<VideoWorkloadDevice>(paramMap, _logger->level());
 }
 
 const std::vector<std::string> HDDL2Backend::getDeviceNames() const {

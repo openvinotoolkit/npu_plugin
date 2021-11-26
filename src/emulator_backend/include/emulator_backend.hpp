@@ -10,11 +10,15 @@
 // to the "third-party-programs.txt" or other similarly-named text file
 // included with the Software Package for additional details.
 //
+
 #pragma once
+
+#include "vpux.hpp"
+
+#include <vpu/utils/logger.hpp>
 
 #include <map>
 #include <memory>
-#include <vpux.hpp>
 
 namespace vpux {
 

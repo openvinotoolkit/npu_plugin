@@ -28,16 +28,15 @@ VpualDevice::VpualDevice(const std::string& name, const InferenceEngine::VPUXCon
 }
 
 std::shared_ptr<Executor> VpualDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
-                                                      const VPUXConfig& config) {
+                                                      const Config& config) {
     const auto& vpusmmAllocator = std::dynamic_pointer_cast<VpusmmAllocator>(_allocator);
     if (vpusmmAllocator == nullptr) {
         IE_THROW() << "Incompatible allocator passed into vpual_backend";
     }
-    _config.parseFrom(config);
 
     const auto id = utils::getSliceIdByDeviceName(_name);
     const auto& executor =
-            std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _platform, _config);
+            std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _platform, config);
 
     return executor;
 }

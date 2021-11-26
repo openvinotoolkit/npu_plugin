@@ -18,24 +18,29 @@
 #include <string>
 
 // Inference Engine include
-#include <ie_ngraph_utils.hpp>
 #include <ie_icore.hpp>
 #include <ie_metric_helpers.hpp>
 #include <ie_ngraph_utils.hpp>
 
-
 // Plugin include
 #include "file_reader.h"
 #include "vpux.hpp"
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
+#include "vpux/al/config/mcm_compiler.hpp"
+#include "vpux/al/config/runtime.hpp"
 #include "vpux_executable_network.h"
 #include "vpux_metrics.h"
-#include "vpux_private_metrics.hpp"
 #include "vpux_plugin.h"
+#include "vpux_private_metrics.hpp"
 #include "vpux_remote_context.h"
 
+#include "device_helpers.hpp"
+
 #include "vpux/utils/IE/itt.hpp"
+#include "vpux/utils/core/checked_cast.hpp"
+#include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
-#include <device_helpers.hpp>
 
 namespace vpux {
 namespace IE = InferenceEngine;
@@ -43,28 +48,28 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static VPUXConfig mergePluginAndNetworkConfigs(const VPUXConfig& pluginConfig,
-                                               const std::map<std::string, std::string>& config) {
-    if (pluginConfig.platform() == IE::VPUXConfigParams::VPUXPlatform::EMULATOR) {
-        const auto configKeyPlatform = pluginConfig.getConfig().find(VPUX_CONFIG_KEY(PLATFORM));
-        const auto deviceIdPlatform = config.find(CONFIG_KEY(DEVICE_ID));
-        if (deviceIdPlatform != config.end() && configKeyPlatform != pluginConfig.getConfig().end()) {
-            if (deviceIdPlatform->second != configKeyPlatform->second)
-                IE_THROW()
-                        << "mergePluginAndNetworkConfigs: device id platform does not match "
-                        << "platform config key for emulator: "
-                        << deviceIdPlatform->second << " and " << configKeyPlatform->second;
+static Config mergeConfigs(const Config& globalConfig, const std::map<std::string, std::string>& rawConfig,
+                           OptionMode mode = OptionMode::Both) {
+    if (globalConfig.get<PLATFORM>() == IE::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+        const auto deviceIdPlatform = rawConfig.find(CONFIG_KEY(DEVICE_ID));
+
+        if (deviceIdPlatform != rawConfig.end() && globalConfig.has<DEVICE_ID>()) {
+            if (deviceIdPlatform->second != globalConfig.get<DEVICE_ID>())
+                VPUX_THROW("mergePluginAndNetworkConfigs: device id platform does not match platform config key for "
+                           "emulator: {0} and {1}",
+                           deviceIdPlatform->second, globalConfig.get<DEVICE_ID>());
         }
     }
 
-    auto parsedConfigCopy = pluginConfig;
-    parsedConfigCopy.update(config);
-    return parsedConfigCopy;
+    Config localConfig = globalConfig;
+    localConfig.update(rawConfig, mode);
+    return localConfig;
 }
 
 //------------------------------------------------------------------------------
 // TODO: generation of available backends list can be done during execution of CMake scripts
 //
+
 static const std::vector<std::string> backendRegistry = {
 #if defined(_WIN32) || defined(_WIN64) || (defined(__linux__) && defined(__x86_64__))
         "zero_backend",
@@ -79,20 +84,34 @@ static const std::vector<std::string> backendRegistry = {
         "emulator_backend",
 #endif
 };
-Engine::Engine(): _backends(std::make_shared<VPUXBackends>(backendRegistry)), _metrics(_backends),
-                  _logger(vpu::Logger("VPUXEngine", vpu::LogLevel::Error, vpu::consoleOutput())) {
+
+Engine::Engine()
+        : _options(std::make_shared<OptionsDesc>()),
+          _globalConfig(_options),
+          _backends(std::make_shared<VPUXBackends>(backendRegistry)),
+          _metrics(_backends),
+          _logger(vpu::Logger("VPUXEngine", vpu::LogLevel::Error, vpu::consoleOutput())) {
     _pluginName = DEVICE_NAME;  // "VPUX"
-    const auto compiler = Compiler::create(_parsedConfig);
-    _parsedConfig.expandSupportedCompileOptions(compiler->getSupportedOptions());
-    _parsedConfig.expandSupportedRunTimeOptions(_backends->getSupportedOptions());
+
+    registerCommonOptions(*_options);
+    registerCompilerOptions(*_options);
+    registerMcmCompilerOptions(*_options);
+    registerRunTimeOptions(*_options);
+
+    _backends->registerOptions(*_options);
+
+#ifdef VPUX_DEVELOPER_BUILD
+    _globalConfig.parseEnvVars();
+    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
+#endif
 }
 
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
 IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork& network,
-                                                          std::shared_ptr<Device>& device,
-                                                          const VPUXConfig& networkConfig) {
+                                                           std::shared_ptr<Device>& device,
+                                                           const Config& networkConfig) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "LoadExeNetwork");
     try {
         return std::make_shared<ExecutableNetwork>(network, device, networkConfig);
@@ -104,24 +123,26 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork&
 }
 
 IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
-                                                              const std::map<std::string, std::string>& config) {
-    auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
-    const auto platform = _backends->getCompilationPlatform(networkConfig.platform(), networkConfig.deviceId());
-    auto device = _backends->getDevice(networkConfig.deviceId());
-    networkConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
+                                                               const std::map<std::string, std::string>& config) {
+    auto localConfig = mergeConfigs(_globalConfig, config);
 
-    return LoadExeNetwork(network, device, networkConfig);
+    const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
+    auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
+    localConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
+
+    return LoadExeNetwork(network, device, localConfig);
 }
 
 IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
-                                                              const IE::RemoteContext::Ptr& context,
-                                                              const std::map<std::string, std::string>& config) {
-    auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
-    const auto platform = _backends->getCompilationPlatform(networkConfig.platform(), networkConfig.deviceId());
-    auto device = _backends->getDevice(context);
-    networkConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
+                                                               const IE::RemoteContext::Ptr& context,
+                                                               const std::map<std::string, std::string>& config) {
+    auto localConfig = mergeConfigs(_globalConfig, config);
 
-    return LoadExeNetwork(network, device, networkConfig);
+    const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
+    auto device = _backends->getDevice(context);
+    localConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
+
+    return LoadExeNetwork(network, device, localConfig);
 }
 
 //------------------------------------------------------------------------------
@@ -134,7 +155,8 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& mod
     try {
         if (_encryptionModel.isLibraryFound()) {
             std::stringstream sstream;
-            return ImportNetwork( vpu::KmbPlugin::utils::skipMagic(_encryptionModel.getDecryptedStream(blobStream, sstream)), config);
+            return ImportNetwork(
+                    vpu::KmbPlugin::utils::skipMagic(_encryptionModel.getDecryptedStream(blobStream, sstream)), config);
         }
     } catch (const std::exception& ex) {
         _logger.warning(ex.what());
@@ -147,9 +169,9 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkM
                                                           const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     try {
-        auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
-        auto device = _backends->getDevice(networkConfig.deviceId());
-        return std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
+        auto localConfig = mergeConfigs(_globalConfig, config, OptionMode::RunTime);
+        auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
+        return std::make_shared<ExecutableNetwork>(networkModel, device, localConfig);
     } catch (const std::exception&) {
         throw;
     } catch (...) {
@@ -157,13 +179,14 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkM
     }
 }
 
-IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel, const IE::RemoteContext::Ptr& context,
+IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
+                                                          const IE::RemoteContext::Ptr& context,
                                                           const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     try {
-        auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
+        auto localConfig = mergeConfigs(_globalConfig, config, OptionMode::RunTime);
         auto device = _backends->getDevice(context);
-        return std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
+        return std::make_shared<ExecutableNetwork>(networkModel, device, localConfig);
     } catch (const std::exception&) {
         throw;
     } catch (...) {
@@ -173,9 +196,13 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkM
 
 //------------------------------------------------------------------------------
 void Engine::SetConfig(const std::map<std::string, std::string>& config) {
-    _parsedConfig.update(config);
-    if (_backends != nullptr)
-        _backends->setup(_parsedConfig);
+    _globalConfig.update(config);
+    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
+
+    if (_backends != nullptr) {
+        _backends->setup(_globalConfig);
+    }
+
     for (const auto& entry : config) {
         _config[entry.first] = entry.second;
     }
@@ -186,13 +213,13 @@ IE::QueryNetworkResult Engine::QueryNetwork(const IE::CNNNetwork& network,
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "QueryNetwork");
 
     if (nullptr == network.getFunction()) {
-         IE_THROW() << "VPUX Plugin supports only ngraph cnn network representation";
+        IE_THROW() << "VPUX Plugin supports only ngraph cnn network representation";
     }
 
-    auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
-    Compiler::Ptr compiler = Compiler::create(networkConfig);
+    auto localConfig = mergeConfigs(_globalConfig, config, OptionMode::CompileTime);
+    Compiler::Ptr compiler = Compiler::create(localConfig);
 
-    return compiler->query(network, networkConfig);
+    return compiler->query(network, localConfig);
 }
 
 IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
@@ -201,32 +228,34 @@ IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
     if (device == nullptr) {
         IE_THROW() << "CreateContext: Failed to find suitable device to use";
     }
-    return std::make_shared<VPUXRemoteContext>(device, map, _parsedConfig);
+    return std::make_shared<VPUXRemoteContext>(device, map, toOldLogLevel(_globalConfig.get<LOG_LEVEL>()));
 }
 
 IE::Parameter Engine::GetConfig(const std::string& name,
                                 const std::map<std::string, IE::Parameter>& /*options*/) const {
     if (name == CONFIG_KEY(LOG_LEVEL)) {
-        return IE::Parameter(static_cast<int>(_parsedConfig.logLevel()));
+        return IE::Parameter(static_cast<int>(_globalConfig.get<LOG_LEVEL>()));
     } else if (name == CONFIG_KEY(PERF_COUNT)) {
-        return IE::Parameter(_parsedConfig.performanceCounting());
+        return IE::Parameter(_globalConfig.get<PERF_COUNT>());
     } else if (name == CONFIG_KEY(DEVICE_ID)) {
-        return IE::Parameter(_parsedConfig.deviceId());
+        return IE::Parameter(_globalConfig.get<DEVICE_ID>());
     } else if (name == CONFIG_KEY(PERFORMANCE_HINT)) {
-        return IE::Parameter(_parsedConfig.performanceHint());
+        const auto val = _globalConfig.has<PERFORMANCE_HINT>()
+                                 ? stringifyEnum(_globalConfig.get<PERFORMANCE_HINT>()).str()
+                                 : std::string{};
+        return IE::Parameter(val);
     } else if ((name == VPUX_CONFIG_KEY(THROUGHPUT_STREAMS)) || (name == KMB_CONFIG_KEY(THROUGHPUT_STREAMS))) {
-        return IE::Parameter(_parsedConfig.throughputStreams());
+        return IE::Parameter(checked_cast<int>(_globalConfig.get<THROUGHPUT_STREAMS>()));
     } else if (name == VPUX_CONFIG_KEY(INFERENCE_SHAVES)) {
-        return IE::Parameter(_parsedConfig.numberOfNnCoreShaves());
+        return IE::Parameter(checked_cast<int>(_globalConfig.get<INFERENCE_SHAVES>()));
     } else if (name == VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS)) {
-        return IE::Parameter(_parsedConfig.pipelineOptions());
+        return IE::Parameter(_globalConfig.get<COMPILATION_MODE_PARAMS>());
     } else {
         IE_THROW(NotImplemented);
     }
 }
 
-IE::Parameter Engine::GetMetric(const std::string& name,
-                                const std::map<std::string, IE::Parameter>& options) const {
+IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, IE::Parameter>& options) const {
     if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics.GetAvailableDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {

@@ -13,9 +13,9 @@
 
 #pragma once
 
-#include "ie_remote_context.hpp"
 #include "hddl2_helpers/helper_workload_context.h"
 #include "helper_hddl2_backend.h"
+#include "ie_remote_context.hpp"
 #include "vpux/vpux_plugin_params.hpp"
 #include "vpux_remote_context.h"
 
@@ -27,12 +27,11 @@ class RemoteContext_Helper {
 public:
     using Ptr = std::shared_ptr<RemoteContext_Helper>;
     RemoteContext_Helper();
-    static InferenceEngine::ParamMap wrapWorkloadIdToMap(const WorkloadID &id);
+    static InferenceEngine::ParamMap wrapWorkloadIdToMap(const WorkloadID& id);
     WorkloadID getWorkloadId() const;
     HddlUnite::WorkloadContext::Ptr getWorkloadContext();
 
     vpux::VPUXRemoteContext::Ptr remoteContextPtr = nullptr;
-    const vpux::VPUXConfig config;
 
 protected:
     // TODO Use stub instead of creating "default" _workloadContext
@@ -48,8 +47,7 @@ inline RemoteContext_Helper::RemoteContext_Helper() {
     remoteContextPtr = std::make_shared<vpux::VPUXRemoteContext>(device, param);
 }
 
-inline InferenceEngine::ParamMap
-RemoteContext_Helper::wrapWorkloadIdToMap(const WorkloadID &id) {
+inline InferenceEngine::ParamMap RemoteContext_Helper::wrapWorkloadIdToMap(const WorkloadID& id) {
     return {{InferenceEngine::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID), id}};
 }
 
@@ -61,5 +59,5 @@ inline HddlUnite::WorkloadContext::Ptr RemoteContext_Helper::getWorkloadContext(
     return _workloadContextHelper.getWorkloadContext();
 }
 
-}
-}
+}  // namespace hddl2
+}  // namespace vpux

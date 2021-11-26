@@ -32,7 +32,6 @@ public:
 
     HddlUnite::WorkloadContext::Ptr workloadContextPtr = nullptr;
     const size_t correctSize = 1024 * 1024 * 1;
-    const vpux::VPUXConfig config = vpux::VPUXConfig();
 
 protected:
     WorkloadContext_Helper::Ptr _workloadContextHelperPtr = nullptr;
@@ -71,8 +70,8 @@ enum RemoteMemoryOwner { IERemoteMemoryOwner = 0, ExternalRemoteMemoryOwner = 1 
 
 //------------------------------------------------------------------------------
 class Allocator_Manipulations_UnitTests :
-    public RemoteAllocator_UnitTests,
-    public ::testing::WithParamInterface<RemoteMemoryOwner> {
+        public RemoteAllocator_UnitTests,
+        public ::testing::WithParamInterface<RemoteMemoryOwner> {
 public:
     void SetUp() override;
     Allocator_Helper::Ptr allocatorHelper = nullptr;
@@ -97,7 +96,7 @@ void Allocator_Manipulations_UnitTests::SetUp() {
 }
 
 std::string Allocator_Manipulations_UnitTests::PrintToStringParamName::operator()(
-    const testing::TestParamInfo<RemoteMemoryOwner>& info) const {
+        const testing::TestParamInfo<RemoteMemoryOwner>& info) const {
     RemoteMemoryOwner memoryOwner = info.param;
     if (memoryOwner == IERemoteMemoryOwner) {
         return "IERemoteMemoryOwner";
@@ -271,4 +270,4 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_ChangeLockedForReadMemory_Rem
 const static std::vector<RemoteMemoryOwner> memoryOwners = {ExternalRemoteMemoryOwner};
 
 INSTANTIATE_TEST_SUITE_P(RemoteMemoryOwner, Allocator_Manipulations_UnitTests, ::testing::ValuesIn(memoryOwners),
-    Allocator_Manipulations_UnitTests::PrintToStringParamName());
+                         Allocator_Manipulations_UnitTests::PrintToStringParamName());

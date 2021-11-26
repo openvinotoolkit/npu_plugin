@@ -13,11 +13,12 @@
 
 #pragma once
 
-#include <flatbuffers/flatbuffers.h>
-#include <ie_common.h>
+#include "vpux_private_config.hpp"
+
 #include <schema/graphfile/graphfile_generated.h>
+
+#include <ie_common.h>
 #include <ie_precision.hpp>
-#include <vpux_config.hpp>
 
 InferenceEngine::Layout getLayout(const MVCNN::TensorReference* const tensorRef);
 InferenceEngine::Precision MvcnnDTypeToPrecision(const MVCNN::DType& dtype);

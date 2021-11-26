@@ -24,7 +24,7 @@ class DummyVPU3700Device final : public IDevice {
 public:
     DummyVPU3700Device() = default;
     std::shared_ptr<Executor> createExecutor(
-        const NetworkDescription::Ptr&/*networkDescription*/, const VPUXConfig& /*config*/) override {
+        const NetworkDescription::Ptr&/*networkDescription*/, const Config& /*config*/) override {
         return nullptr;
     }
 
@@ -44,9 +44,6 @@ public:
         return "VPU3700TestBackend";
     }
 
-    std::unordered_set<std::string> getSupportedOptions() const override {
-        return {};
-    }
     const std::shared_ptr<IDevice> getDevice() const override {
         return _dummyDevice;
     }

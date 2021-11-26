@@ -10,18 +10,24 @@
 // to the "third-party-programs.txt" or other similarly-named text file
 // included with the Software Package for additional details.
 //
-#include <vpux_config.hpp>
-#include <vpux_compiler.hpp>
 
-#include "vpux_compiler.hpp"
+#pragma once
+
 #include "simple_graph.hpp"
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
+#include "vpux/al/config/mcm_compiler.hpp"
+#include "vpux_compiler.hpp"
 
 namespace vpux {
+
 class NetworkDescription_Helper {
 public:
     NetworkDescription_Helper();
     ~NetworkDescription_Helper() = default;
-    NetworkDescription::Ptr getNetworkDesc() { return _networkDescPtr; }
+    NetworkDescription::Ptr getNetworkDesc() {
+        return _networkDescPtr;
+    }
 
 protected:
     NetworkDescription::Ptr _networkDescPtr = nullptr;
@@ -29,9 +35,17 @@ protected:
 
 //------------------------------------------------------------------------------
 inline NetworkDescription_Helper::NetworkDescription_Helper() {
-    auto compiler = Compiler::create();
+    auto options = std::make_shared<OptionsDesc>();
+    registerCommonOptions(*options);
+    registerCompilerOptions(*options);
+    registerMcmCompilerOptions(*options);
+
+    Config config(options);
+
+    auto compiler = Compiler::create(config);
     std::stringstream blobStream;
     utils::simpleGraph::getExeNetwork()->Export(blobStream);
-    _networkDescPtr = compiler->parse(blobStream);
+    _networkDescPtr = compiler->parse(blobStream, config, "");
 }
+
 }  // namespace vpux

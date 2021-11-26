@@ -13,9 +13,9 @@
 
 #pragma once
 
-#include <mcm_config.hpp>
+#include "vpux_compiler.hpp"
+
 #include <vpu/utils/logger.hpp>
-#include <vpux_compiler.hpp>
 
 namespace vpu {
 namespace MCMAdapter {
@@ -23,7 +23,7 @@ namespace MCMAdapter {
 class MCMNetworkDescription final : public vpux::INetworkDescription {
 public:
     // TODO extract network name from blob
-    MCMNetworkDescription(const std::vector<char>& compiledNetwork, const MCMConfig& config,
+    MCMNetworkDescription(const std::vector<char>& compiledNetwork, const vpux::Config& config,
                           const std::string& name = "");
     const vpux::DataMap& getInputsInfo() const override;
 

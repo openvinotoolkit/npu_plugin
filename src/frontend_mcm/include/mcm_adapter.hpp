@@ -13,11 +13,11 @@
 
 #pragma once
 
-#include <ie_core.hpp>
-#include <mcm_config.hpp>
+#include "vpux_compiler.hpp"
 
 #include <schema/graphfile/graphfile_generated.h>
-#include <vpux_compiler.hpp>
+
+#include <ie_core.hpp>
 
 namespace vpu {
 namespace MCMAdapter {
@@ -37,6 +37,6 @@ bool isMCMCompilerAvailable();
  * @param config Compiler config
  * @return Meta data from graph blob (network name, IE inputs/outputs)
  */
-MetaInfo deserializeMetaData(const MVCNN::SummaryHeader& header, const MCMConfig& config);
+MetaInfo deserializeMetaData(const MVCNN::SummaryHeader& header, const vpux::Config& config);
 }  // namespace MCMAdapter
 }  // namespace vpu

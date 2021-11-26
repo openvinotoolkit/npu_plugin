@@ -10,11 +10,13 @@
 // to the "third-party-programs.txt" or other similarly-named text file
 // included with the Software Package for additional details.
 //
+
 #pragma once
 
 #include <map>
 #include <memory>
-#include <vpux.hpp>
+
+#include "vpux.hpp"
 
 namespace vpux {
 
@@ -27,12 +29,6 @@ public:
         return "LEVEL0";
     }
     const std::vector<std::string> getDeviceNames() const override;
-    std::unordered_set<std::string> getSupportedOptions() const override {
-        return _config.getRunTimeOptions();
-    }
-
-private:
-    VPUXConfig _config;
 };
 
 }  // namespace vpux
