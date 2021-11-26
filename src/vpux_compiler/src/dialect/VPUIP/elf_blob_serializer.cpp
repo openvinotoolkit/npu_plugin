@@ -127,7 +127,7 @@ void VPUIP::ELFBlobSerializer::setConstData(llvm::ArrayRef<uint8_t> weights) {
     m_sectionSymbolsMapping.insert(std::make_pair(m_weights, weightsConfigsSymbol));
 }
 
-std::vector<char> VPUIP::ELFBlobSerializer::getBlob() {
+std::vector<uint8_t> VPUIP::ELFBlobSerializer::getBlob() {
     finalize();
     return m_writer.generateELF();
 }
