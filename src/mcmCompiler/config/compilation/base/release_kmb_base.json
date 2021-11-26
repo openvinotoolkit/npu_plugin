@@ -78,21 +78,12 @@
             {
                 "name" : "AddActivationStreaming",
                 "max_streams" : 1000,
-                "vertical_fusion" : true
-            },
-            {
-                "name" : "RecognizeVerticalFusionPatterns",
-                "min_subgraph_depth" : 2,
-                "vertical_fusion": true
+                "vertical_fusion" : false
             },
             "ComputeSparsitySolution",
             {
                 "name": "StreamingOperations",
-                "vertical_fusion" : true
-            },
-            {
-                "name":"VerticalFusionTransformation",
-                "vertical_fusion" : true
+                "vertical_fusion" : false
             },
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
