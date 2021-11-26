@@ -113,7 +113,7 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
-    // Barrier scheduler
+    //Barrier scheduler
     TokenBasedBarrierScheduler barrierScheduler(&ctx,func, 8, 256, _log);
     barrierScheduler.schedule();
 

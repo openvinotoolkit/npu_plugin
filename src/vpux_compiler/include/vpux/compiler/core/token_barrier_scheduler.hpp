@@ -55,8 +55,8 @@ public:
 
     // typedef BarrierScheduleGenerator scheduler_t;
     typedef size_t schedule_time_t;
-    std::unordered_map<mlir::Operation*, std::set<mlir::Operation*>> configureBarrierOpProducersMap;
-    std::unordered_map<mlir::Operation*, std::set<mlir::Operation*>> configureBarrierOpConsumersMap;
+    std::unordered_map<mlir::Operation*, std::set<mlir::Operation*>> configureBarrierOpUpdateMap;
+    std::unordered_map<mlir::Operation*, std::set<mlir::Operation*>> configureBarrierOpWaitMap;
 
     // One transition structure for each physical barrier //
     // TODO John: Move barrier_transition_structure_t to another file
@@ -189,9 +189,9 @@ public:
 
     
                 // STEP-1.2 (a): producers //
-                auto barrierProducersItr = tokenBasedBarrierScheduler_.configureBarrierOpProducersMap.find(bop_curr);
+                auto barrierProducersItr = tokenBasedBarrierScheduler_.configureBarrierOpUpdateMap.find(bop_curr);
 
-                if(barrierProducersItr !=  tokenBasedBarrierScheduler_.configureBarrierOpProducersMap.end())
+                if(barrierProducersItr !=  tokenBasedBarrierScheduler_.configureBarrierOpUpdateMap.end())
                 {
                     Logger::global().error("Adding producer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(source),  bop_curr->getAttr("id"));
                     barrierProducersItr->second.insert(source);
@@ -201,9 +201,9 @@ public:
                 
 
                 // STEP-1.2 (b): consumers //
-                auto barrierConsumersItr = tokenBasedBarrierScheduler_.configureBarrierOpConsumersMap.find(bop_curr);
+                auto barrierConsumersItr = tokenBasedBarrierScheduler_.configureBarrierOpWaitMap.find(bop_curr);
                 
-                if(barrierConsumersItr !=  tokenBasedBarrierScheduler_.configureBarrierOpConsumersMap.end())
+                if(barrierConsumersItr !=  tokenBasedBarrierScheduler_.configureBarrierOpWaitMap.end())
                 {
                     auto opConsumers = FeasibleScheduleGenerator::getConsumerOps(source);
                     for (auto consumer = opConsumers.begin(); consumer != opConsumers.end(); ++consumer) {
@@ -216,8 +216,8 @@ public:
                 
                 // STEP-1.3 //
                 if (b_prev) {
-                    auto barrierConsumersItr = tokenBasedBarrierScheduler_.configureBarrierOpConsumersMap.find(b_prev);
-                    if(barrierConsumersItr !=  tokenBasedBarrierScheduler_.configureBarrierOpConsumersMap.end())
+                    auto barrierConsumersItr = tokenBasedBarrierScheduler_.configureBarrierOpWaitMap.find(b_prev);
+                    if(barrierConsumersItr !=  tokenBasedBarrierScheduler_.configureBarrierOpWaitMap.end())
                     {
                         Logger::global().error("STEP-1.3 Adding consumer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(source),  b_prev->getAttr("id"));
                         barrierConsumersItr->second.insert(source);
@@ -248,8 +248,8 @@ public:
 
              std::set<mlir::Operation*> newBarrierProducers{};
              std::set<mlir::Operation*> newBarrierConsumers{};            
-             tokenBasedBarrierScheduler_.configureBarrierOpProducersMap.insert(std::make_pair(newBarrier, newBarrierProducers));
-             tokenBasedBarrierScheduler_.configureBarrierOpConsumersMap.insert(std::make_pair(newBarrier, newBarrierConsumers));
+             tokenBasedBarrierScheduler_.configureBarrierOpUpdateMap.insert(std::make_pair(newBarrier, newBarrierProducers));
+             tokenBasedBarrierScheduler_.configureBarrierOpWaitMap.insert(std::make_pair(newBarrier, newBarrierConsumers));
 
              Logger::global().error("Created a new barrier task with barrier ID {0} after OP id is {1}", barrier_task_id, FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
              barrier_task_id++;
