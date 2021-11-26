@@ -114,6 +114,9 @@ The pass is a part of `IECommon` pipeline.
 
 This pass tries to optimize out Reorder operations for common cases
 by propagating them from inputs to outputs and merging into layers.
+### `-resolve-pwl-post-ops`: Resolve requirements for fused PWL post-ops
+Ensures the correct quantization ranges are used for fused PWL activation functions or
+unfuses them if surrounding tensors are not quantized per-tensor.
 ### `-resolve-strided-slice`: Decouple strided slice to slice + reshape
 The pass is a part of `AdjustForVPU` pipeline.
 It replaces IE::StridedSlice with non zero masks to a simpler IE::StridedSlice with zero masks + IE::Reshape

@@ -68,6 +68,14 @@ void setPostOp(mlir::Operation*postOp);
 Set post-processing operation attribute
 NOTE: This method *must* be implemented by the user.
 
+#### `clearPostOp`
+
+```c++
+void clearPostOp();
+```
+Set post-processing operation attribute
+NOTE: This method *must* be implemented by the user.
+
 #### `isSupportedPostOp`
 
 ```c++

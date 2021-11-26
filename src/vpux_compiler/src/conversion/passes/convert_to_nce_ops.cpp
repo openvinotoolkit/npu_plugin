@@ -20,6 +20,7 @@
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/pwl_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -113,13 +114,83 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
     }
 }
 
+struct QuantizationParams {
+    SmallVector<int32_t> quantMult;
+    SmallVector<int32_t> quantShift;
+    int64_t postShift;
+};
+
 struct PostOpParams {
     VPUIP::PPELayerType layerType;
     int64_t clampLow;
     int64_t clampHigh;
     int64_t LreluMult;
     int64_t LreluShift;
+    Optional<QuantizationParams> quantParams;
+
+    PostOpParams(VPUIP::PPELayerType layerType, int64_t clampLow, int64_t clampHigh, int64_t LreluMult,
+                 int64_t LreluShift)
+            : layerType(layerType),
+              clampLow(clampLow),
+              clampHigh(clampHigh),
+              LreluMult(LreluMult),
+              LreluShift(LreluShift) {
+    }
+
+    PostOpParams(VPUIP::PPELayerType layerType, int64_t clampLow, int64_t clampHigh, int64_t LreluMult,
+                 int64_t LreluShift, const QuantizationParams& quantParams)
+            : layerType(layerType),
+              clampLow(clampLow),
+              clampHigh(clampHigh),
+              LreluMult(LreluMult),
+              LreluShift(LreluShift),
+              quantParams(quantParams) {
+    }
 };
+
+int64_t getPwlClamp(VPUIP::NCEClusterTaskOp nceOp, const VPUIP::PPELayerType ppeType, const bool getMin) {
+    constexpr int64_t CLAMP_MIN = -4096;
+    constexpr int64_t CLAMP_MAX = 4095;
+
+    // Input type defines the compute type
+    const auto inElemType = nceOp.input().getType().cast<mlir::MemRefType>().getElementType();
+    if (inElemType.isa<mlir::FloatType>()) {
+        return getMin ? CLAMP_MIN : CLAMP_MAX;
+    }
+
+    const auto quantReqs = VPUIP::getPwlQuantReqs(ppeType);
+    const auto rMin = quantReqs.input.rMin;
+    const auto rMax = quantReqs.input.rMax;
+
+    const auto outElemType = nceOp.output().getType().cast<mlir::MemRefType>().getElementType();
+    if (const auto qElemType = outElemType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        const auto scale = qElemType.getScale();
+        const auto actualMin = std::max(CLAMP_MIN, static_cast<int64_t>(std::ceil(rMin / scale)));
+        const auto actualMax = std::min(CLAMP_MAX, static_cast<int64_t>(std::floor(rMax / scale)));
+        return getMin ? actualMin : actualMax;
+    }
+    VPUX_THROW("Unexpected output element type: {0}", outElemType);
+}
+
+int64_t getPwlPostShift(const VPUIP::PPELayerType ppeType) {
+    const auto quantReqs = VPUIP::getPwlQuantReqs(ppeType);
+    return quantReqs.input.postShift;
+}
+
+PostOpParams getPwlPostOpParams(VPUIP::NCEClusterTaskOp nceOp, VPUIP::PPELayerType ppeType) {
+    const int64_t clampLow = getPwlClamp(nceOp, ppeType, true);
+    const int64_t clampHigh = getPwlClamp(nceOp, ppeType, false);
+    const int64_t LreluMult = 1;
+    const int64_t LreluShift = 0;
+    const int64_t postShift = getPwlPostShift(ppeType);
+
+    // Dummy values for mult & shift, as the actual values will be computed in the weights table
+    SmallVector<int32_t> quantMult = {1};
+    SmallVector<int32_t> quantShift = {0};
+
+    return PostOpParams{ppeType,   clampLow,   clampHigh,
+                        LreluMult, LreluShift, QuantizationParams{quantMult, quantShift, postShift}};
+}
 
 static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, IE::PostOp postOp) {
     if (postOp == nullptr) {
@@ -145,6 +216,10 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
         const int64_t LreluShift = 0;
 
         return PostOpParams{VPUIP::PPELayerType::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
+    } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
+        return getPwlPostOpParams(nceOp, VPUIP::PPELayerType::SIGMOID);
+    } else if (postOp.name().getValue() == IE::TanhOp::getOperationName()) {
+        return getPwlPostOpParams(nceOp, VPUIP::PPELayerType::TANH);
     }
 
     VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
@@ -226,8 +301,15 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
-        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
-                         postOpParams->LreluMult, postOpParams->LreluShift);
+        if (postOpParams->quantParams.hasValue()) {
+            const auto quantParams = postOpParams->quantParams.getValue();
+            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                             postOpParams->LreluMult, postOpParams->LreluShift, quantParams.quantMult,
+                             quantParams.quantShift, quantParams.postShift);
+        } else {
+            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                             postOpParams->LreluMult, postOpParams->LreluShift);
+        }
     }
 
     //
@@ -349,8 +431,15 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
-        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
-                         postOpParams->LreluMult, postOpParams->LreluShift);
+        if (postOpParams->quantParams.hasValue()) {
+            const auto quantParams = postOpParams->quantParams.getValue();
+            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                             postOpParams->LreluMult, postOpParams->LreluShift, quantParams.quantMult,
+                             quantParams.quantShift, quantParams.postShift);
+        } else {
+            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                             postOpParams->LreluMult, postOpParams->LreluShift);
+        }
     }
 
     //
@@ -647,8 +736,15 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
-        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
-                         postOpParams->LreluMult, postOpParams->LreluShift);
+        if (postOpParams->quantParams.hasValue()) {
+            const auto quantParams = postOpParams->quantParams.getValue();
+            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                             postOpParams->LreluMult, postOpParams->LreluShift, quantParams.quantMult,
+                             quantParams.quantShift, quantParams.postShift);
+        } else {
+            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                             postOpParams->LreluMult, postOpParams->LreluShift);
+        }
     }
 
     //

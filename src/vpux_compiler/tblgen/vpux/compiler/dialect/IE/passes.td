@@ -313,6 +313,25 @@ def FusePostOps : PassBase<"fuse-post-ops", "vpux::FunctionPass"> {
 }
 
 //
+// ResolvePWLPostOps
+//
+
+def ResolvePWLPostOps : PassBase<"resolve-pwl-post-ops", "vpux::FunctionPass"> {
+    let summary = "Resolve requirements for fused PWL post-ops";
+
+    let description = [{
+        Ensures the correct quantization ranges are used for fused PWL activation functions or
+        unfuses them if surrounding tensors are not quantized per-tensor.
+    }];
+
+    let constructor = "vpux::IE::createResolvePWLPostOpsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ExpandActivationChannels
 //
 

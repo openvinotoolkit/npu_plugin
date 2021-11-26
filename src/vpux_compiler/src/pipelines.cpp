@@ -160,6 +160,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     if (options.enableLowPrecision) {
         IE::buildLowPrecisionPipeline(pm, log);
     }
+    pm.addPass(IE::createResolvePWLPostOpsPass(log));
 
     if (options.enableExpandActivationChannels) {
         pm.addPass(IE::createExpandActivationChannelsPass(log));
@@ -248,6 +249,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     if (options.enableLowPrecision) {
         IE::buildLowPrecisionPipeline(pm, log);
     }
+    pm.addPass(IE::createResolvePWLPostOpsPass(log));
 
     if (options.enableUpstreamSlice) {
         pm.addPass(IE::createUpstreamSlicePass(log));

@@ -34,7 +34,7 @@ namespace {
 //
 
 bool isSupportedHWPostOp(mlir::Operation* postOp) {
-    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp>(postOp)) {
+    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp>(postOp)) {
         return false;
     }
 
@@ -64,6 +64,14 @@ public:
         }
 
         if (!isSupportedHWPostOp(postOp)) {
+            return false;
+        }
+
+        // MaxPool IDU does not support zero-point subtraction, so it compensates by ignoring output zero-point as well.
+        // Fusing a post-op that removes the operation's 'linearity' leads to different input/output quantizations which
+        // provide wrong results due to the zero-point limitation. Currently, all post-ops are disabled.
+        // TODO: reenable fusing for float MaxPool
+        if (mlir::isa<IE::MaxPoolOp>(mainOp)) {
             return false;
         }
 

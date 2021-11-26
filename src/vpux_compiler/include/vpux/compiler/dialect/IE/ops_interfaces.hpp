@@ -177,6 +177,11 @@ void setLayerPostOp(ConcreteOp mainOp, mlir::Operation* postOp) {
     mainOp.post_opAttr(postOpInfo);
 }
 
+template <typename ConcreteOp>
+void clearLayerPostOp(ConcreteOp mainOp) {
+    mainOp.removePost_opAttr();
+}
+
 //
 // LayoutInfoOpInterface
 //
