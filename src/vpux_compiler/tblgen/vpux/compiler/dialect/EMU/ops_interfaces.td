@@ -26,13 +26,6 @@ def EMU_TaskOpInterface : OpInterface<"TaskOpInterface"> {
     let cppNamespace = "vpux::EMU";
 
     let methods = [
-
-        InterfaceMethod<
-            "Serialize the Task to BLOB format",
-            "vpux::EMU::BlobWriter::SpecificTask",
-            "serialize", (ins "vpux::EMU::BlobWriter&":$writer)
-        >,
-
         StaticInterfaceMethod<
             "Get the EMU TaskType for the Operation",
             "vpux::EMU::TaskType", "getTaskType", (ins),

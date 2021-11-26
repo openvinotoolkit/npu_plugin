@@ -14,10 +14,3 @@
 #include "vpux/compiler/dialect/EMU/ops.hpp"
 
 using namespace vpux;
-
-EMU::BlobWriter::SpecificTask vpux::EMU::GatherElementsUPAOp::serialize(EMU::BlobWriter& writer) {
-    MVCNN::GatherElementsParamsBuilder builder(writer);
-    builder.add_axis(checked_cast<int32_t>(axis()));
-    const auto paramsOff = builder.Finish();
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GatherElementsParams});
-}

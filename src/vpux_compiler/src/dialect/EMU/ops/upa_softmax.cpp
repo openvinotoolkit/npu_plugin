@@ -30,11 +30,3 @@ mlir::LogicalResult vpux::EMU::verifyOp(SoftMaxUPAOp op) {
 
     return mlir::success();
 }
-
-EMU::BlobWriter::SpecificTask vpux::EMU::SoftMaxUPAOp::serialize(EMU::BlobWriter& writer) {
-    MVCNN::SoftmaxParamsBuilder builder(writer);
-    builder.add_axis(checked_cast<uint32_t>(axisInd()));
-    const auto paramsOff = builder.Finish();
-
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SoftmaxParams});
-}

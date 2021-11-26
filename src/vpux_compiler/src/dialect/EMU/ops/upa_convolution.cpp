@@ -34,39 +34,3 @@ mlir::LogicalResult vpux::EMU::verifyOp(ConvolutionUPAOp op) {
 
     return mlir::success();
 }
-
-EMU::BlobWriter::SpecificTask vpux::EMU::ConvolutionUPAOp::serialize(EMU::BlobWriter& writer) {
-    static const auto dY = Dim(2);
-    static const auto dX = Dim(3);
-
-    const auto strides = EMU::BlobWriter::createOrder3(this->strides());
-    const auto dilations = EMU::BlobWriter::createOrder3(this->dilations());
-    const auto padsBegin = EMU::BlobWriter::createOrder3(this->padsBegin());
-    const auto padsEnd = EMU::BlobWriter::createOrder3(this->padsEnd());
-
-    const auto filterShape = getShape(filter());
-    const auto kernel =
-            MVCNN::order3(checked_cast<uint8_t>(filterShape[dX]), checked_cast<uint8_t>(filterShape[dY]), 0);
-
-    if (groups() > 1) {
-        MVCNN::ConvolutionParamsBuilder builder(writer);
-        builder.add_kernel(&kernel);
-        builder.add_strides(&strides);
-        builder.add_dilations(&dilations);
-        builder.add_pads_begin(&padsBegin);
-        builder.add_pads_end(&padsEnd);
-        builder.add_group(checked_cast<int32_t>(groups()));
-        const auto paramsOff = builder.Finish();
-        return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvolutionParams});
-    } else {
-        MVCNN::SWConvolutionParamsBuilder builder(writer);
-        builder.add_kernel(&kernel);
-        builder.add_strides(&strides);
-        builder.add_dilations(&dilations);
-        builder.add_pads_begin(&padsBegin);
-        builder.add_pads_end(&padsEnd);
-        builder.add_group(checked_cast<int32_t>(groups()));
-        const auto paramsOff = builder.Finish();
-        return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SWConvolutionParams});
-    }
-}

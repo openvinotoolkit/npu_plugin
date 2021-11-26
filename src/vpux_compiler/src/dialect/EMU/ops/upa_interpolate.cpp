@@ -46,26 +46,3 @@ const EnumMap<IE::InterpolateCoordMode, int> coordTransformModeMap = {
 
 }  // namespace
 
-EMU::BlobWriter::SpecificTask vpux::EMU::InterpolateUPAOp::serialize(EMU::BlobWriter& writer) {
-    MVCNN::InterpolateParamsBuilder builder(writer);
-
-    const auto interpolateModeIter = supportedInterpModeMap.find(mode());
-    VPUX_THROW_UNLESS(interpolateModeIter != supportedInterpModeMap.end(), "Unsupported interpolate mode {0}", mode());
-    builder.add_interpolationMode(MVCNN::InterpolationMethod(interpolateModeIter->second));
-
-    const auto coordModeIter = coordTransformModeMap.find(coord_mode());
-    VPUX_THROW_UNLESS(coordModeIter != coordTransformModeMap.end(), "Unsupported coordinate transformation mode {0}",
-                      coord_mode());
-    builder.add_coordTransformMode(MVCNN::InterpolationCoordTransMode(coordModeIter->second));
-
-    const auto nearestModeIter = nearestModeMap.find(nearest_mode());
-    VPUX_THROW_UNLESS(nearestModeIter != nearestModeMap.end(), "Unsupported nearest mode {0}", nearest_mode());
-    builder.add_nearestMode(MVCNN::InterpolationNearestMode(nearestModeIter->second));
-
-    builder.add_align_corners(coord_mode() == IE::InterpolateCoordMode::align_corners);
-    builder.add_antialias(antialias());
-
-    const auto paramsOff = builder.Finish();
-
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_InterpolateParams});
-}

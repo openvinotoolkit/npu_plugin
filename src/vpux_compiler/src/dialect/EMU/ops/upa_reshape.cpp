@@ -25,9 +25,3 @@ mlir::LogicalResult vpux::EMU::verifyOp(ReshapeUPAOp /*op*/) {
 
     return mlir::success();
 }
-
-EMU::BlobWriter::SpecificTask vpux::EMU::ReshapeUPAOp::serialize(EMU::BlobWriter& writer) {
-    MVCNN::ReshapeParamsBuilder builder(writer);
-    const auto paramsOff = builder.Finish();
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ReshapeParams});
-}

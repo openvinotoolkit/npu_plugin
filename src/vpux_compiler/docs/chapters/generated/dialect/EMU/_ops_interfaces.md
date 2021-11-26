@@ -4,14 +4,6 @@
 
 Interface for EMU Task
 ### Methods:
-#### `serialize`
-
-```c++
-vpux::EMU::BlobWriter::SpecificTask serialize(vpux::EMU::BlobWriter&writer);
-```
-Serialize the Task to BLOB format
-NOTE: This method *must* be implemented by the user.
-
 #### `getTaskType`
 
 ```c++

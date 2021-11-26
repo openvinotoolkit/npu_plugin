@@ -18,23 +18,3 @@
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
-
-EMU::BlobWriter::SpecificTask vpux::EMU::RegionYoloUPAOp::serialize(EMU::BlobWriter& writer) {
-    EMU::BlobWriter::Vector<int32_t> serializedMask;
-    if (mask().hasValue()) {
-        serializedMask = writer.createVector(parseIntArrayAttr<int32_t>(mask().getValue()));
-    }
-
-    MVCNN::RegionYOLOParamsBuilder builder(writer);
-    builder.add_coords(checked_cast<int32_t>(coords()));
-    builder.add_classes(checked_cast<int32_t>(classes()));
-    builder.add_num(checked_cast<int32_t>(regions()));
-    builder.add_do_softmax(do_softmax().getValueOr(false));
-    if (mask().hasValue()) {
-        builder.add_mask(serializedMask);
-    }
-
-    const auto paramsOff = builder.Finish();
-
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_RegionYOLOParams});
-}

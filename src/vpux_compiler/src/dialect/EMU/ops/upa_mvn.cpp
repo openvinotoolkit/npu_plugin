@@ -20,16 +20,6 @@
 
 using namespace vpux;
 
-EMU::BlobWriter::SpecificTask vpux::EMU::MVNUPAOp::serialize(EMU::BlobWriter& writer) {
-    MVCNN::MVNParamsBuilder builder(writer);
-    builder.add_across_channels(across_channels().getValueOr(false));
-    builder.add_normalize_variance(normalize_variance().getValueOr(false));
-    builder.add_eps(static_cast<float>(eps().convertToDouble()));
-    const auto paramsOff = builder.Finish();
-
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_MVNParams});
-}
-
 mlir::LogicalResult vpux::EMU::verifyOp(MVNUPAOp op) {
     const auto inShape = getShape(op.input());
 

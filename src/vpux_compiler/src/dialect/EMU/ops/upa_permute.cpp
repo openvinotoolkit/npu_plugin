@@ -53,28 +53,3 @@ mlir::LogicalResult vpux::EMU::verifyOp(PermuteUPAOp op) {
 
     return mlir::success();
 }
-
-//
-// TaskOpInterface
-//
-
-EMU::BlobWriter::SpecificTask vpux::EMU::PermuteUPAOp::serialize(EMU::BlobWriter& writer) {
-    const mlir::AffineMap inputOrderMap = DimsOrder::fromValue(input()).toAffineMap(this->getContext());
-    const mlir::AffineMap permMem = order_value().getValue();
-    const mlir::AffineMap outputOrderMapInv =
-            inversePermutation(DimsOrder::fromValue(output()).toAffineMap(this->getContext()));
-
-    const mlir::AffineMap permLog = outputOrderMapInv.compose(permMem.compose(inputOrderMap));
-
-    const auto permLogOrder = DimsOrder::fromAffineMap(permLog);
-    const auto orderUPA = writer.createVector(irange(permLogOrder.numDims()) | transformed([&](int64_t idx) {
-                                                  return checked_cast<int32_t>(permLogOrder.dimAt(idx).ind());
-                                              }));
-
-    MVCNN::PermuteNDParamsBuilder builder(writer);
-    builder.add_permute_nd_order(orderUPA);
-
-    const auto paramsOff = builder.Finish();
-
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PermuteNDParams});
-}

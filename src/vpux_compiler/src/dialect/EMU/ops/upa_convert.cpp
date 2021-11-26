@@ -51,19 +51,3 @@ mlir::LogicalResult vpux::EMU::verifyOp(ConvertUPAOp op) {
 
     return mlir::success();
 }
-
-EMU::BlobWriter::SpecificTask vpux::EMU::ConvertUPAOp::serialize(EMU::BlobWriter& writer) {
-    const auto scale = scaleAttr() ? scaleAttr().getValueAsDouble() : 1.0;
-    const auto bias = biasAttr() ? biasAttr().getValueAsDouble() : 0.0;
-    const auto batchID = checked_cast<int32_t>(this->batchID().getValueOr(0));
-
-    MVCNN::ConvertParamsBuilder builder(writer);
-    builder.add_scale(checked_cast<float>(scale));
-    builder.add_bias(checked_cast<float>(bias));
-    builder.add_from_detection_output(fromDetectionOutput());
-    builder.add_have_batch(haveBatch());
-    builder.add_batch_id(batchID);
-    const auto paramsOff = builder.Finish();
-
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvertParams});
-}

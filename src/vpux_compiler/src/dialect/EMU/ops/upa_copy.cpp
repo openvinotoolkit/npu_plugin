@@ -29,13 +29,3 @@ mlir::LogicalResult vpux::EMU::verifyOp(CopyUPAOp /*op*/) {
 
     return mlir::success();
 }
-
-//
-// serialize
-//
-
-EMU::BlobWriter::SpecificTask vpux::EMU::CopyUPAOp::serialize(EMU::BlobWriter& writer) {
-    MVCNN::CopyParamsBuilder builder(writer);
-    const auto paramsOff = builder.Finish();
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_CopyParams});
-}

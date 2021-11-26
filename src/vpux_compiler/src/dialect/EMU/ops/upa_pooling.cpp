@@ -114,35 +114,3 @@ mlir::LogicalResult vpux::EMU::verifyOp(PoolingUPAOp op) {
 
     return mlir::success();
 }
-
-EMU::BlobWriter::SpecificTask vpux::EMU::PoolingUPAOp::serialize(EMU::BlobWriter& writer) {
-    const auto kernel = EMU::BlobWriter::createOrder3(this->kernel());
-    const auto strides = EMU::BlobWriter::createOrder3(this->strides());
-    const auto padsBegin = EMU::BlobWriter::createOrder3(this->padsBegin());
-    const auto padsEnd = EMU::BlobWriter::createOrder3(this->padsEnd());
-
-    EMU::BlobWriter::String type;
-    switch (this->type()) {
-    case EMU::PoolLayerType::MAX:
-        type = writer.createString("max");
-        break;
-    case EMU::PoolLayerType::AVG:
-        type = writer.createString("avg");
-        break;
-    default:
-        VPUX_THROW("Unsupported PoolLayerType {0}", this->type());
-    }
-
-    const auto excludePad = writer.createString(this->excludePad() ? "true" : "false");
-
-    MVCNN::PoolingParamsBuilder builder(writer);
-    builder.add_pool_method(type);
-    builder.add_kernel(&kernel);
-    builder.add_strides(&strides);
-    builder.add_pads_begin(&padsBegin);
-    builder.add_pads_end(&padsEnd);
-    builder.add_exclude_pad(excludePad);
-    const auto paramsOff = builder.Finish();
-
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PoolingParams});
-}
