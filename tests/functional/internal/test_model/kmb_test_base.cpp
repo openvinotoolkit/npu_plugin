@@ -30,7 +30,7 @@
 //
 
 namespace {
-    
+
 std::string cleanName(std::string name) {
     std::replace_if(
         name.begin(), name.end(),
