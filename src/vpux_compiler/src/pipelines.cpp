@@ -71,6 +71,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 3 : Topology
 
+    pm.addPass(IE::createMatMulInputsTo2dPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     IE::buildAdjustPrecisionPipeline(pm, IE::AdjustPrecisionOptions(options), log);
@@ -126,6 +127,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 3 : Topology
 
+    pm.addPass(IE::createMatMulInputsTo2dPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     IE::buildAdjustPrecisionPipeline(pm, IE::AdjustPrecisionOptions(options), log);
@@ -214,6 +216,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     // Level 3 : Topology
 
+    pm.addPass(IE::createMatMulInputsTo2dPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     IE::buildAdjustPrecisionPipeline(pm, IE::AdjustPrecisionOptions(options), log);
