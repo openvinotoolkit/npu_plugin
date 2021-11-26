@@ -29,7 +29,7 @@ static constexpr std::initializer_list<SingleTest> softmax_test_list
 
 class CustomCppSoftmaxTest: public CustomCppTests<fp16> {
 public:
-    explicit CustomCppSoftmaxTest(): m_testsLoop(softmax_test_list) {}
+    explicit CustomCppSoftmaxTest(): m_testsLoop(softmax_test_list, "test") {}
     virtual ~CustomCppSoftmaxTest() {}
 protected:
     const char* suiteName() const override

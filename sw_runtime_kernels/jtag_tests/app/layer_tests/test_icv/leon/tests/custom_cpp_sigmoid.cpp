@@ -21,7 +21,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
 
     class CustomCppSigmoidTest : public CustomCppTests<fp16> {
     public:
-        explicit CustomCppSigmoidTest(): m_testsLoop(sigmoid_test_list) {
+        explicit CustomCppSigmoidTest(): m_testsLoop(sigmoid_test_list, "test") {
         }
         virtual ~CustomCppSigmoidTest() {
         }
