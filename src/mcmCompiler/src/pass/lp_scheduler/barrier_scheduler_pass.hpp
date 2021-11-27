@@ -363,8 +363,8 @@ class Control_Model_Barrier_Scheduler {
         }
       }
 
-      control_model_.transitiveReduction();
-      recomputeProducerConsumerCounts(control_model_);
+      // control_model_.transitiveReduction();
+      // recomputeProducerConsumerCounts(control_model_);
 
       size_t removed_barriers =
           removeBarriersWithNoConsumers(barrier_association, om);
