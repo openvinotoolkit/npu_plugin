@@ -282,6 +282,9 @@ class Control_Model_Barrier_Scheduler {
         //STEP-1: run the scheduler //
         scheduler_t scheduler_begin(input_dag, bcount_, scount_), scheduler_end;
         size_t scheduling_number = 0UL;
+         std::unordered_map<schedule_time_t, std::set<size_t> > active_barriers_at_time;
+        std::unordered_set<operation_t> scheduled_ops;
+        size_t make_span = 0UL;
         for ( ;scheduler_begin != scheduler_end; ++scheduler_begin) {
           const schedule_info_t& sinfo = *scheduler_begin;
           auto bitr = barrier_association.find(sinfo.barrier_index_);
@@ -293,16 +296,32 @@ class Control_Model_Barrier_Scheduler {
             continue;
           }
 
+          printf("[time=%lu barrier_id=%lu slot_count=%lu op=%s]\n", sinfo.schedule_time_, sinfo.barrier_index_, sinfo.slot_count_, sinfo.op_->getName().c_str());
+
+          scheduled_ops.insert(sinfo.op_);
+          if (active_barriers_at_time.find(sinfo.schedule_time_) == active_barriers_at_time.end()) {
+            active_barriers_at_time[sinfo.schedule_time_] = std::set<size_t>();
+          }
+          active_barriers_at_time[sinfo.schedule_time_].insert( sinfo.barrier_index_);
+          scheduled_ops.insert(sinfo.op_);
+          make_span = std::max(make_span, sinfo.schedule_time_);
+          
           om.getOp(sop->getName())->set<unsigned>("schedulingNumber",
                 scheduling_number++);
 
           // STEP-2: update barrier structure invariant //
-          bool new_barrier_task_created =
-              bstructure.process_next_scheduled_op(sinfo, output);
+          bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo, output);
 
           if (new_barrier_task_created) { ++btask_count; }
         }
+        size_t max_active = 0UL;
+        for (auto aitr=active_barriers_at_time.begin(); aitr!=active_barriers_at_time.end(); ++aitr) {
+          max_active = std::max(max_active, (aitr->second).size());
+        }
+        std::cout << "The max active barrier are: " << max_active << std::endl;
       }
+
+
 
       // STEP-2.5: process trailing barrier control structures //
       {
