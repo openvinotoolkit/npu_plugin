@@ -70,8 +70,8 @@ public:
         typedef std::set<mlir::Operation*> producers_t;
         typedef typename producers_t::const_iterator producer_iterator_t;
 
-        barrier_transition_structure_t(TokenBasedBarrierScheduler& tokenBasedBarrierScheduler, schedule_time_t time = std::numeric_limits<schedule_time_t>::max())
-                : tokenBasedBarrierScheduler_(tokenBasedBarrierScheduler), time_(time), producers_()  {
+        barrier_transition_structure_t(mlir::FuncOp func, TokenBasedBarrierScheduler& tokenBasedBarrierScheduler, schedule_time_t time = std::numeric_limits<schedule_time_t>::max())
+                : _func(func), tokenBasedBarrierScheduler_(tokenBasedBarrierScheduler), time_(time), producers_()  {
 
             Logger::global().error("Initialising a new barrier_transition_structure");
         }
@@ -235,15 +235,16 @@ public:
             producers_.insert(scheduled_op);
         }
 
-        mlir::Operation* create_new_barrier_task(const BarrierScheduleGenerator::schedule_info_t& sinfo) const {
+        mlir::Operation* create_new_barrier_task(const BarrierScheduleGenerator::schedule_info_t& sinfo) {
 
              Logger::global().error("CREATING A NEW BARRIER TASK");
 
              static size_t barrier_task_id=0UL;
 
-             mlir::OpBuilder builder(sinfo.op_);
+             //mlir::OpBuilder builder(sinfo.op_);
+             mlir::OpBuilder builder(_func.getBody());
 
-             builder.setInsertionPointAfter(sinfo.op_);
+             builder.setInsertionPoint(sinfo.op_);
              mlir::Operation* newBarrier = builder.create<VPURT::ConfigureBarrierOp>(sinfo.op_->getLoc(), barrier_task_id);
 
              std::set<mlir::Operation*> newBarrierProducers{};
@@ -261,6 +262,7 @@ public:
         mlir::Operation* curr_barrier_task_;
         mlir::Operation* prev_barrier_task_;
         producers_t producers_;
+        mlir::FuncOp _func;
 
     };  // class barrier_transition_structure_t //
 
