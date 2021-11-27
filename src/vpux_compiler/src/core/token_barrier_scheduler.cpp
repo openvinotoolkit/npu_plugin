@@ -36,7 +36,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
     Logger::global().error("STEP-0: Initialize the association table");
     for (size_t barrierId = 1; barrierId <= barrierCount_; barrierId++) {
-        auto bitr = barrier_association.insert(std::make_pair(barrierId, barrier_transition_structure_t(*this)));
+        auto bitr = barrier_association.insert(std::make_pair(barrierId, barrier_transition_structure_t(_func,*this)));
         barrier_transition_structure_t& bstructure = (bitr.first)->second;
         bstructure.init();
     }
@@ -107,7 +107,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
     });
 
     _func->walk([](VPURT::DeclareVirtualBarrierOp op) {
-        //op->dropAllUses();
+        op->dropAllUses();
         op.erase();
     });
 

@@ -25,7 +25,7 @@ struct KmbScheduleSubGraphSpillingTestParams {
 // Input -> MaxPool |                     | Eltwise -> Output
 //                  |-------------------> |
 class KmbScheduleSubGraphSpillingTest : public LayerTestsUtils::KmbLayerTestsCommon,
-                                            public testing::WithParamInterface<KmbScheduleSubGraphSpillingTestParams> {
+                                        public testing::WithParamInterface<KmbScheduleSubGraphSpillingTestParams> {
     void SetUp() override {
         const auto test_params = GetParam();
         targetDevice = test_params._device;
