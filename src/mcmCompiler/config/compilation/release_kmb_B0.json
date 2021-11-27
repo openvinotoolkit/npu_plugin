@@ -32,7 +32,7 @@
                 "enableSplitBarriers" : false,
                 "enableTensorFusion": true,
                 "real_physical_barriers": 32,
-                "barrier_bound": 16
+                "barrier_bound": 32
             }
         ]
     },

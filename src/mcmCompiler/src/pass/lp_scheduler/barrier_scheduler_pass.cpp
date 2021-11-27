@@ -80,11 +80,11 @@ void barrierSchedulerPass(const mv::pass::PassEntry&,
   if (barrier_config["barrier_bound"] == 0)
     barrier_config["barrier_bound"] = (barrier_config["real_physical_barriers"]/2UL);
 
-  if (barrier_config["barrier_bound"] > (barrier_config["real_physical_barriers"]/2UL)) {
-    fprintf(stderr, "[BarrierSchedulerError]: barrier_bound must be atmost"
-        " twice the real barriers");
-    exit(1);
-  }
+  // if (barrier_config["barrier_bound"] > (barrier_config["real_physical_barriers"]/2UL)) {
+  //   fprintf(stderr, "[BarrierSchedulerError]: barrier_bound must be atmost"
+  //       " twice the real barriers");
+  //   exit(1); 
+  //}
   
   // In case of Profiling disable the barriers optimizations //
   std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
