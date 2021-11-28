@@ -629,14 +629,17 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
                     alignReferenceSection(invocation->dataSection(), offset);
                     alignReferenceSection(invocation->invocationArgs(), offset);
                 }
-
-                // TODO:  add management kernel-> text section aligning
-                // scratchBuffer aligning
-                auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer();
-                alignSection(scratchBuffer, ".scratchBuffer");
             }
         }
     }
+
+    // scratchBuffer aligning
+    auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer();
+    alignSection(scratchBuffer, ".scratchBuffer");
+
+    // management kernel aligning
+    auto managementKernelText = serializedGraphFile->header()->act_kernel_runtime()->kernel()->kernelText();
+    alignSection(managementKernelText, ".text");
 
     return detached;
 }
