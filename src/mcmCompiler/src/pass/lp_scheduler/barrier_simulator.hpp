@@ -243,7 +243,7 @@ class Runtime_Barrier_Simulation_Checker {
       size_t real = real_barrier_list_.front();
       real_barrier_list_.pop_front();
 
-      assert(active_barrier_table_.size() < (2*barrier_bound_) );
+      assert(active_barrier_table_.size() < (barrier_bound_) );
 
       in_degree_iterator_t in_itr = in_degree_map_.find(btask);
       out_degree_iterator_t out_itr = out_degree_map_.find(btask);
@@ -264,10 +264,10 @@ class Runtime_Barrier_Simulation_Checker {
       assert(((aitr->second).in_degree_==0UL) && 
             ((aitr->second).out_degree_==0UL));
 
-      assert(real_barrier_list_.size() < (2*barrier_bound_));
+      assert(real_barrier_list_.size() < (barrier_bound_));
       active_barrier_info_t &abinfo = aitr->second;
       real_barrier_list_.push_back(abinfo.real_barrier_);
-      assert(real_barrier_list_.size() <= (2*barrier_bound_));
+      assert(real_barrier_list_.size() <= (barrier_bound_));
       active_barrier_table_.erase(aitr);
     }
 
@@ -276,7 +276,7 @@ class Runtime_Barrier_Simulation_Checker {
       real_barrier_list_.clear();
 
       // 2n barriers //
-      for (size_t i=0; i<2*barrier_bound_; i++) {
+      for (size_t i=0; i<barrier_bound_; i++) {
         real_barrier_list_.push_back(i);
       }
     }
