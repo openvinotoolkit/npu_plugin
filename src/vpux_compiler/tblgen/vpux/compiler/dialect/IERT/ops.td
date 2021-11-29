@@ -1622,11 +1622,11 @@ def IERT_GenericReshapeOp :
     let summary = "InferenceEngine run-time generic Reshape layer";
 
     let arguments = (ins
-        AnyStridedMemRef:$input
+        AnyMemRef:$input
     );
 
     let results = (outs
-        AnyStridedMemRef:$output
+        AnyMemRef:$output
     );
 
     let verifier = [{
