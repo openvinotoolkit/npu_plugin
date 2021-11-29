@@ -19,7 +19,7 @@
 
 #include <blob_factory.hpp>
 
-#include "vpux/utils/core/profiling_parser.hpp"
+#include "vpux/utils/plugin/profiling_parser.hpp"
 
 #include <functional>
 #include <iostream>

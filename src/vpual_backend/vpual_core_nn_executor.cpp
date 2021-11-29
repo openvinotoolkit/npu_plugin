@@ -29,7 +29,8 @@
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/logger.hpp>
 
-#include "vpux/utils/core/profiling_parser.hpp"
+#include "vpux/utils/IE/profiling.hpp"
+#include "vpux/utils/plugin/profiling_parser.hpp"
 
 #if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
 #include "mmapped_pointer.hpp"
@@ -939,21 +940,19 @@ bool VpualCoreNNExecutor::isPreProcessingSupported(const PreprocMap&) const {
 }
 
 std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLayerStatistics() {
-    std::map<std::string, ie::InferenceEngineProfileInfo> perfCounts;
-
     const auto blob = _networkDescription->getCompiledNetwork();
     ie::BlobMap deviceOutputs;
     ie::BlobMap::iterator profilingOutputBlob;
     if (_profilingOutputPhysAddrs.size()) {
         deviceOutputs = extractProfilingOutputsFromPhysAddr(_profilingOutputPhysAddrs.at(0));
     }
-    if (!deviceOutputs.size()) {
+    if (deviceOutputs.empty()) {
         deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
         profilingOutputBlob = deviceOutputs.find("profilingOutput");
         if (profilingOutputBlob == deviceOutputs.end()) {
             _logger->warning("No profiling output. Blob was compiled without profiling enabled or does not contain "
                              "profiling info.");
-            return perfCounts;
+            return std::map<std::string, ie::InferenceEngineProfileInfo>();
         }
     } else {
         profilingOutputBlob = deviceOutputs.begin();
@@ -968,40 +967,7 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
     std::vector<vpux::profiling_layer_info> layerProfiling;
     vpux::getLayerProfilingInfo(blob.data(), blob.size(), profilingOutput, 0xFFFFF, layerProfiling);
 
-    int execution_index = 0;
-    std::map<std::string, int> layerNames;
-    for (const auto& layer : layerProfiling) {
-        ie::InferenceEngineProfileInfo info;
-        auto name = std::string(layer.name);
-
-        // Prevent existence of the same layer names
-        auto layerNameIt = layerNames.find(name);
-        if (layerNameIt != layerNames.end()) {
-            layerNames[name]++;
-            name += "/" + std::to_string(layerNames[name]);
-        } else
-            layerNames[name] = 0;
-
-        info.status = ie::InferenceEngineProfileInfo::EXECUTED;
-        info.realTime_uSec = layer.duration_ns / 1000;
-        info.execution_index = execution_index++;
-        auto typeLen = sizeof(info.exec_type) / sizeof(info.exec_type[0]);
-        if (layer.sw_ns > 0) {
-            info.cpu_uSec = layer.sw_ns / 1000;
-            strncpy(info.exec_type, "SW", typeLen);
-        } else if (layer.dpu_ns > 0) {
-            info.cpu_uSec = layer.dpu_ns / 1000;
-            strncpy(info.exec_type, "DPU", typeLen);
-        } else {
-            info.cpu_uSec = 0;
-            strncpy(info.exec_type, "DMA", typeLen);
-        }
-        typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
-        strncpy(info.layer_type, layer.layer_type, typeLen);
-        perfCounts[name] = info;
-    }
-
-    return perfCounts;
+    return convertProfilingLayersToIEInfo(layerProfiling);
 }
 
 InferenceEngine::Parameter VpualCoreNNExecutor::getParameter(const std::string&) const {

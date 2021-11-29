@@ -1,4 +1,17 @@
-#include "vpux/utils/core/profiling_parser.hpp"
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
+#include "vpux/utils/plugin/profiling_parser.hpp"
 #include "vpux/utils/core/error.hpp"
 
 #include <map>
@@ -164,7 +177,8 @@ static void parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
         auto softLayer = task->task_as_UPALayerTask();
         if (softLayer != nullptr) {
             auto typeLen = sizeof(profInfoItem.layer_type) / sizeof(profInfoItem.layer_type[0]);
-            strncpy(profInfoItem.layer_type, EnumNameSoftwareLayerParams(softLayer->softLayerParams_type()), typeLen);
+            strncpy(profInfoItem.layer_type, EnumNameSoftwareLayerParams(softLayer->softLayerParams_type()),
+                    typeLen - 1);
         } else {
             profInfoItem.layer_type[0] = '\0';
         }
@@ -292,7 +306,7 @@ void vpux::getLayerProfilingInfo(const void* data, size_t data_len, const void* 
         });
         if (result == end(layerInfo)) {
             profiling_layer_info info = profiling_layer_info();
-            strncpy(info.name, task.name, sizeof(profiling_layer_info::name));
+            strncpy(info.name, task.name, sizeof(profiling_layer_info::name) - 1);
             info.status = profiling_layer_info::layer_status_t::EXECUTED;
             info.start_time_ns = task.start_time_ns;
             layerInfo.push_back(info);
@@ -307,11 +321,11 @@ void vpux::getLayerProfilingInfo(const void* data, size_t data_len, const void* 
 
         if (task.exec_type == profiling_task_info::exec_type_t::DPU) {
             layer->dpu_ns += task.duration_ns;
-            strncpy(layer->layer_type, task.layer_type, sizeof(profiling_layer_info::layer_type));
+            strncpy(layer->layer_type, task.layer_type, sizeof(profiling_layer_info::layer_type) - 1);
         }
         if (task.exec_type == profiling_task_info::exec_type_t::SW) {
             layer->sw_ns += task.duration_ns;
-            strncpy(layer->layer_type, task.layer_type, sizeof(profiling_layer_info::layer_type));
+            strncpy(layer->layer_type, task.layer_type, sizeof(profiling_layer_info::layer_type) - 1);
         }
         if (task.exec_type == profiling_task_info::exec_type_t::DMA) {
             layer->dma_ns += task.duration_ns;

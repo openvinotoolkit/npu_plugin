@@ -3,7 +3,7 @@
 #include <fstream>
 #include <sys/stat.h>
 
-#include "vpux/utils/core/profiling_parser.hpp"
+#include "vpux/utils/plugin/profiling_parser.hpp"
 
 int main(int argc, char** argv)
 {
