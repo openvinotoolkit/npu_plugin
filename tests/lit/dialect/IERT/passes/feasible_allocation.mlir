@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB" --feasible-allocation="memory-space=CMX_NN second-level-memory-space=DDR" %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --feasible-allocation="memory-space=CMX_NN second-level-memory-space=DDR" %s | FileCheck %s
 
 // CHECK-LABEL: @SimpleGraph
 module @SimpleGraph {
@@ -142,7 +142,7 @@ func @main(%in: memref<1x120000xf16>, %out: memref<1x120000xf16>) -> memref<1x12
     %cst0 = const.Declare memref<1x120000xf16> = #const.Content<dense<2.0> : tensor<1x120000xf16>>
 
     %buf_in = memref.alloc() : memref<1x120000xf16, "CMX_NN">
-    
+
     %buf0 = memref.alloc() : memref<1x120000xf16, "CMX_NN">
     %buf1 = memref.alloc() : memref<1x120000xf16, "CMX_NN">
     %buf2 = memref.alloc() : memref<1x120000xf16, "CMX_NN">

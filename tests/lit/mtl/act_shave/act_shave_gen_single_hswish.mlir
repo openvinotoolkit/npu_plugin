@@ -5,35 +5,22 @@
 // check for regressions in the VPUIP dialect.
 //
 
-module @Test attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceHW"} {
+module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
 
 IERT.RunTimeResources
     availableMemory : {
-        IERT.MemoryResource 1073741824 bytes
-        IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
-        IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+        IERT.MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
+        IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
     }
     usedMemory : {
     }
     executors : {
-        IERT.ExecutorResource 1 of  "Leon_RT"
-        IERT.ExecutorResource 1 of  "Leon_NN"
-        IERT.ExecutorResource 1 of  "ACT_SHAVE"
-        IERT.ExecutorResource 1 of  "SHAVE_NN"
-        IERT.ExecutorResource 1 of  "NCE_Cluster" {
-            IERT.ExecutorResource 1 of "NCE_PerClusterDPU"
-        }
-        IERT.ExecutorResource 1 of "DMA_UPA"
         IERT.ExecutorResource 1 of "DMA_NN"
-    }
-
-VPUIP.Graph
-    options : "NONE"
-    version : {
-        majorV = 3 : i32,
-        minorV = 11 : i32,
-        patchV = 0 : i32, hash = "",
-        contextStr = "VPUX Compiler"
+        IERT.ExecutorResource 1 of  "SHAVE_NN"
+        IERT.ExecutorResource 1 of  "SHAVE_ACT"
+        IERT.ExecutorResource 1 of  "NCE" {
+            IERT.ExecutorResource 1 of "DPU"
+        }
     }
 
 IE.CNNNetwork
@@ -59,14 +46,14 @@ module @VPU.SW {
 
 func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
-    %in_tile0_cmx  = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
-    %out_tile0_cmx = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    %in_tile0_cmx  = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "CMX_NN">
+    %out_tile0_cmx = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "CMX_NN">
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
 
     VPURT.Task updates(%b0 : !VPURT.Barrier) op : {
-        VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+        VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) -> memref<1x1x1x1000xf16, "CMX_NN">
     }
 
     // Genetic Kernel information for the scheduler.
@@ -74,25 +61,25 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
     %sigmoid_krn =
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_hswish            // The reference to the Kernel function.
-                    inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">)     // Inputs/outputs buffers for generic operation interface
-                    outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">)   // and their mapping to inner region.
+                    inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">)     // Inputs/outputs buffers for generic operation interface
+                    outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">)   // and their mapping to inner region.
                     on tile 0                           // The tile index to execute on.
 
-        -> memref<1x1x1x1000xf16, "VPU_CMX_NN"> {
+        -> memref<1x1x1x1000xf16, "CMX_NN"> {
 
-            ^bb0(%arg0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">, %arg1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">):
+            ^bb0(%arg0 : memref<1x1x1x1000xf16, "CMX_NN">, %arg1 : memref<1x1x1x1000xf16, "CMX_NN">):
                 // Inner region, isolated from above, which holds the information about arguments mapping.
                 // We can use constant scalars/arrays definitions here.
 
                 // The arguments mapping, the order must match the kernel parameter structure.
                 VPUIP.SW.Kernel.run(%arg0, %arg1)
-                    : memref<1x1x1x1000xf16, "VPU_CMX_NN">
-                    , memref<1x1x1x1000xf16, "VPU_CMX_NN">
+                    : memref<1x1x1x1000xf16, "CMX_NN">
+                    , memref<1x1x1x1000xf16, "CMX_NN">
         }
     }
 
     VPURT.Task waits(%b1 : !VPURT.Barrier) op : {
-        %0 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%2 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+        %0 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) outputs(%2 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
     return %2: memref<1x1x1x1000xf16>
 
@@ -297,4 +284,3 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
 // CHECK:   kernel_data: [
 // CHECK:      ]
-

@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+
 using namespace vpux;
 
 namespace {
@@ -343,7 +345,7 @@ void BarrierSimulationPass::safeRunOnFunc() {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
-    const auto dmaAttr = VPUIP::DMAEngineAttr::get(&ctx, VPUIP::DMAEngine::DMA_NN);
+    const auto dmaAttr = VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::DMA_NN);
     auto dmaResOp = resOp.getExecutor(dmaAttr);
     VPUX_THROW_UNLESS(dmaResOp != nullptr, "Failed to get DMA_NN information");
 

@@ -17,8 +17,6 @@
 #include "vpux/compiler/core/linear_scan_handler.hpp"
 #include "vpux/compiler/core/mem_live_range_info.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
-
 namespace vpux {
 
 class FeasibleMemoryScheduler final {

@@ -76,36 +76,6 @@ class VPUIP_UPATaskOp<int numResult, string mnemonic, list<OpTrait> traits = []>
         >;
 
 //
-// GraphOp
-//
-
-def VPUIP_GraphOp :
-        VPUIP_Op<
-            "Graph",
-            [
-                HasParent<"mlir::ModuleOp">
-            ]
-        > {
-    let summary = "The root object for the VPUIP Execution Graph";
-
-    let arguments = (ins
-        VPUIP_ExecutionFlag:$options,
-        VPUIP_Version:$version
-    );
-
-    let extraClassDeclaration = [{
-        static vpux::VPUIP::GraphOp getFromModule(mlir::ModuleOp module);
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        `options` `:` $options
-        `version` `:` $version
-    }];
-}
-
-
-//
 // EmptyOp
 //
 
@@ -204,10 +174,8 @@ def VPUIP_NNDMAOp :
             return vpux::VPUIP::TaskType::NNDMA;
         }
         vpux::DotNodeColor getNodeColor() {
-            auto memResource = VPUIP::getPhysicalMemory(output().getType().cast<mlir::MemRefType>());
-            if (!mlir::failed(memResource) && memResource.getValue() == VPUIP::PhysicalMemory::DDR)
-                return DotNodeColor::RED;
-            return DotNodeColor::GREEN;
+            const auto memKind = vpux::VPU::getMemoryKind(getType());
+            return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;
 
@@ -254,10 +222,8 @@ def VPUIP_CompressedDMAOp :
             return vpux::VPUIP::TaskType::NNDMA;
         }
         vpux::DotNodeColor getNodeColor() {
-            auto memResource = VPUIP::getPhysicalMemory(output().getType().cast<mlir::MemRefType>());
-            if (!mlir::failed(memResource) && memResource.getValue() == VPUIP::PhysicalMemory::DDR)
-                return DotNodeColor::RED;
-            return DotNodeColor::GREEN;
+            const auto memKind = vpux::VPU::getMemoryKind(getType());
+            return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;
 
@@ -448,7 +414,7 @@ def VPUIP_ConvolutionUPAOp :
         I64ArrayAttr:$padsEnd,
         IntAttr:$groups,
 
-        OptionalAttr<IntAttr>:$maxShaves   
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2450,8 +2416,6 @@ def VPUIP_SwKernelOp :
         static vpux::IERT::KernelInfo getKernelInfo(mlir::Operation* origOp);
     }];
 }
-
-
 
 //
 // LSTMSequenceUPAOp

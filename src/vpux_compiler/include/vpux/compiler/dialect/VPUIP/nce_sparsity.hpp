@@ -13,12 +13,14 @@
 
 #pragma once
 
-#include <llvm/ADT/ArrayRef.h>
-#include <mlir/IR/Value.h>
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/func_ref.hpp"
+#include "vpux/utils/core/optional.hpp"
+
+#include <mlir/IR/Value.h>
 
 namespace vpux {
 namespace VPUIP {
@@ -28,20 +30,19 @@ public:
     using BiasConverterCb = int32_t (*)(double);
     using PPEConverterCb = int32_t (*)(unsigned, unsigned, double, mlir::Type);
 
-    static const vpux::EnumMap<vpux::VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap;
-    static const vpux::EnumMap<vpux::VPUIP::ArchKind, BiasConverterCb> biasConvertersMap;
+    static const EnumMap<VPU::ArchKind, PPEConverterCb> ppeConvertersMap;
+    static const EnumMap<VPU::ArchKind, BiasConverterCb> biasConvertersMap;
 
-    static int64_t getBitPatternSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType);
-    static int64_t getActivationWindowSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType,
+    static int64_t getBitPatternSize(ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType);
+    static int64_t getActivationWindowSize(ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType,
                                            int64_t inputChannels);
-    static std::vector<uint8_t> getFakeSparsity(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
-                                                mlir::Type elemType, int64_t inputChannels);
+    static std::vector<uint8_t> getFakeSparsity(ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType,
+                                                int64_t inputChannels);
 
     static std::vector<int32_t> getWeightsTable(mlir::Type op_inElemType, mlir::Type op_outElemType,
                                                 Optional<int32_t> weightPtrOffset, int32_t weightPtrStep,
-                                                Optional<int32_t> sparsityPtrOffset, vpux::VPUIP::ArchKind arch,
-                                                int64_t OC, mlir::Type weightsElemType = nullptr,
-                                                mlir::Value bias = nullptr);
+                                                Optional<int32_t> sparsityPtrOffset, VPU::ArchKind arch, int64_t OC,
+                                                mlir::Type weightsElemType = nullptr, mlir::Value bias = nullptr);
 };
 
 }  // namespace VPUIP

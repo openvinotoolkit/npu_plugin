@@ -13,8 +13,27 @@
 
 #pragma once
 
+#include "vpux/utils/core/string_ref.hpp"
+
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/Types.h>
+#include <mlir/Interfaces/SideEffectInterfaces.h>
+
+//
+// BarrierResource
+//
+
+namespace vpux {
+namespace VPURT {
+
+struct BarrierResource final : public mlir::SideEffects::Resource::Base<BarrierResource> {
+    StringRef getName() final {
+        return "VPURT::Barrier";
+    }
+};
+
+}  // namespace VPURT
+}  // namespace vpux
 
 //
 // Generated

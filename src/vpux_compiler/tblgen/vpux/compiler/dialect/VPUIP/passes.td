@@ -17,44 +17,6 @@
 include "mlir/Pass/PassBase.td"
 
 //
-// SetCompileParams
-//
-
-def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
-    let summary = "Set compilation parameters related to VPUIP Dialect";
-
-    let description = [{
-        This pass attaches compilation parameters related to **VPUIP Dialect** to Module attributes and
-        initializes **IERT Dialect** run-time resources information.
-    }];
-
-    let constructor = "vpux::VPUIP::createSetCompileParamsPass()";
-
-    let options = [
-        Option<
-            "archOpt", "vpu-arch",
-            "std::string", [{"KMB"}],
-            "VPU architecture to compile for"
-        >,
-        Option<
-            "compilationModeOpt", "compilation-mode",
-            "std::string", [{"DefaultHW"}],
-            "Set compilation mode as reference (ReferenceSW) or hardware (ReferenceHW or DefaultHW)"
-        >,
-        Option<
-            "numberOfDPUGroupsOpt", "num-of-dpu-groups",
-            "int", "",
-            "Number of DPU groups"
-        >
-    ];
-
-    let dependentDialects = [
-        "vpux::IERT::IERTDialect",
-        "vpux::VPUIP::VPUIPDialect"
-    ];
-}
-
-//
 // ConvertWeightsTableOp2Const
 //
 

@@ -13,9 +13,9 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 
-#include <unordered_map>
+#include "vpux/utils/core/enums.hpp"
 
 namespace vpux {
 namespace VPUIP {
@@ -33,7 +33,7 @@ struct PwlQuantReqs {
     QuantInfo output;
 };
 
-extern const std::unordered_map<VPUIP::PPELayerType, PwlQuantReqs> pwlQuantReqs;
+extern const EnumMap<VPUIP::PPELayerType, PwlQuantReqs> pwlQuantReqs;
 
 PwlQuantReqs getPwlQuantReqs(const VPUIP::PPELayerType ppeType);
 

@@ -13,7 +13,7 @@
 
 #include "vpux/compiler/conversion.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -254,8 +254,7 @@ mlir::LogicalResult TimestampRewrite::matchAndRewrite(IERT::TimestampOp origOp, 
     VPUX_THROW_UNLESS(origType.getElementType() == getUInt32Type(getContext()),
                       "Got wrong element type for TimestampOp");
 
-    const auto timerType =
-            changeMemSpace(origType, VPUIP::MemoryLocationAttr::get(getContext(), VPUIP::MemoryLocation::AbsoluteAddr));
+    const auto timerType = changeMemSpace(origType, VPU::MemoryKindAttr::get(getContext(), VPU::MemoryKind::Register));
 
     auto declareOp = rewriter.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(getContext()), timerType,
                                                              VPUIP::MemoryLocation::AbsoluteAddr, 0,

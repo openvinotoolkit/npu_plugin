@@ -15,6 +15,7 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -59,16 +60,15 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto WEIGHTSTABLE_CMX_OFFSET = INPUT_CMX_OFFSET + totalTensorSize(inputShape, inputType);
     const auto WEIGHTS_CMX_OFFSET = WEIGHTSTABLE_CMX_OFFSET + 4 * weightsTableShape[0] * weightsTableShape[3];
 
-    const auto getMemRef = [&builder](ArrayRef<std::int64_t> shape, mlir::Type elemType,
-                                      vpux::VPUIP::MemoryLocation location) {
-        const auto memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), location);
+    const auto getMemRef = [&builder](ArrayRef<std::int64_t> shape, mlir::Type elemType, VPU::MemoryKind memKind) {
+        const auto memSpaceAttr = VPU::MemoryKindAttr::get(builder.getContext(), memKind);
         return vpux::getMemRefType(ShapeRef(shape), elemType, DimsOrder::NHWC, memSpaceAttr);
     };
 
-    const auto outputParamType = getMemRef(outputShape, outputType, vpux::VPUIP::MemoryLocation::ProgrammableOutput);
+    const auto outputParamType = getMemRef(outputShape, outputType, VPU::MemoryKind::DDR);
 
     llvm::SmallVector<mlir::Type, 2> inputTypes;
-    inputTypes.push_back(getMemRef(inputShape, inputType, vpux::VPUIP::MemoryLocation::ProgrammableInput));
+    inputTypes.push_back(getMemRef(inputShape, inputType, VPU::MemoryKind::DDR));
     inputTypes.push_back(outputParamType);
 
     const auto funcType = builder.getFunctionType(llvm::makeArrayRef(inputTypes), outputParamType);
@@ -81,9 +81,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const auto getCMXTensor = [&builder, &functionBuilder, getMemRef](const llvm::SmallVector<std::int64_t>& shape,
                                                                       mlir::Type type, std::size_t offset) {
-        const auto CMXType = getMemRef(shape, type, vpux::VPUIP::MemoryLocation::VPU_CMX_NN);
+        const auto CMXType = getMemRef(shape, type, VPU::MemoryKind::CMX_NN);
         return functionBuilder.create<vpux::VPURT::DeclareBufferOp>(builder.getUnknownLoc(), CMXType,
-                                                                    vpux::VPUIP::MemoryLocation::VPU_CMX_NN, 0, offset);
+                                                                    VPUIP::MemoryLocation::VPU_CMX_NN, 0, offset);
     };
 
     auto functionInput = function.getArgument(0);
@@ -95,7 +95,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         weightsAttribute = weightsAttribute.quantCast(qty);
     }
 
-    const auto weightsDDRType = getMemRef(weightsShape, weightsType, vpux::VPUIP::MemoryLocation::GraphFile);
+    const auto weightsDDRType = getMemRef(weightsShape, weightsType, VPU::MemoryKind::DDR);
     auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType,
                                                                      weightsAttribute.reorder(vpux::DimsOrder::NHWC));
     auto weightsCMX = getCMXTensor(weightsShape, weightsType, WEIGHTS_CMX_OFFSET);
@@ -108,9 +108,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
             static_cast<std::int32_t>(weights.shape[1] * weights.shape[2] * weights.shape[3] *
                                       getElemTypeSize(weightsType).count() / 8),
-            static_cast<std::int32_t>(16777215), vpux::VPUIP::ArchKind::MTL, output.shape[1], weightsType);
+            static_cast<std::int32_t>(16777215), VPU::ArchKind::MTL, output.shape[1], weightsType);
 
-    const auto weightsTableDDRMemRef = getMemRef(weightsTableShape, int32, vpux::VPUIP::MemoryLocation::GraphFile);
+    const auto weightsTableDDRMemRef = getMemRef(weightsTableShape, int32, VPU::MemoryKind::DDR);
     const auto weightsTableValues =
             mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
@@ -121,18 +121,18 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto barrier0 = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
     auto barrier1 = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
-                                                mlir::ValueRange(barrier0.barrier()), builder.getUnknownLoc(),
-                                                functionInput, inputCMX.getOperation()->getResult(0), false);
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(
-            functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), builder.getUnknownLoc(),
-            weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0), false);
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(
-            functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), builder.getUnknownLoc(),
-            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX.getOperation()->getResult(0), false);
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(barrier1.barrier()),
-                                                mlir::ValueRange(), builder.getUnknownLoc(),
-                                                outputCMX.getOperation()->getResult(0), functionOutput, false);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+                                          builder.getUnknownLoc(), functionInput, inputCMX.getOperation()->getResult(0),
+                                          false);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+                                          builder.getUnknownLoc(), weightsDDR.getOperation()->getResult(0),
+                                          weightsCMX.getOperation()->getResult(0), false);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+                                          builder.getUnknownLoc(), weightsTableDDR.getOperation()->getResult(0),
+                                          weightsTableCMX.getOperation()->getResult(0), false);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
+                                          builder.getUnknownLoc(), outputCMX.getOperation()->getResult(0),
+                                          functionOutput, false);
 
     const auto strides = getIntArrayAttr(ctx, conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
@@ -140,7 +140,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
 
-    auto nceTask = vpux::VPURT::WrapIntoTaskOp<vpux::VPUIP::NCEClusterTaskOp>(
+    auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             functionBuilder, barrier0.barrier(), barrier1.barrier(), builder.getUnknownLoc(), inputCMX.memory(),
             weightsCMX.memory(), weightsTableCMX.memory(), nullptr, inputCMX.memory(), outputCMX.memory(),
             outputCMX.memory(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings, nullptr, nullptr);
@@ -148,10 +148,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
     const auto end =
             getIntArrayAttr(ctx, std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
-    const auto pad = vpux::VPUIP::PaddingAttr::get(vpux::getIntAttr(builder, paddings[PAD_NCETASK_LEFT]),
-                                                   vpux::getIntAttr(builder, paddings[PAD_NCETASK_RIGHT]),
-                                                   vpux::getIntAttr(builder, paddings[PAD_NCETASK_TOP]),
-                                                   vpux::getIntAttr(builder, paddings[PAD_NCETASK_BOTTOM]), ctx);
+    const auto pad = VPUIP::PaddingAttr::get(vpux::getIntAttr(builder, paddings[PAD_NCETASK_LEFT]),
+                                             vpux::getIntAttr(builder, paddings[PAD_NCETASK_RIGHT]),
+                                             vpux::getIntAttr(builder, paddings[PAD_NCETASK_TOP]),
+                                             vpux::getIntAttr(builder, paddings[PAD_NCETASK_BOTTOM]), ctx);
 
     nceTask.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
 
@@ -160,8 +160,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(vpux::VPUIP::createSetCompileParamsPass(vpux::VPUIP::ArchKind::MTL,
-                                                       vpux::VPUIP::CompilationMode::DefaultHW, None, log));
+    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::DefaultHW, None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }

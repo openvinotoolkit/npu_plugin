@@ -11,8 +11,10 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
+
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
 
@@ -110,12 +112,13 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
-    const auto nceAttr = VPUIP::PhysicalProcessorAttr::get(&ctx, VPUIP::PhysicalProcessor::NCE_Cluster);
+    const auto nceAttr = VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::NCE);
     auto nceResOp = resOp.getExecutor(nceAttr);
-    VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE_Cluster information");
+    VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE Executor information");
+
     const auto numClusters = nceResOp.count();
 
-    const auto maxNumClustersForArch = vpux::VPUIP::getMaxDPUClusterNum(module);
+    const auto maxNumClustersForArch = VPU::getMaxDPUClusterNum(module);
     VPUX_THROW_UNLESS(maxNumClustersForArch != 0, "Failed to get maxNumClustersForArch");
 
     constexpr auto maxBarriersPerInference = MAX_BARRIERS_FOR_ARCH / 2;  // half barries are used

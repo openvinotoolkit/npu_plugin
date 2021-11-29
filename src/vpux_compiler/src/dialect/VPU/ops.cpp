@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,15 +11,13 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 
-#include <mlir/IR/DialectImplementation.h>
-#include <mlir/IR/Types.h>
+using namespace vpux;
 
 //
 // Generated
 //
 
-#define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/VPUIP/generated/types.hpp.inc>
-#undef GET_TYPEDEF_CLASSES
+#define GET_OP_CLASSES
+#include <vpux/compiler/dialect/VPU/generated/ops.cpp.inc>

@@ -3,9 +3,6 @@
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
 
-// CHECK:       VPUIP.Graph
-// CHECK-SAME:      options : "NONE"
-
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
 // CHECK:           MemoryResource 2048 bytes of "DDR"
@@ -55,9 +52,6 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 
 // CHECK-LABEL: @ConstantLayer
 module @ConstantLayer {
-
-// CHECK:       VPUIP.Graph
-// CHECK-SAME:      options : "NONE"
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
@@ -143,9 +137,6 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
 
 // CHECK-LABEL: @OptimizeUselessSoftMaxFP32
 module @OptimizeUselessSoftMaxFP32 {
-
-// CHECK:       VPUIP.Graph
-// CHECK-SAME:      options : "NONE"
 
 IE.CNNNetwork
     entryPoint : @main

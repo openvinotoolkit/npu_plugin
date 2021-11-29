@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB" --static-allocation="memory-space=DDR" %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --static-allocation="memory-space=DDR" %s | FileCheck %s
 
 // CHECK-LABEL: @LinearGraph
 module @LinearGraph {

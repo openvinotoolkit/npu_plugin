@@ -14,7 +14,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
@@ -36,9 +36,8 @@ class BlobWriter;
 using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
 void getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
 
-mlir::Attribute getDMAEngine(uint32_t& numUnits, mlir::MLIRContext* ctx, VPUIP::DMAEngine engine);
-mlir::Attribute getPhysicalProcessor(uint32_t& numUnits, mlir::Operation* op, VPUIP::PhysicalProcessor proc,
-                                     Optional<int64_t> opUnits = None);
+mlir::Attribute getExecutorAttr(uint32_t& numUnits, mlir::Operation* op, VPU::ExecutorKind kind,
+                                Optional<int64_t> opNumUnits = None);
 
 mlir::Attribute getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits);
 

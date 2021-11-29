@@ -14,7 +14,7 @@
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -62,15 +62,15 @@ void TimestampProfilingPass::safeRunOnModule() {
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    SmallVector<std::pair<IERT::AsyncLayerOpInterface, VPUIP::PhysicalProcessorAttr>> layerTasks;
+    SmallVector<std::pair<IERT::AsyncLayerOpInterface, VPU::ExecutorKindAttr>> layerTasks;
 
     netFunc.walk([&](IERT::AsyncLayerOpInterface curTask) {
         uint32_t curNumUnits = 0;
         const auto curExecutor = curTask.getExecutor(curNumUnits);
 
-        auto physType = curExecutor.dyn_cast<VPUIP::PhysicalProcessorAttr>();
+        auto physType = curExecutor.dyn_cast<VPU::ExecutorKindAttr>();
         if (physType == nullptr) {
-            _log.trace("It is not a PhysicalProcessor Task");
+            _log.trace("It is not a ExecutorKind Task");
             return;
         }
 
@@ -100,8 +100,7 @@ void TimestampProfilingPass::safeRunOnModule() {
         int layerNumber = 0;
         std::string curTaskName = "[";
         curTaskName += curTask->getName().getStringRef().data();
-        if ((physType.getValue() == VPUIP::PhysicalProcessor::NCE_Cluster) ||
-            (physType.getValue() == VPUIP::PhysicalProcessor::NCE_PerClusterDPU)) {
+        if (physType.getValue() == VPU::ExecutorKind::NCE || physType.getValue() == VPU::ExecutorKind::DPU) {
             curTaskName += "_DPU]";
         } else {
             curTaskName += "_NA]";
@@ -129,10 +128,8 @@ void TimestampProfilingPass::safeRunOnModule() {
     // Declare and create additional output from network
     //
     auto funcType = netFunc.getType();
-    auto newResultTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(outputResult)));
-    auto newInputsTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(outputResult)));
+    auto newResultTypes = to_small_vector(concat<const mlir::Type>(funcType.getResults(), makeArrayRef(outputResult)));
+    auto newInputsTypes = to_small_vector(concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(outputResult)));
 
     auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, newResultTypes);
     netFunc.setType(newFunctionType);

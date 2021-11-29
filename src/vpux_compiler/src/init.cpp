@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPU/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -42,6 +43,7 @@ class MemRefElementTypeModel final : public mlir::MemRefElementTypeInterface::Fa
 void vpux::registerDialects(mlir::DialectRegistry& registry) {
     registry.insert<vpux::Const::ConstDialect,  //
                     vpux::IE::IEDialect,        //
+                    vpux::VPU::VPUDialect,      //
                     vpux::IERT::IERTDialect,    //
                     vpux::VPUIP::VPUIPDialect,  //
                     vpux::VPURT::VPURTDialect>();

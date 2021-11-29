@@ -381,13 +381,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
         const auto val = operand.get();
         const auto type = val.getType().cast<mlir::MemRefType>();
 
-        auto mem = getPhysicalMemory(type);
-        if (mlir::failed(mem)) {
-            return errorAt(op, "Unsupported memory space '{0}'", type.getMemorySpace());
-        }
-        if (!((mem.getValue() == PhysicalMemory::CMX_NN) || (mem.getValue() == PhysicalMemory::Register))) {
-            return errorAt(op, "Can't operate with '{0}' PhysicalMemory. Only '{1}' or '{2} PhysicalMemory is allowed",
-                           mem.getValue(), PhysicalMemory::CMX_NN, PhysicalMemory::Register);
+        const auto mem = VPU::getMemoryKind(type);
+        if (mem != VPU::MemoryKind::CMX_NN && mem != VPU::MemoryKind::Register) {
+            return errorAt(op, "Can't operate with '{0}' MemoryKind. Only '{1}' or '{2} MemoryKind is allowed", mem,
+                           VPU::MemoryKind::CMX_NN, VPU::MemoryKind::Register);
         }
 
         const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(type.getRank() - 1)));

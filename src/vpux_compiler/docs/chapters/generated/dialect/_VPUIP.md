@@ -743,27 +743,6 @@ operation ::= `VPUIP.GatherUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
-### `VPUIP.Graph` (vpux::VPUIP::GraphOp)
-
-The root object for the VPUIP Execution Graph
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.Graph` attr-dict
-              `options` `:` $options
-              `version` `:` $version
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`options` | vpux::VPUIP::ExecutionFlagAttr | Each of these enums' presence informs how the current schedule is configured
-`version` | vpux::VPUIP::VersionAttr | DictionaryAttr with field(s): 'majorV', 'minorV', 'patchV', 'hash', 'contextStr' (each field having its own constraints)
-
 ### `VPUIP.HSwishUPA` (vpux::VPUIP::HSwishUPAOp)
 
 HSwish UPA SHAVE kernel

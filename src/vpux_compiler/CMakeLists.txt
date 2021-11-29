@@ -255,6 +255,10 @@ add_struct_attrs("IE")
 add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")
 
+add_dialect("VPU")
+add_enum_attrs("VPU")
+add_passes("dialect/VPU" "VPU")
+
 add_dialect("IERT")
 add_op_interfaces("dialect/IERT")
 add_struct_attrs("IERT")

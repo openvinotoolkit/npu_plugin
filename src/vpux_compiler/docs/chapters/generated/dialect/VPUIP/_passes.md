@@ -10,13 +10,3 @@ This pass applies bitcompactor to tensor binary data. The logic is the following
 This pass fills weights table considering the information about the offset in the memory of the weights or activation window.
 ### `-dump-statistics-of-task-ops`: Dump the statistics of used Task operations
 This pass dumps the statistics of used Task operations and makes a report as warning for operations not converted to DPU.
-### `-set-compile-params`: Set compilation parameters related to VPUIP Dialect
-This pass attaches compilation parameters related to **VPUIP Dialect** to Module attributes and
-initializes **IERT Dialect** run-time resources information.
-
-#### Options
-```
--vpu-arch          : VPU architecture to compile for
--compilation-mode  : Set compilation mode as reference (ReferenceSW) or hardware (ReferenceHW or DefaultHW)
--num-of-dpu-groups : Number of DPU groups
-```

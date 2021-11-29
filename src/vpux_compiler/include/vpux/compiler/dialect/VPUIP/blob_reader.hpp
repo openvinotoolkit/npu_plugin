@@ -14,7 +14,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
@@ -33,7 +33,6 @@ public:
 
 private:
     void buildRunTimeResourcesOp();
-    void buildGraphOp();
     void buildCNNNetworkOp();
     void buildMainFunc();
 
@@ -43,7 +42,7 @@ private:
 
     mlir::MemRefType parseTensorRef(const MVCNN::TensorReference* tensorRef);
     mlir::ArrayAttr parseOrder3(const MVCNN::order3* order3, int32_t ndims = 3);
-    VPUIP::ArchKind parseDeviceRevision();
+    VPU::ArchKind parseDeviceRevision();
     mlir::Type convertType(mlir::MLIRContext* ctx, const MVCNN::DType& precision);
 
     mlir::Value createTensorOp(mlir::OpBuilder& builder, const MVCNN::TensorReference* tensorRef);

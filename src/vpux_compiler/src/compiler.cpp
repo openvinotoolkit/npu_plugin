@@ -19,9 +19,9 @@
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/network_description.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/pipelines.hpp"
@@ -55,19 +55,19 @@ namespace {
 // getArchKind
 //
 
-VPUIP::ArchKind getArchKind(const Config& config) {
+VPU::ArchKind getArchKind(const Config& config) {
     switch (config.get<PLATFORM>()) {
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
-        return VPUIP::ArchKind::UNKNOWN;
+        return VPU::ArchKind::UNKNOWN;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
-        return VPUIP::ArchKind::KMB;
+        return VPU::ArchKind::KMB;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
-        return VPUIP::ArchKind::TBH;
+        return VPU::ArchKind::TBH;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720:
-        return VPUIP::ArchKind::MTL;
+        return VPU::ArchKind::MTL;
     default:
         VPUX_THROW("Unsupported VPUX platform");
     }
@@ -77,12 +77,12 @@ VPUIP::ArchKind getArchKind(const Config& config) {
 // getCompilationMode
 //
 
-VPUIP::CompilationMode getCompilationMode(const Config& config) {
+VPU::CompilationMode getCompilationMode(const Config& config) {
     if (!config.has<COMPILATION_MODE>()) {
-        return VPUIP::CompilationMode::DefaultHW;
+        return VPU::CompilationMode::DefaultHW;
     }
 
-    const auto parsed = VPUIP::symbolizeCompilationMode(config.get<COMPILATION_MODE>());
+    const auto parsed = VPU::symbolizeCompilationMode(config.get<COMPILATION_MODE>());
     VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", config.get<COMPILATION_MODE>());
     return parsed.getValue();
 }
@@ -303,19 +303,19 @@ void buildPipeline(mlir::PassManager& pm, const Config& config, mlir::TimingScop
     const auto enableProfiling = config.get<PERF_COUNT>();
     const auto numOfDPUGroups = getNumberOfDPUGroups(config);
 
-    pm.addPass(createSetCompileParamsPass(archKind, compilationMode, numOfDPUGroups, log.nest()));
+    pm.addPass(VPU::createInitCompilerPass(archKind, compilationMode, numOfDPUGroups, log.nest()));
 
-    if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
+    if (compilationMode == VPU::CompilationMode::ReferenceSW) {
         const auto options = ReferenceSWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
         options->enableProfiling = enableProfiling;
 
         buildReferenceSWModePipeline(pm, *options, log.nest());
-    } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
+    } else if (compilationMode == VPU::CompilationMode::ReferenceHW) {
         const auto options = ReferenceHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
         options->enableProfiling = enableProfiling;
 
         buildReferenceHWModePipeline(pm, *options, log.nest());
-    } else if (compilationMode == VPUIP::CompilationMode::DefaultHW) {
+    } else if (compilationMode == VPU::CompilationMode::DefaultHW) {
         const auto options = DefaultHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
         options->enableProfiling = enableProfiling;
 

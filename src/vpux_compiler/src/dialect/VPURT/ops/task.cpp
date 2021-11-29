@@ -12,7 +12,9 @@
 //
 
 #include "vpux/compiler/dialect/VPURT/task.hpp"
+
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/types.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -65,11 +67,11 @@ mlir::LogicalResult vpux::VPURT::verifyTaskOp(TaskOp task) {
 
 void vpux::VPURT::TaskOp::getEffects(SmallVectorImpl<MemoryEffect>& effects) {
     for (const auto waitBarrier : waitBarriers()) {
-        effects.emplace_back(mlir::MemoryEffects::Read::get(), waitBarrier, VPUIP::BarrierResource::get());
+        effects.emplace_back(mlir::MemoryEffects::Read::get(), waitBarrier, VPURT::BarrierResource::get());
     }
 
     for (const auto updateBarrier : updateBarriers()) {
-        effects.emplace_back(mlir::MemoryEffects::Write::get(), updateBarrier, VPUIP::BarrierResource::get());
+        effects.emplace_back(mlir::MemoryEffects::Write::get(), updateBarrier, VPURT::BarrierResource::get());
     }
 
     for (auto& op : this->op().front()) {

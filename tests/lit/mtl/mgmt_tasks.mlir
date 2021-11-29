@@ -9,42 +9,52 @@
 // RUN: vpux-opt %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
-module @mainModule attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceSW"}  {
-  VPUIP.Graph options : "NONE" version : {contextStr = "VPUX Compiler", hash = "", majorV = 3, minorV = 11, patchV = 0}
-  IERT.RunTimeResources availableMemory :  {
-    MemoryResource 1073741824 bytes
-    MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
-    MemoryResource 2097152 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
-  } usedMemory :  {
-  } executors :  {
-    ExecutorResource 1 of "Leon_RT"
-    ExecutorResource 1 of "Leon_NN"
-    ExecutorResource 1 of "DMA_UPA"
-    ExecutorResource 1 of "SHAVE_NN"
-    ExecutorResource 1 of "NCE_Cluster"  {
-      ExecutorResource 1 of "NCE_PerClusterDPU"
+
+!qElemType = type !quant.uniform<u8:f32, 1.000000e+00>
+
+module @mainModule attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceSW"} {
+
+IERT.RunTimeResources
+    availableMemory : {
+        IERT.MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
+        IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
     }
-    ExecutorResource 2 of "DMA_NN"
-  }
-  func private @"mgmt_task_test!quant.uniform<u8:f32, 1.000000e+00>_!quant.uniform<u8:f32, 1.000000e+00>_f16"(%arg0: memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "ProgrammableInput">, %arg1: memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">) -> memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput"> {
+    usedMemory : {
+    }
+    executors : {
+        IERT.ExecutorResource 1 of "DMA_NN"
+        IERT.ExecutorResource 1 of  "SHAVE_NN"
+        IERT.ExecutorResource 1 of  "SHAVE_ACT"
+        IERT.ExecutorResource 1 of  "NCE" {
+          IERT.ExecutorResource 1 of "DPU"
+        }
+    }
+
+IE.CNNNetwork
+    entryPoint : @mgmt_task_test
+    inputsInfo : {
+        DataInfo "input_0" : tensor<1x16x16x16xui8, {order = #NHWC}>
+    }
+    outputsInfo : {
+        DataInfo "output_0" : tensor<1x16x16x16xf16, {order = #NHWC}>
+    }
+
+func @mgmt_task_test(%arg0: memref<1x16x16x16x!qElemType, #NHWC>, %arg1: memref<1x16x16x16xf16, #NHWC>) -> memref<1x16x16x16xf16, #NHWC> {
     %1 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %2 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
-    VPURT.Task updates(%1 : !VPURT.Barrier) op :  {
+
+    VPURT.Task updates(%1 : !VPURT.Barrier) op : {
       VPUIP.Empty
     }
-    VPURT.Task waits(%1 : !VPURT.Barrier) updates(%2 : !VPURT.Barrier) op :  {
+    VPURT.Task waits(%1 : !VPURT.Barrier) updates(%2 : !VPURT.Barrier) op : {
       VPUIP.Empty
     }
-    VPURT.Task waits(%2 : !VPURT.Barrier) op :  {
+    VPURT.Task waits(%2 : !VPURT.Barrier) op : {
       VPUIP.Empty
     }
-    return %arg1 : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">
-  }
-  IE.CNNNetwork entryPoint : @"mgmt_task_test!quant.uniform<u8:f32, 1.000000e+00>_!quant.uniform<u8:f32, 1.000000e+00>_f16" inputsInfo :  {
-    DataInfo "input_0" : tensor<1x16x16x16xui8, {order = #NHWC}>
-  } outputsInfo :  {
-    DataInfo "output_0" : tensor<1x16x16x16xf16, {order = #NHWC}>
+
+    return %arg1 : memref<1x16x16x16xf16, #NHWC>
   }
 }
 
-// CHECK-LABEL: module @mainModule attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceSW"}
+// CHECK-LABEL: module @mainModule attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceSW"}

@@ -15,10 +15,11 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
+#include "vpux/compiler/dialect/VPUIP/generated/schema/gf_version.h"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
@@ -35,6 +36,7 @@
 #include <mlir/IR/BuiltinTypes.h>
 
 #include <precision_utils.h>
+#include <version.hpp>
 
 #include <unordered_map>
 
@@ -42,51 +44,47 @@ using namespace vpux;
 
 namespace {
 
-flatbuffers::Offset<MVCNN::Version> createVersion(VPUIP::BlobWriter& writer, VPUIP::VersionAttr version) {
-    const auto serializedHash = writer.createString(version.hash().getValue());
-    const auto serializedContext = writer.createString(version.contextStr().getValue());
+flatbuffers::Offset<MVCNN::Version> createVersion(VPUIP::BlobWriter& writer, Logger log) {
+    log.info("Blob version: majorV={0}, minorV={1}, patch={2}, hash={3}, context={4}", MVCNN_VERSION_MAJOR,
+             MVCNN_VERSION_MINOR, MVCNN_VERSION_PATCH, VPUX_PLUGIN_VERSION, "VPUX Compiler");
+
+    const auto serializedHash = writer.createString(VPUX_PLUGIN_VERSION);
+    const auto serializedContext = writer.createString("VPUX Compiler");
 
     MVCNN::VersionBuilder builder(writer);
-    builder.add_majorV(checked_cast<uint32_t>(version.majorV().getInt()));
-    builder.add_minorV(checked_cast<uint32_t>(version.minorV().getInt()));
-    builder.add_patchV(checked_cast<uint32_t>(version.patchV().getInt()));
+    builder.add_majorV(checked_cast<uint32_t>(MVCNN_VERSION_MAJOR));
+    builder.add_minorV(checked_cast<uint32_t>(MVCNN_VERSION_MINOR));
+    builder.add_patchV(checked_cast<uint32_t>(MVCNN_VERSION_PATCH));
     builder.add_hash(serializedHash);
     builder.add_context(serializedContext);
     return builder.Finish();
 }
 
-MVCNN::PhysicalProcessor createPhysicalProcessor(VPUIP::PhysicalProcessor proc) {
-    switch (proc) {
-    case VPUIP::PhysicalProcessor::ARM:
-        return MVCNN::PhysicalProcessor_ARM;
-    case VPUIP::PhysicalProcessor::Leon_RT:
-        return MVCNN::PhysicalProcessor_LEON_RT;
-    case VPUIP::PhysicalProcessor::Leon_NN:
-        return MVCNN::PhysicalProcessor_LEON_NN;
-    case VPUIP::PhysicalProcessor::SHAVE_UPA:
+MVCNN::PhysicalProcessor createPhysicalProcessor(VPU::ExecutorKind execKind) {
+    switch (execKind) {
+    case VPU::ExecutorKind::SHAVE_UPA:
         return MVCNN::PhysicalProcessor_UPA_SHV;
-    case VPUIP::PhysicalProcessor::SHAVE_NN:
+    case VPU::ExecutorKind::SHAVE_NN:
         return MVCNN::PhysicalProcessor_NN_SHV;
-    case VPUIP::PhysicalProcessor::NCE_Cluster:
+    case VPU::ExecutorKind::NCE:
         return MVCNN::PhysicalProcessor_NCE_Cluster;
-    case VPUIP::PhysicalProcessor::NCE_PerClusterDPU:
+    case VPU::ExecutorKind::DPU:
         return MVCNN::PhysicalProcessor_NCE_PerClusterDPU;
     default:
-        VPUX_THROW("Unsupported PhysicalProcessor '{0}'", proc);
+        VPUX_THROW("Unsupported ExecutorKind '{0}'", execKind);
     }
 }
 
-void setActivityFactor(VPUIP::PhysicalProcessor processor, MVCNN::ProcessorMappingBuilder& builder,
-                       mlir::ModuleOp module) {
+void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilder& builder, mlir::ModuleOp module) {
     // TODO: calc this value during compilation
     static const float activityFactor = 90.0;
-    const auto arch = VPUIP::getArch(module);
-    if (arch == VPUIP::ArchKind::KMB || arch == VPUIP::ArchKind::TBH) {
-        if (processor == VPUIP::PhysicalProcessor::NCE_Cluster || processor == VPUIP::PhysicalProcessor::SHAVE_UPA) {
+    const auto arch = VPU::getArch(module);
+    if (arch == VPU::ArchKind::KMB || arch == VPU::ArchKind::TBH) {
+        if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_UPA) {
             builder.add_activity_factor(activityFactor);
         }
-    } else if (arch == VPUIP::ArchKind::MTL) {
-        if (processor == VPUIP::PhysicalProcessor::NCE_Cluster || processor == VPUIP::PhysicalProcessor::SHAVE_NN) {
+    } else if (arch == VPU::ArchKind::MTL) {
+        if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_NN) {
             builder.add_activity_factor(activityFactor);
         }
     }
@@ -95,51 +93,51 @@ void setActivityFactor(VPUIP::PhysicalProcessor processor, MVCNN::ProcessorMappi
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
                                                                     IERT::ExecutorResourceOp res,
                                                                     mlir::ModuleOp module) {
-    const auto kind = res.kind().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
-    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", res.kind());
+    const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
+    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
 
-    const auto processor = kind.getValue();
+    const auto execKind = execKindAttr.getValue();
     MVCNN::ProcessorMappingBuilder builder(writer);
-    builder.add_item(createPhysicalProcessor(processor));
+    builder.add_item(createPhysicalProcessor(execKind));
     builder.add_number(checked_cast<double>(res.count()));
     builder.add_is_bitmask(false);
-    setActivityFactor(processor, builder, module);
+    setActivityFactor(execKind, builder, module);
     return builder.Finish();
 }
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorFreqMapping(VPUIP::BlobWriter& writer,
                                                                         IERT::ExecutorResourceOp res) {
-    const auto kind = res.kind().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
-    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", res.kind());
+    const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
+    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
 
     MVCNN::ProcessorMappingBuilder builder(writer);
-    builder.add_item(createPhysicalProcessor(kind.getValue()));
+    builder.add_item(createPhysicalProcessor(execKindAttr.getValue()));
     builder.add_number(VPUIP::getProcessorFrequency(res));
     builder.add_is_bitmask(false);
     return builder.Finish();
 }
 
-MVCNN::PhysicalMem createPhysicalMem(VPUIP::PhysicalMemory mem) {
+MVCNN::PhysicalMem createPhysicalMem(VPU::MemoryKind mem) {
     switch (mem) {
-    case VPUIP::PhysicalMemory::DDR:
+    case VPU::MemoryKind::DDR:
         return MVCNN::PhysicalMem_DDR;
-    case VPUIP::PhysicalMemory::CSRAM:
+    case VPU::MemoryKind::CSRAM:
         return MVCNN::PhysicalMem_CSRAM;
-    case VPUIP::PhysicalMemory::CMX_UPA:
+    case VPU::MemoryKind::CMX_UPA:
         return MVCNN::PhysicalMem_UPA_CMX;
-    case VPUIP::PhysicalMemory::CMX_NN:
+    case VPU::MemoryKind::CMX_NN:
         return MVCNN::PhysicalMem_NN_CMX;
     default:
-        VPUX_THROW("Unsupported PhysicalMemory '{0}'", mem);
+        VPUX_THROW("Unsupported MemoryKind '{0}'", mem);
     }
 }
 
 flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer, IERT::MemoryResourceOp res) {
-    const auto kind = res.kindAttr().dyn_cast_or_null<VPUIP::PhysicalMemoryAttr>();
-    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown memory space kind '{0}'", res.kindAttr());
+    const auto memKindAttr = res.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
+    VPUX_THROW_UNLESS(memKindAttr != nullptr, "Got unknown memory space kind '{0}'", res.kindAttr());
 
     MVCNN::MemoryMappingBuilder builder(writer);
-    builder.add_item(createPhysicalMem(kind.getValue()));
+    builder.add_item(createPhysicalMem(memKindAttr.getValue()));
     builder.add_number(checked_cast<double>(res.byteSize()));
     return builder.Finish();
 }
@@ -149,9 +147,9 @@ flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createBandwidthMapping(VPU
                                                                              IERT::MemoryResourceOp dst,
                                                                              double bandwidth) {
     MVCNN::MemoryRelationshipMappingBuilder builder(writer);
-    const auto srcKind = src.kindAttr().dyn_cast_or_null<VPUIP::PhysicalMemoryAttr>();
+    const auto srcKind = src.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
     VPUX_THROW_UNLESS(srcKind != nullptr, "Got unknown memory space kind '{0}'", src.kindAttr());
-    const auto dstKind = dst.kindAttr().dyn_cast_or_null<VPUIP::PhysicalMemoryAttr>();
+    const auto dstKind = dst.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
     VPUX_THROW_UNLESS(dstKind != nullptr, "Got unknown memory space kind '{0}'", dst.kindAttr());
     builder.add_from_item(createPhysicalMem(srcKind.getValue()));
     builder.add_to_item(createPhysicalMem(dstKind.getValue()));
@@ -160,6 +158,13 @@ flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createBandwidthMapping(VPU
 }
 
 flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer, mlir::ModuleOp module) {
+    const EnumSet<VPU::ExecutorKind> supportedProcessors{
+            VPU::ExecutorKind::SHAVE_UPA,  //
+            VPU::ExecutorKind::SHAVE_NN,   //
+            VPU::ExecutorKind::NCE,        //
+            VPU::ExecutorKind::DPU         //
+    };
+
     auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
     VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources information");
 
@@ -171,10 +176,12 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
     resources.walk([&](IERT::ExecutorResourceOp res) {
-        if (res.kind().isa<VPUIP::PhysicalProcessorAttr>()) {
-            executorsOffsets.push_back(createProcessorMapping(writer, res, module));
-            if (res->hasAttr(VPUIP::getProcessorFrequencyAttrName())) {
-                processorVec.push_back(createProcessorFreqMapping(writer, res));
+        if (const auto execKind = res.kind().dyn_cast<VPU::ExecutorKindAttr>()) {
+            if (supportedProcessors.count(execKind.getValue()) != 0) {
+                executorsOffsets.push_back(createProcessorMapping(writer, res, module));
+                if (res->hasAttr(VPU::getProcessorFrequencyAttrName())) {
+                    processorVec.push_back(createProcessorFreqMapping(writer, res));
+                }
             }
         }
     });
@@ -184,7 +191,7 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     SmallVector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>> memoryVec;
     SmallVector<IERT::MemoryResourceOp> memoryTypes;
     resources.walk([&](IERT::MemoryResourceOp src) {
-        if (src->hasAttr(VPUIP::getBandwidthAttrName())) {
+        if (src->hasAttr(VPU::getMemoryBandwidthAttrName())) {
             memoryTypes.push_back(src);
         }
     });
@@ -258,24 +265,24 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     return builder.Finish();
 }
 
-MVCNN::TargetDevice mapTargetDevice(const VPUIP::ArchKind kind) {
+MVCNN::TargetDevice mapTargetDevice(VPU::ArchKind kind) {
     switch (kind) {
-    case VPUIP::ArchKind::KMB:
+    case VPU::ArchKind::KMB:
         return MVCNN::TargetDevice::TargetDevice_KMB;
-    case VPUIP::ArchKind::TBH:
+    case VPU::ArchKind::TBH:
         return MVCNN::TargetDevice::TargetDevice_TBH;
-    case VPUIP::ArchKind::MTL:
+    case VPU::ArchKind::MTL:
         return MVCNN::TargetDevice::TargetDevice_MTL;
-    case VPUIP::ArchKind::LNL:
+    case VPU::ArchKind::LNL:
         return MVCNN::TargetDevice::TargetDevice_LNL;
     default:
         VPUX_THROW("Unsupported architecture '{0}'", kind);
     }
 }
 
-MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const VPUIP::ArchKind kind) {
+MVCNN::TargetDeviceRevision mapTargetDeviceRevision(VPU::ArchKind kind) {
     switch (kind) {
-    case VPUIP::ArchKind::KMB:
+    case VPU::ArchKind::KMB:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
     default:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
@@ -283,8 +290,8 @@ MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const VPUIP::ArchKind kind) 
 }
 
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
-                                                              VPUIP::GraphOp graphOp, IE::CNNNetworkOp netOp,
-                                                              mlir::FuncOp netFunc, mlir::TimingScope& rootTiming,
+                                                              IE::CNNNetworkOp netOp, mlir::FuncOp netFunc,
+                                                              bool withDynamicBarriers, mlir::TimingScope& rootTiming,
                                                               Logger log) {
     auto scopeTiming = rootTiming.nest("Create summary header");
 
@@ -348,12 +355,12 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     }
 
     SmallVector<int8_t> options;
-    if (VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers)) {
+    if (withDynamicBarriers) {
         options.push_back(static_cast<int8_t>(MVCNN::ExecutionFlag_DynamicBarriers));
     }
     const auto serializedOptions = writer.createVector(options);
 
-    const auto serializedVersion = createVersion(writer, graphOp.version());
+    const auto serializedVersion = createVersion(writer, log);
     const auto serializedName = writer.createString(module.getName().getValueOr("network"));
     const auto serializedGraphInputs = writer.createVector(graphInputs);
     const auto serializedUserInputs = writer.createVector(userInputs);
@@ -374,8 +381,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     builder.add_resources(serializedResources);
     builder.add_in_tensor_desc(serializedUserInputs);
     builder.add_out_tensor_desc(serializedUserOutputs);
-    builder.add_device(mapTargetDevice(VPUIP::getArch(module)));
-    builder.add_device_revision(mapTargetDeviceRevision(VPUIP::getArch(module)));
+    builder.add_device(mapTargetDevice(VPU::getArch(module)));
+    builder.add_device_revision(mapTargetDeviceRevision(VPU::getArch(module)));
     builder.add_act_kernel_runtime(serializedActKernelsRuntime);
     return builder.Finish();
 }
@@ -446,7 +453,7 @@ SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter
 }
 
 SmallVector<VPUIP::BlobWriter::Barrier> serializeVirtBarriers(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc,
-                                                              VPUIP::GraphOp graphOp, mlir::TimingScope& rootTiming,
+                                                              bool withDynamicBarriers, mlir::TimingScope& rootTiming,
                                                               Logger log) {
     auto scopeTiming = rootTiming.nest("Serialize virtual barriers");
 
@@ -455,8 +462,7 @@ SmallVector<VPUIP::BlobWriter::Barrier> serializeVirtBarriers(VPUIP::BlobWriter&
     netFunc.walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
         log.trace("Got virtual varrier at '{0}'", barrierOp->getLoc());
 
-        VPUX_THROW_UNLESS(VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers),
-                          "Graph was not configured for virtual barriers usage");
+        VPUX_THROW_UNLESS(withDynamicBarriers, "Compiler was not configured for virtual barriers usage");
 
         const auto virtBarrier = writer.createBarrier(barrierOp.barrier());
         virtBarriers.push_back(virtBarrier);
@@ -534,16 +540,15 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    log.trace("Extract 'VPUIP.{0}' from Module", VPUIP::GraphOp::getOperationName());
-    auto graphOp = VPUIP::GraphOp::getFromModule(module);
-
     VPUIP::BlobWriter writer(log.nest());
 
-    const auto header = createSummaryHeader(writer, module, graphOp, netOp, netFunc, rootTiming, log);
+    const auto withDynamicBarriers = !netFunc.getOps<VPURT::DeclareVirtualBarrierOp>().empty();
+
+    const auto header = createSummaryHeader(writer, module, netOp, netFunc, withDynamicBarriers, rootTiming, log);
 
     serializeTensorDecls(writer, netFunc, rootTiming);
     const auto binaryData = serializeBinaryData(writer, netFunc, rootTiming, log);
-    const auto virtBarriers = serializeVirtBarriers(writer, netFunc, graphOp, rootTiming, log);
+    const auto virtBarriers = serializeVirtBarriers(writer, netFunc, withDynamicBarriers, rootTiming, log);
     const auto taskLists = serializeTaskLists(writer, netFunc, rootTiming, log);
     const auto kernelData = serializeKernelData(writer, netFunc, rootTiming, log);
     const auto graphFile = createGraphFile(writer, header, taskLists, binaryData, kernelData, virtBarriers, rootTiming);

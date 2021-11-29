@@ -15,7 +15,7 @@
 
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
@@ -59,7 +59,7 @@ public:
             return true;
         }
 
-        if (VPUIP::getCompilationMode(postOp) == VPUIP::CompilationMode::ReferenceSW) {
+        if (VPU::getCompilationMode(postOp) == VPU::CompilationMode::ReferenceSW) {
             return false;
         }
 
@@ -108,7 +108,7 @@ public:
 
 private:
     static bool canBeExecutedOnNCE(mlir::Operation* op) {
-        if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
+        if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
             // We are in reference SW compilation mode
             return false;
         }
@@ -211,7 +211,7 @@ public:
 
 private:
     static bool isSupportedByNCE(MainOpType op, Logger log) {
-        if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
+        if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
             return false;
         }
 
@@ -250,7 +250,7 @@ public:
 
 private:
     static bool isSupportedByNCE(MainOpType op, Logger log) {
-        if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
+        if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
             return false;
         }
 
@@ -292,7 +292,7 @@ public:
 
 private:
     static bool canBeExecutedOnNCE(mlir::Operation* op) {
-        if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
+        if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
             // We are in reference SW compilation mode
             return false;
         }
@@ -315,11 +315,11 @@ private:
 //
 
 mlir::Attribute getExecutorForSW(mlir::Operation* origOp, uint32_t& numUnits) {
-    return VPUIP::getPhysicalProcessor(numUnits, origOp, VPUIP::PhysicalProcessor::SHAVE_UPA);
+    return VPUIP::getExecutorAttr(numUnits, origOp, VPU::ExecutorKind::SHAVE_UPA);
 }
 
 mlir::Attribute getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits) {
-    if (VPUIP::getCompilationMode(origOp) == VPUIP::CompilationMode::ReferenceSW) {
+    if (VPU::getCompilationMode(origOp) == VPU::CompilationMode::ReferenceSW) {
         return getExecutorForSW(origOp, numUnits);
     }
 
@@ -327,7 +327,7 @@ mlir::Attribute getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits) {
         return getExecutorForSW(origOp, numUnits);
     }
 
-    return VPUIP::getPhysicalProcessor(numUnits, origOp, VPUIP::PhysicalProcessor::NCE_Cluster, 1);
+    return VPUIP::getExecutorAttr(numUnits, origOp, VPU::ExecutorKind::NCE, 1);
 }
 
 class AsyncLayerOpModelForHW final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForHW> {
@@ -340,7 +340,7 @@ public:
 class AsyncLayerOpModelForDMA final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForDMA> {
 public:
     mlir::Attribute getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
-        return VPUIP::getDMAEngine(numUnits, origOp->getContext(), VPUIP::DMAEngine::DMA_NN);
+        return VPUIP::getExecutorAttr(numUnits, origOp, VPU::ExecutorKind::DMA_NN);
     }
 };
 

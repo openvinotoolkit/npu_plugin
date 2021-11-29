@@ -14,7 +14,6 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 
@@ -32,11 +31,6 @@ namespace VPUIP {
 //
 // Passes
 //
-
-std::unique_ptr<mlir::Pass> createSetCompileParamsPass();
-std::unique_ptr<mlir::Pass> createSetCompileParamsPass(ArchKind arch, CompilationMode compilationMode,
-                                                       Optional<int> numOfDPUGroups = None,
-                                                       Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createConvertWeightsTableOp2ConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDumpStatisticsOfTaskOpsPass(Logger log = Logger::global());

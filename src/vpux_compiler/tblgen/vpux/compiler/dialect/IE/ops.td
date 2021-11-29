@@ -50,7 +50,6 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
                 DeclareOpInterfaceMethods<IE_LayerOpInterface>
             ] # traits
         > {
-
     list<string> elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     bit checkInferredDimsOrder = 0;
     bit checkInferredMemSpace = 0;

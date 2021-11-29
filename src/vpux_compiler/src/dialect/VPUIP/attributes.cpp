@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,14 +11,17 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
-
-#include <mlir/IR/BuiltinAttributes.h>
+#include <llvm/ADT/StringExtras.h>
+#include <mlir/IR/Builders.h>
+#include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/Identifier.h>
+#include <mlir/IR/Types.h>
 
 //
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPUIP/generated/attributes/structs.hpp.inc>
+#include <vpux/compiler/dialect/VPUIP/generated/attributes/enums.cpp.inc>
+#include <vpux/compiler/dialect/VPUIP/generated/attributes/structs.cpp.inc>

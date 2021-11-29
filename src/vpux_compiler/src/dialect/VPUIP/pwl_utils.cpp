@@ -13,8 +13,9 @@
 
 #include "vpux/compiler/dialect/VPUIP/pwl_utils.hpp"
 
-namespace vpux {
-namespace VPUIP {
+#include "vpux/utils/core/error.hpp"
+
+using namespace vpux;
 
 /* The PWL table is currently only used for U8 computation.
  * When PWL is enabled, the hardware compute pipeline looks as follows:
@@ -46,16 +47,15 @@ namespace VPUIP {
  * hardcoded PWL values for the Sigmoid and Tanh operations; they have been observed to
  * lead to the best average accuracy.
  */
-const std::unordered_map<VPUIP::PPELayerType, PwlQuantReqs> pwlQuantReqs = {
-        {VPUIP::PPELayerType::SIGMOID, {{-4.0, 4.0, 1.0 / 1015.6875, 0, 4}, {0.0, 1.0, 1.0 / 249.0, 3, 0}}},
-        {VPUIP::PPELayerType::TANH, {{-4.0, 4.0, 1.0 / 903.5, 128, 5}, {-1.0, 1.0, 1.0 / 127.0, 128, 0}}}};
 
-PwlQuantReqs getPwlQuantReqs(const VPUIP::PPELayerType ppeType) {
+const EnumMap<VPUIP::PPELayerType, VPUIP::PwlQuantReqs> vpux::VPUIP::pwlQuantReqs = {
+        {VPUIP::PPELayerType::SIGMOID, {{-4.0, 4.0, 1.0 / 1015.6875, 0, 4}, {0.0, 1.0, 1.0 / 249.0, 3, 0}}},  //
+        {VPUIP::PPELayerType::TANH, {{-4.0, 4.0, 1.0 / 903.5, 128, 5}, {-1.0, 1.0, 1.0 / 127.0, 128, 0}}}     //
+};
+
+VPUIP::PwlQuantReqs vpux::VPUIP::getPwlQuantReqs(const VPUIP::PPELayerType ppeType) {
     const auto quantReqs = pwlQuantReqs.find(ppeType);
-    VPUX_THROW_UNLESS(quantReqs != VPUIP::pwlQuantReqs.cend(), "Missing quantization requirements for PWL post-op {0}",
+    VPUX_THROW_UNLESS(quantReqs != pwlQuantReqs.cend(), "Missing quantization requirements for PWL post-op {0}",
                       ppeType);
     return quantReqs->second;
 }
-
-}  // namespace VPUIP
-}  // namespace vpux

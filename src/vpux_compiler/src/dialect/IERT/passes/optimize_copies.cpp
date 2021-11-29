@@ -14,7 +14,7 @@
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
@@ -53,18 +53,16 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
     auto parentCopyOp = copyOp.input().getDefiningOp<IERT::CopyOp>();
     if (parentCopyOp == nullptr) {
         // Check current CopyOp source and destination
-        const auto srcMemory = VPUIP::getPhysicalMemory(copyOp.input().getType().cast<mlir::MemRefType>());
-        const auto dstMemory = VPUIP::getPhysicalMemory(copyOp.output().getType().cast<mlir::MemRefType>());
-        // If failed to obtain return
-        if (mlir::failed(srcMemory) || mlir::failed(dstMemory)) {
-            return mlir::failure();
-        }
+        const auto srcMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
+        const auto dstMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
+
         // Remove redundant CMX2CMX CopyOps
-        if (srcMemory == dstMemory && srcMemory.getValue() == VPUIP::PhysicalMemory::CMX_NN) {
+        if (srcMemory == dstMemory && srcMemory == VPU::MemoryKind::CMX_NN) {
             copyOp.output().replaceAllUsesWith(copyOp.input());
             rewriter.eraseOp(copyOp);
             return mlir::success();
         }
+
         return mlir::failure();
     }
 

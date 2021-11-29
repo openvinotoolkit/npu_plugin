@@ -1,4 +1,4 @@
-// RUN: vpux-opt --set-compile-params="vpu-arch=KMB" --adjust-precision %s | FileCheck %s
+// RUN: vpux-opt --init-compiler="vpu-arch=KMB" --adjust-precision %s | FileCheck %s
 
 module @Test {
 

@@ -15,7 +15,6 @@
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -34,38 +33,33 @@ void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffe
     if (auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op)) {
         for (const auto input : layer.getInputs()) {
             auto inputType = input.getType().cast<mlir::MemRefType>();
-            auto resource = getMemoryResource(inputType);
-            effects.emplace_back(mlir::MemoryEffects::Read::get(), input, resource.getValue());
+            auto* resource = VPU::getMemoryResource(inputType);
+            effects.emplace_back(mlir::MemoryEffects::Read::get(), input, resource);
         }
 
         for (const auto output : layer.getOutputs()) {
             auto outputType = output.getType().cast<mlir::MemRefType>();
-            auto resource = getMemoryResource(outputType);
-            effects.emplace_back(mlir::MemoryEffects::Write::get(), output, resource.getValue());
+            auto* resource = VPU::getMemoryResource(outputType);
+            effects.emplace_back(mlir::MemoryEffects::Write::get(), output, resource);
         }
     }
 }
 
-mlir::Attribute vpux::VPUIP::getDMAEngine(uint32_t& numUnits, mlir::MLIRContext* ctx, VPUIP::DMAEngine engine) {
-    numUnits = 1;
-    return VPUIP::DMAEngineAttr::get(ctx, engine);
-}
+mlir::Attribute vpux::VPUIP::getExecutorAttr(uint32_t& numUnits, mlir::Operation* op, VPU::ExecutorKind kind,
+                                             Optional<int64_t> opNumUnits) {
+    const auto kindAttr = VPU::ExecutorKindAttr::get(op->getContext(), kind);
 
-mlir::Attribute vpux::VPUIP::getPhysicalProcessor(uint32_t& numUnits, mlir::Operation* op,
-                                                  VPUIP::PhysicalProcessor proc, Optional<int64_t> opUnits) {
-    const auto procAttr = VPUIP::PhysicalProcessorAttr::get(op->getContext(), proc);
-
-    if (opUnits.hasValue()) {
-        numUnits = checked_cast<uint32_t>(opUnits.getValue());
+    if (opNumUnits.hasValue()) {
+        numUnits = checked_cast<uint32_t>(opNumUnits.getValue());
     } else {
         auto module = op->getParentOfType<mlir::ModuleOp>();
         auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
-        auto available = resources.getExecutor(procAttr);
-        VPUX_THROW_UNLESS(available != nullptr, "Executor for '{0}' is not available", procAttr);
+        auto available = resources.getExecutor(kindAttr);
+        VPUX_THROW_UNLESS(available != nullptr, "Executor for '{0}' is not available", kind);
         numUnits = checked_cast<uint32_t>(available.count());
     }
 
-    return procAttr;
+    return kindAttr;
 }
 
 mlir::Attribute vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits) {
@@ -74,16 +68,16 @@ mlir::Attribute vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op, uint32_t& nu
 
     switch (taskType) {
     case VPUIP::TaskType::UPADMA:
-        return VPUIP::getDMAEngine(numUnits, op->getContext(), VPUIP::DMAEngine::DMA_UPA);
+        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::DMA_UPA, 1);
     case VPUIP::TaskType::NNDMA:
-        return VPUIP::getDMAEngine(numUnits, op->getContext(), VPUIP::DMAEngine::DMA_NN);
+        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::DMA_NN, 1);
     case VPUIP::TaskType::NCE2:
-        return VPUIP::getPhysicalProcessor(numUnits, op, VPUIP::PhysicalProcessor::NCE_Cluster, 1);
+        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::NCE, 1);
     case VPUIP::TaskType::ACTShave:
-        return VPUIP::getPhysicalProcessor(numUnits, op, VPUIP::PhysicalProcessor::SHAVE_NN, 1);
+        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::SHAVE_NN, 1);
     case VPUIP::TaskType::UPA: {
         auto upaTask = mlir::cast<VPUIP::UPATaskOpInterface>(op);
-        return VPUIP::getPhysicalProcessor(numUnits, op, VPUIP::PhysicalProcessor::SHAVE_UPA, upaTask.maxShaves());
+        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::SHAVE_UPA, upaTask.maxShaves());
     }
     default:
         VPUX_THROW("Unsupported task type '{0}'", taskType);
@@ -111,20 +105,16 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
     }
 
     for (auto& operand : layer.getOpOperands()) {
-        auto opVal = operand.get();
-        auto type = opVal.getType().cast<mlir::MemRefType>();
-        auto mem = getPhysicalMemory(type);
+        const auto opVal = operand.get();
+        const auto type = opVal.getType().cast<mlir::MemRefType>();
+        const auto mem = VPU::getMemoryKind(type);
 
         if (type.getRank() == 0) {
             return errorAt(op, "SCALARS are not supported");
         }
 
-        if (mlir::failed(mem)) {
-            return errorAt(op, "Unsupported memory space '{0}'", type.getMemorySpace());
-        }
-
-        if (mem.getValue() == PhysicalMemory::CMX_NN) {
-            return errorAt(op, "Can't operate with '{0}' PhysicalMemory", mem.getValue());
+        if (mem == VPU::MemoryKind::CMX_NN) {
+            return errorAt(op, "Can't operate with '{0}' memory", mem);
         }
 
         const auto strideReqs = StrideReqs::simple(type.getRank());
@@ -140,8 +130,8 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
             return errorAt(op, "Missing IERT run-time resources definition");
         }
 
-        auto available = resources.getExecutor(
-                VPUIP::PhysicalProcessorAttr::get(op->getContext(), VPUIP::PhysicalProcessor::SHAVE_UPA));
+        auto available =
+                resources.getExecutor(VPU::ExecutorKindAttr::get(op->getContext(), VPU::ExecutorKind::SHAVE_UPA));
         if (available == nullptr) {
             return errorAt(op, "SHAVE_UPA executor is not avaialble in run-time");
         }

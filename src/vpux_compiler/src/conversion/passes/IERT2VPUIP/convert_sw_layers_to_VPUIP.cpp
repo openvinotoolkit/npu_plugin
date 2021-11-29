@@ -12,7 +12,6 @@
 //
 
 #include "vpux/compiler/conversion.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/small_string.hpp"
@@ -24,7 +23,7 @@ namespace {
 mlir::memref::AllocOp createCMXTensor(mlir::Value source, mlir::PatternRewriter& rewriter) {
     auto type = source.getType().cast<mlir::MemRefType>();
 
-    const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(rewriter.getContext(), VPUIP::PhysicalMemory::CMX_NN);
+    const auto cmxMemSpaceAttr = VPU::MemoryKindAttr::get(rewriter.getContext(), VPU::MemoryKind::CMX_NN);
     const auto dataTypeCMX = changeMemSpace(eraseTiledInfo(type), cmxMemSpaceAttr);
 
     // TODO : how tile index should be used?
@@ -222,8 +221,8 @@ private:
 void ConvertSWLayers2VPUIPPass::safeRunOnModule() {
     auto& ctx = getContext();
     auto module = getOperation();
-    const auto arch = VPUIP::getArch(module);
-    if (arch != VPUIP::ArchKind::MTL) {
+    const auto arch = VPU::getArch(module);
+    if (arch != VPU::ArchKind::MTL) {
         _log.trace("ConvertSWLayers2VPUIPPass enabled only for MTL device. Got: {0}", arch);
         return;
     }

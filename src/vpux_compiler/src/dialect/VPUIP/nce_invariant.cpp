@@ -12,15 +12,16 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <llvm/ADT/TypeSwitch.h>
 #include <mlir/IR/Operation.h>
 
+#include <llvm/ADT/TypeSwitch.h>
+
 using namespace vpux;
-using namespace VPUIP;
 
 //
 // verifyConvChannels
@@ -240,10 +241,10 @@ namespace {
 Byte getCMXSize(mlir::ModuleOp module) {
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
-    const auto cmxAttr = VPUIP::PhysicalMemoryAttr::get(module->getContext(), VPUIP::PhysicalMemory::CMX_NN);
+    const auto cmxAttr = VPU::MemoryKindAttr::get(module->getContext(), VPU::MemoryKind::CMX_NN);
 
     auto cmxRes = resOp.getAvailableMemory(cmxAttr);
-    VPUX_THROW_UNLESS(cmxRes != nullptr, "Can't get information about {0} memory", VPUIP::PhysicalMemory::CMX_NN);
+    VPUX_THROW_UNLESS(cmxRes != nullptr, "Can't get information about {0} memory", VPU::MemoryKind::CMX_NN);
 
     return cmxRes.size();
 }
@@ -255,7 +256,7 @@ Byte getRequiredCMX(ArrayRef<mlir::ShapedType> operands, int64_t numChannels) {
         requiredCMX += getTotalSize(operand);
     }
 
-    requiredCMX += numChannels * NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;
+    requiredCMX += numChannels * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;
 
     return requiredCMX;
 }

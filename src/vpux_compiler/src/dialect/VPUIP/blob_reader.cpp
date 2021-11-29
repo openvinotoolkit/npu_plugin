@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/frontend/VPUIP.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -182,7 +183,7 @@ void vpux::VPUIP::BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog
 
 namespace {
 
-VPUIP::PhysicalMemory convertMemoryLocation(MVCNN::MemoryLocation grLocation) {
+VPU::MemoryKind convertMemoryLocation(MVCNN::MemoryLocation grLocation) {
     VPUIP::MemoryLocation location;
     switch (grLocation) {
     case MVCNN::MemoryLocation_ProgrammableInput:
@@ -219,7 +220,7 @@ VPUIP::PhysicalMemory convertMemoryLocation(MVCNN::MemoryLocation grLocation) {
         VPUX_THROW("Unsupported MemoryLocation value '{0}'", grLocation);
     }
 
-    return VPUIP::getPhysicalMemory(location);
+    return VPUIP::getMemoryKind(location);
 }
 
 }  // namespace
@@ -245,7 +246,7 @@ mlir::MemRefType vpux::VPUIP::BlobReader::parseTensorRef(const MVCNN::TensorRefe
     const auto order = DimsOrder::fromCode(tensorRef->order());
     const auto memKind = convertMemoryLocation(tensorRef->locale());
 
-    return getMemRefType(ShapeRef(shape), elemType, order, strides, VPUIP::PhysicalMemoryAttr::get(_ctx, memKind));
+    return getMemRefType(ShapeRef(shape), elemType, order, strides, VPU::MemoryKindAttr::get(_ctx, memKind));
 }
 
 mlir::ArrayAttr vpux::VPUIP::BlobReader::parseOrder3(const MVCNN::order3* order, int32_t ndims) {
@@ -263,24 +264,24 @@ mlir::ArrayAttr vpux::VPUIP::BlobReader::parseOrder3(const MVCNN::order3* order,
     return getIntArrayAttr(_ctx, coords);
 }
 
-VPUIP::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision() {
+VPU::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision() {
     const auto* header = _graphFile->header();
     switch (header->device()) {
     case MVCNN::TargetDevice_NONE:
-        return VPUIP::ArchKind::UNKNOWN;
+        return VPU::ArchKind::UNKNOWN;
     case MVCNN::TargetDevice_KMB:
         switch (header->device_revision()) {
         case MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0:
-            return VPUIP::ArchKind::KMB;
+            return VPU::ArchKind::KMB;
         default:
             VPUX_THROW("Unsupported KMB Revision '{0}'", header->device_revision());
         }
     case MVCNN::TargetDevice_TBH:
-        return VPUIP::ArchKind::TBH;
+        return VPU::ArchKind::TBH;
     case MVCNN::TargetDevice::TargetDevice_MTL:
-        return VPUIP::ArchKind::MTL;
+        return VPU::ArchKind::MTL;
     case MVCNN::TargetDevice::TargetDevice_LNL:
-        return VPUIP::ArchKind::LNL;
+        return VPU::ArchKind::LNL;
     default:
         VPUX_THROW("Unsupported TargetDevice '{0}'", header->device());
     }
@@ -380,7 +381,8 @@ mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, co
 
 void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {
     const auto arch = parseDeviceRevision();
-    setArch(_module, arch);
+    VPU::setArch(_module, arch);
+
     auto resourcesOp = IERT::RunTimeResourcesOp::getFromModule(_module);
 
     const auto* header = _graphFile->header();
@@ -392,11 +394,11 @@ void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {
             const auto* entry = memSizes->Get(i);
             switch (entry->item()) {
             case MVCNN::PhysicalMem_NN_CMX:
-                resourcesOp.setUsedMemory(VPUIP::PhysicalMemoryAttr::get(_ctx, VPUIP::PhysicalMemory::CMX_NN),
+                resourcesOp.setUsedMemory(VPU::MemoryKindAttr::get(_ctx, VPU::MemoryKind::CMX_NN),
                                           Byte(static_cast<int64_t>(entry->number())));
                 break;
             case MVCNN::PhysicalMem_DDR:
-                resourcesOp.setUsedMemory(VPUIP::PhysicalMemoryAttr::get(_ctx, VPUIP::PhysicalMemory::DDR),
+                resourcesOp.setUsedMemory(VPU::MemoryKindAttr::get(_ctx, VPU::MemoryKind::DDR),
                                           Byte(static_cast<int64_t>(entry->number())));
                 break;
             default:
@@ -404,30 +406,6 @@ void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {
             }
         }
     }
-}
-
-void vpux::VPUIP::BlobReader::buildGraphOp() {
-    OpBuilderLogger builderLog(_log.nest());
-    auto builder = mlir::OpBuilder::atBlockEnd(_module.getBody(), &builderLog);
-
-    auto execFlag = VPUIP::ExecutionFlag::NONE;
-    const auto* header = _graphFile->header();
-    if (header->options() && header->options()->size() > 0) {
-        if (header->options()->Get(0) == MVCNN::ExecutionFlag_DynamicBarriers) {
-            execFlag = VPUIP::ExecutionFlag::DynamicBarriers;
-        } else {
-            VPUX_THROW("Unknown ExecutionFlag option {0}", header->options()->Get(0));
-        }
-    }
-
-    const auto options = VPUIP::ExecutionFlagAttr::get(_ctx, execFlag);
-    VPUX_THROW_UNLESS(header->version(), "Blob has no version");
-    const auto version = VPUIP::VersionAttr::get(
-            getIntAttr(_ctx, header->version()->majorV()), getIntAttr(_ctx, header->version()->minorV()),
-            getIntAttr(_ctx, header->version()->patchV()),
-            mlir::StringAttr::get(_ctx, header->version()->hash()->str()),
-            mlir::StringAttr::get(_ctx, header->version()->context()->str()), _ctx);
-    builder.create<VPUIP::GraphOp>(mlir::UnknownLoc::get(_ctx), options, version);
 }
 
 void vpux::VPUIP::BlobReader::buildCNNNetworkOp() {
@@ -573,7 +551,6 @@ mlir::OwningModuleRef vpux::VPUIP::BlobReader::read() {
     _module = mlir::ModuleOp::create(mlir::UnknownLoc::get(_ctx), StringRef(moduleName));
 
     buildRunTimeResourcesOp();
-    buildGraphOp();
     buildCNNNetworkOp();
     buildMainFunc();
 

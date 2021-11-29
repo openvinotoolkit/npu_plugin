@@ -42,6 +42,7 @@ It handles such VPU-specifics as:
     let dependentDialects = [
         "vpux::Const::ConstDialect",
         "vpux::IE::IEDialect",
+        "vpux::VPU::VPUDialect",
         "vpux::IERT::IERTDialect",
         "mlir::StandardOpsDialect",
         "mlir::quant::QuantizationDialect"

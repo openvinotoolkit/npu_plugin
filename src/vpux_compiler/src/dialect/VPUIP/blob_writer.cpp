@@ -16,7 +16,6 @@
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -334,8 +333,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
         auto resources = IERT::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
         VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources definition");
 
-        auto available = resources.getExecutor(
-                VPUIP::PhysicalProcessorAttr::get(op->getContext(), VPUIP::PhysicalProcessor::SHAVE_UPA));
+        auto available =
+                resources.getExecutor(VPU::ExecutorKindAttr::get(op->getContext(), VPU::ExecutorKind::SHAVE_UPA));
         VPUX_THROW_UNLESS(available != nullptr, "SHAVE_UPA executor is not avaialble in run-time");
 
         builder.add_maxShaves(checked_cast<uint8_t>(available.count()));
@@ -482,7 +481,7 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
                           val, valEffects.size(), *userOp);
 
         const auto& effect = valEffects.front();
-        VPUX_THROW_UNLESS(effect.getResource() == BarrierResource::get(),
+        VPUX_THROW_UNLESS(effect.getResource() == VPURT::BarrierResource::get(),
                           "Barrier Value {0} has non Barrier Resource for Operation {1}", val, *userOp);
 
         unsigned usesCount = 1;

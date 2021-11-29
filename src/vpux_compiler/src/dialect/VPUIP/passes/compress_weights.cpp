@@ -12,7 +12,6 @@
 //
 
 #include "bitCompactor.h"
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -183,8 +182,8 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
 void CompressWeightsPass::safeRunOnFunc() {
     auto func = getFunction();
     auto module = func->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPUIP::getArch(module);
-    if (arch != VPUIP::ArchKind::MTL) {
+    const auto arch = VPU::getArch(module);
+    if (arch != VPU::ArchKind::MTL) {
         _log.trace("Weights compression is supported only for MTL");
         return;
     }
