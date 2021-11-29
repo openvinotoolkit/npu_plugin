@@ -987,13 +987,13 @@ operation ::= `IERT.GenericReshape` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | strided memref of any type values
+`input` | memref of any type values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | strided memref of any type values
+`output` | memref of any type values
 
 ### `IERT.GroupConvolution` (vpux::IERT::GroupConvolutionOp)
 
