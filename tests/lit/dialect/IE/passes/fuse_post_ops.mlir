@@ -49,7 +49,7 @@ func @MaxPoolWithReluTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
     // CHECK-SAME:     pads_end = [0, 0]
     // CHECK-SAME:     rounding_type = "CEIL"
     // CHECK-SAME:     strides = [1, 1]
-    // CHECK:       IE.ReLU
+    // CHECK-NOT:   IE.ReLU
 }
 
 // -----

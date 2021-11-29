@@ -71,7 +71,7 @@ public:
         // Fusing a post-op that removes the operation's 'linearity' leads to different input/output quantizations which
         // provide wrong results due to the zero-point limitation. Currently, all post-ops are disabled.
         // TODO: reenable fusing for float MaxPool
-        if (mlir::isa<IE::MaxPoolOp>(mainOp)) {
+        if (mlir::isa<IE::SigmoidOp, IE::TanhOp>(postOp) && mlir::isa<IE::MaxPoolOp>(mainOp)) {
             return false;
         }
 
