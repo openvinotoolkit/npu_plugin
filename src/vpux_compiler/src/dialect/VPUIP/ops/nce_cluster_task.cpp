@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
@@ -176,16 +177,22 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     return mlir::success();
 }
 
-mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
+mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind arch) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::AVEPOOL || op.task_type() == VPUIP::NCETaskType::MAXPOOL,
                       "Expected task type '{0}' or '{1}', but got '{2}'", VPUIP::NCETaskType::AVEPOOL,
                       VPUIP::NCETaskType::MAXPOOL, op.task_type());
 
-    if (op.weight_table() == nullptr) {
-        return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
-    }
-    if (op.activation_window() == nullptr) {
-        return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
+    // MTL hw doesn't require weights table and activation window for max/average pool ops
+    if (arch != VPUIP::ArchKind::MTL) {
+        if (op.weight_table() == nullptr) {
+            return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
+        }
+        if (op.activation_window() == nullptr) {
+            return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
+        }
+        if (op.activation_window_channel_lengthAttr() == nullptr) {
+            return errorAt(op, "activation_window_channel_length is required for NCETaskType : '{0}'", op.task_type());
+        }
     }
 
     if (op.kernel_sizeAttr() == nullptr) {
@@ -196,10 +203,6 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
     }
     if (op.kernel_paddingAttr() == nullptr) {
         return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", op.task_type());
-    }
-
-    if (op.activation_window_channel_lengthAttr() == nullptr) {
-        return errorAt(op, "activation_window_channel_length is required for NCETaskType : '{0}'", op.task_type());
     }
 
     const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_sizeAttr());
@@ -349,7 +352,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL || op.task_type() == VPUIP::NCETaskType::AVEPOOL) {
-        if (mlir::failed(verifyNCEPool(op))) {
+        if (mlir::failed(verifyNCEPool(op, arch))) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {

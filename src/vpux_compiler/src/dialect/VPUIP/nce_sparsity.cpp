@@ -163,7 +163,7 @@ constexpr std::int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::
 
 std::int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Type inputType) {
     // MTL expects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
-    if (inputType.isF16() || inputType.isBF16()) {
+    if (inputType.isF16() || inputType.isBF16() || inputType.isF32()) {
         return toHex(rescale);
     }
     int32_t PRELU_SCALE_OFFSET = 0;
