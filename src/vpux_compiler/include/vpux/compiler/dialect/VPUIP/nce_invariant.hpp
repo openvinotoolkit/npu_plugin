@@ -118,7 +118,7 @@ public:
 
     static mlir::LogicalResult verifyKernel(mlir::Location loc, int64_t KY, int64_t KX, int64_t SY, int64_t SX,
                                             int64_t padTop, int64_t padBottom, int64_t padLeft, int64_t padRight,
-                                            Logger log = Logger::global());
+                                            ArchKind arch, Logger log = Logger::global());
 };
 
 }  // namespace VPUIP
