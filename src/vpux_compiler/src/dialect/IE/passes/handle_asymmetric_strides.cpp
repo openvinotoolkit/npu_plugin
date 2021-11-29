@@ -219,7 +219,7 @@ mlir::LogicalResult AvgPoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, mlir:
         SY = SX;
     }
 
-    std::array<int64_t, 2> newStrides = {SY, SX};
+    const std::array<int64_t, 2> newStrides = {SY, SX};
     auto newStridesAttr = getIntArrayAttr(origOp.getContext(), newStrides);
 
     return generalSplitter(
