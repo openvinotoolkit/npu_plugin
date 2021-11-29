@@ -1,12 +1,17 @@
 #! /bin/bash
 env_is_set=1
-optimization=-O3
+#optimization=-O3
 alwaye_inline=-DCONFIG_ALWAYS_INLINE
-cpunum=3010
+cpunum=3720
 cpu=${cpunum}xx
 
 if [ -z "${MV_TOOLS_DIR}" ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
+if [ -z "${MV_TOOLS_VERSION}" ]; then 
+mv_tools_version_str=`grep "mv_tools_version" ../../vpuip_2_revision.txt`
+mv_tools_version_arr=($mv_tools_version_str)
+MV_TOOLS_VERSION=${mv_tools_version_arr[1]}
 if [ -z "${MV_TOOLS_VERSION}" ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
+fi
 if [ -z "${KERNEL_DIR}" ]; then echo "KERNEL_DIR is not set"; env_is_set=0; fi
 if [ -z "${VPUIP_2_DIR}" ]; then echo "VPUIP_2_DIR is not set"; env_is_set=0; fi
 
