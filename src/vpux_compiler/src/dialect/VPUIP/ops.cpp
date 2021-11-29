@@ -213,7 +213,8 @@ bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logg
         if (tileDim == Dims4D::Act::C) {
             // TODO replace '16' with correct parameter
             return (outputShape[tileDim] / nTilesOnDim[tileDim] >= 16) && 
-                   (outputShape[tileDim] % nTilesOnDim[tileDim] == 0);
+                   (outputShape[tileDim] % nTilesOnDim[tileDim] == 0) && 
+                   ((outputShape[tileDim] / nTilesOnDim[tileDim]) % 16 == 0);
         }
         else {
             return outputShape[tileDim] / nTilesOnDim[tileDim] >= kernelSize[tileDim];
