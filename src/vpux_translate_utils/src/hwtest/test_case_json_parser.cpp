@@ -39,6 +39,8 @@ nb::DType nb::to_dtype(llvm::StringRef str) {
         return nb::DType::I4;
     if (isEqual(str, "int8"))
         return nb::DType::I8;
+    if (isEqual(str, "int32"))
+        return nb::DType::I32;
     if (isEqual(str, "fp8"))
         return nb::DType::FP8;
     if (isEqual(str, "fp16"))
@@ -61,6 +63,8 @@ std::string nb::to_string(nb::DType dtype) {
         return "int4";
     case nb::DType::I8:
         return "int8";
+    case nb::DType::I32:
+        return "int32";
     case nb::DType::FP8:
         return "fp8";
     case nb::DType::FP16:
