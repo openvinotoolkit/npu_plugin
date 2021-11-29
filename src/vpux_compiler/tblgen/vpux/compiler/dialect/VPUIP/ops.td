@@ -1152,14 +1152,14 @@ def VPUIP_QuantCastUPAOp :
     let summary = "FakeQuantize UPA SHAVE kernel";
 
     let arguments = (ins
-        MemRefOf<[F16, quant_QuantizedType]>:$input,
-        MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
+        MemRefOf<[F16, BF16, quant_QuantizedType]>:$input,
+        MemRefOf<[F16, BF16, quant_QuantizedType]>:$output_buff,
 
         OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
-        MemRefOf<[F16, quant_QuantizedType]>:$output
+        MemRefOf<[F16, BF16, quant_QuantizedType]>:$output
     );
 
     let builders = [
@@ -2082,15 +2082,15 @@ def VPUIP_NCEClusterTaskOp :
     }];
 
     let arguments = (ins
-        MemRefOf<[F16, quant_QuantizedType]>:$input,
-        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$weights,
+        MemRefOf<[F16, BF16, quant_QuantizedType]>:$input,
+        Optional<MemRefOf<[F16, BF16, quant_QuantizedType]>>:$weights,
         Optional<MemRefOf<[SI32]>>:$weight_table,
         Optional<MemRefOf<[UI8]>>:$activation_window,
 
         AnyMemRef:$parent_input,
         AnyMemRef:$parent_output,
 
-        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
+        MemRefOf<[F16, F32, BF16, quant_QuantizedType]>:$output_buff,
 
         VPUIP_NCETaskType:$task_type,
         OptionalAttr<I64ArrayAttr>:$kernel_size,
@@ -2101,7 +2101,7 @@ def VPUIP_NCEClusterTaskOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
+        MemRefOf<[F16, F32, BF16, quant_QuantizedType]>:$output
     );
 
     let regions = (region
