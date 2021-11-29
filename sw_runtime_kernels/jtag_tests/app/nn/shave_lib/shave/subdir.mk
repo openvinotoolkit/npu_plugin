@@ -35,6 +35,7 @@ shavelib-preserved-symbols-y += custom_cpp
 shavelib-preserved-symbols-y += singleSoftmaxKernel
 shavelib-preserved-symbols-y += sigmoid_fp16
 shavelib-preserved-symbols-y += hswish_fp16
+shavelib-preserved-symbols-y += elu_fp16
 shavelib-preserved-symbols-y += edsl
 shavelib-preserved-symbols-y += Dummy
 shavelib-preserved-symbols-y += proposal
