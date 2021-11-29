@@ -114,7 +114,7 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
 
 namespace {
 
-mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
+mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind arch) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::CONV, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::CONV, op.task_type());
 
@@ -150,7 +150,7 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     const auto padBottom = kernelPadding[3];
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
-                                                       padRight))) {
+                                                       padRight, arch))) {
         return mlir::failure();
     }
 
@@ -220,7 +220,7 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind ar
     const auto padBottom = kernelPadding[3];
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
-                                                       padRight))) {
+                                                       padRight, arch))) {
         return mlir::failure();
     }
 
@@ -231,7 +231,7 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind ar
     return mlir::success();
 }
 
-mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op) {
+mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::ELTWISE, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::ELTWISE, op.task_type());
 
@@ -255,7 +255,7 @@ mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op) {
     return mlir::success();
 }
 
-mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op) {
+mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind arch) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::DWCONV, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::CONV, op.task_type());
 
@@ -294,7 +294,7 @@ mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op) {
     const auto padBottom = kernelPadding[3];
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
-                                                       padRight))) {
+                                                       padRight, arch))) {
         return mlir::failure();
     }
 
@@ -339,7 +339,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::DPUTaskOp op) {
 mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
     const auto arch = VPUIP::getArch(op.getOperation()->getParentOfType<mlir::ModuleOp>());
     if (op.task_type() == VPUIP::NCETaskType::CONV) {
-        if (mlir::failed(verifyNCEConv(op))) {
+        if (mlir::failed(verifyNCEConv(op, arch))) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL || op.task_type() == VPUIP::NCETaskType::AVEPOOL) {
@@ -347,11 +347,11 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {
-        if (mlir::failed(verifyNCEEltwise(op))) {
+        if (mlir::failed(verifyNCEEltwise(op, arch))) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::DWCONV) {
-        if (mlir::failed(verifyNCEDWConv(op))) {
+        if (mlir::failed(verifyNCEDWConv(op, arch))) {
             return mlir::failure();
         }
     } else {
