@@ -18,7 +18,7 @@
 #include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
-
+static constexpr StringLiteral schedulingNumberAttrName = "SchedulingNumber";
 //
 // Constructor
 //
@@ -64,8 +64,9 @@ size_t TokenBasedBarrierScheduler::schedule() {
             barrier_transition_structure_t& bstructure = bitr->second;
 
             // Set scheduling number
-            Logger::global().error("Assigning scheduling number {0} to the Operation {1} ", scheduling_number,
-                                   FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
+            Logger::global().error("Assigning scheduling number {0} to the Operation {1} ", scheduling_number, FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
+            sinfo.op_->setAttr(schedulingNumberAttrName, getIntAttr(_ctx, scheduling_number));
+            
             scheduling_number++;
             // STEP-2: update barrier structure invariant //
             bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo);
@@ -106,13 +107,16 @@ size_t TokenBasedBarrierScheduler::schedule() {
         op.waitBarriersMutable().clear();
     });
 
-    _func->walk([](VPURT::DeclareVirtualBarrierOp op) {
-        op->dropAllUses();
-        op.erase();
+    _func->walk([&](VPURT::DeclareVirtualBarrierOp op) {
+        if (!configureBarrierOpUpdateMap.count(op))
+        {
+            op->dropAllUses();
+            op.erase();
+        }
     });
 
     for (const auto& p : configureBarrierOpUpdateMap) {
-        auto barrierOp = mlir::dyn_cast_or_null<VPURT::ConfigureBarrierOp>(p.first);
+        auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
         for (auto* user : p.second) {
             auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
             assert(taskOp != NULL);
@@ -123,7 +127,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
     }
 
     for (const auto& p : configureBarrierOpWaitMap) {
-        auto barrierOp = mlir::dyn_cast_or_null<VPURT::ConfigureBarrierOp>(p.first);
+        auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
         for (auto* user : p.second) {
             auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
             assert(taskOp != NULL);
@@ -135,5 +139,4 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
 
     std::cout << "Removed all declare virtual barrier ops" << std::endl;
-    //_func.dump();
 }
