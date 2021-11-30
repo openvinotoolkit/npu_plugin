@@ -237,7 +237,8 @@ private:
     llvm::SmallVector<operationIdxType> reduceInDegreeOfAdjacentOperations(operationIdxType opIdx);
     bool isReadyComputeOperationSchedulable(operationIdxType opIdx);
     SmallVector<mlir::Value> getSortedBuffers(operationIdxType opIdx);
-    mlir::DenseSet<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx);
+    mlir::DenseSet<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx,
+                                                             llvm::ArrayRef<mlir::Value> neededBuffers);
     void scheduleInputOpForComputeOp(operationIdxType inputIdx);
     void scheduleSpilledInputOpForComputeOp(operationIdxType inputIdx, mlir::Value* buffer);
     size_t allocateBuffersAndInputOps(operationIdxType opIdx, SmallVector<mlir::Value>& sortedBuffers);
@@ -262,6 +263,7 @@ private:
     operationIdxType retrieveBufferWriter(mlir::Value buffer);
     EvictionCandidate chooseCandidateForEviction(mlir::DenseSet<mlir::Value> aliveBuffers);
     void forceScheduleActiveOpEviction();
+    size_t getOpBufferOutputIdx(operationIdxType opIdx, mlir::Value buffer);
 
 private:
     Logger _log;

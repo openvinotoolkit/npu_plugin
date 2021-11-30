@@ -320,12 +320,21 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::getSortedBuffers(operationIdxT
     return orderedBufs;
 }
 
-mlir::DenseSet<operationIdxType> FeasibleMemoryScheduler::getNonEmptyOpDemandList(operationIdxType opIdx) {
+mlir::DenseSet<operationIdxType> FeasibleMemoryScheduler::getNonEmptyOpDemandList(
+        operationIdxType opIdx, llvm::ArrayRef<mlir::Value> neededBuffers) {
     // return all buffers of an op that require allocation
     mlir::DenseSet<operationIdxType> demandList;
     for (auto& dep : _depsInfo.getOpDeps(opIdx)) {
-        if (_opOutputTable.find(dep) == _opOutputTable.end() || _opOutputTable[dep].spilled()) {
+        if (_opOutputTable.find(dep) == _opOutputTable.end()) {
             demandList.insert(dep);
+        } else if (_opOutputTable[dep].spilled()) {
+            // in case of multpile output buffers, ensure the spilled buffer is required
+            for (auto& buffer : neededBuffers) {
+                if (_opWritingToBuffer.find(buffer) != _opWritingToBuffer.end() &&
+                    retrieveBufferWriter(buffer) == dep) {
+                    demandList.insert(dep);
+                }
+            }
         }
     }
     return demandList;
@@ -349,6 +358,10 @@ void FeasibleMemoryScheduler::scheduleSpilledInputOpForComputeOp(operationIdxTyp
     // schedule the spilled dependency
     _log.nest().trace("Scheduling spilled input for compute op:'{0}'", inputIdx);
     auto _opOutput = _opOutputTable.find(inputIdx);
+    if (!_opOutput->second.spillIdx_.empty()) {
+        _opOutput->second.spillIdx_.erase(getOpBufferOutputIdx(inputIdx, *buffer));
+    }
+
     (_opOutput->second).changeStateToActive();
     EOpType opType = EOpType::IMPLICIT_OP_READ;
     // also store the buffer spilled
@@ -359,7 +372,7 @@ void FeasibleMemoryScheduler::scheduleSpilledInputOpForComputeOp(operationIdxTyp
 size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opIdx,
                                                            SmallVector<mlir::Value>& sortedBuffers) {
     // retrieve op demand list - input ops
-    auto demandList = getNonEmptyOpDemandList(opIdx);
+    auto demandList = getNonEmptyOpDemandList(opIdx, sortedBuffers);
     size_t maxInputDelay = demandList.empty() ? 0 : 1;
 
     // retrieve buffers that need allocation
@@ -503,6 +516,37 @@ size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
     }
 }
 
+size_t FeasibleMemoryScheduler::getOpBufferOutputIdx(operationIdxType opIdx, mlir::Value buffer) {
+    size_t outputIdx = 0;
+
+    // Get asyncExecOp result corresponding to given buffer
+    auto asyncExecOp = _depsInfo.getExecuteOpAtIndex(opIdx);
+    mlir::Value asyncExecOpResult;
+    for (auto res : asyncExecOp.results()) {
+        if (_aliasInfo.getRoot(res) == buffer) {
+            asyncExecOpResult = res;
+            break;
+        }
+    }
+
+    VPUX_THROW_UNLESS(asyncExecOpResult != nullptr,
+                      "Unable to find async.execOp (opIdx - '{0}') result corresponding to buffer '{1}'", opIdx,
+                      buffer);
+
+    // Get asyncExecOp result index
+    for (size_t idx = 0; idx < asyncExecOp->getNumResults(); idx++) {
+        auto resultAtIdx = asyncExecOp->getResult(static_cast<unsigned int>(idx));
+        if (resultAtIdx.getType().isa<mlir::async::ValueType>()) {
+            if (resultAtIdx == asyncExecOpResult) {
+                break;
+            }
+            outputIdx++;
+        }
+    }
+
+    return outputIdx;
+}
+
 FeasibleMemoryScheduler::EvictionCandidate FeasibleMemoryScheduler::chooseCandidateForEviction(
         mlir::DenseSet<mlir::Value> aliveBuffers) {
     // sort buffers using eviction priority
@@ -512,14 +556,7 @@ FeasibleMemoryScheduler::EvictionCandidate FeasibleMemoryScheduler::chooseCandid
         size_t priority = evictionPriority(buffer);
         size_t size = _scan.handler().getSize(buffer);
         // in special case of multiple output buffers store output idx
-        size_t outputIdx = 0;
-        if (auto parentOp = mlir::dyn_cast_or_null<MultiViewOpInterface>(buffer.getDefiningOp())) {
-            for (size_t idx = 0; idx < parentOp->getNumResults(); idx++) {
-                if (parentOp->getResult(static_cast<unsigned int>(idx)) == buffer) {
-                    outputIdx = idx;
-                }
-            }
-        }
+        auto outputIdx = getOpBufferOutputIdx(bufferWriterIdx, buffer);
         evictionCandidates.insert(EvictionCandidate(priority, size, bufferWriterIdx, outputIdx, buffer));
     }
 
