@@ -3830,7 +3830,7 @@
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "1000"
+                    "--prob_tolerance", "0.3"
                 ]
             },
             "NetTest-Validate": {
