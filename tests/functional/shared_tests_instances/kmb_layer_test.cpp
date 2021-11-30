@@ -288,6 +288,9 @@ void KmbLayerTestsCommon::Run() {
         if (runInfer) {
             std::cout << "KmbLayerTestsCommon::Infer() with backend '" << backendName << "'" << std::endl;
             SkipBeforeInfer();
+            if (!inferRequest) {
+                inferRequest = executableNetwork.CreateInferRequest();
+            }
             Infer();
             report.inferred(testInfo);
         } else {
