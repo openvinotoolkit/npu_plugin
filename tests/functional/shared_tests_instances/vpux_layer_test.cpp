@@ -16,9 +16,9 @@
 #include <vpux/utils/core/error.hpp>
 #include "kmb_test_report.hpp"
 
-namespace LayerTestsUtils {
+namespace VPUXLayerTestsUtils {
 
-const KmbTestEnvConfig VPUXLayerTestsCommon::envConfig;
+const LayerTestsUtils::KmbTestEnvConfig VPUXLayerTestsCommon::envConfig = LayerTestsUtils::KmbTestEnvConfig{};
 
 VPUXLayerTestsCommon::VPUXLayerTestsCommon() {
     IE_ASSERT(core != nullptr);
@@ -82,7 +82,7 @@ void VPUXLayerTestsCommon::run() {
     ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!";
 
     // Using KmbTestReport to have a uniform class for both OV test frameworks
-    auto& report = KmbTestReport::getInstance();
+    auto& report = LayerTestsUtils::KmbTestReport::getInstance();
     const auto& testInfo = testing::UnitTest::GetInstance()->current_test_info();
     report.run(testInfo);
 
@@ -250,4 +250,4 @@ void VPUXLayerTestsCommon::printNetworkConfig() const {
     std::cout << "LoadNetwork Config: " << ostr.str() << '\n';
 }
 
-}  // namespace LayerTestsUtils
+}  // namespace VPUXLayerTestsUtils

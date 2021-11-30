@@ -12,7 +12,7 @@
 #include "kmb_test_tool.hpp"
 #include "vpux_private_config.hpp"
 
-namespace LayerTestsUtils {
+namespace VPUXLayerTestsUtils {
 
 using SkipMessage = vpux::Optional<std::string>;
 
@@ -20,7 +20,7 @@ class VPUXLayerTestsCommon : virtual public ov::test::SubgraphBaseTest {
 public:
     VPUXLayerTestsCommon();
 
-    static const KmbTestEnvConfig envConfig;
+    static const LayerTestsUtils::KmbTestEnvConfig envConfig;
 
     virtual SkipMessage SkipBeforeLoad();
     virtual SkipMessage SkipBeforeInfer();
@@ -50,7 +50,7 @@ public:
 protected:
     void run() override;
     void configure_model() override;
-    
+
 private:
     vpux::Logger _log = vpux::Logger::global();
 };
@@ -63,4 +63,4 @@ const ov::test::TargetDevice testPlatformTargetDevice = []() -> ov::test::Target
     return CommonTestUtils::DEVICE_KEEMBAY;
 }();
 
-}  // namespace LayerTestsUtils
+}  // namespace VPUXLayerTestsUtils

@@ -12,11 +12,9 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-using namespace LayerTestsUtils;
+using namespace VPUXLayerTestsUtils;
 
-class VPUXSoftMaxLayerTest :
-        public SoftMaxLayerTest,
-        virtual public VPUXLayerTestsCommon {
+class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTestsCommon {
     SkipMessage SkipBeforeLoad() override {
         InputShape inShapes;
         size_t axisInd;
@@ -73,7 +71,7 @@ const std::vector<ElementType> inputPrecisions = {
 const auto params2D = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::Values(ov::element::undefined),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes2D)), testing::ValuesIn(axis2D),
-        testing::Values(LayerTestsUtils::testPlatformTargetDevice), testing::Values(Config{}));
+        testing::Values(testPlatformTargetDevice), testing::Values(Config{}));
 
 INSTANTIATE_TEST_CASE_P(smoke_SoftMax2D, VPUXSoftMaxLayerTest, params2D, SoftMaxLayerTest::getTestCaseName);
 
@@ -85,8 +83,7 @@ const std::vector<size_t> axis4D = {0, 1, 2, 3};
 const auto params4D = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::Values(ov::element::undefined),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes4D)), testing::ValuesIn(axis4D),
-        testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        testing::Values(std::map<std::string, std::string>()));
+        testing::Values(testPlatformTargetDevice), testing::Values(std::map<std::string, std::string>()));
 
 INSTANTIATE_TEST_CASE_P(smoke_SoftMax4D, VPUXSoftMaxLayerTest, params4D, SoftMaxLayerTest::getTestCaseName);
 

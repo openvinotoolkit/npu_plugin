@@ -2,35 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
 #include "single_layer_tests/eltwise.hpp"
+#include <vector>
 #include "vpux_layer_test.hpp"
 
 namespace ov {
 namespace test {
 namespace subgraph {
 
-using namespace LayerTestsUtils;
+using namespace VPUXLayerTestsUtils;
 
-class VPUXEltwiseLayerTest:
-        public EltwiseLayerTest,
-        virtual public LayerTestsUtils::VPUXLayerTestsCommon {
-};
+class VPUXEltwiseLayerTest : public EltwiseLayerTest, virtual public VPUXLayerTestsCommon {};
 
 class VPUXEltwiseLayerTest_MCM : public VPUXEltwiseLayerTest {
     SkipMessage SkipBeforeValidate() override {
         std::vector<InputShape> inShapes;
-        std::tie(inShapes,
-                 std::ignore, std::ignore, std::ignore, std::ignore,
-                 std::ignore, std::ignore, std::ignore, std::ignore) = GetParam();
+        std::tie(inShapes, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore,
+                 std::ignore) = GetParam();
 
-        std::set<std::vector<ngraph::Shape>> badShapes = {
-                {{2, 200}},
-                {{10, 200}},
-                {{1, 4, 4, 1}},
-                {{2, 17, 5, 4}, {1, 17, 1, 1}},
-                {{2, 17, 5, 1}, {1, 17, 1, 4}}
-        };
+        std::set<std::vector<ngraph::Shape>> badShapes = {{{2, 200}},
+                                                          {{10, 200}},
+                                                          {{1, 4, 4, 1}},
+                                                          {{2, 17, 5, 4}, {1, 17, 1, 1}},
+                                                          {{2, 17, 5, 1}, {1, 17, 1, 4}}};
 
         // [Track number: S#51346]
         for (const auto& inShape : inShapes) {
@@ -42,9 +36,7 @@ class VPUXEltwiseLayerTest_MCM : public VPUXEltwiseLayerTest {
         return {};
     }
 };
-class VPUXEltwiseLayerTest_MLIR : public VPUXEltwiseLayerTest {
-};
-
+class VPUXEltwiseLayerTest_MLIR : public VPUXEltwiseLayerTest {};
 
 //
 //[Track number: E#15146]
@@ -108,38 +100,26 @@ std::vector<CommonTestUtils::OpType> opTypes = {
 // MCM Instantiation
 //
 
-std::set<ngraph::helpers::EltwiseTypes> supportedTypesMCM {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
-        ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF
-};
+std::set<ngraph::helpers::EltwiseTypes> supportedTypesMCM{
+        ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY,
+        ngraph::helpers::EltwiseTypes::SUBTRACT, ngraph::helpers::EltwiseTypes::SQUARED_DIFF};
 
-const auto eltwise_params_mcm = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
-        ::testing::ValuesIn(supportedTypesMCM),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::Values(CommonTestUtils::OpType::SCALAR),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        ::testing::Values(ov::test::Config{}));
+const auto eltwise_params_mcm =
+        ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
+                           ::testing::ValuesIn(supportedTypesMCM), ::testing::ValuesIn(secondaryInputTypes),
+                           ::testing::Values(CommonTestUtils::OpType::SCALAR), ::testing::ValuesIn(netPrecisions),
+                           ::testing::Values(ov::element::undefined), ::testing::Values(ov::element::undefined),
+                           ::testing::Values(testPlatformTargetDevice), ::testing::Values(ov::test::Config{}));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, VPUXEltwiseLayerTest_MCM, eltwise_params_mcm,
                          VPUXEltwiseLayerTest::getTestCaseName);
 
-
-const auto eltwise_params_vector_mcm = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
-        ::testing::ValuesIn(supportedTypesMCM),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::Values(CommonTestUtils::OpType::VECTOR),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        ::testing::Values(ov::test::Config{}));
+const auto eltwise_params_vector_mcm =
+        ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
+                           ::testing::ValuesIn(supportedTypesMCM), ::testing::ValuesIn(secondaryInputTypes),
+                           ::testing::Values(CommonTestUtils::OpType::VECTOR), ::testing::ValuesIn(netPrecisions),
+                           ::testing::Values(ov::element::undefined), ::testing::Values(ov::element::undefined),
+                           ::testing::Values(testPlatformTargetDevice), ::testing::Values(ov::test::Config{}));
 
 //[Track number: S#51349]
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompareWithRefs, VPUXEltwiseLayerTest_MCM, eltwise_params_vector_mcm,
@@ -149,51 +129,39 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompareWithRefs, VPUXEltwiseLayerTest_MC
 // MLIR Instantiation
 //
 
-std::set<ngraph::helpers::EltwiseTypes> supportedTypesMLIR {
-        ngraph::helpers::EltwiseTypes::DIVIDE,
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
-        ngraph::helpers::EltwiseTypes::POWER,
-        ngraph::helpers::EltwiseTypes::FLOOR_MOD
-};
+std::set<ngraph::helpers::EltwiseTypes> supportedTypesMLIR{
+        ngraph::helpers::EltwiseTypes::DIVIDE, ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+        ngraph::helpers::EltwiseTypes::POWER, ngraph::helpers::EltwiseTypes::FLOOR_MOD};
 
-const auto eltwise_params_mlir = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
-        ::testing::ValuesIn(supportedTypesMLIR),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        ::testing::Values(ov::test::Config{}));
+const auto eltwise_params_mlir =
+        ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
+                           ::testing::ValuesIn(supportedTypesMLIR), ::testing::ValuesIn(secondaryInputTypes),
+                           ::testing::ValuesIn(opTypes), ::testing::ValuesIn(netPrecisions),
+                           ::testing::Values(ov::element::undefined), ::testing::Values(ov::element::undefined),
+                           ::testing::Values(testPlatformTargetDevice), ::testing::Values(ov::test::Config{}));
 
 // [Track number: E#15146]
 // Initialization disabled partly
-//INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, VPUXEltwiseLayerTest_MLIR, eltwise_params_mlir,
+// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, VPUXEltwiseLayerTest_MLIR, eltwise_params_mlir,
 //                        VPUXEltwiseLayerTest::getTestCaseName);
 
 // Specific add and multiply case
 
 std::vector<std::vector<ov::Shape>> inSpecificShapes = {
-        {{1, 9}},                            // NC
-        {{1, 128, 32}},                      // CHW
-        {{1, 128, 32}, {1, 128, 1}},     // CHW, input1 != input2, broadcast over W
-        {{1, 128, 32}, {1, 1, 32}},      // CHW, input1 != input2, broadcast over H
-        {{1, 9}, {1, 1}},                    // NC + scalar
-        {{1, 128, 32}, {1, 1, 1}},           // CHW + scalar
-        {{1, 3, 224, 224}, {1, 1, 1, 1}},    // NCHW, broadcast over HW + channels
-        {{1, 3, 224, 224}, {1, 3, 1, 1}}
-};
+        {{1, 9}},                          // NC
+        {{1, 128, 32}},                    // CHW
+        {{1, 128, 32}, {1, 128, 1}},       // CHW, input1 != input2, broadcast over W
+        {{1, 128, 32}, {1, 1, 32}},        // CHW, input1 != input2, broadcast over H
+        {{1, 9}, {1, 1}},                  // NC + scalar
+        {{1, 128, 32}, {1, 1, 1}},         // CHW + scalar
+        {{1, 3, 224, 224}, {1, 1, 1, 1}},  // NCHW, broadcast over HW + channels
+        {{1, 3, 224, 224}, {1, 3, 1, 1}}};
 
 const auto multiply_params_mlir = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inSpecificShapes)),
-        ::testing::Values(ngraph::helpers::EltwiseTypes::MULTIPLY),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes),
-        ::testing::Values(ov::element::f16),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(ngraph::helpers::EltwiseTypes::MULTIPLY), ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes), ::testing::Values(ov::element::f16), ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined), ::testing::Values(testPlatformTargetDevice),
         ::testing::Values(ov::test::Config{}));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Multiply, VPUXEltwiseLayerTest_MLIR, multiply_params_mlir,
@@ -201,18 +169,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Multiply, VPUXEltwiseLayerTest_ML
 
 const auto eltwise_add_params_mlir = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inSpecificShapes)),
-        ::testing::Values(ngraph::helpers::EltwiseTypes::ADD),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes),
-        ::testing::Values(ov::element::f16),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(ngraph::helpers::EltwiseTypes::ADD), ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes), ::testing::Values(ov::element::f16), ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined), ::testing::Values(testPlatformTargetDevice),
         ::testing::Values(ov::test::Config{}));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Add, VPUXEltwiseLayerTest_MLIR, eltwise_add_params_mlir,
                         VPUXEltwiseLayerTest::getTestCaseName);
-
 
 // Specific subtract case
 
@@ -223,12 +186,9 @@ std::vector<std::vector<ov::Shape>> inSpecificSubtractShapes = {
 
 const auto subtract_params_mlir = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inSpecificSubtractShapes)),
-        ::testing::Values(ngraph::helpers::EltwiseTypes::SUBTRACT),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes), ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(ngraph::helpers::EltwiseTypes::SUBTRACT), ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes), ::testing::ValuesIn(netPrecisions), ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined), ::testing::Values(testPlatformTargetDevice),
         ::testing::Values(ov::test::Config{}));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Specific_subtract, VPUXEltwiseLayerTest_MLIR, subtract_params_mlir,
