@@ -276,13 +276,57 @@ void InferRequest::InferAsync() {
 #else
         // CPU preprocessing
         _logger->info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
-        if (isRemoteAnyBlob(_preProcData.cbegin()->second->getRoiBlob())) {
+        /*if (isRemoteAnyBlob(_preProcData.cbegin()->second->getRoiBlob())) {
+            // Do we really need such copying?
+            // Isn't only exec preprocessing (_inputs) and changing _inputs from local to remote enough?
             auto copyInputs = copyBlobMap(_inputs);
-        }
+            execDataPreprocessing(copyInputs);
+            // Add creating remoteBlobs and moving them to _inputs from copyInputs
+        }*/
         // moveBlobsForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
         std::cout << "First input is remote = " << _inputs.begin()->second->is<IE::RemoteBlob>() << std::endl;
         execDataPreprocessing(_inputs);
+
         std::cout << "After preprocessing: first input is remote = " << _inputs.begin()->second->is<IE::RemoteBlob>()
+                  << std::endl;
+
+        for (auto iter = _preProcData.cbegin(); iter != _preProcData.cend(); ++iter) {
+            const auto inputName = iter->first;
+            std::cout << "Input name = " << inputName << std::endl;
+            if (_inputs.find(inputName) == _inputs.end()) {
+                IE_THROW() << "Can't find input in preProcData: " << inputName << std::endl;
+            }
+            auto& curInput = _inputs.at(inputName);
+            const auto& curPreProcInput = iter->second->getRoiBlob();
+            if (isRemoteAnyBlob(curPreProcInput)) {
+                std::cout << "Remote blob" << std::endl;
+                // auto copyInputBlob = make_blob_with_precision(curInput->getTensorDesc());
+                // copyInputBlob->allocate();
+                // vpux::copyBlob(IE::as<IE::MemoryBlob>(curInput), IE::as<IE::MemoryBlob>(copyInputBlob));
+                if (!isRemoteNV12Blob(curPreProcInput)) {
+                    auto remoteInputBlob = IE::as<IE::RemoteBlob>(curPreProcInput);
+                    auto remoteContext = remoteInputBlob->getContext();
+                    // Very bad - we should somehow use some other FD, but how?
+                    // Very bad - we should use some helper like Hddl2 backend getRemoteMemoryFD from params
+                    const IE::ParamMap blobParamMap = {
+                            {IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD),
+                             remoteInputBlob->getParams().at(IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD))},
+                            {IE::VPUX_PARAM_KEY(MEM_OFFSET), static_cast<size_t>(0)}};
+                    auto remoteResultBlob = remoteContext->CreateBlob(curInput->getTensorDesc(), blobParamMap);
+                    std::cout << "Just before copying blob from input to remoteResult" << std::endl;
+                    std::cout << "curInput blob = " << curInput->byteSize() << " bytes" << std::endl;
+                    std::cout << "Remote result blob = " << remoteResultBlob->byteSize() << " bytes" << std::endl;
+                    vpux::copyBlob(IE::as<IE::MemoryBlob>(curInput), remoteResultBlob);
+                    std::cout << "just after copyBlob" << std::endl;
+                    curInput = remoteResultBlob;
+                    std::cout << "just after overriding curInput blob by remoteResultBlob" << std::endl;
+                } else {
+                    // Need to add NV12 Remote blob use case
+                }
+            }
+        }
+
+        std::cout << "After local-to-remote: first input is remote = " << _inputs.begin()->second->is<IE::RemoteBlob>()
                   << std::endl;
 #endif
         updateRemoteBlobs(_inputs, preProcMap);
