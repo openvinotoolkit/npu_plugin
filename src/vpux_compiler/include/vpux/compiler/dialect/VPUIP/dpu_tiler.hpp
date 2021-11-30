@@ -39,6 +39,7 @@ public:
 private:
     SmallVector<uint32_t> splitNumberPool;
     SmallVector<SmallVector<DpuTile>> splitPool;
+    ShapeRef outShape;
     SmallVector<VPUIP::MPEMode> mpeModeList;
 };
 
