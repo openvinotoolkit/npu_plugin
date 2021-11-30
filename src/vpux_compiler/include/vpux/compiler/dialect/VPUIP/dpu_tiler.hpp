@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "attributes.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 
 #pragma once
@@ -25,12 +26,20 @@ struct DpuTile final {
     int64_t padRight;
     int64_t padTop;
     int64_t padBottom;
+    VPUIP::MPEMode mpeMode;
 };
 
 class DpuTiler final {
 public:
     static SmallVector<DpuTile> tileOverH(int64_t numDPU, ShapeRef outShape, int64_t padLeft, int64_t padRight,
                                           int64_t padTop, int64_t padBottom);
+    bool generateSplitNumberPool(uint8_t numDPU, uint32_t maxSplits, SmallVector<uint32_t> validZTiles);
+    bool tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles, bool sparse = false, bool has_se = false);
+
+private:
+    SmallVector<uint32_t> splitNumberPool;
+    SmallVector<SmallVector<DpuTile>> splitPool;
+    SmallVector<VPUIP::MPEMode> mpeModeList;
 };
 
 }  // namespace VPUIP

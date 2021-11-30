@@ -18,6 +18,13 @@
 
 using namespace vpux;
 
+bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(uint8_t numDPU, uint32_t maxSplits,
+                                                    SmallVector<uint32_t> validZTiles) {
+}
+
+bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles, bool sparse, bool has_se) {
+}
+
 SmallVector<VPUIP::DpuTile> vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, ShapeRef outShape, int64_t padLeft,
                                                              int64_t padRight, int64_t padTop, int64_t padBottom) {
     // FIXME: find the optimal number of tiles
