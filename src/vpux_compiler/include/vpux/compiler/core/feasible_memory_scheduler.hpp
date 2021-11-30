@@ -242,7 +242,7 @@ private:
     SmallVector<mlir::Value> sortUsedBuffers(mlir::DenseSet<mlir::Value>& operationBuffers);
     mlir::DenseSet<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx,
                                                              SmallVector<mlir::Value>& neededBuffers);
-    void scheduleInputOpForComputeOp(operationIdxType inputIdx);
+    void scheduleInputOpForComputeOp(operationIdxType inputIdx, size_t delay);
     void scheduleSpilledInputOpForComputeOp(operationIdxType inputIdx, mlir::Value* buffer);
     size_t allocateBuffersAndInputOps(operationIdxType opIdx);
     void scheduleComputeOp(operationIdxType opIdx);

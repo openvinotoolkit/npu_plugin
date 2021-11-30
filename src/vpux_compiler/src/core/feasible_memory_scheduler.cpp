@@ -385,12 +385,12 @@ bool FeasibleMemoryScheduler::isReadyComputeOperationSchedulable(operationIdxTyp
     return _scan.canAlloc(sortedBuffers);
 }
 
-void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType inputIdx) {
+void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType inputIdx, size_t delay) {
     // schedule the dependency - Data op
     _log.nest().trace("Scheduling input for compute op:'{0}'", inputIdx);
     EOpType opType = EOpType::ORIGINAL_OP;
     _opOutputTable.insert(std::make_pair(inputIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[inputIdx])));
-    pushToStartTimeHeap(HeapElement(inputIdx, _currentTime, opType));
+    pushToStartTimeHeap(HeapElement(inputIdx, _currentTime + delay, opType));
 }
 
 void FeasibleMemoryScheduler::scheduleSpilledInputOpForComputeOp(operationIdxType inputIdx, mlir::Value* buffer) {
@@ -415,6 +415,17 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
     size_t maxInputDelay = demandList.empty() ? 0 : 1;
     mlir::DenseSet<mlir::Value> buffersNeedingAllocation;
 
+    // ensure input delay in case of alive buffers allocated in parallel
+    if (demandList.empty()) {
+        auto operationBuffers = _liveRangeInfo.getUsedBuffers(_depsInfo.getExecuteOpAtIndex(opIdx));
+        for (auto& buf : operationBuffers) {
+            if (_scan.handler().isAlive(buf) && _opWritingToBuffer.find(buf) == _opWritingToBuffer.end()) {
+                maxInputDelay = 1;
+                break;
+            }
+        }
+    }
+
     // retrieve operation's buffers that need allocation
     for (auto& val : usedBuffers) {
         buffersNeedingAllocation.insert(val);
@@ -436,8 +447,16 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
             buffersNeedingAllocation.insert(val);
             _log.nest().trace("Mark buffer as alive, '{0}'", val);
             _scan.handler().markAsAlive(val);
+            if (_opWritingToBuffer.find(val) != _opWritingToBuffer.end()) {
+                auto writerOp = retrieveBufferWriter(val);
+                auto executeOpIdx = _depsInfo.getIndex(
+                        writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>());
+                _depsInfo.getExecuteOpAtIndex(inputIdx)->dump();
+                scheduleSpilledInputOpForComputeOp(executeOpIdx, &val);
+                maxInputDelay = 2;
+            }
         }
-        scheduleInputOpForComputeOp(inputIdx);
+        scheduleInputOpForComputeOp(inputIdx, maxInputDelay - 1);
     }
 
     auto sortedBuffers = sortUsedBuffers(buffersNeedingAllocation);
