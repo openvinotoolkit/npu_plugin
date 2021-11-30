@@ -269,10 +269,6 @@ mlir::LogicalResult ReorderWithQuantCast::matchAndRewrite(IE::QuantizeCastOp ori
     _log.trace("Got reorder at '{0}' -> quantize cast at '{1}' pair", origReorderOp->getLoc(),
                origQuantCastOp->getLoc());
 
-    if (!origReorderOp.getResult().hasOneUse()) {
-        return matchFailed(_log.nest(), rewriter, origQuantCastOp, "Reorder has more then one user");
-    }
-
     auto newQuantCastOp = rewriter.create<IE::QuantizeCastOp>(origQuantCastOp->getLoc(), origReorderOp.input(),
                                                               origQuantCastOp.dstElemTypeAttr());
 

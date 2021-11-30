@@ -331,3 +331,43 @@ func @main(%arg0: tensor<1x3x30x30xui8, {order = #NHWC}>) -> tensor<1x3x30x30x!q
 }
 
 }
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!qElemType0 = type !quant.uniform<u8:f16, 0.51323526419845278:128>
+!qElemType1 = type !quant.uniform<u8:f16, 0.25661763209922639:128>
+!qElemType2 = type !quant.uniform<u8:f16, 0.12830881604961319:128>
+
+module @ReorderWithQuantizeCastTwoBranches attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+
+func @main(%arg0: tensor<1x48x14x14x!qElemType0, {order = #NHWC}>) -> (tensor<1x48x14x14x!qElemType2, {order = #NHWC}>, tensor<1x14x14x40x!qElemType1>) {
+    %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x48x14x14x!qElemType0, {order = #NHWC}> -> tensor<1x48x14x14x!qElemType0>
+    %1 = IE.Slice %0 [0, 0, 0, 0] [1, 40, 14, 14] : tensor<1x48x14x14x!qElemType0> to tensor<1x40x14x14x!qElemType0>
+    %2 = IE.QuantizeCast(%1) {dstElemType = !qElemType1} : tensor<1x40x14x14x!qElemType0> -> tensor<1x40x14x14x!qElemType1>
+    %3 = IE.QuantizeCast(%2) {dstElemType = !qElemType2} : tensor<1x40x14x14x!qElemType1> -> tensor<1x40x14x14x!qElemType2>
+    %4 = IE.Expand(%3) {pads_begin = [0, 0, 0, 0], pads_end = [0, 8, 0, 0]} : tensor<1x40x14x14x!qElemType2> -> tensor<1x48x14x14x!qElemType2>
+    %5 = IE.Reorder(%4) {dstOrder = #NHWC} : tensor<1x48x14x14x!qElemType2> -> tensor<1x48x14x14x!qElemType2, {order = #NHWC}>
+    %6 = IE.Reshape(%2) {shape_value = [1, 14, 14, 40]} : tensor<1x40x14x14x!qElemType1> -> tensor<1x14x14x40x!qElemType1>
+
+   return %5, %6 : tensor<1x48x14x14x!qElemType2, {order = #NHWC}>, tensor<1x14x14x40x!qElemType1>
+
+    // CHECK-NOT:  IE.Reorder
+    // CHECK:      [[SLICE:%.+]] = IE.Slice %arg0 
+    // CHECK-SAME:  tensor<1x48x14x14x!qElemType0, {order = #NHWC}> to tensor<1x40x14x14x!qElemType0, {order = #NHWC}>
+    // CHECK:      [[QCAST0:%.+]] = IE.QuantizeCast([[SLICE]]) {dstElemType = !qElemType2} 
+    // CHECK-SAME: tensor<1x40x14x14x!qElemType0, {order = #NHWC}> -> tensor<1x40x14x14x!qElemType2, {order = #NHWC}>
+    // CHECK:      [[REORDER:%.+]] = IE.Reorder([[QCAST0]]) {dstOrder = #NCHW} 
+    // CHECK-SAME: tensor<1x40x14x14x!qElemType2, {order = #NHWC}> -> tensor<1x40x14x14x!qElemType2>
+    // CHECK:      [[QCAST1:%.+]] = IE.QuantizeCast([[QCAST0]]) {dstElemType = !qElemType1} 
+    // CHECK-SAME: tensor<1x40x14x14x!qElemType2, {order = #NHWC}> -> tensor<1x40x14x14x!qElemType1, {order = #NHWC}>
+    // CHECK:      [[RESULT0:%.+]] = IE.Expand([[QCAST1]]) 
+    // CHECK-SAME: tensor<1x40x14x14x!qElemType1, {order = #NHWC}> -> tensor<1x48x14x14x!qElemType1, {order = #NHWC}>
+    // CHECK:      [[RESULT1:%.+]] = IE.Reshape([[REORDER]]) 
+    // CHECK-SAME: tensor<1x40x14x14x!qElemType2> -> tensor<1x14x14x40x!qElemType2>
+    // CHECK:      return [[RESULT0]], [[RESULT1]] : tensor<1x48x14x14x!qElemType1, {order = #NHWC}>, tensor<1x14x14x40x!qElemType2>
+
+}
+}
