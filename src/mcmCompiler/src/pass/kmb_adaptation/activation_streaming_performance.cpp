@@ -204,6 +204,11 @@ bool isStreamOptimizable(mv::ComputationModel& model, mv::Data::OpListIterator o
     if (opIt->hasAttr("DilatedSubConv") && (opIt->get<bool>("DilatedSubConv")))
         return false;
 
+    // if(opIt->getName() == "style/encode/conv3" ||
+    // opIt->getName() == "style/decode/resize_images_1/ResizeNearestNeighbor_DepthwiseDeconv_DeconvSubConv0_0" ||
+    // opIt->getName() == "style/decode/resize_images_1/ResizeNearestNeighbor_DepthwiseDeconv_DeconvSubConv0_1")
+    //     return false;
+
     //NOTE: for some reason changing the strategy of batch_normalization_91/FusedBatchNorm/variance/Fused_Add_ leads to a seg fault
     if (vertical_fusion)
     {
@@ -499,11 +504,11 @@ void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationM
     //Step 4. Save the streaming strategies into the compilation descriptor to be read by the streaming pass
     // 1050 streams equals ~ 7000 tasks which causes the runtime load/parse time to increase to >10 seconds.
     // vpuMgr currently times out all calls to the VPU that don't return in < 10secs
-    int MAX_STREAM_COUNT = 1000;
-    if (passDesc.hasAttr("max_streams"))
-        MAX_STREAM_COUNT = passDesc.get<int>("max_streams");
+    // int MAX_STREAM_COUNT = 1000;
+    // if (passDesc.hasAttr("max_streams"))
+    //     MAX_STREAM_COUNT = passDesc.get<int>("max_streams");
 
-    if (streamCount < MAX_STREAM_COUNT)
+    // if (streamCount < MAX_STREAM_COUNT)
     {
         globalParams->set<std::vector<mv::Element>>("streaming_strategy", newStreamingStrategies);
         saveNewStreamingStrategiesToJson(pass, newStreamingStrategies);
