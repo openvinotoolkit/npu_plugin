@@ -52,7 +52,8 @@ private:
                                                  mlir::async::ExecuteOp insertAfterExecOp, size_t allocatedAddress);
     void updateSpillWriteReadUsers(mlir::Value bufferToSpill, mlir::async::ExecuteOp spillWriteExecOp,
                                    mlir::async::ExecuteOp spillReadExecOp);
-    mlir::Value getAsyncResultForBuffer(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value buffer);
+    llvm::SmallVector<mlir::Value> getAsyncResultsForBuffer(mlir::async::ExecuteOp opThatWasSpilled,
+                                                            mlir::Value buffer);
     mlir::Value getBufferFromAsyncResult(mlir::Value asyncResult);
 
     // Below nested class is inteded to handle data dependency updates
@@ -69,9 +70,10 @@ private:
         void resolveSpillBufferUsage();
 
     private:
-        mlir::Operation* getViewOpForMasterBuffer();
+        mlir::Operation* getViewOpForMasterBuffer(mlir::Value asyncResult);
         llvm::SmallVector<mlir::async::ExecuteOp> getUsersOfSpilledOpThatNeedUpdate(mlir::Value opThatWasSpilledResult);
-        unsigned int getOperandIndexForSpillResultUser(mlir::async::ExecuteOp spillResultUser);
+        unsigned int getOperandIndexForSpillResultUser(mlir::async::ExecuteOp spillResultUser,
+                                                       mlir::Value spilledAsyncResult);
         void updateSpillResultUsers(mlir::Value oldResult, mlir::Value newResult);
         void updateSpillBufferUsers(mlir::Value oldBuffer, mlir::Value newBuffer);
 
