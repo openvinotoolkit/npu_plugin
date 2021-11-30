@@ -1196,6 +1196,13 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
                 }
             }
 
+            if(op.getName() == "MobilenetV3/expanded_conv_13/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_" ||
+                op.getName() == "MobilenetV3/expanded_conv_14/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_" )
+                streamsOverK = {3};
+
+            if(op.getName() == "MobilenetV3/Conv_2/BiasAdd/Add")
+                streamsOverK = {4};
+
             std::vector<size_t> streamsOverC;
             if (hasStreamOverC)
                 streamsOverC = getStreamsOverC(op, clustering, {1,1,1,1,n}, inputSparsity.get<bool>(),
