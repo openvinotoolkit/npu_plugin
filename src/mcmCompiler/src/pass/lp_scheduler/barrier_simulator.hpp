@@ -111,9 +111,13 @@ class Runtime_Barrier_Simulation_Checker {
       while ( (bcurr != bend) && !real_barrier_list_.empty() ) {
         // atleast one barrier tasks and atleast one real barrier //
         operation_t bop = *bcurr;
+        std::cout << "acquire_real_barrier " << std::endl;
         acquire_real_barrier(bop);
         filled_atleast_once = true;
         berase = bcurr; ++bcurr;
+
+      
+        std::cout << "Erasing barrier from barrier_task_list " << std::endl;
         barrier_task_list.erase(berase);
       }
       return filled_atleast_once;
@@ -273,6 +277,7 @@ class Runtime_Barrier_Simulation_Checker {
 
 
     void init() {
+      std::cout <<  "Populating real_barrier_list_ with 9 barriers" << std::endl;
       real_barrier_list_.clear();
 
       // 2n barriers //
