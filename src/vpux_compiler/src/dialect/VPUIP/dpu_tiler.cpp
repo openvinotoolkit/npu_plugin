@@ -20,9 +20,47 @@ using namespace vpux;
 
 bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(uint8_t numDPU, uint32_t maxSplits,
                                                     SmallVector<uint32_t> validZTiles) {
+    if (validZTiles.size() == 0){
+        for (size_t i = 4; i<8; ++i){
+            validZTiles.push_back(std::pow(2, i));
+            validZTiles.push_back(validZTiles.back() + 16);
+        }
+    }
+    
+    SmallVector<uint32_t> max_splits_in_z;
+    SmallVector<uint32_t> max_splits_in_xy;
+    SmallVector<std::pair<uint8_t, uint8_t>> modes = getModes();
+    for (auto z_tile : validZTiles){
+        max_splits_in_z.push_back(std::ceil(outShape[Dims4D::Act::C] / (double)z_tile));
+    }
+    for (auto mode : modes){
+        max_splits_in_xy.push_back(std::ceil(outShape[Dims4D::Act::H] / (double)mode.first) * std::ceil(outShape[Dims4D::Act::W] / (double)mode.second));
+    }
+    
+    
 }
 
 bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles, bool sparse, bool has_se) {
+}
+
+SmallVector<std::pair<uint8_t, uint8_t>> vpux::VPUIP::DpuTiler::getModes(){
+    SmallVector<std::pair<uint8_t, uint8_t>> modes;
+    for (auto mode : mpeModeList){
+        switch (mode) {
+            case VPUIP::MPEMode::MATRIX:
+                modes.push_back({4,4});
+                break;
+            case VPUIP::MPEMode::VECTOR:
+                modes.push_back({1,16});
+                break;
+            case VPUIP::MPEMode::VECTOR_FP16:
+                modes.push_back({1,4});
+                break;
+            default:
+                break;
+        }
+    }
+    return modes;
 }
 
 SmallVector<VPUIP::DpuTile> vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, ShapeRef outShape, int64_t padLeft,

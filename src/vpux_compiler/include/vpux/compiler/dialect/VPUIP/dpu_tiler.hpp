@@ -33,8 +33,9 @@ class DpuTiler final {
 public:
     static SmallVector<DpuTile> tileOverH(int64_t numDPU, ShapeRef outShape, int64_t padLeft, int64_t padRight,
                                           int64_t padTop, int64_t padBottom);
-    bool generateSplitNumberPool(uint8_t numDPU, uint32_t maxSplits, SmallVector<uint32_t> validZTiles);
+    bool generateSplitNumberPool(uint8_t numDPU, uint32_t maxSplits = 50, SmallVector<uint32_t> validZTiles);
     bool tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles, bool sparse = false, bool has_se = false);
+    SmallVector<std::pair<uint8_t, uint8_t>> getModes();
 
 private:
     SmallVector<uint32_t> splitNumberPool;
