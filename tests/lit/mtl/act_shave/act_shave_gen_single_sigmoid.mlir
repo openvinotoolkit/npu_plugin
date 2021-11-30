@@ -217,7 +217,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:          name: "scratch_buffer",
 // CHECK:          locale: "GFEmbeddedKernel",
 // CHECK:          locale_offset: 4,
-// CHECK:          data_offset: 856,
 // CHECK:          referenced_data_size: 65536
 // CHECK:        }
 // CHECK:     }
@@ -249,8 +248,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                  name: "builtin_sigmoid",
 // CHECK:                  locale: "GFEmbeddedKernel",
 // CHECK:                  locale_offset: 5,
-// CHECK:                  data_offset: 240,
-// CHECK:                  referenced_data_size: 624
+// CHECK:                  referenced_data_size: 1376
 // CHECK:                }
 // CHECK:              },
 // CHECK:              invocations: [
@@ -267,13 +265,11 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                    name: "builtin_sigmoid_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
 // CHECK:                    locale_offset: 6,
-// CHECK:                    data_offset: 532
 // CHECK:                  },
 // CHECK:                  invocationArgs: {
 // CHECK:                    name: "builtin_sigmoid_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
 // CHECK:                    locale_offset: 6,
-// CHECK:                    data_offset: 532,
 // CHECK:                    referenced_data_size: 176
 // CHECK:                  }
 // CHECK:                }
