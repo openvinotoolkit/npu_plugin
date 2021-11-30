@@ -11,26 +11,54 @@
 // included with the Software Package for additional details.
 //
 
+#include "attributes.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/tiling.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #pragma once
 
 namespace vpux {
 namespace VPUIP {
 
-struct DpuTile final {
-    SmallVector<int64_t> start;
-    SmallVector<int64_t> end;
-    int64_t padLeft;
-    int64_t padRight;
-    int64_t padTop;
-    int64_t padBottom;
+struct WorkloadCostParams {
+    bool isZTilingSupported;
+    VPUIP::NCETaskType nceTaskType;
+    mlir::Type dataType;
+    VPU::ArchKind arch;
+    VPU::MPEMode mpeMode;
+    ShapeRef inputShape;
+    ShapeRef outputShape;
+    PadInfo padInfo;
+    int64_t numDPU;
+    SmallVector<int64_t> kernelSize;
+    SmallVector<int64_t> kernelStride;
 };
 
 class DpuTiler final {
 public:
-    static SmallVector<DpuTile> tileOverH(int64_t numDPU, ShapeRef outShape, int64_t padLeft, int64_t padRight,
-                                          int64_t padTop, int64_t padBottom);
+    DpuTiler(const ShapeRef& outShape, SmallVector<VPU::MPEMode> mpeModeList)
+            : _outShape(outShape), _mpeModeList(mpeModeList) {
+    }
+
+    bool generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits = 50, SmallVector<uint32_t> validZTiles = {});
+    bool tileOverH(int64_t numDPU);
+    bool tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles = {}, bool sparse = false,
+                   bool has_se = false);
+    SmallVector<OutputTiling> getSplitPool();
+    SmallVector<uint32_t> getSplitNumberPool();
+
+    uint32_t cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
+
+private:
+    Shape selectPadding(ShapeRef original);
+    SmallVector<std::pair<uint8_t, uint8_t>> getModes();
+
+    ShapeRef _outShape;
+    SmallVector<VPU::MPEMode> _mpeModeList;
+    SmallVector<uint32_t> _splitNumberPool;
+    SmallVector<OutputTiling> _splitPool;
 };
 
 }  // namespace VPUIP

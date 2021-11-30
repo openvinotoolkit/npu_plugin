@@ -28,6 +28,7 @@
 
 #include "vpux/utils/core/enums.hpp"
 
+#include <llvm/ADT/TypeSwitch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 using namespace vpux;
@@ -90,21 +91,48 @@ private:
 
 void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VPU::PaddingAttr pads,
                  const mlir::Type inElemType, const mlir::Type outElemType, ShapeRef outputShape, int64_t numDPU,
-                 VPU::ArchKind arch) {
+                 VPU::ArchKind arch, const VPUIP::WorkloadCostParams& costParams) {
     const auto mpeByType = mpeMap.at(arch);
+    auto mpeMode = mpeByType(inElemType, outElemType, origOp);
 
-    const int64_t minTileSize = 1;
+    VPUIP::DpuTiler dpuTiler(outputShape, {mpeMode});
+    dpuTiler.tileOverH(numDPU);
+    dpuTiler.generateSplitNumberPool(numDPU, 5);
+    auto splitNumPool = dpuTiler.getSplitNumberPool();
+    if (costParams.isZTilingSupported) {
+        for (auto& splitNum : splitNumPool) {
+            dpuTiler.tileOverZ(splitNum);
+        }
+    }
 
-    const int64_t minTilesCount = 1;
-    const int64_t maxTilesCount = numDPU;
+    // select workload with minimum cost
+    uint32_t bestScore = UINT32_MAX;
+    int best = -1;
+    llvm::outs() << "{\n";
+    origOp->print(llvm::outs());
+    llvm::outs() << "\n";
+    llvm::outs() << "workloads candidates: {\n";
 
-    int64_t tilesCount = outputShape[Dims4D::Act::H] / minTileSize;
-    tilesCount = std::min(std::max(tilesCount, minTilesCount), maxTilesCount);
-
-    Shape nTilesOnDim(outputShape.size(), minTilesCount);
-    nTilesOnDim[Dims4D::Act::H] = tilesCount;
-
-    const auto outTiles = fillDividedTiles(nTilesOnDim, outputShape);
+    const auto& splitCandidates = dpuTiler.getSplitPool();
+    for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
+        llvm::outs() << "workload " << idx << ": {\n";
+        auto score = dpuTiler.cost(splitCandidates[idx], costParams);
+        llvm::outs() << "},\n";
+        llvm::outs() << "total score: " << score << "\n";
+        if (bestScore > score) {
+            bestScore = score;
+            best = static_cast<int>(idx);
+        }
+    }
+    if (best == -1) {
+        VPUX_THROW("no workload splits found!");
+    }
+    llvm::outs() << "},\n";
+    if (best != 0) {
+        llvm::outs() << "best candidates:" << best << "\n";
+    }
+    llvm::outs() << "},\n";
+    const auto& outTiles = splitCandidates[best];
 
     for (const auto& outTile : outTiles) {
         const auto padsTileConf = backInferPadsTile(outTile, outputShape, VPU::toPadInfo(pads));
@@ -123,9 +151,157 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
 
     const auto inElemType = origOp.input().getType().template cast<mlir::RankedTensorType>().getElementType();
     const auto outElemType = origOp.output().getType().template cast<mlir::RankedTensorType>().getElementType();
+    const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
+                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
+                                     : getShape(origOp.filter());
+    const auto mpeByType = mpeMap.at(_arch);
+    const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
+
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    VPUIP::WorkloadCostParams params;
+    params.kernelSize = {KY, KX};
+    params.kernelStride = {SY, SX};
+    params.numDPU = _numDPU;
+    params.arch = _arch;
+    params.mpeMode = mpeMode;
+    params.dataType = inElemType;
+    params.inputShape = getShape(origOp.input());
+    params.outputShape = getShape(origOp.output());
+    const auto inOrder = DimsOrder::fromValue(origOp.input());
+    const auto isCMajor = inOrder == DimsOrder::NCHW;
+    params.nceTaskType = isCMajor ? VPUIP::NCETaskType::CMCONV : VPUIP::NCETaskType::CONV;
+    params.isZTilingSupported = true;
+    if (isCMajor && mpeMode != VPU::MPEMode::VECTOR) {
+        params.isZTilingSupported = false;
+    }
+    params.padInfo = VPU::toPadInfo(pads);
 
     rewriter.updateRootInPlace(origOp, [&]() {
-        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch);
+        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch, params);
+    });
+
+    return mlir::success();
+}
+
+//
+// DepthConvolutionNCERewrite
+//
+
+class DepthConvolutionNCERewrite final : public mlir::OpRewritePattern<VPU::NCEDepthConvolutionOp> {
+public:
+    DepthConvolutionNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<VPU::NCEDepthConvolutionOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(VPU::NCEDepthConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    const int64_t _numDPU;
+    VPU::ArchKind _arch;
+    Logger _log;
+};
+
+mlir::LogicalResult DepthConvolutionNCERewrite::matchAndRewrite(VPU::NCEDepthConvolutionOp origOp,
+                                                                mlir::PatternRewriter& rewriter) const {
+    const auto outputShape = getShape(origOp.output());
+    auto pads = origOp.pad();
+
+    const auto inElemType = origOp.input().getType().template cast<mlir::RankedTensorType>().getElementType();
+    const auto outElemType = origOp.output().getType().template cast<mlir::RankedTensorType>().getElementType();
+    const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
+                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
+                                     : getShape(origOp.filter());
+
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    const auto mpeByType = mpeMap.at(_arch);
+    const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
+
+    VPUIP::WorkloadCostParams params;
+    params.kernelSize = {KY, KX};
+    params.kernelStride = {SY, SX};
+    params.numDPU = _numDPU;
+    params.arch = _arch;
+    params.isZTilingSupported = mpeMode == VPU::MPEMode::VECTOR;
+    params.mpeMode = mpeMode;
+    params.dataType = inElemType;
+    params.inputShape = getShape(origOp.input());
+    params.outputShape = getShape(origOp.output());
+    params.nceTaskType = VPUIP::NCETaskType::DWCONV;
+    params.padInfo = VPU::toPadInfo(pads);
+
+    rewriter.updateRootInPlace(origOp, [&]() {
+        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch, params);
+    });
+
+    return mlir::success();
+}
+
+//
+// MaxPoolNCERewrite
+//
+
+class MaxPoolNCERewrite final : public mlir::OpRewritePattern<VPU::NCEMaxPoolOp> {
+public:
+    MaxPoolNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<VPU::NCEMaxPoolOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(VPU::NCEMaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    const int64_t _numDPU;
+    VPU::ArchKind _arch;
+    Logger _log;
+};
+
+mlir::LogicalResult MaxPoolNCERewrite::matchAndRewrite(VPU::NCEMaxPoolOp origOp,
+                                                       mlir::PatternRewriter& rewriter) const {
+    const auto outputShape = getShape(origOp.output());
+    auto pads = origOp.pad();
+
+    const auto inElemType = origOp.input().getType().template cast<mlir::RankedTensorType>().getElementType();
+    const auto outElemType = origOp.output().getType().template cast<mlir::RankedTensorType>().getElementType();
+
+    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+    const auto KY = kernelSize[0];
+    const auto KX = kernelSize[1];
+
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    const auto mpeByType = mpeMap.at(_arch);
+    const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
+
+    VPUIP::WorkloadCostParams params;
+    params.kernelSize = {KY, KX};
+    params.kernelStride = {SY, SX};
+    params.numDPU = _numDPU;
+    params.arch = _arch;
+    params.isZTilingSupported = mpeMode == VPU::MPEMode::VECTOR;
+    params.mpeMode = mpeMode;
+    params.dataType = inElemType;
+    params.inputShape = getShape(origOp.input());
+    params.outputShape = getShape(origOp.output());
+    params.nceTaskType = VPUIP::NCETaskType::MAXPOOL;
+    params.padInfo = VPU::toPadInfo(pads);
+
+    rewriter.updateRootInPlace(origOp, [&]() {
+        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch, params);
     });
 
     return mlir::success();
@@ -160,9 +336,23 @@ mlir::LogicalResult EltwiseNCERewrite::matchAndRewrite(VPU::NCEEltwiseOp origOp,
 
     const auto inElemType = origOp.input1().getType().cast<mlir::RankedTensorType>().getElementType();
     const auto outElemType = origOp.output().getType().cast<mlir::RankedTensorType>().getElementType();
+    const auto mpeByType = mpeMap.at(_arch);
+    const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
 
+    VPUIP::WorkloadCostParams params;
+    params.kernelSize = {1, 1};
+    params.kernelStride = {1, 1};
+    params.numDPU = _numDPU;
+    params.arch = _arch;
+    params.isZTilingSupported = false;
+    params.mpeMode = mpeMode;
+    params.dataType = inElemType;
+    params.inputShape = getShape(origOp.input1());
+    params.outputShape = getShape(origOp.output());
+    params.nceTaskType = VPUIP::NCETaskType::ELTWISE;
+    params.padInfo = VPU::toPadInfo(pads);
     rewriter.updateRootInPlace(origOp, [&]() {
-        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch);
+        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch, params);
     });
 
     return mlir::success();
@@ -202,8 +392,8 @@ void SplitNCEOpsOntoWorkloadsPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<GenericNCERewrite<VPU::NCEConvolutionOp>>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<GenericNCERewrite<VPU::NCEMaxPoolOp>>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<GenericNCERewrite<VPU::NCEDepthConvolutionOp>>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<DepthConvolutionNCERewrite>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<MaxPoolNCERewrite>(&ctx, dpuExec.count(), arch, _log);
     patterns.insert<EltwiseNCERewrite>(&ctx, dpuExec.count(), arch, _log);
 
     mlir::ConversionTarget target(ctx);

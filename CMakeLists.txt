@@ -95,6 +95,14 @@ list(APPEND CMAKE_MODULE_PATH
     "${LLVM_SOURCE_DIR}/cmake/modules"
 )
 
+set(VPUNN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/vpucostmodel")
+set(VPUNN_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/vpucostmodel")
+
+set(VPUNN_INCLUDE_DIRS
+        "${VPUNN_SOURCE_DIR}/include"
+        "${VPUNN_BINARY_DIR}/include"
+)
+
 include(cmake/tblgen.cmake)
 
 if(ENABLE_DEVELOPER_BUILD)

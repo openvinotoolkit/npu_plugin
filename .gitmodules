@@ -30,3 +30,7 @@
 [submodule "thirdparty/level-zero-ext"]
 	path = thirdparty/level-zero-ext
 	url = https://github.com/intel-innersource/drivers.vpu.user-mode.applications.umd.ze-ext-headers.git
+[submodule "thirdparty/vpucostmodel"]
+	path = thirdparty/vpucostmodel
+	url = https://github.com/intel-innersource/libraries.performance.modeling.vpu.nn-cost-model.git
+	branch = lx/win_ninja
