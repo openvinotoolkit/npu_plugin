@@ -12,8 +12,6 @@
 //
 #pragma once
 
-//#include "vpux/compiler/core/deps_info.hpp"
-
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/small_vector.hpp"

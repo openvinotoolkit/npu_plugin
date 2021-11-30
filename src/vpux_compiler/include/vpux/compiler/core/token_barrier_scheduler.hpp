@@ -241,11 +241,10 @@ public:
 
              static size_t barrier_task_id=0UL;
 
-             //mlir::OpBuilder builder(sinfo.op_);
              mlir::OpBuilder builder(_func.getBody());
 
              builder.setInsertionPoint(sinfo.op_);
-             mlir::Operation* newBarrier = builder.create<VPURT::ConfigureBarrierOp>(sinfo.op_->getLoc(), barrier_task_id);
+             mlir::Operation* newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc()); //Neds to be virtual.
 
              std::set<mlir::Operation*> newBarrierProducers{};
              std::set<mlir::Operation*> newBarrierConsumers{};            
