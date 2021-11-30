@@ -11,7 +11,11 @@
 // included with the Software Package for additional details.
 //
 
+#include "attributes.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/tiling.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #pragma once
 
@@ -25,12 +29,35 @@ struct DpuTile final {
     int64_t padRight;
     int64_t padTop;
     int64_t padBottom;
+    VPU::MPEMode mpeMode;
 };
 
 class DpuTiler final {
 public:
-    static SmallVector<DpuTile> tileOverH(int64_t numDPU, ShapeRef outShape, int64_t padLeft, int64_t padRight,
-                                          int64_t padTop, int64_t padBottom);
+    DpuTiler(const ShapeRef& outShape, SmallVector<VPU::MPEMode> mpeModeList)
+            : _outShape(outShape), _mpeModeList(mpeModeList) {
+    }
+
+    bool generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits = 50, SmallVector<uint32_t> validZTiles = {});
+    bool tileOverH(int64_t numDPU, PadInfo padInfo, VPU::MPEMode mpeMode);
+    bool tileOverZ(uint32_t splitNumber, PadInfo padInfo, SmallVector<uint32_t> validZTiles = {}, bool sparse = false,
+                   bool has_se = false);
+    SmallVector<SmallVector<DpuTile>> getSplitPool();
+    SmallVector<uint32_t> getSplitNumberPool();
+
+#ifdef __linux__
+    uint32_t cost(VPUIP::NCEClusterTaskOp op, const SmallVector<VPUIP::DpuTile>& dpuTiles, unsigned int numDPU,
+                  VPU::ArchKind arch);
+#endif
+
+private:
+    Shape selectPadding(ShapeRef original);
+    SmallVector<std::pair<uint8_t, uint8_t>> getModes();
+
+    ShapeRef _outShape;
+    SmallVector<VPU::MPEMode> _mpeModeList;
+    SmallVector<uint32_t> _splitNumberPool;
+    SmallVector<SmallVector<DpuTile>> _splitPool;
 };
 
 }  // namespace VPUIP

@@ -406,6 +406,7 @@ add_custom_target(copy-act-shave-runtime ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels/prebuild/act_shave_bin ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/act-kernels
         DEPENDS ${OBJ_TARGET_NAME})
 
+
 target_include_directories(${OBJ_TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -419,7 +420,26 @@ target_include_directories(${OBJ_TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels>
+        ${VPUNN_INCLUDE_DIRS}
 )
+
+# enable vpunn cost model on linux platform
+if(NOT MSVC)
+    find_package(Git REQUIRED)
+    add_custom_target(download_vpu_cost_nn_model ALL
+            COMMAND ${GIT_EXECUTABLE} lfs pull
+            WORKING_DIRECTORY ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel)
+    add_custom_target(copy-vpunnd-model ALL
+            COMMAND ${CMAKE_COMMAND} -E copy_directory  ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpunnd
+            DEPENDS ${OBJ_TARGET_NAME} download_vpu_cost_nn_model)
+
+    add_dependencies(${OBJ_TARGET_NAME} inferenceStatic)
+    link_system_libraries(${OBJ_TARGET_NAME}
+            PUBLIC
+            inferenceStatic
+    )
+endif()
+
 
 link_system_libraries(${OBJ_TARGET_NAME}
     PUBLIC
@@ -493,3 +513,9 @@ endif()
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+
+if(NOT MSVC)
+    install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/"
+            DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpunn"
+            COMPONENT    ${VPUX_PLUGIN_COMPONENT})
+endif()
