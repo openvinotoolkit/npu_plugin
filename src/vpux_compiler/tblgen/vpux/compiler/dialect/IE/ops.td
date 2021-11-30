@@ -2436,4 +2436,31 @@ def IE_AffineReshapeOp :
     let checkInferredMemSpace = 1;
 }
 
+//
+// NotEqualOp
+//
+
+def IE_NotEqualOp :
+        IE_LayerOp<
+            "NotEqual",
+            [
+                IE_TilingBuilderOpInterface,
+                Commutative,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine NotEqual layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
 #endif

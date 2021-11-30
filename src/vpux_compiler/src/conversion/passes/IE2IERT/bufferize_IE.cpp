@@ -931,6 +931,11 @@ mlir::Operation* createRTLayer(IE::LessEqualOp origOp, ArrayRef<mlir::Value> all
     return b.create<IERT::LessEqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::NotEqualOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::NotEqualOp::Adaptor newOp(allBufs);
+    return b.create<IERT::NotEqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -1029,6 +1034,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::EqualOp)
     CASE(IE::LessOp)
     CASE(IE::LessEqualOp)
+    CASE(IE::NotEqualOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });
