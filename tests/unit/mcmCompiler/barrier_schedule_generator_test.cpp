@@ -211,7 +211,7 @@ class Test_Fixture_Barrier_Scheduler : public testing::Test {
     for (;bscheduler != bscheduler_end; ++bscheduler) {
       const schedule_info_t& sinfo = *bscheduler;
 
-      if (dump_info) {
+      if (true) {
         printf("[time=%lu barrier_id=%lu slot_count=%lu op=%s]\n",
             sinfo.schedule_time_, sinfo.barrier_index_, sinfo.slot_count_,
             sinfo.op_.c_str());
@@ -237,6 +237,7 @@ class Test_Fixture_Barrier_Scheduler : public testing::Test {
     result.scheduled_ops_ = scheduled_ops.size();
     result.max_active_barriers_ = max_active;
     result.make_span_ = make_span;
+    std::cout << "Max active " << max_active << std::endl;
     return result;
   }
 
@@ -251,9 +252,7 @@ TEST_F(Test_Fixture_Barrier_Scheduler, barriers_2_slots_1_depth_1_degree_100) {
 
   EXPECT_EQ(input_dag.size(), 101UL);
   // create a 1 level tree with 100 nodes //
-  schedule_results_t results =
-    run_scheduler_and_get_max_active_barriers_and_scheduled_ops(input_dag,
-        2UL, 1UL);
+  schedule_results_t results = run_scheduler_and_get_max_active_barriers_and_scheduled_ops(input_dag, 2UL, 1UL);
   EXPECT_EQ(results, schedule_results_t(101UL, 2UL, 50UL) );
 }
 

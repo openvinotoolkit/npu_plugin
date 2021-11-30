@@ -53,12 +53,13 @@ public:
     };
 
     explicit BarrierSimulator(mlir::MLIRContext* ctx, Logger log, int64_t numDmaEngines)
-            : _ctx(ctx), _log(log), _numDmaEngines(numDmaEngines), _numRealBarriers() {
+            : _ctx(ctx), _log(log), _numDmaEngines(numDmaEngines), _numRealBarriers(), _active_barrier_table() {
     }
 
     void buildTaskLists(mlir::FuncOp func);
     void assignVirtualIds(mlir::FuncOp func);
     int64_t getVirtualId(VPURT::ConfigureBarrierOp op);
+    static bool compareByLength(TaskInfo& a, TaskInfo& b);
     mlir::LogicalResult checkProducerCount();
     mlir::LogicalResult run();
 
@@ -68,10 +69,13 @@ private:
                       const size_t upa);
 
 private:
-    SmallVector<TaskInfo> _nceTasks;
-    SmallVector<TaskInfo> _upaTasks;
+    //SmallVector<TaskInfo> _nceTasks;
+    //SmallVector<TaskInfo> _upaTasks;
+
+    std::vector<TaskInfo> _nceTasks;
+    std::vector<TaskInfo> _upaTasks;
     std::array<SmallVector<TaskInfo>, MAX_DMA_ENGINES> _dmaTasks;
-    SmallVector<VPURT::ConfigureBarrierOp> _barrierOps;
+    std::list<VPURT::DeclareVirtualBarrierOp> _barrierOps;
 
     std::map<int64_t, VirtualBarrierInfo> _virtualBarriers;
     SmallVector<int64_t> _barrierConfig;
@@ -80,6 +84,19 @@ private:
     Logger _log;
     int64_t _numDmaEngines;
     int64_t _numRealBarriers;
+
+    struct active_barrier_info_t {
+      size_t real_barrier_;
+      //size_t in_degree_;
+      //size_t out_degree_;
+      active_barrier_info_t(size_t real, size_t in, size_t out)
+        : real_barrier_(real)/*, in_degree_(in), out_degree_(out)*/ {}
+    };
+
+    typedef std::unordered_map<mlir::Operation*, active_barrier_info_t> active_barrier_table_t;
+    typedef active_barrier_table_t::iterator active_barrier_table_iterator_t;
+
+    active_barrier_table_t _active_barrier_table;
 };
 
 void BarrierSimulator::assignVirtualIds(mlir::FuncOp func) {
@@ -91,6 +108,13 @@ void BarrierSimulator::assignVirtualIds(mlir::FuncOp func) {
 
 int64_t BarrierSimulator::getVirtualId(VPURT::ConfigureBarrierOp op) {
     return checked_cast<int64_t>(op->getAttr(virtualIdAttrName).cast<mlir::IntegerAttr>().getInt());
+}
+
+bool BarrierSimulator::compareByLength(TaskInfo& a, TaskInfo& b)
+{
+    int64_t aID = checked_cast<int64_t>(a.taskOp->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
+    int64_t bID = checked_cast<int64_t>(b.taskOp->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
+    return aID < bID;
 }
 
 void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
@@ -119,10 +143,11 @@ void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
 
     // The task lists have to be populated in the same order as during the serialization phase
     // to ensure that the correct simulation occurs
-    func.walk([&](VPURT::ConfigureBarrierOp barrierOp) {
+    func.walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
+        Logger::global().error("Adding Barrier ID {0}", barrierOp->getAttr("id").cast<mlir::IntegerAttr>().getInt());
         _barrierOps.push_back(barrierOp);
-        const auto virtualId = getVirtualId(barrierOp);
-        _virtualBarriers[virtualId].realId = barrierOp.id();
+        //const auto virtualId = getVirtualId(barrierOp);
+       // _virtualBarriers[virtualId].realId = barrierOp.id();
         _numRealBarriers = std::max(_numRealBarriers, barrierOp.id() + 1);
     });
 
@@ -162,6 +187,17 @@ void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
             VPUX_THROW("Unsupported task type '{0}'", taskOp.getTaskType());
         }
     });
+
+    // sort barriers
+    _barrierOps.sort([](mlir::Operation* a, mlir::Operation* b) -> bool {
+        int64_t aID = checked_cast<int64_t>(a->getAttr("id").cast<mlir::IntegerAttr>().getInt());
+        int64_t bID = checked_cast<int64_t>(b->getAttr("id").cast<mlir::IntegerAttr>().getInt());
+    return aID < bID;
+    });
+
+    // sort ncetasks
+    std::sort(_nceTasks.begin(), _nceTasks.end(), compareByLength);
+
 }
 
 BarrierSimulator::UpdateStatus BarrierSimulator::updateTaskBarriers(const TaskInfo& taskInfo, const int64_t count = 1) {
@@ -244,24 +280,27 @@ mlir::LogicalResult BarrierSimulator::run() {
     size_t nce = 0;
     size_t upa = 0;
     std::array<size_t, MAX_DMA_ENGINES> dma = {0};
-    while (barrier < _barrierOps.size() || dma[0] < _dmaTasks[0].size() || dma[1] < _dmaTasks[1].size() ||
-           nce < _nceTasks.size() || upa < _upaTasks.size()) {
+    while (barrier < _barrierOps.size() || dma[0] < _dmaTasks[0].size() || dma[1] < _dmaTasks[1].size() || nce < _nceTasks.size() || upa < _upaTasks.size()) {
+        
+        
         _log.nest(2).trace("BAR: {0} / {1}; DMA: {2} / {3}, {4} / {5}; NCE: {6} / {7}; UPA: {8} / {9}", barrier,
                            _barrierOps.size(), dma[0], _dmaTasks[0].size(), dma[1], _dmaTasks[1].size(), nce,
                            _nceTasks.size(), upa, _upaTasks.size());
 
         bool progressed = false;
 
-        for (; barrier < _barrierOps.size(); ++barrier) {
-            const auto virtualId = getVirtualId(_barrierOps[barrier]);
-            const auto realId = _virtualBarriers[virtualId].realId;
-            if (_barrierConfig[realId] > -1)
-                break;
-            _barrierConfig[realId] = virtualId;
-            progressed = true;
-        }
+        // for (; barrier < _barrierOps.size(); ++barrier) {
+            
+        //     const auto virtualId = getVirtualId(_barrierOps[barrier]);
+        //     const auto realId = _virtualBarriers[virtualId].realId;
+        //     if (_barrierConfig[realId] > -1)
+        //         break;
+        //     _barrierConfig[realId] = virtualId;
+        //     progressed = true;
+        // }
 
         for (int64_t e = 0; e < _numDmaEngines; ++e) {
+            
             for (; dma[e] < _dmaTasks[e].size(); ++dma[e]) {
                 const auto status = updateTaskBarriers(_dmaTasks[e][dma[e]]);
                 if (status == UpdateStatus::Skip)
@@ -273,6 +312,7 @@ mlir::LogicalResult BarrierSimulator::run() {
         }
 
         for (; nce < _nceTasks.size(); ++nce) {
+            
             auto& block = _nceTasks[nce].taskOp.op().getBlocks().front();
             auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(block.begin());
             VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
@@ -304,10 +344,10 @@ mlir::LogicalResult BarrierSimulator::run() {
 
 void BarrierSimulator::logDebugInfo(const size_t barrier, const std::array<size_t, MAX_DMA_ENGINES>& dma,
                                     const size_t nce, const size_t upa) {
-    _log.error("Barrier simulation blocked at BAR: {0} / {1} (virtual_id {2}); DMA: {3} / {4}, {5} / {6};"
-               "NCE: {7} / {8}; UPA: {9} / {10}",
-               barrier, _barrierOps.size(), getVirtualId(_barrierOps[barrier]), dma[0], _dmaTasks[0].size(), dma[1],
-               _dmaTasks[1].size(), nce, _nceTasks.size(), upa, _upaTasks.size());
+    // _log.error("Barrier simulation blocked at BAR: {0} / {1} (virtual_id {2}); DMA: {3} / {4}, {5} / {6};"
+    //            "NCE: {7} / {8}; UPA: {9} / {10}",
+    //            barrier, _barrierOps.size(), getVirtualId(_barrierOps[barrier]), dma[0], _dmaTasks[0].size(), dma[1],
+    //            _dmaTasks[1].size(), nce, _nceTasks.size(), upa, _upaTasks.size());
 
     _log.error("Real barriers configuration:");
     for (size_t i = 0; i < _barrierConfig.size(); ++i) {
@@ -358,7 +398,7 @@ void BarrierSimulationPass::safeRunOnFunc() {
                       MAX_DMA_ENGINES);
 
     BarrierSimulator simulator(&ctx, _log, numDmaEngines);
-    simulator.assignVirtualIds(func);
+    //simulator.assignVirtualIds(func);
     simulator.buildTaskLists(func);
     if (mlir::failed(simulator.checkProducerCount())) {
         signalPassFailure();

@@ -120,12 +120,34 @@
         "Singular": [
             "Linearization",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/control-in.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/control-in.dot"
+            },
+            {
               "name" : "BarrierSchedulerPass",
-              "real_physical_barriers": 32,
-              "barrier_bound": 16,
+              "real_physical_barriers": 8,
+              "barrier_bound": 4,
               "producer_bound" : 256,
               "remove_barriers_in_upa_tail" : true,
-              "remove_redundant_wait_barriers" : true
+              "remove_redundant_wait_barriers" : false
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/control-out.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/control-out.dot"
             },
             {
                 "name" : "AddDPUTasksProfilingDMA",
@@ -142,12 +164,9 @@
     },
     "serialize": {
         "Singular": [
-            "RemoveRedundantUpdateBarriers",
-            "CombineTaskInputBarriers",
-            "SplitBarrier",
             {
                 "name" : "AssignPhysicalBarrier",
-                "real_physical_barriers": 32
+                "real_physical_barriers": 8
             },
             "BuildGraphFileKmb",
             "UpdatePhysicalIDinGraphFile",

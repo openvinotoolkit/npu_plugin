@@ -89,16 +89,17 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
       logForOps(barrier_list, data_list, compute_list, upa_list);
 
       // ---simulate execution---
-      mv::Logger::log(mv::Logger::MessageType::Debug, "PassManager",
-                          "Starting Runtime Simulation");
+      mv::Logger::log(mv::Logger::MessageType::Info, "PassManager", "Starting Runtime Simulation");
+
       bool filled_atleast_one = false;
-      while (!data_list.empty() || !compute_list.empty()
-            || !barrier_list.empty() || !upa_list.empty()) {
+      while (!data_list.empty() || !compute_list.empty() || !barrier_list.empty() || !upa_list.empty()) {
+
         filled_atleast_one = false;
         filled_atleast_one |= fill_barrier_tasks(barrier_list);
         filled_atleast_one |= process_tasks(data_list);
         filled_atleast_one |= process_tasks(compute_list);
         filled_atleast_one |= process_tasks(upa_list);
+
         if (!filled_atleast_one) { 
             logForBarrierTable(active_barrier_table_.begin(), active_barrier_table_.end());
             return false;
@@ -129,23 +130,24 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
     mv::OpModel * om_;
 
     bool is_task_ready(const operation_t& task) {
+      std::cout << "Checking if task is ready " << std::endl;
       const dag_t& dag = *input_ptr_;
       assert(!op_type_selector_t::is_barrier_op(dag, task));
 
       op_list_t wait_barriers, update_barriers;
 
       // wait barriers //
-      for (const_operation_iterator_t
-          pitr=traits::incoming_operations_begin(dag, task);
-          pitr!=traits::incoming_operations_end(dag, task); ++pitr) {
+      for (const_operation_iterator_t pitr=traits::incoming_operations_begin(dag, task); pitr!=traits::incoming_operations_end(dag, task); ++pitr) {
         operation_t barrier_op = *pitr;
+        
         if(op_type_selector_t::is_barrier_op(dag, barrier_op))
         {
-            active_barrier_table_iterator_t aitr =
-                active_barrier_table_.find(barrier_op);
+            active_barrier_table_iterator_t aitr = active_barrier_table_.find(barrier_op);
 
-            if ( (aitr == active_barrier_table_.end()) ||
-              ((aitr->second).in_degree_ > 0) ) { return false; }
+            if ( (aitr == active_barrier_table_.end()) || ((aitr->second).in_degree_ > 0) )
+            { 
+              return false;   
+            }
         }
       }
 
@@ -213,12 +215,11 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
       
       // print
       op_list_iterator_t tbegin = task_list.begin(), tend = task_list.end();
-      if (Logger::getVerboseLevel()==VerboseLevel::Debug){
+      if (Logger::getVerboseLevel()==VerboseLevel::Info){
         while (tbegin != tend) {
           operation_t op = *tbegin;
           if (!is_task_ready(op) ) { break; }
-          mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeSimulator",
-                          "Process task: " + op->getName());
+          mv::Logger::log(mv::Logger::MessageType::Info, "RuntimeSimulator", "Process task: " + op->getName());
           ++tbegin;
         }
       }
@@ -257,9 +258,8 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
       mv::Barrier &barrier = oitr->get<mv::Barrier>("Barrier");
       // assign physical id to barrier
       barrier.setRealBarrierIndex(real);
-      mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeSimulator",
-                          "Physical ID assignment: " + oitr->getName() + " : "+ std::to_string(barrier.getIndex())
-                          + "->" + std::to_string(real));
+      std::cout << "Physical ID assignment: " + oitr->getName() + " : "+ std::to_string(barrier.getIndex()) + "->" + std::to_string(real) << std::endl;;
+      mv::Logger::log(mv::Logger::MessageType::Info, "RuntimeSimulator", "Physical ID assignment: " + oitr->getName() + " : "+ std::to_string(barrier.getIndex()) + "->" + std::to_string(real));
       real_barrier_list_.pop_front();
 
       assert(active_barrier_table_.size() < (2*barrier_bound_));
@@ -267,13 +267,12 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
       in_degree_iterator_t in_itr = in_degree_map_.find(btask);
       out_degree_iterator_t out_itr = out_degree_map_.find(btask);
 
-      assert((in_itr != in_degree_map_.end()) && 
-            (out_itr != out_degree_map_.end()));
+      assert((in_itr != in_degree_map_.end()) && (out_itr != out_degree_map_.end()));
 
       assert(active_barrier_table_.find(btask) == active_barrier_table_.end());
 
-      active_barrier_table_.insert(std::make_pair(btask,
-            active_barrier_info_t(real, in_itr->second, out_itr->second)));
+      std::cout << "Inserting "  + oitr->getName() << " into the active_barrier_table with physical ID " << real << " " << in_itr->second << " " << out_itr->second << std::endl;   
+      active_barrier_table_.insert(std::make_pair(btask, active_barrier_info_t(real, in_itr->second, out_itr->second)));
     }
     
     void logForBarrierTable(active_barrier_table_iterator_t bcurr, active_barrier_table_iterator_t bend){
@@ -294,13 +293,13 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
     void logForOp(op_list_iterator_t tbegin, op_list_iterator_t tend, string op_type_name){
         while (tbegin != tend) {
             operation_t op = *tbegin;
-            mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeSimulator", op_type_name + ": " + op->getName());
+            mv::Logger::log(mv::Logger::MessageType::Info, "RuntimeSimulator", op_type_name + ": " + op->getName());
             ++tbegin;
         }
     }
     
     void logForOps(op_list_t barrier_list, op_list_t dma_list, op_list_t dpu_list, op_list_t upa_list){
-        if(Logger::getVerboseLevel()==VerboseLevel::Debug)
+        if(Logger::getVerboseLevel()==VerboseLevel::Info)
         {
             logForOp(barrier_list.begin(), barrier_list.end(), "barrier_list");
             logForOp(dma_list.begin(), dma_list.end(), "dma_list");
