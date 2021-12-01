@@ -163,21 +163,28 @@ std::int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Ty
     if (inputType.isF16() || inputType.isF32() || inputType.isBF16()) {
         return toHex(rescale);
     }
-    int32_t PRELU_SCALE_OFFSET = 0;
-    int32_t PRELU_SCALE_VALUE = 0;
 
-    int32_t PPE_SHIFT_OFFSET = 8;
-    int32_t PPE_SHIFT_VALUE = shift;
+    size_t multshift = 0;
+    // 8bit mult mask
+    static const uint32_t PRELU_MULT_MASK = 0x000000FF;
+    // 6bit shift mask
+    static const uint32_t PPE_SHIFT_MASK = 0x00003F00;
+    static const uint32_t PPE_SHIFT_OFFSET = 8;
+    // round mode mask
+    static const uint32_t ROUND_MODE_MASK = 0x0000C000;
+    static const uint32_t ROUND_MODE_OFFSET = 14;
+    // scale mask
+    static const uint32_t PPE_MULT_MASK = 0xFFFF0000;
+    static const uint32_t PPE_MULT_OFFSET = 16;
 
-    int32_t ROUND_MODE_OFFSET = 14;
-    int32_t ROUND_MODE_VALUE = 1;
+    // harcoded
+    int32_t round32 = 0;
+    int32_t reluMult = 0;
+    multshift = static_cast<int32_t>(((mult << PPE_MULT_OFFSET) & PPE_MULT_MASK) |
+                                     ((round32 << ROUND_MODE_OFFSET) & ROUND_MODE_MASK) |
+                                     ((shift << PPE_SHIFT_OFFSET) & PPE_SHIFT_MASK) | (reluMult & PRELU_MULT_MASK));
 
-    int32_t PPE_MULT_OFFSET = 16;
-    // FIXME: PPE multiplier has sign, which may affect lower bits
-    int32_t PPE_MULT_VALUE = mult;
-
-    return (PRELU_SCALE_VALUE << PRELU_SCALE_OFFSET) | (PPE_SHIFT_VALUE << PPE_SHIFT_OFFSET) |
-           (ROUND_MODE_VALUE << ROUND_MODE_OFFSET) | (PPE_MULT_VALUE << PPE_MULT_OFFSET);
+    return multshift;
 }
 
 llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type op_inElemType, mlir::Type op_outElemType,
