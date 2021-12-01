@@ -20,6 +20,7 @@
 
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
 
@@ -78,14 +79,14 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
 mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation, ArrayRef<int64_t> shape,
                                mlir::Type elemType, DimsOrder order);
 
-vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    int locale, size_t offset);
 
-vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,
                                                    size_t offset);
 
-mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op);
+mlir::OpResult getTensorResult(VPURT::DeclareBufferOp op);
 
 mlir::OpResult getConstResult(vpux::Const::DeclareOp op);
 

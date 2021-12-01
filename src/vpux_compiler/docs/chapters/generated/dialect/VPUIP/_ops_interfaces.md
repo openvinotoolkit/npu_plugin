@@ -4,27 +4,7 @@
 
 Interface for VPUIP Task
 ### Methods:
-#### `waitBarriers`
-
-```c++
-mlir::ValueRange waitBarriers();
-```
-Barriers that will free this task to run#### `waitBarriersMutable`
-
-```c++
-mlir::MutableOperandRange waitBarriersMutable();
-```
-Barriers that will free this task to run#### `updateBarriers`
-
-```c++
-mlir::ValueRange updateBarriers();
-```
-Barriers that will be at least partially unlocked when this task is complete#### `updateBarriersMutable`
-
-```c++
-mlir::MutableOperandRange updateBarriersMutable();
-```
-Barriers that will be at least partially unlocked when this task is complete#### `serialize`
+#### `serialize`
 
 ```c++
 vpux::VPUIP::BlobWriter::SpecificTask serialize(vpux::VPUIP::BlobWriter&writer);
@@ -52,18 +32,5 @@ Get maximal number of UPA SHAVEs to use#### `setMaxShaves`
 void setMaxShaves(int64_t maxShaves);
 ```
 Update maximal number of UPA SHAVEs to use
-NOTE: This method *must* be implemented by the user.
-
-#### `isTrailingSWLayer`
-
-```c++
-bool isTrailingSWLayer();
-```
-Is current task the trailing SW layer#### `markAsTrailingSWLayer`
-
-```c++
-void markAsTrailingSWLayer();
-```
-Mark current task as trailing SW layer
 NOTE: This method *must* be implemented by the user.
 

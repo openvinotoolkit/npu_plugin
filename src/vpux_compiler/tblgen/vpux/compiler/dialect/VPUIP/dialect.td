@@ -17,7 +17,7 @@
 include "mlir/IR/OpBase.td"
 
 def VPUIP_Dialect : Dialect {
-    let summary = "VPU NN RunTime Dialect";
+    let summary = "VPU NN Execution RunTime Dialect";
 
     let description = [{
 The **VPUIP Dialect** represents NN RunTime IR in terms of MLIR framework.
@@ -30,7 +30,6 @@ It allows to work with the graph schema inside MLIR framework:
 It handles such VPU-specifics as:
 
 * Memory/executors hierarchy.
-* HW barriers notion.
 * Supported operation set.
 
 [./VPUIP/_ops_interfaces.md]

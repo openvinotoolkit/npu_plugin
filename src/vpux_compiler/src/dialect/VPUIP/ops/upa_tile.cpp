@@ -37,7 +37,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PerAxisTileUPAOp op) {
 void vpux::VPUIP::PerAxisTileUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
                                           mlir::Value input, mlir::Value output, mlir::IntegerAttr axis,
                                           mlir::IntegerAttr tiles) {
-    build(odsBuilder, odsState, input, output, mlir::ValueRange{}, mlir::ValueRange{}, axis, tiles, nullptr, nullptr);
+    build(odsBuilder, odsState, input, output, axis, tiles, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PerAxisTileUPAOp::serialize(VPUIP::BlobWriter& writer) {

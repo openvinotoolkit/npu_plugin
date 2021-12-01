@@ -41,11 +41,6 @@ mlir::LogicalResult verifyTensorSize(mlir::Location loc, mlir::Value tensor) {
 // UPADMAOp
 //
 
-void vpux::VPUIP::UPADMAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value src,
-                                  mlir::Value dst) {
-    build(builder, state, src, dst, mlir::ValueRange{}, mlir::ValueRange{});
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto inputOff = writer.getTensor(input());
     const auto outputOff = writer.getTensor(output());
@@ -63,11 +58,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(UPADMAOp op) {
 //
 // NNDMAOp
 //
-
-void vpux::VPUIP::NNDMAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value src,
-                                 mlir::Value dst) {
-    build(builder, state, src, dst, mlir::ValueRange{}, mlir::ValueRange{});
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto srcOff = writer.getTensor(input());

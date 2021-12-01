@@ -59,23 +59,32 @@ mlir::LogicalResult InlineAsyncRegion::matchAndRewrite(mlir::async::ExecuteOp ex
     auto yieldOp = mlir::dyn_cast_or_null<mlir::async::YieldOp>(execOp.getBody()->getTerminator());
     VPUX_THROW_UNLESS(yieldOp != nullptr, "'async.execute' body doesn't have corresponding terminator");
 
-    auto barrierOp = rewriter.create<VPUIP::DeclareVirtualBarrierOp>(execOp.getLoc());
+    auto barrierOp = rewriter.create<VPURT::DeclareVirtualBarrierOp>(execOp.getLoc());
 
     _log.nest(1).trace("Traverse 'async.execute' body");
+
+    SmallVector<mlir::Operation*> ops;
     for (auto& op : execOp.getBody()->without_terminator()) {
-        if (auto taskOp = mlir::dyn_cast<VPUIP::TaskOpInterface>(op)) {
-            _log.nest(2).trace("Found VPUIP task operation '{0}' as '{1}'", op.getName(), op.getLoc());
-
-            if (!newArgs.dependencies().empty()) {
-                _log.nest(3).trace("Append it's wait barrier list");
-                taskOp.waitBarriersMutable().append(newArgs.dependencies());
-            }
-
-            if (!execOp.token().use_empty()) {
-                _log.nest(3).trace("Append it's update barrier list");
-                taskOp.updateBarriersMutable().append(barrierOp.barrier());
-            }
+        if (!mlir::isa<VPURT::DeclareBufferOp>(op)) {
+            ops.push_back(&op);
         }
+    }
+
+    for (auto op : ops) {
+        mlir::SmallVector<mlir::Value> waitBarriers, updateBarriers;
+        if (!newArgs.dependencies().empty()) {
+            _log.nest(3).trace("Append it's wait barrier list");
+            waitBarriers.append(newArgs.dependencies().begin(), newArgs.dependencies().end());
+        }
+        if (!execOp.token().use_empty()) {
+            _log.nest(3).trace("Append it's update barrier list");
+            updateBarriers.push_back(barrierOp.barrier());
+        }
+
+        rewriter.setInsertionPoint(op);
+        auto taskOp = rewriter.create<VPURT::TaskOp>(op->getLoc(), waitBarriers, updateBarriers);
+        auto& block = taskOp.op().emplaceBlock();
+        op->moveBefore(&block, block.end());
     }
 
     SmallVector<mlir::Value> newResults;
@@ -132,10 +141,10 @@ void ConvertAsyncOps2VPUIPPass::safeRunOnFunc() {
     mlir::TypeConverter typeConverter;
 
     typeConverter.addConversion([](mlir::async::TokenType token) {
-        return VPUIP::BarrierType::get(token.getContext());
+        return VPURT::BarrierType::get(token.getContext());
     });
-    typeConverter.addTargetMaterialization(dummyConverter<VPUIP::BarrierType>);
-    typeConverter.addArgumentMaterialization(dummyConverter<VPUIP::BarrierType>);
+    typeConverter.addTargetMaterialization(dummyConverter<VPURT::BarrierType>);
+    typeConverter.addArgumentMaterialization(dummyConverter<VPURT::BarrierType>);
     typeConverter.addSourceMaterialization(dummyConverter<mlir::async::TokenType>);
 
     typeConverter.addConversion([](mlir::async::ValueType future) {
@@ -148,6 +157,7 @@ void ConvertAsyncOps2VPUIPPass::safeRunOnFunc() {
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
+    target.addLegalDialect<VPURT::VPURTDialect>();
     target.addLegalOp<mlir::UnrealizedConversionCastOp>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
 

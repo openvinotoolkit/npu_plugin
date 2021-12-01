@@ -59,6 +59,12 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PadUPAOp op) {
                            "The length of the list must be equal to the number of dimensions in the input tensor");
     }
 
+    const auto padBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
+    const auto padEnd = parseIntArrayAttr<int64_t>(op.pads_end());
+    if (op.pads_begin().size() == 4 && op.pads_end().size() == 4 && padEnd[0] - padBegin[0] != 0) {
+        return errorAt(op, "PadUPAOp: Cannot expand batch");
+    }
+
     if (op.mode() == IE::PadMode::CONSTANT && !op.pad_value().hasValue()) {
         return errorAt(op, "pad_mode is CONSTANT but pad_value hasn't provided");
     }
@@ -69,8 +75,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PadUPAOp op) {
 void vpux::VPUIP::PadUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                   mlir::Value output, mlir::ArrayAttr pad_begin, mlir::ArrayAttr pad_end,
                                   mlir::FloatAttr pad_value, vpux::IE::PadModeAttr mode) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, pad_begin, pad_end, pad_value, mode,
-          nullptr, nullptr);
+    build(builder, state, input, output, pad_begin, pad_end, pad_value, mode, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PadUPAOp::serialize(VPUIP::BlobWriter& writer) {

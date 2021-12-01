@@ -56,136 +56,140 @@ module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Defau
       ) -> memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput"> {
     %weights_constant = const.Declare memref<16x1x1x16x!qtype, #NHWC, "GraphFile"> =
       #const.Content<dense<1> : tensor<16x1x1x16xui8>, [#const.QuantCast<!qtype>, #const.Reorder<#NHWC>]>
-    %weights = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <12544>
+    %weights = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <12544>
       -> memref<16x1x1x16x!qtype, #NHWC, "VPU_CMX_NN">
 
-    %input_broadcast = VPUIP.DeclareTensor "VPU_CMX_NN" [0, 1] <8192>
+    %input_broadcast = VPURT.DeclareBuffer "VPU_CMX_NN" [0, 1] <8192>
       -> memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">
-    %input_0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <8192>
+    %input_0 = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <8192>
       -> memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">
 
-    %output_0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0>
+    %output_0 = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <0>
       -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
-    %output_ddr_0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0>
+    %output_ddr_0 = VPURT.DeclareBuffer "VPU_DDR_Heap" <0>
       -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
-    %parent_input_0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <8192>
+    %parent_input_0 = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <8192>
       -> memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">
-    %parent_output_0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0>
+    %parent_output_0 = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <0>
       -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
 
-    %input_1 = VPUIP.DeclareTensor "VPU_CMX_NN" [1] <8192>
+    %input_1 = VPURT.DeclareBuffer "VPU_CMX_NN" [1] <8192>
       -> memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">
-    %output_1 = VPUIP.DeclareTensor "VPU_CMX_NN" [1] <0>
+    %output_1 = VPURT.DeclareBuffer "VPU_CMX_NN" [1] <0>
       -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
-    %output_ddr_1 = VPUIP.DeclareTensor "VPU_DDR_Heap" <8192>
+    %output_ddr_1 = VPURT.DeclareBuffer "VPU_DDR_Heap" <8192>
       -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
-    %parent_input_1 = VPUIP.DeclareTensor "VPU_CMX_NN" [1] <8192>
+    %parent_input_1 = VPURT.DeclareBuffer "VPU_CMX_NN" [1] <8192>
       -> memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">
-    %parent_output_1 = VPUIP.DeclareTensor "VPU_CMX_NN" [1] <0>
+    %parent_output_1 = VPURT.DeclareBuffer "VPU_CMX_NN" [1] <0>
       -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
 
-    %output_ddr = VPUIP.DeclareTensor "VPU_DDR_Heap" <0>
+    %output_ddr = VPURT.DeclareBuffer "VPU_DDR_Heap" <0>
       -> memref<2x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
 
     %weight_table_constant = const.Declare memref<16x1x1x4xsi32, #NHWC, "GraphFile"> =
       #const.Content<dense<[[[[12544, 16777215, 1073761792, 0]]], [[[12560, 16777215, 1073761792, 0]]], [[[12576, 16777215, 1073761792, 0]]], [[[12592, 16777215, 1073761792, 0]]], [[[12608, 16777215, 1073761792, 0]]], [[[12624, 16777215, 1073761792, 0]]], [[[12640, 16777215, 1073761792, 0]]], [[[12656, 16777215, 1073761792, 0]]], [[[12672, 16777215, 1073761792, 0]]], [[[12688, 16777215, 1073761792, 0]]], [[[12704, 16777215, 1073761792, 0]]], [[[12720, 16777215, 1073761792, 0]]], [[[12736, 16777215, 1073761792, 0]]], [[[12752, 16777215, 1073761792, 0]]], [[[12768, 16777215, 1073761792, 0]]], [[[12784, 16777215, 1073761792, 0]]]]> : tensor<16x1x1x4xsi32>, [#const.Reorder<#NHWC>]>
 
-    %weight_table = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <12288>
+    %weight_table = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <12288>
       -> memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">
 
-    %inputs_ready = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-    %conv_complete = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
-    %output_ready = VPUIP.ConfigureBarrier<2> -> !VPUIP.Barrier
+    %inputs_ready = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
+    %conv_complete = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
+    %output_ready = VPURT.ConfigureBarrier<2> -> !VPURT.Barrier
 
-    VPUIP.NNDMA {port = 0}
-      inputs(%input_arg : memref<1x16x16x16x!qtype, #NHWC, "ProgrammableInput">)
-      outputs(%input_broadcast : memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">)
-      updates(%inputs_ready : !VPUIP.Barrier)
-      -> memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">
+    VPURT.Task updates(%inputs_ready : !VPURT.Barrier) op :  {
+      VPUIP.NNDMA {port = 0}
+        inputs(%input_arg : memref<1x16x16x16x!qtype, #NHWC, "ProgrammableInput">)
+        outputs(%input_broadcast : memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">)
+        -> memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">
+    }
 
-    VPUIP.NNDMA {port = 0}
-      inputs(%weights_constant : memref<16x1x1x16x!qtype, #NHWC, "GraphFile">)
-      outputs(%weights : memref<16x1x1x16x!qtype, #NHWC, "VPU_CMX_NN">)
-      updates(%inputs_ready : !VPUIP.Barrier)
-      -> memref<16x1x1x16x!qtype, #NHWC, "VPU_CMX_NN">
+    VPURT.Task updates(%inputs_ready : !VPURT.Barrier) op :  {
+      VPUIP.NNDMA {port = 0}
+        inputs(%weights_constant : memref<16x1x1x16x!qtype, #NHWC, "GraphFile">)
+        outputs(%weights : memref<16x1x1x16x!qtype, #NHWC, "VPU_CMX_NN">)
+        -> memref<16x1x1x16x!qtype, #NHWC, "VPU_CMX_NN">
+    }
 
-    VPUIP.NNDMA {port = 0}
-      inputs(%weight_table_constant : memref<16x1x1x4xsi32, #NHWC, "GraphFile">)
-      outputs(%weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)
-      updates(%inputs_ready : !VPUIP.Barrier)
-      -> memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">
+    VPURT.Task updates(%inputs_ready : !VPURT.Barrier) op :  {
+      VPUIP.NNDMA {port = 0}
+        inputs(%weight_table_constant : memref<16x1x1x4xsi32, #NHWC, "GraphFile">)
+        outputs(%weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)
+        -> memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">
+    }
 
-    VPUIP.NCEClusterTask {
-        kernel_padding = [0, 0, 0, 0],
-        kernel_size = [1, 8],
-        kernel_strides = [1, 1],
-        task_type = "CONV"
-      }
-      input(%input_0 : memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">)
-      weights(%weights : memref<16x1x1x16x!qtype, #NHWC, "VPU_CMX_NN">)
-      weight_table(%weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)
-      parent_input(%parent_input_0 : memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">)
-      parent_output(%parent_output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
-      outputs(%output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
-      waits(%inputs_ready : !VPUIP.Barrier)
-      updates(%conv_complete : !VPUIP.Barrier)
-      -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
-      variants : {
-        DPUTask {
-          end = [15, 15, 15],
-          mpe_mode = "CUBOID_16x16",
-          pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
-          start = [0, 0, 0]
+    VPURT.Task waits(%inputs_ready : !VPURT.Barrier) updates(%conv_complete : !VPURT.Barrier) op :  {
+      VPUIP.NCEClusterTask {
+          kernel_padding = [0, 0, 0, 0],
+          kernel_size = [1, 8],
+          kernel_strides = [1, 1],
+          task_type = "CONV"
         }
-      }
-      PPE : {
-      }
-
-    VPUIP.NCEClusterTask {
-        kernel_padding = [0, 0, 0, 0],
-        kernel_size = [1, 8],
-        kernel_strides = [1, 1],
-        task_type = "CONV"
-      }
-      input(%input_1 : memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">)
-      weights(%weights : memref<16x1x1x16x!qtype, #NHWC, "VPU_CMX_NN">)
-      weight_table(%weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)
-      parent_input(%parent_input_1 : memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">)
-      parent_output(%parent_output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
-      outputs(%output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
-      waits(%inputs_ready : !VPUIP.Barrier)
-      updates(%conv_complete : !VPUIP.Barrier)
-      -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
-      variants : {
-        DPUTask {
-          end = [15, 15, 15],
-          mpe_mode = "CUBOID_16x16",
-          pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
-          start = [0, 0, 0]
+        input(%input_0 : memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">)
+        weights(%weights : memref<16x1x1x16x!qtype, #NHWC, "VPU_CMX_NN">)
+        weight_table(%weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)
+        parent_input(%parent_input_0 : memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">)
+        parent_output(%parent_output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
+        outputs(%output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
+        -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
+        variants : {
+          DPUTask {
+            end = [15, 15, 15],
+            mpe_mode = "CUBOID_16x16",
+            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            start = [0, 0, 0]
+          }
         }
-      }
-      PPE : {
-      }
+        PPE : {
+        }
+    }
 
-    VPUIP.NNDMA {port = 0}
-      inputs(%output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
-      outputs(%output_ddr_0 : memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">)
-      waits(%conv_complete : !VPUIP.Barrier)
-      updates(%output_ready : !VPUIP.Barrier)
-      -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
+    VPURT.Task waits(%inputs_ready : !VPURT.Barrier) updates(%conv_complete : !VPURT.Barrier) op :  {
+      VPUIP.NCEClusterTask {
+          kernel_padding = [0, 0, 0, 0],
+          kernel_size = [1, 8],
+          kernel_strides = [1, 1],
+          task_type = "CONV"
+        }
+        input(%input_1 : memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">)
+        weights(%weights : memref<16x1x1x16x!qtype, #NHWC, "VPU_CMX_NN">)
+        weight_table(%weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)
+        parent_input(%parent_input_1 : memref<1x16x16x16x!qtype, #NHWC, "VPU_CMX_NN">)
+        parent_output(%parent_output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
+        outputs(%output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
+        -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
+        variants : {
+          DPUTask {
+            end = [15, 15, 15],
+            mpe_mode = "CUBOID_16x16",
+            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            start = [0, 0, 0]
+          }
+        }
+        PPE : {
+        }
+    }
 
-    VPUIP.NNDMA {port = 0}
-      inputs(%output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
-      outputs(%output_ddr_1 : memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">)
-      waits(%conv_complete : !VPUIP.Barrier)
-      updates(%output_ready : !VPUIP.Barrier)
-      -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
+    VPURT.Task waits(%conv_complete : !VPURT.Barrier) updates(%output_ready : !VPURT.Barrier) op :  {
+      VPUIP.NNDMA {port = 0}
+        inputs(%output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
+        outputs(%output_ddr_0 : memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">)
+        -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
+    }
 
-    VPUIP.NNDMA {port = 0}
-      inputs(%output_ddr : memref<2x16x16x16xf16, #NHWC, "VPU_DDR_Heap">)
-      outputs(%output_arg : memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">)
-      waits(%output_ready : !VPUIP.Barrier)
-      -> memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">
+    VPURT.Task waits(%conv_complete : !VPURT.Barrier) updates(%output_ready : !VPURT.Barrier) op :  {
+      VPUIP.NNDMA {port = 0}
+        inputs(%output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
+        outputs(%output_ddr_1 : memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">) 
+        -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
+    }
+
+    VPURT.Task waits(%output_ready : !VPURT.Barrier) op :  {
+      VPUIP.NNDMA {port = 0}
+        inputs(%output_ddr : memref<2x16x16x16xf16, #NHWC, "VPU_DDR_Heap">)
+        outputs(%output_arg : memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">)
+        -> memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">
+    }
 
     return %output_arg : memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">
   }

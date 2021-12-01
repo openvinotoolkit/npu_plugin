@@ -120,7 +120,8 @@ def ConvertLayers2VPUIP : PassBase<"convert-layers-to-VPUIP", "vpux::FunctionPas
     let constructor = "vpux::createConvertLayers2VPUIPPass()";
 
     let dependentDialects = [
-        "vpux::VPUIP::VPUIPDialect"
+        "vpux::VPUIP::VPUIPDialect",
+        "vpux::VPURT::VPURTDialect"
     ];
 }
 
@@ -149,7 +150,8 @@ def ConvertDeclarations2VPUIP : PassBase<"convert-declarations-to-VPUIP", "vpux:
     let constructor = "vpux::createConvertDeclarations2VPUIPPass()";
 
     let dependentDialects = [
-        "vpux::VPUIP::VPUIPDialect"
+        "vpux::VPUIP::VPUIPDialect",
+        "vpux::VPURT::VPURTDialect"
     ];
 }
 
@@ -163,7 +165,8 @@ def ConvertViewOps2VPUIP : PassBase<"convert-view-ops-to-VPUIP", "vpux::Function
     let constructor = "vpux::createConvertViewOps2VPUIPPass()";
 
     let dependentDialects = [
-        "vpux::VPUIP::VPUIPDialect"
+        "vpux::VPUIP::VPUIPDialect",
+        "vpux::VPURT::VPURTDialect"
     ];
 }
 
@@ -182,7 +185,8 @@ def ConvertAsyncOps2VPUIP : PassBase<"convert-async-ops-to-VPUIP", "vpux::Functi
     let constructor = "vpux::createConvertAsyncOps2VPUIPPass()";
 
     let dependentDialects = [
-        "vpux::VPUIP::VPUIPDialect"
+        "vpux::VPUIP::VPUIPDialect",
+        "vpux::VPURT::VPURTDialect"
     ];
 }
 

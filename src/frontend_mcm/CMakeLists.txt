@@ -29,6 +29,11 @@ ie_faster_build(${OBJ_TARGET_NAME}
 )
 
 enable_warnings_as_errors(${OBJ_TARGET_NAME})
+# FIXME: this flag is forced while building in a single tree with OV
+# but code cannot be compiled with the flag
+if(NOT MSVC)
+    target_compile_options(${OBJ_TARGET_NAME} PRIVATE -Wno-error=suggest-override)
+endif()
 
 target_compile_definitions(${OBJ_TARGET_NAME}
     PRIVATE

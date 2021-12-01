@@ -18,6 +18,8 @@
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
@@ -98,14 +100,14 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     const auto getCMXTensor = [&builder, &functionBuilder, getMemRef](const llvm::SmallVector<std::int64_t>& shape,
                                                                       mlir::Type type, std::size_t offset) {
         const auto CMXType = getMemRef(shape, type, vpux::VPUIP::MemoryLocation::VPU_CMX_NN);
-        return functionBuilder.create<vpux::VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), CMXType,
+        return functionBuilder.create<vpux::VPURT::DeclareBufferOp>(builder.getUnknownLoc(), CMXType,
                                                                     vpux::VPUIP::MemoryLocation::VPU_CMX_NN, 0, offset);
     };
 
     const auto getMACAccTensor = [&builder, &functionBuilder, getMemRef](const llvm::SmallVector<std::int64_t>& shape,
                                                                          mlir::Type type, std::size_t offset) {
         const auto MACAccType = getMemRef(shape, type, vpux::VPUIP::MemoryLocation::MAC_Accumulators);
-        return functionBuilder.create<vpux::VPUIP::DeclareTensorOp>(
+        return functionBuilder.create<vpux::VPURT::DeclareBufferOp>(
                 builder.getUnknownLoc(), MACAccType, vpux::VPUIP::MemoryLocation::MAC_Accumulators, 0, offset);
     };
 
@@ -184,25 +186,26 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     std::vector<mlir::Value> barriers;
     auto num_barriers = 3;
     for (auto i = 0; i < num_barriers; ++i) {
-        auto barrier = functionBuilder.create<ConfigureBarrierOp>(builder.getUnknownLoc(), i);
+        auto barrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), i);
         barriers.push_back(barrier.barrier());
     }
 
     // Input DMAs
-    functionBuilder.create<NNDMAOp>(builder.getUnknownLoc(), functionInput, inputCMX.getOperation()->getResult(0),
-                                    mlir::ValueRange(), barriers[0], false);
-    functionBuilder.create<NNDMAOp>(builder.getUnknownLoc(), weightsPartial0DDR.getOperation()->getResult(0),
-                                    weightsPartial0CMX.getOperation()->getResult(0), mlir::ValueRange(), barriers[0],
-                                    false);
-    functionBuilder.create<NNDMAOp>(builder.getUnknownLoc(), weightsPartial1DDR.getOperation()->getResult(0),
-                                    weightsPartial1CMX.getOperation()->getResult(0), mlir::ValueRange(), barriers[0],
-                                    false);
-    functionBuilder.create<NNDMAOp>(builder.getUnknownLoc(), weightsTable0DDR.getOperation()->getResult(0),
-                                    weightsTable0CMX.getOperation()->getResult(0), mlir::ValueRange(), barriers[0],
-                                    false);
-    functionBuilder.create<NNDMAOp>(builder.getUnknownLoc(), weightsTable1DDR.getOperation()->getResult(0),
-                                    weightsTable1CMX.getOperation()->getResult(0), mlir::ValueRange(), barriers[0],
-                                    false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0],
+                                                builder.getUnknownLoc(), functionInput,
+                                                inputCMX.getOperation()->getResult(0), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(
+            functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
+            weightsPartial0DDR.getOperation()->getResult(0), weightsPartial0CMX.getOperation()->getResult(0), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(
+            functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
+            weightsPartial1DDR.getOperation()->getResult(0), weightsPartial1CMX.getOperation()->getResult(0), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0],
+                                                builder.getUnknownLoc(), weightsTable0DDR.getOperation()->getResult(0),
+                                                weightsTable0CMX.getOperation()->getResult(0), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0],
+                                                builder.getUnknownLoc(), weightsTable1DDR.getOperation()->getResult(0),
+                                                weightsTable1CMX.getOperation()->getResult(0), false);
 
     // NCE params
     const auto strides = getIntArrayAttr(builder.getContext(), conv.stride);
@@ -213,15 +216,12 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     const auto isContinued = mlir::UnitAttr::get(builder.getContext());
 
     // NCE Task 0
-    auto nceTask_0 = functionBuilder.create<NCEClusterTaskOp>(
-            builder.getUnknownLoc(), inputPartial0CMX.memory(), weightsPartial0CMX.memory(), weightsTable0CMX.memory(),
+    auto nceTask_0 = vpux::VPURT::WrapIntoTaskOp<NCEClusterTaskOp>(
+            functionBuilder, barriers[0], barriers[1], builder.getUnknownLoc(), inputPartial0CMX.memory(),
+            weightsPartial0CMX.memory(), weightsTable0CMX.memory(),
             /*activation_window=*/nullptr, inputPartial0CMX.memory(), output0CMX.memory(), output0CMX.memory(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr, isContinued);
-
-    // DPU task 0
-    nceTask_0.waitBarriersMutable().append(barriers[0]);
-    nceTask_0.updateBarriersMutable().append(barriers[1]);
 
     const auto start = getIntArrayAttr(builder.getContext(), std::vector<std::int64_t>{0, 0, 0});
     const auto end =
@@ -236,21 +236,19 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     nceTask_0.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
 
     // NCE Task 1
-    auto nceTask_1 = functionBuilder.create<NCEClusterTaskOp>(
-            builder.getUnknownLoc(), inputPartial1CMX.memory(), weightsPartial1CMX.memory(), weightsTable1CMX.memory(),
+    auto nceTask_1 = vpux::VPURT::WrapIntoTaskOp<NCEClusterTaskOp>(
+            functionBuilder, barriers[1], barriers[2], builder.getUnknownLoc(), inputPartial1CMX.memory(),
+            weightsPartial1CMX.memory(), weightsTable1CMX.memory(),
             /*activation_window=*/nullptr, inputPartial1CMX.memory(), output1CMX.memory(), output1CMX.memory(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr,
             /*is_continued*/ nullptr);
 
-    // DPU task 1
-    nceTask_1.waitBarriersMutable().append(barriers[1]);
-    nceTask_1.updateBarriersMutable().append(barriers[2]);
-
     nceTask_1.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
 
-    functionBuilder.create<NNDMAOp>(builder.getUnknownLoc(), output1CMX.getOperation()->getResult(0), functionOutput,
-                                    barriers[2], mlir::ValueRange(), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, barriers[2], mlir::ValueRange(),
+                                                builder.getUnknownLoc(), output1CMX.getOperation()->getResult(0),
+                                                functionOutput, false);
 
     functionBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), functionOutput);
 

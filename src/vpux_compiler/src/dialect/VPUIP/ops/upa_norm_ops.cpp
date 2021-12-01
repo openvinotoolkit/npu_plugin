@@ -36,8 +36,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(NormUPAOp op) {
 void vpux::VPUIP::NormUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                    mlir::Value output, mlir::FloatAttr alpha, mlir::FloatAttr beta,
                                    mlir::FloatAttr bias, mlir::IntegerAttr local_size, IE::LRN_IERegionAttr region) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, alpha, beta, bias, local_size, region,
-          nullptr, nullptr);
+    build(builder, state, input, output, alpha, beta, bias, local_size, region, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NormUPAOp::serialize(VPUIP::BlobWriter& writer) {

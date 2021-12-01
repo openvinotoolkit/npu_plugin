@@ -445,9 +445,13 @@
 // CHECK:   DataInfo "softmax" : tensor<1x1000xf32>
 
 // CHECK:   func @main(%arg0: memref<1x1x1x1000xf16, "DDR">, %arg1: memref<1x1x1x1000xf16, "DDR">) -> memref<1x1x1x1000xf16, "DDR"> {
-// CHECK:   %0 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-// CHECK:   %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
-// CHECK:   %2 = VPUIP.NNDMA {port = 0 : i64, set_crit = false, set_ord = true} inputs(%1 : memref<1x1x1x1000xf16, "DDR">) outputs(%arg1 : memref<1x1x1x1000xf16, "DDR">) waits(%0 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "DDR">
-// CHECK:   %3 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
-// CHECK:   %4 = VPUIP.SoftMaxUPA {axisInd = 3 : i64} inputs(%arg0 : memref<1x1x1x1000xf16, "DDR">) outputs(%3 : memref<1x1x1x1000xf16, "DDR">) updates(%0 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "DDR">
+// CHECK:   %0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
+// CHECK:   %1 = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
+// CHECK:   VPURT.Task 
+// CHECK:     waits(%0 : !VPURT.Barrier)
+// CHECK:   VPUIP.NNDMA {port = 0 : i64, set_crit = false, set_ord = true} inputs(%1 : memref<1x1x1x1000xf16, "DDR">) outputs(%arg1 : memref<1x1x1x1000xf16, "DDR">) -> memref<1x1x1x1000xf16, "DDR">
+// CHECK:   %2 = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
+// CHECK:   VPURT.Task 
+// CHECK:     updates(%0 : !VPURT.Barrier)
+// CHECK:   VPUIP.SoftMaxUPA {axisInd = 3 : i64} inputs(%arg0 : memref<1x1x1x1000xf16, "DDR">) outputs(%2 : memref<1x1x1x1000xf16, "DDR">) -> memref<1x1x1x1000xf16, "DDR">
 // CHECK:   return %arg1 : memref<1x1x1x1000xf16, "DDR">

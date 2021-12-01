@@ -55,42 +55,6 @@ def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
 }
 
 //
-// AssignPhysicalBarriers
-//
-
-def AssignPhysicalBarriers : PassBase<"assign-physical-barriers", "vpux::FunctionPass"> {
-    let summary = "Assign physical barriers";
-
-    let description = [{
-        This pass replaces virtual barriers with physical barriers and assign IDs to them.
-    }];
-
-    let constructor = "vpux::VPUIP::createAssignPhysicalBarriersPass()";
-
-    let options = [
-        Option<
-            "_numBarriersOpt", "num-barriers",
-            "int", "",
-            "Number of physical barriers, available for usage"
-        >
-    ];
-}
-
-//
-// BarrierSimulation
-//
-
-def BarrierSimulation : PassBase<"barrier-simulation", "vpux::FunctionPass"> {
-    let summary = "Simulate barriers";
-
-    let description = [{
-        Simulates the physical barrier execution and stops compilation on fail.
-    }];
-
-    let constructor = "vpux::VPUIP::createBarrierSimulationPass()";
-}
-
-//
 // ConvertWeightsTableOp2Const
 //
 
@@ -127,7 +91,7 @@ def CompressWeights : PassBase<"compress-weights", "vpux::FunctionPass"> {
 
     let description = [{
         This pass applies bitcompactor to tensor binary data. The logic is the following:
-        1. Find VPUIP::NNDMAOp with Const::DeclareOp source and VPUIP::DeclareTensorOp target.
+        1. Find VPUIP::NNDMAOp with Const::DeclareOp source and VPURT::DeclareBufferOp target.
         2. Check that weights size matches minimal compression size.
         3. Compress weights.
         4. Wrap compressed weights to flat tensor shapes with UInt8 data type.

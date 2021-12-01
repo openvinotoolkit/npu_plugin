@@ -44,8 +44,7 @@ void vpux::VPUIP::ConvolutionUPAOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::Value filter, mlir::Value bias, mlir::Value output,
                                           mlir::ArrayAttr strides, mlir::ArrayAttr dilations, mlir::ArrayAttr padsBegin,
                                           mlir::ArrayAttr padsEnd, uint32_t groups) {
-    build(builder, state, input, filter, bias, output, mlir::ValueRange{}, mlir::ValueRange{}, strides, dilations,
-          padsBegin, padsEnd, groups, nullptr, false);
+    build(builder, state, input, filter, bias, output, strides, dilations, padsBegin, padsEnd, groups, nullptr);
 }
 
 void vpux::VPUIP::ConvolutionUPAOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {

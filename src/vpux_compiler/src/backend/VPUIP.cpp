@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/array_ref.hpp"
@@ -214,8 +215,13 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
                                                                     mlir::ModuleOp /*module*/, mlir::FuncOp netFunc,
                                                                     Logger log) {
     // only SW_KernelOp operations can generate kernelData, from either built-in functions or from custom
-    auto kernelGenOps = to_small_vector(netFunc.getOps<VPUIP::SW_KernelOp>());
-    if (kernelGenOps.empty()) {
+    auto graphHasKernels = false;
+    netFunc.walk([&](VPURT::TaskOp taskOp) {
+        if (taskOp.getTaskType() == vpux::VPUIP::TaskType::ACTShave) {
+            graphHasKernels = true;
+        }
+    });
+    if (!graphHasKernels) {
         return {};
     }
 
@@ -282,8 +288,10 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
                                                               Logger log) {
     auto scopeTiming = rootTiming.nest("Create summary header");
 
-    const auto allTasks = netFunc.getOps<VPUIP::TaskOpInterface>();
-    const auto taskCount = std::distance(allTasks.begin(), allTasks.end());
+    const auto allTasks = netFunc.getOps<VPURT::TaskOp>();
+    const auto allBarriers = netFunc.getOps<VPURT::ConfigureBarrierOp>();
+    const auto taskCount =
+            std::distance(allTasks.begin(), allTasks.end()) + std::distance(allBarriers.begin(), allBarriers.end());
 
     auto inputsInfo = netOp.getInputsInfo();
     auto outputsInfo = netOp.getOutputsInfo();
@@ -376,7 +384,7 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir:
     auto scopeTiming = rootTiming.nest("Serialize tensor declarations");
 
     size_t tempTensorInd = 0;
-    netFunc.walk([&](VPUIP::DeclareTensorOp tensorOp) {
+    netFunc.walk([&](VPURT::DeclareBufferOp tensorOp) {
         writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
                             parseIntArrayAttr<uint32_t>(tensorOp.localeIndex()), tensorOp.dataIndex(),
                             tensorOp.sparsityIndex(), tensorOp.storageElementIndex(), tensorOp.storageElementSize(),
@@ -444,7 +452,7 @@ SmallVector<VPUIP::BlobWriter::Barrier> serializeVirtBarriers(VPUIP::BlobWriter&
 
     SmallVector<VPUIP::BlobWriter::Barrier> virtBarriers;
 
-    netFunc.walk([&](VPUIP::DeclareVirtualBarrierOp barrierOp) {
+    netFunc.walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
         log.trace("Got virtual varrier at '{0}'", barrierOp->getLoc());
 
         VPUX_THROW_UNLESS(VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers),
@@ -465,7 +473,12 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
     TaskListMap tasksMap;
 
-    netFunc.walk([&](VPUIP::TaskOpInterface taskOp) {
+    netFunc.walk([&](VPURT::ConfigureBarrierOp taskOp) {
+        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
+        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+    });
+
+    netFunc.walk([&](VPURT::TaskOp taskOp) {
         log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
         tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
     });

@@ -45,11 +45,15 @@ IE.CNNNetwork
     }
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
-    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
-    %1 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-    %2 = VPUIP.SoftMaxUPA {axisInd = 3} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) updates(%1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
-    %3 = VPUIP.UPADMA inputs(%2 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
-    return %3: memref<1x1x1x1000xf16>
+    %0 = VPURT.DeclareBuffer "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
+    %1 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
+    VPURT.Task updates(%1 : !VPURT.Barrier) op :  {
+        %2 = VPUIP.SoftMaxUPA {axisInd = 3} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+    }
+    VPURT.Task waits(%1 : !VPURT.Barrier) op :  {
+        %2 = VPUIP.UPADMA inputs(%2 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+    }
+    return %arg1: memref<1x1x1x1000xf16>
 }
 
 }

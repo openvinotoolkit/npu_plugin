@@ -24,8 +24,7 @@ using namespace vpux;
 void vpux::VPUIP::NormalizeIEUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value data,
                                           mlir::Value axes, mlir::Value output, mlir::FloatAttr eps,
                                           mlir::BoolAttr across_spatial, mlir::BoolAttr channel_shared) {
-    build(builder, state, data, axes, output, mlir::ValueRange{}, mlir::ValueRange{}, eps, across_spatial,
-          channel_shared, nullptr, nullptr);
+    build(builder, state, data, axes, output, eps, across_spatial, channel_shared, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NormalizeIEUPAOp::serialize(VPUIP::BlobWriter& writer) {

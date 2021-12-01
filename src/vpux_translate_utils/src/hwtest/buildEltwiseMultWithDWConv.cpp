@@ -19,6 +19,8 @@
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
@@ -213,8 +215,8 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
                                             DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
 
     // Barriers
-    auto barrier0 = funcbuilder.create<ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
-    auto barrier1 = funcbuilder.create<ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
+    auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
+    auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
     auto BARRIER_0 = barrier0.barrier();
     auto BARRIER_1 = barrier1.barrier();
 
@@ -229,12 +231,12 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
                                                               wt_data_attr.reorder(DimsOrder::NHWC));
 
     // Input DMAs
-    funcbuilder.create<NNDMAOp>(builder.getUnknownLoc(), funcinput, getTensorResult(input_cmx), mlir::ValueRange(),
-                                BARRIER_0, false);
-    funcbuilder.create<NNDMAOp>(builder.getUnknownLoc(), zero_pad_data, getTensorResult(zero_pad_cmx),
-                                mlir::ValueRange(), BARRIER_0, false);
-    funcbuilder.create<NNDMAOp>(builder.getUnknownLoc(), funcweights, getTensorResult(weights_cmx), mlir::ValueRange(),
-                                BARRIER_0, false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
+                                                funcinput, getTensorResult(input_cmx), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
+                                                zero_pad_data, getTensorResult(zero_pad_cmx), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
+                                                funcweights, getTensorResult(weights_cmx), false);
 
     // Activation Window
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
@@ -268,8 +270,8 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     auto act_window_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, sparsity_shape, sparsity_type,
                                                 DimsOrder::NHWC, 0, ACTIVATIONWINDOW_CMX_OFFSET);
 
-    funcbuilder.create<NNDMAOp>(builder.getUnknownLoc(), getConstResult(act_window_ddr),
-                                getTensorResult(act_window_cmx), mlir::ValueRange(), BARRIER_0, false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
+                                                getConstResult(act_window_ddr), getTensorResult(act_window_cmx), false);
 
     // weights table ddr
     SmallVector<int64_t> weightstable_data_shape{sparsity_shape[0], 1, 1, 4};
@@ -313,20 +315,21 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
                                                   WEIGHTSTABLE_CMX_OFFSET);
 
     // weights table dma ddr->cmx
-    funcbuilder.create<NNDMAOp>(builder.getUnknownLoc(), getConstResult(weightstable_data_ddr),
-                                getTensorResult(weightstable_cmx), mlir::ValueRange(), BARRIER_0, false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
+                                                getConstResult(weightstable_data_ddr),
+                                                getTensorResult(weightstable_cmx), false);
 
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
     auto strides = getIntArrayAttr(builder, stride_vec);
     auto kernel_padding = getIntArrayAttr(builder, padding_vec);
 
-    auto nceTask = funcbuilder.create<NCEClusterTaskOp>(
-            builder.getUnknownLoc(), output_cmx_memreftype, getTensorResult(input_nce_cmx),
-            getTensorResult(weights_nce_cmx), getTensorResult(weightstable_cmx), getTensorResult(act_window_cmx),
-            getTensorResult(parent_input_nce_cmx), getTensorResult(parent_output_nce_cmx),
-            getTensorResult(output_nce_cmx), BARRIER_0, BARRIER_1, NCETaskType::DWCONV, filtersize, strides,
-            kernel_padding, actChannelLength, /*is_continued*/ nullptr);
+    auto nceTask = vpux::VPURT::WrapIntoTaskOp<NCEClusterTaskOp>(
+            funcbuilder, BARRIER_0, BARRIER_1, builder.getUnknownLoc(), output_cmx_memreftype,
+            getTensorResult(input_nce_cmx), getTensorResult(weights_nce_cmx), getTensorResult(weightstable_cmx),
+            getTensorResult(act_window_cmx), getTensorResult(parent_input_nce_cmx),
+            getTensorResult(parent_output_nce_cmx), getTensorResult(output_nce_cmx), NCETaskType::DWCONV, filtersize,
+            strides, kernel_padding, actChannelLength, /*is_continued*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 
@@ -336,8 +339,8 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     createDPUTaskOp(builder, variantbuilder, output_nce_shape, padding_vec);
 
     // Output DMA
-    funcbuilder.create<NNDMAOp>(builder.getUnknownLoc(), getTensorResult(output_cmx), funcoutput, BARRIER_1,
-                                mlir::ValueRange(), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, BARRIER_1, mlir::ValueRange(), builder.getUnknownLoc(),
+                                                getTensorResult(output_cmx), funcoutput, false);
 
     // Return op
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);

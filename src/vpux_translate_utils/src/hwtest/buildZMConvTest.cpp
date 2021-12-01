@@ -18,6 +18,8 @@
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
@@ -80,7 +82,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto getCMXTensor = [&builder, &functionBuilder, getMemRef](const llvm::SmallVector<std::int64_t>& shape,
                                                                       mlir::Type type, std::size_t offset) {
         const auto CMXType = getMemRef(shape, type, vpux::VPUIP::MemoryLocation::VPU_CMX_NN);
-        return functionBuilder.create<vpux::VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), CMXType,
+        return functionBuilder.create<vpux::VPURT::DeclareBufferOp>(builder.getUnknownLoc(), CMXType,
                                                                     vpux::VPUIP::MemoryLocation::VPU_CMX_NN, 0, offset);
     };
 
@@ -116,21 +118,21 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
             vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC));
     auto weightsTableCMX = getCMXTensor(weightsTableShape, int32, WEIGHTSTABLE_CMX_OFFSET);
 
-    auto barrier0 = functionBuilder.create<vpux::VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
-    auto barrier1 = functionBuilder.create<vpux::VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
+    auto barrier0 = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
+    auto barrier1 = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
-    functionBuilder.create<vpux::VPUIP::NNDMAOp>(builder.getUnknownLoc(), functionInput,
-                                                 inputCMX.getOperation()->getResult(0), mlir::ValueRange(),
-                                                 mlir::ValueRange(barrier0.barrier()), false);
-    functionBuilder.create<vpux::VPUIP::NNDMAOp>(builder.getUnknownLoc(), weightsDDR.getOperation()->getResult(0),
-                                                 weightsCMX.getOperation()->getResult(0), mlir::ValueRange(),
-                                                 mlir::ValueRange(barrier0.barrier()), false);
-    functionBuilder.create<vpux::VPUIP::NNDMAOp>(builder.getUnknownLoc(), weightsTableDDR.getOperation()->getResult(0),
-                                                 weightsTableCMX.getOperation()->getResult(0), mlir::ValueRange(),
-                                                 mlir::ValueRange(barrier0.barrier()), false);
-    functionBuilder.create<vpux::VPUIP::NNDMAOp>(builder.getUnknownLoc(), outputCMX.getOperation()->getResult(0),
-                                                 functionOutput, mlir::ValueRange(barrier1.barrier()),
-                                                 mlir::ValueRange(), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
+                                                mlir::ValueRange(barrier0.barrier()), builder.getUnknownLoc(),
+                                                functionInput, inputCMX.getOperation()->getResult(0), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(
+            functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), builder.getUnknownLoc(),
+            weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(
+            functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), builder.getUnknownLoc(),
+            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX.getOperation()->getResult(0), false);
+    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(barrier1.barrier()),
+                                                mlir::ValueRange(), builder.getUnknownLoc(),
+                                                outputCMX.getOperation()->getResult(0), functionOutput, false);
 
     const auto strides = getIntArrayAttr(ctx, conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
@@ -138,13 +140,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
 
-    auto nceTask = functionBuilder.create<vpux::VPUIP::NCEClusterTaskOp>(
-            builder.getUnknownLoc(), inputCMX.memory(), weightsCMX.memory(), weightsTableCMX.memory(), nullptr,
-            inputCMX.memory(), outputCMX.memory(), outputCMX.memory(), vpux::VPUIP::NCETaskType::CONV, kernelSize,
-            strides, kernelPaddings, nullptr, nullptr);
-
-    nceTask.waitBarriersMutable().append(barrier0.barrier());
-    nceTask.updateBarriersMutable().append(barrier1.barrier());
+    auto nceTask = vpux::VPURT::WrapIntoTaskOp<vpux::VPUIP::NCEClusterTaskOp>(
+            functionBuilder, barrier0.barrier(), barrier1.barrier(), builder.getUnknownLoc(), inputCMX.memory(),
+            weightsCMX.memory(), weightsTableCMX.memory(), nullptr, inputCMX.memory(), outputCMX.memory(),
+            outputCMX.memory(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings, nullptr, nullptr);
 
     const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
     const auto end =
@@ -157,6 +156,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     nceTask.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
 
     functionBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), functionOutput);
+
+    module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(vpux::VPUIP::createSetCompileParamsPass(vpux::VPUIP::ArchKind::MTL,

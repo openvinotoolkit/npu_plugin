@@ -68,6 +68,12 @@ set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(FLATBUFFERS_INSTALL OFF CACHE BOOL "" FORCE)
 set(FLATBUFFERS_BUILD_FLATC ON CACHE BOOL "" FORCE)
 add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
+# FIXME: this flag is forced while building in a single tree with OV
+# but code cannot be compiled with the flag
+if(NOT MSVC)
+    target_compile_options(flatbuffers PRIVATE -Wno-error=suggest-override)
+    target_compile_options(flatc PRIVATE -Wno-error=suggest-override)
+endif()
 
 vpux_add_native_tool(flatc "${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers"
     CMAKE_ARGS

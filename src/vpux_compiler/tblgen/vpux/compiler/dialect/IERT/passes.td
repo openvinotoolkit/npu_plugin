@@ -123,6 +123,21 @@ def TimestampProfiling : PassBase<"profiling-timestamp", "vpux::ModulePass"> {
     }];
 }
 
+//
+// BreakDataFlow
+//
+
+def BreakDataFlow : PassBase<"break-data-flow", "vpux::FunctionPass"> {
+    let summary = "Breaks data flow in the graph";
+
+    let description = [{
+        This pass breaks data flow in the graph. It is required for the VPURT dialect for correct task creation 
+        because all VPUIP dialect tasks will be inside body of the TaskOp and it is impossible to use operation results inside another body of TaskOp. 
+    }];
+
+    let constructor = "vpux::IERT::createBreakDataFlowPass()";
+}
+
 //=================================================================================
 // Asynchronous Scheduling
 //=================================================================================

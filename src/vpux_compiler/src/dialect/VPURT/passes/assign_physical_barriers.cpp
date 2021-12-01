@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
 
@@ -44,7 +44,7 @@ BarrierAllocation::BarrierAllocation(mlir::Operation* op, int64_t numBarriers, L
 
     log.trace("Assign {0} physical barriers", numBarriers);
 
-    const auto callback = [&](VPUIP::DeclareVirtualBarrierOp virtOp) {
+    const auto callback = [&](VPURT::DeclareVirtualBarrierOp virtOp) {
         _idMap.insert({virtOp.barrier(), barrierID});
         barrierID = (barrierID + 1) % numBarriers;
     };
@@ -62,14 +62,14 @@ int64_t BarrierAllocation::getID(mlir::Value val) const {
 // VirtualBarrierRewrite
 //
 
-class VirtualBarrierRewrite final : public mlir::OpRewritePattern<VPUIP::DeclareVirtualBarrierOp> {
+class VirtualBarrierRewrite final : public mlir::OpRewritePattern<VPURT::DeclareVirtualBarrierOp> {
 public:
     VirtualBarrierRewrite(mlir::MLIRContext* ctx, const BarrierAllocation& allocInfo, Logger log)
-            : mlir::OpRewritePattern<VPUIP::DeclareVirtualBarrierOp>(ctx), _allocInfo(allocInfo), _log(log) {
+            : mlir::OpRewritePattern<VPURT::DeclareVirtualBarrierOp>(ctx), _allocInfo(allocInfo), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(VPUIP::DeclareVirtualBarrierOp origOp,
+    mlir::LogicalResult matchAndRewrite(VPURT::DeclareVirtualBarrierOp origOp,
                                         mlir::PatternRewriter& rewriter) const final;
 
 private:
@@ -77,14 +77,14 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPUIP::DeclareVirtualBarrierOp origOp,
+mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPURT::DeclareVirtualBarrierOp origOp,
                                                            mlir::PatternRewriter& rewriter) const {
     _log.trace("Found DeclareVirtualBarrierOp Operation '{0}'", origOp->getLoc());
 
     const auto barrierID = _allocInfo.getID(origOp.barrier());
     _log.nest().trace("Use physical barrier ID '{0}'", barrierID);
 
-    rewriter.replaceOpWithNewOp<VPUIP::ConfigureBarrierOp>(origOp, barrierID);
+    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierID);
     return mlir::success();
 }
 
@@ -92,7 +92,7 @@ mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPUIP::DeclareVirtual
 // AssignPhysicalBarriersPass
 //
 
-class AssignPhysicalBarriersPass final : public VPUIP::AssignPhysicalBarriersBase<AssignPhysicalBarriersPass> {
+class AssignPhysicalBarriersPass final : public VPURT::AssignPhysicalBarriersBase<AssignPhysicalBarriersPass> {
 public:
     explicit AssignPhysicalBarriersPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
@@ -123,8 +123,8 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     BarrierAllocation allocInfo(func, numBarriers, _log);
 
     mlir::ConversionTarget target(ctx);
-    target.addIllegalOp<VPUIP::DeclareVirtualBarrierOp>();
-    target.addLegalOp<VPUIP::ConfigureBarrierOp>();
+    target.addIllegalOp<VPURT::DeclareVirtualBarrierOp>();
+    target.addLegalOp<VPURT::ConfigureBarrierOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<VirtualBarrierRewrite>(&ctx, allocInfo, _log);
@@ -140,6 +140,6 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
 // createAssignPhysicalBarriersPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createAssignPhysicalBarriersPass(Logger log) {
+std::unique_ptr<mlir::Pass> vpux::VPURT::createAssignPhysicalBarriersPass(Logger log) {
     return std::make_unique<AssignPhysicalBarriersPass>(log);
 }
