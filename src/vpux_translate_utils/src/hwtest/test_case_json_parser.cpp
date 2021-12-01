@@ -119,6 +119,8 @@ std::string nb::to_string(CaseType case_) {
     switch (case_) {
     case CaseType::ZMajorConvolution:
         return "ZMajorConvolution";
+    case CaseType::DepthWiseConv:
+        return "DepthWiseConv";
     case CaseType::EltwiseAdd:
         return "EltwiseAdd";
     case CaseType::EltwiseMult:
@@ -135,6 +137,8 @@ std::string nb::to_string(CaseType case_) {
 nb::CaseType nb::to_case(llvm::StringRef str) {
     if (isEqual(str, "ZMajorConvolution"))
         return CaseType::ZMajorConvolution;
+    if (isEqual(str, "DepthWiseConv"))
+        return CaseType::DepthWiseConv;
     if (isEqual(str, "EltwiseAdd"))
         return CaseType::EltwiseAdd;
     if (isEqual(str, "EltwiseMult"))
@@ -411,7 +415,7 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
 
     // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
     // eltwise needed).
-    if (caseType_ == CaseType::ZMajorConvolution) {
+    if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv) {
         wtLayer_ = loadWeightLayer(json_obj);
         convLayer_ = loadConvLayer(json_obj);
         return;

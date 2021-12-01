@@ -996,9 +996,9 @@ def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuan
     if rescale:
         if isinstance(data, NBQuantized):
             value.zero = int(data.zero_point)
-            value.scale = float(data.scale) / (1 << bitshift)
+            value.scale = (1 << bitshift)
         else:
-            value.scale = 1. / (1 << bitshift)
+            value.scale = (1 << bitshift)
 
     return value
 
