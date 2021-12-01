@@ -19,7 +19,6 @@
 
 // IE
 #include <ie_allocator.hpp>
-#include <vpu/utils/logger.hpp>
 
 // Plugin
 #include "hddl2_remote_allocator.h"
@@ -53,7 +52,7 @@ private:
  */
 class VideoWorkloadDevice final : public IDevice {
 public:
-    explicit VideoWorkloadDevice(const InferenceEngine::ParamMap& paramMap, vpu::LogLevel logLvl = vpu::LogLevel::None);
+    explicit VideoWorkloadDevice(const InferenceEngine::ParamMap& paramMap, LogLevel logLvl = LogLevel::None);
 
     Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const Config& config) override;
 

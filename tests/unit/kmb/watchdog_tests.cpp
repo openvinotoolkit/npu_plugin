@@ -11,11 +11,10 @@
 // included with the Software Package for additional details.
 //
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <vpual_core_nn_watchdog.hpp>
 
-using namespace vpu;
 using ::testing::StrictMock;
 using namespace std::chrono;
 using ::testing::InvokeWithoutArgs;
@@ -23,14 +22,14 @@ using ::testing::InvokeWithoutArgs;
 class MockAbortCallback {
 public:
     MOCK_METHOD0(onAbort, void());
-    operator std::function<void()> () {
+    operator std::function<void()>() {
         return [this]() {
             onAbort();
         };
     }
 };
 
-class  WatchDogSlowDestruct  : public vpux::WatchDog {
+class WatchDogSlowDestruct : public vpux::WatchDog {
 public:
     using vpux::WatchDog::WatchDog;
     // we do not call cv notify one, which increases thread stopping time
@@ -42,26 +41,27 @@ public:
     }
 };
 
-constexpr milliseconds MS10 = milliseconds (10);
+constexpr milliseconds MS10 = milliseconds(10);
 
 class WatchDogTests : public ::testing::Test {
 protected:
-    Logger::Ptr test_logger;
+    vpux::Logger test_logger;
     StrictMock<MockAbortCallback> mock_callback;
     std::condition_variable cv;
     std::mutex mt;
 
-    void SetUp() override {
-        test_logger = std::make_shared<Logger>("watchdog_tests", LogLevel::Error, consoleOutput());
+    WatchDogTests(): test_logger("watchdog_tests", vpux::LogLevel::Error) {
     }
 };
 
 TEST_F(WatchDogTests, can_create_watchdog) {
-    vpux::WatchDog wd1(1000, test_logger, []() {}, MS10);
+    vpux::WatchDog wd1(
+            1000, test_logger, []() {}, MS10);
 }
 
 TEST_F(WatchDogTests, cannot_pause_invalid_watcher) {
-    vpux::WatchDog wd1(1000, test_logger, []() {}, MS10);
+    vpux::WatchDog wd1(
+            1000, test_logger, []() {}, MS10);
     ASSERT_ANY_THROW(wd1.Pause());
 
     wd1.Start();
@@ -69,7 +69,8 @@ TEST_F(WatchDogTests, cannot_pause_invalid_watcher) {
 }
 
 TEST_F(WatchDogTests, cannot_double_start) {
-    vpux::WatchDog wd1(1000, test_logger, []() {}, MS10);
+    vpux::WatchDog wd1(
+            1000, test_logger, []() {}, MS10);
     wd1.Start();
     ASSERT_ANY_THROW(wd1.Start());
 }
@@ -77,7 +78,7 @@ TEST_F(WatchDogTests, cannot_double_start) {
 TEST_F(WatchDogTests, receiving_abort_callback_if_timeout_passes) {
     vpux::WatchDog wd1(10, test_logger, mock_callback, MS10);
 
-    EXPECT_CALL(mock_callback, onAbort()).Times(1).WillOnce(InvokeWithoutArgs([&]{
+    EXPECT_CALL(mock_callback, onAbort()).Times(1).WillOnce(InvokeWithoutArgs([&] {
         cv.notify_one();
     }));
 
@@ -118,24 +119,24 @@ TEST_F(WatchDogTests, can_stop_thread_faster_than_30_ms) {
 TEST_F(WatchDogTests, can_not_stop_thread_fast_enough_without_cv_notify) {
     milliseconds destructionTime;
     for (size_t i = 0; i != 100; i++) {
-        std::shared_ptr<WatchDogSlowDestruct> wd1 = std::make_shared<WatchDogSlowDestruct>(1000, test_logger, mock_callback);
+        std::shared_ptr<WatchDogSlowDestruct> wd1 =
+                std::make_shared<WatchDogSlowDestruct>(1000, test_logger, mock_callback);
         // wait until cv entered into wait phase
         std::this_thread::sleep_for(milliseconds(30));
         auto destructionStart = steady_clock::now();
         wd1.reset();
         destructionTime = duration_cast<milliseconds>(steady_clock::now() - destructionStart);
-        if (destructionTime.count() > 30) { break;}
+        if (destructionTime.count() > 30) {
+            break;
+        }
     }
     ASSERT_GE(destructionTime.count(), 30);
 }
 
 TEST_F(WatchDogTests, can_watch_for_multiple_infer_reqs_independently) {
-
     vpux::WatchDog wd1(100, test_logger, mock_callback, MS10);
     char threads[2];
-    void* threadPtrs[2] = {
-        &threads[0], &threads[1]
-    };
+    void* threadPtrs[2] = {&threads[0], &threads[1]};
 
     // no notify
     wd1.Start(threadPtrs[0]);
@@ -155,4 +156,3 @@ TEST_F(WatchDogTests, can_watch_for_multiple_infer_reqs_independently) {
     EXPECT_NO_THROW(wd1.Pause(threadPtrs[0]));
     std::this_thread::sleep_for(milliseconds(500));
 }
-

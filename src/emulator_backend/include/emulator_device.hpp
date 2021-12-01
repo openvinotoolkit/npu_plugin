@@ -14,8 +14,7 @@
 #pragma once
 
 #include "vpux.hpp"
-
-#include <vpu/utils/logger.hpp>
+#include "vpux/utils/core/logger.hpp"
 
 #include <memory>
 #include <string>
@@ -34,7 +33,7 @@ public:
     std::string getName() const override;
 
 private:
-    std::unique_ptr<vpu::Logger> _logger;
+    Logger _logger;
 };
 
 }  // namespace vpux

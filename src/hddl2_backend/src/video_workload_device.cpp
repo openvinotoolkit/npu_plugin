@@ -64,7 +64,7 @@ WorkloadID ParsedContextParams::getWorkloadId() const {
 }
 
 //------------------------------------------------------------------------------
-VideoWorkloadDevice::VideoWorkloadDevice(const InferenceEngine::ParamMap& paramMap, vpu::LogLevel logLvl)
+VideoWorkloadDevice::VideoWorkloadDevice(const InferenceEngine::ParamMap& paramMap, LogLevel logLvl)
         : _contextParams(paramMap) {
     // TODO Create logger for context device
     _workloadContext = HddlUnite::queryWorkloadContext(_contextParams.getWorkloadId());

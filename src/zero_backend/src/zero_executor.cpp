@@ -271,8 +271,7 @@ bool isRepackingPossible(const IE::TensorDesc& userTensorDesc, const IE::TensorD
 }
 
 void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDesc& deviceTensorDesc, void* destData,
-                              const vpux::Optional<QuantizationParam>& quantParam,
-                              std::shared_ptr<vpu::Logger>& logger) {
+                              const vpux::Optional<QuantizationParam>& quantParam, Logger logger) {
     if (userInput == nullptr) {
         IE_THROW() << "User input blob null pointer";
     }
@@ -292,25 +291,25 @@ void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDe
     }
 
     if (!isPrecisionMatched) {
-        logger->info("Different precisions of user and device input blobs. Conversion required from %s to %s",
-                     userPrecision, devicePrecision);
+        logger.info("Different precisions of user and device input blobs. Conversion required from {0} to {1}",
+                    userPrecision, devicePrecision);
         if (!isLayoutMatched) {
             expectedInput = toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision, quantParam);
-            logger->info("Different layouts of user and device input blobs. Conversion required from %s to %s",
-                         userLayout, deviceLayout);
+            logger.info("Different layouts of user and device input blobs. Conversion required from {0} to {1}",
+                        userLayout, deviceLayout);
             toLayout(IE::as<IE::MemoryBlob>(expectedInput), deviceLayout, nullptr, destData);
         } else {
             toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision, quantParam, nullptr, destData);
         }
     } else if (!isLayoutMatched) {
-        logger->info("Different layouts of user and device input blobs. Conversion required from %s to %s", userLayout,
-                     deviceLayout);
+        logger.info("Different layouts of user and device input blobs. Conversion required from {0} to {1}", userLayout,
+                    deviceLayout);
         toLayout(IE::as<IE::MemoryBlob>(expectedInput), deviceLayout, nullptr, destData);
     }
 }
 
 void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& deviceTensorDesc, const void* srcData,
-                             std::shared_ptr<vpu::Logger>& logger) {
+                             Logger logger) {
     if (userOutput == nullptr) {
         IE_THROW() << "User output blob null pointer";
     }
@@ -327,7 +326,7 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
     // [OV design flaw] OV API make_blob_with_precision doesn't have any version with const source data
     IE::Blob::Ptr expectedOutput = makeBlob(deviceTensorDesc, nullptr, const_cast<void*>(srcData));
     if (userPrecision != devicePrecision) {
-        logger->info("Different precisions of pull blobs. Conversion required");
+        logger.info("Different precisions of pull blobs. Conversion required");
         expectedOutput = toPrecision(IE::as<IE::MemoryBlob>(expectedOutput), userPrecision);
         if (expectedOutput == nullptr) {
             IE_THROW() << "Blob data null pointer";
@@ -346,7 +345,7 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
         destLayout = IE::Layout::NHWC;
     }
     if (destLayout != IE::Layout::ANY) {
-        logger->info("Different layouts of pull blobs. Conversion required");
+        logger.info("Different layouts of pull blobs. Conversion required");
         expectedOutput = toLayout(IE::as<IE::MemoryBlob>(expectedOutput), destLayout);
         if (expectedOutput == nullptr) {
             IE_THROW() << "Blob data null pointer";
@@ -377,8 +376,7 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
                            ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
                            const vpux::NetworkDescription::Ptr& networkDescription, const Config& config)
         : _config(config),
-          _logger(std::make_shared<vpu::Logger>("ZeroExecutor", toOldLogLevel(_config.get<LOG_LEVEL>()),
-                                                vpu::consoleOutput())),
+          _logger("ZeroExecutor", _config.get<LOG_LEVEL>()),
           _driver_handle(driver_handle),
           _device_handle(device_handle),
           _context(context),
@@ -399,8 +397,7 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
                            const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue,
                            const std::shared_ptr<Graph>& graph, const Config& config)
         : _config(config),
-          _logger(std::make_shared<vpu::Logger>("ZeroExecutor", toOldLogLevel(_config.get<LOG_LEVEL>()),
-                                                vpu::consoleOutput())),
+          _logger("ZeroExecutor", _config.get<LOG_LEVEL>()),
           _driver_handle(driver_handle),
           _device_handle(device_handle),
           _context(context),
@@ -615,7 +612,7 @@ void ZeroExecutor::Event::AppendEventReset(CommandList& command_list) {
 }
 
 void ZeroExecutor::push(const IE::BlobMap& inputs) {
-    _logger->info("ZeroExecutor::push started");
+    _logger.info("ZeroExecutor::push started");
     const auto& deviceInputs = _networkDesc->getDeviceInputsInfo();
     const auto quantParamsInfo = _networkDesc->getQuantParamsInfo();
 
@@ -725,8 +722,8 @@ std::map<std::string, IE::InferenceEngineProfileInfo> ZeroExecutor::getLayerStat
     const auto blob = _graph->_blob.data();
     auto profilingOutputBlob = _pipeline->_outputs_host_mem_map.find("profilingOutput");
     if (profilingOutputBlob == _pipeline->_outputs_host_mem_map.end()) {
-        _logger->warning("No profiling output. Blob was compiled without profiling enabled or do not contain "
-                         "profiling info.");
+        _logger.warning(
+                "No profiling output. Blob was compiled without profiling enabled or does not contain profiling info.");
         return perfCounts;
     }
 

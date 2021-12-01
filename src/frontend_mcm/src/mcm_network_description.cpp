@@ -59,10 +59,7 @@ std::vector<std::string> extractKeys(const std::map<std::string, T>& map) {
 
 MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNetwork, const Config& config,
                                              const std::string& name)
-        : _name(name),
-          _compiledNetwork(compiledNetwork),
-          _logger(std::make_shared<vpu::Logger>("MCMNetworkDescription", toOldLogLevel(config.get<LOG_LEVEL>()),
-                                                consoleOutput())) {
+        : _name(name), _compiledNetwork(compiledNetwork), _logger("MCMNetworkDescription", config.get<LOG_LEVEL>()) {
     IE_ASSERT(compiledNetwork.data() != nullptr);
 
     const auto* graphFilePtr = MVCNN::GetGraphFile(compiledNetwork.data());
@@ -161,7 +158,7 @@ const std::string& MCMNetworkDescription::getName() const {
 
 DataMap MCMNetworkDescription::matchElementsByName(const DataMap& actualDeviceData,
                                                    const std::vector<std::string>& names) {
-    _logger->debug("MCMNetworkDescription::matchElementsByName started.");
+    _logger.debug("MCMNetworkDescription::matchElementsByName started.");
     DataMap updatedMap;
 
     // Copy original device outputs. Once the output name is matched it will be removed from the list //
@@ -176,13 +173,13 @@ DataMap MCMNetworkDescription::matchElementsByName(const DataMap& actualDeviceDa
                 dataCorrectedName->setName(name);
                 updatedMap.insert({name, dataCorrectedName});
                 isNameFound = true;
-                _logger->debug("Matched \'%s\' with \'%s\'\n", name, data.first);
+                _logger.debug("Matched '{0}' with '{1}'", name, data.first);
                 actualDeviceDataLocal.erase(data.first);
                 break;
             }
         }
         if (!isNameFound) {
-            _logger->warning("Cannot match actual output names with device names.\n");
+            _logger.warning("Cannot match actual output names with device names.");
             updatedMap.clear();
             break;
         }
@@ -194,17 +191,17 @@ DataMap MCMNetworkDescription::matchElementsByName(const DataMap& actualDeviceDa
             const auto dataCorrectedName = data.second;
             dataCorrectedName->setName(name);
             updatedMap.insert({name, dataCorrectedName});
-            _logger->debug("Added \'%s\'\n", name);
+            _logger.debug("Added '{0}'", name);
         }
     }
 
-    _logger->debug("MCMNetworkDescription::matchElementsByName finished.");
+    _logger.debug("MCMNetworkDescription::matchElementsByName finished.");
     return updatedMap;
 }
 
 DataMap MCMNetworkDescription::matchElementsByLexicographicalOrder(const DataMap& actualDeviceData,
                                                                    const std::vector<std::string>& names) {
-    _logger->debug("MCMNetworkDescription::matchElementsByLexicographicalOrder started.");
+    _logger.debug("MCMNetworkDescription::matchElementsByLexicographicalOrder started.");
     DataMap updatedMap;
 
     if (names.empty()) {
@@ -219,16 +216,16 @@ DataMap MCMNetworkDescription::matchElementsByLexicographicalOrder(const DataMap
             name = names[curMatchPos];
         else {
             name = data.first;
-            _logger->info("Additional output: %s\n", name);
+            _logger.info("Additional output: {0}", name);
         }
         const auto dataCorrectedName = data.second;
         dataCorrectedName->setName(name);
         updatedMap.insert({name, dataCorrectedName});
-        _logger->debug("Matched \'%s\' with \'%s'\\n", name, data.first);
+        _logger.debug("Matched '{0}' with '{1}'", name, data.first);
         curMatchPos++;
     }
 
-    _logger->debug("MCMNetworkDescription::matchElementsByLexicographicalOrder finished.");
+    _logger.debug("MCMNetworkDescription::matchElementsByLexicographicalOrder finished.");
     return updatedMap;
 }
 

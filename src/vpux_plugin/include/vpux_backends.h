@@ -18,11 +18,9 @@
 #include <set>
 #include <vector>
 
-// InferenceEngine
-#include <vpu/utils/logger.hpp>
-
 // Plugin
 #include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
 #include "vpux_private_config.hpp"
 
 namespace vpux {
@@ -47,7 +45,7 @@ public:
     void setup(const Config& config);
 
 private:
-    vpu::Logger _logger;
+    Logger _logger;
     std::shared_ptr<EngineBackend> _backend;
 };
 

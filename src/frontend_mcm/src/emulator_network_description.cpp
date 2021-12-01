@@ -25,8 +25,7 @@ namespace MCMAdapter {
 EmulatorNetworkDescription::EmulatorNetworkDescription(const std::vector<char>& compiledNetwork, const Config& config,
                                                        const std::string& name)
         : _name{name},
-          _logger{std::unique_ptr<vpu::Logger>(new vpu::Logger(
-                  "EmulatorNetworkDescription", toOldLogLevel(config.get<LOG_LEVEL>()), consoleOutput()))},
+          _logger("EmulatorNetworkDescription", config.get<LOG_LEVEL>()),
           _dataMapPlaceholder{},
           _compiledNetwork{compiledNetwork},
           _quantParams{} {
@@ -34,32 +33,32 @@ EmulatorNetworkDescription::EmulatorNetworkDescription(const std::vector<char>& 
 }
 
 const DataMap& EmulatorNetworkDescription::getInputsInfo() const {
-    _logger->info("EmulatorNetworkDescription::getInputsInfo()\n");
+    _logger.info("EmulatorNetworkDescription::getInputsInfo()");
     return _dataMapPlaceholder;
 }
 
 const DataMap& EmulatorNetworkDescription::getOutputsInfo() const {
-    _logger->info("EmulatorNetworkDescription::getOutputsInfo()\n");
+    _logger.info("EmulatorNetworkDescription::getOutputsInfo()");
     return _dataMapPlaceholder;
 }
 
 const DataMap& EmulatorNetworkDescription::getDeviceInputsInfo() const {
-    _logger->info("EmulatorNetworkDescription::getDeviceInputsInfo()\n");
+    _logger.info("EmulatorNetworkDescription::getDeviceInputsInfo()");
     return _dataMapPlaceholder;
 }
 
 const DataMap& EmulatorNetworkDescription::getDeviceOutputsInfo() const {
-    _logger->info("EmulatorNetworkDescription::getDeviceOutputsInfo()\n");
+    _logger.info("EmulatorNetworkDescription::getDeviceOutputsInfo()");
     return _dataMapPlaceholder;
 }
 
 const DataMap& EmulatorNetworkDescription::getDeviceProfilingOutputsInfo() const {
-    _logger->info("EmulatorNetworkDescription::getDeviceProfilingsInfo()\n");
+    _logger.info("EmulatorNetworkDescription::getDeviceProfilingsInfo()");
     return _dataMapPlaceholder;
 }
 
 const QuantizationParamMap& EmulatorNetworkDescription::getQuantParamsInfo() const {
-    _logger->info("EmulatorNetworkDescription::getQuantParamsInfo()\n");
+    _logger.info("EmulatorNetworkDescription::getQuantParamsInfo()");
     return _quantParams;
 }
 

@@ -28,11 +28,11 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemoteContext::Ptr& contextPtr,
                                const std::shared_ptr<Allocator>& allocator, const IE::ParamMap& params,
-                               const vpu::LogLevel logLevel)
+                               const LogLevel logLevel)
         : RemoteBlob(tensorDesc),
           _remoteContextPtr(contextPtr),
           _allocatorPtr(allocator),
-          _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", logLevel, vpu::consoleOutput())),
+          _logger("VPUXRemoteBlob", logLevel),
           _originalTensorDesc(tensorDesc) {
     if (contextPtr == nullptr) {
         IE_THROW() << CONTEXT_ERROR_str << "Remote context is null.";
@@ -113,7 +113,7 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
           _parsedParams(origBlob._parsedParams),
           _remoteContextPtr(origBlob._remoteContextPtr),
           _allocatorPtr(origBlob._allocatorPtr),
-          _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", origBlob._logger->level(), vpu::consoleOutput())),
+          _logger(origBlob._logger),
           _originalTensorDesc(origBlob.getOriginalTensorDesc()) {
     if (_allocatorPtr == nullptr) {
         IE_THROW(NotAllocated) << "Failed to set allocator";

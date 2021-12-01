@@ -31,9 +31,8 @@ namespace hddl2 {
 HDDL2Backend::HDDL2Backend()
         :  // [Track number: S#42840]
            // TODO: config will come by another PR, for now let's use Error log level
-          _logger(std::make_shared<vpu::Logger>("HDDL2Backend", vpu::LogLevel::Error /*_config.logLevel()*/,
-                                                vpu::consoleOutput())) {
-    setUniteLogLevel(vpu::LogLevel::Error /*_config.logLevel()*/);
+          _logger("HDDL2Backend", LogLevel::Error /*_config.logLevel()*/) {
+    setUniteLogLevel(_logger);
     _devices = createDeviceMap();
 }
 
@@ -64,14 +63,14 @@ const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const std::string& specif
 }
 
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const InferenceEngine::ParamMap& paramMap) const {
-    return std::make_shared<VideoWorkloadDevice>(paramMap, _logger->level());
+    return std::make_shared<VideoWorkloadDevice>(paramMap, _logger.level());
 }
 
 const std::vector<std::string> HDDL2Backend::getDeviceNames() const {
     // TODO: [Track number: S#42053]
     if (!isServiceAvailable() || !isServiceRunning()) {
         // return empty device list if service is not available or service is not running
-        _logger->warning("HDDL2 service is not available or service is not running!");
+        _logger.warning("HDDL2 service is not available or service is not running!");
         return std::vector<std::string>();
     }
 
@@ -88,14 +87,14 @@ std::map<std::string, std::shared_ptr<vpux::IDevice>> HDDL2Backend::createDevice
     // TODO Add more logs and cases handling
     if (isServiceAvailable(_logger) && !getDeviceNames().empty()) {
         devices.insert({"AUTO", std::make_shared<ImageWorkloadDevice>()});
-        _logger->debug("HDDL2 devices found for execution.");
+        _logger.debug("HDDL2 devices found for execution.");
     } else {
-        _logger->debug("HDDL2 devices not found for execution.");
+        _logger.debug("HDDL2 devices not found for execution.");
     }
     return devices;
 }
 
-bool HDDL2Backend::isServiceAvailable(const vpu::Logger::Ptr& logger) {
+bool HDDL2Backend::isServiceAvailable(Logger logger) {
     const std::ifstream defaultService("/opt/intel/hddlunite/bin/hddl_scheduler_service");
 
     const std::string specifiedServicePath =
@@ -106,9 +105,7 @@ bool HDDL2Backend::isServiceAvailable(const vpu::Logger::Ptr& logger) {
     const auto serviceAvailable =
             specifiedService.good() || specifiedCustomService.good() || defaultService.good() || isServiceRunning();
 
-    if (logger) {
-        serviceAvailable ? logger->debug(SERVICE_AVAILABLE.c_str()) : logger->debug(SERVICE_NOT_AVAILABLE.c_str());
-    }
+    logger.debug("{0}", serviceAvailable ? SERVICE_AVAILABLE : SERVICE_NOT_AVAILABLE);
     return serviceAvailable;
 }
 

@@ -47,7 +47,7 @@ public:
 
 private:
     HddlUnite::Inference::Graph::Ptr _uniteGraphPtr = nullptr;
-    const vpu::Logger::Ptr _logger;
+    Logger _logger;
 };
 
 }  // namespace hddl2

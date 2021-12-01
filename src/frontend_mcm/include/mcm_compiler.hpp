@@ -13,13 +13,11 @@
 
 #pragma once
 
-#include "vpux_compiler.hpp"
-
 #include "vpux/utils/IE/config.hpp"
+#include "vpux_compiler.hpp"
 
 #include <ie_common.h>
 #include <description_buffer.hpp>
-#include <vpu/utils/logger.hpp>
 
 #include <memory>
 
@@ -35,8 +33,4 @@ public:
 
     std::shared_ptr<vpux::INetworkDescription> parse(const std::vector<char>& network, const vpux::Config& config,
                                                      const std::string& graphName = "") override;
-
-private:
-    const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
-            new vpu::Logger("MCMCompiler", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
 };

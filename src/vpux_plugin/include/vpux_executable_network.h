@@ -20,11 +20,11 @@
 #include <vector>
 
 // IE
-#include <vpu/utils/logger.hpp>
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 
 // Plugin
 #include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 namespace vpux {
 
@@ -56,7 +56,7 @@ private:
     InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor();
 
     const Config _config;
-    const vpu::Logger::Ptr _logger;
+    Logger _logger;
     const Device::Ptr _device;
     std::string _networkName;
 

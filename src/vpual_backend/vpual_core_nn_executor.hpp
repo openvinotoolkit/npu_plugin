@@ -27,9 +27,8 @@
 #include "vpual_core_nn_synchronizer.hpp"
 #endif
 
-#include <vpu/utils/logger.hpp>
-
 #include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
 #include "vpux_private_config.hpp"
 
 #include "vpual_core_nn_watchdog.hpp"
@@ -78,7 +77,7 @@ private:
     std::function<void(uint8_t*)> _deallocator;
     std::function<void(uint8_t*)> _csramDeallocator;
     Config _config;
-    vpu::Logger::Ptr _logger;
+    Logger _logger;
 
 #if defined(__arm__) || defined(__aarch64__)
     std::shared_ptr<WatchDog> _wd;

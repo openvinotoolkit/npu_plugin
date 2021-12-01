@@ -12,8 +12,6 @@
 
 #pragma once
 
-#include <vpu/utils/logger.hpp>
-
 #include <ie_common.h>
 #include <ie_compound_blob.h>
 #include <blob_factory.hpp>

@@ -13,6 +13,9 @@
 
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
 
+#include "vpux/utils/IE/format.hpp"
+#include "vpux/utils/core/error.hpp"
+
 #include <algorithm>
 #include <sstream>
 #include <string>
@@ -50,10 +53,7 @@ mv::DType cvtOutputType(const ngraph::element::Type& elemType) {
     else if (ngraph::element::u8 == elemType)
         return mv::DType("UInt8");
     else {
-        std::stringstream msg;
-        msg << "Unsupported output element type: " << elemType;
-        IE_ASSERT(msg.str().c_str());
-        return mv::DType("Default");
+        VPUX_THROW("Unsupported output element type: {0}", elemType);
     }
 }
 

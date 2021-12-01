@@ -19,7 +19,6 @@
 #include "vpux_private_config.hpp"
 
 #include <ie_plugin_config.hpp>
-#include <vpu/utils/logger.hpp>
 
 namespace vpux {
 
@@ -81,9 +80,6 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, LogLevel> {
         return LogLevel::None;
     }
 };
-
-// TODO: get rid of this [Track number: E#8738]
-vpu::LogLevel toOldLogLevel(LogLevel lvl);
 
 //
 // PLATFORM

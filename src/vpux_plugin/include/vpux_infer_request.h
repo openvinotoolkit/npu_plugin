@@ -14,12 +14,12 @@
 #pragma once
 
 // IE
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <ie_input_info.hpp>
-#include <vpu/utils/logger.hpp>
 
 // Plugin
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <vpux.hpp>
+#include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 namespace vpux {
 
@@ -83,7 +83,7 @@ protected:
 protected:
     const Executor::Ptr _executorPtr;
     const Config _config;
-    const vpu::Logger::Ptr _logger;
+    Logger _logger;
     std::shared_ptr<InferenceEngine::IAllocator> _allocator;
     const int _deviceId;
     const std::string _netUniqueId;

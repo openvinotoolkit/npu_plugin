@@ -17,11 +17,9 @@
 #include <atomic>
 #include <mutex>
 
-// IE
-#include <vpu/utils/logger.hpp>
-
 // Plugin
 #include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
 #include "vpux_remote_context.h"
 
 // Low-level
@@ -63,7 +61,7 @@ private:
 
 private:
     Config _config;
-    const vpu::Logger::Ptr _logger;
+    Logger _logger;
 
     NetworkDescription::CPtr _network;
 

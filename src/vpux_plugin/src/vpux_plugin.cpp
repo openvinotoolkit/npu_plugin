@@ -90,7 +90,7 @@ Engine::Engine()
           _globalConfig(_options),
           _backends(std::make_shared<VPUXBackends>(backendRegistry)),
           _metrics(_backends),
-          _logger(vpu::Logger("VPUXEngine", vpu::LogLevel::Error, vpu::consoleOutput())) {
+          _logger("VPUXEngine", LogLevel::Error) {
     _pluginName = DEVICE_NAME;  // "VPUX"
 
     registerCommonOptions(*_options);
@@ -159,7 +159,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& mod
                     vpu::KmbPlugin::utils::skipMagic(_encryptionModel.getDecryptedStream(blobStream, sstream)), config);
         }
     } catch (const std::exception& ex) {
-        _logger.warning(ex.what());
+        _logger.warning("{0}", ex.what());
     }
 #endif
     return ImportNetwork(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
@@ -228,7 +228,7 @@ IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
     if (device == nullptr) {
         IE_THROW() << "CreateContext: Failed to find suitable device to use";
     }
-    return std::make_shared<VPUXRemoteContext>(device, map, toOldLogLevel(_globalConfig.get<LOG_LEVEL>()));
+    return std::make_shared<VPUXRemoteContext>(device, map, _globalConfig.get<LOG_LEVEL>());
 }
 
 IE::Parameter Engine::GetConfig(const std::string& name,

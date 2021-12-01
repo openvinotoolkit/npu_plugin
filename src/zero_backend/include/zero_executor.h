@@ -22,12 +22,11 @@
 #include <utility>
 #include <vector>
 
-#include <vpu/utils/logger.hpp>
-
 #include "vpux.hpp"
-#include "ze_api.h"
+#include "vpux/utils/core/logger.hpp"
 
-#include "ze_graph_ext.h"
+#include <ze_api.h>
+#include <ze_graph_ext.h>
 
 namespace vpux {
 
@@ -287,7 +286,7 @@ protected:
 
 private:
     const Config _config;
-    vpu::Logger::Ptr _logger;
+    Logger _logger;
 
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;

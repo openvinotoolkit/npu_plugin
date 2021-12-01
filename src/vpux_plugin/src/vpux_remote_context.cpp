@@ -25,10 +25,8 @@ namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
 VPUXRemoteContext::VPUXRemoteContext(const std::shared_ptr<Device>& device, const IE::ParamMap& paramMap,
-                                     vpu::LogLevel logLvl)
-        : _devicePtr(device),
-          _logger(std::make_shared<vpu::Logger>("VPUXRemoteContext", logLvl, vpu::consoleOutput())),
-          _contextParams(paramMap) {
+                                     LogLevel logLvl)
+        : _devicePtr(device), _logger("VPUXRemoteContext", logLvl), _contextParams(paramMap) {
 }
 
 IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(const IE::TensorDesc& tensorDesc,
@@ -36,18 +34,18 @@ IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(const IE::TensorDesc& tensorDe
     try {
         auto smart_this = shared_from_this();
     } catch (...) {
-        _logger->warning("Please use smart ptr to context instead of instance of class\n");
+        _logger.warning("Please use smart ptr to context instead of instance of class");
         return nullptr;
     }
     try {
         auto allocator = _devicePtr->getAllocator(blobParams);
         return std::make_shared<VPUXRemoteBlob>(tensorDesc,
                                                 std::dynamic_pointer_cast<VPUXRemoteContext>(shared_from_this()),
-                                                allocator, blobParams, _logger->level());
+                                                allocator, blobParams, _logger.level());
     } catch (const std::exception& ex) {
-        _logger->warning("Incorrect parameters for CreateBlob call.\n"
-                         "Please make sure remote memory is correct.\nError: %s\n",
-                         ex.what());
+        _logger.warning("Incorrect parameters for CreateBlob call. "
+                        "Please make sure remote memory is correct. Error: {0}",
+                        ex.what());
         return nullptr;
     }
 }

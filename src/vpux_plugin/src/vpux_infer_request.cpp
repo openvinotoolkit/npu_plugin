@@ -77,8 +77,7 @@ InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::Out
         : IInferRequestInternal(networkInputs, networkOutputs),
           _executorPtr(executor),
           _config(config),
-          _logger(std::make_shared<vpu::Logger>("InferRequest", toOldLogLevel(config.get<LOG_LEVEL>()),
-                                                vpu::consoleOutput())),
+          _logger("InferRequest", config.get<LOG_LEVEL>()),
           _allocator(allocator),
           _deviceId(utils::getSliceIdByDeviceName(config.get<DEVICE_ID>())),
           _netUniqueId(netName),
@@ -159,7 +158,7 @@ void InferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
                                               checked_cast<unsigned int>(_config.get<PREPROCESSING_LPI>()),
                                               checked_cast<unsigned int>(_config.get<PREPROCESSING_PIPES>()));
     } else {
-        _logger->warning("SIPP/M2I is enabled but configuration is not supported.");
+        _logger.warning("SIPP/M2I is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
     }
 }
@@ -190,7 +189,7 @@ void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMa
             IE::Blob::Ptr kmbUVBlob = origUVBlob;
             if (!isBlobAllocatedByAllocator(origYBlob, _allocator) ||
                 !isBlobAllocatedByAllocator(origUVBlob, _allocator)) {
-                _logger->warning("NV12 Blob located in memory not managed by plugin. Need to re-allocate the blob.");
+                _logger.warning("NV12 Blob located in memory not managed by plugin. Need to re-allocate the blob.");
                 _preprocBuffer.reset(
                         reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
 
@@ -265,7 +264,7 @@ void InferRequest::InferAsync() {
 #ifdef __aarch64__
         execPreprocessing(_inputs);
 #else
-        _logger->info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
+        _logger.info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
         execDataPreprocessing(_inputs);
 #endif
         updateRemoteBlobs(_inputs, preProcMap);
@@ -283,7 +282,7 @@ void InferRequest::GetResult() {
     if (dumpOutputPathEnv != nullptr) {
         dumpBlobs(_outputs, dumpOutputPathEnv, "output");
     }
-    _logger->debug("InferRequest::GetResult finished");
+    _logger.debug("InferRequest::GetResult finished");
 }
 
 std::map<std::string, IE::InferenceEngineProfileInfo> InferRequest::GetPerformanceCounts() const {

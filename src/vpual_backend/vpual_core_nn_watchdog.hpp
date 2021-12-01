@@ -11,13 +11,14 @@
 // included with the Software Package for additional details.
 //
 
-#include <stdint.h>
+#include "vpux/utils/core/logger.hpp"
+
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <thread>
-#include <vpu/utils/logger.hpp>
 
 namespace vpux {
 
@@ -31,23 +32,23 @@ protected:
     std::condition_variable _cvPeriodic;
     std::chrono::milliseconds _periodicInterval;
     std::function<void()> _abortProgram;
-    vpu::Logger::Ptr _logger;
+    Logger _logger;
 
 public:
-    WatchDog(const uint32_t watchdog_milliseconds, vpu::Logger::Ptr logger, std::function<void()> abort_callback,
+    WatchDog(const uint32_t watchdog_milliseconds, Logger logger, std::function<void()> abort_callback,
              std::chrono::milliseconds periodic_interval_ms = std::chrono::milliseconds(1000))
             : _periodicInterval(periodic_interval_ms), _abortProgram(abort_callback), _logger(logger) {
         if (watchdog_milliseconds == 0) {
-            _logger->warning("[WATCHDOG] disabled");
+            _logger.warning("[WATCHDOG] disabled");
             return;
         }
-        _logger->info("[WATCHDOG] Starting with timeout %d ms", watchdog_milliseconds);
+        _logger.info("[WATCHDOG] Starting with timeout {0} ms", watchdog_milliseconds);
         // Start a thread which will abort our program after a time.
         _abortThread = std::thread(&WatchDog::watchdog_thread, this, watchdog_milliseconds);
     }
 
     virtual ~WatchDog() {
-        _logger->info("[WATCHDOG] stop initiated");
+        _logger.info("[WATCHDOG] stop initiated");
         auto wd_stop_begins = std::chrono::steady_clock::now();
 
         std::unique_lock<std::mutex> lck(watchersAccess);
@@ -60,7 +61,7 @@ public:
         auto wd_stopped_in =
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - wd_stop_begins)
                         .count();
-        _logger->info("[WATCHDOG] stop completed in %f ms", wd_stopped_in);
+        _logger.info("[WATCHDOG] stop completed in {0} ms", wd_stopped_in);
     }
 
     WatchDog(const WatchDog&) = delete;
@@ -128,10 +129,10 @@ private:
             }
         }
         if (_stopWatchdog) {
-            _logger->info("[WATCHDOG] thread exited");
+            _logger.info("[WATCHDOG] thread exited");
             return;
         }
-        _logger->warning("[WATCHDOG] triggered timeout of %d ms", timeout_ms);
+        _logger.warning("[WATCHDOG] triggered timeout of {0} ms", timeout_ms);
 
         _abortProgram();
     }

@@ -13,11 +13,8 @@
 
 #pragma once
 
-// IE
-#include <vpu/utils/logger.hpp>
-
-// Plugin
-#include <vpux.hpp>
+#include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 namespace vpux {
 namespace hddl2 {
@@ -38,11 +35,11 @@ public:
     }
 
     // TODO remove static and make them private
-    static bool isServiceAvailable(const vpu::Logger::Ptr& logger = nullptr);
+    static bool isServiceAvailable(Logger logger = Logger::global());
     static bool isServiceRunning();
 
 private:
-    vpu::Logger::Ptr _logger = nullptr;
+    Logger _logger;
     std::map<std::string, std::shared_ptr<IDevice>> _devices;
     std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();
 };

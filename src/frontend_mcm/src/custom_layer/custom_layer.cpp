@@ -310,8 +310,8 @@ bool CustomLayer::meetsWhereRestrictions(const std::map<std::string, std::string
 }
 
 SizeRuleValidator::SizeRuleValidator(CustomLayer::Ptr customLayer,
-                                     const std::map<std::string, std::string>& cnnLayerParams, Logger::Ptr logger)
-        : _customLayer(std::move(customLayer)), _cnnLayerParams(cnnLayerParams), _logger(std::move(logger)) {
+                                     const std::map<std::string, std::string>& cnnLayerParams, vpux::Logger logger)
+        : _customLayer(std::move(customLayer)), _cnnLayerParams(cnnLayerParams), _logger(logger) {
 }
 
 void SizeRuleValidator::visitCpp(const CustomKernelCpp&) {
@@ -340,8 +340,8 @@ void SizeRuleValidator::visitCL(const CustomKernelOcl& kernel) {
                      _customLayer->layerName());
 
     _result = validGridSizes;
-    if (!_result && _logger) {
-        _logger->debug("Not suitable: Work group grid sizes are not valid");
+    if (!_result) {
+        _logger.debug("Not suitable: Work group grid sizes are not valid");
     }
 }
 

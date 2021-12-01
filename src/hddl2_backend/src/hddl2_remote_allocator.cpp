@@ -27,8 +27,6 @@ namespace vpux {
 namespace hddl2 {
 namespace IE = InferenceEngine;
 
-using namespace vpu;
-
 //------------------------------------------------------------------------------
 using matchColorFormats_t = std::unordered_map<int, HddlUnite::eRemoteMemoryFormat>;
 static HddlUnite::eRemoteMemoryFormat convertColorFormat(const IE::ColorFormat colorFormat) {
@@ -62,18 +60,18 @@ static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
     }
 }
 
-static bool checkDims(const IE::SizeVector& dims, const vpu::Logger::Ptr& logger) {
+static bool checkDims(const IE::SizeVector& dims, Logger logger) {
     if (dims.size() != 4) {
-        logger->error("%s: Layouts with dims != 4 are not supported!\n", __FUNCTION__);
+        logger.error("{0}: Layouts with dims != 4 are not supported!", __FUNCTION__);
         return false;
     }
 
     for (const auto& dim : dims) {
         if (!dim) {
-            logger->error("%s: Zero dimension\n", __FUNCTION__);
+            logger.error("{0}: Zero dimension", __FUNCTION__);
             return false;
         } else if (dim > std::numeric_limits<uint32_t>::max()) {
-            logger->error("%s: Enormous dimension. Preventing overflow\n", __FUNCTION__);
+            logger.trace("{0}: Enormous dimension. Preventing overflow", __FUNCTION__);
             return false;
         }
     }
@@ -81,27 +79,27 @@ static bool checkDims(const IE::SizeVector& dims, const vpu::Logger::Ptr& logger
     return true;
 }
 
-static bool checkStrides(const IE::SizeVector& strides, const vpu::Logger::Ptr& logger) {
+static bool checkStrides(const IE::SizeVector& strides, Logger logger) {
     if (strides.empty()) {
         return true;
     }
     if (strides.size() != 4) {
-        logger->error("%s: Strides with dims != 4 are not supported!\n", __FUNCTION__);
+        logger.error("{0}: Strides with dims != 4 are not supported!", __FUNCTION__);
         return false;
     }
 
     for (auto strideIt = strides.cbegin(); strideIt != strides.cend(); ++strideIt) {
         const auto curStride = *strideIt;
         if (!curStride) {
-            logger->error("%s: Zero stride\n", __FUNCTION__);
+            logger.error("{0}: Zero stride", __FUNCTION__);
             return false;
         } else if (curStride > std::numeric_limits<uint32_t>::max()) {
-            logger->error("%s: Enormous stride. Preventing overflow\n", __FUNCTION__);
+            logger.error("{0}: Enormous stride. Preventing overflow", __FUNCTION__);
             return false;
         } else if (strideIt + 1 != strides.cend()) {
             const auto nextStride = *(strideIt + 1);
             if (curStride < nextStride) {
-                logger->error("%s: Incorrect strides values\n", __FUNCTION__);
+                logger.error("{0}: Incorrect strides values", __FUNCTION__);
                 return false;
             }
         }
@@ -114,9 +112,8 @@ HDDL2RemoteMemoryContainer::HDDL2RemoteMemoryContainer(const HddlUnite::RemoteMe
         : _remoteMemory(remoteMemory), _updatedMemoryHandle(remoteMemory.get()) {
 }
 
-HDDL2RemoteAllocator::HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr,
-                                           const vpu::LogLevel logLevel)
-        : _logger(std::make_shared<vpu::Logger>("RemoteAllocator", logLevel, consoleOutput())) {
+HDDL2RemoteAllocator::HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr, const LogLevel logLevel)
+        : _logger("RemoteAllocator", logLevel) {
     if (contextPtr == nullptr) {
         IE_THROW() << "Context pointer is null";
     }
@@ -125,7 +122,7 @@ HDDL2RemoteAllocator::HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr
 }
 
 void* HDDL2RemoteAllocator::alloc(size_t /*size*/) noexcept {
-    _logger->error("%s: Not implemented!\n", __FUNCTION__);
+    _logger.error("{0}: Not implemented!", __FUNCTION__);
     return nullptr;
 }
 
@@ -156,7 +153,7 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& ma
 
     // Color format updating can be done only for the blobs with wrapped remote memory
     if (updateColorFormat && !memoryHandle) {
-        _logger->error("%s: Updating color format with null memory pointer\n", __FUNCTION__);
+        _logger.error("{0}: Updating color format with null memory pointer", __FUNCTION__);
         return nullptr;
     }
 
@@ -164,7 +161,7 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& ma
     if (updateColorFormat) {
         const auto remoteMem = static_cast<HddlUnite::RemoteMemory*>(memoryHandle);
         if (!remoteMem) {
-            _logger->error("%s: Failed to cast pointer to RemoteMemory object\n", __FUNCTION__);
+            _logger.error("{0}: Failed to cast pointer to RemoteMemory object", __FUNCTION__);
             return nullptr;
         }
         const auto currentColorFormat = remoteMem->getMemoryDesc().m_format;
@@ -178,12 +175,12 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& ma
     try {
         remoteMemoryFD = getRemoteMemoryFDFromParams(map);
     } catch (const std::exception& ex) {
-        _logger->error("Failed to get remote memory FD! {}", ex.what());
+        _logger.error("Failed to get remote memory FD! {0}", ex.what());
         return nullptr;
     }
 
     if (remoteMemoryFD < 0) {
-        _logger->error("%s: Invalid remote memory FD - %d\n", __FUNCTION__, remoteMemoryFD);
+        _logger.error("{0}: Invalid remote memory FD - {1}", __FUNCTION__, remoteMemoryFD);
         return nullptr;
     }
 
@@ -208,7 +205,7 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& ma
     try {
         tensorDesc = getOriginalTensorDescFromParams(map);
     } catch (const std::exception& ex) {
-        _logger->error("Failed to get original tensor descriptor! {}", ex.what());
+        _logger.error("Failed to get original tensor descriptor! {0}", ex.what());
         return nullptr;
     }
 
@@ -218,12 +215,12 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& ma
         WorkloadID workloadId = getWorkloadIDFromParams(map);
         remoteContext = HddlUnite::queryWorkloadContext(workloadId);
     } catch (const std::exception& ex) {
-        _logger->error("Failed to get workload context! {}", ex.what());
+        _logger.error("Failed to get workload context! {0}", ex.what());
         return nullptr;
     }
 
     if (remoteContext == nullptr) {
-        _logger->error("%s: Workload context null pointer!\n", __FUNCTION__);
+        _logger.error("{0}: Workload context null pointer!", __FUNCTION__);
         return nullptr;
     }
 
@@ -261,7 +258,7 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& ma
         const size_t size = elementSize * std::accumulate(dims.cbegin(), dims.cend(), static_cast<size_t>(1),
                                                           std::multiplies<size_t>());
         if (size > std::numeric_limits<uint32_t>::max()) {
-            _logger->error("%s: Enormous blob size. Preventing overflow\n", __FUNCTION__);
+            _logger.error("{0}: Enormous blob size. Preventing overflow", __FUNCTION__);
             return nullptr;
         }
         const uint32_t uniteSize = static_cast<uint32_t>(size);
@@ -279,7 +276,7 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& ma
     }
 
     if (!isValidRemoteMemory(remoteMemory)) {
-        _logger->warning("%s: Incorrect memory fd!\n", __FUNCTION__);
+        _logger.warning("{0}: Incorrect memory fd!", __FUNCTION__);
         return nullptr;
     }
 
@@ -290,10 +287,10 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& ma
         _memoryStorage.emplace(remMemHandle, memoryContainer);
         ++_memoryHandleCounter[remMemHandle];
 
-        _logger->info("%s: Wrapped memory of %l size\n", __FUNCTION__, remoteMemory->getMemoryDesc().getDataSize());
+        _logger.info("{0}: Wrapped memory of {1} size", __FUNCTION__, remoteMemory->getMemoryDesc().getDataSize());
         if (updateColorFormat) {
             if (memoryHandle == nullptr) {
-                _logger->error("%s: Null pointer to remote memory\n", __FUNCTION__);
+                _logger.error("{0}: Null pointer to remote memory", __FUNCTION__);
                 return nullptr;
             }
             // We have to remove previous remote memory in updating color format case
@@ -309,26 +306,26 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& ma
         }
         return static_cast<void*>(remoteMemory.get());
     } catch (const std::exception& ex) {
-        _logger->error("%s: Failed to wrap memory. Error: %s\n", __FUNCTION__, ex.what());
+        _logger.error("{0}: Failed to wrap memory. Error: {1}", __FUNCTION__, ex.what());
         return nullptr;
     }
 }
 
 void* HDDL2RemoteAllocator::incrementRemoteMemoryCounter(void* remoteMemoryHandle) noexcept {
     if (remoteMemoryHandle == nullptr) {
-        _logger->warning("%s: Invalid address: %p \n", __FUNCTION__, remoteMemoryHandle);
+        _logger.warning("{0}: Invalid address: {1}", __FUNCTION__, remoteMemoryHandle);
         return nullptr;
     }
 
     auto counter_it = _memoryHandleCounter.find(const_cast<void*>(remoteMemoryHandle));
     if (counter_it == _memoryHandleCounter.end()) {
-        _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger.warning("{0}: Memory {1} is not found!", __FUNCTION__, remoteMemoryHandle);
         return nullptr;
     }
 
     HddlUnite::RemoteMemory* remoteMemory = static_cast<HddlUnite::RemoteMemory*>(remoteMemoryHandle);
     if (remoteMemory == nullptr) {
-        _logger->warning("%s: Invalid cast to HddlUnite::RemoteMemory: %p\n", __FUNCTION__, remoteMemoryHandle);
+        _logger.warning("{0}: Invalid cast to HddlUnite::RemoteMemory: {1}", __FUNCTION__, remoteMemoryHandle);
         return nullptr;
     }
 
@@ -351,7 +348,7 @@ size_t HDDL2RemoteAllocator::decrementRemoteMemoryCounter(void* remoteMemoryHand
     findMemoryHandle = true;
     auto ret_counter = --(counter_it->second);
     if (!ret_counter) {
-        _logger->info("%s: Remove memory %p\n", __FUNCTION__, remoteMemoryHandle);
+        _logger.info("{0}: Remove memory {1}", __FUNCTION__, remoteMemoryHandle);
         _memoryHandleCounter.erase(counter_it);
     }
     return ret_counter;
@@ -359,35 +356,35 @@ size_t HDDL2RemoteAllocator::decrementRemoteMemoryCounter(void* remoteMemoryHand
 
 bool HDDL2RemoteAllocator::freeMemory(void* remoteMemoryHandle) noexcept {
     if (remoteMemoryHandle == nullptr) {
-        _logger->warning("%s: Invalid address: %p \n", __FUNCTION__, remoteMemoryHandle);
+        _logger.warning("{0}: Invalid address: {1}", __FUNCTION__, remoteMemoryHandle);
         return false;
     }
     auto iterator = _memoryStorage.find(remoteMemoryHandle);
     if (iterator == _memoryStorage.end()) {
-        _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger.warning("{0}: Memory {1} is not found!", __FUNCTION__, remoteMemoryHandle);
         return false;
     }
 
     auto memory = &iterator->second;
     if (memory->_isLocked) {
-        _logger->warning("%s: Memory %p is locked!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger.warning("{0}: Memory {1} is locked!", __FUNCTION__, remoteMemoryHandle);
         return false;
     }
 
     bool findMemoryHandle;
     auto handle_counter = decrementRemoteMemoryCounter(remoteMemoryHandle, findMemoryHandle);
     if (!findMemoryHandle) {
-        _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger.warning("{0}: Memory {1} is not found!", __FUNCTION__, remoteMemoryHandle);
         return false;
     }
 
     if (handle_counter) {
-        _logger->info("%s: Memory %p found, remaining references = %l\n", __FUNCTION__, remoteMemoryHandle,
-                      handle_counter);
+        _logger.info("{0}: Memory {1} found, remaining references = {2}", __FUNCTION__, remoteMemoryHandle,
+                     handle_counter);
         return true;
     }
 
-    _logger->info("%s: Memory %p found, removing element\n", __FUNCTION__, remoteMemoryHandle);
+    _logger.info("{0}: Memory {1} found, removing element", __FUNCTION__, remoteMemoryHandle);
     _memoryStorage.erase(iterator);
     return true;
 }
@@ -407,16 +404,16 @@ void* HDDL2RemoteAllocator::lock(void* remoteMemoryHandle, InferenceEngine::Lock
 
     auto iterator = _memoryStorage.find(remoteMemoryHandle);
     if (iterator == _memoryStorage.end()) {
-        _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger.warning("{0}: Memory {1} is not found!", __FUNCTION__, remoteMemoryHandle);
         return nullptr;
     }
 
-    _logger->info("%s: Locking memory %p \n", __FUNCTION__, remoteMemoryHandle);
+    _logger.info("{0}: Locking memory {1}", __FUNCTION__, remoteMemoryHandle);
 
     auto memory = &iterator->second;
 
     if (memory->_isLocked) {
-        _logger->warning("%s: Memory %p is already locked!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger.warning("{0}: Memory {1} is already locked!", __FUNCTION__, remoteMemoryHandle);
         return nullptr;
     }
 
@@ -427,17 +424,16 @@ void* HDDL2RemoteAllocator::lock(void* remoteMemoryHandle, InferenceEngine::Lock
     memory->_localMemory.resize(dmaBufSize);
 
     if (dmaBufSize != memory->_localMemory.size()) {
-        _logger->info("%s: dmaBufSize(%d) != memory->size(%d)\n", __FUNCTION__, static_cast<int>(dmaBufSize),
-                      static_cast<int>(memory->_localMemory.size()));
+        _logger.info("{0}: dmaBufSize({1}) != memory->size({2})", __FUNCTION__, dmaBufSize,
+                     memory->_localMemory.size());
         return nullptr;
     }
 
-    _logger->info("%s: LockOp: %s\n", __FUNCTION__, lockOpToStr(lockOp).c_str());
+    _logger.info("{0}: LockOp: {1}", __FUNCTION__, lockOpToStr(lockOp));
 
     // TODO Do this step only on R+W and R operations, not for Write
-    _logger->info("%s: Sync %d memory from device, remoteMemoryHandle %p, fd %d\n", __FUNCTION__,
-                  static_cast<int>(memory->_localMemory.size()), remoteMemoryHandle,
-                  memory->_remoteMemory->getDmaBufFd());
+    _logger.info("{0}: Sync {1} memory from device, remoteMemoryHandle {2}, fd {3}", __FUNCTION__,
+                 memory->_localMemory.size(), remoteMemoryHandle, memory->_remoteMemory->getDmaBufFd());
 
     HddlStatusCode statusCode =
             memory->_remoteMemory->syncFromDevice(memory->_localMemory.data(), memory->_localMemory.size());
@@ -454,19 +450,19 @@ void HDDL2RemoteAllocator::unlock(void* remoteMemoryHandle) noexcept {
 
     auto iterator = _memoryStorage.find(remoteMemoryHandle);
     if (iterator == _memoryStorage.end() || !iterator->second._isLocked) {
-        _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger.warning("{0}: Memory {1} is not found!", __FUNCTION__, remoteMemoryHandle);
         return;
     }
     auto memory = &iterator->second;
 
     if (memory->_lockOp == InferenceEngine::LOCK_FOR_WRITE) {
         // Sync memory to device
-        _logger->info("%s: Sync %d memory to device, remoteMemoryHandle %p\n", __FUNCTION__,
-                      static_cast<int>(memory->_localMemory.size()), remoteMemoryHandle);
+        _logger.info("{0}: Sync {1} memory to device, remoteMemoryHandle {2}", __FUNCTION__,
+                     memory->_localMemory.size(), remoteMemoryHandle);
         memory->_remoteMemory->syncToDevice(memory->_localMemory.data(), memory->_localMemory.size());
     } else {
-        _logger->warning("%s: LOCK_FOR_READ, Memory %d will NOT be synced, remoteMemoryHandle %p\n", __FUNCTION__,
-                         static_cast<int>(memory->_localMemory.size()), remoteMemoryHandle);
+        _logger.warning("{0}: LOCK_FOR_READ, Memory {1} will NOT be synced, remoteMemoryHandle {2}", __FUNCTION__,
+                        memory->_localMemory.size(), remoteMemoryHandle);
     }
 
     memory->_isLocked = false;
@@ -474,13 +470,13 @@ void HDDL2RemoteAllocator::unlock(void* remoteMemoryHandle) noexcept {
 
 void* HDDL2RemoteAllocator::wrapRemoteMemoryHandle(const int& /*remoteMemoryFd*/, const size_t /*size*/,
                                                    void* /*memHandle*/) noexcept {
-    _logger->error("%s: Not implemented!\n", __FUNCTION__);
+    _logger.error("{0}: Not implemented!", __FUNCTION__);
     return nullptr;
 }
 
 void* HDDL2RemoteAllocator::wrapRemoteMemoryOffset(const int& /*remoteMemoryFd*/, const size_t /*size*/,
                                                    const size_t& /*memOffset*/) noexcept {
-    _logger->error("%s: Not implemented!\n", __FUNCTION__);
+    _logger.error("{0}: Not implemented!", __FUNCTION__);
     return nullptr;
 }
 

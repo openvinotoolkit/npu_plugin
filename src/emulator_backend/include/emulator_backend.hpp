@@ -15,14 +15,12 @@
 
 #include "vpux.hpp"
 
-#include <vpu/utils/logger.hpp>
-
 #include <map>
 #include <memory>
 
 namespace vpux {
 
-class EmulatorBackend final : public vpux::IEngineBackend {
+class EmulatorBackend final : public IEngineBackend {
 public:
     EmulatorBackend();
     const std::string getName() const override {
@@ -34,7 +32,6 @@ public:
     const std::vector<std::string> getDeviceNames() const override;
 
 private:
-    std::unique_ptr<vpu::Logger> _logger;
     std::shared_ptr<IDevice> _device;
 };
 

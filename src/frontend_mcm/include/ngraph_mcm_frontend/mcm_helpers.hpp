@@ -26,7 +26,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <vpu/utils/logger.hpp>
 
 std::string cvtLogLevelToMCM(vpux::LogLevel lvl);
 

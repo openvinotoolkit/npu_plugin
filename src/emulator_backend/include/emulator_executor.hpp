@@ -14,10 +14,9 @@
 #pragma once
 
 #include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 #include <emu/manager.hpp>
-
-#include <vpu/utils/logger.hpp>
 
 #include <memory>
 #include <string>
@@ -51,7 +50,7 @@ public:
     }
 
 private:
-    vpu::Logger _logger;
+    Logger _logger;
     vpux::NetworkDescription::Ptr _network;
     mv::emu::Manager _manager;
 };

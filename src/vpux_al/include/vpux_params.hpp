@@ -15,7 +15,6 @@
 // IE
 #include "ie_remote_context.hpp"
 // Plugin
-#include "vpu/utils/logger.hpp"
 #include "vpux/vpux_plugin_params.hpp"
 #include "vpux_params_private_options.hpp"
 

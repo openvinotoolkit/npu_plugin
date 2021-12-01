@@ -104,28 +104,3 @@ VPUXPlatform vpux::PLATFORM::parse(StringRef val) {
 
     VPUX_THROW("Value '{0}' is not a valid PLATFORM option");
 }
-
-//
-// LOG_LEVEL
-//
-
-vpu::LogLevel vpux::toOldLogLevel(LogLevel lvl) {
-    switch (lvl) {
-    case LogLevel::None:
-        return vpu::LogLevel::None;
-    case LogLevel::Fatal:
-        return vpu::LogLevel::Fatal;
-    case LogLevel::Error:
-        return vpu::LogLevel::Error;
-    case LogLevel::Warning:
-        return vpu::LogLevel::Warning;
-    case LogLevel::Info:
-        return vpu::LogLevel::Info;
-    case LogLevel::Debug:
-        return vpu::LogLevel::Debug;
-    case LogLevel::Trace:
-        return vpu::LogLevel::Trace;
-    }
-
-    VPUX_THROW("LogLevel '{0}' is not supported", lvl);
-}

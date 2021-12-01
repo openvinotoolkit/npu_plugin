@@ -156,14 +156,10 @@ WorkloadID getWorkloadIDFromParams(const InferenceEngine::ParamMap& params) {
     return workloadId;
 }
 
-void setUniteLogLevel(const vpu::LogLevel logLevel, const vpu::Logger::Ptr logger) {
-    const auto status = HddlUnite::setClientLogLevel(Unite::convertIELogLevelToUnite(logLevel));
+void setUniteLogLevel(Logger logger) {
+    const auto status = HddlUnite::setClientLogLevel(Unite::convertIELogLevelToUnite(logger.level()));
     if (status != HddlStatusCode::HDDL_OK) {
-        if (logger != nullptr) {
-            logger->warning("Failed to set client log level for HddlUnite");
-        } else {
-            std::cerr << "Failed to set client log level for HddlUnite" << std::endl;
-        }
+        logger.warning("Failed to set client log level for HddlUnite");
     }
 }
 

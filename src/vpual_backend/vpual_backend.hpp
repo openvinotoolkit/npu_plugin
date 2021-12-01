@@ -13,9 +13,9 @@
 #pragma once
 
 #include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 #include <ie_common.h>
-#include <vpu/utils/logger.hpp>
 
 #include <map>
 #include <memory>
@@ -23,7 +23,7 @@
 namespace vpux {
 
 class VpualEngineBackend final : public vpux::IEngineBackend {
-    std::unique_ptr<vpu::Logger> _logger;
+    Logger _logger;
     std::map<std::string, std::shared_ptr<IDevice>> _devices;
 
 public:

@@ -15,11 +15,14 @@
 
 #include "vpux/utils/core/optional.hpp"
 
+#include <llvm/ADT/SmallString.h>
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/Regex.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include <cassert>
 #include <cstdio>
+#include <mutex>
 
 using namespace vpux;
 
@@ -148,16 +151,22 @@ void vpux::Logger::addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_
         return;
     }
 
-    auto colorStream = getLevelStream(msgLevel);
-    auto& stream = colorStream.get();
+    llvm::SmallString<512> tempBuf;
+    llvm::raw_svector_ostream tempStream(tempBuf);
 
-    printTo(stream, "[{0}] ", _name);
+    printTo(tempStream, "[{0}] ", _name);
 
     for (size_t i = 0; i < _indentLevel; ++i)
-        stream << "  ";
+        tempStream << "  ";
 
-    msg.format(stream);
-    stream << "\n";
+    msg.format(tempStream);
+    tempStream << "\n";
 
+    static std::mutex logMtx;
+    std::lock_guard<std::mutex> logMtxLock(logMtx);
+
+    auto colorStream = getLevelStream(msgLevel);
+    auto& stream = colorStream.get();
+    stream << tempStream.str();
     stream.flush();
 }

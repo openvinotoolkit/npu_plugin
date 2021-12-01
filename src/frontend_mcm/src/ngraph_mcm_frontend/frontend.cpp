@@ -13,6 +13,8 @@
 
 // clang-format off
 
+#include "vpux/utils/core/logger.hpp"
+
 #include "ngraph_mcm_frontend/frontend.hpp"
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
 #include "ngraph_mcm_frontend/passes/add_io_convert_ops.hpp"
@@ -45,7 +47,6 @@
 #include "vpux/utils/core/error.hpp"
 
 #include <file_utils.h>
-#include <vpu/utils/logger.hpp>
 #include <device_helpers.hpp>
 
 #include <ngraph/pass/manager.hpp>
@@ -148,13 +149,13 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
     const ie::InputsDataMap& inputsInfo,
     const ie::OutputsDataMap& outputsInfo,
     const Config& config,
-    std::shared_ptr<vpu::Logger> log,
+    vpux::Logger log,
     std::string & errMsg)
 {
     auto mcmCompiler = std::unique_ptr<mv::CompilationUnit>(new mv::CompilationUnit(netName));
     {
-        log->debug("Configure MCM Compiler");
-        VPU_LOGGER_SECTION(log);
+        log.debug("Configure MCM Compiler");
+        log = log.nest();
 
         std::string compDescName;
         std::string targetDescName;
@@ -513,12 +514,12 @@ void applyTransformations(
     const ie::InputsDataMap& inputsInfo,
     const ie::OutputsDataMap& outputsInfo,
     const Config& config,
-    std::shared_ptr<vpu::Logger> log,
+    vpux::Logger log,
     const bool useCompiler,
     std::shared_ptr<std::unordered_set<std::string>> supported
     )
 {
-    log->debug("Convert nGraph to MCM Model");
+    log.debug("Convert nGraph to MCM Model");
 
     bool needConvertInputPrecision = false;
 
@@ -614,7 +615,7 @@ void applyTransformations(
     passManager.run_passes(func);
     const auto end = std::chrono::high_resolution_clock::now();
     const auto process_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
-    log->info("Plugin processing time: %v ms", process_time.count());
+    log.info("Plugin processing time: {0} ms", process_time.count());
 }
 
 std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
@@ -624,9 +625,9 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         const ie::OutputsDataMap& outputsInfo,
         const Config& config,
         std::string & errMsg) {
-    const auto log = std::make_shared<vpu::Logger>("VPUX nGraph Parser", toOldLogLevel(config.get<LOG_LEVEL>()), vpu::consoleOutput());
+    vpux::Logger log("VPUX nGraph Parser", config.get<LOG_LEVEL>());
 
-    log->info("Parse nGraph %v", netName);
+    log.info("Parse nGraph {0}", netName);
 
     auto mcmCompiler = createCompilationUnit(netName, inputsInfo, outputsInfo, config, log, errMsg);
 
@@ -641,27 +642,27 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
     //
 
     {
-        log->debug("Run MCM Compiler");
+        log.debug("Run MCM Compiler");
         try {
             const auto start = std::chrono::high_resolution_clock::now();
             mcmCompiler->run();
             const auto end = std::chrono::high_resolution_clock::now();
             const auto compile_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
-            log->info("Compiler processing time: %v ms", compile_time.count());
+            log.info("Compiler processing time: {0} ms", compile_time.count());
         } catch (std::string& str) {
-            log->error("MCM Compiler error: %v", str);
+            log.error("MCM Compiler error: {0}", str);
             errMsg = str;
             return {};
         } catch (const char* str) {
             errMsg = (str != nullptr) ? std::string(str) : "(null)";
-            log->error("MCM Compiler error: %s", errMsg);
+            log.error("MCM Compiler error: {0}", errMsg);
             return {};
         } catch (std::exception& ex) {
-            log->error("MCM Compiler exception: %v", ex.what());
+            log.error("MCM Compiler exception: {0}", ex.what());
             errMsg = ex.what();
             return {};
         } catch (...) {
-            log->error("MCM Compiler general exception");
+            log.error("MCM Compiler general exception");
             errMsg = "MCM Compiler general exception";
             return {};
         }
@@ -680,7 +681,7 @@ std::shared_ptr<std::unordered_set<std::string>> getSupportedLayers(
     auto mcmCompiler = std::unique_ptr<mv::CompilationUnit>();
     ie::InputsDataMap inputsInfo = network.getInputsInfo();
     ie::OutputsDataMap outputsInfo = network.getOutputsInfo();
-    const auto log = std::make_shared<vpu::Logger>("VPUX nGraph Parser", toOldLogLevel(config.get<LOG_LEVEL>()), vpu::consoleOutput());
+    vpux::Logger log("VPUX nGraph Parser", config.get<LOG_LEVEL>());
 
     applyTransformations(ngraph_function, mcmCompiler, inputsInfo, outputsInfo, config, log, false, supported);
 

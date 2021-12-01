@@ -21,7 +21,6 @@
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <inference_engine.hpp>
-#include <vpu/utils/logger.hpp>
 
 // Plugin
 #include "vpux.hpp"
@@ -34,6 +33,7 @@
 #endif
 
 #include "vpux/utils/IE/config.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 namespace vpux {
 
@@ -85,7 +85,7 @@ private:
     Config _globalConfig;
     VPUXBackends::Ptr _backends;
     Metrics _metrics;
-    vpu::Logger _logger;
+    Logger _logger;
 #if defined(__arm__) || defined(__aarch64__)
     Encryption _encryptionModel;
 #endif

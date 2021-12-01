@@ -13,11 +13,10 @@
 
 #pragma once
 
+#include "vpux/utils/core/logger.hpp"
 #include "vpux_compiler.hpp"
 
 #include <include/mcm/compiler/compilation_unit.hpp>
-
-#include <vpu/utils/logger.hpp>
 
 #include <memory>
 
@@ -51,7 +50,7 @@ public:
 
 private:
     std::string _name;
-    std::unique_ptr<vpu::Logger> _logger;
+    vpux::Logger _logger;
     vpux::DataMap _dataMapPlaceholder;
     std::vector<char> _compiledNetwork;
     vpux::QuantizationParamMap _quantParams;
