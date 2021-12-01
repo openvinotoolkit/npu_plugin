@@ -17,17 +17,17 @@
 include "mlir/Pass/PassBase.td"
 
 //
-// AssignPhysicalBarriers
+// AssignVirtualBarriers
 //
 
-def AssignPhysicalBarriers : PassBase<"assign-physical-barriers", "vpux::FunctionPass"> {
-    let summary = "Assign physical barriers";
+def AssignVirtualBarriers : PassBase<"assign-virtual-barriers", "vpux::FunctionPass"> {
+    let summary = "Assign virtual barriers";
 
     let description = [{
-        This pass replaces virtual barriers with physical barriers and assign IDs to them.
+        This pass inserts virtual barriers.
     }];
 
-    let constructor = "vpux::VPURT::createAssignPhysicalBarriersPass()";
+    let constructor = "vpux::VPURT::createAssignVirtualBarriersPass()";
 
     let options = [
         Option<
