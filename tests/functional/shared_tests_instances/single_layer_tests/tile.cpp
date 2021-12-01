@@ -42,7 +42,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
+const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
 
 const std::vector<std::vector<int64_t>> repeats = {
         // tile by single axes
@@ -80,7 +80,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
         // {1, 4, 3, 1, 3, 1}
 };
 
-INSTANTIATE_TEST_SUITE_P(Tile, KmbTileLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Tile, KmbTileLayerTest,
                         ::testing::Combine(::testing::ValuesIn(repeats), ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

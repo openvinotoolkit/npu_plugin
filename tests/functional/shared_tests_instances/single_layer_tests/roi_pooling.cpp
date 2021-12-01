@@ -78,8 +78,9 @@ const std::vector<std::vector<size_t>> pooledShapes_bilinear = {/*{1, 1},*/ {2, 
 
 const std::vector<std::vector<size_t>> coordShapes = {{1, 5}, /*{3, 5}, {5, 5}*/};
 
-const std::vector<InferenceEngine::Precision> netPRCs = {InferenceEngine::Precision::FP16,
-                                                         InferenceEngine::Precision::FP32};
+const std::vector<InferenceEngine::Precision> netPRCs = {
+        InferenceEngine::Precision::FP16
+};
 
 const std::vector<float> spatial_scales = {0.625f, 1.f};
 

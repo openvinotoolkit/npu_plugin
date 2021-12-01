@@ -79,9 +79,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::FP16, // CPU-plugin has parameter I32, but KMB does not
-            InferenceEngine::Precision::U8    // support it. So I32 is changed to FP16 and U8.
+            InferenceEngine::Precision::FP16
     };
 
     const std::vector<bool> keepDims = {
@@ -143,7 +141,7 @@ namespace {
                 testing::ValuesIn(opTypes),
                 testing::Values(true, false),
                 testing::ValuesIn(reductionTypes),
-                testing::Values(InferenceEngine::Precision::FP32),
+                testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
@@ -163,9 +161,7 @@ namespace {
                 testing::Values(opTypes[1]),
                 testing::ValuesIn(keepDims),
                 testing::Values(ngraph::helpers::ReductionType::Sum),
-                testing::Values(InferenceEngine::Precision::FP32,
-                                InferenceEngine::Precision::FP16, // CPU-plugin has parameter I32, but KMB does not
-                                InferenceEngine::Precision::U8), // support it. So I32 is changed to FP16 and U8.
+                testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
@@ -182,7 +178,7 @@ namespace {
                 testing::Values(opTypes[1]),
                 testing::Values(true),
                 testing::Values(ngraph::helpers::ReductionType::Sum),
-                testing::Values(InferenceEngine::Precision::FP32),
+                testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
@@ -199,7 +195,7 @@ namespace {
                 testing::Values(opTypes[1]),
                 testing::Values(true, false),
                 testing::Values(ngraph::helpers::ReductionType::Max),
-                testing::Values(InferenceEngine::Precision::FP32),
+                testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
@@ -220,7 +216,7 @@ namespace {
                 testing::Values(opTypes[1]),
                 testing::ValuesIn(keepDims),
                 testing::Values(ngraph::helpers::ReductionType::Mean),
-                testing::Values(InferenceEngine::Precision::FP32),
+                testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
@@ -240,9 +236,8 @@ namespace {
                 testing::Values(opTypes[1]),
                 testing::Values(true, false),
                 testing::Values(ngraph::helpers::ReductionType::Mean,
-                                ngraph::helpers::ReductionType::Max,
-                                ngraph::helpers::ReductionType::Sum),
-                testing::Values(InferenceEngine::Precision::FP32),
+                                ngraph::helpers::ReductionType::Max),
+                testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
@@ -260,31 +255,8 @@ namespace {
                     testing::ValuesIn(decltype(axes) { {2, 3} }),
                     testing::Values(opTypes[1]),
                     testing::Values(true, false),
-                    testing::Values(ngraph::helpers::ReductionType::Mean,
-                                    ngraph::helpers::ReductionType::Max),
-                    testing::Values(InferenceEngine::Precision::FP32),
-                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                    testing::Values(InferenceEngine::Layout::ANY),
-                    testing::Values(
-                        std::vector<size_t> {1, 512, 7, 7},     // resnet_18
-                        std::vector<size_t> {1, 2048, 7, 7},    // resnet_50
-                        std::vector<size_t> {1, 1280, 7, 7},    // mobilenet_v2
-                        std::vector<size_t> {1, 1664, 7, 7}     // densenet
-                    ),
-                    testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-            KmbReduceOpsLayerTest::getTestCaseName
-    );
-
-    INSTANTIATE_TEST_SUITE_P(
-            smoke_Reduce_from_networks_SKIP_MCM,
-            KmbReduceOpsLayerTest,
-            testing::Combine(
-                    testing::ValuesIn(decltype(axes) { {2, 3} }),
-                    testing::Values(opTypes[1]),
-                    testing::Values(true, false),
-                    testing::Values(ngraph::helpers::ReductionType::Sum),
-                    testing::Values(InferenceEngine::Precision::FP32),
+                    testing::Values(ngraph::helpers::ReductionType::Mean),
+                    testing::ValuesIn(netPrecisions),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Layout::ANY),
@@ -306,7 +278,7 @@ namespace {
                     testing::Values(opTypes[1]),
                     testing::Values(true, false),
                     testing::Values(ngraph::helpers::ReductionType::Mean),
-                    testing::Values(InferenceEngine::Precision::FP32),
+                    testing::ValuesIn(netPrecisions),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Layout::ANY),
