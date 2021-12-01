@@ -49,19 +49,26 @@ func @FuseMemPermutes(%arg0: tensor<1x16x2x3xf32>, %arg1: tensor<1x16x2x3xf32, {
 #map = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
 // CHECK-LABEL:   @ConvertToPermuteCast
-func @ConvertToPermuteCast(%arg0: tensor<1x100x1x1xf32>, %arg1: tensor<1x100x1x1xf32, {order = #NHWC}>) ->
-        (tensor<1x1x100x1xf32>, tensor<1x1x1x100xf32>) {
+func @ConvertToPermuteCast(
+        %arg0: tensor<1x100x1x1xf32>,
+        %arg1: tensor<1x100x1x1xf32, {order = #NHWC}>,
+        %arg2: tensor<1x1x256x32xf32, {order = #NHWC}>) ->
+            (tensor<1x1x100x1xf32>, tensor<1x1x1x100xf32>, tensor<1x1x256x32xf32>) {
     %0 = IE.MemPermute(%arg0) {dst_order = #NCHW, mem_perm = #map} :
         tensor<1x100x1x1xf32> -> tensor<1x1x100x1xf32>
 
     %1 = IE.MemPermute(%arg1) {dst_order = #NCHW, mem_perm = #NCHW} :
-            tensor<1x100x1x1xf32, {order = #NHWC}> -> tensor<1x1x1x100xf32>
+        tensor<1x100x1x1xf32, {order = #NHWC}> -> tensor<1x1x1x100xf32>
 
-    return %0, %1 : tensor<1x1x100x1xf32>, tensor<1x1x1x100xf32>
+    %2 = IE.MemPermute(%arg2) {dst_order = #NCHW, mem_perm = #map} :
+        tensor<1x1x256x32xf32, {order = #NHWC}> -> tensor<1x1x256x32xf32>
 
-    //CHECK:     %[[VAL_0:.*]] = IE.PermuteCast(%arg0) {dst_order = #NCHW, mem_perm = #map} : tensor<1x100x1x1xf32> -> tensor<1x1x100x1xf32>
-    //CHECK:     %[[VAL_1:.*]] = IE.PermuteCast(%arg1) {dst_order = #NCHW, mem_perm = #NCHW} : tensor<1x100x1x1xf32, {order = #NHWC}> -> tensor<1x1x1x100xf32>
-    //CHECK:     return %[[VAL_0]], %[[VAL_1]] : tensor<1x1x100x1xf32>, tensor<1x1x1x100xf32>
+    return %0, %1, %2 : tensor<1x1x100x1xf32>, tensor<1x1x1x100xf32>, tensor<1x1x256x32xf32>
+
+    //CHECK: [[VAR0:%.+]] = IE.PermuteCast(%arg0) {dst_order = #NCHW, mem_perm = #map}
+    //CHECK: [[VAR1:%.+]] = IE.PermuteCast(%arg1) {dst_order = #NCHW, mem_perm = #NCHW}
+    //CHECK: [[VAR2:%.+]] = IE.PermuteCast(%arg2) {dst_order = #NCHW, mem_perm = #map}
+    //CHECK: return [[VAR0]], [[VAR1]], [[VAR2]] : tensor<1x1x100x1xf32>, tensor<1x1x1x100xf32>, tensor<1x1x256x32xf32>
 }
 
 // -----

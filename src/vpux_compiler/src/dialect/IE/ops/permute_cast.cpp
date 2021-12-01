@@ -11,9 +11,11 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+
+#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/IE/utils/permute_infer.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 
@@ -27,18 +29,20 @@ mlir::LogicalResult vpux::IE::PermuteCastOp::inferReturnTypeComponents(
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    IE::PermuteCastOpAdaptor permute_cast(operands, attrs);
-    if (mlir::failed(permute_cast.verify(loc))) {
+    IE::PermuteCastOpAdaptor permuteCast(operands, attrs);
+    if (mlir::failed(permuteCast.verify(loc))) {
         return mlir::failure();
     }
 
-    const auto inputShape = getShape(permute_cast.input());
-    if (isShapeNotTrivAndIsPermNotIdentity(inputShape, permute_cast.mem_perm().getValue())) {
-        return mlir::failure();
+    const auto inOrder = DimsOrder::fromValue(permuteCast.input());
+    const auto inShape = getShape(permuteCast.input());
+    const auto inMemShape = inOrder.toMemoryOrder(inShape);
+    if (!isTrivialPermute(inMemShape, permuteCast.mem_perm().getValue())) {
+        return errorAt(loc, "Operation represents non trivial permutation");
     }
 
-    inferPermuteReturnTypeComponents(permute_cast.input(), permute_cast.mem_perm().getValue(),
-                                     permute_cast.dst_order().getValue(), inferredReturnShapes, true);
+    inferPermuteReturnTypeComponents(permuteCast.input(), permuteCast.mem_perm().getValue(),
+                                     permuteCast.dst_order().getValue(), inferredReturnShapes, true);
 
     return mlir::success();
 }

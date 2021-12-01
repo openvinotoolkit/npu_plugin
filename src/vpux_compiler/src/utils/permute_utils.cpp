@@ -16,28 +16,47 @@
 using namespace vpux;
 
 MemShape vpux::applyPerm(MemShapeRef memShape, mlir::AffineMap memPerm) {
+    const auto perm = DimsOrder::fromAffineMap(memPerm);
+    VPUX_THROW_UNLESS(memShape.size() == perm.numDims(), "Permutation '{0}' is not compatible with shape '{1}'",
+                      memPerm, memShape);
+
     MemShape outShape(memShape.size());
 
-    const auto perm = DimsOrder::fromAffineMap(memPerm);
-    auto indices = to_small_vector(irange(perm.numDims()) | transformed([&](int64_t idx) {
-                                       return checked_cast<int64_t>(perm.dimAt(idx).ind());
-                                   }));
-
-    for (size_t idx = 0; idx < memShape.size(); ++idx) {
-        const auto d_in = MemDim(indices[idx]);
-        const auto d_out = MemDim(idx);
-        outShape[d_out] = memShape[d_in];
+    for (auto ind : irange(outShape.size())) {
+        const auto outDim = MemDim(ind);
+        const auto inDim = MemDim(perm.dimAt(ind).ind());
+        outShape[outDim] = memShape[inDim];
     }
+
     return outShape;
 }
 
-bool vpux::isTrivial(const ShapeRef shape) {
-    const auto nonTrivialPredicate = [](const int64_t dim) -> bool {
-        return dim > 1;
-    };
-    return std::count_if(shape.begin(), shape.end(), nonTrivialPredicate) == 1;
-}
+bool vpux::isTrivialPermute(MemShapeRef inShape, mlir::AffineMap memPerm) {
+    const auto perm = DimsOrder::fromAffineMap(memPerm);
+    VPUX_THROW_UNLESS(inShape.size() == perm.numDims(), "Permutation '{0}' is not compatible with shape '{1}'", memPerm,
+                      inShape);
 
-bool vpux::isShapeNotTrivAndIsPermNotIdentity(const ShapeRef shape, mlir::AffineMap memPerm) {
-    return (!isTrivial(shape) && !memPerm.isIdentity());
+    SmallVector<int64_t> nonTrivialPerm;
+
+    for (auto ind : irange(inShape.size())) {
+        const auto inDim = MemDim(perm.dimAt(ind).ind());
+
+        if (inShape[inDim] == 1) {
+            continue;
+        }
+
+        nonTrivialPerm.push_back(inDim.ind());
+    }
+
+    if (nonTrivialPerm.empty()) {
+        return true;
+    }
+
+    for (auto ind : irange<size_t>(1, nonTrivialPerm.size())) {
+        if (nonTrivialPerm[ind] != nonTrivialPerm[ind - 1] + 1) {
+            return false;
+        }
+    }
+
+    return true;
 }
