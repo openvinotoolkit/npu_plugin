@@ -178,7 +178,7 @@ EdgeDir GraphWriter::getEdgeDirection(mlir::Operation* source, mlir::Operation* 
 }
 
 bool GraphWriter::isNodeHidden(mlir::Operation* op) const {
-    if (op->hasTrait<mlir::OpTrait::IsTerminator>() || mlir::isa<vpux::VPUIP::ConvertUPAOp>(op) || mlir::isa<vpux::VPUIP::PermuteUPAOp>(op) || mlir::isa<vpux::VPURT::DeclareBufferOp>(op) || mlir::isa<vpux::VPUIP::NNDMAOp>(op) || mlir::isa<vpux::VPUIP::NCEClusterTaskOp>(op)) {
+    if (op->hasTrait<mlir::OpTrait::IsTerminator>())/* || mlir::isa<vpux::VPUIP::ConvertUPAOp>(op) || mlir::isa<vpux::VPUIP::PermuteUPAOp>(op) || mlir::isa<vpux::VPURT::DeclareBufferOp>(op) || mlir::isa<vpux::VPUIP::NNDMAOp>(op) || mlir::isa<vpux::VPUIP::NCEClusterTaskOp>(op))*/ {
         return true;
     }
 
