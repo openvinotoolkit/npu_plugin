@@ -13,6 +13,9 @@
 
 #include "vpux/utils/IE/profiling.hpp"
 
+#include <iomanip>
+#include <iostream>
+
 using namespace vpux;
 namespace ie = InferenceEngine;
 
@@ -54,4 +57,53 @@ std::map<std::string, ie::InferenceEngineProfileInfo> vpux::convertProfilingLaye
     }
 
     return perfCounts;
+}
+
+void vpux::printProfiling(const void* data, size_t data_len, const void* output, size_t output_len) {
+    std::vector<vpux::ProfilingTaskInfo> taskProfiling;
+    vpux::getTaskProfilingInfo(data, data_len, output, output_len, taskProfiling, vpux::ProfilingTaskType::ALL);
+
+    uint64_t last_time_ns = 0;
+    for (auto& task : taskProfiling) {
+        std::string exec_type_str;
+        switch (task.exec_type) {
+        case vpux::ProfilingTaskInfo::exec_type_t::DMA:
+            exec_type_str = "DMA";
+            std::cout << "Task(" << exec_type_str << "): " << std::setw(50) << task.name
+                      << "\tTime: " << (float)task.duration_ns / 1000 << "\tStart: " << task.start_time_ns / 1000
+                      << std::endl;
+            break;
+        case vpux::ProfilingTaskInfo::exec_type_t::DPU:
+            exec_type_str = "DPU";
+            std::cout << "Task(" << exec_type_str << "): " << std::setw(50) << task.name
+                      << "\tTime: " << (float)task.duration_ns / 1000 << "\tStart: " << task.start_time_ns / 1000
+                      << std::endl;
+            break;
+        case vpux::ProfilingTaskInfo::exec_type_t::SW:
+            exec_type_str = "SW";
+            std::cout << "Task(" << exec_type_str << "): " << std::setw(50) << task.name
+                      << "\tTime: " << (float)task.duration_ns / 1000 << "\tCycles:" << task.active_cycles << "("
+                      << task.stall_cycles << ")" << std::endl;
+            break;
+        default:
+            break;
+        }
+
+        uint64_t task_end_time_ns = task.start_time_ns + task.duration_ns;
+        if (last_time_ns < task_end_time_ns) {
+            last_time_ns = task_end_time_ns;
+        }
+    }
+
+    std::vector<vpux::ProfilingLayerInfo> layerProfiling;
+    vpux::getLayerProfilingInfo(data, data_len, output, output_len, layerProfiling);
+    uint64_t total_time = 0;
+    for (auto& layer : layerProfiling) {
+        std::cout << "Layer: " << std::setw(40) << layer.name << " DPU: " << std::setw(5) << layer.dpu_ns / 1000
+                  << " SW: " << std::setw(5) << layer.sw_ns / 1000 << " DMA: " << std::setw(5) << layer.dma_ns / 1000
+                  << "\tStart: " << layer.start_time_ns / 1000 << std::endl;
+        total_time += layer.dpu_ns + layer.sw_ns + layer.dma_ns;
+    }
+
+    std::cout << "TotalTime: " << total_time / 1000 << "us, Real: " << last_time_ns / 1000 << "us" << std::endl;
 }

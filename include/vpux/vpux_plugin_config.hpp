@@ -82,5 +82,12 @@ DECLARE_VPUX_CONFIG_KEY(INFERENCE_SHAVES);
  */
 DECLARE_VPUX_CONFIG_KEY(CSRAM_SIZE);
 
+/**
+ * @brief [Only for vpu compiler]
+ * Type: "YES/NO", default is "NO".
+ * Prind detailed profiling information during inference execution
+ */
+DECLARE_VPU_CONFIG_KEY(PRINT_PROFILING);
+
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

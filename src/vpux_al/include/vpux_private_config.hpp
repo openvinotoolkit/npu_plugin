@@ -171,5 +171,12 @@ DECLARE_VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS);
  */
 DECLARE_VPUX_CONFIG_KEY(DPU_GROUPS);
 
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: "YES", "NO", default is "NO"
+ * Print detailed profiling info during inference
+ */
+DECLARE_VPUX_CONFIG_KEY(PRINT_PROFILING);
+
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

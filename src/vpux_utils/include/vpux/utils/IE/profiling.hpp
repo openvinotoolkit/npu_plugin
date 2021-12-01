@@ -22,4 +22,6 @@ namespace vpux {
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> convertProfilingLayersToIEInfo(
         std::vector<vpux::ProfilingLayerInfo>& layerInfo);
 
+void printProfiling(const void* data, size_t data_len, const void* output, size_t output_len);
+
 }  // namespace vpux

@@ -865,6 +865,21 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     }
     ie::BlobMap deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
     repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
+
+    if (_config.get<PRINT_PROFILING>()) {
+        ie::BlobMap profilingOutputs = extractProfilingOutputsFromPhysAddr(_profilingOutputPhysAddrs.at(0));
+        if (!profilingOutputs.empty()) {
+            ie::BlobMap::iterator profilingOutputBlob = profilingOutputs.begin();
+            const auto profilingMemoryBlob = ie::as<ie::MemoryBlob>(profilingOutputBlob->second);
+            if (profilingMemoryBlob == nullptr) {
+                IE_THROW() << "VPUX Plugin profiling blob is null: " << profilingOutputBlob->first;
+            }
+            const auto blob = _networkDescription->getCompiledNetwork();
+            const auto& profilingOutput = profilingMemoryBlob->rmap().as<const void*>();
+            vpux::printProfiling(blob.data(), blob.size(), profilingOutput, profilingMemoryBlob->byteSize());
+        }
+    }
+
     _logger.info("pull finished");
 #else
     VPUX_UNUSED(outputs);
@@ -959,7 +974,7 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
         profilingOutputBlob = deviceOutputs.find("profilingOutput");
         if (profilingOutputBlob == deviceOutputs.end()) {
             _logger.warning("No profiling output. Blob was compiled without profiling enabled or does not contain "
-                             "profiling info.");
+                            "profiling info.");
             return std::map<std::string, ie::InferenceEngineProfileInfo>();
         }
     } else {
@@ -973,7 +988,8 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
     const auto& profilingOutput = profilingMemoryBlob->rmap().as<const void*>();
 
     std::vector<vpux::ProfilingLayerInfo> layerProfiling;
-    vpux::getLayerProfilingInfo(blob.data(), blob.size(), profilingOutput, 0xFFFFF, layerProfiling);
+    vpux::getLayerProfilingInfo(blob.data(), blob.size(), profilingOutput, profilingMemoryBlob->byteSize(),
+                                layerProfiling);
 
     return convertProfilingLayersToIEInfo(layerProfiling);
 }

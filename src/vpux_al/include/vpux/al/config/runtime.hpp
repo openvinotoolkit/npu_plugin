@@ -355,4 +355,18 @@ struct INFERENCE_TIMEOUT_MS final : OptionBase<INFERENCE_TIMEOUT_MS, int64_t> {
     }
 };
 
+//
+// PRINT_PROFILING
+//
+
+struct PRINT_PROFILING final : OptionBase<PRINT_PROFILING, bool> {
+    static StringRef key() {
+        return VPUX_CONFIG_KEY(PRINT_PROFILING);
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+};
+
 }  // namespace vpux
