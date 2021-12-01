@@ -59,7 +59,7 @@ typedef struct {
 inline BaseKernelParams TopKParamsToBaseKernelParams(TopKParams * topKParams) {
     BaseKernelParams results;
     results.numInputs = 1;
-    results.numOutputs = 1;
+    results.numOutputs = 1;// change to 2 how? 
     results.inputsOffset = reinterpret_cast<uint8_t*>(&(topKParams->input)) - reinterpret_cast<uint8_t*>(topKParams);
     results.outputsOffset = reinterpret_cast<uint8_t*>(&(topKParams->output)) - reinterpret_cast<uint8_t*>(topKParams);
     return results;
