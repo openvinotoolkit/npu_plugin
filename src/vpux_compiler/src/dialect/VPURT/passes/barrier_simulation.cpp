@@ -133,9 +133,13 @@ void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
         case VPUIP::TaskType::UPADMA:
         case VPUIP::TaskType::NNDMA: {
             int64_t port = 0;
-            auto dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(wrappedTaskOp);
-            VPUX_THROW_UNLESS(dmaOp != nullptr, "Could not cast to DMA task");
-            port = dmaOp.port();
+            if (auto dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(wrappedTaskOp)) {
+                port = dmaOp.port();
+            } else if (auto compressedDmaOp = mlir::dyn_cast<VPUIP::CompressedDMAOp>(wrappedTaskOp)) {
+                port = compressedDmaOp.port();
+            } else {
+                VPUX_THROW("Could not cast to DMA task");
+            }
             VPUX_THROW_UNLESS(port < MAX_DMA_ENGINES,
                               "NNDMAOp port value ({0}) larger than maximum number of engines ({1})", port,
                               MAX_DMA_ENGINES);

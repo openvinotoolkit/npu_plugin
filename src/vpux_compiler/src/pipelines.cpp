@@ -108,7 +108,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Lowering
 
-    buildLowerIERT2VPUIPPipeline(pm, log);
+    buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
 
     // Level 1 : VPU RunTime
 
@@ -198,7 +198,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     // Lowering
 
     pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
-    buildLowerIERT2VPUIPPipeline(pm, log);
+    buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
 
     // Level 1 : VPU RunTime
 
@@ -302,7 +302,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     // Lowering
 
     pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
-    buildLowerIERT2VPUIPPipeline(pm, log);
+    buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
 
     // Level 1 : VPU RunTime
 

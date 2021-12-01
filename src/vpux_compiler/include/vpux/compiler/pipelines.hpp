@@ -45,6 +45,8 @@ struct ReferenceSWOptions : mlir::PassPipelineOptions<ReferenceSWOptions> {
 
     BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
                                       llvm::cl::init(false)};
+
+    bool enableCompressWeights = false;
 };
 
 void buildReferenceSWModePipeline(mlir::OpPassManager& pm, const ReferenceSWOptions& options,
@@ -98,6 +100,8 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
 
     BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
                                       llvm::cl::init(false)};
+
+    bool enableCompressWeights = false;
 };
 
 void buildReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOptions& options,
@@ -160,6 +164,9 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 
     BoolOption enableGroupAsyncExecuteOps{*this, "group-async-execute-ops",
                                           llvm::cl::desc("Enable group-async-execute-ops pass"), llvm::cl::init(true)};
+
+    BoolOption enableCompressWeights{*this, "compress-weights", ::llvm::cl::desc("Enable compress-weights pass"),
+                                     ::llvm::cl::init(false)};
 };
 
 void buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options,

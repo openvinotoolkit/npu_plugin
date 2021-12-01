@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/utils/quantization.hpp"
+#include "vpux/compiler/dialect/const/attributes/content.hpp"
 
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -307,9 +308,11 @@ std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx
 
 }  // namespace
 
-mlir::quant::QuantizedType vpux::getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst,
+mlir::quant::QuantizedType vpux::getQuantizedType(mlir::Attribute lowConstAttr, mlir::Attribute highConstAttr,
                                                   int64_t levels, mlir::FloatType realType, bool isSigned,
                                                   mlir::Location loc) {
+    const auto lowConst = lowConstAttr.dyn_cast_or_null<Const::ContentAttr>();
+    const auto highConst = highConstAttr.dyn_cast_or_null<Const::ContentAttr>();
     if (lowConst == nullptr || highConst == nullptr) {
         (void)errorAt(loc, "Got non constant quantization parameters (low and high values)");
         return nullptr;
