@@ -58,7 +58,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
     // Genetic Kernel information for the scheduler.
     VPURT.Task  waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) op : {
-    %softmax_krn =
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_softmax            // The reference to the Kernel function.
                     inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">)     // Inputs/outputs buffers for generic operation interface

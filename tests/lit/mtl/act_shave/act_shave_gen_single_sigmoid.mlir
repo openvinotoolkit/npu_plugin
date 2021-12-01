@@ -37,7 +37,7 @@ IE.CNNNetwork
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_sigmoid(%input : memref<*xf16>, %output : memref<*xf16>, %axis : i64)
+    func private @builtin_sigmoid(%input : memref<*xf16>, %output : memref<*xf16>)
         attributes {
             VPU.kernel_code = "sigmoid_fp16.c",
             VPU.kernel_entry = "sigmoid_fp16"
@@ -58,7 +58,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
     // Genetic Kernel information for the scheduler.
     VPURT.Task waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) op : {
-    %sigmoid_krn =
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_sigmoid            // The reference to the Kernel function.
                     inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">)     // Inputs/outputs buffers for generic operation interface
@@ -217,7 +216,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:          name: "scratch_buffer",
 // CHECK:          locale: "GFEmbeddedKernel",
 // CHECK:          locale_offset: 4,
-// CHECK:          data_offset: 856,
 // CHECK:          referenced_data_size: 65536
 // CHECK:        }
 // CHECK:     }
@@ -249,7 +247,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                  name: "builtin_sigmoid",
 // CHECK:                  locale: "GFEmbeddedKernel",
 // CHECK:                  locale_offset: 5,
-// CHECK:                  data_offset: 240,
 // CHECK:                  referenced_data_size: 624
 // CHECK:                }
 // CHECK:              },
@@ -267,13 +264,11 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                    name: "builtin_sigmoid_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
 // CHECK:                    locale_offset: 6,
-// CHECK:                    data_offset: 532
 // CHECK:                  },
 // CHECK:                  invocationArgs: {
 // CHECK:                    name: "builtin_sigmoid_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
 // CHECK:                    locale_offset: 6,
-// CHECK:                    data_offset: 532,
 // CHECK:                    referenced_data_size: 176
 // CHECK:                  }
 // CHECK:                }

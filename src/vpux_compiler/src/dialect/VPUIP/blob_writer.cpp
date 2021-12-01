@@ -206,7 +206,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SwKernelOp Task", op->getName());
 
     // extracting kernel source code or compiled code
-
     auto module = op->getParentOfType<mlir::ModuleOp>();
     auto kernelFunc = module.lookupSymbol<mlir::FuncOp>(swKernelTask.kernelFunctionAttr());
     VPUX_THROW_UNLESS(kernelFunc, "Invalid function call : '{0}', undefined kernel name",

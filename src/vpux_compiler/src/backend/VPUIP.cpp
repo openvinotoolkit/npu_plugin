@@ -559,39 +559,61 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     auto serializedGraphFile = MVCNN::GetGraphFile(detached.data());
 
+    const uint64_t reserved_offset = 1;
+    std::unordered_set<uint32_t> kernelDataAligned;
+
     // align KernelData section referenced by given KernelDataReference
     // returns moved offset
     auto alignKernelDataSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
+        //  current align requirements is 1KB, for .text, .data, .scratch
+        constexpr uint16_t alignmentReq = 1 * 1024;
+
         auto section_data = serializedGraphFile->kernel_data()->Get(section->locale_offset())->data();
 
-        auto offset = section_data->Data() - detached.data();
+        // checking that current description designates aligned section -
+        // TODO: implement cases where offset is 1 actually fixes alignment
+        auto section_data_plus_offset = section_data->Data() + section->data_offset() - detached.data();
+
+        if (!(section_data_plus_offset % alignmentReq)) {
+            VPUX_THROW_UNLESS(section->data_offset() != reserved_offset,
+                              "kernelDataReference: {0} {1}, offset from blob start: {2}, already aligned with "
+                              "reserved data_offset={3}",
+                              section->name()->c_str(), sectionLogical, section_data_plus_offset, reserved_offset);
+            return static_cast<ptrdiff_t>(0);
+        }
+        ptrdiff_t offset = section_data->Data() - detached.data();
         log.trace("offset to kernel {0} {1} in Finished FBB is {2}", section->name()->c_str(), sectionLogical, offset);
 
-        //  align calculations
-        const uint32_t kilobyteAlignment = 1024;
-
-        auto aligned_offset = llvm::alignTo(offset, kilobyteAlignment);
+        auto aligned_offset = llvm::alignTo(offset, alignmentReq);
         offset = aligned_offset - offset;
-        log.trace("move kernel {0} {1} by {2} bytes to be {3}", section->name()->c_str(), sectionLogical, offset,
-                  aligned_offset);
 
-        memmove(const_cast<uint8_t*>(section_data->Data() + offset), section_data->Data(),
-                section_data->Length() - kilobyteAlignment);
+        // check whether given kernelData element already aligned
+        if (kernelDataAligned.find(section->locale_offset()) == kernelDataAligned.end()) {
+            log.trace("move kernel {0} {1} by {2} bytes to be {3}", section->name()->c_str(), sectionLogical, offset,
+                      aligned_offset);
 
-        // clear beginning
-        memset(const_cast<uint8_t*>(section_data->Data()), 0, offset);
+            memmove(const_cast<uint8_t*>(section_data->Data() + offset), section_data->Data(),
+                    section_data->Length() - alignmentReq);
+
+            // clear beginning
+            memset(const_cast<uint8_t*>(section_data->Data()), 0, offset);
+            // marking this kernel data content already aligned
+            kernelDataAligned.insert(section->locale_offset());
+        }
 
         return offset;
     };
 
     auto alignReferenceSection = [&](const MVCNN::KernelDataReference* section, uint64_t offset) {
+        if (section->data_offset() != reserved_offset)
+            return;
         // correcting data offset for section in schema
         auto table = reinterpret_cast<flatbuffers::Table*>(const_cast<MVCNN::KernelDataReference*>(section));
 
-        const uint64_t non_empty_offset = 1;
         // updating offset pointer
+        // TODO: why we add here?
         table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET,
-                        checked_cast<uint32_t>(section->data_offset() + offset - non_empty_offset), 0u);
+                        checked_cast<uint32_t>(section->data_offset() + offset - reserved_offset), 0u);
     };
 
     auto alignSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
@@ -613,12 +635,14 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
                     alignReferenceSection(invocation->dataSection(), offset);
                     alignReferenceSection(invocation->invocationArgs(), offset);
                 }
-
-                // scratchBuffer aligning
-                auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer();
-                alignSection(scratchBuffer, ".scratchBuffer");
             }
         }
+    }
+
+    // scratchBuffer aligning
+    if (serializedGraphFile->header()->act_kernel_runtime()) {
+        auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer();
+        alignSection(scratchBuffer, ".scratchBuffer");
     }
 
     return detached;

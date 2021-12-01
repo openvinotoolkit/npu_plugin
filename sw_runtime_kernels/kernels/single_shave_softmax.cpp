@@ -400,7 +400,7 @@ namespace shave_lib {
 extern "C" {
 
 void singleShaveSoftmax(uint32_t lParams) {
-    uint8_t * cmxData = nullptr;   // TODO: Restore the possibility of working with DDR tensors 
+    uint8_t * cmxData = nullptr;   // TODO: Restore the possibility of working with DDR tensors
     int32_t availableCmxBytes = 0;
     // Special DMA to copy layer params from physical DDR
     half* p_act_data = (half*)(reinterpret_cast<SoftmaxParams*>(lParams)->input.dataAddr); // 0x1F000000
