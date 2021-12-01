@@ -272,6 +272,12 @@ mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation m
     return vpux::getMemRefType(ShapeRef(shape), elemType, order, memSpaceAttr);
 }
 
+mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation, ArrayRef<int64_t> shape,
+                               mlir::Type elemType, DimsOrder order, StridesRef strides) {
+    const auto memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
+    return vpux::getMemRefType(ShapeRef(shape), elemType, order, strides, memSpaceAttr);
+}
+
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    int locale, size_t offset) {
@@ -284,6 +290,14 @@ vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, mlir
     auto op = builder.create<VPURT::DeclareBufferOp>(
             builder.getUnknownLoc(), type, type.getMemorySpace().dyn_cast<VPUIP::MemoryLocationAttr>().getValue(),
             locale, offset);
+    return op;
+}
+
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
+                                                   SmallVector<int64_t> shape, mlir::Type type, DimsOrder order,
+                                                   StridesRef strides, int locale, int offset) {
+    auto op_type = getMemRefType(builder, memlocation, shape, type, order, strides);
+    auto op = builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), op_type, memlocation, locale, offset);
     return op;
 }
 
