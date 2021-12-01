@@ -61,6 +61,10 @@ public:
                                                   mlir::ShapedType filterType, mlir::ShapedType outputType,
                                                   mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
 
+    static mlir::LogicalResult verifyPrefetchCMX(IE::ConvolutionOp origOp, vpux::OutputTiling tiling,
+                                                 Logger log = Logger::global(), size_t nPipeline = 2);
+
+
 public:
     static mlir::LogicalResult verifyChannels(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::ConvolutionOp origOp, Logger log = Logger::global());

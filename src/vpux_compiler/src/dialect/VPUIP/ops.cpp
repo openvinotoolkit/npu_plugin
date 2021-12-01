@@ -185,7 +185,7 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     });
 }
 
-bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logger /*log*/) {
+bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logger log) {
     // Temporal strategy: only consider if the first n tiles (n >= 2) could be fit into the CMX memory at the same time,
     // Should consider the cost model as a final version.
     // Nested tiling is unsupported
@@ -207,8 +207,8 @@ bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logg
     auto outputShape = getShape(origOp.output());
     Shape nTilesOnDim(outputShape.size(), 1);
     nTilesOnDim[tileDim]++;
-    
-    auto isDivisibleTile = [&origOp, nTilesOnDim, tileDim, outputShape]() -> bool {
+
+    auto isDivisibleTile = [&]() -> bool {
         auto kernelSize = getShape(origOp.filter());
         if (tileDim == Dims4D::Act::C) {
             // TODO replace '16' with correct parameter
@@ -221,10 +221,16 @@ bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logg
         }
     };
 
-    while (!isDivisibleTile() && nTilesOnDim[tileDim] <= 3) {
-        nTilesOnDim[tileDim]++;
-    }
-    return isDivisibleTile();  // TODO warning log
+    auto isMemPrefetchable = [&]() -> bool {
+        auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
+    };
+
+//  Only check tile by 2 for now
+//    while (!isDivisibleTile() && nTilesOnDim[tileDim] <= 3) {
+//        nTilesOnDim[tileDim]++;
+//    }
+    return isDivisibleTile() && isMemPrefetchable();  // TODO warning log
 }
 
 bool supportPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) {
