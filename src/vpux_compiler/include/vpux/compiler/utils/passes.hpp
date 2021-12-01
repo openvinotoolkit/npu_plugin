@@ -22,6 +22,14 @@
 namespace vpux {
 
 //
+// Options
+//
+
+using IntOption = mlir::detail::PassOptions::Option<int>;
+using StrOption = mlir::detail::PassOptions::Option<std::string>;
+using BoolOption = mlir::detail::PassOptions::Option<bool>;
+
+//
 // PatternBenefit
 //
 

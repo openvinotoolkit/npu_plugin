@@ -317,11 +317,20 @@ void buildPipeline(mlir::PassManager& pm, const VPUXConfig& config, mlir::Timing
     pm.addPass(createSetCompileParamsPass(archKind, compilationMode, numOfDPUGroups, log.nest()));
 
     if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
-        buildReferenceSWModePipeline(pm, enableProfiling, log.nest());
+        const auto options = ReferenceSWOptions::createFromString(config.pipelineOptions());
+        options->enableProfiling = enableProfiling;
+
+        buildReferenceSWModePipeline(pm, *options, log.nest());
     } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
-        buildReferenceHWModePipeline(pm, enableProfiling, log.nest());
+        const auto options = ReferenceHWOptions::createFromString(config.pipelineOptions());
+        options->enableProfiling = enableProfiling;
+
+        buildReferenceHWModePipeline(pm, *options, log.nest());
     } else if (compilationMode == VPUIP::CompilationMode::DefaultHW) {
-        buildDefaultHWModePipeline(pm, enableProfiling, log.nest(), config.pipelineOptions());
+        const auto options = DefaultHWOptions::createFromString(config.pipelineOptions());
+        options->enableProfiling = enableProfiling;
+
+        buildDefaultHWModePipeline(pm, *options, log.nest());
     } else {
         VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
     }

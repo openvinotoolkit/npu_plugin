@@ -344,6 +344,17 @@ public:
 };
 
 //
+// SoftwareLayerOpModel
+//
+
+class SoftwareLayerOpModel final : public IERT::SoftwareLayerOpInterface::FallbackModel<SoftwareLayerOpModel> {
+public:
+    IERT::KernelInfo getKernelInfo(mlir::Operation* origOp) const {
+        return VPUIP::SwKernelOp::getKernelInfo(origOp);
+    }
+};
+
+//
 // redirectOpInterfacesForIE
 //
 
@@ -398,7 +409,6 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::FullyConnectedOp, OpModelForSW<VPUIP::FullyConnectedUPAOp>>();
     registry.addOpInterface<IE::DetectionOutputOp, OpModelForSW<VPUIP::DetectionOutputUPAOp>>();
     registry.addOpInterface<IE::ScaleShiftOp, OpModelForSW<VPUIP::ScaleShiftUPAOp>>();
-    registry.addOpInterface<IE::TransposeOp, OpModelForSW<VPUIP::PermuteUPAOp>>();
     registry.addOpInterface<IE::ReorderOp, OpModelForSW<VPUIP::PermuteUPAOp>>();
     registry.addOpInterface<IE::CTCGreedyDecoderOp, OpModelForSW<VPUIP::CTCGreedyDecoderUPAOp>>();
     registry.addOpInterface<IE::CTCGreedyDecoderSeqLenOp, OpModelForSW<VPUIP::CTCGreedyDecoderSeqLenUPAOp>>();
@@ -424,8 +434,8 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
 
 template <class OpModelForHW, class OpModelForDMA, class OpModelForSW>
 void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
-    registry.addOpInterface<IERT::CopyOp, AsyncLayerOpModelForDMA>();
-    registry.addOpInterface<IERT::TimestampOp, AsyncLayerOpModelForDMA>();
+    registry.addOpInterface<IERT::CopyOp, OpModelForDMA>();
+    registry.addOpInterface<IERT::TimestampOp, OpModelForDMA>();
 
     registry.addOpInterface<IERT::ConvolutionOp, OpModelForHW>();
     registry.addOpInterface<IERT::GroupConvolutionOp, OpModelForHW>();
@@ -537,6 +547,9 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     registry.addOpInterface<IE::MultiplyOp, NCEEltwiseTilingInfoOpModel<IE::MultiplyOp>>();
     registry.addOpInterface<IE::SubtractOp, NCEEltwiseTilingInfoOpModel<IE::SubtractOp>>();
     registry.addOpInterface<IE::AndOp, NCEEltwiseTilingInfoOpModel<IE::AndOp>>();
+
+    registry.addOpInterface<IERT::SigmoidOp, SoftwareLayerOpModel>();
+    registry.addOpInterface<IERT::SoftMaxOp, SoftwareLayerOpModel>();
 
     redirectOpInterfacesForIE<LayoutInfoOpModelForHW, LayoutInfoOpModelForSW>(registry);
     redirectOpInterfacesForIERT<AsyncLayerOpModelForHW, AsyncLayerOpModelForDMA, AsyncLayerOpModelForSW>(registry);

@@ -800,7 +800,7 @@ def VPUIP_RoundUPAOp :
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
        }];
-} 
+}
 
 //
 // ClampUPAOp
@@ -1275,7 +1275,6 @@ def VPUIP_EltwiseUPAOp :
         VPUIP_UPATaskOp<1, "EltwiseUPA",
             [
                 ViewLikeOpInterface,
-                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "Eltwise UPA SHAVE kernel";
@@ -1303,6 +1302,10 @@ def VPUIP_EltwiseUPAOp :
             )
         >
     ];
+
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
         attr-dict
@@ -1633,6 +1636,10 @@ def VPUIP_ScaleShiftUPAOp :
             )
         >
     ];
+    
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
         attr-dict
@@ -2360,10 +2367,10 @@ def VPUIP_LSTMCellUPAOp :
 }
 
 //
-// VPUIP_SW_Kernel_run
+// VPUIP_SwKernelRun
 //
 
-def VPUIP_SW_Kernel_run
+def VPUIP_SwKernelRun
     : VPUIP_Op<"SW.Kernel.run"> {
 
     let arguments  = (ins
@@ -2377,10 +2384,10 @@ def VPUIP_SW_Kernel_run
 }
 
 //
-// VPUIP_SW_KernelOp
+// VPUIP_SwKernelOp
 //
 
-def VPUIP_SW_KernelOp :
+def VPUIP_SwKernelOp :
         VPUIP_TaskOp<1, "SW.Kernel",
             [
                 MultiViewOpInterface,
@@ -2439,6 +2446,8 @@ def VPUIP_SW_KernelOp :
         static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
                                                     mlir::ValueRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
                                                     mlir::SmallVectorImpl<mlir::Type>& inferredTypes);
+
+        static vpux::IERT::KernelInfo getKernelInfo(mlir::Operation* origOp);
     }];
 }
 
@@ -2512,7 +2521,6 @@ def VPUIP_InterpolateUPAOp :
         VPUIP_UPATaskOp<1,"Interpolate",
             [
                 ViewLikeOpInterface,
-                IERT_SameInOutDimsOrder_NCHW_NHWC
             ]
         > {
     let summary = "Interpolate UPA SHAVE kernel";
@@ -2547,13 +2555,16 @@ def VPUIP_InterpolateUPAOp :
         >
     ];
 
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
-
 }
 
 

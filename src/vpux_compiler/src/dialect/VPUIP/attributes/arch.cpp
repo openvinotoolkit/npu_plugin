@@ -181,3 +181,18 @@ StringLiteral vpux::VPUIP::getProcessorFrequencyAttrName() {
 StringLiteral vpux::VPUIP::getBandwidthAttrName() {
     return bandwidthAttrName;
 }
+
+uint32_t vpux::VPUIP::getMaxDPUClusterNum(mlir::ModuleOp module) {
+    const auto kind = VPUIP::getArch(module);
+    switch (kind) {
+    case VPUIP::ArchKind::KMB:
+        return KMB_MAX_DPU_GROUPS;
+    case VPUIP::ArchKind::TBH:
+        return KMB_MAX_DPU_GROUPS;
+    case VPUIP::ArchKind::MTL:
+        return MTL_MAX_DPU_GROUPS;
+    default:
+        VPUX_THROW("Unsupported architecture '{0}'", kind);
+        return 0;
+    }
+}

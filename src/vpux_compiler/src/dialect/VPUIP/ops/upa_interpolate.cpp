@@ -46,6 +46,21 @@ const EnumMap<IE::InterpolateCoordMode, int> coordTransformModeMap = {
 
 }  // namespace
 
+void vpux::VPUIP::InterpolateUPAOp::inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info) {
+    auto inputShape = op->getOperand(0).getType().cast<mlir::ShapedType>().getShape();
+    VPUX_THROW_UNLESS(inputShape.size() == 4, "Interpolate input shape expected to have 4 dimensions, but has {0}",
+                      inputShape.size());
+
+    // Select NCHW layout due to performance reasons
+    // [Track number: E#25302]
+    auto channels = inputShape[1];
+    if (channels == 1) {
+        IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
+    } else {
+        IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::NHWC});
+    }
+}
+
 void vpux::VPUIP::InterpolateUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                           mlir::Value output, vpux::IE::InterpolateModeAttr mode,
                                           vpux::IE::InterpolateCoordModeAttr coord_mode,

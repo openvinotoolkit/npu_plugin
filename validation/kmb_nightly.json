@@ -325,6 +325,7 @@
         {
             "name" : "BDK_tf_FP16-INT8_yolo_v4_tiny",
             "ir" : "models/clientmodels/BDK3/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
+            "category" : "MLIR/precommit",
             "3720": {
                 "disabled" : true
             },
@@ -350,7 +351,6 @@
                 "config": "yolo_v4_tiny_tf.yml",
                 "subsample_size": 10
             },
-            "category" : "MLIR/precommit",
             "CI-options" : {
                 "blob_name" : "yolo_v4_tiny_MLIR"
             }
@@ -3192,6 +3192,38 @@
             "CI-options" : {
                 "blob_name" : "bdk_StackedHourglass",
                 "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_FP16-INT8_hg-s8-b1-mpii",
+            "ir" : "models/clientmodels/BDK3/StackedHourglass/Surface/FP16-INT8/hg-s8-b1-mpii.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : true
+            },
+            "3900": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "hg-s8-b1-mpii-caffe2.yml",
+                "subsample_size": 100
+            },
+            "CI-options" : {
+                "blob_name" : "bdk_StackedHourglass"
             }
         },
 

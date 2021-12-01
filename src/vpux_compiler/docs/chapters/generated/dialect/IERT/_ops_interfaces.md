@@ -56,3 +56,15 @@ llvm::MutableArrayRef<mlir::OpOperand> getOutOpOperands();
 Get all layer output memory buffers
 NOTE: This method *must* be implemented by the user.
 
+## SoftwareLayerOpInterface (`IERT_SoftwareLayerOpInterface`)
+
+Interface for layers that will be executed on SHAVEs. (For MTL only)
+### Methods:
+#### `getKernelInfo`
+
+```c++
+vpux::IERT::KernelInfo getKernelInfo();
+```
+Get information about kernel's arguments, entry point and etc.
+NOTE: This method *must* be implemented by the user.
+

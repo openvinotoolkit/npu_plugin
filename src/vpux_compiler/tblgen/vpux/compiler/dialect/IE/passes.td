@@ -251,6 +251,27 @@ def UnrollBatch : PassBase<"unroll-batch", "vpux::FunctionPass"> {
 }
 
 //
+// MatMulInputsTo2d
+//
+
+def MatMulInputsTo2d : PassBase<"matmul-inputs-to-2d", "vpux::FunctionPass"> {
+    let summary = "Convert MatMul inputs to 2d";
+
+    let description = [{
+        This pass converts `MatMul` inputs to 2d.
+
+        For example, `MatMul` input with 4x1x64 geometry will be split to four inputs with 1x64 dimensions.
+        Resulting inputs with filters go to `MatMul` operations and the outputs are concatenated.
+    }];
+
+    let constructor = "vpux::IE::createMatMulInputsTo2dPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertScaleShiftToDW
 //
 
@@ -357,6 +378,28 @@ def ConvertConv1DToConv2D : PassBase<"convert-conv1d-to-conv2d", "vpux::Function
         "vpux::IE::IEDialect"
     ];
 }
+
+
+//
+// UniquifyOps
+//
+
+def UniquifyOps : PassBase<"uniquify-ops", "vpux::FunctionPass"> {
+    let summary = "Remove duplicating operations with a common producer Value";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass merges operations that are identical to each other, combining consumers.
+    }];
+
+    let constructor = "vpux::IE::createUniquifyOpsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 
 //
 // ConvertToMemPermute

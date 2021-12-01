@@ -23,12 +23,35 @@ using namespace vpux;
 // AdjustPrecision
 //
 
-void vpux::IE::buildAdjustPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
+void vpux::IE::buildAdjustPrecisionPipeline(mlir::OpPassManager& pm, const AdjustPrecisionOptions& options,
+                                            Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(IE::createConvertPrecisionToFP16Pass(log));
     pm.addPass(IE::createConvertPrecisionToI32Pass(log));
-    pm.addPass(IE::createUseUserPrecisionPass(log));
+    if (options.enableUseUserPrecision) {
+        pm.addPass(IE::createUseUserPrecisionPass(log));
+    }
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+}
+
+//
+// AdjustLayout
+//
+
+void vpux::IE::buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLayoutOptions& options, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
+    if (options.enableUseUserLayout) {
+        pm.addPass(IE::createUseUserLayout(log));
+    }
+    pm.addPass(IE::createAdjustLayoutsPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+    if (options.enableOptimizeReorders) {
+        pm.addPass(IE::createOptimizeReordersPass(log));
+    }
+    pm.addPass(IE::createUniquifyOpsPass(log));
+    pm.addPass(IE::createConvertToMemPermutePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 
@@ -58,11 +81,11 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(IE::createSplitFakeQuantPass(log));
+    pm.addPass(IE::createFuseConvertWithQuantizePass(log));
     pm.addPass(IE::createFuseQuantizedOpsPass(log));
     pm.addPass(IE::createConvertWeightsToU8Pass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(IE::createDequantizeConstPass(log));
-    pm.addPass(IE::createFuseConvertWithQuantizePass(log));
     pm.addPass(IE::createConvertQuantizeOpsToEltwisePass(log));
     pm.addPass(IE::createMergeFakeQuantPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
@@ -73,10 +96,17 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
 //
 
 void vpux::IE::registerIEPipelines() {
-    mlir::PassPipelineRegistration<>("adjust-precision", "Adjust IR precision for VPU target",
-                                     [](mlir::OpPassManager& pm) {
-                                         IE::buildAdjustPrecisionPipeline(pm);
-                                     });
+    mlir::PassPipelineRegistration<AdjustPrecisionOptions>(
+            "adjust-precision", "Adjust IR precision for VPU target",
+            [](mlir::OpPassManager& pm, const AdjustPrecisionOptions& options) {
+                IE::buildAdjustPrecisionPipeline(pm, options);
+            });
+
+    mlir::PassPipelineRegistration<AdjustLayoutOptions>(
+            "adjust-layout", "Adjust IR layout for VPU target",
+            [](mlir::OpPassManager& pm, const AdjustLayoutOptions& options) {
+                IE::buildAdjustLayoutPipeline(pm, options);
+            });
 
     mlir::PassPipelineRegistration<>("adjust-for-vpu", "Adjust IE Dialect IR for VPU target",
                                      [](mlir::OpPassManager& pm) {

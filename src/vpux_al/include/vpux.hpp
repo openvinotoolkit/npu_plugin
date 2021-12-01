@@ -142,9 +142,7 @@ public:
         return _actual->getPhysicalAddress(handle);
     }
 
-    ~AllocatorWrapper() {
-        _actual = nullptr;
-    };
+    ~AllocatorWrapper() = default;
 };
 
 //------------------------------------------------------------------------------
@@ -202,9 +200,7 @@ public:
         return _actual->getName();
     }
 
-    ~Device() {
-        _actual = nullptr;
-    }
+    ~Device() = default;
 };
 //------------------------------------------------------------------------------
 using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;

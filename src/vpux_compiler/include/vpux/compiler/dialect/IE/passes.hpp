@@ -23,60 +23,86 @@
 #include <mlir/Pass/Pass.h>
 
 #include <memory>
+#include <type_traits>
 
 namespace vpux {
 namespace IE {
 
 //
-// Passes
+// AdjustPrecision
 //
 
-std::unique_ptr<mlir::Pass> createUpstreamSlicePass(Logger log = Logger::global());
+struct AdjustPrecisionOptions : mlir::PassPipelineOptions<AdjustPrecisionOptions> {
+    BoolOption enableUseUserPrecision{*this, "use-user-precision", llvm::cl::desc("Enable use-user-precision pass"),
+                                      llvm::cl::init(true)};
+
+    AdjustPrecisionOptions() = default;
+
+    template <
+            class OtherOptions,
+            typename = std::enable_if_t<std::is_base_of<mlir::PassPipelineOptions<OtherOptions>, OtherOptions>::value>>
+    explicit AdjustPrecisionOptions(const OtherOptions& options) {
+        enableUseUserPrecision = options.enableUseUserPrecision;
+    }
+};
+
+void buildAdjustPrecisionPipeline(mlir::OpPassManager& pm, const AdjustPrecisionOptions& options,
+                                  Logger log = Logger::global());
+
+std::unique_ptr<mlir::Pass> createConvertPrecisionToFP16Pass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertPrecisionToI32Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUseUserPrecisionPass(Logger log = Logger::global());
+
+//
+// AdjustLayout
+//
+
+struct AdjustLayoutOptions : mlir::PassPipelineOptions<AdjustLayoutOptions> {
+    BoolOption enableUseUserLayout{*this, "use-user-layout", llvm::cl::desc("Enable use-user-layout pass"),
+                                   llvm::cl::init(true)};
+
+    BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
+                                      llvm::cl::init(true)};
+
+    AdjustLayoutOptions() = default;
+
+    template <
+            class OtherOptions,
+            typename = std::enable_if_t<std::is_base_of<mlir::PassPipelineOptions<OtherOptions>, OtherOptions>::value>>
+    explicit AdjustLayoutOptions(const OtherOptions& options) {
+        enableUseUserLayout = options.enableUseUserLayout;
+        enableOptimizeReorders = options.enableOptimizeReorders;
+    }
+};
+
+void buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLayoutOptions& options,
+                               Logger log = Logger::global());
+
 std::unique_ptr<mlir::Pass> createUseUserLayout(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAdjustLayoutsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeReordersPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createUniquifyOpsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertToMemPermutePass(Logger log = Logger::global());
 
 //
-// Adjust IE Dialect IR for VPU target.
-//
-// This pipeline includes various adaptation passes to adjust the IR for VPU target.
+// AdjustForVPU
 //
 
-void buildAdjustPrecisionPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 void buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createConvertTile2PerAxisTilePass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertPrecisionToFP16Pass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertPrecisionToI32Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertConv1DToConv2DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertConv1DToConv2DPass(Logger log = Logger::global());
-
-//
-// HW related passes
-//
-
-std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertScaleShiftToDWPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertToMemPermutePass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createUnrollBatchPass(Logger log = Logger::global());
 
 //
-// Low precision transformations.
-//
-// This pipeline includes all transformations to support low precisions.
+// LowPrecision
 //
 
 void buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
-std::unique_ptr<mlir::Pass> createSplitConvWithMultipleFQPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSplitFakeQuantPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
@@ -86,10 +112,30 @@ std::unique_ptr<mlir::Pass> createFuseConvertWithQuantizePass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = Logger::global());
 
 //
+// Legalization for NCE
+//
+
+std::unique_ptr<mlir::Pass> createUnrollBatchPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createMatMulInputsTo2dPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertScaleShiftToDWPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSplitConvWithMultipleFQPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
+
+//
 // Tiling
 //
 
 std::unique_ptr<mlir::Pass> createIsolatedTilingPass(Logger log = Logger::global());
+
+//
+// Generic Optimizations
+//
+
+std::unique_ptr<mlir::Pass> createUpstreamSlicePass(Logger log = Logger::global());
 
 //
 // Registration

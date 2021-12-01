@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/act_kernels/compilation.h"
 
+#include "vpux/utils/core/small_string.hpp"
+
 #include <algorithm>
 #include <string>
 
@@ -47,7 +49,7 @@ std::string getVpuip2Dir() {
     const auto envDir = llvm::sys::Process::GetEnv("VPUIP_2_Directory");
     VPUX_THROW_UNLESS(envDir.hasValue(), "VPUIP_2_Directory env var must be set");
 
-    SmallString<128> vpuip2Dir(envDir.getValue());
+    SmallString vpuip2Dir(envDir.getValue());
     VPUX_THROW_UNLESS(sys::fs::is_directory(vpuip2Dir), "{0} is not a directory", vpuip2Dir.str());
 
     return vpuip2Dir.str().str();
@@ -62,7 +64,7 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
     return builder.Finish();
 }
 
-static void readBinary(SmallString<128>& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment) {
+static void readBinary(SmallString& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment) {
     std::string err;
     auto elfFile = mlir::openInputFile(path, &err);
     if (!elfFile) {
@@ -85,8 +87,8 @@ static void readBinary(SmallString<128>& path, SmallVector<uint8_t, 128>& buffer
 static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
                                 SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
     std::string mvToolsDir = movitools::getMoviToolsDir();
-    SmallString<128> genDir;
-    SmallString<128> tmpDir;
+    SmallString genDir;
+    SmallString tmpDir;
     // TODO: weak assumption on tools dir better switch to DEVELOPER BUILD style
     if (sys::fs::exists(KERNEL_DIRECTORY) && sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
         genDir = KERNEL_DIRECTORY;
@@ -109,16 +111,16 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         sys::path::append(tmpDir, "output");
     }
 
-    SmallString<128> srcNamePath = unitDesc.codePath;
+    SmallString srcNamePath = unitDesc.codePath;
 
-    SmallString<128> srcNameNoExt = sys::path::filename(srcNamePath);
+    SmallString srcNameNoExt = sys::path::filename(srcNamePath);
     sys::path::replace_extension(srcNameNoExt, "");
 
     std::string entryPoint = unitDesc.entry.str();
 
-    SmallString<128> buildDirPath;
+    SmallString buildDirPath;
     {
-        SmallString<128> tmpPath(tmpDir);
+        SmallString tmpPath(tmpDir);
         sys::path::append(tmpPath, "act-kernels-build");
         sys::path::append(tmpPath, srcNamePath);
         buildDirPath = sys::path::parent_path(tmpPath);
@@ -126,29 +128,29 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     }
 
     // Generate linker script name - and copy it from
-    SmallString<128> linkerScriptPath(genDir);
+    SmallString linkerScriptPath(genDir);
     sys::path::append(linkerScriptPath, "prebuild");
     sys::path::append(linkerScriptPath, "shave_kernel.ld");
 
-    SmallString<128> srcPath(genDir);
+    SmallString srcPath(genDir);
     sys::path::append(srcPath, srcNamePath);
 
-    SmallString<128> incPath(genDir);
+    SmallString incPath(genDir);
     sys::path::append(incPath, "inc");
 
-    SmallString<128> singleLib(mvToolsDir);
+    SmallString singleLib(mvToolsDir);
     sys::path::append(singleLib, params.mdkLibDir);
     sys::path::append(singleLib, params.mdkLibs[0]);
 
-    SmallString<128> objPath(buildDirPath);
+    SmallString objPath(buildDirPath);
     sys::path::append(objPath, srcNameNoExt + ".o");
 
-    SmallString<128> objDir(buildDirPath);
+    SmallString objDir(buildDirPath);
 
-    SmallString<128> elfPath(buildDirPath);
+    SmallString elfPath(buildDirPath);
     sys::path::append(elfPath, srcNameNoExt + ".elf");
 
-    SmallString<128> moviCompile(mvToolsDir);
+    SmallString moviCompile(mvToolsDir);
     sys::path::append(moviCompile, params.moviCompile);
 
     {
@@ -160,7 +162,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         }
     }
 
-    SmallString<128> linker(mvToolsDir);
+    SmallString linker(mvToolsDir);
     sys::path::append(linker, params.mdkLinker);
     auto linkCmd = formatv("{0} -zmax-page-size=16 --script {1}"
                            " -entry {2} --gc-sections --strip-debug --discard-all  {3}"
@@ -171,10 +173,10 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         VPUX_THROW("linker failed: {0}", linkCmd);
     }
 
-    SmallString<128> objcopy(mvToolsDir);
+    SmallString objcopy(mvToolsDir);
     sys::path::append(objcopy, params.mdkObjCopy);
 
-    SmallString<128> textPath(buildDirPath);
+    SmallString textPath(buildDirPath);
     sys::path::append(textPath, "sk." + srcNameNoExt + "." + params.cpu + ".text");
 
     {
@@ -184,7 +186,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         }
     }
 
-    SmallString<128> dataPath(buildDirPath);
+    SmallString dataPath(buildDirPath);
     sys::path::append(dataPath, "sk." + srcNameNoExt + "." + params.cpu + ".data");
 
     {
@@ -201,7 +203,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
 
 static void getActShaveBinaries(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
                                 SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
-    SmallString<128> genDir;
+    SmallString genDir;
     if (sys::fs::exists(KERNEL_DIRECTORY) && sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
         genDir = sys::path::parent_path(LIBRARY_OUTPUT_DIRECTORY);
     } else {
@@ -220,13 +222,13 @@ static void getActShaveBinaries(const movitools::MoviCompileParams& params, cons
 
     std::string entryPoint = unitDesc.entry.str();
 
-    SmallString<128> prebuiltKernelBinariesPath(genDir);
+    SmallString prebuiltKernelBinariesPath(genDir);
     sys::path::append(prebuiltKernelBinariesPath, "prebuild");
     sys::path::append(prebuiltKernelBinariesPath, "act_shave_bin");
 
-    SmallString<128> prebuiltKernelText(prebuiltKernelBinariesPath);
+    SmallString prebuiltKernelText(prebuiltKernelBinariesPath);
     sys::path::append(prebuiltKernelText, "sk." + entryPoint + "." + params.cpu + ".text");
-    SmallString<128> prebuiltKernelData(prebuiltKernelBinariesPath);
+    SmallString prebuiltKernelData(prebuiltKernelBinariesPath);
     sys::path::append(prebuiltKernelData, "sk." + entryPoint + "." + params.cpu + ".data");
 
     if (sys::fs::exists(prebuiltKernelText) && sys::fs::exists(prebuiltKernelData)) {
@@ -246,56 +248,56 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
 
     std::string entryPoint = listDesc.entry.str();
 
-    SmallString<128> srcNamePath = listDesc.codePath[0];
-    SmallString<128> srcNameNoExt = sys::path::filename(srcNamePath);
+    SmallString srcNamePath = listDesc.codePath[0];
+    SmallString srcNameNoExt = sys::path::filename(srcNamePath);
     sys::path::replace_extension(srcNameNoExt, "");
 
-    SmallString<128> buildDirPath;
+    SmallString buildDirPath;
     {
-        SmallString<128> tmpPath(LIBRARY_OUTPUT_DIRECTORY);
+        SmallString tmpPath(LIBRARY_OUTPUT_DIRECTORY);
         sys::path::append(tmpPath, "act-kernels-build");
         sys::path::append(tmpPath, srcNamePath);
         buildDirPath = sys::path::parent_path(tmpPath);
         sys::fs::create_directories(buildDirPath);
     }
 
-    SmallString<128> elfPath(buildDirPath);
+    SmallString elfPath(buildDirPath);
     sys::path::append(elfPath, srcNameNoExt + ".elf");
 
-    SmallString<1024> objPaths;
+    SmallString objPaths;
 
-    SmallString<128> singleLib(mvToolsDir);
+    SmallString singleLib(mvToolsDir);
     sys::path::append(singleLib, params.mdkLibDir);
     sys::path::append(singleLib, params.mdkLibs[0]);
 
-    SmallString<128> moviCompile(mvToolsDir);
+    SmallString moviCompile(mvToolsDir);
     sys::path::append(moviCompile, params.moviCompile);
 
-    SmallString<1024> extraOptions;
+    SmallString extraOptions;
     for (int i = 0; i < (int)listDesc.defines.size(); ++i) {
         extraOptions += StringRef(" -D");
         extraOptions += listDesc.defines[i];
     }
     for (int i = 0; i < (int)listDesc.includePaths.size(); ++i) {
-        SmallString<128> inc(vpuip2Dir);
+        SmallString inc(vpuip2Dir);
         sys::path::append(inc, listDesc.includePaths[i]);
         extraOptions += StringRef(" -I");
         extraOptions += inc;
     }
 
     for (int i = 0; i < (int)listDesc.codePath.size(); ++i) {
-        SmallString<128> srcNamePath = listDesc.codePath[i];
+        SmallString srcNamePath = listDesc.codePath[i];
 
-        SmallString<128> srcNameNoExt = sys::path::filename(srcNamePath);
+        SmallString srcNameNoExt = sys::path::filename(srcNamePath);
         sys::path::replace_extension(srcNameNoExt, "");
 
-        SmallString<128> srcPath(vpuip2Dir);
+        SmallString srcPath(vpuip2Dir);
         sys::path::append(srcPath, srcNamePath);
 
-        SmallString<128> incPath(genDir);
+        SmallString incPath(genDir);
         sys::path::append(incPath, "inc");
 
-        SmallString<128> objPath(buildDirPath);
+        SmallString objPath(buildDirPath);
         sys::path::append(objPath, srcNameNoExt + ".o");
         objPaths += StringRef(" ");
         objPaths += objPath;
@@ -310,7 +312,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         }
 
 #ifdef GEN_SYM_FILE
-        SmallString<128> symPath(genDir);
+        SmallString symPath(genDir);
         sys::path::append(symPath, "build");
         sys::path::append(symPath, srcName + ".s");
 
@@ -327,11 +329,11 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     }
 
     // Generate linker script name - and copy it from
-    SmallString<128> linkerScriptPath(genDir);
+    SmallString linkerScriptPath(genDir);
     sys::path::append(linkerScriptPath, "build");
     sys::path::append(linkerScriptPath, "shave_rt_kernel.ld");
 
-    SmallString<128> linker(mvToolsDir);
+    SmallString linker(mvToolsDir);
     sys::path::append(linker, params.mdkLinker);
     auto linkCmd = formatv("{0} -zmax-page-size=16 --script {1}"
                            " -entry {2} --gc-sections --strip-debug --discard-all  {3}"
@@ -342,10 +344,10 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         VPUX_THROW((std::string("linker failed: ") + linkCmd).c_str());
     }
 
-    SmallString<128> objcopy(mvToolsDir);
+    SmallString objcopy(mvToolsDir);
     sys::path::append(objcopy, params.mdkObjCopy);
 
-    SmallString<128> textPath(buildDirPath);
+    SmallString textPath(buildDirPath);
     sys::path::append(textPath, "sk." + srcNameNoExt + "." + params.cpu + ".text");
 
     {
@@ -355,7 +357,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         }
     }
 
-    SmallString<128> dataPath(buildDirPath);
+    SmallString dataPath(buildDirPath);
     sys::path::append(dataPath, "sk." + srcNameNoExt + "." + params.cpu + ".data");
 
     {
@@ -366,7 +368,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         }
     }
 
-    auto readBinary = [](SmallString<128>& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment = 1) {
+    auto readBinary = [](SmallString& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment = 1) {
         std::string err;
         auto elfFile = mlir::openInputFile(path, &err);
         if (!elfFile) {

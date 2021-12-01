@@ -99,6 +99,11 @@ in parallel or continue computation in tiles.
 
 The pass doesn't use any cost model and just choose the first largest tile size,
 which fits into the memory requirements.
+### `-matmul-inputs-to-2d`: Convert MatMul inputs to 2d
+This pass converts `MatMul` inputs to 2d.
+
+For example, `MatMul` input with 4x1x64 geometry will be split to four inputs with 1x64 dimensions.
+Resulting inputs with filters go to `MatMul` operations and the outputs are concatenated.
 ### `-merge-fake-quant`: Merge back to FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 
@@ -123,6 +128,10 @@ able to quantize convolution and fuse bias and post-processing operations.
 The pass is a part of `LowPrecision` pipeline.
 
 It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
+### `-uniquify-ops`: Remove duplicating operations with a common producer Value
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass merges operations that are identical to each other, combining consumers.
 ### `-unroll-batch`: Split FullyConnected inputs with multiple rows
 This pass splits `FullyConnected` inputs by rows.
 

@@ -11,17 +11,20 @@
 // included with the Software Package for additional details.
 //
 
-//
-// `std::vector` like container with pre-allocated buffer for small sizes.
-//
-
 #pragma once
 
-#include <llvm/ADT/SmallVector.h>
+#include <mlir/IR/Operation.h>
+#include <mlir/IR/Value.h>
+#include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 namespace vpux {
 
-using llvm::SmallVector;
-using llvm::SmallVectorImpl;
+void insertReorderForInput(mlir::Operation* op, mlir::OpOperand& input, DimsOrder dstOrder,
+                           mlir::PatternRewriter& rewriter, Logger log);
+void insertReorderForOutput(mlir::Operation* op, mlir::Value output, DimsOrder dstOrder,
+                            mlir::PatternRewriter& rewriter, Logger log);
+
+void changeDimsOrder(mlir::Value value, DimsOrder newOrder, Logger log);
 
 }  // namespace vpux

@@ -139,15 +139,17 @@ func @main(%arg0: tensor<1x16x30x25xf16>) -> tensor<1x16x30x25xf16> {
     return %1 : tensor<1x16x30x25xf16>
 
     // CHECK:    [[VAR0:%.+]] = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16, {order = #NHWC}>
+    // CHECK:    [[VAR1:%.+]] = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16, {order = #NHWC}>
 
-    // CHECK:    [[VAR1:%.+]] = IE.And([[VAR0]], [[VAR0]]) {auto_broadcast = "NUMPY"} :
+    // CHECK:    [[VAR2:%.+]] = IE.And([[VAR0]], [[VAR1]]) {auto_broadcast = "NUMPY"} :
     // CHECK-SAME:     tensor<1x16x30x25xf16, {order = #NHWC}>, tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16, {order = #NHWC}>
 
-    // CHECK:    [[VAR2:%.+]] = IE.And([[VAR1]], [[VAR0]]) {auto_broadcast = "NUMPY"} :
+    // CHECK:    [[VAR3:%.+]] = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16, {order = #NHWC}>
+    // CHECK:    [[VAR4:%.+]] = IE.And([[VAR2]], [[VAR3]]) {auto_broadcast = "NUMPY"} :
     // CHECK-SAME:     tensor<1x16x30x25xf16, {order = #NHWC}>, tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16, {order = #NHWC}>
 
-    // CHECK:    [[VAR3:%.+]] = IE.Reorder([[VAR2]]) {dstOrder = #NCHW} : tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16>
-    // CHECK:    return [[VAR3]] : tensor<1x16x30x25xf16>
+    // CHECK:    [[VAR5:%.+]] = IE.Reorder([[VAR4]]) {dstOrder = #NCHW} : tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16>
+    // CHECK:    return [[VAR5]] : tensor<1x16x30x25xf16>
 }
 
 }
@@ -186,15 +188,16 @@ func @main(%arg0: tensor<1x16x30x25xf16, {order = #NHCW}>) -> (tensor<1x16x30x25
     return %0, %1 : tensor<1x16x30x25xf16, {order = #NHCW}>, tensor<1x16x30x25xf16, {order = #NHCW}>
 
     // CHECK:    [[VAR0:%.+]] = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x16x30x25xf16, {order = #NHCW}> -> tensor<1x16x30x25xf16, {order = #NHWC}>
-    // CHECK:    [[VAR1:%.+]] = IE.And([[VAR0]], [[VAR0]]) {auto_broadcast = "NUMPY"} :
+    // CHECK:    [[VAR1:%.+]] = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x16x30x25xf16, {order = #NHCW}> -> tensor<1x16x30x25xf16, {order = #NHWC}>
+    // CHECK:    [[VAR2:%.+]] = IE.And([[VAR0]], [[VAR1]]) {auto_broadcast = "NUMPY"} :
     // CHECK-SAME:     tensor<1x16x30x25xf16, {order = #NHWC}>, tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16, {order = #NHWC}>
-    // CHECK:    [[VAR2:%.+]] = IE.Reorder([[VAR1]]) {dstOrder = #NHCW} : tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16, {order = #NHCW}>
+    // CHECK:    [[VAR3:%.+]] = IE.Reorder([[VAR2]]) {dstOrder = #NHCW} : tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16, {order = #NHCW}>
 
-    // CHECK:    [[VAR3:%.+]] = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x16x30x25xf16, {order = #NHCW}> -> tensor<1x16x30x25xf16>
-    // CHECK:    [[VAR4:%.+]] = IE.GRN([[VAR3]]) {bias = 1.000000e+00 : f64} : tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16>
-    // CHECK:    [[VAR5:%.+]] = IE.Reorder([[VAR4]]) {dstOrder = #NHCW} : tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16, {order = #NHCW}>
+    // CHECK:    [[VAR4:%.+]] = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x16x30x25xf16, {order = #NHCW}> -> tensor<1x16x30x25xf16>
+    // CHECK:    [[VAR5:%.+]] = IE.GRN([[VAR4]]) {bias = 1.000000e+00 : f64} : tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16>
+    // CHECK:    [[VAR6:%.+]] = IE.Reorder([[VAR5]]) {dstOrder = #NHCW} : tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16, {order = #NHCW}>
 
-    // CHECK:    return [[VAR2]], [[VAR5]] : tensor<1x16x30x25xf16, {order = #NHCW}>, tensor<1x16x30x25xf16, {order = #NHCW}>
+    // CHECK:    return [[VAR3]], [[VAR6]] : tensor<1x16x30x25xf16, {order = #NHCW}>, tensor<1x16x30x25xf16, {order = #NHCW}>
 }
 
 }

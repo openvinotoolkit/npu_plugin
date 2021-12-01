@@ -74,6 +74,12 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_EltwiseParams});
 }
 
+void vpux::VPUIP::EltwiseUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+    // [Track number: E#25740]
+    IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info,
+                                                    {DimsOrder::NCHW, DimsOrder::CHW, DimsOrder::NC, DimsOrder::C});
+}
+
 mlir::Operation* vpux::VPUIP::BlobReader::parseEltwise(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                                        ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {
     VPUX_THROW_UNLESS(inputs.size() >= 1 && inputs.size() <= 2, "UPAEltwise supports 1 or 2 inputs, got {0}",
