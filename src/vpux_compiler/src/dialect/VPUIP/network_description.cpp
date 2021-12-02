@@ -148,6 +148,39 @@ DataMap deserializeDataMap(const TensorReferenceVector* tensors,
     return out;
 }
 
+const EnumMap<MVCNN::PreProcessColorSpace, InferenceEngine::ColorFormat> mapPreProcessColorFormat = {
+        {MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR, ColorFormat::BGR},
+        {MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB, ColorFormat::RGB},
+        {MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12, ColorFormat::NV12},
+        {MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420, ColorFormat::I420},
+        {MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT, ColorFormat::RAW},
+};
+
+const EnumMap<MVCNN::PreProcessResizeAlgorithm, InferenceEngine::ResizeAlgorithm> mapPreProcessResizeAlgorithm = {
+        {MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR, ResizeAlgorithm::RESIZE_BILINEAR},
+        {MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA, ResizeAlgorithm::RESIZE_AREA},
+        {MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE, ResizeAlgorithm::NO_RESIZE},
+};
+
+void deserializePreprocessInfo(
+        const flatbuffers::Vector<flatbuffers::Offset<MVCNN::preprocessingInfo>>* mvcnnPreprocessInfo,
+        std::unordered_map<std::string, InferenceEngine::PreProcessInfo>& preProcInfo) {
+    // Check for the existence of a field in a blob. In older versions of the blob, this field may not exist
+    if (mvcnnPreprocessInfo == nullptr)
+        return;
+
+    preProcInfo.clear();
+    for (uint32_t i = 0; i < mvcnnPreprocessInfo->size(); i++) {
+        if (const auto* pr = mvcnnPreprocessInfo->Get(i)) {
+            auto preprocess = InferenceEngine::PreProcessInfo();
+
+            preprocess.setColorFormat(mapPreProcessColorFormat.at(pr->input_format()));
+            preprocess.setResizeAlgorithm(mapPreProcessResizeAlgorithm.at(pr->algorithm()));
+            preProcInfo[pr->input_name()->str()] = preprocess;
+        }
+    }
+}
+
 }  // namespace
 
 vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
@@ -166,6 +199,10 @@ vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
 
     _networkInputs = deserializeDataMap(header->in_tensor_desc(), orderVectorToLayout);
     _networkOutputs = deserializeDataMap(header->out_tensor_desc(), orderVectorToLayout);
+
+    const auto preProcTable = header->pre_process_info();
+    if (preProcTable != nullptr)
+        deserializePreprocessInfo(preProcTable, _iePreprocessInfo);
 
     _deviceInputs = deserializeDataMap(header->net_input(), extractLayoutFromStrides);
     _deviceOutputs = deserializeDataMap(header->net_output(), extractLayoutFromStrides);

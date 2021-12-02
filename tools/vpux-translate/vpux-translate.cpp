@@ -75,7 +75,8 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ct
     try {
         mlir::DefaultTimingManager tm;
         auto rootTiming = tm.getRootScope();
-        module = IE::importNetwork(ctx, cnnNet, false, rootTiming, false);
+        std::vector<vpux::PreProcessInfo> preProcInfo;
+        module = IE::importNetwork(ctx, cnnNet, preProcInfo, false, rootTiming, false);
     } catch (const std::exception& ex) {
         printTo(llvm::errs(), "Failed to translate IE IR {0} to MLIR : {1}", netFileName, ex.what());
         return nullptr;
@@ -128,7 +129,8 @@ mlir::OwningModuleRef importVPUIP(llvm::SourceMgr& sourceMgr, mlir::MLIRContext*
 mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
     mlir::DefaultTimingManager tm;
     auto rootTiming = tm.getRootScope();
-    const auto buf = VPUIP::exportToBlob(module, rootTiming);
+    std::vector<vpux::PreProcessInfo> preProcInfo;
+    const auto buf = VPUIP::exportToBlob(module, rootTiming, preProcInfo);
     output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
     return mlir::success();
 }

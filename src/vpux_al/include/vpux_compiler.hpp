@@ -24,6 +24,7 @@
 #include <ie_remote_context.hpp>
 
 #include "vpux/utils/IE/config.hpp"
+#include "vpux/utils/core/preprocessing.hpp"
 #include "vpux/utils/core/quant_params.hpp"
 
 namespace vpux {
@@ -115,11 +116,22 @@ public:
     virtual const void* getNetworkModel() const = 0;
 
     /**
+     * @brief Returns a map with information about preprocess inputs.
+     * @return Constant reference to an internally held map containing information about preprocess for inputs
+     */
+    const std::unordered_map<std::string, InferenceEngine::PreProcessInfo>& getPreprocessInfo() const {
+        return _iePreprocessInfo;
+    }
+
+    /**
      * @brief Returns size of the compiled model in bytes
      * @return size in bytes
      */
     virtual std::size_t getNetworkModelSize() const = 0;
     virtual ~INetworkDescription() = default;
+
+protected:
+    std::unordered_map<std::string, InferenceEngine::PreProcessInfo> _iePreprocessInfo;
 };
 
 /**

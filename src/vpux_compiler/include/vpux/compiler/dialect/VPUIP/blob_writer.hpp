@@ -55,6 +55,7 @@ public:
     };
 
     using TensorReference = flatbuffers::Offset<MVCNN::TensorReference>;
+    using PreprocessingInfo = flatbuffers::Offset<MVCNN::preprocessingInfo>;
     using Barrier = flatbuffers::Offset<MVCNN::Barrier>;
 
     using IndirectDataReference = flatbuffers::Offset<MVCNN::IndirectDataReference>;
