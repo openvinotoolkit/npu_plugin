@@ -1851,11 +1851,21 @@
             "BenchmarkApp" : {
                 "disabled" : true
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
+            "NetTest": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1"
+                ]
             },
-            "NetTest-Validate" : {
-                "disabled" : true
+            "NetTest-Validate": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
                 "disabled" : true
