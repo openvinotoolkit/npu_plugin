@@ -69,11 +69,6 @@ std::pair<VPUIP::BlobWriter::Vector<uint16_t>, VPUIP::BlobWriter::Vector<uint16_
 mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
     const auto inType = op.input().getType().cast<mlir::MemRefType>().getElementType();
     const auto outType = op.output().getType().cast<mlir::MemRefType>().getElementType();
-    const auto arch = VPU::getArch(op.getOperation()->getParentOfType<mlir::ModuleOp>());
-
-    if (arch != VPU::ArchKind::MTL && (inType.isBF16() || outType.isBF16())) {
-        return errorAt(op, "BF16 is only supported by MTL");
-    }
 
     if (!((inType.isF16() && outType.isa<mlir::quant::QuantizedType>()) ||
           (inType.isa<mlir::quant::QuantizedType>() && outType.isF16()))) {

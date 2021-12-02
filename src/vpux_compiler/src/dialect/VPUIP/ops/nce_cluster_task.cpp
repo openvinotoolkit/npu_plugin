@@ -334,6 +334,12 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::DPUTaskOp op) {
 }
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
+    const auto arch = VPU::getArch(op.getOperation()->getParentOfType<mlir::ModuleOp>());
+
+    if (arch != VPU::ArchKind::MTL && (inType.isBF16() || outType.isBF16())) {
+        return errorAt(op, "BF16 is only supported by MTL");
+    }
+
     if (op.task_type() == VPUIP::NCETaskType::CONV) {
         if (mlir::failed(verifyNCEConv(op))) {
             return mlir::failure();
