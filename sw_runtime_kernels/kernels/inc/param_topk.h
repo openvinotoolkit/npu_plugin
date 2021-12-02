@@ -8,7 +8,7 @@ typedef fp16 half;
 
 #include <common_types.h>
 #include <mv_types.h>
-
+#define SHAVE_LIB_DATA_SIZE 112 * 1024
 #ifdef __cplusplus
 namespace sw_params {
 #endif
@@ -51,12 +51,10 @@ struct __attribute__((packed)) TopKParams {
     int32_t hasIndices;
     int32_t index;  // for n<2^16 u16 can be used with additional DMA zero filling of high index halves; it's slightly faster
     int32_t value;
+    
+    uint8_t *cmxData {nullptr};
+    int32_t availableCmxBytes = SHAVE_LIB_DATA_SIZE;
 };
-
-typedef struct {
-    int32_t index;  // for n<2^16 u16 can be used with additional DMA zero filling of high index halves; it's slightly faster
-    int32_t value;
-} t_MvTopKPack;
 
 inline BaseKernelParams TopKParamsToBaseKernelParams(TopKParams * topKParams) {
     BaseKernelParams results;

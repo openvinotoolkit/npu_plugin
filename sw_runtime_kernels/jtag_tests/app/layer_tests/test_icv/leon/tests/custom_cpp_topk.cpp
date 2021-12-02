@@ -103,7 +103,7 @@ protected:
         paramContainer.resize(((int)sizeof(sw_params::TopKParams) + 7) / 8);
         CustomCppTests<fp16>::initData();
         const SingleTest* test = m_currentTest;
-        int32_t ind[subspace::MAX_DIMS] = {0, };
+        int32_t ind[subspace::MAX_DIMS] = {0,};
         subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
         
         m_InputGaps = ind[test->customLayerParams.layerParams[0]];
@@ -115,6 +115,8 @@ protected:
         m_outs = ind[test->customLayerParams.layerParams[5]];
         m_hasOutputValues = 1;
         m_hasOutputIndices = 1;
+        
+//        m_temp = allocData<float>(m_inputTensor.memoryDims().dims[m_axis]);
         
         m_topkParams = reinterpret_cast<sw_params::TopKParams*>(paramContainer.data());
         *m_topkParams = sw_params::TopKParams();
@@ -131,43 +133,49 @@ protected:
         m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
         m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
         m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[6]);
-        m_params.baseParamData = sw_params::ToBaseKernelParams(m_topkParams);
+        m_params.baseParamData = sw_params::TopKParamsToBaseKernelParams(m_topkParams);
         
-        const auto& dim = test->inDim;
-        m_ndims = dim.size();
-        StorageOrder dataOrder = maskOrder(FULL_ORDER, m_ndims);
-        StorageOrder kvalueOrder = maskOrder(FULL_ORDER, 1);
-        
-        MemoryDims in_md_dims(dim.begin(), m_ndims);
-        reverse(in_md_dims, m_ndims);
-        MemoryDims out_md_dims(dim.begin(), m_ndims);
-        out_md_dims.dims[m_axis] = m_kValue;
-        reverse(out_md_dims, m_ndims);
-        
-        const Dims inputKDims = { 1 };
-        const MemoryDims ik_md_dims(inputKDims.begin(), inputKDims.size());
-        
-        const MemoryDims in_md_limits = in_md_dims + m_InputGaps;
-        const MemoryDims out_md_limits = out_md_dims + m_OutputGaps;
-        
-        m_inputTensor.init(dataOrder, in_md_dims, in_md_limits);
-        m_inputKTensor.init(kvalueOrder, ik_md_dims, ik_md_dims);
-        m_refIndicesTensor.init(dataOrder, out_md_dims, out_md_dims);
-        m_refValuesTensor.init(dataOrder, out_md_dims, out_md_dims);
-        
-        if (m_hasOutputValues ==1 )
-            m_outputValuesTensor.init(dataOrder, out_md_dims, out_md_limits);
-        if (m_hasOutputIndices == 1)
-            m_outputIndicesTensor.init(dataOrder, out_md_dims, out_md_limits);
+        const auto& dimIn = m_topkParams->inputValues.dimsAddr;
+        const auto& dimOut = m_topkParams->outputValues.dimsAddr;
 
-        allocBuffer(m_inputTensor);
-        allocBuffer(m_inputKTensor);
-        allocBuffer(m_refValuesTensor);
-        allocBuffer(m_refIndicesTensor);
-        if (m_hasOutputValues == 1)
-            allocBuffer(m_outputValuesTensor);
-        if (m_hasOutputIndices == 1)
-            allocBuffer(m_outputIndicesTensor);
+        m_ndims = m_topkParams->inputValues.numDims;
+//        StorageOrder dataOrder = maskOrder(FULL_ORDER, m_ndims);
+//        StorageOrder kvalueOrder = maskOrder(FULL_ORDER, 1);
+//        
+//        MemoryDims in_md_dims = dimIn;
+//        reverse(in_md_dims, m_ndims);
+//        MemoryDims out_md_dims = dimOut;
+//        out_md_dims.dims[m_axis] = m_kValue;
+//        reverse(out_md_dims, m_ndims);
+//        
+//        const Dims inputKDims = { 1 };
+//        const MemoryDims ik_md_dims(inputKDims.begin(), inputKDims.size());
+//        
+//        const MemoryDims in_md_limits = in_md_dims + m_InputGaps;
+//        const MemoryDims out_md_limits = out_md_dims + m_OutputGaps;
+//        
+//        m_inputTensor.init(dataOrder, in_md_dims, in_md_limits);
+//        m_inputKTensor.init(kvalueOrder, ik_md_dims, ik_md_dims);
+//        m_refIndicesTensor.init(dataOrder, out_md_dims, out_md_dims);
+//        m_refValuesTensor.init(dataOrder, out_md_dims, out_md_dims);
+//        
+//        if (m_hasOutputValues ==1 )
+//            m_outputValuesTensor.init(dataOrder, out_md_dims, out_md_limits);
+//        if (m_hasOutputIndices == 1)
+//            m_outputIndicesTensor.init(dataOrder, out_md_dims, out_md_limits);
+//
+//        allocBuffer(m_inputTensor);
+//        allocBuffer(m_inputKTensor);
+//        allocBuffer(m_refValuesTensor);
+//        allocBuffer(m_refIndicesTensor);
+//        if (m_hasOutputValues == 1)
+//            allocBuffer(m_outputValuesTensor);
+//        if (m_hasOutputIndices == 1)
+//            allocBuffer(m_outputIndicesTensor);
+//        printf("finish init data");
+//        printf("finish init data");
+//        printf("finish init data");
+        
     }
     
     void initTestCase() override {
@@ -176,20 +184,24 @@ protected:
     }
     
     void generateInputData() override {
-        const u32 range = m_inputTensor.fullSize() + 3;
+        const auto customData = false;  // m_testLoop.value().customData;
+
 #ifdef CONFIG_TARGET_SOC_3720
         m_params.kernel  = reinterpret_cast<uint64_t>(&shvNN0_topk);
 #else
         m_params.kernel  = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(topk));
 #endif
+        
+        rand_seed();
+        
+        // set random seed
+        u64 ticks_for_seed = rtems_clock_get_uptime_nanoseconds();
+        srand(ticks_for_seed);
+        
         // input values
-        const int total = m_inputTensor.dataSize();
-        float scale = std::min(total, 50000) / float(total); // prevent FP16 overflow
-        m_inputTensor.forEach(false, [&](const MemoryDims& indices){
-            int index = m_inputTensor.index(indices);
-            u32 index1 = u32( (u64(index) * index + 17) % range );
-            float val1 = scale * float(index1*1 + range/3) / float(range);
-            m_inputTensor.at(indices) = f32Tof16(val1);
+        m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
+            float tmp = float(rand() % 600) / 100 - 3.0f;
+            m_inputTensor.at(indices) = f32Tof16(tmp);
         });
 
         // input K
@@ -197,26 +209,30 @@ protected:
         data[0] = m_kValue;
 
         // reference
-        calcReferenceOutput();
+        generateReferenceData();
     }
     
     void generateReferenceData() override {
         const auto k = m_kValue;
         const auto mode = m_mode;
-        const auto sort = m_sortsLoop.value();
-        const auto ndims = m_inputTensor.memoryDims().size();
+        const auto sort = m_sort;
+        const auto ndims = m_ndims;
         const auto axis = m_ndims - 1 - m_axis; // Change axis due to layout
-                                                 
+        
+        
         // iterate over all dims except 'axis'
         // TODO: MemoryDims constructor
         MemoryDims dims = m_inputTensor.memoryDims();
+        MemoryDims ind = MemoryDims();
         const int n = dims.dims[axis];
         dims.dims[axis] = 1;
+        
+//        int totalSets = m_inputTensor.totalLines(m_axis);
 
-        mvTensorAssert(k <= n);
-        mvTensorAssert(m_inputTensor.storageOrder() == m_refValuesTensor.storageOrder());
-        mvTensorAssert(m_inputTensor.storageOrder() == m_refIndicesTensor.storageOrder());
-
+//        mvTensorAssert(k <= n);
+//        mvTensorAssert(m_inputTensor.storageOrder() == m_refValuesTensor.storageOrder());
+//        mvTensorAssert(m_inputTensor.storageOrder() == m_refIndicesTensor.storageOrder());
+//
         const int inputValuesAxisStep = m_inputTensor.memorySteps().dims[axis];
         const int refValuesAxisStep = m_refValuesTensor.memorySteps().dims[axis];
         const int refIndicesAxisStep = m_refIndicesTensor.memorySteps().dims[axis];
@@ -230,7 +246,7 @@ protected:
                 temp[i] = Pair(inputValuesData[i * inputValuesAxisStep], i);
                          
             std::partial_sort(temp.begin(), temp.begin() + k, temp.begin() + n, compareValues);
-            if (sort == TopKSort::index) {
+            if (sort == 2) {
                 std::sort(temp.begin(), temp.begin() + k, compareIndices);
             }
 
@@ -254,8 +270,8 @@ protected:
     }
     
     virtual bool checkResult() override{
-        m_inputTensor.confirmBufferData();
-        m_inputKTensor.confirmBufferData();
+        bool test_failed = false;
+        m_outputTensor.confirmBufferData();
         
         if (m_hasOutputValues==1)
             m_outputValuesTensor.confirmBufferData();

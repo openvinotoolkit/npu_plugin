@@ -30,9 +30,9 @@ using namespace nn::shave_lib;
 #include <sw_nn_runtime_types_3600.h>
 extern void*  (shvNN0_singleShaveSoftmax);
 extern void*  (shvNN0_sigmoid_fp16);
+extern void*  (shvNN0_topk);
 extern void*  (shvNN0_preCustomLayerCpp);
 extern void*  (shvNN0_custom_cpp);
-extern void*  (shvNN0_topk);
 #else
 #include <sw_nn_runtime_types_2490.h>
 #include "svuSLKernels_EP.h"
