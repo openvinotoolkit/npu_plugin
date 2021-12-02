@@ -18,6 +18,7 @@
 #include <cmath>
 
 namespace ie = InferenceEngine;
+using ov::runtime::Tensor;
 
 static int entryIndex(int lw, int lh, int lcoords, int lclasses, int lnum, int batch, int location, int entry) {
     int n = location / (lw * lh);
@@ -362,6 +363,23 @@ std::vector<utils::BoundingBox> utils::parseYoloOutput(const ie::Blob::Ptr& blob
 
     std::vector<float> results(blob->size());
     for (size_t i = 0; i < blob->size(); i++) {
+        results[i] = ptr[i];
+    }
+
+    std::vector<utils::BoundingBox> out;
+    int classes = 20;
+    out = yolov2BoxExtractor(confThresh, results, imgWidth, imgHeight, classes, isTiny);
+
+    return out;
+}
+
+std::vector<utils::BoundingBox> utils::parseYoloOutput(const Tensor& tensor, size_t imgWidth, size_t imgHeight,
+                                                       float confThresh, bool isTiny) {
+    float* ptr = tensor.data<float>();
+    IE_ASSERT(ptr != nullptr);
+
+    std::vector<float> results(tensor.get_size());
+    for (size_t i = 0; i < tensor.get_size(); i++) {
         results[i] = ptr[i];
     }
 
