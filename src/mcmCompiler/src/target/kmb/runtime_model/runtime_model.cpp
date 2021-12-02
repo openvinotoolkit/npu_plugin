@@ -4593,7 +4593,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAConcatTask(ComputationModel& cm
 
     auto params = new MVCNN::ConcatParamsT;
     auto axisToConcat = opIt->get<std::string>("axis");
-    auto numericAxisToConcat = mv::Shape::getAxis(axisToConcat);
+    const auto numDims = toBuild->inputs.at(0)->dimensions.size();
+    const auto numericAxisToConcat =
+            numDims - mv::Shape::getAxis(axisToConcat) - 1;  // axis for NCHW dims order, not WHCN
     params->axis = numericAxisToConcat;
 
     toBuild->softLayerParams.value = params;
