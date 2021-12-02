@@ -57,7 +57,15 @@ void ConvActTest::buildFloatFunction() {
     ngraph::helpers::ActivationTypes activationType;
     activationType = activationDecl.first;
     auto constantsValue = activationDecl.second;
-    auto activation = ngraph::builder::makeActivation(conv, ngPrc, activationType, shapes.second, constantsValue);
+    auto actShape = shapes.second;
+
+    if (activationType == ngraph::helpers::ActivationTypes::PReLu) {
+        constantsValue = CommonTestUtils::generate_float_numbers(convOutChannels, activationDecl.second[0],
+                                                                 activationDecl.second[1]);
+        actShape = {convOutChannels};
+    }
+
+    auto activation = ngraph::builder::makeActivation(conv, ngPrc, activationType, actShape, constantsValue);
     results.push_back(std::make_shared<ngraph::opset1::Result>(activation));
 
     function = std::make_shared<ngraph::Function>(results, params, "convolution");
@@ -133,7 +141,15 @@ void ConvActTest::buildFQFunction() {
     ngraph::helpers::ActivationTypes activationType;
     activationType = activationDecl.first;
     auto constantsValue = activationDecl.second;
-    auto activation = ngraph::builder::makeActivation(conv, ngPrc, activationType, shapes.second, constantsValue);
+    auto actShape = shapes.second;
+
+    if (activationType == ngraph::helpers::ActivationTypes::PReLu) {
+        constantsValue = CommonTestUtils::generate_float_numbers(weightsShape[0], activationDecl.second[0],
+                                                                 activationDecl.second[1]);
+        actShape = {weightsShape[0]};
+    }
+
+    auto activation = ngraph::builder::makeActivation(conv, ngPrc, activationType, actShape, constantsValue);
 
 
     /// activation FQ
