@@ -3830,8 +3830,7 @@
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "0.3",
-                    "--color_format", "RGB"
+                    "--prob_tolerance", "0.3"
                 ]
             },
             "NetTest-Validate": {
@@ -3839,7 +3838,8 @@
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "0.3"
+                    "--prob_tolerance", "0.3",
+                    "--color_format", "RGB"
                 ],
                 "input_precision" : "FP16",
                 "output_precision" : "FP16"
