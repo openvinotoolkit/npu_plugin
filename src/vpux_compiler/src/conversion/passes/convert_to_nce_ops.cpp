@@ -793,15 +793,15 @@ void ConvertToNCEOpsPass::safeRunOnFunc() {
     VPUX_THROW_UNLESS(dpuExec != nullptr, "Failed to get DPU information");
 
     mlir::OwningRewritePatternList patterns(&ctx);
-    patterns.insert<ConvRewrite>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<MaxPoolRewrite>(&ctx, dpuExec.count(), arch, _log);
+    // patterns.insert<ConvRewrite>(&ctx, dpuExec.count(), arch, _log);
+    // patterns.insert<MaxPoolRewrite>(&ctx, dpuExec.count(), arch, _log);
     patterns.insert<GenericEltwiseConverter<IERT::AddOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::ADD, _log);
     patterns.insert<GenericEltwiseConverter<IERT::MultiplyOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::MULT,
                                                                _log);
     patterns.insert<GenericEltwiseConverter<IERT::SubtractOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::SUB,
                                                                _log);
     patterns.insert<GenericEltwiseConverter<IERT::AndOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::AND, _log);
-    patterns.insert<DepthwiseConvRewrite>(&ctx, dpuExec.count(), arch, _log);
+    // patterns.insert<DepthwiseConvRewrite>(&ctx, dpuExec.count(), arch, _log);
 
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();

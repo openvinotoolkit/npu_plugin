@@ -282,20 +282,28 @@ class LayoutInfoOpModelForHW final :
                                                         OrigOpType> {
 public:
     void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) const {
+        Logger log = Logger::global().nest("LayoutInfoOpModelForHW", 0);
+        log.error("NCEClusterTaskOp::inferLayoutInfo '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+        std::cout << "======== NCEClusterTaskOp::inferLayoutInfo" << std::endl;
         if (!canBeExecutedOnNCE(origOp)) {
+            // const auto name = origOp->getName().getStringRef();
+            // std::cout << "======== inferLayoutInfo !canBeExecutedOnNCE(origOp) " << name << std::endl;
             FallbackImplOpType::inferLayoutInfo(origOp, info);
             return;
         }
-
+        std::cout << "======== NCEClusterTaskOp::inferLayoutInfo 2" << std::endl;
         VPUIP::NCEClusterTaskOp::inferLayoutInfo(origOp, info);
     }
 
 private:
     static bool canBeExecutedOnNCE(mlir::Operation* op) {
-        if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
-            // We are in reference SW compilation mode
+        if (op->getName().getStringRef() == IE::ConvolutionOp::getOperationName()) {
             return false;
         }
+        // if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
+        //     // We are in reference SW compilation mode
+        //     return false;
+        // }
 
         if (VPUIP::NCEInvariant::verifyKernel(mlir::cast<OrigOpType>(op)).failed()) {
             // Basic NCE invariants check failed, the operation will fallback to SW mode

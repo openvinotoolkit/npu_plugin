@@ -90,18 +90,21 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     buildLowerIE2IERTPipeline(pm, log);
 
+    pm.addPass(createConvertToNCEOpsPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // Level 2 : Abstract RunTime
 
     if (options.enableProfiling) {
-        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
     }
 
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
+    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
@@ -109,6 +112,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Lowering
 
+    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
     buildLowerIERT2VPUIPPipeline(pm, log);
 
     // Level 1 : VPU RunTime
