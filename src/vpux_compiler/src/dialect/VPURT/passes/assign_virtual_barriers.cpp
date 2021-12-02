@@ -111,7 +111,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
     //Barrier scheduler
-    TokenBasedBarrierScheduler barrierScheduler(&ctx,func, 8, 256, _log);
+    TokenBasedBarrierScheduler barrierScheduler(&ctx,func, 4, 256, _log);
     barrierScheduler.schedule();
 
     // const auto nceAttr = VPUIP::PhysicalProcessorAttr::get(&ctx, VPUIP::PhysicalProcessor::NCE_Cluster);
