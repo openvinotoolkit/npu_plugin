@@ -158,6 +158,7 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
         operation_t barrier_op = *citr;
         // only check barrier op and skip op such as tailing upa 
         if(op_type_selector_t::is_barrier_op(dag, barrier_op)) {
+            std::cout << "Looking for barrier " << barrier_op->getName() << " in active_barrier_table_" << std::endl;
             if (active_barrier_table_.find(barrier_op) == active_barrier_table_.end()) {
                 return false;
             }
@@ -173,9 +174,8 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
       active_barrier_table_iterator_t aitr;
 
       // wait barriers //
-      for (const_operation_iterator_t
-          pitr=traits::incoming_operations_begin(dag, task);
-          pitr!=traits::incoming_operations_end(dag, task); ++pitr) {
+      for (const_operation_iterator_t pitr=traits::incoming_operations_begin(dag, task); pitr!=traits::incoming_operations_end(dag, task); ++pitr) {
+        
         operation_t barrier_op = *pitr;
         if(op_type_selector_t::is_barrier_op(dag, barrier_op))
         {
@@ -195,9 +195,8 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
       }
 
       // update barriers //
-      for (const_operation_iterator_t
-          citr=traits::outgoing_operations_begin(dag, task);
-          citr!=traits::outgoing_operations_end(dag, task); ++citr) {
+      for (const_operation_iterator_t citr=traits::outgoing_operations_begin(dag, task); citr!=traits::outgoing_operations_end(dag, task); ++citr) {
+        
         operation_t barrier_op = *citr;
         if (op_type_selector_t::is_barrier_op(dag, barrier_op)) {
             aitr = active_barrier_table_.find(barrier_op);
