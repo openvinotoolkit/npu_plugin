@@ -736,6 +736,11 @@ CONFIG_SIPP_MBIN_NAME="mbinImgSipp"
 #
 
 #
+# KPI Measurements
+#
+# CONFIG_KPI_MEASUREMENTS_BUILD is not set
+
+#
 # CDK
 #
 # CONFIG_USE_COMPONENT_ISP is not set

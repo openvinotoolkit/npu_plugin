@@ -16,7 +16,8 @@ namespace sw_params {
 #define MAX_TK_DIMS 8
 
 /// TopKMax parameters
-struct __attribute__((packed)) TopKParams{
+
+struct __attribute__((packed)) TopKParams {
     struct MemRefData inputValues;
     struct MemRefData outputValues;
     struct MemRefData outputIndices;
@@ -48,11 +49,12 @@ struct __attribute__((packed)) TopKParams{
     int32_t axis;
     int32_t hasValues;
     int32_t hasIndices;
+    int32_t index;  // for n<2^16 u16 can be used with additional DMA zero filling of high index halves; it's slightly faster
+    int32_t value;
 };
 
-// TopK internal struct
 typedef struct {
-    int32_t index; // for n<2^16 u16 can be used with additional DMA zero filling of high index halves; it's slightly faster
+    int32_t index;  // for n<2^16 u16 can be used with additional DMA zero filling of high index halves; it's slightly faster
     int32_t value;
 } t_MvTopKPack;
 
@@ -60,8 +62,8 @@ inline BaseKernelParams TopKParamsToBaseKernelParams(TopKParams * topKParams) {
     BaseKernelParams results;
     results.numInputs = 1;
     results.numOutputs = 1;// change to 2 how? 
-    results.inputsOffset = reinterpret_cast<uint8_t*>(&(topKParams->input)) - reinterpret_cast<uint8_t*>(topKParams);
-    results.outputsOffset = reinterpret_cast<uint8_t*>(&(topKParams->output)) - reinterpret_cast<uint8_t*>(topKParams);
+    results.inputsOffset = reinterpret_cast<uint8_t*>(&(topKParams->inputValues)) - reinterpret_cast<uint8_t*>(topKParams);
+    results.outputsOffset = reinterpret_cast<uint8_t*>(&(topKParams->outputValues)) - reinterpret_cast<uint8_t*>(topKParams);
     return results;
 }
 
