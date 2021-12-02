@@ -263,6 +263,20 @@ target_include_directories(${BITCOMPACTOR_TARGET_NAME}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/bitcompactor/include"
 )
 
+set(HUFFMAN_CODEC_TARGET_NAME "huffman_codec")
+add_library(${HUFFMAN_CODEC_TARGET_NAME}
+    OBJECT
+    "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/contrib/huffman_encoding/src/logging.cpp"
+    "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/contrib/huffman_encoding/src/ms_vasprintf.cpp"
+    "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/contrib/huffman_encoding/src/Huffman.cpp"
+    "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/contrib/huffman_encoding/src/huffmanCodec.cpp")
+
+target_include_directories(${HUFFMAN_CODEC_TARGET_NAME}
+    PUBLIC
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/include/huffman_encoding"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler"
+)
+
 #
 # json
 #

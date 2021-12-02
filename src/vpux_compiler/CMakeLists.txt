@@ -338,6 +338,7 @@ add_dependencies(${OBJ_TARGET_NAME}
     ${TBLGEN_TARGET_NAME}
     ${SCHEMA_TARGET_NAME}
     bitcompactor
+    huffman_codec
 )
 
 ie_faster_build(${OBJ_TARGET_NAME}
@@ -377,6 +378,7 @@ target_include_directories(${OBJ_TARGET_NAME}
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
         $<TARGET_PROPERTY:bitcompactor,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:huffman_codec,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 link_system_libraries(${OBJ_TARGET_NAME}
@@ -412,14 +414,14 @@ target_link_libraries(${OBJ_TARGET_NAME}
 # MODULE target
 #
 
-add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor>)
+add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
 target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
 
 #
 # STATIC target
 #
 
-add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor>)
+add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
 target_link_libraries(${STATIC_TARGET_NAME} PUBLIC ${OBJ_TARGET_NAME})
 
 #

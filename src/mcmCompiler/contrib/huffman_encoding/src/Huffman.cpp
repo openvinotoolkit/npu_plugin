@@ -399,9 +399,7 @@ static int writeToFile(const char *encodedValues, int len, const string &filenam
 {
     FILE *fout = fopen(filename.c_str(), "ab");
     if (!fout) {
-        throw Exception(
-            PrintToString(
-                "Could not open file %s", filename.c_str()));
+        throw Exception("Could not open file " + filename);
    }
 
 //    if (!fout) {
@@ -1169,8 +1167,13 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
                                      huffmanOutputDataRouting_t outputDataRouting
                                      )
 {
-    std::unique_ptr<FILE, mv::utils::RaiiWrapper<FILE, mv::utils::releaseFile>> fin;
-    std::unique_ptr<FILE, mv::utils::RaiiWrapper<FILE, mv::utils::releaseFile>> fout;
+    const auto releaseFileCb = [](FILE* fileHandle) -> void {
+        if (fileHandle != nullptr) {
+            fclose(fileHandle);
+        }
+    };
+    std::unique_ptr<FILE, std::function<void(FILE*)>> fin(nullptr, releaseFileCb);
+    std::unique_ptr<FILE, std::function<void(FILE*)>> fout(nullptr, releaseFileCb);
     BitData          encodedValues;
     vector<uint8_t>  outputDataVector;
     uint32_t         outputDataLength;
@@ -1187,9 +1190,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         fin.reset(fopen(srcFile.c_str(), "rb"));
         
         if (!fin.get()) {
-            throw Exception(
-                PrintToString(
-                    "Could not open file %s", srcFile.c_str()));
+            throw Exception("Could not open file " + srcFile);
         }
     }
     else
@@ -1204,9 +1205,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         fout.reset(fopen(dstFile.c_str(), "wb"));
         
         if (!fout.get()) {
-            throw Exception(
-                PrintToString(
-                    "Could not open file %s", dstFile.c_str()));
+            throw Exception("Could not open file " + dstFile);
         }
     }
 
