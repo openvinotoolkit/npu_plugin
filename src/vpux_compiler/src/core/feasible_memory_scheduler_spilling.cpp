@@ -63,7 +63,7 @@ llvm::SmallVector<mlir::Value> FeasibleMemorySchedulerSpilling::getAsyncResultsF
     }
 
     VPUX_THROW_UNLESS(asyncResults.size() > 0,
-                      "No async result matched for a given buffer\n buffer - {0}\n opThatWasSpilled - {1}", buffer,
+                      "No async result matched for a given buffer\n buffer - {0}\n op that was spilled - {1}", buffer,
                       opThatWasSpilled);
 
     return asyncResults;
@@ -101,13 +101,10 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
     auto spillWriteExecOp =
             builder.create<mlir::async::ExecuteOp>(spillWriteNameLoc, spillBuffer->getResultTypes(), None, None);
 
-    // As CopyOp input used directly buffer to be spilled
-    mlir::Value copyOpArg = bufferToSpill;
-
     // Create CopyOp in the body of new AsyncExecOp
     auto bodyBlock = &spillWriteExecOp.body().front();
     builder.setInsertionPointToStart(bodyBlock);
-    auto spillWriteCopyOp = builder.create<IERT::CopyOp>(spillWriteNameLoc, copyOpArg, spillBuffer.memref());
+    auto spillWriteCopyOp = builder.create<IERT::CopyOp>(spillWriteNameLoc, bufferToSpill, spillBuffer.memref());
     builder.create<mlir::async::YieldOp>(spillWriteNameLoc, spillWriteCopyOp->getResults());
 
     // Update aliases for spillWrite result
