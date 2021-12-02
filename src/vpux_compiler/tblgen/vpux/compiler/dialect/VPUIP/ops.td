@@ -1118,14 +1118,14 @@ def VPUIP_QuantCastUPAOp :
     let summary = "FakeQuantize UPA SHAVE kernel";
 
     let arguments = (ins
-        MemRefOf<[F16, BF16, quant_QuantizedType]>:$input,
-        MemRefOf<[F16, BF16, quant_QuantizedType]>:$output_buff,
+        MemRefOf<[F16, quant_QuantizedType]>:$input,
+        MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
 
         OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
-        MemRefOf<[F16, BF16, quant_QuantizedType]>:$output
+        MemRefOf<[F16, quant_QuantizedType]>:$output
     );
 
     let builders = [
