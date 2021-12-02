@@ -30,6 +30,8 @@ public:
     explicit InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
                           const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor,
                           const Config& config, const std::string& netName,
+                          const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                          const std::vector<std::shared_ptr<const ov::Node>>& results,
                           const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
 
     void Infer() override;

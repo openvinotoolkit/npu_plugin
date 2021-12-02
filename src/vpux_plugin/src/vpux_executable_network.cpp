@@ -174,7 +174,7 @@ IE::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const I
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
     return std::make_shared<InferRequest>(networkInputs, networkOutputs, inferExecutor, _config, _networkName,
-                                          allocator);
+                                          _parameters, _results, allocator);
 }
 
 InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequest() {
@@ -185,7 +185,7 @@ InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferReques
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
     auto syncRequestImpl = std::make_shared<InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config,
-                                                          _networkName, allocator);
+                                                          _networkName, _parameters, _results, allocator);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
     return std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, getNextTaskExecutor(),
                                                _callbackExecutor);
