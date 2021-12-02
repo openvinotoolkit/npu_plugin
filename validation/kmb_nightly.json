@@ -3830,7 +3830,8 @@
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "0.3"
+                    "--prob_tolerance", "0.3",
+                    "--color_format", "RGB"
                 ]
             },
             "NetTest-Validate": {
