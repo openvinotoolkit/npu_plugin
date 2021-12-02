@@ -110,9 +110,6 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
     auto spillWriteCopyOp = builder.create<IERT::CopyOp>(spillWriteNameLoc, copyOpArg, spillBuffer.memref());
     builder.create<mlir::async::YieldOp>(spillWriteNameLoc, spillWriteCopyOp->getResults());
 
-    // Add token dependencies
-    spillWriteExecOp.dependenciesMutable().assign(makeArrayRef(opThatWasSpilled.token()));
-
     // Update aliases for spillWrite result
     _aliasInfo.addAlias(spillBuffer.memref(), spillBuffer.memref());
     _aliasInfo.addAlias(spillBuffer.memref(), spillWriteExecOp.results()[0]);
@@ -128,6 +125,9 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
 
     // Update dependencies map and get new operation index
     _depsInfo.insertNewExecOpToDepsMap(spillWriteExecOp);
+
+    // Update dependency
+    _depsInfo.addDependency(opThatWasSpilled, spillWriteExecOp);
 
     return spillWriteExecOp;
 }
@@ -187,9 +187,6 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     auto spillReadCopyOp = builder.create<IERT::CopyOp>(spillReadNameLoc, innerArg, newBuffer.memref());
     builder.create<mlir::async::YieldOp>(spillReadNameLoc, spillReadCopyOp->getResults());
 
-    // Add token dependencies
-    spillReadExecOp.dependenciesMutable().assign(makeArrayRef(spillWriteExecOp.token()));
-
     // Update alias for spillRead result
     _aliasInfo.addAlias(newBuffer.memref(), newBuffer.memref());
     _aliasInfo.addAlias(newBuffer.memref(), spillReadExecOp.results()[0]);
@@ -205,6 +202,9 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
 
     // Update dependencies map and get new operation index
     _depsInfo.insertNewExecOpToDepsMap(spillReadExecOp);
+
+    // Update dependency
+    _depsInfo.addDependency(spillWriteExecOp, spillReadExecOp);
 
     return spillReadExecOp;
 }
