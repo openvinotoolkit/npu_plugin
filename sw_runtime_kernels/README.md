@@ -1,6 +1,6 @@
 # Software kernels for VPUX
 
-### Components
+###  Components
 - `kernels` - source code of (SHAVE) cpp kernels  
 - `jtag_tests` - testing system for developing, optimization, debug and validation of kernels on board or symulator through JTAG  
 - vpuip_2 repository is necessary (should be available locally)  
