@@ -2,7 +2,7 @@
 
 ## Running
 ```sh
-./kmb_classification_sample -m testFiles/SingleConvolutionFP16.blob
+./vpux_classification_sample -m testFiles/SingleConvolutionFP16.blob
 ```
 Blobs are strored in the https://gitlab-icv.inn.intel.com/inference-engine/models-ir repository.
 

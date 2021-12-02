@@ -3,7 +3,7 @@ This sample will detect object by YOLO V2 tiny model. Input model blob and nv12 
 
 ## Running
 ```sh
-./kmb_detection_sample -m [blob file] -i [nv12 file] -iw [width of nv12 image] -ih [height of nv12 image]
+./vpux_detection_sample -m [blob file] -i [nv12 file] -iw [width of nv12 image] -ih [height of nv12 image]
 ```
 Blobs are strored in the https://gitlab-icv.inn.intel.com/inference-engine/models-ir repository.
 
