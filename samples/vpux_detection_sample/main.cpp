@@ -43,8 +43,9 @@
 #include <yolo_helpers.hpp>
 
 #include "vpux/utils/IE/blob.hpp"
+#include "openvino/openvino.hpp"
 
-using namespace InferenceEngine;
+using namespace ov;
 
 enum preprocessingType { PT_RESIZE, PT_NV12 };
 
@@ -104,8 +105,11 @@ VPUAllocator::~VPUAllocator() {
     }
 }
 
-static Blob::Ptr fromNV12File(const std::string& filePath, size_t imageWidth, size_t imageHeight,
-                              VPUAllocator& allocator) {
+static std::pair<ov::runtime::Tensor, ov::runtime::Tensor>
+fromNV12File(const std::string& filePath,
+             size_t imageWidth,
+             size_t imageHeight,
+             VPUAllocator& allocator) {
     std::ifstream fileReader(filePath, std::ios_base::ate | std::ios_base::binary);
     if (!fileReader.good()) {
         throw std::runtime_error("fromNV12File: failed to open file " + filePath);
@@ -126,51 +130,59 @@ static Blob::Ptr fromNV12File(const std::string& filePath, size_t imageWidth, si
     fileReader.read(reinterpret_cast<char*>(imageData), fileSize);
     fileReader.close();
 
-    InferenceEngine::TensorDesc planeY(InferenceEngine::Precision::U8, {1, 1, imageHeight, imageWidth},
-                                       InferenceEngine::Layout::NHWC);
-    InferenceEngine::TensorDesc planeUV(InferenceEngine::Precision::U8, {1, 2, imageHeight / 2, imageWidth / 2},
-                                        InferenceEngine::Layout::NHWC);
+    ov::runtime::Tensor tensorY = ov::runtime::Tensor(ov::element::u8,
+                                                      {1, 1, imageHeight, imageWidth},
+                                                      imageData);
+
     const size_t offset = imageHeight * imageWidth;
-
-    Blob::Ptr blobY = make_shared_blob<uint8_t>(planeY, imageData);
-    Blob::Ptr blobUV = make_shared_blob<uint8_t>(planeUV, imageData + offset);
-
-    Blob::Ptr nv12Blob = make_shared_blob<NV12Blob>(blobY, blobUV);
-    return nv12Blob;
+    ov::runtime::Tensor tensorUV = ov::runtime::Tensor(ov::element::u8,
+                                                      {1, 2, imageHeight / 2, imageWidth / 2},
+                                                      imageData + offset);
+    return {tensorY, tensorUV};
 }
 
-static void setPreprocForInputBlob(const std::string& inputName, const std::string& inputFilePath,
-                                   InferenceEngine::InferRequest& inferRequest, VPUAllocator& allocator) {
-    Blob::Ptr inputBlobNV12;
-    const size_t expectedWidth = FLAGS_iw;
-    const size_t expectedHeight = FLAGS_ih;
-    inputBlobNV12 = fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator);
-    PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
-    preprocInfo.setResizeAlgorithm(RESIZE_BILINEAR);
-    preprocInfo.setColorFormat(ColorFormat::NV12);
-    inferRequest.SetBlob(inputName, inputBlobNV12, preprocInfo);
-}
+// static void setPreprocForInputBlob(const std::string& inputName, const std::string& inputFilePath,
+//                                    InferenceEngine::InferRequest& inferRequest, VPUAllocator& allocator) {
+//     Blob::Ptr inputBlobNV12;
+//     const size_t expectedWidth = FLAGS_iw;
+//     const size_t expectedHeight = FLAGS_ih;
+//     inputBlobNV12 = fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator);
+//     PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
+//     preprocInfo.setResizeAlgorithm(RESIZE_BILINEAR);
+//     preprocInfo.setColorFormat(ColorFormat::NV12);
+//     inferRequest.SetBlob(inputName, inputBlobNV12, preprocInfo);
+// }
 
-Blob::Ptr deQuantize(const Blob::Ptr& quantBlob, float scale, uint8_t zeroPoint) {
-    const TensorDesc quantTensor = quantBlob->getTensorDesc();
-    const TensorDesc outTensor =
-            TensorDesc(InferenceEngine::Precision::FP32, quantTensor.getDims(), quantTensor.getLayout());
-    const uint8_t* quantRaw = quantBlob->cbuffer().as<const uint8_t*>();
+ov::runtime::Tensor deQuantize(const ov::runtime::Tensor &quantTensor,
+                               float scale,
+                               uint8_t zeroPoint) {
+    auto outputTensor = ov::runtime::Tensor(ov::element::f32, quantTensor.get_shape());
+    const auto* quantRaw = quantTensor.data<const uint8_t>();
+    float* outRaw = outputTensor.data<float>();
 
-    Blob::Ptr outputBlob = make_shared_blob<float>(outTensor);
-    outputBlob->allocate();
-    float* outRaw = outputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type*>();
-    for (size_t pos = 0; pos < quantBlob->byteSize(); pos++) {
+    for (size_t pos = 0; pos < quantTensor.get_size(); pos++) {
         outRaw[pos] = (quantRaw[pos] - zeroPoint) * scale;
     }
 
-    return outputBlob;
+    return outputTensor;
+}
+
+ov::runtime::Tensor convertF16ToF32(const ov::runtime::Tensor& inputTensor) {
+    auto outputTensor = ov::runtime::Tensor(ov::element::f32, inputTensor.get_shape());
+    const auto* inRaw = inputTensor.data<float16>();
+    float* outRaw = outputTensor.data<float>();
+
+    for (size_t pos = 0; pos < outputTensor.get_size(); pos++) {
+        outRaw[pos] = inRaw[pos];
+    }
+
+    return outputTensor;
 }
 
 //===========================================================================
 
 bool ParseAndCheckCommandLine(int argc, char* argv[]) {
-    // ---------------------------Parsing and validation of input args--------------------------------------
+    // -------- Parsing and validation of input arguments --------
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
         showUsage();
@@ -221,91 +233,94 @@ std::vector<std::string> readLabelsFromFile(const std::string& labelFileName) {
  */
 int main(int argc, char* argv[]) {
     try {
-        slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
         VPUAllocator kmbAllocator;
 
-        // ------------------------------ Parsing and validation of input args ---------------------------------
+        // -------- Get OpenVINO runtime version --------
+        slog::info << ov::get_openvino_version() << slog::endl;
+
+        // -------- Parsing and validation of input arguments --------
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
 
-        /** This vector stores paths to the processed images **/
-        std::string imageFileName = FLAGS_i;
+        /** path to the processed image **/
+        std::string imagePath = FLAGS_i;
 
-        // -----------------------------------------------------------------------------------------------------
+        /** path to pre-compiled blob **/
+        std::string blobPath = FLAGS_m;
 
-        // --------------------------- 1. Load inference engine -------------------------------------
+        // -------- 1. Initialize OpenVINO Runtime Core --------
         slog::info << "Creating Inference Engine" << slog::endl;
-        Core ie;
+        ov::runtime::Core core;
 
-        // --------------------------- 2. Read blob Generated by MCM Compiler ----------------------------------
-        std::string binFileName = FLAGS_m;
-        slog::info << "Loading blob:\t" << binFileName << slog::endl;
+        // -------- 2. Read pre-compiled blob --------
+        ov::runtime::ExecutableNetwork executable_network = [&]() {
+            slog::info << "Loading blob:\t" << blobPath << slog::endl;
+            std::ifstream blob_stream(blobPath, std::ios::binary);
+            return core.import_model(blob_stream, "VPUX", {});
+        }();
 
-        ExecutableNetwork importedNetwork = ie.ImportNetwork(binFileName, "KMB", {});
-        // -----------------------------------------------------------------------------------------------------
+        OPENVINO_ASSERT(executable_network.outputs().size() == 1,
+                        "Sample supports models with 1 output only");
 
-        // --------------------------- 3. Configure input & output ---------------------------------------------
-        ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
-        if (inputInfo.empty())
-            throw std::logic_error("inputInfo is empty");
+        // -------- 3. Set up input --------
+        slog::info << "Processing input tensor" << slog::endl;
 
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- 4. Create infer request -------------------------------------------------
-        InferenceEngine::InferRequest inferRequest = importedNetwork.CreateInferRequest();
-        slog::info << "CreateInferRequest completed successfully" << slog::endl;
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- 5. Prepare input --------------------------------------------------------
-        /** Use first input blob **/
-        std::string firstInputName = inputInfo.begin()->first;
+        const auto inputs = executable_network.inputs();
+        OPENVINO_ASSERT(!inputs.empty(), "inputs are empty");
 
         std::size_t originalImageWidth = 0;
         std::size_t originalImageHeight = 0;
         std::shared_ptr<uint8_t> imageData(nullptr);
+
+        ov::runtime::Tensor input_tensor;
+
         bool isYUVInput = fileExt(FLAGS_i) == "yuv";
         if (isYUVInput) {
-            setPreprocForInputBlob(firstInputName, imageFileName, inferRequest, kmbAllocator);
-            originalImageWidth = FLAGS_iw;
-            originalImageHeight = FLAGS_ih;
+            // setPreprocForInputBlob(firstInputName, imageFileName, inferRequest, kmbAllocator);
+            // originalImageWidth = FLAGS_iw;
+            // originalImageHeight = FLAGS_ih;
         } else {
-            FormatReader::ReaderPtr image_reader(imageFileName.c_str());
-            if (image_reader.get() == nullptr) {
-                throw std::logic_error("Image " + imageFileName + " cannot be read!");
+            // Read input image to a tensor and set it to an infer request
+            // without resize and layout conversions
+            FormatReader::ReaderPtr reader(imagePath.c_str());
+            if (reader.get() == nullptr) {
+                throw std::logic_error("Image " + imagePath + " cannot be read!");
             }
-            originalImageWidth = image_reader->width();
-            originalImageHeight = image_reader->height();
+
+            originalImageWidth = reader->width();
+            originalImageHeight = reader->height();
 
             /** Image reader is expected to return interlaced (NHWC) BGR image **/
-            TensorDesc inputDataDesc = inputInfo.begin()->second->getTensorDesc();
-            std::vector<size_t> inputBlobDims = inputDataDesc.getDims();
-            size_t imageWidth = inputBlobDims.at(3);
-            size_t imageHeight = inputBlobDims.at(2);
+            auto input = *executable_network.inputs().begin();
+            ov::element::Type input_type = input.get_tensor().get_element_type();
+            ov::Shape input_shape = input.get_shape();
 
-            imageData = image_reader->getData(imageWidth, imageHeight);
-            Blob::Ptr imageBlob =
-                    make_shared_blob<uint8_t>(TensorDesc(Precision::U8, inputBlobDims, Layout::NHWC), imageData.get());
+            size_t image_width = input_shape.at(3);
+            size_t image_height = input_shape.at(2);
+            std::shared_ptr<unsigned char> input_data = reader->getData(image_width, image_height);
 
-            inferRequest.SetBlob(firstInputName.c_str(), imageBlob);
+            // just wrap image data by ov::runtime::Tensor without allocating of new memory
+            input_tensor = ov::runtime::Tensor(input_type, input_shape, input_data.get());
         }
 
-        inferRequest.Infer();
+        // -------- 4. Create an infer request --------
+        ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
+        slog::info << "CreateInferRequest completed successfully" << slog::endl;
+
+        // -------- 5. Prepare input --------
+        infer_request.set_input_tensor(input_tensor);
+
+        // -------- 6. Do inference synchronously --------
+        infer_request.infer();
         slog::info << "inferRequest completed successfully" << slog::endl;
-        // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 6. Process output -------------------------------------------------------
-        slog::info << "Processing output blobs" << slog::endl;
+        // -------- 7. Process output --------
+        slog::info << "Processing output tensor" << slog::endl;
 
-        ConstOutputsDataMap outputInfo = importedNetwork.GetOutputsInfo();
-        if (outputInfo.size() != 1)
-            throw std::logic_error("Sample supports topologies only with 1 output");
-
-        std::string firstOutputName = outputInfo.begin()->first;
-
-        Blob::Ptr outputBlob = inferRequest.GetBlob(firstOutputName.c_str());
-        if (!outputBlob) {
-            throw std::logic_error("Cannot get output blob from inferRequest");
+        ov::runtime::Tensor output_tensor = infer_request.get_output_tensor();
+        if (!output_tensor) {
+            throw std::logic_error("Cannot get output tensor from infer_request!");
         }
 
         // de-Quantization
@@ -318,22 +333,13 @@ int main(int argc, char* argv[]) {
         slog::info << "zeroPoint: " << zeroPoint << slog::endl;
         slog::info << "scale: " << scale << slog::endl;
 
-        std::string outfilepath = "./output.dat";
-        std::ofstream outfile(outfilepath, std::ios::binary);
-        if (outfile.is_open()) {
-            outfile.write(outputBlob->buffer(), outputBlob->byteSize());
-        } else {
-            slog::warn << "failed to open '" << outfilepath << "'" << slog::endl;
-        }
-        outfile.close();
-
         // Real data layer
-        Blob::Ptr regionYoloOutput;
+        ov::runtime::Tensor regionYoloOutput;
         slog::info << "De-quantize if necessary" << slog::endl;
-        if (outputBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::U8) {
-            regionYoloOutput = deQuantize(outputBlob, scale, zeroPoint);
+        if (regionYoloOutput.get_element_type() == ov::element::u8) {
+            regionYoloOutput = deQuantize(regionYoloOutput, scale, zeroPoint);
         } else {
-            regionYoloOutput = vpux::toFP32(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob));
+            regionYoloOutput = convertF16ToF32(regionYoloOutput);
         }
         slog::info << "De-quantization done" << slog::endl;
 
@@ -348,6 +354,16 @@ int main(int argc, char* argv[]) {
         std::ostringstream resultString;
         utils::printDetectionBBoxOutputs(detectionResult, resultString, postprocess::YOLOV2_TINY_LABELS);
         slog::info << resultString.str() << slog::endl;
+
+        const auto outFilePath = "./output.dat";
+        std::ofstream outFile(outFilePath, std::ios::binary);
+        if (outFile.is_open()) {
+            outFile.write(reinterpret_cast<const char*>(regionYoloOutput.data()),
+                          regionYoloOutput.get_byte_size());
+        } else {
+            slog::warn << "Failed to open '" << outFilePath << "'" << slog::endl;
+        }
+        outFile.close();
     } catch (const std::exception& error) {
         slog::err << "" << error.what() << slog::endl;
         return 1;
