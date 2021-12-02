@@ -56,7 +56,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /src/zero_backend @ArtemySkrebkov-intel @mznamens
 #
 # SW Runtime kernels folder
-/sw_runtime_kernels @vmskv @esmirno
+/sw_runtime_kernels @vmskv @esmirno @nikita-kud
 #
 # Tests folder
 #
