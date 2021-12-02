@@ -16,7 +16,9 @@
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+
+#include "vpux/compiler/core/aliases_info.hpp"
+
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -89,6 +91,66 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
 }
 
 //
+// CopyToBlockArgument
+//
+
+class CopyToBlockArgument final : public mlir::OpRewritePattern<IERT::CopyOp> {
+public:
+    CopyToBlockArgument(mlir::MLIRContext* ctx, const AliasesInfo& aliasInfo, Logger log)
+            : mlir::OpRewritePattern<IERT::CopyOp>(ctx), _aliasInfo(aliasInfo), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::CopyOp copyOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    const AliasesInfo& _aliasInfo;
+    Logger _log;
+};
+
+mlir::LogicalResult CopyToBlockArgument::matchAndRewrite(IERT::CopyOp copyOp, mlir::PatternRewriter& rewriter) const {
+    if (!copyOp.output_buff().isa<mlir::BlockArgument>()) {
+        return mlir::failure();
+    }
+
+    auto inSourceMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
+    auto outSourceMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
+    if (inSourceMemory != outSourceMemory) {
+        return mlir::failure();
+    }
+
+    auto sourceOp = copyOp.input().getDefiningOp();
+    const auto sourceRoot = _aliasInfo.getRoot(copyOp.input());
+
+    if (sourceOp == nullptr || sourceRoot.isa<mlir::BlockArgument>()) {
+        // input also is block argument
+        return mlir::failure();
+    }
+
+    if (!isBufAllocOp(sourceRoot.getDefiningOp())) {
+        return mlir::failure();
+    }
+
+    if (sourceRoot.getType() != copyOp.output_buff().getType()) {
+        // TODO: It is necessary to rearrange the operations of type casting
+        return mlir::failure();
+    }
+
+    // Function outputs have to be an alias of the output buffer
+    _log.trace("Root of the copy operation input {0}", sourceRoot);
+    _log.trace("Reassign outputs from {0} to {1}", sourceRoot, copyOp.output_buff());
+
+    for (auto& use : llvm::make_early_inc_range(sourceRoot.getUses())) {
+        _log.nest().trace("Got user {0}", use.getOwner()->getName());
+        _log.nest().trace("Reassign {0} to {1}", use.get(), copyOp.output_buff());
+        use.set(copyOp.output_buff());
+    }
+
+    rewriter.replaceOp(copyOp, copyOp.input());
+    return mlir::success();
+}
+
+//
 // OptimizeCopiesPass
 //
 
@@ -108,9 +170,11 @@ private:
 
 void OptimizeCopiesPass::safeRunOnFunc() {
     auto& ctx = getContext();
+    auto& aliasInfo = getAnalysis<AliasesInfo>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<CopyOpSequence>(&ctx, _log);
+    patterns.insert<CopyToBlockArgument>(&ctx, aliasInfo, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

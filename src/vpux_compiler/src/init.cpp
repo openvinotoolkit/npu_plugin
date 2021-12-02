@@ -63,5 +63,6 @@ void vpux::registerDialects(mlir::DialectRegistry& registry) {
     registry.addTypeInterface<mlir::quant::QuantizationDialect, mlir::quant::CalibratedQuantizedType,
                               MemRefElementTypeModel>();
 
+    IERT::IERTDialect::setupExtraInterfaces(registry);
     VPUIP::VPUIPDialect::setupExtraInterfaces(registry);
 }

@@ -120,6 +120,14 @@ private:
 mlir::LogicalResult RemoveWait::matchAndRewrite(mlir::async::AwaitOp waitOp, OpAdaptor newArgs,
                                                 mlir::ConversionPatternRewriter& rewriter) const {
     VPUX_THROW_UNLESS(waitOp.result() != nullptr, "'async.await' Operation without result is not supported");
+
+    // Pure view like operation were replaced with DeclareTensorOp
+    // so the remaining Await ops have no users
+    if (waitOp.result().use_empty()) {
+        rewriter.eraseOp(waitOp);
+        return mlir::success();
+    }
+
     // If you faced with "'async.await' has more than one consumer" make sure you add your layer
     // into src/vpux_compiler/src/dialect/VPUIP/ops.cpp `redirectOpInterfacesForIE(...)`
     // and `redirectOpInterfacesForIERT(...)`
