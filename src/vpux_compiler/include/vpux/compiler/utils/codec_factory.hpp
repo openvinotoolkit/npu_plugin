@@ -13,20 +13,21 @@
 
 #pragma once
 
-#include "vpux/utils/core/logger.hpp"
-#include "vpux_compiler.hpp"
-
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Support/Timing.h>
-
-#include <flatbuffers/flatbuffers.h>
+#include <memory>
+#include <vector>
 
 namespace vpux {
-namespace VPUIP {
 
-flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                         const std::vector<PreProcessInfo>& preprocessInfo,
-                                         Logger log = Logger::global());
+class ICodec {
+public:
+    enum CompressionAlgorithm {
+        HUFFMAN_CODEC,
+        BITCOMPACTOR_CODEC,
+    };
+    virtual std::vector<uint8_t> compress(std::vector<uint8_t>& data) const = 0;
+    virtual ~ICodec(){};
+};
 
-}  // namespace VPUIP
+std::unique_ptr<ICodec> makeCodec(const ICodec::CompressionAlgorithm algo);
+
 }  // namespace vpux

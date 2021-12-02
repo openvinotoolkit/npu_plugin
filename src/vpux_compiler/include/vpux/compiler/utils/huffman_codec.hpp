@@ -13,20 +13,24 @@
 
 #pragma once
 
-#include "vpux/utils/core/logger.hpp"
-#include "vpux_compiler.hpp"
-
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Support/Timing.h>
-
-#include <flatbuffers/flatbuffers.h>
+#include <vector>
+#include "huffmanCodec.hpp"
+#include "vpux/compiler/utils/codec_factory.hpp"
 
 namespace vpux {
-namespace VPUIP {
 
-flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                         const std::vector<PreProcessInfo>& preprocessInfo,
-                                         Logger log = Logger::global());
+class HuffmanCodec final : public ICodec {
+public:
+    HuffmanCodec();
+    ~HuffmanCodec() = default;
+    HuffmanCodec(const HuffmanCodec&) = delete;
+    HuffmanCodec(const HuffmanCodec&&) = delete;
+    HuffmanCodec& operator=(const HuffmanCodec&) = delete;
+    HuffmanCodec& operator=(const HuffmanCodec&&) = delete;
+    std::vector<uint8_t> compress(std::vector<uint8_t>& data) const;
 
-}  // namespace VPUIP
+private:
+    mutable huffmanCodec _huffmanCodec;
+};
+
 }  // namespace vpux

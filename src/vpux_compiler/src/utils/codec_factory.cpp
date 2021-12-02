@@ -11,22 +11,21 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
-
-#include "vpux/utils/core/logger.hpp"
-#include "vpux_compiler.hpp"
-
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Support/Timing.h>
-
-#include <flatbuffers/flatbuffers.h>
+#include <vector>
+#include "vpux/compiler/utils/bit_compactor_codec.hpp"
+#include "vpux/compiler/utils/huffman_codec.hpp"
+#include "vpux/utils/core/error.hpp"
 
 namespace vpux {
-namespace VPUIP {
 
-flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                         const std::vector<PreProcessInfo>& preprocessInfo,
-                                         Logger log = Logger::global());
+std::unique_ptr<ICodec> makeCodec(const ICodec::CompressionAlgorithm algo) {
+    switch (algo) {
+    case ICodec::CompressionAlgorithm::HUFFMAN_CODEC:
+        return std::make_unique<vpux::HuffmanCodec>();
+    case ICodec::CompressionAlgorithm::BITCOMPACTOR_CODEC:
+        return std::make_unique<vpux::BitCompactorCodec>();
+    }
+    VPUX_THROW("vpux::makeCodec: unsupported compression algorithm");
+}
 
-}  // namespace VPUIP
 }  // namespace vpux

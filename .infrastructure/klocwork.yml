@@ -13,7 +13,7 @@ projects:
       - *default_view_filter
       - " -file:/onednn-plugin/"
     condition:
-      source_branch: releases/.*vpux.*
+      source_branch: master_vpux_ww48_bdk3
       os_type: linux
   openvino-kmb-release-windows:
     sync:
@@ -25,7 +25,7 @@ projects:
       - *default_view_filter
       - " -file:/onednn-plugin/"
     condition:
-      source_branch: releases/.*vpux.*
+      source_branch: master_vpux_ww48_bdk3
       os_type: windows
 
   openvino-kmb-linux:
@@ -38,7 +38,7 @@ projects:
       - *default_view_filter
       - " -file:/onednn-plugin/"
     condition:
-      source_branch: .*vpux.*
+      source_branch: master
       os_type: linux
   openvino-kmb-windows:
     sync:
@@ -50,7 +50,7 @@ projects:
       - *default_view_filter
       - " -file:/onednn-plugin/"
     condition:
-      source_branch: .*vpux.*
+      source_branch: master
       os_type: windows
 
   openvino-tbh-linux:

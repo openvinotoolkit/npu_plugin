@@ -265,3 +265,26 @@ func @WithReshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<
 
     // CHECK:  return %arg1 : memref<1x512xf16>
 }
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @AwaitWithoutUsers
+func @AwaitWithoutUsers(%arg0: memref<1x16x112x112xf16, #NHWC>, %arg1: memref<1x16x112x112xf16, #NHWC>, %arg2: memref<1x32x112x112xf16, #NHWC>) -> memref<1x32x112x112xf16, #NHWC> {
+    %t1, %f1 = async.execute -> !async.value<memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>> {
+        %1 = VPURT.DeclareBuffer "ProgrammableOutput" [0] <0> -> memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>
+        %2 = VPUIP.NNDMA {port = 0 : i64, set_crit = false, set_ord = true} inputs(%arg0 : memref<1x16x112x112xf16, #NHWC>) outputs(%1 : memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>) -> memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>
+        async.yield %2 : memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>
+    }
+
+    %t2, %f2 = async.execute [%t1] -> !async.value<memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>> {
+        %1 = VPURT.DeclareBuffer "ProgrammableOutput" [0] <437248> -> memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>
+        %2 = VPUIP.NNDMA {port = 0 : i64, set_crit = false, set_ord = true} inputs(%arg1 : memref<1x16x112x112xf16, #NHWC>) outputs(%1 : memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>) -> memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>
+        async.yield %2 : memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>
+    }
+
+    %1 = async.await %f1 : !async.value<memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>>
+    %2 = async.await %f2 : !async.value<memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>>
+    return %arg2 : memref<1x32x112x112xf16, #NHWC>
+}

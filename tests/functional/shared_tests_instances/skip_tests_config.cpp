@@ -122,9 +122,7 @@ private:
 std::string getCurrentTestName() {
     const auto* currentTestInfo = ::testing::UnitTest::GetInstance()->current_test_info();
     const auto currentTestName = currentTestInfo->test_case_name()
-                                + std::string(".") + currentTestInfo->name();
-    
-    std::cout << "NAME:" << currentTestName << std::endl;
+                                + std::string(".") + currentTestInfo->name();    
     return currentTestName;
 }
 

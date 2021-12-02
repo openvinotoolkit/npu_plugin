@@ -9,8 +9,8 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "kmb_test_tool.hpp"
 
-#include "vpux/utils/core/format.hpp"
 #include <common/functions.h>
+#include "vpux/utils/core/format.hpp"
 
 namespace LayerTestsUtils {
 
@@ -222,6 +222,13 @@ void KmbLayerTestsCommon::Validate() {
 }
 
 void KmbLayerTestsCommon::Run() {
+    LayerTestsUtils::PassRate::Statuses status = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()
+                                                         ? LayerTestsUtils::PassRate::Statuses::SKIPPED
+                                                         : LayerTestsUtils::PassRate::Statuses::CRASHED;
+    auto& summary = Summary::getInstance();
+    summary.setDeviceName(targetDevice);
+    summary.updateOPsStats(function, status);
+
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     functionRefs = ngraph::clone_function(*function);
 
@@ -231,6 +238,7 @@ void KmbLayerTestsCommon::Run() {
     const auto& testInfo = testing::UnitTest::GetInstance()->current_test_info();
     report.run(testInfo);
 
+    std::string errorMessage;
     try {
         if (envConfig.IE_KMB_TESTS_RUN_COMPILER) {
             std::cout << "KmbLayerTestsCommon::Compile" << std::endl;
@@ -316,10 +324,23 @@ void KmbLayerTestsCommon::Run() {
         } else {
             std::cout << "Skip KmbLayerTestsCommon::Validate() due to: " << runInferSkipReason << std::endl;
         }
+        status = LayerTestsUtils::PassRate::Statuses::PASSED;
     } catch (const KmbSkipTestException& e) {
         std::cout << "Skipping the test due to: " << e.what() << std::endl;
         report.skipped(testInfo);
         GTEST_SKIP() << "Skipping the test due to: " << e.what();
+    } catch (const std::exception& ex) {
+        status = LayerTestsUtils::PassRate::Statuses::FAILED;
+        errorMessage = ex.what();
+    } catch (...) {
+        status = LayerTestsUtils::PassRate::Statuses::FAILED;
+        errorMessage = "Unknown failure occurred.";
+    }
+
+    summary.updateOPsStats(function, status);
+    if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
+        std::cout << "Test has failed: " << errorMessage.c_str() << std::endl;
+        GTEST_FATAL_FAILURE_(errorMessage.c_str());
     }
 }
 

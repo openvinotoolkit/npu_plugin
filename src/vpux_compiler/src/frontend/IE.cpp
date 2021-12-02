@@ -29,6 +29,7 @@
 #include "vpux/passes/fuse_scale_in_previous_weights_fq.hpp"
 #include "vpux/passes/fuse_scaleshift.hpp"
 #include "vpux/passes/propagate_fq.hpp"
+#include "vpux/passes/remove_NV12_conversion.hpp"
 #include "vpux/passes/remove_split_concat.hpp"
 #include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
 
@@ -2081,7 +2082,8 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     manager.register_pass<ngraph::pass::StridesOptimization>();
 }
 
-void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::TimingScope& rootTiming) {
+void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, std::vector<vpux::PreProcessInfo>& preProcInfo,
+                     mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Common nGraph passes");
 
     const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
@@ -2118,6 +2120,8 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
     manager.register_pass<vpux::passes::ConvertVariadicSplitToStridedSliceOp>();
     manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
+    manager.register_pass<vpux::pass::RemoveNV12Conversion<ov::op::v8::NV12toBGR>>(preProcInfo);
+    manager.register_pass<vpux::pass::RemoveNV12Conversion<ov::op::v8::NV12toRGB>>(preProcInfo);
 
     manager.run_passes(netGraph);
 }
@@ -2175,6 +2179,7 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
 //
 
 std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CNNNetwork& cnnNet,
+                                                       std::vector<PreProcessInfo>& preProcInfo,
                                                        mlir::TimingScope& rootTiming, Logger log) {
     log.setName("IE::FrontEnd");
     log.trace("Run queryNetwork");
@@ -2183,7 +2188,7 @@ std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CN
     VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
 
     log.trace("Run common nGraph passes");
-    runNGraphPasses(netGraph, rootTiming);
+    runNGraphPasses(netGraph, preProcInfo, rootTiming);
 
     log.trace("Get supported operations list");
     return NGraphImporter::getSupportedOps(netGraph);
@@ -2194,8 +2199,8 @@ std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CN
 //
 
 mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet,
-                                              bool sharedConstants, mlir::TimingScope& rootTiming, bool enableProfiling,
-                                              Logger log) {
+                                              std::vector<PreProcessInfo>& preProcInfo, bool sharedConstants,
+                                              mlir::TimingScope& rootTiming, bool enableProfiling, Logger log) {
     log.setName("IE::FrontEnd");
 
     log.trace("Load IE::FrontEnd dependent Dialects");
@@ -2205,7 +2210,7 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
     VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
 
     log.trace("Run common nGraph passes");
-    runNGraphPasses(netGraph, rootTiming);
+    runNGraphPasses(netGraph, preProcInfo, rootTiming);
 
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef(cnnNet.getName()));
     const auto mainFuncName = mlir::FlatSymbolRefAttr::get(ctx, "main");

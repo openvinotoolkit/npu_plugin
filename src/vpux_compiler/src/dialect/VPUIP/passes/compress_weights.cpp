@@ -11,10 +11,10 @@
 // included with the Software Package for additional details.
 //
 
-#include "bitCompactor.h"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/utils/codec_factory.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/core/numeric.hpp"
@@ -22,66 +22,6 @@
 using namespace vpux;
 
 namespace {
-
-class BitCompactorCodec {
-public:
-    BitCompactorCodec();
-    std::vector<uint8_t> compress(std::vector<uint8_t>& data) const;
-
-private:
-    // Classified mutable because BitCompactor::btcmpctr_cmprs_bound is non-constant.
-    // FIXME Make the method constant in bitcompactor repository.
-    mutable BitCompactor _bitCompactor;
-};
-
-BitCompactorCodec::BitCompactorCodec(): _bitCompactor() {
-    _bitCompactor.mBitCompactorConfig->blockSize = 64;
-    _bitCompactor.mBitCompactorConfig->superBlockSize = 4096;
-    _bitCompactor.mBitCompactorConfig->minFixedBitLn = 3;
-    _bitCompactor.mBitCompactorConfig->cmprs = 1;
-    _bitCompactor.mBitCompactorConfig->bypass_en = false;
-    _bitCompactor.mBitCompactorConfig->dual_encode_en = true;
-    _bitCompactor.mBitCompactorConfig->proc_bin_en = false;
-    _bitCompactor.mBitCompactorConfig->proc_btmap_en = false;
-    _bitCompactor.mBitCompactorConfig->mixedBlkSize = false;
-    _bitCompactor.mBitCompactorConfig->align = 1;
-    _bitCompactor.mBitCompactorConfig->ratio = false;
-    _bitCompactor.mBitCompactorConfig->verbosity = 0;  // set between 0-5,
-                                                       // 0 shows basic info,
-                                                       // 3 shows Metadata and some other useful stuff,
-                                                       // 5 shows all available info
-}
-
-std::vector<uint8_t> BitCompactorCodec::compress(std::vector<uint8_t>& data) const {
-    VPUX_THROW_UNLESS(!data.empty(), "BitCompactorCodec::compress: Empty input data vector");
-
-    BitCompactor::btcmpctr_compress_wrap_args_t btcArgs;
-
-    btcArgs.bypass_en = _bitCompactor.mBitCompactorConfig->bypass_en;
-    btcArgs.dual_encode_en = _bitCompactor.mBitCompactorConfig->dual_encode_en;
-    btcArgs.proc_bin_en = _bitCompactor.mBitCompactorConfig->proc_bin_en;
-    btcArgs.proc_btmap_en = _bitCompactor.mBitCompactorConfig->proc_btmap_en;
-    btcArgs.align = _bitCompactor.mBitCompactorConfig->align;
-    btcArgs.verbosity = _bitCompactor.mBitCompactorConfig->verbosity;
-    btcArgs.SblkSize = _bitCompactor.mBitCompactorConfig->blockSize;
-    btcArgs.LblkSize = _bitCompactor.mBitCompactorConfig->superBlockSize;
-    btcArgs.mixedBlkSize = _bitCompactor.mBitCompactorConfig->mixedBlkSize;
-    btcArgs.minFixedBitLn = _bitCompactor.mBitCompactorConfig->minFixedBitLn;
-
-    auto uncompressedDataSize = checked_cast<int32_t>(data.size());
-    auto compressedBufferSizeBound = _bitCompactor.btcmpctr_cmprs_bound(uncompressedDataSize);
-
-    std::vector<uint8_t> compressedDataBuffer(compressedBufferSizeBound, 0);
-    auto compressedSize = _bitCompactor.CompressArray(data.data(), uncompressedDataSize, compressedDataBuffer.data(),
-                                                      compressedBufferSizeBound, &btcArgs);
-    // Trim trailing bytes.
-    compressedDataBuffer.resize(compressedSize);
-
-    // sometimes even if the tensor is > 4KB it might not be compressable
-    VPUX_THROW_UNLESS(uncompressedDataSize >= compressedSize, "BitCompactorCodec::compress: Compression failed.");
-
-    return compressedDataBuffer;
-}
 
 //
 // CompressWeightsPass
@@ -103,8 +43,8 @@ private:
 
 class NNDMAOpConverter final : public mlir::OpRewritePattern<VPUIP::NNDMAOp> {
 public:
-    NNDMAOpConverter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<VPUIP::NNDMAOp>(ctx), _log(log), _codec() {
+    NNDMAOpConverter(mlir::MLIRContext* ctx, const ICodec::CompressionAlgorithm& algo, Logger log)
+            : mlir::OpRewritePattern<VPUIP::NNDMAOp>(ctx), _log(log), _codec(vpux::makeCodec(algo)) {
     }
 
 public:
@@ -112,7 +52,7 @@ public:
 
 private:
     Logger _log;
-    const BitCompactorCodec _codec;
+    const std::unique_ptr<ICodec> _codec;
 };
 
 mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mlir::PatternRewriter& rewriter) const {
@@ -143,7 +83,10 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
     const auto buf = makeMutableArrayRef(reinterpret_cast<char*>(dataVec.data()), totalByteSize);
     content.copyTo(buf);
 
-    auto compressedData = _codec.compress(dataVec);
+    const auto compressedData = _codec->compress(dataVec);
+    if (compressedData.empty()) {
+        return mlir::failure();
+    }
 
     auto origDstTensor = declareTensorOp;
     const auto location = origDstTensor.locale();
@@ -183,17 +126,15 @@ void CompressWeightsPass::safeRunOnFunc() {
     auto func = getFunction();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
-    if (arch != VPU::ArchKind::MTL) {
-        _log.trace("Weights compression is supported only for MTL");
-        return;
-    }
     // FIXME enable compression via attribute
+    const auto algo = (arch == VPU::ArchKind::MTL) ? ICodec::CompressionAlgorithm::BITCOMPACTOR_CODEC
+                                                   : ICodec::CompressionAlgorithm::HUFFMAN_CODEC;
 
     _log.trace("VPUIP CompressWeightsPass");
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<NNDMAOpConverter>(&ctx, _log);
+    patterns.insert<NNDMAOpConverter>(&ctx, algo, _log);
 
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), vpux::getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();

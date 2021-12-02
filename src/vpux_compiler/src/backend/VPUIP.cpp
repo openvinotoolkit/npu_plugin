@@ -29,6 +29,7 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/numeric.hpp"
+#include "vpux/utils/core/preprocessing.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
@@ -289,9 +290,27 @@ MVCNN::TargetDeviceRevision mapTargetDeviceRevision(VPU::ArchKind kind) {
     }
 }
 
+const EnumMap<vpux::PreProcessColorSpace, MVCNN::PreProcessColorSpace> mapPreProcessColorFormat = {
+        {vpux::PreProcessColorSpace::BGR, MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR},
+        {vpux::PreProcessColorSpace::RGB, MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB},
+        {vpux::PreProcessColorSpace::NV12, MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12},
+        {vpux::PreProcessColorSpace::I420, MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420},
+        {vpux::PreProcessColorSpace::NONE, MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT},
+};
+
+const EnumMap<vpux::PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm> mapPreProcessResizeAlgorithm = {
+        {vpux::PreProcessResizeAlgorithm::RESIZE_BILINEAR,
+         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR},
+        {vpux::PreProcessResizeAlgorithm::RESIZE_AREA,
+         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA},
+        {vpux::PreProcessResizeAlgorithm::NO_RESIZE,
+         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE},
+};
+
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
                                                               IE::CNNNetworkOp netOp, mlir::FuncOp netFunc,
                                                               bool withDynamicBarriers, mlir::TimingScope& rootTiming,
+                                                              const std::vector<vpux::PreProcessInfo>& preprocessInfo,
                                                               Logger log) {
     auto scopeTiming = rootTiming.nest("Create summary header");
 
@@ -354,6 +373,15 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
                 writer.createTensor(val, p.value().name(), VPUIP::MemoryLocation::ProfilingOutput, ind, 0));
     }
 
+    SmallVector<VPUIP::BlobWriter::PreprocessingInfo> preprocInfo;
+    preprocInfo.reserve(preprocessInfo.size());
+
+    for (const auto& pr : preprocessInfo) {
+        preprocInfo.push_back(MVCNN::CreatepreprocessingInfo(
+                writer, writer.createString(pr._inputName), mapPreProcessColorFormat.at(pr._inputFormat),
+                mapPreProcessColorFormat.at(pr._outputFormat), mapPreProcessResizeAlgorithm.at(pr._algorithm)));
+    }
+
     SmallVector<int8_t> options;
     if (withDynamicBarriers) {
         options.push_back(static_cast<int8_t>(MVCNN::ExecutionFlag_DynamicBarriers));
@@ -368,6 +396,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     const auto serializedGraphProfilingOutputs = writer.createVector(graphProfilingOutputs);
     const auto serializedUserOutputs = writer.createVector(userOutputs);
     const auto serializedResources = createResources(writer, module);
+    const auto serializedPreProcInfo = writer.createVector(preprocInfo);
     const auto serializedActKernelsRuntime = createActKernelRuntime(writer, module, netFunc, log);
 
     MVCNN::SummaryHeaderBuilder builder(writer);
@@ -381,6 +410,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     builder.add_resources(serializedResources);
     builder.add_in_tensor_desc(serializedUserInputs);
     builder.add_out_tensor_desc(serializedUserOutputs);
+    builder.add_pre_process_info(serializedPreProcInfo);
     builder.add_device(mapTargetDevice(VPU::getArch(module)));
     builder.add_device_revision(mapTargetDeviceRevision(VPU::getArch(module)));
     builder.add_act_kernel_runtime(serializedActKernelsRuntime);
@@ -532,6 +562,7 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
 }  // namespace
 
 flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                                                      const std::vector<vpux::PreProcessInfo>& preprocessInfo,
                                                       Logger log) {
     log.setName("VPUIP::BackEnd");
 
@@ -544,7 +575,8 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     const auto withDynamicBarriers = !netFunc.getOps<VPURT::DeclareVirtualBarrierOp>().empty();
 
-    const auto header = createSummaryHeader(writer, module, netOp, netFunc, withDynamicBarriers, rootTiming, log);
+    const auto header =
+            createSummaryHeader(writer, module, netOp, netFunc, withDynamicBarriers, rootTiming, preprocessInfo, log);
 
     serializeTensorDecls(writer, netFunc, rootTiming);
     const auto binaryData = serializeBinaryData(writer, netFunc, rootTiming, log);
