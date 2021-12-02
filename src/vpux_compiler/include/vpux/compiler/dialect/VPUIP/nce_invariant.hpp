@@ -62,7 +62,7 @@ public:
                                                   mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyPrefetchCMX(IE::ConvolutionOp origOp, vpux::OutputTiling tiling,
-                                                 Logger log = Logger::global(), size_t nPipeline = 2);
+                                                 Logger log = Logger::global());
 
 
 public:
