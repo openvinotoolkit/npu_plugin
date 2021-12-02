@@ -15,6 +15,7 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -152,23 +153,13 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 1);
 
     // DMAs
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
                                                 loc, funcinput, inputcmx.getOperation()->getResult(0), false);
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
                                                 loc, weight_data_ddr.getOperation()->getResult(0),
                                                 wtData_cmx.getOperation()->getResult(0), false);
 
     // Activation Window ddr
-    //    SmallVector<int64_t> sparsity_shape;
-    //    mlir::Type sparsity_type = getUInt8Type(builder.getContext());
-    //    bool isOutFloat = false;
-    //    if (outputType.isBF16() || outputType.isF16()) {
-    //        isOutFloat = true;
-    //    }
-    //    mlir::IntegerAttr actChannelLength;
-    //    auto sparsityAttr = getactivationWindow(builder, filter_size, stried_vec, out_shape[1], in_shape[1],
-    //    sparsity_type,
-    //                                            sparsity_shape, actChannelLength, isOutFloat, false, true);
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
             makeArrayRef(filter_size), stried_vec[0],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
@@ -188,10 +179,6 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, sparsity_type);
     const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
 
-    //    auto activationWindow_ddr_memSpaceAttr =
-    //            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    //    auto activationWindowAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(),
-    //    Shape(sparsity_shape));
     auto activationWindow_ddr_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::GraphFile, sparsity_shape,
                                                    sparsity_type, DimsOrder::NHWC);
     auto activationWindow_ddr =
@@ -208,7 +195,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                                /*data idx=*/ACTIVATIONWINDOW_CMX_OFFSET);
 
     // activation window dma ddr->cmx
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
                                                 loc, activationWindow_ddr.getOperation()->getResult(0),
                                                 actWindow_cmx.getOperation()->getResult(0), false);
 
@@ -219,9 +206,6 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
-    //    const std::vector<int32_t> wtTbl_data_values_vec = generateWeightsTablesValuesWithSparsity(
-    //            testDesc, inputcmx_type, outputcmx_type, wtData_cmx_type, actWindow_cmx_type,
-    //            ACTIVATIONWINDOW_CMX_OFFSET, wtTbl_data_shape, WEIGHTS_CMX_OFFSET);
     auto weights_outChannel = wtData_cmx_type.getShape()[0];
     auto weights_set_size =
             wtData_cmx_type.getShape()[1] * wtData_cmx_type.getShape()[2] * wtData_cmx_type.getShape()[3];
@@ -236,8 +220,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     const std::vector<int32_t> wtTbl_data_values_vec = vpux::VPUIP::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<int32_t>(WEIGHTS_CMX_OFFSET), static_cast<int32_t>(weights_set_nbytes),
-            static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), vpux::VPUIP::ArchKind::MTL, weights_outChannel,
-            weightsType);
+            static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), VPU::ArchKind::MTL, weights_outChannel, weightsType);
 
     auto wtTbl_data_values = makeArrayRef<int32_t>(wtTbl_data_values_vec);
     auto wtTbl_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_data_values);
@@ -254,7 +237,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                            /*data idx=*/WEIGHTSTABLE_CMX_OFFSET);
 
     // weights table dma ddr->cmx
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
                                                 loc, weightTbl_data_ddr.getOperation()->getResult(0),
                                                 wtTbl_cmx.getOperation()->getResult(0), false);
 
@@ -263,7 +246,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     auto strides = getIntArrayAttr(builder, stried_vec);
     auto kernel_padding = getIntArrayAttr(builder, padding_vec);
 
-    auto nceTask = vpux::VPURT::WrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
+    auto nceTask = vpux::VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
             outputcmx_type, inputcmx.getOperation()->getResult(0), wtData_cmx.getOperation()->getResult(0),
             wtTbl_cmx.getOperation()->getResult(0), actWindow_cmx.getOperation()->getResult(0),
@@ -290,7 +273,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     /* auto dpuTask = */ variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad,
                                                                  VPUIP::MPEMode::CUBOID_8x16);
 
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
                                                 loc, outputcmx.getOperation()->getResult(0), funcoutput, false);
 
     // TODO : return empty as func does not return anything
@@ -298,7 +281,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     // set runtime resources
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPUIP::createSetCompileParamsPass(VPUIP::ArchKind::MTL, VPUIP::CompilationMode::DefaultHW, None, log));
+    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::DefaultHW, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
