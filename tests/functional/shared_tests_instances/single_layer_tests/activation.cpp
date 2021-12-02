@@ -88,6 +88,8 @@ class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
     void SkipBeforeLoad() override {
 #if defined(__arm__) || defined(__aarch64__)
         throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM.");
+#else
+        return;
 #endif
     }
     void SkipBeforeInfer() override {
