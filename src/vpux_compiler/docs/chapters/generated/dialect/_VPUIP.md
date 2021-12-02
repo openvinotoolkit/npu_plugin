@@ -316,6 +316,40 @@ operation ::= `VPUIP.ConvolutionUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.CoshUPA` (vpux::VPUIP::CoshUPAOp)
+
+Cosh UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.CoshUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.DPUTask` (vpux::VPUIP::DPUTaskOp)
 
 This object represents workload for a single DPU tile

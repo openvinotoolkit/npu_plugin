@@ -383,6 +383,21 @@ def RewriteSqrt :
         >;
 
 //
+// IERT.Cosh -> VPUIP.CoshUPA
+//
+
+def createCoshUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::CoshUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteCosh :
+        Pat<
+            (IERT_CoshOp $input, $output),
+            (createCoshUPAOp $input, $output)
+        >;
+
+//
 // IERT.Log -> VPUIP.LogUPA
 //
 

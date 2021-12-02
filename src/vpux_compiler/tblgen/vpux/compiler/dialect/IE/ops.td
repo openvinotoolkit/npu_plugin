@@ -1305,6 +1305,29 @@ def IE_SqrtOp :
 }
 
 //
+// CoshOp
+//
+
+def IE_CoshOp :
+        IE_LayerOp<
+            "Cosh",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Cosh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // LogOp
 //
 

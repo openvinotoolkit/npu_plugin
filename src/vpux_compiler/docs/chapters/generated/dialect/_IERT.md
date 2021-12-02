@@ -500,6 +500,34 @@ operation ::= `IERT.Copy` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
+### `IERT.Cosh` (vpux::IERT::CoshOp)
+
+InferenceEngine run-time Cosh layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Cosh` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Dequantize` (vpux::IERT::DequantizeOp)
 
 InferenceEngine run-time Dequantize layer

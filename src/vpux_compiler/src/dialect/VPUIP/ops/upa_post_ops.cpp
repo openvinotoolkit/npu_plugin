@@ -252,6 +252,26 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SqrtUPAOp::serialize(VPUIP::BlobWri
 }
 
 //
+// Cosh
+//
+
+void vpux::VPUIP::CoshUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                   mlir::Value output) {
+    build(builder, state, input, output, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CoshUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto cosh = MVCNN::CreateCoshParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_CoshParams);
+    builder.add_nested_params(cosh.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
 // LogUPAOp
 //
 
@@ -509,6 +529,9 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
         break;
     case MVCNN::PostOpsNestedParams_SqrtParams:
         op = builder.create<VPUIP::SqrtUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_CoshParams:
+        op = builder.create<VPUIP::CoshUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
     case MVCNN::PostOpsNestedParams_LogParams:
         op = builder.create<VPUIP::LogUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);

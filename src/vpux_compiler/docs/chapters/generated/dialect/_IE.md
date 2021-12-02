@@ -455,6 +455,30 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
+### `IE.Cosh` (vpux::IE::CoshOp)
+
+InferenceEngine Cosh layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Cosh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.DataInfo` (vpux::IE::DataInfoOp)
 
 Information about InferenceEngine CNN Network input/output Data object
