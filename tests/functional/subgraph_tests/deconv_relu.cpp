@@ -3,6 +3,7 @@
 //
 
 #include "kmb_layer_test.hpp"
+#include "common/functions.h"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -13,6 +14,12 @@
 namespace {
 
 class KmbDeconvReluTest : public LayerTestsUtils::KmbLayerTestsCommon {
+    // [Track number: E#26428]
+    void SkipBeforeLoad() override {
+        if (getBackendName(*getCore()) == "VPUAL") {
+            throw LayerTestsUtils::KmbSkipTestException("LoadNetwork throws an exception");
+        }
+    }
     void ConfigureNetwork() override {
         cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
         cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);

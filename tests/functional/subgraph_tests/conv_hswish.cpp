@@ -3,6 +3,7 @@
 //
 
 #include "kmb_layer_test.hpp"
+#include "common/functions.h"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -11,6 +12,12 @@
 namespace {
 
 class KmbConvHSwishTest : public LayerTestsUtils::KmbLayerTestsCommon {
+    // [Track number: E#26428]
+    void SkipBeforeLoad() override {
+        if (getBackendName(*getCore()) == "VPUAL") {
+            throw LayerTestsUtils::KmbSkipTestException("LoadNetwork throws an exception");
+        }
+    }
     void SkipBeforeValidate() override {
         if (envConfig.IE_KMB_TESTS_RUN_INFER) {
             throw LayerTestsUtils::KmbSkipTestException("Interpreter backend doesn't implement evaluate"

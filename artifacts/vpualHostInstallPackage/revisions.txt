@@ -1,2 +1,2 @@
-tag:ci_tag_vpual_release_21ww38.2.1
-commit:1b9f78c02c712ebde6330a8f9a837ae5ade5d894
+tag:vpual-nightly-KMB-20211118
+commit:ba43c987f1268e9fea73fc37f85c8c670c85ea45

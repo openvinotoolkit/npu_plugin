@@ -243,6 +243,15 @@ std::vector<std::string> disabledTestPatterns() {
             }
         );
 
+        // TODO: [Track number: E#26428]
+        _skipRegistry.addPatterns(
+            platform.isARM(),
+            "LoadNetwork throws an exception",
+            {
+                ".*KmbGatherLayerTest.CompareWithRefs/.*",
+            }
+        );
+
         return _skipRegistry;
     }();
 
