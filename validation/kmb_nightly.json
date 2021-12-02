@@ -323,8 +323,9 @@
         },
 
         {
-            "name" : "BDK_tf_FP16-INT8_yolo_v4_tiny",
-            "ir" : "models/clientmodels/BDK3/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
+            "name" : "por_tf_FP16-INT8_yolo_v4_tiny",
+            "oldName" : "BDK_tf_FP16-INT8_yolo_v4_tiny_MLIR",
+            "ir" : "por/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
             "category" : "MLIR/precommit",
             "3720": {
                 "disabled" : true
@@ -349,7 +350,7 @@
             },
             "AccuracyCheck" : {
                 "config": "yolo_v4_tiny_tf.yml",
-                "subsample_size": 10
+                "subsample_size": 100
             },
             "CI-options" : {
                 "blob_name" : "yolo_v4_tiny_MLIR"
