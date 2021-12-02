@@ -15,8 +15,10 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -74,12 +76,13 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
 
     SmallVector<mlir::Type> inputTypes;
-    inputTypes.push_back(
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, DimsOrder::NHWC));
-    auto memSpaceAttr_out =
-            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableOutput);
-    auto outputParamType =
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, DimsOrder::NHWC);
+    inputTypes.push_back(getMemRefType(builder, VPUIP::getMemoryKind(VPUIP::MemoryLocation::ProgrammableInput),
+                                       in_shape, inputType, DimsOrder::NHWC));
+    //    auto memSpaceAttr_out =
+    //            VPUIP::MemoryLocationAttr::get(builder.getContext(),
+    //            VPUIP::getMemoryKind(VPUIP::MemoryLocation::ProgrammableOutput));
+    auto outputParamType = getMemRefType(builder, VPUIP::getMemoryKind(VPUIP::MemoryLocation::ProgrammableOutput),
+                                         out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
@@ -95,14 +98,14 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     // input - output cmx tensors
 
-    auto inputcmx_type =
-            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, DimsOrder::NHWC);
+    auto inputcmx_type = getMemRefType(funcbuilder, VPUIP::getMemoryKind(VPUIP::MemoryLocation::VPU_CMX_NN), in_shape,
+                                       inputType, DimsOrder::NHWC);
     auto inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT_CMX_OFFSET);
 
     auto outputcmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(funcbuilder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    auto outputcmx_type =
-            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, DimsOrder::NHWC);
+    auto outputcmx_type = getMemRefType(funcbuilder, VPUIP::getMemoryKind(VPUIP::MemoryLocation::VPU_CMX_NN), out_shape,
+                                        outputType, DimsOrder::NHWC);
     auto outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
 
     auto parent_inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT_CMX_OFFSET);
@@ -113,7 +116,7 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 1);
 
     // DMAs
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
                                                 loc, funcinput, inputcmx.getOperation()->getResult(0), false);
 
     // NCE Task
@@ -121,7 +124,7 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto strides = getIntArrayAttr(funcbuilder, stride_vec);
     auto kernel_padding = getIntArrayAttr(funcbuilder, padding_vec);
 
-    auto nceTask = vpux::VPURT::WrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
+    auto nceTask = vpux::VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
             outputcmx_type, inputcmx.getOperation()->getResult(0), mlir::Value(), mlir::Value(), mlir::Value(),
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
@@ -148,14 +151,14 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     // the hardware; this corresponds to CUBOID_16x16.
     variantbuilder.create<VPUIP::DPUTaskOp>(loc, start, end, pad, VPUIP::MPEMode::CUBOID_16x16);
 
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
                                                 loc, outputcmx.getOperation()->getResult(0), funcoutput, false);
 
     funcbuilder.create<mlir::ReturnOp>(loc, funcoutput);
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPUIP::createSetCompileParamsPass(VPUIP::ArchKind::MTL, VPUIP::CompilationMode::DefaultHW, None, log));
+    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::DefaultHW, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

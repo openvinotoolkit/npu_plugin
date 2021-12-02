@@ -11,7 +11,6 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
@@ -114,7 +113,7 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
 
 namespace {
 
-mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind arch) {
+mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::CONV, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::CONV, op.task_type());
 
@@ -177,13 +176,13 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind ar
     return mlir::success();
 }
 
-mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind arch) {
+mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::AVEPOOL || op.task_type() == VPUIP::NCETaskType::MAXPOOL,
                       "Expected task type '{0}' or '{1}', but got '{2}'", VPUIP::NCETaskType::AVEPOOL,
                       VPUIP::NCETaskType::MAXPOOL, op.task_type());
 
     // MTL hw doesn't require weights table and activation window for max/average pool ops
-    if (arch != VPUIP::ArchKind::MTL) {
+    if (arch != VPU::ArchKind::MTL) {
         if (op.weight_table() == nullptr) {
             return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
         }
@@ -231,7 +230,7 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind ar
     return mlir::success();
 }
 
-mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind) {
+mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op, VPU::ArchKind) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::ELTWISE, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::ELTWISE, op.task_type());
 
@@ -255,7 +254,7 @@ mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind
     return mlir::success();
 }
 
-mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op, VPUIP::ArchKind arch) {
+mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::DWCONV, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::CONV, op.task_type());
 

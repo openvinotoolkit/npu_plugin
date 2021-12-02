@@ -15,7 +15,6 @@
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -510,7 +509,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::GroupConvolutionO
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, int64_t KY, int64_t KX, int64_t SY,
                                                             int64_t SX, int64_t padTop, int64_t padBottom,
-                                                            int64_t padLeft, int64_t padRight, ArchKind arch,
+                                                            int64_t padLeft, int64_t padRight, VPU::ArchKind arch,
                                                             Logger log) {
     log.setName("NCEInvariant");
 
@@ -528,7 +527,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
         return mlir::failure();
     }
 
-    if (SX != SY && arch != VPUIP::ArchKind::MTL) {
+    if (SX != SY && arch != VPU::ArchKind::MTL) {
         log.trace("[{0}] Asymmetric strides are not supported", loc);
         return mlir::failure();
     }
@@ -591,7 +590,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::ConvolutionOp or
     const auto padLeft = padsBegin[1];
     const auto padRight = padsEnd[1];
 
-    const auto arch = VPUIP::getArch(origOp->getParentOfType<mlir::ModuleOp>());
+    const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
     return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, arch, log);
 }
 
@@ -623,7 +622,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::ConvolutionOp 
     const auto padLeft = padsBegin[1];
     const auto padRight = padsEnd[1];
 
-    const auto arch = VPUIP::getArch(origOp->getParentOfType<mlir::ModuleOp>());
+    const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
     return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, arch, log);
 }
 
@@ -653,7 +652,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::MaxPoolOp origOp
     const auto padLeft = padsBegin[1];
     const auto padRight = padsEnd[1];
 
-    const auto arch = VPUIP::getArch(origOp->getParentOfType<mlir::ModuleOp>());
+    const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
     return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, arch, log);
 }
 
@@ -683,7 +682,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MaxPoolOp orig
     const auto padLeft = padsBegin[1];
     const auto padRight = padsEnd[1];
 
-    const auto arch = VPUIP::getArch(origOp->getParentOfType<mlir::ModuleOp>());
+    const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
     return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, arch, log);
 }
 
@@ -843,7 +842,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolution
     const auto padLeft = padsBegin[1];
     const auto padRight = padsEnd[1];
 
-    const auto arch = VPUIP::getArch(origOp->getParentOfType<mlir::ModuleOp>());
+    const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
     return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, arch, log);
 }
 
@@ -885,7 +884,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::GroupConvoluti
     const auto padLeft = padsBegin[1];
     const auto padRight = padsEnd[1];
 
-    const auto arch = VPUIP::getArch(origOp->getParentOfType<mlir::ModuleOp>());
+    const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
     return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, arch, log);
 }
 

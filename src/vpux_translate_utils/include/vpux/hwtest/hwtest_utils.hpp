@@ -88,6 +88,9 @@ vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPU
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::MemRefType type,
                                                    VPUIP::MemoryLocation memLocation, int locale, size_t offset);
 
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::MemRefType type, int locale,
+                                                   size_t offset);
+
 mlir::OpResult getTensorResult(VPURT::DeclareBufferOp op);
 
 mlir::OpResult getConstResult(vpux::Const::DeclareOp op);

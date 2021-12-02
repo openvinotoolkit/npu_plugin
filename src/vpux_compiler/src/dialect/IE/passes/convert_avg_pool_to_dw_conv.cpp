@@ -15,7 +15,6 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -129,7 +128,7 @@ void ConvertAvgPoolToDWConvPass::safeRunOnFunc() {
         const auto padRight = padsEnd[1];
 
         // The logic is reversed here. If AvgPoolOp can be represented as an NCE task, it becomes illegal.
-        const auto arch = VPUIP::getArch(origOp->getParentOfType<mlir::ModuleOp>());
+        const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
         return mlir::failed(VPUIP::NCEInvariant::verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom,
                                                               padLeft, padRight, arch));
     };

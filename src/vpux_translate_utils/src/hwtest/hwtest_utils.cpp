@@ -284,6 +284,12 @@ vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mli
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, memLocation, locale, offset);
 }
 
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::MemRefType type, int locale,
+                                                   size_t offset) {
+    return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type,
+                                                  VPUIP::getMemoryLocation(VPU::getMemoryKind(type)), locale, offset);
+}
+
 mlir::OpResult getTensorResult(VPURT::DeclareBufferOp op) {
     return op.getOperation()->getResult(0);
 }
