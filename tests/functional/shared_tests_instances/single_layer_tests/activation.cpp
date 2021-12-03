@@ -85,7 +85,6 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
     }
 };
 
-
 class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
     void SkipBeforeLoad() override {
 #if defined(__arm__) || defined(__aarch64__)
@@ -99,7 +98,6 @@ class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
         throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
     }
 };
-
 
 TEST_P(KmbActivationLayerTest, CompareWithRefs) {
     Run();
@@ -253,7 +251,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_PRelu, KmbActivationLayerTest, ba
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_ND, KmbActivationLayerTest, basicNDCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_FP16Only, KmbActivationLayerTest, basicFP16OnlyCases, ActivationLayerTest::getTestCaseName);
-
 
 // ------ MTL ------
 
