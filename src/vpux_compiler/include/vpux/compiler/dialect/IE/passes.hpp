@@ -58,15 +58,8 @@ std::unique_ptr<mlir::Pass> createConvertConv1DToConv2DPass(Logger log = Logger:
 // HW related passes
 //
 
-std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertScaleShiftToDWPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertToMemPermutePass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createUnrollBatchPass(Logger log = Logger::global());
 
 //
 // Low precision transformations.
@@ -84,6 +77,19 @@ std::unique_ptr<mlir::Pass> createFuseQuantizedOpsPass(Logger log = Logger::glob
 std::unique_ptr<mlir::Pass> createConvertWeightsToU8Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseConvertWithQuantizePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = Logger::global());
+
+//
+// Legalization for NCE
+//
+
+std::unique_ptr<mlir::Pass> createUnrollBatchPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createMatMulInputsTo2dPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertScaleShiftToDWPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
 
 //
 // Tiling

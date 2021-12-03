@@ -24,7 +24,8 @@ class KmbMatMulLayerTest : public MatMulTest, virtual public LayerTestsUtils::Km
 
         if (isCompilerMCM()) {
             if (shapeRelatedParams.input1.first == InferenceEngine::SizeVector({1, 16}) ||
-                shapeRelatedParams.input1.first == InferenceEngine::SizeVector({2, 16})) {
+                shapeRelatedParams.input1.first == InferenceEngine::SizeVector({2, 16}) ||
+                shapeRelatedParams.input1.first.size() > 2) {
                 throw LayerTestsUtils::KmbSkipTestException("Unsupported MCM case");
             }
         } else {
@@ -78,6 +79,9 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {{{{1, 4, 5, 6}, fals
 const std::vector<ShapeRelatedParams> fullyConnectedShapeParams = {
     {{{1, 16}, false}, {{64, 16}, true}},
     {{{2, 16}, false}, {{64, 16}, true}},
+    {{{1, 16}, false}, {{16, 64}, false}},
+    {{{2, 1, 512}, false}, {{2, 40, 512}, true}},
+    {{{1, 8, 4, 64}, false}, {{1, 8, 64, 76}, false}},
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
