@@ -293,13 +293,13 @@ class Runtime_Barrier_Simulation_Checker {
       level_sets_.clear();
       build_degree_table();
 
-      std::cout << "indegree" << std::endl;
-      for(auto& op: in_degree_map_)
-        std::cout << op.first->getName() << " " << op.second << std::endl;
+      // std::cout << "indegree" << std::endl;
+      // for(auto& op: in_degree_map_)
+      //   std::cout << op.first->getName() << " " << op.second << std::endl;
 
-      std::cout << "outdegree" << std::endl;
-      for(auto& op: out_degree_map_)
-        std::cout << op.first->getName() << " " << op.second << std::endl;
+      // std::cout << "outdegree" << std::endl;
+      // for(auto& op: out_degree_map_)
+      //   std::cout << op.first->getName() << " " << op.second << std::endl;
 
       in_degree_map_t in_degree_map = in_degree_map_;
 

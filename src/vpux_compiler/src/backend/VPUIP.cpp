@@ -507,22 +507,54 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     using TaskList = SmallVector<VPUIP::BlobWriter::Task>;
     using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
     TaskListMap tasksMap;
+    std::list<VPURT::ConfigureBarrierOp> _barrierOps;
+    std::list<VPURT::TaskOp> _taskOps;
 
     netFunc.walk([&](VPURT::ConfigureBarrierOp taskOp) {
+        _barrierOps.push_back(taskOp);
         log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
-        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+        Logger::global().error("Physical Barrier ID is {0}", taskOp->getAttr("id"));
+        //tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
     });
 
-    netFunc.walk([&](VPURT::TaskOp taskOp) {
-        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
-        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+    _barrierOps.sort([](VPURT::ConfigureBarrierOp a, VPURT::ConfigureBarrierOp b) -> bool {
+        int64_t aID = checked_cast<int64_t>(a->getAttr("virtualId").cast<mlir::IntegerAttr>().getInt());
+        int64_t bID = checked_cast<int64_t>(b->getAttr("virtualId").cast<mlir::IntegerAttr>().getInt());
+        return aID < bID;
     });
+
+    for (auto& barrier : _barrierOps)
+        Logger::global().error("Barrier virtual ID {0} and physical Id {1} ", barrier->getAttr("virtualId"), barrier->getAttr("id"));
+
+    for(auto& taskOp : _barrierOps)
+        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+
+
+    netFunc.walk([&](VPURT::TaskOp taskOp) {
+        _taskOps.push_back(taskOp);
+        Logger::global().error("Task scheduling number is {0}", taskOp->getAttr("SchedulingNumber"));
+        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
+        //tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+    });
+
+    _taskOps.sort([](VPURT::TaskOp a, VPURT::TaskOp b) -> bool {
+        int64_t aID = checked_cast<int64_t>(a->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
+        int64_t bID = checked_cast<int64_t>(b->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
+        return aID < bID;
+    });
+
+    for (auto& task : _taskOps)
+        Logger::global().error("Task scheduling number {0} ", task->getAttr("SchedulingNumber"));
+
+
+    for(auto& taskOp : _taskOps)
+        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
 
     SmallVector<VPUIP::BlobWriter::TaskList> taskLists;
     taskLists.reserve(tasksMap.size());
 
     for (const auto& taskList : tasksMap) {
-        log.trace("Serialize task list '{0}'", taskList.first);
+        Logger::global().error("Serialize task list '{0}'", taskList.first);
 
         const auto serializedTaskList = writer.createVector(taskList.second);
 
