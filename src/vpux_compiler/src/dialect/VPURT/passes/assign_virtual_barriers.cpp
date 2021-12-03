@@ -78,16 +78,16 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPURT::DeclareVirtualBarrierOp origOp,
-                                                           mlir::PatternRewriter& rewriter) const {
-    _log.trace("Found DeclareVirtualBarrierOp Operation '{0}'", origOp->getLoc());
+// mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPURT::DeclareVirtualBarrierOp origOp,
+//                                                            mlir::PatternRewriter& rewriter) const {
+//     _log.trace("Found DeclareVirtualBarrierOp Operation '{0}'", origOp->getLoc());
 
-    const auto barrierID = _allocInfo.getID(origOp.barrier());
-    _log.nest().trace("Use physical barrier ID '{0}'", barrierID);
+//     const auto barrierID = _allocInfo.getID(origOp.barrier());
+//     _log.nest().trace("Use physical barrier ID '{0}'", barrierID);
 
-    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierID);
-    return mlir::success();
-}
+//     rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierID);
+//     return mlir::success();
+// }
 
 //
 // AssignVirtualBarriersPass

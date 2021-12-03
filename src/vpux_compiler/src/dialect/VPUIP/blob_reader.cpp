@@ -530,9 +530,9 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             const auto barrierTask = controllerTask->task_as_BarrierConfigurationTask();
             VPUX_THROW_UNLESS(barrierTask, "Unsupported controller task type {0}", controllerTask->task_type());
             VPUX_THROW_UNLESS(barrierTask->target(), "Barrier has no target");
-            auto barrier = opsBuilder.create<VPURT::ConfigureBarrierOp>(mlir::UnknownLoc::get(_ctx),
-                                                                        barrierTask->target()->barrier_id());
-            _barriers.push_back(barrier.barrier());
+            //auto barrier = opsBuilder.create<VPURT::ConfigureBarrierOp>(mlir::UnknownLoc::get(_ctx),
+                                                                        //barrierTask->target()->barrier_id());
+            //_barriers.push_back(barrier.barrier());
         } else {
             VPUX_THROW("Unsupported task type {0}", task->task_type());
         }

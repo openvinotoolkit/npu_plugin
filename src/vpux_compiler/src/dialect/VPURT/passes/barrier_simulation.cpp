@@ -75,7 +75,7 @@ public:
     void getAllBarriersProducersAndConsumers();
     void compute_op_indegree();
     void compute_op_outdegree();
-    int64_t getID(mlir::Operation* val) const;
+    std::pair<int64_t,int64_t> getID(mlir::Operation* val) const;
     int64_t getVirtualId(VPURT::ConfigureBarrierOp op);
     static bool orderbyID(TaskInfo& a, TaskInfo& b);
     bool processTasks(std::vector<TaskInfo>& dma_task_list);
@@ -97,7 +97,7 @@ private:
 
     std::map<int64_t, VirtualBarrierInfo> _virtualBarriers;
     SmallVector<int64_t> _barrierConfig;
-    std::map<mlir::Operation*, int64_t> _virtualToPhysicalBarrierMap;
+    std::map<mlir::Operation*, std::pair<int64_t,int64_t>> _virtualToPhysicalBarrierMap;
 
     mlir::MLIRContext* _ctx;
     mlir::FuncOp _func;
@@ -132,7 +132,7 @@ private:
     std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierConsumersMap{};
 };
 
-int64_t BarrierSimulator::getID(mlir::Operation* val) const {
+std::pair<int64_t,int64_t> BarrierSimulator::getID(mlir::Operation* val) const {
     const auto it = _virtualToPhysicalBarrierMap.find(val);
     VPUX_THROW_UNLESS(it != _virtualToPhysicalBarrierMap.end(), "Value '{0}' was not covered by BarrierAllocation");
     return it->second;
@@ -475,7 +475,9 @@ void BarrierSimulator::acquireRealBarrier(VPURT::DeclareVirtualBarrierOp btask) 
 
     Logger::global().error("Assigning Virtual Barrier ID {0} with physical ID {1}", btask->getAttr("id"), real);
     Logger::global().error("Inserting barrier with Id {0} in the _active_barrier_table ", btask->getAttr("id"));
-    _virtualToPhysicalBarrierMap.insert(std::make_pair(btask.getOperation(), real));
+
+
+    _virtualToPhysicalBarrierMap.insert(std::make_pair(btask.getOperation(), std::make_pair(real,checked_cast<int64_t>(btask->getAttr("id").cast<mlir::IntegerAttr>().getInt()))));
     _active_barrier_table.insert(
             std::make_pair(btask.getOperation(), active_barrier_info_t(real, in_itr->second, out_itr->second)));
 }
@@ -648,7 +650,7 @@ bool BarrierSimulator::assignPhysicalIDs() {
         }
 
         for(auto& barrier : _virtualToPhysicalBarrierMap)
-            Logger::global().error("Virtual Barrier ID {0} has physical ID {1}", barrier.first->getAttr("id"), barrier.second);
+            Logger::global().error("Virtual Barrier ID {0} has physical ID {1}", barrier.first->getAttr("id"), barrier.second.first);
 
         return true;
     }
@@ -776,10 +778,11 @@ mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPURT::DeclareVirtual
                                                            mlir::PatternRewriter& rewriter) const {
     _log.trace("Found DeclareVirtualBarrierOp Operation '{0}'", origOp->getLoc());
 
-    const auto barrierID = _allocInfo.getID(origOp.getOperation());
-    _log.nest().trace("Use physical barrier ID '{0}'", barrierID);
+    auto barrierRealandVirtualID = _allocInfo.getID(origOp.getOperation());
+    _log.nest().trace("Use physical barrier ID '{0}'", barrierRealandVirtualID.first);
 
-    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierID);
+    auto physicalBarrier = rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierRealandVirtualID.first, barrierRealandVirtualID.second);
+
     return mlir::success();
 }
 

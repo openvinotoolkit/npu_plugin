@@ -366,14 +366,14 @@ class Control_Model_Barrier_Scheduler {
       control_model_.transitiveReduction();
       recomputeProducerConsumerCounts(control_model_);
 
-      size_t removed_barriers =
-          removeBarriersWithNoConsumers(barrier_association, om);
-      assert(btask_count >= removed_barriers);
+      // size_t removed_barriers =
+      //     removeBarriersWithNoConsumers(barrier_association, om);
+      //assert(btask_count >= removed_barriers);
 
-      renumberBarrierTasks(om);
-      recomputeProducerConsumerCounts(control_model_);
+      //renumberBarrierTasks(om);
+      //recomputeProducerConsumerCounts(control_model_);
 
-      btask_count -= removed_barriers;
+      //btask_count -= removed_barriers;
 
       return btask_count;
     }
