@@ -268,6 +268,8 @@ ExecutableNetwork KmbTestBase::getExecNetwork(
 
         auto config = configCreator();
         config[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
+        if(config.find(VPUX_CONFIG_KEY(COMPILER_TYPE)) == config.end())
+            config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
 
         std::ostringstream ostr;
         ostr << "LoadNetwork Config: ";
@@ -286,7 +288,9 @@ ExecutableNetwork KmbTestBase::getExecNetwork(
     } else if (RUN_INFER) {
         std::cout << "=== IMPORT NETWORK" << std::endl;
 
-        exeNet = importNetwork();
+        std::map<std::string, std::string> importConfig;
+        importConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
+        exeNet = importNetwork(importConfig);
     }
 
     return exeNet;

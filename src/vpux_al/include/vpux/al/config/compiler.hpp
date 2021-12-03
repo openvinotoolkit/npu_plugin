@@ -47,7 +47,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, InferenceEngine::VPUXConf
 #endif
 
     static InferenceEngine::VPUXConfigParams::CompilerType defaultValue() {
-        return InferenceEngine::VPUXConfigParams::CompilerType::MCM;
+        return InferenceEngine::VPUXConfigParams::CompilerType::MLIR;
     }
 
     static InferenceEngine::VPUXConfigParams::CompilerType parse(StringRef val);
