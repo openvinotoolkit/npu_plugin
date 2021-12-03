@@ -290,9 +290,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPU::MemoryKind::CMX_NN>,
                                                   getMemSpace<VPU::MemoryKind::DDR>, log));
 
-    if (options.enableGroupAsyncExecuteOps) {
-        pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
-    }
+    // if (options.enableGroupAsyncExecuteOps) {
+    //     pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
+    // }
 
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
