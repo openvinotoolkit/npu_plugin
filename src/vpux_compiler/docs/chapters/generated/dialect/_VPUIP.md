@@ -1840,8 +1840,6 @@ Syntax:
 operation ::= `VPUIP.SinhUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
-              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
               `->` type(results)
 ```
 
@@ -1851,7 +1849,6 @@ operation ::= `VPUIP.SinhUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `maxShaves` | mlir::IntegerAttr | Integer attribute
-`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
 
@@ -1859,8 +1856,6 @@ operation ::= `VPUIP.SinhUPA` attr-dict
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
 `output_buff` | memref of 16-bit float values
-`waitBarriers` | VPUIP Barrier Type
-`updateBarriers` | VPUIP Barrier Type
 
 #### Results:
 

@@ -979,11 +979,7 @@ def VPUIP_SinhUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves    
     );
 
     let results = (outs
@@ -1004,8 +1000,6 @@ def VPUIP_SinhUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }

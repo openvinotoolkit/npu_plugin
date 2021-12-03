@@ -277,7 +277,4 @@ const auto basicCasesMTL = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest_MTL, basicCasesMTL, ActivationLayerTest::getTestCaseName);
 
-
-
-
 }  // namespace

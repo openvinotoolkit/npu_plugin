@@ -1312,8 +1312,7 @@ def IE_SinhOp :
         IE_LayerOp<
             "Sinh",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
