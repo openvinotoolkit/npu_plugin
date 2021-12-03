@@ -18,6 +18,12 @@ class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils
         if (inputShape.size() != 4) {
             throw LayerTestsUtils::KmbSkipTestException("Runtime only supports 4D input shape");
         }
+
+        auto device = std::get<9>(GetParam());
+        if (device != "EMULATOR") {
+            throw LayerTestsUtils::KmbSkipTestException(
+                "Emulator device does not support Gather with I32 second input");
+        }
     }
 };
 
