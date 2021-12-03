@@ -172,7 +172,7 @@ public:
         return impl();
     }
 
-    static const movitools::MoviCompileParams& compileParams();
+    static const ActShaveCompileParams& compileParams();
 
 private:
     using TaskMap = std::unordered_map<mlir::Operation*, Task>;
