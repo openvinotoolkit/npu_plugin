@@ -120,9 +120,12 @@ mlir::LogicalResult CopyToBlockArgument::matchAndRewrite(IERT::CopyOp copyOp, ml
     }
 
     auto sourceOp = copyOp.input().getDefiningOp();
-    const auto sourceRoot = _aliasInfo.getRoot(copyOp.input());
+    if (sourceOp == nullptr || mlir::isa<Const::DeclareOp>(sourceOp)) {
+        return mlir::failure();
+    }
 
-    if (sourceOp == nullptr || sourceRoot.isa<mlir::BlockArgument>()) {
+    const auto sourceRoot = _aliasInfo.getRoot(copyOp.input());
+    if (sourceRoot.isa<mlir::BlockArgument>()) {
         // input also is block argument
         return mlir::failure();
     }

@@ -70,10 +70,6 @@ func @OptimizeCopy(
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-#map0 = affine_map<(d0, d1, d2, d3) -> (d0 * 256 + d1 * 4 + d2 * 2 + d3)>
-#map1 = affine_map<(d0, d1, d2, d3) -> (d0 * 256 + d1 * 4 + d2 * 2 + d3)>
-
-
 func @OptimizeLastCopyForPureViewOps(%arg0: memref<1x16x2x2xf16>, %arg1: memref<1x16x2x2xf16>, %arg2: memref<1x64x2x2xf16>) -> memref<1x64x2x2xf16> {
     %0 = memref.alloc() : memref<1x64x2x2xf16>
 
@@ -143,7 +139,7 @@ func @OptimizeLastCopy(%arg0: memref<1x16x112x112xf16>, %arg1: memref<1x16x112x1
 
     return %3 : memref<1x16x112x112xf16>
 
-    // CHECK-NOT: memref.alloc() : memref<1x32x112x112xf16, #NHWC, #map1>
+    // CHECK-NOT: memref.alloc() : memref<1x32x112x112xf16>
 
     // CHECK: [[VAR0:%.*]] = IERT.And inputs(%arg0 : memref<1x16x112x112xf16>, %arg1 : memref<1x16x112x112xf16>) outputs(%arg2 : memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16>
     // CHECK: return [[VAR0]] : memref<1x16x112x112xf16>
@@ -170,8 +166,6 @@ func @NoChangesTypeMismatch(%arg0: memref<1x50x1x1xf16>, %arg1: memref<1x50x1x1x
 
 // -----
 
-#map0 = affine_map<(d0, d1, d2, d3) -> (d0 * 200704 + d1 * 1792 + d2 * 16 + d3)>
-
 func @NoChangesSourceIsNotAllocOp(%arg0: memref<1x16x112x112xf16>, %arg1: memref<1x16x112x112xf16>, %arg2: memref<1x16x112x112xf16>) -> (memref<1x16x112x112xf16>, memref<1x16x112x112xf16>) {
     %0 = IERT.ReLU
             inputs(%arg0: memref<1x16x112x112xf16>)
@@ -187,7 +181,17 @@ func @NoChangesSourceIsNotAllocOp(%arg0: memref<1x16x112x112xf16>, %arg1: memref
 
 // -----
 
-#map0 = affine_map<(d0, d1, d2, d3) -> (d0 * 200704 + d1 * 1792 + d2 * 16 + d3)>
+func @NoChangesSourceIsConstantOp(%arg0: memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16> {
+    %0 = const.Declare memref<1x16x112x112xf16> = #const.Content<dense<1.000000e+00> : tensor<1x16x112x112xf16>>
+    %1 = IERT.Copy inputs(%0 : memref<1x16x112x112xf16>) outputs(%arg0 : memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16>
+    return %1 : memref<1x16x112x112xf16>
+
+    // CHECK: [[VAR0:%.*]] = const.Declare
+    // CHECK: [[VAR1:%.*]] = IERT.Copy
+    // CHECK: return [[VAR1]]
+}
+
+// -----
 
 func @NoChangesInputIsBlockArgument(%arg0: memref<1x16x112x112xf16>, %arg1: memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16> {
     %0 = IERT.Copy inputs(%arg0 : memref<1x16x112x112xf16>) outputs(%arg1 : memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16>
@@ -198,8 +202,6 @@ func @NoChangesInputIsBlockArgument(%arg0: memref<1x16x112x112xf16>, %arg1: memr
 }
 
 // -----
-
-#map0 = affine_map<(d0, d1, d2, d3) -> (d0 * 200704 + d1 * 1792 + d2 * 16 + d3)>
 
 func @NoChangesDifferentMemSpace(%arg0: memref<1x16x112x112xf16>, %arg1: memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16> {
     %0 = memref.alloc() : memref<1x16x112x112xf16, "CMX_NN">
