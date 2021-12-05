@@ -210,6 +210,38 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // 5. update dependencies
     updateAsyncExecuteOpDependencies(depsInfo, scheduledOps);
 
+    std::cout << "\n\nMateusz: after spill insertion\n";
+    for (const auto& op : scheduledOps) {
+        std::string resourceInfo = "<none>";
+        if (op.hasActiveResource()) {
+            resourceInfo = "";
+            for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
+                if (op.isActiveResource(resourceIdx)) {
+                    resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
+                                    std::to_string(op.endResource(resourceIdx)) + "] size = " +
+                                    std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
+                                    ", ";
+                }
+            }
+        }
+        std::cout << "op = " << op.op_ << ", type = " << op.opTypeName().data() << ", time = " << op.time_ << ", "
+                  << resourceInfo.data() << "\n";
+    }
+
+    // // mateusz
+    // _log.setName("dump-ir");
+    // netFunc->walk([&](mlir::Operation* op) {
+    //     if (!mlir::isa_and_nonnull<mlir::async::ExecuteOp>(op)) {
+    //         return;
+    //     }
+    //     _log.trace("{0}{1}", *op, op->getLoc());
+    // });
+    // _log.setName("feasible-allocation");
+    // mateusz
+    for (const auto& op : scheduledOps) {
+        depsInfo.getExecuteOpAtIndex(op.op_).dump();
+    }
+
     // 6. convert to allocated ops
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<IERT::IERTDialect>();

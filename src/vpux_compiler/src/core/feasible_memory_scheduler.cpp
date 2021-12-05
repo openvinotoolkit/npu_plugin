@@ -235,7 +235,7 @@ void FeasibleMemoryScheduler::unscheduleAllCompletingOpsAtNextEarliestTime() {
         auto opIdx = op.op_;
         _log.trace("Unscheduling '{0}'", opIdx);
         unscheduleOp(op);
-        if (!isDataOp(opIdx) && op.isOriginalOp()) {
+        if (!isDataOp(opIdx) && op.isOriginalOp()) {  // mateusz
             // propagate through original compute ops, generate new ready ops
             auto newReadyOps = reduceInDegreeOfAdjacentOperations(opIdx);
             _log.nest().trace("Reduce consumer indegree");
@@ -250,7 +250,12 @@ void FeasibleMemoryScheduler::unscheduleAllCompletingOpsAtNextEarliestTime() {
 SmallVector<operationIdxType> FeasibleMemoryScheduler::reduceInDegreeOfAdjacentOperations(operationIdxType opIdx) {
     SmallVector<operationIdxType> zeroInDegreeOps;
     // reduce indegree (number of incoming edges) for consumers of ready data ops
+    _log.trace("reduceInDegreeOfAdjacentOperations({0})", opIdx);
     for (auto consumer : _depsInfo.getConsumerOps(opIdx)) {
+        // mateusz
+        if (consumer == 702) {
+            _log.trace("_inDegreeTable[702]: {0} --", _inDegreeTable[702]);
+        }
         if (_inDegreeTable[consumer] < 2) {
             zeroInDegreeOps.push_back(consumer);
             _inDegreeTable.erase(consumer);
@@ -380,7 +385,7 @@ bool FeasibleMemoryScheduler::isReadyComputeOperationSchedulable(operationIdxTyp
 
 void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType inputIdx, size_t delay) {
     // schedule the dependency - Data op
-    _log.nest().trace("Scheduling input for compute op:'{0}'", inputIdx);
+    _log.nest().trace("Scheduling input for compute op:'{0}', inputDelay - '{1}'", inputIdx, delay);
     EOpType opType = EOpType::ORIGINAL_OP;
     _opOutputTable.insert(std::make_pair(inputIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[inputIdx])));
     pushToStartTimeHeap(HeapElement(inputIdx, _currentTime + delay, opType));
@@ -457,6 +462,10 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
 
     // allocate buffers using LinearScan
     _log.nest().trace("Allocate memory for the alive buffers");
+    // mateusz
+    for (auto& buf : sortedBuffers) {
+        _log.nest().trace("{0}", buf);
+    }
     VPUX_THROW_UNLESS(_scan.alloc(sortedBuffers, /*allowSpills*/ false), "Failed to statically allocate '{0}' memory",
                       _memSpace);
 
@@ -469,7 +478,7 @@ void FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
 
     // Step 2: assign resources simultaneously
     auto maxInputDelay = allocateBuffersAndInputOps(opIdx);
-
+    _log.trace("scheduleComputeOp '{0}', inputDelay - '{1}'", opIdx, maxInputDelay);  // mateusz
     // TODO: case for inplace ops
 
     // Step 3: schedule the compute op
@@ -480,7 +489,7 @@ void FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
 void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
         std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort>& readyList) {
     SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledOps;
-    _log.trace("Scheduling all possible ready ops");
+    _log.trace("Scheduling all possible ready ops - {0}", readyList.size());
     _log = _log.nest();
     // schedule ops that fit in CMX
     for (auto& readyOp : readyList) {
@@ -717,6 +726,26 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     scheduled.time_ = scheduledOp.time_;
     scheduled.resourceInfo_ = intervals;
     _scheduledOps.push_back(scheduled);
+
+    if (scheduledOp.op_ == 703) {
+        for (const auto& op : _scheduledOps) {
+            std::string resourceInfo = "<none>";
+            if (op.hasActiveResource()) {
+                resourceInfo = "";
+                for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
+                    if (op.isActiveResource(resourceIdx)) {
+                        resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
+                                        std::to_string(op.endResource(resourceIdx)) + "] size = " +
+                                        std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
+                                        ", ";
+                    }
+                }
+            }
+            _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_,
+                       resourceInfo);
+        }
+        VPUX_THROW("STOP");
+    }
 }
 
 void FeasibleMemoryScheduler::clearLists() {
@@ -732,6 +761,11 @@ bool FeasibleMemoryScheduler::init() {
 
     // compute op in/out degree
     _inDegreeTable = _depsInfo.calculateOpInDegreeTable();
+    _log.trace("Mateusz: inDegree[702] - {0}", _inDegreeTable[702]);
+    _log.trace("Mateusz: inDegree[699] - {0}", _inDegreeTable[699]);
+    _log.trace("Mateusz: inDegree[700] - {0}", _inDegreeTable[700]);
+    _log.trace("Mateusz: inDegree[701] - {0}", _inDegreeTable[701]);
+    _log.trace("Mateusz: inDegree[703] - {0}", _inDegreeTable[703]);
     _outDegreeTable = _depsInfo.calculateOpOutDegreeTable();
 
     // retrieve output ops (ops with no out-degree)
@@ -814,6 +848,8 @@ SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::g
                 }
             }
         }
+        std::cout << "op = " << op.op_ << ", type = " << op.opTypeName().data() << ", time = " << op.time_ << ", "
+                  << resourceInfo.data() << "\n";
         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
     }
     _log = _log.unnest();
