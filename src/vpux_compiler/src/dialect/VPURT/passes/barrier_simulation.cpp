@@ -67,7 +67,7 @@ public:
     void init();
     bool assignPhysicalIDs();
     void buildTaskLists();
-    void assignVirtualIds(mlir::FuncOp func);
+    //void assignVirtualIds(mlir::FuncOp func);
     void acquireRealBarrier(VPURT::DeclareVirtualBarrierOp btask);
     bool is_task_ready(VPURT::TaskOp taskOp);
     void process_task(VPURT::TaskOp task);
@@ -80,13 +80,13 @@ public:
     static bool orderbyID(TaskInfo& a, TaskInfo& b);
     bool processTasks(std::vector<TaskInfo>& dma_task_list);
     bool fillBarrierTasks(std::list<VPURT::DeclareVirtualBarrierOp>& barrier_task_list);
-    mlir::LogicalResult checkProducerCount();
+    //mlir::LogicalResult checkProducerCount();
     mlir::LogicalResult run();
 
 private:
-    UpdateStatus updateTaskBarriers(const TaskInfo& taskInfo, const int64_t count);
-    void logDebugInfo(const size_t barrier, const std::array<size_t, MAX_DMA_ENGINES>& dma, const size_t nce,
-                      const size_t upa);
+    //UpdateStatus updateTaskBarriers(const TaskInfo& taskInfo, const int64_t count);
+    //void logDebugInfo(const size_t barrier, const std::array<size_t, MAX_DMA_ENGINES>& dma, const size_t nce,
+    //                  const size_t upa);
 
 private:
     std::vector<TaskInfo> _nceTasks;
@@ -206,8 +206,6 @@ void BarrierSimulator::compute_op_indegree() {
     in_degree_map_.clear();
 
     _func.walk([&](VPURT::TaskOp taskOp) {
-        auto& block = taskOp.op().getBlocks().front();
-        auto wrappedTaskOp = block.begin();
         size_t waitBarrierIncomingEdges = 0;
 
         for (const auto waitBarrier : taskOp.waitBarriers()) {
@@ -233,8 +231,6 @@ void BarrierSimulator::compute_op_outdegree() {
     out_degree_map_.clear();
 
     _func.walk([&](VPURT::TaskOp taskOp) {
-        auto& block = taskOp.op().getBlocks().front();
-        auto wrappedTaskOp = block.begin();
         size_t updateBarrierOutgoingEdges = 0;
 
         for (const auto updateBarrier : taskOp.updateBarriers()) {
@@ -263,12 +259,12 @@ void BarrierSimulator::init() {
     }
 }
 
-void BarrierSimulator::assignVirtualIds(mlir::FuncOp func) {
-    int64_t virtualId = 0;
-    func.walk([&](VPURT::ConfigureBarrierOp op) {
-        op->setAttr(virtualIdAttrName, getIntAttr(_ctx, virtualId++));
-    });
-}
+// void BarrierSimulator::assignVirtualIds(mlir::FuncOp func) {
+//     int64_t virtualId = 0;
+//     func.walk([&](VPURT::ConfigureBarrierOp op) {
+//         op->setAttr(virtualIdAttrName, getIntAttr(_ctx, virtualId++));
+//     });
+// }
 
 int64_t BarrierSimulator::getVirtualId(VPURT::ConfigureBarrierOp op) {
     return checked_cast<int64_t>(op->getAttr(virtualIdAttrName).cast<mlir::IntegerAttr>().getInt());
@@ -387,41 +383,41 @@ void BarrierSimulator::buildTaskLists() {
     std::cout << "Done" << std::endl;
 }
 
-BarrierSimulator::UpdateStatus BarrierSimulator::updateTaskBarriers(const TaskInfo& taskInfo, const int64_t count = 1) {
-    for (auto waitBarrier : taskInfo.waitBarriers) {
-        const auto realId = _virtualBarriers[waitBarrier].realId;
-        if (_barrierConfig[realId] != waitBarrier || _virtualBarriers[waitBarrier].producerCount != 0)
-            return UpdateStatus::Skip;
-    }
-    for (auto updateBarrier : taskInfo.updateBarriers) {
-        const auto realId = _virtualBarriers[updateBarrier].realId;
-        if (_barrierConfig[realId] != updateBarrier)
-            return UpdateStatus::Skip;
-    }
+// BarrierSimulator::UpdateStatus BarrierSimulator::updateTaskBarriers(const TaskInfo& taskInfo, const int64_t count = 1) {
+//     for (auto waitBarrier : taskInfo.waitBarriers) {
+//         const auto realId = _virtualBarriers[waitBarrier].realId;
+//         if (_barrierConfig[realId] != waitBarrier || _virtualBarriers[waitBarrier].producerCount != 0)
+//             return UpdateStatus::Skip;
+//     }
+//     for (auto updateBarrier : taskInfo.updateBarriers) {
+//         const auto realId = _virtualBarriers[updateBarrier].realId;
+//         if (_barrierConfig[realId] != updateBarrier)
+//             return UpdateStatus::Skip;
+//     }
 
-    for (auto waitBarrier : taskInfo.waitBarriers) {
-        auto& virtualBarrier = _virtualBarriers[waitBarrier];
-        if (virtualBarrier.consumerCount < count) {
-            _log.error("Barrier {0} has fewer consumers left than currently needed (C: {1}, count: {2})", waitBarrier,
-                       virtualBarrier.consumerCount, count);
-            return UpdateStatus::Fail;
-        }
-        virtualBarrier.consumerCount -= count;
-        if (virtualBarrier.consumerCount == 0)
-            _barrierConfig[virtualBarrier.realId] = -1;
-    }
-    for (auto updateBarrier : taskInfo.updateBarriers) {
-        auto& virtualBarrier = _virtualBarriers[updateBarrier];
-        if (virtualBarrier.producerCount < count) {
-            _log.error("Barrier {0} has fewer producers left than currently needed (P: {1}, count: {2})", updateBarrier,
-                       virtualBarrier.producerCount, count);
-            return UpdateStatus::Fail;
-        }
-        virtualBarrier.producerCount -= count;
-    }
+//     for (auto waitBarrier : taskInfo.waitBarriers) {
+//         auto& virtualBarrier = _virtualBarriers[waitBarrier];
+//         if (virtualBarrier.consumerCount < count) {
+//             _log.error("Barrier {0} has fewer consumers left than currently needed (C: {1}, count: {2})", waitBarrier,
+//                        virtualBarrier.consumerCount, count);
+//             return UpdateStatus::Fail;
+//         }
+//         virtualBarrier.consumerCount -= count;
+//         if (virtualBarrier.consumerCount == 0)
+//             _barrierConfig[virtualBarrier.realId] = -1;
+//     }
+//     for (auto updateBarrier : taskInfo.updateBarriers) {
+//         auto& virtualBarrier = _virtualBarriers[updateBarrier];
+//         if (virtualBarrier.producerCount < count) {
+//             _log.error("Barrier {0} has fewer producers left than currently needed (P: {1}, count: {2})", updateBarrier,
+//                        virtualBarrier.producerCount, count);
+//             return UpdateStatus::Fail;
+//         }
+//         virtualBarrier.producerCount -= count;
+//     }
 
-    return UpdateStatus::Success;
-}
+//     return UpdateStatus::Success;
+// }
 
 /*
  * The limitation is not related to HW capabilities or FIFO depth, but to the fact that the runtime needs to know when a
@@ -444,18 +440,18 @@ BarrierSimulator::UpdateStatus BarrierSimulator::updateTaskBarriers(const TaskIn
  *   64 + 1 invariants
  *   256 + 1 variants
  */
-mlir::LogicalResult BarrierSimulator::checkProducerCount() {
-    static constexpr int64_t MAX_PRODUCER_COUNT = 256;
-    for (auto virtualBarrier : _virtualBarriers) {
-        const auto virtualId = virtualBarrier.first;
-        const auto producerCount = virtualBarrier.second.producerCount;
-        if (producerCount > MAX_PRODUCER_COUNT) {
-            _log.error("Barrier {0} has {1} barriers (max {2})", virtualId, producerCount, MAX_PRODUCER_COUNT);
-            return mlir::failure();
-        }
-    }
-    return mlir::success();
-}
+// mlir::LogicalResult BarrierSimulator::checkProducerCount() {
+//     static constexpr int64_t MAX_PRODUCER_COUNT = 256;
+//     for (auto virtualBarrier : _virtualBarriers) {
+//         const auto virtualId = virtualBarrier.first;
+//         const auto producerCount = virtualBarrier.second.producerCount;
+//         if (producerCount > MAX_PRODUCER_COUNT) {
+//             _log.error("Barrier {0} has {1} barriers (max {2})", virtualId, producerCount, MAX_PRODUCER_COUNT);
+//             return mlir::failure();
+//         }
+//     }
+//     return mlir::success();
+// }
 
 void BarrierSimulator::acquireRealBarrier(VPURT::DeclareVirtualBarrierOp btask) {
     assert(!_real_barrier_list.empty());
@@ -597,7 +593,7 @@ bool BarrierSimulator::processTasks(std::vector<TaskInfo>& task_list) {
         Logger::global().error("Task scheduling number {0} ", task.taskOp->getAttr("SchedulingNumber"));
 
     taskInfo_iterator_t tbegin = task_list.begin();
-    taskInfo_iterator_t tend = task_list.end();
+    //taskInfo_iterator_t tend = task_list.end();
     bool progressed = false;
 
     while (tbegin != task_list.end()) {
@@ -656,103 +652,103 @@ bool BarrierSimulator::assignPhysicalIDs() {
     }
 
     
-
+     return true; //TODO fix
 }
 
-mlir::LogicalResult BarrierSimulator::run() {
-    _log.trace("Running barrier simulator");
+// mlir::LogicalResult BarrierSimulator::run() {
+//     _log.trace("Running barrier simulator");
 
-    _barrierConfig.resize(_numRealBarriers);
-    std::fill(_barrierConfig.begin(), _barrierConfig.end(), -1);
+//     _barrierConfig.resize(_numRealBarriers);
+//     std::fill(_barrierConfig.begin(), _barrierConfig.end(), -1);
 
-    size_t barrier = 0;
-    size_t nce = 0;
-    size_t upa = 0;
-    std::array<size_t, MAX_DMA_ENGINES> dma = {0};
-    while (barrier < _barrierOps.size() || dma[0] < _dmaTasks[0].size() || dma[1] < _dmaTasks[1].size() ||
-           nce < _nceTasks.size() || upa < _upaTasks.size()) {
-        _log.nest(2).trace("BAR: {0} / {1}; DMA: {2} / {3}, {4} / {5}; NCE: {6} / {7}; UPA: {8} / {9}", barrier,
-                           _barrierOps.size(), dma[0], _dmaTasks[0].size(), dma[1], _dmaTasks[1].size(), nce,
-                           _nceTasks.size(), upa, _upaTasks.size());
+//     size_t barrier = 0;
+//     size_t nce = 0;
+//     size_t upa = 0;
+//     std::array<size_t, MAX_DMA_ENGINES> dma = {0};
+//     while (barrier < _barrierOps.size() || dma[0] < _dmaTasks[0].size() || dma[1] < _dmaTasks[1].size() ||
+//            nce < _nceTasks.size() || upa < _upaTasks.size()) {
+//         _log.nest(2).trace("BAR: {0} / {1}; DMA: {2} / {3}, {4} / {5}; NCE: {6} / {7}; UPA: {8} / {9}", barrier,
+//                            _barrierOps.size(), dma[0], _dmaTasks[0].size(), dma[1], _dmaTasks[1].size(), nce,
+//                            _nceTasks.size(), upa, _upaTasks.size());
 
-        bool progressed = false;
+//         bool progressed = false;
 
-        for (; barrier < _barrierOps.size(); ++barrier) {
-            // const auto virtualId = getVirtualId(_barrierOps[barrier]);
-            // const auto realId = _virtualBarriers[virtualId].realId;
-            // if (_barrierConfig[realId] > -1)
-            //     break;
-            // _barrierConfig[realId] = virtualId;
-            // progressed = true;
-        }
+//         for (; barrier < _barrierOps.size(); ++barrier) {
+//             // const auto virtualId = getVirtualId(_barrierOps[barrier]);
+//             // const auto realId = _virtualBarriers[virtualId].realId;
+//             // if (_barrierConfig[realId] > -1)
+//             //     break;
+//             // _barrierConfig[realId] = virtualId;
+//             // progressed = true;
+//         }
 
-        for (int64_t e = 0; e < _numDmaEngines; ++e) {
-            for (; dma[e] < _dmaTasks[e].size(); ++dma[e]) {
-                const auto status = updateTaskBarriers(_dmaTasks[e][dma[e]]);
-                if (status == UpdateStatus::Skip)
-                    break;
-                else if (status == UpdateStatus::Fail)
-                    return mlir::failure();
-                progressed = true;
-            }
-        }
+//         for (int64_t e = 0; e < _numDmaEngines; ++e) {
+//             for (; dma[e] < _dmaTasks[e].size(); ++dma[e]) {
+//                 const auto status = updateTaskBarriers(_dmaTasks[e][dma[e]]);
+//                 if (status == UpdateStatus::Skip)
+//                     break;
+//                 else if (status == UpdateStatus::Fail)
+//                     return mlir::failure();
+//                 progressed = true;
+//             }
+//         }
 
-        for (; nce < _nceTasks.size(); ++nce) {
-            auto& block = _nceTasks[nce].taskOp.op().getBlocks().front();
-            auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(block.begin());
-            VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
-            const auto status = updateTaskBarriers(_nceTasks[nce], nceOp.getNumVariants());
-            if (status == UpdateStatus::Skip)
-                break;
-            else if (status == UpdateStatus::Fail)
-                return mlir::failure();
-            progressed = true;
-        }
+//         for (; nce < _nceTasks.size(); ++nce) {
+//             auto& block = _nceTasks[nce].taskOp.op().getBlocks().front();
+//             auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(block.begin());
+//             VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
+//             const auto status = updateTaskBarriers(_nceTasks[nce], nceOp.getNumVariants());
+//             if (status == UpdateStatus::Skip)
+//                 break;
+//             else if (status == UpdateStatus::Fail)
+//                 return mlir::failure();
+//             progressed = true;
+//         }
 
-        for (; upa < _upaTasks.size(); ++upa) {
-            const auto status = updateTaskBarriers(_upaTasks[upa]);
-            if (status == UpdateStatus::Skip)
-                break;
-            else if (status == UpdateStatus::Fail)
-                return mlir::failure();
-            progressed = true;
-        }
+//         for (; upa < _upaTasks.size(); ++upa) {
+//             const auto status = updateTaskBarriers(_upaTasks[upa]);
+//             if (status == UpdateStatus::Skip)
+//                 break;
+//             else if (status == UpdateStatus::Fail)
+//                 return mlir::failure();
+//             progressed = true;
+//         }
 
-        if (!progressed) {
-            logDebugInfo(barrier, dma, nce, upa);
-            return mlir::failure();
-        }
-    }
+//         if (!progressed) {
+//             //logDebugInfo(barrier, dma, nce, upa);
+//             return mlir::failure();
+//         }
+//     }
 
-    return mlir::success();
-}
+//     return mlir::success();
+// }
 
-void BarrierSimulator::logDebugInfo(const size_t barrier, const std::array<size_t, MAX_DMA_ENGINES>& dma,
-                                    const size_t nce, const size_t upa) {
-    // _log.error("Barrier simulation blocked at BAR: {0} / {1} (virtual_id {2}); DMA: {3} / {4}, {5} / {6};"
-    //            "NCE: {7} / {8}; UPA: {9} / {10}",
-    //            barrier, _barrierOps.size(), getVirtualId(_barrierOps[barrier]), dma[0], _dmaTasks[0].size(), dma[1],
-    //            _dmaTasks[1].size(), nce, _nceTasks.size(), upa, _upaTasks.size());
+// void BarrierSimulator::logDebugInfo(const size_t barrier, const std::array<size_t, MAX_DMA_ENGINES>& dma,
+//                                     const size_t nce, const size_t upa) {
+//     // _log.error("Barrier simulation blocked at BAR: {0} / {1} (virtual_id {2}); DMA: {3} / {4}, {5} / {6};"
+//     //            "NCE: {7} / {8}; UPA: {9} / {10}",
+//     //            barrier, _barrierOps.size(), getVirtualId(_barrierOps[barrier]), dma[0], _dmaTasks[0].size(), dma[1],
+//     //            _dmaTasks[1].size(), nce, _nceTasks.size(), upa, _upaTasks.size());
 
-    _log.error("Real barriers configuration:");
-    for (size_t i = 0; i < _barrierConfig.size(); ++i) {
-        auto virtualBarrierId = _barrierConfig[i];
-        auto virtualBarrier = _virtualBarriers[virtualBarrierId];
-        _log.nest(2).error("{0,2}: virtual {1,3},   P: {2,2}, C: {3,2}, initial P: {4,2}, C: {5,2}", i,
-                           virtualBarrierId, virtualBarrier.producerCount, virtualBarrier.consumerCount,
-                           virtualBarrier.initProducerCount, virtualBarrier.initConsumerCount);
-    }
+//     _log.error("Real barriers configuration:");
+//     for (size_t i = 0; i < _barrierConfig.size(); ++i) {
+//         auto virtualBarrierId = _barrierConfig[i];
+//         auto virtualBarrier = _virtualBarriers[virtualBarrierId];
+//         _log.nest(2).error("{0,2}: virtual {1,3},   P: {2,2}, C: {3,2}, initial P: {4,2}, C: {5,2}", i,
+//                            virtualBarrierId, virtualBarrier.producerCount, virtualBarrier.consumerCount,
+//                            virtualBarrier.initProducerCount, virtualBarrier.initConsumerCount);
+//     }
 
-    _log.error("Unfinished barriers status:");
-    for (size_t i = 0; i < barrier; ++i) {
-        auto virtualBarrier = _virtualBarriers[i];
-        if (virtualBarrier.producerCount || virtualBarrier.consumerCount)
-            _log.nest(2).error(
-                    "Barrier {0,3} (real {1,2}) with remaining counts P: {2,2}, C: {3,2}, initial P: {4,2}, C: {5,2}",
-                    i, virtualBarrier.realId, virtualBarrier.producerCount, virtualBarrier.consumerCount,
-                    virtualBarrier.initProducerCount, virtualBarrier.initConsumerCount);
-    }
-}
+//     _log.error("Unfinished barriers status:");
+//     for (size_t i = 0; i < barrier; ++i) {
+//         auto virtualBarrier = _virtualBarriers[i];
+//         if (virtualBarrier.producerCount || virtualBarrier.consumerCount)
+//             _log.nest(2).error(
+//                     "Barrier {0,3} (real {1,2}) with remaining counts P: {2,2}, C: {3,2}, initial P: {4,2}, C: {5,2}",
+//                     i, virtualBarrier.realId, virtualBarrier.producerCount, virtualBarrier.consumerCount,
+//                     virtualBarrier.initProducerCount, virtualBarrier.initConsumerCount);
+//     }
+// }
 
 
 //
@@ -781,7 +777,7 @@ mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPURT::DeclareVirtual
     auto barrierRealandVirtualID = _allocInfo.getID(origOp.getOperation());
     _log.nest().trace("Use physical barrier ID '{0}'", barrierRealandVirtualID.first);
 
-    auto physicalBarrier = rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierRealandVirtualID.first, barrierRealandVirtualID.second);
+    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierRealandVirtualID.first, barrierRealandVirtualID.second);
 
     return mlir::success();
 }

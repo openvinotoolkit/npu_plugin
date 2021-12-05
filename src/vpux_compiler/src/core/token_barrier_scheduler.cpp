@@ -24,7 +24,7 @@ static constexpr StringLiteral schedulingNumberAttrName = "SchedulingNumber";
 //
 
 TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers,
-                                                       int64_t slotCount, Logger log)
+                                                       int64_t slotCount)
         : _ctx(ctx), _func(func), barrierCount_(numBarriers), slotCount_(slotCount) {
 }
 
@@ -157,52 +157,6 @@ size_t TokenBasedBarrierScheduler::schedule() {
         }
     }
 
-    //  _func->walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
-        
-    //          Logger::global().error("Barrier ID {0}", barrierOp->getAttr("id"));
-    //         for (auto* userOp : barrierOp->getUsers()) {
-    //             auto opEffects = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(userOp);
-
-    //             VPUX_THROW_WHEN(opEffects == nullptr,
-    //                         "Barrier '{0}' is used by Operation '{1}' without MemoryEffects interface",
-    //                         barrierOp->getLoc(), userOp->getName());
-
-    //             using MemEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
-
-    //             SmallVector<MemEffect> valEffects;
-
-    //             opEffects.getEffectsOnValue(barrierOp.barrier(), valEffects);
-
-    //             VPUX_THROW_WHEN(
-    //                 valEffects.size() != 1,
-    //                 "Barrier '{0}' must have exactly 1 MemoryEffect per Operation, got '{1}' for Operation '{2}'",
-    //                 barrierOp->getLoc(), valEffects.size(), userOp->getLoc());
-
-    //             const auto& effect = valEffects.front();
-
-    //             VPUX_THROW_WHEN(effect.getResource() != VPUIP::BarrierResource::get(),
-    //                         "Barrier '{0}' has non Barrier Resource for Operation '{1}'", barrierOp->getLoc(),
-    //                         userOp->getLoc());
-
-    //             if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
-    //                 Logger::global().error("Barrier Consumer Task with scheduling number {0}", userOp->getAttr("SchedulingNumber"));
-    //             //   auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
-    //             //     if (task.getTaskType() == VPUIP::TaskType::NCE2) {
-    //             //         consumers.push_back(userOp);
-    //             //     } else if (task.getTaskType() == VPUIP::TaskType::NNDMA) {
-    //             //         consumers.push_back(userOp);
-    //             //     } else if (task.getTaskType() == VPUIP::TaskType::UPA) {
-    //             //         consumers.push_back(userOp);
-    //             //     }
-    //         } 
-    //         else {
-    //            barrierOp->dropAllUses();
-    //            barrierOp.erase();
-    //         }
-    //     }
-        
-    // });
-
-
     std::cout << "Removed all declare virtual barrier ops" << std::endl;
+    return btask_count;
 }

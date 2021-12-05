@@ -104,7 +104,7 @@ public:
     void pushToHeap(const heap_element_t& elem);
     heap_element_t popFromHeap();
     void add_outgoing_operations_to_candidate_list(mlir::Operation* op);
-    void assignUniqueIds(mlir::FuncOp func);
+    void assignUniqueIds();
     static mlir::IntegerAttr getUniqueID(mlir::Operation* op);
 
 protected:

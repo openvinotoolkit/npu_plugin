@@ -211,7 +211,7 @@ class Test_Fixture_Barrier_Scheduler : public testing::Test {
     for (;bscheduler != bscheduler_end; ++bscheduler) {
       const schedule_info_t& sinfo = *bscheduler;
 
-      if (true) {
+      if (dump_info) {
         printf("[time=%lu barrier_id=%lu slot_count=%lu op=%s]\n",
             sinfo.schedule_time_, sinfo.barrier_index_, sinfo.slot_count_,
             sinfo.op_.c_str());

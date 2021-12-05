@@ -111,13 +111,13 @@ class Runtime_Barrier_Simulation_Checker {
       while ( (bcurr != bend) && !real_barrier_list_.empty() ) {
         // atleast one barrier tasks and atleast one real barrier //
         operation_t bop = *bcurr;
-        std::cout << "acquire_real_barrier " << std::endl;
+        //std::cout << "acquire_real_barrier " << std::endl;
         acquire_real_barrier(bop);
         filled_atleast_once = true;
         berase = bcurr; ++bcurr;
 
       
-        std::cout << "Erasing barrier from barrier_task_list " << std::endl;
+        //std::cout << "Erasing barrier from barrier_task_list " << std::endl;
         barrier_task_list.erase(berase);
       }
       return filled_atleast_once;
@@ -207,7 +207,7 @@ class Runtime_Barrier_Simulation_Checker {
       while (tbegin != tend) {
         operation_t op = *tbegin;
         if (!is_task_ready(op) ) { 
-          std::cout << op->getName() << " is not ready " << std::endl;
+          //std::cout << op->getName() << " is not ready " << std::endl;
           break; 
           }
         process_task(op);
@@ -280,7 +280,7 @@ class Runtime_Barrier_Simulation_Checker {
 
 
     void init() {
-      std::cout <<  "Populating real_barrier_list_ with 9 barriers" << std::endl;
+      //std::cout <<  "Populating real_barrier_list_ with 9 barriers" << std::endl;
       real_barrier_list_.clear();
 
       // 2n barriers //
@@ -364,25 +364,25 @@ class Runtime_Barrier_Simulation_Checker {
       for (const_operation_iterator_t oitr=traits::operations_begin(dag); oitr!=traits::operations_end(dag); ++oitr) {
         src_op = *oitr;
 
-        std::cout << "The operation is " << src_op->getName() << std::endl;
+        //std::cout << "The operation is " << src_op->getName() << std::endl;
 
         in_degree_itr = in_degree_map_.find(src_op);
         
         if (in_degree_itr == in_degree_map_.end()) {
-          std::cout << "Inserting " << src_op->getName() << " in indegree map" << std::endl;
+          //std::cout << "Inserting " << src_op->getName() << " in indegree map" << std::endl;
           in_degree_map_.insert(std::make_pair(src_op, 0UL));
         }
 
         size_t out_degree = 0;
 
-        std::cout << "Getting the children of  " << src_op->getName() << std::endl;
+        //std::cout << "Getting the children of  " << src_op->getName() << std::endl;
         for (const_operation_iterator_t citr=traits::outgoing_operations_begin(dag, src_op); citr!=traits::outgoing_operations_end(dag, src_op); ++citr) {
           
           sink_op = *citr;
 
           in_degree_itr = in_degree_map_.find(sink_op);
           if (in_degree_itr == in_degree_map_.end()) {
-            std::cout << "Inserting " << sink_op->getName() << " in indegree map" << std::endl;
+            //std::cout << "Inserting " << sink_op->getName() << " in indegree map" << std::endl;
             in_degree_itr = (in_degree_map_.insert(std::make_pair(sink_op,0UL))).first;
           }
           in_degree_itr->second++;
@@ -391,7 +391,7 @@ class Runtime_Barrier_Simulation_Checker {
 
         out_degree_itr = out_degree_map_.find(src_op);
         if (out_degree_itr == out_degree_map_.end()) {
-          std::cout << "Inserting " << src_op->getName() << " in outdegree map with outdegree" << out_degree <<  std::endl;
+          //std::cout << "Inserting " << src_op->getName() << " in outdegree map with outdegree" << out_degree <<  std::endl;
           out_degree_map_.insert(std::make_pair(src_op, out_degree));
         }
       }

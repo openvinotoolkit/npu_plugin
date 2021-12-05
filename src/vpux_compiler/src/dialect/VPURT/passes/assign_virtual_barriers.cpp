@@ -33,31 +33,31 @@ class BarrierAllocation final {
 public:
     BarrierAllocation(mlir::Operation* op, int64_t numBarriers, Logger log);
 
-    int64_t getID(mlir::Value val) const;
+    //int64_t getID(mlir::Value val) const;
 
 private:
     llvm::DenseMap<mlir::Value, int64_t> _idMap;
 };
 
 // TODO: [#6150] Implement safe static barriers allocation
-BarrierAllocation::BarrierAllocation(mlir::Operation* op, int64_t numBarriers, Logger log) {
-    int64_t barrierID = 0;
+// BarrierAllocation::BarrierAllocation(mlir::Operation* op, int64_t numBarriers, Logger log) {
+//     int64_t barrierID = 0;
 
-    log.trace("Assign {0} physical barriers", numBarriers);
+//     log.trace("Assign {0} physical barriers", numBarriers);
 
-    const auto callback = [&](VPURT::DeclareVirtualBarrierOp virtOp) {
-        _idMap.insert({virtOp.barrier(), barrierID});
-        barrierID = (barrierID + 1) % numBarriers;
-    };
+//     const auto callback = [&](VPURT::DeclareVirtualBarrierOp virtOp) {
+//         _idMap.insert({virtOp.barrier(), barrierID});
+//         barrierID = (barrierID + 1) % numBarriers;
+//     };
 
-    op->walk(callback);
-}
+//     op->walk(callback);
+// }
 
-int64_t BarrierAllocation::getID(mlir::Value val) const {
-    const auto it = _idMap.find(val);
-    VPUX_THROW_UNLESS(it != _idMap.end(), "Value '{0}' was not covered by BarrierAllocation");
-    return it->second;
-}
+// int64_t BarrierAllocation::getID(mlir::Value val) const {
+//     const auto it = _idMap.find(val);
+//     VPUX_THROW_UNLESS(it != _idMap.end(), "Value '{0}' was not covered by BarrierAllocation");
+//     return it->second;
+// }
 
 //
 // VirtualBarrierRewrite
@@ -107,41 +107,13 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+    //auto module = func->getParentOfType<mlir::ModuleOp>();
+    //auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
     //Barrier scheduler
-    TokenBasedBarrierScheduler barrierScheduler(&ctx,func, 4, 256, _log);
+    TokenBasedBarrierScheduler barrierScheduler(&ctx,func, 4, 256);
     barrierScheduler.schedule();
 
-    // const auto nceAttr = VPUIP::PhysicalProcessorAttr::get(&ctx, VPUIP::PhysicalProcessor::NCE_Cluster);
-    // auto nceResOp = resOp.getExecutor(nceAttr);
-    // VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE_Cluster information");
-    // const auto numClusters = nceResOp.count();
-
-    // const auto maxNumClustersForArch = vpux::VPUIP::getMaxDPUClusterNum(module);
-    // VPUX_THROW_UNLESS(maxNumClustersForArch != 0, "Failed to get maxNumClustersForArch");
-
-    // constexpr auto maxBarriersPerInference = MAX_BARRIERS_FOR_ARCH / 2;  // half barries are used
-    // const auto barriersPerCluster = maxBarriersPerInference / maxNumClustersForArch;
-    // const auto maxNumBarriers = std::min(maxBarriersPerInference, barriersPerCluster * numClusters);
-
-    // const auto numBarriers = _numBarriersOpt.hasValue() ? _numBarriersOpt.getValue() : maxNumBarriers;
-    // VPUX_THROW_UNLESS(numBarriers > 0 && numBarriers <= maxNumBarriers,
-    //                   "Number of physical barriers '{0}' is out of range '{1}'", numBarriers, maxNumBarriers);
-
-    // BarrierAllocation allocInfo(func, numBarriers, _log);
-
-    // mlir::ConversionTarget target(ctx);
-    // target.addIllegalOp<VPURT::DeclareVirtualBarrierOp>();
-    // target.addLegalOp<VPURT::ConfigureBarrierOp>();
-
-    // mlir::RewritePatternSet patterns(&ctx);
-    // patterns.insert<DeclareVirtualBarrierRewrite>(&ctx, allocInfo, _log);
-
-    // if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
-    //     signalPassFailure();
-    // }
 }
 
 }  // namespace

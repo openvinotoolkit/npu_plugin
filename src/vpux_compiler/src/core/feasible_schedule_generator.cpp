@@ -24,13 +24,13 @@ FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mli
                                                      const resource_state_t& rstate)
         : _ctx(ctx),
           _func(func),
+           in_degree_(),
           heap_(),
           current_time_(0),
           candidates_(),
           resource_state_(),
           heap_ordering_(),
           schedulable_op_(),
-          in_degree_(),
           processed_ops_(),
           priority_() {
     init(rstate);
@@ -39,13 +39,13 @@ FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mli
 FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func)
         : _ctx(ctx),
           _func(func),
+           in_degree_(),
           heap_(),
           current_time_(0),
           candidates_(),
           resource_state_(),
           heap_ordering_(),
           schedulable_op_(),
-          in_degree_(),
           processed_ops_(),
           priority_(){};
 
@@ -249,11 +249,13 @@ std::string FeasibleScheduleGenerator::printOpType(VPURT::TaskOp task) {
         return "DMA task ";
     if (task.getTaskType() == VPUIP::TaskType::UPA)
         return "Upa task ";
+    
+    return "task";
 }
 
 mlir::IntegerAttr FeasibleScheduleGenerator::getUniqueID(mlir::Operation* op) {
-    if (auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op))
-        return taskOp->getAttr(uniqueIdAttrName).dyn_cast_or_null<mlir::IntegerAttr>();
+    auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op);
+    return taskOp->getAttr(uniqueIdAttrName).dyn_cast_or_null<mlir::IntegerAttr>();
 }
 
 void FeasibleScheduleGenerator::compute_operation_priorities() {
@@ -350,7 +352,7 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
     std::cout << "Finished compute_operation_priorities " << std::endl;
 }
 
-void FeasibleScheduleGenerator::assignUniqueIds(mlir::FuncOp func) {
+void FeasibleScheduleGenerator::assignUniqueIds() {
     int64_t uniqueId = 0;
     auto assignUniqueIDs = [&](VPURT::TaskOp taskOp) {
         taskOp->setAttr(uniqueIdAttrName, getIntAttr(_ctx, uniqueId++));
@@ -362,6 +364,7 @@ void FeasibleScheduleGenerator::assignUniqueIds(mlir::FuncOp func) {
         switch (taskOp.getTaskType()) {
         case VPUIP::TaskType::UPADMA: {
             assignUniqueIDs(taskOp);
+            break;
         }
         case VPUIP::TaskType::NNDMA: {
             assignUniqueIDs(taskOp);
@@ -382,7 +385,7 @@ void FeasibleScheduleGenerator::assignUniqueIds(mlir::FuncOp func) {
 }
 
 void FeasibleScheduleGenerator::printInfo(mlir::FuncOp func) {
-    auto getTaskInfo = [&](VPURT::TaskOp taskOp, const int64_t count = 1) {
+    auto getTaskInfo = [&](VPURT::TaskOp taskOp) {
         std::cout << printOpType(taskOp) << " # wait barriers " << taskOp.waitBarriers().size()
                   << std::endl;
     };
@@ -472,8 +475,6 @@ void FeasibleScheduleGenerator::compute_op_indegree(operation_in_degree_t& in_de
     in_degree.clear();
 
     _func.walk([&](VPURT::TaskOp taskOp) {
-        auto& block = taskOp.op().getBlocks().front();
-        auto wrappedTaskOp = block.begin();
         size_t waitBarrierIncomingEdges = 0;
 
         for (const auto waitBarrier : taskOp.waitBarriers()) {
@@ -490,7 +491,6 @@ void FeasibleScheduleGenerator::compute_op_indegree(operation_in_degree_t& in_de
 }
 
 bool FeasibleScheduleGenerator::doesOpRunOnNCE(mlir::Operation* op) {
-    auto task = mlir::dyn_cast<VPURT::TaskOp>(op);
     if ((mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() ==  VPUIP::TaskType::NCE2) || (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NNDMA))
         return true;
     else
@@ -526,7 +526,7 @@ bool FeasibleScheduleGenerator::init(const resource_state_t& upper_bound) {
     Logger::global().error("**Initializing the feasible scheduler **");
 
     // printInfo(_func);
-    assignUniqueIds(_func);
+    assignUniqueIds();
     processed_ops_.clear();
     resource_utility_map_.clear();
 
