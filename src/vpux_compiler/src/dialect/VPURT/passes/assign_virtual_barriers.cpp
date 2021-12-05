@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 #include "vpux/compiler/core/token_barrier_scheduler.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
+//#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>

@@ -436,9 +436,9 @@ void FeasibleScheduleGenerator::getAllBarriersProducersAndConsumers() {
 
             const auto& effect = valEffects.front();
 
-            VPUX_THROW_WHEN(effect.getResource() != VPUIP::BarrierResource::get(),
-                            "Barrier '{0}' has non Barrier Resource for Operation '{1}'", barrierOp->getLoc(),
-                            userOp->getLoc());
+            // VPUX_THROW_WHEN(effect.getResource() != VPUIP::BarrierResource::get(),
+            //                 "Barrier '{0}' has non Barrier Resource for Operation '{1}'", barrierOp->getLoc(),
+            //                 userOp->getLoc());
 
             if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
                 auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);

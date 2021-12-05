@@ -39,7 +39,7 @@
 #include <llvm/ADT/BitVector.h>
 #include <llvm/ADT/DenseSet.h>
 
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+//#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/core/barrier_resource_state.hpp"
 #include "vpux/compiler/core/op_resource_state.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
