@@ -51,20 +51,20 @@ namespace vpux {
 
 class TokenBasedBarrierScheduler {
 public:
-    explicit TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers, int64_t slotCount, Logger log);
+    explicit TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers, int64_t slotCount);
 
     // typedef BarrierScheduleGenerator scheduler_t;
     typedef size_t schedule_time_t;
     std::unordered_map<mlir::Operation*, std::pair<std::set<mlir::Operation*>,std::set<mlir::Operation*>>> configureBarrierOpUpdateWaitMap; //update,wait
-    //std::unordered_map<mlir::Operation*, std::set<mlir::Operation*>> configureBarrierOpWaitMap;
 
     // One transition structure for each physical barrier //
     // TODO John: Move barrier_transition_structure_t to another file
-    class barrier_transition_structure_t {
+    class barrier_transition_structure_t 
+    {
+
     public:
 
-        //Outer class
-        TokenBasedBarrierScheduler& tokenBasedBarrierScheduler_;
+        
         
         
         typedef std::set<mlir::Operation*> producers_t;
@@ -248,7 +248,6 @@ public:
              std::set<mlir::Operation*> newBarrierProducers{};
              std::set<mlir::Operation*> newBarrierConsumers{};            
              tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.insert(std::make_pair(newBarrier, std::make_pair(newBarrierProducers,newBarrierConsumers)));
-             //tokenBasedBarrierScheduler_.configureBarrierOpWaitMap.insert(std::make_pair(newBarrier, newBarrierConsumers));
 
              Logger::global().error("Created a new barrier task with barrier ID {0} after OP id is {1}", barrier_task_id, FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
              barrier_task_id++;
@@ -256,12 +255,13 @@ public:
 
          }
 
+        mlir::FuncOp _func;
+        //Outer class
+        TokenBasedBarrierScheduler& tokenBasedBarrierScheduler_;
         schedule_time_t time_;
         mlir::Operation* curr_barrier_task_;
         mlir::Operation* prev_barrier_task_;
         producers_t producers_;
-        mlir::FuncOp _func;
-
     };  // class barrier_transition_structure_t //
 
     size_t schedule();

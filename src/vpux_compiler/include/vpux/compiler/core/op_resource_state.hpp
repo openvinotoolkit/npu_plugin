@@ -81,8 +81,8 @@ struct op_resource_state_t {
 
         mlir::IntegerAttr getUniqueID(const mlir::Operation* op) const 
         {
-            if (auto taskOp = mlir::dyn_cast<VPUIP::TaskOpInterface>(const_cast<mlir::Operation*>(op)))
-                return taskOp->getAttr(uniqueIdAttrName).dyn_cast_or_null<mlir::IntegerAttr>();
+            auto taskOp = mlir::dyn_cast<VPUIP::TaskOpInterface>(const_cast<mlir::Operation*>(op));
+            return taskOp->getAttr(uniqueIdAttrName).dyn_cast_or_null<mlir::IntegerAttr>();
         }
 
         const barrier_info_t& get_barrier_info(const operation_t& op) const {
