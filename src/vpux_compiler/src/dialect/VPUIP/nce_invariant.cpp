@@ -254,7 +254,7 @@ Byte getRequiredCMX(ArrayRef<mlir::ShapedType> operands, int64_t numChannels) {
     Byte requiredCMX(0);
 
     for (const auto& operand : operands) {
-        requiredCMX += getTotalSize(operand);
+        requiredCMX += Byte(getTotalSize(operand));
     }
 
     requiredCMX += numChannels * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;

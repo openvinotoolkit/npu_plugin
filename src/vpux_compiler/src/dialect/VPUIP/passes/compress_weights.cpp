@@ -75,7 +75,7 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
     }
 
     constexpr Byte MIN_INPUT_SIZE = 4_KB;
-    const Byte totalInputSize = getTotalSize(origOp.input());
+    const Byte totalInputSize = Byte(getTotalSize(origOp.input()));
     if (totalInputSize < MIN_INPUT_SIZE) {
         return mlir::failure();
     }

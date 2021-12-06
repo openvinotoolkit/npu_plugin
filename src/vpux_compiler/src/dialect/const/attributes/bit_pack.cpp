@@ -128,7 +128,7 @@ Const::Content vpux::Const::BitPackAttr::transform(vpux::Const::Content& input) 
     const auto inBuf = input.getValues<uint8_t>();
     VPUX_THROW_UNLESS((inBuf.size() % 2) == 0, "Storage buffer size is odd, which is unexpected for 4 bit packing.");
     const auto outputType = inferOutputType(input.getType());
-    const Byte outputByteSize = getTotalSize(outputType);
+    const Byte outputByteSize = Byte(getTotalSize(outputType));
     const size_t tempBufferSize = outputByteSize.count();
     auto output =
             Const::Content::allocTempBuffer(outputType, getUInt8Type(getContext()), input.isSplat(), tempBufferSize);
@@ -138,9 +138,9 @@ Const::Content vpux::Const::BitPackAttr::transform(vpux::Const::Content& input) 
     for (size_t idx = 0; idx < inBuf.size(); idx += 2) {
         // hiHalf and loHalf are swapped since the weight reader currently works that way.
         // They must as well be the other way around, given the corresponding reader contract.
-        const auto hiHalf = static_cast<uint8_t>(inBuf[idx + 1] & 0x0f);
-        const auto loHalf = static_cast<uint8_t>(inBuf[idx + 0] & 0x0f);
-        const auto byte = static_cast<uint8_t>((hiHalf << 4) + loHalf);
+        const auto lsn = static_cast<uint8_t>(inBuf[idx + 0] & 0x0f);
+        const auto msn = static_cast<uint8_t>(inBuf[idx + 1] & 0x0f);
+        const auto byte = static_cast<uint8_t>((msn << 4) + lsn);
         outBlobPtr[idx / 2] = byte;
     }
 

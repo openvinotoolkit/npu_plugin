@@ -91,13 +91,19 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
-    if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
+    auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
+    if (qty != nullptr) {
         weightsAttribute = weightsAttribute.quantCast(qty);
+    }
+    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
+
+    if (qty != nullptr && qty.getStorageType().isInteger(4)) {
+        weightsAttribute = weightsAttribute.bitPack(4);
     }
 
     const auto weightsDDRType = getMemRef(weightsShape, weightsType, VPURT::BufferSection::Constant);
-    auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType,
-                                                                     weightsAttribute.reorder(vpux::DimsOrder::NHWC));
+    auto weightsDDR =
+            functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType, weightsAttribute);
     auto weightsCMX = getCMXTensor(weightsShape, weightsType, WEIGHTS_CMX_OFFSET);
 
     auto inputCMX = getCMXTensor(inputShape, inputType, INPUT_CMX_OFFSET);

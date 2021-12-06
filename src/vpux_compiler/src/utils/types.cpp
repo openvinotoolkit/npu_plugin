@@ -114,7 +114,7 @@ Bit vpux::getElemTypeSize(mlir::Type type) {
     VPUX_THROW("Can't get type size for '{0}'", type);
 }
 
-Byte vpux::getTotalSize(mlir::ShapedType type) {
+Bit vpux::getTotalSize(mlir::ShapedType type) {
     if (type.getRank() == 0) {
         return getElemTypeSize(type);
     }
@@ -128,14 +128,14 @@ Byte vpux::getTotalSize(mlir::ShapedType type) {
     return Byte(memStrides.front() * memShape.front());
 }
 
-Byte vpux::getTotalSize(mlir::Value val) {
+Bit vpux::getTotalSize(mlir::Value val) {
     const auto type = val.getType().dyn_cast<mlir::ShapedType>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
     return getTotalSize(type);
 }
 
-Byte vpux::getCompactSize(mlir::ShapedType type) {
-    const auto typeSize = static_cast<Byte>(getElemTypeSize(type));
+Bit vpux::getCompactSize(mlir::ShapedType type) {
+    const auto typeSize = static_cast<Bit>(getElemTypeSize(type));
     if (type.getRank() == 0) {
         return typeSize;
     }
@@ -144,7 +144,7 @@ Byte vpux::getCompactSize(mlir::ShapedType type) {
     return shape.totalSize() * typeSize;
 }
 
-Byte vpux::getCompactSize(mlir::Value val) {
+Bit vpux::getCompactSize(mlir::Value val) {
     const auto type = val.getType().dyn_cast<mlir::ShapedType>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
     return getCompactSize(type);
