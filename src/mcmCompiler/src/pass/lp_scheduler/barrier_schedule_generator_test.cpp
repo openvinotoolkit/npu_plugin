@@ -245,7 +245,7 @@ class Test_Fixture_Barrier_Scheduler : public testing::Test {
 
 TEST_F(Test_Fixture_Barrier_Scheduler, barriers_2_slots_1_depth_1_degree_100) {
   dag_t input_dag;
-  
+
   //Input: depth=1UL degree=100UL //
   create_degree_bounded_tree_test(input_dag, 100UL, 1UL);
 
