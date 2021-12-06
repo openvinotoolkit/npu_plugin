@@ -647,6 +647,13 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     int64_t LreluShift = 0;
 
     auto outElemType = origOutType.getElementType();
+    if (auto outElemQType = outElemType.template dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto zps = extractScalesAndZeroPoints(outElemType).second;
+
+        clampLow = outElemQType.getStorageTypeMin() - zps.front();
+        clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+    }
+
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr(), origOutType, _arch);
     if (postOpParams.hasValue()) {
         clampLow = postOpParams->clampLow;
