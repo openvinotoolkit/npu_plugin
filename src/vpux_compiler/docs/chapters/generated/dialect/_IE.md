@@ -440,7 +440,6 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
-`tiling_strategy` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 

@@ -35,30 +35,6 @@ using namespace vpux;
 // FuseConvAndBias
 //
 
-void vpux::IE::ConvolutionOp::build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState,
-                                    ::mlir::Type output, ::mlir::Value input, ::mlir::Value filter, ::mlir::Value bias,
-                                    ::mlir::ArrayAttr strides, ::mlir::ArrayAttr pads_begin, ::mlir::ArrayAttr pads_end,
-                                    ::mlir::ArrayAttr dilations, ::vpux::IE::PostOp post_op) {
-    build(odsBuilder, odsState, output, input, filter, bias, strides, pads_begin, pads_end, dilations, post_op, 
-          odsBuilder.getI64ArrayAttr(ArrayRef<int64_t>{1, 1, 1, 1}));
-}
-
-void vpux::IE::ConvolutionOp::build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState,
-                                    ::mlir::Value input, ::mlir::Value filter, ::mlir::Value bias,
-                                    ::mlir::ArrayAttr strides, ::mlir::ArrayAttr pads_begin, ::mlir::ArrayAttr pads_end,
-                                    ::mlir::ArrayAttr dilations, ::vpux::IE::PostOp post_op) {
-    build(odsBuilder, odsState, input, filter, bias, strides, pads_begin, pads_end, dilations, post_op,
-          odsBuilder.getI64ArrayAttr(ArrayRef<int64_t>{1, 1, 1, 1}));
-}
-
-void vpux::IE::ConvolutionOp::build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState,
-                                    ::mlir::TypeRange resultTypes, ::mlir::Value input, ::mlir::Value filter,
-                                    ::mlir::Value bias, ::mlir::ArrayAttr strides, ::mlir::ArrayAttr pads_begin,
-                                    ::mlir::ArrayAttr pads_end, ::mlir::ArrayAttr dilations, ::vpux::IE::PostOp post_op) {
-    build(odsBuilder, odsState, resultTypes, input, filter, bias, strides, pads_begin, pads_end, dilations, post_op,
-          odsBuilder.getI64ArrayAttr(ArrayRef<int64_t>{1, 1, 1, 1}));
-}
-
 namespace {
 
 class FuseConvAndBias final : public mlir::OpRewritePattern<IE::ScaleShiftOp> {
@@ -199,21 +175,9 @@ mlir::Value vpux::IE::ConvolutionOp::reifyTile(const TileInfo& outputTile, mlir:
 
     const auto tiledResType = getDenseTileType(getType(), outputTile.offsets, outputTile.shape);
 
-    //  If currently running the isolated tiling, then save the tiling strategy as 'realAxis'
-    //  else if currently running the prefetch tiling, then reset the tiling strategy back to all-one,
-    //  in order to avoid recursively rewriting.
-    //  This logic could be removed when applying a real cost model.
-    Shape realAxis = outputTile.axis;
-    auto oriAxis = parseIntArrayAttr<int64_t>(tiling_strategyAttr());
-    VPUX_THROW_UNLESS(realAxis.size() == oriAxis.size(), "Tiling dimension mismatch.");
-    unsigned totalSize = std::accumulate(std::begin(oriAxis), std::end(oriAxis), 0);
-    if (totalSize != oriAxis.size())
-        realAxis = Shape({1, 1, 1, 1});
-
     auto tiledOp = builder.create<IE::ConvolutionOp>(tileLoc, tiledResType, inputTileVal, filterTileVal, biasTileVal,
                                                      stridesAttr(), getIntArrayAttr(builder, padsBegin),
-                                                     getIntArrayAttr(builder, padsEnd), dilationsAttr(), post_opAttr(),
-                                                     getIntArrayAttr(builder, realAxis));
+                                                     getIntArrayAttr(builder, padsEnd), dilationsAttr(), post_opAttr());
 
     return tiledOp.output();
 }
