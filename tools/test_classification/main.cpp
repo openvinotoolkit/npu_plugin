@@ -11,7 +11,7 @@
 #include <mutex>
 #include <algorithm>
 
-#include <inference_engine.hpp>
+#include "openvino/openvino.hpp"
 
 #include <format_reader_ptr.h>
 
@@ -27,7 +27,7 @@
 using namespace InferenceEngine;
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
-    // ---------------------------Parsing and validation of input args--------------------------------------
+    // -------- Parsing and validation of input arguments --------
     slog::info << "Parsing input parameters" << slog::endl;
 
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
@@ -36,147 +36,136 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         showAvailableDevices();
         return false;
     }
-    slog::info << "Parsing input parameters" << slog::endl;
-
-    if (FLAGS_i.empty()) {
-        throw std::logic_error("Parameter -i is not set");
-    }
 
     if (FLAGS_m.empty()) {
         throw std::logic_error("Parameter -m is not set");
     }
 
-    std::vector<std::string> allowedPrecision = {"u8", "fp16", "fp32"};
+    const std::vector<std::string> allowedPrecision = {"u8", "f16", "f32"};
     if (!FLAGS_ip.empty()) {
-        // input precision is u8, fp16 or fp32 only
-        if (std::find(allowedPrecision.begin(), allowedPrecision.end(), FLAGS_ip ) == allowedPrecision.end() )
+        // input precision is u8, f16 or f32 only
+        if (std::find(allowedPrecision.cbegin(), allowedPrecision.cend(), FLAGS_ip) == allowedPrecision.cend())
             throw std::logic_error("Parameter -ip " + FLAGS_ip + " is not supported");
-        std::transform(FLAGS_ip.begin(),FLAGS_ip.end(),FLAGS_ip.begin(), ::toupper);
     }
 
     if (!FLAGS_op.empty()) {
-        // output precision is u8, fp16 or fp32 only
-        if (std::find(allowedPrecision.begin(), allowedPrecision.end(), FLAGS_op ) == allowedPrecision.end() )
+        // output precision is u8, f16 or f32 only
+        if (std::find(allowedPrecision.cbegin(), allowedPrecision.cend(), FLAGS_op) == allowedPrecision.cend())
             throw std::logic_error("Parameter -op " + FLAGS_op + " is not supported");
-        std::transform(FLAGS_op.begin(),FLAGS_op.end(),FLAGS_op.begin(), ::toupper);
     }
 
     return true;
 }
 
-template <typename T> void writeToFile(std::vector<T>& input, const std::string& dst) {
+template <typename T> void writeToFile(const std::vector<T>& input, const std::string& dst) {
     std::ofstream dumper(dst, std::ios_base::binary);
-    dumper.write(reinterpret_cast<char *>(&input[0]), input.size()*sizeof(T));
+    if (dumper.good() && !input.empty()) {
+        dumper.write(reinterpret_cast<const char*>(&input[0]), input.size() * sizeof(T));
+    }
     dumper.close();
 }
 
-void dumpBlob(const Blob::Ptr& inputBlobPtr, const std::string& dst) {
+void dumpTensor(const ov::runtime::Tensor& inputTensor, const std::string& dst) {
     std::ofstream dumper(dst, std::ios_base::binary);
     if (dumper.good()) {
-        dumper.write(inputBlobPtr->cbuffer().as<char *>(), inputBlobPtr->byteSize());
-        // std::cout << "byte size: " << inputBlobPtr->byteSize();
+        const auto* inputRaw = inputTensor.data();
+        dumper.write(reinterpret_cast<const char*>(inputRaw), inputTensor.get_byte_size());
     }
     dumper.close();
 }
 
 template <class T_data>
-std::vector<T_data> generateSequence(std::size_t dataSize, const std::string& dtype) {
+std::vector<T_data> generateSequence(std::size_t dataSize, ov::element::Type dtype) {
     std::vector<T_data> result(dataSize);
-    if (dtype == "U8") {
-    for (std::size_t i = 0; i < result.size(); ++i)
-        result[i] = (T_data)i;
-    } else if (dtype == "FP32") {
+    if (dtype == ov::element::u8) {
+        for (std::size_t i = 0; i < result.size(); ++i)
+            result[i] = static_cast<T_data>(i);
+    } else if (dtype == ov::element::f32) {
         float LO = -10, HI = 10;
         float nummax = RAND_MAX;
         for (std::size_t i = 0; i < result.size(); ++i)
-             result[i] = LO + (static_cast <float> (std::rand()) /(nummax/(HI-LO)));
+             result[i] = LO + (static_cast<float>(std::rand()) /(nummax/(HI-LO)));
     }
     return result;
 }
 
 int main(int argc, char *argv[]) {
     try {
-        slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
+        // -------- Get OpenVINO runtime version --------
+        slog::info << ov::get_openvino_version() << slog::endl;
 
-        // ------------------------------ Parsing and validation of input args ---------------------------------
+        // -------- Parsing and validation of input arguments --------
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
-        // -----------------------------------------------------------------------------------------------------
+        
+        const std::string model_path = FLAGS_m;
+        const std::string image_path = FLAGS_i;
 
-        // --------------------------- 1. Load inference engine -------------------------------------
+        // -------- 1. Initialize OpenVINO Runtime Core --------
         slog::info << "Creating Inference Engine" << slog::endl;
+        ov::runtime::Core core;
 
-        Core ie;
+        // Print device version
+        slog::info << core.get_versions("VPUX") << slog::endl;
 
-        if (!FLAGS_l.empty()) {
-            // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
-            IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
-            ie.AddExtension(extension_ptr, "CPU");
-            slog::info << "CPU Extension loaded: " << FLAGS_l << slog::endl;
-        }
-        if (!FLAGS_c.empty()) {
-            // clDNN Extensions are loaded from an .xml description and OpenCL kernel files
-            ie.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, "GPU");
-            slog::info << "GPU Extension loaded: " << FLAGS_c << slog::endl;
-        }
-
-        /** Printing device version **/
-        slog::info << ie.GetVersions(FLAGS_d) << slog::endl;
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- 2. Read IR Generated by ModelOptimizer (.xml and .bin files) ------------
+        // -------- 2. Read IR Generated by ModelOptimizer (.xml and .bin files) --------
         slog::info << "Loading network files" << slog::endl;
 
-        /** Read network model **/
-        CNNNetwork network = ie.ReadNetwork(FLAGS_m);
-        // -----------------------------------------------------------------------------------------------------
+        // Read network model
+        auto model = core.read_model(model_path);
+        printInputAndOutputsInfo(*model);
 
-        // --------------------------- 3. Configure input & output ---------------------------------------------
-
-        // --------------------------- Prepare input blobs -----------------------------------------------------
+        // -------- 3. Set up input --------
         slog::info << "Preparing input blobs" << slog::endl;
 
-        /** Taking information about all topology inputs **/
-        InputsDataMap inputInfo(network.getInputsInfo());
+        // Taking information about all topology inputs
+        auto inputs = model->inputs();
         bool multiInput = false;
-        if (inputInfo.size() > 1){
+        if (inputs.size() > 1){
             multiInput = true;
             slog::info << "\t multiple inputs detected" << slog::endl;
             slog::info << "\t inputs feeding order: ";
-            for (auto& inputInfoItem : inputInfo) {
-                slog::info << inputInfoItem.second->name() << ",";
+            for (auto& input : inputs) {
+                slog::info << input.get_any_name() << ",";
             }
             slog::info << slog::endl;
         }
 
         // input precision
-        Precision inPrecision;
-        std::vector<SizeVector> dims;
+        ov::element::Type inPrecision;
+        std::vector<ov::Shape> shapes;
         std::vector<size_t> totalSizes;
-        if (!FLAGS_ip.empty()) {
-            if (FLAGS_ip == "FP16")
-                inPrecision = Precision::FP16;
-            else if (FLAGS_ip == "FP32")
-                inPrecision = Precision::FP32;
-            else
-                inPrecision = Precision::U8;
-        } else
-            inPrecision = Precision::U8;
-
-        for (auto& inputInfoItem : inputInfo) {
-            inputInfoItem.second->setPrecision(inPrecision);
-            // input layout
-            if (inputInfoItem.second->getTensorDesc().getDims().size() == 4)
-                inputInfoItem.second->setLayout(Layout::NCHW);
-            else if (inputInfoItem.second->getTensorDesc().getDims().size() == 1)
-                inputInfoItem.second->setLayout(Layout::C);
-            else
-                inputInfoItem.second->setLayout(Layout::NC);
-
-            dims.push_back(inputInfoItem.second->getTensorDesc().getDims());
-            totalSizes.push_back(std::accumulate(begin(dims.back()), end(dims.back()), 1, std::multiplies<size_t>()));
+        
+        if (FLAGS_ip == "f16") {
+            inPrecision = ov::element::f16;
+        } else if (FLAGS_ip == "f32") {
+            inPrecision = ov::element::f32;
+        } else {
+            inPrecision = ov::element::u8;
         }
+
+        // apply preprocessing
+        ov::preprocess::PrePostProcessor preproc(model);
+        preproc.input().tensor().set_element_type(inPrecision);
+
+        // set input layout
+        ov::Layout input_layout;
+        for (auto& input : inputs) {
+            ov::Shape input_shape = input.get_shape();
+            if (input_shape.size() == 4)
+                input_layout = "NHWC";
+            else if (input_shape.size() == 1)
+                input_layout = "C";
+            else
+                input_layout = "NC";
+
+            shapes.push_back(input_shape);
+            totalSizes.push_back(std::accumulate(input_shape.cbegin(), input_shape.cend(), 1,
+                                 std::multiplies<size_t>()));
+        }
+
+        preproc.input().network().set_layout(input_layout);
 
         // validImageNames is needed for classificationresult function. keeping it for now
         std::vector<std::string> validImageNames = {};
@@ -194,7 +183,7 @@ int main(int argc, char *argv[]) {
                 getline(inputNameStream, inputNameItem, ',');
                 inputNames.push_back(inputNameItem);
             }
-            if (inputNames.size() != inputInfo.size())
+            if (inputNames.size() != inputs.size())
                 throw std::logic_error("Inputs number doesn't match the required inputs.");
         }
 
@@ -204,7 +193,7 @@ int main(int argc, char *argv[]) {
             slog::info << "No image provided, generating a random input..." << slog::endl;
             validImageNames.push_back("Autogenerated");
             for (int index = 0; index < totalSizes.size(); index++) {
-                inputSeqs_u8.push_back((generateSequence<uint8_t>(totalSizes[index], "U8")));
+                inputSeqs_u8.push_back((generateSequence<uint8_t>(totalSizes[index], ov::element::u8)));
             }
         } else {
             // Only consider the first image input.
@@ -212,7 +201,7 @@ int main(int argc, char *argv[]) {
             for (int inputIndex = 0; inputIndex < inputNames.size(); inputIndex++) {
                 std::string inputName = inputNames[inputIndex];
                 size_t totalSize = totalSizes[inputIndex];
-                std::vector<size_t> inputDims = dims[inputIndex];
+                std::vector<size_t> inputDims = shapes[inputIndex];
                 std::vector<uint8_t> inputSeq_u8;
                 if (fileExt(inputName).compare("dat") == 0 || fileExt(inputName).compare("bin") == 0) {
                     // use a binary input.dat or .bin
@@ -222,7 +211,7 @@ int main(int argc, char *argv[]) {
                         throw std::logic_error("Input: " + inputName + " cannot be read!");
                     file.seekg(0, std::ios::end);
                     size_t total = file.tellg() / sizeof(uint8_t);
-                    if (inPrecision == Precision::FP32)
+                    if (inPrecision == ov::element::f32)
                         total = file.tellg() / sizeof(float);
                     if (total != totalSize) {
                         // number of entries doesn't match, either not U8 or from different network
@@ -258,53 +247,46 @@ int main(int argc, char *argv[]) {
         }
         
         // Output precision
-        OutputsDataMap outputInfo(network.getOutputsInfo());
+        ov::element::Type outPrecision = ov::element::u8;
+        auto outputs = model->outputs();
         if (!FLAGS_op.empty()) {
-            Precision prc = Precision::U8;
-            if (FLAGS_op == "FP16") prc = Precision::FP16;
-            else if (FLAGS_op == "FP32") prc = Precision::FP32;
-            else prc = Precision::U8;
-
-            // possibly multiple outputs
-            for (auto outputInfoIt=outputInfo.begin(); outputInfoIt!=outputInfo.end(); ++outputInfoIt){
-                outputInfoIt->second->setPrecision(prc);
-                if (outputInfoIt->second->getDims().size() == 2) {
-                    outputInfoIt->second->setLayout(InferenceEngine::Layout::NC);
-                } else {
-                    outputInfoIt->second->setLayout(InferenceEngine::Layout::NHWC);
-                }
-            }
+            if (FLAGS_op == "f16") outPrecision = ov::element::f16;
+            else if (FLAGS_op == "f32") outPrecision = ov::element::f32;
         }
+        
+        preproc.output().tensor().set_element_type(outPrecision);
+        model = preproc.build();
 
-        /** Setting batch size using image count **/
-        network.setBatchSize(1);
-        size_t batchSize = network.getBatchSize();
-        slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
+        // /** Setting batch size using image count **/
+        size_t batchSize = 1;
+        slog::info << "Batch size is " << batchSize << slog::endl;
 
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- 4. Loading model to the device ------------------------------------------
+        // -------- 4. Loading model to the device --------
         slog::info << "Loading model to the device" << slog::endl;
-        ExecutableNetwork executable_network = ie.LoadNetwork(network, FLAGS_d);
-        // -----------------------------------------------------------------------------------------------------
+        ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, "VPUX");
 
-        // --------------------------- 5. Create infer request -------------------------------------------------
-        slog::info << "Create infer request" << slog::endl;
-        InferRequest inferRequest = executable_network.CreateInferRequest();
-        // -----------------------------------------------------------------------------------------------------
+        // -------- 5. Create infer request --------
+        ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
+        slog::info << "CreateInferRequest completed successfully" << slog::endl;
 
-        // --------------------------- 6. Prepare input --------------------------------------------------------
-        auto item = inputInfo.begin();
-        for (int inputIndex = 0; inputIndex < inputInfo.size(); inputIndex++) {
-            Blob::Ptr inputBlob = inferRequest.GetBlob(item->first);
-            SizeVector blobDims = inputBlob->getTensorDesc().getDims();
+        // -------- 6. Prepare input --------
+        std::vector<ov::runtime::Tensor> input_tensors;
+        std::vector<std::size_t> input_tensors_idx;
+        auto item = inputs.begin();
+
+        for (int inputIndex = 0; inputIndex < inputs.size(); inputIndex++) {
+            auto& input = inputs[inputIndex];
+            const auto& inputTensorDesc = input.get_tensor();
+            const auto inputShape = inputTensorDesc.get_shape();
+            auto inputTensor = ov::runtime::Tensor(inPrecision, inputShape);
+
             size_t totalSize = totalSizes[inputIndex];
             /** Fill input tensor with images. First b channel, then g and r channels **/
             size_t num_channels = 1;
             size_t image_size = 1;
-            if (blobDims.size() == 4) {  // image input
-                num_channels = blobDims[1];
-                image_size = blobDims[3] * blobDims[2];
+            if (inputShape.size() == 4) {  // image input
+                num_channels = inputShape[1];
+                image_size = inputShape[3] * inputShape[2];
             }
             else {  // unknown kind of input
                 num_channels = 1;
@@ -318,8 +300,8 @@ int main(int argc, char *argv[]) {
 
             // write to the buffer if the input is not image format
             // For non image input, only supportU8 precision
-            if (blobDims.size() != 4) {
-                auto data = inputBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type *>();
+            if (inputShape.size() != 4) {
+                auto* data = inputTensor.data<uint8_t>();
                 auto inputSeq_u8 = inputSeqs_u8[inputIndex];
                 if (data == nullptr) {
                     throw std::logic_error("input blob buffer is null");
@@ -330,8 +312,8 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
-            if (inPrecision == Precision::U8) {
-                auto data = inputBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type *>();
+            if (inPrecision == ov::element::u8) {
+                auto* data = inputTensor.data<uint8_t>();
                 auto inputSeq_u8 = inputSeqs_u8[inputIndex];
                 if (data == nullptr) {
                     throw std::logic_error("input blob buffer is null");
@@ -405,7 +387,7 @@ int main(int argc, char *argv[]) {
                 writeToFile<uint8_t>(input_nchw_bgr, "./input_cpu_nchw_bgr.bin");
              }
             // TODO Update to create all 4 options for input
-            else if (inPrecision == Precision::FP32) {
+            else if (inPrecision == ov::element::f32) {
                 std::ifstream file(inputNames[inputIndex], std::ios::in | std::ios::binary);
                 if (!file.is_open())
                     throw std::logic_error("Input: " + inputNames[inputIndex] + " cannot be read!");
@@ -420,7 +402,7 @@ int main(int argc, char *argv[]) {
                 std::vector<float> inputSeq_fp32;
                 inputSeq_fp32.resize(total);
                 file.read(reinterpret_cast<char *>(&inputSeq_fp32[0]), total * sizeof(float));
-                auto data = inputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type *>();
+                auto* data = inputTensor.data<float>();
                 for (size_t pid = 0; pid < image_size; pid++) {
                     /** Iterate over all channels **/
                     for (size_t ch = 0; ch < num_channels; ++ch) {
@@ -433,43 +415,47 @@ int main(int argc, char *argv[]) {
                 writeToFile<float>(inputSeq_fp32, "./input_cpu_nchw_bgr.bin");
                 writeToFile<float>(inputSeq_fp32, "./input_cpu_nchw_rgb.bin");
             }
+
             item++;
+            input_tensors.emplace_back(std::move(inputTensor));
+            input_tensors_idx.emplace_back(input.get_index());
         }
 
-        // -----------------------------------------------------------------------------------------------------
+        for (std::size_t i = 0; i < inputs.size(); i++) {
+            infer_request.set_input_tensor(input_tensors_idx[i], input_tensors[i]);
+        }
 
-        // --------------------------- 7. Do inference ---------------------------------------------------------
+        // -------- 7. Do inference --------
         size_t numIterations = 1;
         size_t curIteration = 0;
         std::condition_variable condVar;
 
-        inferRequest.SetCompletionCallback(
-                [&] {
-                    curIteration++;
-                    slog::info << "Completed " << curIteration << " async request execution" << slog::endl;
-                    if (curIteration < numIterations) {
-                        /* here a user can read output containing inference results and put new input
-                           to repeat async request again */
-                        inferRequest.StartAsync();
-                    } else {
-                        /* continue sample execution after last Asynchronous inference request execution */
-                        condVar.notify_one();
-                    }
-                });
+        infer_request.set_callback(
+            [&](std::exception_ptr) {
+                curIteration++;
+                slog::info << "Completed " << curIteration << " async request execution" << slog::endl;
+                if (curIteration < numIterations) {
+                    /* here a user can read output containing inference results and put new input
+                       to repeat async request again */
+                    infer_request.start_async();
+                } else {
+                    /* continue sample execution after last Asynchronous inference request execution */
+                    condVar.notify_one();
+                }
+            }
+        );
 
         /* Start async request for the first time */
         slog::info << "Start inference (" << numIterations << " asynchronous executions)" << slog::endl;
-        inferRequest.StartAsync();
+        infer_request.start_async();
 
         /* Wait all repetitions of the async request */
         std::mutex mutex;
         std::unique_lock<std::mutex> lock(mutex);
         condVar.wait(lock, [&]{ return curIteration == numIterations; });
 
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- 8. Process output -------------------------------------------------------
-        slog::info << "Processing " << outputInfo.size() << " output blob" << ((outputInfo.size() > 1) ? "s" : "") << slog::endl;
+        // -------- 8. Process output --------
+        slog::info << "Processing " << outputs.size() << " output blob" << ((outputs.size() > 1) ? "s" : "") << slog::endl;
 
         /** Read labels from file (e.x. AlexNet.labels) **/
         std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
@@ -485,15 +471,16 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        std::vector<Blob::Ptr> outputBlob;
-        for (auto outputInfoIt=outputInfo.begin(); outputInfoIt!=outputInfo.end(); ++outputInfoIt){
-            outputBlob.push_back(inferRequest.GetBlob(outputInfoIt->first));
+        std::vector<ov::runtime::Tensor> outputTensors;
+        for (auto output : outputs) {
+            const auto index = output.get_index();
+            outputTensors.emplace_back(infer_request.get_output_tensor(index));
         }
 
-        for (unsigned i = 0 ; i < outputBlob.size(); i++)
+        for (unsigned i = 0 ; i < outputTensors.size(); i++)
         {
             /** Validating -nt value **/
-            const size_t resultsCnt = outputBlob[i]->size() / batchSize;
+            const size_t resultsCnt = outputTensors[i].get_size() / batchSize;
             if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
                 slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than " \
                           << resultsCnt+1 << " and more than 0)\n            will be used maximal value : " << resultsCnt << slog::endl;
@@ -501,17 +488,17 @@ int main(int argc, char *argv[]) {
             }
 
             // save the results file for validation
-            if (i == 0) dumpBlob(outputBlob[i], "./output_cpu.bin"); //TODO: remove when validator updated
-            dumpBlob(outputBlob[i], "./output_cpu" + std::to_string(i) + ".bin");
-            ClassificationResult classificationResult(outputBlob[i], validImageNames,
+            if (i == 0) dumpTensor(outputTensors[i], "./output_cpu.bin"); //TODO: remove when validator updated
+            dumpTensor(outputTensors[i], "./output_cpu" + std::to_string(i) + ".bin");
+            ClassificationResult classificationResult(outputTensors[i], validImageNames,
                                                       batchSize, FLAGS_nt,
                                                       labels);
-            if (outputBlob.size() > 1)
+            if (outputTensors.size() > 1)
                 std::cout << "Output " << i << ":" << std::endl;
-            classificationResult.print();
+            classificationResult.show();
 
             std::string results_filename;
-            if (outputBlob.size() == 1)
+            if (outputTensors.size() == 1)
                 results_filename = "./inference_results.txt";
             else
                 results_filename = "./inference_results" + std::to_string(i) + ".txt";
@@ -520,11 +507,7 @@ int main(int argc, char *argv[]) {
             for(auto i = topK.begin(); i != topK.end(); ++i) {
                 f << *i << '\n';
             }
-
         }
-
-
-        // -----------------------------------------------------------------------------------------------------
     }
     catch (const std::exception& error) {
         slog::err << error.what() << slog::endl;

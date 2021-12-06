@@ -35,10 +35,6 @@ Options:
     -h                      Print a usage message.
     -m "<path>"             Required. Path to an .xml file with a trained model.
     -i "<path>"             Optional. Path to image or input binary.
-      -l "<absolute_path>"  Required for CPU custom layers.Absolute path to a shared library with the kernels implementation
-          Or
-      -c "<absolute_path>"  Required for GPU custom kernels.Absolute path to the .xml file with kernels description
-    -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Sample will look for a suitable plugin for device specified.
     -nt "<integer>"         Optional. Number of top results. Default value is 10.
     -p_msg                  Optional. Enables messages from a plugin
 

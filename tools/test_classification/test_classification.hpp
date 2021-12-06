@@ -26,14 +26,6 @@ static const char target_device_message[] = "Optional. Specify the target device
 /// @brief message for top results number
 static const char ntop_message[] = "Optional. Number of top results. Default value is 10.";
 
-/// @brief message for clDNN custom kernels desc
-static const char custom_cldnn_message[] = "Required for GPU custom kernels."\
-                                            "Absolute path to the .xml file with kernels description";
-
-/// @brief message for user library argument
-static const char custom_cpu_library_message[] = "Required for CPU custom layers." \
-                                                 "Absolute path to a shared library with the kernels implementation";
-
 /// @brief message for plugin messages
 static const char plugin_message[] = "Optional. Enables messages from a plugin";
 
@@ -41,10 +33,10 @@ static const char plugin_message[] = "Optional. Enables messages from a plugin";
 static const char rgb_message[] = "Optional. Use input image in RGB format. Default is BGR.";
 
 /// @brief message for input precision
-static const char input_precision_message[] = "Optional. u8, fp32 or fp16. Default u8. ";
+static const char input_precision_message[] = "Optional. u8, f32 or f16. Default u8. ";
 
 /// @brief message for input precision
-static const char output_precision_message[] = "Optional. u8, fp32 or fp16. Default fp16. ";
+static const char output_precision_message[] = "Optional. u8, f32 or f16. Default fp16. ";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -57,19 +49,8 @@ DEFINE_string(i, "", image_message);
 /// It is a required parameter
 DEFINE_string(m, "", model_message);
 
-/// @brief device the target device to infer on <br>
-DEFINE_string(d, "CPU", target_device_message);
-
 /// @brief Top results number (default 10) <br>
 DEFINE_uint32(nt, 10, ntop_message);
-
-/// @brief Define parameter for clDNN custom kernels path <br>
-/// Default is ./lib
-DEFINE_string(c, "", custom_cldnn_message);
-
-/// @brief Absolute path to CPU library with user layers <br>
-/// It is a optional parameter
-DEFINE_string(l, "", custom_cpu_library_message);
 
 /// @brief Enable plugin messages
 DEFINE_bool(p_msg, false, plugin_message);
@@ -84,7 +65,7 @@ DEFINE_string(ip, "u8", input_precision_message);
 
 /// @brief Define output precision <br>
 /// It is an optional parameter
-DEFINE_string(op, "fp32", output_precision_message);
+DEFINE_string(op, "f32", output_precision_message);
 
 /**
 * @brief This function show a help message
@@ -97,10 +78,6 @@ static void showUsage() {
     std::cout << "    -h                      " << help_message << std::endl;
     std::cout << "    -i \"<path>\"             " << image_message << std::endl;
     std::cout << "    -m \"<path>\"             " << model_message << std::endl;
-    std::cout << "      -l \"<absolute_path>\"  " << custom_cpu_library_message << std::endl;
-    std::cout << "          Or" << std::endl;
-    std::cout << "      -c \"<absolute_path>\"  " << custom_cldnn_message << std::endl;
-    std::cout << "    -d \"<device>\"           " << target_device_message << std::endl;
     std::cout << "    -nt \"<integer>\"         " << ntop_message << std::endl;
     std::cout << "    -p_msg                  " << plugin_message << std::endl;
     std::cout << "    -ip_msg                  " << input_precision_message << std::endl;
