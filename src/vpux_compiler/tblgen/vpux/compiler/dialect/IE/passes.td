@@ -901,4 +901,21 @@ def IsolatedTiling : PassBase<"isolated-tiling", "vpux::FunctionPass"> {
     let constructor = "vpux::IE::createIsolatedTilingPass()";
 }
 
+
+def PrefetchTiling : PassBase<"prefetch-tiling", "vpux::FunctionPass"> {
+    let summary = "Tile layers into smaller tiles to enable prefetch pipeline";
+
+    let description = [{
+        The pass performs tiling on layers to enable prefetch pipeline.
+
+        The pass tries run tiles in parallel.
+        The 'prefetch' means that the next tile could be loaded in advance when the current tile is computing.
+
+        The pass does not consider cost models,
+        only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
+    }];
+
+    let constructor = "vpux::IE::createPrefetchTilingPass()";
+}
+
 #endif
