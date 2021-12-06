@@ -236,6 +236,103 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     });
 }
 
+bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logger log) {
+    bool isSingleTile = false;
+    Dim tileDim = Dim(0);
+    for (unsigned i = 0; i < tileAxis.size(); i++) {
+        if (tileAxis[Dim(i)] > 1) {
+            tileDim = Dim(i);
+            if (isSingleTile)
+                return false;
+            else
+                isSingleTile = true;
+        }
+    }
+    if (!isSingleTile)
+        return false;
+    auto outputShape = getShape(origOp.output());
+    const Shape nTilesOnDim = tileAxis;
+
+    auto isDivisibleTile = [&]() -> bool {
+        auto kernelSize = getShape(origOp.filter());
+        if (tileDim == Dims4D::Act::C) {
+            // TODO replace '16' with correct parameter
+            return (outputShape[tileDim] / nTilesOnDim[tileDim] >= 16) &&
+                   (outputShape[tileDim] % nTilesOnDim[tileDim] == 0) && 
+                   ((outputShape[tileDim] / nTilesOnDim[tileDim]) % 16 == 0);
+        }
+        else {
+            return outputShape[tileDim] / nTilesOnDim[tileDim] >= kernelSize[tileDim];
+        }
+    };
+
+    auto isMemPrefetchable = [&]() -> bool {
+        auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
+    };
+
+    auto isLastTileBiggest = [&]() -> bool {
+        auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+        auto lastTile = tileResult.end() - 1;
+        auto firstTile = tileResult.begin();
+        return lastTile->shape[tileDim] > firstTile->shape[tileDim];
+    };
+
+    return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest();
+}
+
+bool isSupportedPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) {
+    //  GroupConvolution has been tiled over C according to the chanAlignment
+    //  No more prefetch tiling applied
+    return false;
+}
+
+bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, const Shape& tileAxis, Logger log) {
+    bool isSingleTile = false;
+    Dim tileDim = Dim(0);
+    for (unsigned i = 0; i < tileAxis.size(); i++) {
+        if (tileAxis[Dim(i)] > 1) {
+            tileDim = Dim(i);
+            if (isSingleTile)
+                return false;
+            else
+                isSingleTile = true;
+        }
+    }
+    if (!isSingleTile)
+        return false;
+    auto outputShape = getShape(origOp.output());
+    const Shape nTilesOnDim = tileAxis;
+
+    auto isDivisibleTile = [&]() -> bool {
+        auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_sizeAttr());
+        if (tileDim == Dims4D::Act::C) {
+            // TODO replace '16' with correct parameter
+            return (outputShape[tileDim] / nTilesOnDim[tileDim] >= 16) &&
+                   (outputShape[tileDim] % nTilesOnDim[tileDim] == 0) &&
+                   ((outputShape[tileDim] / nTilesOnDim[tileDim]) % 16 == 0);
+        }
+        else {
+            size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
+            return outputShape[tileDim] / nTilesOnDim[tileDim] >= kernelSize[realKernelIndex];
+        }
+    };
+
+    auto isMemPrefetchable = [&]() -> bool {
+        auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
+    };
+
+    auto isLastTileBiggest = [&]() -> bool {
+        auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+        auto lastTile = tileResult.end() - 1;
+        auto firstTile = tileResult.begin();
+        return lastTile->shape[tileDim] > firstTile->shape[tileDim];
+    };
+
+    return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest();
+}
+
 template <class MainOpType>
 class NCETilingInfoOpModel final :
         public IE::TilingInfoOpInterface::ExternalModel<NCETilingInfoOpModel<MainOpType>, MainOpType> {
@@ -246,6 +343,10 @@ public:
         }
 
         return ::isSupportedTiling(mlir::cast<MainOpType>(origOp), tiles, log);
+    }
+    
+    bool isSupportedPrefetchTiling(mlir::Operation* origOp, const Shape& tileAxis, Logger log) const {
+        return ::isSupportedPrefetchTiling(mlir::cast<MainOpType>(origOp), tileAxis, log);
     }
 
 private:
@@ -281,6 +382,10 @@ public:
                     VPUIP::NCEInvariant::verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
                                                           input1TileType, input2TileType, outputTileType, log));
         });
+    }
+
+    bool isSupportedPrefetchTiling(mlir::Operation* /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) const {
+        return false;
     }
 
 private:
