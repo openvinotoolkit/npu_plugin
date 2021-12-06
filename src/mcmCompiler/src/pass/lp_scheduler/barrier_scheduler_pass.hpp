@@ -162,9 +162,9 @@ class Control_Model_Barrier_Scheduler {
             } // foreach edge (p, u) \in E //
 
             // STEP-1.3 //
-            if (b_prev) {
-              b_prev->addConsumer(source->getName());
-            }
+            // if (b_prev) {
+            //   b_prev->addConsumer(source->getName());
+            // }
           } // foreach producer //
 
         }
