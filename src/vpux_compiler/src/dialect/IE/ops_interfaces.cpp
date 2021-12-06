@@ -17,6 +17,7 @@
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -297,6 +298,30 @@ OutputTiling vpux::IE::generateTiles(mlir::Operation* op, Logger log) {
         } else {
             // Trying to tile in unsupported dimension, tiling in supported dimensions not sufficient
             VPUX_THROW("Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
+        }
+    }
+
+    return fillDividedTiles(nTilesOnDim, outputShape);
+}
+
+
+OutputTiling vpux::IE::generatePrefetchTiles(mlir::Operation* op, Logger /*log*/) {
+    VPUX_THROW_UNLESS(op->getNumResults() == 1,
+                      "Unsupported operation '{0}' at '{1}', it must have one and only one result", op->getName(),
+                      op->getLoc());
+    const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
+    const auto outputShape = getShape(outputType);
+
+    Shape nTilesOnDim(getShape(outputType).size(), 1);
+
+    auto convOp = llvm::dyn_cast<IE::ConvolutionOp>(op);
+    VPUX_THROW_UNLESS(convOp, "Non ConvOp prefetch tiling is not supported.");
+    const auto isolatedTileStrategy = Shape(parseIntArrayAttr<int64_t>(convOp.tiling_strategyAttr()));
+
+    for (unsigned index = 0; index < isolatedTileStrategy.size(); ++index) {
+        if (isolatedTileStrategy[Dim(index)] > 1) {
+            nTilesOnDim[Dim(index)]++;
+            //  Tile by 2 on the same dimension with previous isolated tiling.
         }
     }
 

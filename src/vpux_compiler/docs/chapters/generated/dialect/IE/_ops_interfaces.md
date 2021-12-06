@@ -124,6 +124,14 @@ mlir::Value reifyTile(const vpux::TileInfo&outputTile, mlir::OpBuilder&builder);
 Reify the provided tiling configuration into the IR
 NOTE: This method *must* be implemented by the user.
 
+#### `generatePrefetchTiling`
+
+```c++
+vpux::OutputTiling generatePrefetchTiling(vpux::Logger log);
+```
+Generate prefetch tiling for the operation
+NOTE: This method *must* be implemented by the user.
+
 ## TilingInfoOpInterface (`IE_TilingInfoOpInterface`)
 
 Interface for operations to provide information about required/supported tiling configurations
@@ -142,5 +150,13 @@ NOTE: This method *must* be implemented by the user.
 bool isSupportedTiling(const vpux::OutputTiling&tiles, vpux::Logger log);
 ```
 Check, if the provided tiling configuration is supported by the operation implementation
+NOTE: This method *must* be implemented by the user.
+
+#### `supportPrefetchTiling`
+
+```c++
+bool supportPrefetchTiling(const Shape&tileAxis, vpux::Logger log);
+```
+Check, if the operation support prefetch tiling with cmx memory checking only
 NOTE: This method *must* be implemented by the user.
 

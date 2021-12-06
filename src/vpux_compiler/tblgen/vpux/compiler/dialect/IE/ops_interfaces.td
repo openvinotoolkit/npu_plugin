@@ -185,6 +185,16 @@ def IE_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
             "mlir::Value", "reifyTile",
             (ins "const vpux::TileInfo&":$outputTile, "mlir::OpBuilder&":$builder)
         >,
+
+        InterfaceMethod<
+            "Generate prefetch tiling for the operation",
+            "vpux::OutputTiling", "generatePrefetchTiling",
+            (ins "vpux::Logger":$log),
+            [{}],
+            [{
+            return vpux::IE::generatePrefetchTiles($_op, log);
+            }]
+        >,
     ];
 }
 
@@ -208,6 +218,12 @@ def IE_TilingInfoOpInterface : OpInterface<"TilingInfoOpInterface"> {
             "Check, if the provided tiling configuration is supported by the operation implementation",
             "bool", "isSupportedTiling",
             (ins "const vpux::OutputTiling&":$tiles, "vpux::Logger":$log)
+        >,
+
+        InterfaceMethod<
+            "Check, if the operation support prefetch tiling with cmx memory checking only",
+            "bool", "supportPrefetchTiling",
+            (ins "const Shape&":$tileAxis, "vpux::Logger":$log)
         >,
     ];
 

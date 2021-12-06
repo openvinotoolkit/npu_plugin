@@ -185,6 +185,62 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     });
 }
 
+bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logger log) {
+    // Temporal strategy: only consider if the first n tiles (n >= 2) could be fit into the CMX memory at the same time,
+    // Should consider the cost model as a final version.
+    // Nested tiling is unsupported
+    // TODO check the cmx memory for overlapping
+
+    bool isSingleTile = false;
+    Dim tileDim = Dim(0);
+    for (unsigned i = 0; i < tileAxis.size(); i++) {
+        if (tileAxis[Dim(i)] > 1) {
+            tileDim = Dim(i);
+            if (isSingleTile)
+                return false;
+            else
+                isSingleTile = true;
+        }
+    }
+    if (!isSingleTile)
+        return false;
+    auto outputShape = getShape(origOp.output());
+    Shape nTilesOnDim(outputShape.size(), 1);
+    nTilesOnDim[tileDim]++;
+
+    auto isDivisibleTile = [&]() -> bool {
+        auto kernelSize = getShape(origOp.filter());
+        if (tileDim == Dims4D::Act::C) {
+            // TODO replace '16' with correct parameter
+            return (outputShape[tileDim] / nTilesOnDim[tileDim] >= 16) && 
+                   (outputShape[tileDim] % nTilesOnDim[tileDim] == 0) && 
+                   ((outputShape[tileDim] / nTilesOnDim[tileDim]) % 16 == 0);
+        }
+        else {
+            return outputShape[tileDim] / nTilesOnDim[tileDim] >= kernelSize[tileDim];
+        }
+    };
+
+    auto isMemPrefetchable = [&]() -> bool {
+        auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
+    };
+
+//  Only check tile by 2 for now
+//    while (!isDivisibleTile() && nTilesOnDim[tileDim] <= 3) {
+//        nTilesOnDim[tileDim]++;
+//    }
+    return isDivisibleTile() && isMemPrefetchable();  // TODO warning log
+}
+
+bool supportPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) {
+    return false;
+}
+
+bool supportPrefetchTiling(IE::MaxPoolOp /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) {
+    return false;
+}
+
 template <class MainOpType>
 class NCETilingInfoOpModel final :
         public IE::TilingInfoOpInterface::ExternalModel<NCETilingInfoOpModel<MainOpType>, MainOpType> {
@@ -199,6 +255,10 @@ public:
 
     bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) const {
         return ::isSupportedTiling(mlir::cast<MainOpType>(origOp), tiles, log);
+    }
+    
+    bool supportPrefetchTiling(mlir::Operation* origOp, const Shape& tileAxis, Logger log) const {
+        return ::supportPrefetchTiling(mlir::cast<MainOpType>(origOp), tileAxis, log);
     }
 
 private:
@@ -238,6 +298,10 @@ public:
                     VPUIP::NCEInvariant::verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
                                                           input1TileType, input2TileType, outputTileType, log));
         });
+    }
+
+    bool supportPrefetchTiling(mlir::Operation* /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) const {
+        return false;
     }
 
 private:

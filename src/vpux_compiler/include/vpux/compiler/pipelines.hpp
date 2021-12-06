@@ -153,6 +153,10 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
                                               llvm::cl::desc("Enable expand-activation-channels pass"),
                                               llvm::cl::init(true)};
 
+    BoolOption enablePrefetchTiling{*this, "prefetch-tiling",
+                                    ::llvm::cl::desc("Enable prefetch-tiling pass"),
+                                    ::llvm::cl::init(true)};
+
     BoolOption enableUseUserLayout{*this, "use-user-layout", llvm::cl::desc("Enable use-user-layout pass"),
                                    llvm::cl::init(true)};
 
