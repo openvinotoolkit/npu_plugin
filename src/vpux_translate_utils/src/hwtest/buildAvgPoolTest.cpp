@@ -15,6 +15,7 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include <functional>
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -22,6 +23,7 @@
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/calculate_rescale.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
@@ -55,6 +57,18 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto scaleValue = 1 / double(pool_op.kernel_shape.at(0) * pool_op.kernel_shape.at(1));
 
     mlir::Type weightsType = inputType;
+
+    int64_t clampLow = std::numeric_limits<int32_t>::min();
+    int64_t clampHigh = std::numeric_limits<int32_t>::max();
+    int64_t LreluMult = 1;
+    int64_t LreluShift = 0;
+
+    if (auto outElemQType = outputType.template dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto zps = extractScalesAndZeroPoints(outputType).second;
+
+        clampLow = outElemQType.getStorageTypeMin() - zps.front();
+        clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+    }
 
     if (auto qtype = inputType.dyn_cast<mlir::quant::QuantizedType>()) {
         auto inputStorageType = mlir::quant::QuantizedType::castToStorageType(qtype);
@@ -129,7 +143,25 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
             outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::AVEPOOL, filtersize, strides, kernel_padding,
             /*actChannelLength*/ nullptr, /*is_continued*/ nullptr);
 
-    nceTask.addPPETask(funcbuilder);
+    // Since AvgPool operation doesn't have weights table it requires final quantization scaling
+    // to be part of output tensor description. Scale vector will be placed in PPE block and
+    // later used during NCE task serialization
+    auto quantScale = calculateQuantScaleVectorForAvgPool(nceTask, filter_size, VPU::ArchKind::MTL);
+
+    if (quantScale.hasValue()) {
+        const auto scale = quantScale.getValue();
+
+        const auto mult = getQuantMultFromScale(scale);
+        const auto shifts = getQuantShiftAndPostShiftFromScale(scale);
+
+        const auto shift = shifts.first;
+        const auto post_shift = shifts.second;
+
+        nceTask.addPPETask(funcbuilder, VPUIP::PPELayerType::NOOP, clampLow, clampHigh, LreluMult, LreluShift,
+                           SmallVector<int32_t>{mult}, SmallVector<int32_t>{shift}, post_shift);
+    } else {
+        nceTask.addPPETask(funcbuilder, VPUIP::PPELayerType::NOOP, clampLow, clampHigh, LreluMult, LreluShift);
+    }
 
     // Create DPU task for NCE task
     auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), funcbuilder.getListener());

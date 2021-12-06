@@ -21,6 +21,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/pwl_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
+#include "vpux/compiler/utils/calculate_rescale.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -530,76 +531,11 @@ public:
     mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    llvm::Optional<double> calculateQuantScaleVectorForEltwise(IERT::LayerOpInterface layerOp) const;
-
-private:
     const int64_t _numDPU;
     VPU::ArchKind _arch;
     VPUIP::PPELayerType _ppeType;
     Logger _log;
 };
-
-// This operation based on input and output of Eltwise op will prepare final quantization scale value
-template <class ConcreteOp>
-llvm::Optional<double> GenericEltwiseConverter<ConcreteOp>::calculateQuantScaleVectorForEltwise(
-        IERT::LayerOpInterface layerOp) const {
-    if (layerOp == nullptr || layerOp.getInputs().size() < 2) {
-        return ::llvm::None;
-    }
-
-    const auto input1 = layerOp.getInputs()[0];
-    const auto input2 = layerOp.getInputs()[1];
-    const auto output = layerOp.getOutputs()[0];
-
-    const auto input1ElementType = input1.getType().cast<mlir::ShapedType>().getElementType();
-    const auto input2ElementType = input2.getType().cast<mlir::ShapedType>().getElementType();
-    const auto outputElementType = output.getType().cast<mlir::ShapedType>().getElementType();
-
-    // In case of fully not quantized operation return
-    if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>() &&
-        !outputElementType.isa<mlir::quant::QuantizedType>()) {
-        return ::llvm::None;
-    }
-
-    VPUX_THROW_WHEN(input1ElementType.isa<mlir::quant::UniformQuantizedPerAxisType>() ||
-                            input2ElementType.isa<mlir::quant::UniformQuantizedPerAxisType>() ||
-                            outputElementType.isa<mlir::quant::UniformQuantizedPerAxisType>(),
-                    "Only per-tensor quantization is supported");
-
-    double scaleInput1 = 0;
-    double scaleOutput = 0;
-
-    // floats in the compute pipeline are represented as S16.16 values
-    // In order to convert from I32 to S16.16 and back, we need to multiply/divide by 1<<16
-    // Depends on target hardware
-    const double fp16_scale = (VPU::ArchKind::MTL == _arch) ? (1.0) : (1.0 / 65536);
-
-    if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>()) {
-        scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
-        scaleInput1 = fp16_scale;
-    } else if (!outputElementType.isa<mlir::quant::QuantizedType>()) {
-        scaleInput1 = extractScalesAndZeroPoints(input1ElementType).first.front();
-        scaleOutput = fp16_scale;
-    } else {
-        scaleInput1 = extractScalesAndZeroPoints(input1ElementType).first.front();
-        scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
-    }
-
-    VPUX_THROW_UNLESS(scaleInput1 != 0, "Invalid input scale value '0'");
-    VPUX_THROW_UNLESS(scaleOutput != 0, "Invalid output scale value '0'");
-
-    double ppeScale = 1.0;
-
-    if (mlir::isa<IERT::MultiplyOp>(layerOp)) {
-        const auto scaleInput2 = extractScalesAndZeroPoints(input2ElementType).first.front();
-        VPUX_THROW_UNLESS(scaleInput2 != 0, "Invalid input scale value '0'");
-        ppeScale = scaleInput1 * scaleInput2 / scaleOutput;
-    } else {  // Add, Subtract, And
-        ppeScale = scaleInput1 / scaleOutput;
-    }
-
-    return {ppeScale};
-}
 
 template <class ConcreteOp>
 mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
@@ -670,7 +606,7 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     // Since Eltwise operation doesn't have weights table it requires final quantization scaling
     // to be part of output tensor description. Scale vector will be placed in PPE block and
     // later used during NCE task serialization
-    auto quantScale = calculateQuantScaleVectorForEltwise(origOp);
+    auto quantScale = calculateQuantScaleVectorForEltwise(origOp, _arch);
     if (quantScale.hasValue()) {
         const auto scale = quantScale.getValue();
 
