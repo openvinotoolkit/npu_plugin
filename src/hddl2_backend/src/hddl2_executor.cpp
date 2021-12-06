@@ -205,7 +205,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
     // TODO [Design flaw] InferData need to know if preprocessing required on creation [Track number: S#31308]
     bool needUnitePreProcessing = false;
     IE::BlobMap updatedInputs;
-
+    std::cout << "Before loadGraphToDevice" << std::endl;
     try {
         loadGraphToDevice();
     } catch (const IE::NetworkNotLoaded&) {
@@ -218,7 +218,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
         IE_THROW() << "Couldn't load the graph into the device." << exception.what();
     }
-
+    std::cout << "After loadGraphToDevice" << std::endl;
     const auto& networkInputs = _network->getInputsInfo();
     const auto& deviceInputs = _network->getDeviceInputsInfo();
 
@@ -232,6 +232,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
                          networkInputs.size(), deviceInputs.size());
     }
 
+    std::cout << "Before updating inputs - stage 1" << std::endl;
     for (const auto& networkInput : networkInputs) {
         const std::string inputName = networkInput.first;
         auto foundInputBlob = inputs.find(inputName);
@@ -243,18 +244,26 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         if (preProcMap.find(inputName) != preProcMap.end()) {
             needUnitePreProcessing = true;
         }
+        std::cout << "needUnitePreProcessing = " << needUnitePreProcessing << std::endl;
+        std::cout << "preProcMap empty = " << preProcMap.empty() << std::endl;
 
         if (inputBlobPtr->is<IE::RemoteBlob>()) {
             const auto& param = std::static_pointer_cast<IE::RemoteBlob>(inputBlobPtr)->getParams();
             needUnitePreProcessing |= (param.find(IE::VPUX_PARAM_KEY(ROI_PTR)) != param.end());
+            std::cout << "input blob is remote blob, switch need unite preproc to " << needUnitePreProcessing
+                      << std::endl;
+        } else {
+            std::cout << "Input blob is LOCAL blob" << std::endl;
         }
 
         const auto deviceInputLayout = deviceInputs.at(inputName)->getLayout();
         updatedInputs[foundInputBlob->first] = prepareInputForInference(foundInputBlob->second, deviceInputLayout);
     }
+    std::cout << "After updating inputs - stage 1" << std::endl;
 
     _inferDataPtr->setPreprocessFlag(needUnitePreProcessing && isPreProcessingSupported(preProcMap));
 
+    std::cout << "Before updating inputs - stage 2" << std::endl;
     // TODO Should we use deviceInputs instead of networkInputs here?
     for (const auto& networkInput : networkInputs) {
         const std::string inputName = networkInput.first;
@@ -265,6 +274,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
             IE_THROW() << "Error: input [" << inputName << "] is not provided.";
         }
         const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
+        std::cout << "Stage 2: inputBlob is remote? " << inputBlobPtr->is<IE::RemoteBlob>() << std::endl;
         IE::ColorFormat inputColorFormat = IE::ColorFormat::BGR;
         // TODO ResizeAlgorithm information from preProcessInfo is not used [Track number: S#37393]
         if (preProcMap.find(inputName) != preProcMap.end()) {
@@ -273,16 +283,21 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         }
         _inferDataPtr->prepareUniteInput(inputBlobPtr, inputName, inputColorFormat);
     }
-
+    std::cout << "After updating inputs - stage 2" << std::endl;
+    std::cout << "Before infer async" << std::endl;
     _uniteGraphPtr->InferAsync(_inferDataPtr);
+    std::cout << "After infer async" << std::endl;
 }
 
 void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
+    std::cout << "Pull - begin" << std::endl;
     _inferDataPtr->waitInferDone();
+    std::cout << "WaitInferDone - OK" << std::endl;
     const auto& networkOutputs = _network->getOutputsInfo();
     const auto& deviceOutputs = _network->getDeviceOutputsInfo();
     for (const auto& networkOutput : networkOutputs) {
         const std::string outputName = networkOutput.first;
+        std::cout << "Output = " << outputName << std::endl;
         auto foundOutputBlob = outputs.find(outputName);
         if (foundOutputBlob == outputs.end()) {
             IE_THROW() << "Error: output [" << outputName << "] is not provided.";

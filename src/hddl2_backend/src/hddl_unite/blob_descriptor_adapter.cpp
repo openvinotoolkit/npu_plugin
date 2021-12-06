@@ -173,6 +173,7 @@ AllocationInfo::AllocationInfo(const BlobDescType typeOfBlob, const IE::DataPtr&
           // TODO No compound support now
           isCompound(false),
           nnInputColorFormat(graphColorFormat) {
+    std::cout << "AllocationInfo 1: isRemoteMemory = " << isRemoteMemory << std::endl;
 }
 
 AllocationInfo::AllocationInfo(const IE::Blob::CPtr& blob, const IE::ColorFormat& graphColorFormat)
@@ -182,6 +183,7 @@ AllocationInfo::AllocationInfo(const IE::Blob::CPtr& blob, const IE::ColorFormat
           isNeedAllocation(!(isRemoteAnyBlob(blob))),
           isCompound(false),
           nnInputColorFormat(graphColorFormat) {
+    std::cout << "AllocationInfo 2: isRemoteMemory = " << isRemoteMemory << std::endl;
 }
 
 bool AllocationInfo::operator==(const AllocationInfo& rhs) const {
@@ -207,6 +209,7 @@ NNInputInfo::NNInputInfo(const BlobDescType typeOfBlob, const IE::DataPtr& blobD
           // Not possible create intermediate buffer from plugin side
           isNeedAllocation(true),
           batch(1) {
+    std::cout << "NNInputInfo: isRemoteMemory = " << isRemoteMemory << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -275,6 +278,10 @@ const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::updateUniteBlobDesc
     _hddlUniteBlobDesc.m_widthStride = _sourceInfo.widthStride;
     _hddlUniteBlobDesc.m_planeStride = _sourceInfo.planeStride;
     _hddlUniteBlobDesc.m_rect = _sourceInfo.roiRectangles;
+    std::cout << "UpdateUniteBlobDesc:" << std::endl;
+    std::cout << "BlobType is workload?" << (_blobType == BlobDescType::VideoWorkload) << std::endl;
+    std::cout << "width = " << _hddlUniteBlobDesc.m_resWidth << std::endl;
+    std::cout << "height = " << _hddlUniteBlobDesc.m_resHeight << std::endl;
 
     return _hddlUniteBlobDesc;
 }

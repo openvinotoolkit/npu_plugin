@@ -134,7 +134,6 @@ void InferRequest::moveBlobsForPreprocessingToInputs(
         const auto& preProcDataIt = preProcData.find(inputName);
         if (preProcDataIt != preProcData.end()) {
             const IE::Blob::Ptr& blobForPreProcessing = preProcDataIt->second->getRoiBlob();
-            std::cout << "Preprocessing blob is remote = " << blobForPreProcessing->is<IE::RemoteBlob>() << std::endl;
             if (preProcessingRequired(input.second, blobForPreProcessing)) {
                 IE::Blob::Ptr blobForPreProc = preProcDataIt->second->getRoiBlob();
                 /// If pre-processing required, we need use PP blobs instead of NN for inputs
@@ -246,26 +245,12 @@ void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
 }
 #endif
 
-IE::BlobMap copyBlobMap(const IE::BlobMap& orig) {
-    IE::BlobMap retMap;
-    for (auto iter = orig.cbegin(); iter != orig.cend(); ++iter) {
-        const auto origBlob = iter->second;
-        auto addBlob = make_blob_with_precision(origBlob->getTensorDesc());
-        addBlob->allocate();
-        vpux::copyBlob(IE::as<IE::MemoryBlob>(origBlob), IE::as<IE::MemoryBlob>(addBlob));
-        retMap.insert({iter->first, addBlob});
-    }
-    std::cout << "Copy blob map: copied " << retMap.size() << " blobs" << std::endl;
-    return retMap;
-}
-
 void InferRequest::InferAsync() {
     // TODO [Track number: S#36866]
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "InferAsync");
 
     const auto preProcMap = preparePreProcessing(_networkInputs, _preProcData);
     if (_executorPtr->isPreProcessingSupported(preProcMap)) {
-        // VPU preprocessing
         moveBlobsForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
         updateRemoteBlobs(_inputs, preProcMap);
         _executorPtr->push(_inputs, preProcMap);
@@ -274,63 +259,17 @@ void InferRequest::InferAsync() {
 #ifdef __aarch64__
         execPreprocessing(_inputs);
 #else
-        // CPU preprocessing
+        std::cout << "Before execDataPreprocessing" << std::endl;
         _logger->info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
-        /*if (isRemoteAnyBlob(_preProcData.cbegin()->second->getRoiBlob())) {
-            // Do we really need such copying?
-            // Isn't only exec preprocessing (_inputs) and changing _inputs from local to remote enough?
-            auto copyInputs = copyBlobMap(_inputs);
-            execDataPreprocessing(copyInputs);
-            // Add creating remoteBlobs and moving them to _inputs from copyInputs
-        }*/
-        // moveBlobsForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
-        std::cout << "First input is remote = " << _inputs.begin()->second->is<IE::RemoteBlob>() << std::endl;
         execDataPreprocessing(_inputs);
-
-        std::cout << "After preprocessing: first input is remote = " << _inputs.begin()->second->is<IE::RemoteBlob>()
-                  << std::endl;
-
-        for (auto iter = _preProcData.cbegin(); iter != _preProcData.cend(); ++iter) {
-            const auto inputName = iter->first;
-            std::cout << "Input name = " << inputName << std::endl;
-            if (_inputs.find(inputName) == _inputs.end()) {
-                IE_THROW() << "Can't find input in preProcData: " << inputName << std::endl;
-            }
-            auto& curInput = _inputs.at(inputName);
-            const auto& curPreProcInput = iter->second->getRoiBlob();
-            if (isRemoteAnyBlob(curPreProcInput)) {
-                std::cout << "Remote blob" << std::endl;
-                // auto copyInputBlob = make_blob_with_precision(curInput->getTensorDesc());
-                // copyInputBlob->allocate();
-                // vpux::copyBlob(IE::as<IE::MemoryBlob>(curInput), IE::as<IE::MemoryBlob>(copyInputBlob));
-                if (!isRemoteNV12Blob(curPreProcInput)) {
-                    auto remoteInputBlob = IE::as<IE::RemoteBlob>(curPreProcInput);
-                    auto remoteContext = remoteInputBlob->getContext();
-                    // Very bad - we should somehow use some other FD, but how?
-                    // Very bad - we should use some helper like Hddl2 backend getRemoteMemoryFD from params
-                    const IE::ParamMap blobParamMap = {
-                            {IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD),
-                             remoteInputBlob->getParams().at(IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD))},
-                            {IE::VPUX_PARAM_KEY(MEM_OFFSET), static_cast<size_t>(0)}};
-                    auto remoteResultBlob = remoteContext->CreateBlob(curInput->getTensorDesc(), blobParamMap);
-                    std::cout << "Just before copying blob from input to remoteResult" << std::endl;
-                    std::cout << "curInput blob = " << curInput->byteSize() << " bytes" << std::endl;
-                    std::cout << "Remote result blob = " << remoteResultBlob->byteSize() << " bytes" << std::endl;
-                    vpux::copyBlob(IE::as<IE::MemoryBlob>(curInput), remoteResultBlob);
-                    std::cout << "just after copyBlob" << std::endl;
-                    curInput = remoteResultBlob;
-                    std::cout << "just after overriding curInput blob by remoteResultBlob" << std::endl;
-                } else {
-                    // Need to add NV12 Remote blob use case
-                }
-            }
-        }
-
-        std::cout << "After local-to-remote: first input is remote = " << _inputs.begin()->second->is<IE::RemoteBlob>()
-                  << std::endl;
+        std::cout << "After execDataPreprocessing" << std::endl;
 #endif
+        std::cout << "Before updateRemoteBlobs" << std::endl;
         updateRemoteBlobs(_inputs, preProcMap);
-        _executorPtr->push(_inputs, preProcMap);
+        std::cout << "After updateRemoteBlobs" << std::endl;
+        std::cout << "Before push" << std::endl;
+        _executorPtr->push(_inputs);
+        std::cout << "After push" << std::endl;
     }
     if (std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH") != nullptr) {
         dumpBlobs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"), "input");
@@ -339,7 +278,9 @@ void InferRequest::InferAsync() {
 
 void InferRequest::GetResult() {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "GetResult");
+    std::cout << "GetResult - just before pull" << std::endl;
     _executorPtr->pull(_outputs);
+    std::cout << "GetResult - just after pull" << std::endl;
     const char* dumpOutputPathEnv = std::getenv("IE_VPU_KMB_DUMP_OUTPUT_PATH");
     if (dumpOutputPathEnv != nullptr) {
         dumpBlobs(_outputs, dumpOutputPathEnv, "output");

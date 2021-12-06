@@ -86,6 +86,8 @@ InferDataAdapter::InferDataAdapter(const vpux::NetworkDescription::CPtr& network
     if (networkDescription == nullptr) {
         IE_THROW() << "InferDataAdapter: NetworkDescription is null";
     }
+    _needUnitePreProcessing = false;
+
     createInferData();
 }
 
@@ -113,11 +115,13 @@ void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob
         IE_THROW() << "InferDataAdapter: Failed to find BlobDesc for: " << inputName;
     }
 
+    std::cout << "PrepareUniteInput" << std::endl;
     auto blobDescriptorPtr = _inputs.at(inputName);
 
     // Check that created blob description is suitable for input blob
     const auto blobDescSuitable = blobDescriptorPtr->isBlobDescSuitableForBlob(blob);
     if (!blobDescSuitable) {
+        std::cout << "blobDescSuitable = false" << std::endl;
         const auto& deviceInputInfo = _networkDescription->getDeviceInputsInfo().at(inputName);
         std::shared_ptr<BlobDescriptorAdapter> newBlobDescriptorPtr(
                 new BlobDescriptorAdapter(blob, _graphColorFormat, deviceInputInfo));
@@ -127,15 +131,19 @@ void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob
 
         // TODO [Worklaround] !!! Check if blob already exists. If so, well, create inferRequest again
         if (isInputBlobDescAlreadyCreated(_inferDataPtr, inputName)) {
+            std::cout << "input blob desc already created - call createInferData() again" << std::endl;
             createInferData();
         }
     }
+
+    createInferData();
 
     const bool isInput = true;
     const auto& HDDLUniteBlobDesc = blobDescriptorPtr->createUniteBlobDesc(isInput);
 
     // Postponed blob creation
-    if (!isInputBlobDescAlreadyCreated(_inferDataPtr, inputName)) {
+    if (/*!isInputBlobDescAlreadyCreated(_inferDataPtr, inputName)*/ true) {
+        std::cout << "Postponed blob creation - just before inferDataPtr->createBlob" << std::endl;
         const auto success = _inferDataPtr->createBlob(inputName, HDDLUniteBlobDesc, isInput);
         if (!success) {
             IE_THROW() << "InferDataAdapter: Error creating HDDLUnite Blob";
@@ -144,8 +152,11 @@ void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob
         _inferDataPtr->setPPFlag(_needUnitePreProcessing);
 
         if ((_needUnitePreProcessing || blobDescriptorPtr->isROIPreprocessingRequired()) && _haveRemoteContext) {
+            std::cout << "Remote condition - creating NNDesc & set NNInputDesc" << std::endl;
             auto nnBlobDesc = blobDescriptorPtr->createNNDesc();
             _inferDataPtr->setNNInputDesc(nnBlobDesc);
+        } else {
+            std::cout << "Local condition - doing nothing" << std::endl;
         }
     }
 
