@@ -366,8 +366,8 @@ std::vector<int32_t> VPUIP::NCESparsity::getWeightsTable(mlir::Type op_inElemTyp
 
         weightPtr += weightPtrStep;
         if (arch == VPU::ArchKind::MTL && weightsElemType) {
-            auto elementSize = static_cast<Byte>(getElemTypeSize(weightsElemType));
-            sparsityPtr += weightPtrStep / static_cast<int>(elementSize.count());
+            auto elementBitSize = static_cast<Bit>(getElemTypeSize(weightsElemType));
+            sparsityPtr += static_cast<Byte>(Bit(weightPtrStep * CHAR_BIT / elementBitSize.count())).count();
         }
     }
 

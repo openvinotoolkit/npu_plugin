@@ -28,6 +28,25 @@ namespace hwtest {
 
 namespace {
 
+template <typename T>
+std::vector<T> readFile(std::ifstream& file) {
+    std::vector<T> vec;
+    if (file.is_open()) {
+        file.unsetf(std::ios::skipws);
+
+        std::streampos fileSize;
+
+        file.seekg(0, std::ios::end);
+        fileSize = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        vec.reserve(fileSize);
+
+        vec.insert(vec.begin(), std::istream_iterator<T>(file), std::istream_iterator<T>());
+    }
+    return vec;
+}
+
 mlir::Type parseType(mlir::OpBuilder builder, mlir::Type ty, const nb::QuantParams& qp) {
     auto intTy = ty.dyn_cast<mlir::IntegerType>();
     if (qp.present && intTy) {
@@ -119,7 +138,41 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> shape, mlir::Typ
         std::cerr << "Warning: Unable to open weight data file " << weightsFileName << '\n';
     }
 
-    if (type.isSignedInteger(8)) {
+    if (type.isSignedInteger(4)) {
+        const auto weightsU8 = readFile<std::uint8_t>(stream);
+        std::vector<std::int8_t> weightsI4;
+        weightsI4.reserve(weightsU8.size() * 2);
+        for (const auto& elementU8 : weightsU8) {
+            const int8_t msn = (elementU8 & 0xf0) >> 4;
+            const int8_t lsn = (elementU8 & 0x0f) >> 0;
+            weightsI4.push_back(lsn);
+            weightsI4.push_back(msn);
+        }
+        if (weightsI4.size() != vecSize) {
+            //  generate zero-weights in case weights file not found
+            weightsI4.resize(vecSize, 0);
+            weightsI4[0] = 1;  // have to add at least one non-zero element to make attribute non-splat. BitPack can't
+                               // work with splat tensors
+        }
+        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, llvm::makeArrayRef<std::int8_t>(weightsI4));
+    } else if (type.isInteger(4)) {
+        const auto weightsU8 = readFile<std::uint8_t>(stream);
+        std::vector<std::uint8_t> weightsU4;
+        weightsU4.reserve(weightsU8.size() * 2);
+        for (const auto& elementU8 : weightsU8) {
+            const uint8_t msn = (elementU8 & 0xf0) >> 4;
+            const uint8_t lsn = (elementU8 & 0x0f) >> 0;
+            weightsU4.push_back(lsn);
+            weightsU4.push_back(msn);
+        }
+        if (weightsU4.size() != vecSize) {
+            //  generate zero-weights in case weights file not found
+            weightsU4.resize(vecSize, 0);
+            weightsU4[0] = 1;  // have to add at least one non-zero element to make attribute non-splat. BitPack can't
+                               // work with splat tensors
+        }
+        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, llvm::makeArrayRef<std::uint8_t>(weightsU4));
+    } else if (type.isSignedInteger(8)) {
         return generateWeights<std::int8_t>(stream, wtData_ddr_valueType, vecSize);
     } else if (type.isInteger(8)) {
         return generateWeights<std::uint8_t>(stream, wtData_ddr_valueType, vecSize);
@@ -138,11 +191,13 @@ std::size_t totalTensorSize(llvm::ArrayRef<int64_t> shape, mlir::Type elementTyp
     if (auto qType = elementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         elementType = qType.getStorageType();
     }
-    std::size_t numBytes = elementType.getIntOrFloatBitWidth() / 8;
+    size_t numBits = elementType.getIntOrFloatBitWidth();
 
     const auto totalSize =
-            std::accumulate(shape.begin(), shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
-    return static_cast<std::size_t>(totalSize) * numBytes;
+            std::accumulate(shape.begin(), shape.end(), static_cast<std::int64_t>(1), std::multiplies<std::int64_t>());
+    const auto totalBits = totalSize * numBits;
+    VPUX_THROW_UNLESS(totalBits % CHAR_BIT == 0, "Tensors size is not allligned to Byte");
+    return static_cast<std::size_t>(totalBits / CHAR_BIT);
 }
 
 std::vector<int64_t> convertNBPadtoNCETaskPad(const std::array<int64_t, 4>& nb_pad) {

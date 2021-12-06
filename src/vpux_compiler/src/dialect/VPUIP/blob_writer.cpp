@@ -697,9 +697,12 @@ MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
 
 VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ArrayRef<uint64_t> content,
                                                                         mlir::ShapedType type, bool csram_cacheable) {
-    const Byte elemTypeSize = getElemTypeSize(type);
+    const Bit elemTypeBitSize = getElemTypeSize(type);
     const size_t totalNumElements = type.getNumElements();
-    const size_t totalByteSize = totalNumElements * elemTypeSize.count();
+    const size_t totalBitSize = totalNumElements * elemTypeBitSize.count();
+
+    VPUX_THROW_UNLESS(totalBitSize % CHAR_BIT == 0, "Binary data size {0} is not alligned to 8 bit", totalBitSize);
+    const size_t totalByteSize = totalBitSize / CHAR_BIT;
 
     const auto serializedContent = createVector(content);
 

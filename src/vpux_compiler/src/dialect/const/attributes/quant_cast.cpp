@@ -81,8 +81,8 @@ mlir::ShapedType vpux::Const::QuantCastAttr::inferOutputType(mlir::ShapedType in
     if (const auto elemTypeVal = getElemType()) {
         const auto quantStorateType = normalizeQuantStorageType(elemTypeVal);
 
-        VPUX_THROW_UNLESS(input.getElementType() == quantStorateType, "Can't cast '{0}' element type to '{1}'",
-                          input.getElementType(), getElemType());
+        VPUX_THROW_UNLESS(quantStorateType.isInteger(4) || input.getElementType() == quantStorateType,
+                          "Can't cast '{0}' element type to '{1}'", input.getElementType(), getElemType());
 
         return changeElemType(input, elemTypeVal);
     }
