@@ -474,6 +474,26 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
     VPUX_THROW_UNLESS(_scan.alloc(sortedBuffers, /*allowSpills*/ false), "Failed to statically allocate '{0}' memory",
                       _memSpace);
 
+    // Check if any of operation input dependencies have been scheduled
+    // in the same scheduler iteration. In such case delay might need to be adjusted
+    // based on start time of its input dependencies
+    size_t depOpsMaxTimeInStartHeap = 0;
+    for (auto& dep : _depsInfo.getOpDeps(opIdx)) {
+        auto depOpInStartHeap = std::find_if(_startTimeHeap.begin(), _startTimeHeap.end(), [&](HeapElement el) {
+            return (dep == el.op_);
+        });
+        if (depOpInStartHeap != _startTimeHeap.end()) {
+            if (depOpInStartHeap->time_ > depOpsMaxTimeInStartHeap) {
+                depOpsMaxTimeInStartHeap = depOpInStartHeap->time_;
+            }
+        }
+    }
+    if (depOpsMaxTimeInStartHeap > 0) {
+        if (_currentTime + maxInputDelay <= depOpsMaxTimeInStartHeap) {
+            maxInputDelay = depOpsMaxTimeInStartHeap + 1 - _currentTime;
+        }
+    }
+
     return maxInputDelay;
 }
 
