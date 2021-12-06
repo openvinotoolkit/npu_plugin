@@ -25,6 +25,8 @@ namespace IE {
 Shape computeGeneralTileStrategy(mlir::Operation* op, Logger log);
 mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outputTile, mlir::OpBuilder& builder,
                       Logger log);
+mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, OutputTiling tiles,
+                                      mlir::PatternRewriter& rewriter, Logger log);
 
 }  // namespace IE
 }  // namespace vpux

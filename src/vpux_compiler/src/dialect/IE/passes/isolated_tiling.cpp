@@ -66,29 +66,7 @@ mlir::LogicalResult GenericTiling::matchAndRewrite(IE::TilingBuilderOpInterface 
     const auto tiles = generateTiles(origOp, _log);
     _log.nest(1).trace("Create {0} tiles:", tiles.size());
 
-    SmallVector<mlir::Value> resultTileVals;
-    SmallVector<ShapeRef> resultTileOffsets;
-
-    resultTileVals.reserve(tiles.size());
-    resultTileOffsets.reserve(tiles.size());
-
-    for (const auto& outputTile : tiles) {
-        const auto tiledRes = reifyTile(origOp, outputTile, rewriter, _log);
-
-        const auto tiledShape = getShape(tiledRes);
-        VPUX_THROW_UNLESS(tiledShape == outputTile.shape,
-                          "Inferred tiled output shape '{0}' doesn't match with generated '{1}'", tiledShape,
-                          outputTile.shape);
-
-        resultTileVals.push_back(tiledRes);
-        resultTileOffsets.push_back(outputTile.offsets);
-    }
-
-    auto newConcat = rewriter.replaceOpWithNewOp<IE::ConcatOp>(
-            origOp, origOp->getResult(0).getType(), mlir::ValueRange(resultTileVals), makeArrayRef(resultTileOffsets));
-    // TODO: remove with EISW-25333
-    newConcat->setAttr("CMXConcat", rewriter.getBoolAttr(false));
-    return mlir::success();
+    return applyTileStrategy(origOp, tiles, rewriter, _log);
 }
 
 //

@@ -143,6 +143,8 @@ std::unique_ptr<mlir::Pass> createConvertReduceToPoolingPass(Logger log = Logger
 
 std::unique_ptr<mlir::Pass> createIsolatedTilingPass(Logger log = Logger::global());
 
+std::unique_ptr<mlir::Pass> createPrefetchTilingPass(Logger log = Logger::global());
+
 //
 // Generic Optimizations
 //
