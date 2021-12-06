@@ -28,47 +28,85 @@ typedef sw_params::TopKParams MTLTopKParams;
 using namespace sw_params;
 using namespace subspace;
 
-namespace {
-using Pack = MTLTopKParams;
-using FindValueOuterFunc = void (*)(int32_t* indices, fp16* values, int32_t lineSize, int32_t numLines);
+namespace{
+
+typedef half* phalf;
+
+#define WORK_BUFFER_SIZE (((p->availableCmxBytes)/4))
+
 constexpr int vectorSizeOuter = 16; // vector size for findValueOuter() implementation
+using FindValueOuterFunc = void (*)(int32_t* indices, fp16* values, int32_t lineSize, int32_t numLines);
+
 
 template<class CompareVectors>
 inline void findValueOuter(int32_t* _indices, fp16* _values, int32_t lineSize, int32_t numLines,
-                           CompareVectors&& compareVectors){
+                           CompareVectors&& compareVectors)
+{
     const int numVectors = DIVR(numLines, vectorSizeOuter);
-    const bool hasIndices = (_indices != nullptr);
     
+    const bool hasIndices = (_indices != nullptr);
+
     int16* indices = reinterpret_cast<int16*>(_indices);
     half16* values = reinterpret_cast<half16*>(_values);
-    
-    for (int v = 0; v < numVectors; ++v){
+
+    for (int v = 0; v < numVectors; ++v)
+    {
         short16 index = (short16)0;
         half16 value = values[0];
-        
-        if (lineSize > 1){
+
+        if (lineSize > 1)
+        {
             half16 val0 = values[1 * numVectors];
-            for (int i = 2; i < lineSize; ++i){
+
+            for (int i = 2; i < lineSize; ++i)
+            {
                 const half16 val1 = values[i * numVectors];
-                
+
                 const short16 mask = compareVectors(val0, value);
                 index = ((short16)(i - 1) & mask) | (index & ~mask);
                 value = (half16)(((short16)val0 & mask) | ((short16)value & ~mask));
 
                 val0 = val1;
             }
-            
+
             const short16 mask = compareVectors(val0, value);
             index = ((short16)(lineSize - 1) & mask) | (index & ~mask);
             value = (half16)(((short16)val0 & mask) | ((short16)value & ~mask));
         }
-        if (hasIndices)
+
+        if (hasIndices==1)
             indices[0] = mvuConvert_int16(index);
         values[0] = value;
-        
+
         ++indices;
         ++values;
     }
+}
+
+template<class CompareScalars>
+inline int32_t findValueSingle(fp16* data, int32_t prevElems, int32_t numElems, int32_t startIndex, int32_t maxIndex,
+                               CompareScalars&& compareScalars)
+{
+    int32_t index = maxIndex;
+    fp16 value = data[0];
+    for (int32_t i = 1; i < numElems; ++i)
+    {
+        if (compareScalars(data[prevElems + i], value))
+        {
+            index = startIndex + i;
+            value = data[prevElems + i];
+        }
+    }
+    if (prevElems > 0)
+    {
+        if (compareScalars(data[0], value))
+        {
+            index = maxIndex;
+            value = data[0];
+        }
+    }
+    data[0] = value;
+    return index;
 }
 
 __attribute__((noinline))
@@ -85,112 +123,218 @@ void findValueOuterMin(int32_t* indices, fp16* values, int32_t lineSize, int32_t
                           [](half16 a, half16 b) -> short16 { return !(a >= b); });
 }
 
-static void dma_start_2d(DmaAlShave& dma, const void* src, void* dst, uint32_t byteLength,
-                         uint32_t srcWidth, uint32_t dstWidth, uint32_t srcStride, uint32_t dstStride){
-    if (srcWidth == srcStride)
-        srcWidth = srcStride = byteLength;
-    if (dstWidth == dstStride)
-        dstWidth = dstStride = byteLength;
-    dma.start(src, dst, byteLength, srcWidth, dstWidth, srcStride, dstStride);
-}
-
-bool topKSimpleFindOuter(MTLTopKParams * p){
-    nnLog(MVLOG_DEBUG, "topKSimpleFindOuter()");
+struct t_MvTopKParamNClasses
+{
+    half* input;
+    Location inLocation;
+    half* output;
+    Location outLocation;
+    half* outputInd;
+    Location outIndLocation;
+    u8* cmxslice;
+    int32_t availableCmxBytes;
     
-    DmaAlShave dma1;
+    s32 ndims;
+    int32_t k;
+    int32_t inputValueDims[MAX_ND_DIMS];
+    int32_t outputValueDims[MAX_ND_DIMS];
+    int32_t outputIndicesDims[MAX_ND_DIMS];
+    int32_t in_strides[MAX_ND_DIMS];
+    int32_t out_strides[MAX_ND_DIMS];
+    int32_t ind_strides[MAX_ND_DIMS];
 
-    const int32_t* dims = p->inputValueDims;
-    const int32_t ndims = p->inNdims;
+    s32 axis;
+    s32 axisDim;
+    s32 axisIStride;
+    s32 axisOStride;
+    s32 axisOIStride;
+    s32 start;
+    s32 toProcess;
+    s32 mode;
+    int32_t inputDim;
+    int32_t outputDim;
+    int32_t indicesDim;
+    bool hasIndices;
+    bool inputInCmx;
+    bool outputInCmx;
+};
 
-    const bool hasIndices = (p->hasIndices != 0);
-    const bool hasValues  = (p->hasValues != 0);
-
-    const uint8_t* inputValues = reinterpret_cast<const uint8_t*>(p->inputValues.dataAddr);
-    uint8_t* outputValues = reinterpret_cast<uint8_t*>(p->outputValues.dataAddr);
-    uint8_t* outputIndices = reinterpret_cast<uint8_t*>(p->outputIndices.dataAddr);
-
-    int mode = p->mode;
-
-    FindValueOuterFunc findValue = nullptr;
-    switch (mode)
+void mvTopKSingle(t_MvTopKParamNClasses *p)
+{
+    half* in  = p->input;
+    half* out = p->output;
+    //half* ind = p->outputInd;
+    
+    s32* dims = p->inputValueDims;
+    s32* istrides = p->in_strides;
+    s32* ostrides = p->out_strides;
+    //s32* oIstrides = p->ind_strides;
+    s32 ndims = p->ndims;
+    
+    half* p_input0  = (p->inputInCmx) ? in : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
+    half* p_output0 = (p->outputInCmx) ? out : reinterpret_cast<half*>(p->cmxslice + 2 * WORK_BUFFER_SIZE);
+    //half* p_outputInd0 = (p->hasIndices) ? ind : reinterpret_cast<half*>(p->cmxslice + 4 * WORK_BUFFER_SIZE);
+    
+    int sets_per_step = (WORK_BUFFER_SIZE) / (sizeof(half) * p->axisDim);
+    int32_t setCoords[MAX_ND_DIMS];
+    
+    void (*findValue)(int32_t* indices, fp16* values, int32_t lineSize, int32_t numLines);
+    
+    const auto cmxBytes = p->availableCmxBytes;
+    const auto cmxSlice = p->cmxslice;
+    
+    findValue = (p->mode = 0) ? findValueOuterMax : findValueOuterMin;
     {
-    case 0: findValue = findValueOuterMax; break;
-    case 1: findValue = findValueOuterMin; break;
-    default: return false;
+        sets_per_step = (p->inputInCmx && p->outputInCmx) ? p->toProcess : (2 * WORK_BUFFER_SIZE) / (sizeof(half) * p->axisDim);
+        int32_t i = p->start;
+        subspace::getCoord(i, dims, ndims, setCoords);
+        s32 r_step;
+        s32 axisDim = p->axisDim;
+        
+        //s32 iStride = p->axisIStride / sizeof(fp16);
+        //s32 oStride = p->axisOStride / sizeof(fp16);
+        //s32 oInStride = p->axisOIStride / sizeof(fp16);
+        
+        bool hasIndices = p->hasIndices;
+        
+        const int indexBPP = hasIndices ? sizeof(int32_t) : 0;
+        
+        const int lineBytes = (p->inputDim * INPUT_BPP) + indexBPP;
+        const int cmxLines = vectorSizeOuter * (p->availableCmxBytes / (lineBytes * vectorSizeOuter));
+        
+        uint8_t* cmx = reinterpret_cast<uint8_t*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
+        int32_t* indexBuffer = reinterpret_cast<int32_t*>(cmx); 
+        cmx += sizeof(int32_t) * cmxLines;
+        fp16* valueBuffer = reinterpret_cast<fp16*>(cmx);
+        
+        while(i < p->start + p->toProcess)
+        {
+            r_step = __builtin_shave_cmu_min_i32_rr_int(sets_per_step, dims[0] - setCoords[0]);
+
+            unsigned inOffset, outOffset;// outIndOffset;
+            subspace::getOffsetsU8(setCoords, istrides, ostrides, ndims, inOffset, outOffset);
+
+            p_input0 = (half*)((u8*)in + inOffset);
+            p_output0 = (half*)((u8*)out + outOffset);
+            //p_outputInd0 = (half*)((u8*)ind + outIndOffset);
+            
+            valueBuffer = p_input0;
+            std::fill_n(&indexBuffer[0], r_step, 0);
+            findValue(&indexBuffer[0], &valueBuffer[0], p->inputDim, r_step);
+            
+            p_output0 = valueBuffer;
+            //p_outputInd0 = indexBuffer;
+            
+            i += r_step;
+            subspace::incrementNCoord(setCoords, dims, ndims, r_step);
+        }
     }
-
-    const int indexBPP = hasIndices ? sizeof(int32_t) : 0;
-
-    const int lineBytes = (p->inputDim * INPUT_BPP) + indexBPP;
-    const int cmxLines = vectorSizeOuter * (p->availableCmxBytes / (lineBytes * vectorSizeOuter));
-
-    if (!(cmxLines > 0))
-        return false;
-
-    const int32_t linesLimit = p->start + p->toProcess;
-    int32_t currentLine = p->start;
-
-    uint8_t* cmx = reinterpret_cast<uint8_t*>(p->cmxData);
-    int32_t* indexBuffer = hasIndices ? reinterpret_cast<int32_t*>(cmx) : nullptr; cmx += indexBPP * cmxLines;
-    fp16* valueBuffer = reinterpret_cast<fp16*>(cmx); // uncomment for next allocations: cmx += (cmxLines * p->inputDim * INPUT_BPP) * cmxLines;
-
-    int32_t setCoords[MAX_DIMS];
-    subspace::getCoord(currentLine, dims, ndims, setCoords);
-
-    const bool needToSortData = !bool(p->k == p->inputDim);
-
-    while (currentLine < linesLimit)
-    {
-        const int32_t numLines = MIN(cmxLines, MIN(linesLimit - currentLine, dims[0] - setCoords[0]));
-        const int32_t numLinesA = ALIGN_TO_MULTIPLE(vectorSizeOuter, numLines);
-
-        unsigned inputValuesOffset, outputValuesOffset, outputIndicesOffset;
-        subspace::getOffsetsU8(setCoords, p->inputValueStrides, p->outputValueStrides, p->outputIndicesStrides,
-                               ndims, inputValuesOffset, outputValuesOffset, outputIndicesOffset);
-
-        const uint8_t* inputValuesPtr = inputValues + inputValuesOffset;
-        uint8_t* outputValuesPtr = outputValues + outputValuesOffset;
-        uint8_t* outputIndicesPtr = outputIndices + outputIndicesOffset;
-
-        dma_start_2d(dma1, inputValuesPtr, reinterpret_cast<uint8_t*>(&valueBuffer[0]),
-                     numLines * p->inputDim * INPUT_BPP,
-                     numLines * INPUT_BPP,
-                     numLines * INPUT_BPP,
-                     p->inputValueStride,
-                     numLinesA * INPUT_BPP
-        );
-        dma1.wait();
-
-        if (hasIndices)
-        {
-            std::fill_n(&indexBuffer[0], numLines, 0);
-        }
-
-        if (needToSortData)
-        {
-            findValue(&indexBuffer[0], &valueBuffer[0], p->inputDim, numLines);
-        }
-
-        if (hasValues)
-        {
-            dma1.start(reinterpret_cast<uint8_t*>(&valueBuffer[0]), outputValuesPtr, numLines * p->outputDim * INPUT_BPP);
-            dma1.wait();
-        }
-
-        if (hasIndices)
-        {
-            dma1.start(reinterpret_cast<uint8_t*>(&indexBuffer[0]), outputIndicesPtr, numLines * p->outputDim * sizeof(int32_t));
-            dma1.wait();
-        }
-
-        subspace::incrementNCoord(setCoords, dims, ndims, numLines);
-        currentLine += numLines;
-    }
-
-    return true;
 }
 };
 
-extern "C" void topk(MTLTopKParams * p) {
-    bool status = topKSimpleFindOuter(p);
+using namespace subspace;
+
+namespace nn {
+namespace shave_lib {
+extern "C" void topk(uint32_t lParamsAddr) {
+    uint8_t* cmxData = nullptr;
+    int32_t availableCmxBytes = 0;
+    
+    half* p_act_data = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->inputValues.dataAddr);  // 0x1F000000
+    half* p_act_out = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->outputValues.dataAddr);   // 0x1F004000
+    //half* p_act_ind = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->outputIndices.dataAddr); 
+
+    t_MvTopKParamNClasses topkParamsCMX;
+    t_MvTopKParamNClasses* tp = &topkParamsCMX;
+    
+    const TopKParams* layerParams = reinterpret_cast<const TopKParams*>(lParamsAddr);
+    
+    tp->axis = layerParams->axis;
+    tp->inputInCmx = true;
+    tp->outputInCmx = true;
+    tp->inputDim = layerParams->inputValues.numDims;
+    tp->outputDim = layerParams->outputValues.numDims;
+    //tp->indicesDim = layerParams->outputIndices.numDims;
+    tp->k = layerParams->k;
+    //tp->hasIndices = (layerParams->hasIndices == 1) ? true:false;
+    
+    int32_t* iPDims = (int32_t*)(layerParams->inputValues.dimsAddr);
+    int32_t* oPDims = (int32_t*)(layerParams->outputValues.dimsAddr);
+    //int32_t* oPIDims = (int32_t*)(layerParams->outputIndices.dimsAddr);
+    
+    int32_t* iPStrides = (int32_t*)(layerParams->inputValues.stridesAddr);
+    int32_t* oPStrides = (int32_t*)(layerParams->outputValues.stridesAddr);
+    //int32_t* oPIStrides = (int32_t*)(layerParams->outputIndices.stridesAddr);
+
+    const int32_t mode = layerParams->mode;
+    //const int32_t hasIndices = layerParams->hasIndices;
+    
+    memcpy_s(tp->inputValueDims, MAX_ND_DIMS * sizeof(int32_t), iPDims, MAX_ND_DIMS * sizeof(int32_t));
+    memcpy_s(tp->outputValueDims, MAX_ND_DIMS * sizeof(int32_t), oPDims, MAX_ND_DIMS * sizeof(int32_t));
+    //memcpy_s(tp->outputIndicesDims, MAX_ND_DIMS * sizeof(int32_t), oPIDims, MAX_ND_DIMS * sizeof(int32_t));
+    
+    memcpy_s(tp->in_strides, MAX_ND_DIMS * sizeof(int32_t), iPStrides, MAX_ND_DIMS * sizeof(int32_t));
+    memcpy_s(tp->out_strides, MAX_ND_DIMS * sizeof(int32_t), oPStrides, MAX_ND_DIMS * sizeof(int32_t));
+    //memcpy_s(tp->ind_strides, MAX_ND_DIMS * sizeof(int32_t), oPIStrides, MAX_ND_DIMS * sizeof(int32_t));
+    
+    const auto *lp = &topkParamsCMX;
+    
+    int to_process = getTotal(lp->inputValueDims, lp->ndims);
+    unsigned int shaves_no = 1;
+    int32_t firstShave = 0;
+    int32_t lastShave = firstShave + static_cast<int>(shaves_no) - 1;
+    nnLog(MVLOG_DEBUG, "singleShaveSoftmax: run on %d SHAVEs\n", shaves_no);
+
+    {
+        nnLog(MVLOG_DEBUG, "softMaxParamNClasses %d\n", __LINE__);
+        // one or many softmax sets on one shave
+        int step_size = to_process / shaves_no;
+        int step_size_rem = to_process % shaves_no;
+        
+        nnLog(MVLOG_DEBUG, "axis %d, step_size %d, to_process %d, shaves_no %d\n", lp->axis,
+              step_size, to_process, shaves_no);
+
+        int i = firstShave;
+        int processed = 0;
+
+        for (; i <= lastShave/* && processed < to_process*/; i++) {
+            t_MvTopKParamNClasses *topkParamNClasses = &topkParamsCMX;;
+            int to_process_on_shave = step_size + ((step_size_rem-- > 0) ? 1 : 0);
+            nnLog(MVLOG_DEBUG, "i %d, to_process_on_shave %d lines, started from %d\n", i, to_process_on_shave, processed);
+
+            topkParamNClasses->input = reinterpret_cast<half *>(p_act_data);
+            topkParamNClasses->inLocation = sw_params::Location::NN_CMX;//layerParams->input.location;
+            topkParamNClasses->inputInCmx = true;//layerParams->input.location;
+            topkParamNClasses->output = reinterpret_cast<half *>(p_act_out);
+            topkParamNClasses->outLocation = sw_params::Location::NN_CMX;//layerParams->output.location;
+            topkParamNClasses->outputInCmx = true;//layerParams->input.location;
+
+            topkParamNClasses->cmxslice = cmxData;
+            topkParamNClasses->availableCmxBytes = availableCmxBytes;
+            topkParamNClasses->ndims = lp->ndims;
+            topkParamNClasses->inputDim = lp->inputDim;
+            //topkParamNClasses->hasIndices = lp->hasIndices;
+            
+            for (int32_t i = 0; i < MAX_ND_DIMS; i++) {
+                topkParamNClasses->inputValueDims[i] = lp->inputValueDims[i];
+                topkParamNClasses->outputValueDims[i] = lp->outputValueDims[i];
+                //topkParamNClasses->outputIndicesDims[i] = lp->outputIndicesDims[i];
+                topkParamNClasses->in_strides[i] = lp->in_strides[i];
+                topkParamNClasses->out_strides[i] = lp->out_strides[i];
+                //topkParamNClasses->ind_strides[i] = lp->ind_strides[i];
+            }
+            topkParamNClasses->mode = mode;
+            topkParamNClasses->axis = lp->axis;
+            topkParamNClasses->axisDim = lp->axisDim;
+            topkParamNClasses->axisIStride = lp->axisIStride;
+            topkParamNClasses->axisOStride = lp->axisOStride;
+            topkParamNClasses->start = processed;
+            topkParamNClasses->toProcess = to_process_on_shave;
+
+            mvTopKSingle(topkParamNClasses);
+            processed += to_process_on_shave;
+        }
+    }
+    }
+}
 }

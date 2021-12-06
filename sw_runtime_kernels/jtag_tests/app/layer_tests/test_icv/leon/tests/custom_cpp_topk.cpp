@@ -34,8 +34,8 @@ typedef std::initializer_list<int32_t> Dims;
 typedef std::initializer_list<int32_t> Gaps;
 
 static constexpr std::initializer_list<SingleTest> topk_test_list{
-    {{5, 6, 7}, {5, 6, 7}, orderZYX, FPE("topk.elf"), {{0/*gap*/,1 /*k_value*/,1 /*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,2/*outputs=0,1,2(value,index,valueandindex)*/,sw_params::Location::UPA_CMX /*mem type*/,}}}, //int only
-    {{5, 6, 7}, {5, 6, 7}, orderZYX, FPE("topk.elf"), {{0/*gap*/,1 /*k_value*/,1 /*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,2/*outputs=0,1,2(value,index,valueandindex)*/,sw_params::Location::NN_CMX /*mem type*/,}}},
+    {{5, 6, 7}, {1, 6, 1}, orderZYX, FPE("topk.elf"), {{0/*gap*/,1 /*k_value*/,1 /*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,2/*outputs=0,1,2(value,index,valueandindex)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
+    //{{5, 6, 7}, {1, 6, 1}, orderZYX, FPE("topk.elf"), {{0/*gap*/,1 /*k_value*/,1 /*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,2/*outputs=0,1,2(value,index,valueandindex)*/,sw_params::Location::NN_CMX /*mem type*/,}}},
 };
 
 // pair of (value, index) used in sorting
@@ -98,6 +98,10 @@ protected:
     }
     
     void initData() override{
+        
+        initElfBuffer();
+        initTestCase();
+        
         m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
             
         paramContainer.resize(((int)sizeof(sw_params::TopKParams) + 7) / 8);
@@ -116,8 +120,6 @@ protected:
         m_hasOutputValues = 1;
         m_hasOutputIndices = 1;
         
-//        m_temp = allocData<float>(m_inputTensor.memoryDims().dims[m_axis]);
-        
         m_topkParams = reinterpret_cast<sw_params::TopKParams*>(paramContainer.data());
         *m_topkParams = sw_params::TopKParams();
         
@@ -135,46 +137,38 @@ protected:
         m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[6]);
         m_params.baseParamData = sw_params::TopKParamsToBaseKernelParams(m_topkParams);
         
-        const auto& dimIn = m_topkParams->inputValues.dimsAddr;
-        const auto& dimOut = m_topkParams->outputValues.dimsAddr;
-
+        const Dimensions& dimIn = m_currentTest->inDim;
+        const Dimensions& dimOut = m_currentTest->outDim;
+        const StorageOrder& storageOrder = m_currentTest->storageOrder;
+        
         m_ndims = m_topkParams->inputValues.numDims;
-//        StorageOrder dataOrder = maskOrder(FULL_ORDER, m_ndims);
-//        StorageOrder kvalueOrder = maskOrder(FULL_ORDER, 1);
-//        
-//        MemoryDims in_md_dims = dimIn;
-//        reverse(in_md_dims, m_ndims);
-//        MemoryDims out_md_dims = dimOut;
-//        out_md_dims.dims[m_axis] = m_kValue;
-//        reverse(out_md_dims, m_ndims);
-//        
-//        const Dims inputKDims = { 1 };
-//        const MemoryDims ik_md_dims(inputKDims.begin(), inputKDims.size());
-//        
-//        const MemoryDims in_md_limits = in_md_dims + m_InputGaps;
-//        const MemoryDims out_md_limits = out_md_dims + m_OutputGaps;
-//        
-//        m_inputTensor.init(dataOrder, in_md_dims, in_md_limits);
-//        m_inputKTensor.init(kvalueOrder, ik_md_dims, ik_md_dims);
-//        m_refIndicesTensor.init(dataOrder, out_md_dims, out_md_dims);
-//        m_refValuesTensor.init(dataOrder, out_md_dims, out_md_dims);
-//        
-//        if (m_hasOutputValues ==1 )
-//            m_outputValuesTensor.init(dataOrder, out_md_dims, out_md_limits);
-//        if (m_hasOutputIndices == 1)
-//            m_outputIndicesTensor.init(dataOrder, out_md_dims, out_md_limits);
-//
-//        allocBuffer(m_inputTensor);
-//        allocBuffer(m_inputKTensor);
-//        allocBuffer(m_refValuesTensor);
-//        allocBuffer(m_refIndicesTensor);
-//        if (m_hasOutputValues == 1)
-//            allocBuffer(m_outputValuesTensor);
-//        if (m_hasOutputIndices == 1)
-//            allocBuffer(m_outputIndicesTensor);
-//        printf("finish init data");
-//        printf("finish init data");
-//        printf("finish init data");
+        
+        const StorageOrder& inputStorageOrder = m_currentTest->storageOrder;
+        
+        const TensorDims dims3In(dimIn.width,   dimIn.height,  dimIn.channels,  1);
+        const TensorDims dims3InKvalue(1, 1,  1,  1);
+        const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
+
+        m_inputTensor.init(storageOrder, dims3In);
+        m_inputKTensor.init(storageOrder, dims3InKvalue);
+        m_refIndicesTensor.init(storageOrder, dims3Out);
+        m_refValuesTensor.init(storageOrder, dims3Out);
+        
+        if (m_hasOutputValues==1)
+            m_outputValuesTensor.init(storageOrder, dims3Out);
+        if (m_hasOutputIndices==1)
+            m_outputIndicesTensor.init(storageOrder, dims3Out);
+        
+        
+        allocBuffer(m_inputTensor);
+        allocBuffer(m_inputKTensor);
+        allocBuffer(m_refIndicesTensor);
+        allocBuffer(m_refValuesTensor);
+        
+        if (m_hasOutputValues==1)
+            allocBuffer(m_outputValuesTensor);
+        if (m_hasOutputIndices==1)
+            allocBuffer(m_outputIndicesTensor);
         
     }
     
@@ -219,20 +213,10 @@ protected:
         const auto ndims = m_ndims;
         const auto axis = m_ndims - 1 - m_axis; // Change axis due to layout
         
-        
-        // iterate over all dims except 'axis'
-        // TODO: MemoryDims constructor
-        MemoryDims dims = m_inputTensor.memoryDims();
-        MemoryDims ind = MemoryDims();
+        MemoryDims dims = m_inputValuesTensor.memoryDims();
         const int n = dims.dims[axis];
         dims.dims[axis] = 1;
         
-//        int totalSets = m_inputTensor.totalLines(m_axis);
-
-//        mvTensorAssert(k <= n);
-//        mvTensorAssert(m_inputTensor.storageOrder() == m_refValuesTensor.storageOrder());
-//        mvTensorAssert(m_inputTensor.storageOrder() == m_refIndicesTensor.storageOrder());
-//
         const int inputValuesAxisStep = m_inputTensor.memorySteps().dims[axis];
         const int refValuesAxisStep = m_refValuesTensor.memorySteps().dims[axis];
         const int refIndicesAxisStep = m_refIndicesTensor.memorySteps().dims[axis];
