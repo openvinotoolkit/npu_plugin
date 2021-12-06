@@ -307,6 +307,11 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::sortUsedBuffers(mlir::DenseSet
     llvm::sort(buffersWithSize.begin(), buffersWithSize.end(),
                [](const std::pair<vpux::AddressType, mlir::Value>& val1,
                   const std::pair<vpux::AddressType, mlir::Value>& val2) {
+                   // If size is the same use position in IR to have
+                   // consistent order between executions
+                   if (val1.first == val2.first) {
+                       return val1.second.getDefiningOp()->isBeforeInBlock(val2.second.getDefiningOp());
+                   }
                    return val1.first > val2.first;
                });
     // repopulate only with buffers
