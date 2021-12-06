@@ -88,6 +88,12 @@ class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
     void SkipBeforeLoad() override {
 #if defined(__arm__) || defined(__aarch64__)
         throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM.");
+#else
+        if (std::getenv("OV_BUILD_DIR")) {
+            return;
+        } else {
+            throw LayerTestsUtils::KmbSkipTestException("OV_BUILD_DIR is not set.");
+        }
 #endif
     }
     void SkipBeforeInfer() override {
@@ -108,7 +114,7 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
 }
 
 // [Track number: EISW-26724]
-TEST_P(KmbActivationLayerTest_MTL, DISABLED_CompareWithRefs_MLIR) {
+TEST_P(KmbActivationLayerTest_MTL, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     setPlatformMTL();
     setDefaultHardwareModeMLIR();
