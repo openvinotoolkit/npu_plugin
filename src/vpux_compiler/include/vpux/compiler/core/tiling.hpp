@@ -35,17 +35,18 @@ namespace vpux {
 struct TileInfo final {
     Shape shape;
     Shape offsets;
+    Shape axis;
 
     TileInfo() = delete;
 
-    explicit TileInfo(size_t rank): shape(rank), offsets(rank) {
+    explicit TileInfo(size_t rank): shape(rank), offsets(rank), axis(rank) {
     }
 
-    explicit TileInfo(ShapeRef shape): shape(shape.raw()), offsets(shape.size(), 0) {
+    explicit TileInfo(ShapeRef shape): shape(shape.raw()), offsets(shape.size(), 0), axis(shape.size(), 1) {
     }
 
     void printFormat(llvm::raw_ostream& stream) const {
-        printTo(stream, "Tile [shape = {0}, offsets = {1}]", shape, offsets);
+        printTo(stream, "Tile [shape = {0}, offsets = {1}, axis = {2}]", shape, offsets, axis);
     }
 };
 
