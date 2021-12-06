@@ -34,7 +34,7 @@ typedef std::initializer_list<int32_t> Dims;
 typedef std::initializer_list<int32_t> Gaps;
 
 static constexpr std::initializer_list<SingleTest> topk_test_list{
-    {{5, 6, 7}, {1, 6, 1}, orderZYX, FPE("topk.elf"), {{0/*gap*/,1 /*k_value*/,1 /*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,2/*outputs=0,1,2(value,index,valueandindex)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
+    {{5, 6, 7}, {1, 6, 1}, orderZYX, FPE("topk.elf"), {{1 /*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
     //{{5, 6, 7}, {1, 6, 1}, orderZYX, FPE("topk.elf"), {{0/*gap*/,1 /*k_value*/,1 /*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,2/*outputs=0,1,2(value,index,valueandindex)*/,sw_params::Location::NN_CMX /*mem type*/,}}},
 };
 
@@ -110,22 +110,15 @@ protected:
         int32_t ind[subspace::MAX_DIMS] = {0,};
         subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
         
-        m_InputGaps = ind[test->customLayerParams.layerParams[0]];
-        m_OutputGaps = ind[test->customLayerParams.layerParams[0]];
-        m_kValue = ind[test->customLayerParams.layerParams[1]];
-        m_axis = ind[test->customLayerParams.layerParams[2]];
-        m_mode = ind[test->customLayerParams.layerParams[3]];
-        m_sort = ind[test->customLayerParams.layerParams[4]];
-        m_outs = ind[test->customLayerParams.layerParams[5]];
+        m_axis = ind[test->customLayerParams.layerParams[0]];
+        m_mode = ind[test->customLayerParams.layerParams[1]];
+        m_sort = ind[test->customLayerParams.layerParams[2]];
         m_hasOutputValues = 1;
         m_hasOutputIndices = 1;
         
         m_topkParams = reinterpret_cast<sw_params::TopKParams*>(paramContainer.data());
         *m_topkParams = sw_params::TopKParams();
         
-        m_topkParams->inputValueStride = m_InputGaps;
-        m_topkParams->outputValueStride = m_OutputGaps;
-        m_topkParams->k = m_kValue;
         m_topkParams->axis = m_axis;
         m_topkParams->mode = m_mode;
         m_topkParams->sort = m_sort;
@@ -143,9 +136,7 @@ protected:
         
         m_ndims = m_topkParams->inputValues.numDims;
         
-        const StorageOrder& inputStorageOrder = m_currentTest->storageOrder;
-        
-        const TensorDims dims3In(dimIn.width,   dimIn.height,  dimIn.channels,  1);
+        const TensorDims dims3In(dimIn.width,dimIn.height,  dimIn.channels,  1);
         const TensorDims dims3InKvalue(1, 1,  1,  1);
         const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
 
@@ -158,7 +149,6 @@ protected:
             m_outputValuesTensor.init(storageOrder, dims3Out);
         if (m_hasOutputIndices==1)
             m_outputIndicesTensor.init(storageOrder, dims3Out);
-        
         
         allocBuffer(m_inputTensor);
         allocBuffer(m_inputKTensor);
@@ -177,9 +167,34 @@ protected:
         m_test_threshold = 0.0005f;
     }
     
-    void generateInputData() override {
-        const auto customData = false;  // m_testLoop.value().customData;
+    void initParserRunner() override {
+        printf("init parser runner.\n");
+        initMyriadResources();
+        initDebugInfo();
+        
+        static_assert(std::is_base_of<Op, CustomCpp>());
+        CustomCpp* customCppOp = static_cast<CustomCpp*>(m_op);
 
+        Buffer inBuff;
+        m_inputTensor.exportToBuffer(inBuff);
+        customCppOp->addInputBuffer(inBuff, m_requiredTensorLocation);
+
+        Buffer kBuff;
+        m_inputKTensor.exportToBuffer(kBuff);
+        customCppOp->addInputBuffer(kBuff, m_requiredTensorLocation);
+
+        Buffer valueBuff;
+        m_outputValuesTensor.exportToBuffer(valueBuff);
+        customCppOp->addOutputBuffer(valueBuff, m_requiredTensorLocation);
+
+        Buffer indexBuff;
+        m_outputIndicesTensor.exportToBuffer(indexBuff);
+        customCppOp->addOutputBuffer(indexBuff, m_requiredTensorLocation);
+
+        customCppOp->ops = *getParams();
+    }
+    
+    void generateInputData() override {
 #ifdef CONFIG_TARGET_SOC_3720
         m_params.kernel  = reinterpret_cast<uint64_t>(&shvNN0_topk);
 #else
@@ -199,15 +214,17 @@ protected:
         });
 
         // input K
-        auto data = m_inputKTensor.data();
-        data[0] = m_kValue;
+        int32_t k = 1;
+        m_inputKTensor.forEach(false, [&](const MemoryDims& indices) {
+            m_inputKTensor.at(indices) = k;
+        });
 
         // reference
         generateReferenceData();
     }
     
     void generateReferenceData() override {
-        const auto k = m_kValue;
+        const auto k = 1;
         const auto mode = m_mode;
         const auto sort = m_sort;
         const auto ndims = m_ndims;
@@ -296,13 +313,9 @@ protected:
 private:
     ListIterator<SingleTest> m_testsLoop;
     int m_ndims;
-    int m_InputGaps;
-    int m_OutputGaps;
-    Index m_kValue;
-    Index m_axis;
+    int m_axis;
     int m_mode;
     int m_sort;
-    int m_outs;
     int m_hasOutputValues;
     int m_hasOutputIndices;
     
@@ -310,12 +323,11 @@ private:
     sw_params::TopKParams * m_topkParams;
     
     Tensor<int32_t> m_inputValuesTensor;
-    Tensor<int32_t> m_outputValuesTensor;
-    Tensor<Index> m_inputKTensor;
-    Tensor<Index> m_outputIndicesTensor;
-    
-    Tensor<int32_t> m_refValuesTensor;
-    Tensor<Index> m_refIndicesTensor;
+    Tensor<fp16> m_outputValuesTensor;
+    Tensor<int32_t> m_inputKTensor;
+    Tensor<int32_t> m_outputIndicesTensor;
+    Tensor<fp16> m_refValuesTensor;
+    Tensor<int32_t> m_refIndicesTensor;
 };
 
 ICV_TESTS_REGISTER_SUITE(CustomCppTopKTest)
