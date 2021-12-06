@@ -207,6 +207,8 @@ void fillDefaultLayoutInfo(LayerLayoutInfo& info, FuncRef<bool(size_t)> inputFil
 mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal, const TileInfo& tile,
                      StringRef valName);
 
+Shape computeGeneralTileStrategy(mlir::Operation* op, Logger log);
+
 OutputTiling generateTiles(mlir::Operation* op, Logger log);
 
 OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log);

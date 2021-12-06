@@ -39,12 +39,13 @@ private:
 mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
                                                    mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
-
     const auto tiles = origOp.generatePrefetchTiling(_log.nest());
 
     _log.nest(1).trace("Create {0} tiles:", tiles.size());
+    std::cout<<llvm::formatv("Prefetchable {0} tiles:", tiles.size()).str()<<std::endl;
     for (const auto& outputTile : tiles) {
         _log.nest(2).trace("{0}", outputTile);
+        std::cout<<llvm::formatv("{0}", outputTile).str()<<std::endl;
     }
 
     SmallVector<mlir::Value> resultTileVals;
@@ -90,25 +91,18 @@ void PrefetchTilingPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
-
-    const auto isUnPrefetchable = [this](mlir::Operation* op) {
-        // check the prefetch tiling strategy.
-        // only consider conv first
-        auto convOp = llvm::dyn_cast<IE::ConvolutionOp>(op);
-        if (!convOp)
-            return true;
-
-        const auto tileDim = Shape(parseIntArrayAttr<int64_t>(convOp.tiling_strategyAttr()));
-        // check prefetchable
+    target.addLegalOp<IE::SliceOp, IE::ConcatOp>();
+    target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
-          return !iface.supportPrefetchTiling(tileDim, _log.nest());
+            return !iface.needTiling(_log.nest());
         }
+
         return true;
-    };
-    target.markUnknownOpDynamicallyLegal(isUnPrefetchable);
+    });
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<PrefetchTiling>(&ctx, _log);
+
     if (mlir::failed(mlir::applyPartialConversion(getFunction(), target, std::move(patterns)))) {
         signalPassFailure();
     }

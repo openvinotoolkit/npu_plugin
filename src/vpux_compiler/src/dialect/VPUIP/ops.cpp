@@ -185,12 +185,7 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     });
 }
 
-bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logger log) {
-    // Temporal strategy: only consider if the first n tiles (n >= 2) could be fit into the CMX memory at the same time,
-    // Should consider the cost model as a final version.
-    // Nested tiling is unsupported
-    // TODO check the cmx memory for overlapping
-
+bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logger log) {
     bool isSingleTile = false;
     Dim tileDim = Dim(0);
     for (unsigned i = 0; i < tileAxis.size(); i++) {
@@ -205,8 +200,7 @@ bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logg
     if (!isSingleTile)
         return false;
     auto outputShape = getShape(origOp.output());
-    Shape nTilesOnDim(outputShape.size(), 1);
-    nTilesOnDim[tileDim]++;
+    const Shape nTilesOnDim = tileAxis;
 
     auto isDivisibleTile = [&]() -> bool {
         auto kernelSize = getShape(origOp.filter());
@@ -226,18 +220,14 @@ bool supportPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logg
         return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
     };
 
-//  Only check tile by 2 for now
-//    while (!isDivisibleTile() && nTilesOnDim[tileDim] <= 3) {
-//        nTilesOnDim[tileDim]++;
-//    }
-    return isDivisibleTile() && isMemPrefetchable();  // TODO warning log
+    return isDivisibleTile() && isMemPrefetchable();
 }
 
-bool supportPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) {
+bool isSupportedPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) {
     return false;
 }
 
-bool supportPrefetchTiling(IE::MaxPoolOp /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) {
+bool isSupportedPrefetchTiling(IE::MaxPoolOp /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) {
     return false;
 }
 
@@ -257,8 +247,8 @@ public:
         return ::isSupportedTiling(mlir::cast<MainOpType>(origOp), tiles, log);
     }
     
-    bool supportPrefetchTiling(mlir::Operation* origOp, const Shape& tileAxis, Logger log) const {
-        return ::supportPrefetchTiling(mlir::cast<MainOpType>(origOp), tileAxis, log);
+    bool isSupportedPrefetchTiling(mlir::Operation* origOp, const Shape& tileAxis, Logger log) const {
+        return ::isSupportedPrefetchTiling(mlir::cast<MainOpType>(origOp), tileAxis, log);
     }
 
 private:
@@ -300,7 +290,7 @@ public:
         });
     }
 
-    bool supportPrefetchTiling(mlir::Operation* /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) const {
+    bool isSupportedPrefetchTiling(mlir::Operation* /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) const {
         return false;
     }
 

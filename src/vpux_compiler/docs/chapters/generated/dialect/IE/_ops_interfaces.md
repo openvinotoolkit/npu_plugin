@@ -152,10 +152,10 @@ bool isSupportedTiling(const vpux::OutputTiling&tiles, vpux::Logger log);
 Check, if the provided tiling configuration is supported by the operation implementation
 NOTE: This method *must* be implemented by the user.
 
-#### `supportPrefetchTiling`
+#### `isSupportedPrefetchTiling`
 
 ```c++
-bool supportPrefetchTiling(const Shape&tileAxis, vpux::Logger log);
+bool isSupportedPrefetchTiling(const Shape&tileAxis, vpux::Logger log);
 ```
 Check, if the operation support prefetch tiling with cmx memory checking only
 NOTE: This method *must* be implemented by the user.

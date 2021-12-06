@@ -261,14 +261,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
 
-    pm.addPass(vpux::createPrintDotPass("./output/beforecreateIsolatedTilingPass.dot"));
-    pm.addPass(IE::createIsolatedTilingPass(log));
-    pm.addPass(vpux::createPrintDotPass("./output/aftercreateIsolatedTilingPass.dot"));
-    if (options.enablePrefetchTiling.getValue()) {
-        pm.addPass(IE::createPrefetchTilingPass(log));
-    }
+    pm.addPass(IE::createPrefetchTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
-    pm.addPass(vpux::createPrintDotPass("./output/test.dot"));
 
     // Lowering
 
