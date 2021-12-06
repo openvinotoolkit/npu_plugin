@@ -1485,7 +1485,6 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     unsigned n = barrierTasks.size();
     for(unsigned i = 0; i < n; ++i)
     {
-        std::cout << "Barrier index is " << barrierTasks[i]->get<mv::Barrier>("Barrier").getIndex() << std::endl;
         auto tasks = buildTaskT(cm, compilationDescriptor, controlModel.switchContext(barrierTasks[i]), &port);
         for(auto& task: tasks)
             toBuild[2]->content.push_back(std::move(task));
