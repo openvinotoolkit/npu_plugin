@@ -75,9 +75,23 @@
                 "jsonInFileName" : "./output/mcmCompiler_simple_strategy_output.json"
             },
             "StoreGraphOptimizerDecisions",
+            {
+                "name" : "AddActivationStreaming",
+                "max_streams" : 1000,
+                "vertical_fusion" : true
+            },
+            {
+                "name" : "RecognizeVerticalFusionPatterns",
+                "min_subgraph_depth" : 2,
+                "vertical_fusion": true
+            },
             "ComputeSparsitySolution",
             {
                 "name": "StreamingOperations",
+                "vertical_fusion" : true
+            },
+            {
+                "name":"VerticalFusionTransformation",
                 "vertical_fusion" : true
             },
             "StreamBinaryDataWeights",
@@ -106,34 +120,12 @@
         "Singular": [
             "Linearization",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/control-in.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/control-in.dot"
-            },
-            {
               "name" : "BarrierSchedulerPass",
-              "real_physical_barriers": 8,
-              "barrier_bound": 4,
+              "real_physical_barriers": 32,
+              "barrier_bound": 16,
               "producer_bound" : 256,
               "remove_barriers_in_upa_tail" : true,
-              "remove_redundant_wait_barriers" : false
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/control-out.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/control-out.dot"
+              "remove_redundant_wait_barriers" : true
             },
             {
                 "name" : "AddDPUTasksProfilingDMA",
@@ -150,9 +142,12 @@
     },
     "serialize": {
         "Singular": [
+            "RemoveRedundantUpdateBarriers",
+            "CombineTaskInputBarriers",
+            "SplitBarrier",
             {
                 "name" : "AssignPhysicalBarrier",
-                "real_physical_barriers": 8
+                "real_physical_barriers": 32
             },
             "BuildGraphFileKmb",
             "UpdatePhysicalIDinGraphFile",
