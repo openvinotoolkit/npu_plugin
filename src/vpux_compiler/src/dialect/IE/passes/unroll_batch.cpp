@@ -39,7 +39,7 @@ public:
 
 public:
     class FullyConnectedOpConverter;
-    template<class eltwise_op>
+    template <class eltwise_op>
     class EltwiseOpConverter;
 
 private:
@@ -104,11 +104,10 @@ mlir::LogicalResult UnrollBatchPass::FullyConnectedOpConverter::matchAndRewrite(
 // EltwiseOpConverter
 //
 
-template<class eltwise_op>
+template <class eltwise_op>
 class UnrollBatchPass::EltwiseOpConverter final : public mlir::OpRewritePattern<eltwise_op> {
 public:
-    EltwiseOpConverter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<eltwise_op>(ctx), _log(log) {
+    EltwiseOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<eltwise_op>(ctx), _log(log) {
     }
 
 public:
@@ -118,12 +117,15 @@ private:
     Logger _log;
 };
 
-template<class eltwise_op>
-mlir::LogicalResult UnrollBatchPass::EltwiseOpConverter<eltwise_op>::matchAndRewrite(eltwise_op origOp,
-                                                                                mlir::PatternRewriter& rewriter) const {
-    static_assert(std::is_same<std::decay_t<decltype(origOp)>, IE::AndOp>::value, "Appliccable only for Eltwise And operation for now");
+template <class eltwise_op>
+mlir::LogicalResult UnrollBatchPass::EltwiseOpConverter<eltwise_op>::matchAndRewrite(
+        eltwise_op origOp, mlir::PatternRewriter& rewriter) const {
+    static_assert(std::is_same<std::decay_t<decltype(origOp)>, IE::AndOp>::value,
+                  "Appliccable only for Eltwise And operation for now");
     const auto input1Shape = getShape(origOp.input1());
     const auto input2Shape = getShape(origOp.input2());
+    const auto broadcastType = origOp.auto_broadcastAttr();
+    const auto postOp = origOp.post_opAttr();
     if (input1Shape != input2Shape) {
         return mlir::failure();
     }
@@ -132,7 +134,6 @@ mlir::LogicalResult UnrollBatchPass::EltwiseOpConverter<eltwise_op>::matchAndRew
     if (rowCount <= 1) {
         return mlir::failure();
     }
-
 
     SmallVector<SmallVector<mlir::Value>> rowSlices;
     for (int64_t sliceIdx = 0; sliceIdx < rowCount; sliceIdx++) {
@@ -155,7 +156,7 @@ mlir::LogicalResult UnrollBatchPass::EltwiseOpConverter<eltwise_op>::matchAndRew
     for (size_t sliceIdx = 0; sliceIdx < rowSlices.size(); sliceIdx++) {
         auto lhs = rowSlices[sliceIdx][0];
         auto rhs = rowSlices[sliceIdx][1];
-        auto op = rewriter.create<eltwise_op>(origOp->getLoc(), lhs, rhs);
+        auto op = rewriter.create<eltwise_op>(origOp->getLoc(), lhs, rhs, broadcastType, postOp);
         eltwiseSlices.push_back(op.output());
     }
 
