@@ -209,30 +209,66 @@ PostOpParams getPwlPostOpParams(VPUIP::NCEClusterTaskOp nceOp, VPUIP::PPELayerTy
                         LreluMult, LreluShift, QuantizationParams{quantMult, quantShift, postShift}};
 }
 
-static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, IE::PostOp postOp) {
+static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, IE::PostOp postOp,
+                                                mlir::MemRefType origOutType, VPU::ArchKind arch) {
     if (postOp == nullptr) {
         return mlir::None;
     }
 
+    auto outElemType = origOutType.getElementType();
+    auto outElemQType = outElemType.template dyn_cast<mlir::quant::QuantizedType>();
+
     if (postOp.name().getValue() == IE::ReLUOp::getOperationName()) {
         VPUX_THROW_UNLESS(postOp.attrs().empty(), "'{0}' PostOp should not have any attributes", postOp.name());
 
-        const int64_t clampLow = 0;
-        const int64_t clampHigh = std::numeric_limits<int32_t>::max();
+        int64_t clampLow = 0;
+        int64_t clampHigh = std::numeric_limits<int32_t>::max();
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
+
+        if (outElemQType != nullptr) {
+            const auto zps = extractScalesAndZeroPoints(outElemType).second;
+
+            clampLow = outElemQType.getStorageTypeMin() - zps.front();
+            clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+        }
         return PostOpParams{VPUIP::PPELayerType::LRELU, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::ClampOp::getOperationName()) {
         IE::ClampOp::Adaptor clamp(None, postOp.attrs());
         VPUX_THROW_UNLESS(clamp.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
                           postOp.attrs(), postOp.name());
 
-        const int64_t clampLow = vpux::toFixedPoint(clamp.min().getValueAsDouble());
-        const int64_t clampHigh = vpux::toFixedPoint(clamp.max().getValueAsDouble());
+        int64_t clampLow = vpux::toFixedPoint(clamp.min().getValueAsDouble());
+        int64_t clampHigh = vpux::toFixedPoint(clamp.max().getValueAsDouble());
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
 
+        if (outElemQType != nullptr) {
+            const auto zps = extractScalesAndZeroPoints(outElemType).second;
+
+            clampLow = outElemQType.getStorageTypeMin() - zps.front();
+            clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+        }
         return PostOpParams{VPUIP::PPELayerType::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
+    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
+        IE::LeakyReluOp::Adaptor leakyRelu(None, postOp.attrs());
+        VPUX_THROW_UNLESS(leakyRelu.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
+                          postOp.attrs(), postOp.name());
+
+        int64_t clampLow = 0;
+        int64_t clampHigh = std::numeric_limits<int32_t>::max();
+        const int64_t LreluMult = 1;
+        const int64_t LreluShift = 0;
+
+        if (outElemQType != nullptr) {
+            const auto zps = extractScalesAndZeroPoints(outElemType).second;
+
+            clampLow = arch == VPU::ArchKind::MTL ? (outElemQType.getStorageTypeMin() - zps.front())
+                                                  : (outElemQType.getStorageTypeMin() - zps.front()) /
+                                                            leakyRelu.negative_slope().getValueAsDouble();
+            clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+        }
+        return PostOpParams{VPUIP::PPELayerType::LPRELU, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
         return getPwlPostOpParams(nceOp, VPUIP::PPELayerType::SIGMOID);
     } else if (postOp.name().getValue() == IE::TanhOp::getOperationName()) {
@@ -320,7 +356,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto outElemType = origOutType.getElementType();
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0],
                 mpeByType(inElemType, outElemType));
-    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr(), origOutType, _arch);
     if (postOpParams.hasValue()) {
         if (postOpParams->quantParams.hasValue()) {
             const auto quantParams = postOpParams->quantParams.getValue();
@@ -454,7 +490,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     const auto outElemType = origOutType.getElementType();
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0],
                 mpeByType(inElemType, outElemType));
-    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr(), origOutType, _arch);
     if (postOpParams.hasValue()) {
         if (postOpParams->quantParams.hasValue()) {
             const auto quantParams = postOpParams->quantParams.getValue();
@@ -614,14 +650,7 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     int64_t LreluShift = 0;
 
     auto outElemType = origOutType.getElementType();
-    if (auto outElemQType = outElemType.template dyn_cast<mlir::quant::QuantizedType>()) {
-        const auto zps = extractScalesAndZeroPoints(outElemType).second;
-
-        clampLow = outElemQType.getStorageTypeMin() - zps.front();
-        clampHigh = outElemQType.getStorageTypeMax() - zps.front();
-    }
-
-    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr(), origOutType, _arch);
     if (postOpParams.hasValue()) {
         clampLow = postOpParams->clampLow;
         clampHigh = postOpParams->clampHigh;
@@ -765,7 +794,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     const auto outElemType = origOutType.getElementType();
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0],
                 mpeByType(inElemType, outElemType));
-    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr(), origOutType, _arch);
     if (postOpParams.hasValue()) {
         if (postOpParams->quantParams.hasValue()) {
             const auto quantParams = postOpParams->quantParams.getValue();
