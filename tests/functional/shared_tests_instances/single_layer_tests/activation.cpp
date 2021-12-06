@@ -107,7 +107,8 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
     Run();
 }
 
-TEST_P(KmbActivationLayerTest_MTL, CompareWithRefs_MLIR) {
+// [Track number: EISW-26724]
+TEST_P(KmbActivationLayerTest_MTL, DISABLED_CompareWithRefs_MLIR) {
     useCompilerMLIR();
     setPlatformMTL();
     setDefaultHardwareModeMLIR();
