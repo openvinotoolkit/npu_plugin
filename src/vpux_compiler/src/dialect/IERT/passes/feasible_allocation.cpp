@@ -238,9 +238,9 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // });
     // _log.setName("feasible-allocation");
     // mateusz
-    for (const auto& op : scheduledOps) {
-        depsInfo.getExecuteOpAtIndex(op.op_).dump();
-    }
+    // for (const auto& op : scheduledOps) {
+    //     depsInfo.getExecuteOpAtIndex(op.op_).dump();
+    // }
 
     // 6. convert to allocated ops
     mlir::ConversionTarget target(ctx);

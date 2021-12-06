@@ -252,10 +252,6 @@ SmallVector<operationIdxType> FeasibleMemoryScheduler::reduceInDegreeOfAdjacentO
     // reduce indegree (number of incoming edges) for consumers of ready data ops
     _log.trace("reduceInDegreeOfAdjacentOperations({0})", opIdx);
     for (auto consumer : _depsInfo.getConsumerOps(opIdx)) {
-        // mateusz
-        if (consumer == 702) {
-            _log.trace("_inDegreeTable[702]: {0} --", _inDegreeTable[702]);
-        }
         if (_inDegreeTable[consumer] < 2) {
             zeroInDegreeOps.push_back(consumer);
             _inDegreeTable.erase(consumer);
@@ -467,10 +463,6 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
 
     // allocate buffers using LinearScan
     _log.nest().trace("Allocate memory for the alive buffers");
-    // mateusz
-    for (auto& buf : sortedBuffers) {
-        _log.nest().trace("{0}", buf);
-    }
     VPUX_THROW_UNLESS(_scan.alloc(sortedBuffers, /*allowSpills*/ false), "Failed to statically allocate '{0}' memory",
                       _memSpace);
 
@@ -752,25 +744,26 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     scheduled.resourceInfo_ = intervals;
     _scheduledOps.push_back(scheduled);
 
-    if (scheduledOp.op_ == 703) {
-        for (const auto& op : _scheduledOps) {
-            std::string resourceInfo = "<none>";
-            if (op.hasActiveResource()) {
-                resourceInfo = "";
-                for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
-                    if (op.isActiveResource(resourceIdx)) {
-                        resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
-                                        std::to_string(op.endResource(resourceIdx)) + "] size = " +
-                                        std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
-                                        ", ";
-                    }
-                }
-            }
-            _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_,
-                       resourceInfo);
-        }
-        VPUX_THROW("STOP");
-    }
+    // if (scheduledOp.op_ == 703) {
+    //     for (const auto& op : _scheduledOps) {
+    //         std::string resourceInfo = "<none>";
+    //         if (op.hasActiveResource()) {
+    //             resourceInfo = "";
+    //             for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
+    //                 if (op.isActiveResource(resourceIdx)) {
+    //                     resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
+    //                                     std::to_string(op.endResource(resourceIdx)) + "] size = " +
+    //                                     std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx)))
+    //                                     +
+    //                                     ", ";
+    //                 }
+    //             }
+    //         }
+    //         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_,
+    //                    resourceInfo);
+    //     }
+    //     VPUX_THROW("STOP");
+    // }
 }
 
 void FeasibleMemoryScheduler::clearLists() {
@@ -786,11 +779,6 @@ bool FeasibleMemoryScheduler::init() {
 
     // compute op in/out degree
     _inDegreeTable = _depsInfo.calculateOpInDegreeTable();
-    _log.trace("Mateusz: inDegree[702] - {0}", _inDegreeTable[702]);
-    _log.trace("Mateusz: inDegree[699] - {0}", _inDegreeTable[699]);
-    _log.trace("Mateusz: inDegree[700] - {0}", _inDegreeTable[700]);
-    _log.trace("Mateusz: inDegree[701] - {0}", _inDegreeTable[701]);
-    _log.trace("Mateusz: inDegree[703] - {0}", _inDegreeTable[703]);
     _outDegreeTable = _depsInfo.calculateOpOutDegreeTable();
 
     // retrieve output ops (ops with no out-degree)
