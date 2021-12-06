@@ -21,7 +21,7 @@ if(NOT gflags_FOUND)
     return()
 endif()
 
-add_executable(${TARGET_NAME} main.cpp)
+add_executable(${TARGET_NAME} main.cpp classification_results_old.h)
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     IE::inference_engine IE::ngraph IE::format_reader
