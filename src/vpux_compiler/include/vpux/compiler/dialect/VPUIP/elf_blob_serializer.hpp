@@ -97,7 +97,7 @@ public:
     void setBarrierConfigs(llvm::ArrayRef<host_parsing::BarrierWrapper> barrierConfigs);
     void setConstData(llvm::ArrayRef<uint8_t> weights);
 
-    std::vector<uint8_t> getBlob();
+    std::vector<char> getBlob();
 
 private:
     void setNetworkIO(llvm::ArrayRef<mlir::ShapedType> inputsOrOutputs, uint8_t symbolType,

@@ -53,17 +53,19 @@ VPUIP::ELFBlobSerializer::ELFBlobSerializer() {
 }
 
 void VPUIP::ELFBlobSerializer::setDDRScratch(size_t ddrScratch) {
-    m_ddrScratch = m_writer.addEmptySection();
-    m_ddrScratch->setName(".ddr.Scratch");
-    m_ddrScratch->setFlags(SHF_ALLOC);
-    m_ddrScratch->setSize(ddrScratch);
+    if (ddrScratch != 0) {
+        m_ddrScratch = m_writer.addEmptySection();
+        m_ddrScratch->setName(".ddr.Scratch");
+        m_ddrScratch->setFlags(SHF_ALLOC);
+        m_ddrScratch->setSize(ddrScratch);
 
-    auto ddrScratchSymbol = m_sectionSymbols->addSymbolEntry();
-    ddrScratchSymbol->setName(".ddr.Scratch");
-    ddrScratchSymbol->setRelatedSection(m_ddrScratch);
-    ddrScratchSymbol->setType(STT_SECTION);
-    ddrScratchSymbol->setSize(ddrScratch);
-    m_sectionSymbolsMapping.insert(std::make_pair(m_ddrScratch, ddrScratchSymbol));
+        auto ddrScratchSymbol = m_sectionSymbols->addSymbolEntry();
+        ddrScratchSymbol->setName(".ddr.Scratch");
+        ddrScratchSymbol->setRelatedSection(m_ddrScratch);
+        ddrScratchSymbol->setType(STT_SECTION);
+        ddrScratchSymbol->setSize(ddrScratch);
+        m_sectionSymbolsMapping.insert(std::make_pair(m_ddrScratch, ddrScratchSymbol));
+    }
 }
 
 void VPUIP::ELFBlobSerializer::setResourceRequirements(const host_parsing::ResourceRequirements& resourceRequirements) {
@@ -97,37 +99,41 @@ void VPUIP::ELFBlobSerializer::setDPUTasks(llvm::ArrayRef<DPUTask> dpuTasks) {
 }
 
 void VPUIP::ELFBlobSerializer::setBarrierConfigs(llvm::ArrayRef<host_parsing::BarrierWrapper> barrierConfigs) {
-    m_mappedInference.barrierConfigs.count = barrierConfigs.size();
+    if (!barrierConfigs.empty()) {
+        m_mappedInference.barrierConfigs.count = barrierConfigs.size();
 
-    m_barrierConfigs = m_writer.addBinaryDataSection<BarrierWrapper>();
-    m_barrierConfigs->appendData(barrierConfigs.data(), barrierConfigs.size());
-    m_barrierConfigs->setName(".text.BarrierConfigs");
-    m_barrierConfigs->setFlags(SHF_EXECINSTR);
-    m_barrierConfigs->setAddrAlign(64);
+        m_barrierConfigs = m_writer.addBinaryDataSection<BarrierWrapper>();
+        m_barrierConfigs->appendData(barrierConfigs.data(), barrierConfigs.size());
+        m_barrierConfigs->setName(".text.BarrierConfigs");
+        m_barrierConfigs->setFlags(SHF_EXECINSTR);
+        m_barrierConfigs->setAddrAlign(64);
 
-    auto barrierConfigsSymbol = m_sectionSymbols->addSymbolEntry();
-    barrierConfigsSymbol->setName(".ddr.barrierConfigs");
-    barrierConfigsSymbol->setRelatedSection(m_barrierConfigs);
-    barrierConfigsSymbol->setType(STT_SECTION);
-    barrierConfigsSymbol->setSize(m_barrierConfigs->getDataSize());
-    m_sectionSymbolsMapping.insert(std::make_pair(m_barrierConfigs, barrierConfigsSymbol));
+        auto barrierConfigsSymbol = m_sectionSymbols->addSymbolEntry();
+        barrierConfigsSymbol->setName(".ddr.barrierConfigs");
+        barrierConfigsSymbol->setRelatedSection(m_barrierConfigs);
+        barrierConfigsSymbol->setType(STT_SECTION);
+        barrierConfigsSymbol->setSize(m_barrierConfigs->getDataSize());
+        m_sectionSymbolsMapping.insert(std::make_pair(m_barrierConfigs, barrierConfigsSymbol));
+    }
 }
 
 void VPUIP::ELFBlobSerializer::setConstData(llvm::ArrayRef<uint8_t> weights) {
-    m_weights = m_writer.addBinaryDataSection<uint8_t>();
-    m_weights->appendData(weights.data(), weights.size());
-    m_weights->setName(".data.Weights");
-    m_weights->setAddrAlign(64);
+    if (!weights.empty()) {
+        m_weights = m_writer.addBinaryDataSection<uint8_t>();
+        m_weights->appendData(weights.data(), weights.size());
+        m_weights->setName(".data.Weights");
+        m_weights->setAddrAlign(64);
 
-    auto weightsConfigsSymbol = m_sectionSymbols->addSymbolEntry();
-    weightsConfigsSymbol->setName(".weights");
-    weightsConfigsSymbol->setRelatedSection(m_weights);
-    weightsConfigsSymbol->setType(STT_SECTION);
-    weightsConfigsSymbol->setSize(m_weights->getDataSize());
-    m_sectionSymbolsMapping.insert(std::make_pair(m_weights, weightsConfigsSymbol));
+        auto weightsConfigsSymbol = m_sectionSymbols->addSymbolEntry();
+        weightsConfigsSymbol->setName(".weights");
+        weightsConfigsSymbol->setRelatedSection(m_weights);
+        weightsConfigsSymbol->setType(STT_SECTION);
+        weightsConfigsSymbol->setSize(m_weights->getDataSize());
+        m_sectionSymbolsMapping.insert(std::make_pair(m_weights, weightsConfigsSymbol));
+    }
 }
 
-std::vector<uint8_t> VPUIP::ELFBlobSerializer::getBlob() {
+std::vector<char> VPUIP::ELFBlobSerializer::getBlob() {
     finalize();
     return m_writer.generateELF();
 }
@@ -193,11 +199,6 @@ void VPUIP::ELFBlobSerializer::finalize() {
     entryPoint->setRelatedSection(mappedInferenceSection);
     entryPoint->setType(VPU_STT_ENTRY);
 
-    auto segment = m_writer.addSegment();
-    segment->setType(PT_LOAD);
-    segment->setAlign(64);
-    segment->addSection(mappedInferenceSection);
-
     //
     // DMATasks
     //
@@ -213,7 +214,6 @@ void VPUIP::ELFBlobSerializer::finalize() {
                     offsetof(host_parsing::MappedInference, dmaTasks) + sizeof(dmaTasks) * i +
                     offsetof(host_parsing::TaskReference<host_parsing::DmaWrapper>, address));
             mappedInferenceDMARelocation->setAddend(0);
-            segment->addSection(dmaTasks);
         }
     }
 
@@ -232,7 +232,6 @@ void VPUIP::ELFBlobSerializer::finalize() {
                 offsetof(host_parsing::MappedInference, invariants) +
                 offsetof(host_parsing::TaskReference<host_parsing::DPUInvariantWrapper>, address));
         invariantsRelocation->setAddend(0);
-        segment->addSection(m_dpuInvariants);
 
         auto variantsRelocation = mappedInferenceRelaSection->addRelocationEntry();
         variantsRelocation->setSymbol(m_sectionSymbolsMapping.at(m_dpuVariants));
@@ -240,7 +239,6 @@ void VPUIP::ELFBlobSerializer::finalize() {
         variantsRelocation->setOffset(offsetof(host_parsing::MappedInference, variants) +
                                       offsetof(host_parsing::TaskReference<host_parsing::DPUVariantWrapper>, address));
         variantsRelocation->setAddend(0);
-        segment->addSection(m_dpuVariants);
     }
 
     //
@@ -255,7 +253,6 @@ void VPUIP::ELFBlobSerializer::finalize() {
                 offsetof(host_parsing::MappedInference, barrierConfigs) +
                 offsetof(host_parsing::TaskReference<host_parsing::DmaWrapper>, address));
         mappedInferenceBarrierConfigsRelocation->setAddend(0);
-        segment->addSection(m_barrierConfigs);
     }
 }
 
@@ -518,7 +515,32 @@ void VPUIP::ELFBlobSerializer::updateInvariant(DPUInvariantTask& invariantTask, 
         }
         break;
     }
+    case vpux::VPUIP::NCETaskType::ELTWISE: {
+        // OPEN: no sparsity support
+        // if (!invariant.registers.kernel_pad_cfg.kernel_pad_cfg_bf.wt_dense) {
+        //     invariant.registers.elop_se_addr =
+        //             addresses.weights_.resolve32(relocationData, RelativeAddress::Class::SparsityTable);
+        //     invariant.registers_.elop_sparsity_addr =
+        //             addresses.weights_.resolve32(relocationData, RelativeAddress::Class::SparsityMap);
+        // }
+        // Dense Elops
+        // Start of Tensor A = adr0_offset[31:0] + [tensor_start[19:0],0000]
+        // Start of Tensor B = adr0_offset[31:0] + [weight_start[19:0],0000]
 
+        relocationManager.addRelocation(
+                invariantTask.weights, R_VPU_32,
+                invariantSectionOffset + offsetof(DPUInvariant, registers) + offsetof(DPUInvariantRegisters, act_offset));
+        relocationManager.addRelocation(
+                invariantTask.weights, R_VPU_32,
+                invariantSectionOffset + offsetof(DPUInvariant, registers) + offsetof(DPUInvariantRegisters, weight_start));
+
+        // OPEN: Why we use min and max here?
+        // invariant.registers.act_offset[0] = std::min(adrInput, adrWeights);
+        // invariant.registers.weight_start =
+        //         (std::max(adrInput, adrWeights) - invariant.registers_.act_offset[0]) >> 4;
+
+        break;
+    }
     default:
         VPUX_THROW("Layer type {0} is not supported", invariantTask.opType);
         break;
