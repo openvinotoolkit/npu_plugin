@@ -1482,7 +1482,7 @@ llvm::SmallVector<std::pair<uint32_t, int32_t>> reduce_dims_for_dma(mlir::MemRef
     llvm::SmallVector<std::pair<uint32_t, int32_t>> finalDims;
 
     uint32_t previous_size = memShape[MemDim(inner_most_index)];
-    int32_t previous_stride_bits = vpux::Bit(memStrides[MemDim(inner_most_index)]).count();
+    uint32_t previous_stride_bits = vpux::Bit(memStrides[MemDim(inner_most_index)]).count();
 
     if (previous_size * memref.getElementTypeBitWidth() < previous_stride_bits) {
         int32_t final_stride = previous_stride_bits / CHAR_BIT;
@@ -1492,11 +1492,11 @@ llvm::SmallVector<std::pair<uint32_t, int32_t>> reduce_dims_for_dma(mlir::MemRef
     }
 
     // TODO:: could there be some way to iterate over all MemDim's of a particular shape/order?
-    for (int dim = inner_most_index - 1, level = 0; dim > 0; --dim) {
+    for (int dim = inner_most_index - 1; dim > 0; --dim) {
         auto memDim = MemDim(dim);
 
         uint32_t current_size = memShape[memDim];
-        int32_t current_stride_bits = vpux::Bit(memStrides[memDim]).count();
+        uint32_t current_stride_bits = vpux::Bit(memStrides[memDim]).count();
 
         if (previous_size * previous_stride_bits < current_stride_bits) {
             int32_t final_stride = current_stride_bits / CHAR_BIT;
@@ -1518,7 +1518,7 @@ llvm::SmallVector<std::pair<uint32_t, int32_t>> reduce_dims_for_dma(mlir::MemRef
     return finalDims;
 }
 
-std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log) {
+std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope&, Logger log) {
     std::cerr << "ELF" << '\n';
     log.setName("VPUIP::BackEnd (ELF)");
 
@@ -1527,12 +1527,12 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    log.trace("Extract 'VPUIP.{0}' from Module (ELF)", VPUIP::GraphOp::getOperationName());
-    auto graphOp = VPUIP::GraphOp::getFromModule(module);
+//    log.trace("Extract 'VPUIP.{0}' from Module (ELF)", VPUIP::GraphOp::getOperationName());
+//    auto graphOp = VPUIP::GraphOp::getFromModule(module);
 
     std::deque<host_parsing::BarrierWrapper> barriersList;
     mlir::DenseMap<mlir::Value, std::deque<host_parsing::BarrierWrapper>::iterator> barriers;
-    netFunc.walk([&barriersList, &barriers](VPUIP::ConfigureBarrierOp barrierOp) {
+    netFunc.walk([&barriersList, &barriers](VPURT::ConfigureBarrierOp barrierOp) {
         host_parsing::BarrierWrapper wrapper{};
         wrapper.real_id = checked_cast<uint8_t>(barrierOp.id());
         VPUX_THROW_UNLESS(
@@ -1541,14 +1541,14 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
                 "Encountered the same barrierOp {0} in function twice", barrierOp);
     });
 
-    VPUX_THROW_UNLESS(barriersList.size() <= 32, "Networks with barrriers count more than 32 are not supported");
+//    VPUX_THROW_UNLESS(barriersList.size() <= 32, "Networks with barrriers count more than 32 are not supported");
 
     for (auto barriersPosition = barriersList.begin(); barriersPosition != barriersList.end(); ++barriersPosition) {
         const auto nextSameId =
                 std::find_if(std::next(barriersPosition), barriersList.end(), [&barriersPosition](const auto& barrier) {
                     return barriersPosition->real_id == barrier.real_id;
                 });
-        barriersPosition->next_same_id = nextSameId != barriersList.end() ? std::distance(nextSameId, barriersList.end()) : -1;
+        barriersPosition->next_same_id = nextSameId != barriersList.end() ? std::distance(barriersList.begin(), nextSameId) : -1;
     }
 
     host_parsing::HostParsedInference hostParsedInference{};
@@ -1587,8 +1587,13 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
     });
 
     std::vector<vpux::VPUIP::DmaTask> dmaTasks;
-    std::vector<vpux::VPUIP::DmaTask> leadingDmaTasks;
-    netFunc.walk([&](vpux::VPUIP::NNDMAOp dmaTask) {
+    netFunc.walk([&](vpux::VPURT::TaskOp taskOp) {
+        if (taskOp.getTaskType() != vpux::VPUIP::TaskType::NNDMA) {
+            return;
+        }
+
+        auto dmaTask = to_small_vector(taskOp.op().getOps<vpux::VPUIP::NNDMAOp>()).front();
+
         auto const input = dmaTask.input();
         auto const output = dmaTask.output_buff();
 
@@ -1652,12 +1657,9 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
         }
 
         auto* insertPosition = &dmaTasks;
-        if (dmaTask.waitBarriers().empty()) {
-            insertPosition = &leadingDmaTasks;
-        }
 
-        for (const auto& barrierValue : dmaTask.waitBarriers()) {
-            auto barrierOp = barrierValue.getDefiningOp<VPUIP::ConfigureBarrierOp>();
+        for (const auto& barrierValue : taskOp.waitBarriers()) {
+            auto barrierOp = barrierValue.getDefiningOp<VPURT::ConfigureBarrierOp>();
             VPUX_THROW_UNLESS(barrierOp, "Encountered unexpected barrier value {0} in waitBarriers range of {1}",
                             barrierValue, dmaTask);
 
@@ -1670,8 +1672,8 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
             dmaDescriptor.barriers.cons_mask |= 1 << barrierWrapper->real_id;
         }
 
-        for (const auto& barrierValue : dmaTask.updateBarriers()) {
-            auto barrierOp = barrierValue.getDefiningOp<VPUIP::ConfigureBarrierOp>();
+        for (const auto& barrierValue : taskOp.updateBarriers()) {
+            auto barrierOp = barrierValue.getDefiningOp<VPURT::ConfigureBarrierOp>();
             VPUX_THROW_UNLESS(barrierOp, "Encountered unexpected barrier value {0} in updateBarriers range of {1}",
                             barrierValue, dmaTask);
 
@@ -1685,7 +1687,7 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
         }
 
         auto& inputPatchingInfo = task.input;
-        if (auto inputDeclareOp = input.getDefiningOp<VPUIP::DeclareTensorOp>()) {
+        if (auto inputDeclareOp = input.getDefiningOp<VPURT::DeclareBufferOp>()) {
             inputPatchingInfo.dataOffset = inputDeclareOp.dataIndex();
             inputPatchingInfo.location.memLocation = inputDeclareOp.locale();
             inputPatchingInfo.location.locationIndex = 0;
@@ -1703,7 +1705,7 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
         }
 
         auto& outputPatchingInfo = task.output;
-        if (auto outputDeclareOp = output.getDefiningOp<VPUIP::DeclareTensorOp>()) {
+        if (auto outputDeclareOp = output.getDefiningOp<VPURT::DeclareBufferOp>()) {
             outputPatchingInfo.dataOffset = outputDeclareOp.dataIndex();
             outputPatchingInfo.location.memLocation = outputDeclareOp.locale();
             outputPatchingInfo.location.locationIndex = 0;
@@ -1719,7 +1721,12 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
     });
 
     std::vector<vpux::VPUIP::DPUTask> dpuTasks;
-    netFunc.walk([&](vpux::VPUIP::NCEClusterTaskOp nceTask) {
+    netFunc.walk([&](vpux::VPURT::TaskOp taskOp) {
+        if (taskOp.getTaskType() != vpux::VPUIP::TaskType::NCE2) {
+            return;
+        }
+
+        auto nceTask = to_small_vector(taskOp.op().getOps<vpux::VPUIP::NCEClusterTaskOp>()).front();
         const auto& input = nceTask.input();
         VPUX_THROW_UNLESS(input, "Encountered DPU operation {0} without input", nceTask);
         const auto& inputShape = vpux::getShape(input);
@@ -1766,7 +1773,7 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
             registers.tensor_mode.tensor_mode_bf.pad_value = inputZeroPoint;
         }
 
-        auto inputOp = input.getDefiningOp<vpux::VPUIP::DeclareTensorOp>();
+        auto inputOp = input.getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(inputOp, "Failed to find defining op for input {0} of {1}", input, nceTask);
         const auto inputSparsityIndex = inputOp.sparsityIndex();
 
@@ -1778,55 +1785,58 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
         const auto isInputDense = !inputSparsityIndex.hasValue() || inputSparsityIndex.getValue() == DEFAULT_INDEX;
         registers.kernel_pad_cfg.kernel_pad_cfg_bf.act_dense = isInputDense;
 
-        const auto& weights = nceTask.weights();
-        VPUX_THROW_UNLESS(weights, "Encountered DPU operation {0} without weights", nceTask);
-        const auto weightsElementType = weights.getType().cast<mlir::ShapedType>().getElementType();
-
-        const auto taskType = nceTask.task_type();
-
-        registers.tensor_mode.tensor_mode_bf.wmode = static_cast<uint8_t>(
-            // OPEN: why weights data type is fixed in this case?
-            taskType == vpux::VPUIP::NCETaskType::MAXPOOL ? host_parsing::MpeActivationWeightDtype::I8 : Type2WeightsDType(weightsElementType)
-        );
-
-        // OPEN: following weights registers were not set in case of MAXPOOL
-
         // OPEN: original version just checked if weights data type is U8
         uint8_t weightsZeroPoint = 0;
         uint16_t weightsScale = 1;
         uint8_t weightsShift = 0;
-        if (const auto quantizedType = weightsElementType.dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
-            weightsZeroPoint = checked_cast<uint8_t>(quantizedType.getZeroPoint());
-            weightsScale = vpux::getQuantMultFromScale(quantizedType.getScale());
-            weightsShift = vpux::getQuantShiftFromScale(quantizedType.getScale());
-        } else if (const auto quantizedType = weightsElementType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-            const auto zeroPoints = quantizedType.getZeroPoints();
-            VPUX_THROW_UNLESS(!zeroPoints.empty(), "Expected to see non-empty zero points array in {0}",
-                              weightsElementType);
+        const auto taskType = nceTask.task_type();
+        mlir::Type weightsElementType;
+        mlir::Value weights;
+        if (taskType == vpux::VPUIP::NCETaskType::MAXPOOL) {
+            weightsElementType = mlir::IntegerType::get(module->getContext(), 8, mlir::IntegerType::SignednessSemantics::Signed);
+            registers.tensor_mode.tensor_mode_bf.wmode = static_cast<uint8_t>(host_parsing::MpeActivationWeightDtype::I8);
+        } else {
+            weights = nceTask.weights();
+            VPUX_THROW_UNLESS(weights, "Encountered DPU operation {0} without weights", nceTask);
+            weightsElementType = weights.getType().cast<mlir::ShapedType>().getElementType();
 
-            // OPEN: why do we use only the first element?
-            weightsZeroPoint = zeroPoints.front();
-            const auto scales = quantizedType.getScales();
-            VPUX_THROW_UNLESS(!scales.empty(), "Expected to see non-empty scales array in {0}", weightsElementType);
-            weightsScale = checked_cast<uint16_t>(getQuantMultFromScale(scales.front()));
-            weightsShift = checked_cast<uint8_t>(getQuantShiftFromScale(scales.front()));
-        }
-        registers.mpe_cfg.mpe_cfg_bf.mpe_wtbias = weightsZeroPoint;
+            registers.tensor_mode.tensor_mode_bf.wmode = static_cast<uint8_t>(Type2WeightsDType(weightsElementType));
 
-        if (taskType == vpux::VPUIP::NCETaskType::AVEPOOL) {
-            if (weightsElementType.isUnsignedInteger(CHAR_BIT * sizeof(uint8_t)) ||
-                weightsElementType.isSignedInteger(CHAR_BIT * sizeof(int8_t))) {
-                registers.elops_wload.elops_wload_bf.pool_wt_data = (1 << CHAR_BIT) | 1;
-            } else if (weightsElementType.isF16()) {
-                registers.elops_wload.elops_wload_bf.pool_wt_data = ngraph::float16(1.0f);
-            } else if (weightsElementType.isBF16()) {
-                u32f32 weightsData{};
-                weightsData.f32 = 1.0f;
+            // OPEN: following weights registers were not set in case of MAXPOOL
 
-                registers.elops_wload.elops_wload_bf.pool_wt_data =
-                        f32_to_b16_conv(weightsData.u32, F32_RND_NEAREST_EVEN, 0);
-            } else {
-                VPUX_THROW("Encountered unsupported weights data type {0} for {1}", weightsElementType, nceTask);
+            if (const auto quantizedType = weightsElementType.dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
+                weightsZeroPoint = checked_cast<uint8_t>(quantizedType.getZeroPoint());
+                weightsScale = vpux::getQuantMultFromScale(quantizedType.getScale());
+                weightsShift = vpux::getQuantShiftFromScale(quantizedType.getScale());
+            } else if (const auto quantizedType = weightsElementType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+                const auto zeroPoints = quantizedType.getZeroPoints();
+                VPUX_THROW_UNLESS(!zeroPoints.empty(), "Expected to see non-empty zero points array in {0}",
+                                  weightsElementType);
+
+                // OPEN: why do we use only the first element?
+                weightsZeroPoint = zeroPoints.front();
+                const auto scales = quantizedType.getScales();
+                VPUX_THROW_UNLESS(!scales.empty(), "Expected to see non-empty scales array in {0}", weightsElementType);
+                weightsScale = checked_cast<uint16_t>(getQuantMultFromScale(scales.front()));
+                weightsShift = checked_cast<uint8_t>(getQuantShiftFromScale(scales.front()));
+            }
+            registers.mpe_cfg.mpe_cfg_bf.mpe_wtbias = weightsZeroPoint;
+
+            if (taskType == vpux::VPUIP::NCETaskType::AVEPOOL) {
+                if (weightsElementType.isUnsignedInteger(CHAR_BIT * sizeof(uint8_t)) ||
+                    weightsElementType.isSignedInteger(CHAR_BIT * sizeof(int8_t))) {
+                    registers.elops_wload.elops_wload_bf.pool_wt_data = (1 << CHAR_BIT) | 1;
+                } else if (weightsElementType.isF16()) {
+                    registers.elops_wload.elops_wload_bf.pool_wt_data = ngraph::float16(1.0f);
+                } else if (weightsElementType.isBF16()) {
+                    u32f32 weightsData{};
+                    weightsData.f32 = 1.0f;
+
+                    registers.elops_wload.elops_wload_bf.pool_wt_data =
+                            f32_to_b16_conv(weightsData.u32, F32_RND_NEAREST_EVEN, 0);
+                } else {
+                    VPUX_THROW("Encountered unsupported weights data type {0} for {1}", weightsElementType, nceTask);
+                }
             }
         }
 
@@ -1873,15 +1883,15 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
 
         // OPEN: data types are inconsistent compiler/registers/runtime logic
         int16_t kernelPadL = 0;
-        int16_t kernelPadR = 0;
+//        int16_t kernelPadR = 0;
         int16_t kernelPadT = 0;
-        int16_t kernelPadB = 0;
+//        int16_t kernelPadB = 0;
         if (const auto kernelPaddingAttr = nceTask.kernel_paddingAttr()) {
             const auto kernelPadding = parseIntArrayAttr<int64_t>(kernelPaddingAttr);
             kernelPadL = checked_cast<int16_t>(kernelPadding[0]);
-            kernelPadR = checked_cast<int16_t>(kernelPadding[1]);
+//            kernelPadR = checked_cast<int16_t>(kernelPadding[1]);
             kernelPadT = checked_cast<int16_t>(kernelPadding[2]);
-            kernelPadB = checked_cast<int16_t>(kernelPadding[3]);
+//            kernelPadB = checked_cast<int16_t>(kernelPadding[3]);
         }
 
         registers.tensor_mode.tensor_mode_bf.stride = kernelStrideW - 1;
@@ -1899,7 +1909,7 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
         VPUX_THROW_UNLESS(output, "Encountered DPU operation {0} without output", nceTask);
         const auto& outputShape = vpux::getShape(output);
         // const auto outputShapeC = outputShape[vpux::Dims4D::Act::C];
-        auto outputOp = output.getDefiningOp<vpux::VPUIP::DeclareTensorOp>();
+        auto outputOp = output.getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(outputOp, "Failed to find defining op for output {0} of {1}", output, nceTask);
         const auto outputSparsityIndex = outputOp.sparsityIndex();
 
@@ -2021,7 +2031,12 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
         // const auto isWeightsDense = !weightsSparsityIndex.hasValue() || weightsSparsityIndex.getValue() ==
         // DEFAULT_INDEX;
 
-        if (taskType == vpux::VPUIP::NCETaskType::CONV) {
+        const auto inputDType = Type2DType(inputElementType);
+        const auto outputDType = Type2DType(outputElementType);
+        const auto weightsDType = Type2DType(weightsElementType);
+
+        switch (taskType) {
+        case vpux::VPUIP::NCETaskType::CONV: {
             registers.tensor_mode.tensor_mode_bf.zm_input = 1;
             registers.kernel_pad_cfg.kernel_pad_cfg_bf.dynamic_bw_en = 1;
 
@@ -2044,8 +2059,109 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
                     log.warning("input channels count is not divisible by storage element size");
                 }
             }
-        } else {
-            VPUX_THROW("NCE task type other than convolution is not supported yet");
+            break;
+        }
+        case vpux::VPUIP::NCETaskType::DWCONV: {
+            registers.tensor_mode.tensor_mode_bf.dw_input = 1;
+
+            if (registers.kernel_pad_cfg.kernel_pad_cfg_bf.mpe_assign != host_parsing::MPEGrid::GRID_16x1) {
+                registers.kernel_pad_cfg.kernel_pad_cfg_bf.mpe_assign = host_parsing::MPEGrid::GRID_16x1;
+            }
+
+            if (registers.odu_cfg.odu_cfg_bf.grid != static_cast<uint8_t>(host_parsing::ODUGrid::GRID_16x1) &&
+                registers.odu_cfg.odu_cfg_bf.grid != static_cast<uint8_t>(host_parsing::ODUGrid::GRID_4x1))
+            {
+                registers.odu_cfg.odu_cfg_bf.grid =
+                    registers.odu_cfg.odu_cfg_bf.dtype == static_cast<uint8_t>(host_parsing::OutputTensorDType::FP16) ?
+                        static_cast<uint8_t>(host_parsing::ODUGrid::GRID_4x1) : static_cast<uint8_t>(host_parsing::ODUGrid::GRID_16x1);
+            }
+            break;
+        }
+        case vpux::VPUIP::NCETaskType::MAXPOOL: {
+            registers.tensor_mode.tensor_mode_bf.workload_operation = 2;  // maxpool
+            registers.tensor_mode.tensor_mode_bf.dw_input = 1;
+
+            if (registers.kernel_pad_cfg.kernel_pad_cfg_bf.mpe_assign != host_parsing::MPEGrid::GRID_16x1) {
+                registers.kernel_pad_cfg.kernel_pad_cfg_bf.mpe_assign = host_parsing::MPEGrid::GRID_16x1;
+            }
+
+            if (registers.odu_cfg.odu_cfg_bf.grid != static_cast<uint8_t>(host_parsing::ODUGrid::GRID_16x1) &&
+                registers.odu_cfg.odu_cfg_bf.grid != static_cast<uint8_t>(host_parsing::ODUGrid::GRID_4x1)) {
+                registers.odu_cfg.odu_cfg_bf.grid =
+                        registers.odu_cfg.odu_cfg_bf.dtype ==
+                                        static_cast<uint8_t>(host_parsing::OutputTensorDType::FP16)
+                                ? static_cast<uint8_t>(host_parsing::ODUGrid::GRID_4x1)
+                                : static_cast<uint8_t>(host_parsing::ODUGrid::GRID_16x1);
+            }
+            break;
+        }
+        case vpux::VPUIP::NCETaskType::ELTWISE: {
+            registers.tensor_mode.tensor_mode_bf.dw_input = 0;
+            registers.tensor_mode.tensor_mode_bf.cm_input = 0;
+            registers.tensor_mode.tensor_mode_bf.zm_input = 1;
+            registers.kernel_pad_cfg.kernel_pad_cfg_bf.dynamic_bw_en = 1;
+
+            // Use the unsigned short input & weight scale factors for elop_scale_a/b
+            // PPE will need to apply a shift right to compensate: see the ELTWISE specialization in ppe_task.cpp
+            // NOTE: VPU2p7 HW feature allowing different quantization scales is not supported yet
+            // So this branch is forced off with 0, even if the blob gives these params
+            // See EISW-5671
+//            if (0 && in_tensor_ref->quant_mult()->size() && wt_tensor_ref->quant_mult()->size()) {
+//                unsigned short aMult = in_tensor_ref->quant_mult()->Get(0);
+//                unsigned short bMult = wt_tensor_ref->quant_mult()->Get(0);
+//                unsigned short aShift = in_tensor_ref->quant_shift()->Get(0);
+//                unsigned short bShift = wt_tensor_ref->quant_shift()->Get(0);
+//                unsigned short outMult = out_tensor_ref->quant_mult()->Get(0);
+//                unsigned short outShift = out_tensor_ref->quant_shift()->Get(0);
+//
+//                uint64_t fScaleFactor1 = static_cast<uint64_t>(aMult * outMult) << 15;
+//                uint64_t fScaleFactor2 = static_cast<uint64_t>(bMult * outMult) << 15;
+//                unsigned scaleFactor1Shift = aShift + outShift;
+//                unsigned scaleFactor2Shift = bShift + outShift;
+//
+//                unsigned short elopScaleA = static_cast<unsigned short>(fScaleFactor1 >> scaleFactor1Shift);
+//                unsigned short elopScaleB = static_cast<unsigned short>(fScaleFactor2 >> scaleFactor2Shift);
+//
+//                registers.elop_scale.elop_scale_bf.elop_scale_a = elopScaleA;
+//                registers.elop_scale.elop_scale_bf.elop_scale_b = elopScaleB;
+//            } else {
+                registers.elop_scale.elop_scale_bf.elop_scale_a = 1;
+                registers.elop_scale.elop_scale_bf.elop_scale_b = 1;
+//            }
+
+            // For FP16 eltwise grid needs to be 4x4
+            if ((inputElementType.isF16() && weightsElementType.isF16()) || outputElementType.isF16()) {
+                registers.odu_cfg.odu_cfg_bf.grid = static_cast<uint8_t>(host_parsing::ODUGrid::GRID_4x4);
+                registers.kernel_pad_cfg.kernel_pad_cfg_bf.mpe_assign = static_cast<uint8_t>(host_parsing::MPEGrid::GRID_4x4);
+            }
+
+            registers.kernel_pad_cfg.kernel_pad_cfg_bf.wt_dense = isWeightsDense;
+
+            registers.elops_wload.elops_wload_bf.elop_wload =
+                    1; // read in 2 tensors instead of a tensor and weight sets for a standard convolution.
+
+//            SetupInvariant_SOH_Input(fb_invariant_, registers);
+            // OPEN: VPUx assumes parent input and input are the same (so here I do nothing)
+            // check SetupInvariant_SOH & SetupInvariant_SOH_Input & Input Size if-block after
+
+            const auto inputStorageElementSize = inputOp.storageElementSize();
+
+            if (!isInputDense && inputStorageElementSize.hasValue() && inputStorageElementSize.getValue() != 0) {
+                const auto storageElementSize = checked_cast<uint32_t>(inputStorageElementSize.getValue());
+                registers.z_config.z_config_bf.se_z_split = calc_se_size(storageElementSize);
+                const auto inputChannelsCount = inputShape[vpux::Dims4D::Act::C];
+                registers.z_config.z_config_bf.num_ses_in_z_dir = (inputChannelsCount / storageElementSize) - 1;
+                if (inputChannelsCount % storageElementSize) {
+                    registers.z_config.z_config_bf.num_ses_in_z_dir++;
+                    // OPEN: should it be treated as a error
+                    log.warning("input channels count is not divisible by storage element size");
+                }
+            }
+
+            break;
+        }
+        default:
+            VPUX_THROW("NCE task type {0} not supported yet", stringifyEnum(taskType).str());
         }
 
         registers.ppe_scale.ppe_scale_bf.ppe_scale_mult = 1;
@@ -2132,10 +2248,6 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
             actFuncDesc.clampHigh = clampHigh;
             actFuncDesc.clampLow = clampLow;
         }
-
-        const auto inputDType = Type2DType(inputElementType);
-        const auto outputDType = Type2DType(outputElementType);
-        const auto weightsDType = Type2DType(weightsElementType);
 
         switch (outputDType) {
             case host_parsing::DType::I4:
@@ -2433,8 +2545,8 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
         // OPEN: do not see padding usage in runtime
         invariant.padding = 0;
 
-        for (const auto& barrierValue : nceTask.waitBarriers()) {
-            auto barrierOp = barrierValue.getDefiningOp<VPUIP::ConfigureBarrierOp>();
+        for (const auto& barrierValue : taskOp.waitBarriers()) {
+            auto barrierOp = barrierValue.getDefiningOp<VPURT::ConfigureBarrierOp>();
             VPUX_THROW_UNLESS(barrierOp, "Encountered unexpected barrier value {0} in waitBarriers range of {1}",
                             barrierValue, nceTask);
 
@@ -2447,8 +2559,8 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
             invariant.invariant.barriers.consumer_mask |= 1 << barrierWrapper->real_id;
         }
 
-        for (const auto& barrierValue : nceTask.updateBarriers()) {
-            auto barrierOp = barrierValue.getDefiningOp<VPUIP::ConfigureBarrierOp>();
+        for (const auto& barrierValue : taskOp.updateBarriers()) {
+            auto barrierOp = barrierValue.getDefiningOp<VPURT::ConfigureBarrierOp>();
             VPUX_THROW_UNLESS(barrierOp, "Encountered unexpected barrier value {0} in updateBarriers range of {1}",
                             barrierValue, nceTask);
 
@@ -2467,7 +2579,7 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
         dpuTask.dpuInvariant.dpuInvariantWrapper = std::move(invariant);
 
         auto& inputPatchingInfo = dpuTask.dpuInvariant.input;
-        if (auto inputDeclareOp = input.getDefiningOp<VPUIP::DeclareTensorOp>()) {
+        if (auto inputDeclareOp = input.getDefiningOp<VPURT::DeclareBufferOp>()) {
             inputPatchingInfo.dataOffset = inputDeclareOp.dataIndex();
             inputPatchingInfo.location.memLocation = inputDeclareOp.locale();
             inputPatchingInfo.location.locationIndex = 0;
@@ -2484,45 +2596,51 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
             VPUX_THROW("Encountered unsupported defining op {0} for input of {1}", input, nceTask);
         }
 
-        auto& weightsPatchingInfo = dpuTask.dpuInvariant.weights;
-        if (auto weightsDeclareOp = weights.getDefiningOp<VPUIP::DeclareTensorOp>()) {
-            weightsPatchingInfo.dataOffset = weightsDeclareOp.dataIndex();
-            weightsPatchingInfo.location.memLocation = weightsDeclareOp.locale();
-            weightsPatchingInfo.location.locationIndex = 0;
-        } else if (auto weightsConstDeclareOp = weights.getDefiningOp<Const::DeclareOp>()) {
-            VPUX_THROW_UNLESS(constantIndexes.count(weights), "Encountered unexpected value {0}", weightsConstDeclareOp);
-            weightsPatchingInfo.dataOffset = constantIndexes[weights];
-            weightsPatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::GraphFile;
-            weightsPatchingInfo.location.locationIndex = 0;
-        } else if (weights.isa<mlir::BlockArgument>()) {
-            weightsPatchingInfo.dataOffset = 0; // dataOffset inside weights
-            weightsPatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableInput;
-            weightsPatchingInfo.location.locationIndex = 0; // weights's index
-        } else {
-            VPUX_THROW("Encountered unsupported defining op {0} for weights of {1}", weights, nceTask);
+        if (weights) {
+            auto& weightsPatchingInfo = dpuTask.dpuInvariant.weights;
+            if (auto weightsDeclareOp = weights.getDefiningOp<VPURT::DeclareBufferOp>()) {
+                weightsPatchingInfo.dataOffset = weightsDeclareOp.dataIndex();
+                weightsPatchingInfo.location.memLocation = weightsDeclareOp.locale();
+                weightsPatchingInfo.location.locationIndex = 0;
+            } else if (auto weightsConstDeclareOp = weights.getDefiningOp<Const::DeclareOp>()) {
+                VPUX_THROW_UNLESS(constantIndexes.count(weights), "Encountered unexpected value {0}",
+                                  weightsConstDeclareOp);
+                weightsPatchingInfo.dataOffset = constantIndexes[weights];
+                weightsPatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::GraphFile;
+                weightsPatchingInfo.location.locationIndex = 0;
+            } else if (weights.isa<mlir::BlockArgument>()) {
+                weightsPatchingInfo.dataOffset = 0;  // dataOffset inside weights
+                weightsPatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableInput;
+                weightsPatchingInfo.location.locationIndex = 0;  // weights's index
+            } else {
+                VPUX_THROW("Encountered unsupported defining op {0} for weights of {1}", weights, nceTask);
+            }
         }
 
-        auto weightsTable = nceTask.weight_table();
-        auto& weightsTablePatchingInfo = dpuTask.dpuInvariant.weightsTable;
-        if (auto weightsTableDeclareOp = weightsTable.getDefiningOp<VPUIP::DeclareTensorOp>()) {
-            weightsTablePatchingInfo.dataOffset = weightsTableDeclareOp.dataIndex();
-            weightsTablePatchingInfo.location.memLocation = weightsTableDeclareOp.locale();
-            weightsTablePatchingInfo.location.locationIndex = 0;
-        } else if (auto weightsTableConstDeclareOp = weightsTable.getDefiningOp<Const::DeclareOp>()) {
-            VPUX_THROW_UNLESS(constantIndexes.count(weightsTable), "Encountered unexpected value {0}", weightsTableConstDeclareOp);
-            weightsTablePatchingInfo.dataOffset = constantIndexes[weightsTable];
-            weightsTablePatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::GraphFile;
-            weightsTablePatchingInfo.location.locationIndex = 0;
-        } else if (weightsTable.isa<mlir::BlockArgument>()) {
-            weightsTablePatchingInfo.dataOffset = 0; // dataOffset inside weightsTable
-            weightsTablePatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableInput;
-            weightsTablePatchingInfo.location.locationIndex = 0; // weightsTable's index
-        } else {
-            VPUX_THROW("Encountered unsupported defining op {0} for weightsTable of {1}", weightsTable, nceTask);
+        if (nceTask.weight_table()) {
+            auto weightsTable = nceTask.weight_table();
+            auto& weightsTablePatchingInfo = dpuTask.dpuInvariant.weightsTable;
+            if (auto weightsTableDeclareOp = weightsTable.getDefiningOp<VPURT::DeclareBufferOp>()) {
+                weightsTablePatchingInfo.dataOffset = weightsTableDeclareOp.dataIndex();
+                weightsTablePatchingInfo.location.memLocation = weightsTableDeclareOp.locale();
+                weightsTablePatchingInfo.location.locationIndex = 0;
+            } else if (auto weightsTableConstDeclareOp = weightsTable.getDefiningOp<Const::DeclareOp>()) {
+                VPUX_THROW_UNLESS(constantIndexes.count(weightsTable), "Encountered unexpected value {0}",
+                                  weightsTableConstDeclareOp);
+                weightsTablePatchingInfo.dataOffset = constantIndexes[weightsTable];
+                weightsTablePatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::GraphFile;
+                weightsTablePatchingInfo.location.locationIndex = 0;
+            } else if (weightsTable.isa<mlir::BlockArgument>()) {
+                weightsTablePatchingInfo.dataOffset = 0;  // dataOffset inside weightsTable
+                weightsTablePatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableInput;
+                weightsTablePatchingInfo.location.locationIndex = 0;  // weightsTable's index
+            } else {
+                VPUX_THROW("Encountered unsupported defining op {0} for weightsTable of {1}", weightsTable, nceTask);
+            }
         }
 
         auto& outputPatchingInfo = dpuTask.dpuInvariant.output;
-        if (auto outputDeclareOp = output.getDefiningOp<VPUIP::DeclareTensorOp>()) {
+        if (auto outputDeclareOp = output.getDefiningOp<VPURT::DeclareBufferOp>()) {
             outputPatchingInfo.dataOffset = outputDeclareOp.dataIndex();
             outputPatchingInfo.location.memLocation = outputDeclareOp.locale();
             outputPatchingInfo.location.locationIndex = 0;
@@ -2533,16 +2651,9 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
         } else {
             VPUX_THROW("Encountered unsupported defining op for output of {0}", nceTask);
         }
+
+        dpuTasks.push_back(dpuTask);
     });
-
-    VPUX_THROW_UNLESS(!leadingDmaTasks.empty(), "Expected to encounter at least one leading DMA task");
-    for (auto dma : vpux::irange(static_cast<size_t>(0), leadingDmaTasks.size() - 1)) {
-        leadingDmaTasks[dma].linkAddress.metaDataLocation =
-                vpux::VPUIP::LinkAddressPatchingInfo::MetaDataLocation::DDR_DMA;
-        leadingDmaTasks[dma].linkAddress.dmaTaskIndex = dma + 1;
-    }
-
-    leadingDmaTasks.back().linkAddress.metaDataLocation = vpux::VPUIP::LinkAddressPatchingInfo::MetaDataLocation::NONE;
 
     if (!dmaTasks.empty()) {
         for (auto dma : vpux::irange(static_cast<size_t>(0), dmaTasks.size() - 1)) {
@@ -2578,11 +2689,9 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& root
 
     serializer.setDDRScratch(ddrResources ? ddrResources.size().count() : 0);
     serializer.setResourceRequirements(resourceRequirements);
-    serializer.setLeadingDMACount(leadingDmaTasks.size());
+    serializer.setLeadingDMACount(0);
 
-    leadingDmaTasks.reserve(leadingDmaTasks.size() + dmaTasks.size());
-    std::move(dmaTasks.begin(), dmaTasks.end(), std::back_inserter(leadingDmaTasks));
-    serializer.setDMATasks(llvm::makeArrayRef(leadingDmaTasks));
+    serializer.setDMATasks(llvm::makeArrayRef(dmaTasks));
 
     {
         std::vector<host_parsing::BarrierWrapper> barriers;
