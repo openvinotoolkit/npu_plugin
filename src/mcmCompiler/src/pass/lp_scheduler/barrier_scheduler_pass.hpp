@@ -135,11 +135,11 @@ class Control_Model_Barrier_Scheduler {
 
 
           // Get the barrier object for the three barrier tasks //
-          mv::Barrier *b_prev = NULL;
+          // mv::Barrier *b_prev = NULL;
 
           if (bop_prev != bop_end) {
             assert(is_barrier_task(bop_prev));
-            b_prev = &(bop_prev->get<mv::Barrier>("Barrier"));
+            // b_prev = &(bop_prev->get<mv::Barrier>("Barrier"));
           }
           mv::Barrier *b_curr = &(bop_curr->get<mv::Barrier>("Barrier"));
 
