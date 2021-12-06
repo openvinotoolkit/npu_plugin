@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     }
     
     std::ifstream stream(argv[1], std::ios::binary);
-    std::vector<uint8_t> elfBlob((std::istreambuf_iterator<char>(stream)), (std::istreambuf_iterator<char>()));
+    std::vector<char> elfBlob((std::istreambuf_iterator<char>(stream)), (std::istreambuf_iterator<char>()));
     stream.close();
 
     elf::Reader reader(elfBlob.data(), elfBlob.size());

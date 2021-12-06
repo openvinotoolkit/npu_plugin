@@ -62,7 +62,7 @@ protected:
     size_t m_fileAlignRequirement = 1;
 
     SectionHeader m_header{};
-    std::vector<uint8_t> m_data;
+    std::vector<char> m_data;
 
     friend Writer;
 };

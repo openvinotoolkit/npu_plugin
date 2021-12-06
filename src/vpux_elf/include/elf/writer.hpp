@@ -36,7 +36,7 @@ class Writer {
 public:
     Writer();
 
-    std::vector<uint8_t> generateELF();
+    std::vector<char> generateELF();
 
     writer::Segment* addSegment();
 

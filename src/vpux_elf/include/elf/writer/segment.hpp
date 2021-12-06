@@ -31,7 +31,7 @@ class Segment {
 public:
     template <typename T>
     void appendData(const T* data, size_t sizeInElements) {
-        m_data.insert(m_data.end(), reinterpret_cast<const uint8_t*>(data), reinterpret_cast<const uint8_t*>(data) + sizeInElements  * sizeof(T));
+        m_data.insert(m_data.end(), reinterpret_cast<const char*>(data), reinterpret_cast<const char*>(data) + sizeInElements  * sizeof(T));
     }
     void addSection(Section* section);
 
@@ -43,7 +43,7 @@ private:
 
     ProgramHeader m_header{};
 
-    std::vector<uint8_t> m_data;
+    std::vector<char> m_data;
     std::vector<Section*> m_sections;
 
     friend Writer;

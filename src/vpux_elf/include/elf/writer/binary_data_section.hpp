@@ -30,8 +30,8 @@ public:
 
     size_t appendData(const T* obj, size_t sizeInElements) {
         const auto offset = m_data.size();
-        m_data.insert(m_data.end(), reinterpret_cast<const uint8_t*>(obj),
-                      reinterpret_cast<const uint8_t*>(obj) + sizeInElements * sizeof(T));
+        m_data.insert(m_data.end(), reinterpret_cast<const char*>(obj),
+                      reinterpret_cast<const char*>(obj) + sizeInElements * sizeof(T));
         return offset;
     }
 

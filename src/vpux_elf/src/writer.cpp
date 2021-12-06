@@ -38,9 +38,11 @@ Writer::Writer() {
     m_sectionHeaderNames = addStringSection(".strtab");
 
     m_symbolNames = addStringSection(".symstrtab");
-};
+}
 
-std::vector<uint8_t> Writer::generateELF() {
+#include <iostream>
+
+std::vector<char> Writer::generateELF() {
     auto elfHeader = generateELFHeader();
 
     std::vector<elf::SectionHeader> sectionHeaders;
@@ -62,11 +64,18 @@ std::vector<uint8_t> Writer::generateELF() {
         section->setNameOffset(m_sectionHeaderNames->addString(section->getName()));
     }
 
-    elfHeader.e_shoff = alignOffset(elfHeader.e_ehsize, elfHeader.e_shentsize);
-    elfHeader.e_phoff = alignOffset(elfHeader.e_shoff + elfHeader.e_shnum * elfHeader.e_shentsize, elfHeader.e_phentsize);
-    const auto dataOffset = elfHeader.e_phoff + elfHeader.e_phnum * elfHeader.e_phentsize;
+    auto curOffset = elfHeader.e_ehsize;
+    if (elfHeader.e_shnum) {
+        curOffset = elfHeader.e_shoff = alignOffset(curOffset, elfHeader.e_shentsize);
+    }
+    if (elfHeader.e_phnum) {
+        curOffset = elfHeader.e_phoff = alignOffset(curOffset + elfHeader.e_shnum * elfHeader.e_shentsize, elfHeader.e_phentsize);
+    } else {
+        curOffset += elfHeader.e_shnum * elfHeader.e_shentsize;
+    }
+    const auto dataOffset = curOffset + elfHeader.e_phnum * elfHeader.e_phentsize;
 
-    std::vector<uint8_t> data;
+    std::vector<char> data;
 
     const auto alignData = [&data, &dataOffset](const Section* section) {
         const auto curFileOffset = dataOffset + data.size();
@@ -121,14 +130,19 @@ std::vector<uint8_t> Writer::generateELF() {
         programHeaders.push_back(programHeader);
     }
 
-    std::vector<uint8_t> elfBlob;
+    std::vector<char> elfBlob;
     elfBlob.reserve(dataOffset + data.size());
 
-    elfBlob.insert(elfBlob.end(), reinterpret_cast<uint8_t*>(&elfHeader), reinterpret_cast<uint8_t*>(&elfHeader) + elfHeader.e_ehsize);
-    elfBlob.resize(elfHeader.e_shoff, 0);
-    elfBlob.insert(elfBlob.end(), reinterpret_cast<uint8_t*>(sectionHeaders.data()), reinterpret_cast<uint8_t*>(sectionHeaders.data()) + elfHeader.e_shnum * elfHeader.e_shentsize);
-    elfBlob.resize(elfHeader.e_phoff, 0);
-    elfBlob.insert(elfBlob.end(), reinterpret_cast<uint8_t*>(programHeaders.data()), reinterpret_cast<uint8_t*>(programHeaders.data()) + elfHeader.e_phnum * elfHeader.e_phentsize);
+    elfBlob.insert(elfBlob.end(), reinterpret_cast<char*>(&elfHeader), reinterpret_cast<char*>(&elfHeader) + elfHeader.e_ehsize);
+    if (elfHeader.e_shoff) {
+        elfBlob.resize(elfHeader.e_shoff, 0);
+        elfBlob.insert(elfBlob.end(), reinterpret_cast<char*>(sectionHeaders.data()), reinterpret_cast<char*>(sectionHeaders.data()) + elfHeader.e_shnum * elfHeader.e_shentsize);
+    }
+    if (elfHeader.e_phoff) {
+        elfBlob.resize(elfHeader.e_phoff, 0);
+        elfBlob.insert(elfBlob.end(), reinterpret_cast<char*>(programHeaders.data()),
+                       reinterpret_cast<char*>(programHeaders.data()) + elfHeader.e_phnum * elfHeader.e_phentsize);
+    }
     elfBlob.insert(elfBlob.end(), data.data(), data.data() + data.size());
 
     return elfBlob;
@@ -191,6 +205,8 @@ elf::ELFHeader Writer::generateELFHeader() const {
 
     fileHeader.e_shnum = m_sections.size();
     fileHeader.e_phnum = m_segments.size();
+
+    fileHeader.e_shoff = fileHeader.e_phoff = 0;
 
     fileHeader.e_ehsize = sizeof(ELFHeader);
     fileHeader.e_phentsize = sizeof(ProgramHeader);

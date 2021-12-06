@@ -68,7 +68,7 @@ void RelocationSection::finalize() {
             relocationEntry.r_info = elf64RInfo(relocation->getSymbol()->getIndex(), relocation->getType());
         }
 
-        m_data.insert(m_data.end(), reinterpret_cast<uint8_t*>(&relocationEntry),
-                      reinterpret_cast<uint8_t*>(&relocationEntry) + sizeof(relocationEntry));
+        m_data.insert(m_data.end(), reinterpret_cast<char*>(&relocationEntry),
+                      reinterpret_cast<char*>(&relocationEntry) + sizeof(relocationEntry));
     }
 }

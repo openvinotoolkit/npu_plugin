@@ -52,7 +52,7 @@ TEST(ELFWriter, ELFWriterConstructorDoesntThrow) {
 
 TEST(ELFWriter, ELFHeaderForEmptyELFIsCorrect) {
     elf::Writer writer;
-    std::vector<uint8_t> blob;
+    std::vector<char> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
 
     elf::Reader reader(blob.data(), blob.size());
@@ -93,7 +93,7 @@ TEST(ELFWriter, BinaryDataSection) {
     refSection->appendData(val1);
     refSection->appendData(val2);
 
-    std::vector<uint8_t> blob;
+    std::vector<char> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
 
     elf::Reader reader(blob.data(), blob.size());
@@ -121,7 +121,7 @@ TEST(ELFWriter, EmptySection) {
     refSection->setFlags(emptySectionFlags);
     refSection->setSize(emptySectionSize);
 
-    std::vector<uint8_t> blob;
+    std::vector<char> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
 
     elf::Reader reader(blob.data(), blob.size());
@@ -151,7 +151,7 @@ TEST(ELFWriter, SymbolSection) {
     refSymbol->setType(symbolType);
     refSymbol->setRelatedSection(emptySection);
 
-    std::vector<uint8_t> blob;
+    std::vector<char> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
 
     elf::Reader reader(blob.data(), blob.size());
@@ -203,7 +203,7 @@ TEST(ELFWriter, RelocationSection) {
     refRelocation->setOffset(sizeof(TestObject::a));
     refRelocation->setAddend(0);
 
-    std::vector<uint8_t> blob;
+    std::vector<char> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
 
     elf::Reader reader(blob.data(), blob.size());
@@ -235,19 +235,19 @@ TEST(ELFWriter, RelocationSection) {
 
 TEST(ELFWriter, Segment) {
     constexpr auto testSegmentType = elf::PT_LOAD;
-    const auto testSectionData = std::vector<uint8_t>{0, 1, 2, 3};
-    const auto testSegmentData = std::vector<uint8_t>{4, 5, 6, 7};
+    const auto testSectionData = std::vector<char>{0, 1, 2, 3};
+    const auto testSegmentData = std::vector<char>{4, 5, 6, 7};
 
     elf::Writer writer;
     auto refSegment = writer.addSegment();
     refSegment->setType(testSegmentType);
     refSegment->appendData(testSegmentData.data(), testSegmentData.size());
 
-    auto section = writer.addBinaryDataSection<uint8_t>();
+    auto section = writer.addBinaryDataSection<char>();
     section->appendData(testSectionData.data(), testSectionData.size());
     refSegment->addSection(section);
 
-    std::vector<uint8_t> blob;
+    std::vector<char> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
     elf::Reader reader(blob.data(), blob.size());
     ASSERT_EQ(reader.getSegmentsNum(), 1);

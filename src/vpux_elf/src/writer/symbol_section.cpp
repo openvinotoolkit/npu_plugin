@@ -51,7 +51,7 @@ void SymbolSection::finalize() {
         symbolEntry.st_name = m_namesSection->addString(symbol->getName());
         symbolEntry.st_shndx = symbol->getRelatedSection() ? symbol->getRelatedSection()->getIndex() : 0;
 
-        m_data.insert(m_data.end(), reinterpret_cast<uint8_t*>(&symbolEntry),
-                      reinterpret_cast<uint8_t*>(&symbolEntry) + sizeof(symbolEntry));
+        m_data.insert(m_data.end(), reinterpret_cast<char*>(&symbolEntry),
+                      reinterpret_cast<char*>(&symbolEntry) + sizeof(symbolEntry));
     }
 }

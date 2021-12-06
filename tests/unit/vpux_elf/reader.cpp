@@ -55,20 +55,20 @@ ELFHeader createTemplateFileHeader() {
 
 // #-22043
 TEST(DISABLED_ELFReaderTests, ELFReaderThrowsOnIncorrectMagic) {
-    std::vector<uint8_t> elf = {0x7f, 'E', 'L', 'D'};
+    std::vector<char> elf = {0x7f, 'E', 'L', 'D'};
     ASSERT_ANY_THROW(Reader(elf.data(), elf.size()));
 }
 
 TEST(ELFReaderTests, ReadingTheCorrectELFHeaderDoesntThrow) {
     auto fileHeader = createTemplateFileHeader();
 
-    ASSERT_NO_THROW(Reader(reinterpret_cast<uint8_t*>(&fileHeader), sizeof(fileHeader)));
+    ASSERT_NO_THROW(Reader(reinterpret_cast<char*>(&fileHeader), sizeof(fileHeader)));
 }
 
 TEST(ELFReaderTests, PointerToELFHeaderIsResolvedCorrectly) {
     auto fileHeader = createTemplateFileHeader();
 
-    const auto reader = Reader(reinterpret_cast<uint8_t*>(&fileHeader), sizeof(fileHeader));
+    const auto reader = Reader(reinterpret_cast<char*>(&fileHeader), sizeof(fileHeader));
     const auto parsedFileHeader = reader.getHeader();
 
     ASSERT_EQ(parsedFileHeader, &fileHeader);
@@ -84,16 +84,16 @@ TEST(ELFReaderTests, PointerToSectionHeaderIsResolvedCorrectly) {
     fileHeader.e_shnum = headerTableSize;
     fileHeader.e_shoff = sizeof(fileHeader);
 
-    std::vector<uint8_t> buffer;
+    std::vector<char> buffer;
     buffer.insert(buffer.end(),
-                  reinterpret_cast<uint8_t*>(&fileHeader),
-                  reinterpret_cast<uint8_t*>(&fileHeader) + sizeof(fileHeader));
+                  reinterpret_cast<char*>(&fileHeader),
+                  reinterpret_cast<char*>(&fileHeader) + sizeof(fileHeader));
     buffer.insert(buffer.end(),
-                  reinterpret_cast<uint8_t*>(sectionHeaders.data()),
-                  reinterpret_cast<uint8_t*>(sectionHeaders.data()) + sizeof(SectionHeader) * headerTableSize);
+                  reinterpret_cast<char*>(sectionHeaders.data()),
+                  reinterpret_cast<char*>(sectionHeaders.data()) + sizeof(SectionHeader) * headerTableSize);
 
     auto reader = Reader(buffer.data(), buffer.size());
-    ASSERT_EQ(reinterpret_cast<const uint8_t*>(reader.getSection(indexToCheck).getHeader()),
+    ASSERT_EQ(reinterpret_cast<const char*>(reader.getSection(indexToCheck).getHeader()),
               buffer.data() + sizeof(fileHeader) + sizeof(SectionHeader) * indexToCheck);
 }
 
@@ -105,16 +105,16 @@ TEST(ELFReaderTests, PointerToSectionDataIsResolvedCorrectly) {
     fileHeader.e_shoff = sizeof(fileHeader);
     sectionHeaders[indexToCheck].sh_offset = sizeof(fileHeader);
 
-    std::vector<uint8_t> buffer;
+    std::vector<char> buffer;
     buffer.insert(buffer.end(),
-                  reinterpret_cast<uint8_t*>(&fileHeader),
-                  reinterpret_cast<uint8_t*>(&fileHeader) + sizeof(fileHeader));
+                  reinterpret_cast<char*>(&fileHeader),
+                  reinterpret_cast<char*>(&fileHeader) + sizeof(fileHeader));
     buffer.insert(buffer.end(),
-                  reinterpret_cast<uint8_t*>(sectionHeaders.data()),
-                  reinterpret_cast<uint8_t*>(sectionHeaders.data()) + sizeof(SectionHeader) * headerTableSize);
+                  reinterpret_cast<char*>(sectionHeaders.data()),
+                  reinterpret_cast<char*>(sectionHeaders.data()) + sizeof(SectionHeader) * headerTableSize);
 
     auto reader = Reader(buffer.data(), buffer.size());
-    ASSERT_EQ(reinterpret_cast<const uint8_t*>(reader.getSection(indexToCheck).getData<uint8_t>()),
+    ASSERT_EQ(reinterpret_cast<const char*>(reader.getSection(indexToCheck).getData<char>()),
               buffer.data() + sizeof(fileHeader));
 }
 
@@ -125,16 +125,16 @@ TEST(ELFReaderTests, PointerToProgramHeaderIsResolvedCorrectly) {
     fileHeader.e_phnum = headerTableSize;
     fileHeader.e_phoff = sizeof(fileHeader);
 
-    std::vector<uint8_t> buffer;
+    std::vector<char> buffer;
     buffer.insert(buffer.end(),
-                  reinterpret_cast<uint8_t*>(&fileHeader),
-                  reinterpret_cast<uint8_t*>(&fileHeader) + sizeof(fileHeader));
+                  reinterpret_cast<char*>(&fileHeader),
+                  reinterpret_cast<char*>(&fileHeader) + sizeof(fileHeader));
     buffer.insert(buffer.end(),
-                  reinterpret_cast<uint8_t*>(programHeaders.data()),
-                  reinterpret_cast<uint8_t*>(programHeaders.data()) + sizeof(ProgramHeader) * headerTableSize);
+                  reinterpret_cast<char*>(programHeaders.data()),
+                  reinterpret_cast<char*>(programHeaders.data()) + sizeof(ProgramHeader) * headerTableSize);
 
     auto reader = Reader(buffer.data(), buffer.size());
-    ASSERT_EQ(reinterpret_cast<const uint8_t*>(reader.getSegment(indexToCheck).getHeader()),
+    ASSERT_EQ(reinterpret_cast<const char*>(reader.getSegment(indexToCheck).getHeader()),
               buffer.data() + sizeof(fileHeader) + sizeof(ProgramHeader) * indexToCheck);
 }
 
@@ -146,15 +146,15 @@ TEST(ELFReaderTests, PointerToProgramDataIsResolvedCorrectly) {
     fileHeader.e_phoff = sizeof(fileHeader);
     programHeaders[indexToCheck].p_offset = sizeof(fileHeader);
 
-    std::vector<uint8_t> buffer;
+    std::vector<char> buffer;
     buffer.insert(buffer.end(),
-                  reinterpret_cast<uint8_t*>(&fileHeader),
-                  reinterpret_cast<uint8_t*>(&fileHeader) + sizeof(fileHeader));
+                  reinterpret_cast<char*>(&fileHeader),
+                  reinterpret_cast<char*>(&fileHeader) + sizeof(fileHeader));
     buffer.insert(buffer.end(),
-                  reinterpret_cast<uint8_t*>(programHeaders.data()),
-                  reinterpret_cast<uint8_t*>(programHeaders.data()) + sizeof(ProgramHeader) * headerTableSize);
+                  reinterpret_cast<char*>(programHeaders.data()),
+                  reinterpret_cast<char*>(programHeaders.data()) + sizeof(ProgramHeader) * headerTableSize);
 
     auto reader = Reader(buffer.data(), buffer.size());
-    ASSERT_EQ(reinterpret_cast<const uint8_t*>(reader.getSegment(indexToCheck).getData()),
+    ASSERT_EQ(reinterpret_cast<const char*>(reader.getSegment(indexToCheck).getData()),
               buffer.data() + sizeof(fileHeader));
 }
