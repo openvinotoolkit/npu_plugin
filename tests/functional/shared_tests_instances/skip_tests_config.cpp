@@ -205,7 +205,10 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*ExecNetSetPrecision.*",
                 ".*SetBlobTest.*",
                 ".*InferRequestCallbackTests.*",
-                ".*PrePostProcessTest.*"
+                ".*PrePostProcessTest.*",
+                ".*PreprocessingPrecisionConvertTest.*",
+                ".*SetPreProcessToInputInfo.*",
+                ".*InferRequestPreprocess.*"
             }
         );
 
@@ -236,10 +239,19 @@ std::vector<std::string> disabledTestPatterns() {
         );
 
         _skipRegistry.addPatterns(
+                backendName.isZero(),
+                "Convert layer is not supported by MTL/dKMB platform",
+                {
+                        ".*PreprocessingPrecisionConvertTest.*",
+                        ".*InferRequestPreprocess.*"
+                }
+        );
+
+        _skipRegistry.addPatterns(
             platform.isARM(),  
             "CumSum layer is not supported by ARM platform",
             {
-                ".*SetBlobTest.*",
+                ".*SetBlobTest.CompareWithRefs.*",
             }
         );
 
