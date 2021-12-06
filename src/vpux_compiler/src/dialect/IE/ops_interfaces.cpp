@@ -320,7 +320,7 @@ OutputTiling vpux::IE::generatePrefetchTiles(mlir::Operation* op, Logger log) {
     const auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
     VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
                       op->getName(), op->getLoc());
-    auto getDimsToTile = [](Shape& nTilesOnDim) -> llvm::SmallVector<Dim> {
+    auto getDimsToTile = [](const Shape& nTilesOnDim) -> llvm::SmallVector<Dim> {
         llvm::SmallVector<Dim> res = {};
         for (unsigned i = 0; i < nTilesOnDim.size(); i++) {
             if (nTilesOnDim[Dim(i)] > 1)
@@ -332,7 +332,7 @@ OutputTiling vpux::IE::generatePrefetchTiles(mlir::Operation* op, Logger log) {
     // step 1: compute a general tiling strategy to fit into the CMX
     Shape nTilesOnDim = vpux::IE::computeGeneralTileStrategy(op, log);
     auto dimsToTile = getDimsToTile(nTilesOnDim);
-    VPUX_THROW_WHEN(outputShape.size() == 0, "Must tile at least on one dimension");
+    VPUX_THROW_WHEN(dimsToTile.size() == 0, "Must tile at least on one dimension");
     if (dimsToTile.size() > 1)  // return general tiling when getting nested tiles.
         return fillDividedTiles(nTilesOnDim, outputShape);
 
