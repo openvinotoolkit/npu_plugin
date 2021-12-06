@@ -152,6 +152,14 @@ void adjustAttrs(const vpux::TilingInfo&inputTiling);
 Adjust the operation attributes to the current tile properties
 NOTE: This method *must* be implemented by the user.
 
+#### `generatePrefetchTiling`
+
+```c++
+vpux::OutputTiling generatePrefetchTiling(vpux::Logger log);
+```
+Generate prefetch tiling for the operation
+NOTE: This method *must* be implemented by the user.
+
 ## TilingInfoOpInterface (`IE_TilingInfoOpInterface`)
 
 Interface for operations to provide information about required/supported tiling configurations
@@ -162,5 +170,13 @@ Interface for operations to provide information about required/supported tiling 
 bool isSupportedTiling(const vpux::OutputTiling&tiles, vpux::Logger log);
 ```
 Check, if the provided tiling configuration is supported by the operation implementation
+NOTE: This method *must* be implemented by the user.
+
+#### `isSupportedPrefetchTiling`
+
+```c++
+bool isSupportedPrefetchTiling(const Shape&tileAxis, vpux::Logger log);
+```
+Check, if the operation support prefetch tiling with cmx memory checking only
 NOTE: This method *must* be implemented by the user.
 
