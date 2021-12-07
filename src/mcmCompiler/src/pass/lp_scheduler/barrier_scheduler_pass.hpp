@@ -163,7 +163,7 @@ class Control_Model_Barrier_Scheduler {
 
             // STEP-1.3 //
             if (b_prev) {
-              b_prev->addConsumer(source->getName());
+              //b_prev->addConsumer(source->getName());
             }
           } // foreach producer //
 
