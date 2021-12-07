@@ -15,7 +15,7 @@
 
 #include <elf/writer.hpp>
 
-#include <vpux/compiler/dialect/VPUIP/attributes/enums.hpp>
+#include <vpux/compiler/dialect/VPUIP/attributes.hpp>
 
 #include <llvm/ADT/ArrayRef.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>

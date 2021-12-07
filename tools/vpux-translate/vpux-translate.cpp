@@ -130,7 +130,7 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
     mlir::DefaultTimingManager tm;
     auto rootTiming = tm.getRootScope();
     std::vector<vpux::PreProcessInfo> preProcInfo;
-    const auto buf = VPUIP::exportToBlob(module, rootTiming, preProcInfo);
+    const auto buf = VPUIP::exportToBlobELF(module, rootTiming, preProcInfo);
     output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
     return mlir::success();
 }

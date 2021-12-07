@@ -93,7 +93,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
 
     mlir::DefaultTimingManager tm;
     auto timing = tm.getRootScope();
-    auto blob = VPUIP::exportToBlob(module, timing, {}, log);
+    auto blob = VPUIP::exportToBlobGraphFile(module, timing, {}, log);
     std::string err;
     // dump the blob in a file
     std::unique_ptr<llvm::ToolOutputFile> outFile = mlir::openOutputFile("vpuip.blob", &err);

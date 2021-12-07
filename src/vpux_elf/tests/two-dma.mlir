@@ -11,7 +11,6 @@ module @Convert attributes {VPUIP.arch = "KMB"}  {
       ExecutorResource 5 of "NCE_PerClusterDPU" 
     }
   }
-  VPUIP.Graph options : "NONE" version : {contextStr = "VPUX Compiler", hash = "", majorV = 3 : i64, minorV = 11 : i64, patchV = 0 : i64}
   IE.CNNNetwork entryPoint : @main inputsInfo :  {
     DataInfo "Parameter_6" : tensor<1x2x3x4xf16>
   } outputsInfo :  {

@@ -38,8 +38,6 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
 
-#include <flatbuffers/flatbuffers.h>
-
 #include <precision_utils.h>
 #include <version.hpp>
 
@@ -570,9 +568,9 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
 
 }  // namespace
 
-flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                                      const std::vector<vpux::PreProcessInfo>& preprocessInfo,
-                                                      Logger log) {
+flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlobGraphFile(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                                                               const std::vector<vpux::PreProcessInfo>& preprocessInfo,
+                                                               Logger log) {
     log.setName("VPUIP::BackEnd (Graph File)");
 
     log.trace("Extract 'IE.{0}' from Module (Graph File)", IE::CNNNetworkOp::getOperationName());
@@ -1518,8 +1516,8 @@ llvm::SmallVector<std::pair<uint32_t, int32_t>> reduce_dims_for_dma(mlir::MemRef
     return finalDims;
 }
 
-std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope&, Logger log) {
-    std::cerr << "ELF" << '\n';
+std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope&,
+                                               const std::vector<PreProcessInfo>&, Logger log) {
     log.setName("VPUIP::BackEnd (ELF)");
 
     log.trace("Extract 'IE.{0}' from Module (ELF)", IE::CNNNetworkOp::getOperationName());
@@ -1558,12 +1556,12 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope&, Log
     {
         auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
         resources.walk([&](IERT::ExecutorResourceOp res) {
-            const auto kind = res.kind().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
+            const auto kind = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
             if (!kind) {
                 return;
             }
 
-            if (kind.getValue() != VPUIP::PhysicalProcessor::NCE_Cluster) {
+            if (kind.getValue() != VPU::ExecutorKind::NCE) {
                 return;
             }
 
@@ -2684,7 +2682,7 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope&, Log
     serializer.setNetworkOutputs(outputs);
 
     auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
-    auto memAttr = VPUIP::PhysicalMemoryAttr::get(module->getContext(), VPUIP::PhysicalMemory::DDR);
+    auto memAttr = VPU::MemoryKindAttr::get(module->getContext(), VPU::MemoryKind::DDR);
     auto ddrResources = resources.getUsedMemory(memAttr);
 
     serializer.setDDRScratch(ddrResources ? ddrResources.size().count() : 0);
@@ -2703,22 +2701,4 @@ std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope&, Log
     serializer.setConstData(llvm::makeArrayRef(constants));
 
     return serializer.getBlob();
-}
-
-}  // namespace
-
-std::vector<char> vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log, const Config* config) {
-    if (config == nullptr) {
-        return exportToBlobGraphFile(module, rootTiming, log);
-    }
-
-    auto blobFormat = config->get<BLOB_FORMAT>();
-    switch (blobFormat) {
-    case InferenceEngine::VPUXConfigParams::BlobFormat::GRAPH_FILE:
-        return exportToBlobGraphFile(module, rootTiming, log);
-    case InferenceEngine::VPUXConfigParams::BlobFormat::ELF:
-        return exportToBlobELF(module, rootTiming, log);
-    default:
-        VPUX_THROW("Unsupported blob format");
-    }
 }

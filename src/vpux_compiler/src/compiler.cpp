@@ -358,10 +358,16 @@ void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingSc
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 }
 
-auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                  const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log, const Config* config) {
-    auto exportTiming = rootTiming.nest("Export to blob");
-    return VPUIP::exportToBlob(module, exportTiming, preprocessInfo, log, config);
+auto exportToBlobGraphFile(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                           const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log) {
+    auto exportTiming = rootTiming.nest("Export to blob (Graph file)");
+    return VPUIP::exportToBlobGraphFile(module, exportTiming, preprocessInfo, log);
+}
+
+auto exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                           const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log) {
+    auto exportTiming = rootTiming.nest("Export to blob (ELF)");
+    return VPUIP::exportToBlobELF(module, exportTiming, preprocessInfo, log);
 }
 
 }  // namespace
@@ -394,12 +400,26 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     std::vector<vpux::PreProcessInfo> preProcInfo;
     const auto module = importNetwork(&ctx, cnnNet, devConf, preProcInfo, rootTiming, config.get<PERF_COUNT>(), log);
     compileNetwork(module.get(), pm, rootTiming);
-    const auto blob = exportToBlob(module.get(), rootTiming, preProcInfo, log, &config);
 
-    auto finalTiming = rootTiming.nest("Wrap into NetworkDescription");
-    std::vector<char> compiledNetwork(blob.size());
-    std::copy_n(reinterpret_cast<const char*>(blob.data()), blob.size(), compiledNetwork.data());
-    return std::make_shared<VPUIP::NetworkDescription>(std::move(compiledNetwork));
+    auto blobFormat = config.get<BLOB_FORMAT>();
+    switch (blobFormat) {
+    case InferenceEngine::VPUXConfigParams::BlobFormat::GRAPH_FILE: {
+        const auto blob = exportToBlobGraphFile(module.get(), rootTiming, preProcInfo, log);
+        auto finalTiming = rootTiming.nest("Wrap into NetworkDescription");
+        std::vector<char> compiledNetwork(blob.size());
+        std::copy_n(reinterpret_cast<const char*>(blob.data()), blob.size(), compiledNetwork.data());
+        return std::make_shared<VPUIP::NetworkDescription>(std::move(compiledNetwork));
+    }
+    case InferenceEngine::VPUXConfigParams::BlobFormat::ELF: {
+        const auto blob = exportToBlobELF(module.get(), rootTiming, preProcInfo, log);
+        auto finalTiming = rootTiming.nest("Wrap into NetworkDescription");
+        std::vector<char> compiledNetwork(blob.size());
+        std::copy_n(reinterpret_cast<const char*>(blob.data()), blob.size(), compiledNetwork.data());
+        return std::make_shared<VPUIP::NetworkDescription>(std::move(compiledNetwork));
+    }
+    default:
+        VPUX_THROW("Unsupported blob format");
+    }
 }
 
 //

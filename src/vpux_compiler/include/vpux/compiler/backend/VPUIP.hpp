@@ -13,10 +13,10 @@
 
 #pragma once
 
-#include "vpux/utils/IE/config.hpp"
-#include "vpux/al/config/compiler.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux_compiler.hpp"
+
+#include <flatbuffers/flatbuffers.h>
 
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Support/Timing.h>
@@ -24,9 +24,13 @@
 namespace vpux {
 namespace VPUIP {
 
-flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                         const std::vector<PreProcessInfo>& preprocessInfo,
-                                         Logger log = Logger::global(), const Config* config = nullptr);
+flatbuffers::DetachedBuffer exportToBlobGraphFile(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                                                  const std::vector<PreProcessInfo>& preprocessInfo,
+                                                  Logger log = Logger::global());
+
+std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                                  const std::vector<PreProcessInfo>& preprocessInfo,
+                                  Logger log = Logger::global());
 
 }  // namespace VPUIP
 }  // namespace vpux
