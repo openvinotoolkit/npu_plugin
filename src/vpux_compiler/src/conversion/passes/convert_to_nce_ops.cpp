@@ -225,12 +225,12 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
 
     auto outElemType = origOutType.getElementType();
     auto outElemQType = outElemType.template dyn_cast<mlir::quant::QuantizedType>();
-    int64_t clampLowQuantized = 0;
-    int64_t clampHighQuantized = 0;
-    if (outElemQType != nullptr) {
-        clampLowQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).first;
-        clampHighQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).second;
-    }
+    int64_t clampLowQuantized = -10;
+    int64_t clampHighQuantized = 10;
+//    if (outElemQType != nullptr) {
+//        clampLowQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).first;
+//        clampHighQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).second;
+//    }
 
     if (postOp.name().getValue() == IE::ReLUOp::getOperationName()) {
         VPUX_THROW_UNLESS(postOp.attrs().empty(), "'{0}' PostOp should not have any attributes", postOp.name());
