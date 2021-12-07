@@ -1,4 +1,3 @@
-#map = affine_map<(d0, d1, d2, d3) -> (d0 * 24 + d1 * 12 + d2 * 4 + d3)>
 module @Convert attributes {VPUIP.arch = "KMB"}  {
   IERT.RunTimeResources availableMemory :  {
     MemoryResource 524288000 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
@@ -17,8 +16,10 @@ module @Convert attributes {VPUIP.arch = "KMB"}  {
   } outputsInfo :  {
     DataInfo "Convert_7" : tensor<1x2x3x4xf16>
   }
-  func @main(%arg0: memref<1x2x3x4xf16, #map>, %arg1: memref<1x2x3x4xf16, #map>) -> memref<1x2x3x4xf16, #map> {
-    %0 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg0 : memref<1x2x3x4xf16, #map>) outputs(%arg1 : memref<1x2x3x4xf16, #map>) -> memref<1x2x3x4xf16, #map>
-    return %arg1 : memref<1x2x3x4xf16, #map>
+  func @main(%arg0: memref<1x2x3x4xf16, "DDR">, %arg1: memref<1x2x3x4xf16, "DDR">) -> memref<1x2x3x4xf16, "DDR"> {
+    VPURT.Task {isTrailingSWLayer = false} op :  {
+      %0 = VPUIP.NNDMA {port = 0 : i64, set_crit = false, set_ord = true} inputs(%arg0 : memref<1x2x3x4xf16, "DDR">) outputs(%arg1 : memref<1x2x3x4xf16, "DDR">) -> memref<1x2x3x4xf16, "DDR">
+    }
+    return %arg1 : memref<1x2x3x4xf16, "DDR">
   }
 }

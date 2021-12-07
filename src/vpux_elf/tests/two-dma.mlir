@@ -1,4 +1,3 @@
-#map = affine_map<(d0, d1, d2, d3) -> (d0 * 24 + d1 * 12 + d2 * 4 + d3)>
 module @Convert attributes {VPUIP.arch = "KMB"}  {
   IERT.RunTimeResources availableMemory :  {
     MemoryResource 524288000 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
@@ -18,12 +17,16 @@ module @Convert attributes {VPUIP.arch = "KMB"}  {
   } outputsInfo :  {
     DataInfo "Convert_7" : tensor<1x2x3x4xf16>
   }
-  func @main(%arg0: memref<1x2x3x4xf16, #map>, %arg1: memref<1x2x3x4xf16, #map>) -> memref<1x2x3x4xf16, #map> {
-    %0 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x2x3x4xf16, #map>
-    %2 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg0 : memref<1x2x3x4xf16, #map>) outputs(%1 : memref<1x2x3x4xf16, #map>) updates(%0 : !VPUIP.Barrier) -> memref<1x2x3x4xf16, #map>
-    %3 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x2x3x4xf16, #map>
-    %4 = VPUIP.NNDMA {port = 0 : i64} inputs(%3 : memref<1x2x3x4xf16, #map>) outputs(%arg1 : memref<1x2x3x4xf16, #map>) waits(%0 : !VPUIP.Barrier) -> memref<1x2x3x4xf16, #map>
-    return %arg1 : memref<1x2x3x4xf16, #map>
+  func @main(%arg0: memref<1x2x3x4xf16, "DDR">, %arg1: memref<1x2x3x4xf16, "DDR">) -> memref<1x2x3x4xf16, "DDR"> {
+    %0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
+    %1 = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<1x2x3x4xf16, "DDR">
+    VPURT.Task {isTrailingSWLayer = false} updates(%0 : !VPURT.Barrier) op :  {
+      %3 = VPUIP.NNDMA {port = 0 : i64, set_crit = false, set_ord = true} inputs(%arg0 : memref<1x2x3x4xf16, "DDR">) outputs(%1 : memref<1x2x3x4xf16, "DDR">) -> memref<1x2x3x4xf16, "DDR">
+    }
+    %2 = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<1x2x3x4xf16, "DDR">
+    VPURT.Task {isTrailingSWLayer = false} waits(%0 : !VPURT.Barrier) op :  {
+      %3 = VPUIP.NNDMA {port = 0 : i64, set_crit = false, set_ord = true} inputs(%2 : memref<1x2x3x4xf16, "DDR">) outputs(%arg1 : memref<1x2x3x4xf16, "DDR">) -> memref<1x2x3x4xf16, "DDR">
+    }
+    return %arg1 : memref<1x2x3x4xf16, "DDR">
   }
 }
