@@ -514,7 +514,7 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
         _barrierOps.push_back(taskOp);
         log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
         Logger::global().error("Physical Barrier ID is {0}", taskOp->getAttr("id"));
-        //tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+        // tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
     });
 
     _barrierOps.sort([](VPURT::ConfigureBarrierOp a, VPURT::ConfigureBarrierOp b) -> bool {
@@ -524,17 +524,17 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     });
 
     for (auto& barrier : _barrierOps)
-        Logger::global().error("Barrier virtual ID {0} and physical Id {1} ", barrier->getAttr("virtualId"), barrier->getAttr("id"));
+        Logger::global().error("Barrier virtual ID {0} and physical Id {1} ", barrier->getAttr("virtualId"),
+                               barrier->getAttr("id"));
 
-    for(auto& taskOp : _barrierOps)
+    for (auto& taskOp : _barrierOps)
         tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
-
 
     netFunc.walk([&](VPURT::TaskOp taskOp) {
         _taskOps.push_back(taskOp);
         Logger::global().error("Task scheduling number is {0}", taskOp->getAttr("SchedulingNumber"));
         log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
-        //tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+        // tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
     });
 
     _taskOps.sort([](VPURT::TaskOp a, VPURT::TaskOp b) -> bool {
@@ -546,8 +546,7 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     for (auto& task : _taskOps)
         Logger::global().error("Task scheduling number {0} ", task->getAttr("SchedulingNumber"));
 
-
-    for(auto& taskOp : _taskOps)
+    for (auto& taskOp : _taskOps)
         tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
 
     SmallVector<VPUIP::BlobWriter::TaskList> taskLists;

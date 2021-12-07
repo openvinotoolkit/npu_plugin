@@ -29,17 +29,15 @@ BarrierScheduleGenerator::BarrierScheduleGenerator(mlir::MLIRContext* ctx, mlir:
           startState_(n, m),
           scheduler_begin_(ctx, func, startState_),
           scheduler_end_(ctx, func),
-          sinfo_()
-{
+          sinfo_() {
 }
 
 BarrierScheduleGenerator::BarrierScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func)
-        :  barrierCount_(0UL),
+        : barrierCount_(0UL),
           slotsPerBarrier_(0UL),
           startState_(),
-          scheduler_begin_(ctx, func), 
-          scheduler_end_(ctx, func)
-          {};
+          scheduler_begin_(ctx, func),
+          scheduler_end_(ctx, func){};
 
 bool BarrierScheduleGenerator::reached_end() const {
     return scheduler_begin_ == scheduler_end_;

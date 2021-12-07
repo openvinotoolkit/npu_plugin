@@ -33,7 +33,7 @@ class BarrierAllocation final {
 public:
     BarrierAllocation(mlir::Operation* op, int64_t numBarriers, Logger log);
 
-    //int64_t getID(mlir::Value val) const;
+    // int64_t getID(mlir::Value val) const;
 
 private:
     llvm::DenseMap<mlir::Value, int64_t> _idMap;
@@ -107,13 +107,12 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
-    //auto module = func->getParentOfType<mlir::ModuleOp>();
-    //auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+    // auto module = func->getParentOfType<mlir::ModuleOp>();
+    // auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
-    //Barrier scheduler
-    TokenBasedBarrierScheduler barrierScheduler(&ctx,func, 4, 256);
+    // Barrier scheduler
+    TokenBasedBarrierScheduler barrierScheduler(&ctx, func, 4, 256);
     barrierScheduler.schedule();
-
 }
 
 }  // namespace

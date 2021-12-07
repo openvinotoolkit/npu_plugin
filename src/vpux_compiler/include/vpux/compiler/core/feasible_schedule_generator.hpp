@@ -50,7 +50,6 @@ namespace vpux {
 struct op_resource_state_t;
 class FeasibleScheduleGenerator {
 public:
-    
     typedef size_t schedule_time_t;
     struct heap_element_t {
         heap_element_t(mlir::Operation* op = NULL, schedule_time_t t = 0UL): op_(op), time_(t) {
@@ -73,9 +72,8 @@ public:
     using schedule_heap_t = std::vector<heap_element_t>;
     using operation_in_degree_t = std::map<mlir::Operation*, size_t>;
     using priority_map_t = std::map<mlir::Operation*, size_t>;
-    using resource_utility_map_t = std::unordered_map<mlir::Operation*, unsigned> ;
+    using resource_utility_map_t = std::unordered_map<mlir::Operation*, unsigned>;
     resource_utility_map_t resource_utility_map_;
-   
 
     FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func, const resource_state_t& rstate);
     FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func);
@@ -84,7 +82,7 @@ public:
     bool reached_end() const;
     void operator++();
     bool next_schedulable_operation();
-    mlir::Operation*& operator*(); //should be const ?
+    mlir::Operation*& operator*();  // should be const ?
     size_t current_time() const;
     const resource_state_t& resource_state() const;
     void getAllBarriersProducersAndConsumers();
@@ -124,16 +122,12 @@ protected:
     // operation out-degree, number of outgoing edges
     std::map<mlir::Operation*, size_t> _outDegreeTable;
 
-
-    //std::unordered_map<mlir::Operation*, size_t> _operationInDegree;
-    //std::unordered_map<mlir::Operation*, size_t> _operationOutDegree;
+    // std::unordered_map<mlir::Operation*, size_t> _operationInDegree;
+    // std::unordered_map<mlir::Operation*, size_t> _operationOutDegree;
     SmallVector<IERT::LayerOpInterface> _allTaskOps;
     SmallVector<VPURT::DeclareVirtualBarrierOp> _allBarrierOps;
     static std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap;
     static std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierConsumersMap;
-    
 };
 
 }  // namespace vpux
-
-

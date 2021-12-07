@@ -41,12 +41,11 @@
 #include <llvm/ADT/BitVector.h>
 #include <llvm/ADT/DenseSet.h>
 
-
 #include "vpux/compiler/core/barrier_resource_state.hpp"
 
 namespace vpux {
 
-//Forward declaration
+// Forward declaration
 class FeasibleScheduleGenerator;
 class BarrierScheduleGenerator {
 public:
@@ -57,11 +56,10 @@ public:
     struct schedule_info_t {
         schedule_time_t schedule_time_;
         mlir::Operation* op_;
-        //size_t op_;
+        // size_t op_;
         size_t barrier_index_;
         size_t slot_count_;
     }; /*struct schedule_info_t*/
-
 
     bool operator==(const BarrierScheduleGenerator& o) const;
     bool operator!=(const BarrierScheduleGenerator& o) const;
@@ -69,37 +67,32 @@ public:
     const schedule_info_t& operator*(void);
     bool reached_end() const;
 
-
-
     struct barrier_scheduler_traits {
-    // typedef op_resource_state_t resource_state_t;
+        // typedef op_resource_state_t resource_state_t;
 
-         static void initialize_resource_state(const resource_state_t& start_state, resource_state_t& state) {
-             state.init(start_state);
-         }
+        static void initialize_resource_state(const resource_state_t& start_state, resource_state_t& state) {
+            state.init(start_state);
+        }
 
-        static bool is_resource_available(const resource_t& demand,
-            const resource_state_t& state) {
-        return state.is_resource_available(demand);
-      }
+        static bool is_resource_available(const resource_t& demand, const resource_state_t& state) {
+            return state.is_resource_available(demand);
+        }
 
-       static bool schedule_operation(mlir::Operation*& op, resource_t demand,
-          resource_state_t& state) {
-        return state.schedule_operation(op, demand);
-      }
+        static bool schedule_operation(mlir::Operation*& op, resource_t demand, resource_state_t& state) {
+            return state.schedule_operation(op, demand);
+        }
 
-    //   static bool schedule_operation(const mlir::Operation& op, resource_t demand,
-    //       resource_state_t& rstate,
-    //       const_operation_iterator_t, const_operation_iterator_t) {
-    //     //return schedule_operation(op, demand, rstate);
-    //   }
+        //   static bool schedule_operation(const mlir::Operation& op, resource_t demand,
+        //       resource_state_t& rstate,
+        //       const_operation_iterator_t, const_operation_iterator_t) {
+        //     //return schedule_operation(op, demand, rstate);
+        //   }
 
-    static bool unschedule_operation(mlir::Operation*& op,
-          resource_state_t& rstate) {
-        return rstate.unschedule_operation(op);
-      }
+        static bool unschedule_operation(mlir::Operation*& op, resource_state_t& rstate) {
+            return rstate.unschedule_operation(op);
+        }
 
-    };// struct barrier_scheduler_traits //
+    };  // struct barrier_scheduler_traits //
 
 private:
     size_t barrierCount_;
