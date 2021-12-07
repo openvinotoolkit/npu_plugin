@@ -129,20 +129,35 @@ func @OptimizeLastCopyForPureViewOps(%arg0: memref<1x16x2x2xf16>, %arg1: memref<
 
 // -----
 
-func @OptimizeLastCopy(%arg0: memref<1x16x112x112xf16>, %arg1: memref<1x16x112x112xf16>, %arg2: memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16> {
-    %0 = memref.alloc() : memref<1x16x112x112xf16>
-    %1 = IERT.And
-            inputs(%arg0: memref<1x16x112x112xf16>, %arg1: memref<1x16x112x112xf16>)
-            outputs(%0 : memref<1x16x112x112xf16>)
-            -> memref<1x16x112x112xf16>
-    %3 = IERT.Copy inputs(%1 : memref<1x16x112x112xf16>) outputs(%arg2 : memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16>
+func @OptimizeLastCopy(%arg0: memref<1x2x4x4xf16>, %arg1: memref<1x2x4x4xf16>,
+                        %arg2: memref<1x2x4x4xf16>, %arg3: memref<1x2x4x4xf16>)
+                            -> (memref<1x2x4x4xf16>, memref<1x2x4x4xf16>) {
+    %0 = const.Declare memref<1x2x4x4xf16> = #const.Content<dense<1.000000e+00> : tensor<1x2x4x4xf16>>
+    %1 = memref.alloc() : memref<1x2x4x4xf16>
+    %2 = memref.alloc() : memref<1x2x4x4xf16>
 
-    return %3 : memref<1x16x112x112xf16>
+    %3 = IERT.And
+            inputs(%arg0: memref<1x2x4x4xf16>, %arg1: memref<1x2x4x4xf16>)
+            outputs(%1 : memref<1x2x4x4xf16>)
+            -> memref<1x2x4x4xf16>
+    %4 = IERT.And
+            inputs(%arg0: memref<1x2x4x4xf16>, %0: memref<1x2x4x4xf16>)
+            outputs(%2 : memref<1x2x4x4xf16>)
+            -> memref<1x2x4x4xf16>
 
-    // CHECK-NOT: memref.alloc() : memref<1x32x112x112xf16>
+    %5 = IERT.Copy inputs(%3 : memref<1x2x4x4xf16>) outputs(%arg2 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
+    %6 = IERT.Copy inputs(%4 : memref<1x2x4x4xf16>) outputs(%arg3 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
 
-    // CHECK: [[VAR0:%.*]] = IERT.And inputs(%arg0 : memref<1x16x112x112xf16>, %arg1 : memref<1x16x112x112xf16>) outputs(%arg2 : memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16>
-    // CHECK: return [[VAR0]] : memref<1x16x112x112xf16>
+    return %5, %6 : memref<1x2x4x4xf16>, memref<1x2x4x4xf16>
+
+    // CHECK: [[VAR0:%.*]] = const.Declare
+
+    // CHECK-NOT: memref.alloc() : memref<1x2x4x4xf16>
+    // CHECK-NOT: memref.alloc() : memref<1x2x4x4xf16>
+
+    // CHECK: [[VAR1:%.*]] = IERT.And inputs(%arg0 : memref<1x2x4x4xf16>, %arg1 : memref<1x2x4x4xf16>) outputs(%arg2 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
+    // CHECK: [[VAR2:%.*]] = IERT.And inputs(%arg0 : memref<1x2x4x4xf16>, [[VAR0]] : memref<1x2x4x4xf16>) outputs(%arg3 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
+    // CHECK: return [[VAR1]], [[VAR2]] : memref<1x2x4x4xf16>, memref<1x2x4x4xf16>
 }
 
 // -----
@@ -164,27 +179,13 @@ func @NoChangesTypeMismatch(%arg0: memref<1x50x1x1xf16>, %arg1: memref<1x50x1x1x
     // CHECK: return [[VAR0]]
 }
 
-// -----
-
-func @NoChangesSourceIsNotAllocOp(%arg0: memref<1x16x112x112xf16>, %arg1: memref<1x16x112x112xf16>, %arg2: memref<1x16x112x112xf16>) -> (memref<1x16x112x112xf16>, memref<1x16x112x112xf16>) {
-    %0 = IERT.ReLU
-            inputs(%arg0: memref<1x16x112x112xf16>)
-            outputs(%arg1 : memref<1x16x112x112xf16>)
-            -> memref<1x16x112x112xf16>
-    %1 = IERT.Copy inputs(%0 : memref<1x16x112x112xf16>) outputs(%arg2 : memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16>
-    return %0, %1 : memref<1x16x112x112xf16>, memref<1x16x112x112xf16>
-
-    // CHECK: [[VAR0:%.*]] = IERT.ReLU
-    // CHECK: [[VAR1:%.*]] = IERT.Copy
-    // CHECK: return [[VAR0]], [[VAR1]]
-}
 
 // -----
 
-func @NoChangesSourceIsConstantOp(%arg0: memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16> {
-    %0 = const.Declare memref<1x16x112x112xf16> = #const.Content<dense<1.000000e+00> : tensor<1x16x112x112xf16>>
-    %1 = IERT.Copy inputs(%0 : memref<1x16x112x112xf16>) outputs(%arg0 : memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16>
-    return %1 : memref<1x16x112x112xf16>
+func @NoChangesSourceIsConstantOp(%arg0: memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16> {
+    %0 = const.Declare memref<1x2x4x4xf16> = #const.Content<dense<1.000000e+00> : tensor<1x2x4x4xf16>>
+    %1 = IERT.Copy inputs(%0 : memref<1x2x4x4xf16>) outputs(%arg0 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
+    return %1 : memref<1x2x4x4xf16>
 
     // CHECK: [[VAR0:%.*]] = const.Declare
     // CHECK: [[VAR1:%.*]] = IERT.Copy
@@ -193,34 +194,45 @@ func @NoChangesSourceIsConstantOp(%arg0: memref<1x16x112x112xf16>) -> memref<1x1
 
 // -----
 
-func @NoChangesInputIsBlockArgument(%arg0: memref<1x16x112x112xf16>, %arg1: memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16> {
-    %0 = IERT.Copy inputs(%arg0 : memref<1x16x112x112xf16>) outputs(%arg1 : memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16>
-    return %0 : memref<1x16x112x112xf16>
+func @NoChangesInputIsBlockArgument(%arg0: memref<1x2x4x4xf16>, %arg1: memref<1x2x4x4xf16>,
+                                    %arg2: memref<1x2x4x4xf16>, %arg3: memref<1x2x4x4xf16>) ->
+                                    (memref<1x2x4x4xf16>, memref<1x2x4x4xf16>, memref<1x2x4x4xf16>) {
+    %0 = IERT.Copy inputs(%arg0 : memref<1x2x4x4xf16>) outputs(%arg1 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
+
+    %1 = IERT.ReLU
+            inputs(%arg0: memref<1x2x4x4xf16>)
+            outputs(%arg2 : memref<1x2x4x4xf16>)
+            -> memref<1x2x4x4xf16>
+    %2 = IERT.Copy inputs(%1 : memref<1x2x4x4xf16>) outputs(%arg3 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
+
+    return %0, %1, %2 : memref<1x2x4x4xf16>, memref<1x2x4x4xf16>, memref<1x2x4x4xf16>
 
     // CHECK: [[VAR0:%.*]] = IERT.Copy
-    // CHECK: return [[VAR0]]
+    // CHECK: [[VAR1:%.*]] = IERT.ReLU
+    // CHECK: [[VAR2:%.*]] = IERT.Copy
+    // CHECK: return [[VAR0]], [[VAR1]], [[VAR2]]
 }
 
 // -----
 
-func @NoChangesDifferentMemSpace(%arg0: memref<1x16x112x112xf16>, %arg1: memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16> {
-    %0 = memref.alloc() : memref<1x16x112x112xf16, "CMX_NN">
-    %1 = IERT.Copy inputs(%arg0 : memref<1x16x112x112xf16>) outputs(%0 : memref<1x16x112x112xf16, "CMX_NN">) -> memref<1x16x112x112xf16, "CMX_NN">
+func @NoChangesDifferentMemSpace(%arg0: memref<1x2x4x4xf16>, %arg1: memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16> {
+    %0 = memref.alloc() : memref<1x2x4x4xf16, "CMX_NN">
+    %1 = IERT.Copy inputs(%arg0 : memref<1x2x4x4xf16>) outputs(%0 : memref<1x2x4x4xf16, "CMX_NN">) -> memref<1x2x4x4xf16, "CMX_NN">
 
-    %2 = memref.alloc() : memref<1x16x112x112xf16, "CMX_NN">
+    %2 = memref.alloc() : memref<1x2x4x4xf16, "CMX_NN">
     %3 = IERT.And
-            inputs(%1 : memref<1x16x112x112xf16, "CMX_NN">, %1 : memref<1x16x112x112xf16, "CMX_NN">)
-            outputs(%2 : memref<1x16x112x112xf16, "CMX_NN">)
-            -> memref<1x16x112x112xf16, "CMX_NN">
+            inputs(%1 : memref<1x2x4x4xf16, "CMX_NN">, %1 : memref<1x2x4x4xf16, "CMX_NN">)
+            outputs(%2 : memref<1x2x4x4xf16, "CMX_NN">)
+            -> memref<1x2x4x4xf16, "CMX_NN">
 
-    %4 = IERT.Copy inputs(%3 : memref<1x16x112x112xf16, "CMX_NN">) outputs(%arg1 : memref<1x16x112x112xf16>) -> memref<1x16x112x112xf16>
-    return %4 : memref<1x16x112x112xf16>
+    %4 = IERT.Copy inputs(%3 : memref<1x2x4x4xf16, "CMX_NN">) outputs(%arg1 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
+    return %4 : memref<1x2x4x4xf16>
 
     // CHECK: IERT.Copy
 
     // CHECK: [[VAR0:%.*]] = IERT.And
-    // CHECK: [[VAR1:%.*]] = IERT.Copy inputs([[VAR0]] : memref<1x16x112x112xf16, "CMX_NN">)
-    // CHECK-SAME:                     outputs(%arg1 : memref<1x16x112x112xf16>)
+    // CHECK: [[VAR1:%.*]] = IERT.Copy inputs([[VAR0]] : memref<1x2x4x4xf16, "CMX_NN">)
+    // CHECK-SAME:                     outputs(%arg1 : memref<1x2x4x4xf16>)
 
     // CHECK: return [[VAR1]]
 }

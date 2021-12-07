@@ -93,3 +93,57 @@ mlir::LogicalResult ComposeSubView::matchAndRewrite(IERT::SubViewOp origOp, mlir
     return mlir::success();
 }
 ```
+
+### Using AliasesInfo
+
+[AliasesInfo](../include/vpux/compiler/core/aliases_info.hpp) is a util class that provides information about the source variable for each alias.
+You can get instance of **AliasesInfo** using **getAnalysis** method in function pass:  
+
+```cpp
+void OptimizeCopiesPass::safeRunOnFunc() {
+    auto& aliasInfo = getAnalysis<AliasesInfo>();
+    ...
+}
+```
+  
+#### Rules
+
+##### Keep topological order
+You have to maintain the topological order of the network throughout the entire time the class is used. 
+Otherwise, you may get operations not included in the analysis or the analysis will become incorrect for the new network. 
+If you need to change the topological order, you need to be sure that the subgraphs you are processing do not intersect.
+
+These tips may help:  
+- Avoid using several patterns with in one pass. This makes it easier to control changes in the topology.
+- Prefer using **RetT Operation::walk(FnT &&callback)** than **mlir::OpRewritePattern<OpType>**
+
+##### AliasesInfo and Greedy pattern rewriter
+Do not use AliasesInfo in patterns that are controlled with GreedyPatternRewriteDriver. 
+GreedyPattern recreates constants and therefore they will not be covered by the aliases analysis.
+
+Bad:
+```cpp
+void OptimizeCopiesPass::safeRunOnFunc() {
+    auto& ctx = getContext();
+    auto& aliasInfo = getAnalysis<AliasesInfo>();
+    
+    mlir::RewritePatternSet patterns(&ctx);
+    patterns.insert<CopyToBlockArgument>(&ctx, aliasInfo, _log);
+    
+    auto func = getFunction();
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
+        signalPassFailure();
+    }
+}
+```
+
+Good:
+```cpp
+void OptimizeCopiesPass::safeRunOnFunc() {
+    auto func = getFunction();
+    auto& aliasInfo = getAnalysis<AliasesInfo>();
+    func->walk([&](IERT::CopyOp op) {
+        fuseLastCopy(op, aliasInfo, _log);
+    });
+}
+```
