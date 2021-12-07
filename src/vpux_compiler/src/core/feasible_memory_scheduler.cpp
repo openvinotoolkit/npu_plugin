@@ -326,6 +326,21 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::getNonAliveBuffersUsedByOperat
 
     for (auto& buffer : usedBuffs) {
         auto rootBuffer = _aliasInfo.getRoot(buffer);
+
+        bool weightTableOpBuffer = false;
+        for (auto* user : rootBuffer.getUsers()) {
+            if (user->getParentOp() == op.getOperation()) {
+                if (mlir::isa_and_nonnull<VPUIP::WeightsTableOp>(user)) {
+                    weightTableOpBuffer = true;
+                    _log.trace("Mateusz: weightTableOp buffer - {0}", rootBuffer);
+                    break;
+                }
+            }
+        }
+        if (weightTableOpBuffer) {
+            continue;
+        }
+
         const auto type = rootBuffer.getType().cast<mlir::MemRefType>();
         if (type.getMemorySpace() != _memSpace || _scan.handler().isAlive(rootBuffer)) {
             continue;
