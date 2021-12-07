@@ -20,14 +20,14 @@ subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  leon
 #presilicon-dir := ../../../../../vpuip_2/presilicon
 presilicon-dir := $(VPUIP_2_REL_THROUGH_ROOT)/presilicon
 
-include-dirs-shave_nn-y += $(presilicon-dir)/swCommon/shave_code/include
-include-dirs-shave_nn-y += $(presilicon-dir)/drivers/shave/include
+#include-dirs-shave_nn-y += $(presilicon-dir)/swCommon/shave_code/include
+#include-dirs-shave_nn-y += $(presilicon-dir)/drivers/shave/include
 
-include-dirs-lrt-y += $(presilicon-dir)/drivers/leon/drv/include
-include-dirs-lrt-y += $(presilicon-dir)/swCommon/leon/include
-include-dirs-lrt-y += $(presilicon-dir)/swCommon/shared/include
+#include-dirs-lrt-y += $(presilicon-dir)/drivers/leon/drv/include
+#include-dirs-lrt-y += $(presilicon-dir)/swCommon/leon/include
+#include-dirs-lrt-y += $(presilicon-dir)/swCommon/shared/include
 
-subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  $(presilicon-dir)/swCommon
+#subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  $(presilicon-dir)/swCommon
 subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  $(presilicon-dir)/swCommon
 
 subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  $(presilicon-dir)/drivers
