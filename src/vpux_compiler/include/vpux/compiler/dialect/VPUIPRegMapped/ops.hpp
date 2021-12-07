@@ -21,7 +21,8 @@
 #include "vpux/compiler/dialect/VPUIPRegMapped/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIPRegMapped/effects.hpp"
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/types.hpp"
+#include "vpux/compiler/dialect/VPUIPRegMapped/types.hpp"  // 2021_11_30
+#include "vpux/compiler/dialect/VPURT/types.hpp"           // 2021_11_30
 #include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
@@ -56,7 +57,7 @@ namespace VPUIPRegMapped {
 constexpr Bit FP16_SIZE = 16_Bit;
 constexpr KB SHAVE_LIB_DATA_SIZE = 112_KB;
 
-mlir::LogicalResult verifyOp(DeclareTensorOp op);
+mlir::LogicalResult verifyOp(DeclareBufferOp op);
 // mlir::LogicalResult verifyOp(ConvertUPAOp op);
 // mlir::LogicalResult verifyOp(SoftMaxUPAOp op);
 // mlir::LogicalResult verifyOp(PoolingUPAOp op);

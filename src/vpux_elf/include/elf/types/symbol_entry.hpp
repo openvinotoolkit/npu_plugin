@@ -42,7 +42,6 @@ constexpr uint8_t STT_TLS            = 6;
 constexpr uint8_t STT_LOOS           = 10;
 constexpr uint8_t STT_HIOS           = 12;
 constexpr uint8_t STT_LOPROC         = 13;
-constexpr uint8_t STT_SPARC_REGISTER = 13;
 constexpr uint8_t STT_HIPROC         = 15;
 
 //! Symbol visibility
@@ -73,5 +72,8 @@ Elf_Xword elf64STType(Elf_Xword info);
 
 //! Pack symbol binding attributes and symbol type into info
 Elf_Xword elf64STInfo(Elf_Word bind, Elf_Word type);
+
+//! Sets visibility
+uint8_t elf64STVisibility(uint8_t visibility);
 
 } // namespace elf

@@ -37,11 +37,12 @@ void vpux::VPUIPRegMapped::VPUIPRegMappedDialect::initialize() {
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/VPUIPRegMapped/generated/ops.cpp.inc>
             >();
-
-    addTypes<
-#define GET_TYPEDEF_LIST
-#include <vpux/compiler/dialect/VPUIPRegMapped/generated/types.cpp.inc>
-            >();
+    /*
+        addTypes<
+    #define GET_TYPEDEF_LIST
+    #include <vpux/compiler/dialect/VPUIPRegMapped/generated/types.cpp.inc>
+                >();
+    */
 }
 
 //

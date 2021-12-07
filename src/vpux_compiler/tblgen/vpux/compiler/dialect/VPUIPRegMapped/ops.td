@@ -23,7 +23,7 @@ include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 include "vpux/compiler/dialect/VPUIPRegMapped/attributes.td"
 include "vpux/compiler/dialect/VPUIPRegMapped/dialect.td"
 include "vpux/compiler/dialect/VPUIPRegMapped/ops_interfaces.td"
-include "vpux/compiler/dialect/VPUIPRegMapped/types.td"
+include "vpux/compiler/dialect/VPURT/types.td" // 2021_11_30
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/CopyOpInterface.td"
@@ -44,6 +44,7 @@ class VPUIPRegMapped_Op<string mnemonic, list<OpTrait> traits = []> :
             traits
         >;
 
+// TaskOp is used as a parent Op for NNDMAOp and NCEClusterTaskOp
 class VPUIPRegMapped_TaskOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
         VPUIPRegMapped_Op<
             mnemonic,
@@ -63,6 +64,65 @@ class VPUIPRegMapped_TaskOp<int numResult, string mnemonic, list<OpTrait> traits
 
     let extraClassDeclaration = commonExtraClassDeclaration;
 }
+
+//
+// TaskWithSubregOp
+//
+
+def VPUIPRegMapped_TaskWithSubregOp :
+    VPUIPRegMapped_Op<"TaskWithSubreg",
+            [
+                RecursiveSideEffects,
+                MemoryEffectsOpInterface,
+                AttrSizedOperandSegments,
+                //DeclareOpInterfaceMethods<VPUIPRegMapped_SerializeInterface>,
+                // NOTE: I was receiving some strange template compiler errors when using it: DeclareOpInterfaceMethods<VPUIPRegMapped_TaskOpInterface>,
+                DotInterface
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+    let summary = "Hold common scheduling logic (barriers configuration and profiling support).";
+
+    let arguments = (ins
+        Variadic<VPURT_Barrier>:$waitBarriers, // 2021_11_30
+        Variadic<VPURT_Barrier>:$updateBarriers, // 2021_11_30
+        DefaultValuedAttr<BoolAttr, "false">:$isTrailingSWLayer
+    );
+
+    let regions = (region
+        SizedRegion<1>:$op
+    );
+
+    /*
+    let verifier = [{
+        return vpux::VPUIPRegMapped::verifyTaskWithSubregOp(*this);
+    }];
+    */
+
+    let extraClassDeclaration = [{
+        /*
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::AQUA;
+        }
+        */
+
+        void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+        /*
+        // vpux::VPUIPRegMapped::TaskType getTaskType();
+        static vpux::VPUIPRegMapped::TaskType getTaskType() {
+            return vpux::VPUIPRegMapped::TaskType::Controller;
+        }
+        */
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `op` `:` $op
+    }];
+}
+
 
 //
 // GraphOp
@@ -94,12 +154,12 @@ def VPUIPRegMapped_GraphOp :
 }
 
 //
-// DeclareTensorOp
+// DeclareBufferOp
 //
 
-def VPUIPRegMapped_DeclareTensorOp :
+def VPUIPRegMapped_DeclareBufferOp :
         VPUIPRegMapped_Op<
-            "DeclareTensor",
+            "DeclareBuffer",
             [
                 NoSideEffect,
                 DeclarationOp,
@@ -147,7 +207,7 @@ def VPUIPRegMapped_DeclareTensorOp :
 
     let extraClassDeclaration = [{
         static mlir::ParseResult parseLocaleIndex(mlir::OpAsmParser& parser, mlir::ArrayAttr& localeIndex);
-        static void printLocaleIndex(mlir::OpAsmPrinter& printer, vpux::VPUIPRegMapped::DeclareTensorOp& op, mlir::ArrayAttr localeIndex);
+        static void printLocaleIndex(mlir::OpAsmPrinter& printer, vpux::VPUIPRegMapped::DeclareBufferOp& op, mlir::ArrayAttr localeIndex);
 
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::ORANGE;
@@ -170,7 +230,7 @@ def VPUIPRegMapped_DeclareVirtualBarrierOp :
     let summary = "VPUIPRegMapped virtual Barrier declaration";
 
     let results = (outs
-        VPUIPRegMapped_Barrier:$barrier
+        VPURT_Barrier:$barrier // 2021_11_30
     );
 
     let assemblyFormat = [{
@@ -201,14 +261,14 @@ def VPUIPRegMapped_ConfigureBarrierOp :
         //I64Attr:$next_same_id, // Istvan said to add this on Sep 15 2021 meeting
         I16Attr:$next_same_id, // Istvan said to add this on Sep 15 2021 meeting
 
-        Variadic<VPUIPRegMapped_Barrier>:$waitBarriers,
-        Variadic<VPUIPRegMapped_Barrier>:$updateBarriers
+        Variadic<VPURT_Barrier>:$waitBarriers, // 2021_11_30
+        Variadic<VPURT_Barrier>:$updateBarriers // 2021_11_30
 
         //VPUIPRM_BarrierCfgAttr: $someNameTODO,
     );
 
     let results = (outs
-        VPUIPRegMapped_Barrier:$barrier
+        VPURT_Barrier:$barrier // 2021_11_30
     );
 
     let builders = [
@@ -274,8 +334,8 @@ def VPUIPRegMapped_EmptyOp :
     let summary = "Empty management task";
 
     let arguments = (ins
-        Variadic<VPUIPRegMapped_Barrier>:$waitBarriers,
-        Variadic<VPUIPRegMapped_Barrier>:$updateBarriers
+        Variadic<VPURT_Barrier>:$waitBarriers, // 2021_11_30
+        Variadic<VPURT_Barrier>:$updateBarriers // 2021_11_30
     );
 
     let extraClassDeclaration = [{
@@ -312,8 +372,8 @@ def VPUIPRegMapped_NNDMAOp :
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
 
-        Variadic<VPUIPRegMapped_Barrier>:$waitBarriers,
-        Variadic<VPUIPRegMapped_Barrier>:$updateBarriers,
+        Variadic<VPURT_Barrier>:$waitBarriers, // 2021_11_30
+        Variadic<VPURT_Barrier>:$updateBarriers, // 2021_11_30
 
         UnitAttr:$compression,
         DefaultValuedAttr<IntAttr, "0">:$port,
@@ -504,8 +564,8 @@ def VPUIPRegMapped_NCEClusterTaskOp :
 
         MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
 
-        Variadic<VPUIPRegMapped_Barrier>:$waitBarriers,
-        Variadic<VPUIPRegMapped_Barrier>:$updateBarriers,
+        Variadic<VPURT_Barrier>:$waitBarriers, // 2021_11_30
+        Variadic<VPURT_Barrier>:$updateBarriers, // 2021_11_30
 
         VPUIPRegMapped_NCETaskType:$task_type,
         OptionalAttr<I64ArrayAttr>:$kernel_size,

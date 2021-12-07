@@ -18,7 +18,7 @@
 
 using namespace vpux;
 
-void vpux::VPUIPRegMapped::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state,
+void vpux::VPUIPRegMapped::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state,
                                                   mlir::Type memory, VPUIPRegMapped::MemoryLocation locale,
                                                   uint64_t dataIndex) {
     build(builder, state, memory, locale, builder.getI64ArrayAttr(ArrayRef<int64_t>{0}),  // localeIndex
@@ -31,7 +31,7 @@ void vpux::VPUIPRegMapped::DeclareTensorOp::build(mlir::OpBuilder& builder, ::ml
     );
 }
 
-void vpux::VPUIPRegMapped::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state,
+void vpux::VPUIPRegMapped::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state,
                                                   mlir::Type memory, VPUIPRegMapped::MemoryLocation locale,
                                                   uint32_t localeIndex, uint64_t dataIndex) {
     build(builder, state, memory, locale, builder.getI64ArrayAttr(ArrayRef<int64_t>(static_cast<int64_t>(localeIndex))),
@@ -44,7 +44,7 @@ void vpux::VPUIPRegMapped::DeclareTensorOp::build(mlir::OpBuilder& builder, ::ml
     );
 }
 
-void vpux::VPUIPRegMapped::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state,
+void vpux::VPUIPRegMapped::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state,
                                                   mlir::Type memory, VPUIPRegMapped::MemoryLocation locale,
                                                   ArrayRef<int64_t> localeIndex, uint64_t dataIndex) {
     build(builder, state, memory, locale, getIntArrayAttr(builder, localeIndex), dataIndex,
@@ -56,7 +56,7 @@ void vpux::VPUIPRegMapped::DeclareTensorOp::build(mlir::OpBuilder& builder, ::ml
     );
 }
 
-mlir::LogicalResult vpux::VPUIPRegMapped::verifyOp(DeclareTensorOp op) {
+mlir::LogicalResult vpux::VPUIPRegMapped::verifyOp(DeclareBufferOp op) {
     const auto locale = op.locale();
 
     // TODO: check localeIndex
@@ -72,7 +72,7 @@ mlir::LogicalResult vpux::VPUIPRegMapped::verifyOp(DeclareTensorOp op) {
     return mlir::success();
 }
 
-mlir::ParseResult vpux::VPUIPRegMapped::DeclareTensorOp::parseLocaleIndex(mlir::OpAsmParser& parser,
+mlir::ParseResult vpux::VPUIPRegMapped::DeclareBufferOp::parseLocaleIndex(mlir::OpAsmParser& parser,
                                                                           mlir::ArrayAttr& localeIndex) {
     SmallVector<int64_t> indicies;
     if (!parser.parseOptionalLSquare() && parser.parseOptionalRSquare()) {
@@ -95,8 +95,8 @@ mlir::ParseResult vpux::VPUIPRegMapped::DeclareTensorOp::parseLocaleIndex(mlir::
     return mlir::success();
 }
 
-void vpux::VPUIPRegMapped::DeclareTensorOp::printLocaleIndex(mlir::OpAsmPrinter& printer,
-                                                             VPUIPRegMapped::DeclareTensorOp&,
+void vpux::VPUIPRegMapped::DeclareBufferOp::printLocaleIndex(mlir::OpAsmPrinter& printer,
+                                                             VPUIPRegMapped::DeclareBufferOp&,
                                                              mlir::ArrayAttr localeIndex) {
     if (localeIndex.empty()) {
         return;

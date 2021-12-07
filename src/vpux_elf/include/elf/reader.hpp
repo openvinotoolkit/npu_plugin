@@ -28,41 +28,41 @@ public:
     class Section {
     public:
         Section() = delete;
-        Section(const SectionHeader* sectionHeader, char* data, const char* name);
+        Section(const SectionHeader* sectionHeader, const char* data, const char* name);
 
         const SectionHeader* getHeader() const;
         size_t getEntriesNum() const;
         const char* getName() const;
 
         template<typename T>
-        T* getData() {
-            return reinterpret_cast<T*>(m_data);
+        const T* getData() const {
+            return reinterpret_cast<const T*>(m_data);
         }
 
     private:
         const SectionHeader* m_sectionHeader;
-        char* m_data;
+        const char* m_data;
         const char* m_name;
     };
 
     class Segment {
     public:
         Segment() = delete;
-        Segment(const ProgramHeader* programHeader, char* data);
+        Segment(const ProgramHeader* programHeader, const char* data);
 
         const ProgramHeader* getHeader() const;
-        char* getData();
+        const char* getData() const;
 
     private:
         Reader* m_reader;
         const ProgramHeader* m_programHeader;
-        char* m_data;
+        const char* m_data;
     };
 
 public:
-    explicit Reader(char* blob, size_t size);
+    explicit Reader(const char* blob, size_t size);
 
-    char* getBlob();
+    const char* getBlob() const;
     const ELFHeader* getHeader() const;
 
     size_t getSectionsNum() const;
@@ -72,7 +72,7 @@ public:
     Segment getSegment(size_t index);
 
 private:
-    char* m_blob = nullptr;
+    const char* m_blob = nullptr;
 
     const ELFHeader* m_elfHeader = nullptr;
     const SectionHeader* m_sectionHeadersStart = nullptr;
