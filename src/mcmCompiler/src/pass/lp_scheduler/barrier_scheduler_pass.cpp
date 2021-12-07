@@ -31,7 +31,8 @@ void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
   save_restore.save();
   for (size_t barrier_bound=start_barrier_bound;
       !success && (barrier_bound>=1UL); --barrier_bound) {
-
+    
+    std::cout << "Barrier bound is " << barrier_bound << std::endl;
     barrier_scheduler_t barrier_scheduler(cm, barrier_bound, producer_bound);
     barrier_scheduler.schedule();
     success =
@@ -40,6 +41,7 @@ void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
     printfInfo("BarrierScheduler", "[BarrierSimulatorCheckPass(%lu)]: %s\n",
         barrier_bound, success ? "PASSED" : "FAILED"); 
 
+    std::cout << "The barrier simulation was " << success << std::endl;
     if (!success) { save_restore.restore(); }
     else {
       if (remove_redundant_wait_barriers) {
