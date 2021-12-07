@@ -295,11 +295,6 @@ OutputTiling vpux::IE::GroupConvolutionOp::generateTiling(Logger log) {
     const auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
 
-    if (arch == VPU::ArchKind::MTL) {
-        // Call common tiling here, no need for W/A
-        return vpux::IE::generateTiles(getOperation(), log);
-    }
-
     const auto outputShape = getShape(output());
 
     const auto isSupportedTileSize = [&tilingInfo, outputShape, log](ShapeRef nTilesOnDim) -> bool {
@@ -316,7 +311,11 @@ OutputTiling vpux::IE::GroupConvolutionOp::generateTiling(Logger log) {
                           "Depthwise convolution output channels must be a multiple of {0}, got {1}", chanAlignment,
                           outputShape[Dims4D::Act::C]);
 
-        nTilesOnDim[Dims4D::Act::C] = outputShape[Dims4D::Act::C] / chanAlignment;
+        if (outputShape[Dims4D::Act::C] > 64 && arch == VPU::ArchKind::MTL) {
+            nTilesOnDim[Dims4D::Act::C] = std::ceil(outputShape[Dims4D::Act::C] / 64.);
+        } else {
+            nTilesOnDim[Dims4D::Act::C] = outputShape[Dims4D::Act::C] / chanAlignment;
+        }
     }
 
     while (!isSupportedTileSize(nTilesOnDim)) {

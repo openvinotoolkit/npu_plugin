@@ -454,9 +454,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
         return mlir::failure();
     }
 
-    if (OC % depthwiseOutChanCount != 0) {
-        log.debug("[{0}] Output channels count of depthwise convolution must be a multiple of {1}, got {2}", loc,
-                  depthwiseOutChanCount, OC);
+    if (OC % depthwiseOutChanCount != 0 || OC > 64) {
+        log.debug("[{0}] Invalid number of output channels count of depthwise convolution {1}", loc, OC);
         return mlir::failure();
     }
 
