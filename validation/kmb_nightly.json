@@ -1852,7 +1852,7 @@
             "BenchmarkApp" : {
                 "disabled" : true
             },
-            "NetTest": {
+            "NetTest-CalcRef": {
                 "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
@@ -1860,7 +1860,7 @@
                 ]
             },
             "NetTest-Validate": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
                     "--raw_tolerance", "1"
@@ -3797,11 +3797,23 @@
             "BenchmarkApp" : {
                 "disabled" : true
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
+            "NetTest-CalcRef": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
             },
-            "NetTest-Validate" : {
-                "disabled" : true
+            "NetTest-Validate": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
                 "disabled" : true
@@ -3841,7 +3853,7 @@
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "0.3"
+                    "--prob_tolerance", "0.6"
                 ]
             },
             "NetTest-Validate": {
@@ -3849,7 +3861,7 @@
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "0.3"
+                    "--prob_tolerance", "0.6"
                 ],
                 "input_precision" : "FP16",
                 "output_precision" : "FP16"
