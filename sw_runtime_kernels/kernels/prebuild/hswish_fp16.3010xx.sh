@@ -1,10 +1,11 @@
 #! /bin/bash
 env_is_set=1
 
+if [ -z ${FIRMWARE_VPU_DIR} ]; then FIRMWARE_VPU_DIR=${VPUIP_2_DIR}; fi
 if [ -z ${MV_TOOLS_DIR} ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
 if [ -z ${MV_TOOLS_VERSION} ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
 if [ -z ${KERNEL_DIR} ]; then echo "KERNEL_DIR is not set"; env_is_set=0; fi
-if [ -z ${VPUIP_2_DIR} ]; then echo "VPUIP_2_DIR is not set"; env_is_set=0; fi
+if [ -z ${FIRMWARE_VPU_DIR} ]; then echo "FIRMWARE_VPU_DIR is not set"; env_is_set=0; fi
 
 if [ $env_is_set = 0 ]; then exit 1; fi
 
@@ -16,7 +17,7 @@ ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx -O3 \
  -I ${KERNEL_DIR}/inc \
  -I ${KERNEL_DIR}/common/inc \
  -I ${KERNEL_DIR}/inc/3720 \
- -I ${VPUIP_2_DIR}/drivers/hardware/utils/inc \
+ -I ${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc \
  -D CONFIG_TARGET_SOC_3720 -D__shave_nn__
 
 if [ $? -ne 0 ]; then exit $?; fi
@@ -27,7 +28,7 @@ ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx -O3 \
  -I ${KERNEL_DIR}/inc \
  -I ${KERNEL_DIR}/common/inc \
  -I ${KERNEL_DIR}/inc/3720 \
- -I ${VPUIP_2_DIR}/drivers/hardware/utils/inc \
+ -I ${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc \
  -D CONFIG_TARGET_SOC_3720 -D__shave_nn__
 
 if [ $? -ne 0 ]; then exit $?; fi
@@ -38,7 +39,7 @@ ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx -O3 \
  -I ${KERNEL_DIR}/inc \
  -I ${KERNEL_DIR}/common/inc \
  -I ${KERNEL_DIR}/inc/3720 \
- -I ${VPUIP_2_DIR}/drivers/hardware/utils/inc \
+ -I ${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc \
  -D CONFIG_TARGET_SOC_3720 -D__shave_nn__
 
 if [ $? -ne 0 ]; then exit $?; fi

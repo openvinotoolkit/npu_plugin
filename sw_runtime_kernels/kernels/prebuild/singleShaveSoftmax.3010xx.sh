@@ -5,15 +5,16 @@ alwaye_inline=-DCONFIG_ALWAYS_INLINE
 cpunum=3010
 cpu=${cpunum}xx
 
+if [ -z ${FIRMWARE_VPU_DIR} ]; then FIRMWARE_VPU_DIR=${VPUIP_2_DIR}; fi
 if [ -z "${MV_TOOLS_DIR}" ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
 if [ -z "${MV_TOOLS_VERSION}" ]; then 
-mv_tools_version_str=`grep "mv_tools_version" ../../vpuip_2_revision.txt`
+mv_tools_version_str=`grep "mv_tools_version" ../../firmware_vpu_revision.txt`
 mv_tools_version_arr=($mv_tools_version_str)
 MV_TOOLS_VERSION=${mv_tools_version_arr[1]}
 if [ -z "${MV_TOOLS_VERSION}" ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
 fi
 if [ -z "${KERNEL_DIR}" ]; then echo "KERNEL_DIR is not set"; env_is_set=0; fi
-if [ -z "${VPUIP_2_DIR}" ]; then echo "VPUIP_2_DIR is not set"; env_is_set=0; fi
+if [ -z "${FIRMWARE_VPU_DIR}" ]; then echo "FIRMWARE_VPU_DIR is not set"; env_is_set=0; fi
 
 if [ $env_is_set = 0 ]; then exit 1; fi
 
@@ -25,7 +26,7 @@ rm -f "${KERNEL_DIR}/prebuild/single_shave_softmax_${cpu}.o" "${KERNEL_DIR}/preb
  -I "${KERNEL_DIR}/inc" \
  -I "${KERNEL_DIR}/common/inc" \
  -I "${KERNEL_DIR}/inc/3720" \
- -I "${VPUIP_2_DIR}/drivers/hardware/utils/inc" \
+ -I "${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc" \
  -D CONFIG_TARGET_SOC_3720 -D__shave_nn__ ${alwaye_inline}
  
 obj_files="${KERNEL_DIR}/prebuild/single_shave_softmax_${cpu}.o"
@@ -40,7 +41,7 @@ if [ -z ${alwaye_inline} ]
  -I "${KERNEL_DIR}/inc" \
  -I "${KERNEL_DIR}/common/inc" \
  -I "${KERNEL_DIR}/inc/3720" \
- -I "${VPUIP_2_DIR}/drivers/hardware/utils/inc" \
+ -I "${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc" \
  -D CONFIG_TARGET_SOC_3720 -D__shave_nn__
 
 if [ $? -ne 0 ]; then exit $?; fi
@@ -51,7 +52,7 @@ if [ $? -ne 0 ]; then exit $?; fi
  -I "${KERNEL_DIR}/inc" \
  -I "${KERNEL_DIR}/common/inc" \
  -I "${KERNEL_DIR}/inc/3720" \
- -I "${VPUIP_2_DIR}/drivers/hardware/utils/inc" \
+ -I "${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc" \
  -D CONFIG_TARGET_SOC_3720 -D__shave_nn__
 
 if [ $? -ne 0 ]; then exit $?; fi
