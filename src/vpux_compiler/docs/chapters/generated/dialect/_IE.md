@@ -961,6 +961,68 @@ operation ::= `IE.Gather` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.GreaterEqual` (vpux::IE::GreaterEqualOp)
+
+InferenceEngine GreaterEqual layer
+
+
+Syntax:
+
+```
+operation ::= `IE.GreaterEqual` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.Greater` (vpux::IE::GreaterOp)
+
+InferenceEngine Greater layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Greater` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.GroupConvolution` (vpux::IE::GroupConvolutionOp)
 
 InferenceEngine GroupConvolution layer

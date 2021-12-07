@@ -123,6 +123,8 @@ def VPUIP_EltwiseLayerType :
                 StrEnumAttrCase<"LESS">,
                 StrEnumAttrCase<"LESS_EQUAL">,
                 StrEnumAttrCase<"NOT_EQUAL">,
+                StrEnumAttrCase<"GREATER">,
+                StrEnumAttrCase<"GREATER_EQUAL">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";

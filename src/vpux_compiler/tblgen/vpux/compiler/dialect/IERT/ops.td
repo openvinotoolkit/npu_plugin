@@ -1545,6 +1545,68 @@ def IERT_LessEqualOp :
 }
 
 //
+// GreaterOp
+//
+
+def IERT_GreaterOp :
+        IERT_LayerOp<1, "Greater",
+            [
+                ViewLikeOpInterface,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Greater layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// GreaterEqualOp
+//
+
+def IERT_GreaterEqualOp :
+        IERT_LayerOp<1, "GreaterEqual",
+            [
+                ViewLikeOpInterface,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time GreaterEqual layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // MinimumOp
 //
 

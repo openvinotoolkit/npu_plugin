@@ -554,6 +554,58 @@ def IE_LessEqualOp :
 }
 
 //
+// GreaterOp
+//
+
+def IE_GreaterOp :
+        IE_LayerOp<
+            "Greater",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Greater layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// GreaterEqualOp
+//
+
+def IE_GreaterEqualOp :
+        IE_LayerOp<
+            "GreaterEqual",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine GreaterEqual layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // MultiplyOp
 //
 
