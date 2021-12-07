@@ -209,8 +209,8 @@ PostOpParams getPwlPostOpParams(VPUIP::NCEClusterTaskOp nceOp, VPUIP::PPELayerTy
                         LreluMult, LreluShift, QuantizationParams{quantMult, quantShift, postShift}};
 }
 
-std::pair<int64_t, int64_t> getclampValueForQuantizedOps(mlir::quant::QuantizedType outElemQType,
-                                                         mlir::Type outElemType) {
+std::pair<int64_t, int64_t> getClampValuesForQuantizedOps(mlir::quant::QuantizedType outElemQType,
+                                                          mlir::Type outElemType) {
     const auto zps = extractScalesAndZeroPoints(outElemType).second;
     auto clampLow = outElemQType.getStorageTypeMin() - zps.front();
     auto clampHigh = outElemQType.getStorageTypeMax() - zps.front();
@@ -225,13 +225,18 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
 
     auto outElemType = origOutType.getElementType();
     auto outElemQType = outElemType.template dyn_cast<mlir::quant::QuantizedType>();
+    int64_t clampLowQuantized = 0;
+    int64_t clampHighQuantized = 0;
+    if (outElemQType != nullptr) {
+        clampLowQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).first;
+        clampHighQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).second;
+    }
 
     if (postOp.name().getValue() == IE::ReLUOp::getOperationName()) {
         VPUX_THROW_UNLESS(postOp.attrs().empty(), "'{0}' PostOp should not have any attributes", postOp.name());
 
         int64_t clampLow = 0;
-        int64_t clampHigh = (outElemQType != nullptr) ? getclampValueForQuantizedOps(outElemQType, outElemType).second
-                                                      : std::numeric_limits<int32_t>::max();
+        int64_t clampHigh = (outElemQType != nullptr) ? clampHighQuantized : std::numeric_limits<int32_t>::max();
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
 
@@ -241,10 +246,10 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
         VPUX_THROW_UNLESS(clamp.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
                           postOp.attrs(), postOp.name());
 
-        int64_t clampLow = (outElemQType != nullptr) ? getclampValueForQuantizedOps(outElemQType, outElemType).first
-                                                     : vpux::toFixedPoint(clamp.min().getValueAsDouble());
-        int64_t clampHigh = (outElemQType != nullptr) ? getclampValueForQuantizedOps(outElemQType, outElemType).second
-                                                      : vpux::toFixedPoint(clamp.max().getValueAsDouble());
+        int64_t clampLow =
+                (outElemQType != nullptr) ? clampLowQuantized : vpux::toFixedPoint(clamp.min().getValueAsDouble());
+        int64_t clampHigh =
+                (outElemQType != nullptr) ? clampHighQuantized : vpux::toFixedPoint(clamp.max().getValueAsDouble());
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
 
@@ -254,14 +259,12 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
         VPUX_THROW_UNLESS(leakyRelu.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
                           postOp.attrs(), postOp.name());
 
-        int64_t clampLow =
-                (outElemQType != nullptr)
-                        ? (arch == VPU::ArchKind::MTL ? getclampValueForQuantizedOps(outElemQType, outElemType).first
-                                                      : getclampValueForQuantizedOps(outElemQType, outElemType).first /
-                                                                leakyRelu.negative_slope().getValueAsDouble())
-                        : 0;
-        int64_t clampHigh = (outElemQType != nullptr) ? getclampValueForQuantizedOps(outElemQType, outElemType).second
-                                                      : std::numeric_limits<int32_t>::max();
+        int64_t clampLow = (outElemQType != nullptr)
+                                   ? (arch == VPU::ArchKind::MTL
+                                              ? clampLowQuantized
+                                              : clampLowQuantized / leakyRelu.negative_slope().getValueAsDouble())
+                                   : 0;
+        int64_t clampHigh = (outElemQType != nullptr) ? clampHighQuantized : std::numeric_limits<int32_t>::max();
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
 
