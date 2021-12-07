@@ -341,6 +341,10 @@ OutputTiling vpux::IE::GroupConvolutionOp::generateTiling(Logger log) {
     return fillDividedTiles(nTilesOnDim, outputShape);
 }
 
+OutputTiling vpux::IE::GroupConvolutionOp::generatePrefetchTiling(Logger log) {
+    return vpux::IE::GroupConvolutionOp::generateTiling(log);
+}
+
 mlir::Value vpux::IE::GroupConvolutionOp::reifyTile(const TileInfo& outputTile, mlir::OpBuilder& builder) {
     const auto origInputShape = getShape(input());
     const auto origFilterShape = getShape(filter());
