@@ -233,9 +233,11 @@ public:
     template <class Opt>
     void add();
 
+    IE_SUPPRESS_DEPRECATED_START
     void addSharedObject(const InferenceEngine::details::SharedObjectLoader& so) {
         _soObjs.push_back(so);
     }
+    IE_SUPPRESS_DEPRECATED_END
 
 public:
     std::vector<std::string> getSupported(bool includePrivate = false) const;
@@ -247,13 +249,16 @@ public:
 private:
     std::unordered_map<StringRef, details::OptionConcept> _impl;
     std::unordered_map<StringRef, StringRef> _deprecated;
+
+    IE_SUPPRESS_DEPRECATED_START
     std::vector<InferenceEngine::details::SharedObjectLoader> _soObjs;
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 template <class Opt>
 void OptionsDesc::add() {
     VPUX_THROW_UNLESS(_impl.count(Opt::key()) == 0, "Option '{0}' was already registered", Opt::key());
-    const auto res = _impl.insert({Opt::key(), details::makeOptionModel<Opt>()});
+    _impl.insert({Opt::key(), details::makeOptionModel<Opt>()});
 
     for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
         VPUX_THROW_UNLESS(_deprecated.count(deprecatedKey) == 0, "Option '{0}' was already registered", deprecatedKey);

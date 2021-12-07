@@ -146,7 +146,9 @@ public:
     using Ptr = std::shared_ptr<NetworkDescription>;
     using CPtr = std::shared_ptr<const NetworkDescription>;
 
+    IE_SUPPRESS_DEPRECATED_START
     NetworkDescription(INetworkDescription::Ptr actual, const InferenceEngine::details::SharedObjectLoader& plg = {});
+    IE_SUPPRESS_DEPRECATED_END
 
     const std::string& getName() const {
         return _actual->getName();
@@ -183,7 +185,10 @@ public:
 
 private:
     INetworkDescription::Ptr _actual;
+
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::details::SharedObjectLoader _plg;
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 /**
@@ -283,7 +288,10 @@ public:
     }
 
 private:
+    IE_SUPPRESS_DEPRECATED_START
     using CompilerPluginPtr = InferenceEngine::details::SOPointer<vpux::ICompiler>;
+    IE_SUPPRESS_DEPRECATED_END
+
     CompilerPluginPtr _actual;
 };
 

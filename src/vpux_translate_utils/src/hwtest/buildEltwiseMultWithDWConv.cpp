@@ -151,7 +151,6 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     const auto OUTPUT_CMX_OFFSET = 0;
     const auto INPUT0_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
     const auto INPUT1_CMX_OFFSET = INPUT0_CMX_OFFSET + input_totalsize;
-    const auto ZERO_PAD_DDR_OFFSET = 0;
     const auto ZERO_PAD_CMX_OFFSET = INPUT1_CMX_OFFSET + input1_leadingoffset;
     const auto WEIGHTS_PAD_CMX_OFFSET = INPUT1_CMX_OFFSET;
     const auto ACTIVATIONWINDOW_CMX_OFFSET = WEIGHTS_PAD_CMX_OFFSET + weights_nce_totalsize;

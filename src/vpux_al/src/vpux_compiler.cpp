@@ -23,6 +23,7 @@
 
 #include <fstream>
 
+IE_SUPPRESS_DEPRECATED_START
 vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr actual,
                                              const InferenceEngine::details::SharedObjectLoader& plg)
         : _actual(actual), _plg(plg) {
@@ -30,6 +31,7 @@ vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr actual,
         IE_THROW() << "ExecutableNetwork wrapper was not initialized.";
     }
 }
+IE_SUPPRESS_DEPRECATED_END
 
 static std::string extractFileName(const std::string& fullPath) {
     const size_t lastSlashIndex = fullPath.find_last_of("/\\");

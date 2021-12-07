@@ -16,8 +16,6 @@
 #include "ngraph_mcm_frontend/ops/mcm_fc.hpp"
 #include <memory>
 
-const ngraph::NodeTypeInfo McmFC::type_info {"McmFC", 0};
-
 McmFC::McmFC(const ngraph::Output<ngraph::Node>& data,
              const ngraph::Output<ngraph::Node>& filters,
              const ngraph::Shape& output_shape,

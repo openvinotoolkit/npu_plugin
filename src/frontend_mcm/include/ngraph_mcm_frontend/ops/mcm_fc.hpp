@@ -20,6 +20,8 @@
 
 class McmFC final : public ngraph::op::Op {
 public:
+    OPENVINO_OP("McmFC");
+
     McmFC() = default;
 
     McmFC(const ngraph::Output< ngraph::Node >& data,
@@ -35,9 +37,6 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
-
-    static const ngraph::NodeTypeInfo type_info;
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info; }
 
 private:
     ngraph::element::Type _type;
