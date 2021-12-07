@@ -25,74 +25,6 @@ namespace {
 // Same value for all architectures for now
 constexpr int64_t MAX_BARRIERS_FOR_ARCH = 64;
 
-//
-// BarrierAllocation
-//
-
-class BarrierAllocation final {
-public:
-    BarrierAllocation(mlir::Operation* op, int64_t numBarriers, Logger log);
-
-    //int64_t getID(mlir::Value val) const;
-
-private:
-    llvm::DenseMap<mlir::Value, int64_t> _idMap;
-};
-
-// TODO: [#6150] Implement safe static barriers allocation
-// BarrierAllocation::BarrierAllocation(mlir::Operation* op, int64_t numBarriers, Logger log) {
-//     int64_t barrierID = 0;
-
-//     log.trace("Assign {0} physical barriers", numBarriers);
-
-//     const auto callback = [&](VPURT::DeclareVirtualBarrierOp virtOp) {
-//         _idMap.insert({virtOp.barrier(), barrierID});
-//         barrierID = (barrierID + 1) % numBarriers;
-//     };
-
-//     op->walk(callback);
-// }
-
-// int64_t BarrierAllocation::getID(mlir::Value val) const {
-//     const auto it = _idMap.find(val);
-//     VPUX_THROW_UNLESS(it != _idMap.end(), "Value '{0}' was not covered by BarrierAllocation");
-//     return it->second;
-// }
-
-//
-// VirtualBarrierRewrite
-//
-
-class VirtualBarrierRewrite final : public mlir::OpRewritePattern<VPURT::DeclareVirtualBarrierOp> {
-public:
-    VirtualBarrierRewrite(mlir::MLIRContext* ctx, const BarrierAllocation& allocInfo, Logger log)
-            : mlir::OpRewritePattern<VPURT::DeclareVirtualBarrierOp>(ctx), _allocInfo(allocInfo), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(VPURT::DeclareVirtualBarrierOp origOp,
-                                        mlir::PatternRewriter& rewriter) const final;
-
-private:
-    const BarrierAllocation& _allocInfo;
-    Logger _log;
-};
-
-// mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPURT::DeclareVirtualBarrierOp origOp,
-//                                                            mlir::PatternRewriter& rewriter) const {
-//     _log.trace("Found DeclareVirtualBarrierOp Operation '{0}'", origOp->getLoc());
-
-//     const auto barrierID = _allocInfo.getID(origOp.barrier());
-//     _log.nest().trace("Use physical barrier ID '{0}'", barrierID);
-
-//     rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierID);
-//     return mlir::success();
-// }
-
-//
-// AssignVirtualBarriersPass
-//
-
 class AssignVirtualBarriersPass final : public VPURT::AssignVirtualBarriersBase<AssignVirtualBarriersPass> {
 public:
     explicit AssignVirtualBarriersPass(Logger log) {
@@ -106,9 +38,6 @@ private:
 void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
-
-    //auto module = func->getParentOfType<mlir::ModuleOp>();
-    //auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
     //Barrier scheduler
     TokenBasedBarrierScheduler barrierScheduler(&ctx,func, 4, 256);

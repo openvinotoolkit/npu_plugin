@@ -30,6 +30,7 @@ namespace VPURT {
 //
 
 std::unique_ptr<mlir::Pass> createAssignVirtualBarriersPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createAssignPhysicalBarrierIDsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createBarrierSimulationPass(Logger log = Logger::global());
 
 //
