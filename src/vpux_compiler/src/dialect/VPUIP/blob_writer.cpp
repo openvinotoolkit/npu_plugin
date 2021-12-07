@@ -518,7 +518,7 @@ MVCNN::DType vpux::VPUIP::BlobWriter::createDType(mlir::Type type) {
     } else if (type.isF16()) {
         return MVCNN::DType_FP16;
     } else if (type.isBF16()) {
-        return MVCNN::DType_FP16;
+        return MVCNN::DType_BFP16;
     } else if (type.isSignedInteger(CHAR_BIT * sizeof(int64_t))) {
         return MVCNN::DType_I64;
     } else if (type.isSignedInteger(CHAR_BIT * sizeof(int32_t))) {

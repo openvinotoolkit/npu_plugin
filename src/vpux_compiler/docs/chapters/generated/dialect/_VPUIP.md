@@ -1094,19 +1094,19 @@ mutually exclusive.
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or QuantizedType values
-`weights` | memref of 16-bit float or QuantizedType values
+`input` | memref of 16-bit float or bfloat16 type or QuantizedType values
+`weights` | memref of 16-bit float or bfloat16 type or QuantizedType values
 `weight_table` | memref of 32-bit signed integer values
 `activation_window` | memref of 8-bit unsigned integer values
 `parent_input` | memref of any type values
 `parent_output` | memref of any type values
-`output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
+`output_buff` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float or QuantizedType values
+`output` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 
@@ -1526,14 +1526,14 @@ operation ::= `VPUIP.QuantCastUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or QuantizedType values
-`output_buff` | memref of 16-bit float or QuantizedType values
+`input` | memref of 16-bit float or bfloat16 type or QuantizedType values
+`output_buff` | memref of 16-bit float or bfloat16 type or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or QuantizedType values
+`output` | memref of 16-bit float or bfloat16 type or QuantizedType values
 
 ### `VPUIP.ROIAlignUPA` (vpux::VPUIP::ROIAlignUPAOp)
 
