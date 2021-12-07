@@ -25,7 +25,7 @@ static constexpr StringLiteral schedulingNumberAttrName = "SchedulingNumber";
 
 TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers,
                                                        int64_t slotCount)
-        : _ctx(ctx), _func(func), barrierCount_(numBarriers), slotCount_(slotCount) {
+        : _ctx(ctx), _func(func), builder(_func.getBody()), barrierCount_(numBarriers), slotCount_(slotCount) {
 }
 
 size_t TokenBasedBarrierScheduler::schedule() {
@@ -70,7 +70,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
             scheduling_number++;
             // STEP-2: update barrier structure invariant //
-            bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo);
+            bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo, builder);
 
             if (new_barrier_task_created) {
                 ++btask_count;
