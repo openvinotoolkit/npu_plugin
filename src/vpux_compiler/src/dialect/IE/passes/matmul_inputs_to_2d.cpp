@@ -77,6 +77,8 @@ static SmallVector<mlir::Value> sliceTensor(const mlir::Value tensorToSplit, con
         height = tensorShape[Dim(2)];
         width = tensorShape[Dim(3)];
         channelDim = Dim(1);
+    } else if (tensorShape.size() == 2) {
+        return {tensorToSplit};
     }
     SmallVector<mlir::Value> weightSlices;
     Shape rhsShape2D{height, width};
@@ -118,7 +120,8 @@ mlir::LogicalResult MatMulInputsTo2dPass::MatMulOpConverter::matchAndRewrite(IE:
         matmulSlices.push_back(op.output());
     }
 
-    auto newConcat = rewriter.create<IE::ConcatOp>(matmulOp->getLoc(), matmulSlices, 0);
+    auto newConcat = matmulSlices.size() != 1 ? rewriter.create<IE::ConcatOp>(matmulOp->getLoc(), matmulSlices, 0)
+                                              : matmulSlices.front();
 
     const auto outShape4D = getShape(matmulOp.output());
     const auto outShape4DAttr = getIntArrayAttr(rewriter.getContext(), outShape4D);
@@ -139,7 +142,7 @@ void MatMulInputsTo2dPass::safeRunOnFunc() {
         const auto input1Shape = getShape(op.input1());
         const auto input2Shape = getShape(op.input2());
         // Cover 3D input and weights.
-        if (input1Shape.size() == 3 && input2Shape.size() == 3) {
+        if (input1Shape.size() == 3 || input2Shape.size() == 3) {
             return false;
         }
         // Cover 4D input and weights without batch.
