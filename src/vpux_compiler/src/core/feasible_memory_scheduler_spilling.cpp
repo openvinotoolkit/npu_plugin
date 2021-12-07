@@ -230,7 +230,7 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::Value buff
 
 // Create Spill Write operation based on data from feasible scheduler
 void FeasibleMemorySchedulerSpilling::createSpillWrite(
-        llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
+        SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
     auto& schedOp = scheduledOps[schedOpIndex];
     auto schedOpBuffer = schedOp.getBuffer(0);
     _log = _log.nest();
@@ -270,7 +270,7 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
 
 // Create Spill Read operation based on data from feasible scheduler
 void FeasibleMemorySchedulerSpilling::createSpillRead(
-        llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
+        SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
     auto& schedOp = scheduledOps[schedOpIndex];
     auto schedOpBuffer = schedOp.getBuffer(0);
     _log = _log.nest();
@@ -339,7 +339,7 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
 // This method will go through all scheduled ops and when spill
 // operation is identified it will translate it to required CopyOp
 void FeasibleMemorySchedulerSpilling::insertSpillCopyOps(
-        llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps) {
+        SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps) {
     _log.trace("Insert Spill CopyOps if needed");
     _log = _log.nest();
 

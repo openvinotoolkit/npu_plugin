@@ -238,7 +238,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
 
     const auto stack_size{1U << 12};  // 4KB stack
 
-    llvm::SmallVector<uint8_t, stack_size> shave_stack_data(stack_size);
+    SmallVector<uint8_t, stack_size> shave_stack_data(stack_size);
     std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(maxShaves);  // 4 Activation SHAVEs for MTL
 
     for (uint32_t shv{}; shv < maxShaves; ++shv) {
@@ -251,8 +251,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
 
     const auto stackBuffers = writer.createVector(stacks);
 
-    llvm::SmallVector<uint8_t, 1024 + (1U << 16)> scratch_buffer(1024 +
-                                                                 (1U << 16));  // 64KB scratch buffer + 1024 to align
+    SmallVector<uint8_t, 1024 + (1U << 16)> scratch_buffer(1024 + (1U << 16));  // 64KB scratch buffer + 1024 to align
 
     const uint64_t non_empty_offset = 1;
     const auto scratchBuffer =

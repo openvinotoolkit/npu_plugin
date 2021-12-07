@@ -3,6 +3,47 @@ This guide is not intended to cover all possible coding problems. The ultimate g
 - formalizing of existing practices
 - collection of useful programming techniques aimed at increasing the readability and maintainability of our code base
 
+## Naming
+
+### Variable names
+
+The names of variables (including function parameters) and data members are all lowerCamelCase. 
+Data members of classes (but not structs) additionally have initial underscores. 
+For instance: **localVariable**, **structDataMember**, **_classDataMember**.
+
+#### Common variable names
+
+```cpp
+SmallVector<mlir::Value> newResults;  // OK - lowerCamelCase
+SmallVector<mlir::Value> new_results; // BAD - lowercase with underscore
+```
+
+#### Class data members
+
+Data members of classes, both static and non-static, are named like ordinary nonmember variables, but with an initial underscore.
+```cpp
+class ClassName final {
+
+...
+
+private:
+    Logger _log;      // OK - underscore at the beginning
+    static int _cont; // OK
+};
+```
+
+#### Struct data names
+
+Data members of structs, both static and non-static, are named like ordinary nonmember variables.
+```cpp
+struct StructName final {
+    SmallString entryName;
+    SmallString sourceFileName;
+    
+    static int cont;
+};
+```
+
 ## Methods
 
 ### Arguments
@@ -54,6 +95,24 @@ Good:
 void foo(ArrayRef<int> array) {
     // print array
 }
+```
+
+## Formatting
+
+### Namespaces
+
+Do not use **llvm::**(or other) namespace prefix for classes imported into **vpux** namespace. 
+You can find some of these classes in the [utils](../../../src/vpux_utils/include/vpux/utils/core).
+
+For example using of [SmallVector](../../../src/vpux_utils/include/vpux/utils/core/small_vector.hpp):
+```cpp
+#include "vpux/utils/core/small_vector.hpp"
+
+void foo(ArrayRef<int> array) {
+    SmallVector<mlir::Value> oldResults;       // OK
+    llvm::SmallVector<mlir::Value> newResults; // BAD - no need to use llvm:: namespace
+}
+
 ```
 
 ## Patterns

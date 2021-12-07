@@ -37,13 +37,11 @@ public:
                                              AliasesInfo& aliasInfo, Logger log,
                                              LinearScan<mlir::Value, LinearScanHandler>& scan);
 
-    void insertSpillCopyOps(llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps);
+    void insertSpillCopyOps(SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps);
 
 private:
-    void createSpillWrite(llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps,
-                          size_t schedOpIndex);
-    void createSpillRead(llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps,
-                         size_t schedOpIndex);
+    void createSpillWrite(SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex);
+    void createSpillRead(SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex);
     mlir::async::ExecuteOp insertSpillWriteCopyOp(mlir::async::ExecuteOp opThatWasSpilled,
                                                   mlir::async::ExecuteOp insertAfterExecOp, mlir::Value bufferToSpill,
                                                   size_t allocatedAddress);
@@ -71,7 +69,7 @@ private:
     mlir::Operation* _allocOpInsertionPoint;
     // Vector of pairs of operation ID and inserted spill-write exec-op that doesn't have yet corresponding spill-read
     // op
-    llvm::SmallVector<std::pair<mlir::Value, mlir::async::ExecuteOp>> _opIdAndSpillWritePairs;
+    SmallVector<std::pair<mlir::Value, mlir::async::ExecuteOp>> _opIdAndSpillWritePairs;
 };
 
 }  // namespace vpux

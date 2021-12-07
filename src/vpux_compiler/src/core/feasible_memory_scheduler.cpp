@@ -127,9 +127,8 @@ FeasibleMemoryScheduler::HeapElement const* FeasibleMemoryScheduler::topElementG
     return heap.empty() ? nullptr : &(heap.front());
 }
 
-llvm::SmallVector<FeasibleMemoryScheduler::HeapElement> FeasibleMemoryScheduler::popAllElementsAtThisTime(
-        size_t time_step) {
-    llvm::SmallVector<HeapElement> poppedOps;
+SmallVector<FeasibleMemoryScheduler::HeapElement> FeasibleMemoryScheduler::popAllElementsAtThisTime(size_t time_step) {
+    SmallVector<HeapElement> poppedOps;
     HeapElement const* topPtr = nullptr;
     while ((topPtr = topElementGen(_completionTimeHeap)) && topPtr->time_ == time_step) {
         poppedOps.push_back(popFromCompletionTimeHeap());
@@ -228,8 +227,8 @@ void FeasibleMemoryScheduler::unscheduleAllCompletingOpsAtNextEarliestTime() {
     _currentTime = completionTopPtr->time_;
     _log.trace("Unscheduling ops at time: '{0}'", _currentTime);
 
-    llvm::SmallVector<HeapElement> unscheduledOps = popAllElementsAtThisTime(_currentTime);
-    llvm::SmallVector<operationIdxType> ready_ops = {};
+    SmallVector<HeapElement> unscheduledOps = popAllElementsAtThisTime(_currentTime);
+    SmallVector<operationIdxType> ready_ops = {};
 
     _log = _log.nest();
     for (auto& op : unscheduledOps) {
@@ -248,9 +247,8 @@ void FeasibleMemoryScheduler::unscheduleAllCompletingOpsAtNextEarliestTime() {
     distributeReadyOps(ready_ops);
 }
 
-llvm::SmallVector<operationIdxType> FeasibleMemoryScheduler::reduceInDegreeOfAdjacentOperations(
-        operationIdxType opIdx) {
-    llvm::SmallVector<operationIdxType> zeroInDegreeOps;
+SmallVector<operationIdxType> FeasibleMemoryScheduler::reduceInDegreeOfAdjacentOperations(operationIdxType opIdx) {
+    SmallVector<operationIdxType> zeroInDegreeOps;
     // reduce indegree (number of incoming edges) for consumers of ready data ops
     for (auto consumer : _depsInfo.getConsumerOps(opIdx)) {
         if (_inDegreeTable[consumer] < 2) {
@@ -730,7 +728,7 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
     }
 }
 
-llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::generateSchedule() {
+SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::generateSchedule() {
     init();
     // TODO: save schedule from _scheduledOps to file
     _log.trace("Generated Schedule");

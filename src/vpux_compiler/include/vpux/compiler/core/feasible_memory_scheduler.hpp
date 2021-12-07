@@ -226,7 +226,7 @@ public:
                             AliasesInfo& aliasInfo, Logger log, LinearScan<mlir::Value, LinearScanHandler>& scan);
 
 public:
-    llvm::SmallVector<ScheduledOpInfo> generateSchedule();
+    SmallVector<ScheduledOpInfo> generateSchedule();
 
 private:
     bool init();
@@ -234,7 +234,7 @@ private:
     void nextSchedulableOp();
     void getReadyDataList();
     void getReadyComputeList();
-    llvm::SmallVector<operationIdxType> reduceInDegreeOfAdjacentOperations(operationIdxType opIdx);
+    SmallVector<operationIdxType> reduceInDegreeOfAdjacentOperations(operationIdxType opIdx);
     bool isReadyComputeOperationSchedulable(operationIdxType opIdx);
     SmallVector<mlir::Value> getSortedBuffers(operationIdxType opIdx);
     mlir::DenseSet<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx,
@@ -254,7 +254,7 @@ private:
     void unscheduleOp(const HeapElement& helement);
     bool isComputeOpWithSomeActiveInputs(operationIdxType opIdx);
     void distributeReadyOps(llvm::ArrayRef<operationIdxType> readyOps);
-    llvm::SmallVector<HeapElement> popAllElementsAtThisTime(size_t time_step);
+    SmallVector<HeapElement> popAllElementsAtThisTime(size_t time_step);
     void unscheduleAllCompletingOpsAtNextEarliestTime();
     void populateScheduledOps(HeapElement& scheduledOp);
     vpux::AddressType calculateOpSize(operationIdxType opIdx);
@@ -278,9 +278,9 @@ private:
     // allocator class
     LinearScan<mlir::Value, LinearScanHandler>& _scan;
     // heap with earliest operation start time
-    llvm::SmallVector<HeapElement> _startTimeHeap;
+    SmallVector<HeapElement> _startTimeHeap;
     // heap with earlies operation completion time
-    llvm::SmallVector<HeapElement> _completionTimeHeap;
+    SmallVector<HeapElement> _completionTimeHeap;
     // operations with ACTIVE input
     std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort> _activeComputeOps;
     // compute operations with 0 in-degree
@@ -296,7 +296,7 @@ private:
     // contains the operation writing to the buffer
     std::map<mlir::Value, operationIdxType, vpux::ValueOrderCmp> _opWritingToBuffer;
     // container for the schedule output
-    llvm::SmallVector<ScheduledOpInfo> _scheduledOps;
+    SmallVector<ScheduledOpInfo> _scheduledOps;
     // outputs of the graph
     llvm::DenseSet<operationIdxType> _outputOps;
     // schedule time
