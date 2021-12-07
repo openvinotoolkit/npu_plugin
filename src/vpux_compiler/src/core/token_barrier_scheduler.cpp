@@ -103,6 +103,36 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
     std::cout << "Done scheduling" << std::endl;
 
+    // remove redundant barriers
+    for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+        auto consumers = (*iter).second.second;
+        auto iter1 = iter;
+        iter1++;
+        for (; iter1 != configureBarrierOpUpdateWaitMap.end();) {
+            auto consumers1 = (*iter1).second.second;
+            if (consumers1 == consumers) {
+                Logger::global().error("found barrier {0} and {1} have same consumers", (*iter).first->getAttr("id"),
+                                       (*iter1).first->getAttr("id"));
+                auto producers = (*iter1).second.first;
+                // auto mergedProducers = (*iter).second.first
+                for (auto& task : producers) {
+                    (*iter).second.first.insert(task);
+                }
+                auto removedIter = iter1;
+                iter1++;
+                configureBarrierOpUpdateWaitMap.erase(removedIter);
+            } else
+                iter1++;
+        }
+    }
+
+    for (auto& barrier : configureBarrierOpUpdateWaitMap) {
+        Logger::global().error("Barrier ID {0} has the following producers", barrier.first->getAttr("id"));
+        for (auto op : barrier.second.first)
+            Logger::global().error("producer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(op),
+                                   barrier.first->getAttr("id"));
+    }
+
     _func->walk([](VPURT::TaskOp op) {
         op.updateBarriersMutable().clear();
         op.waitBarriersMutable().clear();
