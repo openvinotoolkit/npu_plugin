@@ -79,6 +79,8 @@ static SmallVector<mlir::Value> sliceTensor(const mlir::Value tensorToSplit, con
         channelDim = Dim(1);
     }
     SmallVector<mlir::Value> weightSlices;
+    Shape rhsShape2D{height, width};
+    const auto rhsShape2DAttr = getIntArrayAttr(rewriter.getContext(), rhsShape2D);
     if (batch > 1) {
         for (int64_t sliceIdx = 0; sliceIdx < batch; sliceIdx++) {
             Shape sliceOffsets = Shape(tensorShape.size(), 0);
@@ -91,13 +93,12 @@ static SmallVector<mlir::Value> sliceTensor(const mlir::Value tensorToSplit, con
             auto newSubViewOp =
                     rewriter.create<IE::SliceOp>(location, tensorToSplit, staticOffsetsAttr, staticSizesAttr);
 
-            Shape rhsShape2D{height, width};
-            const auto rhsShape2DAttr = getIntArrayAttr(rewriter.getContext(), rhsShape2D);
             auto rhs2d = rewriter.create<IE::ReshapeOp>(location, newSubViewOp, nullptr, false, rhsShape2DAttr);
             weightSlices.push_back(rhs2d);
         }
     } else {
-        weightSlices.push_back(tensorToSplit);
+        auto rhs2d = rewriter.create<IE::ReshapeOp>(location, tensorToSplit, nullptr, false, rhsShape2DAttr);
+        weightSlices.push_back(rhs2d);
     }
 
     return weightSlices;
