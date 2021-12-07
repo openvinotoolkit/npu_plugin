@@ -14,6 +14,7 @@
 #pragma once
 
 #include "vpux/utils/core/logger.hpp"
+#include "vpux_compiler.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Support/Timing.h>
@@ -24,6 +25,7 @@ namespace vpux {
 namespace EMU {
 
 flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                                         const std::vector<PreProcessInfo>& preprocessInfo,
                                          Logger log = Logger::global());
 
 }  // namespace EMU

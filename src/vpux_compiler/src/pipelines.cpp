@@ -500,7 +500,7 @@ void vpux::registerPipelines() {
             "emu-reference-sw-mode", "Compile IE Network in EMU Reference Software mode (SW only execution)",
             [](mlir::OpPassManager& pm, const ReferenceSWOptions& options) {
                 const auto archKind = getArchKind(options.arch);
-                pm.addPass(VPUIP::createSetCompileParamsPass(archKind, VPUIP::CompilationMode::ReferenceSW));
+                pm.addPass(VPU::createInitCompilerPass(archKind, VPU::CompilationMode::ReferenceSW));
 
                 buildEMUReferenceSWModePipeline(pm, options);
             });
@@ -510,7 +510,7 @@ void vpux::registerPipelines() {
             [](mlir::OpPassManager& pm, const ReferenceHWOptions& options) {
                 const auto archKind = getArchKind(options.arch);
                 const auto numOfDPUGroups = getNumOfDPUGroups(options.numberOfDPUGroups);
-                pm.addPass(VPUIP::createSetCompileParamsPass(archKind, VPUIP::CompilationMode::ReferenceHW,
+                pm.addPass(VPU::createInitCompilerPass(archKind, VPU::CompilationMode::ReferenceHW,
                                                              numOfDPUGroups));
 
                 buildEMUReferenceHWModePipeline(pm, options);
@@ -522,7 +522,7 @@ void vpux::registerPipelines() {
                 const auto archKind = getArchKind(options.arch);
                 const auto numOfDPUGroups = getNumOfDPUGroups(options.numberOfDPUGroups);
                 pm.addPass(
-                        VPUIP::createSetCompileParamsPass(archKind, VPUIP::CompilationMode::DefaultHW, numOfDPUGroups));
+                        VPU::createInitCompilerPass(archKind, VPU::CompilationMode::DefaultHW, numOfDPUGroups));
 
                 buildEMUDefaultHWModePipeline(pm, options);
             });
