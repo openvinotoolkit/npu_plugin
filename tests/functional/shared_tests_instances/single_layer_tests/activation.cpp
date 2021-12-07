@@ -242,12 +242,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_FP16Only, KmbActivationLayerTest,
 
 // ------ MTL ------
 
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basicShapesMTL = {
-        {{1, 1, 1, 1000}, {{}}},
-};
-
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesMTL = {
         {Sigmoid,  {{1.0f}}},
+        {HSwish,   {{1.0f}}},
 };
 
 const auto basicCasesMTL = ::testing::Combine(
@@ -257,7 +254,7 @@ const auto basicCasesMTL = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basicShapesMTL)),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest_MTL, basicCasesMTL, ActivationLayerTest::getTestCaseName);

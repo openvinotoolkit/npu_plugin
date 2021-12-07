@@ -69,8 +69,8 @@ public:
 
         // MaxPool IDU does not support zero-point subtraction, so it compensates by ignoring output zero-point as well.
         // Fusing a post-op that removes the operation's 'linearity' leads to different input/output quantizations which
-        // provide wrong results due to the zero-point limitation. Currently, all post-ops are disabled.
-        // TODO: reenable fusing for float MaxPool
+        // provide wrong results due to the zero-point limitation.
+        // TODO: Move check to the `FuseQuantizedOps` pass
         if (mlir::isa<IE::SigmoidOp, IE::TanhOp>(postOp) && mlir::isa<IE::MaxPoolOp>(mainOp)) {
             return false;
         }
@@ -560,6 +560,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
 
     registry.addOpInterface<IERT::SigmoidOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::SoftMaxOp, SoftwareLayerOpModel>();
+    registry.addOpInterface<IERT::HSwishOp, SoftwareLayerOpModel>();
 
     redirectOpInterfacesForIE<LayoutInfoOpModelForHW, LayoutInfoOpModelForSW>(registry);
     redirectOpInterfacesForIERT<AsyncLayerOpModelForHW, AsyncLayerOpModelForDMA, AsyncLayerOpModelForSW>(registry);

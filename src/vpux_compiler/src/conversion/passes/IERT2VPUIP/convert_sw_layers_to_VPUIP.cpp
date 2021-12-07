@@ -228,8 +228,9 @@ void ConvertSWLayers2VPUIPPass::safeRunOnModule() {
     }
 
     mlir::ConversionTarget target(ctx);
-    target.addIllegalOp<IERT::SigmoidOp>();
-    target.addIllegalOp<IERT::SoftMaxOp>();
+    target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
+        return !mlir::isa<IERT::SoftwareLayerOpInterface>(op);
+    });
     target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<IERT::CopyOp>();
     target.addLegalOp<VPUIP::SwKernelOp>();
