@@ -33,7 +33,26 @@ class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTe
                 }
             }
         }
-        return {};
+
+        if(isPlatformMTL()) {
+            if (std::getenv("OV_BUILD_DIR") == nullptr) {
+                return {"OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels."};
+            }
+
+#if defined(__arm__) || defined(__aarch64__)
+            return {"Does not compile on ARM."};
+#endif
+        }
+
+        return vpux::None;
+    }
+
+    SkipMessage SkipBeforeInfer() override {
+        if(isPlatformMTL()) {
+            return {"Runtime issue."};
+        }
+
+        return vpux::None;
     }
 };
 
@@ -45,6 +64,13 @@ TEST_P(VPUXSoftMaxLayerTest, MCM) {
 TEST_P(VPUXSoftMaxLayerTest, MLIR) {
     abs_threshold = 1e-3;
     useCompilerMLIR();
+    run();
+}
+
+TEST_P(VPUXSoftMaxLayerTest, MLIR_MTL) {
+    useCompilerMLIR();
+    setPlatformMTL();
+    setDefaultHardwareModeMLIR();
     run();
 }
 
@@ -68,8 +94,12 @@ const std::vector<ElementType> inputPrecisions = {
         ov::element::f16,
 };
 
+const std::vector<ElementType> outputPrecisions = {
+        ov::element::f16,
+};
+
 const auto params2D = testing::Combine(
-        testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::Values(ov::element::undefined),
+        testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes2D)), testing::ValuesIn(axis2D),
         testing::Values(testPlatformTargetDevice), testing::Values(Config{}));
 
@@ -81,7 +111,7 @@ const std::vector<ov::Shape> inShapes4D = {{1, 2, 204, 62}, {1, 12, 2, 1444}, {1
 const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
 const auto params4D = testing::Combine(
-        testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::Values(ov::element::undefined),
+        testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes4D)), testing::ValuesIn(axis4D),
         testing::Values(testPlatformTargetDevice), testing::Values(std::map<std::string, std::string>()));
 

@@ -33,7 +33,7 @@ class VPUXEltwiseLayerTest_MCM : public VPUXEltwiseLayerTest {
             }
         }
 
-        return {};
+        return vpux::None;
     }
 };
 class VPUXEltwiseLayerTest_MLIR : public VPUXEltwiseLayerTest {};

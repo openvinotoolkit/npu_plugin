@@ -86,14 +86,16 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
 
 class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
     void SkipBeforeLoad() override {
+        if (std::getenv("OV_BUILD_DIR") == nullptr) {
+            throw LayerTestsUtils::KmbSkipTestException(
+                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
+        }
+
 #if defined(__arm__) || defined(__aarch64__)
         throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM.");
 #endif
     }
     void SkipBeforeInfer() override {
-        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
-    }
-    void SkipBeforeValidate() override {
         throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
     }
 };
@@ -108,7 +110,7 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
 }
 
 // [Track number: EISW-26724]
-TEST_P(KmbActivationLayerTest_MTL, DISABLED_CompareWithRefs_MLIR) {
+TEST_P(KmbActivationLayerTest_MTL, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     setPlatformMTL();
     setDefaultHardwareModeMLIR();

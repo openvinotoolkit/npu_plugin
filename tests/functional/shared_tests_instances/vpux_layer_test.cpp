@@ -35,7 +35,9 @@ VPUXLayerTestsCommon::VPUXLayerTestsCommon() {
 void VPUXLayerTestsCommon::configure_model() {
     const char* DEFAULT_IE_KMB_TESTS_INFERENCE_SHAVES = "16";
     configuration[VPUX_CONFIG_KEY(INFERENCE_SHAVES)] = DEFAULT_IE_KMB_TESTS_INFERENCE_SHAVES;
-    configuration[VPUX_CONFIG_KEY(PLATFORM)] = envConfig.IE_KMB_TESTS_PLATFORM;
+    if(configuration.count(VPUX_CONFIG_KEY(PLATFORM)) == 0) {
+        configuration[VPUX_CONFIG_KEY(PLATFORM)] = envConfig.IE_KMB_TESTS_PLATFORM;
+    }
 
     SubgraphBaseTest::configure_model();
 }
@@ -50,6 +52,10 @@ void VPUXLayerTestsCommon::setReferenceSoftwareModeMLIR() {
 
 void VPUXLayerTestsCommon::setDefaultHardwareModeMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "DefaultHW";
+}
+
+void VPUXLayerTestsCommon::setPlatformMTL() {
+    configuration[VPUX_CONFIG_KEY(PLATFORM)] = "VPU3720";
 }
 
 bool VPUXLayerTestsCommon::isCompilerMCM() const {
@@ -68,6 +74,15 @@ bool VPUXLayerTestsCommon::isCompilerMLIR() const {
     }
 
     return it->second == VPUX_CONFIG_VALUE(MLIR);
+}
+
+bool VPUXLayerTestsCommon::isPlatformMTL() const {
+    const auto it = configuration.find(VPUX_CONFIG_KEY(PLATFORM));
+    if (it == configuration.end()) {
+        return false;
+    }
+
+    return it->second == "VPU3720";
 }
 
 void VPUXLayerTestsCommon::run() {
