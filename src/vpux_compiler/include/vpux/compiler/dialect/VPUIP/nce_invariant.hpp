@@ -63,6 +63,8 @@ public:
 
     static mlir::LogicalResult verifyPrefetchCMX(IE::ConvolutionOp origOp, vpux::OutputTiling tiling,
                                                  Logger log = Logger::global());
+    static mlir::LogicalResult verifyPrefetchCMX(IE::MaxPoolOp origOp, vpux::OutputTiling tiling,
+                                                 Logger log = Logger::global());
 
 
 public:
