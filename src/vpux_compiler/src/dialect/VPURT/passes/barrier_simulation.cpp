@@ -60,14 +60,13 @@ public:
               _numRealBarriers(),
               _active_barrier_table(),
               _real_barrier_list() {
-
-                  assignPhysicalIDs();
+        assignPhysicalIDs();
     }
 
     void init();
     bool assignPhysicalIDs();
     void buildTaskLists();
-    //void assignVirtualIds(mlir::FuncOp func);
+    // void assignVirtualIds(mlir::FuncOp func);
     void acquireRealBarrier(VPURT::DeclareVirtualBarrierOp btask);
     bool is_task_ready(VPURT::TaskOp taskOp);
     void process_task(VPURT::TaskOp task);
@@ -75,17 +74,17 @@ public:
     void getAllBarriersProducersAndConsumers();
     void compute_op_indegree();
     void compute_op_outdegree();
-    std::pair<int64_t,int64_t> getID(mlir::Operation* val) const;
+    std::pair<int64_t, int64_t> getID(mlir::Operation* val) const;
     int64_t getVirtualId(VPURT::ConfigureBarrierOp op);
     static bool orderbyID(TaskInfo& a, TaskInfo& b);
     bool processTasks(std::vector<TaskInfo>& dma_task_list);
     bool fillBarrierTasks(std::list<VPURT::DeclareVirtualBarrierOp>& barrier_task_list);
-    //mlir::LogicalResult checkProducerCount();
+    // mlir::LogicalResult checkProducerCount();
     mlir::LogicalResult run();
 
 private:
-    //UpdateStatus updateTaskBarriers(const TaskInfo& taskInfo, const int64_t count);
-    //void logDebugInfo(const size_t barrier, const std::array<size_t, MAX_DMA_ENGINES>& dma, const size_t nce,
+    // UpdateStatus updateTaskBarriers(const TaskInfo& taskInfo, const int64_t count);
+    // void logDebugInfo(const size_t barrier, const std::array<size_t, MAX_DMA_ENGINES>& dma, const size_t nce,
     //                  const size_t upa);
 
 private:
@@ -97,7 +96,7 @@ private:
 
     std::map<int64_t, VirtualBarrierInfo> _virtualBarriers;
     SmallVector<int64_t> _barrierConfig;
-    std::map<mlir::Operation*, std::pair<int64_t,int64_t>> _virtualToPhysicalBarrierMap;
+    std::map<mlir::Operation*, std::pair<int64_t, int64_t>> _virtualToPhysicalBarrierMap;
 
     mlir::MLIRContext* _ctx;
     mlir::FuncOp _func;
@@ -132,7 +131,7 @@ private:
     std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierConsumersMap{};
 };
 
-std::pair<int64_t,int64_t> BarrierSimulator::getID(mlir::Operation* val) const {
+std::pair<int64_t, int64_t> BarrierSimulator::getID(mlir::Operation* val) const {
     const auto it = _virtualToPhysicalBarrierMap.find(val);
     VPUX_THROW_UNLESS(it != _virtualToPhysicalBarrierMap.end(), "Value '{0}' was not covered by BarrierAllocation");
     return it->second;
@@ -383,7 +382,8 @@ void BarrierSimulator::buildTaskLists() {
     std::cout << "Done" << std::endl;
 }
 
-// BarrierSimulator::UpdateStatus BarrierSimulator::updateTaskBarriers(const TaskInfo& taskInfo, const int64_t count = 1) {
+// BarrierSimulator::UpdateStatus BarrierSimulator::updateTaskBarriers(const TaskInfo& taskInfo, const int64_t count =
+// 1) {
 //     for (auto waitBarrier : taskInfo.waitBarriers) {
 //         const auto realId = _virtualBarriers[waitBarrier].realId;
 //         if (_barrierConfig[realId] != waitBarrier || _virtualBarriers[waitBarrier].producerCount != 0)
@@ -398,7 +398,8 @@ void BarrierSimulator::buildTaskLists() {
 //     for (auto waitBarrier : taskInfo.waitBarriers) {
 //         auto& virtualBarrier = _virtualBarriers[waitBarrier];
 //         if (virtualBarrier.consumerCount < count) {
-//             _log.error("Barrier {0} has fewer consumers left than currently needed (C: {1}, count: {2})", waitBarrier,
+//             _log.error("Barrier {0} has fewer consumers left than currently needed (C: {1}, count: {2})",
+//             waitBarrier,
 //                        virtualBarrier.consumerCount, count);
 //             return UpdateStatus::Fail;
 //         }
@@ -409,7 +410,8 @@ void BarrierSimulator::buildTaskLists() {
 //     for (auto updateBarrier : taskInfo.updateBarriers) {
 //         auto& virtualBarrier = _virtualBarriers[updateBarrier];
 //         if (virtualBarrier.producerCount < count) {
-//             _log.error("Barrier {0} has fewer producers left than currently needed (P: {1}, count: {2})", updateBarrier,
+//             _log.error("Barrier {0} has fewer producers left than currently needed (P: {1}, count: {2})",
+//             updateBarrier,
 //                        virtualBarrier.producerCount, count);
 //             return UpdateStatus::Fail;
 //         }
@@ -457,7 +459,6 @@ void BarrierSimulator::acquireRealBarrier(VPURT::DeclareVirtualBarrierOp btask) 
     assert(!_real_barrier_list.empty());
     size_t real = _real_barrier_list.front();
 
-
     _real_barrier_list.pop_front();
 
     assert(_active_barrier_table.size() < 8);
@@ -472,8 +473,9 @@ void BarrierSimulator::acquireRealBarrier(VPURT::DeclareVirtualBarrierOp btask) 
     Logger::global().error("Assigning Virtual Barrier ID {0} with physical ID {1}", btask->getAttr("id"), real);
     Logger::global().error("Inserting barrier with Id {0} in the _active_barrier_table ", btask->getAttr("id"));
 
-
-    _virtualToPhysicalBarrierMap.insert(std::make_pair(btask.getOperation(), std::make_pair(real,checked_cast<int64_t>(btask->getAttr("id").cast<mlir::IntegerAttr>().getInt()))));
+    _virtualToPhysicalBarrierMap.insert(std::make_pair(
+            btask.getOperation(),
+            std::make_pair(real, checked_cast<int64_t>(btask->getAttr("id").cast<mlir::IntegerAttr>().getInt()))));
     _active_barrier_table.insert(
             std::make_pair(btask.getOperation(), active_barrier_info_t(real, in_itr->second, out_itr->second)));
 }
@@ -505,7 +507,8 @@ bool BarrierSimulator::is_task_ready(VPURT::TaskOp taskOp) {
         if (auto barrierOp = waitBarrier.getDefiningOp()) {
             active_barrier_table_iterator_t aitr = _active_barrier_table.find(barrierOp);
 
-            if ((aitr == _active_barrier_table.end()) || ((aitr->second).in_degree_ > 0))  // double check this condition
+            if ((aitr == _active_barrier_table.end()) ||
+                ((aitr->second).in_degree_ > 0))  // double check this condition
             {
                 return false;
             }
@@ -515,7 +518,8 @@ bool BarrierSimulator::is_task_ready(VPURT::TaskOp taskOp) {
     for (const auto updateBarrier : taskOp.updateBarriers()) {
         if (auto barrierOp = updateBarrier.getDefiningOp()) {
             active_barrier_table_iterator_t aitr = _active_barrier_table.find(barrierOp);
-            Logger::global().error("Looking for Barrier ID {1} in the _active_barrier_table ", barrierOp->getAttr("id"));
+            Logger::global().error("Looking for Barrier ID {1} in the _active_barrier_table ",
+                                   barrierOp->getAttr("id"));
             if (aitr == _active_barrier_table.end()) {
                 return false;
             }
@@ -526,7 +530,6 @@ bool BarrierSimulator::is_task_ready(VPURT::TaskOp taskOp) {
 
 // returns a real barrier associated with the task //
 void BarrierSimulator::return_real_barrier(mlir::Operation* btask) {
-
     active_barrier_table_iterator_t aitr = _active_barrier_table.find(btask);
 
     assert(aitr != _active_barrier_table.end());
@@ -543,7 +546,7 @@ void BarrierSimulator::return_real_barrier(mlir::Operation* btask) {
 }
 
 void BarrierSimulator::process_task(VPURT::TaskOp task) {
-    //assert(is_task_ready(task));
+    // assert(is_task_ready(task));
     Logger::global().error("Now processing task with scheduling number {0}", task->getAttr("SchedulingNumber"));
 
     active_barrier_table_iterator_t aitr;
@@ -551,17 +554,19 @@ void BarrierSimulator::process_task(VPURT::TaskOp task) {
     // wait barrier
     for (const auto waitBarrier : task.waitBarriers()) {
         if (auto barrierOp = waitBarrier.getDefiningOp()) {
-
             aitr = _active_barrier_table.find(barrierOp);
             assert(aitr != _active_barrier_table.end());
 
-            Logger::global().error("Found the wait barrier for task with scheduling number {0} in the active barrier table", task->getAttr("SchedulingNumber"));
-            
+            Logger::global().error(
+                    "Found the wait barrier for task with scheduling number {0} in the active barrier table",
+                    task->getAttr("SchedulingNumber"));
+
             active_barrier_info_t& barrier_info = aitr->second;
             assert(barrier_info.in_degree_ == 0UL);
             assert(barrier_info.out_degree_ > 0UL);
 
-            Logger::global().error("Decrmenting the out degree of the physical barrier {0}", barrier_info.real_barrier_);
+            Logger::global().error("Decrmenting the out degree of the physical barrier {0}",
+                                   barrier_info.real_barrier_);
             barrier_info.out_degree_--;
 
             if (barrier_info.out_degree_ == 0UL) {
@@ -575,39 +580,43 @@ void BarrierSimulator::process_task(VPURT::TaskOp task) {
     // update barriers //
     for (const auto updateBarrier : task.updateBarriers()) {
         if (auto barrierOp = updateBarrier.getDefiningOp()) {
-
             aitr = _active_barrier_table.find(barrierOp);
             assert(aitr != _active_barrier_table.end());
 
             active_barrier_info_t& barrier_info = aitr->second;
             assert(barrier_info.in_degree_ > 0UL);
-             Logger::global().error("Decrmenting the out degree of the physical barrier {0}", barrier_info.real_barrier_);
+            Logger::global().error("Decrmenting the out degree of the physical barrier {0}",
+                                   barrier_info.real_barrier_);
             barrier_info.in_degree_--;
         }
     }
 }
 
 bool BarrierSimulator::processTasks(std::vector<TaskInfo>& task_list) {
-
     for (auto& task : task_list)
         Logger::global().error("Task scheduling number {0} ", task.taskOp->getAttr("SchedulingNumber"));
 
     taskInfo_iterator_t tbegin = task_list.begin();
-    //taskInfo_iterator_t tend = task_list.end();
+    // taskInfo_iterator_t tend = task_list.end();
     bool progressed = false;
 
     while (tbegin != task_list.end()) {
         auto op = *tbegin;
         Logger::global().error("Task scheduling number is {0}", op.taskOp->getAttr("SchedulingNumber"));
         if (!is_task_ready(op.taskOp)) {
-             Logger::global().error("Task with scheduling number {0} is NOT ready, its wait/update barriers are not in the active barrier table ", op.taskOp->getAttr("SchedulingNumber"));
+            Logger::global().error("Task with scheduling number {0} is NOT ready, its wait/update barriers are not in "
+                                   "the active barrier table ",
+                                   op.taskOp->getAttr("SchedulingNumber"));
             ++tbegin;
             break;
         }
-        Logger::global().error("Task with scheduling number {0} IS ready, its wait/update barriers ARE in the active barrier table ", op.taskOp->getAttr("SchedulingNumber"));
+        Logger::global().error(
+                "Task with scheduling number {0} IS ready, its wait/update barriers ARE in the active barrier table ",
+                op.taskOp->getAttr("SchedulingNumber"));
         process_task(op.taskOp);
         progressed = true;
-        Logger::global().error("Removing task with scheduling number {0} from its repective list", op.taskOp->getAttr("SchedulingNumber"));
+        Logger::global().error("Removing task with scheduling number {0} from its repective list",
+                               op.taskOp->getAttr("SchedulingNumber"));
         tbegin = task_list.erase(tbegin);
     }
     return progressed;
@@ -631,7 +640,6 @@ bool BarrierSimulator::assignPhysicalIDs() {
                            _barrierOps.size(), dma[0], _dmaTasks[0].size(), dma[1], _dmaTasks[1].size(), nce,
                            _nceTasks.size(), upa, _upaTasks.size());
 
-        
         std::cout << "Starting runtime simulation" << std::endl;
         bool progressed = false;
         while (!_dmaTasks[0].empty() || !_nceTasks.empty() || !_barrierOps.empty() || !_upaTasks.empty()) {
@@ -645,14 +653,14 @@ bool BarrierSimulator::assignPhysicalIDs() {
             }
         }
 
-        for(auto& barrier : _virtualToPhysicalBarrierMap)
-            Logger::global().error("Virtual Barrier ID {0} has physical ID {1}", barrier.first->getAttr("id"), barrier.second.first);
+        for (auto& barrier : _virtualToPhysicalBarrierMap)
+            Logger::global().error("Virtual Barrier ID {0} has physical ID {1}", barrier.first->getAttr("id"),
+                                   barrier.second.first);
 
         return true;
     }
 
-    
-     return true; //TODO fix
+    return true;  // TODO fix
 }
 
 // mlir::LogicalResult BarrierSimulator::run() {
@@ -727,7 +735,8 @@ bool BarrierSimulator::assignPhysicalIDs() {
 //                                     const size_t nce, const size_t upa) {
 //     // _log.error("Barrier simulation blocked at BAR: {0} / {1} (virtual_id {2}); DMA: {3} / {4}, {5} / {6};"
 //     //            "NCE: {7} / {8}; UPA: {9} / {10}",
-//     //            barrier, _barrierOps.size(), getVirtualId(_barrierOps[barrier]), dma[0], _dmaTasks[0].size(), dma[1],
+//     //            barrier, _barrierOps.size(), getVirtualId(_barrierOps[barrier]), dma[0], _dmaTasks[0].size(),
+//     dma[1],
 //     //            _dmaTasks[1].size(), nce, _nceTasks.size(), upa, _upaTasks.size());
 
 //     _log.error("Real barriers configuration:");
@@ -744,12 +753,11 @@ bool BarrierSimulator::assignPhysicalIDs() {
 //         auto virtualBarrier = _virtualBarriers[i];
 //         if (virtualBarrier.producerCount || virtualBarrier.consumerCount)
 //             _log.nest(2).error(
-//                     "Barrier {0,3} (real {1,2}) with remaining counts P: {2,2}, C: {3,2}, initial P: {4,2}, C: {5,2}",
-//                     i, virtualBarrier.realId, virtualBarrier.producerCount, virtualBarrier.consumerCount,
+//                     "Barrier {0,3} (real {1,2}) with remaining counts P: {2,2}, C: {3,2}, initial P: {4,2}, C:
+//                     {5,2}", i, virtualBarrier.realId, virtualBarrier.producerCount, virtualBarrier.consumerCount,
 //                     virtualBarrier.initProducerCount, virtualBarrier.initConsumerCount);
 //     }
 // }
-
 
 //
 // VirtualBarrierRewrite
@@ -777,7 +785,8 @@ mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPURT::DeclareVirtual
     auto barrierRealandVirtualID = _allocInfo.getID(origOp.getOperation());
     _log.nest().trace("Use physical barrier ID '{0}'", barrierRealandVirtualID.first);
 
-    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierRealandVirtualID.first, barrierRealandVirtualID.second);
+    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierRealandVirtualID.first,
+                                                           barrierRealandVirtualID.second);
 
     return mlir::success();
 }
@@ -813,9 +822,8 @@ void BarrierSimulationPass::safeRunOnFunc() {
     BarrierSimulator simulator(&ctx, func, _log, numDmaEngines);
     // simulator.assignVirtualIds(func);
     // simulator.buildTaskLists(func);
-    //simulator.assignPhysicalIDs();
+    // simulator.assignPhysicalIDs();
 
-    
     mlir::ConversionTarget target(ctx);
     target.addIllegalOp<VPURT::DeclareVirtualBarrierOp>();
     target.addLegalOp<VPURT::ConfigureBarrierOp>();

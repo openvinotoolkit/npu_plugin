@@ -11,9 +11,9 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/utils/dot_graph_writer.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
-#include "vpux/compiler/utils/dot_graph_writer.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
@@ -178,7 +178,9 @@ EdgeDir GraphWriter::getEdgeDirection(mlir::Operation* source, mlir::Operation* 
 }
 
 bool GraphWriter::isNodeHidden(mlir::Operation* op) const {
-    if (op->hasTrait<mlir::OpTrait::IsTerminator>() || mlir::isa<vpux::VPUIP::ConvertUPAOp>(op) || mlir::isa<vpux::VPUIP::PermuteUPAOp>(op) || mlir::isa<vpux::VPURT::DeclareBufferOp>(op) || mlir::isa<vpux::VPUIP::NNDMAOp>(op) || mlir::isa<vpux::VPUIP::NCEClusterTaskOp>(op)) {
+    if (op->hasTrait<mlir::OpTrait::IsTerminator>() || mlir::isa<vpux::VPUIP::ConvertUPAOp>(op) ||
+        mlir::isa<vpux::VPUIP::PermuteUPAOp>(op) || mlir::isa<vpux::VPURT::DeclareBufferOp>(op) ||
+        mlir::isa<vpux::VPUIP::NNDMAOp>(op) || mlir::isa<vpux::VPUIP::NCEClusterTaskOp>(op)) {
         return true;
     }
 
@@ -279,7 +281,7 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
     auto htmlMiddle = " </FONT></TD>\n<TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">";
     auto htmlEnd = " </FONT></TD></TR>\n";
 
-    if(false) {
+    if (false) {
         os << "<TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" << op->getName() << "</B>"
            << htmlEnd;
     } else {
@@ -291,7 +293,7 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
         llvm::raw_string_ostream temp_os(temp_str);
         // In case Operation implements custom attribute printer skip default attributes printing
         if (dotInterface.printAttributes(temp_os)) {
-            if(false) {
+            if (false) {
                 os << htmlBegin << temp_str << htmlEnd;
             } else {
                 os << temp_str << "\n";
@@ -302,7 +304,7 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
     }
 
     if (!mlir::isa<mlir::async::ExecuteOp>(op)) {
-        if(false) {
+        if (false) {
             os << htmlBegin << "Name:" << htmlMiddle << htmlEncode(stringifyLocation(op->getLoc())) << htmlEnd;
             os << htmlBegin << "Type:" << htmlMiddle;
         } else {
@@ -335,7 +337,7 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
     }
 
     for (auto& attr : op->getAttrs()) {
-        if(false) {
+        if (false) {
             os << htmlBegin << attr.first << ": ";
             os << htmlMiddle;
         } else {
@@ -348,7 +350,7 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
             std::string temp_str;
             llvm::raw_string_ostream temp_os(temp_str);
             attr.second.print(temp_os);
-            if(false) {
+            if (false) {
                 temp_str = htmlEncode(temp_str);
             }
 
@@ -359,7 +361,7 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
             }
         }
 
-        if(false) {
+        if (false) {
             os << htmlEnd;
         }
     }
@@ -398,7 +400,7 @@ void GraphWriter::writeNode(mlir::Operation* op) {
         _os << ",";
     }
 
-    if(false) {
+    if (false) {
         _os << " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\">";
         _os << getNodeLabel(op);
         _os << "</TABLE>>];\n";
