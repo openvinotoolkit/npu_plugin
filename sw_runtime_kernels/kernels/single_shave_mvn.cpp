@@ -71,6 +71,15 @@ static void calc_mean_CHW_fp16(const half *line, int W, float* intermedia_mean, 
     }
 }
 
+static void calc_mean_var_CHW_fp16(const half *line, int W, float* intermedia_mean, int index, int buf_size){
+    for(int w = 0; w < W; w++){
+        half temp = *((half *)(line + w));
+
+        intermedia_mean[index] += (float)temp;
+        intermedia_mean[buf_size + index] += (float)temp * (float)temp;
+    }
+}
+
 void mvMVN_1(t_MvMVNParamNClasses *p){
     int order = p->storageOrder;
 
@@ -80,12 +89,14 @@ void mvMVN_1(t_MvMVNParamNClasses *p){
     int C = p->in_dims[2];
     int stride = p->in_strides[1] / sizeof(half); // stride = W
 
-    printf("DEBUG_SHAVE (c, h, w): %d %d %d\n", C, H, W);
-    printf("DEBUG_SHAVE order: %X\n", order);
+    // printf("DEBUG_SHAVE (c, h, w): %d %d %d\n", C, H, W);
+    // printf("DEBUG_SHAVE order: %X\n", order);
 
     uint32_t normalize_variance = p->normalize;
     int nShaves = 1;
     int idy = 0; // job_num
+
+    int buf_size = nShaves * C;
 
     half* input  = p->input;
     half* output = p->output;
@@ -95,9 +106,9 @@ void mvMVN_1(t_MvMVNParamNClasses *p){
     s32* ostrides = p->out_strides;
     s32 ndims = p->ndims;
 
-    printf("DEBUG_SHAVE stride0: %ld\n", istrides[0]);
-    printf("DEBUG_SHAVE stride1: %ld\n", istrides[1]);
-    printf("DEBUG_SHAVE stride2: %ld\n", istrides[2]);
+    // printf("DEBUG_SHAVE stride0: %ld\n", istrides[0]);
+    // printf("DEBUG_SHAVE stride1: %ld\n", istrides[1]);
+    // printf("DEBUG_SHAVE stride2: %ld\n", istrides[2]);
 
     half* p_input0  = (p->inputInCmx) ? input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
     half* p_output0 = (p->outputInCmx) ? output : reinterpret_cast<half*>(p->cmxslice + 2 * WORK_BUFFER_SIZE);
@@ -106,7 +117,7 @@ void mvMVN_1(t_MvMVNParamNClasses *p){
 
     for (int c = 0; c < C; ++c) {
         intermedia_mean[c * nShaves + idy] = 0;
-        // intermedia_mean[buf_size + c * nShaves + idy] = 0;
+        intermedia_mean[buf_size + c * nShaves + idy] = 0;
     }
 
     if(order == ND_HWC || order == ND_NHWC){
@@ -118,10 +129,10 @@ void mvMVN_1(t_MvMVNParamNClasses *p){
             for(int h = 0; h < H; h++){
                 half* line = input + c * H * stride + h * stride;
 
-                if (normalize_variance) {
-                    // unsuported yet
-                } else {
+                if (!normalize_variance) {
                     calc_mean_CHW_fp16(line, W, intermedia_mean, index);
+                } else {
+                    calc_mean_var_CHW_fp16(line, W, intermedia_mean, index, buf_size);
                 }
             }
         }
@@ -137,13 +148,17 @@ void mvMVN_23(t_MvMVNParamNClasses *p){
     int W = p->in_dims[0];
     int stride = p->in_strides[1] / sizeof(half); // stride = W
 
-    printf("DEBUG_SHAVE (c, h, w): %d %d %d\n", C, H, W);
-    printf("DEBUG_SHAVE order: %X\n", order);
+    // printf("DEBUG_SHAVE (c, h, w): %d %d %d\n", C, H, W);
+    // printf("DEBUG_SHAVE order: %X\n", order);
 
     uint32_t normalize_variance = p->normalize;
     uint32_t acrossChannels = p->acrossChannels;
+    float epsilon = p->eps;
     int nShaves = 1;
     int idy = 0; // job_num
+
+    const float* variance_part = p->intermediate_mean + nShaves * C;
+    const float* mean_part = p->intermediate_mean;
 
     half* input  = p->input;
     half* output = p->output;
@@ -153,25 +168,38 @@ void mvMVN_23(t_MvMVNParamNClasses *p){
     s32* ostrides = p->out_strides;
     s32 ndims = p->ndims;
 
-    printf("DEBUG_SHAVE stride0: %ld\n", istrides[0]);
-    printf("DEBUG_SHAVE stride1: %ld\n", istrides[1]);
-    printf("DEBUG_SHAVE stride2: %ld\n", istrides[2]);
+    // printf("DEBUG_SHAVE stride0: %ld\n", istrides[0]);
+    // printf("DEBUG_SHAVE stride1: %ld\n", istrides[1]);
+    // printf("DEBUG_SHAVE stride2: %ld\n", istrides[2]);
 
     half* p_input0  = (p->inputInCmx) ? input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
     half* p_output0 = (p->outputInCmx) ? output : reinterpret_cast<half*>(p->cmxslice + 2 * WORK_BUFFER_SIZE);
 
-    float *intermedia_mean = p->intermediate_mean;
+    float mean;
+    float variance;
 
     for(int c = 0; c < C; c++){
-        float m_acc = 0.f;
+        float m_acc;
+        float v_acc;
 
-        m_acc = intermedia_mean[c];
+        m_acc = mean_part[c];
+        v_acc = variance_part[c];
         m_acc = m_acc / (H * W);
+        v_acc = v_acc / (H * W);
+        v_acc = v_acc - m_acc * m_acc;
+        v_acc = v_acc < 0 ? 1.f : v_acc;
+        v_acc = sqrtf(v_acc) + epsilon;
+
+        mean = m_acc;
+        variance = 1.f / v_acc;
 
         for(int h = 0; h < H; h++){
             for(int w = 0; w < W; w++){
                 int offset = c * H * stride + h * stride + w;
-                output[offset] = input[offset] - m_acc;
+                output[offset] = input[offset] - mean;
+                if(normalize_variance){
+                    output[offset] = output[offset] * variance;
+                }
             }
         }
     }

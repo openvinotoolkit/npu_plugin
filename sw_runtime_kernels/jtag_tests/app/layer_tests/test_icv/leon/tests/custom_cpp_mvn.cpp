@@ -20,16 +20,21 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
 
 
     static constexpr std::initializer_list<SingleTest> mvn_test_list{
-            {{3, 2, 2},
-             {3, 2, 2},
+            {{4, 5, 6},
+             {4, 5, 6},
              orderCHW,
              FPE("mvn.elf"),
              {/*across_channels*/ 0, /*normalize_variance*/ 0, /*eps*/ 0, sw_params::Location::NN_CMX}},
+            {{4, 5, 6},
+             {4, 5, 6},
+             orderCHW,
+             FPE("mvn.elf"),
+             {/*across_channels*/ 0, /*normalize_variance*/ 1, /*eps*/ 0, sw_params::Location::NN_CMX}},
     };
 
     class CustomCppMvnTest : public CustomCppTests<fp16> {
     public:
-        explicit CustomCppMvnTest(): m_testsLoop(mvn_test_list) {
+        explicit CustomCppMvnTest(): m_testsLoop(mvn_test_list, "test") {
         }
         virtual ~CustomCppMvnTest() {
         }
@@ -101,24 +106,28 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
             const auto &dims = m_inputTensor.tensorDims();
             const bool normalize_variance = m_mvnParams->normalize;
             const bool across_channels = m_mvnParams->acrossChannels;
-            const float opsilon = m_mvnParams->eps;
-
+            const float epsilon = m_mvnParams->eps;
             int b = 0;
 
             if(across_channels) {
                 float sum = 0.f;
+                float sqsum = 0.f;
 
                 for(int c = 0; c < dims.channels; c++){
                     for(int h = 0; h < dims.height; h++) {
                         for(int w = 0; w < dims.width; w++) {
                             sum += f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b)));
+                            sqsum += f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) *
+                                        f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b)));
                         }
                     }
                 }
-
                 float mean = sum / (dims.channels * dims.height * dims.width);
-                printf("sum = %f\n", sum);
-                printf("mean = %f\n", mean);
+
+                float variance = sqsum / (dims.channels * dims.height * dims.width);
+                variance = variance - mean * mean;
+                variance = variance < 0 ? 1.f : variance;
+                variance = sqrtf(variance) + epsilon;
 
                 for(int c = 0; c < dims.channels; c++){
                     for(int h = 0; h < dims.height; h++) {
@@ -126,7 +135,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
                             m_referenceOutputTensor.at(TensorDims(w, h, c, b)) =
                                 f32Tof16(f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) - mean);
                             if(normalize_variance){
-                                printf("Error: unsuported case yet\n");
+                                m_referenceOutputTensor.at(TensorDims(w, h, c, b)) =
+                                    f32Tof16(f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) / variance);
                             }
                         }
                     }
@@ -134,29 +144,36 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
             } else { // across_channels == false
                 for(int c = 0; c < dims.channels; c++) {
                     float sum = 0.f;
+                    float sqsum = 0.f;
 
                     for(int h = 0; h < dims.height; h++) {
                         for(int w = 0; w < dims.width; w++) {
                             sum += f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b)));
+                            sqsum += f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) *
+                                        f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b)));
                         }
                     }
-
                     float mean = sum / (dims.height * dims.width);
-                    printf("sum = %f\n", sum);
-                    printf("mean = %f\n", mean);
+
+                    float variance = sqsum / (dims.height * dims.width);
+                    variance = variance - mean * mean;
+                    variance = variance < 0 ? 1.f : variance;
+                    variance = sqrtf(variance) + epsilon;
 
                     for(int h = 0; h < dims.height; h++) {
                         for(int w = 0; w < dims.width; w++) {
                             m_referenceOutputTensor.at(TensorDims(w, h, c, b)) =
                                 f32Tof16(f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) - mean);
                             if(normalize_variance){
-                                printf("Error: unsuported case yet\n");
+                                m_referenceOutputTensor.at(TensorDims(w, h, c, b)) =
+                                    f32Tof16(f16Tof32(m_referenceOutputTensor.at(TensorDims(w, h, c, b))) / variance);
                             }
                         }
                     }
                 }
             }
         }
+
         virtual bool checkResult() override {
             m_outputTensor.confirmBufferData();
 
@@ -182,7 +199,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
 
                 threshold_test_failed |= differ;
 
-                if (1 || (differ && GlobalData::doPrintDiffs)) {
+                if (differ && GlobalData::doPrintDiffs) {
                     const TensorDims ti = m_outputTensor.toTensor(indices);
                     printf("DIFF HWC [%d:%d:%d] %f %f %f\n", ti.height, ti.width, ti.channels, value, gt_value,
                            abs_diff);
