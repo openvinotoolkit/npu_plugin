@@ -209,6 +209,14 @@ PostOpParams getPwlPostOpParams(VPUIP::NCEClusterTaskOp nceOp, VPUIP::PPELayerTy
                         LreluMult, LreluShift, QuantizationParams{quantMult, quantShift, postShift}};
 }
 
+std::pair<int64_t, int64_t> getclampValueForQuantizedOps(mlir::quant::QuantizedType outElemQType,
+                                                         mlir::Type outElemType) {
+    const auto zps = extractScalesAndZeroPoints(outElemType).second;
+    auto clampLow = outElemQType.getStorageTypeMin() - zps.front();
+    auto clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+    return {clampLow, clampHigh};
+}
+
 static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, IE::PostOp postOp,
                                                 mlir::MemRefType origOutType, VPU::ArchKind arch) {
     if (postOp == nullptr) {
@@ -222,52 +230,41 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
         VPUX_THROW_UNLESS(postOp.attrs().empty(), "'{0}' PostOp should not have any attributes", postOp.name());
 
         int64_t clampLow = 0;
-        int64_t clampHigh = std::numeric_limits<int32_t>::max();
+        int64_t clampHigh = (outElemQType != nullptr) ? getclampValueForQuantizedOps(outElemQType, outElemType).second
+                                                      : std::numeric_limits<int32_t>::max();
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
 
-        if (outElemQType != nullptr) {
-            const auto zps = extractScalesAndZeroPoints(outElemType).second;
-
-            clampLow = outElemQType.getStorageTypeMin() - zps.front();
-            clampHigh = outElemQType.getStorageTypeMax() - zps.front();
-        }
         return PostOpParams{VPUIP::PPELayerType::LRELU, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::ClampOp::getOperationName()) {
         IE::ClampOp::Adaptor clamp(None, postOp.attrs());
         VPUX_THROW_UNLESS(clamp.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
                           postOp.attrs(), postOp.name());
 
-        int64_t clampLow = vpux::toFixedPoint(clamp.min().getValueAsDouble());
-        int64_t clampHigh = vpux::toFixedPoint(clamp.max().getValueAsDouble());
+        int64_t clampLow = (outElemQType != nullptr) ? getclampValueForQuantizedOps(outElemQType, outElemType).first
+                                                     : vpux::toFixedPoint(clamp.min().getValueAsDouble());
+        int64_t clampHigh = (outElemQType != nullptr) ? getclampValueForQuantizedOps(outElemQType, outElemType).second
+                                                      : vpux::toFixedPoint(clamp.max().getValueAsDouble());
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
 
-        if (outElemQType != nullptr) {
-            const auto zps = extractScalesAndZeroPoints(outElemType).second;
-
-            clampLow = outElemQType.getStorageTypeMin() - zps.front();
-            clampHigh = outElemQType.getStorageTypeMax() - zps.front();
-        }
         return PostOpParams{VPUIP::PPELayerType::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
         IE::LeakyReluOp::Adaptor leakyRelu(None, postOp.attrs());
         VPUX_THROW_UNLESS(leakyRelu.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
                           postOp.attrs(), postOp.name());
 
-        int64_t clampLow = 0;
-        int64_t clampHigh = std::numeric_limits<int32_t>::max();
+        int64_t clampLow =
+                (outElemQType != nullptr)
+                        ? (arch == VPU::ArchKind::MTL ? getclampValueForQuantizedOps(outElemQType, outElemType).first
+                                                      : getclampValueForQuantizedOps(outElemQType, outElemType).first /
+                                                                leakyRelu.negative_slope().getValueAsDouble())
+                        : 0;
+        int64_t clampHigh = (outElemQType != nullptr) ? getclampValueForQuantizedOps(outElemQType, outElemType).second
+                                                      : std::numeric_limits<int32_t>::max();
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
 
-        if (outElemQType != nullptr) {
-            const auto zps = extractScalesAndZeroPoints(outElemType).second;
-
-            clampLow = arch == VPU::ArchKind::MTL ? (outElemQType.getStorageTypeMin() - zps.front())
-                                                  : (outElemQType.getStorageTypeMin() - zps.front()) /
-                                                            leakyRelu.negative_slope().getValueAsDouble();
-            clampHigh = outElemQType.getStorageTypeMax() - zps.front();
-        }
         return PostOpParams{VPUIP::PPELayerType::LPRELU, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
         return getPwlPostOpParams(nceOp, VPUIP::PPELayerType::SIGMOID);
