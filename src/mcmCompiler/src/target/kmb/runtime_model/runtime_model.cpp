@@ -1483,6 +1483,19 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
         );
 
     unsigned n = barrierTasks.size();
+
+    int64_t maxProducers = 0;
+    for(unsigned i = 0; i < n; ++i)
+    {  
+        int64_t producerCount = 0;
+        for(auto producer = controlModel.switchContext(barrierTasks[i]).leftmostParent(); producer != controlModel.opEnd(); ++producer)
+            producerCount += countProducerConsumerTasks(cm, producer, true);
+
+        if(producerCount > maxProducers)
+            maxProducers = producerCount;
+    }
+
+    std::cout << "MaxProducers " << maxProducers << std::endl;
     for(unsigned i = 0; i < n; ++i)
     {
         auto tasks = buildTaskT(cm, compilationDescriptor, controlModel.switchContext(barrierTasks[i]), &port);
