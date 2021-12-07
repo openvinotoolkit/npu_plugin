@@ -209,13 +209,13 @@ PostOpParams getPwlPostOpParams(VPUIP::NCEClusterTaskOp nceOp, VPUIP::PPELayerTy
                         LreluMult, LreluShift, QuantizationParams{quantMult, quantShift, postShift}};
 }
 
-std::pair<int64_t, int64_t> getClampValuesForQuantizedOps(mlir::quant::QuantizedType outElemQType,
-                                                          mlir::Type outElemType) {
-    const auto zps = extractScalesAndZeroPoints(outElemType).second;
-    auto clampLow = outElemQType.getStorageTypeMin() - zps.front();
-    auto clampHigh = outElemQType.getStorageTypeMax() - zps.front();
-    return {clampLow, clampHigh};
-}
+// std::pair<int64_t, int64_t> getClampValuesForQuantizedOps(mlir::quant::QuantizedType outElemQType,
+//                                                          mlir::Type outElemType) {
+//    const auto zps = extractScalesAndZeroPoints(outElemType).second;
+//    auto clampLow = outElemQType.getStorageTypeMin() - zps.front();
+//    auto clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+//    return {clampLow, clampHigh};
+//}
 
 static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, IE::PostOp postOp,
                                                 mlir::MemRefType origOutType, VPU::ArchKind arch) {
@@ -227,10 +227,10 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
     auto outElemQType = outElemType.template dyn_cast<mlir::quant::QuantizedType>();
     int64_t clampLowQuantized = -10;
     int64_t clampHighQuantized = 10;
-//    if (outElemQType != nullptr) {
-//        clampLowQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).first;
-//        clampHighQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).second;
-//    }
+    //    if (outElemQType != nullptr) {
+    //        clampLowQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).first;
+    //        clampHighQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).second;
+    //    }
 
     if (postOp.name().getValue() == IE::ReLUOp::getOperationName()) {
         VPUX_THROW_UNLESS(postOp.attrs().empty(), "'{0}' PostOp should not have any attributes", postOp.name());
