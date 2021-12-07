@@ -25,4 +25,4 @@
 	url = https://gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git
 [submodule "thirdparty/json"]
 	path = thirdparty/json
-	url = https://github.com/nlohmann/json.git
+	url = https://github.com/TofeniMarius/json.git
