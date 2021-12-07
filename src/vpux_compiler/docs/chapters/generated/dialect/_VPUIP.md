@@ -1526,14 +1526,14 @@ operation ::= `VPUIP.QuantCastUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or bfloat16 type or QuantizedType values
-`output_buff` | memref of 16-bit float or bfloat16 type or QuantizedType values
+`input` | memref of 16-bit float or QuantizedType values
+`output_buff` | memref of 16-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or bfloat16 type or QuantizedType values
+`output` | memref of 16-bit float or QuantizedType values
 
 ### `VPUIP.ROIAlignUPA` (vpux::VPUIP::ROIAlignUPAOp)
 

@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -182,17 +183,21 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     auto input_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, in_shape, inputType,
                                            DimsOrder::NHWC, 0, INPUT0_CMX_OFFSET);
 
+    auto padded_weights_type = getMemRefType(builder, VPUIP::getMemoryKind(MemoryLocation::VPU_CMX_NN),
+                                             weights_pad_shape, weightsType, DimsOrder::NHWC);
+    auto padded_weights_strides = vpux::getStrides(padded_weights_type);
     // Tensors - concat input/output
     auto weights_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_shape, weightsType,
-                                             DimsOrder::NHWC, 0, WEIGHTS_PAD_CMX_OFFSET);
+                                             DimsOrder::NHWC, padded_weights_strides, 0, WEIGHTS_PAD_CMX_OFFSET);
     auto zero_pad_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, zero_pad_shape, weightsType,
-                                              DimsOrder::NHWC, 0, ZERO_PAD_CMX_OFFSET);
+                                              DimsOrder::NHWC, padded_weights_strides, 0, ZERO_PAD_CMX_OFFSET);
 
     // Tensors - NCE input/output
     auto input_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, input_nce_shape, inputType,
                                                DimsOrder::NHWC, 0, INPUT0_CMX_OFFSET);
-    auto weights_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_nce_shape,
-                                                 weightsType, DimsOrder::NHWC, 0, WEIGHTS_PAD_CMX_OFFSET);
+    auto weights_nce_cmx =
+            createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_nce_shape, weightsType,
+                                  DimsOrder::NHWC, padded_weights_strides, 0, WEIGHTS_PAD_CMX_OFFSET);
     auto output_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, output_nce_shape, outputType,
                                                 DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
     auto parent_input_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, input_nce_shape,
@@ -269,8 +274,8 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(weightstable_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
-    auto weights_cmx_memreftype =
-            getMemRefType(funcbuilder, VPU::MemoryKind::CMX_NN, weights_nce_shape, weightsType, DimsOrder::NHWC);
+    auto weights_cmx_memreftype = getMemRefType(funcbuilder, VPU::MemoryKind::CMX_NN, weights_nce_shape, weightsType,
+                                                DimsOrder::NHWC, padded_weights_strides);
     auto output_cmx_memreftype =
             getMemRefType(funcbuilder, VPU::MemoryKind::CMX_NN, output_nce_shape, outputType, DimsOrder::NHWC);
 
