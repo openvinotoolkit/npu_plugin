@@ -1,6 +1,5 @@
 module @SingleLayer attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"}  {
-  VPUIP.Graph options : "NONE" version : {contextStr = "VPUX Compiler", hash = "custom_asusu/ELF_dialect_new_97243d38d6237c2889487a98f2210348366fecfa", majorV = 3 : i64, minorV = 28 : i64, patchV = 1 : i
-64}
+  VPUIP.Graph options : "NONE" version : {contextStr = "VPUX Compiler", hash = "custom_asusu/ELF_dialect_new_97243d38d6237c2889487a98f2210348366fecfa", majorV = 3 : i64, minorV = 28 : i64, patchV = 1 : i64}
   IERT.RunTimeResources availableMemory :  {
     MemoryResource 524288000 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
     MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
@@ -35,20 +34,20 @@ module @SingleLayer attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "Ref
     }
     %7 = ELF.Symbol %0 : memref<1x1000xf16, "DDR">
     %8 = ELF.Symbol %arg1 : memref<1x1000xf16>
-    %9 = ELF.CreateSymbolTableSection {secName = ".rest.symbolTableSection"} -> !ELF.Section  {
+    %9 = ELF.CreateSymbolTableSection secName(".rest.symbolTableSection") secFlags("SHF_NONE") -> !ELF.Section  {
       ELF.PutAnyOpInSection %7 : !ELF.Symbol
     }
-    %10 = ELF.CreateSymbolTableSection {secName = ".input.symbolTableSection"} -> !ELF.Section  {
+    %10 = ELF.CreateSymbolTableSection secName(".input.symbolTableSection") secFlags(SHF_USERINPUT) -> !ELF.Section  {
     }
-    %11 = ELF.CreateSymbolTableSection {secName = ".output.symbolTableSection"} -> !ELF.Section  {
+    %11 = ELF.CreateSymbolTableSection secName(".output.symbolTableSection") secFlags(SHF_USEROUTPUT) -> !ELF.Section  {
       ELF.PutAnyOpInSection %8 : !ELF.Symbol
     }
     %12 = ELF.CreateRelocationSection secName(".rela.dma") sourceSymbolTableSection(%9) targetSection(%5) secFlags("SHF_NONE") -> !ELF.Section  {
       ELF.Reloc 16 "R_VPU_64" %7 0
     }
-    %13 = ELF.CreateRelocationSection secName(".rela.input") sourceSymbolTableSection(%10) targetSection(%5) secFlags(SHF_JIT) -> !ELF.Section  {
+    %13 = ELF.CreateRelocationSection secName(".rela.input") sourceSymbolTableSection(%10) targetSection(%5) secFlags(SHF_USERINPUT) -> !ELF.Section  {
     }
-    %14 = ELF.CreateRelocationSection secName(".rela.output") sourceSymbolTableSection(%11) targetSection(%5) secFlags(SHF_JIT) -> !ELF.Section  {
+    %14 = ELF.CreateRelocationSection secName(".rela.output") sourceSymbolTableSection(%11) targetSection(%5) secFlags(SHF_USEROUTPUT) -> !ELF.Section  {
       ELF.Reloc 24 "R_VPU_64" %8 0
     }
     return %arg1 : memref<1x1000xf16>

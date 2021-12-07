@@ -41,7 +41,6 @@
 
 #include <cstdlib>
 
-//#include <elfio/elfio.hpp>       // Alex
 #include "llvm/Support/Debug.h"  // Alex
 
 #include <elf/writer.hpp>  // 2021_10_19
@@ -197,9 +196,6 @@ struct ELFSectionAttributes {
     int sectionAddrAlignInfo;
     std::vector<char> serializedData;
 } sectionAttributes[NUM_SECTIONS_MAX];
-#ifdef USE_ELFIO
-ELFIO::section* ELFSection[NUM_SECTIONS_MAX];
-#endif
 // elf::writer::BinaryDataSection<char>* ELFSection[NUM_SECTIONS_MAX];
 elf::writer::Section* ELFSection[NUM_SECTIONS_MAX];
 // elf::writer::SymbolSection ELFSection2[NUM_SECTIONS_MAX];
@@ -539,7 +535,7 @@ void processBlock(mlir::Block& block) {
                               sectionAttributes[ELFSectionIndex].serializedData.size());
 
             llvm::dbgs() << "  processBlock(): Before increment ELFSectionIndex = " << ELFSectionIndex << "\n";
-            ELFSectionIndex++;  // TODO: change accordingly - make nicer (use e.g. ELFIO::section, etc)
+            ELFSectionIndex++;  // TODO: change accordingly - make nicer (use e.g. ELF::Section, etc)
         } else if (vpux::ELF::CreateSymbolTableSectionOp sectionOp =
                            llvm::dyn_cast<vpux::ELF::CreateSymbolTableSectionOp>(op)) {
             llvm::dbgs() << "processBlock(): Found ELF.CreateSymbolTableSection\n";
@@ -582,7 +578,7 @@ void processBlock(mlir::Block& block) {
             ELFSection[ELFSectionIndex]->setName(sectionAttributes[ELFSectionIndex].sectionName);
             // <<error: ‘class elf::writer::SymbolSection’ has no member named ‘setType’:>>
             // ((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])
-            //        ->setType(sectionAttributes[ELFSectionIndex].sectionType);  // TODO
+            //        ->setType(sectionAttributes[ELFSectionIndex].sectionType); // TODO
             // ELFSection[idx]->set_flags(sectionAttributes[idx].sectionFlags);
             ELFSection[ELFSectionIndex]->setFlags(sectionAttributes[ELFSectionIndex].sectionFlags);
             // ELFSection[idx]->set_addr_align(sectionAttributes[idx].sectionAddrAlignInfo);
@@ -605,7 +601,7 @@ void processBlock(mlir::Block& block) {
             processRegion(aRegion);
 
             llvm::dbgs() << "  processBlock(): Before increment ELFSectionIndex = " << ELFSectionIndex << "\n";
-            ELFSectionIndex++;  // TODO: change accordingly - make nicer (use e.g. ELFIO::section, etc)
+            ELFSectionIndex++;  // TODO: change accordingly - make nicer (use e.g. ELF::Section, etc)
         } else if (vpux::ELF::CreateRelocationSectionOp sectionOp =
                            llvm::dyn_cast<vpux::ELF::CreateRelocationSectionOp>(op)) {
             llvm::dbgs() << "processBlock(): Found ELF.CreateRelocationSection\n";
@@ -714,7 +710,7 @@ void processBlock(mlir::Block& block) {
             processRegion(aRegion);
 
             llvm::dbgs() << "  processBlock(): Before increment ELFSectionIndex = " << ELFSectionIndex << "\n";
-            ELFSectionIndex++;  // TODO: change accordingly - make nicer (use e.g. ELFIO::section, etc)
+            ELFSectionIndex++;  // TODO: change accordingly - make nicer (use e.g. ELF::Section, etc)
         }
 
         // llvm::dbgs() << "DMATasksELFBLOB.size() = " << DMATasksELFBLOB.size() << "\n";
@@ -737,6 +733,8 @@ void processRegion(mlir::Region& region) {
 
 mlir::LogicalResult exportVPUIPRegMappedAndELF(mlir::ModuleOp module, llvm::raw_ostream& output,
                                                StringRef /*outputFileName*/) {
+    (void)output;
+
     llvm::dbgs() << "Alex: Entered exportVPUIPRegMappedAndELF()\n";
     llvm::dbgs() << "exportVPUIPELF(): module->getName() = " << module->getName() << "\n";
 
@@ -749,36 +747,6 @@ mlir::LogicalResult exportVPUIPRegMappedAndELF(mlir::ModuleOp module, llvm::raw_
     // writer.set_type(ET_EXEC); // TODO
     // writer.set_machine( EM_X86_64 );
     // writer.set_machine(EM_res035); // TODO
-
-    //
-    // SymbolSection
-    //
-
-    /*
-    elf::writer::SymbolSection* symbolSection = elf.addSymbolSection();
-    // auto symbolSection = elf.addSymbolSection();
-    symbolSection->setName(".symtab");
-
-    auto inputSym = symbolSection->addSymbolEntry();
-    inputSym->setName(".input");
-
-    auto outputSym = symbolSection->addSymbolEntry();
-    outputSym->setName(".output");
-    */
-
-    //
-    // Weights
-    //
-
-#if 0
-    auto weights = elf.addSegment();
-    weights->setType(elf::PT_LOAD);
-    weights->addData("11111", 5);
-#endif
-    // Note: this section has type PROGBITS.
-    // See Table from slide 26 of Andrew Bakalin's presentation ELF PoC_new.pptx
-    // elf::writer::BinaryDataSection<char>* weights_sec = elf.addBinaryDataSection<char>();
-    // weights_sec->setName(".data.Weights");
 
     for (mlir::Operation& op : module) {
         if (vpux::IE::CNNNetworkOp cnnOp = llvm::dyn_cast<vpux::IE::CNNNetworkOp>(op)) {
@@ -845,204 +813,12 @@ mlir::LogicalResult exportVPUIPRegMappedAndELF(mlir::ModuleOp module, llvm::raw_
         }
     }
 
-    /*
-    struct DMATask {
-        int x;
-        double y;
-    };
-
-    // auto dmaTasks = elf.addBinaryDataSection<DMATask>();
-    auto dmaTasks = elf.addBinaryDataSection<char>();
-    dmaTasks->setName(".text.dmaTasks");
-    dmaTasks->setAddrAlign(64);
-    // dmaTasks->addData(DMATask());
-    for (int i = 0; i < 80; i++)
-        dmaTasks->addData(i);
-
-    elf::writer::BinaryDataSection<char>* barrierConfigs = elf.addBinaryDataSection<char>();
-    barrierConfigs->setName(".text.BarrierConfigs");
-    barrierConfigs->setAddrAlign(64);
-    for (int i = 0; i < 7; i++)
-        barrierConfigs->addData(i);
-    */
-
-    /*
-    for (int idx = 0; idx < ELFSectionIndex; idx++) {
-        llvm::dbgs() << "Creating section with name " << sectionAttributes[idx].sectionName
-                     << " and serializedData.size() = " << sectionAttributes[idx].serializedData.size() << ".\n";
-
-        ELFSection[idx] = elf.addBinaryDataSection<char>();
-        ELFSection[idx]->setName(sectionAttributes[idx].sectionName);
-        // ELFSection[idx]->set_type(sectionAttributes[idx].sectionType);
-        // ELFSection[idx]->setType(sectionAttributes[idx].sectionType); // TODO
-        // ELFSection[idx]->set_flags(sectionAttributes[idx].sectionFlags);
-        ELFSection[idx]->setFlags(sectionAttributes[idx].sectionFlags);
-        // ELFSection[idx]->set_addr_align(sectionAttributes[idx].sectionAddrAlignInfo);
-        ELFSection[idx]->setAddrAlign(sectionAttributes[idx].sectionAddrAlignInfo);
-
-        // ELFSection[idx]->set_data(sectionAttributes[idx].serializedData.data(),
-        //                          sectionAttributes[idx].serializedData.size());
-        // for (std::size_t i = 0; i < sectionAttributes[idx].serializedData.size(); i++)
-        //    ELFSection[idx]->addData(sectionAttributes[idx].serializedData[i]);
-        ELFSection[idx]->addData(sectionAttributes[idx].serializedData.data(),
-                                 sectionAttributes[idx].serializedData.size());
-    }
-    */
-
-    // elf::writer::BinaryDataSection<char>* weights_sec = elf.addBinaryDataSection<char>();
-    // weights_sec->setName(".data.Weights");
-    // weights_sec->set_type(SHT_PROGBITS); // TODO
-    // barrierConfigs->setAddrAlign(64);
-
-#ifdef USE_ELFIO
-    // Code taken from ELFIO-master/examples/write_obj/write_obj.cpp (and writer/writer.cpp)
-    ELFIO::elfio writer;
-
-    // Alex: the following 4 calls don't have to be I guess part of the ELF MLIR
-    //    program - these calls establish the main characteristics of the
-    //    VPUIP-related ELF happen here in translate.
-    // You can't proceed without this function call!
-    writer.create(ELFCLASS64, ELFDATA2LSB);
-
-    writer.set_os_abi(ELFOSABI_LINUX);
-    writer.set_type(ET_EXEC);
-    // writer.set_machine( EM_X86_64 );
-    writer.set_machine(EM_res035);
-
-    for (int idx = 0; idx < ELFSectionIndex; idx++) {
-        llvm::dbgs() << "Creating section with name " << sectionAttributes[idx].sectionName << ".\n";
-        ELFSection[idx] = writer.sections.add(sectionAttributes[idx].sectionName.c_str());
-        ELFSection[idx]->set_type(sectionAttributes[idx].sectionType);
-        ELFSection[idx]->set_flags(sectionAttributes[idx].sectionFlags);
-        ELFSection[idx]->set_addr_align(sectionAttributes[idx].sectionAddrAlignInfo);
-        ELFSection[idx]->set_data(sectionAttributes[idx].serializedData.data(),
-                                  sectionAttributes[idx].serializedData.size());
-    }
-
-#if 0
-    // Following the names of sections given by Andrew in elf-blob-example
-    // Create DMA section
-    // IMPORTANT NOTE: This section is exposed to the ELF dialect
-    //   TODO: Use parsed values
-    ELFIO::section* dmaTasks_sec = writer.sections.add(".text.dmaTasks");
-    dmaTasks_sec->set_type(SHT_PROGBITS);
-    // dmaTasks_sec->set_flags(SHF_ALLOC | SHF_EXECINSTR);
-    dmaTasks_sec->set_flags(SHF_EXECINSTR);  // Following the "ELF PoC" presentation of Andrew
-    dmaTasks_sec->set_addr_align(0x10);
-    dmaTasks_sec->set_data(DMATasksELFBLOB.data(), DMATasksELFBLOB.size());
-
-    // IMPORTANT NOTE: This section is exposed to the ELF dialect
-    //   TODO: Use parsed values
-    ELFIO::section* barriers_sec = writer.sections.add(".text.BarrierConfigs");
-    barriers_sec->set_type(SHT_PROGBITS);
-    // barriers_sec->set_flags(SHF_ALLOC | SHF_EXECINSTR);
-    barriers_sec->set_flags(SHF_EXECINSTR);
-    barriers_sec->set_addr_align(0x10);
-    barriers_sec->set_data(ConfigureBarriersELFBLOB.data(), ConfigureBarriersELFBLOB.size());
-#endif
-
-    ELFIO::section* weights_sec = writer.sections.add(".data.Weights");
-    weights_sec->set_type(SHT_PROGBITS);
-
-    // Create string table section
-    ELFIO::section* str_sec = writer.sections.add(".strtab");
-    str_sec->set_type(SHT_STRTAB);
-    //
-    // Create string table writer
-    ELFIO::string_section_accessor stra(str_sec);
-    // Add label name
-    ELFIO::Elf32_Word str_index = stra.add_string(".memref.arg0_input");
-    //
-    ELFIO::section* sym_sec = writer.sections.add(".symtab");
-    sym_sec->set_type(SHT_SYMTAB);
-    sym_sec->set_info(1);
-    sym_sec->set_addr_align(0x4);
-    sym_sec->set_entry_size(writer.get_default_entry_size(SHT_SYMTAB));
-    sym_sec->set_link(str_sec->get_index());
-    //
-    // Create symbol table writer
-    ELFIO::symbol_section_accessor syma(writer, sym_sec);
-    // Add symbol entry (msg has offset == 29)
-    ELFIO::Elf_Word sym_to_adjust = syma.add_symbol(str_index, 29, 0, STB_GLOBAL, STT_OBJECT, 0,
-                                                    // dmaTasks_sec->get_index()
-                                                    ELFSection[0]->get_index());  // TODO: put right section again
-    // Another way to add symbol
-    // syma.add_symbol(stra, ".memref.arg1_output", 0x00000000, 0, STB_WEAK, STT_FUNC, 0, dmaTasks_sec->get_index());
-    syma.add_symbol(stra, ".memref.arg1_output", 0x00000000, 0, STB_GLOBAL, STT_OBJECT, 0,
-                    // dmaTasks_sec->get_index()
-                    ELFSection[0]->get_index());  // TODO: put right section again
-
-    ELFIO::section* reloctab1_sec = writer.sections.add(".rlt.MappedInference");
-    reloctab1_sec->set_type(SHT_REL);
-    reloctab1_sec->set_flags(SHF_EXECINSTR);  // MEGA-TODO: use new flag SHF_JIT suggested by Andrew
-    reloctab1_sec->set_info(
-            // dmaTasks_sec->get_index()
-            ELFSection[0]->get_index()  // TODO: put right section again
-    );
-    reloctab1_sec->set_addr_align(0x4);
-    reloctab1_sec->set_entry_size(writer.get_default_entry_size(SHT_REL));
-    reloctab1_sec->set_link(sym_sec->get_index());
-
-    ELFIO::section* reloctab2_sec = writer.sections.add(".rlt.jitDMA");
-    reloctab2_sec->set_type(SHT_REL);
-    reloctab2_sec->set_flags(SHF_EXECINSTR);  // MEGA-TODO: use new flag SHF_JIT suggested by Andrew
-    reloctab2_sec->set_info(
-            // dmaTasks_sec->get_index()
-            ELFSection[0]->get_index()  // TODO: put right section again
-    );
-    reloctab2_sec->set_addr_align(0x4);
-    reloctab2_sec->set_entry_size(writer.get_default_entry_size(SHT_REL));
-    reloctab2_sec->set_link(sym_sec->get_index());
-    //
-    ELFIO::Elf64_Addr place_to_adjust = 11;  // Alex: TODO:change - the offset where we have to patch the address
-    //
-    // Create relocation table writer
-    ELFIO::relocation_section_accessor rela(writer, reloctab2_sec);
-    // Add relocation entry (adjust address at offset 11)
-    rela.add_entry(place_to_adjust, sym_to_adjust,
-                   // R_386_RELATIVE described at https://docs.oracle.com/cd/E19957-01/806-0641/chapter6-26/index.html
-                   (unsigned char)R_386_RELATIVE);
-    /*
-    // Another method to add the same relocation entry at one step is:
-    // rela.add_entry( stra, "msg",
-    //                 syma, 29, 0,
-    //                 ELF_ST_INFO( STB_GLOBAL, STT_OBJECT ), 0,
-    //                 text_sec->get_index(),
-    //                 place_to_adjust, (unsigned char)R_386_RELATIVE );
-    */
-
-    // Create ELF file
-    writer.save("vpux_elf_MTL");
-#endif  // #ifdef USE_ELFIO
-
-    /*
-    //
-    // Relocations
-    //
-
-    auto dmaTasksRelocation = elf.addRelocationSection();
-    dmaTasksRelocation->setSymbolTable(symbolSection);
-    // dmaTasksRelocation->setSectionToPatch(dmaTasks);
-    dmaTasksRelocation->setSectionToPatch(ELFSection[0]);
-    dmaTasksRelocation->setName(".rela.dma");
-
-    auto inputDMA = dmaTasksRelocation->addRelocationEntry();
-    inputDMA->setSymbol(inputSym);
-    inputDMA->setAddend(0);
-
-    auto outputDMA = dmaTasksRelocation->addRelocationEntry();
-    outputDMA->setSymbol(outputSym);
-    outputDMA->setAddend(0);
-    */
     llvm::dbgs() << "exportVPUIPELF(): ELFSectionIndex = " << ELFSectionIndex << "\n";
     llvm::dbgs().flush();
 
     elf.write("vpux_elf_MTL");
 
     llvm::dbgs() << "When exiting exportVPUIPELF(): ELFSectionIndex = " << ELFSectionIndex << "\n";
-
-    //(void)module;
-    (void)output;
 
     return mlir::success();
 }

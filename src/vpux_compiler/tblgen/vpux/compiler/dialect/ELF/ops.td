@@ -22,7 +22,6 @@ include "mlir/IR/RegionKindInterface.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 //include "vpux/compiler/dialect/VPUIP/types.td"
 include "vpux/compiler/dialect/VPURT/types.td"
-include "vpux/compiler/dialect/VPUIPRegMapped/types.td"
 
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -130,7 +129,8 @@ def CreateSymbolTableSectionOp : ELF_Op<"CreateSymbolTableSection",
     let summary = "Create ELF Symbol Table Section";
 
     let arguments = (ins
-                      StrAttr:$secName
+                      StrAttr:$secName,
+                      ELF_SectionFlagsAttr:$secFlags
                     );
 
     let results = (outs ELF_Section:$section);
@@ -142,6 +142,8 @@ def CreateSymbolTableSectionOp : ELF_Op<"CreateSymbolTableSection",
 
     // Inspired also from the definition of VPUIP_NCEClusterTaskOp
     let assemblyFormat = [{
+        `secName` `(` $secName `)`
+        `secFlags` `(` $secFlags `)`
         attr-dict
         `->` type(results)
         $aRegion

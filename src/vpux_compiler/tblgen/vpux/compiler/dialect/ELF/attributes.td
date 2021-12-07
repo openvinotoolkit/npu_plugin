@@ -94,7 +94,9 @@ def ELF_SectionFlagsAttr :
                 BitEnumAttrCase<"SHF_OS_NONCONFORMING",    0x100>,
                 BitEnumAttrCase<"SHF_GROUP",               0x200>,
                 BitEnumAttrCase<"SHF_TLS",                 0x400>,
-                BitEnumAttrCase<"SHF_JIT",                 0x100000>,
+                BitEnumAttrCase<"SHF_JIT",                 0x10000000>,
+                BitEnumAttrCase<"SHF_USERINPUT",           0x20000000>,
+                BitEnumAttrCase<"SHF_USEROUTPUT",          0x40000000>,
                 //BitEnumAttrCase<"SHF_MASKOS",              0x0ff00000>,
                 // error: enumerator value ‘4026531840’ is outside the range of underlying type ‘int’: BitEnumAttrCase<"SHF_MASKPROC",         0xF0000000>,
             ]

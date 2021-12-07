@@ -15,11 +15,3 @@
 
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/Types.h>
-
-//
-// Generated
-//
-
-#define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/VPUIPRegMapped/generated/types.hpp.inc>
-#undef GET_TYPEDEF_CLASSES

@@ -66,65 +66,6 @@ class VPUIPRegMapped_TaskOp<int numResult, string mnemonic, list<OpTrait> traits
 }
 
 //
-// TaskWithSubregOp
-//
-
-def VPUIPRegMapped_TaskWithSubregOp :
-    VPUIPRegMapped_Op<"TaskWithSubreg",
-            [
-                RecursiveSideEffects,
-                MemoryEffectsOpInterface,
-                AttrSizedOperandSegments,
-                //DeclareOpInterfaceMethods<VPUIPRegMapped_SerializeInterface>,
-                // NOTE: I was receiving some strange template compiler errors when using it: DeclareOpInterfaceMethods<VPUIPRegMapped_TaskOpInterface>,
-                DotInterface
-            ]
-            # GraphRegionNoTerminator.traits
-        > {
-    let summary = "Hold common scheduling logic (barriers configuration and profiling support).";
-
-    let arguments = (ins
-        Variadic<VPURT_Barrier>:$waitBarriers, // 2021_11_30
-        Variadic<VPURT_Barrier>:$updateBarriers, // 2021_11_30
-        DefaultValuedAttr<BoolAttr, "false">:$isTrailingSWLayer
-    );
-
-    let regions = (region
-        SizedRegion<1>:$op
-    );
-
-    /*
-    let verifier = [{
-        return vpux::VPUIPRegMapped::verifyTaskWithSubregOp(*this);
-    }];
-    */
-
-    let extraClassDeclaration = [{
-        /*
-        vpux::DotNodeColor getNodeColor() {
-            return vpux::DotNodeColor::AQUA;
-        }
-        */
-
-        void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-        /*
-        // vpux::VPUIPRegMapped::TaskType getTaskType();
-        static vpux::VPUIPRegMapped::TaskType getTaskType() {
-            return vpux::VPUIPRegMapped::TaskType::Controller;
-        }
-        */
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-        `op` `:` $op
-    }];
-}
-
-
-//
 // GraphOp
 //
 

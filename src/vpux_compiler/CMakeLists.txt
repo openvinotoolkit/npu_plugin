@@ -274,7 +274,7 @@ add_types("VPURT")
 add_passes("dialect/VPURT" "VPURT")
 
 add_dialect("ELF")
-#add_op_interfaces("dialect/ELF")
+add_op_interfaces("dialect/ELF")
 add_enum_attrs("ELF")
 #add_struct_attrs("ELF")
 add_types("ELF")
@@ -417,6 +417,7 @@ target_link_libraries(${OBJ_TARGET_NAME}
     PUBLIC
         vpux_utils
         vpux_al
+        vpux_elf
 )
 
 #

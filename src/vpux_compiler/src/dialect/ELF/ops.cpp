@@ -12,6 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/ELF/ops.hpp"
+#include <elf/writer.hpp>
+#include "llvm/Support/Debug.h"
 
 //
 // initialize
@@ -37,3 +39,13 @@ void vpux::ELF::ELFDialect::initialize() {
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/ELF/generated/ops.cpp.inc>
+
+/*
+void vpux::ELF::CreateSectionOp::serialize(elf::Writer& writer) {
+}
+
+void vpux::ELF::PutAnyOpInSectionOp::serialize(elf::Writer& writer) {
+    llvm::dbgs() << "Found an ELF.PutAnyOpInSection operation\n";
+    llvm::dbgs().flush();
+}
+*/
