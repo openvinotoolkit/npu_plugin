@@ -247,6 +247,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     if (options.enableLowPrecision) {
         IE::buildLowPrecisionPipeline(pm, log);
+        pm.addPass(IE::createUnrollBatchPass(log));
     }
 
     if (options.enableUpstreamSlice) {

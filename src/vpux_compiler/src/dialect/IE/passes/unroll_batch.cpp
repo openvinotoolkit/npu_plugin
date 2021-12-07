@@ -41,6 +41,7 @@ public:
     class FullyConnectedOpConverter;
     template <class eltwise_op>
     class EltwiseOpConverter;
+    class ConvolutionOpConverter;
 
 private:
     void safeRunOnFunc() final;
@@ -101,6 +102,62 @@ mlir::LogicalResult UnrollBatchPass::FullyConnectedOpConverter::matchAndRewrite(
 }
 
 //
+// FullyConnectedOpConverter
+//
+
+class UnrollBatchPass::ConvolutionOpConverter final : public mlir::OpRewritePattern<IE::ConvolutionOp> {
+public:
+    ConvolutionOpConverter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::ConvolutionOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult UnrollBatchPass::ConvolutionOpConverter::matchAndRewrite(IE::ConvolutionOp origOp,
+                                                                             mlir::PatternRewriter& rewriter) const {
+    const auto input1Shape = getShape(origOp.input());
+    const auto batchDim = Dim(0);
+    const auto rowCount = input1Shape[batchDim];
+    if (rowCount <= 1) {
+        return mlir::failure();
+    }
+
+    SmallVector<mlir::Value> rowSlices;
+    for (int64_t sliceIdx = 0; sliceIdx < rowCount; sliceIdx++) {
+        Shape lhsOffsets = Shape(input1Shape.size(), 0);
+        lhsOffsets[batchDim] = checked_cast<int64_t>(sliceIdx);
+        auto staticOffsetsAttr = getIntArrayAttr(rewriter.getContext(), lhsOffsets);
+
+        Shape lhsSizes = input1Shape.raw();
+        lhsSizes[batchDim] = 1;
+        auto staticSizesAttr = getIntArrayAttr(rewriter.getContext(), lhsSizes);
+        auto newSubViewOp = rewriter.createOrFold<IE::SliceOp>(origOp->getLoc(), origOp.input(), staticOffsetsAttr,
+                                                               staticSizesAttr);
+
+        rowSlices.push_back(newSubViewOp);
+    }
+
+    SmallVector<mlir::Value> fullyConnectedSlices;
+    for (size_t sliceIdx = 0; sliceIdx < rowSlices.size(); sliceIdx++) {
+        auto lhs2d = rowSlices[sliceIdx];
+        auto rhs2d = origOp.filter();
+        auto op = rewriter.create<IE::ConvolutionOp>(origOp->getLoc(), lhs2d, rhs2d, origOp.bias(), origOp.strides(),
+                                                     origOp.pads_begin(), origOp.pads_end(), origOp.dilations(),
+                                                     origOp.post_opAttr());
+        fullyConnectedSlices.push_back(op.output());
+    }
+
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, fullyConnectedSlices, batchDim.ind());
+
+    return mlir::success();
+}
+
+//
 // EltwiseOpConverter
 //
 
@@ -120,20 +177,18 @@ private:
 template <class eltwise_op>
 mlir::LogicalResult UnrollBatchPass::EltwiseOpConverter<eltwise_op>::matchAndRewrite(
         eltwise_op origOp, mlir::PatternRewriter& rewriter) const {
-    static_assert(std::is_same<std::decay_t<decltype(origOp)>, IE::AndOp>::value,
-                  "Appliccable only for Eltwise And operation for now");
     const auto input1Shape = getShape(origOp.input1());
-    const auto input2Shape = getShape(origOp.input2());
     const auto broadcastType = origOp.auto_broadcastAttr();
-    const auto postOp = origOp.post_opAttr();
-    if (input1Shape != input2Shape) {
-        return mlir::failure();
-    }
     const auto batchDim = Dim(0);
     const auto rowCount = input1Shape[batchDim];
+
+    std::cout << "!! " << rowCount;
+
     if (rowCount <= 1) {
         return mlir::failure();
     }
+
+    _log.trace("Curent eltwise {0}, {1}", origOp, origOp.getLoc());
 
     SmallVector<SmallVector<mlir::Value>> rowSlices;
     for (int64_t sliceIdx = 0; sliceIdx < rowCount; sliceIdx++) {
@@ -146,6 +201,7 @@ mlir::LogicalResult UnrollBatchPass::EltwiseOpConverter<eltwise_op>::matchAndRew
         auto staticSizesAttr = getIntArrayAttr(rewriter.getContext(), lhsSizes);
         auto lhsSubViewOp = rewriter.createOrFold<IE::SliceOp>(origOp->getLoc(), origOp.input1(), staticOffsetsAttr,
                                                                staticSizesAttr);
+
         auto rhsSubViewOp = rewriter.createOrFold<IE::SliceOp>(origOp->getLoc(), origOp.input2(), staticOffsetsAttr,
                                                                staticSizesAttr);
 
@@ -153,10 +209,16 @@ mlir::LogicalResult UnrollBatchPass::EltwiseOpConverter<eltwise_op>::matchAndRew
     }
 
     SmallVector<mlir::Value> eltwiseSlices;
+
+    auto type = origOp.getType();
+    auto newShape = Shape(input1Shape.raw());
+    newShape[batchDim] = 1;
+    auto newType = changeShape(type, newShape);
+
     for (size_t sliceIdx = 0; sliceIdx < rowSlices.size(); sliceIdx++) {
         auto lhs = rowSlices[sliceIdx][0];
         auto rhs = rowSlices[sliceIdx][1];
-        auto op = rewriter.create<eltwise_op>(origOp->getLoc(), lhs, rhs, broadcastType, postOp);
+        auto op = rewriter.create<eltwise_op>(origOp->getLoc(), newType, lhs, rhs, broadcastType, nullptr);
         eltwiseSlices.push_back(op.output());
     }
 
@@ -173,7 +235,7 @@ void UnrollBatchPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::FullyConnectedOp>([](IE::FullyConnectedOp op) -> bool {
+    /* target.addDynamicallyLegalOp<IE::FullyConnectedOp>([](IE::FullyConnectedOp op) -> bool {
         const auto inputShape = getShape(op.input());
         const auto rowCount = inputShape[Dim(0)];
         return rowCount == 1;
@@ -183,18 +245,24 @@ void UnrollBatchPass::safeRunOnFunc() {
         const auto rowCount = inputShape1[Dim(0)];
         return rowCount == 1;
     });
-    target.addLegalOp<IE::ReshapeOp>();
+    target.addDynamicallyLegalOp<IE::ConvolutionOp>([](IE::ConvolutionOp op) -> bool {
+        const auto inputShape = getShape(op.input());
+        const auto rowCount = inputShape[Dim(0)];
+        return rowCount == 1;
+    });
     target.addLegalOp<IE::ConcatOp>();
-    target.addLegalOp<IE::SliceOp>();
-    target.addLegalOp<Const::DeclareOp>();
+    target.addLegalOp<IE::SliceOp>(); */
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<FullyConnectedOpConverter>(&ctx, _log);
     patterns.insert<EltwiseOpConverter<IE::AndOp>>(&ctx, _log);
+    patterns.insert<EltwiseOpConverter<IE::AddOp>>(&ctx, _log);
+    patterns.insert<ConvolutionOpConverter>(&ctx, _log);
 
     auto func = getFunction();
-    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
+        return;
     }
 }
 
