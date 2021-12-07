@@ -14,15 +14,15 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 
 #include <ngraph/coordinate.hpp>
 #include <ngraph/op/max_pool.hpp>
-#include <ngraph/util.hpp>
 #include <ngraph/validation_util.hpp>
+
+#include <mlir/IR/BlockAndValueMapping.h>
 
 using namespace vpux;
 
@@ -62,25 +62,16 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-mlir::Value vpux::IE::MaxPoolOp::reifyTile(const TileInfo& outputTile, mlir::OpBuilder& builder) {
+SmallVector<int64_t> vpux::IE::MaxPoolOp::getMaxNumTiles() {
+    return vpux::IE::getMaxNumTiles(getOperation());
+}
+
+InputTiling vpux::IE::MaxPoolOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
     const auto origInputShape = getShape(input());
 
-    const auto tileConf =
-            backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), pads_begin(), pads_end());
+    return backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), pads_begin(), pads_end());
+}
 
-    const std::array<int64_t, 2> padsBegin = {tileConf.pads.top, tileConf.pads.left};
-    const std::array<int64_t, 2> padsEnd = {tileConf.pads.bottom, tileConf.pads.right};
-
-    const auto inputTileVal = IE::makeTile(builder, getLoc(), input(), tileConf.inputTile, "input");
-
-    const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
-    const auto tileLoc = appendLoc(getLoc(), tileName);
-
-    const auto tiledResType = getDenseTileType(getType(), outputTile.offsets, outputTile.shape);
-
-    auto tiledOp = builder.create<IE::MaxPoolOp>(tileLoc, tiledResType, inputTileVal, kernel_sizeAttr(), stridesAttr(),
-                                                 getIntArrayAttr(builder, padsBegin), getIntArrayAttr(builder, padsEnd),
-                                                 rounding_typeAttr(), post_opAttr());
-
-    return tiledOp.output();
+void vpux::IE::MaxPoolOp::adjustAttrs(ArrayRef<TileInfo> inputTiles, mlir::OpBuilder& builder) {
+    vpux::adjustPaddings(this, inputTiles, builder);
 }

@@ -711,7 +711,7 @@ def IE_GroupConvolutionOp :
         IE_LayerOp<
             "GroupConvolution",
             [
-                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface, ["generateTiling", "generatePrefetchTiling"]>
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
             ]
         > {
     let summary = "InferenceEngine GroupConvolution layer";

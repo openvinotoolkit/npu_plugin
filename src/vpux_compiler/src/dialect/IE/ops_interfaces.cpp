@@ -17,7 +17,6 @@
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -225,131 +224,6 @@ mlir::Value vpux::IE::makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc,
     return sliceOp.result();
 }
 
-Shape vpux::IE::computeGeneralTileStrategy(mlir::Operation* op, Logger log) {
-    auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
-    VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
-
-    const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
-    const auto outputShape = getShape(outputType);
-
-    VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
-                      op->getName(), op->getLoc());
-
-    const auto isSupportedTileSize = [&tilingInfo, outputShape, log](ShapeRef nTilesOnDim) -> bool {
-        const auto tiles = fillDividedTiles(nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, log);
-    };
-
-    int64_t minChannelSize = 1;
-    if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
-        minChannelSize = channelsInfo.getChannelAlignment();
-    }
-
-    const auto maxChannelTiles = outputShape[Dims4D::Act::C] / minChannelSize;
-
-    Shape nTilesOnDim(outputShape.size(), 1);
-
-    // Try to tile the largest dim (C or H) first, then proceed with other dims
-    SmallVector<Dim> tileDimOrder = {Dims4D::Act::C, Dims4D::Act::H, Dims4D::Act::W};
-    if (outputShape[Dims4D::Act::C] < outputShape[Dims4D::Act::H]) {
-        tileDimOrder = {Dims4D::Act::H, Dims4D::Act::C, Dims4D::Act::W};
-    }
-
-    auto tileDimIter = tileDimOrder.begin();
-    auto dimToTile = *tileDimIter;
-
-    const auto isSupportedChannelDivision = [&]() {
-        if ((outputShape[Dims4D::Act::C] % nTilesOnDim[Dims4D::Act::C]) != 0) {
-            return false;
-        }
-
-        const auto tileChannels = outputShape[Dims4D::Act::C] / nTilesOnDim[Dims4D::Act::C];
-        return (tileChannels % minChannelSize) == 0;
-    };
-
-    const auto isDimLeftToTile = [&]() {
-        if (dimToTile == Dims4D::Act::C) {
-            return nTilesOnDim[Dims4D::Act::C] < maxChannelTiles;
-        }
-
-        // Spatial dims
-        const auto origSize = static_cast<double>(outputShape[dimToTile]);
-        const auto prevDivisor = static_cast<double>(nTilesOnDim[dimToTile]);
-        return (origSize / prevDivisor) > 1.0;
-    };
-
-    while (!isSupportedTileSize(nTilesOnDim)) {
-        VPUX_THROW_WHEN(tileDimIter == tileDimOrder.end(), "Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
-
-        if (!isDimLeftToTile()) {
-            dimToTile = *(++tileDimIter);
-        }
-
-        if (dimToTile == Dims4D::Act::C) {
-            do {
-                ++nTilesOnDim[Dims4D::Act::C];
-            } while (!isSupportedChannelDivision());
-        } else if (dimToTile == Dims4D::Act::H || dimToTile == Dims4D::Act::W) {
-            nTilesOnDim[dimToTile]++;
-        } else {
-            // Trying to tile in unsupported dimension, tiling in supported dimensions not sufficient
-            VPUX_THROW("Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
-        }
-    }
-    return nTilesOnDim;
-}
-
-OutputTiling vpux::IE::generateTiles(mlir::Operation* op, Logger log) {
-    VPUX_THROW_UNLESS(op->getNumResults() == 1,
-                      "Unsupported operation '{0}' at '{1}', it must have one and only one result", op->getName(),
-                      op->getLoc());
-    const auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
-    Shape nTilesOnDim = vpux::IE::computeGeneralTileStrategy(op, log);
-    return fillDividedTiles(nTilesOnDim, outputShape);
-}
-
-OutputTiling vpux::IE::generatePrefetchTiles(mlir::Operation* op, Logger log) {
-    log.trace("Generating prefetch tiles for op {0} at {1}", op->getName(), op->getLoc());
-    VPUX_THROW_UNLESS(op->getNumResults() == 1,
-                      "Unsupported operation '{0}' at '{1}', it must have one and only one result", op->getName(),
-                      op->getLoc());
-
-    auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
-    VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
-
-    const auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
-    VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
-                      op->getName(), op->getLoc());
-    auto getDimsToTile = [](const Shape& nTilesOnDim) -> llvm::SmallVector<Dim> {
-        llvm::SmallVector<Dim> res = {};
-        for (unsigned i = 0; i < nTilesOnDim.size(); i++) {
-            if (nTilesOnDim[Dim(i)] > 1)
-                res.emplace_back(Dim(i));
-        }
-        return res;
-    };
-
-    // step 1: compute a general tiling strategy to fit into the CMX
-    Shape nTilesOnDim = vpux::IE::computeGeneralTileStrategy(op, log);
-    auto dimsToTile = getDimsToTile(nTilesOnDim);
-    VPUX_THROW_WHEN(dimsToTile.size() == 0, "Must tile at least on one dimension");
-    if (dimsToTile.size() > 1)  // return general tiling when getting nested tiles.
-        return fillDividedTiles(nTilesOnDim, outputShape);
-
-    std::cout<<llvm::formatv("generalTile {0} tiles:", nTilesOnDim).str()<<std::endl;
-
-    // step 2: increase the general tile strategy to satisfy prefetching
-    const auto targetDim = dimsToTile[0];
-    Shape prefetchableTilesOnDim = nTilesOnDim;
-    while (prefetchableTilesOnDim[targetDim] < 3*nTilesOnDim[targetDim] &&  // donnot tile too much for prefetching
-            !tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)){
-        prefetchableTilesOnDim[targetDim]++;
-    }
-
-    return tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log) ?
-                fillDividedTiles(prefetchableTilesOnDim, outputShape) : fillDividedTiles(nTilesOnDim, outputShape);
-}
-
 //
 // TilingInfoOpInterface
 //
@@ -379,11 +253,26 @@ mlir::LogicalResult vpux::IE::verifyEltwiseOp(mlir::Operation* op) {
     return mlir::success();
 }
 
-mlir::Value vpux::IE::reifyEltwiseTile(mlir::Operation* op, const TileInfo& outputTile, mlir::OpBuilder& builder) {
-    const auto baseResType = op->getResult(0).getType().cast<mlir::ShapedType>();
+SmallVector<int64_t> vpux::IE::getMaxNumTiles(mlir::Operation* op) {
+    const auto& outputShape = getShape(op->getResult(0));
 
-    mlir::BlockAndValueMapping mapper;
+    VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported shape rank: {0}", outputShape.size());
 
+    int64_t minChannelSize = 1;
+    if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
+        minChannelSize = channelsInfo.getChannelAlignment();
+    }
+
+    const auto maxChannelTiles = outputShape[Dims4D::Act::C] / minChannelSize;
+
+    SmallVector<int64_t> maxNumTiles(outputShape.begin(), outputShape.end());
+    maxNumTiles[Dims4D::Act::C.ind()] = maxChannelTiles;
+
+    return maxNumTiles;
+}
+
+InputTiling vpux::IE::backInferTileInfo(mlir::Operation* op, const vpux::TileInfo& outputTile) {
+    SmallVector<TileInfo> inputTiles;
     for (auto& origInput : op->getOpOperands()) {
         const auto curShape = getShape(origInput.get());
         VPUX_THROW_UNLESS(curShape.size() == outputTile.shape.size(),
@@ -400,24 +289,10 @@ mlir::Value vpux::IE::reifyEltwiseTile(mlir::Operation* op, const TileInfo& outp
             }
         }
 
-        const auto valName = llvm::formatv("input {0}", origInput.getOperandNumber()).str();
-        const auto tiledInput = makeTile(builder, op->getLoc(), origInput.get(), curTile, valName);
-
-        mapper.map(origInput.get(), tiledInput);
+        inputTiles.push_back(curTile);
     }
 
-    const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
-    const auto tileLoc = appendLoc(op->getLoc(), tileName);
-
-    auto* tiledOp = builder.clone(*op, mapper);
-    tiledOp->setLoc(tileLoc);
-
-    auto tiledRes = tiledOp->getResult(0);
-
-    const auto tiledResType = getDenseTileType(baseResType, outputTile.offsets, outputTile.shape);
-    tiledRes.setType(tiledResType);
-
-    return tiledRes;
+    return inputTiles;
 }
 
 //

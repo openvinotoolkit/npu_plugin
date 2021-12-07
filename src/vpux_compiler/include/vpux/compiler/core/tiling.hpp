@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/logger.hpp"
@@ -26,34 +27,6 @@
 #pragma once
 
 namespace vpux {
-
-//
-// TileInfo
-//
-
-struct TileInfo final {
-    Shape shape;
-    Shape offsets;
-    Shape axis;
-
-    TileInfo() = delete;
-
-    explicit TileInfo(size_t rank): shape(rank), offsets(rank), axis(rank) {
-    }
-
-    explicit TileInfo(ShapeRef shape): shape(shape.raw()), offsets(shape.size(), 0), axis(shape.size(), 1) {
-    }
-
-    void printFormat(llvm::raw_ostream& stream) const {
-        printTo(stream, "Tile [shape = {0}, offsets = {1}, axis = {2}]", shape, offsets, axis);
-    }
-};
-
-using OutputTiling = SmallVector<TileInfo>;
-
-// helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
-// generate a set of tiles, each having its own size and offsets
-OutputTiling fillDividedTiles(ShapeRef divisors, ShapeRef orig);
 
 //
 // PadInfo
@@ -94,37 +67,74 @@ struct PadInfo final {
     }
 };
 
+//
+// TileInfo
+//
+
+struct TileInfo final {
+    Shape shape;
+    Shape offsets;
+    Shape axis;
+    PadInfo pads;
+
+    TileInfo() = delete;
+
+    explicit TileInfo(size_t rank): shape(rank), offsets(rank), axis(rank) {
+    }
+
+    explicit TileInfo(ShapeRef shape): shape(shape.raw()), offsets(shape.size(), 0), axis(shape.size(), 1) {
+    }
+
+    void printFormat(llvm::raw_ostream& stream) const {
+        printTo(stream, "Tile [shape = {0}, offsets = {1}, axis = {2}]", shape, offsets, axis);
+    }
+};
+
+// Operation output tiles information
+using OutputTiling = SmallVector<TileInfo>;
+
+// helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
+// generate a set of tiles, each having its own size and offsets
+OutputTiling fillDividedTiles(ShapeRef divisors, ShapeRef orig);
+
 PadInfo backInferPadsTile(const TileInfo& outputTile, ShapeRef outShape, const PadInfo& origPads);
+
+template <typename ConcreteOp>
+void adjustPaddings(ConcreteOp op, ArrayRef<TileInfo> inputTiles, mlir::OpBuilder& builder) {
+    VPUX_THROW_UNLESS(!inputTiles.empty(), "Got empty tile information");
+
+    const auto& inputTilePads = inputTiles[0].pads;
+    const std::array<int64_t, 2> padsBegin = {inputTilePads.top, inputTilePads.left};
+    const std::array<int64_t, 2> padsEnd = {inputTilePads.bottom, inputTilePads.right};
+
+    auto newPadsBeginAttr = vpux::getIntArrayAttr(builder, padsBegin);
+    auto newPadsEndAttr = vpux::getIntArrayAttr(builder, padsEnd);
+
+    auto* originOp = op->getOperation();
+    originOp->setAttr(op->pads_beginAttrName(), newPadsBeginAttr);
+    originOp->setAttr(op->pads_endAttrName(), newPadsEndAttr);
+}
+
+// Operation inputs tiling information
+using InputTiling = SmallVector<TileInfo>;
 
 //
 // Convolution tiling
 //
 
-struct ConvTileConfig final {
-    TileInfo inputTile;
-    TileInfo filterTile;
-    TileInfo biasTile;
-    PadInfo pads;
-};
+InputTiling backInferConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
+                              ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
+                              mlir::ArrayAttr pads_end);
 
-ConvTileConfig backInferConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
-                                 ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
-                                 mlir::ArrayAttr pads_end);
-
-ConvTileConfig backInferGroupConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
-                                      ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
-                                      mlir::ArrayAttr pads_end);
+InputTiling backInferGroupConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
+                                   ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
+                                   mlir::ArrayAttr pads_end);
 
 //
 // Pooling tiling
 //
 
-struct PoolTileConfig final {
-    TileInfo inputTile;
-    PadInfo pads;
-};
-
-PoolTileConfig backInferPoolTile(const TileInfo& outputTile, ShapeRef origInputShape, mlir::ArrayAttr kernel_size,
-                                 mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end);
+InputTiling backInferPoolTile(const TileInfo& outputTile, ShapeRef origInputShape, mlir::ArrayAttr kernel_size,
+                              mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end);
 
 }  // namespace vpux

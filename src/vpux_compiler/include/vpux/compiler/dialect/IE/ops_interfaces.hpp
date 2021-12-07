@@ -207,12 +207,6 @@ void fillDefaultLayoutInfo(LayerLayoutInfo& info, FuncRef<bool(size_t)> inputFil
 mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal, const TileInfo& tile,
                      StringRef valName);
 
-Shape computeGeneralTileStrategy(mlir::Operation* op, Logger log);
-
-OutputTiling generateTiles(mlir::Operation* op, Logger log);
-
-OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log);
-
 //
 // TilingInfoOpInterface
 //
@@ -224,7 +218,8 @@ mlir::LogicalResult verifyTilingInfo(mlir::Operation* op);
 //
 
 mlir::LogicalResult verifyEltwiseOp(mlir::Operation* op);
-mlir::Value reifyEltwiseTile(mlir::Operation* op, const TileInfo& outputTile, mlir::OpBuilder& builder);
+SmallVector<int64_t> getMaxNumTiles(mlir::Operation* op);
+InputTiling backInferTileInfo(mlir::Operation* op, const vpux::TileInfo& outputTile);
 
 template <typename ConcreteOp>
 class EltwiseOp : public mlir::OpTrait::TraitBase<ConcreteOp, EltwiseOp> {
@@ -233,8 +228,15 @@ public:
         return IE::verifyEltwiseOp(op);
     }
 
-    mlir::Value reifyTile(const TileInfo& outputTile, mlir::OpBuilder& builder) {
-        return IE::reifyEltwiseTile(this->getOperation(), outputTile, builder);
+    SmallVector<int64_t> getMaxNumTiles() {
+        return IE::getMaxNumTiles(this->getOperation());
+    }
+
+    InputTiling backInferTileInfo(const vpux::TileInfo& outputTile) {
+        return IE::backInferTileInfo(this->getOperation(), outputTile);
+    }
+
+    void adjustAttrs(ArrayRef<TileInfo>, mlir::OpBuilder&) {
     }
 };
 
