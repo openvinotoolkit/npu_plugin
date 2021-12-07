@@ -83,12 +83,16 @@ bool CustomCpp::parse(Layer * layer) {
         inTensors[i] = inputVec[i].toMemRefData(inputLocations[i]);
         inTensors[i].location = inputLocations[i];
     }
+//    printf("check point 1: %d\n", inputVec.size());
+//    printf("%p\n", inTensors);
     sw_params::MemRefData* outTensors =
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->outputsOffset);
     for (unsigned i = 0; i < outputVec.size(); i++) {
         outTensors[i] = outputVec[i].toMemRefData(outputLocations[i]);
         outTensors[i].location = outputLocations[i];
     }
+//    printf("check point 2: %d\n", outputVec.size());
+//    printf("%p\n", outTensors);
 
     const uint8_t *elf = reinterpret_cast<const uint8_t *>(kernelData.data());
     uint32_t elfSize = ops.kernelDataLen;

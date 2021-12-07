@@ -46,6 +46,9 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, TopK)) {
             const TensorDims dims3In(dimIn.width,   dimIn.height,  dimIn.channels,  1);
             const TensorDims dims3K(1, 1, 1, 1);
             const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
+//            printf("dimOut.width %d\n", dimOut.width);
+//            printf("dimOut.height %d\n", dimOut.height);
+//            printf("dimOut.channels %d\n", dimOut.channels);
 
             m_inputTensor.init(storageOrder, dims3In);
             m_kTensor.init(storageOrder, dims3K);
@@ -68,6 +71,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, TopK)) {
             *m_TopKParams = sw_params::TopKParams();
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
             m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
+//            printf("data size: %d\n", paramContainer.size());
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[0]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_TopKParams);
         }
@@ -134,22 +138,23 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, TopK)) {
         virtual bool checkResult() override {
             printf("check result.\n");
             m_valueTensor.confirmBufferData();
+            m_indexTensor.confirmBufferData();
 
             //bool threshold_test_failed = false;
 
             // Test value tensor
             float value;
-            MemoryDims ind1(0, 0, 0, 0, 0, 0, 0, 0);
-            value = f16Tof32(m_valueTensor.at(ind1));
-            printf("value: %f\n", value);
-            MemoryDims ind2(3, 2, 1, 0, 0, 0, 0, 0);
-            value = f16Tof32(m_valueTensor.at(ind2));
-            printf("value: %f\n", value);
+            for (int i = 0; i < 24; i++) {
+                value = f16Tof32(m_valueTensor.at(MemoryDims(i, 0, 0, 0, 0, 0, 0, 0)));
+                printf("value: %f\n", value);
+            }
 
             // Test index tensor
             int32_t index;
-            index = m_indexTensor.at(ind1);
-            printf("index: %d\n", index);
+            for (int i = 0; i < 24; i++) {
+                index = m_indexTensor.at(MemoryDims(i, 0, 0, 0, 0, 0, 0, 0));
+                printf("index: %ld\n", index);
+            }
 
             return true;
         }
