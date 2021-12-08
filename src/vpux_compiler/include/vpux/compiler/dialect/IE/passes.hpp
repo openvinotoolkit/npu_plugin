@@ -96,6 +96,7 @@ std::unique_ptr<mlir::Pass> createConvertConv1DToConv2DPass(Logger log = Logger:
 std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSupportBatchForPadPass(Logger log = Logger::global());
 
 //
 // LowPrecision

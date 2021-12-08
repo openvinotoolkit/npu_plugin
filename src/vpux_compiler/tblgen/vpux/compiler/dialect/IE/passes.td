@@ -670,6 +670,30 @@ def HandleAsymmetricStrides : PassBase<"handle-asymmetric-strides", "vpux::Funct
 }
 
 //
+// SupportBatchForPadOp
+//
+
+def SupportBatchForPad : PassBase<"support-batch-for-pad", "vpux::FunctionPass"> {
+    let summary = "Handle PadOp with non-zero padding on batch dimension";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        Split `IE::PadOp` with pads_begin[M, x, x, x] and pads_end[N, x, x, x] into several parts.
+        Create `IE::PadOp` with pads_begin[0, x, x, x] and pads_end[0, x, x, x] attributes.
+        Append tensor of size M * batchSize to the beginning, and tensor of size N * batchSize to the end.
+        Replace original `IE::PadOp` with `IE::Concat(%cst_front, %batchless_pad, %cst_back)`.
+        Only `IE::PadMode::CONSTANT` case is supported.
+    }];
+
+    let constructor = "vpux::IE::createSupportBatchForPadPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // UpstreamSlice
 //
 
