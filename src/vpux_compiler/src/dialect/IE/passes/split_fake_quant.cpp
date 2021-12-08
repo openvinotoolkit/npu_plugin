@@ -232,8 +232,8 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
             const auto outLowContent = outLowConst.content();
             const auto outHighContent = outHighConst.content();
 
-            const auto ratioLow = getCommonRatio(inLowContent, outLowContent);
-            const auto ratioHigh = getCommonRatio(inHighContent, outHighContent);
+            const auto ratioLow = getCommonRatio(outLowContent, inLowContent);
+            const auto ratioHigh = getCommonRatio(outHighContent, inHighContent);
 
             if (mlir::failed(ratioLow) || mlir::failed(ratioHigh)) {
                 return matchFailed(innerLog, rewriter, origOp,
