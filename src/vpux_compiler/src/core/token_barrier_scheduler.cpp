@@ -28,6 +28,31 @@ TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, m
         : _ctx(ctx), _func(func), builder(_func.getBody()), barrierCount_(numBarriers), slotCount_(slotCount) {
 }
 
+bool TokenBasedBarrierScheduler::isPathExist(mlir::Operation* a, mlir::Operation* b) {
+    auto numa = a->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
+    auto numb = b->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
+    if (numa >= numb)
+        return false;
+    else {
+        for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end();
+             iter++) {
+            auto produces = (*iter).second.first;
+            if (std::find(produces.begin(), produces.end(), a) != produces.end()) {
+                auto consumers = (*iter).second.second;
+                if (std::find(consumers.begin(), consumers.end(), b) != consumers.end())
+                    return true;
+                else {
+                    for (auto consumer = consumers.begin(); consumer != consumers.end(); consumer++) {
+                        if (isPathExist(*consumer, b))
+                            return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+}
+
 size_t TokenBasedBarrierScheduler::schedule() {
     size_t btask_count = 0UL;
 
@@ -102,6 +127,55 @@ size_t TokenBasedBarrierScheduler::schedule() {
     }
 
     std::cout << "Done scheduling" << std::endl;
+
+    // remove redundant deps
+    for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+        // producers
+        auto producers = (*iter).second.first;
+        for (auto prod = producers.begin(); prod != producers.end();) {
+            auto prod1 = prod;
+            prod1++;
+            for (; prod1 != producers.end();) {
+                if (isPathExist(*prod1, *prod)) {
+                    auto removedIter = prod1;
+                    prod1++;
+                    producers.erase(removedIter);
+                } else if (isPathExist(*prod, *prod1)) {
+                    auto removedIter = prod;
+                    prod++;
+                    producers.erase(removedIter);
+                    break;
+                } else
+                    prod1++;
+            }
+            if (prod1 == producers.end())
+                prod++;
+        }
+        (*iter).second.first = producers;
+
+        // consumers
+        auto consumers = (*iter).second.second;
+        for (auto cons = consumers.begin(); cons != consumers.end();) {
+            auto cons1 = cons;
+            cons1++;
+            for (; cons1 != consumers.end();) {
+                if (isPathExist(*cons, *cons1)) {
+                    auto removedIter = cons1;
+                    cons1++;
+                    consumers.erase(removedIter);
+                } else if (isPathExist(*cons1, *cons)) {
+                    auto removedIter = cons;
+                    cons++;
+                    consumers.erase(removedIter);
+                    break;
+                } else
+                    cons1++;
+            }
+            if (cons1 == consumers.end())
+                cons++;
+        }
+        (*iter).second.second = consumers;
+    }
 
     // remove redundant barriers
     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
