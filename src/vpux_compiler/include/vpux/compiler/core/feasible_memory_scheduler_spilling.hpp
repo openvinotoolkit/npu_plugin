@@ -45,13 +45,41 @@ private:
     mlir::async::ExecuteOp insertSpillWriteCopyOp(mlir::async::ExecuteOp opThatWasSpilled,
                                                   mlir::async::ExecuteOp insertAfterExecOp, mlir::Value bufferToSpill,
                                                   size_t allocatedAddress);
-    mlir::async::ExecuteOp insertSpillReadCopyOp(mlir::async::ExecuteOp opThatWasSpilled,
+    mlir::async::ExecuteOp insertSpillReadCopyOp(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value bufferToSpill,
                                                  mlir::async::ExecuteOp spillWriteExecOp,
                                                  mlir::async::ExecuteOp insertAfterExecOp, size_t allocatedAddress);
     void updateSpillWriteReadUsers(mlir::Value bufferToSpill, mlir::async::ExecuteOp spillWriteExecOp,
                                    mlir::async::ExecuteOp spillReadExecOp);
-    mlir::Value getAsyncResultForBuffer(mlir::Value buffer);
+    SmallVector<mlir::Value> getAsyncResultsForBuffer(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value buffer);
     mlir::Value getBufferFromAsyncResult(mlir::Value asyncResult);
+
+    // Below nested class is inteded to handle data dependency updates
+    // for users of spilled buffers
+    class SpillUsersUpdate {
+    public:
+        explicit SpillUsersUpdate(FeasibleMemorySchedulerSpilling& spillingClass,
+                                  mlir::async::ExecuteOp opThatWasSpilled, mlir::async::ExecuteOp spillReadExecOp,
+                                  mlir::Value bufferToSpill)
+                : _spillingParentClass(spillingClass),
+                  _opThatWasSpilled(opThatWasSpilled),
+                  _spillReadExecOp(spillReadExecOp),
+                  _bufferToSpill(bufferToSpill) {
+        }
+        void resolveSpillBufferUsage();
+
+    private:
+        mlir::Operation* getViewOpForMasterBuffer(mlir::Value asyncResult);
+        SmallVector<mlir::async::ExecuteOp> getUsersOfSpilledOpThatNeedUpdate(mlir::Value opThatWasSpilledResult);
+        unsigned int getOperandIndexForSpillResultUser(mlir::async::ExecuteOp spillResultUser,
+                                                       mlir::Value spilledAsyncResult);
+        void updateSpillResultUsers(mlir::Value oldResult, mlir::Value newResult);
+        void updateSpillBufferUsers(mlir::Value oldBuffer, mlir::Value newBuffer);
+
+        FeasibleMemorySchedulerSpilling& _spillingParentClass;
+        mlir::async::ExecuteOp _opThatWasSpilled;
+        mlir::async::ExecuteOp _spillReadExecOp;
+        mlir::Value _bufferToSpill;
+    };
 
 private:
     Logger _log;
@@ -70,6 +98,9 @@ private:
     // Vector of pairs of operation ID and inserted spill-write exec-op that doesn't have yet corresponding spill-read
     // op
     SmallVector<std::pair<mlir::Value, mlir::async::ExecuteOp>> _opIdAndSpillWritePairs;
+    // Map storing new buffers replacing spilled buffers: key - original spilled buffer, value - new allocated buffer
+    // after spill-read
+    llvm::DenseMap<mlir::Value, mlir::Value> _bufferReplacementAfterSpillRead;
 };
 
 }  // namespace vpux
