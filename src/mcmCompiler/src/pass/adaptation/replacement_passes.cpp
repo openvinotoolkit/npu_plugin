@@ -767,6 +767,8 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         }
     }
 
+    const std::vector<int64_t> no_perm = {0, 1, 2, 3};
+
     for(const auto& inputOp : inputs)
     {
         /* Vector to store original tensor orders */
@@ -802,7 +804,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 if(!flowsToAdd.empty())
                 {
                     /* Insert transpose op */
-                    auto transposedData = om.permute(inputOp->getName() + "_permute", outputTensor, mv::Order("NCHW"));
+                    auto transposedData = om.permuteND(inputOp->getName() + "_permute", outputTensor, no_perm);
 
                     om.getSourceOp(transposedData)->set<bool>("CMpermute", true);
 
@@ -862,7 +864,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 if(!flowsToAdd.empty())
                 {
                     /* Insert transpose op */
-                    auto transposedData = om.permute(inputOp->getName() + "_permute", outputTensor, mv::Order("NCHW"));
+                    auto transposedData = om.permuteND(inputOp->getName() + "_permute", outputTensor, no_perm);
                     /* Set desired target order */
                     transposedData->setOrder(outputOrder);
 
@@ -943,7 +945,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 }
 
                 /* Insert transpose op */
-                auto transposedData = om.permute(outputOp->getName() + "_permute", outputInTensor, mv::Order("NCHW"));
+                auto transposedData = om.permuteND(outputOp->getName() + "_permute", outputInTensor, no_perm);
 
                 /* Set desired output order */
                 transposedData->setOrder(outputOpOrder);
