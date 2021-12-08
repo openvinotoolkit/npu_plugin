@@ -70,7 +70,12 @@ static void getActShaveBinaries(const ActShaveCompileParams& params, const Compi
 
     std::cout << "act-kernels dir " << genDir.c_str() << " exists: " << sys::fs::exists(genDir) << std::endl;
     VPUX_THROW_UNLESS(sys::fs::exists(genDir), "{0}} directory is not exist", genDir);
-
+    std::string ls = "ls ";
+    ls = ls + genDir.c_str();
+    system(ls.c_str());
+    ls = "dir ";
+    ls = ls + genDir.c_str();
+    system(ls.c_str());
     std::string entryPoint = unitDesc.entry.str();
 
     SmallString prebuiltKernelBinariesPath(genDir);
