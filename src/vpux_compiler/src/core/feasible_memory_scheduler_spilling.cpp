@@ -297,6 +297,21 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::updateSpillBufferUsers(m
     // Update all users of original output buffer with the new buffer from spillRead except
     // the operations which were identified to refer to old output buffer
     oldBuffer.replaceAllUsesExcept(newBuffer, excludedUsersFromOrigBufferUpdate);
+
+    // mateusz: temporary fix to update weigthsTable reference to weigth in case
+    // weights buffer has been spilled at one point and weightTable need to refer to
+    // new location for weights to set proper pointers
+    for (auto* user : oldBuffer.getUsers()) {
+        if (mlir::isa_and_nonnull<VPUIP::WeightsTableOp>(user)) {
+            auto wTOp = mlir::dyn_cast_or_null<VPUIP::WeightsTableOp>(user);
+            _spillingParentObj->_log.trace("Mateusz: buffer - {0}\nused by WT op - {1}", oldBuffer, wTOp);
+            if (wTOp.weights() == oldBuffer) {
+                _spillingParentObj->_log.trace("Mateusz: used as weigths input, update");
+                wTOp->setOperand(2, newBuffer);
+                _spillingParentObj->_log.trace("Mateusz: WT op after update - {0}", wTOp);
+            }
+        }
+    }
 }
 
 void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage() {
