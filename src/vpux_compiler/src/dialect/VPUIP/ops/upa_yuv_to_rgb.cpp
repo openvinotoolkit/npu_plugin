@@ -46,8 +46,15 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::YuvToRgbUPAOp::serialize(VPUIP::Blo
         return writer.createUPALayerTask(*this,
                                          {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvertColorNV12ToRGBParams});
     } else if (inFmt() == IE::ColorFmt::I420) {
-        // TBD, similar as above ...
-        VPUX_THROW("I420->RGB unimplemented yet ...");
+        MVCNN::ConvertColorI420ToRGBParamsBuilder builder(writer);
+        if (outFmt() == IE::ColorFmt::RGB) {
+            builder.add_colorFormat(MVCNN::RgbFormat::RgbFormat_RGB);
+        } else {
+            builder.add_colorFormat(MVCNN::RgbFormat::RgbFormat_BGR);
+        }
+        const auto paramsOff = builder.Finish();
+        return writer.createUPALayerTask(*this,
+                                         {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvertColorI420ToRGBParams});
     }
     VPUX_THROW("Invalid color conversion !!!");
 }

@@ -150,6 +150,8 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Gather>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::NV12toRGB>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::NV12toBGR>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::I420toRGB>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::I420toBGR>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GatherElements>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Clamp>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Elu>& origNode);
@@ -269,6 +271,8 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Gather),
             MAP_ENTRY(ngraph::opset8::NV12toRGB),
             MAP_ENTRY(ngraph::opset8::NV12toBGR),
+            MAP_ENTRY(ngraph::opset8::I420toRGB),
+            MAP_ENTRY(ngraph::opset8::I420toBGR),
             MAP_ENTRY(opset_latest::GatherElements),
             MAP_ENTRY(opset_latest::Clamp),
             MAP_ENTRY(opset_latest::Elu),
@@ -790,6 +794,46 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     } else {
         op = builder.create<IE::YuvToRgbOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, IE::ColorFmt::NV12,
                                             IE::ColorFmt::BGR);
+    }
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::I420toRGB>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::opset8::I420toRGB>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS((inputs.size() == 1) || (inputs.size() == 3),
+                      "nGraph I420toRGB node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    IE::YuvToRgbOp op;
+    if (inputs.size() == 1) {
+        op = builder.create<IE::YuvToRgbOp>(createLocation(origNode), inputs[0], nullptr, nullptr, IE::ColorFmt::I420,
+                                            IE::ColorFmt::RGB);
+    } else {
+        op = builder.create<IE::YuvToRgbOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2],
+                                            IE::ColorFmt::I420, IE::ColorFmt::RGB);
+    }
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::I420toBGR>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::opset8::I420toBGR>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS((inputs.size() == 1) || (inputs.size() == 3),
+                      "nGraph I420toBGR node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    IE::YuvToRgbOp op;
+    if (inputs.size() == 1) {
+        op = builder.create<IE::YuvToRgbOp>(createLocation(origNode), inputs[0], nullptr, nullptr, IE::ColorFmt::I420,
+                                            IE::ColorFmt::BGR);
+    } else {
+        op = builder.create<IE::YuvToRgbOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2],
+                                            IE::ColorFmt::I420, IE::ColorFmt::BGR);
     }
     addOutputs(origNode, op);
 }
