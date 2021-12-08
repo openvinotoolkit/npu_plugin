@@ -99,7 +99,8 @@ constexpr Byte CSRAM_SIZE = 24_MB;
 constexpr Byte KMB_CMX_WORKSPACE_SIZE = Byte(896_KB);
 
 // See https://github.com/movidius/vpuip_2/blob/develop/system/nn_mtl/common_runtime/inc/nn_cmx_memory_map.h
-constexpr Byte MTL_CMX_WORKSPACE_SIZE = Byte(1936_KB);
+// TODO: actually should be 1936_KB, but runtime hangs with such a value
+constexpr Byte MTL_CMX_WORKSPACE_SIZE = Byte(896_KB);
 
 }  // namespace
 
