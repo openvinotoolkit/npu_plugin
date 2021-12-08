@@ -16,26 +16,13 @@ extern void*(shvNN0_topk);
 #define USE_SEED_VALUE 0xbdd1cb13  // defined to use this value as random seed
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, TopK)) {
-#define ALL_MODES_SET
-//#define ALL_OUTPUTS_SET
-#define ALL_SORTS_SET
-    
-    //#define USE_ARGMAX_TESTS /* use testing data from old ArgMax tests */
-
-#define TOPKSORT_NONE_SUPPORTED /* uncomment when and only if TopKSort::none will be supported */
-
-    const bool save_to_file = false;
-
-#define WHOLE_SLICE (-1) /* special K value, means 'all' */
 typedef int32_t Index;
-
 typedef t_D8StorageOrder StorageOrder;
 typedef std::initializer_list<int32_t> Dims;
 typedef std::initializer_list<int32_t> Gaps;
 
 static constexpr std::initializer_list<SingleTest> topk_test_list{
-    {{5, 6, 7}, {1, 6, 1}, orderZYX, FPE("topk.elf"), {{1 /*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
-    //{{5, 6, 7}, {1, 6, 1}, orderZYX, FPE("topk.elf"), {{0/*gap*/,1 /*k_value*/,1 /*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,2/*outputs=0,1,2(value,index,valueandindex)*/,sw_params::Location::NN_CMX /*mem type*/,}}},
+    {{2, 2, 2}, {1, 2, 2}, orderZYX, FPE("topk.elf"), {{0/*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
 };
 
 // pair of (value, index) used in sorting
@@ -79,7 +66,7 @@ static bool compareValuesMin(const Pair& a, const Pair& b)
 
 class CustomCppTopKTest: public CustomCppTests<fp16> {
 public:
-    explicit CustomCppTopKTest(): m_testsLoop(topk_test_list){}
+    explicit CustomCppTopKTest(): m_testsLoop(topk_test_list,"test"){}
     virtual ~CustomCppTopKTest(){}
 protected:
     const char* suiteName() const override {
@@ -98,17 +85,45 @@ protected:
     }
     
     void initData() override{
+        printf("init data.\n");
+        m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
+        paramContainer.resize(((int)sizeof(sw_params::TopKParams) + 7) / 8);
         
         initElfBuffer();
         initTestCase();
         
-        m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
-            
-        paramContainer.resize(((int)sizeof(sw_params::TopKParams) + 7) / 8);
-        CustomCppTests<fp16>::initData();
+        const Dimensions& dimIn = m_currentTest->inDim;
+        const Dimensions& dimOut = m_currentTest->outDim;
+        const StorageOrder& storageOrder = m_currentTest->storageOrder;
+        
+        const TensorDims dims3In(dimIn.width,   dimIn.height,  dimIn.channels,  1);
+        const TensorDims dims3K(1, 1, 1, 1);
+        const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
+
+        m_inputTensor.init(storageOrder, dims3In);
+        m_kTensor.init(storageOrder, dims3K);
+        m_valueTensor.init(storageOrder, dims3Out);
+        m_indexTensor.init(storageOrder, dims3Out);
+        m_referenceValueTensor.init(storageOrder, dims3Out);
+        m_referenceIndexTensor.init(storageOrder, dims3Out);
+        
+        
+        allocBuffer(m_inputTensor);
+        allocBuffer(m_kTensor);
+        allocBuffer(m_valueTensor);
+        allocBuffer(m_indexTensor);
+        allocBuffer(m_referenceValueTensor);
+        allocBuffer(m_referenceIndexTensor);
+        
         const SingleTest* test = m_currentTest;
-        int32_t ind[subspace::MAX_DIMS] = {0,};
+        int32_t ind[subspace::MAX_DIMS] = {0};
         subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
+        m_TopKParams = reinterpret_cast<sw_params::TopKParams*>(paramContainer.data());
+        *m_TopKParams = sw_params::TopKParams();
+        m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
+        m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
+        m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[0]);
+        m_params.baseParamData = sw_params::ToBaseKernelParams(m_TopKParams);
         
         m_axis = ind[test->customLayerParams.layerParams[0]];
         m_mode = ind[test->customLayerParams.layerParams[1]];
@@ -116,53 +131,15 @@ protected:
         m_hasOutputValues = 1;
         m_hasOutputIndices = 1;
         
-        m_topkParams = reinterpret_cast<sw_params::TopKParams*>(paramContainer.data());
-        *m_topkParams = sw_params::TopKParams();
-        
-        m_topkParams->axis = m_axis;
-        m_topkParams->mode = m_mode;
-        m_topkParams->sort = m_sort;
-        m_topkParams->hasValues = 1;
-        m_topkParams->hasIndices = 1;
-        
-        m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
-        m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
-        m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[6]);
-        m_params.baseParamData = sw_params::TopKParamsToBaseKernelParams(m_topkParams);
-        
-        const Dimensions& dimIn = m_currentTest->inDim;
-        const Dimensions& dimOut = m_currentTest->outDim;
-        const StorageOrder& storageOrder = m_currentTest->storageOrder;
-        
-        m_ndims = m_topkParams->inputValues.numDims;
-        
-        const TensorDims dims3In(dimIn.width,dimIn.height,  dimIn.channels,  1);
-        const TensorDims dims3InKvalue(1, 1,  1,  1);
-        const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
-
-        m_inputTensor.init(storageOrder, dims3In);
-        m_inputKTensor.init(storageOrder, dims3InKvalue);
-        m_refIndicesTensor.init(storageOrder, dims3Out);
-        m_refValuesTensor.init(storageOrder, dims3Out);
-        
-        if (m_hasOutputValues==1)
-            m_outputValuesTensor.init(storageOrder, dims3Out);
-        if (m_hasOutputIndices==1)
-            m_outputIndicesTensor.init(storageOrder, dims3Out);
-        
-        allocBuffer(m_inputTensor);
-        allocBuffer(m_inputKTensor);
-        allocBuffer(m_refIndicesTensor);
-        allocBuffer(m_refValuesTensor);
-        
-        if (m_hasOutputValues==1)
-            allocBuffer(m_outputValuesTensor);
-        if (m_hasOutputIndices==1)
-            allocBuffer(m_outputIndicesTensor);
-        
+        m_TopKParams->axis = m_axis;
+        m_TopKParams->mode = m_mode;
+        m_TopKParams->sort = m_sort;
+        m_TopKParams->hasValues = 1;
+        m_TopKParams->hasIndices = 1;
     }
     
     void initTestCase() override {
+        printf("init test case.\n");
         m_currentTest = &m_testsLoop.value();
         m_test_threshold = 0.0005f;
     }
@@ -171,72 +148,71 @@ protected:
         printf("init parser runner.\n");
         initMyriadResources();
         initDebugInfo();
-        
+
         static_assert(std::is_base_of<Op, CustomCpp>());
         CustomCpp* customCppOp = static_cast<CustomCpp*>(m_op);
-
+        
         Buffer inBuff;
         m_inputTensor.exportToBuffer(inBuff);
         customCppOp->addInputBuffer(inBuff, m_requiredTensorLocation);
 
         Buffer kBuff;
-        m_inputKTensor.exportToBuffer(kBuff);
+        m_kTensor.exportToBuffer(kBuff);
         customCppOp->addInputBuffer(kBuff, m_requiredTensorLocation);
 
         Buffer valueBuff;
-        m_outputValuesTensor.exportToBuffer(valueBuff);
+        m_valueTensor.exportToBuffer(valueBuff);
         customCppOp->addOutputBuffer(valueBuff, m_requiredTensorLocation);
 
         Buffer indexBuff;
-        m_outputIndicesTensor.exportToBuffer(indexBuff);
+        m_indexTensor.exportToBuffer(indexBuff);
         customCppOp->addOutputBuffer(indexBuff, m_requiredTensorLocation);
 
         customCppOp->ops = *getParams();
     }
     
     void generateInputData() override {
+        printf("generate input data.\n");
 #ifdef CONFIG_TARGET_SOC_3720
         m_params.kernel  = reinterpret_cast<uint64_t>(&shvNN0_topk);
 #else
         m_params.kernel  = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(topk));
 #endif
         
+        // input values
         rand_seed();
-        
-        // set random seed
         u64 ticks_for_seed = rtems_clock_get_uptime_nanoseconds();
         srand(ticks_for_seed);
-        
-        // input values
         m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
-            float tmp = float(rand() % 600) / 100 - 3.0f;
+            float tmp = float(rand() % 1000) / 100 - 5.0f;
             m_inputTensor.at(indices) = f32Tof16(tmp);
         });
 
         // input K
         int32_t k = 1;
-        m_inputKTensor.forEach(false, [&](const MemoryDims& indices) {
-            m_inputKTensor.at(indices) = k;
+        m_kTensor.forEach(false, [&](const MemoryDims& indices) {
+            m_kTensor.at(indices) = k;
         });
 
-        // reference
-        generateReferenceData();
+//        // reference
+//        generateReferenceData();
     }
     
     void generateReferenceData() override {
+        printf("generate reference data.\n");
         const auto k = 1;
         const auto mode = m_mode;
         const auto sort = m_sort;
-        const auto ndims = m_ndims;
-        const auto axis = m_ndims - 1 - m_axis; // Change axis due to layout
+        const auto ndims = 3;
+        const auto axis = m_axis; // Change axis due to layout
         
-        MemoryDims dims = m_inputValuesTensor.memoryDims();
+        MemoryDims dims = m_inputTensor.memoryDims();
         const int n = dims.dims[axis];
         dims.dims[axis] = 1;
         
         const int inputValuesAxisStep = m_inputTensor.memorySteps().dims[axis];
-        const int refValuesAxisStep = m_refValuesTensor.memorySteps().dims[axis];
-        const int refIndicesAxisStep = m_refIndicesTensor.memorySteps().dims[axis];
+        const int refValuesAxisStep = m_referenceValueTensor.memorySteps().dims[axis];
+        const int refIndicesAxisStep = m_referenceIndexTensor.memorySteps().dims[axis];
 
         std::vector<Pair> temp(n);
         CompareFunction compareValues = modeComparison(mode);
@@ -247,12 +223,12 @@ protected:
                 temp[i] = Pair(inputValuesData[i * inputValuesAxisStep], i);
                          
             std::partial_sort(temp.begin(), temp.begin() + k, temp.begin() + n, compareValues);
-            if (sort == 2) {
+            if (sort == 0) {
                 std::sort(temp.begin(), temp.begin() + k, compareIndices);
             }
 
-            auto refValuesData = &m_refValuesTensor.at(id);
-            auto refIndicesData = &m_refIndicesTensor.at(id);
+            auto refValuesData = &m_referenceValueTensor.at(id);
+            auto refIndicesData = &m_referenceIndexTensor.at(id);
             for (int i = 0; i < k; ++i){
                 const auto& t = temp[i];
                 refValuesData[i * refValuesAxisStep] = t.first;
@@ -272,20 +248,20 @@ protected:
     
     virtual bool checkResult() override{
         bool test_failed = false;
-        m_outputTensor.confirmBufferData();
         
-        if (m_hasOutputValues==1)
-            m_outputValuesTensor.confirmBufferData();
-        if (m_hasOutputIndices==1)
-            m_outputIndicesTensor.confirmBufferData();
+        m_referenceValueTensor.confirmBufferData();
         
-        m_refValuesTensor.forEach(true, [this, &test_failed](const MemoryDims& indices){
-            const float gt_value    = f16Tof32(m_refValuesTensor.at(indices));
-            float out_value   = (m_hasOutputValues == 1) ? f16Tof32(m_outputValuesTensor.at(indices)) : 0.f;
+//        saveMemoryToFile(reinterpret_cast<u32>(m_inputTensor.buffer()), m_inputTensor.bufferSize(), "input.bin");
+//        saveMemoryToFile(reinterpret_cast<u32>(m_valueTensor.buffer()), m_valueTensor.bufferSize(), "outvalue.bin");
+//        saveMemoryToFile(reinterpret_cast<u32>(m_referenceValueTensor.buffer()), m_referenceValueTensor.bufferSize(), "outref.bin");
+        
+        m_referenceValueTensor.forEach(true, [this, &test_failed](const MemoryDims& indices){
+            const float gt_value    = f16Tof32(m_referenceValueTensor.at(indices));
+            float out_value   = (m_hasOutputValues == 1) ? f16Tof32(m_valueTensor.at(indices)) : 0.f;
             const bool value_differ = (m_hasOutputValues == 1) && (out_value != gt_value);
             
-            const Index gt_index    = m_refIndicesTensor.at(indices);
-            const Index out_index   = (m_hasOutputIndices == 1) ? m_outputIndicesTensor.at(indices) : 0;
+            const Index gt_index    = m_referenceIndexTensor.at(indices);
+            const Index out_index   = (m_hasOutputIndices == 1) ? m_indexTensor.at(indices) : 0;
             const bool index_differ = (m_hasOutputIndices == 1) && (out_index != gt_index);
 
             const bool differ = value_differ || index_differ;
@@ -294,16 +270,16 @@ protected:
             if (m_hasOutputValues!=1)
             {
                 int32_t setCoords[MAX_DIMS];
-                subspace::getCoord(out_index, m_inputValuesTensor.memoryDims().dims, m_inputValuesTensor.ndims(), setCoords);
-                MemoryDims indicesIn(setCoords, m_inputValuesTensor.ndims());
-                out_value = m_inputValuesTensor.at(indicesIn);
+                subspace::getCoord(out_index, m_inputTensor.memoryDims().dims, m_inputTensor.ndims(), setCoords);
+                MemoryDims indicesIn(setCoords, m_inputTensor.ndims());
+                out_value = m_inputTensor.at(indicesIn);
             }
 
             if (differ && GlobalData::doPrintDiffs)
             {
                 char indices_str[64];
                 printf("DIFF [%s] %f %s %f, %ld %s %ld\n",
-                       ((m_hasOutputValues==1) ? m_outputValuesTensor.indicesToString(indices, indices_str) : m_outputIndicesTensor.indicesToString(indices, indices_str)),
+                       ((m_hasOutputValues==1) ? m_valueTensor.indicesToString(indices, indices_str) : m_indexTensor.indicesToString(indices, indices_str)),
                        out_value, value_differ ? "!=" : "==", gt_value,
                        out_index, index_differ ? "!=" : "==", gt_index);
             }
@@ -320,14 +296,14 @@ private:
     int m_hasOutputIndices;
     
     std::vector<uint64_t> paramContainer;
-    sw_params::TopKParams * m_topkParams;
+    sw_params::TopKParams* m_TopKParams;
     
-    Tensor<int32_t> m_inputValuesTensor;
-    Tensor<fp16> m_outputValuesTensor;
-    Tensor<int32_t> m_inputKTensor;
-    Tensor<int32_t> m_outputIndicesTensor;
-    Tensor<fp16> m_refValuesTensor;
-    Tensor<int32_t> m_refIndicesTensor;
+    Tensor<int32_t> m_kTensor;
+    Tensor<fp16> m_valueTensor;
+    Tensor<int32_t> m_indexTensor;
+    
+    Tensor<fp16> m_referenceValueTensor;
+    Tensor<int32_t> m_referenceIndexTensor;
 };
 
 ICV_TESTS_REGISTER_SUITE(CustomCppTopKTest)

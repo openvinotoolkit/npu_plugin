@@ -148,8 +148,10 @@ struct t_MvTopKParamNClasses
     s32 axisIStride;
     s32 axisOStride;
     s32 axisOIStride;
+    
     s32 start;
     s32 toProcess;
+    
     s32 mode;
     int32_t inputDim;
     int32_t outputDim;
@@ -240,10 +242,16 @@ extern "C" void topk(uint32_t lParamsAddr) {
     uint8_t* cmxData = nullptr;
     int32_t availableCmxBytes = 0;
     
-    half* p_act_data = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->inputValues.dataAddr);  // 0x1F000000
-    half* p_act_out = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->outputValues.dataAddr);   // 0x1F004000
-    //half* p_act_ind = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->outputIndices.dataAddr); 
-
+    half* p_act_data = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->input.dataAddr);  // 0x1F000000
+    half* p_act_out = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->value.dataAddr);   // 0x1F004000
+    
+//    for(int i=0;i<2*2*2;i++)
+//    {
+//        *p_act_out = *p_act_data;
+//        p_act_out++;
+//        p_act_data++;
+//    }
+    
     t_MvTopKParamNClasses topkParamsCMX;
     t_MvTopKParamNClasses* tp = &topkParamsCMX;
     
@@ -252,18 +260,18 @@ extern "C" void topk(uint32_t lParamsAddr) {
     tp->axis = layerParams->axis;
     tp->inputInCmx = true;
     tp->outputInCmx = true;
-    tp->inputDim = layerParams->inputValues.numDims;
-    tp->outputDim = layerParams->outputValues.numDims;
+    tp->inputDim = layerParams->input.numDims;
+    tp->outputDim = layerParams->value.numDims;
     //tp->indicesDim = layerParams->outputIndices.numDims;
-    tp->k = layerParams->k;
+    tp->k = *(int32_t*)(reinterpret_cast<TopKParams*>(lParamsAddr)->k.dataAddr);
     //tp->hasIndices = (layerParams->hasIndices == 1) ? true:false;
     
-    int32_t* iPDims = (int32_t*)(layerParams->inputValues.dimsAddr);
-    int32_t* oPDims = (int32_t*)(layerParams->outputValues.dimsAddr);
+    int32_t* iPDims = (int32_t*)(layerParams->input.dimsAddr);
+    int32_t* oPDims = (int32_t*)(layerParams->value.dimsAddr);
     //int32_t* oPIDims = (int32_t*)(layerParams->outputIndices.dimsAddr);
     
-    int32_t* iPStrides = (int32_t*)(layerParams->inputValues.stridesAddr);
-    int32_t* oPStrides = (int32_t*)(layerParams->outputValues.stridesAddr);
+    int32_t* iPStrides = (int32_t*)(layerParams->input.stridesAddr);
+    int32_t* oPStrides = (int32_t*)(layerParams->value.stridesAddr);
     //int32_t* oPIStrides = (int32_t*)(layerParams->outputIndices.stridesAddr);
 
     const int32_t mode = layerParams->mode;
@@ -284,7 +292,6 @@ extern "C" void topk(uint32_t lParamsAddr) {
     int32_t firstShave = 0;
     int32_t lastShave = firstShave + static_cast<int>(shaves_no) - 1;
     nnLog(MVLOG_DEBUG, "singleShaveSoftmax: run on %d SHAVEs\n", shaves_no);
-
     {
         nnLog(MVLOG_DEBUG, "softMaxParamNClasses %d\n", __LINE__);
         // one or many softmax sets on one shave

@@ -1,27 +1,18 @@
 #pragma once
 
-#ifdef __MOVICOMPILE__
-#    include <moviVectorTypes.h>
-#else
-typedef fp16 half;
-#endif
-
 #include <common_types.h>
-#include <mv_types.h>
-#define SHAVE_LIB_DATA_SIZE 112 * 1024
+
 #ifdef __cplusplus
 namespace sw_params {
 #endif
 
-#define MAX_TK_DIMS 8
+#pragma pack(push, 1)
 
-/// TopKMax parameters
-
-struct __attribute__((packed)) TopKParams {
-    struct MemRefData inputValues;
+struct TopKParams {
+    struct MemRefData input;
     struct MemRefData k;
-    struct MemRefData outputValues;
-    struct MemRefData outputIndices;
+    struct MemRefData value;
+    struct MemRefData index;
     
     int32_t start;
     int32_t toProcess;
@@ -33,16 +24,18 @@ struct __attribute__((packed)) TopKParams {
     int32_t hasIndices;
 };
 
-inline BaseKernelParams TopKParamsToBaseKernelParams(TopKParams * topKParams) {
-    BaseKernelParams result;
+#pragma pack (pop)
+
+inline struct BaseKernelParams ToBaseKernelParams(struct TopKParams * params) {
+    struct BaseKernelParams result;
     result.numInputs = 2;
-    result.numOutputs = 2;// change to 2 how? 
+    result.numOutputs = 2;
 #ifdef  __cplusplus
-    result.inputsOffset = reinterpret_cast<uint8_t*>(&(topKParams->inputValues)) - reinterpret_cast<uint8_t*>(topKParams);
-    result.outputsOffset = reinterpret_cast<uint8_t*>(&(topKParams->outputValues)) - reinterpret_cast<uint8_t*>(topKParams);
+    result.inputsOffset = reinterpret_cast<uint8_t*>(&(params->input)) - reinterpret_cast<uint8_t*>(params);
+    result.outputsOffset = reinterpret_cast<uint8_t*>(&(params->value)) - reinterpret_cast<uint8_t*>(params);
 #else
-    result.inputsOffset = (uint8_t*)(&(topKParams->inputValues)) - (uint8_t*)(topKParams);
-    result.outputsOffset = (uint8_t*)(&(topKParams->outputValues)) - (uint8_t*)(topKParams);
+    result.inputsOffset = (uint8_t*)(&(params->input)) - (uint8_t*)(params);
+    result.outputsOffset = (uint8_t*)(&(params->value)) - (uint8_t*)(params);
 #endif
     return result;
 }
