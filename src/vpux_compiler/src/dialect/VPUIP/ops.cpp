@@ -67,14 +67,6 @@ public:
             return false;
         }
 
-        // MaxPool IDU does not support zero-point subtraction, so it compensates by ignoring output zero-point as well.
-        // Fusing a post-op that removes the operation's 'linearity' leads to different input/output quantizations which
-        // provide wrong results due to the zero-point limitation.
-        // TODO: Move check to the `FuseQuantizedOps` pass
-        if (mlir::isa<IE::SigmoidOp, IE::TanhOp>(postOp) && mlir::isa<IE::MaxPoolOp>(mainOp)) {
-            return false;
-        }
-
         return VPUIP::NCEInvariant::verifyKernel(mlir::cast<MainOpType>(mainOp)).succeeded();
     }
 };

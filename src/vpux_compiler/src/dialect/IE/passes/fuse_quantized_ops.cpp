@@ -180,6 +180,16 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
         return mlir::failure();
     }
 
+    // MaxPool IDU does not support zero-point subtraction, so it compensates by ignoring output zero-point as well.
+    // Since we are not subtracting the input zero-point, the non-linear post-op will operate on improper data.
+    // Only zero-centered values would be supported. Currently, quantized MaxPool is disabled for all post-ops.
+    auto mainOp = mlir::dyn_cast<IE::LayerWithPostOpInterface>(maxPoolOp.getOperation());
+    if (mainOp != nullptr) {
+        if (mainOp.getPostOp().hasValue()) {
+            return mlir::failure();
+        }
+    }
+
     auto inputDequantizeOp = maxPoolOp.input().getDefiningOp<IE::DequantizeOp>();
     if (inputDequantizeOp == nullptr) {
         return mlir::failure();
