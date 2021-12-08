@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/preprocess.hpp"
-#include <kmb_layer_test.hpp>
+#include <vpux_layer_test.hpp>
 #include "ngraph_functions/preprocess/preprocess_builders.hpp"
 
 
@@ -19,7 +19,7 @@ inline std::vector<ov::builder::preprocess::preprocess_func> nv12_convert_prepro
 using namespace SubgraphTestsDefinitions;
 
 class VPUXPreProcessCompileTest : virtual public PrePostProcessTest,
-                                  virtual public LayerTestsUtils::KmbLayerTestsCommon {
+                                  virtual public VPUXLayerTestsUtils::VPUXLayerTestsCommon {
 public:
     void SetUp() override {
         SkipBeforeInfer();
@@ -30,9 +30,9 @@ protected:
 };
 
 TEST_P(VPUXPreProcessCompileTest, CompareWithRefs) {
-    KmbLayerTestsCommon::useCompilerMLIR();
+    useCompilerMLIR();
     setReferenceSoftwareModeMLIR();
-    KmbLayerTestsCommon::Run();
+    run();
 }
 
 
