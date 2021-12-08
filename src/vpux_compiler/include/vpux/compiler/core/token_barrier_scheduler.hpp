@@ -153,7 +153,7 @@ public:
             // assert(is_barrier_task(bop_curr_new));
 
             // STEP-1 //
-            std::cout << "bop_curr = " << bop_curr << " bop_end = " << bop_end << std::endl;
+            // std::cout << "bop_curr = " << bop_curr << " bop_end = " << bop_end << std::endl;
             if (bop_curr != bop_end) {
                 Logger::global().error("The ID of barrier bop_curr is {0}", bop_curr->getAttr("id"));
                 process_current_barrier_producer_list_close_event(bop_curr, bop_prev);
@@ -217,7 +217,7 @@ public:
                     if (barrierConsumersItr != tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end()) {
                         Logger::global().error("STEP-1.3 Adding consumer Op with ID {0} to barrier {1}",
                                                FeasibleScheduleGenerator::getUniqueID(source), b_prev->getAttr("id"));
-                        barrierConsumersItr->second.second.insert(source);
+                        // barrierConsumersItr->second.second.insert(source);
                     } else
                         VPUX_THROW("Not found");
                 }
