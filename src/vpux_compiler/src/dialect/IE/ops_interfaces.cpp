@@ -336,6 +336,8 @@ OutputTiling vpux::IE::generatePrefetchTiles(mlir::Operation* op, Logger log) {
     if (dimsToTile.size() > 1)  // return general tiling when getting nested tiles.
         return fillDividedTiles(nTilesOnDim, outputShape);
 
+    std::cout<<llvm::formatv("generalTile {0} tiles:", nTilesOnDim.size()).str()<<std::endl;
+
     // step 2: increase the general tile strategy to satisfy prefetching
     const auto targetDim = dimsToTile[0];
     Shape prefetchableTilesOnDim = nTilesOnDim;
