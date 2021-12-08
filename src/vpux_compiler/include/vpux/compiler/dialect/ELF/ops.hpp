@@ -15,7 +15,8 @@
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/ELF/attributes/enums.hpp"  // 2021_10_14
-#include "vpux/compiler/dialect/ELF/types.hpp"             // 2021_10_01
+#include "vpux/compiler/dialect/ELF/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/ELF/types.hpp"  // 2021_10_01
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"

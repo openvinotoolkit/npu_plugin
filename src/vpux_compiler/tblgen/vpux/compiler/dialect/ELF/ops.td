@@ -22,6 +22,7 @@ include "mlir/IR/RegionKindInterface.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 //include "vpux/compiler/dialect/VPUIP/types.td"
 include "vpux/compiler/dialect/VPURT/types.td"
+include "vpux/compiler/dialect/ELF/ops_interfaces.td"
 
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -31,7 +32,11 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 //
 
 class ELF_Op<string mnemonic, list<OpTrait> traits = []> :
-    Op<ELF_Dialect, mnemonic, traits>;
+    Op<
+        ELF_Dialect,
+        mnemonic,
+        traits
+    >;
 
 //
 // CreateSectionOp
@@ -75,7 +80,12 @@ def CreateSectionOp : ELF_Op<"CreateSection",
 // PutAnyOpInSectionOp
 //
 
-def PutAnyOpInSectionOp : ELF_Op<"PutAnyOpInSection"> {
+def PutAnyOpInSectionOp :
+  ELF_Op<"PutAnyOpInSection",
+    [
+      DeclareOpInterfaceMethods<ELF_OpInterface>
+    ]
+  > {
     let summary = "Put Any Op in ELF Section";
 
     let arguments = (ins
@@ -120,9 +130,11 @@ def SymbolOp : ELF_Op<"Symbol"> {
 // CreateSymbolTableSectionOp
 //
 
-def CreateSymbolTableSectionOp : ELF_Op<"CreateSymbolTableSection",
+def CreateSymbolTableSectionOp :
+        ELF_Op<"CreateSymbolTableSection",
             [
-                NoRegionArguments
+                NoRegionArguments,
+                DeclareOpInterfaceMethods<ELF_OpInterface>
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -196,7 +208,12 @@ def CreateRelocationSectionOp : ELF_Op<"CreateRelocationSection",
 // RelocOp
 //
 
-def RelocOp : ELF_Op<"Reloc"> {
+def RelocOp :
+  ELF_Op<"Reloc",
+    [
+      DeclareOpInterfaceMethods<ELF_OpInterface>
+    ]
+  > {
     let summary = "Reloc Op";
 
     let arguments = (ins
