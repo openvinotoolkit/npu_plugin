@@ -146,26 +146,16 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
     return mlir::success();
 }
 
-/*
-  /// TODO: Alex
+#define NUM_SECTIONS_MAX 100
+#define NUM_SYMBOLS_MAX 10000
+#define STR_ELF_SYMBOL "ELF.Symbol "
 
-  // Code from thirdparty/llvm-project/mlir/test/lib/IR/TestPrintNesting.cpp
-  /// Manages the indentation as we traverse the IR nesting.
-  int indent;
-  struct IdentRAII {
-    int &indent;
-    IdentRAII(int &indent) : indent(indent) {}
-    ~IdentRAII() { --indent; }
-  };
-  void resetIndent() { indent = 0; }
-  IdentRAII pushIndent() { return IdentRAII(++indent); }
+// Code taken from src/vpux_elf/example/simplewriter/simplewriter.cpp
+static elf::Writer elfWriter;
+static vpux::SmallVector<vpux::IE::DataInfoOp, 1> diOpInVec;
+static vpux::SmallVector<vpux::IE::DataInfoOp, 1> diOpOutVec;
 
-  llvm::raw_ostream &printIndent() {
-    for (int i = 0; i < indent; ++i)
-      llvm::outs() << "  ";
-    return llvm::outs();
-  }
-*/
+void processRegion(mlir::Region& region);
 
 // 2021_08_20: Inspired from https://mlir.llvm.org/docs/Tutorials/UnderstandingTheIRStructure/
 void printOperation(mlir::Operation* op) {
@@ -182,42 +172,29 @@ void printOperation(mlir::Operation* op) {
     }
 }
 
-int ELFSectionIndex = 0;  // TODO: put somewhere else
-
-// std::vector<char> DMATasksELFBLOB;
-// std::vector<char> ConfigureBarriersELFBLOB;
-
-#define NUM_SECTIONS_MAX 100
-struct ELFSectionAttributes {
-    std::string sectionName;
-    int sectionType;
-    int sectionFlags;
-    int sectionInfo;
-    int sectionAddrAlignInfo;
-    std::vector<char> serializedData;
-} sectionAttributes[NUM_SECTIONS_MAX];
-// elf::writer::BinaryDataSection<char>* ELFSection[NUM_SECTIONS_MAX];
-elf::writer::Section* ELFSection[NUM_SECTIONS_MAX];
-// elf::writer::SymbolSection ELFSection2[NUM_SECTIONS_MAX];
-
-#define NUM_SYMBOLS_MAX 10000
-elf::writer::Symbol* ELFSymbol[NUM_SYMBOLS_MAX];
-int ELFSymbolIndex = 0;  // TODO: put somewhere else
-//
-mlir::Value ELFSymbolValue[NUM_SYMBOLS_MAX];
-
-// Code taken from src/vpux_elf/example/simplewriter/simplewriter.cpp
-elf::Writer elfWriter;
-
-#define STR_ELF_SYMBOL "ELF.Symbol "
-
-vpux::SmallVector<vpux::IE::DataInfoOp, 1> diOpInVec;
-vpux::SmallVector<vpux::IE::DataInfoOp, 1> diOpOutVec;
-
-void processRegion(mlir::Region& region);
-
 // Inspired from https://mlir.llvm.org/docs/Tutorials/UnderstandingTheIRStructure/
 void processBlock(mlir::Block& block) {
+    static struct ELFSectionAttributes {
+        std::string sectionName;
+        int sectionType;
+        int sectionFlags;
+        int sectionInfo;
+        int sectionAddrAlignInfo;
+        std::vector<char> serializedData;
+    } sectionAttributes[NUM_SECTIONS_MAX];
+
+    // elf::writer::BinaryDataSection<char>* ELFSection[NUM_SECTIONS_MAX];
+    // static elf::writer::Section* ELFSection[NUM_SECTIONS_MAX];
+    static std::vector<elf::writer::Section*> ELFSection;
+    static int ELFSectionIndex = 0;
+    // elf::writer::SymbolSection ELFSection2[NUM_SECTIONS_MAX];
+
+    // static elf::writer::Symbol* ELFSymbol[NUM_SYMBOLS_MAX];
+    static std::vector<elf::writer::Symbol*> ELFSymbol;
+    static int ELFSymbolIndex = 0;
+    //
+    static mlir::Value ELFSymbolValue[NUM_SYMBOLS_MAX];
+
     // Print the block intrinsics properties (basically: argument list)
     llvm::dbgs() << "Entered processBlock(). Block with " << block.getNumArguments() << " arguments, "
                  << block.getNumSuccessors()
@@ -240,18 +217,6 @@ void processBlock(mlir::Block& block) {
         std::string opName = op.getName().getStringRef().str();
         llvm::dbgs() << "  opName = " << opName << "\n";
 
-        /*
-        else
-        if (opName == "VPUIPRegMapped.ConfigureBarrier") {
-            // Just printing the Operation
-            //auto cfgBarrier = llvm::cast<vpux::VPUIPRegMapped::ConfigureBarrierOp>(op);
-            vpux::VPUIPRegMapped::ConfigureBarrierOp cfgBarrier =
-        llvm::cast<vpux::VPUIPRegMapped::ConfigureBarrierOp>(op);
-
-            llvm::dbgs() << "    cfgBarrier = " << cfgBarrier << "\n";
-            //llvm::dbgs().flush();
-        }
-        */
         if (vpux::ELF::PutAnyOpInSectionOp putAnyOpInSectionOp = llvm::dyn_cast<vpux::ELF::PutAnyOpInSectionOp>(op)) {
             llvm::dbgs() << "Found an ELF.PutAnyOpInSection operation\n";
             llvm::dbgs().flush();
@@ -370,8 +335,10 @@ void processBlock(mlir::Block& block) {
                 // auto input =
                 // ((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])->addSymbolEntry();
                 // input->setName(".input123"); // TODO: generate a new name each time
-                ELFSymbol[ELFSymbolIndex] =
-                        ((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])->addSymbolEntry();
+                // ELFSymbol[ELFSymbolIndex] =
+                //        ((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])->addSymbolEntry();
+                ELFSymbol.push_back(
+                        ((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])->addSymbolEntry());  // 2021_12_08
 
                 std::string printStr;
                 llvm::raw_string_ostream OS(printStr);
@@ -445,6 +412,8 @@ void processBlock(mlir::Block& block) {
                 llvm::dbgs().flush();
             }
         } else if (vpux::ELF::RelocOp relocOp = llvm::dyn_cast<vpux::ELF::RelocOp>(op)) {
+            //             relocOp.serialize(/*elfWriter, */ ELFSection, ELFSectionIndex, ELFSymbol, ELFSymbolIndex);
+
             llvm::dbgs() << "processBlock(): Found ELF.RelocOp\n";
             llvm::dbgs().flush();
 
@@ -464,7 +433,7 @@ void processBlock(mlir::Block& block) {
                 if (ELFSymbolValue[idx] == relocOp.sourceSymbol())
                     break;
             }
-            llvm::dbgs() << " Found idx = " << idx << "\n";
+            llvm::dbgs() << "processBlock(): Found idx = " << idx << "\n";
 
             auto relocationEntry = ((elf::writer::RelocationSection*)ELFSection[ELFSectionIndex])->addRelocationEntry();
             relocationEntry->setOffset(relocOp.offsetTargetField());
@@ -498,7 +467,8 @@ void processBlock(mlir::Block& block) {
             llvm::dbgs() << "  processBlock(): ELFSectionIndex = " << ELFSectionIndex << "\n";
 
             // See ...ELF/generated/ops.hpp.inc
-            // TODO: check that the region contains only the same kind of Op (only NNDMAOp or only ConfigureBarrierOp)
+            // MEGA TODO: check that the region contains only the same kind of Op (only NNDMAOp or only
+            // ConfigureBarrierOp)
             mlir::Region& aRegion = sectionOp.aRegion();
             llvm::dbgs() << "processBlock(): Calling processRegion(aRegion)\n";
             processRegion(aRegion);
@@ -507,7 +477,8 @@ void processBlock(mlir::Block& block) {
                          << " and serializedData.size() = " << sectionAttributes[ELFSectionIndex].serializedData.size()
                          << ".\n";
 
-            ELFSection[ELFSectionIndex] = elfWriter.addBinaryDataSection<char>();
+            // ELFSection[ELFSectionIndex] = elfWriter.addBinaryDataSection<char>();
+            ELFSection.push_back(elfWriter.addBinaryDataSection<char>());  // 2021_12_08
             ELFSection[ELFSectionIndex]->setName(sectionAttributes[ELFSectionIndex].sectionName);
             // ELFSection[idx]->set_type(sectionAttributes[idx].sectionType);
             // ELFSection[idx]->setType(sectionAttributes[idx].sectionType); // TODO
@@ -564,7 +535,8 @@ void processBlock(mlir::Block& block) {
                          << ".\n";
 
             // ELFSection[ELFSectionIndex] = elfWriter.addBinaryDataSection<char>();
-            ELFSection[ELFSectionIndex] = elfWriter.addSymbolSection();
+            // ELFSection[ELFSectionIndex] = elfWriter.addSymbolSection();
+            ELFSection.push_back(elfWriter.addSymbolSection());  // 2021_12_08
             ELFSection[ELFSectionIndex]->setName(sectionAttributes[ELFSectionIndex].sectionName);
             // <<error: ‘class elf::writer::SymbolSection’ has no member named ‘setType’:>>
             // ((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])
@@ -668,7 +640,8 @@ void processBlock(mlir::Block& block) {
                          << " and serializedData.size() = " << sectionAttributes[ELFSectionIndex].serializedData.size()
                          << ".\n";
 
-            ELFSection[ELFSectionIndex] = elfWriter.addRelocationSection();
+            // ELFSection[ELFSectionIndex] = elfWriter.addRelocationSection(); // 2021_12_08
+            ELFSection.push_back(elfWriter.addRelocationSection());  // 2021_12_08
             // auto relocation = elfWriter.addRelocationSection();
             // ELFSection[ELFSectionIndex] = elfWriter.addBinaryDataSection<char>();
             ELFSection[ELFSectionIndex]->setName(sectionAttributes[ELFSectionIndex].sectionName);
@@ -703,8 +676,6 @@ void processBlock(mlir::Block& block) {
             ELFSectionIndex++;  // TODO: change accordingly - make nicer (use e.g. ELF::Section, etc)
         }
 
-        // llvm::dbgs() << "DMATasksELFBLOB.size() = " << DMATasksELFBLOB.size() << "\n";
-        // llvm::dbgs() << "ConfigureBarriersELFBLOB.size() = " << ConfigureBarriersELFBLOB.size() << "\n";
         llvm::dbgs().flush();
     }
 }
@@ -712,21 +683,20 @@ void processBlock(mlir::Block& block) {
 // 2021_08_20: Inspired from https://mlir.llvm.org/docs/Tutorials/UnderstandingTheIRStructure/
 void processRegion(mlir::Region& region) {
     // A region does not hold anything by itself other than a list of blocks.
-    llvm::dbgs()
-            // printIndent()
-            << "Entered processRegion(). Region with " << region.getBlocks().size() << " blocks:\n";
+    llvm::dbgs() << "Entered processRegion(). Region with " << region.getBlocks().size() << " blocks\n";
+    // Not working << region << "\n";
 
-    // auto indent = pushIndent();
     for (mlir::Block& block : region.getBlocks())
         processBlock(block);
 }
 
 mlir::LogicalResult exportVPUIPRegMappedAndELF(mlir::ModuleOp module, llvm::raw_ostream& output,
-                                               StringRef /*outputFileName*/) {
+                                               StringRef outputFileName) {
     (void)output;
 
     llvm::dbgs() << "Alex: Entered exportVPUIPRegMappedAndELF()\n";
     llvm::dbgs() << "exportVPUIPELF(): module->getName() = " << module->getName() << "\n";
+    llvm::dbgs() << "exportVPUIPELF(): outputFileName = " << outputFileName << "\n";
 
     // Code taken from src/vpux_elf/example/simplewriter/simplewriter.cpp
     // elf::Writer elf;
@@ -803,12 +773,10 @@ mlir::LogicalResult exportVPUIPRegMappedAndELF(mlir::ModuleOp module, llvm::raw_
         }
     }
 
-    llvm::dbgs() << "exportVPUIPELF(): ELFSectionIndex = " << ELFSectionIndex << "\n";
-    llvm::dbgs().flush();
-
     elfWriter.write("vpux_elf_MTL");
 
-    llvm::dbgs() << "When exiting exportVPUIPELF(): ELFSectionIndex = " << ELFSectionIndex << "\n";
+    // llvm::dbgs() << "When exiting exportVPUIPELF(): ELFSectionIndex = " << ELFSectionIndex << "\n";
+    // llvm::dbgs().flush();
 
     return mlir::success();
 }

@@ -45,8 +45,11 @@ void vpux::ELF::CreateSectionOp::serialize(elf::Writer& writer) {
 }
 */
 
-int ELFSectionIndex = 0;  // TODO: put somewhere else
 #define NUM_SECTIONS_MAX 100
+#define NUM_SYMBOLS_MAX 10000
+#define STR_ELF_SYMBOL "ELF.Symbol "
+
+int ELFSectionIndex = 0;  // TODO: put somewhere else
 struct ELFSectionAttributes {
     std::string sectionName;
     int sectionType;
@@ -59,19 +62,18 @@ struct ELFSectionAttributes {
 elf::writer::Section* ELFSection[NUM_SECTIONS_MAX];
 // elf::writer::SymbolSection ELFSection2[NUM_SECTIONS_MAX];
 
-#define NUM_SYMBOLS_MAX 10000
 elf::writer::Symbol* ELFSymbol[NUM_SYMBOLS_MAX];
 int ELFSymbolIndex = 0;  // TODO: put somewhere else
 //
 mlir::Value ELFSymbolValue[NUM_SYMBOLS_MAX];
 
-#define STR_ELF_SYMBOL "ELF.Symbol "
-
 vpux::SmallVector<vpux::IE::DataInfoOp, 1> diOpInVec;
 vpux::SmallVector<vpux::IE::DataInfoOp, 1> diOpOutVec;
 
-void vpux::ELF::PutAnyOpInSectionOp::serialize(elf::Writer& elfWriter) {
-    (void)elfWriter;
+void vpux::ELF::PutAnyOpInSectionOp::serialize(
+        /* elf::Writer& elfWriter */ std::vector<elf::writer::Section*> ELFSection, int ELFSectionIndex,
+        std::vector<elf::writer::Symbol*> ELFSymbol, int ELFSymbolIndex) {
+    // (void)elfWriter;
 
     std::vector<char> buffer;
 
@@ -260,42 +262,48 @@ void vpux::ELF::PutAnyOpInSectionOp::serialize(elf::Writer& elfWriter) {
     }
 }
 
-void vpux::ELF::RelocOp::serialize(elf::Writer& elfWriter) {
-    (void)elfWriter;
+void vpux::ELF::RelocOp::serialize(/*elf::Writer& elfWriter, */ std::vector<elf::writer::Section*> ELFSection,
+                                   int ELFSectionIndex, std::vector<elf::writer::Symbol*> ELFSymbol,
+                                   int ELFSymbolIndex) {
+    // (void)elfWriter;
 
     llvm::dbgs() << "Entered ELF::RelocOp::serialize()\n";
     llvm::dbgs().flush();
 
-    llvm::dbgs() << "processBlock(): Found ELF.RelocOp\n";
-    llvm::dbgs().flush();
+    // llvm::dbgs() << "processBlock(): Found ELF.RelocOp\n";
+    // llvm::dbgs().flush();
 
     // vpux::ELF::RelocOp opReloc = llvm::cast<vpux::ELF::RelocOp>(op);
 
-    /*
-    llvm::dbgs() << "processBlock(): offsetTargetField() = " << relocOp.offsetTargetField() << "\n";
+    llvm::dbgs() << "ELF::RelocOp::serialize(): offsetTargetField() = " << offsetTargetField() << "\n";
 
-    // llvm::dbgs() << "processBlock(): relocationType() = " << relocOp.relocationType().str() << "\n";
-    llvm::dbgs() << "processBlock(): relocationType() = " << static_cast<uint32_t>(relocOp.relocationType()) << "\n";
+    // llvm::dbgs() << "processBlock(): relocationType() = " << relocationType().str() << "\n";
+    llvm::dbgs() << "ELF::RelocOp::serialize(): relocationType() = " << static_cast<uint32_t>(relocationType()) << "\n";
 
-    llvm::dbgs() << "processBlock(): sourceSymbol() = " << relocOp.sourceSymbol() << "\n";
-    llvm::dbgs() << "processBlock(): addend() = " << relocOp.addend() << "\n";
+    llvm::dbgs() << "ELF::RelocOp::serialize(): sourceSymbol() = " << sourceSymbol() << "\n";
+    llvm::dbgs() << "ELF::RelocOp::serialize(): addend() = " << addend() << "\n";
 
     int idx;
     for (idx = 0; idx < ELFSymbolIndex; idx++) {
-        if (ELFSymbolValue[idx] == relocOp.sourceSymbol())
+        if (ELFSymbolValue[idx] == sourceSymbol())
             break;
     }
-    llvm::dbgs() << " Found idx = " << idx << "\n";
+    llvm::dbgs() << "ELF::RelocOp::serialize(): Found idx = " << idx << "\n";
 
     auto relocationEntry = ((elf::writer::RelocationSection*)ELFSection[ELFSectionIndex])->addRelocationEntry();
-    relocationEntry->setOffset(relocOp.offsetTargetField());
+    relocationEntry->setOffset(offsetTargetField());
     relocationEntry->setSymbol(ELFSymbol[idx]);  // ELFSymbol[ELFSymbolIndex]);
-    relocationEntry->setAddend(relocOp.addend());
-    */
+    relocationEntry->setAddend(addend());
 }
 
-void vpux::ELF::CreateSymbolTableSectionOp::serialize(elf::Writer& elfWriter) {
-    (void)elfWriter;
+void vpux::ELF::CreateSymbolTableSectionOp::serialize(
+        /* elf::Writer& elfWriter */ std::vector<elf::writer::Section*> ELFSection, int ELFSectionIndex,
+        std::vector<elf::writer::Symbol*> ELFSymbol, int ELFSymbolIndex) {
+    // (void)elfWriter;
+    (void)ELFSection;
+    (void)ELFSectionIndex;
+    (void)ELFSymbol;
+    (void)ELFSymbolIndex;
 
     llvm::dbgs() << "Entered ELF::CreateSymbolTableSectionOp::serialize()\n";
     llvm::dbgs().flush();
