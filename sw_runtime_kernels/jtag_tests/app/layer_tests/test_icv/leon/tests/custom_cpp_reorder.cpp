@@ -19,9 +19,19 @@ namespace REORDER_TEST_NAMESPACE {
 
 using Parent = CustomCppTests<fp16>;
 
+//struct SingleTest {
+//    Dimensions inDim;
+//    Dimensions outDim;
+////    StorageOrder storageOrder;
+////    const char* kernelName;
+//    CustomParams customLayerParams;
+//};
+
 static constexpr std::initializer_list<SingleTest> reorder_test_list{
-        {{1, 1, 20}, {1, 1, 20}, orderZYX, FPE("reorder_fp16.elf"), {sw_params::Location::NN_CMX}},
-        {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("reorder_fp16.elf"), {sw_params::Location::NN_CMX}}
+//        {{1, 1, 20}, {1, 1, 20}, orderZYX, FPE("reorder_fp16.elf"), {sw_params::Location::NN_CMX}},
+//        {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("reorder_fp16.elf"), {sw_params::Location::NN_CMX}}
+        {{32, 1, 256}, {1, 256, 32}, orderCHW, FPE("reorder_fp16.elf"), {{1, 2, 0, sw_params::Location::NN_CMX}}},
+        {{4, 64, 32}, {32, 4, 64}, orderCHW, FPE("reorder_fp16.elf"), {{2, 0, 1, sw_params::Location::NN_CMX}}},
 };
 
 class CustomCppReorderTest : public Parent {
@@ -43,14 +53,35 @@ protected:
             paramContainer.resize(((int)sizeof(sw_params::ReorderParams) + 7) / 8);
             Parent::initData();
             const SingleTest* test = m_currentTest;
-            int32_t ind[subspace::MAX_DIMS] = {0};
-            subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
+//            int32_t ind[subspace::MAX_DIMS] = {0};
+//            subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
+
+            checkTestConsistency();
+
             m_reorderParams = reinterpret_cast<sw_params::ReorderParams*>(paramContainer.data());
             *m_reorderParams = sw_params::ReorderParams();
+
+            const int ndims = m_inputTensor.ndims();
+
+            for (int i = 0; i < ndims; ++i)
+                m_reorderParams->perm[i] = test->customLayerParams.layerParams[i];
+
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
             m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
-            m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[0]);
+//            printf("# m_inputTensor.ndims() = %d\n", ndims);
+            m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[ndims]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_reorderParams);
+        }
+    void formatTestParams(char* str, int maxLength) const override
+        {
+            const auto& id = m_inputTensor.tensorDims();
+            const auto& il = m_inputTensor.tensorLimits();
+            const auto& od = m_outputTensor.tensorDims();
+            const auto& ol = m_outputTensor.tensorLimits();
+
+            snprintf_append(str, maxLength, "%u %u %u (%u %u %u) => %u %u %u (%u %u %u)",
+                            id.height, id.width, id.channels, il.height, il.width, il.channels,
+                            od.height, od.width, od.channels, ol.height, ol.width, ol.channels);
         }
     void initTestCase() override
         {
@@ -88,13 +119,13 @@ protected:
         }
     void generateReferenceData() override
         {
-            m_inputTensor.forEach(false, [&](const MemoryDims& indices)
+            const SingleTest* test = m_currentTest;
+            const int ndims = m_inputTensor.ndims();
+            m_inputTensor.forEach(false, [&](const MemoryDims& in)
             {
-                float val = f16Tof32(m_inputTensor.at(indices));
-                float ref = val * -1.0f;
-                ref = 1.0f + exp((double)ref);
-                ref = 1.0f / ref;
-                m_referenceOutputTensor.at(indices) = f32Tof16(ref);
+                MemoryDims out;
+                permuteArray(in.dims, test->customLayerParams.layerParams, out.dims, ndims);
+                m_referenceOutputTensor.at(out) = m_inputTensor.at(in);
             });
         }
     bool checkResult() override
@@ -127,6 +158,21 @@ protected:
             });
 
             return !threshold_test_failed;
+        }
+private:
+    void checkTestConsistency()
+        {
+            const SingleTest* test = m_currentTest;
+            const int ndims = m_inputTensor.ndims();
+
+            const auto inDims = m_inputTensor.memoryDims();
+            const auto outDims = m_outputTensor.memoryDims();
+
+            int32_t tmpDims[MAX_ND_DIMS] = {};
+            permuteArray(inDims.dims, test->customLayerParams.layerParams, tmpDims, ndims);
+
+            for (int i = 0; i < ndims; ++i)
+                mvTensorAssert(outDims.dims[i] == tmpDims[i], "Reorder test: dims/permutation mismatch");
         }
 private:
     ListIterator<SingleTest> m_testsLoop;

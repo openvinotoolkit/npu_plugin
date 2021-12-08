@@ -13,6 +13,7 @@ namespace sw_params {
 struct ReorderParams {
     struct MemRefData input;
     struct MemRefData output;
+    int32_t perm[MAX_ND_DIMS];
 };
 
 #pragma pack (pop)
