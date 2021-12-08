@@ -19,8 +19,10 @@
 
 using namespace vpux;
 
-TEST(ManagementKernel, Compile) {
-
+TEST(ManagementKernel, Compile111) {
+    if (std::getenv("OV_BUILD_DIR") == nullptr) {
+        GTEST_SKIP() << "OV_BUILD_DIR env is not set";
+    }
     const auto params = vpux::VPUIP::BlobWriter::compileParams();
 
     ActKernelDesc desc;
