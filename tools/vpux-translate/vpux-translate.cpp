@@ -190,10 +190,10 @@ void processBlock(mlir::Block& block) {
     // elf::writer::SymbolSection ELFSection2[NUM_SECTIONS_MAX];
 
     // static elf::writer::Symbol* ELFSymbol[NUM_SYMBOLS_MAX];
-    static std::vector<elf::writer::Symbol*> ELFSymbol;
+    static std::vector<std::pair<elf::writer::Symbol*, mlir::Value> > ELFSymbol;
     static int ELFSymbolIndex = 0;
     //
-    static mlir::Value ELFSymbolValue[NUM_SYMBOLS_MAX];
+    //static mlir::Value ELFSymbolValue[NUM_SYMBOLS_MAX];
 
     // Print the block intrinsics properties (basically: argument list)
     llvm::dbgs() << "Entered processBlock(). Block with " << block.getNumArguments() << " arguments, "
@@ -390,7 +390,7 @@ void processBlock(mlir::Block& block) {
 
                 // ELFSymbol[ELFSymbolIndex]->setName(".input123");
                 ELFSymbol[ELFSymbolIndex]->setName(symbolNameStr);
-                ELFSymbolValue[ELFSymbolIndex] = putAnyOpOpSymbol;
+                //ELFSymbolValue[ELFSymbolIndex] = putAnyOpOpSymbol; // 2021_12_08
 
                 ELFSymbol[ELFSymbolIndex]->setValue(0);
 
@@ -437,7 +437,7 @@ void processBlock(mlir::Block& block) {
 
             auto relocationEntry = ((elf::writer::RelocationSection*)ELFSection[ELFSectionIndex])->addRelocationEntry();
             relocationEntry->setOffset(relocOp.offsetTargetField());
-            relocationEntry->setSymbol(ELFSymbol[idx]);  // ELFSymbol[ELFSymbolIndex]);
+            relocationEntry->setSymbol(ELFSymbol[idx].first);  // ELFSymbol[ELFSymbolIndex]);
             relocationEntry->setAddend(relocOp.addend());
         } else if (vpux::ELF::CreateSectionOp sectionOp = llvm::dyn_cast<vpux::ELF::CreateSectionOp>(op)) {
             llvm::dbgs() << "processBlock(): Found ELF.CreateSectionOp\n";
