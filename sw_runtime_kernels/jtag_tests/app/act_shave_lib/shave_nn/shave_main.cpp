@@ -151,16 +151,17 @@ void act_shave_runtime_shaveMain() {
         // parameters conversion from softparams to kernel specific - using preambula
         auto pre_func = reinterpret_cast<void (*)(const nn::shave_lib::LayerParams *, nn::shave_lib::ShaveResourceManager *)>(job_ptr->shv_pre_address);
         if (pre_func) {
-            auto & shaveResMgr = ACTShaveManager::instance();
-            auto absolutePointers =  *reinterpret_cast<nn::shave_lib::AbsoluteAddresses*>(job_ptr->aba_pointer);
+            auto& shaveResMgr = ACTShaveManager::instance();
+            auto absolutePointers = *reinterpret_cast<nn::shave_lib::AbsoluteAddresses*>(job_ptr->aba_pointer);
             shaveResMgr.setAbsolutePointers(absolutePointers);
-            (*pre_func)((nn::shave_lib::LayerParams *)job_ptr->kernel_arg_address, &shaveResMgr);
+            (*pre_func)((nn::shave_lib::LayerParams*)job_ptr->kernel_arg_address, &shaveResMgr);
+        }
 
             // execute kernel
-            auto kernel_func = reinterpret_cast<void (*)(void *)>(job_ptr->shv_kernel_address);
-            if (kernel_func) {
-                (*kernel_func)(reinterpret_cast<void *>(actShaveParam));
-            }
+        auto kernel_func = reinterpret_cast<void (*)(void *)>(job_ptr->shv_kernel_address);
+        if (kernel_func) {
+            (*kernel_func)(reinterpret_cast<void *>(actShaveParam));
+        }
 
             // decrement_wait_barriers(job_ptr->wait_barrier_mask);
             // decrement_update_barriers(job_ptr->update_barrier_mask);
