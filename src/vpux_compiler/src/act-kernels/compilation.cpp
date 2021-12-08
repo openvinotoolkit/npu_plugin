@@ -54,9 +54,11 @@ static void getActShaveBinaries(const ActShaveCompileParams& params, const Compi
     SmallString genDir;
     if (sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
         genDir = sys::path::parent_path(LIBRARY_OUTPUT_DIRECTORY);
+        std::cout << "LIBRARY_OUTPUT_DIRECTORY" << std::endl;
     } else {
         // probe for OV_BUILD_DIR
         const auto ovBuildDir = std::getenv("OV_BUILD_DIR");
+        std::cout << "OV_BUILD_DIR " << ovBuildDir << "exists: " << sys::fs::exists(ovBuildDir) << std::endl;
         VPUX_THROW_UNLESS(ovBuildDir,
                           "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels");
         VPUX_THROW_UNLESS(sys::fs::exists(ovBuildDir),
@@ -66,6 +68,7 @@ static void getActShaveBinaries(const ActShaveCompileParams& params, const Compi
     }
     sys::path::append(genDir, "act-kernels");
 
+    std::cout << "act-kernels dir " << genDir.c_str() << " exists: " << sys::fs::exists(genDir) << std::endl;
     VPUX_THROW_UNLESS(sys::fs::exists(genDir), "{0}} directory is not exist", genDir);
 
     std::string entryPoint = unitDesc.entry.str();
@@ -81,6 +84,7 @@ static void getActShaveBinaries(const ActShaveCompileParams& params, const Compi
         std::string err;
         auto elfFile = mlir::openInputFile(path, &err);
         if (!elfFile) {
+            std::cout << "Could not open " << path.c_str() << " err: " << err.c_str() << std::endl;
             VPUX_THROW("Could not open {0} binary, err:{1}", path.c_str(), err);
         }
 
