@@ -693,16 +693,21 @@ static bool needRepackForNHWC(const ie::TensorDesc& actualDesc) {
          1) NC & C there isn't necessary to do repacking,
             because these layouts has the same representation in NCHW & NHWC
          2) NHWC isn't necessary to do repacking obviously
-         3) NCHW in general case it should be repacked, however if it is 11HW it isn't necessary
-         4) CHW the same as for NCHW case, it isn't necessary to do repacking in 1HW case
+         3) NDHWC isn't necessary to do repacking 
+         4) NCHW in general case it should be repacked, however if it is 11HW it isn't necessary
+         5) CHW the same as for NCHW case, it isn't necessary to do repacking in 1HW case 
+         6) NCDHW in general case it should be repacked, however if it is 111HW it isn't necessary
      */
     const auto actualLayout = actualDesc.getLayout();
     const auto& actualDims = actualDesc.getDims();
     switch (actualLayout) {
+    case ie::Layout::NDHWC:
     case ie::Layout::NHWC:
     case ie::Layout::NC:
     case ie::Layout::C:
         return false;
+    case ie::Layout::NCDHW:
+        return (actualDims[0] != 1) || (actualDims[1] != 1) || (actualDims[2] != 1);
     case ie::Layout::NCHW:
         return (actualDims[0] != 1) || (actualDims[1] != 1);
     case ie::Layout::CHW:

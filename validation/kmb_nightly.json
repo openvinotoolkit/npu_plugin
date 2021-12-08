@@ -4387,6 +4387,43 @@
                 "blob_name" : "bdk_edsr3",
                 "special" : true
             }
+        },
+
+        {
+            "name" : "por_onnx_FP16-INT8_yolo_v5m",
+            "ir" : "por/yolo_v5m/onnx/FP16-INT8/yolo_v5m.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : true
+            },
+            "3900": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"1"
+            },
+            "Compile" : {
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "yolo_v5m"
+            }
         }
     ]
 }
