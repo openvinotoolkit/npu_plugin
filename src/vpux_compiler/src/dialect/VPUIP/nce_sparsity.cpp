@@ -356,8 +356,16 @@ std::vector<int32_t> VPUIP::NCESparsity::getWeightsTable(mlir::Type op_inElemTyp
 
     std::vector<std::int32_t> weightsTableVals(OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
 
+    const auto weightsElementTypeBitSize =
+            weightsElemType ? static_cast<Bit>(getElemTypeSize(weightsElemType)).count() : 0;
     for (auto oc : irange(checked_cast<std::size_t>(OC))) {
         const auto wtInd = oc * static_cast<std::size_t>(VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
+
+        if (weightsElemType) {
+            const auto alignment = (16 * weightsElementTypeBitSize) / CHAR_BIT;
+            VPUX_THROW_UNLESS(weightPtr % alignment == 0, "weightsPtrOffset must be multiple of {0}, got {1} on oc {2}",
+                              alignment, weightPtr, oc);
+        }
 
         weightsTableVals[wtInd + 0] = weightPtr;
         weightsTableVals[wtInd + 1] = sparsityPtr;

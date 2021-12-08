@@ -168,7 +168,8 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
             weightscmx.getOperation()->getResult(0), mlir::Value(), nullptr,
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::ELTWISE, mlir::ArrayAttr(), mlir::ArrayAttr(),
-            mlir::ArrayAttr(), actChannelLength, /*is_continued*/ nullptr, /*odu_permutation*/ nullptr);
+            mlir::ArrayAttr(), actChannelLength, /*is_continued*/ nullptr, /*odu_permutation*/ nullptr,
+            /*sp_pattern*/ nullptr);
 
     int64_t clampLow = std::numeric_limits<int32_t>::min();
     int64_t clampHigh = std::numeric_limits<int32_t>::max();
