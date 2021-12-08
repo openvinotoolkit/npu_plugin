@@ -49,7 +49,7 @@ namespace mv
                 return DDR_SIZE;
             }
 
-            bool isContinuous(const BufferData& buffer)
+            bool isContinuous(const nn::TensorRefNDData& buffer)
             {
                 if (buffer.ndims <= 0)
                 {

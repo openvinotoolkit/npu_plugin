@@ -1477,7 +1477,7 @@ public:
             MemoryDims::forEach(m_ndims, ranges, action);
         }
     // MvTensor interface
-    void exportToBuffer(Buffer& b) const
+    void exportToBuffer(OpTensor& b) const
         {
             int32_t d[MaxTensorDims];
             int32_t s[MaxTensorDims];
@@ -1488,7 +1488,7 @@ public:
             }
             b.set(m_data, type2code(data()), m_storageOrder, d, s);
         }
-    void exportToBuffer4Dto3D(Buffer& b) const
+    void exportToBuffer4Dto3D(OpTensor& b) const
         {
             mvTensorAssert(ndims() == 4, "exportToBuffer4Dto3D works only with 4d tensors");
             int32_t d[3];

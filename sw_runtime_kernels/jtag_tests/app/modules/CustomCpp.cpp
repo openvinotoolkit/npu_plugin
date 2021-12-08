@@ -161,7 +161,7 @@ bool CustomCpp::parse(Layer * layer) {
 void CustomCpp::run(mv::tensor::Processor& ,
                   t_MvTensorMyriadResources& myriadRes,
                   t_MvTensorDebugInfo&) {
-    for(const Buffer& input: inputVec) {
+    for(const OpTensor& input: inputVec) {
         nnLog(MVLOG_DEBUG, "ndims  = %ld\n", input.ndims);
         nnLog(MVLOG_DEBUG, "order  = 0x%x\n", input.order);
         nnLog(MVLOG_DEBUG, "dims.0 = %ld(%ld)\n", input.dims[0], input.strides[0]);
@@ -170,7 +170,7 @@ void CustomCpp::run(mv::tensor::Processor& ,
         nnLog(MVLOG_DEBUG, "dims.3 = %ld(%ld)\n", input.dims[3], input.strides[3]);
         nnLog(MVLOG_DEBUG, "Input buffer %p.\n", input.addr);
     }
-    for(const Buffer& output: outputVec) {
+    for(const OpTensor& output: outputVec) {
         nnLog(MVLOG_DEBUG, "Output buffer %p.\n", output.addr);
     }
     nnLog(MVLOG_DEBUG, "leonPreambleID %ld\n", ops.leonPreambleID);

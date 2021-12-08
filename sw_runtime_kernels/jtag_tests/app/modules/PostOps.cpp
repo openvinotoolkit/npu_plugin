@@ -49,7 +49,7 @@ void PostOps::run(mv::tensor::Processor&,
 //    upaTask->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
 //    MVCNN::PostOpsParamsT *softLayerParamsValue = new MVCNN::PostOpsParamsT();
 
-    std::vector<Buffer> inputs;
+    std::vector<OpTensor> inputs;
 //    weightsBiasesSpecific(softLayerParamsValue, inputs);
 //#ifdef CONFIG_TARGET_SOC_3720
     /*if (this->executeInTestingSystem && (opType == kClamp))*/ {

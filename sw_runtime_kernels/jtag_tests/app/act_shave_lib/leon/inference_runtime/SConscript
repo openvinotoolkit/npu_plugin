@@ -1,0 +1,8 @@
+# Importing all previously exported global scons variables
+Import('*')
+
+# Compiler includes path
+default_env.addSystemIncludes(default_env.Dir('inc/'), ['lnn'])
+
+# Sources
+default_env.addSystemSources(default_env.File(Glob('src/*.c*')), ['lnn'])
