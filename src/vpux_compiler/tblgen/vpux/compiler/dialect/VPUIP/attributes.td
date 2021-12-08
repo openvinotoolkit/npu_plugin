@@ -192,4 +192,25 @@ def VPUIP_PaddingAttr :
             ]
         >;
 
+//
+// Permutation
+//
+
+def VPUIP_ODUPermutation :
+        StrEnumAttr<
+            "ODUPermutation",
+            "ODU Permutation",
+            [
+                StrEnumAttrCase<"ZXY">,
+                StrEnumAttrCase<"ZYX">,
+                StrEnumAttrCase<"YZX">,
+                StrEnumAttrCase<"YXZ">,
+                StrEnumAttrCase<"XZY">,
+                StrEnumAttrCase<"XYZ">,
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
+}
+
 #endif

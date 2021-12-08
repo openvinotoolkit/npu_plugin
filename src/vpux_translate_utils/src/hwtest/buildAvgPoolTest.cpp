@@ -176,7 +176,7 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
             outputcmx_type, inputcmx.getOperation()->getResult(0), mlir::Value(), mlir::Value(), mlir::Value(),
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::AVEPOOL, filtersize, strides, kernel_padding,
-            /*actChannelLength*/ nullptr, /*is_continued*/ nullptr);
+            /*actChannelLength*/ nullptr, /*is_continued*/ nullptr, /*odu_permutation*/ nullptr);
 
     if (quantScale.hasValue()) {
         const auto scale = quantScale.getValue();

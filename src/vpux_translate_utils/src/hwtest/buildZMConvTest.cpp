@@ -145,11 +145,14 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto kernelPaddings = getIntArrayAttr(ctx, paddings);
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
+    const auto odu_permutation =
+            vpux::VPUIP::ODUPermutationAttr::get(builder.getContext(), testDesc.getODUPermutation());
 
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             functionBuilder, barrier0.barrier(), barrier1.barrier(), builder.getUnknownLoc(), inputCMX.buffer(),
             weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, inputCMX.buffer(), outputCMX.buffer(),
-            outputCMX.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings, nullptr, nullptr);
+            outputCMX.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings, nullptr, nullptr,
+            odu_permutation);
 
     const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
     const auto end =

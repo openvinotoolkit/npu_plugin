@@ -351,7 +351,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
             /*parent_input=*/inputDPU,
             /*parent_output=*/outAllocOpCMX.memref(),
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
-            kernelPaddingAttr, /*activation_window_channel_length=*/nullptr, /*is_continued*/ nullptr);
+            kernelPaddingAttr, /*activation_window_channel_length=*/nullptr, /*is_continued*/ nullptr,
+            /*odu_permutation*/ nullptr);
 
     const auto mpeByType = mpeMap.at(_arch);
     const auto inElemType = origOp.input().getType().cast<mlir::MemRefType>().getElementType();
@@ -485,7 +486,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
             /*parent_input=*/inputDPU,
             /*parent_output=*/outAllocOpCMX.memref(),
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),
-            kernelPaddingAttr, activation_window_channel_length, /*is_continued*/ nullptr);
+            kernelPaddingAttr, activation_window_channel_length, /*is_continued*/ nullptr, /*odu_permutation*/ nullptr);
 
     const auto mpeByType = mpeMap.at(_arch);
     const auto inElemType = origOp.input().getType().cast<mlir::MemRefType>().getElementType();
@@ -644,7 +645,8 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
                                                           /*kernel_size=*/nullptr,
                                                           /*kernel_strides=*/nullptr,
                                                           /*kernel_padding=*/nullptr, activation_window_channel_length,
-                                                          /*is_continued*/ nullptr);
+                                                          /*is_continued*/ nullptr,
+                                                          /*odu_permutation*/ nullptr);
 
     int64_t clampLow = std::numeric_limits<int32_t>::min();
     int64_t clampHigh = std::numeric_limits<int32_t>::max();
@@ -796,7 +798,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
             /*parent_input=*/inputDPU,
             /*parent_output=*/outAllocOpCMX.memref(),
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::DWCONV, kernelSizeAttr, origOp.strides(),
-            kernelPaddingAttr, actWindowChanLen, /*is_continued*/ nullptr);
+            kernelPaddingAttr, actWindowChanLen, /*is_continued*/ nullptr, /*odu_permutation*/ nullptr);
 
     const auto mpeByType = mpeMap.at(_arch);
     const auto inElemType = origOp.input().getType().cast<mlir::MemRefType>().getElementType();
