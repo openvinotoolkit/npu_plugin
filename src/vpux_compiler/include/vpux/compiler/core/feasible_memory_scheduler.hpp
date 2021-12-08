@@ -201,9 +201,9 @@ public:
     // Eviction priority policy for buffers
     struct EvictionPriority {
         bool operator()(const EvictionCandidate& ec1, const EvictionCandidate& ec2) const {
-            // first - lowest eviction priority
+            // first - higher eviction priority
             if (ec1.priority_ != ec2.priority_) {
-                return ec1.priority_ < ec2.priority_;
+                return ec1.priority_ > ec2.priority_;
             }
 
             // second - smaller size
@@ -236,12 +236,13 @@ private:
     void getReadyComputeList();
     SmallVector<operationIdxType> reduceInDegreeOfAdjacentOperations(operationIdxType opIdx);
     bool isReadyComputeOperationSchedulable(operationIdxType opIdx);
-    SmallVector<mlir::Value> getSortedBuffers(operationIdxType opIdx);
+    SmallVector<mlir::Value> getNonAliveBuffersUsedByOperation(operationIdxType opIdx);
+    SmallVector<mlir::Value> sortUsedBuffers(mlir::DenseSet<mlir::Value>& operationBuffers);
     mlir::DenseSet<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx,
                                                              llvm::ArrayRef<mlir::Value> neededBuffers);
-    void scheduleInputOpForComputeOp(operationIdxType inputIdx);
+    void scheduleInputOpForComputeOp(operationIdxType inputIdx, size_t delay);
     void scheduleSpilledInputOpForComputeOp(operationIdxType inputIdx, mlir::Value* buffer);
-    size_t allocateBuffersAndInputOps(operationIdxType opIdx, SmallVector<mlir::Value>& sortedBuffers);
+    size_t allocateBuffersAndInputOps(operationIdxType opIdx);
     void scheduleComputeOp(operationIdxType opIdx);
     void scheduleAllPossibleReadyOpsAndUpdate(
             std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort>& readyList);
@@ -260,7 +261,7 @@ private:
     vpux::AddressType calculateOpSize(operationIdxType opIdx);
     void evictActiveOp(EvictionCandidate evictionCandidate);
     size_t evictionPriority(mlir::Value buffer);
-    operationIdxType retrieveBufferWriter(mlir::Value buffer);
+    IERT::LayerOpInterface retrieveBufferWriter(mlir::Value buffer);
     EvictionCandidate chooseCandidateForEviction(mlir::DenseSet<mlir::Value> aliveBuffers);
     void forceScheduleActiveOpEviction();
     size_t getOpBufferOutputIdx(operationIdxType opIdx, mlir::Value buffer);
@@ -294,7 +295,7 @@ private:
     // contains scheduled ops along with their status/type
     std::unordered_map<operationIdxType, OpOutputInfo> _opOutputTable;
     // contains the operation writing to the buffer
-    std::map<mlir::Value, operationIdxType, vpux::ValueOrderCmp> _opWritingToBuffer;
+    std::map<mlir::Value, IERT::LayerOpInterface, vpux::ValueOrderCmp> _opWritingToBuffer;
     // container for the schedule output
     SmallVector<ScheduledOpInfo> _scheduledOps;
     // outputs of the graph

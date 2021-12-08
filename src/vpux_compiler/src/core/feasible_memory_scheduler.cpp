@@ -168,9 +168,9 @@ bool FeasibleMemoryScheduler::isComputeOpWithSomeActiveInputs(operationIdxType o
         return false;
     }
     auto opAllDeps = _depsInfo.getOpDeps(opIdx);
-    auto opDeps = getSortedBuffers(opIdx);
+    auto usedBuffs = getNonAliveBuffersUsedByOperation(opIdx);
     // number of buffers needing allocation smaller than number of buffers used by the op
-    return opAllDeps.size() > opDeps.size();
+    return opAllDeps.size() > usedBuffs.size();
 }
 
 vpux::AddressType FeasibleMemoryScheduler::calculateOpSize(operationIdxType opIdx) {
@@ -292,30 +292,41 @@ void FeasibleMemoryScheduler::getReadyComputeList() {
     _log = _log.unnest();
 }
 
-SmallVector<mlir::Value> FeasibleMemoryScheduler::getSortedBuffers(operationIdxType opIdx) {
-    // retrieve all buffers used bu the op
-    auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
-    auto usedBuffs = _liveRangeInfo.getUsedBuffers(op);
-    SmallVector<std::pair<vpux::AddressType, mlir::Value>> newBufs;
-    for (auto& val : usedBuffs) {
-        const auto type = val.getType().cast<mlir::MemRefType>();
-        if (type.getMemorySpace() != _memSpace || _scan.handler().isAlive(val)) {
-            continue;
-        }
+SmallVector<mlir::Value> FeasibleMemoryScheduler::sortUsedBuffers(mlir::DenseSet<mlir::Value>& operationBuffers) {
+    SmallVector<std::pair<vpux::AddressType, mlir::Value>> buffersWithSize;
+    for (auto& val : operationBuffers) {
         auto size = _scan.handler().getSize(val);
-        newBufs.push_back(std::make_pair(size, val));
+        buffersWithSize.push_back(std::make_pair(size, val));
     }
     // sort based on size of buffer
-    llvm::sort(newBufs.begin(), newBufs.end(),
+    llvm::sort(buffersWithSize.begin(), buffersWithSize.end(),
                [](const std::pair<vpux::AddressType, mlir::Value>& val1,
                   const std::pair<vpux::AddressType, mlir::Value>& val2) {
                    return val1.first > val2.first;
                });
+    // repopulate only with buffers
     SmallVector<mlir::Value> orderedBufs;
-    for (auto& pair : newBufs) {
+    for (auto& pair : buffersWithSize) {
         orderedBufs.push_back(pair.second);
     }
     return orderedBufs;
+}
+
+SmallVector<mlir::Value> FeasibleMemoryScheduler::getNonAliveBuffersUsedByOperation(operationIdxType opIdx) {
+    // retrieve all buffers used by the op which are not alive
+    auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
+    auto usedBuffs = _liveRangeInfo.getUsedBuffers(op);
+    SmallVector<mlir::Value> operationBuffers;
+
+    for (auto& buffer : usedBuffs) {
+        auto rootBuffer = _aliasInfo.getRoot(buffer);
+        const auto type = rootBuffer.getType().cast<mlir::MemRefType>();
+        if (type.getMemorySpace() != _memSpace || _scan.handler().isAlive(rootBuffer)) {
+            continue;
+        }
+        operationBuffers.push_back(rootBuffer);
+    }
+    return operationBuffers;
 }
 
 mlir::DenseSet<operationIdxType> FeasibleMemoryScheduler::getNonEmptyOpDemandList(
@@ -328,9 +339,13 @@ mlir::DenseSet<operationIdxType> FeasibleMemoryScheduler::getNonEmptyOpDemandLis
         } else if (_opOutputTable[dep].spilled()) {
             // in case of multpile output buffers, ensure the spilled buffer is required
             for (auto& buffer : neededBuffers) {
-                if (_opWritingToBuffer.find(buffer) != _opWritingToBuffer.end() &&
-                    retrieveBufferWriter(buffer) == dep) {
-                    demandList.insert(dep);
+                if (_opWritingToBuffer.find(buffer) != _opWritingToBuffer.end()) {
+                    auto writerOp = retrieveBufferWriter(buffer);
+                    auto executeOpIdx = _depsInfo.getIndex(
+                            writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>());
+                    if (executeOpIdx == dep) {
+                        demandList.insert(dep);
+                    }
                 }
             }
         }
@@ -339,17 +354,36 @@ mlir::DenseSet<operationIdxType> FeasibleMemoryScheduler::getNonEmptyOpDemandLis
 }
 
 bool FeasibleMemoryScheduler::isReadyComputeOperationSchedulable(operationIdxType opIdx) {
+    // retrieve op demand list - input ops
+    auto usedBuffers = getNonAliveBuffersUsedByOperation(opIdx);
+    auto demandList = getNonEmptyOpDemandList(opIdx, usedBuffers);
+    mlir::DenseSet<mlir::Value> buffersNeedingAllocation;
+
+    // retrieve operation's buffers that need allocation
+    for (auto val : getNonAliveBuffersUsedByOperation(opIdx)) {
+        buffersNeedingAllocation.insert(val);
+    }
+
+    // retrieve operation input's buffers
+    for (auto inputIdx : demandList) {
+        for (auto val : getNonAliveBuffersUsedByOperation(inputIdx)) {
+            buffersNeedingAllocation.insert(val);
+        }
+    }
+
+    // sort to minimize fragmentation
+    auto sortedBuffers = sortUsedBuffers(buffersNeedingAllocation);
+
     // are resources available and can be allocated
-    auto sortedBuffers = getSortedBuffers(opIdx);
     return _scan.canAlloc(sortedBuffers);
 }
 
-void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType inputIdx) {
+void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType inputIdx, size_t delay) {
     // schedule the dependency - Data op
     _log.nest().trace("Scheduling input for compute op:'{0}'", inputIdx);
     EOpType opType = EOpType::ORIGINAL_OP;
     _opOutputTable.insert(std::make_pair(inputIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[inputIdx])));
-    pushToStartTimeHeap(HeapElement(inputIdx, _currentTime, opType));
+    pushToStartTimeHeap(HeapElement(inputIdx, _currentTime + delay, opType));
 }
 
 void FeasibleMemoryScheduler::scheduleSpilledInputOpForComputeOp(operationIdxType inputIdx, mlir::Value* buffer) {
@@ -367,39 +401,64 @@ void FeasibleMemoryScheduler::scheduleSpilledInputOpForComputeOp(operationIdxTyp
     pushToStartTimeHeap(HeapElement(inputIdx, _currentTime, opType, spilledReadBuffer));
 }
 
-size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opIdx,
-                                                           SmallVector<mlir::Value>& sortedBuffers) {
+size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opIdx) {
     // retrieve op demand list - input ops
-    auto demandList = getNonEmptyOpDemandList(opIdx, sortedBuffers);
+    auto usedBuffers = getNonAliveBuffersUsedByOperation(opIdx);
+    auto demandList = getNonEmptyOpDemandList(opIdx, usedBuffers);
     size_t maxInputDelay = demandList.empty() ? 0 : 1;
+    mlir::DenseSet<mlir::Value> buffersNeedingAllocation;
 
-    // retrieve buffers that need allocation
-    SmallVector<mlir::Value> buffersNeedingAllocation;
-    for (auto& val : sortedBuffers) {
-        const auto type = val.getType().cast<mlir::MemRefType>();
-        if (type.getMemorySpace() != _memSpace || _scan.handler().isAlive(val)) {
-            continue;
+    // ensure input delay in case of alive buffers allocated in parallel
+    if (demandList.empty()) {
+        auto operationBuffers = _liveRangeInfo.getUsedBuffers(_depsInfo.getExecuteOpAtIndex(opIdx));
+        for (auto& buf : operationBuffers) {
+            if (_scan.handler().isAlive(buf) && _opWritingToBuffer.find(buf) == _opWritingToBuffer.end()) {
+                maxInputDelay = 1;
+                break;
+            }
         }
+    }
+
+    // retrieve operation's buffers that need allocation
+    for (auto& val : usedBuffers) {
+        buffersNeedingAllocation.insert(val);
         _log.nest().trace("Mark buffer as alive, '{0}'", val);
         _scan.handler().markAsAlive(val);
-        buffersNeedingAllocation.push_back(val);
         // special case for spilled reads
         if (_opWritingToBuffer.find(val) != _opWritingToBuffer.end()) {
-            auto bufferWriter = retrieveBufferWriter(val);
-            demandList.erase(bufferWriter);
-            scheduleSpilledInputOpForComputeOp(bufferWriter, &val);
+            auto writerOp = retrieveBufferWriter(val);
+            auto executeOpIdx =
+                    _depsInfo.getIndex(writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>());
+            demandList.erase(executeOpIdx);
+            scheduleSpilledInputOpForComputeOp(executeOpIdx, &val);
         }
     }
 
-    // schedule all not spilled inputs
+    // retrieve operation input's buffers
     for (auto inputIdx : demandList) {
-        scheduleInputOpForComputeOp(inputIdx);
+        for (auto val : getNonAliveBuffersUsedByOperation(inputIdx)) {
+            buffersNeedingAllocation.insert(val);
+            _log.nest().trace("Mark buffer as alive, '{0}'", val);
+            _scan.handler().markAsAlive(val);
+            // check if non-alive input buffer was spilled
+            if (_opWritingToBuffer.find(val) != _opWritingToBuffer.end()) {
+                // if so schedule the required spill read for it
+                auto writerOp = retrieveBufferWriter(val);
+                auto executeOpIdx = _depsInfo.getIndex(
+                        writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>());
+                scheduleSpilledInputOpForComputeOp(executeOpIdx, &val);
+                maxInputDelay = 2;
+            }
+        }
+        scheduleInputOpForComputeOp(inputIdx, maxInputDelay - 1);
     }
+
+    auto sortedBuffers = sortUsedBuffers(buffersNeedingAllocation);
 
     // allocate buffers using LinearScan
     _log.nest().trace("Allocate memory for the alive buffers");
-    VPUX_THROW_UNLESS(_scan.alloc(buffersNeedingAllocation, /*allowSpills*/ false),
-                      "Failed to statically allocate '{0}' memory", _memSpace);
+    VPUX_THROW_UNLESS(_scan.alloc(sortedBuffers, /*allowSpills*/ false), "Failed to statically allocate '{0}' memory",
+                      _memSpace);
 
     return maxInputDelay;
 }
@@ -409,8 +468,7 @@ void FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
     _opOutputTable.insert(std::make_pair(opIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[opIdx])));
 
     // Step 2: assign resources simultaneously
-    auto sortedBuffers = getSortedBuffers(opIdx);
-    auto maxInputDelay = allocateBuffersAndInputOps(opIdx, sortedBuffers);
+    auto maxInputDelay = allocateBuffersAndInputOps(opIdx);
 
     // TODO: case for inplace ops
 
@@ -470,7 +528,7 @@ void FeasibleMemoryScheduler::evictActiveOp(EvictionCandidate evictionCandidate)
     _scan.freeNonAlive();
 }
 
-operationIdxType FeasibleMemoryScheduler::retrieveBufferWriter(mlir::Value buffer) {
+IERT::LayerOpInterface FeasibleMemoryScheduler::retrieveBufferWriter(mlir::Value buffer) {
     const auto valIt = _opWritingToBuffer.find(buffer);
     VPUX_THROW_UNLESS(valIt != _opWritingToBuffer.end(), "Buffer not scheduled yet, invalid spill candidate");
     return valIt->second;
@@ -480,11 +538,16 @@ size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
     // TODO: EISW-21937 add other conditions such as:
     // cmx concatable, pipelined, multiple outdegree (prefetch)
 
-    // Eviction priority:
-    // HIGH (0)   - buffers which are not going to be used by any active/ready compute ops
-    // MEDIUM (1) - buffers which are result of dataOp
-    // LOW (2)    - all others
+    // Eviction priority (highest evicted first):
+    // (0) - timestamp op buffers
+    // (1) - buffers which are result of computeOp
+    // (2) - buffers which are result of dataOp
+    // (3) - buffers which are not going to be used by any active/ready compute ops
+
+    auto writerOp = retrieveBufferWriter(buffer);
+    auto executeOp = writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>();
     bool isBufferUsedByReadyOp = false;
+
     for (auto& active : _activeComputeOps) {
         auto op = _depsInfo.getExecuteOpAtIndex(active.first).getOperation();
 
@@ -505,12 +568,14 @@ size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
         }
     }
 
-    if (!isBufferUsedByReadyOp) {
+    if (mlir::isa<IERT::TimestampOp>(writerOp)) {
         return 0;
-    } else if (isDataOp(retrieveBufferWriter(buffer))) {
-        return 1;
-    } else {
+    } else if (!isBufferUsedByReadyOp) {
+        return 3;
+    } else if (isDataOp(_depsInfo.getIndex(executeOp))) {
         return 2;
+    } else {
+        return 1;
     }
 }
 
@@ -550,12 +615,15 @@ FeasibleMemoryScheduler::EvictionCandidate FeasibleMemoryScheduler::chooseCandid
     // sort buffers using eviction priority
     std::set<EvictionCandidate, EvictionPriority> evictionCandidates;
     for (const auto& buffer : aliveBuffers) {
-        operationIdxType bufferWriterIdx = retrieveBufferWriter(buffer);
-        size_t priority = evictionPriority(buffer);
-        size_t size = _scan.handler().getSize(buffer);
+        auto rootBuffer = _aliasInfo.getRoot(buffer);
+        auto writerOp = retrieveBufferWriter(rootBuffer);
+        auto executeOpIdx =
+                _depsInfo.getIndex(writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>());
+        size_t priority = evictionPriority(rootBuffer);
+        size_t size = _scan.handler().getSize(rootBuffer);
         // in special case of multiple output buffers store output idx
-        auto outputIdx = getOpBufferOutputIdx(bufferWriterIdx, buffer);
-        evictionCandidates.insert(EvictionCandidate(priority, size, bufferWriterIdx, outputIdx, buffer));
+        auto outputIdx = getOpBufferOutputIdx(executeOpIdx, rootBuffer);
+        evictionCandidates.insert(EvictionCandidate(priority, size, executeOpIdx, outputIdx, rootBuffer));
     }
 
     // first element has the smallest priority
@@ -614,8 +682,8 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
         auto* bodyBlock = &_depsInfo.getExecuteOpAtIndex(scheduledOp.op_).body().front();
         for (auto& op : bodyBlock->getOperations()) {
             if (mlir::isa<IERT::LayerOpInterface>(op)) {
-                auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(op).getOutputs();
-                for (auto output : outputs) {
+                auto layerOp = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+                for (auto output : layerOp.getOutputs()) {
                     const auto type = output.getType().dyn_cast<mlir::MemRefType>();
                     if (type == nullptr || type.getMemorySpace() != _memSpace) {
                         continue;
@@ -632,7 +700,7 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
                     }
                     IntervalInfo interval;
                     // store operation writing to the buffer
-                    _opWritingToBuffer[output] = scheduledOp.op_;
+                    _opWritingToBuffer[output] = layerOp;
                     // retrieve and store operation addresses
                     interval.begin_ = checked_cast<size_t>(_scan.handler().getAddress(output));
                     interval.end_ = interval.begin_ + checked_cast<size_t>(_scan.handler().getSize(output));
