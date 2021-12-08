@@ -108,26 +108,6 @@ typedef struct __vcl_compiler_desc_t {
 } vcl_compiler_desc_t;
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Defines log level for the compiler
-typedef enum __vcl_log_level_t {
-    VCL_LOG_LEVEL_NONE = 0,
-    VCL_LOG_LEVEL_ERROR,
-    VCL_LOG_LEVEL_WARNING,
-    VCL_LOG_LEVEL_INFO,
-    VCL_LOG_LEVEL_DEBUG,
-    VCL_LOG_LEVEL_TRACE,
-
-} vcl_log_level_t;
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Defines compilation mode
-typedef enum __vcl_compilation_mode_t {
-    VCL_COMPILATION_MODE_HW = 0,
-    VCL_COMPILATION_MODE_SW
-
-} vcl_compilation_mode_t;
-
-///////////////////////////////////////////////////////////////////////////////
 /// @brief Defines tensor precision
 typedef enum _vcl_tensor_precision_t {
     VCL_TENSOR_PRECISION_UNKNOWN,
@@ -166,14 +146,12 @@ typedef enum _vcl_tensor_layout_t {
 ///        6. Data 2 : $4 bytes
 typedef struct __vcl_executable_desc_t {
     const uint8_t* modelIRData;
-    uint64_t modelIRSize;                    ///< Size of modelIRData
-    vcl_log_level_t logLevel;                ///< LogLevel passed to compiler
-    vcl_compilation_mode_t compilationMode;  ///< Compilation mode passed to compiler
-    vcl_tensor_precision_t inPrc;            ///< Input data precision
-    vcl_tensor_layout_t inLayout;            ///< Input data layout
-    vcl_tensor_precision_t outPrc;           ///< Output data precision
-    vcl_tensor_layout_t outLayout;           ///< Output data layout
-    const char* options;                     ///< Compiler config options
+    uint64_t modelIRSize;           ///< Size of modelIRData
+    vcl_tensor_precision_t inPrc;   ///< Input data precision
+    vcl_tensor_layout_t inLayout;   ///< Input data layout
+    vcl_tensor_precision_t outPrc;  ///< Output data precision
+    vcl_tensor_layout_t outLayout;  ///< Output data layout
+    const char* options;            ///< Compiler config options
 } vcl_executable_desc_t;
 
 ///////////////////////////////////////////////////////////////////////////////

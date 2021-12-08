@@ -368,31 +368,6 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
         options.push_back(result);
     }
 
-    // Set log level
-    switch (desc.logLevel) {
-    case VCL_LOG_LEVEL_NONE:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_NONE);
-        break;
-    case VCL_LOG_LEVEL_ERROR:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_ERROR);
-        break;
-    case VCL_LOG_LEVEL_WARNING:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
-        break;
-    case VCL_LOG_LEVEL_INFO:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
-        enableProfiling = true;
-        break;
-    case VCL_LOG_LEVEL_DEBUG:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
-        break;
-    case VCL_LOG_LEVEL_TRACE:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_TRACE);
-        break;
-    default:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_NONE);
-    };
-
     // Set platform
     VPUXCompilerL0::VPUXCompilerL0* pvc = reinterpret_cast<VPUXCompilerL0::VPUXCompilerL0*>(compiler);
     switch (pvc->getCompilerDesc().platform) {
@@ -413,15 +388,6 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
         config[CONFIG_KEY(DEVICE_ID)] = "3700";
     };
 
-    switch (desc.compilationMode) {
-    case VCL_COMPILATION_MODE_HW:
-        config[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceHW";
-        break;
-    case VCL_COMPILATION_MODE_SW:
-        config[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceSW";
-        break;
-    };
-
     // Options will overwrite default configs.
     size_t count = options.size();
     for (size_t i = 0; i + 1 < count;) {
@@ -430,6 +396,12 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
     }
     // Foce to use MLIR compiler.
     config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+
+    std::map<std::string, std::string>::iterator iter = config.find(CONFIG_KEY(LOG_LEVEL));
+    if (iter != config.end()) {
+        if (iter->second == CONFIG_VALUE(LOG_INFO))
+            enableProfiling = true;
+    }
 
     Config parsedConfig(pvc->getOptions());
     parsedConfig.update(config, OptionMode::CompileTime);

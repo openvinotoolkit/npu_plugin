@@ -177,10 +177,8 @@ vcl_result_t testCompiler(int argc, char** argv) {
         vcl_tensor_layout_t inLayout = VCL_TENSOR_LAYOUT_ANY;
         vcl_tensor_precision_t outPrc = VCL_TENSOR_PRECISION_FP32;
         vcl_tensor_layout_t outLayout = VCL_TENSOR_LAYOUT_ANY;
-        char options[] = "VPUX_INFERENCE_TIMEOUT 0 VPUX_PLATFORM 3700 VPUX_INFERENCE_SHAVES 6";
-        vcl_executable_desc_t exeDesc = {
-                modelIR,   modelIRSize, VCL_LOG_LEVEL_INFO, VCL_COMPILATION_MODE_SW, inPrc, inLayout, outPrc,
-                outLayout, options};
+        char options[] = "VPUX_PLATFORM 3700 LOG_LEVEL LOG_INFO";
+        vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, inPrc, inLayout, outPrc, outLayout, options};
         ret = vclExecutableCreate(compiler, exeDesc, &executable);
     } else {
         vcl_tensor_precision_t inPrc = getPrecision(argv[4]);
@@ -198,10 +196,8 @@ vcl_result_t testCompiler(int argc, char** argv) {
         uint32_t configSize = ftell(fpC);
         fseek(fpC, 0, SEEK_SET);
         if (configSize == 0) {
-            char options[] = "VPUX_INFERENCE_TIMEOUT 0 VPUX_PLATFORM 3700 VPUX_INFERENCE_SHAVES 6";
-            vcl_executable_desc_t exeDesc = {
-                    modelIR,   modelIRSize, VCL_LOG_LEVEL_INFO, VCL_COMPILATION_MODE_SW, inPrc, inLayout, outPrc,
-                    outLayout, options};
+            char options[] = "VPUX_PLATFORM 3700 LOG_LEVEL LOG_INFO";
+            vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, inPrc, inLayout, outPrc, outLayout, options};
             ret = vclExecutableCreate(compiler, exeDesc, &executable);
         } else {
             char* options = (char*)malloc(configSize);
@@ -221,9 +217,7 @@ vcl_result_t testCompiler(int argc, char** argv) {
                 return cret;
             }
 
-            vcl_executable_desc_t exeDesc = {
-                    modelIR,   modelIRSize, VCL_LOG_LEVEL_INFO, VCL_COMPILATION_MODE_SW, inPrc, inLayout, outPrc,
-                    outLayout, options};
+            vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, inPrc, inLayout, outPrc, outLayout, options};
             ret = vclExecutableCreate(compiler, exeDesc, &executable);
             free(options);
         }
