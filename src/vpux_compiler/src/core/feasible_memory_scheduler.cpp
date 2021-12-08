@@ -169,6 +169,26 @@ bool FeasibleMemoryScheduler::isComputeOpWithSomeActiveInputs(operationIdxType o
     }
     auto opAllDeps = _depsInfo.getOpDeps(opIdx);
     auto usedBuffs = getNonAliveBuffersUsedByOperation(opIdx);
+
+    if (opIdx == 125) {
+        _log.trace("isComputeOpWithSomeActiveInputs '{0}', opAllDeps.size() - '{1}', usedBuffs.size() - '{2}'", opIdx,
+                   opAllDeps.size(), usedBuffs.size());
+
+        auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
+        auto usedBuffs = _liveRangeInfo.getUsedBuffers(op);
+
+        for (auto& buffer : usedBuffs) {
+            auto rootBuffer = _aliasInfo.getRoot(buffer);
+            const auto type = rootBuffer.getType().cast<mlir::MemRefType>();
+            if (type.getMemorySpace() != _memSpace) {
+                continue;
+            }
+            if (_scan.handler().isAlive(rootBuffer)) {
+                _log.trace("isComputeOpWithSomeActiveInputs '{0}' - has active input", opIdx);
+            }
+        }
+    }
+
     // number of buffers needing allocation smaller than number of buffers used by the op
     return opAllDeps.size() > usedBuffs.size();
 }
@@ -332,7 +352,7 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::getNonAliveBuffersUsedByOperat
             if (user->getParentOp() == op.getOperation()) {
                 if (mlir::isa_and_nonnull<VPUIP::WeightsTableOp>(user)) {
                     weightTableOpBuffer = true;
-                    _log.trace("Mateusz: weightTableOp buffer - {0}", rootBuffer);
+                    // _log.trace("Mateusz: weightTableOp buffer - {0}", rootBuffer);
                     break;
                 }
             }
@@ -521,7 +541,13 @@ void FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
 void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
         std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort>& readyList) {
     SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledOps;
-    _log.trace("Scheduling all possible ready ops - {0}", readyList.size());
+    // mateusz
+    std::string tasks = "";
+    for (auto& readyOp : readyList) {
+        tasks += std::to_string(readyOp.first) + " ";
+    }
+    _log.trace("Scheduling all possible ready ops - {0}, ops - {1}", readyList.size(), tasks);
+
     _log = _log.nest();
     // schedule ops that fit in CMX
     for (auto& readyOp : readyList) {
@@ -529,6 +555,9 @@ void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
             _log.trace("Scheduling ready op: '{0}'", readyOp.first);
             scheduleComputeOp(readyOp.first);
             scheduledOps.push_back(readyOp);
+        } else {
+            // mateusz
+            _log.trace("Cannot schedule ready op: '{0}'", readyOp.first);
         }
     }
     _log = _log.unnest();
@@ -876,8 +905,8 @@ SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::g
                 }
             }
         }
-        std::cout << "op = " << op.op_ << ", type = " << op.opTypeName().data() << ", time = " << op.time_ << ", "
-                  << resourceInfo.data() << "\n";
+        // std::cout << "op = " << op.op_ << ", type = " << op.opTypeName().data() << ", time = " << op.time_ << ", "
+        //           << resourceInfo.data() << "\n";
         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
     }
     _log = _log.unnest();
