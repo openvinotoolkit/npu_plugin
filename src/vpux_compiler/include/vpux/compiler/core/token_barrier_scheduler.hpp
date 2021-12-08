@@ -217,7 +217,7 @@ public:
                     if (barrierConsumersItr != tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end()) {
                         Logger::global().error("STEP-1.3 Adding consumer Op with ID {0} to barrier {1}",
                                                FeasibleScheduleGenerator::getUniqueID(source), b_prev->getAttr("id"));
-                        // barrierConsumersItr->second.second.insert(source);
+                        barrierConsumersItr->second.second.insert(source);
                     } else
                         VPUX_THROW("Not found");
                 }
@@ -264,6 +264,7 @@ public:
     };  // class barrier_transition_structure_t //
 
     size_t schedule();
+    bool isPathExist(mlir::Operation* a, mlir::Operation* b);
 
 private:
     typedef std::unordered_map<size_t, barrier_transition_structure_t> barrier_association_table_t;
