@@ -12,3 +12,4 @@
 #
 
 add_subdirectory(act_kernels_elf_poc)
+add_subdirectory(shave_dma_elf_poc)

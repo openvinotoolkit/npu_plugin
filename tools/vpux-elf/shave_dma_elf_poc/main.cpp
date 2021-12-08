@@ -1,0 +1,57 @@
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
+#include <vpux/compiler/dialect/VPUIP/manual_elf_blob_serializer.hpp>
+
+#include <parsing_lib/inc/convert.h>
+#include <parsing_lib/inc/data_types.h>
+
+#include <elf/reader32.hpp>
+
+#include <iostream>
+#include <fstream>
+#include <vector>
+
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        std::cout << "Example usage is ./act-kernels-elf-poc <path-to-elf>" << '\n';
+        return 1;
+    }
+    
+    std::ifstream stream(argv[1], std::ios::binary);
+    std::vector<char> elfBlob((std::istreambuf_iterator<char>(stream)), (std::istreambuf_iterator<char>()));
+    stream.close();
+
+    vpux::VPUIP::ManualELFBlobSerializer blobSerializer;
+
+    blobSerializer.initCmxDMA();
+    blobSerializer.addCmxDMA(DMA_INPUT);
+    blobSerializer.addCmxDMA(DMA_OUTPUT);
+
+    blobSerializer.initBarriers();
+    blobSerializer.addLinearlyDependentBarrier(DMA_INPUT);
+    blobSerializer.addLinearlyDependentBarrier(DMA_OUTPUT);
+
+    blobSerializer.initActKernel(elfBlob, "hswish");
+
+    blobSerializer.addActKernel();
+
+    blobSerializer.addActInvocation();
+
+    const auto final_elf = blobSerializer.getBlob();
+
+    std::ofstream out_stream("actKernel_poc.elf", std::ios::out | std::ios::binary);
+    out_stream.write(final_elf.data(), final_elf.size());
+
+    return 0;
+}

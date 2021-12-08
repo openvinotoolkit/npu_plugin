@@ -9,14 +9,25 @@
 namespace host_parsing {
 
 // Data structures used by LNN/SNN for actual execution
+
+// unified Barrier Config struct used in both DPU invariant & actKernel invo
 struct BarrierConfig {
     uint8_t group;
     uint8_t mask;
     uint64_t consumer_mask;
     uint64_t producer_mask;
-    uint16_t start_after_;
-    uint16_t clean_after_;
+    // uint16_t start_after_;
+    // uint16_t clean_after_;
 };
+
+// deprecated, RT needs to be updated to fully support new structure
+// struct BarrierConfig {
+//     uint64_t wait_mask_;
+//     uint64_t post_mask_;
+//     uint16_t start_after_;
+//     uint16_t clean_after_;
+//     uint32_t virtual_dep_;
+// };
 
 struct DPUInvariant {
     DPUInvariantRegisters registers;
@@ -70,6 +81,9 @@ struct BarrierWrapper {
     uint8_t  real_id;
 };
 
+
+// ActKernel structs
+// stripped down to satisfy minimum RT needs
 extern "C" struct ActKernelRange {
     ActWLType type_; 
     actKernelEntry kernelEntry_; 
@@ -85,7 +99,7 @@ extern "C" struct ActKernelInvocation {
     actKernelDataBuffer dataWindowBase_;
 
     BarrierConfig barriers_;
-    // BarrierGpioConfig barriers_gpio_{};
+    // BarrierGpioConfig barriers_gpio_;
     uint32_t invo_index_; 
 };
 extern "C" struct ActKernelRuntimeConfigs {
@@ -120,6 +134,8 @@ struct ActKernelInvocationWrapper {
     // RelativeAddress args_;
     uint32_t kRangeIndex_;
     uint32_t tile_;
+    uint16_t start_after_;
+    uint16_t clean_after_;
 };
 
 struct MappedInference {
