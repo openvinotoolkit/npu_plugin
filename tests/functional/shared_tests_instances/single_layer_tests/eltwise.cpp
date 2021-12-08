@@ -46,14 +46,14 @@ TEST_P(VPUXEltwiseLayerTest_MCM, DISABLED_MCM) {
 }
 
 TEST_P(VPUXEltwiseLayerTest_MLIR, MLIR_SW) {
-    abs_threshold = 1e-4;
+    abs_threshold = 0.005;
     useCompilerMLIR();
     setReferenceSoftwareModeMLIR();
     run();
 }
 
 TEST_P(VPUXEltwiseLayerTest_MLIR, MLIR_HW) {
-    abs_threshold = 1e-4;
+    abs_threshold = 0.005;
     useCompilerMLIR();
     setDefaultHardwareModeMLIR();
     run();
