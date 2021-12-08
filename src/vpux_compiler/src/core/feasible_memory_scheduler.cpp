@@ -167,30 +167,25 @@ bool FeasibleMemoryScheduler::isComputeOpWithSomeActiveInputs(operationIdxType o
     if (isDataOp(opIdx)) {
         return false;
     }
-    auto opAllDeps = _depsInfo.getOpDeps(opIdx);
-    auto usedBuffs = getNonAliveBuffersUsedByOperation(opIdx);
 
-    if (opIdx == 125) {
-        _log.trace("isComputeOpWithSomeActiveInputs '{0}', opAllDeps.size() - '{1}', usedBuffs.size() - '{2}'", opIdx,
-                   opAllDeps.size(), usedBuffs.size());
+    auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
 
-        auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
-        auto usedBuffs = _liveRangeInfo.getUsedBuffers(op);
-
-        for (auto& buffer : usedBuffs) {
-            auto rootBuffer = _aliasInfo.getRoot(buffer);
-            const auto type = rootBuffer.getType().cast<mlir::MemRefType>();
-            if (type.getMemorySpace() != _memSpace) {
-                continue;
-            }
-            if (_scan.handler().isAlive(rootBuffer)) {
-                _log.trace("isComputeOpWithSomeActiveInputs '{0}' - has active input", opIdx);
-            }
+    for (const auto& operand : op.getOperands()) {
+        if (!operand.getType().isa<mlir::async::ValueType>()) {
+            continue;
+        }
+        auto rootBuffer = _aliasInfo.getRoot(operand);
+        const auto type = rootBuffer.getType().cast<mlir::MemRefType>();
+        if (type.getMemorySpace() != _memSpace) {
+            continue;
+        }
+        if (_scan.handler().isAlive(rootBuffer)) {
+            _log.trace("isComputeOpWithSomeActiveInputs '{0}' - has active input", opIdx);
+            return true;
         }
     }
 
-    // number of buffers needing allocation smaller than number of buffers used by the op
-    return opAllDeps.size() > usedBuffs.size();
+    return false;
 }
 
 vpux::AddressType FeasibleMemoryScheduler::calculateOpSize(operationIdxType opIdx) {
