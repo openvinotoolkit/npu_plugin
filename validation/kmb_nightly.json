@@ -3817,7 +3817,7 @@
             "Compile" : {
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
-                "input_precision" : "FP16",
+                "input_precision" : "U8",
                 "output_precision" : "FP16"
             },
             "BenchmarkApp" : {
@@ -3866,7 +3866,7 @@
             "Compile" : {
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
-                "input_precision" : "FP16",
+                "input_precision" : "U8",
                 "output_precision" : "FP16"
             },
             "BenchmarkApp" : {
