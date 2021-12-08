@@ -22,8 +22,8 @@ public:
             t_MvTensorDebugInfo& debugInfo) override;
 
     t_PermuteLayerParams ops;
-    Buffer input;
-    Buffer output;
+    OpTensor input;
+    OpTensor output;
 
     bool executeInTestingSystem = true;
 };

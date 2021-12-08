@@ -178,7 +178,7 @@ namespace mv
             */
             u32 getRuntimeDDRSize();
 
-            bool isContinuous(const BufferData& buffer);
+            bool isContinuous(const nn::TensorRefNDData& buffer);
 
             bool convPoolSizesCheck(int sizeI, int sizeO, int kernel, int stride, int lPad, int rPad,
                     int dilation = 1, bool positivePad = true, bool shouldRealDataUsed = true);

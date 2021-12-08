@@ -45,10 +45,10 @@ public:
         t_RoundLayerParams roundParams;  // kRound
     };
 
-    Buffer input;
-    Buffer output;
-    Buffer weights;  // kPRelu, kScale[Shift]
-    Buffer biases;   // kBias[[Leaky]Relu], kScaleShift
+    OpTensor input;
+    OpTensor output;
+    OpTensor weights;  // kPRelu, kScale[Shift]
+    OpTensor biases;   // kBias[[Leaky]Relu], kScaleShift
 
     unsigned paramsSize = 0;
 

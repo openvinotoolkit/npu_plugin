@@ -40,7 +40,7 @@ subdirs-lnn-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  ../../kernels
 
-subdirs-shave_nn-y += nn/common nn/inference_runtime_common
+subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += nn/common nn/inference_runtime_common
 
 srcs-shave_nn-$(CONFIG_TARGET_SOC_3720) += nn/shave_lib/shave/src/pre_custom_cpp.cpp
 include-dirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += nn/shave_lib/inc nn/shave_lib/inc/layers
