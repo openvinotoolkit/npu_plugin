@@ -522,6 +522,7 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     //     int64_t bID = checked_cast<int64_t>(b->getAttr("virtualId").cast<mlir::IntegerAttr>().getInt());
     //     return aID < bID;
     // });
+    std::cout << "barrierNumber is " << _barrierOps.size() << std::endl;
 
     for (auto& barrier : _barrierOps)
         Logger::global().error("Barrier virtual ID {0} and physical Id {1} ", barrier->getAttr("virtualId"),

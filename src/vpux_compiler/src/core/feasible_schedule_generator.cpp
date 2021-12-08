@@ -297,10 +297,10 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
                 Logger::global().error("Looking up operation {0} in the in_degree table ", getUniqueID(*jtr));
                 typename operation_in_degree_t::iterator deg_itr = in_degree.find(*jtr);
                 // assert((deg_itr != in_degree.end()) && (deg_itr->second > 0));
-                std::cout << "Operation  has an indegree of " << deg_itr->second << std::endl;
+                // std::cout << "Operation  has an indegree of " << deg_itr->second << std::endl;
                 (deg_itr->second)--;
-                std::cout << "Decrementing the in-degree of ther operation, the indegree is now " << deg_itr->second
-                          << std::endl;
+                // std::cout << "Decrementing the in-degree of ther operation, the indegree is now " << deg_itr->second
+                // << std::endl;
 
                 if (!(deg_itr->second)) {
                     // in-degree of this node has become zero//
@@ -341,7 +341,7 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
                 max = std::max(priority_[*jtr], max);
                 ++jtr;
             }
-            std::cout << "Setting the priority of " << /*printOpType(pitr->first) <<*/ " to " << max << std::endl;
+            // std::cout << "Setting the priority of " << /*printOpType(pitr->first) <<*/ " to " << max << std::endl;
             pitr->second = max;
         }
     }
@@ -391,7 +391,7 @@ void FeasibleScheduleGenerator::assignUniqueIds() {
     int64_t uniqueId = 0;
     auto assignUniqueIDs = [&](VPURT::TaskOp taskOp) {
         taskOp->setAttr(uniqueIdAttrName, getIntAttr(_ctx, uniqueId++));
-        std::cout << "Assigning ID " << uniqueId << " to operation " << printOpType(taskOp) << std::endl;
+        // std::cout << "Assigning ID " << uniqueId << " to operation " << printOpType(taskOp) << std::endl;
     };
 
     _func.walk([&](VPURT::TaskOp taskOp) {
