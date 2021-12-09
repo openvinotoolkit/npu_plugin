@@ -45,12 +45,14 @@ struct t_MvMVNParamNClasses
 //    u32 grpLeaderShave;
 //    u32 grpShavesNo;
 
-    s32 ndims;
-    s32 in_dims[MAX_ND_DIMS];
-    s32 in_strides[MAX_ND_DIMS];
-    s32 out_strides[MAX_ND_DIMS];
+    s32 nShaves;
+    s32 jobNum;
 
     NDOrder storageOrder;
+    s32 channels;
+    s32 height;
+    s32 width;
+    s32 stride;
 
     s32 start;
     s32 toProcess;
@@ -62,7 +64,7 @@ struct t_MvMVNParamNClasses
     uint32_t normalize;
     float eps;
 
-    float intermediate_mean[MAX_ND_DIMS]; // allocate custom size memory
+    float intermediate_mean[MAX_ND_DIMS];
 };
 
 static void calc_mean_CHW_fp16(const half *line, int W, float* intermedia_mean, int index){
@@ -83,28 +85,22 @@ static void calc_mean_var_CHW_fp16(const half *line, int W, float* intermedia_me
 void mvMVN_1(t_MvMVNParamNClasses *p){
     NDOrder order = p->storageOrder;
 
-    // assume order CHW, ToDO: change
-    int W = p->in_dims[0];
-    int H = p->in_dims[1];
-    int C = p->in_dims[2];
-    int stride = p->in_strides[1] / sizeof(half); // stride = W
+    int W = p->width;
+    int H = p->height;
+    int C = p->channels;
+    int stride = p->stride;
 
     // printf("DEBUG_SHAVE (c, h, w): %d %d %d\n", C, H, W);
     // printf("DEBUG_SHAVE order: %X\n", order);
 
     uint32_t normalize_variance = p->normalize;
-    int nShaves = 1; // Use only one shave for now
-    int idy = 0; // job_num
+    int nShaves = p->nShaves; // Use only one shave for now
+    int idy = p->jobNum;
 
     int buf_size = nShaves * C;
 
     half* input  = p->input;
     half* output = p->output;
-
-    s32* dims = p->in_dims;
-    s32* istrides = p->in_strides;
-    s32* ostrides = p->out_strides;
-    s32 ndims = p->ndims;
 
     // printf("DEBUG_SHAVE stride0: %ld\n", istrides[0]);
     // printf("DEBUG_SHAVE stride1: %ld\n", istrides[1]);
@@ -120,20 +116,16 @@ void mvMVN_1(t_MvMVNParamNClasses *p){
         intermedia_mean[buf_size + c * nShaves + idy] = 0;
     }
 
-    if(order == ND_HWC || order == ND_NHWC){
-        // unsuported yet
-    } else {
-        for(int c = 0; c < C; c++){
-            int index = c * nShaves + idy;
+    for(int c = 0; c < C; c++){
+        int index = c * nShaves + idy;
 
-            for(int h = 0; h < H; h++){
-                half* line = input + c * H * stride + h * stride;
+        for(int h = 0; h < H; h++){
+            half* line = input + c * H * stride + h * stride;
 
-                if (!normalize_variance) {
-                    calc_mean_CHW_fp16(line, W, intermedia_mean, index);
-                } else {
-                    calc_mean_var_CHW_fp16(line, W, intermedia_mean, index, buf_size);
-                }
+            if (!normalize_variance) {
+                calc_mean_CHW_fp16(line, W, intermedia_mean, index);
+            } else {
+                calc_mean_var_CHW_fp16(line, W, intermedia_mean, index, buf_size);
             }
         }
     }
@@ -142,11 +134,10 @@ void mvMVN_1(t_MvMVNParamNClasses *p){
 void mvMVN_23(t_MvMVNParamNClasses *p){
     NDOrder order = p->storageOrder;
 
-    // assume order is CHW, ToDO: change
-    int C = p->in_dims[2];
-    int H = p->in_dims[1];
-    int W = p->in_dims[0];
-    int stride = p->in_strides[1] / sizeof(half); // stride = W
+    int W = p->width;
+    int H = p->height;
+    int C = p->channels;
+    int stride = p->stride;
 
     // printf("DEBUG_SHAVE (c, h, w): %d %d %d\n", C, H, W);
     // printf("DEBUG_SHAVE order: %X\n", order);
@@ -154,19 +145,14 @@ void mvMVN_23(t_MvMVNParamNClasses *p){
     uint32_t normalize_variance = p->normalize;
     uint32_t acrossChannels = p->acrossChannels;
     float epsilon = p->eps;
-    int nShaves = 1; // Use only one shave for now
-    int idy = 0; // job_num
+    int nShaves = p->nShaves; // Use only one shave for now
+    int idy = p->jobNum;
 
     const float* variance_part = p->intermediate_mean + nShaves * C;
     const float* mean_part = p->intermediate_mean;
 
     half* input  = p->input;
     half* output = p->output;
-
-    s32* dims = p->in_dims;
-    s32* istrides = p->in_strides;
-    s32* ostrides = p->out_strides;
-    s32 ndims = p->ndims;
 
     // printf("DEBUG_SHAVE stride0: %ld\n", istrides[0]);
     // printf("DEBUG_SHAVE stride1: %ld\n", istrides[1]);
@@ -178,31 +164,27 @@ void mvMVN_23(t_MvMVNParamNClasses *p){
     float mean;
     float variance;
 
-    if(order == ND_HWC || order == ND_NHWC){
-        // unsuported yet
-    } else {
-        for(int c = 0; c < C; c++){
-            float m_acc;
-            float v_acc;
+    for(int c = 0; c < C; c++){
+        float m_acc;
+        float v_acc;
 
-            m_acc = mean_part[c];
-            v_acc = variance_part[c];
-            m_acc = m_acc / (H * W);
-            v_acc = v_acc / (H * W);
-            v_acc = v_acc - m_acc * m_acc;
-            v_acc = v_acc < 0 ? 1.f : v_acc;
-            v_acc = sqrtf(v_acc) + epsilon;
+        m_acc = mean_part[c];
+        v_acc = variance_part[c];
+        m_acc = m_acc / (H * W);
+        v_acc = v_acc / (H * W);
+        v_acc = v_acc - m_acc * m_acc;
+        v_acc = v_acc < 0 ? 1.f : v_acc;
+        v_acc = sqrtf(v_acc) + epsilon;
 
-            mean = m_acc;
-            variance = 1.f / v_acc;
+        mean = m_acc;
+        variance = 1.f / v_acc;
 
-            for(int h = 0; h < H; h++){
-                for(int w = 0; w < W; w++){
-                    int offset = c * H * stride + h * stride + w;
-                    output[offset] = input[offset] - mean;
-                    if(normalize_variance){
-                        output[offset] = output[offset] * variance;
-                    }
+        for(int h = 0; h < H; h++){
+            for(int w = 0; w < W; w++){
+                int offset = c * H * stride + h * stride + w;
+                output[offset] = input[offset] - mean;
+                if(normalize_variance){
+                    output[offset] = output[offset] * variance;
                 }
             }
         }
@@ -229,13 +211,8 @@ void mvn(uint32_t lParams) {
     t_MvMVNParamNClasses mvnParamsCMX;
     t_MvMVNParamNClasses* sp = &mvnParamsCMX;
 
-    sp->storageOrder = layerParams->input.dimsOrder;
-
-    // sp->axis = layerParams->axis;  // axis in arguments in memory notation because tensors are represented as TensorRefNDData
-
     sp->inputInCmx = true;
     sp->outputInCmx = true;
-    sp->ndims = layerParams->input.numDims;
 
     int32_t *pDims     = (int32_t *)(layerParams->input.dimsAddr);
     int64_t *iPStrides = (int64_t *)(layerParams->input.stridesAddr);
@@ -245,21 +222,28 @@ void mvn(uint32_t lParams) {
     sp->normalize = layerParams->normalize;
     sp->eps = layerParams->eps;
 
-    p_act_out[15 + 0] = iPStrides[0];
-    p_act_out[15 + 1] = iPStrides[1];
-    p_act_out[15 + 2] = iPStrides[2];
-    p_act_out[15 + 3] = iPStrides[3];
-    for (int i = 0; i < layerParams->input.numDims; i++) {
-        sp->in_dims[i] = pDims[i];
-        sp->in_strides[i] = iPStrides[i] / CHAR_BIT;
-        sp->out_strides[i] = oPStrides[i] / CHAR_BIT;
+    if(layerParams->input.dimsOrder != ND_CHW && layerParams->input.dimsOrder != ND_NCHW){
+        nnLog(MVLOG_ERROR, "Unsuported layout, expected CHW or NCHW");
+        return;
     }
+    sp->storageOrder = layerParams->input.dimsOrder;
+
+    s32 ndims = layerParams->input.numDims;
+    bool success;
+    NDDims indices = orderNDToIndices(layerParams->input.dimsOrder, success);
+    sp->channels = pDims[indices[ndims - 3]];
+    sp->height = pDims[indices[ndims - 2]];
+    sp->width = pDims[indices[ndims - 1]];
+    sp->stride = iPStrides[indices[ndims - 2]] / (CHAR_BIT * sizeof(half)); // stride = W
+
+    // printf("SHAVE_DEBUG: ndims = %d\n", layerParams->input.numDims);
 
     const auto *lp = &mvnParamsCMX;
 
-    int to_process = getTotal(lp->in_dims, lp->ndims);
+    int to_process = getTotal(pDims, ndims);
     unsigned int shaves_no = 1;
     int32_t firstShave = 0;
+    int32_t jobNum = 0;
     int32_t lastShave = firstShave + static_cast<int>(shaves_no) - 1;
     nnLog(MVLOG_DEBUG, "singleShaveMVN: run on %d SHAVEs\n", shaves_no);
 
@@ -284,15 +268,12 @@ void mvn(uint32_t lParams) {
 
     mvnParamNClasses->cmxslice = cmxData;
     mvnParamNClasses->availableCmxBytes = availableCmxBytes;
-    mvnParamNClasses->ndims = lp->ndims;
-    for (int32_t i = 0; i < MAX_ND_DIMS; i++) {
-        mvnParamNClasses->in_dims[i] = lp->in_dims[i];
-        mvnParamNClasses->in_strides[i] = lp->in_strides[i];
-        mvnParamNClasses->out_strides[i] = lp->out_strides[i];
-    }
 
     mvnParamNClasses->start = processed;
     mvnParamNClasses->toProcess = to_process_on_shave;
+
+    mvnParamNClasses->nShaves = shaves_no;
+    mvnParamNClasses->jobNum = jobNum;
 
     mvMVN_1(mvnParamNClasses);
     mvMVN_23(mvnParamNClasses);
