@@ -130,6 +130,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
      _func->walk([&](VPURT::DeclareVirtualBarrierOp op) {
         if (!configureBarrierOpUpdateWaitMap.count(op))
         {
+            Logger::global().error("Erasing Barrier ID {0} ", op->getAttr("id"));
             op->dropAllUses();
             op.erase();
         }
