@@ -1,36 +1,29 @@
 // {% copyright %}
 
-#include <stdio.h>
-
-#include <sw_layer.h>
-
-#include <sw_shave_res_manager.h>
+#ifdef CONFIG_HAS_LRT_SRCS
 #include <nn_log.h>
-#include <mvSubspaces.h>
+#else
+#define nnLog(level, ...)
+#endif
 #include <param_softmax.h>
-
-#include <mv_types.h>
-#include <math.h>
-#include <moviVectorTypes.h>
+#include <mvSubspaces.h>
+#define INFINITY (1.0f /0.0f)
 #include <moviVectorConvert.h>
 
-#include <svuCommonShave.h>
-
 #ifdef CONFIG_TARGET_SOC_3720
-#include <dma_shave_params_nn.h>
+#include <dma_shave_nn.h>
 #else
-#include <dma_shave_params.h>
+#include <dma_shave.h>
 #endif
 
+#include <math.h>
+#include <moviVectorTypes.h>
 #include "param_mvn.h"
 
-using namespace nn;
-using namespace shave_lib;
 using namespace sw_params;
+using namespace subspace;
 
 namespace {
-
-using namespace subspace;
 
 #define WORK_BUFFER_SIZE (((p->availableCmxBytes)/4))
 
@@ -173,10 +166,10 @@ namespace nn {
 namespace shave_lib {
 
 extern "C" {
-void mvn(uint32_t lParams) {
+void singleShaveMVN(uint32_t lParams) {
     const MvnParams * layerParams = reinterpret_cast<const MvnParams *>(lParams);
 
-    uint8_t * cmxData = nullptr;   // TODO: Restore the possibility of working with DDR tensors 
+    uint8_t * cmxData = nullptr;   // TODO: Restore the possibility of working with DDR tensors
     int32_t availableCmxBytes = 0;
     // Special DMA to copy layer params from physical DDR
     half* p_act_data = (half*)(layerParams->input.dataAddr); // 0x1F000000
@@ -221,7 +214,7 @@ void mvn(uint32_t lParams) {
     nnLog(MVLOG_DEBUG, "singleShaveMVN: run on %d SHAVEs\n", shaves_no);
 
     nnLog(MVLOG_DEBUG, "MVNParamNClasses %d\n", __LINE__);
-    // one or many softmax sets on one shave
+
     int step_size = to_process / shaves_no;
     int step_size_rem = to_process % shaves_no;
 
