@@ -147,26 +147,22 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:        {
 // CHECK:          name: "actSHAVE1_stack",
 // CHECK:          locale: "GFEmbeddedKernel",
-// CHECK:          locale_offset: 1,
 // CHECK:          referenced_data_size: 4096
 // CHECK:        },
 // CHECK:        {
 // CHECK:          name: "actSHAVE2_stack",
 // CHECK:          locale: "GFEmbeddedKernel",
-// CHECK:          locale_offset: 2,
 // CHECK:          referenced_data_size: 4096
 // CHECK:        },
 // CHECK:        {
 // CHECK:          name: "actSHAVE3_stack",
 // CHECK:          locale: "GFEmbeddedKernel",
-// CHECK:          locale_offset: 3,
 // CHECK:          referenced_data_size: 4096
 // CHECK:        }
 // CHECK:      ],
 // CHECK:      codeScratchBuffer: {
 // CHECK:        name: "scratch_buffer",
 // CHECK:        locale: "GFEmbeddedKernel",
-// CHECK:        locale_offset: 4,
 // CHECK:        referenced_data_size: 65536
 // CHECK:      }
 // CHECK:  task_lists: [
@@ -178,7 +174,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:              kernelText: {
 // CHECK:                name: "builtin_sigmoid",
 // CHECK:                locale: "GFEmbeddedKernel",
-// CHECK:                locale_offset: 5,
 // CHECK:                referenced_data_size: 1376
 // CHECK:              }
 // CHECK:            },
@@ -195,12 +190,10 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                dataSection: {
 // CHECK:                  name: "builtin_sigmoid_invo",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  locale_offset: 6,
 // CHECK:                },
 // CHECK:                invocationArgs: {
 // CHECK:                  name: "builtin_sigmoid_invo",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  locale_offset: 6,
 // CHECK:                  referenced_data_size: 168
 // CHECK:                }
 
@@ -226,8 +219,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:              kernelText: {
 // CHECK:                name: "builtin_softmax",
 // CHECK:                locale: "GFEmbeddedKernel",
-// CHECK:                locale_offset: 7,
-// CHECK:                referenced_data_size: 5920
+// CHECK:                referenced_data_size: 5968
 // CHECK:              }
 // CHECK:            },
 // CHECK:            invocations: [
@@ -243,12 +235,10 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                dataSection: {
 // CHECK:                  name: "builtin_softmax_invo",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  locale_offset: 8,
 // CHECK:                },
 // CHECK:                invocationArgs: {
 // CHECK:                  name: "builtin_softmax_invo",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  locale_offset: 8,
 // CHECK:                  referenced_data_size: 176
 // CHECK:                }
 
@@ -273,7 +263,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:              kernelText: {
 // CHECK:                name: "builtin_sigmoid",
 // CHECK:                locale: "GFEmbeddedKernel",
-// CHECK:                locale_offset: 5,
 // CHECK:                referenced_data_size: 1376
 // CHECK:              }
 // CHECK:            },
@@ -290,12 +279,10 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                dataSection: {
 // CHECK:                  name: "builtin_sigmoid_invo_1",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  locale_offset: 9,
 // CHECK:                },
 // CHECK:                invocationArgs: {
 // CHECK:                  name: "builtin_sigmoid_invo_1",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  locale_offset: 9,
 // CHECK:                  referenced_data_size: 168
 // CHECK:                }
 

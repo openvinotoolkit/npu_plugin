@@ -7,7 +7,8 @@
 #include "mvSubspaces.h"
 
 #ifdef CONFIG_TARGET_SOC_3720
-extern void*(shvNN0_hswish_fp16);
+__attribute__((aligned(1024)))
+#include "sk.hswish_fp16.3010xx.text.xdat"
 #else
 #include "svuSLKernels_EP.h"
 #endif
@@ -53,7 +54,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, HSwish)) {
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_hswishParams);
 
 #ifdef CONFIG_TARGET_SOC_3720
-            m_params.kernel = reinterpret_cast<uint64_t>(&shvNN0_hswish_fp16);
+            m_params.kernel = reinterpret_cast<uint64_t>(sk_hswish_fp16_3010xx_text);
 #else
             m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(hswish_fp16));
 #endif

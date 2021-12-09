@@ -9,7 +9,7 @@
 
 #include <stdlib.h>
 #include <mv_types.h>
-#include <registersVpu.h>
+#include <registersVpu3600.h>
 #include "descriptor.h"
 #include "act_shave_mgr.h"
 #include <sw_shave_lib_common.h>

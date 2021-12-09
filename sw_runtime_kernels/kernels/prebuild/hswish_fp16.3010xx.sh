@@ -3,7 +3,12 @@ env_is_set=1
 
 if [ -z ${FIRMWARE_VPU_DIR} ]; then FIRMWARE_VPU_DIR=${VPUIP_2_DIR}; fi
 if [ -z ${MV_TOOLS_DIR} ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
-if [ -z ${MV_TOOLS_VERSION} ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
+if [ -z "${MV_TOOLS_VERSION}" ]; then 
+mv_tools_version_str=`grep "mv_tools_version" ../../vpuip_2_revision.txt`
+mv_tools_version_arr=($mv_tools_version_str)
+MV_TOOLS_VERSION=${mv_tools_version_arr[1]}
+if [ -z "${MV_TOOLS_VERSION}" ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
+fi
 if [ -z ${KERNEL_DIR} ]; then echo "KERNEL_DIR is not set"; env_is_set=0; fi
 if [ -z ${FIRMWARE_VPU_DIR} ]; then echo "FIRMWARE_VPU_DIR is not set"; env_is_set=0; fi
 
@@ -64,6 +69,15 @@ ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-m
 if [ $? -ne 0 ]; then echo $'\nExtracting of sk.hswish_fp16.3010xx.text failed exit $?\n'; exit $?; fi
 ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy -O binary --only-section=.arg.data ${KERNEL_DIR}/prebuild/hswish_fp16_3010xx.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.hswish_fp16.3010xx.data
 if [ $? -ne 0 ]; then echo $'\nExtracting of sk.hswish_fp16.3010xx.data failed exit $?\n'; exit $?; fi
+
+cd ${KERNEL_DIR}/prebuild/act_shave_bin
+if [ $? -ne 0 ]; then echo $'\nCan not cd to \"$${KERNEL_DIR}/prebuild/act_shave_bin\"\n'; exit $?; fi
+xxd -i sk.hswish_fp16.3010xx.text ../sk.hswish_fp16.3010xx.text.xdat
+if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of text segment failed $?\n'; cd -; exit $?; fi
+xxd -i sk.hswish_fp16.3010xx.data ../sk.hswish_fp16.3010xx.data.xdat
+if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of data segment failed $?\n'; cd -; exit $?; fi
+cd -
+
 rm ${KERNEL_DIR}/prebuild/hswish_fp16_3010xx.o ${KERNEL_DIR}/prebuild/mvSubspaces_3010xx.o ${KERNEL_DIR}/prebuild/dma_shave_nn_3010xx.o
 printf "\n ${KERNEL_DIR}/prebuild/act_shave_bin/sk.hswish_fp16.3010xx.text\n ${KERNEL_DIR}/prebuild/act_shave_bin/sk.hswish_fp16.3010xx.data\nhave been created successfully\n"
 exit $?

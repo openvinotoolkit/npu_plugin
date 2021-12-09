@@ -8,7 +8,7 @@
 to build/execute the tests and to compile the kernels for VPUX compiler.
 [`firmware_vpu_revision.txt`](firmware_vpu_revision.txt) - file must contain:
 - corresponding branch and/or commit hash of firmware.vpu.iot repo to work
-- MV_TOOLS_VERSION wich should be used to build act_shave code binaries in the following form
+- MV_TOOLS_VERSION which should be used to build act_shave code binaries in the following form
 ```
 mv_tools_version:   <version, for example 21.11.3-internal>
 ```
@@ -65,8 +65,18 @@ To prepare binaries of one kernel corresponding script does:
   located in [`sw_runtime_kernels/kernels/prebuild/act_shave_bin`](kernels/prebuild/act_shave_bin) directory
   and copied to OpenVINO binary directory while `VPUX-plugin` builds.
   - names of the data segments and text segment files representing the kernel 
-have the following structure: `sk.<entry point>.<platform>.<text or data as extencion>`
+have the following structure: `sk.<entry point>.<platform>.<text or data as etension>`
 (for example: `sk.singleShaveSoftmax.text`)
+- call of `xxd` linux utility to prepare c/c++ includable files with text hexadecimal representation
+of `text` and `data` segments of the kernel in array.
+The files are located in [`sw_runtime_kernels/kernels/prebuild`](kernels/prebuild) directory
+and have names `sk.<entry point>.<platform>.<text or data as etension>.xdat`.
+In each file the array filled by corresponding kernel segment and its size are defined in c/c++ syntax.
+The array and size have the names
+```
+  unsigned char sk_<entry point>_<platform>_<text or data as etension>[] = { <hex values> };
+  unsigned int sk_<entry point>_<platform>_<text or data as etension>_len = <len of array>;
+```
 
 #### Kernel creating/porting 
 The main way of SW ActShave kernel execution is: one particular shave gets 
@@ -84,7 +94,10 @@ The parameter structure can be any, but usually it includes:
 In turn, tensor descriptions are represented as [MemRefData structure](kernels/inc/common_types.h#L78).  
 Tensor data, dims and strides are pointed by dataAddr, dismAddr and stridesAddr correspondingly.
 Kernel code can operate the `addr` fields as normal memory pointers,
-which possibility is provided by windows-based virtual addressing feature of platform.
+which possibility is provided by windows-based virtual addressing feature of platform.  
+Tensor dims and strides are written in 'memory' order
+(dims[0] contains 'inner'dimension, dims[ndims - 1] contains 'outer' dimension).  
+Strides are measured in bits.
 
 To create SW kernel it is necessary:
 - add kernel code in special source file in `sw_runtime_kernels` directory ([example](kernels/sigmoid_fp16.c))
@@ -116,7 +129,17 @@ The kernel test:
 ([example](jtag_tests/app/layer_tests/test_icv/leon/tests/custom_cpp_sigmoid.cpp#L22)),
 - prepares an instance of parameter structure
 declared for the kernel in `kernels/inc` directory,
-- provides the pointer to kernel implementation (pointer to kernel entry point function),
+- provides the pointer to kernel entry point function represented in the array prepared by
+`xx` linux utility and included in the test c++ module, for example:  
+```
+...
+#ifdef CONFIG_TARGET_SOC_3720
+__attribute__((aligned(1024)))
+#include "sk.hswish_fp16.3010xx.text.xdat"
+#else
+...
+
+```
 - calculates the reference values and compare them with the values given by the tested kernel 
 (or import precalculated values from a file),  
 To create the test: 
@@ -129,12 +152,12 @@ generate inputs, reference outputs and compare results.
 - Define in the kernel parameters structure header file 
 the function to wrap kernel parameters structure into special common communication structure `BaseKernelParams`
 ([example](kernels/inc/param_sigmoid.h#L20)).
-- Add entry point symbols into:
-  - [.config_sim_3720xx_debug](jtag_tests/app/layer_tests/test_icv/build/.config_sim_3720xx_debug#L154) and [.config_sim_3720xx_release](jtag_tests/app/layer_tests/test_icv/build/.config_sim_3720xx_release#L154) for MTL
-  - [svuSLKernels_EP.h](jtag_tests/app/nn/shave_lib/inc/layers/svuSLKernels_EP.h#L142) and
-[jtag_tests/app/nn/shave_lib/shave/subdir.mk](jtag_tests/app/nn/shave_lib/shave/subdir.mk#L36] for KMB
+- Add entry point symbols into [svuSLKernels_EP.h](jtag_tests/app/nn/shave_lib/inc/layers/svuSLKernels_EP.h#L142) and
+[jtag_tests/app/nn/shave_lib/shave/subdir.mk](jtag_tests/app/nn/shave_lib/shave/subdir.mk#L36) for KMB
 
-[Another example of minimal necessary changes of simple sw kernel addition (hswish PR)](https://github.com/intel-innersource/applications.ai.vpu-accelerators.vpux-plugin/pull/48/files?authenticity_token=o5r2ig6Pe2TqS0WB1xIQhQ%2FkIHZc0MXvTZOfdwAAqH3wD3FZe1DKcl6v9%2BYlEySBaXLwdNTyyM9nKClz5MepGg%3D%3D&file-filters%5B%5D=.cpp&file-filters%5B%5D=.data&file-filters%5B%5D=.h&file-filters%5B%5D=.mk&file-filters%5B%5D=.text&file-filters%5B%5D=dotfile)
+[Another example of minimal necessary changes of simple sw kernel addition (hswish PR)](https://github.com/intel-innersource/applications.ai.vpu-accelerators.vpux-plugin/pull/48/files?authenticity_token=o5r2ig6Pe2TqS0WB1xIQhQ%2FkIHZc0MXvTZOfdwAAqH3wD3FZe1DKcl6v9%2BYlEySBaXLwdNTyyM9nKClz5MepGg%3D%3D&file-filters%5B%5D=.cpp&file-filters%5B%5D=.data&file-filters%5B%5D=.h&file-filters%5B%5D=.mk&file-filters%5B%5D=.text&file-filters%5B%5D=dotfile)  
+( !!! PR does not contain the preparation and using of hexadecimal 
+xdat ActShave kernel representation )
 
 ### Known issues
 - [\[MOVICOMPILER\] Some code sequences are not compiled for 3720 act shave with O3](https://jira.devtools.intel.com/browse/EISW-26562) - 

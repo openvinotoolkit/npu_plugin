@@ -1,7 +1,7 @@
 #include "act_shave_dispatcher.h"
 #include "act_shave_runtime.h"
 #include <DrvRegUtils.h>
-#include <registersVpu.h>
+#include <registersVpu3600.h>
 #include <VcsHooksApi.h>
 #include <swcLeonUtils.h>
 #include <nn_cache.h>

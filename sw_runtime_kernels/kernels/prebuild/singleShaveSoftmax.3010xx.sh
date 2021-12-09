@@ -77,6 +77,16 @@ if [ $? -ne 0 ]; then echo $'\nLinking of singleShaveSoftmax_3010.elf failed exi
 if [ $? -ne 0 ]; then echo $'\nExtracting of sk.singleShaveSoftmax.${cpu}.text failed exit $?\n'; exit $?; fi
 "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.arg.data "${KERNEL_DIR}/prebuild/singleShaveSoftmax_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.3010xx.data"
 if [ $? -ne 0 ]; then echo $'\nExtracting of sk.singleShaveSoftmax.${cpu}.data failed exit $?\n'; exit $?; fi
+
+cd ${KERNEL_DIR}/prebuild/act_shave_bin
+if [ $? -ne 0 ]; then echo $'\nCan not cd to \"$${KERNEL_DIR}/prebuildact_shave_bin\"\n'; exit $?; fi
+xxd -i sk.singleShaveSoftmax.3010xx.text ../sk.singleShaveSoftmax.3010xx.text.xdat
+#xxd -i sk.singleShaveSoftmax.3010xx.text sk.singleShaveSoftmax.3010xx.text.xdat
+if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of text segment failed $?\n'; cd -; exit $?; fi
+xxd -i sk.singleShaveSoftmax.3010xx.data ../sk.singleShaveSoftmax.3010xx.data.xdat
+if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of data segment failed $?\n'; cd -; exit $?; fi
+cd -
+
 rm "${KERNEL_DIR}/prebuild/single_shave_softmax_${cpu}.o" "${KERNEL_DIR}/prebuild/mvSubspaces_${cpu}.o" "${KERNEL_DIR}/prebuild/dma_shave_nn_${cpu}.o"
 printf "\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.${cpu}.text\"\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.${cpu}.data\"\nhave been created successfully\n"
 exit $?

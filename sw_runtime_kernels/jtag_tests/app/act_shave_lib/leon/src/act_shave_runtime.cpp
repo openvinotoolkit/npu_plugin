@@ -18,6 +18,10 @@
 #include "descriptor.h"
 
 #define TARGET_SHAVE (ACT_SHAVE_0)
+#ifdef CONFIG_TARGET_SOC_3720
+__attribute__((aligned(1024)))
+#include "sk.nnActEntry.3010xx.text.xdat"
+#endif
 extern void*  (shvNN0_act_shave_runtime_shaveMain);
 
 typedef struct {
@@ -164,6 +168,7 @@ int startActShave(void)
 
     leonFlushDcache();
 
+//    swcStartShave(TARGET_SHAVE,(u32)sk_nnActEntry_3010xx_text);
     swcStartShave(TARGET_SHAVE,(u32)&shvNN0_act_shave_runtime_shaveMain);
 
     return 0;

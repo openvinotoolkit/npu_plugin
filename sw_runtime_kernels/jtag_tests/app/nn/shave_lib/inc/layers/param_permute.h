@@ -4,6 +4,7 @@
 #pragma once
 
 #include "sw_layer_params.h"
+#include "sw_tensor_ref.h"
 #include <mv_types.h>
 
 namespace nn {
