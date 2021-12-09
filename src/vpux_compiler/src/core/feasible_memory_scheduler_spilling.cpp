@@ -406,7 +406,7 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
     mlir::async::ExecuteOp spillWriteInsertionPoint = nullptr;
     auto insertionPointIndex = schedOpIndex;
     while (insertionPointIndex > 0) {
-        if (scheduledOps[insertionPointIndex].opType_ == FeasibleMemoryScheduler::EOpType::ORIGINAL_OP) {
+        if (scheduledOps[insertionPointIndex].isOriginalOp()) {
             spillWriteInsertionPoint = _depsInfo.getExecuteOpAtIndex(scheduledOps[insertionPointIndex].op_);
             break;
         }
@@ -462,7 +462,7 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
     mlir::async::ExecuteOp spillReadInsertionPoint = nullptr;
     auto insertionPointIndex = schedOpIndex;
     while (insertionPointIndex > 0) {
-        if (scheduledOps[insertionPointIndex].opType_ == FeasibleMemoryScheduler::EOpType::ORIGINAL_OP) {
+        if (scheduledOps[insertionPointIndex].isOriginalOp()) {
             spillReadInsertionPoint = _depsInfo.getExecuteOpAtIndex(scheduledOps[insertionPointIndex].op_);
             break;
         }
