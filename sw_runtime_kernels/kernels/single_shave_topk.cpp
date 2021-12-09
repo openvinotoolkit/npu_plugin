@@ -220,7 +220,6 @@ void singleShaveTopK(uint32_t lParamsAddr) {
         default: return;
     }
 
-    // cases for k = 1
     // calculate top K inner (axis = 0)
     k = 1;
     if (axis == 0) {
@@ -260,6 +259,49 @@ void singleShaveTopK(uint32_t lParamsAddr) {
                 *indexLinePtr = lineBuffer[i].index;
                 valueLinePtr++;
                 indexLinePtr++;
+            }
+        }
+    }
+
+    // calculate top K outer (axis = 1 and axis = 2)
+    if (axis == 1) {
+
+        int numLines = pInputDims[0] * pInputDims[2];
+
+        int inputStride = pInputStrides[0] / CHAR_BIT;
+        int valueStride = pValueStrides[0] / CHAR_BIT;
+        int indexStride = pIndexStrides[0] / CHAR_BIT;
+
+        for (int line = 0; line < numLines; line++) {
+            int blockNum = line / pInputDims[0];
+            int blockStep = line % pInputDims[0];
+            int inputBlockOffset = blockNum * pInputDims[0] * pInputDims[1];
+            int outputBlockOffset = blockNum * pValueDims[0] * k;
+            half* inputLinePtr = p_act_input + inputBlockOffset + blockStep * inputStride / sizeof(half);
+            half* valueLinePtr = p_act_value + outputBlockOffset + blockStep * valueStride / sizeof(half);
+            int32_t* indexLinePtr = p_act_index + outputBlockOffset + blockStep * indexStride / sizeof(int32_t);
+
+            Pack lineBuffer[pInputDims[1]];
+            for (int i = 0; i < pInputDims[1]; i++) {
+                lineBuffer[i].value = *inputLinePtr;
+                lineBuffer[i].index = i + 1;
+                inputLinePtr += pInputDims[0];
+            }
+
+            PartialHeapSortPacked hsort(lineBuffer, k);
+            hsort.pushAll(pInputDims[1], comparePacked);
+            hsort.fullSort(comparePacked);
+            if (sort) {
+                hsort.clear();
+                hsort.pushAll(k, isSmallIndex);
+                hsort.fullSort(isSmallIndex);
+            }
+
+            for (int i = 0; i < k; i++) {
+                *valueLinePtr = lineBuffer[i].value;
+                *indexLinePtr = lineBuffer[i].index;
+                valueLinePtr += pValueDims[0];
+                indexLinePtr += pIndexDims[0];
             }
         }
     }
