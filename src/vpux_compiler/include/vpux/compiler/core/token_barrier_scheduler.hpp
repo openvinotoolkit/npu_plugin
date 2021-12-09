@@ -265,14 +265,14 @@ public:
 
              Logger::global().error("CREATING A NEW BARRIER TASK");
 
-             static size_t barrier_task_id=0UL;
+             static size_t barrier_task_id=1UL;
 
              mlir::OpBuilder builder(_func.getBody());
              auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc(), barrier_task_id); //Neds to be virtual.
            
 
              std::set<mlir::Operation*,task_operation_comparator_t> newBarrierProducers{};
-             std::set<mlir::Operation*, task_operation_comparator_t> newBarrierConsumers{};            
+             std::set<mlir::Operation*,task_operation_comparator_t> newBarrierConsumers{};            
              tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.insert(std::make_pair(newBarrier, std::make_pair(newBarrierProducers,newBarrierConsumers)));
 
              Logger::global().error("Created a new barrier task with barrier ID {0} after OP id is {1}", barrier_task_id, FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
