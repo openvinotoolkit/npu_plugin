@@ -22,7 +22,7 @@ using namespace elf;
 Reader::Reader(const char* blob, size_t) : m_blob(blob), m_elfHeader(reinterpret_cast<decltype(m_elfHeader)>(blob)) {
     m_sectionHeadersStart = reinterpret_cast<const SectionHeader*>(m_blob + m_elfHeader->e_shoff);
     m_programHeadersStart = reinterpret_cast<const ProgramHeader*>(m_blob + m_elfHeader->e_phoff);
-    m_sectionHeadersNames = m_blob + (m_sectionHeadersStart + m_elfHeader->e_shstrndx)->sh_offset;
+    m_sectionHeadersNames = reinterpret_cast<const char*>(m_blob + (m_sectionHeadersStart + m_elfHeader->e_shstrndx)->sh_offset);
 }
 
 const char* Reader::getBlob() const {

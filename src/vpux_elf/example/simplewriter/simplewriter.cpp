@@ -13,6 +13,8 @@
 
 #include <elf/writer.hpp>
 
+#include <fstream>
+
 struct DMATask {
     int x;
     double y;
@@ -44,48 +46,48 @@ int main() {
     // SymbolSection
     //
 
-    auto symbolSection = elf.addSymbolSection();
-    symbolSection->setName(".symtab");
+    auto symbolSection = elf.addSymbolSection(".symtab");
 
-    auto input = symbolSection->addSymbolEntry();
-    input->setName(".input");
+    auto input = symbolSection->addSymbolEntry(".input");
 
-    auto output = symbolSection->addSymbolEntry();
-    output->setName(".output");
+    auto output = symbolSection->addSymbolEntry(".output");
 
     //
     // Weights
     //
 
-    auto weights = elf.addSegment();
-    weights->setType(elf::PT_LOAD);
-    weights->addData("11111", 5);
+    std::vector<uint64_t> weightsData{0, 1, 2, 3, 4, 5};
+    auto weightsSection = elf.addBinaryDataSection<uint64_t>(".weights");
+    weightsSection->appendData(weightsData.data(), weightsData.size());
+
+    auto weightsSegment = elf.addSegment();
+    weightsSegment->setType(elf::PT_LOAD);
+    weightsSegment->addSection(weightsSection);
+
+    auto weightsSym = symbolSection->addSymbolEntry(".weights");
+    weightsSym->setRelatedSection(weightsSection);
 
     //
     // MappedInference data
     //
 
-    auto mappedInferenceStruct = elf.addBinaryDataSection<MappedInference>();
-    mappedInferenceStruct->setName(".text.MappedInference");
+    auto mappedInferenceStruct = elf.addBinaryDataSection<MappedInference>(".text.MappedInference");
     mappedInferenceStruct->setAddrAlign(64);
-    mappedInferenceStruct->addData(MappedInference());
+    mappedInferenceStruct->appendData(MappedInference());
 
-    auto dmaTasks = elf.addBinaryDataSection<DMATask>();
-    dmaTasks->setName(".text.dmaTasks");
+    auto dmaTasks = elf.addBinaryDataSection<DMATask>(".text.dmaTasks");
     dmaTasks->setAddrAlign(64);
-    dmaTasks->addData(DMATask());
+    const auto inputDMAOffset = dmaTasks->appendData(DMATask());
 
-    auto invariants = elf.addBinaryDataSection<Invariant>();
-    invariants->setName(".text.invariants");
+    auto invariants = elf.addBinaryDataSection<Invariant>(".text.invariants");
     invariants->setAddrAlign(64);
-    invariants->addData(Invariant());
+    invariants->appendData(Invariant());
 
-    auto variants = elf.addBinaryDataSection<Variant>();
-    variants->setName(".text.variants");
+    auto variants = elf.addBinaryDataSection<Variant>(".text.variants");
     variants->setAddrAlign(64);
-    variants->addData(Variant());
-    variants->addData(Variant());
-    variants->addData(Variant());
+    variants->appendData(Variant());
+    variants->appendData(Variant());
+    variants->appendData(Variant());
 
     auto mappedInferenceSegment = elf.addSegment();
     mappedInferenceSegment->setType(elf::PT_LOAD);
@@ -98,20 +100,29 @@ int main() {
     // Relocations
     //
 
-    auto dmaTasksRelocation = elf.addRelocationSection();
+    auto dmaTasksRelocation = elf.addRelocationSection(".rela.dma");
     dmaTasksRelocation->setSymbolTable(symbolSection);
     dmaTasksRelocation->setSectionToPatch(dmaTasks);
-    dmaTasksRelocation->setName(".rela.dma");
 
     auto inputDMA = dmaTasksRelocation->addRelocationEntry();
     inputDMA->setSymbol(input);
     inputDMA->setAddend(0);
+    inputDMA->setOffset(inputDMAOffset + offsetof(DMATask, x));
+
+    auto weightsDMA = dmaTasksRelocation->addRelocationEntry();
+    weightsDMA->setSymbol(weightsSym);
+    weightsDMA->setAddend(0);
+    weightsDMA->setOffset(inputDMAOffset + offsetof(DMATask, x));
 
     auto outputDMA = dmaTasksRelocation->addRelocationEntry();
     outputDMA->setSymbol(output);
     outputDMA->setAddend(0);
+    outputDMA->setOffset(inputDMAOffset + offsetof(DMATask, y));
 
-    elf.write("nn.elf");
+    const auto elfBlob = elf.generateELF();
+
+    std::ofstream stream("test.elf", std::ios::out | std::ios::binary);
+    stream.write(reinterpret_cast<const char*>(elfBlob.data()), elfBlob.size());
 
     return 0;
 }

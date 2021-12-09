@@ -74,226 +74,50 @@ void vpux::ELF::PutAnyOpInSectionOp::serialize(
         /* elf::Writer& elfWriter */ std::vector<elf::writer::Section*> ELFSection, int ELFSectionIndex,
         std::vector<elf::writer::Symbol*> ELFSymbol, int ELFSymbolIndex) {
     // (void)elfWriter;
-
-    std::vector<char> buffer;
-
-    llvm::dbgs() << "Entered ELF::PutAnyOpInSectionOp::serialize()\n";
-    llvm::dbgs().flush();
-
-    // mlir::Value putAnyOpValue = llvm::dyn_cast<vpux::ELF::PutAnyOpInSectionOp>(op).inputArg(); // barrier();
-    mlir::Value putAnyOpValue = inputArg();  // barrier();
-
-    llvm::dbgs() << "    putAnyOpValue = " << putAnyOpValue << "\n";
-    // See https://llvm.org/doxygen/classllvm_1_1raw__ostream.html
-    llvm::dbgs().flush();
-
-    // See https://mlir.llvm.org/doxygen/classmlir_1_1Value.html
-    mlir::Operation* putAnyOpOp = putAnyOpValue.getDefiningOp();
-    llvm::dbgs() << "    *putAnyOpOp = " << *putAnyOpOp << "\n";
-    llvm::dbgs().flush();
-
-    if (vpux::VPUIPRegMapped::ConfigureBarrierOp putAnyOpOpCfg =
-                llvm::dyn_cast<vpux::VPUIPRegMapped::ConfigureBarrierOp>(putAnyOpOp)) {
-        llvm::dbgs() << "    putAnyOpOpCfg is of type vpux::VPUIPRegMapped::ConfigureBarrierOp\n";
-        llvm::dbgs() << "    putAnyOpOpCfg = " << putAnyOpOpCfg << "\n";
-        llvm::dbgs().flush();
-        putAnyOpOpCfg.serialize(buffer);
-
-        llvm::dbgs() << "  Writing buffer for ConfigureBarrierOp to "
-                        "sectionAttributes[ELFSectionIndex].serializedData, with ELFSectionIndex = "
-                     << ELFSectionIndex << "\n";
-        llvm::dbgs() << "    (buffer.size() = " << buffer.size() << ")\n";
-        for (std::size_t i = 0; i < buffer.size(); i++) {
-            // 2021_10_19: ConfigureBarriersELFBLOB.push_back(buffer[i]);
-            sectionAttributes[ELFSectionIndex].serializedData.push_back(buffer[i]);
-            // sectionAttributes[ELFSectionIndex].serializedData.push_back(i);  // 2021_10_19
-        }
-    } else {
-        llvm::dbgs() << "    putAnyOpOp is NOT of type vpux::VPUIPRegMapped::ConfigureBarrierOp\n";
-        llvm::dbgs().flush();
-
-        if (vpux::VPUIPRegMapped::DeclareBufferOp putAnyOpOpDB =
-                    llvm::dyn_cast<vpux::VPUIPRegMapped::DeclareBufferOp>(putAnyOpOp)) {
-            llvm::dbgs() << "    putAnyOpOpDB is of type vpux::VPUIPRegMapped::DeclareBufferOp\n";
-            llvm::dbgs() << "    putAnyOpOpDB = " << putAnyOpOpDB << "\n";
-            llvm::dbgs().flush();
-        } else {
-            llvm::dbgs() << "    putAnyOpOp is NOT of type vpux::VPUIPRegMapped::DeclareBufferOp\n";
-            llvm::dbgs().flush();
-
-            if (vpux::Const::DeclareOp putAnyOpOpDcl = llvm::dyn_cast<vpux::Const::DeclareOp>(putAnyOpOp)) {
-                llvm::dbgs() << "    putAnyOpOpDcl is of type vpux::Const::DeclareOp\n";
-                llvm::dbgs() << "    putAnyOpOpDcl = " << putAnyOpOpDcl << "\n";
-                llvm::dbgs().flush();
-
-                // putAnyOpOpDcl.content();
-                // Defined in include/vpux/compiler/dialect/const/utils/content.hpp
-                // getValues()
-                /*
-                for (std::size_t i = 0; i < buffer.size(); i++) {
-                    // sectionAttributes[ELFSectionIndex].serializedData.push_back(buffer[i]);  // 2021_10_19
-                    sectionAttributes[ELFSectionIndex].serializedData.push_back(i);  // 2021_10_19
-                }
-                */
-
-                putAnyOpOpDcl.serialize(buffer);
-
-                llvm::dbgs() << "  Writing buffer for Const::DeclareOp to "
-                                "sectionAttributes[ELFSectionIndex].serializedData, with ELFSectionIndex = "
-                             << ELFSectionIndex << "\n";
-                llvm::dbgs() << "    (buffer.size() = " << buffer.size() << ")\n";
-                for (std::size_t i = 0; i < buffer.size(); i++) {
-                    int16_t tmp16 = buffer[i] & 0xFF;
-                    // printf("buffer[%lu] = 0x%hX\n", i, buffer[i]);
-                    // Gives error: <<error: no match for ‘operator<<’...>> llvm::dbgs() << "    buffer[" << i
-                    //   << "] = " << std::hex << tmp16 << "\n";
-                    llvm::dbgs() << "    buffer[" << i << "] = 0x";
-                    // See https://llvm.org/doxygen/classllvm_1_1raw__ostream.html
-                    llvm::dbgs().write_hex(tmp16);
-                    llvm::dbgs() << "\n";
-
-                    // 2021_10_19: ConfigureBarriersELFBLOB.push_back(buffer[i]);
-                    sectionAttributes[ELFSectionIndex].serializedData.push_back(buffer[i]);  // 2021_10_19
-                    // sectionAttributes[ELFSectionIndex].serializedData.push_back(i + 128);  // 2021_10_19
-                }
-            } else {
-                llvm::dbgs() << "    putAnyOpOp is NOT of type vpux::Const::DeclareOp\n";
-                llvm::dbgs().flush();
-
-                // IMPORTANT: We can have a memref or a Section
-                if (vpux::ELF::SymbolOp putAnyOpOpES = llvm::dyn_cast<vpux::ELF::SymbolOp>(putAnyOpOp)) {
-                    llvm::dbgs() << "    putAnyOpOpES is of type vpux::ELF::SymbolOp\n";
-                    llvm::dbgs().flush();
-
-                    llvm::dbgs() << "    putAnyOpOpES = " << putAnyOpOpES << "\n";
-
-                    mlir::Value putAnyOpOpInputArg = putAnyOpOpES.inputArg();
-                    // Basically it is equivalent to putAnyOpOpES:
-                    mlir::Value putAnyOpOpSymbol = putAnyOpOpES.symbol();
-                    //
-                    llvm::dbgs() << "    putAnyOpOpInputArg = " << putAnyOpOpInputArg << "\n";
-                    llvm::dbgs() << "    putAnyOpOpSymbol = " << putAnyOpOpSymbol << "\n";
-
-                    // Note: This is normally a memref
-
-                    // See https://mlir.llvm.org/doxygen/classmlir_1_1Value.html
-                    // mlir::Operation* putAnyOpOpInputArg_op = putAnyOpOpInputArg.getDefiningOp();
-                    // llvm::dbgs() << "    *putAnyOpOpInputArg_op = " << *putAnyOpOpInputArg_op << "\n";
-                    // llvm::dbgs().flush();
-
-                    // auto input =
-                    // ((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])->addSymbolEntry();
-                    // input->setName(".input123"); // TODO: generate a new name each time
-                    ELFSymbol[ELFSymbolIndex] =
-                            ((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])->addSymbolEntry();
-
-                    std::string printStr;
-                    llvm::raw_string_ostream OS(printStr);
-                    //
-                    // std::string symbolNameStr = "Val";
-                    std::string symbolNameStr;
-
-                    mlir::BlockArgument blockArg = putAnyOpOpInputArg.dyn_cast_or_null<mlir::BlockArgument>();
-                    if (blockArg) {
-                        unsigned int blockArgNum = blockArg.getArgNumber();
-
-                        llvm::dbgs() << "    blockArgNum = " << blockArgNum << "\n";
-                        vpux::IE::DataInfoOp respectiveNetArg;
-                        if (blockArgNum < diOpInVec.size()) {
-                            respectiveNetArg = diOpInVec[blockArgNum];
-                        } else {
-                            respectiveNetArg = diOpOutVec[blockArgNum - diOpInVec.size()];
-                        }
-                        llvm::dbgs() << "    respectiveNetArg = " << respectiveNetArg << "\n";
-
-                        // From https://llvm.org/doxygen/classllvm_1_1StringRef.html
-                        symbolNameStr = respectiveNetArg.name().str();
-                    } else {
-                        // llvm::raw_ostream osStr;
-                        // putAnyOpOpSymbol.print(OS);
-                        putAnyOpOpES.print(OS);
-                        llvm::dbgs() << "    printStr = " << printStr << "\n";
-
-                        // We recover the number of the variable mlir::Value
-                        // std::size_t posFound = printStr.find(' ');
-                        std::size_t posFound = printStr.find(STR_ELF_SYMBOL);
-                        if (posFound != std::string::npos) {
-                            // symbolNameStr += printStr.substr(1, posFound);
-                            // symbolNameStr = printStr.substr(posFound + strlen(STR_ELF_SYMBOL), printStr.size());
-                            // Note: For inputArg() instead of e.g. %arg0 it appears something like "<block
-                            // argument> of type ..."
-                            symbolNameStr = printStr.substr(posFound + strlen(STR_ELF_SYMBOL) + 1, printStr.size());
-
-                            std::size_t posFound2 = symbolNameStr.find(' ');
-                            symbolNameStr = symbolNameStr.substr(0, posFound2);
-                            // symbolNameStr = printStr.substr(posFound + strlen(STR_ELF_SYMBOL) + 1,
-                            // printStr.size());
-                        } else {
-                            symbolNameStr = printStr;
-                        }
-                    }
-
-                    llvm::dbgs() << "    symbolNameStr = " << symbolNameStr << "\n";
-
-                    // ELFSymbol[ELFSymbolIndex]->setName(".input123");
-                    ELFSymbol[ELFSymbolIndex]->setName(symbolNameStr);
-                    ELFSymbolValue[ELFSymbolIndex] = putAnyOpOpSymbol;
-
-                    ELFSymbol[ELFSymbolIndex]->setValue(0);
-
-                    mlir::Type inputArgType = putAnyOpOpInputArg.getType();  // diOpInVec[idx].userType();
-                    int64_t inputArgTypeTotalSize = -1;
-                    if (mlir::ShapedType sType = inputArgType.dyn_cast<mlir::ShapedType>()) {
-                        const Byte aByte = vpux::getTotalSize(sType);
-                        // uint32_t tmp = static_cast<uint32_t>(tmpBit);
-                        inputArgTypeTotalSize = aByte.count();
-                        llvm::dbgs() << "  inputArgTypeTotalSize = " << inputArgTypeTotalSize << "\n";
-                    }
-                    ELFSymbol[ELFSymbolIndex]->setSize(inputArgTypeTotalSize);
-
-                    llvm::dbgs() << "    ELFSymbolIndex = " << ELFSymbolIndex << "\n";
-                    ELFSymbolIndex++;
-                } else {
-                    llvm::dbgs() << "    putAnyOpOpES is NOT of type vpux::ELF::SymbolOp\n";
-                    llvm::dbgs().flush();
-                }
-            }
-        }
-    }
+    (void)ELFSection;
+    (void)ELFSectionIndex;
+    (void)ELFSymbol;
+    (void)ELFSymbolIndex;
 }
 
 void vpux::ELF::RelocOp::serialize(/*elf::Writer& elfWriter, */ std::vector<elf::writer::Section*> ELFSection,
                                    int ELFSectionIndex, std::vector<elf::writer::Symbol*> ELFSymbol,
                                    int ELFSymbolIndex) {
     // (void)elfWriter;
+    (void)ELFSection;
+    (void)ELFSectionIndex;
+    (void)ELFSymbol;
+    (void)ELFSymbolIndex;
+    /*
+        llvm::dbgs() << "Entered ELF::RelocOp::serialize()\n";
+        llvm::dbgs().flush();
 
-    llvm::dbgs() << "Entered ELF::RelocOp::serialize()\n";
-    llvm::dbgs().flush();
+        // llvm::dbgs() << "processBlock(): Found ELF.RelocOp\n";
+        // llvm::dbgs().flush();
 
-    // llvm::dbgs() << "processBlock(): Found ELF.RelocOp\n";
-    // llvm::dbgs().flush();
+        // vpux::ELF::RelocOp opReloc = llvm::cast<vpux::ELF::RelocOp>(op);
 
-    // vpux::ELF::RelocOp opReloc = llvm::cast<vpux::ELF::RelocOp>(op);
+        llvm::dbgs() << "ELF::RelocOp::serialize(): offsetTargetField() = " << offsetTargetField() << "\n";
 
-    llvm::dbgs() << "ELF::RelocOp::serialize(): offsetTargetField() = " << offsetTargetField() << "\n";
+        // llvm::dbgs() << "processBlock(): relocationType() = " << relocationType().str() << "\n";
+        llvm::dbgs() << "ELF::RelocOp::serialize(): relocationType() = " << static_cast<uint32_t>(relocationType()) <<
+       "\n";
 
-    // llvm::dbgs() << "processBlock(): relocationType() = " << relocationType().str() << "\n";
-    llvm::dbgs() << "ELF::RelocOp::serialize(): relocationType() = " << static_cast<uint32_t>(relocationType()) << "\n";
+        llvm::dbgs() << "ELF::RelocOp::serialize(): sourceSymbol() = " << sourceSymbol() << "\n";
+        llvm::dbgs() << "ELF::RelocOp::serialize(): addend() = " << addend() << "\n";
 
-    llvm::dbgs() << "ELF::RelocOp::serialize(): sourceSymbol() = " << sourceSymbol() << "\n";
-    llvm::dbgs() << "ELF::RelocOp::serialize(): addend() = " << addend() << "\n";
+        int idx;
+        for (idx = 0; idx < ELFSymbolIndex; idx++) {
+            if (ELFSymbolValue[idx] == sourceSymbol())
+                break;
+        }
+        llvm::dbgs() << "ELF::RelocOp::serialize(): Found idx = " << idx << "\n";
 
-    int idx;
-    for (idx = 0; idx < ELFSymbolIndex; idx++) {
-        if (ELFSymbolValue[idx] == sourceSymbol())
-            break;
-    }
-    llvm::dbgs() << "ELF::RelocOp::serialize(): Found idx = " << idx << "\n";
-
-    auto relocationEntry = ((elf::writer::RelocationSection*)ELFSection[ELFSectionIndex])->addRelocationEntry();
-    relocationEntry->setOffset(offsetTargetField());
-    relocationEntry->setSymbol(ELFSymbol[idx]);  // ELFSymbol[ELFSymbolIndex]);
-    relocationEntry->setAddend(addend());
+        auto relocationEntry = ((elf::writer::RelocationSection*)ELFSection[ELFSectionIndex])->addRelocationEntry();
+        relocationEntry->setOffset(offsetTargetField());
+        relocationEntry->setSymbol(ELFSymbol[idx]);  // ELFSymbol[ELFSymbolIndex]);
+        relocationEntry->setAddend(addend());
+    */
 }
 
 void vpux::ELF::CreateSymbolTableSectionOp::serialize(

@@ -36,34 +36,32 @@ class Writer {
 public:
     Writer();
 
-    void write(const std::string& fileName);
-    void write(std::ostream& stream);
-    void write(std::vector<char>& blob);
+    std::vector<char> generateELF();
 
     writer::Segment* addSegment();
 
-    writer::RelocationSection* addRelocationSection();
-    writer::SymbolSection* addSymbolSection();
-    writer::EmptySection* addEmptySection();
+    writer::RelocationSection* addRelocationSection(const std::string& name = {});
+    writer::SymbolSection* addSymbolSection(const std::string& name = {});
+    writer::EmptySection* addEmptySection(const std::string& name = {});
 
     template <typename T>
-    writer::BinaryDataSection<T>* addBinaryDataSection() {
-        m_sections.push_back(std::unique_ptr<writer::BinaryDataSection<T>>(new writer::BinaryDataSection<T>));
+    writer::BinaryDataSection<T>* addBinaryDataSection(const std::string& name = {}) {
+        m_sections.push_back(std::unique_ptr<writer::BinaryDataSection<T>>(new writer::BinaryDataSection<T>(name)));
         m_sections.back()->setIndex(m_sections.size() - 1);
         return dynamic_cast<writer::BinaryDataSection<T>*>(m_sections.back().get());
     }
 
 private:
-    writer::Section* addSection();
-    writer::StringSection* addStringSection();
+    writer::Section* addSection(const std::string& name = {});
+    writer::StringSection* addStringSection(const std::string& name = {});
 
     elf::ELFHeader generateELFHeader() const;
 
 private:
     writer::StringSection* m_sectionHeaderNames;
     writer::StringSection* m_symbolNames;
-    std::vector<writer::Section::Ptr> m_sections;
-    std::vector<writer::Segment::Ptr> m_segments;
+    std::vector<std::unique_ptr<writer::Section>> m_sections;
+    std::vector<std::unique_ptr<writer::Segment>> m_segments;
 };
 
 } // namespace elf

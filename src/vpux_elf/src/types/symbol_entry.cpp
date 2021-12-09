@@ -30,7 +30,7 @@ Elf_Xword elf::elf64STInfo(Elf_Word bind, Elf_Word type) {
     return (bind << 4) + (type & 0xf);
 }
 
-//! Sets visibility
+//! Performs a transformation over visibility to zero out all bits that have no defined meaning
 uint8_t elf::elf64STVisibility(uint8_t visibility) {
     return visibility & 0x3;
 }
