@@ -156,10 +156,6 @@ void singleShaveTopK(uint32_t lParamsAddr) {
     }
 
     // Case dimension NCHW 4, 3, 2 (0,0,0)=1, (3,2,1)=24
-    int32_t axis = 0;
-    int32_t mode = 0; // max: 0, min: 1
-    int32_t sort = 0; // value: 0, index: 1
-
     int32_t numInputDims = (int32_t)lParams->input.numDims;
     int32_t* pInputDims = (int32_t*)(lParams->input.dimsAddr);
     int64_t* pInputStrides = (int64_t*)(lParams->input.stridesAddr);
@@ -213,6 +209,10 @@ void singleShaveTopK(uint32_t lParamsAddr) {
     p_act_index[17] = pIndexStrides[2] / CHAR_BIT; // 48
     p_act_index[18] = pIndexStrides[3] / CHAR_BIT; // -842150451 or 0
 
+    int32_t axis = 2;
+    int32_t mode = 0; // max: 0, min: 1
+    int32_t sort = 0; // value: 0, index: 1
+
     ComparePackedFunc comparePacked = nullptr;
     switch (mode) {
         case 0: comparePacked = isSmallValue; break;
@@ -264,5 +264,45 @@ void singleShaveTopK(uint32_t lParamsAddr) {
         }
     }
 
+    if (axis == 2) {
+
+        int numLines = 1;
+        for (int i = 0; i < numInputDims - 1; i++) {
+            numLines *= pInputDims[i]; // 12
+        }
+
+        int inputStride = pInputStrides[0] / CHAR_BIT;
+        int valueStride = pValueStrides[0] / CHAR_BIT;
+        int indexStride = pIndexStrides[0] / CHAR_BIT;
+
+        for (int line = 0; line < numLines; line++) {
+            half* inputLinePtr = p_act_input + line * inputStride / sizeof(half);
+            half* valueLinePtr = p_act_value + line * valueStride / sizeof(half);
+            int32_t* indexLinePtr = p_act_index + line * indexStride / sizeof(int32_t);
+
+            Pack lineBuffer[pInputDims[2]];
+            for (int i = 0; i < pInputDims[2]; i++) {
+                lineBuffer[i].value = *inputLinePtr;
+                lineBuffer[i].index = i + 1;
+                inputLinePtr += numLines;
+            }
+
+            PartialHeapSortPacked hsort(lineBuffer, k);
+            hsort.pushAll(pInputDims[2], comparePacked);
+            hsort.fullSort(comparePacked);
+            if (sort) {
+                hsort.clear();
+                hsort.pushAll(k, isSmallIndex);
+                hsort.fullSort(isSmallIndex);
+            }
+
+            for (int i = 0; i < k; i++) {
+                *valueLinePtr = lineBuffer[i].value;
+                *indexLinePtr = lineBuffer[i].index;
+                valueLinePtr += numLines;
+                indexLinePtr += numLines;
+            }
+        }
+    }
 }
 }
