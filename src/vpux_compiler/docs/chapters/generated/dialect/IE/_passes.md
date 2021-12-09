@@ -62,6 +62,12 @@ This pass replaces all `Reorder` and `Transpose` operations with `MemPermute` op
 The pass is a part of `LowPrecision` pipeline.
 
 Pass detects quantized convolution and shifts weights data from a signed range to an unsigned one
+### `-delete-peraxis-quantization`: Delete PerAxis Quantize Dequantize for MTL
+The pass is a part of `LowPrecision` pipeline.
+
+It deletes per axis quantization which left after LPT.
+Conversion is not mathimatically equal, but for now it gives small
+    accuracy deviation
 ### `-dequantize-const`: Dequantize constant tensors
 The pass is a part of `LowPrecision` pipeline.
 

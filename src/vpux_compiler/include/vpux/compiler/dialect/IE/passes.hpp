@@ -111,6 +111,7 @@ std::unique_ptr<mlir::Pass> createFuseQuantizedOpsPass(Logger log = Logger::glob
 std::unique_ptr<mlir::Pass> createConvertWeightsToU8Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseConvertWithQuantizePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createDeletePerAxisQuantizationPass(Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createResolvePWLPostOpsPass(Logger log = Logger::global());
 

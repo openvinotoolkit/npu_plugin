@@ -548,6 +548,29 @@ def MergeFakeQuant : PassBase<"merge-fake-quant", "vpux::FunctionPass"> {
 }
 
 //
+// DeletePerAxisQuantize
+//
+
+def DeletePerAxisQuantization : PassBase<"delete-peraxis-quantization", "vpux::FunctionPass"> {
+    let summary = "Delete PerAxis Quantize Dequantize for MTL";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+
+        It deletes per axis quantization which left after LPT.
+        Conversion is not mathimatically equal, but for now it gives small
+            accuracy deviation
+    }];
+
+    let constructor = "vpux::IE::createDeletePerAxisQuantizationPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
+    ];
+}
+
+//
 // FuseQuantizedOps
 //
 
