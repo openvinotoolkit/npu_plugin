@@ -191,10 +191,10 @@ void processBlock(mlir::Block& block) {
     // elf::writer::SymbolSection ELFSection2[NUM_SECTIONS_MAX];
 
     // static elf::writer::Symbol* ELFSymbol[NUM_SYMBOLS_MAX];
-    static std::vector<std::pair<elf::writer::Symbol*, mlir::Value> > ELFSymbol;
+    static std::vector<std::pair<elf::writer::Symbol*, mlir::Value>> ELFSymbol;
     static int ELFSymbolIndex = 0;
     //
-    //static mlir::Value ELFSymbolValue[NUM_SYMBOLS_MAX];
+    // static mlir::Value ELFSymbolValue[NUM_SYMBOLS_MAX];
 
     // Print the block intrinsics properties (basically: argument list)
     llvm::dbgs() << "Entered processBlock(). Block with " << block.getNumArguments() << " arguments, "
@@ -339,7 +339,10 @@ void processBlock(mlir::Block& block) {
                 // ELFSymbol[ELFSymbolIndex] =
                 //        ((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])->addSymbolEntry();
                 ELFSymbol.push_back(
-                        ((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])->addSymbolEntry());  // 2021_12_08
+                        std::make_pair(((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])->addSymbolEntry(),
+                                       putAnyOpOpSymbol));  // 2021_12_08
+                llvm::dbgs() << "processBlock(): ELFSymbol[ELFSymbolIndex].second = "
+                             << ELFSymbol[ELFSymbolIndex].second << "\n";
 
                 std::string printStr;
                 llvm::raw_string_ostream OS(printStr);
@@ -390,10 +393,10 @@ void processBlock(mlir::Block& block) {
                 llvm::dbgs() << "    symbolNameStr = " << symbolNameStr << "\n";
 
                 // ELFSymbol[ELFSymbolIndex]->setName(".input123");
-                ELFSymbol[ELFSymbolIndex]->setName(symbolNameStr);
-                //ELFSymbolValue[ELFSymbolIndex] = putAnyOpOpSymbol; // 2021_12_08
+                ELFSymbol[ELFSymbolIndex].first->setName(symbolNameStr);
+                // ELFSymbolValue[ELFSymbolIndex] = putAnyOpOpSymbol; // 2021_12_08
 
-                ELFSymbol[ELFSymbolIndex]->setValue(0);
+                ELFSymbol[ELFSymbolIndex].first->setValue(0);
 
                 mlir::Type inputArgType = putAnyOpOpInputArg.getType();  // diOpInVec[idx].userType();
                 int64_t inputArgTypeTotalSize = -1;
@@ -403,13 +406,13 @@ void processBlock(mlir::Block& block) {
                     inputArgTypeTotalSize = aByte.count();
                     llvm::dbgs() << "  inputArgTypeTotalSize = " << inputArgTypeTotalSize << "\n";
                 }
-                ELFSymbol[ELFSymbolIndex]->setSize(inputArgTypeTotalSize);
+                ELFSymbol[ELFSymbolIndex].first->setSize(inputArgTypeTotalSize);
 
                 llvm::dbgs() << "    ELFSymbolIndex = " << ELFSymbolIndex << "\n";
                 ELFSymbolIndex++;
             } else {
-                llvm::dbgs() << "    putAnyOpOp is NOT of type vpux::ELF::SymbolOp (in fact it's none of "
-                                "the above)\n";
+                llvm::dbgs() << "    putAnyOpOp is none of the above (PutAnyOpInSectionOp)\n";
+                llvm::dbgs() << "      op = " << op << "\n";
                 llvm::dbgs().flush();
             }
         } else if (vpux::ELF::RelocOp relocOp = llvm::dyn_cast<vpux::ELF::RelocOp>(op)) {
@@ -431,10 +434,13 @@ void processBlock(mlir::Block& block) {
 
             int idx;
             for (idx = 0; idx < ELFSymbolIndex; idx++) {
-                if (ELFSymbolValue[idx] == relocOp.sourceSymbol())
+                // if (ELFSymbolValue[idx] == relocOp.sourceSymbol())
+                if (ELFSymbol[idx].second == relocOp.sourceSymbol())
                     break;
             }
+            llvm::dbgs() << "processBlock(): ELFSymbolIndex = " << ELFSymbolIndex << "\n";
             llvm::dbgs() << "processBlock(): Found idx = " << idx << "\n";
+            llvm::dbgs() << "processBlock(): ELFSymbol[idx].second = " << ELFSymbol[idx].second << "\n";
 
             auto relocationEntry = ((elf::writer::RelocationSection*)ELFSection[ELFSectionIndex])->addRelocationEntry();
             relocationEntry->setOffset(relocOp.offsetTargetField());
@@ -479,8 +485,9 @@ void processBlock(mlir::Block& block) {
                          << ".\n";
 
             // ELFSection[ELFSectionIndex] = elfWriter.addBinaryDataSection<char>();
-            ELFSection.push_back(elfWriter.addBinaryDataSection<char>());  // 2021_12_08
-            ELFSection[ELFSectionIndex]->setName(sectionAttributes[ELFSectionIndex].sectionName);
+            ELFSection.push_back(elfWriter.addBinaryDataSection<char>(
+                    sectionAttributes[ELFSectionIndex].sectionName));  // 2021_12_08 // 2021_12_09
+            // ELFSection[ELFSectionIndex]->setName(sectionAttributes[ELFSectionIndex].sectionName);
             // ELFSection[idx]->set_type(sectionAttributes[idx].sectionType);
             // ELFSection[idx]->setType(sectionAttributes[idx].sectionType); // TODO
             // ELFSection[idx]->set_flags(sectionAttributes[idx].sectionFlags);
@@ -491,10 +498,10 @@ void processBlock(mlir::Block& block) {
             // ELFSection[idx]->set_data(sectionAttributes[idx].serializedData.data(),
             //                          sectionAttributes[idx].serializedData.size());
             // for (std::size_t i = 0; i < sectionAttributes[idx].serializedData.size(); i++)
-            //    ELFSection[idx]->addData(sectionAttributes[idx].serializedData[i]);
+            //    ELFSection[idx]->appendData(sectionAttributes[idx].serializedData[i]);
             ((elf::writer::BinaryDataSection<char>*)ELFSection[ELFSectionIndex])
-                    ->addData(sectionAttributes[ELFSectionIndex].serializedData.data(),
-                              sectionAttributes[ELFSectionIndex].serializedData.size());
+                    ->appendData(sectionAttributes[ELFSectionIndex].serializedData.data(),
+                                 sectionAttributes[ELFSectionIndex].serializedData.size());
 
             llvm::dbgs() << "  processBlock(): Before increment ELFSectionIndex = " << ELFSectionIndex << "\n";
             ELFSectionIndex++;  // TODO: change accordingly - make nicer (use e.g. ELF::Section, etc)
@@ -537,8 +544,9 @@ void processBlock(mlir::Block& block) {
 
             // ELFSection[ELFSectionIndex] = elfWriter.addBinaryDataSection<char>();
             // ELFSection[ELFSectionIndex] = elfWriter.addSymbolSection();
-            ELFSection.push_back(elfWriter.addSymbolSection());  // 2021_12_08
-            ELFSection[ELFSectionIndex]->setName(sectionAttributes[ELFSectionIndex].sectionName);
+            ELFSection.push_back(elfWriter.addSymbolSection(
+                    sectionAttributes[ELFSectionIndex].sectionName));  // 2021_12_08 // 2021_12_09
+            // ELFSection[ELFSectionIndex]->setName(sectionAttributes[ELFSectionIndex].sectionName);
             // <<error: ‘class elf::writer::SymbolSection’ has no member named ‘setType’:>>
             // ((elf::writer::SymbolSection*)ELFSection[ELFSectionIndex])
             //        ->setType(sectionAttributes[ELFSectionIndex].sectionType); // TODO
@@ -550,10 +558,10 @@ void processBlock(mlir::Block& block) {
             // ELFSection[idx]->set_data(sectionAttributes[idx].serializedData.data(),
             //                          sectionAttributes[idx].serializedData.size());
             // for (std::size_t i = 0; i < sectionAttributes[idx].serializedData.size(); i++)
-            //    ELFSection[idx]->addData(sectionAttributes[idx].serializedData[i]);
+            //    ELFSection[idx]->appendData(sectionAttributes[idx].serializedData[i]);
             /*
             ((elf::writer::BinaryDataSection<char>*)ELFSection[ELFSectionIndex])
-                    ->addData(sectionAttributes[ELFSectionIndex].serializedData.data(),
+                    ->appendData(sectionAttributes[ELFSectionIndex].serializedData.data(),
                               sectionAttributes[ELFSectionIndex].serializedData.size());
             */
 
@@ -642,10 +650,11 @@ void processBlock(mlir::Block& block) {
                          << ".\n";
 
             // ELFSection[ELFSectionIndex] = elfWriter.addRelocationSection(); // 2021_12_08
-            ELFSection.push_back(elfWriter.addRelocationSection());  // 2021_12_08
+            ELFSection.push_back(elfWriter.addRelocationSection(
+                    sectionAttributes[ELFSectionIndex].sectionName));  // 2021_12_08 // 2021_12_09
             // auto relocation = elfWriter.addRelocationSection();
             // ELFSection[ELFSectionIndex] = elfWriter.addBinaryDataSection<char>();
-            ELFSection[ELFSectionIndex]->setName(sectionAttributes[ELFSectionIndex].sectionName);
+            // ELFSection[ELFSectionIndex]->setName(sectionAttributes[ELFSectionIndex].sectionName); // 2021_12_09
             // ELFSection[idx]->set_type(sectionAttributes[idx].sectionType);
             // ELFSection[idx]->setType(sectionAttributes[idx].sectionType); // TODO
             // ELFSection[idx]->set_flags(sectionAttributes[idx].sectionFlags);
@@ -656,10 +665,10 @@ void processBlock(mlir::Block& block) {
             // ELFSection[idx]->set_data(sectionAttributes[idx].serializedData.data(),
             //                          sectionAttributes[idx].serializedData.size());
             // for (std::size_t i = 0; i < sectionAttributes[idx].serializedData.size(); i++)
-            //    ELFSection[idx]->addData(sectionAttributes[idx].serializedData[i]);
+            //    ELFSection[idx]->appendData(sectionAttributes[idx].serializedData[i]);
             /*
             ((elf::writer::BinaryDataSection<char>*)ELFSection[ELFSectionIndex])
-                    ->addData(sectionAttributes[ELFSectionIndex].serializedData.data(),
+                    ->appendData(sectionAttributes[ELFSectionIndex].serializedData.data(),
                               sectionAttributes[ELFSectionIndex].serializedData.size());
             */
 
@@ -675,6 +684,10 @@ void processBlock(mlir::Block& block) {
 
             llvm::dbgs() << "  processBlock(): Before increment ELFSectionIndex = " << ELFSectionIndex << "\n";
             ELFSectionIndex++;  // TODO: change accordingly - make nicer (use e.g. ELF::Section, etc)
+        } else {
+            llvm::dbgs() << "    op is none of the above\n";
+            llvm::dbgs() << "      op = " << op << "\n";
+            llvm::dbgs().flush();
         }
 
         llvm::dbgs().flush();
@@ -774,7 +787,11 @@ mlir::LogicalResult exportVPUIPRegMappedAndELF(mlir::ModuleOp module, llvm::raw_
         }
     }
 
-    elfWriter.write("vpux_elf_MTL");
+    // elfWriter.write("vpux_elf_MTL");
+    const auto elfBlob = elfWriter.generateELF();  // 2021_12_09
+
+    std::ofstream stream("vpux_elf_MTL", std::ios::out | std::ios::binary);
+    stream.write(reinterpret_cast<const char*>(elfBlob.data()), elfBlob.size());
 
     // llvm::dbgs() << "When exiting exportVPUIPELF(): ELFSectionIndex = " << ELFSectionIndex << "\n";
     // llvm::dbgs().flush();

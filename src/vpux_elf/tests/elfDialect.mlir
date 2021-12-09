@@ -82,10 +82,10 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
     // These symbols are used for 1 relocation per executive run
     %restSymSection = ELF.CreateSymbolTableSection secName(".rest.symbolTableSection") secFlags(SHF_NONE) -> !ELF.Section
     {
-        // ELF.PutAnyOpInSection %0 : memref<1x1x1x1000xf16, "CMX_NN">
         ELF.PutAnyOpInSection %sym0 : !ELF.Symbol
-        // ELF.PutAnyOpInSection %1 : memref<1x1x1x1000xf16, "CMX_NN">
         ELF.PutAnyOpInSection %sym1 : !ELF.Symbol
+        ELF.PutAnyOpInSection %sym2 : !ELF.Symbol
+        ELF.PutAnyOpInSection %sym4 : !ELF.Symbol
     }
 
 
