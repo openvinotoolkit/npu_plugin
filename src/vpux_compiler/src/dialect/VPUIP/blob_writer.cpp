@@ -347,7 +347,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         StringRef name, mlir::ShapedType type, VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset,
-        ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints) {
+        int64_t swizzlingKey, ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, int8_t postShift,
+        ArrayRef<uint8_t> zeroPoints) {
     const auto serializedName = createString(name);
 
     const auto serializedDataType = createDType(type.getElementType());
@@ -380,12 +381,14 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
     builder.add_quant_post_shift_right(postShift);
     builder.add_order(dimsOrder.code());
     builder.add_base_ptrs(basePtrs);
+    builder.add_swizzling_key(checked_cast<uint8_t>(swizzlingKey));
     return builder.Finish();
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(StringRef name, mlir::ShapedType type,
                                                                             VPURT::BufferSection section,
-                                                                            int64_t sectionIndex, int64_t byteOffset) {
+                                                                            int64_t sectionIndex, int64_t byteOffset,
+                                                                            int64_t swizzlingKey) {
     SmallVector<uint8_t> zeroPoints;
     SmallVector<uint16_t> mult;
     SmallVector<uint8_t> shift;
@@ -412,14 +415,16 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(Stri
         shift.push_back(0);
     }
 
-    return createTensorRef(name, type, section, sectionIndex, byteOffset, mult, shift, 0, zeroPoints);
+    return createTensorRef(name, type, section, sectionIndex, byteOffset, swizzlingKey, mult, shift, 0, zeroPoints);
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(mlir::Value val, StringRef name,
                                                                             VPURT::BufferSection section,
-                                                                            int64_t sectionIndex, int64_t byteOffset) {
+                                                                            int64_t sectionIndex, int64_t byteOffset,
+                                                                            int64_t swizzlingKey) {
     VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value '{0}' was already serialized", val.getLoc());
-    const auto ref = createTensorRef(name, val.getType().cast<mlir::ShapedType>(), section, sectionIndex, byteOffset);
+    const auto ref = createTensorRef(name, val.getType().cast<mlir::ShapedType>(), section, sectionIndex, byteOffset,
+                                     swizzlingKey);
     _tensors.insert({val, ref});
     return ref;
 }

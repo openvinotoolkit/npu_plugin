@@ -92,6 +92,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const auto alignment =
             (alignmentRequirement * static_cast<vpux::Bit>(getElemTypeSize(inputType)).count()) / CHAR_BIT;
+    const auto weightsAlignment = 16 * 1024;
     const auto WEIGHTS_CMX_OFFSET = 0;
     VPUX_THROW_UNLESS(WEIGHTS_CMX_OFFSET % alignment == 0, "WEIGHTS_CMX_OFFSET must be multiple of {0}, got {1}",
                       alignment, WEIGHTS_CMX_OFFSET);
@@ -104,7 +105,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     VPUX_THROW_UNLESS(INPUT_CMX_OFFSET % alignment == 0, "INPUT_CMX_OFFSET must be multiple of {0}, got {1}", alignment,
                       INPUT_CMX_OFFSET);
 
-    const auto WEIGHTSTABLE_CMX_OFFSET = INPUT_CMX_OFFSET + inputCMXSize;
+    const auto WEIGHTSTABLE_CMX_OFFSET =
+            vpux::alignVal(INPUT_CMX_OFFSET + inputCMXSize, static_cast<unsigned long>(weightsAlignment));
     VPUX_THROW_UNLESS(WEIGHTSTABLE_CMX_OFFSET % alignment == 0,
                       "WEIGHTSTABLE_CMX_OFFSET must be multiple of {0}, got {1}", alignment, WEIGHTSTABLE_CMX_OFFSET);
 
@@ -126,6 +128,25 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     auto functionInput = function.getArgument(0);
     auto functionOutput = function.getArgument(1);
+
+    auto max_swizzling_key = [&](size_t totalByteSize, size_t cmx_address) {
+        std::map<int, int> swizzling_offsets = {{0, 16}, {1, 1024}, {2, 2048}, {3, 4096}, {4, 8192}, {5, 16384}};
+        auto swizzling_key = 0;
+        for (auto it = swizzling_offsets.rbegin(); it != swizzling_offsets.rend(); it++) {
+            swizzling_key = it->first;
+            auto swizzling_offset = it->second;
+            if ((totalByteSize % swizzling_offset == 0) && (cmx_address % swizzling_offset == 0))
+                break;
+        }
+
+        return swizzling_key;
+    };
+
+    // Find the max swizzling key that satisfies the size and address constraint
+    auto weights_swizzling_key = max_swizzling_key(totalTensorSize(weightsShape, weightsType), WEIGHTS_CMX_OFFSET);
+    auto weights_table_swizzling_key =
+            max_swizzling_key(totalTensorSize(weightsTableShape, int32), WEIGHTSTABLE_CMX_OFFSET);
+    auto swizzling_key = std::min(weights_swizzling_key, weights_table_swizzling_key);
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
@@ -164,6 +185,14 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto weightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsShape, weightsType,
                                             vpux::DimsOrder::OYXI, weightsStrides, 0, WEIGHTS_CMX_OFFSET);
 
+    if (qty != nullptr && qty.getStorageType().isInteger(4)) {
+        // swizzling doesn't work for int4/uint4 weights case
+        weightsAttribute = weightsAttribute.bitPack(4);
+    } else {
+        weightsAttribute = weightsAttribute.swizzle(swizzling_key);
+        weightsCMX.swizzlingKeyAttr(vpux::getIntAttr(builder.getContext(), swizzling_key));
+    }
+
     auto inputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
                                           vpux::DimsOrder::NHWC, inputStrides, 0, INPUT_CMX_OFFSET);
 
@@ -174,9 +203,6 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                                inputType, DimsOrder::NHWC, 0, INPUT_CMX_OFFSET);
         paddedWeightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, paddedWeightsCMXShape,
                                                  weightsType, DimsOrder::NHWC, 0, WEIGHTS_CMX_OFFSET);
-    }
-    if (qty != nullptr && qty.getStorageType().isInteger(4)) {
-        weightsAttribute = weightsAttribute.bitPack(4);
     }
 
     auto weightsDDR =
@@ -195,9 +221,12 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
             getMemRefType(builder, VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
     const auto weightsTableValues =
             mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
+    auto weightsTableContentAttr = vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC);
+    if (weightsCMX.swizzlingKeyAttr()) {
+        weightsTableContentAttr = weightsTableContentAttr.swizzle(swizzling_key);
+    }
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
-            builder.getUnknownLoc(), weightsTableDDRMemRef,
-            vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC));
+            builder.getUnknownLoc(), weightsTableDDRMemRef, weightsTableContentAttr);
     auto weightsTableCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsTableShape,
                                                  int32, DimsOrder::NHWC, 0, WEIGHTSTABLE_CMX_OFFSET);
 

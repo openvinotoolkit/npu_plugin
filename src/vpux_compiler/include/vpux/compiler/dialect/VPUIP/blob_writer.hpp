@@ -102,12 +102,13 @@ public:
 
 public:
     TensorReference createTensorRef(StringRef name, mlir::ShapedType type, VPURT::BufferSection section,
-                                    int64_t sectionIndex, int64_t byteOffset, ArrayRef<uint16_t> mult,
-                                    ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints);
+                                    int64_t sectionIndex, int64_t byteOffset, int64_t swizzlingKey,
+                                    ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, int8_t postShift,
+                                    ArrayRef<uint8_t> zeroPoints);
     TensorReference createTensorRef(StringRef name, mlir::ShapedType type, VPURT::BufferSection section,
-                                    int64_t sectionIndex, int64_t byteOffset);
+                                    int64_t sectionIndex, int64_t byteOffset, int64_t swizzlingKey);
     TensorReference createTensorRef(mlir::Value val, StringRef name, VPURT::BufferSection section, int64_t sectionIndex,
-                                    int64_t byteOffset);
+                                    int64_t byteOffset, int64_t swizzlingKey);
     TensorReference getTensorRef(mlir::Value val) const;
 
 public:

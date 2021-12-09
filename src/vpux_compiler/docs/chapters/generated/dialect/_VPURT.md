@@ -61,6 +61,7 @@ operation ::= `VPURT.DeclareBuffer` $section (`[` $sectionIndex^ `]`)? `<` $byte
 `section` | vpux::VPURT::BufferSectionAttr | Values indicating which section of BLOB the buffer resides in
 `sectionIndex` | mlir::IntegerAttr | Integer attribute
 `byteOffset` | mlir::IntegerAttr | Integer attribute
+`swizzlingKey` | mlir::IntegerAttr | Integer attribute
 
 #### Results:
 

@@ -103,6 +103,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr subview(vpux::ShapeRef offset, vpux::ShapeRef shape) const;
         vpux::Const::ContentAttr bitPack(int64_t width) const;
         vpux::Const::ContentAttr transpose(vpux::DimsOrder newOrder) const;
+        vpux::Const::ContentAttr swizzle(int64_t key) const;
     }];
 
     let storageType = "vpux::Const::ContentAttr";
@@ -392,6 +393,30 @@ def Const_TransposeAttr : Const_Attr<"Transpose",
 
     let storageNamespace = "details";
     let genVerifyDecl = 1;
+    let skipDefaultBuilders = 1;
+}
+
+//
+// SwizzleAttr
+//
+
+def Const_SwizzleAttr : Const_Attr<"Swizzle",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+    let summary = "Swizzle constant content";
+
+    let parameters = (ins
+        "mlir::IntegerAttr":$key
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::IntegerAttr":$key), [{
+                return $_get(key.getContext(), key);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
     let skipDefaultBuilders = 1;
 }
 

@@ -226,7 +226,8 @@ def IERT_StaticAllocOp :
     let summary = "InferenceEngine run-time static buffer allocation";
 
     let arguments = (ins
-        IntAttr:$offset
+        IntAttr:$offset,
+        OptionalAttr<IntAttr>:$swizzlingKey
     );
 
     let results = (outs

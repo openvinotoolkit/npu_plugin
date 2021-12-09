@@ -28,7 +28,8 @@ class createDeclareTensorOp<string section> :
             $_builder.create<vpux::VPURT::DeclareBufferOp>(
                 $_loc, $0.getType().cast<mlir::MemRefType>(),
                 vpux::VPURT::BufferSection::}] # section # [{,
-                $1.getInt()
+                $1.getInt(),
+                $2.getInt()
             )
         }]>;
 
@@ -39,8 +40,8 @@ class HasMemSpace<string physicalMemory> :
 
 def RewriteStaticAllocDDR :
         Pat<
-            (IERT_StaticAllocOp:$memref $offset),
-            (createDeclareTensorOp<"DDR"> $memref, $offset),
+            (IERT_StaticAllocOp:$memref $offset, $swizzlingKey),
+            (createDeclareTensorOp<"DDR"> $memref, $offset, $swizzlingKey),
             [
                 (HasMemSpace<"DDR"> $memref)
             ]
@@ -48,8 +49,8 @@ def RewriteStaticAllocDDR :
 
 def RewriteStaticAllocNNCMX :
         Pat<
-            (IERT_StaticAllocOp:$memref $offset),
-            (createDeclareTensorOp<"CMX_NN"> $memref, $offset),
+            (IERT_StaticAllocOp:$memref $offset, $swizzlingKey),
+            (createDeclareTensorOp<"CMX_NN"> $memref, $offset, $swizzlingKey),
             [
                 (HasMemSpace<"CMX_NN"> $memref)
             ]

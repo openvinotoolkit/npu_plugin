@@ -84,7 +84,8 @@ def VPURT_DeclareBufferOp :
     let arguments = (ins
         VPURT_BufferSection:$section,
         OptionalAttr<IntAttr>:$sectionIndex,
-        IntAttr:$byteOffset
+        IntAttr:$byteOffset,
+        OptionalAttr<IntAttr>:$swizzlingKey
     );
 
     let results = (outs

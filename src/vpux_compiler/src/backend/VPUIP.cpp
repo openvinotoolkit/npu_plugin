@@ -358,10 +358,11 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
         const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
-        graphInputs.push_back(writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkInput, ind, 0));
+        graphInputs.push_back(
+                writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkInput, ind, 0, 0));
 
         userInputs.push_back(
-                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkInput, ind, 0));
+                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkInput, ind, 0, 0));
     }
 
     SmallVector<VPUIP::BlobWriter::TensorReference> graphOutputs, graphProfilingOutputs, userOutputs;
@@ -379,10 +380,10 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
         graphOutputs.push_back(
-                writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkOutput, ind, 0));
+                writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkOutput, ind, 0, 0));
 
         userOutputs.push_back(
-                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkOutput, ind, 0));
+                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkOutput, ind, 0, 0));
     }
 
     for (const auto& p : profilingOutputsInfo | indexed) {
@@ -392,7 +393,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
         graphProfilingOutputs.push_back(
-                writer.createTensorRef(val, p.value().name(), VPURT::BufferSection::ProfilingOutput, ind, 0));
+                writer.createTensorRef(val, p.value().name(), VPURT::BufferSection::ProfilingOutput, ind, 0, 0));
     }
 
     SmallVector<VPUIP::BlobWriter::PreprocessingInfo> preprocInfo;
@@ -445,7 +446,8 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir:
     size_t tempTensorInd = 0;
     netFunc.walk([&](VPURT::DeclareBufferOp bufOp) {
         writer.createTensorRef(bufOp.buffer(), llvm::formatv("temp-{0}", tempTensorInd).str(), bufOp.section(),
-                               bufOp.sectionIndex().getValueOr(0), bufOp.byteOffset());
+                               bufOp.sectionIndex().getValueOr(0), bufOp.byteOffset(),
+                               bufOp.swizzlingKey().getValueOr(0));
 
         ++tempTensorInd;
     });
@@ -465,7 +467,6 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
         const auto type = attr.getType();
         const auto content = attr.fold();
 
-        // const Byte elemTypeSize = getElemTypeSize(type);
         const Bit elemTypeBitSize = getElemTypeSize(type);
 
         const size_t totalNumElements = type.getNumElements();
@@ -489,8 +490,16 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
 
         binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<mlir::ShapedType>());
 
+        Optional<int64_t> swizzlingKey;
+        // Parse swizzlingKey from Const::DeclareOp transformation
+        for (const auto transformation : constOp.contentAttr().getTransformations()) {
+            if (const auto swizzleAttr = transformation.dyn_cast_or_null<Const::SwizzleAttr>()) {
+                swizzlingKey = swizzleAttr.getKey().getInt();
+            }
+        }
         writer.createTensorRef(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
-                               VPURT::BufferSection::Constant, checked_cast<uint32_t>(constTensorInd), 0);
+                               VPURT::BufferSection::Constant, checked_cast<uint32_t>(constTensorInd), 0,
+                               swizzlingKey.getValueOr(0));
     }
 
     return binaryData;

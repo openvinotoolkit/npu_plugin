@@ -629,7 +629,7 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
 
     return writer.createTensorRef("output_tensor_scale_updated", nceTask.getType(0).cast<mlir::ShapedType>(),
                                   bufferOp.section(), bufferOp.sectionIndex().getValueOr(0), bufferOp.byteOffset(),
-                                  ppeQuantMult, ppeQuantShift, ppeQuantPostShift, quantZeroPoints);
+                                  bufferOp.swizzlingKey().getValueOr(0), ppeQuantMult, ppeQuantShift, ppeQuantPostShift, quantZeroPoints);
 }
 
 }  // namespace

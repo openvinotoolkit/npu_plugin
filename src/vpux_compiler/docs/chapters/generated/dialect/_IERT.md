@@ -2640,6 +2640,7 @@ operation ::= `IERT.StaticAlloc` `<` $offset `>` attr-dict `->` type(results)
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `offset` | mlir::IntegerAttr | Integer attribute
+`swizzlingKey` | mlir::IntegerAttr | Integer attribute
 
 #### Results:
 

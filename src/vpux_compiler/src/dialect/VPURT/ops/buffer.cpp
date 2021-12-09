@@ -21,13 +21,13 @@ using namespace vpux;
 void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
                                          VPURT::BufferSection section, int64_t byteOffset) {
     build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section), /*sectionIndex=*/nullptr,
-          getIntAttr(builder, byteOffset));
+          getIntAttr(builder, byteOffset), nullptr);
 }
 
 void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
                                          VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset) {
     build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section),
-          getIntAttr(builder, sectionIndex), getIntAttr(builder, byteOffset));
+          getIntAttr(builder, sectionIndex), getIntAttr(builder, byteOffset), nullptr);
 }
 
 mlir::LogicalResult vpux::VPURT::verifyOp(DeclareBufferOp op) {
