@@ -130,11 +130,15 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
 
+    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
+
     auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
     if (qty != nullptr) {
+        if (qty.getStorageType().isInteger(4)) {
+            weightsAttribute = weightsAttribute.bitPack(4);
+        }
         weightsAttribute = weightsAttribute.quantCast(qty);
     }
-    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
 
     const auto weightsDDRType =
             getMemRefType(builder, VPURT::BufferSection::Constant, weightsShape, weightsType, DimsOrder::NHWC);
@@ -175,10 +179,6 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                                inputType, DimsOrder::NHWC, 0, INPUT_CMX_OFFSET);
         paddedWeightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, paddedWeightsCMXShape,
                                                  weightsType, DimsOrder::NHWC, 0, WEIGHTS_CMX_OFFSET);
-    }
-
-    if (qty != nullptr && qty.getStorageType().isInteger(4)) {
-        weightsAttribute = weightsAttribute.bitPack(4);
     }
 
     auto weightsDDR =
