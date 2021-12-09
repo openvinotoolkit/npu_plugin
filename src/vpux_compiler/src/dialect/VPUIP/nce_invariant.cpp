@@ -524,11 +524,13 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::Convolution
         VPUX_THROW_WHEN(isWeightPrefetch && curTile.axis[Dims4D::Act::H] > 1,
                         "Nested tiling is not supported for prefetch tiling");
 
+
+        const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
         auto curTileConf = vpux::backInferConvTile(curTile, getShape(origOp.input()), getShape(origOp.filter()),
-                                                      getShape(origOp.bias()), origOp.strides(), origOp.pads_begin(),
+                                                      origBiasShape, origOp.strides(), origOp.pads_begin(),
                                                       origOp.pads_end());
         auto nextTileConf = vpux::backInferConvTile(nextTile, getShape(origOp.input()), getShape(origOp.filter()),
-                                                      getShape(origOp.bias()), origOp.strides(), origOp.pads_begin(),
+                                                      origBiasShape, origOp.strides(), origOp.pads_begin(),
                                                       origOp.pads_end());
 
         const auto curInputTileVal = vpux::IE::makeTile(builder, origOp->getLoc(),
