@@ -37,6 +37,35 @@ class VPURT_Op<string mnemonic, list<OpTrait> traits = []> :
             traits
         >;
 
+
+//
+// SWRunTimeResourcesOp
+//
+
+def VPURT_SWRunTimeOp :
+        VPURT_Op<"SW.Runtime"> {
+    let summary = "Definition of run-time";
+
+    let description = [{
+        This operation defines various resources consumed by compiled-in Runtime Kernel:
+
+          * stack configuration
+          * Runtime kernel entry point
+    }];
+
+    let arguments = (ins
+        SymbolRefAttr:$entryPoint,
+        I64ArrayAttr : $stacks
+    );
+
+    let assemblyFormat = [{
+        attr-dict-with-keyword
+        `entryPoint` `:` $entryPoint
+        `stack_configuration` `:` $stacks
+    }];
+}
+
+
 //
 // DeclareBufferOp
 //

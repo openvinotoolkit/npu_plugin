@@ -219,10 +219,9 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     return builder.Finish();
 }
 
-flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer,
-                                                                    mlir::ModuleOp /*module*/, mlir::FuncOp netFunc,
-                                                                    Logger log) {
-    // only SwKernelOp operations can generate kernelData, from either built-in functions or from custom
+flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
+                                                                    mlir::FuncOp netFunc, Logger log) {
+    // only SwKernelOp operations can generate kernelData
     auto graphHasKernels = false;
     netFunc.walk([&](VPURT::TaskOp taskOp) {
         if (taskOp.getTaskType() == vpux::VPUIP::TaskType::ACTShave) {
@@ -233,34 +232,59 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
         return {};
     }
 
-    // TODO: extract num shaves info from IERT::RuntimeResourcesOp, which can be extracted from module
-    const long int maxShaves = 4;
+    // TODO: always extract num shaves info from VPURT::SW.Runtime, which can be extracted from module
+    constexpr auto maxShaves = 4;
+    constexpr auto defaultStackSize = Byte(4_KB).count();
+    constexpr auto alignmentReq = Byte(1_KB).count();
+    constexpr auto kernelStorageLocale = vpux::VPUIP::MemoryLocation::GFEmbeddedKernel;
 
-    const auto stack_size{1U << 12};  // 4KB stack
+    auto swRuntimeOps = module.getOps<VPURT::SWRunTimeOp>();
+    auto runtimeKernelDeclared = std::distance(swRuntimeOps.begin(), swRuntimeOps.end());
+    VPUX_THROW_UNLESS(runtimeKernelDeclared <= 1, "if runtime kernel is present it should be unique, but found {0}",
+                      runtimeKernelDeclared);
 
-    SmallVector<uint8_t, stack_size> shave_stack_data(stack_size);
-    std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(maxShaves);  // 4 Activation SHAVEs for MTL
+    flatbuffers::Offset<MVCNN::ActKernel> runtimeKernel;
+    SmallVector<uint32_t> runtimeStacks(maxShaves, defaultStackSize);
 
-    for (uint32_t shv{}; shv < maxShaves; ++shv) {
-        log.trace("act-shave {0}_stack size is {1}", shv, stack_size);
+    if (runtimeKernelDeclared) {
+        auto swRuntimeOp = *swRuntimeOps.begin();
+        runtimeKernel = writer.createRuntimeKernelTask(module, swRuntimeOp);
+        runtimeStacks = parseIntArrayAttr<uint32_t>(swRuntimeOp.stacks());
+    }
 
-        stacks[shv] = writer.createKernelDataRef("actSHAVE" + std::to_string(shv) + "_stack",
-                                                 vpux::VPUIP::MemoryLocation::GFEmbeddedKernel, 0, stack_size,
-                                                 shave_stack_data);
+    std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(runtimeStacks.size());
+
+    auto maxStack = std::max_element(runtimeStacks.begin(), runtimeStacks.end());
+    SmallVector<uint8_t> shave_stack_data_max(*maxStack);
+
+    for (uint32_t shv{}; shv < runtimeStacks.size(); ++shv) {
+        auto shaveStackData = llvm::ArrayRef<uint8_t>{shave_stack_data_max}.take_front(runtimeStacks[shv]);
+
+        log.trace("act-shave {0}_stack size is {1}", shv, shaveStackData.size());
+
+        stacks[shv] = writer.createKernelDataRef("actSHAVE" + std::to_string(shv) + "_stack", kernelStorageLocale, 0,
+                                                 shaveStackData.size(), shaveStackData);
     }
 
     const auto stackBuffers = writer.createVector(stacks);
 
-    SmallVector<uint8_t, 1024 + (1U << 16)> scratch_buffer(1024 + (1U << 16));  // 64KB scratch buffer + 1024 to align
+    VPUIP::BlobWriter::KernelDataRef scratchBuffer;
+    if (!runtimeKernelDeclared) {
+        constexpr auto scratchBufferSize = Byte(64_KB).count();
 
-    const uint64_t non_empty_offset = 1;
-    const auto scratchBuffer =
-            writer.createKernelDataRef("scratch_buffer", vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
-                                       non_empty_offset, scratch_buffer.size() - 1024, scratch_buffer);
+        SmallVector<uint8_t> scratchBufferData(alignmentReq + scratchBufferSize);
+        constexpr uint64_t reservedOffset = 1;
+        scratchBuffer = writer.createKernelDataRef("scratch_buffer", kernelStorageLocale, reservedOffset,
+                                                   scratchBufferSize, scratchBufferData);
+    }
 
     MVCNN::ActKernelRuntimeBuilder builder(writer);
     builder.add_shaveStacks(stackBuffers);
-    builder.add_codeScratchBuffer(scratchBuffer);
+    if (runtimeKernelDeclared) {
+        builder.add_kernel(runtimeKernel);
+    } else {
+        builder.add_codeScratchBuffer(scratchBuffer);
+    }
 
     return builder.Finish();
 }
@@ -597,7 +621,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
     // returns moved offset
     auto alignKernelDataSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
         //  current align requirements is 1KB, for .text, .data, .scratch
-        constexpr uint16_t alignmentReq = 1 * 1024;
+        constexpr auto alignmentReq = Byte(1_KB).count();
 
         auto section_data = serializedGraphFile->kernel_data()->Get(section->locale_offset())->data();
 
@@ -620,6 +644,20 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
         // check whether given kernelData element already aligned
         if (kernelDataAligned.find(section->locale_offset()) == kernelDataAligned.end()) {
+            // if there is no data - do not move
+            if (section_data->Length() == 0) {
+                return static_cast<ptrdiff_t>(0);
+            }
+            // check whether we do have a room for alignment
+            VPUX_THROW_UNLESS(section_data->Length() > alignmentReq,
+                              "cannot align section: {0} {1},  space(alignment + size): {2} alignment: {3}",
+                              section->name()->c_str(), sectionLogical, section_data->Length(), alignmentReq);
+
+            auto moveSize = section_data->Length() - alignmentReq;
+            VPUX_THROW_UNLESS(section_data->Length() > moveSize + offset,
+                              "cannot align section: {0} {1}, no room for moving space={2} offset={3} size={4}",
+                              section->name()->c_str(), sectionLogical, section_data->Length(), offset, moveSize);
+
             log.trace("move kernel {0} {1} by {2} bytes to be {3}", section->name()->c_str(), sectionLogical, offset,
                       aligned_offset);
 
@@ -670,10 +708,16 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
         }
     }
 
-    // scratchBuffer aligning
     if (serializedGraphFile->header()->act_kernel_runtime()) {
-        auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer();
-        alignSection(scratchBuffer, ".scratchBuffer");
+        // scratchBuffer aligning
+        if (auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer()) {
+            alignSection(scratchBuffer, ".scratchBuffer");
+        }
+        // management kernel aligning if present
+        if (auto managementKernel = serializedGraphFile->header()->act_kernel_runtime()->kernel()) {
+            alignSection(managementKernel->kernelText(), ".runtime.text");
+            alignSection(managementKernel->globalArgs(), ".runtime.data");
+        }
     }
 
     return detached;

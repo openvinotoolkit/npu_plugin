@@ -63,6 +63,7 @@ public:
     using BinaryData = flatbuffers::Offset<MVCNN::BinaryData>;
 
     using KernelData = flatbuffers::Offset<MVCNN::KernelData>;
+    using ActKernel = flatbuffers::Offset<MVCNN::ActKernel>;
 
     using KernelDataRef = flatbuffers::Offset<MVCNN::KernelDataReference>;
 
@@ -86,6 +87,7 @@ public:
     SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
 
     SpecificTask createSW_KernelTask(mlir::Operation* op);
+    ActKernel createRuntimeKernelTask(mlir::ModuleOp module, mlir::Operation* op);
 
     //  compiles kernel code and returns it's data and text sections
     ActKernelDesc compileKernelData(const CompilationUnitDesc& unitDesc);

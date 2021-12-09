@@ -93,6 +93,31 @@ operation ::= `VPURT.DeclareVirtualBarrier` attr-dict `->` type(results)
 | :----: | ----------- |
 `barrier` | VPUIP Barrier Type
 
+### `VPURT.SW.Runtime` (vpux::VPURT::SWRunTimeOp)
+
+Definition of run-time
+
+
+Syntax:
+
+```
+operation ::= `VPURT.SW.Runtime` attr-dict-with-keyword
+              `entryPoint` `:` $entryPoint
+              `stack_configuration` `:` $stacks
+```
+
+This operation defines various resources consumed by compiled-in Runtime Kernel:
+
+  * stack configuration
+  * Runtime kernel entry point
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`entryPoint` | ::mlir::SymbolRefAttr | symbol reference attribute
+`stacks` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
 ### `VPURT.Task` (vpux::VPURT::TaskOp)
 
 Hold common scheduling logic (barriers configuration and profiling support).

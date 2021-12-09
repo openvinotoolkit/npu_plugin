@@ -185,6 +185,41 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
     return kernelData.Finish();
 }
 
+vpux::VPUIP::BlobWriter::ActKernel vpux::VPUIP::BlobWriter::createRuntimeKernelTask(mlir::ModuleOp module,
+                                                                                    mlir::Operation* op) {
+    auto swRuntimeOp = mlir::dyn_cast<VPURT::SWRunTimeOp>(op);
+    VPUX_THROW_UNLESS(swRuntimeOp != nullptr, "Operation '{0}' is not a SWRuntimeOp", op->getName());
+
+    flatbuffers::Offset<MVCNN::ActKernel> runtimeKernel;
+    constexpr auto kernelStorageLocale = vpux::VPUIP::MemoryLocation::GFEmbeddedKernel;
+
+    auto kernelFunc = module.lookupSymbol<mlir::FuncOp>(swRuntimeOp.entryPointAttr());
+    VPUX_THROW_UNLESS(kernelFunc, "Undefined runtime kernel : '{0}'", swRuntimeOp.entryPointAttr());
+
+    const auto kernelCode = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_code");
+    VPUX_THROW_UNLESS(kernelCode, "Operation '{0}' doesn't have VPU.kernel_code attribute", kernelFunc);
+
+    // using kernel names from VPURT dialect
+    auto listDesc = managementKernelCompilationDesc();
+    listDesc.name = kernelCode.getValue();
+    listDesc.entry = kernelCode.getValue();
+
+    const auto params = compileParams();
+    compileKernelForACTShave(listDesc, params);
+
+    auto runtimeKernelDesc = compileManagementKernelData();
+    auto runtimeKernelText = createKernelDataRef(runtimeKernelDesc.text, kernelStorageLocale);
+    auto runtimeKernelData = createKernelDataRef(runtimeKernelDesc.data, kernelStorageLocale);
+
+    MVCNN::ActKernelBuilder kernelbuilder(*this);
+    kernelbuilder.add_kernelText(runtimeKernelText);
+    kernelbuilder.add_globalArgs(runtimeKernelData);
+    kernelbuilder.add_type(MVCNN::ActKernelType_KERNEL);
+    kernelbuilder.add_kernelEntry(0);
+
+    return kernelbuilder.Finish();
+}
+
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
 
