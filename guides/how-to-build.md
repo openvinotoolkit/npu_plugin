@@ -108,21 +108,21 @@ The X86_64 build is needed to get reference results for the tests run on ARM
 
     ```bash
     ( \
-        source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux ; \
         mkdir -p $OPENVINO_HOME/build-aarch64 ; \
         cd $OPENVINO_HOME/build-aarch64 ; \
         cmake \
+            -D CMAKE_BUILD_TYPE=Release \
             -D ENABLE_TESTS=ON \
             -D ENABLE_FUNCTIONAL_TESTS=ON \
             -D NGRAPH_ONNX_IMPORT_ENABLE=OFF \
             -D THIRDPARTY_SERVER_PATH="http://nnt-srv01.inn.intel.com/dl_score_engine/" \
+            -D CMAKE_TOOLCHAIN_FILE=$KMB_PLUGIN_HOME/cmake/oecore.arm64.toolchain.cmake \
             .. ; \
         make -j${nproc} ; \
     )
     ```
 
-2. **Open new console** in order to get clean environment and avoid side effects caused by running of previous commands for cross-compilation.
-3. Go to [KMB Plugin Project] base directory and build it with commands:
+2. Go to [KMB Plugin Project] base directory and build it with commands:
 
     ```bash
     mkdir -p $KMB_PLUGIN_HOME/build-aarch64
@@ -134,7 +134,7 @@ The X86_64 build is needed to get reference results for the tests run on ARM
     make -j${nproc}
     ```
 
-**Note:** Please use custom CMake toolchain file for [KMB Plugin Project],
+**Note:** Please use custom CMake toolchain file for build,
 default approach with `environment-setup-aarch64-ese-linux` is not supported.
 
 [OpenVINO Project]: https://github.com/openvinotoolkit/openvino
