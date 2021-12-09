@@ -69,12 +69,7 @@ mlir::Value vpux::AliasesInfo::getSource(mlir::Value val) const {
 
 mlir::Value vpux::AliasesInfo::getRoot(mlir::Value val) const {
     const auto it = _roots.find(val);
-    // mateusz
-    if (it == _roots.end()) {
-        val.dump();
-        return val;
-    }
-    // VPUX_THROW_UNLESS(it != _roots.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
+    VPUX_THROW_UNLESS(it != _roots.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
     return it->second;
 }
 
