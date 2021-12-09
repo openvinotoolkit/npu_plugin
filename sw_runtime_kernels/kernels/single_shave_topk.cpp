@@ -6,119 +6,125 @@
 #include <stdio.h>
 #include <param_topk.h>
 
-struct SortItem {
-    int index;
-    half score;
-    bool greater_than(const SortItem &b) {
-        // to be compatible with caffe's implementation, larger index is considered to be bigger
-        return score > b.score || (score == b.score && index > b.index);
-    }
+struct Pack {
+    half value;
+    int32_t index;
 };
 
-// heap sort algorithm suitable for top K purpose
-// heap top is smallest during its lifetime
-struct HeapSortTopK {
-    SortItem *_items;
-    int _cnt;
-    int _fill;
+using ComparePackedFunc = bool (*)(const Pack& a, const Pack& b);
 
-    HeapSortTopK(SortItem *items, int cnt) : _items(items), _cnt(cnt) { _fill = 0; }
+struct PartialHeapSortPacked
+{
+    Pack* m_items;
+    int m_cnt;
+    int m_fill;
 
-    void clear() { _fill = 0; }
-    int INDEX_PARENT(int i) {
-        // return ((int)(floor((i-1) / 2)));
-        return (int)((i - 1) / 2);
+    PartialHeapSortPacked(Pack *items, int cnt)
+            : m_items(items)
+            , m_cnt(cnt)
+            , m_fill(0)
+    {}
+
+    int INDEX_PARENT(int i) const {
+        return (i - 1) / 2;
     }
 
-    void push(half score_new, int index_new) {
-        if (_fill < _cnt) {
-            // fill
-            _items[_fill].score = score_new;
-            _items[_fill].index = index_new;
-            _fill++;
-            if (_fill == _cnt && _cnt > 1) {
-                int start = INDEX_PARENT(_cnt - 1);
-                while (start >= 0) {
-                    siftDown(start);
-                    start--;
-                }
-            }
-        } else {
-            SortItem item_new;
-            item_new.index = index_new;
-            item_new.score = score_new;
-            if (item_new.greater_than(_items[0])) {
-                _items[0] = item_new;
-                if (_cnt > 1)
-                    siftDown();
+    void pushAll(int n, ComparePackedFunc comparePacked) {
+        m_fill = m_cnt;
+
+        int start = INDEX_PARENT(m_cnt - 1);
+        while (start >= 0)
+        {
+            siftDown(start, -1, comparePacked);
+            start--;
+        }
+        for (int i = m_fill; i < n; ++i)
+        {
+            if (comparePacked(m_items[i], m_items[0]))
+            {
+                m_items[0] = m_items[i];
+                siftDown(0, -1, comparePacked);
             }
         }
     }
 
-    // full sort the array by putting smallest item to the end one by one.
-    // after full sort, the heap is empty and array is in descending order
-    int fullsort(void) {
-        if (_cnt > 1) {
-            int N = _cnt;
-            SortItem temp;
-            while (N > 1) {
-                // place the smallest(among first N items) item to position N-1
-                temp = _items[N - 1];
-                _items[N - 1] = _items[0];
-                _items[0] = temp;
-                N--;
-                siftDown(0, N);
+    //full sort the array by putting smallest item to the end one by one.
+    //after full sort, the heap is empty and array is in descending order
+    int fullSort(ComparePackedFunc comparePacked) {
+        if (m_cnt > 1)
+        {
+            int N = m_cnt;
+            while (N > 1)
+            {
+                std::swap(m_items[0], m_items[N-1]);
+                N --;
+                siftDown(0, N, comparePacked);
             }
         }
-        return _cnt;
+        return m_cnt;
     }
 
-    // after top is changed, siftDown can recover the heap order,
-    // ensure top is the smallest
-    void siftDown(int start = 0, int end = -1) {
-
+    //after top is changed, siftDown can recover the heap order,
+    //ensure top is the smallest
+    void siftDown(int start, int end, ComparePackedFunc comparePacked) {
         if (end < start)
-            end = _cnt;
+            end = m_cnt;
 
         // make a copy of the new item on top
-        SortItem itemx = _items[start];
+        Pack itemx = m_items[start];
         int root = start;
-        int child0 = (2 * root + 1);
-        // the root element is going down along the heap-tree structure
-        // and smaller child along its path will bubble-up
-        while (child0 < end) {
+        int child0 = (2*root + 1);
+        //the root element is going down along the heap-tree structure
+        //and smaller child along its path will bubble-up
+        while (child0 < end)
+        {
             int child1 = child0 + 1;
             int swapx = root;
-            SortItem *pItemx = &itemx;
+            Pack* pItemx = &itemx;
 
-            if (pItemx->greater_than(_items[child0])) {
+            if (comparePacked(*pItemx, m_items[child0]))
+            {
                 swapx = child0;
-                pItemx = &_items[child0];
+                pItemx = &m_items[child0];
             }
 
-            if (child1 < end) {
-                if (pItemx->greater_than(_items[child1])) {
+            if (child1 < end)
+            {
+                if (comparePacked(*pItemx, m_items[child1]))
+                {
                     swapx = child1;
-                    pItemx = &_items[child1];
+                    pItemx = &m_items[child1];
                 }
             }
 
             if (swapx == root)
                 break;
 
-            // bubble-up smallest child to root
-            _items[root] = _items[swapx];
+            //bubble-up smallest child to root
+            m_items[root] = m_items[swapx];
 
-            // sift following sub-tree
+            //sift following sub-tree
             root = swapx;
-            child0 = (2 * root + 1);
+            child0 = (2*root + 1);
         }
 
-        // final location of the new element put into the heap
+        //final location of the new element put into the heap
         if (start != root)
-            _items[root] = itemx;
+            m_items[root] = itemx;
     }
 };
+
+bool isSmallValue(const Pack& a, const Pack& b) {
+    return !(a.value <= b.value) | (!(a.value != b.value) & (a.index < b.index));
+}
+
+bool isLargeValue(const Pack& a, const Pack& b) {
+    return !(a.value >= b.value) | (!(a.value != b.value) & (a.index < b.index));
+}
+
+bool isSmallIndex(const Pack& a, const Pack& b) {
+    return bool(a.index < b.index);
+}
 
 using namespace sw_params;
 
@@ -203,12 +209,12 @@ void singleShaveTopK(uint32_t lParamsAddr) {
     p_act_index[17] = pIndexStrides[2] / CHAR_BIT; // 48
     p_act_index[18] = pIndexStrides[3] / CHAR_BIT; // -842150451 or 0
 
-//    SortPackedFunc sortPackedByValues = nullptr;
-//    switch (mode) {
-//        case 0: sortPackedByValues = sortPackedByValuesMax; break;
-//        case 1: sortPackedByValues = sortPackedByValuesMin; break;
-//        default: return;
-//    }
+    ComparePackedFunc comparePacked = nullptr;
+    switch (mode) {
+        case 0: comparePacked = isSmallValue; break;
+        case 1: comparePacked = isLargeValue; break;
+        default: return;
+    }
 
     // cases for k = 1
     // calculate top K inner (axis = 0)
@@ -229,22 +235,20 @@ void singleShaveTopK(uint32_t lParamsAddr) {
             half* valueLinePtr = p_act_value + line * valueStride / sizeof(half);
             int32_t* indexLinePtr = p_act_index + line * indexStride / sizeof(int32_t);
 
-            SortItem lineBuffer[pInputDims[0]];
-            HeapSortTopK sortedItemsOnAxis(lineBuffer, pInputDims[0]);
-            sortedItemsOnAxis.clear();
-
+            Pack lineBuffer[pInputDims[0]];
             for (int i = 0; i < pInputDims[0]; i++) {
-//                lineBuffer[i].score = *inputLinePtr;
-//                lineBuffer[i].index = i + 1;
-                sortedItemsOnAxis.push(*inputLinePtr, i + 1);
+                lineBuffer[i].value = *inputLinePtr;
+                lineBuffer[i].index = i + 1;
                 inputLinePtr++;
             }
 
-            sortedItemsOnAxis.fullsort();
+            PartialHeapSortPacked hsort(lineBuffer, k);
+            hsort.pushAll(pInputDims[0], comparePacked);
+            hsort.fullSort(comparePacked);
             // TODO: sort by index
 
             for (int i = 0; i < k; i++) {
-                *valueLinePtr = lineBuffer[i].score;
+                *valueLinePtr = lineBuffer[i].value;
                 *indexLinePtr = lineBuffer[i].index;
                 valueLinePtr++;
                 indexLinePtr++;
