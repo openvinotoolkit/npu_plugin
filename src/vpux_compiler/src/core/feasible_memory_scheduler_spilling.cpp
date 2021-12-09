@@ -304,11 +304,11 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::updateSpillBufferUsers(m
     for (auto* user : oldBuffer.getUsers()) {
         if (mlir::isa_and_nonnull<VPUIP::WeightsTableOp>(user)) {
             auto wTOp = mlir::dyn_cast_or_null<VPUIP::WeightsTableOp>(user);
-            _spillingParentObj->_log.trace("Mateusz: buffer - {0}\nused by WT op - {1}", oldBuffer, wTOp);
+            _spillingParentClass._log.trace("Mateusz: buffer - {0}\nused by WT op - {1}", oldBuffer, wTOp);
             if (wTOp.weights() == oldBuffer) {
-                _spillingParentObj->_log.trace("Mateusz: used as weigths input, update");
+                _spillingParentClass._log.trace("Mateusz: used as weigths input, update");
                 wTOp->setOperand(2, newBuffer);
-                _spillingParentObj->_log.trace("Mateusz: WT op after update - {0}", wTOp);
+                _spillingParentClass._log.trace("Mateusz: WT op after update - {0}", wTOp);
             }
         }
     }

@@ -2068,7 +2068,7 @@ def VPUIP_NCEClusterTaskOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, F32, BF16, quant_QuantizedType]>:$output
+        MemRefOf<[F16, F32, BF16, quant_QuantizedType]>:$output,
         Optional<MemRefOf<[UI64]>>:$profiling_output
     );
 
