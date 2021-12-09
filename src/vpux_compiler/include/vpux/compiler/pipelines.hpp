@@ -126,7 +126,7 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 
     BoolOption enableConvertAvgPoolToDWConv{*this, "convert-avg-pool-to-dw-conv",
                                             llvm::cl::desc("Enable convert-avg-pool-to-dw-conv pass"),
-                                            llvm::cl::init(true)};
+                                            llvm::cl::init(false)};
 
     BoolOption enableConvertScaleShiftDW{*this, "convert-scale-shift-depthwise",
                                          llvm::cl::desc("Enable convert-scale-shift-depthwise pass"),
