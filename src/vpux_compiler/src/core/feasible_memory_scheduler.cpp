@@ -86,7 +86,7 @@ bool FeasibleMemoryScheduler::isDataOp(operationIdxType opIdx) {
         return false;
     }
 
-    uint32_t numUnits;
+    uint32_t numUnits = 0;
     const auto executor = IERT::IERTDialect::getExecutor(op, numUnits);
     if (executor != VPU::ExecutorKindAttr::get(op->getContext(), VPU::ExecutorKind::DMA_NN)) {
         return false;
@@ -225,6 +225,7 @@ void FeasibleMemoryScheduler::distributeReadyOps(llvm::ArrayRef<operationIdxType
 void FeasibleMemoryScheduler::unscheduleAllCompletingOpsAtNextEarliestTime() {
     // retrieve the latest time
     const HeapElement* completionTopPtr = topElementGen(_completionTimeHeap);
+    VPUX_THROW_UNLESS(completionTopPtr != nullptr, "Got empty completionTopPtr");
     _currentTime = completionTopPtr->time_;
     _log.trace("Unscheduling ops at time: '{0}'", _currentTime);
 

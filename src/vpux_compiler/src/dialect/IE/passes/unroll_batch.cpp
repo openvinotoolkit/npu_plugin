@@ -37,63 +37,174 @@ public:
         Base::initLogger(log, Base::getArgumentName());
     }
 
-public:
-    class FullyConnectedOpConverter;
-
 private:
     void safeRunOnFunc() final;
 };
 
 //
-// FullyConnectedOpConverter
+// OpConverter
 //
 
-class UnrollBatchPass::FullyConnectedOpConverter final : public mlir::OpRewritePattern<IE::FullyConnectedOp> {
+template <class concreteOp>
+class OpConverterBase : public mlir::OpRewritePattern<concreteOp> {
 public:
-    FullyConnectedOpConverter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IE::FullyConnectedOp>(ctx), _log(log) {
+    using concreteOpTy = concreteOp;
+    OpConverterBase(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<concreteOpTy>(ctx), _log(log) {
     }
 
-public:
-    mlir::LogicalResult matchAndRewrite(IE::FullyConnectedOp origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(concreteOpTy origOp, mlir::PatternRewriter& rewriter) const final;
+
+    virtual mlir::LogicalResult sliceInputs(mlir::PatternRewriter&, mlir::OpState*, int64_t,
+                                            SmallVector<mlir::Value>&) const = 0;
+    virtual mlir::LogicalResult appendOperationsToSlices(mlir::PatternRewriter&, mlir::OpState*,
+                                                         llvm::SmallVector<mlir::Value>, mlir::Value&) const = 0;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult UnrollBatchPass::FullyConnectedOpConverter::matchAndRewrite(IE::FullyConnectedOp origOp,
-                                                                                mlir::PatternRewriter& rewriter) const {
-    const auto input1Shape = getShape(origOp.input());
-    const auto batchDim = Dim(0);
-    const auto rowCount = input1Shape[batchDim];
-    if (rowCount <= 1) {
-        return mlir::failure();
+template <class concreteOp, int inputN>
+class OpConverter : public OpConverterBase<concreteOp> {
+public:
+    const size_t numSlices = checked_cast<size_t>(inputN);
+
+    OpConverter(mlir::MLIRContext* ctx, Logger log): OpConverterBase<concreteOp>(ctx, log) {
     }
 
-    SmallVector<mlir::Value> rowSlices;
-    for (int64_t sliceIdx = 0; sliceIdx < rowCount; sliceIdx++) {
-        Shape lhsOffsets = Shape(input1Shape.size(), 0);
-        lhsOffsets[batchDim] = checked_cast<int64_t>(sliceIdx);
-        auto staticOffsetsAttr = getIntArrayAttr(rewriter.getContext(), lhsOffsets);
+    mlir::LogicalResult sliceInputs(mlir::PatternRewriter& rewriter, mlir::OpState* origOp, int64_t sliceIdx,
+                                    SmallVector<mlir::Value>& slices) const override {
+        auto newOpPtr = mlir::dyn_cast_or_null<concreteOp>(origOp);
+        if (newOpPtr == nullptr) {
+            return mlir::failure();
+        }
+        auto newOp = *newOpPtr;
+        for (const auto inputIdx : irange(numSlices)) {
+            const auto operands = newOp.getOperands();
+            VPUX_THROW_UNLESS(operands.size() >= numSlices, "Not enough operands to slice");
+            const auto input = operands[inputIdx];
+            const auto shape = getShape(input);
+            Shape offsets = Shape(shape.size(), 0);
+            offsets[Dims4D::Act::N] = checked_cast<int64_t>(sliceIdx);
+            const auto offsetsAttr = getIntArrayAttr(rewriter.getContext(), offsets);
 
-        Shape lhsSizes = input1Shape.raw();
-        lhsSizes[batchDim] = 1;
-        auto staticSizesAttr = getIntArrayAttr(rewriter.getContext(), lhsSizes);
-        auto newSubViewOp = rewriter.createOrFold<IE::SliceOp>(origOp->getLoc(), origOp.input(), staticOffsetsAttr,
-                                                               staticSizesAttr);
+            Shape sizes = shape.raw();
+            VPUX_THROW_UNLESS(Dims4D::Act::N.ind() < checked_cast<int32_t>(sizes.size()),
+                              "The shape rank must be 4 or more");
+            sizes[Dims4D::Act::N] = 1;
+            const auto sizesAttr = getIntArrayAttr(rewriter.getContext(), sizes);
 
-        rowSlices.push_back(newSubViewOp);
+            const auto subViewOp = rewriter.createOrFold<IE::SliceOp>(newOp->getLoc(), input, offsetsAttr, sizesAttr);
+            slices.push_back(subViewOp);
+        }
+        return mlir::success();
     }
 
-    SmallVector<mlir::Value> fullyConnectedSlices;
-    for (size_t sliceIdx = 0; sliceIdx < rowSlices.size(); sliceIdx++) {
-        auto lhs2d = rowSlices[sliceIdx];
-        auto rhs2d = origOp.weights();
-        auto op = rewriter.create<IE::FullyConnectedOp>(origOp->getLoc(), lhs2d, rhs2d, origOp.bias());
-        fullyConnectedSlices.push_back(op.output());
+    mlir::LogicalResult appendOperationsToSlices(mlir::PatternRewriter&, mlir::OpState*, llvm::SmallVector<mlir::Value>,
+                                                 mlir::Value&) const override {
+        VPUX_THROW("Unimplemented method");
+    }
+};
+
+template <class concreteOp>
+class EltwiseOpConverter : public OpConverter<concreteOp, 2> {
+public:
+    EltwiseOpConverter(mlir::MLIRContext* ctx, Logger log): OpConverter<concreteOp, 2>(ctx, log) {
     }
 
-    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, fullyConnectedSlices, batchDim.ind());
+    mlir::LogicalResult appendOperationsToSlices(mlir::PatternRewriter& rewriter, mlir::OpState* origOp,
+                                                 llvm::SmallVector<mlir::Value> slices,
+                                                 mlir::Value& output) const override {
+        auto newOpPtr = mlir::dyn_cast_or_null<concreteOp>(origOp);
+        if (newOpPtr == nullptr) {
+            return mlir::failure();
+        }
+        auto newOp = *newOpPtr;
+        if (this->numSlices != slices.size()) {
+            return mlir::failure();
+        }
+        auto lhs = slices[0];
+        auto rhs = slices[1];
+        auto newType = changeShape(newOp.getType(), getShape(lhs));
+        auto op = rewriter.create<concreteOp>(newOp->getLoc(), newType, lhs, rhs, newOp.auto_broadcastAttr(),
+                                              newOp.post_opAttr());
+        output = op.output();
+        return mlir::success();
+    }
+};
+
+class ConvolutionOpConverter : public OpConverter<IE::ConvolutionOp, 1> {
+public:
+    ConvolutionOpConverter(mlir::MLIRContext* ctx, Logger log): OpConverter<concreteOpTy, 1>(ctx, log) {
+    }
+
+    mlir::LogicalResult appendOperationsToSlices(mlir::PatternRewriter& rewriter, mlir::OpState* origOp,
+                                                 llvm::SmallVector<mlir::Value> slices,
+                                                 mlir::Value& output) const override {
+        auto newOpPtr = mlir::dyn_cast_or_null<concreteOpTy>(origOp);
+        if (newOpPtr == nullptr) {
+            return mlir::failure();
+        }
+        auto newOp = *newOpPtr;
+        if (numSlices != slices.size()) {
+            return mlir::failure();
+        }
+        auto lhs = slices[0];
+        auto op = rewriter.create<concreteOpTy>(newOp->getLoc(), lhs, newOp.filter(), newOp.bias(), newOp.strides(),
+                                                newOp.pads_begin(), newOp.pads_end(), newOp.dilations(),
+                                                newOp.post_opAttr());
+        output = op.output();
+        return mlir::success();
+    }
+};
+
+class FullyConnectedOpConverter : public OpConverter<IE::FullyConnectedOp, 1> {
+public:
+    FullyConnectedOpConverter(mlir::MLIRContext* ctx, Logger log): OpConverter<concreteOpTy, 1>(ctx, log) {
+    }
+
+    mlir::LogicalResult appendOperationsToSlices(mlir::PatternRewriter& rewriter, mlir::OpState* origOp,
+                                                 llvm::SmallVector<mlir::Value> slices,
+                                                 mlir::Value& output) const override {
+        auto newOpPtr = mlir::dyn_cast_or_null<concreteOpTy>(origOp);
+        if (newOpPtr == nullptr) {
+            return mlir::failure();
+        }
+        auto newOp = *newOpPtr;
+        if (numSlices != slices.size()) {
+            return mlir::failure();
+        }
+        auto lhs = slices[0];
+        auto op = rewriter.create<concreteOpTy>(newOp->getLoc(), lhs, newOp.weights(), newOp.bias());
+        output = op.output();
+        return mlir::success();
+    }
+};
+
+// The following code written under the assumption that we will unroll batch of first N operands with equal batch
+// dimension
+template <class concreteOp>
+mlir::LogicalResult OpConverterBase<concreteOp>::matchAndRewrite(concreteOp origOp,
+                                                                 mlir::PatternRewriter& rewriter) const {
+    const auto operands = origOp.getOperands();
+    VPUX_THROW_WHEN(operands.empty(), "No operands to slice");
+    const auto input1 = operands[0];
+    const auto input1Shape = getShape(input1);
+    VPUX_THROW_UNLESS(Dims4D::Act::N.ind() < checked_cast<int32_t>(input1Shape.size()),
+                      "The shape rank must be 4 or more");
+    const auto rowCount = input1Shape[Dims4D::Act::N];
+    SmallVector<mlir::Value> slicesToConcat;
+    for (const auto sliceIdx : irange(rowCount)) {
+        SmallVector<mlir::Value> slices;
+        if (mlir::failed(sliceInputs(rewriter, &origOp, sliceIdx, slices))) {
+            return mlir::failure();
+        }
+        mlir::Value output;
+        if (mlir::failed(appendOperationsToSlices(rewriter, &origOp, slices, output))) {
+            return mlir::failure();
+        }
+        slicesToConcat.push_back(output);
+    }
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, slicesToConcat, Dims4D::Act::N.ind());
 
     return mlir::success();
 }
@@ -105,11 +216,26 @@ mlir::LogicalResult UnrollBatchPass::FullyConnectedOpConverter::matchAndRewrite(
 void UnrollBatchPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::FullyConnectedOp>([](IE::FullyConnectedOp op) -> bool {
-        const auto inputShape = getShape(op.input());
-        const auto rowCount = inputShape[Dim(0)];
+    const auto isBatchEq1 = [](mlir::Value val) {
+        const auto inputShape = getShape(val);
+        VPUX_THROW_UNLESS(Dims4D::Act::N.ind() < checked_cast<int32_t>(inputShape.size()),
+                          "The shape rank must be 4 or more");
+        const auto rowCount = inputShape[Dims4D::Act::N];
         return rowCount == 1;
+    };
+
+    mlir::ConversionTarget target(ctx);
+    target.addDynamicallyLegalOp<IE::FullyConnectedOp>([&](IE::FullyConnectedOp op) -> bool {
+        return isBatchEq1(op.input());
+    });
+    target.addDynamicallyLegalOp<IE::ConvolutionOp>([&](IE::ConvolutionOp op) -> bool {
+        return isBatchEq1(op.input());
+    });
+    target.addDynamicallyLegalOp<IE::AndOp>([&](IE::AndOp op) -> bool {
+        return isBatchEq1(op.input1()) || getShape(op.input1()) != getShape(op.input2());
+    });
+    target.addDynamicallyLegalOp<IE::AddOp>([&](IE::AddOp op) -> bool {
+        return isBatchEq1(op.input1()) || getShape(op.input1()) != getShape(op.input2());
     });
     target.addLegalOp<IE::ReshapeOp>();
     target.addLegalOp<IE::ConcatOp>();
@@ -118,6 +244,9 @@ void UnrollBatchPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<FullyConnectedOpConverter>(&ctx, _log);
+    patterns.insert<ConvolutionOpConverter>(&ctx, _log);
+    patterns.insert<EltwiseOpConverter<IE::AndOp>>(&ctx, _log);
+    patterns.insert<EltwiseOpConverter<IE::AddOp>>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
