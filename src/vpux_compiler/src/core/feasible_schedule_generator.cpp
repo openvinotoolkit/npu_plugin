@@ -16,8 +16,8 @@
 
 using namespace vpux;
 
-std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenerator::barrierProducersMap{};
-std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenerator::barrierConsumersMap{};
+std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenerator::barrierProducersMap{};
+std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenerator::barrierConsumersMap{};
 
 static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
 FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func,
@@ -508,6 +508,7 @@ unsigned FeasibleScheduleGenerator::countProducerConsumerTasks(mlir::Operation* 
 
 void FeasibleScheduleGenerator::create_resource_utility_table_for_barrier_scheduling() {
     for (auto& op : in_degree_) {
+        Logger::global().error("Operation: {0} ", getUniqueID(op.first));
         if (doesOpRunOnNCE(op.first)) {
             auto resource_utility = countProducerConsumerTasks(op.first);
             // resource utility //

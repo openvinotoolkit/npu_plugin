@@ -39,9 +39,9 @@ private:
 void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
-    bool success = false;
+    //auto module = func->getParentOfType<mlir::ModuleOp>();
+    //auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+    //bool success = false;
 
     //Save intial dependencies 
     //ControlDependenciesSaveRestore model(&ctx,func);
