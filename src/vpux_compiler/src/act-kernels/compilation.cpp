@@ -52,20 +52,23 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
 static void getActShaveBinaries(const ActShaveCompileParams& params, const CompilationUnitDesc& unitDesc,
                                 SmallVector<uint8_t>& textBinary, SmallVector<uint8_t>& dataBinary) {
     SmallString genDir;
+    std::string ovBuildDir;
     if (sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
-        genDir = sys::path::parent_path(LIBRARY_OUTPUT_DIRECTORY);
+        ovBuildDir = std::string(sys::path::parent_path(LIBRARY_OUTPUT_DIRECTORY));
         std::cout << "LIBRARY_OUTPUT_DIRECTORY" << std::endl;
     } else {
         // probe for OV_BUILD_DIR
-        const auto ovBuildDir = std::getenv("OV_BUILD_DIR");
+        ovBuildDir = std::getenv("OV_BUILD_DIR");
         std::cout << "OV_BUILD_DIR " << ovBuildDir << "exists: " << sys::fs::exists(ovBuildDir) << std::endl;
-        VPUX_THROW_UNLESS(ovBuildDir,
+        VPUX_THROW_UNLESS(ovBuildDir.c_str(),
                           "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels");
         VPUX_THROW_UNLESS(sys::fs::exists(ovBuildDir),
                           "OpenVino build directory {0}, taken from OV_BUILD_DIR env variable is not exist", genDir);
-
-        genDir = ovBuildDir;
     }
+#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
+    std::replace(ovBuildDir.begin(), ovBuildDir.end(), '/', '\\');
+#endif
+    genDir = ovBuildDir;
     sys::path::append(genDir, "act-kernels");
 
     std::cout << "act-kernels dir " << genDir.c_str() << " exists: " << sys::fs::exists(genDir) << std::endl;
