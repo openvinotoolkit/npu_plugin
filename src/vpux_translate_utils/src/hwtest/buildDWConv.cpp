@@ -89,9 +89,9 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     SmallVector<mlir::Type> inputTypes;
 
     inputTypes.push_back(
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, DimsOrder::NHWC));
+            getMemRefType(builder, VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC));
     auto outputParamType =
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, DimsOrder::NHWC);
+            getMemRefType(builder, VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
@@ -108,10 +108,8 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     auto funcoutput = func.getArgument(1);
 
     // weights data
-    auto weight_data_ddr_memSpaceAttr =
-            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
     auto wt_data_shape_padded = getWeightsPaddedShape(wt_data_shape);
-    auto weightData_ddr_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::GraphFile, wt_data_shape_padded,
+    auto weightData_ddr_type = getMemRefType(funcbuilder, VPURT::BufferSection::Constant, wt_data_shape_padded,
                                              weightsType, DimsOrder::NHWC);
 
     auto wt_data_vals = generateWeights(wt_data_shape_padded, weightsType, builder.getContext(), weight_file_name);
@@ -124,11 +122,9 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                                                 wt_data_attr.reorder(DimsOrder::NHWC));
 
     // weights cmx tensor
-    auto wtData_cmx_memSpaceAttr =
-            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    auto wtData_cmx_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, wt_data_shape_padded,
-                                         weightsType, DimsOrder::NHWC);
-    auto wtData_cmx = createDeclareTensorOp(funcbuilder, wtData_cmx_type,
+    auto wtData_cmx_type = getMemRefType(funcbuilder, VPURT::BufferSection::CMX_NN, wt_data_shape_padded, weightsType,
+                                         DimsOrder::NHWC);
+    auto wtData_cmx = createDeclareTensorOp(funcbuilder, wtData_cmx_type, VPURT::BufferSection::CMX_NN,
                                             /*locale index=*/0,
                                             /*data idx=*/WEIGHTS_CMX_OFFSET);
 
@@ -136,16 +132,19 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     const auto ACTIVATIONWINDOW_CMX_OFFSET = WEIGHTS_CMX_OFFSET + weight_padded_totalsize;
 
     // input - output cmx tensors
-    auto inputcmx_type =
-            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, DimsOrder::NHWC);
-    auto inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT_CMX_OFFSET);
+    auto inputcmx_type = getMemRefType(funcbuilder, VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
+    auto inputcmx =
+            createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT_CMX_OFFSET);
 
     auto outputcmx_type =
-            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, DimsOrder::NHWC);
-    auto outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
+            getMemRefType(funcbuilder, VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
+    auto outputcmx =
+            createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
-    auto parent_inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT_CMX_OFFSET);
-    auto parent_outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
+    auto parent_inputcmx =
+            createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT_CMX_OFFSET);
+    auto parent_outputcmx =
+            createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
     // barrier config
     auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 0);
@@ -153,10 +152,10 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     // DMAs
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
-                                                loc, funcinput, inputcmx.getOperation()->getResult(0), false);
+                                                loc, funcinput, inputcmx.getOperation()->getResult(0));
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
                                                 loc, weight_data_ddr.getOperation()->getResult(0),
-                                                wtData_cmx.getOperation()->getResult(0), false);
+                                                wtData_cmx.getOperation()->getResult(0));
 
     // Activation Window ddr
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
@@ -178,8 +177,8 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, sparsity_type);
     const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
 
-    auto activationWindow_ddr_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::GraphFile, sparsity_shape,
-                                                   sparsity_type, DimsOrder::NHWC);
+    auto activationWindow_ddr_type =
+            getMemRefType(funcbuilder, VPURT::BufferSection::Constant, sparsity_shape, sparsity_type, DimsOrder::NHWC);
     auto activationWindow_ddr =
             funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), activationWindow_ddr_type,
                                                  Const::ContentAttr::get(sparsityAttr).reorder(DimsOrder::NHWC));
@@ -188,19 +187,20 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     auto activationwindow_totalsize_bytes = activationwindow_totalsize * sparsity_type.getIntOrFloatBitWidth() / 8;
 
     // Activation Window cmx
-    auto actWindow_cmx_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, sparsity_shape,
-                                            sparsity_type, DimsOrder::NHWC);
-    auto actWindow_cmx = createDeclareTensorOp(funcbuilder, actWindow_cmx_type, /*locale index=*/0,
-                                               /*data idx=*/ACTIVATIONWINDOW_CMX_OFFSET);
+    auto actWindow_cmx_type =
+            getMemRefType(funcbuilder, VPURT::BufferSection::CMX_NN, sparsity_shape, sparsity_type, DimsOrder::NHWC);
+    auto actWindow_cmx =
+            createDeclareTensorOp(funcbuilder, actWindow_cmx_type, VPURT::BufferSection::CMX_NN, /*locale index=*/0,
+                                  /*data idx=*/ACTIVATIONWINDOW_CMX_OFFSET);
 
     // activation window dma ddr->cmx
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
                                                 loc, activationWindow_ddr.getOperation()->getResult(0),
-                                                actWindow_cmx.getOperation()->getResult(0), false);
+                                                actWindow_cmx.getOperation()->getResult(0));
 
     // weights table ddr tensor
     SmallVector<int64_t> wtTbl_data_shape{sparsity_shape[0], 1, 1, 4};
-    auto weightTblData_ddr_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::GraphFile, wtTbl_data_shape,
+    auto weightTblData_ddr_type = getMemRefType(funcbuilder, VPURT::BufferSection::Constant, wtTbl_data_shape,
                                                 builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC);
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
@@ -228,17 +228,18 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                                  Const::ContentAttr::get(wtTbl_data_vals).reorder(DimsOrder::NHWC));
 
     // weights table cmx tensor
-    auto wtTbl_cmx_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, wtTbl_data_shape,
+    auto wtTbl_cmx_type = getMemRefType(funcbuilder, VPURT::BufferSection::CMX_NN, wtTbl_data_shape,
                                         builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC);
     const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + activationwindow_totalsize_bytes;
 
-    auto wtTbl_cmx = createDeclareTensorOp(funcbuilder, wtTbl_cmx_type, /*locale index=*/0,
-                                           /*data idx=*/WEIGHTSTABLE_CMX_OFFSET);
+    auto wtTbl_cmx =
+            createDeclareTensorOp(funcbuilder, wtTbl_cmx_type, VPURT::BufferSection::CMX_NN, /*locale index=*/0,
+                                  /*data idx=*/WEIGHTSTABLE_CMX_OFFSET);
 
     // weights table dma ddr->cmx
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
                                                 loc, weightTbl_data_ddr.getOperation()->getResult(0),
-                                                wtTbl_cmx.getOperation()->getResult(0), false);
+                                                wtTbl_cmx.getOperation()->getResult(0));
 
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
@@ -273,7 +274,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                                                  VPUIP::MPEMode::CUBOID_8x16);
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
-                                                loc, outputcmx.getOperation()->getResult(0), funcoutput, false);
+                                                loc, outputcmx.getOperation()->getResult(0), funcoutput);
 
     // TODO : return empty as func does not return anything
     /* auto returnOp = */ funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);

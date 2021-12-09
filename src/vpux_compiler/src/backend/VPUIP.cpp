@@ -224,7 +224,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     // only SwKernelOp operations can generate kernelData
     auto graphHasKernels = false;
     netFunc.walk([&](VPURT::TaskOp taskOp) {
-        if (taskOp.getTaskType() == vpux::VPUIP::TaskType::ACTShave) {
+        if (taskOp.getExecutorKind() == VPU::ExecutorKind::SHAVE_ACT) {
             graphHasKernels = true;
         }
     });
@@ -236,7 +236,6 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     constexpr auto maxShaves = 4;
     constexpr auto defaultStackSize = Byte(4_KB).count();
     constexpr auto alignmentReq = Byte(1_KB).count();
-    constexpr auto kernelStorageLocale = vpux::VPUIP::MemoryLocation::GFEmbeddedKernel;
 
     auto swRuntimeOps = module.getOps<VPURT::SWRunTimeOp>();
     auto runtimeKernelDeclared = std::distance(swRuntimeOps.begin(), swRuntimeOps.end());
@@ -252,18 +251,18 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
         runtimeStacks = parseIntArrayAttr<uint32_t>(swRuntimeOp.stacks());
     }
 
-    std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(runtimeStacks.size());
+    SmallVector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(runtimeStacks.size());
 
-    auto maxStack = std::max_element(runtimeStacks.begin(), runtimeStacks.end());
-    SmallVector<uint8_t> shave_stack_data_max(*maxStack);
+    const auto maxStackIt = std::max_element(runtimeStacks.begin(), runtimeStacks.end());
+    const std::vector<uint8_t> shave_stack_data_max(*maxStackIt);
 
-    for (uint32_t shv{}; shv < runtimeStacks.size(); ++shv) {
-        auto shaveStackData = llvm::ArrayRef<uint8_t>{shave_stack_data_max}.take_front(runtimeStacks[shv]);
+    for (auto shvInd : irange(runtimeStacks.size())) {
+        const auto shaveStackData = makeArrayRef(shave_stack_data_max).take_front(runtimeStacks[shvInd]);
 
-        log.trace("act-shave {0}_stack size is {1}", shv, shaveStackData.size());
+        log.trace("act-shave {0}_stack size is {1}", shvInd, shaveStackData.size());
 
-        stacks[shv] = writer.createKernelDataRef("actSHAVE" + std::to_string(shv) + "_stack", kernelStorageLocale, 0,
-                                                 shaveStackData.size(), shaveStackData);
+        const auto dataName = llvm::formatv("actSHAVE{0}_stack", shvInd).str();
+        stacks[shvInd] = writer.createKernelDataRef(dataName, 0, shaveStackData.size(), shaveStackData);
     }
 
     const auto stackBuffers = writer.createVector(stacks);
@@ -272,10 +271,11 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     if (!runtimeKernelDeclared) {
         constexpr auto scratchBufferSize = Byte(64_KB).count();
 
-        SmallVector<uint8_t> scratchBufferData(alignmentReq + scratchBufferSize);
+        const std::vector<uint8_t> scratchBufferData(alignmentReq + scratchBufferSize);
         constexpr uint64_t reservedOffset = 1;
-        scratchBuffer = writer.createKernelDataRef("scratch_buffer", kernelStorageLocale, reservedOffset,
-                                                   scratchBufferSize, scratchBufferData);
+
+        scratchBuffer =
+                writer.createKernelDataRef("scratch_buffer", reservedOffset, scratchBufferSize, scratchBufferData);
     }
 
     MVCNN::ActKernelRuntimeBuilder builder(writer);
@@ -358,11 +358,10 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
         const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
-        graphInputs.push_back(
-                writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
+        graphInputs.push_back(writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkInput, ind, 0));
 
         userInputs.push_back(
-                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
+                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkInput, ind, 0));
     }
 
     SmallVector<VPUIP::BlobWriter::TensorReference> graphOutputs, graphProfilingOutputs, userOutputs;
@@ -380,10 +379,10 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
         graphOutputs.push_back(
-                writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
+                writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkOutput, ind, 0));
 
         userOutputs.push_back(
-                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
+                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkOutput, ind, 0));
     }
 
     for (const auto& p : profilingOutputsInfo | indexed) {
@@ -393,7 +392,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
         graphProfilingOutputs.push_back(
-                writer.createTensor(val, p.value().name(), VPUIP::MemoryLocation::ProfilingOutput, ind, 0));
+                writer.createTensorRef(val, p.value().name(), VPURT::BufferSection::ProfilingOutput, ind, 0));
     }
 
     SmallVector<VPUIP::BlobWriter::PreprocessingInfo> preprocInfo;
@@ -444,11 +443,9 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir:
     auto scopeTiming = rootTiming.nest("Serialize tensor declarations");
 
     size_t tempTensorInd = 0;
-    netFunc.walk([&](VPURT::DeclareBufferOp tensorOp) {
-        writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
-                            parseIntArrayAttr<uint32_t>(tensorOp.localeIndex()), tensorOp.dataIndex(),
-                            tensorOp.sparsityIndex(), tensorOp.storageElementIndex(), tensorOp.storageElementSize(),
-                            tensorOp.leadingOffset(), tensorOp.trailingOffset());
+    netFunc.walk([&](VPURT::DeclareBufferOp bufOp) {
+        writer.createTensorRef(bufOp.buffer(), llvm::formatv("temp-{0}", tempTensorInd).str(), bufOp.section(),
+                               bufOp.sectionIndex().getValueOr(0), bufOp.byteOffset());
 
         ++tempTensorInd;
     });
@@ -489,8 +486,8 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
 
         binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<mlir::ShapedType>());
 
-        writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
-                            VPUIP::MemoryLocation::GraphFile, checked_cast<uint32_t>(constTensorInd), 0);
+        writer.createTensorRef(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
+                               VPURT::BufferSection::Constant, checked_cast<uint32_t>(constTensorInd), 0);
     }
 
     return binaryData;
@@ -529,30 +526,37 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     auto scopeTiming = rootTiming.nest("Serialize task lists");
 
     using TaskList = SmallVector<VPUIP::BlobWriter::Task>;
-    using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
-    TaskListMap tasksMap;
+    using TaskListMap = EnumMap<VPU::ExecutorKind, TaskList>;
 
-    netFunc.walk([&](VPURT::ConfigureBarrierOp taskOp) {
-        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
-        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+    TaskList barriersList;
+    netFunc.walk([&](VPURT::ConfigureBarrierOp barrierOp) {
+        log.trace("Got '{0}' at '{1}'", barrierOp->getName(), barrierOp->getLoc());
+        barriersList.push_back(writer.createTask(barrierOp));
     });
 
+    TaskListMap tasksMap;
     netFunc.walk([&](VPURT::TaskOp taskOp) {
-        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
-        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getExecutorKind(), taskOp->getName(), taskOp->getLoc());
+        tasksMap[taskOp.getExecutorKind()].push_back(writer.createTask(taskOp));
     });
 
     SmallVector<VPUIP::BlobWriter::TaskList> taskLists;
-    taskLists.reserve(tasksMap.size());
+    taskLists.reserve(tasksMap.size() + 1);
 
-    for (const auto& taskList : tasksMap) {
-        log.trace("Serialize task list '{0}'", taskList.first);
-
-        const auto serializedTaskList = writer.createVector(taskList.second);
+    const auto serializeTaskList = [&](const TaskList& taskList) {
+        const auto serializedTaskList = writer.createVector(taskList);
 
         MVCNN::TaskListBuilder builder(writer);
         builder.add_content(serializedTaskList);
         taskLists.push_back(builder.Finish());
+    };
+
+    log.trace("Serialize barriers list");
+    serializeTaskList(barriersList);
+
+    for (const auto& taskList : tasksMap) {
+        log.trace("Serialize tasks list '{0}'", taskList.first);
+        serializeTaskList(taskList.second);
     }
 
     return taskLists;

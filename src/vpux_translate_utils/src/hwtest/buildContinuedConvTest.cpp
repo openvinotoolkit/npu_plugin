@@ -100,14 +100,14 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
                                                                       mlir::Type type, std::size_t offset) {
         const auto CMXType = getMemRef(shape, type, vpux::VPU::MemoryKind::CMX_NN);
         return functionBuilder.create<vpux::VPURT::DeclareBufferOp>(builder.getUnknownLoc(), CMXType,
-                                                                    VPUIP::MemoryLocation::VPU_CMX_NN, 0, offset);
+                                                                    VPURT::BufferSection::CMX_NN, 0, offset);
     };
 
     const auto getMACAccTensor = [&builder, &functionBuilder, getMemRef](const llvm::SmallVector<std::int64_t>& shape,
                                                                          mlir::Type type, std::size_t offset) {
         const auto MACAccType = getMemRef(shape, type, VPU::MemoryKind::Register);
-        return functionBuilder.create<vpux::VPURT::DeclareBufferOp>(
-                builder.getUnknownLoc(), MACAccType, vpux::VPUIP::MemoryLocation::MAC_Accumulators, 0, offset);
+        return functionBuilder.create<vpux::VPURT::DeclareBufferOp>(builder.getUnknownLoc(), MACAccType,
+                                                                    VPURT::BufferSection::MAC_Accumulators, 0, offset);
     };
 
     auto functionInput = function.getArgument(0);
@@ -190,19 +190,19 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     // Input DMAs
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
-                                          functionInput, inputCMX.getOperation()->getResult(0), false);
+                                          functionInput, inputCMX.getOperation()->getResult(0));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
                                           weightsPartial0DDR.getOperation()->getResult(0),
-                                          weightsPartial0CMX.getOperation()->getResult(0), false);
+                                          weightsPartial0CMX.getOperation()->getResult(0));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
                                           weightsPartial1DDR.getOperation()->getResult(0),
-                                          weightsPartial1CMX.getOperation()->getResult(0), false);
+                                          weightsPartial1CMX.getOperation()->getResult(0));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
                                           weightsTable0DDR.getOperation()->getResult(0),
-                                          weightsTable0CMX.getOperation()->getResult(0), false);
+                                          weightsTable0CMX.getOperation()->getResult(0));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
                                           weightsTable1DDR.getOperation()->getResult(0),
-                                          weightsTable1CMX.getOperation()->getResult(0), false);
+                                          weightsTable1CMX.getOperation()->getResult(0));
 
     // NCE params
     const auto strides = getIntArrayAttr(builder.getContext(), conv.stride);
@@ -214,9 +214,9 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     // NCE Task 0
     auto nceTask_0 = VPURT::wrapIntoTaskOp<NCEClusterTaskOp>(
-            functionBuilder, barriers[0], barriers[1], builder.getUnknownLoc(), inputPartial0CMX.memory(),
-            weightsPartial0CMX.memory(), weightsTable0CMX.memory(),
-            /*activation_window=*/nullptr, inputPartial0CMX.memory(), output0CMX.memory(), output0CMX.memory(),
+            functionBuilder, barriers[0], barriers[1], builder.getUnknownLoc(), inputPartial0CMX.buffer(),
+            weightsPartial0CMX.buffer(), weightsTable0CMX.buffer(),
+            /*activation_window=*/nullptr, inputPartial0CMX.buffer(), output0CMX.buffer(), output0CMX.buffer(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr, isContinued);
 
@@ -234,9 +234,9 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     // NCE Task 1
     auto nceTask_1 = VPURT::wrapIntoTaskOp<NCEClusterTaskOp>(
-            functionBuilder, barriers[1], barriers[2], builder.getUnknownLoc(), inputPartial1CMX.memory(),
-            weightsPartial1CMX.memory(), weightsTable1CMX.memory(),
-            /*activation_window=*/nullptr, inputPartial1CMX.memory(), output1CMX.memory(), output1CMX.memory(),
+            functionBuilder, barriers[1], barriers[2], builder.getUnknownLoc(), inputPartial1CMX.buffer(),
+            weightsPartial1CMX.buffer(), weightsTable1CMX.buffer(),
+            /*activation_window=*/nullptr, inputPartial1CMX.buffer(), output1CMX.buffer(), output1CMX.buffer(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr,
             /*is_continued*/ nullptr);
@@ -244,7 +244,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     nceTask_1.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, barriers[2], mlir::ValueRange(), builder.getUnknownLoc(),
-                                          output1CMX.getOperation()->getResult(0), functionOutput, false);
+                                          output1CMX.getOperation()->getResult(0), functionOutput);
 
     functionBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), functionOutput);
 

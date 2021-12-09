@@ -256,12 +256,11 @@ mlir::LogicalResult TimestampRewrite::matchAndRewrite(IERT::TimestampOp origOp, 
 
     const auto timerType = changeMemSpace(origType, VPU::MemoryKindAttr::get(getContext(), VPU::MemoryKind::Register));
 
-    auto declareOp = rewriter.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(getContext()), timerType,
-                                                             VPUIP::MemoryLocation::AbsoluteAddr, 0,
-                                                             VPUIP::HW_TIMER_ABSOLUTE_ADDR);
+    auto bufferOp =
+            rewriter.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(getContext()), timerType,
+                                                    VPURT::BufferSection::Register, VPUIP::HW_TIMER_ABSOLUTE_ADDR);
 
-    auto dmaOp = rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, declareOp.memory(), origOp.output_buff());
-    dmaOp.set_ordAttr(mlir::BoolAttr::get(getContext(), true));
+    rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, bufferOp.buffer(), origOp.output_buff());
 
     _log.trace("Replaced with 'VPURT::DeclareBufferOp'");
 

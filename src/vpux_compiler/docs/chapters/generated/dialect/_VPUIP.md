@@ -222,6 +222,8 @@ operation ::= `VPUIP.CompressedDMAOp` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `port` | mlir::IntegerAttr | Integer attribute
+`is_out_of_order` | ::mlir::UnitAttr | unit attribute
+`is_critical` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
 
@@ -446,18 +448,6 @@ operation ::= `VPUIP.EluUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float values
-
-### `VPUIP.Empty` (vpux::VPUIP::EmptyOp)
-
-Empty management task
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.Empty` attr-dict
-```
-
 
 ### `VPUIP.ErfUPA` (vpux::VPUIP::ErfUPAOp)
 
@@ -1128,8 +1118,8 @@ operation ::= `VPUIP.NNDMA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `port` | mlir::IntegerAttr | Integer attribute
-`set_ord` | ::mlir::BoolAttr | bool attribute
-`set_crit` | ::mlir::BoolAttr | bool attribute
+`is_out_of_order` | ::mlir::UnitAttr | unit attribute
+`is_critical` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
 
@@ -2061,34 +2051,6 @@ operation ::= `VPUIP.TanhUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float values
-
-### `VPUIP.UPADMA` (vpux::VPUIP::UPADMAOp)
-
-UPA DMA task
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.UPADMA` attr-dict
-              `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output_buff `:` type($output_buff) `)`
-              `->` type(results)
-```
-
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`input` | memref of any type values
-`output_buff` | memref of any type values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | memref of any type values
 
 ### `VPUIP.WeightsTableOp` (vpux::VPUIP::WeightsTableOp)
 

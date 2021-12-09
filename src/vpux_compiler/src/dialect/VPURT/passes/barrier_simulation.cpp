@@ -58,6 +58,7 @@ public:
 
     void buildTaskLists(mlir::FuncOp func);
     void assignVirtualIds(mlir::FuncOp func);
+    void cleanUpVirtualIds(mlir::FuncOp func);
     int64_t getVirtualId(VPURT::ConfigureBarrierOp op);
     mlir::LogicalResult checkProducerCount();
     mlir::LogicalResult run();
@@ -86,6 +87,12 @@ void BarrierSimulator::assignVirtualIds(mlir::FuncOp func) {
     int64_t virtualId = 0;
     func.walk([&](VPURT::ConfigureBarrierOp op) {
         op->setAttr(virtualIdAttrName, getIntAttr(_ctx, virtualId++));
+    });
+}
+
+void BarrierSimulator::cleanUpVirtualIds(mlir::FuncOp func) {
+    func.walk([&](VPURT::ConfigureBarrierOp op) {
+        op->removeAttr(virtualIdAttrName);
     });
 }
 
@@ -127,11 +134,9 @@ void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
     });
 
     func.walk([&](VPURT::TaskOp taskOp) {
-        auto& block = taskOp.op().getBlocks().front();
-        auto wrappedTaskOp = block.begin();
-        switch (taskOp.getTaskType()) {
-        case VPUIP::TaskType::UPADMA:
-        case VPUIP::TaskType::NNDMA: {
+        auto* wrappedTaskOp = taskOp.getInnerTaskOp().getOperation();
+        switch (taskOp.getExecutorKind()) {
+        case VPU::ExecutorKind::DMA_NN: {
             int64_t port = 0;
             if (auto dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(wrappedTaskOp)) {
                 port = dmaOp.port();
@@ -146,20 +151,20 @@ void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
             _dmaTasks[port].push_back(getTaskInfo(taskOp));
             break;
         }
-        case VPUIP::TaskType::NCE2: {
+        case VPU::ExecutorKind::NCE: {
             auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
             VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
             _nceTasks.push_back(getTaskInfo(taskOp, nceOp.getNumVariants()));
             break;
         }
         // TODO: should we introduce _swTask?
-        case VPUIP::TaskType::ACTShave:
-        case VPUIP::TaskType::UPA: {
+        case VPU::ExecutorKind::SHAVE_ACT:
+        case VPU::ExecutorKind::SHAVE_UPA: {
             _upaTasks.push_back(getTaskInfo(taskOp));
             break;
         }
         default:
-            VPUX_THROW("Unsupported task type '{0}'", taskOp.getTaskType());
+            VPUX_THROW("Unsupported executor '{0}'", taskOp.getExecutorKind());
         }
     });
 }
@@ -273,9 +278,7 @@ mlir::LogicalResult BarrierSimulator::run() {
         }
 
         for (; nce < _nceTasks.size(); ++nce) {
-            auto& block = _nceTasks[nce].taskOp.op().getBlocks().front();
-            auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(block.begin());
-            VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
+            auto nceOp = mlir::cast<VPUIP::NCEClusterTaskOp>(_nceTasks[nce].taskOp.getInnerTaskOp().getOperation());
             const auto status = updateTaskBarriers(_nceTasks[nce], nceOp.getNumVariants());
             if (status == UpdateStatus::Skip)
                 break;
@@ -367,6 +370,7 @@ void BarrierSimulationPass::safeRunOnFunc() {
     if (mlir::failed(simulator.run())) {
         signalPassFailure();
     }
+    simulator.cleanUpVirtualIds(func);
 }
 
 }  // namespace

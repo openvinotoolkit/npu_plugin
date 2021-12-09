@@ -21,28 +21,37 @@
 
 using namespace vpux;
 
-//
-// TaskOp
-//
+VPUIP::TaskOpInterface vpux::VPURT::TaskOp::getInnerTaskOp() {
+    return mlir::cast<VPUIP::TaskOpInterface>(body().front().front());
+}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPURT::TaskOp::serialize(VPUIP::BlobWriter& writer) {
-    auto& block = op().getBlocks().front();
-    VPUX_THROW_UNLESS(block.getOperations().size() == 1, "Unable to find child task in VPURT::TaskOp for serialize");
-    auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(block.begin());
-    auto& op = *block.begin();
-    writer.setAliasForSerializedTensors(&op);
+    auto task = getInnerTaskOp();
+    writer.setAliasForSerializedTensors(task);
     return task.serialize(writer);
 }
 
-vpux::VPUIP::TaskType vpux::VPURT::TaskOp::getTaskType() {
-    auto& block = op().getBlocks().front();
-    VPUX_THROW_UNLESS(block.getOperations().size() == 1, "Unable to find child task in VPURT::TaskOp for get TaskType");
-    auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(block.begin());
-    VPUX_THROW_UNLESS(task != nullptr, "Unable to get TaskType");
-    return task.getTaskType();
+VPU::ExecutorKind vpux::VPURT::TaskOp::getExecutorKind() {
+    return getInnerTaskOp().getExecutorKind();
 }
 
 mlir::LogicalResult vpux::VPURT::verifyTaskOp(TaskOp task) {
+    if (task.body().getBlocks().size() != 1) {
+        return errorAt(task, "The task body should contain excatly one block");
+    }
+
+    if (task.body().front().getOperations().size() != 1) {
+        return errorAt(task, "The task body should contain exactly one operation");
+    }
+
+    auto& innerOp = task.body().front().front();
+    if (!mlir::isa<VPUIP::TaskOpInterface>(innerOp)) {
+        return errorAt(task, "The task body should contain VPUIP Task operation");
+    }
+    if (!mlir::isa<mlir::MemoryEffectOpInterface>(innerOp)) {
+        return errorAt(task, "The task body should contain operation with memory effects");
+    }
+
     if (task.isTrailingSWLayer()) {
         for (auto updateBarrier : task.updateBarriers()) {
             for (auto* depOp : updateBarrier.getUsers()) {
@@ -52,7 +61,7 @@ mlir::LogicalResult vpux::VPURT::verifyTaskOp(TaskOp task) {
                     return errorAt(task, "Trailing UPA Task has non-SW dependency : '{0}'", depOp->getLoc());
                 }
 
-                if (depTask.getTaskType() != VPUIP::TaskType::UPA) {
+                if (depTask.getExecutorKind() != VPU::ExecutorKind::SHAVE_UPA) {
                     return errorAt(task, "Trailing UPA Task has non-SW dependency : '{0}'", depOp->getLoc());
                 }
             }
@@ -60,10 +69,6 @@ mlir::LogicalResult vpux::VPURT::verifyTaskOp(TaskOp task) {
     }
     return mlir::success();
 }
-
-//
-// TaskOpInterface
-//
 
 void vpux::VPURT::TaskOp::getEffects(SmallVectorImpl<MemoryEffect>& effects) {
     for (const auto waitBarrier : waitBarriers()) {
@@ -74,9 +79,6 @@ void vpux::VPURT::TaskOp::getEffects(SmallVectorImpl<MemoryEffect>& effects) {
         effects.emplace_back(mlir::MemoryEffects::Write::get(), updateBarrier, VPURT::BarrierResource::get());
     }
 
-    for (auto& op : this->op().front()) {
-        if (auto opEffects = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(op)) {
-            opEffects.getEffects(effects);
-        }
-    }
+    auto bodyEffects = mlir::cast<mlir::MemoryEffectOpInterface>(getInnerTaskOp().getOperation());
+    bodyEffects.getEffects(effects);
 }

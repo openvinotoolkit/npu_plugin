@@ -184,43 +184,25 @@ void vpux::VPUIP::BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog
 namespace {
 
 VPU::MemoryKind convertMemoryLocation(MVCNN::MemoryLocation grLocation) {
-    VPUIP::MemoryLocation location;
     switch (grLocation) {
     case MVCNN::MemoryLocation_ProgrammableInput:
-        location = VPUIP::MemoryLocation::ProgrammableInput;
-        break;
     case MVCNN::MemoryLocation_ProgrammableOutput:
-        location = VPUIP::MemoryLocation::ProgrammableOutput;
-        break;
     case MVCNN::MemoryLocation_VPU_DDR_Heap:
-        location = VPUIP::MemoryLocation::VPU_DDR_Heap;
-        break;
     case MVCNN::MemoryLocation_GraphFile:
-        location = VPUIP::MemoryLocation::GraphFile;
-        break;
-    case MVCNN::MemoryLocation_VPU_CMX_NN:
-        location = VPUIP::MemoryLocation::VPU_CMX_NN;
-        break;
-    case MVCNN::MemoryLocation_VPU_CMX_UPA:
-        location = VPUIP::MemoryLocation::VPU_CMX_UPA;
-        break;
     case MVCNN::MemoryLocation_VPU_DDR_BSS:
-        location = VPUIP::MemoryLocation::VPU_DDR_BSS;
-        break;
+        return VPU::MemoryKind::DDR;
+    case MVCNN::MemoryLocation_VPU_CMX_NN:
+        return VPU::MemoryKind::CMX_NN;
+    case MVCNN::MemoryLocation_VPU_CMX_UPA:
+        return VPU::MemoryKind::CMX_UPA;
     case MVCNN::MemoryLocation_VPU_CSRAM:
-        location = VPUIP::MemoryLocation::VPU_CSRAM;
-        break;
+        return VPU::MemoryKind::CSRAM;
     case MVCNN::MemoryLocation_AbsoluteAddr:
-        location = VPUIP::MemoryLocation::AbsoluteAddr;
-        break;
     case MVCNN::MemoryLocation_MAC_Accumulators:
-        location = VPUIP::MemoryLocation::MAC_Accumulators;
-        break;
+        return VPU::MemoryKind::Register;
     default:
         VPUX_THROW("Unsupported MemoryLocation value '{0}'", grLocation);
     }
-
-    return VPUIP::getMemoryKind(location);
 }
 
 }  // namespace
@@ -332,7 +314,7 @@ mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, co
         return netFunc.getArgument(argOffset + static_cast<unsigned>(std::distance(ioTypes.begin(), ioTypeIt)));
     };
 
-    VPUIP::MemoryLocation location;
+    VPURT::BufferSection section;
     switch (tensorRef->locale()) {
     case MVCNN::MemoryLocation::MemoryLocation_ProgrammableInput: {
         return getArgument(_inputTypes);
@@ -357,25 +339,23 @@ mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, co
                                                 Const::ContentAttr::get(value));
     }
     case MVCNN::MemoryLocation::MemoryLocation_VPU_DDR_BSS:
-        location = VPUIP::MemoryLocation::VPU_DDR_BSS;
-        break;
     case MVCNN::MemoryLocation::MemoryLocation_VPU_DDR_Heap:
-        location = VPUIP::MemoryLocation::VPU_DDR_Heap;
+        section = VPURT::BufferSection::DDR;
         break;
     case MVCNN::MemoryLocation::MemoryLocation_VPU_CMX_UPA:
-        location = VPUIP::MemoryLocation::VPU_CMX_UPA;
+        section = VPURT::BufferSection::CMX_UPA;
         break;
     case MVCNN::MemoryLocation::MemoryLocation_VPU_CMX_NN:
-        location = VPUIP::MemoryLocation::VPU_CMX_NN;
+        section = VPURT::BufferSection::CMX_NN;
         break;
     case MVCNN::MemoryLocation::MemoryLocation_VPU_CSRAM:
-        location = VPUIP::MemoryLocation::VPU_CSRAM;
+        section = VPURT::BufferSection::CSRAM;
         break;
     default:
         VPUX_THROW("Location {0} is not supported", tensorRef->locale());
     }
 
-    return builder.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(_ctx), importedType, location,
+    return builder.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(_ctx), importedType, section,
                                                   tensorRef->locale_index()->Get(0), tensorRef->data()->data_index());
 }
 
@@ -466,6 +446,14 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
     while (!taskIterator.tasksEnded()) {
         const auto task = taskIterator.next();
 
+        mlir::LocationAttr loc;
+        if (task->name() == nullptr) {
+            loc = mlir::UnknownLoc::get(_ctx);
+        } else {
+            loc = mlir::NameLoc::get(
+                    mlir::Identifier::get(StringRef(task->name()->c_str(), task->name()->size()), _ctx));
+        }
+
         SmallVector<mlir::Value> inputs;
         SmallVector<mlir::Value> outputs;
         SmallVector<mlir::Value> waitBarriers;
@@ -504,8 +492,8 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
                               upaTask->softLayerParams_type());
             const auto parser = dispatchIt->second;
 
-            auto taskOp = opsBuilder.create<VPURT::TaskOp>(mlir::UnknownLoc::get(_ctx), waitBarriers, updateBarriers);
-            auto& block = taskOp.op().emplaceBlock();
+            auto taskOp = opsBuilder.create<VPURT::TaskOp>(loc, waitBarriers, updateBarriers);
+            auto& block = taskOp.body().emplaceBlock();
             lastInsertPoint = opsBuilder.saveInsertionPoint();
             opsBuilder.setInsertionPointToStart(&block);
             (this->*parser)(opsBuilder, inputs, outputs, upaTask);
@@ -519,19 +507,23 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             const auto dst = nnDMATask->dst();
             outputs.push_back(createTensorOp(opsBuilder, dst));
 
-            auto taskOp = opsBuilder.create<VPURT::TaskOp>(mlir::UnknownLoc::get(_ctx), waitBarriers, updateBarriers);
-            auto& block = taskOp.op().emplaceBlock();
+            auto taskOp = opsBuilder.create<VPURT::TaskOp>(loc, waitBarriers, updateBarriers);
+            auto& block = taskOp.body().emplaceBlock();
             lastInsertPoint = opsBuilder.saveInsertionPoint();
             opsBuilder.setInsertionPointToStart(&block);
-            opsBuilder.create<VPUIP::NNDMAOp>(mlir::NameLoc::get(mlir::Identifier::get("1", _ctx)), inputs.front(),
-                                              outputs.front());
+            if (nnDMATask->compression()) {
+                opsBuilder.create<VPUIP::CompressedDMAOp>(loc, inputs.front(), outputs.front(), nnDMATask->port(),
+                                                          !nnDMATask->set_ord(), nnDMATask->set_crit());
+            } else {
+                opsBuilder.create<VPUIP::NNDMAOp>(loc, inputs.front(), outputs.front(), nnDMATask->port(),
+                                                  !nnDMATask->set_ord(), nnDMATask->set_crit());
+            }
             opsBuilder.restoreInsertionPoint(lastInsertPoint);
         } else if (const auto controllerTask = task->task_as_ControllerTask()) {
             const auto barrierTask = controllerTask->task_as_BarrierConfigurationTask();
             VPUX_THROW_UNLESS(barrierTask, "Unsupported controller task type {0}", controllerTask->task_type());
             VPUX_THROW_UNLESS(barrierTask->target(), "Barrier has no target");
-            auto barrier = opsBuilder.create<VPURT::ConfigureBarrierOp>(mlir::UnknownLoc::get(_ctx),
-                                                                        barrierTask->target()->barrier_id());
+            auto barrier = opsBuilder.create<VPURT::ConfigureBarrierOp>(loc, barrierTask->target()->barrier_id());
             _barriers.push_back(barrier.barrier());
         } else {
             VPUX_THROW("Unsupported task type {0}", task->task_type());

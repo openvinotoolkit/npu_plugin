@@ -60,15 +60,15 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto WEIGHTSTABLE_CMX_OFFSET = INPUT_CMX_OFFSET + totalTensorSize(inputShape, inputType);
     const auto WEIGHTS_CMX_OFFSET = WEIGHTSTABLE_CMX_OFFSET + 4 * weightsTableShape[0] * weightsTableShape[3];
 
-    const auto getMemRef = [&builder](ArrayRef<std::int64_t> shape, mlir::Type elemType, VPU::MemoryKind memKind) {
-        const auto memSpaceAttr = VPU::MemoryKindAttr::get(builder.getContext(), memKind);
+    const auto getMemRef = [&builder](ArrayRef<std::int64_t> shape, mlir::Type elemType, VPURT::BufferSection section) {
+        const auto memSpaceAttr = VPU::MemoryKindAttr::get(builder.getContext(), VPURT::getMemoryKind(section));
         return vpux::getMemRefType(ShapeRef(shape), elemType, DimsOrder::NHWC, memSpaceAttr);
     };
 
-    const auto outputParamType = getMemRef(outputShape, outputType, VPU::MemoryKind::DDR);
+    const auto outputParamType = getMemRef(outputShape, outputType, VPURT::BufferSection::NetworkOutput);
 
     llvm::SmallVector<mlir::Type, 2> inputTypes;
-    inputTypes.push_back(getMemRef(inputShape, inputType, VPU::MemoryKind::DDR));
+    inputTypes.push_back(getMemRef(inputShape, inputType, VPURT::BufferSection::NetworkInput));
     inputTypes.push_back(outputParamType);
 
     const auto funcType = builder.getFunctionType(llvm::makeArrayRef(inputTypes), outputParamType);
@@ -81,9 +81,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const auto getCMXTensor = [&builder, &functionBuilder, getMemRef](const llvm::SmallVector<std::int64_t>& shape,
                                                                       mlir::Type type, std::size_t offset) {
-        const auto CMXType = getMemRef(shape, type, VPU::MemoryKind::CMX_NN);
+        const auto CMXType = getMemRef(shape, type, VPURT::BufferSection::CMX_NN);
         return functionBuilder.create<vpux::VPURT::DeclareBufferOp>(builder.getUnknownLoc(), CMXType,
-                                                                    VPUIP::MemoryLocation::VPU_CMX_NN, 0, offset);
+                                                                    VPURT::BufferSection::CMX_NN, 0, offset);
     };
 
     auto functionInput = function.getArgument(0);
@@ -95,7 +95,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         weightsAttribute = weightsAttribute.quantCast(qty);
     }
 
-    const auto weightsDDRType = getMemRef(weightsShape, weightsType, VPU::MemoryKind::DDR);
+    const auto weightsDDRType = getMemRef(weightsShape, weightsType, VPURT::BufferSection::Constant);
     auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType,
                                                                      weightsAttribute.reorder(vpux::DimsOrder::NHWC));
     auto weightsCMX = getCMXTensor(weightsShape, weightsType, WEIGHTS_CMX_OFFSET);
@@ -110,7 +110,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                       getElemTypeSize(weightsType).count() / 8),
             static_cast<std::int32_t>(16777215), VPU::ArchKind::MTL, output.shape[1], weightsType);
 
-    const auto weightsTableDDRMemRef = getMemRef(weightsTableShape, int32, VPU::MemoryKind::DDR);
+    const auto weightsTableDDRMemRef = getMemRef(weightsTableShape, int32, VPURT::BufferSection::Constant);
     const auto weightsTableValues =
             mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
@@ -122,17 +122,17 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto barrier1 = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
-                                          builder.getUnknownLoc(), functionInput, inputCMX.getOperation()->getResult(0),
-                                          false);
+                                          builder.getUnknownLoc(), functionInput,
+                                          inputCMX.getOperation()->getResult(0));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
                                           builder.getUnknownLoc(), weightsDDR.getOperation()->getResult(0),
-                                          weightsCMX.getOperation()->getResult(0), false);
+                                          weightsCMX.getOperation()->getResult(0));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
                                           builder.getUnknownLoc(), weightsTableDDR.getOperation()->getResult(0),
-                                          weightsTableCMX.getOperation()->getResult(0), false);
+                                          weightsTableCMX.getOperation()->getResult(0));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
                                           builder.getUnknownLoc(), outputCMX.getOperation()->getResult(0),
-                                          functionOutput, false);
+                                          functionOutput);
 
     const auto strides = getIntArrayAttr(ctx, conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
@@ -141,9 +141,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
 
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            functionBuilder, barrier0.barrier(), barrier1.barrier(), builder.getUnknownLoc(), inputCMX.memory(),
-            weightsCMX.memory(), weightsTableCMX.memory(), nullptr, inputCMX.memory(), outputCMX.memory(),
-            outputCMX.memory(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings, nullptr, nullptr);
+            functionBuilder, barrier0.barrier(), barrier1.barrier(), builder.getUnknownLoc(), inputCMX.buffer(),
+            weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, inputCMX.buffer(), outputCMX.buffer(),
+            outputCMX.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings, nullptr, nullptr);
 
     const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
     const auto end =

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,23 +11,29 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#pragma once
 
-#include "vpux/utils/core/format.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 
-using namespace vpux;
+#include <mlir/IR/BuiltinAttributes.h>
 
 //
-// EmptyOp
+// Generated
 //
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EmptyOp::serialize(VPUIP::BlobWriter& writer) {
-    MVCNN::EmptyTaskBuilder subBuilder(writer);
-    const auto subTask = subBuilder.Finish();
+#include <vpux/compiler/dialect/VPURT/generated/attributes/enums.hpp.inc>
 
-    MVCNN::ControllerTaskBuilder builder(writer);
-    builder.add_task_type(MVCNN::ControllerSubTask_EmptyTask);
-    builder.add_task(subTask.Union());
+//
+// BufferSection/MemoryKind conversion
+//
 
-    return {builder.Finish().Union(), MVCNN::SpecificTask_ControllerTask};
-}
+namespace vpux {
+namespace VPURT {
+
+VPU::MemoryKind getMemoryKind(BufferSection section);
+BufferSection getBufferSection(VPU::MemoryKind memKind);
+
+bool isMemoryCompatible(BufferSection section, mlir::MemRefType memref);
+
+}  // namespace VPURT
+}  // namespace vpux
