@@ -418,7 +418,195 @@
                 "blob_name" : "resnet-50-pytorch_sparse50_BDK_fp16"
             }
         },
+        
+        {
+            "name" : "BDK_FP16-INT8_yolo-v2-tiny-ava-0001",
+            "ir" : "models/clientmodels/BDK3/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "yolo-v2-tiny-ava-0001_tf"
+            }
+        },
 
+        {
+            "name" : "BDK_FP16-INT8_yolo-v2-ava-0001",
+            "ir" : "models/clientmodels/BDK3/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "yolo-v2-ava-0001_tf"
+            }
+        },
+
+        {
+            "name" : "BDK_FP16-INT8_googlenet-v1",
+            "ir" : "models/clientmodels/BDK3/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "googlenet-v1_tf"
+            }
+        },
+ 
+        {
+            "name" : "BDK_FP16-INT8_googlenet-v3",
+            "ir" : "models/clientmodels/BDK3/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["299x299/n01537544_28.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "googlenet-v3_tf"
+            }
+        },
+  
+        {
+            "name" : "BDK_FP16-INT8_squeezenet1.1",
+            "ir" : "models/clientmodels/BDK3/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["227x227/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "squeezenet1-1_cf2"
+            }
+        },
+ 
+        {
+            "name" : "BDK_FP16-INT8_openpose-pose",
+            "ir" : "models/clientmodels/BDK3/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["368x368/test.jpg"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "openpose-pose_cf"
+            }
+        },
+
+       
         {
             "name" : "por_tf_FP16_fsrcnn-x4",
             "ir" : "por/fsrcnn-x4/tf/FP16/fsrcnn-x4.xml",
