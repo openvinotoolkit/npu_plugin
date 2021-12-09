@@ -25,6 +25,10 @@ struct PartialHeapSortPacked
             , m_fill(0)
     {}
 
+    void clear() {
+        m_fill = 0;
+    }
+
     int INDEX_PARENT(int i) const {
         return (i - 1) / 2;
     }
@@ -245,7 +249,11 @@ void singleShaveTopK(uint32_t lParamsAddr) {
             PartialHeapSortPacked hsort(lineBuffer, k);
             hsort.pushAll(pInputDims[0], comparePacked);
             hsort.fullSort(comparePacked);
-            // TODO: sort by index
+            if (sort) {
+                hsort.clear();
+                hsort.pushAll(k, isSmallIndex);
+                hsort.fullSort(isSmallIndex);
+            }
 
             for (int i = 0; i < k; i++) {
                 *valueLinePtr = lineBuffer[i].value;
