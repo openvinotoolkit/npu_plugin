@@ -202,8 +202,8 @@ operation ::= `IE.Broadcast` `(` operands `)` attr-dict `:` type(operands) `->` 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`target_shape` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
-`axes_mapping` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+`target_shape` | 1D tensor of integer values
+`axes_mapping` | 1D tensor of integer values
 
 #### Results:
 
@@ -921,7 +921,7 @@ operation ::= `IE.GatherElements` `(` operands `)` attr-dict `:` type(operands) 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`indices` | ranked tensor of 64-bit signed integer or 32-bit signed integer values
+`indices` | ranked tensor of integer values
 
 #### Results:
 
@@ -952,7 +952,7 @@ operation ::= `IE.Gather` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`indices` | ranked tensor of 64-bit signed integer or 32-bit signed integer values
+`indices` | ranked tensor of integer values
 `axis` | ranked tensor of any type values
 
 #### Results:
@@ -2076,7 +2076,7 @@ operation ::= `IE.ReduceMax` `(` operands `)` attr-dict `:` type(operands) `->` 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`axes` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+`axes` | 1D tensor of integer values
 
 #### Results:
 
@@ -2107,7 +2107,7 @@ operation ::= `IE.ReduceSum` `(` operands `)` attr-dict `:` type(operands) `->` 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`axes` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+`axes` | 1D tensor of integer values
 
 #### Results:
 
@@ -2648,7 +2648,7 @@ operation ::= `IE.Tile` `(` operands `)` attr-dict `:` type(operands) `->` type(
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`repeats` | ranked tensor of 64-bit signed integer values
+`repeats` | ranked tensor of integer values
 
 #### Results:
 
@@ -2714,7 +2714,7 @@ operation ::= `IE.Transpose` `(` operands `)` attr-dict `:` type(operands) `->` 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`order` | ranked tensor of 64-bit signed integer values
+`order` | ranked tensor of integer values
 
 #### Results:
 

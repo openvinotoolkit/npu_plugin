@@ -89,6 +89,7 @@
 #include <transformations/op_conversions/convert_gather_upgrade.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/convert_maxpool_downgrade.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
 #include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
@@ -2065,8 +2066,6 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
-    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
-
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
     decomp->add_matcher<ngraph::pass::BidirectionalSequenceDecomposition>();
@@ -2080,9 +2079,7 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
-    decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
     decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
-    decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
     decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
     decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
@@ -2108,9 +2105,9 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();  // not plugins implemented gather8
     manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();  // not plugins implemented gather7
-    manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
-    manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
+    manager.register_pass<ngraph::pass::ConvertGather1ToGather7>();
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
+    manager.register_pass<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
 
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
@@ -2122,15 +2119,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, std::vec
                      mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Common nGraph passes");
 
-    const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
-    passConfig->disable<ngraph::pass::LSTMCellDecomposition>();
-    passConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
-    passConfig->disable<ngraph::pass::ConvertReduceMaxToPooling>();
-    passConfig->disable<ngraph::pass::ConvertReduceSumToPooling>();
-    passConfig->enable<ngraph::pass::ConvertGather1ToGather7>();
-    passConfig->disable<ngraph::pass::ConvertGather7ToGather1>();
-
-    ngraph::pass::Manager manager(passConfig);
+    ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<vpux::pass::RemoveSplitConcat>();
     manager.register_pass<vpux::pass::FusePadding>();
