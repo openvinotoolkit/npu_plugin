@@ -27,6 +27,7 @@
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
 #include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 namespace vpux {
 namespace hwtest {
@@ -84,7 +85,10 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     const auto OUTPUT_CMX_OFFSET = 0;
     const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
-    const auto WEIGHTS_CMX_OFFSET = INPUT_CMX_OFFSET + input_totalsize;
+    const auto weightsElementTypeBitSize = static_cast<Bit>(getElemTypeSize(weightsType)).count();
+    const auto alignment = (16 * weightsElementTypeBitSize) / CHAR_BIT;
+    const auto WEIGHTS_CMX_OFFSET =
+            vpux::alignVal(INPUT_CMX_OFFSET + input_totalsize, static_cast<std::uint64_t>(alignment));
 
     SmallVector<mlir::Type> inputTypes;
 
