@@ -42,8 +42,6 @@ struct t_MvMVNParamNClasses
     Location outLocation;
     u8* cmxslice;
     int32_t availableCmxBytes;
-//    u32 grpLeaderShave;
-//    u32 grpShavesNo;
 
     s32 nShaves;
     s32 jobNum;
@@ -58,7 +56,6 @@ struct t_MvMVNParamNClasses
     s32 toProcess;
     bool inputInCmx;
     bool outputInCmx;
-//    s32 this_shave;
 
     uint32_t acrossChannels;
     uint32_t normalize;
@@ -90,25 +87,12 @@ void mvMVN_1(t_MvMVNParamNClasses *p){
     int C = p->channels;
     int stride = p->stride;
 
-    // printf("DEBUG_SHAVE (c, h, w): %d %d %d\n", C, H, W);
-    // printf("DEBUG_SHAVE order: %X\n", order);
-
     uint32_t normalize_variance = p->normalize;
     int nShaves = p->nShaves; // Use only one shave for now
     int idy = p->jobNum;
-
     int buf_size = nShaves * C;
 
-    half* input  = p->input;
-    half* output = p->output;
-
-    // printf("DEBUG_SHAVE stride0: %ld\n", istrides[0]);
-    // printf("DEBUG_SHAVE stride1: %ld\n", istrides[1]);
-    // printf("DEBUG_SHAVE stride2: %ld\n", istrides[2]);
-
-    half* p_input0  = (p->inputInCmx) ? input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
-    half* p_output0 = (p->outputInCmx) ? output : reinterpret_cast<half*>(p->cmxslice + 2 * WORK_BUFFER_SIZE);
-
+    half* input  = (p->inputInCmx) ? p->input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
     float *intermedia_mean = p->intermediate_mean;
 
     for (int c = 0; c < C; ++c) {
@@ -139,27 +123,16 @@ void mvMVN_23(t_MvMVNParamNClasses *p){
     int C = p->channels;
     int stride = p->stride;
 
-    // printf("DEBUG_SHAVE (c, h, w): %d %d %d\n", C, H, W);
-    // printf("DEBUG_SHAVE order: %X\n", order);
-
     uint32_t normalize_variance = p->normalize;
     uint32_t acrossChannels = p->acrossChannels;
     float epsilon = p->eps;
     int nShaves = p->nShaves; // Use only one shave for now
-    int idy = p->jobNum;
 
     const float* variance_part = p->intermediate_mean + nShaves * C;
     const float* mean_part = p->intermediate_mean;
 
-    half* input  = p->input;
-    half* output = p->output;
-
-    // printf("DEBUG_SHAVE stride0: %ld\n", istrides[0]);
-    // printf("DEBUG_SHAVE stride1: %ld\n", istrides[1]);
-    // printf("DEBUG_SHAVE stride2: %ld\n", istrides[2]);
-
-    half* p_input0  = (p->inputInCmx) ? input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
-    half* p_output0 = (p->outputInCmx) ? output : reinterpret_cast<half*>(p->cmxslice + 2 * WORK_BUFFER_SIZE);
+    half* input  = (p->inputInCmx) ? p->input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
+    half* output = (p->outputInCmx) ? p->output : reinterpret_cast<half*>(p->cmxslice + 2 * WORK_BUFFER_SIZE);
 
     float mean;
     float variance;
@@ -222,6 +195,10 @@ void mvn(uint32_t lParams) {
     sp->normalize = layerParams->normalize;
     sp->eps = layerParams->eps;
 
+    if(layerParams->acrossChannels != false){
+        nnLog(MVLOG_ERROR, "Unsuported case, expected across_channels = false");
+        return;
+    }
     if(layerParams->input.dimsOrder != ND_CHW && layerParams->input.dimsOrder != ND_NCHW){
         nnLog(MVLOG_ERROR, "Unsuported layout, expected CHW or NCHW");
         return;
@@ -235,10 +212,6 @@ void mvn(uint32_t lParams) {
     sp->height = pDims[indices[ndims - 2]];
     sp->width = pDims[indices[ndims - 1]];
     sp->stride = iPStrides[indices[ndims - 2]] / (CHAR_BIT * sizeof(half)); // stride = W
-
-    // printf("SHAVE_DEBUG: ndims = %d\n", layerParams->input.numDims);
-
-    const auto *lp = &mvnParamsCMX;
 
     int to_process = getTotal(pDims, ndims);
     unsigned int shaves_no = 1;
@@ -255,7 +228,7 @@ void mvn(uint32_t lParams) {
     int i = firstShave;
     int processed = 0;
 
-    t_MvMVNParamNClasses *mvnParamNClasses = &mvnParamsCMX;;
+    t_MvMVNParamNClasses *mvnParamNClasses = &mvnParamsCMX;
     int to_process_on_shave = step_size + ((step_size_rem-- > 0) ? 1 : 0);
     nnLog(MVLOG_DEBUG, "i %d, to_process_on_shave %d lines, started from %d\n", i, to_process_on_shave, processed);
 
