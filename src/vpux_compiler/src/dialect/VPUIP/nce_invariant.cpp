@@ -543,34 +543,36 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::Convolution
                                                       origOp.filter(), nextTileConf.filterTile, "filter");
         const auto nextOutputTileVal = getDenseTileType(origOp.getType(), nextTile.offsets, nextTile.shape);
 
-        const auto OC = getShape(curFilterTileVal.getType().cast<mlir::ShapedType>())[Dims4D::Filter::OC];
+        const auto curOC = getShape(curFilterTileVal.getType().cast<mlir::ShapedType>())[Dims4D::Filter::OC];
 
         if (isWeightPrefetch) {
-            requiredCMX = std::max(getRequiredCMX({
+            const auto nextOC = getShape(nextFilterTileVal.getType().cast<mlir::ShapedType>())[Dims4D::Filter::OC];
+            requiredCMX += std::max(getRequiredCMX({  // Computing current tile, prefetch the next tile.
                                                    curInputTileVal.getType().cast<mlir::ShapedType>(),
                                                    curFilterTileVal.getType().cast<mlir::ShapedType>(),
                                                    curOutputTileVal,
                                                    nextFilterTileVal.getType().cast<mlir::ShapedType>()
-                                                  }, OC),
-                                   getRequiredCMX({
+                                                  }, curOC + nextOC),
+                                   getRequiredCMX({  //  Current tile computation finishes, copying out
+                                                     //  Next tile about to start computation
                                                    curInputTileVal.getType().cast<mlir::ShapedType>(),
                                                    curOutputTileVal,
                                                    nextFilterTileVal.getType().cast<mlir::ShapedType>(),
                                                    nextOutputTileVal
-                                                  }, OC));
+                                                  }, nextOC));
         } else {
-            requiredCMX = std::max(getRequiredCMX({
+            requiredCMX += std::max(getRequiredCMX({
                                                    curInputTileVal.getType().cast<mlir::ShapedType>(),
                                                    curFilterTileVal.getType().cast<mlir::ShapedType>(),
                                                    curOutputTileVal,
                                                    nextInputTileVal.getType().cast<mlir::ShapedType>()
-                                                  }, OC),
+                                                  }, curOC),
                                    getRequiredCMX({
                                                    curFilterTileVal.getType().cast<mlir::ShapedType>(),
                                                    curOutputTileVal,
                                                    nextInputTileVal.getType().cast<mlir::ShapedType>(),
                                                    nextOutputTileVal
-                                                  }, OC));
+                                                  }, curOC));
         }
         if (requiredCMX > cmxSize) {
             log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'",
@@ -614,18 +616,29 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp o
                                                      origOp.input(), nextTileConf.inputTile, "input");
         const auto nextOutputTileVal = getDenseTileType(origOp.getType(), nextTile.offsets, nextTile.shape);
 
-        const auto IC = getShape(curInputTileVal.getType().cast<mlir::ShapedType>())[Dims4D::Act::C];
+        const auto curIC = getShape(curInputTileVal.getType().cast<mlir::ShapedType>())[Dims4D::Act::C];
+        const auto nextIC = getShape(nextInputTileVal.getType().cast<mlir::ShapedType>())[Dims4D::Act::C];
 
-        requiredCMX = std::max(getRequiredCMX({
-                                               curInputTileVal.getType().cast<mlir::ShapedType>(),
+        //  Consider tiling does not change the element type
+        const auto inType = origOp.input().getType().cast<mlir::RankedTensorType>();
+        const auto curActivationWindowSize =
+                VPUIP::NCESparsity::getActivationWindowSize(parseIntArrayAttr<int64_t>(origOp.kernel_sizeAttr()),
+                                                            parseIntArrayAttr<int64_t>(origOp.stridesAttr())[0],
+                                                            inType.getElementType(), curIC);
+        const auto nextActivationWindowSize =
+                VPUIP::NCESparsity::getActivationWindowSize(parseIntArrayAttr<int64_t>(origOp.kernel_sizeAttr()),
+                                                            parseIntArrayAttr<int64_t>(origOp.stridesAttr())[0],
+                                                            inType.getElementType(), nextIC);
+
+        requiredCMX += std::max(getRequiredCMX({curInputTileVal.getType().cast<mlir::ShapedType>(),
                                                curOutputTileVal,
                                                nextInputTileVal.getType().cast<mlir::ShapedType>()
-                                              }, IC),
-                               getRequiredCMX({
-                                               curInputTileVal.getType().cast<mlir::ShapedType>(),
+                                              }, curIC + nextIC)
+                                              + Byte(curActivationWindowSize + nextActivationWindowSize),
+                               getRequiredCMX({nextInputTileVal.getType().cast<mlir::ShapedType>(),
                                                curOutputTileVal,
                                                nextOutputTileVal
-                                              }, IC));
+                                              }, nextIC) + Byte(nextActivationWindowSize));
         if (requiredCMX > cmxSize) {
             log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'",
                       origOp->getLoc(), cmxSize, requiredCMX);
