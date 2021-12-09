@@ -449,16 +449,16 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
     size_t maxInputDelay = demandList.empty() ? 0 : 1;
     mlir::DenseSet<mlir::Value> buffersNeedingAllocation;
 
-    // ensure input delay in case of alive buffers allocated in parallel
-    if (demandList.empty()) {
-        auto operationBuffers = _liveRangeInfo.getUsedBuffers(_depsInfo.getExecuteOpAtIndex(opIdx));
-        for (auto& buf : operationBuffers) {
-            if (_scan.handler().isAlive(buf) && _opWritingToBuffer.find(buf) == _opWritingToBuffer.end()) {
-                maxInputDelay = 1;
-                break;
-            }
-        }
-    }
+    // // ensure input delay in case of alive buffers allocated in parallel
+    // if (demandList.empty()) {
+    //     auto operationBuffers = _liveRangeInfo.getUsedBuffers(_depsInfo.getExecuteOpAtIndex(opIdx));
+    //     for (auto& buf : operationBuffers) {
+    //         if (_scan.handler().isAlive(buf) && _opWritingToBuffer.find(buf) == _opWritingToBuffer.end()) {
+    //             maxInputDelay = 1;
+    //             break;
+    //         }
+    //     }
+    // }
 
     // retrieve operation's buffers that need allocation
     for (auto& val : usedBuffers) {
