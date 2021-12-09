@@ -28,10 +28,13 @@ using Parent = CustomCppTests<fp16>;
 //};
 
 static constexpr std::initializer_list<SingleTest> reorder_test_list{
-//        {{1, 1, 20}, {1, 1, 20}, orderZYX, FPE("reorder_fp16.elf"), {sw_params::Location::NN_CMX}},
-//        {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("reorder_fp16.elf"), {sw_params::Location::NN_CMX}}
+        {{2, 3, 1}, {3, 2, 1}, orderCHW, FPE("reorder_fp16.elf"), {{1, 0, 2, sw_params::Location::NN_CMX}}},
+        {{19, 1, 16}, {1, 16, 19}, orderCHW, FPE("reorder_fp16.elf"), {{1, 2, 0, sw_params::Location::NN_CMX}}},
+        {{4, 6, 19}, {19, 4, 6}, orderCHW, FPE("reorder_fp16.elf"), {{2, 0, 1, sw_params::Location::NN_CMX}}},
+#ifndef CONFIG_TARGET_SOC_3720
         {{32, 1, 256}, {1, 256, 32}, orderCHW, FPE("reorder_fp16.elf"), {{1, 2, 0, sw_params::Location::NN_CMX}}},
         {{4, 64, 32}, {32, 4, 64}, orderCHW, FPE("reorder_fp16.elf"), {{2, 0, 1, sw_params::Location::NN_CMX}}},
+#endif
 };
 
 class CustomCppReorderTest : public Parent {
@@ -79,9 +82,9 @@ protected:
             const auto& od = m_outputTensor.tensorDims();
             const auto& ol = m_outputTensor.tensorLimits();
 
-            snprintf_append(str, maxLength, "%u %u %u (%u %u %u) => %u %u %u (%u %u %u)",
-                            id.height, id.width, id.channels, il.height, il.width, il.channels,
-                            od.height, od.width, od.channels, ol.height, ol.width, ol.channels);
+            snprintf_append(str, maxLength, "%ux%ux%u (%ux%ux%u) => %ux%ux%u (%ux%ux%u)",
+                            id.channels, id.height, id.width, il.channels, il.height, il.width,
+                            od.channels, od.height, od.width, ol.channels, ol.height, ol.width);
         }
     void initTestCase() override
         {
@@ -96,7 +99,7 @@ protected:
         }
     void generateInputData() override
         {
-            const auto customData = false;  // m_testLoop.value().customData;
+//            const auto customData = false;  // m_testLoop.value().customData;
 
         #ifdef CONFIG_TARGET_SOC_3720
             m_params.kernel = reinterpret_cast<uint64_t>(&shvNN0_reorder_fp16);
@@ -125,8 +128,27 @@ protected:
             {
                 MemoryDims out;
                 permuteArray(in.dims, test->customLayerParams.layerParams, out.dims, ndims);
+//                printf("# [%ld:%ld:%ld] <= [%ld:%ld:%ld]\n", out.dims[2], out.dims[1], out.dims[0], in.dims[2], in.dims[1], in.dims[0]);
                 m_referenceOutputTensor.at(out) = m_inputTensor.at(in);
             });
+
+#if 0
+            m_inputTensor.forEach(false, [&](const MemoryDims& in)
+            {
+                printf("# in = %f\n", f16Tof32(m_inputTensor.at(in)));
+            });
+#endif
+
+#if 0
+            const auto& id = m_inputTensor.memoryDims();
+            const auto& il = m_inputTensor.memoryLimits();
+            const auto& od = m_outputTensor.memoryDims();
+            const auto& ol = m_outputTensor.memoryLimits();
+            printf("# id = %ld %ld %ld\n", id.dims[2], id.dims[1], id.dims[0]);
+            printf("# od = %ld %ld %ld\n", od.dims[2], od.dims[1], od.dims[0]);
+            printf("# il = %ld %ld %ld\n", il.dims[2], il.dims[1], il.dims[0]);
+            printf("# ol = %ld %ld %ld\n", ol.dims[2], ol.dims[1], ol.dims[0]);
+#endif
         }
     bool checkResult() override
         {
@@ -141,21 +163,23 @@ protected:
 
             bool threshold_test_failed = false;
 
+//GlobalData::doPrintDiffs = true;
             m_outputTensor.forEach(false, [&](const MemoryDims& indices)
             {
-                float value = f16Tof32(m_outputTensor.at(indices));
-                float gt_value = f16Tof32(m_referenceOutputTensor.at(indices));
-                float abs_diff = fabs(value - gt_value);
-                bool differ = !bool(abs_diff <= m_test_threshold);
+                const float value = f16Tof32(m_outputTensor.at(indices));
+                const float gt_value = f16Tof32(m_referenceOutputTensor.at(indices));
+                const float abs_diff = fabs(value - gt_value);
+                const bool differ = !bool(abs_diff <= m_test_threshold);
 
                 threshold_test_failed |= differ;
 
                 if (differ && GlobalData::doPrintDiffs)
                 {
                     const TensorDims ti = m_outputTensor.toTensor(indices);
-                    printf("DIFF HWC [%d:%d:%d] %f %f %f\n", ti.height, ti.width, ti.channels, value, gt_value, abs_diff);
+                    printf("DIFF HWC [%d:%d:%d] %f %f %f\n", ti.channels, ti.height, ti.width, value, gt_value, abs_diff);
                 }
             });
+//GlobalData::doPrintDiffs = false;
 
             return !threshold_test_failed;
         }
