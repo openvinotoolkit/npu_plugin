@@ -31,30 +31,8 @@ using namespace vpux;
 //
 
 void vpux::VPUIPRegMapped::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects) {
-    if (auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op)) {
-        for (const auto input : layer.getInputs()) {
-            auto inputType = input.getType().cast<mlir::MemRefType>();
-            auto resource = getMemoryResource(inputType);
-            effects.emplace_back(mlir::MemoryEffects::Read::get(), input, resource.getValue());
-        }
-
-        for (const auto output : layer.getOutputs()) {
-            auto outputType = output.getType().cast<mlir::MemRefType>();
-            auto resource = getMemoryResource(outputType);
-            effects.emplace_back(mlir::MemoryEffects::Write::get(), output, resource.getValue());
-        }
-    }
-
-    auto task = mlir::dyn_cast<TaskOpInterface>(op);
-    VPUX_THROW_UNLESS(task != nullptr, "Got non Task Operation '{0}' in getTaskEffects", op->getName());
-
-    for (const auto waitBarrier : task.waitBarriers()) {
-        effects.emplace_back(mlir::MemoryEffects::Read::get(), waitBarrier, VPUIPRegMapped::BarrierResource::get());
-    }
-
-    for (const auto updateBarrier : task.updateBarriers()) {
-        effects.emplace_back(mlir::MemoryEffects::Write::get(), updateBarrier, VPUIPRegMapped::BarrierResource::get());
-    }
+    //TODO:: do VPUIPRegMapped ops have modelable effects?
+    return;
 }
 
 mlir::Attribute vpux::VPUIPRegMapped::getDMAEngine(uint32_t& numUnits, mlir::MLIRContext* ctx,
