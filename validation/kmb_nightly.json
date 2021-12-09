@@ -2018,8 +2018,8 @@
         },
 
         {
-            "name" : "MTL_ea_caffe_FP16_age-gender-recognition-retail-0013_ww14",
-            "ir" : "age-gender-recognition-retail-0013-ww14/caffe/FP16/age-gender-recognition-retail-0013.xml",
+            "name" : "MTL_scale_caffe_FP16_age-gender-recognition-retail-0013",
+            "ir" : "scale/age-gender-recognition-retail-0013/caffe/FP16/age-gender-recognition-retail-0013.xml",
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
@@ -3953,8 +3953,8 @@
         },
 
         {
-            "name" : "MTL_FP16_age-gender-recognition-retail-0013-16-chan",
-            "ir" : "models/mtl/age-gender-recognition-16-chan/FP16/age-gender-recognition-retail-0013-16-chan.xml",
+            "name" : "MTL_FP16_age-gender-recognition-retail-0013-cut",
+            "ir" : "age-gender-recognition-retail-0013-ww46/caffe/FP16/age-gender-recognition-retail-0013-cut.xml",
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
@@ -3974,17 +3974,27 @@
             "BenchmarkApp" : {
                 "input_folder" : "62x62"
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
+            "NetTest-CalcRef": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1"
+                ]
             },
-            "NetTest-Validate" : {
-                "disabled" : true
+            "NetTest-Validate": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
                 "disabled" : true
             },
             "CI-options" : {
-                "blob_name" : "age-gender-16-chan"
+                "blob_name" : "age-gender-cut"
             },
             "comments" : "NHWC layout was chosen on purpose because this model for MTL."
         },
