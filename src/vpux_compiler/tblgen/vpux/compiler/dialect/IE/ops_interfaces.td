@@ -185,17 +185,7 @@ def IE_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
             "Adjust the operation attributes to the current tile properties",
             "void", "adjustAttrs",
             (ins "ArrayRef<TileInfo>":$inputTiles, "mlir::OpBuilder&":$builder)
-        >,
-
-        InterfaceMethod<
-            "Generate prefetch tiling for the operation",
-            "vpux::OutputTiling", "generatePrefetchTiling",
-            (ins "vpux::Logger":$log),
-            [{}],
-            [{
-            return vpux::IE::generatePrefetchTiles($_op, log);
-            }]
-        >,
+        >
     ];
 }
 

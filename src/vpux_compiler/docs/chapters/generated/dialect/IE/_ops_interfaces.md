@@ -132,14 +132,6 @@ void adjustAttrs(ArrayRef<TileInfo> inputTiles, mlir::OpBuilder&builder);
 Adjust the operation attributes to the current tile properties
 NOTE: This method *must* be implemented by the user.
 
-#### `generatePrefetchTiling`
-
-```c++
-vpux::OutputTiling generatePrefetchTiling(vpux::Logger log);
-```
-Generate prefetch tiling for the operation
-NOTE: This method *must* be implemented by the user.
-
 ## TilingInfoOpInterface (`IE_TilingInfoOpInterface`)
 
 Interface for operations to provide information about required/supported tiling configurations
