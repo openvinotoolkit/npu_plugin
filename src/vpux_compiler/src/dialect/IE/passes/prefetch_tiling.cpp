@@ -128,7 +128,8 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
                       Logger log) {
     log.nest(2).trace("{0}", outputTile);
 
-    const auto inTiles = origOp.backInferTileInfo(outputTile);
+    const auto inputTiling = origOp.backInferTileInfo(outputTile);
+    const auto& inTiles = inputTiling.tiles;
     VPUX_THROW_UNLESS(!inTiles.empty(), "Got empty tile information");
 
     mlir::BlockAndValueMapping mapper;
@@ -152,7 +153,7 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
     VPUX_THROW_WHEN(tiledBuilderOp == nullptr, "Operation '{0}' doesn't implement TilingBuilderOpInterface",
                     tiledBuilderOp->getName());
 
-    tiledBuilderOp.adjustAttrs(inTiles, builder);
+    tiledBuilderOp.adjustAttrs(inputTiling);
 
     VPUX_THROW_UNLESS(origOp->getNumResults() == 1,
                       "Unsupported operation '{0}' at '{1}', it must have one and only one result", origOp->getName(),
