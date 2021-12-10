@@ -168,9 +168,9 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
                 getDenseTileType(filterType, tileConf.filterTile.offsets, tileConf.filterTile.shape);
         const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
-        return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(origOp->getLoc(),
-                                                                  origOp->getParentOfType<mlir::ModuleOp>(),
-                                                                  inputTileType, filterTileType, outputTileType, log));
+        return mlir::succeeded(VPUIP::NCEInvariant::verifyGroupConvCMX(
+                origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(), inputTileType, filterTileType,
+                outputTileType, origOp.strides(), log));
     });
 }
 
