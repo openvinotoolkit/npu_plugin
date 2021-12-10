@@ -146,7 +146,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto weights_swizzling_key = max_swizzling_key(totalTensorSize(weightsShape, weightsType), WEIGHTS_CMX_OFFSET);
     auto weights_table_swizzling_key =
             max_swizzling_key(totalTensorSize(weightsTableShape, int32), WEIGHTSTABLE_CMX_OFFSET);
-    auto swizzling_key = std::min(weights_swizzling_key, weights_table_swizzling_key);
+    auto swizzling_key = isInputPaddingRequired ? 0 : std::min(weights_swizzling_key, weights_table_swizzling_key);
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
