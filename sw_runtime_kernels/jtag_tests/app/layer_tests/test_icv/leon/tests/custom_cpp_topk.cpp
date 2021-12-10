@@ -6,7 +6,7 @@
 
 #ifdef CONFIG_TARGET_SOC_3720
 //kernel name 
-extern void*(shvNN0_topk);
+extern void*(shvNN0_singleShaveTopK);
 #else
 #include "svuSLKernels_EP.h"
 #endif
@@ -20,7 +20,8 @@ typedef int32_t Index;
 typedef t_D8StorageOrder StorageOrder;
 
 static constexpr std::initializer_list<SingleTest> topk_test_list{
-    {{2, 2, 2}, {1, 2, 2}, orderZYX, FPE("topk.elf"), {{1,0/*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
+    {{4, 3, 3}, {4, 3, 1}, orderZYX, FPE("topk.elf"), {{1,2/*axes*/,0/*mode=0,1(max,min)*/,0/*sort=0,1,2(none,value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
+//    {{1, 4, 5}, {1, 1, 5}, orderZYX, FPE("topk.elf"), {{1,1/*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
 };
 
 // pair of (value, index) used in sorting
@@ -86,17 +87,19 @@ protected:
         const Dimensions& dimOut = m_currentTest->outDim;
         const StorageOrder& storageOrder = m_currentTest->storageOrder;
         
+        const TensorDims dims3K(1, 1, 1, 1);
         const TensorDims dims3In(dimIn.width,   dimIn.height,  dimIn.channels,  1);
         const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
 
         m_inputTensor.init(storageOrder, dims3In);
+        m_kTensor.init(storageOrder, dims3K);
         m_valueTensor.init(storageOrder, dims3Out);
         m_indexTensor.init(storageOrder, dims3Out);
         m_referenceValueTensor.init(storageOrder, dims3Out);
         m_referenceIndexTensor.init(storageOrder, dims3Out);
         
-        
         allocBuffer(m_inputTensor);
+        allocBuffer(m_kTensor);
         allocBuffer(m_valueTensor);
         allocBuffer(m_indexTensor);
         allocBuffer(m_referenceValueTensor);
@@ -120,12 +123,11 @@ protected:
         m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[0]);
         m_params.baseParamData = sw_params::ToBaseKernelParams(m_TopKParams);
         
-        m_TopKParams->k = m_k;
         m_TopKParams->axis = m_axis;
         m_TopKParams->mode = m_mode;
         m_TopKParams->sort = m_sort;
-        m_TopKParams->hasValues = 1;
-        m_TopKParams->hasIndices = 1;
+        m_TopKParams->hasValues = m_hasOutputValues;
+        m_TopKParams->hasIndices = m_hasOutputIndices;
     }
     
     void initTestCase() override {
@@ -146,6 +148,10 @@ protected:
         m_inputTensor.exportToBuffer(inBuff);
         customCppOp->addInputBuffer(inBuff, m_requiredTensorLocation);
 
+        Buffer kBuff;
+        m_kTensor.exportToBuffer(kBuff);
+        customCppOp->addInputBuffer(kBuff, m_requiredTensorLocation);
+        
         Buffer valueBuff;
         m_valueTensor.exportToBuffer(valueBuff);
         customCppOp->addOutputBuffer(valueBuff, m_requiredTensorLocation);
@@ -160,18 +166,40 @@ protected:
     void generateInputData() override {
         printf("generate input data.\n");
 #ifdef CONFIG_TARGET_SOC_3720
-        m_params.kernel  = reinterpret_cast<uint64_t>(&shvNN0_topk);
+        m_params.kernel  = reinterpret_cast<uint64_t>(&shvNN0_singleShaveTopK);
 #else
-        m_params.kernel  = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(topk));
+        m_params.kernel  = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(singleShaveTopK));
 #endif
         
+        const u32 range = m_inputTensor.fullSize() + 3;
+
         // input values
-        rand_seed();
-        u64 ticks_for_seed = rtems_clock_get_uptime_nanoseconds();
-        srand(ticks_for_seed);
-        m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
-            float tmp = float(rand() % 1000) / 100 - 5.0f;
-            m_inputTensor.at(indices) = f32Tof16(tmp);
+//        const int total = m_inputTensor.dataSize();
+//        float scale = std::min(total, 50000) / float(total); // prevent FP16 overflow
+//        m_inputTensor.forEach(false, [&](const MemoryDims& indices)
+//        {
+//            int index = m_inputTensor.index(indices);
+//            u32 index1 = u32( (u64(index) * index + 17) % range );
+//            float val1 = scale * float(index1*1 + range/3) / float(range);
+//            m_inputTensor.at(indices) = f32Tof16(val1);
+//        });
+        
+//        float tmp_val = 1;
+//        m_inputTensor.forEach(false, [&](const MemoryDims& indices)
+//        {
+//            m_inputTensor.at(indices) = f32Tof16(tmp_val);
+//            tmp_val++;
+//        });
+        
+        m_inputTensor.forEach(false, [&](const MemoryDims& indices)
+                              {
+                                  float tmp = float(rand() % 1000) / 100 - 5.0f;
+                                  m_inputTensor.at(indices) = f32Tof16(tmp);
+                              });
+        
+        int32_t k = m_k;
+        m_kTensor.forEach(false, [&](const MemoryDims& indices) {
+            m_kTensor.at(indices) = k;
         });
     }
     
@@ -181,7 +209,8 @@ protected:
         const auto mode = m_mode;
         const auto sort = m_sort;
         const auto ndims = m_inputTensor.ndims();
-        const auto axis = m_axis; // Change axis due to layout
+        const auto axis = m_axis;
+        
         printf("k = %d\n", k);
         printf("axis = %d\n", axis);
         printf("mode = %d\n", mode);
@@ -267,23 +296,7 @@ protected:
             const bool differ = value_differ || index_differ;
             test_failed = test_failed || differ;
             printf("m_valueTensor value = %f, gt_value = %f\n", value, gt_value);
-
-//            if (m_hasOutputValues!=1)
-//            {
-//                int32_t setCoords[MAX_DIMS];
-//                subspace::getCoord(out_index, m_inputTensor.memoryDims().dims, m_inputTensor.ndims(), setCoords);
-//                MemoryDims indicesIn(setCoords, m_inputTensor.ndims());
-//                out_value = m_inputTensor.at(indicesIn);
-//            }
-//
-//            if (differ && GlobalData::doPrintDiffs)
-//            {
-//                char indices_str[64];
-//                printf("DIFF [%s] %f %s %f, %ld %s %ld\n",
-//                       ((m_hasOutputValues==1) ? m_valueTensor.indicesToString(indices, indices_str) : m_indexTensor.indicesToString(indices, indices_str)),
-//                       out_value, value_differ ? "!=" : "==", gt_value,
-//                       out_index, index_differ ? "!=" : "==", gt_index);
-//            }
+            printf("m_indexTensor out_index = %ld, gt_index = %ld\n", out_index, gt_index);
         });
         return !test_failed;
     }
@@ -301,6 +314,7 @@ private:
     
     Tensor<fp16> m_valueTensor;
     Tensor<int32_t> m_indexTensor;
+    Tensor<int32_t> m_kTensor;
     
     Tensor<fp16> m_referenceValueTensor;
     Tensor<int32_t> m_referenceIndexTensor;
