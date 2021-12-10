@@ -54,8 +54,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(VPUIP::BlobWrite
     builder.add_src(srcOff);
     builder.add_dst(dstOff);
     builder.add_port(checked_cast<uint8_t>(port()));
-    builder.add_set_ord(static_cast<uint8_t>(!is_out_of_order()));  // ORD
-    builder.add_set_crit(static_cast<uint8_t>(is_critical()));      // CRIT
+    if (VPU::getArch(getOperation()) != VPU::ArchKind::MTL) {
+        builder.add_set_ord(static_cast<uint8_t>(!is_out_of_order()));  // ORD
+    }
+    builder.add_set_crit(static_cast<uint8_t>(is_critical()));  // CRIT
     return {builder.Finish().Union(), MVCNN::SpecificTask_NNDMATask};
 }
 
@@ -81,7 +83,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CompressedDMAOp::serialize(VPUIP::B
     builder.add_dst(dstOff);
     builder.add_compression(true);
     builder.add_port(checked_cast<uint8_t>(port()));
-    builder.add_set_ord(static_cast<uint8_t>(!is_out_of_order()));  // ORD
-    builder.add_set_crit(static_cast<uint8_t>(is_critical()));      // CRIT
+    if (VPU::getArch(getOperation()) != VPU::ArchKind::MTL) {
+        builder.add_set_ord(static_cast<uint8_t>(!is_out_of_order()));  // ORD
+    }
+    builder.add_set_crit(static_cast<uint8_t>(is_critical()));  // CRIT
     return {builder.Finish().Union(), MVCNN::SpecificTask_NNDMATask};
 }
