@@ -11,13 +11,53 @@
 // included with the Software Package for additional details.
 //
 
+#include <mlir/IR/BlockAndValueMapping.h>
+#include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 using namespace vpux;
 
 namespace {
+
+OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
+    log.trace("Generating prefetch tiles for op {0} at {1}", op->getName(), op->getLoc());
+
+    auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
+    VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
+
+    const auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
+    VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
+                      op->getName(), op->getLoc());
+    auto getDimsToTile = [](const Shape& nTilesOnDim) -> SmallVector<Dim> {
+        SmallVector<Dim> res;
+        for (unsigned i = 0; i < nTilesOnDim.size(); i++) {
+            if (nTilesOnDim[Dim(i)] > 1)
+                res.emplace_back(Dim(i));
+        }
+        return res;
+    };
+
+    // step 1: compute a general tiling strategy to fit into the CMX
+    Shape nTilesOnDim = IE::computeGeneralTileStrategy(op, log);
+    auto dimsToTile = getDimsToTile(nTilesOnDim);
+    VPUX_THROW_WHEN(dimsToTile.size() == 0, "Must tile at least on one dimension");
+    if (dimsToTile.size() > 1)  // return general tiling when getting nested tiles.
+        return fillDividedTiles(nTilesOnDim, outputShape);
+
+    // step 2: increase the general tile strategy to satisfy prefetching
+    const auto targetDim = dimsToTile[0];
+    Shape prefetchableTilesOnDim = nTilesOnDim;
+    while (prefetchableTilesOnDim[targetDim] < 3 * nTilesOnDim[targetDim] &&  // do not tile too much for prefetching
+           !tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)) {
+        prefetchableTilesOnDim[targetDim]++;
+    }
+
+    return tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)
+                   ? fillDividedTiles(prefetchableTilesOnDim, outputShape)
+                   : fillDividedTiles(nTilesOnDim, outputShape);
+}
 
 //
 // PrefetchTiling
@@ -37,15 +77,13 @@ private:
 };
 
 mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
-                                                   mlir::PatternRewriter& rewriter) const {
+                                                    mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
-    const auto tiles = origOp.generatePrefetchTiling(_log.nest());
+    const auto tiles = generatePrefetchTiles(origOp.getOperation(), _log.nest());
 
     _log.nest(1).trace("Create {0} tiles:", tiles.size());
-    std::cout<<llvm::formatv("Prefetchable {0} tiles:", tiles.size()).str()<<std::endl;
     for (const auto& outputTile : tiles) {
         _log.nest(2).trace("{0}", outputTile);
-        std::cout<<llvm::formatv("{0}", outputTile).str()<<std::endl;
     }
 
     SmallVector<mlir::Value> resultTileVals;
@@ -55,7 +93,7 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
     resultTileOffsets.reserve(tiles.size());
 
     for (const auto& outputTile : tiles) {
-        const auto tiledRes = origOp.reifyTile(outputTile, rewriter);
+        const auto tiledRes = reifyTile(origOp, outputTile, rewriter, _log);
 
         const auto tiledShape = getShape(tiledRes);
         VPUX_THROW_UNLESS(tiledShape == outputTile.shape,
@@ -94,7 +132,8 @@ void PrefetchTilingPass::safeRunOnFunc() {
     target.addLegalOp<IE::SliceOp, IE::ConcatOp>();
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
-            return !iface.needTiling(_log.nest());
+            const auto resShape = getShape(op->getResult(0));
+            return iface.isSupportedTiling({TileInfo(resShape)}, _log.nest());
         }
 
         return true;
@@ -107,7 +146,7 @@ void PrefetchTilingPass::safeRunOnFunc() {
         signalPassFailure();
     }
 }
-} // namespace
+}  // namespace
 
 std::unique_ptr<mlir::Pass> vpux::IE::createPrefetchTilingPass(Logger log) {
     return std::make_unique<PrefetchTilingPass>(log);
