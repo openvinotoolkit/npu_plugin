@@ -241,7 +241,7 @@ private:
     mlir::DenseSet<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx,
                                                              llvm::ArrayRef<mlir::Value> neededBuffers);
     void scheduleInputOpForComputeOp(operationIdxType inputIdx, size_t delay);
-    void scheduleSpilledInputOpForComputeOp(operationIdxType inputIdx, mlir::Value* buffer);
+    void scheduleSpilledOpBuffer(operationIdxType inputIdx, mlir::Value* buffer);
     size_t allocateBuffersAndInputOps(operationIdxType opIdx);
     void scheduleComputeOp(operationIdxType opIdx);
     void scheduleAllPossibleReadyOpsAndUpdate(

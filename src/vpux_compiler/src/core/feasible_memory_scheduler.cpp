@@ -167,10 +167,25 @@ bool FeasibleMemoryScheduler::isComputeOpWithSomeActiveInputs(operationIdxType o
     if (isDataOp(opIdx)) {
         return false;
     }
-    auto opAllDeps = _depsInfo.getOpDeps(opIdx);
-    auto usedBuffs = getNonAliveBuffersUsedByOperation(opIdx);
-    // number of buffers needing allocation smaller than number of buffers used by the op
-    return opAllDeps.size() > usedBuffs.size();
+
+    // Get operation operands and find corresponding root buffers.
+    // If any of such buffers is alive then input is active
+    auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
+    for (const auto& operand : op.getOperands()) {
+        if (!operand.getType().isa<mlir::async::ValueType>()) {
+            continue;
+        }
+        auto rootBuffer = _aliasInfo.getRoot(operand);
+        const auto type = rootBuffer.getType().cast<mlir::MemRefType>();
+        if (type.getMemorySpace() != _memSpace) {
+            continue;
+        }
+        if (_scan.handler().isAlive(rootBuffer)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 vpux::AddressType FeasibleMemoryScheduler::calculateOpSize(operationIdxType opIdx) {
@@ -302,6 +317,11 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::sortUsedBuffers(mlir::DenseSet
     llvm::sort(buffersWithSize.begin(), buffersWithSize.end(),
                [](const std::pair<vpux::AddressType, mlir::Value>& val1,
                   const std::pair<vpux::AddressType, mlir::Value>& val2) {
+                   // If size is the same use position in IR to have
+                   // consistent order between executions
+                   if (val1.first == val2.first) {
+                       return val1.second.getDefiningOp()->isBeforeInBlock(val2.second.getDefiningOp());
+                   }
                    return val1.first > val2.first;
                });
     // repopulate only with buffers
@@ -320,6 +340,23 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::getNonAliveBuffersUsedByOperat
 
     for (auto& buffer : usedBuffs) {
         auto rootBuffer = _aliasInfo.getRoot(buffer);
+
+        // Below is a temporary solution to not account inputs of WeightsTableOp
+        // as this operation is in fact a constant.
+        // This code can be removed after EISW-25951 is integrated
+        bool weightTableOpBuffer = false;
+        for (auto* user : rootBuffer.getUsers()) {
+            if (user->getParentOp() == op.getOperation()) {
+                if (mlir::isa_and_nonnull<VPUIP::WeightsTableOp>(user)) {
+                    weightTableOpBuffer = true;
+                    break;
+                }
+            }
+        }
+        if (weightTableOpBuffer) {
+            continue;
+        }
+
         const auto type = rootBuffer.getType().cast<mlir::MemRefType>();
         if (type.getMemorySpace() != _memSpace || _scan.handler().isAlive(rootBuffer)) {
             continue;
@@ -386,9 +423,9 @@ void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType input
     pushToStartTimeHeap(HeapElement(inputIdx, _currentTime + delay, opType));
 }
 
-void FeasibleMemoryScheduler::scheduleSpilledInputOpForComputeOp(operationIdxType inputIdx, mlir::Value* buffer) {
+void FeasibleMemoryScheduler::scheduleSpilledOpBuffer(operationIdxType inputIdx, mlir::Value* buffer) {
     // schedule the spilled dependency
-    _log.nest().trace("Scheduling spilled input for compute op:'{0}'", inputIdx);
+    _log.nest().trace("Scheduling spilled op:'{0}'", inputIdx);
     auto _opOutput = _opOutputTable.find(inputIdx);
     if (!_opOutput->second.spillIdx_.empty()) {
         _opOutput->second.spillIdx_.erase(getOpBufferOutputIdx(inputIdx, *buffer));
@@ -408,17 +445,6 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
     size_t maxInputDelay = demandList.empty() ? 0 : 1;
     mlir::DenseSet<mlir::Value> buffersNeedingAllocation;
 
-    // ensure input delay in case of alive buffers allocated in parallel
-    if (demandList.empty()) {
-        auto operationBuffers = _liveRangeInfo.getUsedBuffers(_depsInfo.getExecuteOpAtIndex(opIdx));
-        for (auto& buf : operationBuffers) {
-            if (_scan.handler().isAlive(buf) && _opWritingToBuffer.find(buf) == _opWritingToBuffer.end()) {
-                maxInputDelay = 1;
-                break;
-            }
-        }
-    }
-
     // retrieve operation's buffers that need allocation
     for (auto& val : usedBuffers) {
         buffersNeedingAllocation.insert(val);
@@ -430,7 +456,7 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
             auto executeOpIdx =
                     _depsInfo.getIndex(writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>());
             demandList.erase(executeOpIdx);
-            scheduleSpilledInputOpForComputeOp(executeOpIdx, &val);
+            scheduleSpilledOpBuffer(executeOpIdx, &val);
         }
     }
 
@@ -446,7 +472,7 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
                 auto writerOp = retrieveBufferWriter(val);
                 auto executeOpIdx = _depsInfo.getIndex(
                         writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>());
-                scheduleSpilledInputOpForComputeOp(executeOpIdx, &val);
+                scheduleSpilledOpBuffer(executeOpIdx, &val);
                 maxInputDelay = 2;
             }
         }
@@ -459,6 +485,26 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
     _log.nest().trace("Allocate memory for the alive buffers");
     VPUX_THROW_UNLESS(_scan.alloc(sortedBuffers, /*allowSpills*/ false), "Failed to statically allocate '{0}' memory",
                       _memSpace);
+
+    // Check if any of operation input dependencies have been scheduled
+    // in the same scheduler iteration. In such case delay might need to be adjusted
+    // based on start time of its input dependencies
+    size_t depOpsMaxTimeInStartHeap = 0;
+    for (auto& dep : _depsInfo.getOpDeps(opIdx)) {
+        auto depOpInStartHeap = std::find_if(_startTimeHeap.begin(), _startTimeHeap.end(), [&](HeapElement el) {
+            return (dep == el.op_);
+        });
+        if (depOpInStartHeap != _startTimeHeap.end()) {
+            if (depOpInStartHeap->time_ > depOpsMaxTimeInStartHeap) {
+                depOpsMaxTimeInStartHeap = depOpInStartHeap->time_;
+            }
+        }
+    }
+    if (depOpsMaxTimeInStartHeap > 0) {
+        if (_currentTime + maxInputDelay <= depOpsMaxTimeInStartHeap) {
+            maxInputDelay = depOpsMaxTimeInStartHeap + 1 - _currentTime;
+        }
+    }
 
     return maxInputDelay;
 }
