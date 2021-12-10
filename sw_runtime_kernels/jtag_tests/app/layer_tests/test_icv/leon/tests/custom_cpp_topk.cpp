@@ -126,7 +126,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, TopK)) {
             });
 
             // k value
-            int32_t k = 13;
+            int32_t k = 1;
             m_kTensor.forEach(false, [&](const MemoryDims& indices) {
                 m_kTensor.at(indices) = k;
             });
