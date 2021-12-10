@@ -58,17 +58,44 @@ struct t_MvMVNParamNClasses
 };
 
 static void calc_mean_CHW_fp16(const half *line, int W, float* intermedia_mean, int index){
-    for(int w = 0; w < W; w++){
-        intermedia_mean[index] += *((half *)(line + w));
+    float8 m_sum = 0;
+    int w;
+
+    for(w = 0; w < (W / 8) * 8; w += 8){
+        half8 temp = *((half8 *)(line + w));
+        m_sum += mvuConvert_float8(temp);
+    }
+    for (int i = 0; i < 8; i++) {
+        intermedia_mean[index] += m_sum[i];
+    }
+
+    for(; w < W; w++){
+        intermedia_mean[index] += (float)*((half *)(line + w));
     }
 }
 
 static void calc_mean_var_CHW_fp16(const half *line, int W, float* intermedia_mean, int index, int buf_size){
-    for(int w = 0; w < W; w++){
-        half temp = *((half *)(line + w));
+    float8 m_sum = 0;
+    float8 v_sum = 0;
+    int w;
 
-        intermedia_mean[index] += (float)temp;
-        intermedia_mean[buf_size + index] += (float)temp * (float)temp;
+    for(w = 0; w < (W / 8) * 8; w += 8){
+        half8 temp = *((half8 *)(line + w));
+        float8 ftemp = mvuConvert_float8(temp);
+
+        m_sum += ftemp;
+        v_sum += ftemp * ftemp;
+    }
+    for (int i = 0; i < 8; i++) {
+        intermedia_mean[index] += m_sum[i];
+        intermedia_mean[buf_size + index] += v_sum[i];
+    }
+
+    for(; w < W; w++){
+        float temp = (float)*((half *)(line + w));
+
+        intermedia_mean[index] += temp;
+        intermedia_mean[buf_size + index] += temp * temp;
     }
 }
 
