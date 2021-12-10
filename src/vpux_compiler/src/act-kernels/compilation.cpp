@@ -68,6 +68,23 @@ static void getActShaveBinaries(const ActShaveCompileParams& params, const Compi
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
     std::replace(ovBuildDir.begin(), ovBuildDir.end(), '/', '\\');
 #endif
+
+    genDir = ovBuildDir;
+    auto libDir = genDir;
+    sys::path::append(libDir, "lib");
+    auto inLibDir = libDir;
+    sys::path::append(inLibDir, "act-kernels-build");
+    std::cout << "lib/act-kernels-build " << inLibDir.c_str() << " exists: " << sys::fs::exists(inLibDir) << std::endl;
+
+    inLibDir = libDir;
+    sys::path::append(inLibDir, "kmb_custom_ocl_kernels");
+    std::cout << "lib/kmb_custom_ocl_kernels " << inLibDir.c_str() << " exists: " << sys::fs::exists(inLibDir)
+              << std::endl;
+
+    inLibDir = libDir;
+    sys::path::append(inLibDir, "mcm_config");
+    std::cout << "lib/mcm_config " << inLibDir.c_str() << " exists: " << sys::fs::exists(inLibDir) << std::endl;
+
     genDir = ovBuildDir;
     sys::path::append(genDir, "act-kernels");
 
