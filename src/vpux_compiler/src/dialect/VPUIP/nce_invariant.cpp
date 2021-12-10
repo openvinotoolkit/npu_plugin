@@ -535,15 +535,15 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::Convolution
                                                       origOp.pads_end());
 
         const auto curInputTileVal = vpux::IE::makeTile(builder, origOp->getLoc(),
-                                                     origOp.input(), curTileConf[0], "input");
+                                                     origOp.input(), curTileConf.tiles[0], "input");
         const auto curFilterTileVal = vpux::IE::makeTile(builder, origOp->getLoc(),
-                                                      origOp.filter(), curTileConf[1], "filter");
+                                                      origOp.filter(), curTileConf.tiles[1], "filter");
         const auto curOutputTileVal = getDenseTileType(origOp.getType(), curTile.offsets, curTile.shape);
 
         const auto nextInputTileVal = vpux::IE::makeTile(builder, origOp->getLoc(),
-                                                     origOp.input(), nextTileConf[0], "input");
+                                                     origOp.input(), nextTileConf.tiles[0], "input");
         const auto nextFilterTileVal = vpux::IE::makeTile(builder, origOp->getLoc(),
-                                                      origOp.filter(), nextTileConf[1], "filter");
+                                                      origOp.filter(), nextTileConf.tiles[1], "filter");
         const auto nextOutputTileVal = getDenseTileType(origOp.getType(), nextTile.offsets, nextTile.shape);
 
         const auto curOC = getShape(curFilterTileVal.getType().cast<mlir::ShapedType>())[Dims4D::Filter::OC];
@@ -612,11 +612,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp o
                                                     origOp.stridesAttr(), origOp.pads_beginAttr(), origOp.pads_endAttr());
 
         const auto curInputTileVal = vpux::IE::makeTile(builder, origOp->getLoc(),
-                                                     origOp.input(), curTileConf[0], "input");
+                                                     origOp.input(), curTileConf.tiles[0], "input");
         const auto curOutputTileVal = getDenseTileType(origOp.getType(), curTile.offsets, curTile.shape);
 
         const auto nextInputTileVal = vpux::IE::makeTile(builder, origOp->getLoc(),
-                                                     origOp.input(), nextTileConf[0], "input");
+                                                     origOp.input(), nextTileConf.tiles[0], "input");
         const auto nextOutputTileVal = getDenseTileType(origOp.getType(), nextTile.offsets, nextTile.shape);
 
         const auto curIC = getShape(curInputTileVal.getType().cast<mlir::ShapedType>())[Dims4D::Act::C];
