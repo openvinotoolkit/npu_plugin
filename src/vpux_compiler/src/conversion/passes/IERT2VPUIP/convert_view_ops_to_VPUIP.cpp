@@ -52,7 +52,7 @@ Byte ViewLikeRewrite::calculateOffset(mlir::Value val) const {
     }
 
     if (auto declareOp = mlir::dyn_cast_or_null<VPURT::DeclareBufferOp>(val.getDefiningOp())) {
-        offset += Byte(declareOp.byteOffset());
+        offset += Byte(declareOp.dataIndex());
     }
 
     if (auto subViewOp = mlir::dyn_cast_or_null<IERT::SubViewOp>(val.getDefiningOp())) {
@@ -79,18 +79,18 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
     _log.trace("Found view-like Operation '{0}'", origOp->getLoc());
 
     const auto origVal = origOp->getResult(0);
-    const Byte offset = calculateOffset(origVal);
+    const Byte dataOffset = calculateOffset(origVal);
 
     const auto rootVal = _aliasInfo->getRoot(origVal);
 
-    VPURT::BufferSection section = VPURT::BufferSection::DDR;
-    Optional<int64_t> sectionIndex;
+    VPUIP::MemoryLocation locale = VPUIP::MemoryLocation::VPU_DDR_Heap;
+    SmallVector<int64_t> localeIndex;
 
     if (auto declareOp = rootVal.getDefiningOp<VPURT::DeclareBufferOp>()) {
         _log.nest().trace("It aliases internal buffer produced by '{0}'", declareOp->getLoc());
 
-        section = declareOp.section();
-        sectionIndex = declareOp.sectionIndex();
+        locale = declareOp.locale();
+        localeIndex = parseIntArrayAttr<int64_t>(declareOp.localeIndex());
     } else if (auto blockArg = rootVal.dyn_cast<mlir::BlockArgument>()) {
         _log.nest().trace("It aliases Block argument '{0}'", blockArg);
 
@@ -116,18 +116,18 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         if (argInd < numNetInputs) {
             _log.nest(2).trace("It aliases network input");
 
-            section = VPURT::BufferSection::NetworkInput;
-            sectionIndex = argInd;
+            locale = VPUIP::MemoryLocation::ProgrammableInput;
+            localeIndex.push_back(argInd);
         } else if (argInd < numNetInputs + numNetOutputs) {
             _log.nest(2).trace("It aliases network output");
 
-            section = VPURT::BufferSection::NetworkOutput;
-            sectionIndex = argInd - numNetInputs;
+            locale = VPUIP::MemoryLocation::ProgrammableOutput;
+            localeIndex.push_back(argInd - numNetInputs);
         } else if (argInd < numNetInputs + numOutputs) {
             _log.nest(2).trace("It aliases network output");
 
-            section = VPURT::BufferSection::ProfilingOutput;
-            sectionIndex = argInd - numNetInputs - numNetOutputs;
+            locale = VPUIP::MemoryLocation::ProfilingOutput;
+            localeIndex.push_back(argInd - numNetInputs - numNetOutputs);
         } else {
             VPUX_THROW("The view source doesn't belong to network entry point Function");
         }
@@ -135,14 +135,8 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         VPUX_THROW("Unknown source owner");
     }
 
-    const auto outType = origOp->getResult(0).getType().cast<mlir::MemRefType>();
-
-    if (sectionIndex.hasValue()) {
-        rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, section, sectionIndex.getValue(),
-                                                            offset.count());
-    } else {
-        rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, section, offset.count());
-    }
+    const auto outType = origOp->getResult(0).getType();
+    rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, locale, localeIndex, dataOffset.count());
 
     return mlir::success();
 }

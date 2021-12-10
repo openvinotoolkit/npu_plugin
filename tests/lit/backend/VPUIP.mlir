@@ -18,6 +18,7 @@ IERT.RunTimeResources
         ExecutorResource 4 of "NCE" {
             ExecutorResource 5 of "DPU"
         }
+        ExecutorResource 1 of "DMA_UPA"
         ExecutorResource 1 of "DMA_NN"
     }
 
@@ -31,13 +32,13 @@ IE.CNNNetwork
     }
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
-    %0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x1x1000xf16>
+    %0 = VPURT.DeclareBuffer "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
     %1 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
-    VPURT.Task updates(%1 : !VPURT.Barrier) {
+    VPURT.Task updates(%1 : !VPURT.Barrier) op :  {
         %2 = VPUIP.SoftMaxUPA {axisInd = 3} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
-    VPURT.Task waits(%1 : !VPURT.Barrier) {
-        %2 = VPUIP.NNDMA inputs(%2 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+    VPURT.Task waits(%1 : !VPURT.Barrier) op :  {
+        %2 = VPUIP.UPADMA inputs(%2 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
     return %arg1: memref<1x1x1x1000xf16>
 }

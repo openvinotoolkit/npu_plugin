@@ -12,12 +12,12 @@ vpux::VPUIP::BlobWriter::SpecificTask serialize(vpux::VPUIP::BlobWriter&writer);
 Serialize the Task to BLOB format
 NOTE: This method *must* be implemented by the user.
 
-#### `getExecutorKind`
+#### `getTaskType`
 
 ```c++
-static vpux::VPU::ExecutorKind getExecutorKind();
+static vpux::VPUIP::TaskType getTaskType();
 ```
-Get the executor for the Operation## UPATaskOpInterface (`VPUIP_UPATaskOpInterface`)
+Get the VPUIP TaskType for the Operation## UPATaskOpInterface (`VPUIP_UPATaskOpInterface`)
 
 Interface for VPUIP UPA Task
 ### Methods:

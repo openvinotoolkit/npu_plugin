@@ -530,17 +530,17 @@ VPUIP::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
     return umap.begin()->first;
 }
 
+}  // namespace
+
 // This is a helper routine to build new TensorReference out of NCE task output with provided
 // quantization scale parameters
-vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParams(VPUIP::NCEClusterTaskOp nceTask,
-                                                                                  VPUIP::BlobWriter& writer,
-                                                                                  ArrayRef<uint16_t> ppeQuantMult,
-                                                                                  ArrayRef<uint8_t> ppeQuantShift,
-                                                                                  int8_t ppeQuantPostShift) {
+vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParams(
+        vpux::VPUIP::NCEClusterTaskOp* nceTask, VPUIP::BlobWriter& writer, ArrayRef<uint16_t> ppeQuantMult,
+        ArrayRef<uint8_t> ppeQuantShift, int8_t ppeQuantPostShift) {
     // Get also ZP from output
     SmallVector<uint8_t> quantZeroPoints;
 
-    auto outputElementType = nceTask.output().getType().cast<mlir::ShapedType>().getElementType();
+    auto outputElementType = nceTask->output().getType().cast<mlir::ShapedType>().getElementType();
     if (const auto uniformQuantType = outputElementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         quantZeroPoints.push_back(checked_cast<uint8_t>(uniformQuantType.getZeroPoint()));
     } else if (const auto uniformQuantPerAxisType =
@@ -558,16 +558,26 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
                       "Mismatch of size between quant shift/mult vector and quant ZP:  {0} != {1}",
                       ppeQuantShift.size(), quantZeroPoints.size());
 
-    // Find corresponding DeclareBufferOp to get all the data needed to build new TensorReference
-    auto bufferOp = nceTask.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
-    VPUX_THROW_UNLESS(bufferOp != nullptr, "Unable to find parent DeclareBufferOp to build new TensorReference");
+    // Find corresponding DeclaretensorOp to get all the data needed to build
+    // new TensorReference
+    VPURT::DeclareBufferOp tensorOp;
+    if (mlir::isa<VPURT::DeclareBufferOp>(nceTask->output_buff().getDefiningOp())) {
+        tensorOp = nceTask->output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
+    } else if (mlir::isa<VPURT::DeclareBufferOp>(nceTask->parent_output().getDefiningOp())) {
+        tensorOp = nceTask->parent_output().getDefiningOp<VPURT::DeclareBufferOp>();
+    }
 
-    return writer.createTensorRef("output_tensor_scale_updated", nceTask.getType(), bufferOp.section(),
-                                  bufferOp.sectionIndex().getValueOr(0), bufferOp.byteOffset(), ppeQuantMult,
-                                  ppeQuantShift, ppeQuantPostShift, quantZeroPoints);
+    VPUX_THROW_UNLESS(tensorOp != nullptr, "Unable to find parent DeclareBufferOp to build new TensorReference");
+
+    ArrayRef<uint8_t> zeroPointsArrRef = makeArrayRef(quantZeroPoints);
+
+    return writer.createTensor(llvm::formatv("output_tensor_scale_updated").str(),
+                               nceTask->output().getType().cast<mlir::ShapedType>(), tensorOp.locale(),
+                               parseIntArrayAttr<uint32_t>(tensorOp.localeIndex()), tensorOp.dataIndex(), ppeQuantMult,
+                               ppeQuantShift, ppeQuantPostShift, zeroPointsArrRef, tensorOp.sparsityIndex(),
+                               tensorOp.storageElementIndex(), tensorOp.storageElementSize(), tensorOp.leadingOffset(),
+                               tensorOp.trailingOffset());
 }
-
-}  // namespace
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::BlobWriter& writer) {
     SmallVector<flatbuffers::Offset<MVCNN::NCEVariantFields>> variantList;
@@ -672,13 +682,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         is_continued = true;
     }
 
-    const auto inputData = writer.getTensorRef(input());
-    const auto weightsData = weights() != nullptr ? writer.getTensorRef(weights()) : 0;
-    const auto weightsTable = weight_table() != nullptr ? writer.getTensorRef(weight_table()) : 0;
-    const auto activationWindow = activation_window() != nullptr ? writer.getTensorRef(activation_window()) : 0;
+    const auto inputData = writer.getTensor(input());
+    const auto weightsData = weights() != nullptr ? writer.getTensor(weights()) : 0;
+    const auto weightsTable = weight_table() != nullptr ? writer.getTensor(weight_table()) : 0;
+    const auto activationWindow = activation_window() != nullptr ? writer.getTensor(activation_window()) : 0;
     const auto activationWindowChannelLength = checked_cast<int32_t>(activation_window_channel_length().getValueOr(0));
 
-    auto outputData = writer.getTensorRef(output());
+    auto outputData = writer.getTensor(output());
 
     // If quant scale (mult, shift) settings were provided as part of PPE block then use it to build new
     // output TensorReference. This is required for Eltwise operation which doesn't have weights table
@@ -690,12 +700,12 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     VPUX_THROW_WHEN(!isQuantizationProvided && !isQuantizationNotProvided, "Missing quantization scale settings.");
 
     if (isQuantizationProvided) {
-        outputData = getTensorReferenceWithUpdatedQuantParams(*this, writer, ppeQuantMult.getValue(),
+        outputData = getTensorReferenceWithUpdatedQuantParams(this, writer, ppeQuantMult.getValue(),
                                                               ppeQuantShift.getValue(), ppeQuantPostShift.getValue());
     }
 
-    const auto parentInputTensor = writer.getTensorRef(parent_input());
-    const auto parentOutputTensor = writer.getTensorRef(parent_output());
+    const auto parentInputTensor = writer.getTensor(parent_input());
+    const auto parentOutputTensor = writer.getTensor(parent_output());
 
     const auto invariantMPEMode = getMPEFrequentModeFromDPUTasks(variants());
 

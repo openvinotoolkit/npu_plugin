@@ -26,9 +26,9 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %0 = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %0 : tensor<1x1000xf16>
 
-    // CHECK-DAG:   [[VAR1:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1000xf16, "DDR">
+    // CHECK-DAG:   [[VAR1:%.+]] = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<1x1000xf16, "DDR">
 
-    // CHECK-DAG:   [[VAR2:%.+]] = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
+    // CHECK-DAG:   [[VAR2:%.+]] = VPURT.ConfigureBarrier {virtualId = 0 : i64}<0> -> !VPURT.Barrier
 
     // CHECK-NEXT:  VPURT.Task
     // CHECK-SAME:              updates([[VAR2]] : !VPURT.Barrier)
@@ -93,12 +93,12 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
 
     // CHECK-DAG:   [[CST:%.+]] = const.Declare
 
-    // CHECK-DAG:   [[BUF0:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x2x2x2xf16, "DDR">
-    // CHECK-DAG:   [[BUF1:%.+]] = VPURT.DeclareBuffer "DDR" <64> -> memref<1x2x2x2xf16, "DDR">
+    // CHECK-DAG:   [[BUF0:%.+]] = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<1x2x2x2xf16, "DDR">
+    // CHECK-DAG:   [[BUF1:%.+]] = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <64> -> memref<1x2x2x2xf16, "DDR">
 
-    // CHECK-DAG:   [[BAR0:%.+]] = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
-    // CHECK-DAG:   [[BAR1:%.+]] = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
-    // CHECK-DAG:   [[BAR2:%.+]] = VPURT.ConfigureBarrier<2> -> !VPURT.Barrier
+    // CHECK-DAG:   [[BAR0:%.+]] = VPURT.ConfigureBarrier {virtualId = 0 : i64}<0> -> !VPURT.Barrier
+    // CHECK-DAG:   [[BAR1:%.+]] = VPURT.ConfigureBarrier {virtualId = 1 : i64}<1> -> !VPURT.Barrier
+    // CHECK-DAG:   [[BAR2:%.+]] = VPURT.ConfigureBarrier {virtualId = 2 : i64}<2> -> !VPURT.Barrier
 
     // CHECK:       VPURT.Task
     // CHECK-SAME:              updates([[BAR0]] : !VPURT.Barrier)

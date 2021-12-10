@@ -56,63 +56,68 @@ private:
 };
 
 mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto inConstOp = origOp.input().getDefiningOp<Const::DeclareOp>();
-    if (inConstOp == nullptr) {
+    auto declareConstOp = origOp.input().getDefiningOp<Const::DeclareOp>();
+    if (!declareConstOp) {
         return mlir::failure();
     }
-
-    auto outBufferOp = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
-    if (outBufferOp == nullptr) {
+    auto declareTensorOp = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
+    if (!declareTensorOp) {
         return mlir::failure();
     }
-
-    const auto inContentAttr = inConstOp.contentAttr();
-    const auto inContentType = inContentAttr.getType();
-
+    const auto attr = declareConstOp.contentAttr();
+    const auto type = attr.getType();
     // TODO find out whether other data types can be compressed.
-    if (!inContentType.getElementType().isa<mlir::quant::QuantizedType>()) {
+    if (!type.getElementType().isa<mlir::quant::QuantizedType>()) {
         return mlir::failure();
     }
-
     constexpr Byte MIN_INPUT_SIZE = 4_KB;
     const Byte totalInputSize = getTotalSize(origOp.input());
     if (totalInputSize < MIN_INPUT_SIZE) {
         return mlir::failure();
     }
+    const size_t totalByteSize = totalInputSize.count();
+    const auto content = attr.fold();
 
-    const auto inContent = inContentAttr.fold();
-    std::vector<uint8_t> origData(checked_cast<size_t>(totalInputSize.count()));
-    inContent.copyTo(makeMutableArrayRef(reinterpret_cast<char*>(origData.data()), origData.size()));
+    std::vector<uint8_t> dataVec(alignVal(totalByteSize, sizeof(uint64_t)), 0);
 
-    const auto compressedData = _codec->compress(origData);
+    const auto buf = makeMutableArrayRef(reinterpret_cast<char*>(dataVec.data()), totalByteSize);
+    content.copyTo(buf);
+
+    const auto compressedData = _codec->compress(dataVec);
     if (compressedData.empty()) {
         return mlir::failure();
     }
 
-    const auto elemTypeU8 = getUInt8Type(rewriter.getContext());
-
+    auto origDstTensor = declareTensorOp;
+    const auto location = origDstTensor.locale();
+    const auto localeIndex = origDstTensor.localeIndex();
+    const auto dataIndex = origDstTensor.dataIndex();
+    const auto dstMemSpace = origDstTensor.getType().cast<mlir::MemRefType>().getMemorySpace();
     // TODO find out whether the destination shape also has to be flat.
-    const Shape flatDstShape{checked_cast<int64_t>(origData.size()), 1, 1, 1};
-    const auto newDstType =
-            getMemRefType(flatDstShape, elemTypeU8, DimsOrder::NCHW, outBufferOp.getType().getMemorySpace());
+    const auto elemTypeU8 = getUInt8Type(rewriter.getContext());
+    const Shape flatDstTensorShape{checked_cast<int64_t>(dataVec.size()), 1, 1, 1};
+    auto dstTensorType = getMemRefType(flatDstTensorShape, elemTypeU8, DimsOrder::NCHW, dstMemSpace);
+    auto dstTensor = rewriter.create<VPURT::DeclareBufferOp>(origOp->getLoc(), dstTensorType, location,
+                                                             parseIntArrayAttr<int64_t>(localeIndex), dataIndex);
+    const Shape flatSrcTensorShape{checked_cast<int64_t>(compressedData.size()), 1, 1, 1};
+    const auto dataStorageType = mlir::RankedTensorType::get(flatSrcTensorShape.raw(), elemTypeU8);
+    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, mlir::ArrayRef<uint8_t>(compressedData));
 
-    auto newDstBufferOp =
-            rewriter.create<VPURT::DeclareBufferOp>(origOp->getLoc(), newDstType, outBufferOp.sectionAttr(),
-                                                    outBufferOp.sectionIndexAttr(), outBufferOp.byteOffsetAttr());
-
-    const Shape flatSrcShape{checked_cast<int64_t>(compressedData.size()), 1, 1, 1};
-    const auto newSrcStorageType = mlir::RankedTensorType::get(flatSrcShape.raw(), elemTypeU8);
-    const auto newSrcContentAttr = mlir::DenseElementsAttr::get(newSrcStorageType, makeArrayRef(compressedData));
     const auto srcMemSpace = origOp.input().getType().cast<mlir::MemRefType>().getMemorySpace();
-    const auto newSrcType = getMemRefType(flatSrcShape, elemTypeU8, DimsOrder::NCHW, srcMemSpace);
+    const auto dataType = getMemRefType(flatSrcTensorShape, elemTypeU8, DimsOrder::NCHW, srcMemSpace);
 
-    auto newSrcConstOp =
-            rewriter.create<Const::DeclareOp>(origOp->getLoc(), newSrcType, Const::ContentAttr::get(newSrcContentAttr));
-
+    auto srcTensor = rewriter.create<Const::DeclareOp>(origOp->getLoc(), dataType, Const::ContentAttr::get(dataAttr));
+    // Compressed tensor must be flat because of the check in the inference runtime.
+    const auto srcTensorShape = getShape(srcTensor).raw();
+    const auto nonTrivialDims =
+            std::count_if(srcTensorShape.begin(), srcTensorShape.end(), [](const int64_t& dim) -> bool {
+                return dim > 1;
+            });
+    VPUX_THROW_WHEN(nonTrivialDims > 1, "NNDMAOpConverter::matchAndRewrite: source tensor is not flat");
+    // Introducing CompressedDMAOp which drops IERT_SameShape interface, since it is not applicable for compression.
+    rewriter.create<VPUIP::CompressedDMAOp>(origOp->getLoc(), srcTensor, dstTensor);
     _log.trace("Compressing weights for {0}", origOp->getLoc());
-    rewriter.create<VPUIP::CompressedDMAOp>(origOp->getLoc(), newSrcConstOp.output(), newDstBufferOp.buffer(),
-                                            origOp.portAttr(), origOp.is_out_of_orderAttr(), origOp.is_criticalAttr());
-    rewriter.replaceOp(origOp, {outBufferOp.buffer()});
+    rewriter.replaceOp(origOp, {declareTensorOp});
 
     return mlir::success();
 }

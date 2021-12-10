@@ -16,7 +16,7 @@
 
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
-include "vpux/compiler/dialect/VPURT/attributes.td"
+include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPURT/types.td"
 include "vpux/compiler/dialect/VPURT/dialect.td"
 include "vpux/compiler/dialect/VPURT/ops_interfaces.td"
@@ -79,24 +79,34 @@ def VPURT_DeclareBufferOp :
                 DotInterface
             ]
         > {
-    let summary = "Declare VPU run-time buffer";
+    let summary = "TensorReference value declaration";
 
     let arguments = (ins
-        VPURT_BufferSection:$section,
-        OptionalAttr<IntAttr>:$sectionIndex,
-        IntAttr:$byteOffset
+        VPUIP_MemoryLocation:$locale,
+        I64ArrayAttr:$localeIndex,
+
+        IntAttr:$dataIndex,
+        OptionalAttr<IntAttr>:$sparsityIndex,
+        OptionalAttr<IntAttr>:$storageElementIndex,
+        OptionalAttr<IntAttr>:$storageElementSize,
+
+        OptionalAttr<IntAttr>:$leadingOffset,
+        OptionalAttr<IntAttr>:$trailingOffset
     );
 
     let results = (outs
-        AnyMemRef:$buffer
+        AnyMemRef:$memory
     );
 
     let builders = [
         OpBuilder<
-            (ins "mlir::MemRefType":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$byteOffset)
+            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint64_t":$dataIndex)
         >,
         OpBuilder<
-            (ins "mlir::MemRefType":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$sectionIndex, "int64_t":$byteOffset)
+            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint32_t":$localeIndex, "uint64_t":$dataIndex)
+        >,
+        OpBuilder<
+            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "ArrayRef<int64_t>":$localeIndex, "uint64_t":$dataIndex)
         >
     ];
 
@@ -105,10 +115,13 @@ def VPURT_DeclareBufferOp :
     }];
 
     let assemblyFormat = [{
-        $section (`[` $sectionIndex^ `]`)? `<` $byteOffset `>` attr-dict `->` type(results)
+        $locale custom<LocaleIndex>($localeIndex) `<` $dataIndex `>` attr-dict `->` type(results)
     }];
 
     let extraClassDeclaration = [{
+        static mlir::ParseResult parseLocaleIndex(mlir::OpAsmParser& parser, mlir::ArrayAttr& localeIndex);
+        static void printLocaleIndex(mlir::OpAsmPrinter& printer, vpux::VPURT::DeclareBufferOp& op, mlir::ArrayAttr localeIndex);
+
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::ORANGE;
         }
@@ -161,18 +174,24 @@ def VPURT_ConfigureBarrierOp :
     );
 
     let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::Controller;
+        }
+
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::AQUA;
         }
 
         bool printAttributes(llvm::raw_ostream& os) {
-            os << "id: " << id();
+            os << "id: " << idAttr().getInt();
             return true;
         }
     }];
 
     let assemblyFormat = [{
-        `<` $id `>` attr-dict `->` type(results)
+        attr-dict
+        `<` $id `>`
+        `->` type(results)
     }];
 }
 
@@ -200,7 +219,7 @@ def VPURT_TaskOp :
     );
 
     let regions = (region
-        SizedRegion<1>:$body
+        SizedRegion<1>:$op
     );
 
     let verifier = [{
@@ -208,22 +227,19 @@ def VPURT_TaskOp :
     }];
 
     let extraClassDeclaration = [{
-        vpux::VPUIP::TaskOpInterface getInnerTaskOp();
-
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::AQUA;
         }
 
         void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-
-        vpux::VPU::ExecutorKind getExecutorKind();
+        vpux::VPUIP::TaskType getTaskType();
     }];
 
     let assemblyFormat = [{
+        attr-dict
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-        attr-dict-with-keyword
-        $body
+        `op` `:` $op
     }];
 }
 

@@ -24,7 +24,7 @@ template <typename OpTy, typename... Args>
 OpTy wrapIntoTaskOp(mlir::OpBuilder& builder, mlir::ValueRange waitBarriers, mlir::ValueRange updateBarriers,
                     mlir::Location loc, Args&&... args) {
     auto taskOp = builder.create<vpux::VPURT::TaskOp>(loc, waitBarriers, updateBarriers);
-    auto& block = taskOp.body().emplaceBlock();
+    auto& block = taskOp.op().emplaceBlock();
 
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToStart(&block);

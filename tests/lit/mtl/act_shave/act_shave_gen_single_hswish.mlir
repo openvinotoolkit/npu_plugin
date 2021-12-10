@@ -46,18 +46,18 @@ module @VPU.SW {
 
 func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
-    %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "CMX_NN">
-    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "CMX_NN">
+    %in_tile0_cmx  = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "CMX_NN">
+    %out_tile0_cmx = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "CMX_NN">
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
 
-    VPURT.Task updates(%b0 : !VPURT.Barrier) {
+    VPURT.Task updates(%b0 : !VPURT.Barrier) op : {
         VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) -> memref<1x1x1x1000xf16, "CMX_NN">
     }
 
     // Genetic Kernel information for the scheduler.
-    VPURT.Task waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) {
+    VPURT.Task waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) op : {
     %sigmoid_krn =
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_hswish            // The reference to the Kernel function.
@@ -78,7 +78,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
         }
     }
 
-    VPURT.Task waits(%b1 : !VPURT.Barrier) {
+    VPURT.Task waits(%b1 : !VPURT.Barrier) op : {
         %0 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) outputs(%2 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
     return %2: memref<1x1x1x1000xf16>
@@ -195,16 +195,19 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:          {
 // CHECK:            name: "actSHAVE1_stack",
 // CHECK:            locale: "GFEmbeddedKernel",
+// CHECK:            locale_offset: 1,
 // CHECK:            referenced_data_size: 4096
 // CHECK:          },
 // CHECK:          {
 // CHECK:            name: "actSHAVE2_stack",
 // CHECK:            locale: "GFEmbeddedKernel",
+// CHECK:            locale_offset: 2,
 // CHECK:            referenced_data_size: 4096
 // CHECK:          },
 // CHECK:          {
 // CHECK:            name: "actSHAVE3_stack",
 // CHECK:            locale: "GFEmbeddedKernel",
+// CHECK:            locale_offset: 3,
 // CHECK:            referenced_data_size: 4096
 // CHECK:          }
 // CHECK:        ],
@@ -241,6 +244,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                kernelText: {
 // CHECK:                  name: "builtin_hswish",
 // CHECK:                  locale: "GFEmbeddedKernel",
+// CHECK:                  locale_offset: 5,
 // CHECK:                  referenced_data_size: 1760
 // CHECK:                }
 // CHECK:              },
@@ -257,10 +261,12 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                  dataSection: {
 // CHECK:                    name: "builtin_hswish_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
+// CHECK:                    locale_offset: 6,
 // CHECK:                  },
 // CHECK:                  invocationArgs: {
 // CHECK:                    name: "builtin_hswish_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
+// CHECK:                    locale_offset: 6,
 // CHECK:                    referenced_data_size: 168
 // CHECK:                  }
 // CHECK:                }

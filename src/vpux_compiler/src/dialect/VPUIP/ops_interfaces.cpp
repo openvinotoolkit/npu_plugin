@@ -64,21 +64,23 @@ mlir::Attribute vpux::VPUIP::getExecutorAttr(uint32_t& numUnits, mlir::Operation
 
 mlir::Attribute vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits) {
     auto task = mlir::cast<VPUIP::TaskOpInterface>(op);
-    const auto executor = task.getExecutorKind();
+    const auto taskType = task.getTaskType();
 
-    switch (executor) {
-    case VPU::ExecutorKind::DMA_NN:
+    switch (taskType) {
+    case VPUIP::TaskType::UPADMA:
+        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::DMA_UPA, 1);
+    case VPUIP::TaskType::NNDMA:
         return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::DMA_NN, 1);
-    case VPU::ExecutorKind::NCE:
+    case VPUIP::TaskType::NCE2:
         return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::NCE, 1);
-    case VPU::ExecutorKind::SHAVE_ACT:
-        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::SHAVE_ACT, 1);
-    case VPU::ExecutorKind::SHAVE_UPA: {
+    case VPUIP::TaskType::ACTShave:
+        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::SHAVE_NN, 1);
+    case VPUIP::TaskType::UPA: {
         auto upaTask = mlir::cast<VPUIP::UPATaskOpInterface>(op);
         return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::SHAVE_UPA, upaTask.maxShaves());
     }
     default:
-        VPUX_THROW("Unsupported executor '{0}'", executor);
+        VPUX_THROW("Unsupported task type '{0}'", taskType);
     }
 }
 

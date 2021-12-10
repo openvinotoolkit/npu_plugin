@@ -33,10 +33,10 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
         >,
 
         StaticInterfaceMethod<
-            "Get the executor for the Operation",
-            "vpux::VPU::ExecutorKind", "getExecutorKind", (ins),
+            "Get the VPUIP TaskType for the Operation",
+            "vpux::VPUIP::TaskType", "getTaskType", (ins),
             [{
-                return ConcreteOp::getExecutorKind();
+                return ConcreteOp::getTaskType();
             }]
         >,
     ];
@@ -84,8 +84,8 @@ def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
     }];
 
     let extraTraitClassDeclaration = [{
-        static vpux::VPU::ExecutorKind getExecutorKind() {
-            return vpux::VPU::ExecutorKind::SHAVE_UPA;
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::UPA;
         }
     }];
 }

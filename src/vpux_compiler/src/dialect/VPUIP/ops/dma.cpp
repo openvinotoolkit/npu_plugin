@@ -38,24 +38,35 @@ mlir::LogicalResult verifyTensorSize(mlir::Location loc, mlir::Value tensor) {
 }  // namespace
 
 //
+// UPADMAOp
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto inputOff = writer.getTensor(input());
+    const auto outputOff = writer.getTensor(output());
+
+    MVCNN::UPADMATaskBuilder builder(writer);
+    builder.add_src(inputOff);
+    builder.add_dst(outputOff);
+    return {builder.Finish().Union(), MVCNN::SpecificTask_UPADMATask};
+}
+
+mlir::LogicalResult vpux::VPUIP::verifyOp(UPADMAOp op) {
+    return verifyTensorSize(op.getLoc(), op.input());
+}
+
+//
 // NNDMAOp
 //
 
-void vpux::VPUIP::NNDMAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                 mlir::Value output_buff) {
-    build(builder, state, input, output_buff, /*port=*/0, /*is_out_of_order=*/false, /*is_critical=*/false);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto srcOff = writer.getTensorRef(input());
-    const auto dstOff = writer.getTensorRef(output_buff());
+    const auto srcOff = writer.getTensor(input());
+    const auto dstOff = writer.getTensor(output_buff());
 
     MVCNN::NNDMATaskBuilder builder(writer);
     builder.add_src(srcOff);
     builder.add_dst(dstOff);
     builder.add_port(checked_cast<uint8_t>(port()));
-    builder.add_set_ord(static_cast<uint8_t>(!is_out_of_order()));  // ORD
-    builder.add_set_crit(static_cast<uint8_t>(is_critical()));      // CRIT
     return {builder.Finish().Union(), MVCNN::SpecificTask_NNDMATask};
 }
 
@@ -67,21 +78,17 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(NNDMAOp op) {
 // CompressedDMAOp
 //
 
-void vpux::VPUIP::CompressedDMAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                         mlir::Value output_buff) {
-    build(builder, state, input, output_buff, /*port=*/0, /*is_out_of_order=*/false, /*is_critical=*/false);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CompressedDMAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto srcOff = writer.getTensorRef(input());
-    const auto dstOff = writer.getTensorRef(output_buff());
+    const auto srcOff = writer.getTensor(input());
+    const auto dstOff = writer.getTensor(output_buff());
 
     MVCNN::NNDMATaskBuilder builder(writer);
     builder.add_src(srcOff);
     builder.add_dst(dstOff);
     builder.add_compression(true);
     builder.add_port(checked_cast<uint8_t>(port()));
-    builder.add_set_ord(static_cast<uint8_t>(!is_out_of_order()));  // ORD
-    builder.add_set_crit(static_cast<uint8_t>(is_critical()));      // CRIT
+    // TODO uncomment after schema change
+    // builder.add_set_ord(checked_cast<uint8_t>(set_ord()));
+    // builder.add_set_crit(checked_cast<uint8_t>(set_crit()));
     return {builder.Finish().Union(), MVCNN::SpecificTask_NNDMATask};
 }

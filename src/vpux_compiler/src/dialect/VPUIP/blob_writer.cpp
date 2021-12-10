@@ -64,7 +64,7 @@ SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::
                                   kernelOpArgsCount);
 
                 const auto operandVal = swKernelOp->getOpOperand(id).get();
-                const auto tensorRefOffset = blobWriter.getTensorRef(operandVal);
+                const auto tensorRefOffset = blobWriter.getTensor(operandVal);
 
                 auto tensorRef = flatbuffers::GetTemporaryPointer(blobWriter, tensorRefOffset);
                 invocationBuilder.addTensorArg(operandVal, tensorRef);
@@ -150,15 +150,15 @@ const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::
     return _actKernelsData;
 }
 
-vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(const KernelDataDesc& desc) {
-    // offset is 1 to force field to be serialized by FlatBuffers
+vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(const KernelDataDesc& desc,
+                                                                                    MemoryLocation locale) {
+    // offset is 1 to force field to be serialized by FB
     const uint64_t non_empty_offset = 1;
-    return createKernelDataRef(desc.name, non_empty_offset, desc.size, desc.data);
+    return createKernelDataRef(desc.name, locale, non_empty_offset, desc.size, desc.data);
 }
 
-vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(StringRef name, uint64_t dataOffset,
-                                                                                    uint64_t dataSize,
-                                                                                    ArrayRef<uint8_t> content) {
+vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(
+        StringRef name, MemoryLocation locale, uint64_t dataOffset, uint64_t dataSize, ArrayRef<uint8_t> content) {
     auto kernelMapEntries = _actKernelsData.find(name.str());
 
     // if cache not used - need to create unique_name
@@ -169,7 +169,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
         _actKernelsData[name.data()] = {name.data(), buildKernelData(_impl, content), content.size()};
     }
     auto strName = _impl.CreateString(name.data());
-    const auto serializedLocale = createMemoryLocation(VPURT::BufferSection::SW_KernelText);
+    const auto serializedLocale = createMemoryLocation(locale);
 
     MVCNN::KernelDataReferenceBuilder kernelData(_impl);
 
@@ -190,6 +190,9 @@ vpux::VPUIP::BlobWriter::ActKernel vpux::VPUIP::BlobWriter::createRuntimeKernelT
     auto swRuntimeOp = mlir::dyn_cast<VPURT::SWRunTimeOp>(op);
     VPUX_THROW_UNLESS(swRuntimeOp != nullptr, "Operation '{0}' is not a SWRuntimeOp", op->getName());
 
+    flatbuffers::Offset<MVCNN::ActKernel> runtimeKernel;
+    constexpr auto kernelStorageLocale = vpux::VPUIP::MemoryLocation::GFEmbeddedKernel;
+
     auto kernelFunc = module.lookupSymbol<mlir::FuncOp>(swRuntimeOp.entryPointAttr());
     VPUX_THROW_UNLESS(kernelFunc, "Undefined runtime kernel : '{0}'", swRuntimeOp.entryPointAttr());
 
@@ -205,14 +208,15 @@ vpux::VPUIP::BlobWriter::ActKernel vpux::VPUIP::BlobWriter::createRuntimeKernelT
     compileKernelForACTShave(listDesc, params);
 
     auto runtimeKernelDesc = compileManagementKernelData();
-    auto runtimeKernelText = createKernelDataRef(runtimeKernelDesc.text);
-    auto runtimeKernelData = createKernelDataRef(runtimeKernelDesc.data);
+    auto runtimeKernelText = createKernelDataRef(runtimeKernelDesc.text, kernelStorageLocale);
+    auto runtimeKernelData = createKernelDataRef(runtimeKernelDesc.data, kernelStorageLocale);
 
     MVCNN::ActKernelBuilder kernelbuilder(*this);
     kernelbuilder.add_kernelText(runtimeKernelText);
     kernelbuilder.add_globalArgs(runtimeKernelData);
     kernelbuilder.add_type(MVCNN::ActKernelType_KERNEL);
     kernelbuilder.add_kernelEntry(0);
+
     return kernelbuilder.Finish();
 }
 
@@ -240,7 +244,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     CompilationUnitDesc compilationDesc = {kernelFunc.getName(), kernelEntryPoint.getValue()};
     auto actKernelDesc = compileKernelData(compilationDesc);
 
-    auto kernelText = createKernelDataRef(actKernelDesc.text);
+    // this is the only supported storage so far
+    const auto kernelStorageLocale = vpux::VPUIP::MemoryLocation::GFEmbeddedKernel;
+
+    auto kernelText = createKernelDataRef(actKernelDesc.text, kernelStorageLocale);
 
     MVCNN::ActKernelBuilder kernelbuilder(_impl);
     kernelbuilder.add_kernelText(kernelText);
@@ -292,13 +299,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     const uint64_t non_empty_offset = 1;
 
     // offset is preliminary and will be further corrected 1 is force flatbuffer to produce 4 bytes in storage
-    auto dataSection =
-            createKernelDataRef(uniqueInvocationName, non_empty_offset, actKernelDesc.data.size, invocationArgsAndData);
+    auto dataSection = createKernelDataRef(uniqueInvocationName, kernelStorageLocale, non_empty_offset,
+                                           actKernelDesc.data.size, invocationArgsAndData);
 
     // offset is preliminary and will be further corrected
-    auto invocationSection =
-            createKernelDataRef(uniqueInvocationName, non_empty_offset + actKernelDesc.data.data.size(),
-                                invocationArgs.size(), invocationArgsAndData);
+    auto invocationSection = createKernelDataRef(uniqueInvocationName, kernelStorageLocale,
+                                                 non_empty_offset + actKernelDesc.data.data.size(),
+                                                 invocationArgs.size(), invocationArgsAndData);
 
     MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
     invocationBuilder.add_dataSection(dataSection);
@@ -333,7 +340,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     const auto isTrailingSWLayer = taskOp.isTrailingSWLayer();
 
     const auto getTensorCb = [this](mlir::Value val) {
-        return getTensorRef(val);
+        return getTensor(val);
     };
 
     const auto inputs = createVector(layer.getInputs() | transformed(getTensorCb));
@@ -360,9 +367,12 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     return {builder.Finish().Union(), MVCNN::SpecificTask_UPALayerTask};
 }
 
-VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
-        StringRef name, mlir::ShapedType type, VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset,
-        ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints) {
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
+        StringRef name, mlir::ShapedType type, MemoryLocation locale, ArrayRef<uint32_t> localeIndex, int64_t dataIndex,
+        ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints,
+        Optional<int64_t> sparsityIndex, Optional<int64_t> storageElementIndex, Optional<int64_t> storageElementSize,
+        Optional<int64_t> leadingOffset, Optional<int64_t> trailingOffset, Optional<double> density_rate,
+        Optional<int64_t> swizzling_key) {
     const auto serializedName = createString(name);
 
     const auto serializedDataType = createDType(type.getElementType());
@@ -370,10 +380,11 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
     const auto serializedStrides = createStrides(type);
     const auto dimsOrder = DimsOrder::fromType(type);
 
-    const auto serializedDataReference = createIndirectDataReference(byteOffset);
+    const auto serializedDataReference =
+            createIndirectDataReference(dataIndex, sparsityIndex, storageElementIndex, storageElementSize);
 
-    const auto serializedLocale = createMemoryLocation(section);
-    const auto serializedLocaleIndex = createVector(makeArrayRef({checked_cast<uint32_t>(sectionIndex)}));
+    const auto serializedLocale = createMemoryLocation(locale);
+    const auto serializedLocaleIndex = createVector(localeIndex);
 
     Vector<uint8_t> serializedQuantZero = createVector(zeroPoints);
     Vector<uint16_t> serializedQuantMult = createVector(mult);
@@ -395,15 +406,29 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
     builder.add_quant_post_shift_right(postShift);
     builder.add_order(dimsOrder.code());
     builder.add_base_ptrs(basePtrs);
+    if (leadingOffset.hasValue()) {
+        builder.add_leading_offset(checked_cast<uint32_t>(leadingOffset.getValue()));
+    }
+    if (trailingOffset.hasValue()) {
+        builder.add_trailing_offset(checked_cast<uint32_t>(trailingOffset.getValue()));
+    }
+    if (density_rate.hasValue()) {
+        builder.add_density_rate(static_cast<float>(density_rate.getValue()));
+    }
+    if (swizzling_key.hasValue()) {
+        builder.add_swizzling_key(checked_cast<uint8_t>(swizzling_key.getValue()));
+    }
     return builder.Finish();
 }
 
-VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(StringRef name, mlir::ShapedType type,
-                                                                            VPURT::BufferSection section,
-                                                                            int64_t sectionIndex, int64_t byteOffset) {
-    SmallVector<uint8_t> zeroPoints;
-    SmallVector<uint16_t> mult;
-    SmallVector<uint8_t> shift;
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
+        StringRef name, mlir::ShapedType type, MemoryLocation locale, ArrayRef<uint32_t> localeIndex, int64_t dataIndex,
+        Optional<int64_t> sparsityIndex, Optional<int64_t> storageElementIndex, Optional<int64_t> storageElementSize,
+        Optional<int64_t> leadingOffset, Optional<int64_t> trailingOffset, Optional<double> density_rate,
+        Optional<int64_t> swizzling_key) {
+    std::vector<uint8_t> zeroPoints;
+    std::vector<uint16_t> mult;
+    std::vector<uint8_t> shift;
 
     if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>()) {
         zeroPoints.push_back(checked_cast<uint8_t>(qType.getZeroPoint()));
@@ -427,19 +452,28 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(Stri
         shift.push_back(0);
     }
 
-    return createTensorRef(name, type, section, sectionIndex, byteOffset, mult, shift, 0, zeroPoints);
+    return createTensor(name, type, locale, localeIndex, dataIndex, mult, shift, 0, zeroPoints, sparsityIndex,
+                        storageElementIndex, storageElementSize, leadingOffset, trailingOffset, density_rate,
+                        swizzling_key);
 }
 
-VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(mlir::Value val, StringRef name,
-                                                                            VPURT::BufferSection section,
-                                                                            int64_t sectionIndex, int64_t byteOffset) {
-    VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value '{0}' was already serialized", val.getLoc());
-    const auto ref = createTensorRef(name, val.getType().cast<mlir::ShapedType>(), section, sectionIndex, byteOffset);
-    _tensors.insert({val, ref});
-    return ref;
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
+        mlir::Value val, StringRef name, MemoryLocation locale, ArrayRef<uint32_t> localeIndex, int64_t dataIndex,
+        Optional<int64_t> sparsityIndex, Optional<int64_t> storageElementIndex, Optional<int64_t> storageElementSize,
+        Optional<int64_t> leadingOffset, Optional<int64_t> trailingOffset, Optional<double> density_rate,
+        Optional<int64_t> swizzling_key) {
+    VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value {0} was already serialized", val);
+
+    const auto off = createTensor(name, val.getType().cast<mlir::ShapedType>(), locale, localeIndex, dataIndex,
+                                  sparsityIndex, storageElementIndex, storageElementSize, leadingOffset, trailingOffset,
+                                  density_rate, swizzling_key);
+
+    _tensors.insert({val, off});
+
+    return off;
 }
 
-VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::getTensorRef(mlir::Value val) const {
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::getTensor(mlir::Value val) const {
     const auto it = _tensors.find(val);
     VPUX_THROW_UNLESS(it != _tensors.end(), "Value {0} wasn't serialized yet", val);
     return it->second;
@@ -472,8 +506,11 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
 
         unsigned usesCount = 1;
         if (auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(userOp)) {
-            if (auto nceClusterTaskOp =
-                        mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(taskOp.getInnerTaskOp().getOperation())) {
+            auto& block = taskOp.op().getBlocks().front();
+            VPUX_THROW_UNLESS(block.getOperations().size() == 1,
+                              "Unable to find child task in VPURT::TaskOp for get createBarrier");
+            auto& op = *block.begin();
+            if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(op)) {
                 usesCount = 0;
                 for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
                     VPUX_UNUSED(dpuTaskOp);
@@ -588,33 +625,29 @@ VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(mlir::Sh
     return createStrides(strides, getElemTypeSize(type));
 }
 
-MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(VPURT::BufferSection section) {
-    switch (section) {
-    case VPURT::BufferSection::NetworkInput:
-        return MVCNN::MemoryLocation_ProgrammableInput;
-    case VPURT::BufferSection::NetworkOutput:
-        return MVCNN::MemoryLocation_ProgrammableOutput;
-    case VPURT::BufferSection::ProfilingOutput:
-        return MVCNN::MemoryLocation_ProfilingOutput;
-    case VPURT::BufferSection::Constant:
-        return MVCNN::MemoryLocation_GraphFile;
-    case VPURT::BufferSection::SW_KernelText:
-        return MVCNN::MemoryLocation_GFEmbeddedKernel;
-    case VPURT::BufferSection::DDR:
-        return MVCNN::MemoryLocation_VPU_DDR_Heap;
-    case VPURT::BufferSection::CSRAM:
-        return MVCNN::MemoryLocation_VPU_CSRAM;
-    case VPURT::BufferSection::CMX_UPA:
-        return MVCNN::MemoryLocation_VPU_CMX_UPA;
-    case VPURT::BufferSection::CMX_NN:
-        return MVCNN::MemoryLocation_VPU_CMX_NN;
-    case VPURT::BufferSection::Register:
-        return MVCNN::MemoryLocation_AbsoluteAddr;
-    case VPURT::BufferSection::MAC_Accumulators:
-        return MVCNN::MemoryLocation_MAC_Accumulators;
+MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocation location) {
+#define CASE(_val_)             \
+    case MemoryLocation::_val_: \
+        return VPUX_COMBINE(MVCNN::MemoryLocation_, _val_)
+
+    switch (location) {
+        CASE(ProgrammableInput);
+        CASE(ProgrammableOutput);
+        CASE(ProfilingOutput);
+        CASE(VPU_DDR_Heap);
+        CASE(GraphFile);
+        CASE(VPU_CMX_NN);
+        CASE(VPU_CMX_UPA);
+        CASE(VPU_DDR_BSS);
+        CASE(VPU_CSRAM);
+        CASE(AbsoluteAddr);
+        CASE(MAC_Accumulators);
+        CASE(GFEmbeddedKernel);
     default:
-        VPUX_THROW("Unsupported BufferSection {0}", section);
+        VPUX_THROW("Unsupported MemoryLocation {0}", location);
     }
+
+#undef CASE
 }
 
 VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirectDataReference(
@@ -680,7 +713,7 @@ void vpux::VPUIP::BlobWriter::setAliasForSerializedTensors(mlir::Operation* op) 
         VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
                           source.getType());
 
-        _tensors.insert({result, getTensorRef(source)});
+        _tensors.insert({result, getTensor(source)});
     } else if (auto multiLayer = mlir::dyn_cast<MultiViewOpInterface>(op)) {
         for (const auto result : multiLayer->getResults()) {
             VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
@@ -694,7 +727,7 @@ void vpux::VPUIP::BlobWriter::setAliasForSerializedTensors(mlir::Operation* op) 
             VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(),
                               "Only MemRef type tensors are supported, got '{0}'", source.getType());
 
-            _tensors.insert({result, getTensorRef(source)});
+            _tensors.insert({result, getTensor(source)});
         }
     }
 }

@@ -274,7 +274,6 @@ add_passes("dialect/VPUIP" "VPUIP")
 add_dialect("VPURT")
 add_op_interfaces("dialect/VPURT")
 add_types("VPURT")
-add_enum_attrs("VPURT")
 add_passes("dialect/VPURT" "VPURT")
 
 add_passes("conversion" "Conversion")

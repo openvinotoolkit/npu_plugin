@@ -83,7 +83,7 @@ mlir::LogicalResult InlineAsyncRegion::matchAndRewrite(mlir::async::ExecuteOp ex
 
         rewriter.setInsertionPoint(op);
         auto taskOp = rewriter.create<VPURT::TaskOp>(op->getLoc(), waitBarriers, updateBarriers);
-        auto& block = taskOp.body().emplaceBlock();
+        auto& block = taskOp.op().emplaceBlock();
         op->moveBefore(&block, block.end());
     }
 

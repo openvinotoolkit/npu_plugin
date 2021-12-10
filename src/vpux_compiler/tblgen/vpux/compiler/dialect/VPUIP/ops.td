@@ -54,8 +54,7 @@ class VPUIP_TaskOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
                     InferTypeOpInterface,
                     DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
                     IERT_AsyncLayerOpInterface,
-                    DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>,
-                    MemoryEffectsOpInterface
+                    DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
                 ]
             )
         > {
@@ -75,6 +74,71 @@ class VPUIP_UPATaskOp<int numResult, string mnemonic, list<OpTrait> traits = []>
                 ]
             )
         >;
+
+//
+// EmptyOp
+//
+
+def VPUIP_EmptyOp :
+        VPUIP_Op<"Empty",
+            [
+                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
+            ]
+        > {
+    let summary = "Empty management task";
+
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::Controller;
+        }
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+    }];
+}
+
+//
+// UPADMAOp
+//
+
+def VPUIP_UPADMAOp :
+        VPUIP_TaskOp<1, "UPADMA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "UPA DMA task";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::UPADMA;
+        }
+    }] # IERT_InferLayerReturnTypes<1>.impl;
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+}
 
 //
 // NNDMAOp
@@ -97,25 +161,18 @@ def VPUIP_NNDMAOp :
         AnyMemRef:$output_buff,
 
         DefaultValuedAttr<IntAttr, "0">:$port,
-        UnitAttr:$is_out_of_order,
-        UnitAttr:$is_critical
+        DefaultValuedAttr<BoolAttr, "true">:$set_ord,
+        DefaultValuedAttr<BoolAttr, "false">:$set_crit
     );
 
     let results = (outs
         AnyMemRef:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output_buff)
-        >
-    ];
-
     let extraClassDeclaration = [{
-        static vpux::VPU::ExecutorKind getExecutorKind() {
-            return vpux::VPU::ExecutorKind::DMA_NN;
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::NNDMA;
         }
-
         vpux::DotNodeColor getNodeColor() {
             const auto memKind = vpux::VPU::getMemoryKind(getType());
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
@@ -153,26 +210,17 @@ def VPUIP_CompressedDMAOp :
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
 
-        DefaultValuedAttr<IntAttr, "0">:$port,
-        UnitAttr:$is_out_of_order,
-        UnitAttr:$is_critical
+        DefaultValuedAttr<IntAttr, "0">:$port
     );
 
     let results = (outs
         AnyMemRef:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output_buff)
-        >
-    ];
-
     let extraClassDeclaration = [{
-        static vpux::VPU::ExecutorKind getExecutorKind() {
-            return vpux::VPU::ExecutorKind::DMA_NN;
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::NNDMA;
         }
-
         vpux::DotNodeColor getNodeColor() {
             const auto memKind = vpux::VPU::getMemoryKind(getType());
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
@@ -1554,7 +1602,7 @@ def VPUIP_ScaleShiftUPAOp :
             )
         >
     ];
-
+    
     let extraClassDeclaration = [{
         static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
     }] # commonExtraClassDeclaration;
@@ -2069,8 +2117,8 @@ def VPUIP_NCEClusterTaskOp :
 
         static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
 
-        static vpux::VPU::ExecutorKind getExecutorKind() {
-            return vpux::VPU::ExecutorKind::NCE;
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::NCE2;
         }
 
         static mlir::StringRef getDefaultDialect() {
@@ -2358,10 +2406,9 @@ def VPUIP_SwKernelOp :
     }];
 
     let extraClassDeclaration = [{
-        static vpux::VPU::ExecutorKind getExecutorKind() {
-            return vpux::VPU::ExecutorKind::SHAVE_ACT;
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::ACTShave;
         }
-
         static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
                                                     mlir::ValueRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
                                                     mlir::SmallVectorImpl<mlir::Type>& inferredTypes);
