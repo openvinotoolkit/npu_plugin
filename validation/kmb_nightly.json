@@ -4022,7 +4022,7 @@
                 "disabled" : true
             },
             "NetTest-CalcRef": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["224x224/husky.bmp"]],
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
@@ -4030,7 +4030,7 @@
                 ]
             },
             "NetTest-Validate": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["224x224/husky.bmp"]],
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
