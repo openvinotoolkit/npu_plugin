@@ -13,8 +13,8 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPURT/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 namespace vpux {
 
@@ -23,7 +23,6 @@ static constexpr StringLiteral virtualIdAttrName = "virtualId";
 
 class RuntimeSimulator final {
 public:
-
     struct TaskInfo {
         VPURT::TaskOp taskOp;
         SmallVector<int64_t> waitBarriers;
@@ -57,7 +56,7 @@ public:
     void getAllBarriersProducersAndConsumers();
     void computeOpIndegree();
     void computeOpOutdegree();
-    std::pair<int64_t,int64_t> getID(mlir::Operation* val) const;
+    std::pair<int64_t, int64_t> getID(mlir::Operation* val) const;
     static bool orderbyID(TaskInfo& a, TaskInfo& b);
     bool processTasks(std::vector<TaskInfo>& dma_task_list);
     bool fillBarrierTasks(std::list<VPURT::DeclareVirtualBarrierOp>& barrier_task_list);
@@ -68,7 +67,7 @@ private:
     std::vector<TaskInfo> _upaTasks;
     std::array<std::vector<TaskInfo>, MAX_DMA_ENGINES> _dmaTasks;
     std::list<VPURT::DeclareVirtualBarrierOp> _barrierOps;
-    std::map<mlir::Operation*, std::pair<int64_t,int64_t>> _virtualToPhysicalBarrierMap;
+    std::map<mlir::Operation*, std::pair<int64_t, int64_t>> _virtualToPhysicalBarrierMap;
     std::map<int64_t, VirtualBarrierInfo> _virtualBarriers;
 
     mlir::MLIRContext* _ctx;

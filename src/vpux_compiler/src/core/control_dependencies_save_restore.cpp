@@ -13,8 +13,6 @@
 
 #include "vpux/compiler/core/control_dependencies_save_restore.hpp"
 
-
-
 using namespace vpux;
 
 //
@@ -82,9 +80,8 @@ void ControlDependenciesSaveRestore::saveInitialControlFlow() {
 }
 
 void ControlDependenciesSaveRestore::restore() {
-
-    //Clear all barriers and control flows
-       _func->walk([](VPURT::TaskOp op) {
+    // Clear all barriers and control flows
+    _func->walk([](VPURT::TaskOp op) {
         op.updateBarriersMutable().clear();
         op.waitBarriersMutable().clear();
     });
@@ -94,14 +91,15 @@ void ControlDependenciesSaveRestore::restore() {
         op.erase();
     });
 
-    //Restore the model
+    // Restore the model
     for (const auto& p : barrierProducersMap) {
         auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
         for (auto* user : p.second) {
             auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
             assert(taskOp != NULL);
             assert(barrierOp.barrier() != NULL);
-            Logger::global().error("Adding Barrier ID {0} as an update barrier for operation {1}", barrierOp->getAttr("id"),FeasibleScheduleGenerator::getUniqueID(user));
+            Logger::global().error("Adding Barrier ID {0} as an update barrier for operation {1}",
+                                   barrierOp->getAttr("id"), FeasibleScheduleGenerator::getUniqueID(user));
             taskOp.updateBarriersMutable().append(barrierOp.barrier());
         }
     }
@@ -112,7 +110,8 @@ void ControlDependenciesSaveRestore::restore() {
             auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
             assert(taskOp != NULL);
             assert(barrierOp.barrier() != NULL);
-            Logger::global().error("Adding Barrier ID {0} as an wait barrier for operation {1}", barrierOp->getAttr("id"),FeasibleScheduleGenerator::getUniqueID(user));
+            Logger::global().error("Adding Barrier ID {0} as an wait barrier for operation {1}",
+                                   barrierOp->getAttr("id"), FeasibleScheduleGenerator::getUniqueID(user));
             taskOp.waitBarriersMutable().append(barrierOp.barrier());
         }
     }

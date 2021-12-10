@@ -307,7 +307,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     // Level 1 : VPU RunTime
 
     pm.addPass(VPURT::createAssignVirtualBarriersPass(log));
-    //pm.addPass(VPURT::createBarrierSimulationPass(log));
+    // pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPURT::createAssignPhysicalBarrierIDsPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }

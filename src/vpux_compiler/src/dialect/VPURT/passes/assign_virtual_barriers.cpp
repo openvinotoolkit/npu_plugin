@@ -10,9 +10,9 @@
 // to the "third-party-programs.txt" or other similarly-named text file
 // included with the Software Package for additional details.
 //
-#include "vpux/compiler/core/token_barrier_scheduler.hpp"
 #include "vpux/compiler/core/control_dependencies_save_restore.hpp"
 #include "vpux/compiler/core/runtime_simulator.hpp"
+#include "vpux/compiler/core/token_barrier_scheduler.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
@@ -39,19 +39,19 @@ private:
 void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
-    //auto module = func->getParentOfType<mlir::ModuleOp>();
-    //auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
-    //bool success = false;
+    // auto module = func->getParentOfType<mlir::ModuleOp>();
+    // auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+    // bool success = false;
 
-    //Save intial dependencies 
-    //ControlDependenciesSaveRestore model(&ctx,func);
+    // Save intial dependencies
+    // ControlDependenciesSaveRestore model(&ctx,func);
     // model.saveInitialControlFlow();
 
-    //Barrier scheduler
-    TokenBasedBarrierScheduler barrierScheduler(&ctx,func, 4, 256);
+    // Barrier scheduler
+    TokenBasedBarrierScheduler barrierScheduler(&ctx, func, 4, 256);
     barrierScheduler.schedule();
 
-    //Barrier Simulation
+    // Barrier Simulation
     // for (size_t barrier_bound=4; !success && (barrier_bound>=1UL); --barrier_bound) {
     //     const auto dmaAttr = VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::DMA_NN);
     //     auto dmaResOp = resOp.getExecutor(dmaAttr);
@@ -66,11 +66,8 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
 
     //     std::cout << "Barrier simualtion result is " << success << std::endl;
 
-
     //     if (!success) { model.restore(); }
     // }
-
-
 }
 
 }  // namespace

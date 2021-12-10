@@ -11,9 +11,9 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPURT/passes.hpp"
-#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/core/runtime_simulator.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 using namespace vpux;
 
@@ -47,7 +47,8 @@ mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPURT::DeclareVirtual
     auto barrierRealandVirtualID = _simulator.getID(origOp.getOperation());
     _log.nest().trace("Use physical barrier ID '{0}'", barrierRealandVirtualID.first);
 
-    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierRealandVirtualID.first, barrierRealandVirtualID.second);
+    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, barrierRealandVirtualID.first,
+                                                           barrierRealandVirtualID.second);
 
     return mlir::success();
 }
@@ -82,7 +83,7 @@ void AssignPhysicalBarrierIDsPass::safeRunOnFunc() {
 
     RuntimeSimulator simulator(&ctx, func, _log, numDmaEngines);
     simulator.assignPhysicalIDs();
-      
+
     mlir::ConversionTarget target(ctx);
     target.addIllegalOp<VPURT::DeclareVirtualBarrierOp>();
     target.addLegalOp<VPURT::ConfigureBarrierOp>();

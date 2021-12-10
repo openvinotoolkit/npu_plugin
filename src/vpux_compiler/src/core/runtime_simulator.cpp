@@ -34,8 +34,7 @@ void RuntimeSimulator::init() {
     }
 }
 
-int64_t RuntimeSimulator::getVirtualId(VPURT::ConfigureBarrierOp op)
-{
+int64_t RuntimeSimulator::getVirtualId(VPURT::ConfigureBarrierOp op) {
     return checked_cast<int64_t>(op->getAttr(virtualIdAttrName).cast<mlir::IntegerAttr>().getInt());
 }
 

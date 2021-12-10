@@ -24,7 +24,7 @@ FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mli
                                                      const resource_state_t& rstate)
         : _ctx(ctx),
           _func(func),
-           in_degree_(),
+          in_degree_(),
           heap_(),
           current_time_(0),
           candidates_(),
@@ -39,7 +39,7 @@ FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mli
 FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func)
         : _ctx(ctx),
           _func(func),
-           in_degree_(),
+          in_degree_(),
           heap_(),
           current_time_(0),
           candidates_(),
@@ -249,7 +249,7 @@ std::string FeasibleScheduleGenerator::printOpType(VPURT::TaskOp task) {
         return "DMA task ";
     if (task.getTaskType() == VPUIP::TaskType::UPA)
         return "Upa task ";
-    
+
     return "task";
 }
 
@@ -356,8 +356,7 @@ void FeasibleScheduleGenerator::assignUniqueIds() {
     int64_t uniqueId = 0;
     auto assignUniqueIDs = [&](VPURT::TaskOp taskOp) {
         taskOp->setAttr(uniqueIdAttrName, getIntAttr(_ctx, uniqueId++));
-        std::cout << "Assigning ID " << uniqueId << " to operation "
-                  << printOpType(taskOp) << std::endl;
+        std::cout << "Assigning ID " << uniqueId << " to operation " << printOpType(taskOp) << std::endl;
     };
 
     _func.walk([&](VPURT::TaskOp taskOp) {
@@ -386,8 +385,7 @@ void FeasibleScheduleGenerator::assignUniqueIds() {
 
 void FeasibleScheduleGenerator::printInfo(mlir::FuncOp func) {
     auto getTaskInfo = [&](VPURT::TaskOp taskOp) {
-        std::cout << printOpType(taskOp) << " # wait barriers " << taskOp.waitBarriers().size()
-                  << std::endl;
+        std::cout << printOpType(taskOp) << " # wait barriers " << taskOp.waitBarriers().size() << std::endl;
     };
 
     func.walk([&](VPURT::TaskOp taskOp) {
@@ -491,16 +489,25 @@ void FeasibleScheduleGenerator::compute_op_indegree(operation_in_degree_t& in_de
 }
 
 bool FeasibleScheduleGenerator::doesOpRunOnNCE(mlir::Operation* op) {
-    if ((mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() ==  VPUIP::TaskType::NCE2) || (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NNDMA))
+    if ((mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NCE2) ||
+        (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NNDMA))
         return true;
     else
         return false;
 }
 
 unsigned FeasibleScheduleGenerator::countProducerConsumerTasks(mlir::Operation* op) {
-    if (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() ==  VPUIP::TaskType::NCE2)
-        return 5;
-    if (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() ==  VPUIP::TaskType::NNDMA)
+    if (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NCE2) {
+        auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op);
+        auto& block = taskOp.op().getBlocks().front();
+        auto wrappedTaskOp = block.begin();
+        auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
+        VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
+        std::cout << "nceOp.getNumVariants() = " << nceOp.getNumVariants() << std::endl;
+        return nceOp.getNumVariants();
+        // return 5;
+    }
+    if (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NNDMA)
         return 1;
     else
         exit(1);

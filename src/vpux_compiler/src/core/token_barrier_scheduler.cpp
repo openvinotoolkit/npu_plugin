@@ -28,6 +28,31 @@ TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, m
         : _ctx(ctx), _func(func), barrierCount_(numBarriers), slotCount_(slotCount) {
 }
 
+bool TokenBasedBarrierScheduler::isPathExist(mlir::Operation* a, mlir::Operation* b) {
+    auto numa = a->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
+    auto numb = b->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
+    if (numa >= numb)
+        return false;
+    else {
+        for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end();
+             iter++) {
+            auto produces = (*iter).second.first;
+            if (std::find(produces.begin(), produces.end(), a) != produces.end()) {
+                auto consumers = (*iter).second.second;
+                if (std::find(consumers.begin(), consumers.end(), b) != consumers.end())
+                    return true;
+                else {
+                    for (auto consumer = consumers.begin(); consumer != consumers.end(); consumer++) {
+                        if (isPathExist(*consumer, b))
+                            return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+}
+
 size_t TokenBasedBarrierScheduler::schedule() {
     size_t btask_count = 0UL;
 
@@ -36,7 +61,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
     Logger::global().error("STEP-0: Initialize the association table");
     for (size_t barrierId = 1; barrierId <= barrierCount_; barrierId++) {
-        auto bitr = barrier_association.insert(std::make_pair(barrierId, barrier_transition_structure_t(_func,*this)));
+        auto bitr = barrier_association.insert(std::make_pair(barrierId, barrier_transition_structure_t(_func, *this)));
         barrier_transition_structure_t& bstructure = (bitr.first)->second;
         bstructure.init();
     }
@@ -64,9 +89,10 @@ size_t TokenBasedBarrierScheduler::schedule() {
             barrier_transition_structure_t& bstructure = bitr->second;
 
             // Set scheduling number
-            Logger::global().error("Assigning scheduling number {0} to the Operation {1} ", scheduling_number, FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
+            Logger::global().error("Assigning scheduling number {0} to the Operation {1} ", scheduling_number,
+                                   FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
             sinfo.op_->setAttr(schedulingNumberAttrName, getIntAttr(_ctx, scheduling_number));
-            
+
             scheduling_number++;
             // STEP-2: update barrier structure invariant //
             bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo);
@@ -85,7 +111,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
         }
     }
 
-    //update,wait
+    // update,wait
     for (auto& barrier : configureBarrierOpUpdateWaitMap) {
         Logger::global().error("Barrier ID {0} has the following producers", barrier.first->getAttr("id"));
         for (auto op : barrier.second.first)
@@ -102,34 +128,106 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
     std::cout << "Done scheduling" << std::endl;
 
-
     _func->walk([](VPURT::TaskOp op) {
         op.updateBarriersMutable().clear();
         op.waitBarriersMutable().clear();
     });
 
-    for (const auto& p : configureBarrierOpUpdateWaitMap) {
-        auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
-            Logger::global().error("Virtual Barrier ID {0} has {1} consumers", barrierOp->getAttr("id"),p.second.second.size());
+    // remove redundant deps
+    for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+        // producers
+        auto producers = (*iter).second.first;
+        for (auto prod = producers.begin(); prod != producers.end();) {
+            auto prod1 = prod;
+            prod1++;
+            for (; prod1 != producers.end();) {
+                if (isPathExist(*prod1, *prod)) {
+                    auto removedIter = prod1;
+                    prod1++;
+                    producers.erase(removedIter);
+                } else if (isPathExist(*prod, *prod1)) {
+                    auto removedIter = prod;
+                    prod++;
+                    producers.erase(removedIter);
+                    break;
+                } else
+                    prod1++;
+            }
+            if (prod1 == producers.end())
+                prod++;
+        }
+        (*iter).second.first = producers;
+
+        // consumers
+        auto consumers = (*iter).second.second;
+        for (auto cons = consumers.begin(); cons != consumers.end();) {
+            auto cons1 = cons;
+            cons1++;
+            for (; cons1 != consumers.end();) {
+                if (isPathExist(*cons, *cons1)) {
+                    auto removedIter = cons1;
+                    cons1++;
+                    consumers.erase(removedIter);
+                } else if (isPathExist(*cons1, *cons)) {
+                    auto removedIter = cons;
+                    cons++;
+                    consumers.erase(removedIter);
+                    break;
+                } else
+                    cons1++;
+            }
+            if (cons1 == consumers.end())
+                cons++;
+        }
+        (*iter).second.second = consumers;
+    }
+
+    // remove redundant barriers
+    for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+        auto consumers = (*iter).second.second;
+        auto iter1 = iter;
+        iter1++;
+        for (; iter1 != configureBarrierOpUpdateWaitMap.end();) {
+            auto consumers1 = (*iter1).second.second;
+            if (consumers1 == consumers) {
+                Logger::global().error("found barrier {0} and {1} have same consumers", (*iter).first->getAttr("id"),
+                                       (*iter1).first->getAttr("id"));
+                auto producers = (*iter1).second.first;
+                // auto mergedProducers = (*iter).second.first
+                for (auto& task : producers) {
+                    (*iter).second.first.insert(task);
+                }
+                auto removedIter = iter1;
+                iter1++;
+                configureBarrierOpUpdateWaitMap.erase(removedIter);
+            } else
+                iter1++;
+        }
     }
 
     for (const auto& p : configureBarrierOpUpdateWaitMap) {
         auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
-            Logger::global().error("Virtual Barrier ID {0} has {1} producers", barrierOp->getAttr("id"),p.second.first.size());
+        Logger::global().error("Virtual Barrier ID {0} has {1} consumers", barrierOp->getAttr("id"),
+                               p.second.second.size());
     }
 
-    for(auto itr = configureBarrierOpUpdateWaitMap.begin(); itr != configureBarrierOpUpdateWaitMap.end();) {
-     if (itr->second.second.empty()) {
-          Logger::global().error("Earsing virtual Barrier ID {0} as it has no producers", itr->first->getAttr("id"));
-          itr = configureBarrierOpUpdateWaitMap.erase(itr);
-     } else {
-          ++itr;
-     }
+    for (const auto& p : configureBarrierOpUpdateWaitMap) {
+        auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
+        Logger::global().error("Virtual Barrier ID {0} has {1} producers", barrierOp->getAttr("id"),
+                               p.second.first.size());
     }
 
-     _func->walk([&](VPURT::DeclareVirtualBarrierOp op) {
-        if (!configureBarrierOpUpdateWaitMap.count(op))
-        {
+    for (auto itr = configureBarrierOpUpdateWaitMap.begin(); itr != configureBarrierOpUpdateWaitMap.end();) {
+        if (itr->second.second.empty()) {
+            Logger::global().error("Earsing virtual Barrier ID {0} as it has no producers", itr->first->getAttr("id"));
+            itr = configureBarrierOpUpdateWaitMap.erase(itr);
+        } else {
+            ++itr;
+        }
+    }
+
+    _func->walk([&](VPURT::DeclareVirtualBarrierOp op) {
+        if (!configureBarrierOpUpdateWaitMap.count(op)) {
             Logger::global().error("Erasing Barrier ID {0} ", op->getAttr("id"));
             op->dropAllUses();
             op.erase();
@@ -142,7 +240,8 @@ size_t TokenBasedBarrierScheduler::schedule() {
             auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
             assert(taskOp != NULL);
             assert(barrierOp.barrier() != NULL);
-            Logger::global().error("Adding Barrier ID {0} as an update barrier for operation {1}", barrierOp->getAttr("id"),FeasibleScheduleGenerator::getUniqueID(user));
+            Logger::global().error("Adding Barrier ID {0} as an update barrier for operation {1}",
+                                   barrierOp->getAttr("id"), FeasibleScheduleGenerator::getUniqueID(user));
             taskOp.updateBarriersMutable().append(barrierOp.barrier());
         }
     }
@@ -153,7 +252,8 @@ size_t TokenBasedBarrierScheduler::schedule() {
             auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
             assert(taskOp != NULL);
             assert(barrierOp.barrier() != NULL);
-            Logger::global().error("Adding Barrier ID {0} as an wait barrier for operation {1}", barrierOp->getAttr("id"),FeasibleScheduleGenerator::getUniqueID(user));
+            Logger::global().error("Adding Barrier ID {0} as an wait barrier for operation {1}",
+                                   barrierOp->getAttr("id"), FeasibleScheduleGenerator::getUniqueID(user));
             taskOp.waitBarriersMutable().append(barrierOp.barrier());
         }
     }

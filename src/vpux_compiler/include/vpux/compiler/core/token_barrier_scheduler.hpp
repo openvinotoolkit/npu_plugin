@@ -51,54 +51,67 @@ namespace vpux {
 
 class TokenBasedBarrierScheduler {
 public:
-    explicit TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers, int64_t slotCount);
+    explicit TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers,
+                                        int64_t slotCount);
 
     struct operation_comparator_t {
-    bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+        bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+            int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op1)
+                                                              ->getAttr("id")
+                                                              .cast<mlir::IntegerAttr>()
+                                                              .getInt());
+            int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op2)
+                                                              ->getAttr("id")
+                                                              .cast<mlir::IntegerAttr>()
+                                                              .getInt());
 
-        int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op1)->getAttr("id").cast<mlir::IntegerAttr>().getInt());
-        int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op2)->getAttr("id").cast<mlir::IntegerAttr>().getInt());
-     
-        return uniqueId1 < uniqueId2;
-    }
+            return uniqueId1 < uniqueId2;
+        }
     };
 
     struct task_operation_comparator_t {
-    bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+        bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+            int64_t uniqueId1 = checked_cast<int64_t>(
+                    mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
+            int64_t uniqueId2 = checked_cast<int64_t>(
+                    mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
 
-        int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
-        int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
-     
-        return uniqueId1 < uniqueId2;
-    }
+            return uniqueId1 < uniqueId2;
+        }
     };
 
     typedef size_t schedule_time_t;
-    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,std::set<mlir::Operation*, task_operation_comparator_t>>,operation_comparator_t> configureBarrierOpUpdateWaitMap; //update,wait
+    std::map<mlir::Operation*,
+             std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
+                       std::set<mlir::Operation*, task_operation_comparator_t>>,
+             operation_comparator_t>
+            configureBarrierOpUpdateWaitMap;  // update,wait
 
     // One transition structure for each physical barrier //
     // TODO John: Move barrier_transition_structure_t to another file
-    class barrier_transition_structure_t 
-    {
-
+    class barrier_transition_structure_t {
     public:
-
         struct operation_comparator_t {
             bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+                int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op1)
+                                                                  ->getAttr(uniqueIdAttrName)
+                                                                  .cast<mlir::IntegerAttr>()
+                                                                  .getInt());
+                int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op2)
+                                                                  ->getAttr(uniqueIdAttrName)
+                                                                  .cast<mlir::IntegerAttr>()
+                                                                  .getInt());
 
-            int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
-            int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
-     
-            return uniqueId1 < uniqueId2;
-        }
+                return uniqueId1 < uniqueId2;
+            }
         };
-        
-        typedef std::set<mlir::Operation*,operation_comparator_t> producers_t;
+
+        typedef std::set<mlir::Operation*, operation_comparator_t> producers_t;
         typedef typename producers_t::const_iterator producer_iterator_t;
 
-        barrier_transition_structure_t(mlir::FuncOp func, TokenBasedBarrierScheduler& tokenBasedBarrierScheduler, schedule_time_t time = std::numeric_limits<schedule_time_t>::max())
-                : _func(func), tokenBasedBarrierScheduler_(tokenBasedBarrierScheduler), time_(time), producers_()  {
-
+        barrier_transition_structure_t(mlir::FuncOp func, TokenBasedBarrierScheduler& tokenBasedBarrierScheduler,
+                                       schedule_time_t time = std::numeric_limits<schedule_time_t>::max())
+                : _func(func), tokenBasedBarrierScheduler_(tokenBasedBarrierScheduler), time_(time), producers_() {
             Logger::global().error("Initialising a new barrier_transition_structure");
         }
 
@@ -115,13 +128,17 @@ public:
             schedule_time_t curr_time = sinfo.schedule_time_;
             bool created_new_barrier_task = false;
 
-            Logger::global().error("The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}", sinfo.schedule_time_, FeasibleScheduleGenerator::getUniqueID(sinfo.op_), sinfo.barrier_index_, sinfo.slot_count_);
+            Logger::global().error(
+                    "The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
+                    sinfo.schedule_time_, FeasibleScheduleGenerator::getUniqueID(sinfo.op_), sinfo.barrier_index_,
+                    sinfo.slot_count_);
 
             Logger::global().error("The global time is {0}", time_);
             Logger::global().error("The current time is {0}", curr_time);
-            
+
             if (time_ != curr_time) {
-                Logger::global().error("CASE-1: temporal transition happened, create a new barrier task -  maintain_invariant_temporal_change");
+                Logger::global().error("CASE-1: temporal transition happened, create a new barrier task -  "
+                                       "maintain_invariant_temporal_change");
                 // CASE-1: temporal transition happened //
                 created_new_barrier_task = true;
                 maintain_invariant_temporal_change(sinfo);
@@ -130,72 +147,72 @@ public:
                 // CASE-2: trival case //
                 Logger::global().error("CASE-2: trival case - add_scheduled_op_to_producer_list");
                 add_scheduled_op_to_producer_list(sinfo);
-              }
-              return created_new_barrier_task;
+            }
+            return created_new_barrier_task;
         }
 
-          void close_barrier_producer_list() {
-          if (curr_barrier_task_ == NULL) { return; }
-          process_current_barrier_producer_list_close_event(curr_barrier_task_,
-              prev_barrier_task_);
+        void close_barrier_producer_list() {
+            if (curr_barrier_task_ == NULL) {
+                return;
+            }
+            process_current_barrier_producer_list_close_event(curr_barrier_task_, prev_barrier_task_);
         }
-        
 
     private:
+        void maintain_invariant_temporal_change(const BarrierScheduleGenerator::schedule_info_t& sinfo) {
+            Logger::global().error("Calling maintain_invariant_temporal_change()");
+            Logger::global().error(
+                    "The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
+                    sinfo.schedule_time_, FeasibleScheduleGenerator::getUniqueID(sinfo.op_), sinfo.barrier_index_,
+                    sinfo.slot_count_);
+            //              B_prev
+            // curr_state : Prod_list={p_0, p_1, ... p_n}-->B_curr
+            // event: Prod_list={q_0}->B_curr_new
+            //
+            // scheduler says it want to associate both B_old and B_new to the
+            // same physical barrier.
+            //
+            // Restore Invariant:
+            // STEP-1.1: create a new barrier task (B_new).
+            // STEP-1.2: update B_curr
+            //        a. producers: B_curr is now closed so update its producers
+            //        b. consumers: for each (p_i, u) \in P_old x V
+            //                      add u to the consumer list of B_old
+            // STEP-1.3: update B_prev
+            //           consumers: add p_i \in P_old to the consumer list of
+            //                      B_prev. This is because B_prev and B_curr
+            //                      are associated with same physical barrier.
+            // STEP-2: B_prev = B_curr , B_curr = B_curr_new , Prod_list ={q0}
+            mlir::Operation* bop_prev = prev_barrier_task_;
+            mlir::Operation* bop_curr = curr_barrier_task_;
+            mlir::Operation* bop_end = NULL;
+            mlir::Operation* bop_curr_new = bop_end;
 
-         void maintain_invariant_temporal_change(const BarrierScheduleGenerator::schedule_info_t& sinfo) {
+            bop_curr_new = create_new_barrier_task(sinfo);
 
-          Logger::global().error("Calling maintain_invariant_temporal_change()");
-          Logger::global().error("The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}", sinfo.schedule_time_, FeasibleScheduleGenerator::getUniqueID(sinfo.op_), sinfo.barrier_index_, sinfo.slot_count_);
-          //              B_prev
-          // curr_state : Prod_list={p_0, p_1, ... p_n}-->B_curr
-          // event: Prod_list={q_0}->B_curr_new
-          // 
-          // scheduler says it want to associate both B_old and B_new to the
-          // same physical barrier.
-          //
-          // Restore Invariant:
-          // STEP-1.1: create a new barrier task (B_new).
-          // STEP-1.2: update B_curr
-          //        a. producers: B_curr is now closed so update its producers
-          //        b. consumers: for each (p_i, u) \in P_old x V 
-          //                      add u to the consumer list of B_old
-          // STEP-1.3: update B_prev
-          //           consumers: add p_i \in P_old to the consumer list of
-          //                      B_prev. This is because B_prev and B_curr
-          //                      are associated with same physical barrier.
-          // STEP-2: B_prev = B_curr , B_curr = B_curr_new , Prod_list ={q0}
-          mlir::Operation* bop_prev = prev_barrier_task_;
-          mlir::Operation* bop_curr = curr_barrier_task_;
-          mlir::Operation* bop_end = NULL;
-          mlir::Operation* bop_curr_new = bop_end;
-        
-          bop_curr_new = create_new_barrier_task(sinfo);
+            assert(bop_curr_new != bop_end);
+            // assert(is_barrier_task(bop_curr_new));
 
-         assert(bop_curr_new != bop_end);
-         //assert(is_barrier_task(bop_curr_new));
+            // STEP-1 //
+            // std::cout << "bop_curr = " << bop_curr << " bop_end = " << bop_end << std::endl;
+            if (bop_curr != bop_end) {
+                Logger::global().error("The ID of barrier bop_curr is {0}", bop_curr->getAttr("id"));
+                process_current_barrier_producer_list_close_event(bop_curr, bop_prev);
+            }
 
-          // STEP-1 //
-           //std::cout << "bop_curr = " << bop_curr << " bop_end = " << bop_end << std::endl;
-          if (bop_curr != bop_end) {
-            Logger::global().error("The ID of barrier bop_curr is {0}", bop_curr->getAttr("id"));
-            process_current_barrier_producer_list_close_event(bop_curr, bop_prev);
-          }
-
-          // STEP-2 //
-          prev_barrier_task_ = curr_barrier_task_;
-          curr_barrier_task_ = bop_curr_new;
-         producers_.clear();
-          add_scheduled_op_to_producer_list(sinfo);
-
-         }
+            // STEP-2 //
+            prev_barrier_task_ = curr_barrier_task_;
+            curr_barrier_task_ = bop_curr_new;
+            producers_.clear();
+            add_scheduled_op_to_producer_list(sinfo);
+        }
 
         // Maintain the invariant given that that we are closing the producer
         // list of the current barrier.
-        inline void process_current_barrier_producer_list_close_event(mlir::Operation* bop_curr, mlir::Operation* bop_prev) {
-
+        inline void process_current_barrier_producer_list_close_event(mlir::Operation* bop_curr,
+                                                                      mlir::Operation* bop_prev) {
             Logger::global().error("Process current barrier producer list close event");
-            
+
             mlir::Operation* bop_end = NULL;
             assert(bop_curr != bop_end);
 
@@ -208,81 +225,76 @@ public:
 
             Logger::global().error("The ID of barrier b_curr is {0}", bop_curr->getAttr("id"));
 
-
-            for (producer_iterator_t producer=producers_.begin(); producer!=producers_.end(); ++producer) {
-
+            for (producer_iterator_t producer = producers_.begin(); producer != producers_.end(); ++producer) {
                 mlir::Operation* source = *producer;
 
-    
                 // STEP-1.2 (a): producers //
                 auto barrierProducersItr = tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.find(bop_curr);
 
-                if(barrierProducersItr !=  tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end())
-                {
-                    Logger::global().error("Adding producer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(source),  bop_curr->getAttr("id"));
+                if (barrierProducersItr != tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end()) {
+                    Logger::global().error("Adding producer Op with ID {0} to barrier {1}",
+                                           FeasibleScheduleGenerator::getUniqueID(source), bop_curr->getAttr("id"));
                     barrierProducersItr->second.first.insert(source);
-                }
-                else
+                } else
                     VPUX_THROW("Not found");
-                
 
                 // STEP-1.2 (b): consumers //
                 auto barrierConsumersItr = tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.find(bop_curr);
-                
-                if(barrierConsumersItr !=  tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end())
-                {
+
+                if (barrierConsumersItr != tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end()) {
                     auto opConsumers = FeasibleScheduleGenerator::getConsumerOps(source);
                     for (auto consumer = opConsumers.begin(); consumer != opConsumers.end(); ++consumer) {
-                        Logger::global().error("STEP-1.2 Adding consumer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(*consumer),  bop_curr->getAttr("id"));
+                        Logger::global().error("STEP-1.2 Adding consumer Op with ID {0} to barrier {1}",
+                                               FeasibleScheduleGenerator::getUniqueID(*consumer),
+                                               bop_curr->getAttr("id"));
                         barrierConsumersItr->second.second.insert(*consumer);
                     }
-                }
-                else 
-                     VPUX_THROW("Not found");
-                
+                } else
+                    VPUX_THROW("Not found");
+
                 // STEP-1.3 //
                 if (b_prev) {
                     auto barrierConsumersItr = tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.find(b_prev);
-                    if(barrierConsumersItr !=  tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end())
-                    {
-                        Logger::global().error("STEP-1.3 Adding consumer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(source),  b_prev->getAttr("id"));
+                    if (barrierConsumersItr != tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end()) {
+                        Logger::global().error("STEP-1.3 Adding consumer Op with ID {0} to barrier {1}",
+                                               FeasibleScheduleGenerator::getUniqueID(source), b_prev->getAttr("id"));
                         barrierConsumersItr->second.second.insert(source);
-                    }
-                    else 
+                    } else
                         VPUX_THROW("Not found");
                 }
-            } // foreach producer //
+            }  // foreach producer //
         }
 
-         void add_scheduled_op_to_producer_list(const BarrierScheduleGenerator::schedule_info_t& sinfo) {
+        void add_scheduled_op_to_producer_list(const BarrierScheduleGenerator::schedule_info_t& sinfo) {
             auto scheduled_op = sinfo.op_;
 
-            Logger::global().error("Adding op {0} to the producer list of the barrier transition structure", curr_barrier_task_->getAttr("id"));
+            Logger::global().error("Adding op {0} to the producer list of the barrier transition structure",
+                                   curr_barrier_task_->getAttr("id"));
             producers_.insert(scheduled_op);
         }
 
         mlir::Operation* create_new_barrier_task(const BarrierScheduleGenerator::schedule_info_t& sinfo) {
+            Logger::global().error("CREATING A NEW BARRIER TASK");
 
-             Logger::global().error("CREATING A NEW BARRIER TASK");
+            static size_t barrier_task_id = 1UL;
 
-             static size_t barrier_task_id=1UL;
+            mlir::OpBuilder builder(_func.getBody());
+            auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc(),
+                                                                             barrier_task_id);  // Neds to be virtual.
 
-             mlir::OpBuilder builder(_func.getBody());
-             auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc(), barrier_task_id); //Neds to be virtual.
-           
+            std::set<mlir::Operation*, task_operation_comparator_t> newBarrierProducers{};
+            std::set<mlir::Operation*, task_operation_comparator_t> newBarrierConsumers{};
+            tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.insert(
+                    std::make_pair(newBarrier, std::make_pair(newBarrierProducers, newBarrierConsumers)));
 
-             std::set<mlir::Operation*,task_operation_comparator_t> newBarrierProducers{};
-             std::set<mlir::Operation*,task_operation_comparator_t> newBarrierConsumers{};            
-             tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.insert(std::make_pair(newBarrier, std::make_pair(newBarrierProducers,newBarrierConsumers)));
-
-             Logger::global().error("Created a new barrier task with barrier ID {0} after OP id is {1}", barrier_task_id, FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
-             barrier_task_id++;
-             return newBarrier;
-
-         }
+            Logger::global().error("Created a new barrier task with barrier ID {0} after OP id is {1}", barrier_task_id,
+                                   FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
+            barrier_task_id++;
+            return newBarrier;
+        }
 
         mlir::FuncOp _func;
-        //Outer class
+        // Outer class
         TokenBasedBarrierScheduler& tokenBasedBarrierScheduler_;
         schedule_time_t time_;
         mlir::Operation* curr_barrier_task_;
@@ -291,6 +303,7 @@ public:
     };  // class barrier_transition_structure_t //
 
     size_t schedule();
+    bool isPathExist(mlir::Operation* a, mlir::Operation* b);
 
 private:
     typedef std::unordered_map<size_t, barrier_transition_structure_t> barrier_association_table_t;
@@ -299,7 +312,6 @@ private:
     mlir::FuncOp _func;
     size_t barrierCount_;
     size_t slotCount_;
-    
 };
 
 }  // namespace vpux

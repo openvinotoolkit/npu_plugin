@@ -63,8 +63,6 @@ public:
 
     mlir::MLIRContext* _ctx;
     mlir::FuncOp _func;
-
-    
 };
 
 }  // namespace vpux

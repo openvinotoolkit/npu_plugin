@@ -28,7 +28,6 @@ BarrierResourceState::BarrierResourceState(): barrier_reference_(), available_sl
 
 BarrierResourceState::BarrierResourceState(size_t barrier_count, size_t slot_count)
         : barrier_reference_(), available_slots_() {
-    
     Logger::global().error("Initializing Barrier_Resource_State");
     init(barrier_count, slot_count);
 }
@@ -47,8 +46,7 @@ void BarrierResourceState::init(size_t bcount, slots_t slot_count) {
 }
 
 bool BarrierResourceState::has_barrier_with_slots(slots_t slot_demand) const {
-
-    Logger::global().error("Checking if there is a barrier free with {0} free slots",slot_demand);
+    Logger::global().error("Checking if there is a barrier free with {0} free slots", slot_demand);
     available_slot_key_t key(slot_demand);
     const_available_slots_iterator_t itr = available_slots_.lower_bound(key);
     const_available_slots_iterator_t ret_itr = itr;
@@ -61,7 +59,7 @@ bool BarrierResourceState::has_barrier_with_slots(slots_t slot_demand) const {
     };
 
     bool result = ret_itr != available_slots_.end();
-    Logger::global().error("There is True/False {0} a barrier with free slots",result);
+    Logger::global().error("There is True/False {0} a barrier with free slots", result);
     return ret_itr != available_slots_.end();
 }
 
