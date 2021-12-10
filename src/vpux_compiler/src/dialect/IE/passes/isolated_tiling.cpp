@@ -32,30 +32,6 @@ using namespace vpux;
 
 namespace {
 
-void applyWAForGroupConv(mlir::Operation* op, Shape& nTilesOnDim) {
-    auto groupCovn = mlir::dyn_cast<IE::GroupConvolutionOp>(op);
-    if (groupCovn == nullptr) {
-        return;
-    }
-
-    const auto module = op->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-    if (arch == VPU::ArchKind::MTL) {
-        return;
-    }
-
-    if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
-        const auto chanAlignment = channelsInfo.getChannelAlignment();
-        const auto outputShape = getShape(groupCovn.output());
-
-        VPUX_THROW_UNLESS(outputShape[Dims4D::Act::C] % chanAlignment == 0,
-                          "Depthwise convolution output channels must be a multiple of {0}, got {1}", chanAlignment,
-                          outputShape[Dims4D::Act::C]);
-
-        nTilesOnDim[Dims4D::Act::C] = outputShape[Dims4D::Act::C] / chanAlignment;
-    }
-}
-
 OutputTiling generateTiles(IE::TilingBuilderOpInterface origOp, Logger log) {
     auto* op = origOp.getOperation();
 
@@ -75,7 +51,6 @@ OutputTiling generateTiles(IE::TilingBuilderOpInterface origOp, Logger log) {
     }
 
     Shape nTilesOnDim(outputShape.size(), 1);
-    applyWAForGroupConv(op, nTilesOnDim);
     const auto isSupportedChannelDivision = [&]() {
         if ((outputShape[Dims4D::Act::C] % nTilesOnDim[Dims4D::Act::C]) != 0) {
             return false;
@@ -158,10 +133,6 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
 
     tiledBuilderOp.adjustAttrs(inputTiling);
 
-    VPUX_THROW_UNLESS(origOp->getNumResults() == 1,
-                      "Unsupported operation '{0}' at '{1}', it must have one and only one result", origOp->getName(),
-                      origOp->getLoc());
-
     const auto baseResType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
     const auto tiledResType = getDenseTileType(baseResType, outputTile.offsets, outputTile.shape);
 
@@ -192,10 +163,6 @@ private:
 mlir::LogicalResult GenericTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
                                                    mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
-
-    VPUX_THROW_UNLESS(origOp->getNumResults() == 1,
-                      "Unsupported operation '{0}' at '{1}', it must have one and only one result", origOp->getName(),
-                      origOp->getLoc());
 
     const auto tiles = generateTiles(origOp, _log);
     _log.nest(1).trace("Create {0} tiles:", tiles.size());
@@ -244,7 +211,8 @@ void IsolatedTilingPass::safeRunOnFunc() {
     target.addLegalOp<IE::SliceOp, IE::ConcatOp>();
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
-            return !iface.needTiling(_log.nest());
+            const auto resShape = getShape(op->getResult(0));
+            return iface.isSupportedTiling({TileInfo(resShape)}, _log.nest());
         }
 
         return true;

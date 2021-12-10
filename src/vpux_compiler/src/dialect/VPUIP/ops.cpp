@@ -152,7 +152,18 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
     const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
     const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
 
+    const auto module = origOp->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        if (arch != VPU::ArchKind::MTL && channelsInfo != nullptr) {
+            const auto chanAlignment = channelsInfo.getChannelAlignment();
+            if (outputTile.shape[Dims4D::Act::C] != chanAlignment) {
+                return false;
+            }
+        }
+
         const auto origInputShape = getShape(origOp.input());
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
@@ -170,9 +181,9 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
         const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
         const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
-        return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(origOp->getLoc(),
-                                                                  origOp->getParentOfType<mlir::ModuleOp>(),
-                                                                  inputTileType, filterTileType, outputTileType, log));
+        return mlir::succeeded(VPUIP::NCEInvariant::verifyGroupConvCMX(
+                origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(), inputTileType, filterTileType,
+                outputTileType, origOp.strides(), log));
     });
 }
 
@@ -203,15 +214,11 @@ template <class MainOpType>
 class NCETilingInfoOpModel final :
         public IE::TilingInfoOpInterface::ExternalModel<NCETilingInfoOpModel<MainOpType>, MainOpType> {
 public:
-    bool needTiling(mlir::Operation* origOp, Logger log) const {
+    bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) const {
         if (!isSupportedByNCE(mlir::cast<MainOpType>(origOp), log)) {
-            return false;
+            return true;
         }
 
-        return VPUIP::NCEInvariant::verifyCMX(mlir::cast<MainOpType>(origOp), log).failed();
-    }
-
-    bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) const {
         return ::isSupportedTiling(mlir::cast<MainOpType>(origOp), tiles, log);
     }
 
@@ -230,15 +237,11 @@ template <class MainOpType>
 class NCEEltwiseTilingInfoOpModel final :
         public IE::TilingInfoOpInterface::ExternalModel<NCEEltwiseTilingInfoOpModel<MainOpType>, MainOpType> {
 public:
-    bool needTiling(mlir::Operation* origOp, Logger log) const {
+    bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) const {
         if (!isSupportedByNCE(mlir::cast<MainOpType>(origOp), log)) {
-            return false;
+            return true;
         }
 
-        return VPUIP::NCEInvariant::verifyCMX(mlir::cast<MainOpType>(origOp), log).failed();
-    }
-
-    bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) const {
         const auto input1Type = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
         const auto input2Type = origOp->getOperand(1).getType().cast<mlir::ShapedType>();
         const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
