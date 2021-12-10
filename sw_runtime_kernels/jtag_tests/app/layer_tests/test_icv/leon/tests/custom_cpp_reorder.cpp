@@ -19,31 +19,24 @@ namespace REORDER_TEST_NAMESPACE {
 
 using Parent = CustomCppTests<fp16>;
 
-//struct SingleTest {
-//    Dimensions inDim;
-//    Dimensions outDim;
-////    StorageOrder storageOrder;
-////    const char* kernelName;
-//    CustomParams customLayerParams;
-//};
-
-static constexpr std::initializer_list<SingleTest> reorder_test_list{
-        {{2, 3, 1}, {3, 2, 1}, orderCHW, FPE("reorder_fp16.elf"), {{1, 0, 2, sw_params::Location::NN_CMX}}},
-        {{19, 1, 16}, {1, 16, 19}, orderCHW, FPE("reorder_fp16.elf"), {{1, 2, 0, sw_params::Location::NN_CMX}}},
-        {{4, 6, 19}, {19, 4, 6}, orderCHW, FPE("reorder_fp16.elf"), {{2, 0, 1, sw_params::Location::NN_CMX}}},
+static constexpr std::initializer_list<SingleTest> reorder_test_list
+{
+    {{2, 3, 1}, {3, 2, 1}, orderCHW, FPE("reorder_fp16.elf"), {{1, 0, 2, sw_params::Location::NN_CMX}}},
+    {{19, 1, 16}, {1, 16, 19}, orderCHW, FPE("reorder_fp16.elf"), {{1, 2, 0, sw_params::Location::NN_CMX}}},
+    {{4, 6, 19}, {19, 4, 6}, orderCHW, FPE("reorder_fp16.elf"), {{2, 0, 1, sw_params::Location::NN_CMX}}},
 #ifndef CONFIG_TARGET_SOC_3720
-        {{32, 1, 256}, {1, 256, 32}, orderCHW, FPE("reorder_fp16.elf"), {{1, 2, 0, sw_params::Location::NN_CMX}}},
-        {{4, 64, 32}, {32, 4, 64}, orderCHW, FPE("reorder_fp16.elf"), {{2, 0, 1, sw_params::Location::NN_CMX}}},
+    {{32, 1, 256}, {1, 256, 32}, orderCHW, FPE("reorder_fp16.elf"), {{1, 2, 0, sw_params::Location::NN_CMX}}},
+    {{4, 64, 32}, {32, 4, 64}, orderCHW, FPE("reorder_fp16.elf"), {{2, 0, 1, sw_params::Location::NN_CMX}}},
 #endif
 };
 
-class CustomCppReorderTest : public Parent {
+class CustomCppReorderTest : public Parent
+{
 public:
     explicit CustomCppReorderTest(): m_testsLoop(reorder_test_list, "test")
         {}
     virtual ~CustomCppReorderTest()
         {}
-
 protected:
     const char* suiteName() const override
         { return "CustomCppReorderTest"; }
@@ -56,8 +49,6 @@ protected:
             paramContainer.resize(((int)sizeof(sw_params::ReorderParams) + 7) / 8);
             Parent::initData();
             const SingleTest* test = m_currentTest;
-//            int32_t ind[subspace::MAX_DIMS] = {0};
-//            subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
 
             checkTestConsistency();
 
@@ -71,7 +62,6 @@ protected:
 
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
             m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
-//            printf("# m_inputTensor.ndims() = %d\n", ndims);
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[ndims]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_reorderParams);
         }
@@ -99,8 +89,6 @@ protected:
         }
     void generateInputData() override
         {
-//            const auto customData = false;  // m_testLoop.value().customData;
-
         #ifdef CONFIG_TARGET_SOC_3720
             m_params.kernel = reinterpret_cast<uint64_t>(&shvNN0_reorder_fp16);
         #else
@@ -128,27 +116,8 @@ protected:
             {
                 MemoryDims out;
                 permuteArray(in.dims, test->customLayerParams.layerParams, out.dims, ndims);
-//                printf("# [%ld:%ld:%ld] <= [%ld:%ld:%ld]\n", out.dims[2], out.dims[1], out.dims[0], in.dims[2], in.dims[1], in.dims[0]);
                 m_referenceOutputTensor.at(out) = m_inputTensor.at(in);
             });
-
-#if 0
-            m_inputTensor.forEach(false, [&](const MemoryDims& in)
-            {
-                printf("# in = %f\n", f16Tof32(m_inputTensor.at(in)));
-            });
-#endif
-
-#if 0
-            const auto& id = m_inputTensor.memoryDims();
-            const auto& il = m_inputTensor.memoryLimits();
-            const auto& od = m_outputTensor.memoryDims();
-            const auto& ol = m_outputTensor.memoryLimits();
-            printf("# id = %ld %ld %ld\n", id.dims[2], id.dims[1], id.dims[0]);
-            printf("# od = %ld %ld %ld\n", od.dims[2], od.dims[1], od.dims[0]);
-            printf("# il = %ld %ld %ld\n", il.dims[2], il.dims[1], il.dims[0]);
-            printf("# ol = %ld %ld %ld\n", ol.dims[2], ol.dims[1], ol.dims[0]);
-#endif
         }
     bool checkResult() override
         {
@@ -163,7 +132,6 @@ protected:
 
             bool threshold_test_failed = false;
 
-//GlobalData::doPrintDiffs = true;
             m_outputTensor.forEach(false, [&](const MemoryDims& indices)
             {
                 const float value = f16Tof32(m_outputTensor.at(indices));
@@ -179,7 +147,6 @@ protected:
                     printf("DIFF HWC [%d:%d:%d] %f %f %f\n", ti.channels, ti.height, ti.width, value, gt_value, abs_diff);
                 }
             });
-//GlobalData::doPrintDiffs = false;
 
             return !threshold_test_failed;
         }
