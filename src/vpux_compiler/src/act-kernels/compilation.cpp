@@ -72,6 +72,16 @@ static void getActShaveBinaries(const ActShaveCompileParams& params, const Compi
     genDir = ovBuildDir;
     auto libDir = genDir;
     sys::path::append(libDir, "lib");
+
+    std::cout << "lib " << libDir.c_str() << " exists: " << sys::fs::exists(libDir) << std::endl;
+    std::string ls = "ls ";
+    ls = ls + libDir.c_str();
+    auto ret = system(ls.c_str());
+    ls = "dir ";
+    ls = ls + libDir.c_str();
+    ret += system(ls.c_str());
+    std::cout << "system returns " << ret << std::endl;
+
     auto inLibDir = libDir;
     sys::path::append(inLibDir, "act-kernels-build");
     std::cout << "lib/act-kernels-build " << inLibDir.c_str() << " exists: " << sys::fs::exists(inLibDir) << std::endl;
@@ -88,14 +98,15 @@ static void getActShaveBinaries(const ActShaveCompileParams& params, const Compi
     genDir = ovBuildDir;
     sys::path::append(genDir, "act-kernels");
 
-    std::cout << "act-kernels dir " << genDir.c_str() << " exists: " << sys::fs::exists(genDir) << std::endl;
+    std::cout << "actkernels dir " << genDir.c_str() << " exists: " << sys::fs::exists(genDir) << std::endl;
     VPUX_THROW_UNLESS(sys::fs::exists(genDir), "{0}} directory is not exist", genDir);
-    std::string ls = "ls ";
+    ls = "ls ";
     ls = ls + genDir.c_str();
-    system(ls.c_str());
+    ret = system(ls.c_str());
     ls = "dir ";
     ls = ls + genDir.c_str();
-    system(ls.c_str());
+    ret += system(ls.c_str());
+    std::cout << "system returns " << ret << std::endl;
     std::string entryPoint = unitDesc.entry.str();
 
     SmallString prebuiltKernelBinariesPath(genDir);
