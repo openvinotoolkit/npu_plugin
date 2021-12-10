@@ -29,7 +29,7 @@
 #include <utility>
 
 // Version 1.2.1, used to identify the release
-#define VPUX_COMPILER_L0_ID "1.2.1"
+#define VPUX_COMPILER_L0_ID "1.2.2"
 const uint32_t maxNumberOfElements = 10;
 const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
 const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
@@ -361,7 +361,9 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
 
     // Check exeDesc and create VPUXConfig
     std::map<std::string, std::string> config;
-    std::stringstream input(desc.options);
+    // To avoid access violation
+    std::string descOptions(desc.options, desc.optionsSize);
+    std::stringstream input(descOptions);
     std::string result;
     std::vector<std::string> options;
     while (input >> result) {

@@ -148,8 +148,9 @@ vcl_result_t CompilerTest::run() {
     vcl_tensor_layout_t inLayout = VCL_TENSOR_LAYOUT_ANY;
     vcl_tensor_precision_t outPrc = VCL_TENSOR_PRECISION_FP32;
     vcl_tensor_layout_t outLayout = VCL_TENSOR_LAYOUT_ANY;
-    char options[] = "VPUX_PLATFORM 3700";
-    vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, inPrc, inLayout, outPrc, outLayout, options};
+    char options[] = "VPUX_PLATFORM 3700 ";
+    vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, inPrc,   inLayout,
+                                     outPrc,  outLayout,   options, sizeof(options)};
     ret = vclExecutableCreate(compiler, exeDesc, &executable);
     if (ret != VCL_RESULT_SUCCESS) {
         std::cerr << "Failed to create executable handle! Result:0x" << std::hex << uint64_t(ret) << std::dec

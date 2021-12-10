@@ -152,6 +152,7 @@ typedef struct __vcl_executable_desc_t {
     vcl_tensor_precision_t outPrc;  ///< Output data precision
     vcl_tensor_layout_t outLayout;  ///< Output data layout
     const char* options;            ///< Compiler config options
+    uint64_t optionsSize;           ///< Size of options
 } vcl_executable_desc_t;
 
 ///////////////////////////////////////////////////////////////////////////////

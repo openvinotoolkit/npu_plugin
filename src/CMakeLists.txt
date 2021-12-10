@@ -11,6 +11,10 @@
 # included with the Software Package for additional details.
 #
 
+if(BUILD_COMPILER_FOR_DRIVER)
+    set(COMPILER_FOR_DRIVER_VERSION_FILE ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_al/src/version.cpp)
+endif()
+
 add_subdirectory(utils)
 add_subdirectory(vpux_al)
 
@@ -18,8 +22,10 @@ if(AARCH64)
     add_subdirectory(vpual_backend)
 endif()
 
-add_subdirectory(mcmCompiler)
-add_subdirectory(frontend_mcm)
+if(NOT BUILD_COMPILER_FOR_DRIVER)
+    add_subdirectory(mcmCompiler)
+    add_subdirectory(frontend_mcm)
+endif()
 add_subdirectory(custom_extension_library)
 add_subdirectory(vpux_ngraph_transformations)
 
@@ -36,12 +42,16 @@ endif()
 if(ENABLE_HDDL2 AND UNIX)
     add_subdirectory(hddl2_backend)
 endif()
-if(ENABLE_ZEROAPI_BACKEND)
+if(ENABLE_ZEROAPI_BACKEND AND NOT BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(zero_backend)
+endif()
+if(BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(VPUXCompilerL0)
 endif()
 add_subdirectory(vpux_elf)
-add_subdirectory(vpux_plugin)
+if(NOT BUILD_COMPILER_FOR_DRIVER)
+    add_subdirectory(vpux_plugin)
+endif()
 
 add_subdirectory(vpux_utils)
 add_subdirectory(vpux_compiler)

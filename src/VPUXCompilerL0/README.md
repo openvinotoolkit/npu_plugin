@@ -22,10 +22,10 @@
 
 ```
 cd CiD_Linux_XXXX
-LD_LIBRARY_PATH=./lib/ ./compilerTest data/add_abc.xml data/add_abc.bin output.net
-LD_LIBRARY_PATH=./lib/ ./compilerTest data/add_abc.xml data/add_abc.bin output.net FP16 C FP16 C ./data/config.file
-LD_LIBRARY_PATH=./lib/ ./compilerThreadTest data/add_abc.xml data/add_abc.bin
-LD_LIBRARY_PATH=./lib/ ./compilerThreadTest2 data/add_abc.xml data/add_abc.bin
+LD_LIBRARY_PATH=./lib/ ./compilerTest xxx.xml xxx.bin output.net
+LD_LIBRARY_PATH=./lib/ ./compilerTest xxx.xml xxx.bin output.net FP16 C FP16 C config.file
+LD_LIBRARY_PATH=./lib/ ./compilerThreadTest xxx.xml xxx.bin
+LD_LIBRARY_PATH=./lib/ ./compilerThreadTest2 xxx.xml xxx.bin
 ```
 
 `output.net`  is the generated blob.
@@ -56,27 +56,27 @@ LD_LIBRARY_PATH=./lib/ ./compilerThreadTest2 data/add_abc.xml data/add_abc.bin
 
 ```
 cd CiD_WIN_XXXX
-PATH=$PATH:./lib/ ./compilerTest.exe data/add_abc.xml data/add_abc.bin output.net
-PATH=$PATH:./lib/ ./compilerTest.exe data/add_abc.xml data/add_abc.bin output.net FP16 C FP16 C ./data/config.file
-PATH=$PATH:./lib/ ./compilerThreadTest data/add_abc.xml data/add_abc.bin
-PATH=$PATH:./lib/ ./compilerThreadTest2 data/add_abc.xml data/add_abc.bin
+PATH=$PATH:./lib/ ./compilerTest.exe xxx.xml xxx.bin output.net
+PATH=$PATH:./lib/ ./compilerTest.exe xxx.xml xxx.bin output.net FP16 C FP16 C config.file
+PATH=$PATH:./lib/ ./compilerThreadTest xxx.xml xxx.bin
+PATH=$PATH:./lib/ ./compilerThreadTest2 xxx.xml xxx.bin
 ```
 ### Windows (PowerShell)
 
 ```
 cd .\CiD_WIN_XXXX\
 $Env:Path +=";.\lib"
-.\compilerTest.exe .\data\add_abc.xml .\data\add_abc.bin output.net
-.\compilerTest.exe .\data\add_abc.xml .\data\add_abc.bin output.net FP16 C FP16 C ./data/config.file
-.\compilerThreadTest .\data\add_abc.xml .\data\add_abc.bin
-.\compilerThreadTest2 .\data\add_abc.xml .\data\add_abc.bin
+.\compilerTest.exe xxx.xml xxx.bin output.net
+.\compilerTest.exe xxx.xml xxx.bin output.net FP16 C FP16 C config.file
+.\compilerThreadTest xxx.xml xxx.bin
+.\compilerThreadTest2 xxx.xml xxx.bin
 ```
 
 `output.net`  is the generated blob.
 
 # Develop Info
 
-### kmb-plugin
+### applications.ai.vpu-accelerators.vpux-plugin
 The lib is developed based on
 
 - Branch
@@ -85,12 +85,7 @@ The lib is developed based on
 master
 ```
 
-- Commit hash
-
-```
-11bad15dce79b395c88c74515bdf0bb8ae9cb3cd
-```
-**Note: We have modifications on kmb-plugin and provide a thin wrapper/API to generate blob.**
+**Note: This package provides a thin wrapper/API to generate blob.**
 
 The main entrance is `vclCompilerCreate`. Check full API demo - compilerTest | compilerThreadTest | compilerThreadTest2.
 
@@ -124,10 +119,4 @@ vclCompilerDestroy
 
 ```
 master
-```
-
-- Commit hash
-
-```
-ce51b62b7008c75a2871b5b8e3eef00fa9972ee6
 ```
