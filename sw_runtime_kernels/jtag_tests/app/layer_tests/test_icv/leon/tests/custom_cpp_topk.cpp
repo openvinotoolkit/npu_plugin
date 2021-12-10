@@ -20,8 +20,8 @@ typedef int32_t Index;
 typedef t_D8StorageOrder StorageOrder;
 
 static constexpr std::initializer_list<SingleTest> topk_test_list{
-    {{4, 3, 3}, {4, 3, 1}, orderZYX, FPE("topk.elf"), {{1,2/*axes*/,0/*mode=0,1(max,min)*/,0/*sort=0,1,2(none,value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
-//    {{1, 4, 5}, {1, 1, 5}, orderZYX, FPE("topk.elf"), {{1,1/*axes*/,0/*mode=0,1(max,min)*/,2/*sort=0,1,2(none,value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
+    {{4, 3, 3}, {4, 3, 1}, orderZYX, FPE("topk.elf"), {{1,2/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
+//    {{1, 4, 5}, {1, 1, 5}, orderZYX, FPE("topk.elf"), {{1,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
 };
 
 // pair of (value, index) used in sorting
