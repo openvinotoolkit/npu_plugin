@@ -30,8 +30,6 @@ TEST_P(LoadNetwork, samePlatformProduceTheSameBlob) {
 
         auto configuration1 = configuration;
         configuration1[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
-        if(configuration1.find(VPUX_CONFIG_KEY(COMPILER_TYPE)) == configuration.end())
-            configuration1[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
         auto exeNet1 = ie->LoadNetwork(cnnNet, "VPUX", configuration1);
         std::stringstream blobStream1;
         exeNet1.Export(blobStream1);
@@ -74,7 +72,6 @@ TEST_P(LoadNetworkWithoutDevice, NoThrowIfNoDeviceAndButPlatformPassed) {
         auto cnnNet = buildSingleLayerSoftMaxNetwork();
         auto netConfiguration = configuration;
         netConfiguration[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
-        netConfiguration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, "VPUX", netConfiguration));
     }
 }
