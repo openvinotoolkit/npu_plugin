@@ -77,11 +77,11 @@ void RuntimeSimulator::buildTaskLists() {
     });
 
     _func.walk([&](VPURT::TaskOp taskOp) {
-        auto& block = taskOp.op().getBlocks().front();
+        auto& block = taskOp.body().getBlocks().front();
         auto wrappedTaskOp = block.begin();
-        switch (taskOp.getTaskType()) {
-        case VPUIP::TaskType::UPADMA:
-        case VPUIP::TaskType::NNDMA: {
+        switch (taskOp.getExecutorKind()) {
+        //case VPU::ExecutorKind::UPADMA:
+        case VPU::ExecutorKind::DMA_NN: {
             int64_t port = 0;
             if (auto dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(wrappedTaskOp)) {
                 port = dmaOp.port();
@@ -97,21 +97,21 @@ void RuntimeSimulator::buildTaskLists() {
             _dmaTasks[port].push_back(getTaskInfo(taskOp));
             break;
         }
-        case VPUIP::TaskType::NCE2: {
+        case VPU::ExecutorKind::NCE: {
             auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
             VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
             _nceTasks.push_back(getTaskInfo(taskOp, nceOp.getNumVariants()));
             break;
         }
         // TODO: should we introduce _swTask?
-        case VPUIP::TaskType::ACTShave:
-        case VPUIP::TaskType::UPA: {
+        //case VPU::ExecutorKind::ACTShave:
+        case VPU::ExecutorKind::SHAVE_UPA: {
             Logger::global().error("Adding UPA scheduling number {0} ", taskOp->getAttr("SchedulingNumber"));
             _upaTasks.push_back(getTaskInfo(taskOp));
             break;
         }
         default:
-            VPUX_THROW("Unsupported task type '{0}'", taskOp.getTaskType());
+            VPUX_THROW("Unsupported task type '{0}'", taskOp.getExecutorKind());
         }
     });
 
@@ -337,21 +337,21 @@ void RuntimeSimulator::getAllBarriersProducersAndConsumers() {
             if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
                 auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
                 Logger::global().error("Task with scheduling number {0}", task->getAttr("SchedulingNumber"));
-                if (task.getTaskType() == VPUIP::TaskType::NCE2) {
+                if (task.getExecutorKind() == VPU::ExecutorKind::NCE) {
                     producers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::NNDMA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
                     producers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::UPA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA) {
                     producers.push_back(userOp);
                 }
             } else if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
                 auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
                 Logger::global().error("Task with scheduling number {0}", task->getAttr("SchedulingNumber"));
-                if (task.getTaskType() == VPUIP::TaskType::NCE2) {
+                if (task.getExecutorKind() == VPU::ExecutorKind::NCE) {
                     consumers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::NNDMA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
                     consumers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::UPA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA) {
                     consumers.push_back(userOp);
                 }
             } else {

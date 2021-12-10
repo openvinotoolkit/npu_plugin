@@ -243,11 +243,11 @@ SmallVector<mlir::Operation*> FeasibleScheduleGenerator::getConsumerOps(mlir::Op
 }
 
 std::string FeasibleScheduleGenerator::printOpType(VPURT::TaskOp task) {
-    if (task.getTaskType() == VPUIP::TaskType::NCE2)
+    if (task.getExecutorKind() == VPU::ExecutorKind::NCE)
         return "NCE task";
-    if (task.getTaskType() == VPUIP::TaskType::NNDMA)
+    if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN)
         return "DMA task ";
-    if (task.getTaskType() == VPUIP::TaskType::UPA)
+    if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA)
         return "Upa task ";
 
     return "task";
@@ -360,25 +360,25 @@ void FeasibleScheduleGenerator::assignUniqueIds() {
     };
 
     _func.walk([&](VPURT::TaskOp taskOp) {
-        switch (taskOp.getTaskType()) {
-        case VPUIP::TaskType::UPADMA: {
+        switch (taskOp.getExecutorKind()) {
+        // case VPU::ExecutorKind::UPADMA: {
+        //     assignUniqueIDs(taskOp);
+        //     break;
+        // }
+        case VPU::ExecutorKind::DMA_NN: {
             assignUniqueIDs(taskOp);
             break;
         }
-        case VPUIP::TaskType::NNDMA: {
+        case VPU::ExecutorKind::NCE: {
             assignUniqueIDs(taskOp);
             break;
         }
-        case VPUIP::TaskType::NCE2: {
-            assignUniqueIDs(taskOp);
-            break;
-        }
-        case VPUIP::TaskType::UPA: {
+        case VPU::ExecutorKind::SHAVE_UPA: {
             assignUniqueIDs(taskOp);
             break;
         }
         default:
-            VPUX_THROW("Unsupported task type '{0}'", taskOp.getTaskType());
+            VPUX_THROW("Unsupported task type '{0}'", taskOp.getExecutorKind());
         }
     });
 }
@@ -389,22 +389,22 @@ void FeasibleScheduleGenerator::printInfo(mlir::FuncOp func) {
     };
 
     func.walk([&](VPURT::TaskOp taskOp) {
-        switch (taskOp.getTaskType()) {
-        case VPUIP::TaskType::UPADMA:
-        case VPUIP::TaskType::NNDMA: {
+        switch (taskOp.getExecutorKind()) {
+        //case VPU::ExecutorKind::UPADMA:
+        case VPU::ExecutorKind::DMA_NN: {
             getTaskInfo(taskOp);
             break;
         }
-        case VPUIP::TaskType::NCE2: {
+        case VPU::ExecutorKind::NCE: {
             getTaskInfo(taskOp);
             break;
         }
-        case VPUIP::TaskType::UPA: {
+        case VPU::ExecutorKind::SHAVE_UPA: {
             getTaskInfo(taskOp);
             break;
         }
         default:
-            VPUX_THROW("Unsupported task type '{0}'", taskOp.getTaskType());
+            VPUX_THROW("Unsupported task type '{0}'", taskOp.getExecutorKind());
         }
     });
 }
@@ -443,20 +443,20 @@ void FeasibleScheduleGenerator::getAllBarriersProducersAndConsumers() {
 
             if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
                 auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
-                if (task.getTaskType() == VPUIP::TaskType::NCE2) {
+                if (task.getExecutorKind() == VPU::ExecutorKind::NCE) {
                     producers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::NNDMA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
                     producers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::UPA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA) {
                     producers.push_back(userOp);
                 }
             } else if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
                 auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
-                if (task.getTaskType() == VPUIP::TaskType::NCE2) {
+                if (task.getExecutorKind() == VPU::ExecutorKind::NCE) {
                     consumers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::NNDMA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
                     consumers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::UPA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA) {
                     consumers.push_back(userOp);
                 }
             } else {
@@ -489,17 +489,17 @@ void FeasibleScheduleGenerator::compute_op_indegree(operation_in_degree_t& in_de
 }
 
 bool FeasibleScheduleGenerator::doesOpRunOnNCE(mlir::Operation* op) {
-    if ((mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NCE2) ||
-        (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NNDMA))
+    if ((mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::NCE) ||
+        (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::DMA_NN))
         return true;
     else
         return false;
 }
 
 unsigned FeasibleScheduleGenerator::countProducerConsumerTasks(mlir::Operation* op) {
-    if (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NCE2) {
+    if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::NCE) {
         auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op);
-        auto& block = taskOp.op().getBlocks().front();
+        auto& block = taskOp.body().getBlocks().front();
         auto wrappedTaskOp = block.begin();
         auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
         VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
@@ -507,7 +507,7 @@ unsigned FeasibleScheduleGenerator::countProducerConsumerTasks(mlir::Operation* 
         return nceOp.getNumVariants();
         // return 5;
     }
-    if (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NNDMA)
+    if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::DMA_NN)
         return 1;
     else
         exit(1);

@@ -526,16 +526,17 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     auto scopeTiming = rootTiming.nest("Serialize task lists");
 
     using TaskList = SmallVector<VPUIP::BlobWriter::Task>;
-    using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
+    using TaskListMap = EnumMap<VPU::ExecutorKind, TaskList>;
     TaskListMap tasksMap;
     std::list<VPURT::ConfigureBarrierOp> _barrierOps;
     std::list<VPURT::TaskOp> _taskOps;
+    TaskList barriersList;
 
     netFunc.walk([&](VPURT::ConfigureBarrierOp taskOp) {
         _barrierOps.push_back(taskOp);
-        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
+        //log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getExecutorKind(), taskOp->getName(), taskOp->getLoc());
         Logger::global().error("Physical Barrier ID is {0}", taskOp->getAttr("id"));
-        // tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+        // tasksMap[taskOp.getExecutorKind()].push_back(writer.createTask(taskOp));
     });
 
     _barrierOps.sort([](VPURT::ConfigureBarrierOp a, VPURT::ConfigureBarrierOp b) -> bool {
@@ -548,14 +549,14 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
         Logger::global().error("Barrier virtual ID {0} and physical Id {1} ", barrier->getAttr("virtualId"),
                                barrier->getAttr("id"));
 
-    for (auto& taskOp : _barrierOps)
-        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+    for (auto& barrierOp : _barrierOps)
+        barriersList.push_back(writer.createTask(barrierOp));
 
     netFunc.walk([&](VPURT::TaskOp taskOp) {
         _taskOps.push_back(taskOp);
         Logger::global().error("Task scheduling number is {0}", taskOp->getAttr("SchedulingNumber"));
-        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
-        // tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getExecutorKind(), taskOp->getName(), taskOp->getLoc());
+        // tasksMap[taskOp.getExecutorKind()].push_back(writer.createTask(taskOp));
     });
 
     _taskOps.sort([](VPURT::TaskOp a, VPURT::TaskOp b) -> bool {
@@ -568,15 +569,13 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
         Logger::global().error("Task scheduling number {0} ", task->getAttr("SchedulingNumber"));
 
     for (auto& taskOp : _taskOps)
-        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+        tasksMap[taskOp.getExecutorKind()].push_back(writer.createTask(taskOp));
 
     SmallVector<VPUIP::BlobWriter::TaskList> taskLists;
     taskLists.reserve(tasksMap.size() + 1);
 
-    for (const auto& taskList : tasksMap) {
-        Logger::global().error("Serialize task list '{0}'", taskList.first);
-
-        const auto serializedTaskList = writer.createVector(taskList.second);
+    const auto serializeTaskList = [&](const TaskList& taskList) {
+        const auto serializedTaskList = writer.createVector(taskList);
 
         MVCNN::TaskListBuilder builder(writer);
         builder.add_content(serializedTaskList);
@@ -586,7 +585,7 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     log.trace("Serialize barriers list");
     serializeTaskList(barriersList);
 
-    for (const auto& taskList : tasksMap) {
+     for (const auto& taskList : tasksMap) {
         log.trace("Serialize tasks list '{0}'", taskList.first);
         serializeTaskList(taskList.second);
     }

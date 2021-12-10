@@ -53,20 +53,20 @@ void ControlDependenciesSaveRestore::saveInitialControlFlow() {
 
             if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
                 auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
-                if (task.getTaskType() == VPUIP::TaskType::NCE2) {
+                if (task.getExecutorKind() == VPU::ExecutorKind::NCE) {
                     producers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::NNDMA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
                     producers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::UPA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA) {
                     producers.push_back(userOp);
                 }
             } else if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
                 auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
-                if (task.getTaskType() == VPUIP::TaskType::NCE2) {
+                if (task.getExecutorKind() == VPU::ExecutorKind::NCE) {
                     consumers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::NNDMA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
                     consumers.push_back(userOp);
-                } else if (task.getTaskType() == VPUIP::TaskType::UPA) {
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA) {
                     consumers.push_back(userOp);
                 }
             } else {

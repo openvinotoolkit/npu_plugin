@@ -110,8 +110,8 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
             createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
     // barrier config
-    auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 0);
-    auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 1);
+    auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 0, 0);
+    auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 1, 1);
 
     // DMAs
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
