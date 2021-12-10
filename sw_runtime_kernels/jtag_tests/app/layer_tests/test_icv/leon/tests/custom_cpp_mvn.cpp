@@ -21,16 +21,16 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
 
 
     static constexpr std::initializer_list<SingleTest> mvn_test_list{
-            {{4, 5, 6},
-             {4, 5, 6},
+            {{20, 3, 3},
+             {20, 3, 3},
              orderCHW,
              FPE("mvn.elf"),
-             {/*across_channels*/ 0, /*normalize_variance*/ 0, /*eps*/ 0, sw_params::Location::NN_CMX}},
-            {{4, 5, 6},
-             {4, 5, 6},
+             {/*across_channels*/ 0, /*normalize_variance*/ 0, /*eps = 10^(-5)*/ 925353388, sw_params::Location::NN_CMX}},
+            {{20, 3, 3},
+             {20, 3, 3},
              orderCHW,
              FPE("mvn.elf"),
-             {/*across_channels*/ 0, /*normalize_variance*/ 1, /*eps*/ 0, sw_params::Location::NN_CMX}},
+             {/*across_channels*/ 0, /*normalize_variance*/ 1, /*eps = 10^(-5)*/ 925353388, sw_params::Location::NN_CMX}},
     };
 
     class CustomCppMvnTest : public CustomCppTests<fp16> {
@@ -63,9 +63,9 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[3]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_mvnParams);
 
-            uint32_t acrossChannels = ind[test->customLayerParams.layerParams[0]];
-            uint32_t normalize = ind[test->customLayerParams.layerParams[1]];
-            float eps = ind[test->customLayerParams.layerParams[2]];
+            uint32_t acrossChannels = test->customLayerParams.layerParams[0];
+            uint32_t normalize = test->customLayerParams.layerParams[1];
+            float eps = *((float *)(&test->customLayerParams.layerParams[2]));
 
             m_mvnParams->acrossChannels = acrossChannels;
             m_mvnParams->normalize = normalize;
