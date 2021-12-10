@@ -136,6 +136,7 @@ private:
     std::string _irPrintingFile;
     bool _printFullIR = false;
     bool _printFullConstant = false;
+    bool _printDebugInfo = false;
     std::string _printDotOptions;
 
     llvm::raw_ostream* _timingStream = nullptr;
@@ -170,6 +171,7 @@ DeveloperConfig::DeveloperConfig(Logger log): _log(log) {
     parseEnv("IE_VPUX_IR_PRINTING_FILE", _irPrintingFile);
     parseEnv("IE_VPUX_PRINT_FULL_IR", _printFullIR);
     parseEnv("IE_VPUX_PRINT_FULL_CONSTANT", _printFullConstant);
+    parseEnv("IE_VPUX_PRINT_DEBUG_INFO", _printDebugInfo);
 
     parseEnv("IE_VPUX_PRINT_DOT", _printDotOptions);
 #endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
@@ -248,9 +250,12 @@ void DeveloperConfig::setup(mlir::PassManager& pm) const {
             pm.getContext()->disableMultithreading();
         }
 
-        mlir::OpPrintingFlags flags = mlir::OpPrintingFlags();
+        mlir::OpPrintingFlags flags;
         if (!_printFullConstant) {
             flags.elideLargeElementsAttrs();
+        }
+        if (_printDebugInfo) {
+            flags.enableDebugInfo(true);
         }
 
         pm.enableIRPrinting(shouldPrintBeforePass, shouldPrintAfterPass, _printFullIR, printAfterOnlyOnChange,
@@ -415,7 +420,9 @@ std::shared_ptr<vpux::INetworkDescription> vpux::CompilerImpl::parse(const std::
 // CreateVPUXCompiler
 //
 
+#ifndef OPENVINO_STATIC_LIBRARY
 INFERENCE_PLUGIN_API(void)
 CreateVPUXCompiler(std::shared_ptr<ICompiler>& compiler) {
     compiler = std::make_shared<CompilerImpl>();
 }
+#endif

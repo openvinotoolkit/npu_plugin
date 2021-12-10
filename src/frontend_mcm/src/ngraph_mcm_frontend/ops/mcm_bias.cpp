@@ -16,8 +16,6 @@
 #include "ngraph_mcm_frontend/ops/mcm_bias.hpp"
 #include <memory>
 
-const ngraph::NodeTypeInfo McmBias::type_info {"McmBias", 0};
-
 McmBias::McmBias(
         const ngraph::Output<ngraph::Node>& input,
         const ngraph::Output<ngraph::Node>& bias,

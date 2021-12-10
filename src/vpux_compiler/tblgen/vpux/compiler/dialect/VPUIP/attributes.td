@@ -18,56 +18,6 @@ include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 
 //
-// TaskType
-//
-
-def VPUIP_TaskType :
-        StrEnumAttr<
-            "TaskType",
-            "The type of the relevant processing code of the VPU for the task",
-            [
-                StrEnumAttrCase<"UPADMA">,
-                StrEnumAttrCase<"NNDMA">,
-                StrEnumAttrCase<"NCE2">,
-                StrEnumAttrCase<"Controller">,
-                StrEnumAttrCase<"UPA">,
-                StrEnumAttrCase<"ACTShave">,
-                StrEnumAttrCase<"SNN">,
-                StrEnumAttrCase<"Generic">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIP";
-    let genSpecializedAttr = 1;
-}
-
-//
-// MemoryLocation
-//
-
-def VPUIP_MemoryLocation :
-        StrEnumAttr<
-            "MemoryLocation",
-            "Values indicating which type of memory a tensor resides in",
-            [
-                StrEnumAttrCase<"ProgrammableInput">,
-                StrEnumAttrCase<"ProgrammableOutput">,
-                StrEnumAttrCase<"VPU_DDR_Heap">,
-                StrEnumAttrCase<"GraphFile">,
-                StrEnumAttrCase<"VPU_CMX_NN">,
-                StrEnumAttrCase<"VPU_CMX_UPA">,
-                StrEnumAttrCase<"VPU_DDR_BSS">,
-                StrEnumAttrCase<"VPU_CSRAM">,
-                StrEnumAttrCase<"AbsoluteAddr">,
-                StrEnumAttrCase<"MAC_Accumulators">,
-                StrEnumAttrCase<"ProfilingOutput">,
-                StrEnumAttrCase<"GFEmbeddedKernel">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIP";
-    let genSpecializedAttr = 1;
-}
-
-//
 // PoolLayerType
 //
 
@@ -123,6 +73,8 @@ def VPUIP_EltwiseLayerType :
                 StrEnumAttrCase<"LESS">,
                 StrEnumAttrCase<"LESS_EQUAL">,
                 StrEnumAttrCase<"NOT_EQUAL">,
+                StrEnumAttrCase<"GREATER">,
+                StrEnumAttrCase<"GREATER_EQUAL">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";

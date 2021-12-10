@@ -15,12 +15,14 @@
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/attributes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPURT/types.hpp"
 
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 // Generated
 //

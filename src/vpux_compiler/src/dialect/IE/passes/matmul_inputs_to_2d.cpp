@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -77,8 +78,12 @@ static SmallVector<mlir::Value> sliceTensor(const mlir::Value tensorToSplit, con
         height = tensorShape[Dim(2)];
         width = tensorShape[Dim(3)];
         channelDim = Dim(1);
+    } else if (tensorShape.size() == 2) {
+        return {tensorToSplit};
     }
     SmallVector<mlir::Value> weightSlices;
+    Shape rhsShape2D{height, width};
+    const auto rhsShape2DAttr = getIntArrayAttr(rewriter.getContext(), rhsShape2D);
     if (batch > 1) {
         for (int64_t sliceIdx = 0; sliceIdx < batch; sliceIdx++) {
             Shape sliceOffsets = Shape(tensorShape.size(), 0);
@@ -91,13 +96,12 @@ static SmallVector<mlir::Value> sliceTensor(const mlir::Value tensorToSplit, con
             auto newSubViewOp =
                     rewriter.create<IE::SliceOp>(location, tensorToSplit, staticOffsetsAttr, staticSizesAttr);
 
-            Shape rhsShape2D{height, width};
-            const auto rhsShape2DAttr = getIntArrayAttr(rewriter.getContext(), rhsShape2D);
             auto rhs2d = rewriter.create<IE::ReshapeOp>(location, newSubViewOp, nullptr, false, rhsShape2DAttr);
             weightSlices.push_back(rhs2d);
         }
     } else {
-        weightSlices.push_back(tensorToSplit);
+        auto rhs2d = rewriter.create<IE::ReshapeOp>(location, tensorToSplit, nullptr, false, rhsShape2DAttr);
+        weightSlices.push_back(rhs2d);
     }
 
     return weightSlices;
@@ -117,11 +121,15 @@ mlir::LogicalResult MatMulInputsTo2dPass::MatMulOpConverter::matchAndRewrite(IE:
         matmulSlices.push_back(op.output());
     }
 
-    auto newConcat = rewriter.create<IE::ConcatOp>(matmulOp->getLoc(), matmulSlices, 0);
+    VPUX_THROW_WHEN(matmulSlices.empty(), "Cannot slice MatMul operation with input shape {0}, weights' shape {1}",
+                    getShape(matmulOp.input1()), getShape(matmulOp.input2()));
+
+    auto newOp = matmulSlices.size() != 1 ? rewriter.create<IE::ConcatOp>(matmulOp->getLoc(), matmulSlices, 0)
+                                          : matmulSlices.front();
 
     const auto outShape4D = getShape(matmulOp.output());
     const auto outShape4DAttr = getIntArrayAttr(rewriter.getContext(), outShape4D);
-    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(matmulOp, newConcat, nullptr, false, outShape4DAttr);
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(matmulOp, newOp, nullptr, false, outShape4DAttr);
 
     return mlir::success();
 }
@@ -137,8 +145,8 @@ void MatMulInputsTo2dPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::MatMulOp>([](IE::MatMulOp op) -> bool {
         const auto input1Shape = getShape(op.input1());
         const auto input2Shape = getShape(op.input2());
-        // Cover 3D input and weights.
-        if (input1Shape.size() == 3 && input2Shape.size() == 3) {
+        // Cover 3D input or weights.
+        if (input1Shape.size() == 3 && (input2Shape.size() == 3 || input2Shape.size() == 2)) {
             return false;
         }
         // Cover 4D input and weights without batch.

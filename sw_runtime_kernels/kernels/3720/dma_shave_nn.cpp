@@ -3,7 +3,7 @@
 #include <algorithm>
 
 INLINE_ATTRIBUTE bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength) {
-    memcpy_s(a_dst, byteLength, a_src, byteLength);
+    memcpy(a_dst, a_src, byteLength);
     return true;
 }
 
@@ -23,7 +23,7 @@ INLINE_ATTRIBUTE bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t
     for (uint32_t si = 0, di = 0, length = byteLength; length > 0;)
     {
         const uint32_t chunk = std::min(std::min(srcWidth - si, dstWidth - di), length);
-        memcpy_s(dst, chunk, src, chunk);
+        memcpy(dst, src, chunk);
 
         si += chunk;
         di += chunk;

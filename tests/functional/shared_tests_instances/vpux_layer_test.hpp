@@ -44,13 +44,16 @@ public:
     void useCompilerMLIR();
     void setReferenceSoftwareModeMLIR();
     void setDefaultHardwareModeMLIR();
+    void setPlatformMTL();
+
     bool isCompilerMCM() const;
     bool isCompilerMLIR() const;
+    bool isPlatformMTL() const;
 
 protected:
     void run() override;
     void configure_model() override;
-
+    
 private:
     vpux::Logger _log = vpux::Logger::global();
 };

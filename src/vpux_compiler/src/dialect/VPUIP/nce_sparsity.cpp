@@ -61,8 +61,8 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
     // by iterating through the MPE_NUM values (2, 4, 8, 16)
 
     auto actualType = tryGetQuantizedStorageType(elemType);
-    VPUX_THROW_UNLESS(actualType.isInteger(CHAR_BIT) || actualType.isF16(), "Supported only U8/I8 and FP16 types {0}",
-                      actualType);
+    VPUX_THROW_UNLESS(actualType.isInteger(CHAR_BIT) || actualType.isF16() || actualType.isBF16(),
+                      "Supported only U8/I8 and FP16/BF16 types {0}", actualType);
 
     // Only MPE0, MPE4, MPE8 and MPE12 support FP16 data format
     const int mpeNumLimit = actualType.isF16() ? 4 : 16;
@@ -163,7 +163,7 @@ constexpr std::int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::
 
 std::int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Type inputType) {
     // MTL expects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
-    if (inputType.isF16()) {
+    if (inputType.isF16() || inputType.isBF16() || inputType.isF32()) {
         return toHex(rescale);
     }
     int32_t PRELU_SCALE_OFFSET = 0;

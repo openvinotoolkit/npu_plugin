@@ -61,7 +61,10 @@ protected:
     ~IEngineBackend() = default;
 };
 
+// [track: C#71607]
+IE_SUPPRESS_DEPRECATED_START
 using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
+IE_SUPPRESS_DEPRECATED_END
 
 class EngineBackend final {
 public:
@@ -110,12 +113,17 @@ private:
     // AllocatorWrapper has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
     // an instance of Allocator
     std::shared_ptr<Allocator> _actual;
+
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::details::SharedObjectLoader _plg;
+    IE_SUPPRESS_DEPRECATED_END
 
 public:
+    IE_SUPPRESS_DEPRECATED_START
     AllocatorWrapper(const std::shared_ptr<Allocator> actual, const InferenceEngine::details::SharedObjectLoader& plg)
             : _actual(actual), _plg(plg) {
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     virtual void* lock(void* handle, InferenceEngine::LockOp op = InferenceEngine::LOCK_FOR_WRITE) noexcept override {
         return _actual->lock(handle, op);
@@ -180,12 +188,14 @@ public:
     using Ptr = std::shared_ptr<Device>;
     using CPtr = std::shared_ptr<const Device>;
 
+    IE_SUPPRESS_DEPRECATED_START
     Device(const std::shared_ptr<IDevice> device, const InferenceEngine::details::SharedObjectLoader& plg)
             : _actual(device), _plg(plg) {
         if (_actual->getAllocator()) {
             _allocatorWrapper = std::make_shared<AllocatorWrapper>(_actual->getAllocator(), _plg);
         }
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     std::shared_ptr<Allocator> getAllocator() const {
         return _allocatorWrapper;

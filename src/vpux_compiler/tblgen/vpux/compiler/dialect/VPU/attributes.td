@@ -66,7 +66,6 @@ def VPU_ExecutorKind :
             "ExecutorKind",
             "Representd hardware executror resources",
             [
-                StrEnumAttrCase<"DMA_UPA">,
                 StrEnumAttrCase<"DMA_NN">,
                 StrEnumAttrCase<"NCE">,
                 StrEnumAttrCase<"DPU">,

@@ -108,20 +108,28 @@ NOTE: This method *must* be implemented by the user.
 
 Interface for operations to reify the provided tiling configuration
 ### Methods:
-#### `generateTiling`
+#### `getMaxNumTiles`
 
 ```c++
-vpux::OutputTiling generateTiling(vpux::Logger log);
+SmallVector<int64_t> getMaxNumTiles();
 ```
-Generate supported tiling configuration for the operation
+Return the maximum number of tiles for each dimension
 NOTE: This method *must* be implemented by the user.
 
-#### `reifyTile`
+#### `backInferTileInfo`
 
 ```c++
-mlir::Value reifyTile(const vpux::TileInfo&outputTile, mlir::OpBuilder&builder);
+vpux::TilingInfo backInferTileInfo(const vpux::TileInfo&outputTile);
 ```
-Reify the provided tiling configuration into the IR
+Infer input tiles information from the output tile
+NOTE: This method *must* be implemented by the user.
+
+#### `adjustAttrs`
+
+```c++
+void adjustAttrs(const vpux::TilingInfo&inputTiling);
+```
+Adjust the operation attributes to the current tile properties
 NOTE: This method *must* be implemented by the user.
 
 ## TilingInfoOpInterface (`IE_TilingInfoOpInterface`)

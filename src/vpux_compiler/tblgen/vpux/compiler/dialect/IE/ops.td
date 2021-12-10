@@ -279,7 +279,7 @@ def IE_TileOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        RankedTensorOf<[SI64]>:$repeats
+        RankedTensorOf<[AnyInteger]>:$repeats
     );
 
     let results = (outs
@@ -554,6 +554,58 @@ def IE_LessEqualOp :
 }
 
 //
+// GreaterOp
+//
+
+def IE_GreaterOp :
+        IE_LayerOp<
+            "Greater",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Greater layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// GreaterEqualOp
+//
+
+def IE_GreaterEqualOp :
+        IE_LayerOp<
+            "GreaterEqual",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine GreaterEqual layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // MultiplyOp
 //
 
@@ -659,7 +711,7 @@ def IE_GroupConvolutionOp :
         IE_LayerOp<
             "GroupConvolution",
             [
-                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface, ["generateTiling"]>
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
             ]
         > {
     let summary = "InferenceEngine GroupConvolution layer";
@@ -757,7 +809,7 @@ def IE_GatherOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        RankedTensorOf<[SI64,SI32]>:$indices,
+        RankedTensorOf<[AnyInteger]>:$indices,
         Optional<AnyRankedTensor>:$axis,
         OptionalAttr<IntAttr>:$axis_value
     );
@@ -781,7 +833,7 @@ def IE_GatherElementsOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        RankedTensorOf<[SI64,SI32]>:$indices,
+        RankedTensorOf<[AnyInteger]>:$indices,
 
         IntAttr:$axis
     );
@@ -1023,8 +1075,8 @@ def IE_BroadcastOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[SI64, SI32]>:$target_shape,
-        Optional<1DTensorOf<[SI64, SI32]>>:$axes_mapping,
+        1DTensorOf<[AnyInteger]>:$target_shape,
+        Optional<1DTensorOf<[AnyInteger]>>:$axes_mapping,
 
         OptionalAttr<IE_BroadcastType>:$mode
     );
@@ -1046,7 +1098,7 @@ def IE_ReduceMaxOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[SI64, SI32]>:$axes,
+        1DTensorOf<[AnyInteger]>:$axes,
 
         BoolAttr:$keep_dims
     );
@@ -1068,7 +1120,7 @@ def IE_ReduceSumOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[SI64, SI32]>:$axes,
+        1DTensorOf<[AnyInteger]>:$axes,
 
         BoolAttr:$keep_dims
     );
@@ -1479,7 +1531,7 @@ def IE_TransposeOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        Optional<RankedTensorOf<[SI64]>>:$order,
+        Optional<RankedTensorOf<[AnyInteger]>>:$order,
 
         OptionalAttr<AffineMapAttr>:$order_value
     );

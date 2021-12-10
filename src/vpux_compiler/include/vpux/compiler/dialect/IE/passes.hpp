@@ -96,6 +96,7 @@ std::unique_ptr<mlir::Pass> createConvertConv1DToConv2DPass(Logger log = Logger:
 std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSupportBatchForPadPass(Logger log = Logger::global());
 
 //
 // LowPrecision
@@ -110,6 +111,7 @@ std::unique_ptr<mlir::Pass> createFuseQuantizedOpsPass(Logger log = Logger::glob
 std::unique_ptr<mlir::Pass> createConvertWeightsToU8Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseConvertWithQuantizePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createDeletePerAxisQuantizationPass(Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createResolvePWLPostOpsPass(Logger log = Logger::global());
 

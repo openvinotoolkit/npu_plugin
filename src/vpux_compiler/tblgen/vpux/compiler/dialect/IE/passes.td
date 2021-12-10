@@ -548,6 +548,29 @@ def MergeFakeQuant : PassBase<"merge-fake-quant", "vpux::FunctionPass"> {
 }
 
 //
+// DeletePerAxisQuantize
+//
+
+def DeletePerAxisQuantization : PassBase<"delete-peraxis-quantization", "vpux::FunctionPass"> {
+    let summary = "Delete PerAxis Quantize Dequantize for MTL";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+
+        It deletes per axis quantization which left after LPT.
+        Conversion is not mathimatically equal, but for now it gives small
+            accuracy deviation
+    }];
+
+    let constructor = "vpux::IE::createDeletePerAxisQuantizationPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
+    ];
+}
+
+//
 // FuseQuantizedOps
 //
 
@@ -663,6 +686,30 @@ def HandleAsymmetricStrides : PassBase<"handle-asymmetric-strides", "vpux::Funct
     }];
 
     let constructor = "vpux::IE::createHandleAsymmetricStridesPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// SupportBatchForPadOp
+//
+
+def SupportBatchForPad : PassBase<"support-batch-for-pad", "vpux::FunctionPass"> {
+    let summary = "Handle PadOp with non-zero padding on batch dimension";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        Split `IE::PadOp` with pads_begin[M, x, x, x] and pads_end[N, x, x, x] into several parts.
+        Create `IE::PadOp` with pads_begin[0, x, x, x] and pads_end[0, x, x, x] attributes.
+        Append tensor of size M * batchSize to the beginning, and tensor of size N * batchSize to the end.
+        Replace original `IE::PadOp` with `IE::Concat(%cst_front, %batchless_pad, %cst_back)`.
+        Only `IE::PadMode::CONSTANT` case is supported.
+    }];
+
+    let constructor = "vpux::IE::createSupportBatchForPadPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

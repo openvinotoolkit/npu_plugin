@@ -1,2 +1,0 @@
-vpuip_2 branch: kskvorts/mtl_patch c1011c24cb317c56939fdd40730a257f18a400ca
-mv_tools_version:	21.11.3-internal

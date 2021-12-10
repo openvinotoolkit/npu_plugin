@@ -29,6 +29,15 @@
 
 namespace vpux {
 
+class ICompiler;
+#ifdef OPENVINO_STATIC_LIBRARY
+using CompilerPluginPtr = std::shared_ptr<ICompiler>;
+#else
+IE_SUPPRESS_DEPRECATED_START
+using CompilerPluginPtr = InferenceEngine::details::SOPointer<ICompiler>;
+IE_SUPPRESS_DEPRECATED_END
+#endif
+
 /**
  * @brief A helper map to represent descriptions for inputs and outputs
  * of a network
@@ -146,7 +155,7 @@ public:
     using Ptr = std::shared_ptr<NetworkDescription>;
     using CPtr = std::shared_ptr<const NetworkDescription>;
 
-    NetworkDescription(INetworkDescription::Ptr actual, const InferenceEngine::details::SharedObjectLoader& plg = {});
+    NetworkDescription(INetworkDescription::Ptr actual, const CompilerPluginPtr& plg = {});
 
     const std::string& getName() const {
         return _actual->getName();
@@ -183,7 +192,8 @@ public:
 
 private:
     INetworkDescription::Ptr _actual;
-    InferenceEngine::details::SharedObjectLoader _plg;
+
+    CompilerPluginPtr _plg;
 };
 
 /**
@@ -254,7 +264,11 @@ public:
 
     static Ptr create(const Config& config);
 
+#ifdef OPENVINO_STATIC_LIBRARY
+    Compiler(ICompiler::Ptr com): _actual(com){};
+#else
     Compiler(std::string libpath): _actual(std::move(libpath)){};
+#endif
 
     std::shared_ptr<vpux::NetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
                                                       const std::string& netName,
@@ -283,7 +297,6 @@ public:
     }
 
 private:
-    using CompilerPluginPtr = InferenceEngine::details::SOPointer<vpux::ICompiler>;
     CompilerPluginPtr _actual;
 };
 

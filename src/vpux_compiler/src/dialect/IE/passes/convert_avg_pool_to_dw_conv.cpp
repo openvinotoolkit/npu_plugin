@@ -128,8 +128,9 @@ void ConvertAvgPoolToDWConvPass::safeRunOnFunc() {
         const auto padRight = padsEnd[1];
 
         // The logic is reversed here. If AvgPoolOp can be represented as an NCE task, it becomes illegal.
+        const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
         return mlir::failed(VPUIP::NCEInvariant::verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom,
-                                                              padLeft, padRight));
+                                                              padLeft, padRight, arch));
     };
 
     mlir::ConversionTarget target(ctx);

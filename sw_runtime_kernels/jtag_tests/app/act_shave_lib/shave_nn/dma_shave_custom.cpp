@@ -19,14 +19,11 @@ bool startStride(DmaAlShaveWrapper* wrapper, const void *a_src, void *a_dst, uin
 
 void startTransfer(DmaAlShaveWrapper* wrapper) {
     DmaAlShave* dmaAlShave = reinterpret_cast<DmaAlShave*>(wrapper->dmaAlShaveHnd);
-    dmaAlShave->start();
 }
 
 bool start3D(DmaAlShaveWrapper* wrapper, const void *a_src, void *a_dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
              uint32_t srcStride, uint32_t dstStride, uint32_t numPlanes, uint32_t srcPlaneStride, uint32_t dstPlaneStride) {
     DmaAlShave* dmaAlShave = reinterpret_cast<DmaAlShave*>(wrapper->dmaAlShaveHnd);
-    return dmaAlShave->start(a_src, a_dst, byteLength, srcWidth, dstWidth,
-                             srcStride, dstStride, numPlanes, srcPlaneStride, dstPlaneStride);
 }
 
 void wait(DmaAlShaveWrapper* wrapper) {

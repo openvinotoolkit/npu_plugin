@@ -367,7 +367,8 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
+                "VPUX_EXECUTOR_STREAMS": "2",
+                "VPUX_COMPILATION_MODE_PARAMS": "compress-weights"
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -417,7 +418,195 @@
                 "blob_name" : "resnet-50-pytorch_sparse50_BDK_fp16"
             }
         },
+        
+        {
+            "name" : "BDK_FP16-INT8_yolo-v2-tiny-ava-0001",
+            "ir" : "models/clientmodels/BDK3/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "yolo-v2-tiny-ava-0001_tf"
+            }
+        },
 
+        {
+            "name" : "BDK_FP16-INT8_yolo-v2-ava-0001",
+            "ir" : "models/clientmodels/BDK3/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "yolo-v2-ava-0001_tf"
+            }
+        },
+
+        {
+            "name" : "BDK_FP16-INT8_googlenet-v1",
+            "ir" : "models/clientmodels/BDK3/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "googlenet-v1_tf"
+            }
+        },
+ 
+        {
+            "name" : "BDK_FP16-INT8_googlenet-v3",
+            "ir" : "models/clientmodels/BDK3/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["299x299/n01537544_28.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "googlenet-v3_tf"
+            }
+        },
+  
+        {
+            "name" : "BDK_FP16-INT8_squeezenet1.1",
+            "ir" : "models/clientmodels/BDK3/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["227x227/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "squeezenet1-1_cf2"
+            }
+        },
+ 
+        {
+            "name" : "BDK_FP16-INT8_openpose-pose",
+            "ir" : "models/clientmodels/BDK3/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["368x368/test.jpg"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "openpose-pose_cf"
+            }
+        },
+
+       
         {
             "name" : "por_tf_FP16_fsrcnn-x4",
             "ir" : "por/fsrcnn-x4/tf/FP16/fsrcnn-x4.xml",
@@ -1808,9 +1997,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "BenchmarkApp" : {
                 "input_folder" : "62x62"
@@ -1831,8 +2018,8 @@
         },
 
         {
-            "name" : "MTL_ea_caffe_FP16_age-gender-recognition-retail-0013_ww14",
-            "ir" : "age-gender-recognition-retail-0013-ww14/caffe/FP16/age-gender-recognition-retail-0013.xml",
+            "name" : "MTL_scale_caffe_FP16_age-gender-recognition-retail-0013",
+            "ir" : "scale/age-gender-recognition-retail-0013/caffe/FP16/age-gender-recognition-retail-0013.xml",
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
@@ -1852,7 +2039,7 @@
             "BenchmarkApp" : {
                 "disabled" : true
             },
-            "NetTest": {
+            "NetTest-CalcRef": {
                 "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
@@ -1860,7 +2047,7 @@
                 ]
             },
             "NetTest-Validate": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
                     "--raw_tolerance", "1"
@@ -1886,9 +2073,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "BenchmarkApp" : {
                 "input_folder" : "62x62"
@@ -1905,6 +2090,39 @@
             },
             "CI-options" : {
                 "blob_name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013"
+            }
+        },
+
+        {
+            "name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013_compressed",
+            "ir" : "scale/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013.xml",
+            "category" : "MLIR/precommit",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6",
+                "VPUX_COMPILATION_MODE_PARAMS": "compress-weights"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "62x62"
+            },
+            "NetTest": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.02"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "age-gender-recognition-retail-0013.yml"
+            },
+            "CI-options" : {
+                "blob_name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013_compressed"
             }
         },
 
@@ -3735,8 +3953,8 @@
         },
 
         {
-            "name" : "MTL_FP16_age-gender-recognition-retail-0013-16-chan",
-            "ir" : "models/mtl/age-gender-recognition-16-chan/FP16/age-gender-recognition-retail-0013-16-chan.xml",
+            "name" : "MTL_FP16_age-gender-recognition-retail-0013-cut",
+            "ir" : "age-gender-recognition-retail-0013-ww46/caffe/FP16/age-gender-recognition-retail-0013-cut.xml",
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
@@ -3745,9 +3963,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
@@ -3758,17 +3974,27 @@
             "BenchmarkApp" : {
                 "input_folder" : "62x62"
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
+            "NetTest-CalcRef": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1"
+                ]
             },
-            "NetTest-Validate" : {
-                "disabled" : true
+            "NetTest-Validate": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
                 "disabled" : true
             },
             "CI-options" : {
-                "blob_name" : "age-gender-16-chan"
+                "blob_name" : "age-gender-cut"
             },
             "comments" : "NHWC layout was chosen on purpose because this model for MTL."
         },
@@ -3784,9 +4010,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
@@ -3797,11 +4021,23 @@
             "BenchmarkApp" : {
                 "disabled" : true
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
+            "NetTest-CalcRef": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
             },
-            "NetTest-Validate" : {
-                "disabled" : true
+            "NetTest-Validate": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
                 "disabled" : true
@@ -3823,9 +4059,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
@@ -3841,7 +4075,7 @@
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "0.3"
+                    "--prob_tolerance", "0.6"
                 ]
             },
             "NetTest-Validate": {
@@ -3849,7 +4083,7 @@
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "0.3"
+                    "--prob_tolerance", "0.6"
                 ],
                 "input_precision" : "FP16",
                 "output_precision" : "FP16"
@@ -3874,9 +4108,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
@@ -3913,9 +4145,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
@@ -4354,6 +4584,43 @@
             "CI-options" : {
                 "blob_name" : "bdk_edsr3",
                 "special" : true
+            }
+        },
+
+        {
+            "name" : "por_onnx_FP16-INT8_yolo_v5m",
+            "ir" : "por/yolo_v5m/onnx/FP16-INT8/yolo_v5m.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : true
+            },
+            "3900": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"1"
+            },
+            "Compile" : {
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "yolo_v5m"
             }
         }
     ]

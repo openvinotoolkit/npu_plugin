@@ -17,8 +17,6 @@
 
 #include <memory>
 
-const ngraph::NodeTypeInfo McmScale::type_info {"McmScale", 0};
-
 McmScale::McmScale(const ngraph::Output<Node>& data_batch,
                    const ngraph::Output<Node>& weights,
                    const ngraph::element::Type& type)

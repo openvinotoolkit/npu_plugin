@@ -62,6 +62,12 @@ This pass replaces all `Reorder` and `Transpose` operations with `MemPermute` op
 The pass is a part of `LowPrecision` pipeline.
 
 Pass detects quantized convolution and shifts weights data from a signed range to an unsigned one
+### `-delete-peraxis-quantization`: Delete PerAxis Quantize Dequantize for MTL
+The pass is a part of `LowPrecision` pipeline.
+
+It deletes per axis quantization which left after LPT.
+Conversion is not mathimatically equal, but for now it gives small
+    accuracy deviation
 ### `-dequantize-const`: Dequantize constant tensors
 The pass is a part of `LowPrecision` pipeline.
 
@@ -131,6 +137,14 @@ able to quantize convolution and fuse bias and post-processing operations.
 The pass is a part of `LowPrecision` pipeline.
 
 It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
+### `-support-batch-for-pad`: Handle PadOp with non-zero padding on batch dimension
+The pass is a part of `AdjustForVPU` pipeline.
+
+Split `IE::PadOp` with pads_begin[M, x, x, x] and pads_end[N, x, x, x] into several parts.
+Create `IE::PadOp` with pads_begin[0, x, x, x] and pads_end[0, x, x, x] attributes.
+Append tensor of size M * batchSize to the beginning, and tensor of size N * batchSize to the end.
+Replace original `IE::PadOp` with `IE::Concat(%cst_front, %batchless_pad, %cst_back)`.
+Only `IE::PadMode::CONSTANT` case is supported.
 ### `-uniquify-ops`: Remove duplicating operations with a common producer Value
 The pass is a part of `AdjustForVPU` pipeline.
 

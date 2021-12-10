@@ -20,6 +20,7 @@
 #include <mlir/IR/BuiltinOps.h>
 
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
+#include "vpux/utils/core/small_vector.hpp"
 
 namespace vpux {
 
@@ -30,7 +31,7 @@ struct ActShaveCompileParams {
 struct KernelDataDesc {
     std::string name;
     //flatbuffers::Offset<MVCNN::KernelData> data;
-    llvm::SmallVector<uint8_t> data;
+    SmallVector<uint8_t> data;
     // unpadded size
     size_t size;
 };

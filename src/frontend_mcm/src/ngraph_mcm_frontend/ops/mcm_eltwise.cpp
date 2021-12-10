@@ -16,8 +16,6 @@
 #include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
 #include <memory>
 
-const ngraph::NodeTypeInfo McmEltwise::type_info {"McmEltwise", 0};
-
 McmEltwise::McmEltwise(
         const ngraph::Output<ngraph::Node>& input0,
         const ngraph::Output<ngraph::Node>& input1,

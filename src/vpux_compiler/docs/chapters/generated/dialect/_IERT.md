@@ -995,6 +995,64 @@ operation ::= `IERT.GenericReshape` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
+### `IERT.GreaterEqual` (vpux::IERT::GreaterEqualOp)
+
+InferenceEngine run-time GreaterEqual layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.GreaterEqual` attr-dict
+              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float or 32-bit float values
+`input2` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.Greater` (vpux::IERT::GreaterOp)
+
+InferenceEngine run-time Greater layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Greater` attr-dict
+              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float or 32-bit float values
+`input2` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.GroupConvolution` (vpux::IERT::GroupConvolutionOp)
 
 InferenceEngine run-time GroupConvolution layer

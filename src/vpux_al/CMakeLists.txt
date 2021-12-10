@@ -29,6 +29,20 @@ target_include_directories(${TARGET_NAME}
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include")
 
+if(BUILD_COMPILER_FOR_DRIVER)
+    target_include_directories(${TARGET_NAME}
+        PUBLIC
+            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_compiler/include")
+
+    target_link_libraries(${TARGET_NAME}
+        PRIVATE
+            vpux_compiler_static)
+
+    target_compile_definitions(${TARGET_NAME}
+        PUBLIC
+            OPENVINO_STATIC_LIBRARY)
+endif()
+
 set(VPUX_VERSION_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp)
 addVersionDefines(${VPUX_VERSION_FILE} CI_BUILD_NUMBER)
 

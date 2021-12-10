@@ -26,9 +26,7 @@ A task to configure the setup for a barrier
 Syntax:
 
 ```
-operation ::= `VPURT.ConfigureBarrier` attr-dict
-              `<` $id `>`
-              `->` type(results)
+operation ::= `VPURT.ConfigureBarrier` `<` $id `>` attr-dict `->` type(results)
 ```
 
 
@@ -47,13 +45,13 @@ operation ::= `VPURT.ConfigureBarrier` attr-dict
 
 ### `VPURT.DeclareBuffer` (vpux::VPURT::DeclareBufferOp)
 
-TensorReference value declaration
+Declare VPU run-time buffer
 
 
 Syntax:
 
 ```
-operation ::= `VPURT.DeclareBuffer` $locale custom<LocaleIndex>($localeIndex) `<` $dataIndex `>` attr-dict `->` type(results)
+operation ::= `VPURT.DeclareBuffer` $section (`[` $sectionIndex^ `]`)? `<` $byteOffset `>` attr-dict `->` type(results)
 ```
 
 
@@ -61,20 +59,15 @@ operation ::= `VPURT.DeclareBuffer` $locale custom<LocaleIndex>($localeIndex) `<
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`locale` | vpux::VPUIP::MemoryLocationAttr | Values indicating which type of memory a tensor resides in
-`localeIndex` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`dataIndex` | mlir::IntegerAttr | Integer attribute
-`sparsityIndex` | mlir::IntegerAttr | Integer attribute
-`storageElementIndex` | mlir::IntegerAttr | Integer attribute
-`storageElementSize` | mlir::IntegerAttr | Integer attribute
-`leadingOffset` | mlir::IntegerAttr | Integer attribute
-`trailingOffset` | mlir::IntegerAttr | Integer attribute
+`section` | vpux::VPURT::BufferSectionAttr | Values indicating which section of BLOB the buffer resides in
+`sectionIndex` | mlir::IntegerAttr | Integer attribute
+`byteOffset` | mlir::IntegerAttr | Integer attribute
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`memory` | memref of any type values
+`buffer` | memref of any type values
 
 ### `VPURT.DeclareVirtualBarrier` (vpux::VPURT::DeclareVirtualBarrierOp)
 
@@ -100,6 +93,31 @@ operation ::= `VPURT.DeclareVirtualBarrier` attr-dict `->` type(results)
 | :----: | ----------- |
 `barrier` | VPUIP Barrier Type
 
+### `VPURT.SW.Runtime` (vpux::VPURT::SWRunTimeOp)
+
+Definition of run-time
+
+
+Syntax:
+
+```
+operation ::= `VPURT.SW.Runtime` attr-dict-with-keyword
+              `entryPoint` `:` $entryPoint
+              `stack_configuration` `:` $stacks
+```
+
+This operation defines various resources consumed by compiled-in Runtime Kernel:
+
+  * stack configuration
+  * Runtime kernel entry point
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`entryPoint` | ::mlir::SymbolRefAttr | symbol reference attribute
+`stacks` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
 ### `VPURT.Task` (vpux::VPURT::TaskOp)
 
 Hold common scheduling logic (barriers configuration and profiling support).
@@ -108,10 +126,10 @@ Hold common scheduling logic (barriers configuration and profiling support).
 Syntax:
 
 ```
-operation ::= `VPURT.Task` attr-dict
-              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+operation ::= `VPURT.Task` (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-              `op` `:` $op
+              attr-dict-with-keyword
+              $body
 ```
 
 

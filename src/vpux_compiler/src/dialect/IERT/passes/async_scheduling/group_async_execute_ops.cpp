@@ -73,7 +73,7 @@ bool prevHasUniqueUsers(mlir::async::ExecuteOp prevExecOp, mlir::async::ExecuteO
     std::set<mlir::async::ExecuteOp> usersOp = getUsers(execOp);
     usersPrevOp.erase(execOp);
 
-    llvm::SmallVector<mlir::async::ExecuteOp> uniqueUsersPrevOp;
+    SmallVector<mlir::async::ExecuteOp> uniqueUsersPrevOp;
     std::set_difference(usersPrevOp.begin(), usersPrevOp.end(), usersOp.begin(), usersOp.end(),
                         std::back_inserter(uniqueUsersPrevOp));
     if (!uniqueUsersPrevOp.empty())

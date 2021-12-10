@@ -1,10 +1,18 @@
 Change Log:
 -----------
 
-VPUXCompilerL0 1.2:
+VPUXCompilerL0 1.2.2:
+  - Use OpenVINO static frontend.
+  - API Change:
+    - Move compilation mode to options.
+    - Move compile log level to options.
+    - Add optionsSize.
+
+VPUXCompilerL0 1.2.1:
   - Add more config options.
   - Code refactor.
-  - Remove changes on compiler and recover depends on vpux_compiler dynamic lib
+  - Work on master branch.
+  - Use static OpenVINO runtime.
 
 VPUXCompilerL0 1.1.2145:
   - Add profiling and change default debug level to info.

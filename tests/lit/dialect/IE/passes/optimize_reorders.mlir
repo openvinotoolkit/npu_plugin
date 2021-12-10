@@ -164,6 +164,40 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
+// CHECK-LABEL: @ReorderWithSplitMultipleUses
+module @ReorderWithSplitMultipleUses attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+
+// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = #NHWC}>)
+func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
+        (tensor<1x1x30x30xf16, {order = #NHWC}>, tensor<1x1x30x30xf16, {order = #NHWC}>){
+    %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x3x30x30xf16, {order = #NHWC}> -> tensor<1x3x30x30xf16>
+
+    %1:3 = IE.Split(%0) {axis_value = 1, num_splits = 3} :
+        tensor<1x3x30x30xf16> -> tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16>
+
+    %2 = IE.Reorder(%1#1) {dstOrder = #NHWC} : tensor<1x1x30x30xf16> -> tensor<1x1x30x30xf16, {order = #NHWC}>
+    %3 = IE.Reorder(%1#1) {dstOrder = #NHWC} : tensor<1x1x30x30xf16> -> tensor<1x1x30x30xf16, {order = #NHWC}>
+
+    return %2, %3 : tensor<1x1x30x30xf16, {order = #NHWC}>, tensor<1x1x30x30xf16, {order = #NHWC}>
+
+    // CHECK:       [[VAR0:%[0-9]+]]:3 = IE.Split([[ARG0]])
+    // CHECK-SAME:      tensor<1x3x30x30xf16, {order = #NHWC}> ->
+    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = #NHWC}>
+
+    // CHECK:       return [[VAR0]]#1, [[VAR0]]#1
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>
+}
+
+}
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
 // CHECK-LABEL: @ReorderWithConcat
 module @ReorderWithConcat attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
 

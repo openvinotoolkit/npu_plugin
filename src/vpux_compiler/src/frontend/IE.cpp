@@ -89,6 +89,7 @@
 #include <transformations/op_conversions/convert_gather_upgrade.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/convert_maxpool_downgrade.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
 #include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
@@ -206,6 +207,8 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Less>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LessEqual>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::NotEqual>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Greater>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GreaterEqual>& origNode);
 
     SmallVector<mlir::Value> getInputs(const OrigNodePtr& node);
     void addOutputs(const OrigNodePtr& node, mlir::Operation* op);
@@ -324,6 +327,8 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Less),
             MAP_ENTRY(opset_latest::LessEqual),
             MAP_ENTRY(opset_latest::NotEqual),
+            MAP_ENTRY(opset_latest::Greater),
+            MAP_ENTRY(opset_latest::GreaterEqual),
     };
 
 #undef MAP_ENTRY
@@ -1584,6 +1589,38 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     auto op = builder.create<IE::LessEqualOp>(createLocation(origNode), inputs[0], inputs[1],
                                               importBroadcastType(autob.m_type));
+
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Greater>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Greater>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Greater node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto& autob = origNode->get_autob();
+
+    auto op = builder.create<IE::GreaterOp>(createLocation(origNode), inputs[0], inputs[1],
+                                            importBroadcastType(autob.m_type));
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GreaterEqual>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::GreaterEqual>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph GreaterEqual node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto& autob = origNode->get_autob();
+
+    auto op = builder.create<IE::GreaterEqualOp>(createLocation(origNode), inputs[0], inputs[1],
+                                                 importBroadcastType(autob.m_type));
+
     addOutputs(origNode, op);
 }
 
@@ -2029,8 +2066,6 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
-    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
-
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
     decomp->add_matcher<ngraph::pass::BidirectionalSequenceDecomposition>();
@@ -2044,9 +2079,7 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
-    decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
     decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
-    decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
     decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
     decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
@@ -2072,9 +2105,9 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();  // not plugins implemented gather8
     manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();  // not plugins implemented gather7
-    manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
-    manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
+    manager.register_pass<ngraph::pass::ConvertGather1ToGather7>();
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
+    manager.register_pass<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
 
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
@@ -2086,15 +2119,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, std::vec
                      mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Common nGraph passes");
 
-    const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
-    passConfig->disable<ngraph::pass::LSTMCellDecomposition>();
-    passConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
-    passConfig->disable<ngraph::pass::ConvertReduceMaxToPooling>();
-    passConfig->disable<ngraph::pass::ConvertReduceSumToPooling>();
-    passConfig->enable<ngraph::pass::ConvertGather1ToGather7>();
-    passConfig->disable<ngraph::pass::ConvertGather7ToGather1>();
-
-    ngraph::pass::Manager manager(passConfig);
+    ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<vpux::pass::RemoveSplitConcat>();
     manager.register_pass<vpux::pass::FusePadding>();

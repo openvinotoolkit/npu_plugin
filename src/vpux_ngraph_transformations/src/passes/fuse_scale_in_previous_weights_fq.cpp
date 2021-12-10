@@ -49,7 +49,7 @@ bool FuseScaleAfterClamp::run_on_function(std::shared_ptr<ngraph::Function> f) {
     auto ops = f->get_ordered_ops();
     bool status = false;
     for (const auto& op : ops) {
-        if (op->get_type_info() == ngraph::op::PowerIE::type_info) {
+        if (op->get_type_info() == ngraph::op::PowerIE::get_type_info_static()){
             auto power_node = std::dynamic_pointer_cast<ngraph::op::PowerIE>(op);
             if (!power_node || power_node->power != 1)
                 continue;

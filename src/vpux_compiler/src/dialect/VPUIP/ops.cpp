@@ -67,14 +67,6 @@ public:
             return false;
         }
 
-        // MaxPool IDU does not support zero-point subtraction, so it compensates by ignoring output zero-point as well.
-        // Fusing a post-op that removes the operation's 'linearity' leads to different input/output quantizations which
-        // provide wrong results due to the zero-point limitation. Currently, all post-ops are disabled.
-        // TODO: reenable fusing for float MaxPool
-        if (mlir::isa<IE::SigmoidOp, IE::TanhOp>(postOp) && mlir::isa<IE::MaxPoolOp>(mainOp)) {
-            return false;
-        }
-
         return VPUIP::NCEInvariant::verifyKernel(mlir::cast<MainOpType>(mainOp)).succeeded();
     }
 };
@@ -136,12 +128,17 @@ bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logg
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
 
-        const auto tileConf = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+        const auto inputTiling = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
+                                                   origOp.strides(), origOp.pads_begin(), origOp.pads_end());
 
-        const auto inputTileType = getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
-        const auto filterTileType =
-                getDenseTileType(filterType, tileConf.filterTile.offsets, tileConf.filterTile.shape);
+        const auto& tileConf = inputTiling.tiles;
+        VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
+                          tileConf.size());
+        const auto& inputTile = tileConf[0];
+        const auto& filterTile = tileConf[1];
+
+        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
+        const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
         const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
         return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(origOp->getLoc(),
@@ -160,12 +157,17 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
 
-        const auto tileConf = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                     origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+        const auto inputTiling = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
+                                                        origOp.strides(), origOp.pads_begin(), origOp.pads_end());
 
-        const auto inputTileType = getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
-        const auto filterTileType =
-                getDenseTileType(filterType, tileConf.filterTile.offsets, tileConf.filterTile.shape);
+        const auto& tileConf = inputTiling.tiles;
+        VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
+                          tileConf.size());
+        const auto& inputTile = tileConf[0];
+        const auto& filterTile = tileConf[1];
+
+        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
+        const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
         const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
         return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(origOp->getLoc(),
@@ -181,10 +183,14 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         const auto origInputShape = getShape(origOp.input());
 
-        const auto tileConf = backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(),
-                                                origOp.pads_begin(), origOp.pads_end());
+        const auto inputTiling = backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(),
+                                                   origOp.pads_begin(), origOp.pads_end());
 
-        const auto inputTileType = getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
+        const auto& tileConf = inputTiling.tiles;
+        VPUX_THROW_UNLESS(!tileConf.empty(), "Got empty tile information");
+        const auto& inputTile = tileConf[0];
+
+        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
         const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
         return mlir::succeeded(VPUIP::NCEInvariant::verifyPoolCMX(
@@ -435,6 +441,9 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::LessOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::LessEqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::NotEqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::GreaterOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::GreaterEqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::AndOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
 }
 
 //
@@ -514,6 +523,9 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::LessOp, OpModelForSW>();
     registry.addOpInterface<IERT::LessEqualOp, OpModelForSW>();
     registry.addOpInterface<IERT::NotEqualOp, OpModelForSW>();
+    registry.addOpInterface<IERT::GreaterOp, OpModelForSW>();
+    registry.addOpInterface<IERT::GreaterEqualOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AndOp, OpModelForSW>();
 }
 
 }  // namespace
@@ -560,6 +572,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
 
     registry.addOpInterface<IERT::SigmoidOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::SoftMaxOp, SoftwareLayerOpModel>();
+    registry.addOpInterface<IERT::HSwishOp, SoftwareLayerOpModel>();
 
     redirectOpInterfacesForIE<LayoutInfoOpModelForHW, LayoutInfoOpModelForSW>(registry);
     redirectOpInterfacesForIERT<AsyncLayerOpModelForHW, AsyncLayerOpModelForDMA, AsyncLayerOpModelForSW>(registry);

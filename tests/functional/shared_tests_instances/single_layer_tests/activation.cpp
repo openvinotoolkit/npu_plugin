@@ -86,14 +86,16 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
 
 class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
     void SkipBeforeLoad() override {
+        if (std::getenv("OV_BUILD_DIR") == nullptr) {
+            throw LayerTestsUtils::KmbSkipTestException(
+                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
+        }
+
 #if defined(__arm__) || defined(__aarch64__)
         throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM.");
 #endif
     }
     void SkipBeforeInfer() override {
-        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
-    }
-    void SkipBeforeValidate() override {
         throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
     }
 };
@@ -107,6 +109,7 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
     Run();
 }
 
+// [Track number: EISW-26724]
 TEST_P(KmbActivationLayerTest_MTL, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     setPlatformMTL();
@@ -239,12 +242,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_FP16Only, KmbActivationLayerTest,
 
 // ------ MTL ------
 
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basicShapesMTL = {
-        {{1, 1, 1, 1000}, {{}}},
-};
-
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesMTL = {
         {Sigmoid,  {{1.0f}}},
+        {HSwish,   {{1.0f}}},
 };
 
 const auto basicCasesMTL = ::testing::Combine(
@@ -254,7 +254,7 @@ const auto basicCasesMTL = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basicShapesMTL)),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest_MTL, basicCasesMTL, ActivationLayerTest::getTestCaseName);

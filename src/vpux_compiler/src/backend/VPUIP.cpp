@@ -219,13 +219,12 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     return builder.Finish();
 }
 
-flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer,
-                                                                    mlir::ModuleOp /*module*/, mlir::FuncOp netFunc,
-                                                                    Logger log) {
-    // only SwKernelOp operations can generate kernelData, from either built-in functions or from custom
+flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
+                                                                    mlir::FuncOp netFunc, Logger log) {
+    // only SwKernelOp operations can generate kernelData
     auto graphHasKernels = false;
     netFunc.walk([&](VPURT::TaskOp taskOp) {
-        if (taskOp.getTaskType() == vpux::VPUIP::TaskType::ACTShave) {
+        if (taskOp.getExecutorKind() == VPU::ExecutorKind::SHAVE_ACT) {
             graphHasKernels = true;
         }
     });
@@ -233,35 +232,59 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
         return {};
     }
 
-    // TODO: extract num shaves info from IERT::RuntimeResourcesOp, which can be extracted from module
-    const long int maxShaves = 4;
+    // TODO: always extract num shaves info from VPURT::SW.Runtime, which can be extracted from module
+    constexpr auto maxShaves = 4;
+    constexpr auto defaultStackSize = Byte(4_KB).count();
+    constexpr auto alignmentReq = Byte(1_KB).count();
 
-    const auto stack_size{1U << 12};  // 4KB stack
+    auto swRuntimeOps = module.getOps<VPURT::SWRunTimeOp>();
+    auto runtimeKernelDeclared = std::distance(swRuntimeOps.begin(), swRuntimeOps.end());
+    VPUX_THROW_UNLESS(runtimeKernelDeclared <= 1, "if runtime kernel is present it should be unique, but found {0}",
+                      runtimeKernelDeclared);
 
-    llvm::SmallVector<uint8_t, stack_size> shave_stack_data(stack_size);
-    std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(maxShaves);  // 4 Activation SHAVEs for MTL
+    flatbuffers::Offset<MVCNN::ActKernel> runtimeKernel;
+    SmallVector<uint32_t> runtimeStacks(maxShaves, defaultStackSize);
 
-    for (uint32_t shv{}; shv < maxShaves; ++shv) {
-        log.trace("act-shave {0}_stack size is {1}", shv, stack_size);
+    if (runtimeKernelDeclared) {
+        auto swRuntimeOp = *swRuntimeOps.begin();
+        runtimeKernel = writer.createRuntimeKernelTask(module, swRuntimeOp);
+        runtimeStacks = parseIntArrayAttr<uint32_t>(swRuntimeOp.stacks());
+    }
 
-        stacks[shv] = writer.createKernelDataRef("actSHAVE" + std::to_string(shv) + "_stack",
-                                                 vpux::VPUIP::MemoryLocation::GFEmbeddedKernel, 0, stack_size,
-                                                 shave_stack_data);
+    SmallVector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(runtimeStacks.size());
+
+    const auto maxStackIt = std::max_element(runtimeStacks.begin(), runtimeStacks.end());
+    const std::vector<uint8_t> shave_stack_data_max(*maxStackIt);
+
+    for (auto shvInd : irange(runtimeStacks.size())) {
+        const auto shaveStackData = makeArrayRef(shave_stack_data_max).take_front(runtimeStacks[shvInd]);
+
+        log.trace("act-shave {0}_stack size is {1}", shvInd, shaveStackData.size());
+
+        const auto dataName = llvm::formatv("actSHAVE{0}_stack", shvInd).str();
+        stacks[shvInd] = writer.createKernelDataRef(dataName, 0, shaveStackData.size(), shaveStackData);
     }
 
     const auto stackBuffers = writer.createVector(stacks);
 
-    llvm::SmallVector<uint8_t, 1024 + (1U << 16)> scratch_buffer(1024 +
-                                                                 (1U << 16));  // 64KB scratch buffer + 1024 to align
+    VPUIP::BlobWriter::KernelDataRef scratchBuffer;
+    if (!runtimeKernelDeclared) {
+        constexpr auto scratchBufferSize = Byte(64_KB).count();
 
-    const uint64_t non_empty_offset = 1;
-    const auto scratchBuffer =
-            writer.createKernelDataRef("scratch_buffer", vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
-                                       non_empty_offset, scratch_buffer.size() - 1024, scratch_buffer);
+        const std::vector<uint8_t> scratchBufferData(alignmentReq + scratchBufferSize);
+        constexpr uint64_t reservedOffset = 1;
+
+        scratchBuffer =
+                writer.createKernelDataRef("scratch_buffer", reservedOffset, scratchBufferSize, scratchBufferData);
+    }
 
     MVCNN::ActKernelRuntimeBuilder builder(writer);
     builder.add_shaveStacks(stackBuffers);
-    builder.add_codeScratchBuffer(scratchBuffer);
+    if (runtimeKernelDeclared) {
+        builder.add_kernel(runtimeKernel);
+    } else {
+        builder.add_codeScratchBuffer(scratchBuffer);
+    }
 
     return builder.Finish();
 }
@@ -335,11 +358,10 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
         const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
-        graphInputs.push_back(
-                writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
+        graphInputs.push_back(writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkInput, ind, 0));
 
         userInputs.push_back(
-                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
+                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkInput, ind, 0));
     }
 
     SmallVector<VPUIP::BlobWriter::TensorReference> graphOutputs, graphProfilingOutputs, userOutputs;
@@ -357,10 +379,10 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
         graphOutputs.push_back(
-                writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
+                writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkOutput, ind, 0));
 
         userOutputs.push_back(
-                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
+                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkOutput, ind, 0));
     }
 
     for (const auto& p : profilingOutputsInfo | indexed) {
@@ -370,7 +392,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
         graphProfilingOutputs.push_back(
-                writer.createTensor(val, p.value().name(), VPUIP::MemoryLocation::ProfilingOutput, ind, 0));
+                writer.createTensorRef(val, p.value().name(), VPURT::BufferSection::ProfilingOutput, ind, 0));
     }
 
     SmallVector<VPUIP::BlobWriter::PreprocessingInfo> preprocInfo;
@@ -421,11 +443,9 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir:
     auto scopeTiming = rootTiming.nest("Serialize tensor declarations");
 
     size_t tempTensorInd = 0;
-    netFunc.walk([&](VPURT::DeclareBufferOp tensorOp) {
-        writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
-                            parseIntArrayAttr<uint32_t>(tensorOp.localeIndex()), tensorOp.dataIndex(),
-                            tensorOp.sparsityIndex(), tensorOp.storageElementIndex(), tensorOp.storageElementSize(),
-                            tensorOp.leadingOffset(), tensorOp.trailingOffset());
+    netFunc.walk([&](VPURT::DeclareBufferOp bufOp) {
+        writer.createTensorRef(bufOp.buffer(), llvm::formatv("temp-{0}", tempTensorInd).str(), bufOp.section(),
+                               bufOp.sectionIndex().getValueOr(0), bufOp.byteOffset());
 
         ++tempTensorInd;
     });
@@ -466,8 +486,8 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
 
         binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<mlir::ShapedType>());
 
-        writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
-                            VPUIP::MemoryLocation::GraphFile, checked_cast<uint32_t>(constTensorInd), 0);
+        writer.createTensorRef(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
+                               VPURT::BufferSection::Constant, checked_cast<uint32_t>(constTensorInd), 0);
     }
 
     return binaryData;
@@ -551,7 +571,7 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
         tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
 
     SmallVector<VPUIP::BlobWriter::TaskList> taskLists;
-    taskLists.reserve(tasksMap.size());
+    taskLists.reserve(tasksMap.size() + 1);
 
     for (const auto& taskList : tasksMap) {
         Logger::global().error("Serialize task list '{0}'", taskList.first);
@@ -561,6 +581,14 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
         MVCNN::TaskListBuilder builder(writer);
         builder.add_content(serializedTaskList);
         taskLists.push_back(builder.Finish());
+    };
+
+    log.trace("Serialize barriers list");
+    serializeTaskList(barriersList);
+
+    for (const auto& taskList : tasksMap) {
+        log.trace("Serialize tasks list '{0}'", taskList.first);
+        serializeTaskList(taskList.second);
     }
 
     return taskLists;
@@ -629,7 +657,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
     // returns moved offset
     auto alignKernelDataSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
         //  current align requirements is 1KB, for .text, .data, .scratch
-        constexpr uint16_t alignmentReq = 1 * 1024;
+        constexpr auto alignmentReq = Byte(1_KB).count();
 
         auto section_data = serializedGraphFile->kernel_data()->Get(section->locale_offset())->data();
 
@@ -652,6 +680,20 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
         // check whether given kernelData element already aligned
         if (kernelDataAligned.find(section->locale_offset()) == kernelDataAligned.end()) {
+            // if there is no data - do not move
+            if (section_data->Length() == 0) {
+                return static_cast<ptrdiff_t>(0);
+            }
+            // check whether we do have a room for alignment
+            VPUX_THROW_UNLESS(section_data->Length() > alignmentReq,
+                              "cannot align section: {0} {1},  space(alignment + size): {2} alignment: {3}",
+                              section->name()->c_str(), sectionLogical, section_data->Length(), alignmentReq);
+
+            auto moveSize = section_data->Length() - alignmentReq;
+            VPUX_THROW_UNLESS(section_data->Length() > moveSize + offset,
+                              "cannot align section: {0} {1}, no room for moving space={2} offset={3} size={4}",
+                              section->name()->c_str(), sectionLogical, section_data->Length(), offset, moveSize);
+
             log.trace("move kernel {0} {1} by {2} bytes to be {3}", section->name()->c_str(), sectionLogical, offset,
                       aligned_offset);
 
@@ -702,10 +744,16 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
         }
     }
 
-    // scratchBuffer aligning
     if (serializedGraphFile->header()->act_kernel_runtime()) {
-        auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer();
-        alignSection(scratchBuffer, ".scratchBuffer");
+        // scratchBuffer aligning
+        if (auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer()) {
+            alignSection(scratchBuffer, ".scratchBuffer");
+        }
+        // management kernel aligning if present
+        if (auto managementKernel = serializedGraphFile->header()->act_kernel_runtime()->kernel()) {
+            alignSection(managementKernel->kernelText(), ".runtime.text");
+            alignSection(managementKernel->globalArgs(), ".runtime.data");
+        }
     }
 
     return detached;

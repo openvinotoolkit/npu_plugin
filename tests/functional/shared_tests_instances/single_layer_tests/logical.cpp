@@ -37,6 +37,12 @@ TEST_P(KmbLogicalLayerTest_MLIR, CompareWithRefs_HW) {
     Run();
 }
 
+TEST_P(KmbLogicalLayerTest_MLIR, CompareWithRefs_SW) {
+    useCompilerMLIR();
+    setReferenceSoftwareModeMLIR();
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -60,7 +66,6 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t >>> inputShapes = {
         // Initialization disabled partly
         // {{2, 17, 3, 4}, {{4}, {1, 3, 4}}},
 };
-
 
 std::vector<InferenceEngine::Precision> inputsPrecisions = {
         InferenceEngine::Precision::FP16,

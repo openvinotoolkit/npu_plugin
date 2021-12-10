@@ -63,54 +63,6 @@ double vpux::VPUIP::getProcessorFrequency(IERT::ExecutorResourceOp res) {
 }
 
 //
-// MemoryLocation utility
-//
-
-VPU::MemoryKind vpux::VPUIP::getMemoryKind(MemoryLocation location) {
-    switch (location) {
-    case MemoryLocation::ProgrammableInput:
-    case MemoryLocation::ProgrammableOutput:
-    case MemoryLocation::ProfilingOutput:
-    case MemoryLocation::GraphFile:
-    case MemoryLocation::VPU_DDR_Heap:
-    case MemoryLocation::VPU_DDR_BSS:
-        return VPU::MemoryKind::DDR;
-    case MemoryLocation::VPU_CSRAM:
-        return VPU::MemoryKind::CSRAM;
-    case MemoryLocation::VPU_CMX_UPA:
-        return VPU::MemoryKind::CMX_UPA;
-    case MemoryLocation::VPU_CMX_NN:
-        return VPU::MemoryKind::CMX_NN;
-    case MemoryLocation::AbsoluteAddr:
-    case MemoryLocation::MAC_Accumulators:
-        return VPU::MemoryKind::Register;
-    default:
-        VPUX_THROW("Unsupported MemoryLocation : {0}", location);
-    }
-}
-
-VPUIP::MemoryLocation vpux::VPUIP::getMemoryLocation(VPU::MemoryKind memKind) {
-    switch (memKind) {
-    case VPU::MemoryKind::DDR:
-        return MemoryLocation::VPU_DDR_Heap;
-    case VPU::MemoryKind::CSRAM:
-        return MemoryLocation::VPU_CSRAM;
-    case VPU::MemoryKind::CMX_UPA:
-        return MemoryLocation::VPU_CMX_UPA;
-    case VPU::MemoryKind::CMX_NN:
-        return MemoryLocation::VPU_CMX_NN;
-    case VPU::MemoryKind::Register:
-        return MemoryLocation::AbsoluteAddr;
-    default:
-        VPUX_THROW("Unsupported MemoryKind : {0}", memKind);
-    }
-}
-
-bool vpux::VPUIP::isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref) {
-    return VPUIP::getMemoryKind(location) == VPU::getMemoryKind(memref);
-}
-
-//
 // DW Convolution utility
 //
 

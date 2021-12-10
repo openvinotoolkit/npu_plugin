@@ -22,9 +22,11 @@
 #include <file_utils.h>
 
 #include <fstream>
+#ifdef OPENVINO_STATIC_LIBRARY
+#include "vpux/compiler/compiler.hpp"
+#endif
 
-vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr actual,
-                                             const InferenceEngine::details::SharedObjectLoader& plg)
+vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr actual, const vpux::CompilerPluginPtr& plg)
         : _actual(actual), _plg(plg) {
     if (_actual == nullptr) {
         IE_THROW() << "ExecutableNetwork wrapper was not initialized.";
@@ -57,6 +59,12 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& 
 }
 
 vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
+#ifdef OPENVINO_STATIC_LIBRARY
+    // Always use vpux compiler
+    (void)(config);
+    vpux::ICompiler::Ptr mlir = std::make_shared<vpux::CompilerImpl>();
+    return std::make_shared<Compiler>(mlir);
+#else
     const auto compilerType = config.get<COMPILER_TYPE>();
 
     switch (compilerType) {
@@ -70,6 +78,7 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
         IE_THROW() << "Compiler type not found";
     }
     IE_ASSERT(false);
+#endif
 }
 
 InferenceEngine::InputsDataMap vpux::helpers::dataMapIntoInputsDataMap(const vpux::DataMap& dataMap) {

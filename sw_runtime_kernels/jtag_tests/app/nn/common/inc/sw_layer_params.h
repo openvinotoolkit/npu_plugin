@@ -5,7 +5,6 @@
 
 #include <nn_memory.h>
 #include <stdint.h>
-#include "sw_tensor_ref.h"
 
 namespace nn {
 namespace shave_lib {
