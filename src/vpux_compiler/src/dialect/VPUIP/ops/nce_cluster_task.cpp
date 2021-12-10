@@ -108,6 +108,18 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
 }
 
 //
+// NCEClusterTaskOp::sparsitySupport
+//
+
+vpux::VPU::SparsitySupport vpux::VPUIP::NCEClusterTaskOp::sparsitySupport() {
+    const auto sparseInputs =
+            (task_type() == vpux::VPUIP::NCETaskType::CONV) || (task_type() == vpux::VPUIP::NCETaskType::ELTWISE)
+                    ? vpux::VPU::SparsitySupport::SPARSE_INPUTS
+                    : vpux::VPU::SparsitySupport::NONE;
+    return sparseInputs | vpux::VPU::SparsitySupport::SPARSE_OUTPUTS;
+}
+
+//
 // verifyOp
 //
 

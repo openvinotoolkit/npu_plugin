@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
