@@ -295,7 +295,7 @@ OutputTiling vpux::IE::GroupConvolutionOp::generateTiling(Logger log) {
     const auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
 
-    if (arch == VPU::ArchKind::MTL) {
+    if ((arch == VPU::ArchKind::MTL) || true) {
         // Call common tiling here, no need for W/A
         return vpux::IE::generateTiles(getOperation(), log);
     }
@@ -311,6 +311,7 @@ OutputTiling vpux::IE::GroupConvolutionOp::generateTiling(Logger log) {
 
     if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(getOperation())) {
         const auto chanAlignment = channelsInfo.getChannelAlignment();
+        std::cout << "chanAlignment = " << chanAlignment << std::endl;
 
         VPUX_THROW_UNLESS(outputShape[Dims4D::Act::C] % chanAlignment == 0,
                           "Depthwise convolution output channels must be a multiple of {0}, got {1}", chanAlignment,

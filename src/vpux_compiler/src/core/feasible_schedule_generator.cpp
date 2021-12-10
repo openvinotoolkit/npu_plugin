@@ -532,8 +532,16 @@ bool FeasibleScheduleGenerator::doesOpRunOnNCE(mlir::Operation* op) {
 }
 
 unsigned FeasibleScheduleGenerator::countProducerConsumerTasks(mlir::Operation* op) {
-    if (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NCE2)
-        return 5;
+    if (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NCE2) {
+        auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op);
+        auto& block = taskOp.op().getBlocks().front();
+        auto wrappedTaskOp = block.begin();
+        auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
+        VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
+        std::cout << "nceOp.getNumVariants() = " << nceOp.getNumVariants() << std::endl;
+        return nceOp.getNumVariants();
+        // return 5;
+    }
     if (mlir::dyn_cast<VPURT::TaskOp>(op).getTaskType() == VPUIP::TaskType::NNDMA)
         return 1;
     else
