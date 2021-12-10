@@ -13,10 +13,10 @@
 
 #include "vpux/compiler/init.hpp"
 
+#include "vpux/compiler/dialect/EMU/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
-#include "vpux/compiler/dialect/EMU/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"

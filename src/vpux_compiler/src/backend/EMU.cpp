@@ -161,7 +161,6 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(EMU::BlobWriter& w
                 mapPreProcessColorFormat.at(pr._outputFormat), mapPreProcessResizeAlgorithm.at(pr._algorithm)));
     }
 
-
     const auto serializedVersion = createVersion(writer, log);
     const auto serializedName = writer.createString(module.getName().getValueOr("network"));
     const auto serializedGraphInputs = writer.createVector(graphInputs);
@@ -295,8 +294,7 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(EMU::BlobWriter& writer,
 }  // namespace
 
 flatbuffers::DetachedBuffer vpux::EMU::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                                    const std::vector<PreProcessInfo>& preprocessInfo,
-                                                    Logger log) {
+                                                    const std::vector<PreProcessInfo>& preprocessInfo, Logger log) {
     log.setName("EMU::BackEnd");
 
     log.trace("Extract 'IE.{0}' from Module", IE::CNNNetworkOp::getOperationName());

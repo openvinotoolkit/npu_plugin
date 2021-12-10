@@ -320,6 +320,7 @@ void vpux::buildEMUReferenceSWModePipeline(mlir::OpPassManager& pm, const Refere
 
     // Level 3 : Topology
 
+    pm.addPass(IE::createMatMulInputsTo2dPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     IE::buildAdjustPrecisionPipeline(pm, IE::AdjustPrecisionOptions(options), log);
@@ -510,8 +511,7 @@ void vpux::registerPipelines() {
             [](mlir::OpPassManager& pm, const ReferenceHWOptions& options) {
                 const auto archKind = getArchKind(options.arch);
                 const auto numOfDPUGroups = getNumOfDPUGroups(options.numberOfDPUGroups);
-                pm.addPass(VPU::createInitCompilerPass(archKind, VPU::CompilationMode::ReferenceHW,
-                                                             numOfDPUGroups));
+                pm.addPass(VPU::createInitCompilerPass(archKind, VPU::CompilationMode::ReferenceHW, numOfDPUGroups));
 
                 buildEMUReferenceHWModePipeline(pm, options);
             });
@@ -521,10 +521,8 @@ void vpux::registerPipelines() {
             [](mlir::OpPassManager& pm, const DefaultHWOptions& options) {
                 const auto archKind = getArchKind(options.arch);
                 const auto numOfDPUGroups = getNumOfDPUGroups(options.numberOfDPUGroups);
-                pm.addPass(
-                        VPU::createInitCompilerPass(archKind, VPU::CompilationMode::DefaultHW, numOfDPUGroups));
+                pm.addPass(VPU::createInitCompilerPass(archKind, VPU::CompilationMode::DefaultHW, numOfDPUGroups));
 
                 buildEMUDefaultHWModePipeline(pm, options);
             });
-
 }
