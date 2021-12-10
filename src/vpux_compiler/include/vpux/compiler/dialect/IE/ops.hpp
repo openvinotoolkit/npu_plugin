@@ -51,5 +51,21 @@ namespace IE {
 mlir::LogicalResult verifyOp(CNNNetworkOp op);
 mlir::LogicalResult verifyOp(DataInfoOp op);
 
+// Adjust paddings attributes for tiled input
+template <typename ConcreteOp>
+void adjustPaddings(ConcreteOp op, const TilingInfo& inputTiling) {
+    const auto& inputTilePads = inputTiling.pads;
+    VPUX_THROW_UNLESS(inputTilePads.hasValue(), "Missing tile information for paddings");
+
+    const std::array<int64_t, 2> padsBegin = {inputTilePads->top, inputTilePads->left};
+    const std::array<int64_t, 2> padsEnd = {inputTilePads->bottom, inputTilePads->right};
+
+    auto newPadsBeginAttr = vpux::getIntArrayAttr(op->getContext(), padsBegin);
+    auto newPadsEndAttr = vpux::getIntArrayAttr(op->getContext(), padsEnd);
+
+    op->pads_beginAttr(newPadsBeginAttr);
+    op->pads_endAttr(newPadsEndAttr);
+}
+
 }  // namespace IE
 }  // namespace vpux

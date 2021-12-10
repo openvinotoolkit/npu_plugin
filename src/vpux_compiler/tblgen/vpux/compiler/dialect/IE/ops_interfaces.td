@@ -171,19 +171,24 @@ def IE_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
 
     let methods = [
         InterfaceMethod<
-            "Generate supported tiling configuration for the operation",
-            "vpux::OutputTiling", "generateTiling",
-            (ins "vpux::Logger":$log),
+            "Return the maximum number of tiles for each dimension",
+            "SmallVector<int64_t>", "getMaxNumTiles", (ins),
             [{}],
             [{
-                return vpux::IE::generateTiles($_op, log);
+                return vpux::IE::getMaxNumTiles($_op);
             }]
         >,
 
         InterfaceMethod<
-            "Reify the provided tiling configuration into the IR",
-            "mlir::Value", "reifyTile",
-            (ins "const vpux::TileInfo&":$outputTile, "mlir::OpBuilder&":$builder)
+            "Infer input tiles information from the output tile",
+            "vpux::TilingInfo", "backInferTileInfo",
+            (ins "const vpux::TileInfo&":$outputTile)
+        >,
+
+        InterfaceMethod<
+            "Adjust the operation attributes to the current tile properties",
+            "void", "adjustAttrs",
+            (ins "const vpux::TilingInfo&":$inputTiling)
         >,
     ];
 }

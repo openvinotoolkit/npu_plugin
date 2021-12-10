@@ -128,12 +128,17 @@ bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logg
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
 
-        const auto tileConf = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+        const auto inputTiling = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
+                                                   origOp.strides(), origOp.pads_begin(), origOp.pads_end());
 
-        const auto inputTileType = getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
-        const auto filterTileType =
-                getDenseTileType(filterType, tileConf.filterTile.offsets, tileConf.filterTile.shape);
+        const auto& tileConf = inputTiling.tiles;
+        VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
+                          tileConf.size());
+        const auto& inputTile = tileConf[0];
+        const auto& filterTile = tileConf[1];
+
+        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
+        const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
         const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
         return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(origOp->getLoc(),
@@ -152,12 +157,17 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
 
-        const auto tileConf = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                     origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+        const auto inputTiling = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
+                                                        origOp.strides(), origOp.pads_begin(), origOp.pads_end());
 
-        const auto inputTileType = getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
-        const auto filterTileType =
-                getDenseTileType(filterType, tileConf.filterTile.offsets, tileConf.filterTile.shape);
+        const auto& tileConf = inputTiling.tiles;
+        VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
+                          tileConf.size());
+        const auto& inputTile = tileConf[0];
+        const auto& filterTile = tileConf[1];
+
+        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
+        const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
         const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
         return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(origOp->getLoc(),
@@ -173,10 +183,14 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         const auto origInputShape = getShape(origOp.input());
 
-        const auto tileConf = backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(),
-                                                origOp.pads_begin(), origOp.pads_end());
+        const auto inputTiling = backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(),
+                                                   origOp.pads_begin(), origOp.pads_end());
 
-        const auto inputTileType = getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
+        const auto& tileConf = inputTiling.tiles;
+        VPUX_THROW_UNLESS(!tileConf.empty(), "Got empty tile information");
+        const auto& inputTile = tileConf[0];
+
+        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
         const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
         return mlir::succeeded(VPUIP::NCEInvariant::verifyPoolCMX(
