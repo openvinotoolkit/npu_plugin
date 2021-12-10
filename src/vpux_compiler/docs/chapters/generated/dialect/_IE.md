@@ -3337,3 +3337,36 @@ operation ::= `IE.YuvToRgb` `(` operands `)` attr-dict `:` type(operands) `->` t
 | :----: | ----------- |
 `output` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
 
+### `IE.ExtractImagePatches` (vpux::IE::ExtractImagePatchesOp)
+
+InferenceEngine ExtractImagePatches layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ExtractImagePatches` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`auto_pad` | ::mlir::StringAttr | string attribute ???!!!
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | 4D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of 16-bit float or 32-bit float values
+

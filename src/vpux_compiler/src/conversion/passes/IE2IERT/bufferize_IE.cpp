@@ -1082,6 +1082,13 @@ mlir::Operation* createRTLayer(IE::CopyOp origOp, ArrayRef<mlir::Value> allBufs,
     return b.create<IERT::CopyOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::ExtractImagePatchesOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ExtractImagePatchesOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ExtractImagePatchesOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(),
+                                                 origOp.sizesAttr(), origOp.stridesAttr(), origOp.ratesAttr(),
+                                                 origOp.auto_padAttr());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -1200,6 +1207,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::LogicalOrOp)
     CASE(IE::LogicalXorOp)
     CASE(IE::CopyOp)
+    CASE(IE::ExtractImagePatches)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

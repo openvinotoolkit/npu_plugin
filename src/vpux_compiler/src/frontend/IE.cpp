@@ -403,6 +403,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::LogicalOr),
             MAP_ENTRY(opset_latest::LogicalXor),
             MAP_ENTRY(opset_latest::SpaceToDepth),
+            MAP_ENTRY(opset_latest::ExtractImagePatches),
     };
 
 #undef MAP_ENTRY
@@ -1984,6 +1985,18 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     auto op = builder.create<IE::SpaceToDepthOp>(createLocation(origNode), inputs[0], blockSizeAttr, modeAttr);
     addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ExtractImagePatches>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::ExtractImagePatches>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph ExtractImagePatches node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+    //TODO
+    auto op = builder.create<IE::ExtractImagePatchesOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, op);
+
 }
 
 //

@@ -2397,3 +2397,41 @@ operation ::= `VPUIP.YuvToRgbUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
 
+### `VPUIP.ExtractImagePatchesUPA` (vpux::VPUIP::ExtractImagePatchesUPAOp)
+
+ExtractImagePatches UPA SHAVE kernel (reference implementation)
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ExtractImagePatchesUPA` attr-dict
+              `inputs` `(` $data `:` type($data) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`auto_pad` | ::mlir::StringAttr | string attribute ???!!!
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of 4D tensor of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 4D tensor of 16-bit float or 32-bit float values
+
