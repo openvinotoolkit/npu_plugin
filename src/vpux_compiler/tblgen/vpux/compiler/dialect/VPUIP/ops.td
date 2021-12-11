@@ -20,6 +20,8 @@ include "vpux/compiler/dialect/const/attributes.td"
 include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IERT/ops_interfaces.td"
+include "vpux/compiler/dialect/VPU/ops_interfaces.td"
+include "vpux/compiler/dialect/VPU/attributes.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
@@ -1976,7 +1978,8 @@ def VPUIP_NCEClusterTaskOp :
                 AttrSizedOperandSegments,
                 ViewLikeOpInterface,
                 NoRegionArguments,
-                OpAsmOpInterface
+                OpAsmOpInterface,
+                DeclareOpInterfaceMethods<VPU_SparseOpInterface>
             ]
             # GraphRegionNoTerminator.traits
         > {

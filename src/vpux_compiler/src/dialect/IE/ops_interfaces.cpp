@@ -234,6 +234,10 @@ mlir::LogicalResult vpux::IE::verifyTilingInfo(mlir::Operation* op) {
                        op->getName());
     }
 
+    if (op->getNumResults() != 1) {
+        return errorAt(op, "Unsupported operation '{0}', it must have one and only one result", op->getName());
+    }
+
     return mlir::success();
 }
 

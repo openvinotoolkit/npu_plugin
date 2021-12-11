@@ -204,12 +204,6 @@ def IE_TilingInfoOpInterface : OpInterface<"TilingInfoOpInterface"> {
 
     let methods = [
         InterfaceMethod<
-            "Check, if the operation requires tiling",
-            "bool", "needTiling",
-            (ins "vpux::Logger":$log)
-        >,
-
-        InterfaceMethod<
             "Check, if the provided tiling configuration is supported by the operation implementation",
             "bool", "isSupportedTiling",
             (ins "const vpux::OutputTiling&":$tiles, "vpux::Logger":$log)

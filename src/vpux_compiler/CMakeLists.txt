@@ -256,6 +256,7 @@ add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")
 
 add_dialect("VPU")
+add_op_interfaces("dialect/VPU")
 add_enum_attrs("VPU")
 add_passes("dialect/VPU" "VPU")
 

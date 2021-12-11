@@ -18,11 +18,12 @@
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
-#include <samples/classification_results.h>
+// #include <samples/classification_results.h>
 
 #include <sys/stat.h>
 
 #include "test_classification.hpp"
+#include "classification_results_old.h"
 
 using namespace InferenceEngine;
 

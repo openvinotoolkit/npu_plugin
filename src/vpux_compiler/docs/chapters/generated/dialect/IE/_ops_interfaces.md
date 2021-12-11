@@ -136,14 +136,6 @@ NOTE: This method *must* be implemented by the user.
 
 Interface for operations to provide information about required/supported tiling configurations
 ### Methods:
-#### `needTiling`
-
-```c++
-bool needTiling(vpux::Logger log);
-```
-Check, if the operation requires tiling
-NOTE: This method *must* be implemented by the user.
-
 #### `isSupportedTiling`
 
 ```c++

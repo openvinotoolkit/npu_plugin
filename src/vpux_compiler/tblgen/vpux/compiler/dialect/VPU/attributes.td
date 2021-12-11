@@ -96,4 +96,22 @@ def VPU_CompilationMode  :
     let genSpecializedAttr = 1;
 }
 
+//
+// SparsitySupport
+//
+
+def VPU_SparsitySupport :
+        BitEnumAttr<
+            "SparsitySupport",
+            "Sparsity support of an operation",
+            [
+                BitEnumAttrCase<"NONE", 0x0>,
+                BitEnumAttrCase<"SPARSE_INPUTS", 0x1>,
+                BitEnumAttrCase<"SPARSE_OUTPUTS", 0x2>
+            ]
+        > {
+    let cppNamespace = "vpux::VPU";
+    let genSpecializedAttr = 1;
+}
+
 #endif
