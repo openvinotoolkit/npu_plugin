@@ -355,8 +355,8 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
                         const std::pair<unsigned, mlir::Operation*>& right) const {
             unsigned priorityLeft = left.first;
             unsigned priorityRight = right.first;
-            unsigned opIDLeft = getUniqueID(left.second).getUInt();
-            unsigned opIDright = getUniqueID(right.second).getUInt();
+            unsigned opIDLeft = getUniqueID(left.second).getInt();
+            unsigned opIDright = getUniqueID(right.second).getInt();
 
             if (priorityLeft < priorityRight)
                 return true;
