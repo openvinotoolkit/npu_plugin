@@ -39,35 +39,13 @@ private:
 void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
-    // auto module = func->getParentOfType<mlir::ModuleOp>();
-    // auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
-    // bool success = false;
 
-    // Save intial dependencies
-    // ControlDependenciesSaveRestore model(&ctx,func);
-    // model.saveInitialControlFlow();
 
     // Barrier scheduler
     TokenBasedBarrierScheduler barrierScheduler(&ctx, func, 4, 256);
     barrierScheduler.schedule();
 
-    // Barrier Simulation
-    // for (size_t barrier_bound=4; !success && (barrier_bound>=1UL); --barrier_bound) {
-    //     const auto dmaAttr = VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::DMA_NN);
-    //     auto dmaResOp = resOp.getExecutor(dmaAttr);
-    //     VPUX_THROW_UNLESS(dmaResOp != nullptr, "Failed to get DMA_NN information");
-
-    //     const auto numDmaEngines = dmaResOp.count();
-    //     VPUX_THROW_UNLESS(numDmaEngines <= MAX_DMA_ENGINES, "Found {0} DMA engines (max {1})", numDmaEngines,
-    //                   MAX_DMA_ENGINES);
-
-    //     RuntimeSimulator simulator(&ctx, func, _log, numDmaEngines);
-    //     success = simulator.assignPhysicalIDs();
-
-    //     std::cout << "Barrier simualtion result is " << success << std::endl;
-
-    //     if (!success) { model.restore(); }
-    // }
+  
 }
 
 }  // namespace
