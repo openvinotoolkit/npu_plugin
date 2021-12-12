@@ -106,7 +106,8 @@ def VPUIPRegMapped_DeclareBufferOp :
             [
                 NoSideEffect,
                 DeclarationOp,
-                DotInterface
+                DotInterface,
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
             ]
         > {
     let summary = "TensorReference value declaration";
@@ -199,8 +200,10 @@ def VPUIPRegMapped_ConfigureBarrierOp :
     let summary = "A task to configure the setup for a barrier";
 
     let arguments = (ins
-        IntAttr:$id,
-        I16Attr:$next_same_id,
+        I8Attr:$id,
+        I32Attr:$next_same_id,
+        OptionalAttr<UI8Attr>:$producer_count,
+        OptionalAttr<UI8Attr>:$consumer_count,
 
         Variadic<VPURT_Barrier>:$waitBarriers,
         Variadic<VPURT_Barrier>:$updateBarriers
@@ -261,7 +264,7 @@ def VPUIPRegMapped_EmptyOp :
                 DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
             ]
         > {
-    let summary = "Empty management task";
+    let summary = "Empty op";
 
     let arguments = (ins
         Variadic<VPURT_Barrier>:$waitBarriers,
@@ -299,10 +302,12 @@ def VPUIPRegMapped_MappedInferenceOp :
         Optional<AnyMemRef>:$invariantList,
         Optional<AnyMemRef>:$variantList,
         Optional<AnyMemRef>:$actInvocations,
+        Optional<VPURT_Barrier>:$barrierList,
         UI32Attr:$dmaCount,
         UI32Attr:$invariantCount,
         UI32Attr:$variantCount,
-        UI32Attr:$actInvocationsCount
+        UI32Attr:$actInvocationsCount,
+        UI32Attr:$barrierCount
     );
 
     let results = (outs
@@ -314,10 +319,12 @@ def VPUIPRegMapped_MappedInferenceOp :
         (`invariants` `(` $invariantList^ `:` type($invariantList) `)`)?
         (`variants` `(` $variantList^ `:` type($variantList) `)`)?
         (`actInvocations` `(` $actInvocations^ `:` type($actInvocations) `)`)?
+        (`barriers` `(` $barrierList^ `:` type($barrierList) `)` )?
         `dmaCount` `(` $dmaCount `)`
         `invariantCount` `(` $invariantCount `)`
         `variantCount` `(` $variantCount `)`
         `actInvocationsCount` `(` $actInvocationsCount `)`
+        `barrierCount` `(` $barrierCount `)`
     }];
 }
 

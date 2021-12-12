@@ -11,7 +11,6 @@
 // included with the Software Package for additional details.
 //
 
-//#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include <mlir/IR/BuiltinTypes.h>
@@ -28,11 +27,6 @@ using namespace vpux;
 //guaranteed as-is supported by HW
 
 namespace {
-// Round up val by N
-template <size_t N>
-uint32_t round_up(uint32_t t) {
-    return static_cast<uint32_t>((t + N - 1) & ~(N - 1));
-}
 
 llvm::SmallVector<std::pair<uint32_t, int32_t>> reduce_dims_for_dma(mlir::MemRefType memref) {
     auto const logicalShape = vpux::getShape(memref);
@@ -109,6 +103,19 @@ void vpux::VPUIPRegMapped::NNDMAOp::serialize(std::vector<char>& buffer) {
     descriptor.cfg_link.cfg_bits.burst_length = 16;
     descriptor.cfg_link.cfg_bits.barrier_en = 1;
 
+    uint64_t cons_mask = 0;
+    for(auto waitBarrier : waitBarriers()) {
+        auto op = llvm::dyn_cast<VPUIPRegMapped::ConfigureBarrierOp>(waitBarrier.getDefiningOp());
+        cons_mask |= 1 << op.id();
+    }
+    uint64_t prod_mask = 0;
+    for(auto updateBarrier : updateBarriers()) {
+        auto op = llvm::dyn_cast<VPUIPRegMapped::ConfigureBarrierOp>(updateBarrier.getDefiningOp());
+        prod_mask |= 1 << op.id();
+    }
+    descriptor.barriers.cons_mask = cons_mask;
+    descriptor.barriers.prod_mask = prod_mask;
+
     descriptor.length = inputType.getNumElements() * vpux::Byte(vpux::getElemTypeSize(inputType)).count();
 
 
@@ -161,4 +168,8 @@ void vpux::VPUIPRegMapped::NNDMAOp::serialize(std::vector<char>& buffer) {
         buffer.push_back(*(ptrCharTmp + i));
     }
     return;
+}
+
+size_t vpux::VPUIPRegMapped::NNDMAOp::getBinarySize() {
+    return sizeof(host_parsing::DmaWrapper);
 }

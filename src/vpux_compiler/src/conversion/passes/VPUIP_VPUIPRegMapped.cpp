@@ -102,18 +102,21 @@ public:
         // int64_t id,
         // uint16_t next_same_id,
         // ::mlir::ValueRange waitBarriers, ::mlir::ValueRange updateBarriers)
-        rewriter.replaceOpWithNewOp<VPUIPRegMapped::ConfigureBarrierOp>(
-                origOp,
-                bType, //origOp.getOperation()->getResult(0).getType(),
-                origOp.id(),
-                // MEGA-TODO: put also a virtualId attribute in ConfigureBarrierOp, as it is found in VPURT::ConfigureBarrierOp
-                1, // MEGA-TODO: put right value // uint16_t next_same_id
-                // See https://mlir.llvm.org/doxygen/classmlir_1_1ValueRange.html
-                // Note: from https://mlir.llvm.org/doxygen/Operation_8h_source.html: using operand_range = OperandRange;
-                waitBarriers, // mlir::ValueRange(origOp.waitBarriers()), // MEGA-TODO
-                updateBarriers // mlir::ValueRange(origOp.updateBarriers()) // MEGA-TODO
-                //waitBarriers, updateBarriers
-                );
+
+
+
+        // rewriter.replaceOpWithNewOp<VPUIPRegMapped::ConfigureBarrierOp>(
+        //         origOp,
+        //         bType, //origOp.getOperation()->getResult(0).getType(),
+        //         origOp.id(),
+        //         // MEGA-TODO: put also a virtualId attribute in ConfigureBarrierOp, as it is found in VPURT::ConfigureBarrierOp
+        //         1, // MEGA-TODO: put right value // uint16_t next_same_id
+        //         // See https://mlir.llvm.org/doxygen/classmlir_1_1ValueRange.html
+        //         // Note: from https://mlir.llvm.org/doxygen/Operation_8h_source.html: using operand_range = OperandRange;
+        //         waitBarriers, // mlir::ValueRange(origOp.waitBarriers()), // MEGA-TODO
+        //         updateBarriers // mlir::ValueRange(origOp.updateBarriers()) // MEGA-TODO
+        //         //waitBarriers, updateBarriers
+        //         );
 
         return mlir::success();
     }

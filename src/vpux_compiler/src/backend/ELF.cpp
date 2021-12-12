@@ -44,6 +44,12 @@ std::vector<char> ELF::exportToELF(mlir::ModuleOp module, mlir::TimingScope& ,
         sectionOp.serialize(elfWriter, sectionMap, symbolMap);
     }
 
+    log.trace("Serializing 'ELF.{0}' ops", ELF::CreateLogicalsectionOp::getOperationName());
+    auto logicalSectionOps = netFunc.getOps<ELF::CreateLogicalsectionOp>();
+    for(auto logicalSectionOp : logicalSectionOps ) {
+        logicalSectionOp.serialize(elfWriter, sectionMap, symbolMap);
+    }
+
     log.trace("Serializing 'ELF.{0}' ops", ELF::CreateSymbolTableSectionOp::getOperationName());
     auto symTabOps = netFunc.getOps<ELF::CreateSymbolTableSectionOp>();
     for(auto symTabOp : symTabOps) {

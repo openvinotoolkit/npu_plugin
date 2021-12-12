@@ -11,11 +11,11 @@
 // included with the Software Package for additional details.
 //
 
+#include "host_parsed_inference.h"
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
-
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/utils/core/format.hpp"
 
-#include "llvm/Support/Debug.h"
 
 using namespace vpux;
 
@@ -23,50 +23,21 @@ using namespace vpux;
 // ConfigureBarrierOp
 //
 
-/*
-// From file .../nn_inference_runtime_types.h
-//  From meeting TimiCompiler from Sep 15 2021
-    struct BarrierCfg
-    {
-        unsigned char real_id_;
-        short next_same_id_;
-        unsigned short producer_count_;
-        unsigned short consumer_count_;
-
-        BarrierCfg() :
-            real_id_(255),
-            next_same_id_(-1),
-            producer_count_(0),
-            consumer_count_(0)
-        {
-        }
-    };
-    //StructAttr VPUIPRM_BarrierCfgAttr ...
-
-// Total size: 1 + 2 + 2 + 2 = 7 bytes. But normally, sizeof(struct BarrierCfg) = 8.
-*/
 void vpux::VPUIPRegMapped::ConfigureBarrierOp::serialize(std::vector<char>& buffer) {
-    llvm::dbgs() << "Alex: Entered void vpux::VPUIPRegMapped::ConfigureBarrierOp::serialize()\n";
 
-    llvm::dbgs() << "  idAttrName = " << idAttrName().str() << "\n";
-    llvm::dbgs() << "  idAttr = " << idAttr().getValue() << "\n";
-    llvm::dbgs() << "  next_same_id = " << next_same_id() << "\n";
-    llvm::dbgs() << "Alex: Exiting void vpux::VPUIPRegMapped::ConfigureBarrierOp::serialize()\n";
+    host_parsing::BarrierWrapper barrier;
 
-    struct __attribute__((packed)) BarrierCfg {
-        unsigned char real_id_;
-        short next_same_id_;
-        unsigned short producer_count_;
-        unsigned short consumer_count_;
+    barrier.next_same_id = next_same_id();
+    barrier.real_id = id();
+    barrier.consumer_count = consumer_count().getValueOr(0); //make it fixed after dialect refactor......
+    barrier.producer_count = producer_count().getValueOr(0);
 
-        BarrierCfg(): real_id_(255), next_same_id_(-1), producer_count_(0), consumer_count_(0) {
-        }
-    } tmp;
-
-    tmp.next_same_id_ = next_same_id();
-
-    char* ptrCharTmp = (char*)(&tmp);
-    for (long unsigned i = 0; i < sizeof(struct BarrierCfg); i++) {
-        buffer.push_back(*(ptrCharTmp + i));
+    char* ptrCharTmp = reinterpret_cast<char*>(&barrier);
+    for (size_t i = 0; i < sizeof(barrier); i++) {
+        buffer.push_back(ptrCharTmp[i]);
     }
+}
+
+size_t vpux::VPUIPRegMapped::ConfigureBarrierOp::getBinarySize() {
+    return sizeof(host_parsing::BarrierWrapper);
 }

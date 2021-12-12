@@ -74,13 +74,48 @@ def CreateSectionOp :
         `->` type(results)
         $aRegion
     }];
-    //    $secFlags
+}
+
+//
+// CreateLogicalSectionOp :
+//
+
+def CreateLogicalsectionOp :
+        ELF_Op<"CreateLogicalSection",
+            [
+                NoRegionArguments,
+                DeclareOpInterfaceMethods<ELF_SectionInterface>
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+
+    let summary = "Create an ELF logical Section";
+
+    let arguments = (ins
+        StrAttr:$secName,
+        ELF_SectionTypeAttr:$secType,
+        ELF_SectionFlagsAttr:$secFlags,
+        IntAttr:$secInfo,
+        IntAttr:$secAddrAlign
+        );
+
+    let results = (outs ELF_Section:$section);
+
+    let regions = (region
+        SizedRegion<1>:$declaredOps
+    );
+
+    let assemblyFormat = [{
+        `secFlags` `(` $secFlags `)`
+        attr-dict
+        `->` type(results)
+        $declaredOps
+    }];
 }
 
 //
 // CreateSymbolTableSectionOp
 //
-
 
 def CreateSymbolTableSectionOp :
         ELF_Op<"CreateSymbolTableSection",

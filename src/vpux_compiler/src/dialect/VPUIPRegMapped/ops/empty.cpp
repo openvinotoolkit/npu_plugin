@@ -24,3 +24,7 @@ using namespace vpux;
 void vpux::VPUIPRegMapped::EmptyOp::serialize(std::vector<char>& buffer) {
     (void)buffer;
 }
+
+size_t VPUIPRegMapped::EmptyOp::getBinarySize() {
+    return 0;
+}

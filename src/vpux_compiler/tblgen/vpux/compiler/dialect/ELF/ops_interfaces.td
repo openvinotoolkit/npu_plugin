@@ -98,6 +98,12 @@ def ELF_BinaryOpInterface : OpInterface<"BinaryOpInterface"> {
             "void",
             "serialize", (ins "std::vector<char>&":$buffer)
         >,
+
+        InterfaceMethod<
+            "Get the size in bytes of the serialized form of this object",
+            "size_t",
+            "getBinarySize", (ins )
+        >,
     ];
 }
 

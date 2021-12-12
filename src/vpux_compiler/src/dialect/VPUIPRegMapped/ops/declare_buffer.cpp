@@ -18,29 +18,20 @@
 
 using namespace vpux;
 
-//
-// MappedInferenceOp
-//
+namespace {
+// Round up val by N
+template <size_t N>
+uint32_t round_up(uint32_t t) {
+    return static_cast<uint32_t>((t + N - 1) & ~(N - 1));
+}
+}
 
-void vpux::VPUIPRegMapped::MappedInferenceOp::serialize(std::vector<char>& buffer) {
-
-    host_parsing::MappedInference mi;
-    memset(reinterpret_cast<void*>(&mi), 0, sizeof(host_parsing::MappedInference));
-
-    mi.dmaTasks[0].count = dmaCount();
-    mi.invariants.count = invariantCount();
-    mi.variants.count = variantCount();
-    mi.actKInvocations.count = actInvocationsCount();
-    mi.barrierConfigs.count = barrierCount();
-
-    char* ptrCharTmp = reinterpret_cast<char*>(&mi);
-    for (long unsigned i = 0; i < sizeof(host_parsing::MappedInference); i++) {
-        buffer.push_back(*(ptrCharTmp + i));
-    }
-
+void VPUIPRegMapped::DeclareBufferOp::serialize(std::vector<char>& buff) {
+    //no serialization for declareBuffer
     return;
 }
 
-size_t vpux::VPUIPRegMapped::MappedInferenceOp::getBinarySize() {
-    return sizeof(host_parsing::MappedInference);
+size_t VPUIPRegMapped::DeclareBufferOp::getBinarySize() {
+    constexpr uint8_t BITS_IN_BYTE = 8;
+    return round_up<BITS_IN_BYTE>(getType().getSizeInBits() / BITS_IN_BYTE);
 }

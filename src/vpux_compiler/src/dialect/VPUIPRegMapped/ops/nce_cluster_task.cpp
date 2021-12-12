@@ -211,3 +211,6 @@ namespace {}  // namespace
 void vpux::VPUIPRegMapped::NCEClusterTaskOp::serialize(std::vector<char>& buffer) {
     (void)buffer;
 }
+size_t vpux::VPUIPRegMapped::NCEClusterTaskOp::getBinarySize() {
+    return 0;
+}

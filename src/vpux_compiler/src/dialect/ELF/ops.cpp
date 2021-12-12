@@ -71,6 +71,7 @@ mlir::Operation* opParentSection(mlir::Value val) {
 }
 
 void vpux::ELF::CreateSectionOp::serialize(elf::Writer& writer, SectionMap& sectionMap, SymbolMap& symbolMap) {
+    VPUX_UNUSED(symbolMap);
     const auto name = secName().str();
     auto section = writer.addBinaryDataSection<char>(name);
     section->maskFlags(static_cast<elf::Elf_Xword>(secFlags()));
@@ -88,7 +89,29 @@ void vpux::ELF::CreateSectionOp::serialize(elf::Writer& writer, SectionMap& sect
     }
 
     sectionMap[getOperation()] = section;
+
+    return;
+}
+
+void vpux::ELF::CreateLogicalsectionOp::serialize(elf::Writer& writer, SectionMap& sectionMap, SymbolMap& symbolMap) {
     VPUX_UNUSED(symbolMap);
+    const auto name = secName().str();
+    auto section = writer.addEmptySection(name);
+    section->maskFlags(static_cast<elf::Elf_Xword>(secFlags()));
+    section->setAddrAlign(secAddrAlign());
+
+    size_t totalSize = 0;
+    auto block = getBody();
+    for(auto& op : block->getOperations()) {
+        if(op.hasTrait<vpux::ELF::BinaryOpInterface::Trait>()) {
+            auto binaryOp = llvm::cast<vpux::ELF::BinaryOpInterface>(op);
+
+            totalSize+= binaryOp.getBinarySize();
+        }
+    }
+    section->setSize(totalSize);
+
+    sectionMap[getOperation()] = section;
 
     return;
 }
@@ -186,6 +209,15 @@ void vpux::ELF::PutAnyOpInSectionOp::serialize(std::vector<char>& writer) {
     binaryIface.serialize(writer);
 
     return;
+}
+
+size_t vpux::ELF::PutAnyOpInSectionOp::getBinarySize() {
+    auto parent = inputArg().getDefiningOp();
+    auto binaryIface = llvm::dyn_cast<vpux::ELF::BinaryOpInterface>(parent);
+
+    VPUX_THROW_UNLESS(binaryIface != nullptr, "Parent of PutAnyOpInSection is expected to define elf::BinaryOpInterface");
+
+    return binaryIface.getBinarySize();
 }
 
 void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, SectionMap& sectionMap) {
