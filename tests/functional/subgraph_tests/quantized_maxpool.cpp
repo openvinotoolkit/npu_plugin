@@ -14,7 +14,7 @@ class KmbQuantizedMaxPoolSubGraphTest :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
     void SetUp() override {
-        const InferenceEngine::SizeVector inputShape{1, 1024, 1, 1};
+        const InferenceEngine::SizeVector inputShape{1, 16, 32, 32};
 
         const auto params = ngraph::builder::makeParams(ngraph::element::f16, {inputShape});
         const auto paramOuts =
@@ -35,7 +35,7 @@ class KmbQuantizedMaxPoolSubGraphTest :
         const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
 
         const auto pooling = ngraph::builder::makePooling(dataFq, strides, pads_begin, pads_end,
-                kernelSize, roundingType, padType, false, ngraph::helpers::PoolingTypes::AVG);
+                kernelSize, roundingType, padType, false, ngraph::helpers::PoolingTypes::MAX);
 
         const std::vector<float> outDataLow = {0.0f};
         const std::vector<float> outDataHigh = {100.0f};
@@ -50,11 +50,11 @@ class KmbQuantizedMaxPoolSubGraphTest :
     }
 };
 
-// TEST_P(KmbQuantizedMaxPoolSubGraphTest, CompareWithRefs_MLIR_SW) {
-//     useCompilerMLIR();
-//     setReferenceSoftwareModeMLIR();
-//     Run();
-// }
+TEST_P(KmbQuantizedMaxPoolSubGraphTest, CompareWithRefs_MLIR_SW) {
+    useCompilerMLIR();
+    setReferenceSoftwareModeMLIR();
+    Run();
+}
 
 TEST_P(KmbQuantizedMaxPoolSubGraphTest, CompareWithRefs_MLIR_HW) {
     useCompilerMLIR();
