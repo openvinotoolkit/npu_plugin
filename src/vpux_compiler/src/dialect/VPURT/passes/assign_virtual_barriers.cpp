@@ -10,7 +10,7 @@
 // to the "third-party-programs.txt" or other similarly-named text file
 // included with the Software Package for additional details.
 //
-#include "vpux/compiler/core/control_dependencies_save_restore.hpp"
+
 #include "vpux/compiler/core/runtime_simulator.hpp"
 #include "vpux/compiler/core/token_barrier_scheduler.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
