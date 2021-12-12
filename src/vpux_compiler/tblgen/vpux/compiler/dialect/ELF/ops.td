@@ -42,10 +42,11 @@ class ELF_Op<string mnemonic, list<OpTrait> traits = []> :
 // CreateSectionOp
 //
 
-def CreateSectionOp : ELF_Op<"CreateSection",
+def CreateSectionOp :
+        ELF_Op<"CreateSection",
             [
-                //ViewLikeOpInterface, // From https://reviews.llvm.org/D78645: should add: include "mlir/Interfaces/ViewLikeInterface.td"
-                NoRegionArguments
+                NoRegionArguments,
+                DeclareOpInterfaceMethods<ELF_SectionInterface>
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -77,64 +78,15 @@ def CreateSectionOp : ELF_Op<"CreateSection",
 }
 
 //
-// PutAnyOpInSectionOp
-//
-
-def PutAnyOpInSectionOp :
-  ELF_Op<"PutAnyOpInSection",
-    [
-      DeclareOpInterfaceMethods<ELF_OpInterface>
-    ]
-  > {
-    let summary = "Put Any Op in ELF Section";
-
-    let arguments = (ins
-          AnyType:$inputArg // Inspired from mlir/Dialect/StandardOps/IR/Ops.td, "def AtomicYieldOp"
-        );
-
-    let results = (outs);
-
-    let assemblyFormat = "$inputArg attr-dict `:` type($inputArg)"; // Inspired from mlir/Dialect/StandardOps/IR/Ops.td, "def AtomicYieldOp"
-    // Gives <<error: type of operand #0, named 'result', is not buildable and a buildable type cannot be inferred>>: let assemblyFormat = "$result attr-dict";
-}
-
-
-//
-// SymbolOp
-//
-
-def SymbolOp : ELF_Op<"Symbol"> {
-    let summary = "Create ELF Symbol Table Section";
-
-    let arguments = (ins
-          AnyType:$inputArg // Inspired from mlir/Dialect/StandardOps/IR/Ops.td, "def AtomicYieldOp"
-        );
-
-    let results = (outs ELF_Symbol:$symbol);
-
-    // Inspired also from the definition of VPUIP_NCEClusterTaskOp
-    let assemblyFormat = [{
-        $inputArg attr-dict `:` type($inputArg)
-    }];
-    /*
-       Error: <<suggest adding a type constraint to the operation or adding a 'type($inputArg)' directive to the custom assembly format>>
-        $inputArg
-        attr-dict
-    */
-     //   $inputArg attr-dict `:` type($inputArg)
-     //   `->` type(results)
-}
-
-
-//
 // CreateSymbolTableSectionOp
 //
+
 
 def CreateSymbolTableSectionOp :
         ELF_Op<"CreateSymbolTableSection",
             [
                 NoRegionArguments,
-                DeclareOpInterfaceMethods<ELF_OpInterface>
+                DeclareOpInterfaceMethods<ELF_SectionInterface>
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -160,17 +112,17 @@ def CreateSymbolTableSectionOp :
         `->` type(results)
         $aRegion
     }];
-      //  `->` type(results)
 }
-
 
 //
 // CreateRelocationSectionOp
 //
 
-def CreateRelocationSectionOp : ELF_Op<"CreateRelocationSection",
+def CreateRelocationSectionOp :
+        ELF_Op<"CreateRelocationSection",
             [
-                NoRegionArguments
+                NoRegionArguments,
+                DeclareOpInterfaceMethods<ELF_SectionInterface>
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -205,15 +157,47 @@ def CreateRelocationSectionOp : ELF_Op<"CreateRelocationSection",
 
 
 //
+// SymbolOp
+//
+
+def SymbolOp :
+        ELF_Op<"Symbol",
+            [
+                DeclareOpInterfaceMethods<ELF_SymbolObjectInterface>
+            ]
+        > {
+    let summary = "Create ELF Symbol Table Section";
+
+    let arguments = (ins
+          AnyType:$inputArg,
+          OptionalAttr<StrAttr>:$name,
+          OptionalAttr<ELF_SymbolTypeAttr>:$type,
+          OptionalAttr<UI64Attr>:$size,
+          OptionalAttr<UI64Attr>:$value
+        );
+
+    let results = (outs ELF_Symbol:$symbol);
+
+    let assemblyFormat = [{
+        $inputArg
+        (`name` `(` $name^ `)`)?
+        (`type` `(` $type^ `)`)?
+        (`size` `(` $size^ `)`)?
+        attr-dict
+        `:` type($inputArg)
+    }];
+}
+
+//
 // RelocOp
 //
 
 def RelocOp :
-  ELF_Op<"Reloc",
-    [
-      DeclareOpInterfaceMethods<ELF_OpInterface>
-    ]
-  > {
+    ELF_Op<"Reloc",
+        [
+            DeclareOpInterfaceMethods<ELF_RelocationObjectInterface>
+        ]
+    > {
     let summary = "Reloc Op";
 
     let arguments = (ins
@@ -227,8 +211,28 @@ def RelocOp :
     let results = (outs);
 
     let assemblyFormat = "$offsetTargetField $relocationType $sourceSymbol $addend attr-dict";
-    //let assemblyFormat = "$inputArg attr-dict `:` type($inputArg)"; // Inspired from mlir/Dialect/StandardOps/IR/Ops.td, "def AtomicYieldOp"
 }
 
+//
+// PutAnyOpInSectionOp
+//
+
+def PutAnyOpInSectionOp :
+        ELF_Op<"PutAnyOpInSection",
+            [
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
+            ]
+        > {
+    let summary = "Put Any Op in ELF Section";
+
+    let arguments = (ins
+          AnyType:$inputArg // Inspired from mlir/Dialect/StandardOps/IR/Ops.td, "def AtomicYieldOp"
+        );
+
+    let results = (outs);
+
+    let assemblyFormat = "$inputArg attr-dict `:` type($inputArg)"; // Inspired from mlir/Dialect/StandardOps/IR/Ops.td, "def AtomicYieldOp"
+    // Gives <<error: type of operand #0, named 'result', is not buildable and a buildable type cannot be inferred>>: let assemblyFormat = "$result attr-dict";
+}
 
 #endif

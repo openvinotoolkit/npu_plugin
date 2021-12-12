@@ -266,7 +266,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
             endOp->getLoc(),
             sectionType2,  // mlir::Type
             ".input.symbolTableSection", // llvm::StringRef secName,
-            vpux::ELF::SectionFlagsAttr::SHF_USERINPUT                  // vpux::ELF::SectionFlagsAttr secFlags,
+            vpux::ELF::SectionFlagsAttr::VPU_SHF_USERINPUT                  // vpux::ELF::SectionFlagsAttr secFlags,
     );
     //
     mlir::Region& regInputSymTabSec = createInputSymTableSectionOp.getOperation()->getRegion(0);
@@ -286,7 +286,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
             endOp->getLoc(),
             sectionType2,  // mlir::Type
             ".output.symbolTableSection",                 // llvm::StringRef secName,
-            vpux::ELF::SectionFlagsAttr::SHF_USEROUTPUT   // vpux::ELF::SectionFlagsAttr secFlags,
+            vpux::ELF::SectionFlagsAttr::VPU_SHF_USEROUTPUT   // vpux::ELF::SectionFlagsAttr secFlags,
     );
     //
     mlir::Region& regOutputSymTabSec = createOutputSymTableSectionOp.getOperation()->getRegion(0);
@@ -393,7 +393,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
             ".rela.input",                                              // llvm::StringRef secName,
             createInputSymTableSectionOp.getOperation()->getResult(0),  // sourceSymbolTableSection,
             nndmaSectionOpValue,                                        // targetSection,
-            vpux::ELF::SectionFlagsAttr::SHF_USERINPUT                  // vpux::ELF::SectionFlagsAttr secFlags,
+            vpux::ELF::SectionFlagsAttr::VPU_SHF_USERINPUT                  // vpux::ELF::SectionFlagsAttr secFlags,
     );
     //
     // (void)createInputRelocationSectionOp;
@@ -416,7 +416,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
             ".rela.output",                                             // llvm::StringRef secName,
             createOutputSymTableSectionOp.getOperation()->getResult(0), // sourceSymbolTableSection,
             nndmaSectionOpValue,                                        // targetSection,
-            vpux::ELF::SectionFlagsAttr::SHF_USEROUTPUT                 // vpux::ELF::SectionFlagsAttr secFlags,
+            vpux::ELF::SectionFlagsAttr::VPU_SHF_USEROUTPUT                 // vpux::ELF::SectionFlagsAttr secFlags,
     );
     //
     // (void)createOutputRelocationSectionOp;

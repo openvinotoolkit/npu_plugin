@@ -17,6 +17,7 @@
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/ELF/dialect.td"
 
+//TODO: include vpux lef type definitions
 
 //
 // SectionTypeAttr
@@ -70,35 +71,51 @@ def ELF_SectionTypeAttr :
     let genSpecializedAttr = 1;
 }
 
+//
+// SymbolTypeAttr
+//
 
 
+def ELF_SymbolTypeAttr :
+    StrEnumAttr<
+        "SymbolTypeAttr",
+        "Enum to represent symbol types",
+        [
+            StrEnumAttrCase<"STT_NOTYPE"     , 0>,
+            StrEnumAttrCase<"STT_OBJECT"     , 1>,
+            StrEnumAttrCase<"STT_FUNC"       , 2>,
+            StrEnumAttrCase<"STT_SECTION"    , 3>,
+            StrEnumAttrCase<"STT_FILE"       , 4>,
+            StrEnumAttrCase<"STT_COMMON"     , 5>,
+            StrEnumAttrCase<"STT_TLS"        , 6>,
+            StrEnumAttrCase<"VPU_STT_ENTRY"  , 10>,
+            StrEnumAttrCase<"VPU_STT_INPUT"  , 11>,
+            StrEnumAttrCase<"VPU_STT_OUTPUT" , 12>,
+        ]
+    > {
+    let cppNamespace = "vpux::ELF";
+    let genSpecializedAttr = 1;
+}
 //
 // SectionFlagsAttr
 //
 
+//TODO::BitEnumAttr has underlying type as uint32_t. ELF section flags can span uint64_t range.
+//Need to write "own version" of BitEnumAttr with underlying type as uint64_t
+//Until then restrict only to flags that fit in uint32_t!
 def ELF_SectionFlagsAttr :
         BitEnumAttr<
             "SectionFlagsAttr",
             "Enum for describing ELF section flags (we have also cases encountered with OR)",
             [
-                // Cases are taken from elfio/elf_types.hpp
-                // See https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblj/index.html for meaning of these Section Header Flags.
-                BitEnumAttrCase<"SHF_NONE",                0x0>, // Added by Alex // If using it with together with OR operator it gives error at parsing (probably because it's value 0): 
+                BitEnumAttrCase<"SHF_NONE",                0x0>,
                 BitEnumAttrCase<"SHF_WRITE",               0x1>,
                 BitEnumAttrCase<"SHF_ALLOC",               0x2>,
                 BitEnumAttrCase<"SHF_EXECINSTR",           0x4>,
-                BitEnumAttrCase<"SHF_MERGE",               0x10>,
-                BitEnumAttrCase<"SHF_STRINGS",             0x20>,
                 BitEnumAttrCase<"SHF_INFO_LINK",           0x40>,
-                BitEnumAttrCase<"SHF_LINK_ORDER",          0x80>,
-                BitEnumAttrCase<"SHF_OS_NONCONFORMING",    0x100>,
-                BitEnumAttrCase<"SHF_GROUP",               0x200>,
-                BitEnumAttrCase<"SHF_TLS",                 0x400>,
-                BitEnumAttrCase<"SHF_JIT",                 0x10000000>,
-                BitEnumAttrCase<"SHF_USERINPUT",           0x20000000>,
-                BitEnumAttrCase<"SHF_USEROUTPUT",          0x40000000>,
-                //BitEnumAttrCase<"SHF_MASKOS",              0x0ff00000>,
-                // error: enumerator value ‘4026531840’ is outside the range of underlying type ‘int’: BitEnumAttrCase<"SHF_MASKPROC",         0xF0000000>,
+                BitEnumAttrCase<"VPU_SHF_JIT",             0x10000000>,
+                BitEnumAttrCase<"VPU_SHF_USERINPUT",       0x20000000>,
+                BitEnumAttrCase<"VPU_SHF_USEROUTPUT",      0x40000000>,
             ]
         > {
     let cppNamespace = "vpux::ELF";

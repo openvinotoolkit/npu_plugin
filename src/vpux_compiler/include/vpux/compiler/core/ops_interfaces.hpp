@@ -17,6 +17,8 @@
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/IR/Operation.h>
 
+#include "vpux/compiler/utils/stl_extras.hpp"
+
 namespace vpux {
 
 //

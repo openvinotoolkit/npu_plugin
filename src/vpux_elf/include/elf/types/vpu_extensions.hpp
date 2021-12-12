@@ -82,8 +82,8 @@ constexpr Elf_Word R_VPU_32_MULTICAST_OFFSET_CMP_OR = 10;
 // Symbol types
 //
 
-constexpr uint8_t VPU_STT_ENTRY = STT_LOOS; // TODO: temporary hack for the loader to easily find the entry;
-constexpr uint8_t VPU_STT_INPUT = STT_LOOS + 1;
+constexpr uint8_t VPU_STT_ENTRY  = STT_LOOS; // TODO: temporary hack for the loader to easily find the entry;
+constexpr uint8_t VPU_STT_INPUT  = STT_LOOS + 1;
 constexpr uint8_t VPU_STT_OUTPUT = STT_LOOS + 2;
 
 //

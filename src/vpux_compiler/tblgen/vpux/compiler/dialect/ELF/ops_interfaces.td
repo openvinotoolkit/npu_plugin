@@ -17,11 +17,61 @@
 include "mlir/IR/OpBase.td"
 
 //
-// TaskOpInterface
+// ELFSectionInterface
 //
 
-def ELF_OpInterface : OpInterface<"OpInterface"> {
-    let description = "Interface for ELF Op";
+def ELF_SectionInterface : OpInterface<"ElfSectionInterface"> {
+    let description = "Interface for ELF section";
+
+    let cppNamespace = "vpux::ELF";
+
+    let methods = [
+        InterfaceMethod<
+            "Serialize the Section into an elf entity",
+            "void",
+            "serialize", (ins "elf::Writer&":$writer,
+                            "vpux::OpOrderedMap<elf::writer::Section*>&":$sectionMap,
+                            "std::map<mlir::Operation*, elf::writer::Symbol*>&":$symbolMap)
+        >,
+    ];
+}
+
+def ELF_SymbolObjectInterface : OpInterface<"ElfSymbolObjectInterface"> {
+    let description = "Interface for ELF symbol objects";
+
+    let cppNamespace = "vpux::ELF";
+
+    let methods = [
+        InterfaceMethod<
+            "Serialize an object as an elf symbol",
+            "void",
+            "serialize", (ins "elf::writer::Symbol*":$symbol,
+                            "vpux::OpOrderedMap<elf::writer::Section*>&":$sectionMap)
+        >,
+    ];
+}
+
+def ELF_RelocationObjectInterface : OpInterface<"ElfRelocationObjectInterface"> {
+    let description = "Interface for ELF relocation objects";
+
+    let cppNamespace = "vpux::ELF";
+
+    let methods = [
+        InterfaceMethod<
+            "Serialize an object as an elf relocation object",
+            "void",
+            "serialize", (ins "elf::writer::Relocation*":$relocation,
+                                "std::map<mlir::Operation*, elf::writer::Symbol*>&":$symbolMap)
+        >,
+    ];
+}
+
+//
+// ELFObjectInterface
+//
+
+def ELF_OpInterface : OpInterface<"ElfObjectInterface"> {
+    let description = "Interface for ELF object";
 
     let cppNamespace = "vpux::ELF";
 
@@ -29,23 +79,27 @@ def ELF_OpInterface : OpInterface<"OpInterface"> {
         InterfaceMethod<
             "Serialize the Task to BLOB format",
             "void",
-            //"serialize", (ins "std::vector<char>&":$buffer)
-            //"serialize", (ins "elf::Writer&":$writer)
-            "serialize", (ins "std::vector<elf::writer::Section*>":$ELFSection, "int":$ELFSectionIndex, "std::vector<elf::writer::Symbol*>":$ELFSymbol, "int":$ELFSymbolIndex)
+            "serialize", (ins "elf::Writer&":$writer)
         >,
     ];
-
-    /*
-    let extraTraitClassDeclaration = [{
-        void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
-            vpux::VPUIPRegMapped::getTaskEffects($_op, effects);
-        }
-
-        mlir::Attribute getExecutor(uint32_t& numUnits) {
-            return vpux::VPUIPRegMapped::getTaskOpExecutor($_op, numUnits);
-        }
-    }];
-    */
 }
+
+//
+// BinaryOpInterface
+//
+
+def ELF_BinaryOpInterface : OpInterface<"BinaryOpInterface"> {
+    let description = "Interface for ELF binary serialization of operations";
+    let cppNamespace = "vpux::ELF";
+
+    let methods = [
+        InterfaceMethod<
+            "Serialize the Task to BLOB format",
+            "void",
+            "serialize", (ins "std::vector<char>&":$buffer)
+        >,
+    ];
+}
+
 
 #endif

@@ -21,8 +21,10 @@
 #include "vpux/compiler/dialect/VPUIPRegMapped/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIPRegMapped/effects.hpp"
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/types.hpp"  // 2021_11_30
-#include "vpux/compiler/dialect/VPURT/types.hpp"           // 2021_11_30
+#include "vpux/compiler/dialect/VPUIPRegMapped/types.hpp"
+#include "vpux/compiler/dialect/VPURT/types.hpp"
+#include "vpux/compiler/dialect/ELF/ops.hpp"
+#include "vpux/compiler/dialect/ELF/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>

@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,21 +11,23 @@
 // included with the Software Package for additional details.
 //
 
-#ifndef VPUX_COMPILER_DIALECT_ELF
-#define VPUX_COMPILER_DIALECT_ELF
+#pragma once
 
-include "mlir/IR/OpBase.td"
+#include "vpux/utils/core/logger.hpp"
+#include "vpux/utils/core/preprocessing.hpp"
+#include "vpux_compiler.hpp"
 
-// Provide a definition of the ELF dialect in the ODS framework
-def ELF_Dialect : Dialect {
-  let name = "ELF";
+#include <elf/writer.hpp>
 
-  let cppNamespace = "::vpux::ELF";
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/Support/Timing.h>
 
-  let dependentDialects = [
-    "vpux::IERT::IERTDialect",
-  ];
+namespace vpux {
+namespace ELF {
 
-}
+std::vector<char> exportToELF(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                                const std::vector<PreProcessInfo>& preprocessInfo,
+                                Logger log = Logger::global());
 
-#endif
+}  // namespace ELF
+}  // namespace vpux

@@ -44,6 +44,7 @@ It handles such VPU-specifics as:
         "vpux::Const::ConstDialect",
         "vpux::IE::IEDialect",
         "vpux::IERT::IERTDialect",
+        "vpux::ELF::ELFDialect",
         "mlir::StandardOpsDialect",
         "mlir::quant::QuantizationDialect"
     ];

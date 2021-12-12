@@ -23,7 +23,8 @@ include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 include "vpux/compiler/dialect/VPUIPRegMapped/attributes.td"
 include "vpux/compiler/dialect/VPUIPRegMapped/dialect.td"
 include "vpux/compiler/dialect/VPUIPRegMapped/ops_interfaces.td"
-include "vpux/compiler/dialect/VPURT/types.td" // 2021_11_30
+include "vpux/compiler/dialect/VPURT/types.td"
+include "vpux/compiler/dialect/ELF/ops_interfaces.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/CopyOpInterface.td"
@@ -56,7 +57,8 @@ class VPUIPRegMapped_TaskOp<int numResult, string mnemonic, list<OpTrait> traits
                     MemoryEffectsOpInterface,
                     DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
                     IERT_AsyncLayerOpInterface,
-                    DeclareOpInterfaceMethods<VPUIPRegMapped_TaskOpInterface>
+                    DeclareOpInterfaceMethods<VPUIPRegMapped_TaskOpInterface>,
+                    DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
                 ]
             )
         > {
@@ -171,7 +173,7 @@ def VPUIPRegMapped_DeclareVirtualBarrierOp :
     let summary = "VPUIPRegMapped virtual Barrier declaration";
 
     let results = (outs
-        VPURT_Barrier:$barrier // 2021_11_30
+        VPURT_Barrier:$barrier
     );
 
     let assemblyFormat = [{
@@ -187,9 +189,9 @@ def VPUIPRegMapped_ConfigureBarrierOp :
         VPUIPRegMapped_Op<"ConfigureBarrier",
             [
                 MemoryEffectsOpInterface,
-                // Alex:
                 AttrSizedOperandSegments,
                 DeclareOpInterfaceMethods<VPUIPRegMapped_TaskOpInterface>,
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>,
                 DeclarationOp,
                 DotInterface
             ]
@@ -198,18 +200,14 @@ def VPUIPRegMapped_ConfigureBarrierOp :
 
     let arguments = (ins
         IntAttr:$id,
-        //UI64Attr:$next_same_id, // Istvan said to add this on Sep 15 2021 meeting
-        //I64Attr:$next_same_id, // Istvan said to add this on Sep 15 2021 meeting
-        I16Attr:$next_same_id, // Istvan said to add this on Sep 15 2021 meeting
+        I16Attr:$next_same_id,
 
-        Variadic<VPURT_Barrier>:$waitBarriers, // 2021_11_30
-        Variadic<VPURT_Barrier>:$updateBarriers // 2021_11_30
-
-        //VPUIPRM_BarrierCfgAttr: $someNameTODO,
+        Variadic<VPURT_Barrier>:$waitBarriers,
+        Variadic<VPURT_Barrier>:$updateBarriers
     );
 
     let results = (outs
-        VPURT_Barrier:$barrier // 2021_11_30
+        VPURT_Barrier:$barrier
     );
 
     let builders = [
@@ -242,7 +240,6 @@ def VPUIPRegMapped_ConfigureBarrierOp :
         }
     }];
 
-        // Alex: (`next_same_id` `(` $next_same_id `:` type($next_same_id) `)`)
     let assemblyFormat = [{
         attr-dict
         `<` $id `,` $next_same_id `>`
@@ -250,15 +247,6 @@ def VPUIPRegMapped_ConfigureBarrierOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
-
-    /*
-    let assemblyFormat = [{
-        attr-dict
-        `<` $id `>`
-        `->` type(results)
-    }];
-    */
-
 }
 
 //
@@ -269,14 +257,15 @@ def VPUIPRegMapped_EmptyOp :
         VPUIPRegMapped_Op<"Empty",
             [
                 AttrSizedOperandSegments,
-                DeclareOpInterfaceMethods<VPUIPRegMapped_TaskOpInterface>
+                DeclareOpInterfaceMethods<VPUIPRegMapped_TaskOpInterface>,
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
             ]
         > {
     let summary = "Empty management task";
 
     let arguments = (ins
-        Variadic<VPURT_Barrier>:$waitBarriers, // 2021_11_30
-        Variadic<VPURT_Barrier>:$updateBarriers // 2021_11_30
+        Variadic<VPURT_Barrier>:$waitBarriers,
+        Variadic<VPURT_Barrier>:$updateBarriers
     );
 
     let extraClassDeclaration = [{
@@ -292,6 +281,45 @@ def VPUIPRegMapped_EmptyOp :
     }];
 }
 
+//
+// MappedInferenceOp
+//
+
+def VPUIPRegMapped_MappedInferenceOp :
+        VPUIPRegMapped_Op<"MappedInference",
+            [
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
+            ]
+        > {
+    let summary = "Task representing the single mappedInference op";
+
+    let arguments = (ins
+        Optional<AnyMemRef>:$dmaList,
+        Optional<AnyMemRef>:$invariantList,
+        Optional<AnyMemRef>:$variantList,
+        Optional<AnyMemRef>:$actInvocations,
+        UI32Attr:$dmaCount,
+        UI32Attr:$invariantCount,
+        UI32Attr:$variantCount,
+        UI32Attr:$actInvocationsCount
+    );
+
+    let results = (outs
+        Index:$output);
+
+    let assemblyFormat = [{
+        attr-dict
+        (`dmas` `(` $dmaList^ `:` type($dmaList) `)`)?
+        (`invariants` `(` $invariantList^ `:` type($invariantList) `)`)?
+        (`variants` `(` $variantList^ `:` type($variantList) `)`)?
+        (`actInvocations` `(` $actInvocations^ `:` type($actInvocations) `)`)?
+        `dmaCount` `(` $dmaCount `)`
+        `invariantCount` `(` $invariantCount `)`
+        `variantCount` `(` $variantCount `)`
+        `actInvocationsCount` `(` $actInvocationsCount `)`
+    }];
+}
 
 //
 // NNDMAOp
@@ -313,16 +341,11 @@ def VPUIPRegMapped_NNDMAOp :
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
 
-        Variadic<VPURT_Barrier>:$waitBarriers, // 2021_11_30
-        Variadic<VPURT_Barrier>:$updateBarriers, // 2021_11_30
-
+        Variadic<VPURT_Barrier>:$waitBarriers,
+        Variadic<VPURT_Barrier>:$updateBarriers,
         UnitAttr:$compression,
         DefaultValuedAttr<IntAttr, "0">:$port,
-
-        UI64Attr:$start_after // Istvan said to add this on Sep 15 2021 meeting
-
-        //VPU2_DmaDescriptorAttr:$serializableAttrs,
-
+        UI64Attr:$start_after
     );
 
     let results = (outs
@@ -334,9 +357,6 @@ def VPUIPRegMapped_NNDMAOp :
             (ins "mlir::Value":$src, "mlir::Value":$dst)
         >
     ];
-
-    /*
-    */
 
     let extraClassDeclaration = [{
         static vpux::VPUIPRegMapped::TaskType getTaskType() {
@@ -505,8 +525,8 @@ def VPUIPRegMapped_NCEClusterTaskOp :
 
         MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
 
-        Variadic<VPURT_Barrier>:$waitBarriers, // 2021_11_30
-        Variadic<VPURT_Barrier>:$updateBarriers, // 2021_11_30
+        Variadic<VPURT_Barrier>:$waitBarriers,
+        Variadic<VPURT_Barrier>:$updateBarriers,
 
         VPUIPRegMapped_NCETaskType:$task_type,
         OptionalAttr<I64ArrayAttr>:$kernel_size,

@@ -56,12 +56,6 @@ def VPUIPRegMapped_TaskOpInterface : OpInterface<"TaskOpInterface"> {
             }]
         >,
 
-        InterfaceMethod<
-            "Serialize the Task to BLOB format",
-            "void",
-            "serialize", (ins "std::vector<char>&":$buffer)
-        >,
-
         StaticInterfaceMethod<
             "Get the VPUIPRegMapped TaskType for the Operation",
             "vpux::VPUIPRegMapped::TaskType", "getTaskType", (ins),
