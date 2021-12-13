@@ -2877,4 +2877,52 @@ def VPUIP_NormalizeIEUPAOp :
         `->` type(results)
     }];
 }
+
+//
+// TopKOp
+//
+
+def VPUIP_TopKUPAOp:
+        VPUIP_UPATaskOp<2,"TopK",
+            [
+                MultiViewOpInterface
+            ]
+        > {
+    let summary = "TopK UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        MemRefOf<[SI32]>:$k,
+        F16MemRef:$output_values_buff,
+        MemRefOf<[SI32]>:$target_shape_buff,
+
+        IntAttr:$axis,
+        IE_TopKMode:$mode,
+        IE_TopKSortType:$sort,
+        TypeAttr:$element_type,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output_values,
+        MemRefOf<[SI32]>:$target_shape
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output_values,
+                "mlir::Value":$target_shape,
+                "mlir::IntegerAttr":$k,
+                "mlir::IntegerAttr":$axis,
+                "vpux::IE::TopKModeAttr":$mode,
+                "vpux::IE::TopKSortTypeAttr":$sort,
+                "mlir::TypeAttr":$element_type
+            )
+        >
+    ];
+}
+
 #endif

@@ -528,6 +528,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::NotEqualOp, OpModelForSW>();
     registry.addOpInterface<IERT::GreaterOp, OpModelForSW>();
     registry.addOpInterface<IERT::GreaterEqualOp, OpModelForSW>();
+    registry.addOpInterface<IERT::TopKOp, OpModelForSW>();
     registry.addOpInterface<IERT::AndOp, OpModelForSW>();
 }
 

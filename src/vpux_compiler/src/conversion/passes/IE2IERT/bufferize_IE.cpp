@@ -931,6 +931,13 @@ mlir::Operation* createRTLayer(IE::LessEqualOp origOp, ArrayRef<mlir::Value> all
     return b.create<IERT::LessEqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::TopKOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::TopKOp::Adaptor newOp(allBufs);
+    return b.create<IERT::TopKOp>(origOp.getLoc(), newOp.input(), newOp.k(), newOp.output_values_buff(),
+                                  newOp.target_shape_buff(), origOp.axisAttr(), origOp.modeAttr(), origOp.sortAttr(),
+                                  origOp.element_typeAttr());
+}
+
 mlir::Operation* createRTLayer(IE::NotEqualOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::NotEqualOp::Adaptor newOp(allBufs);
     return b.create<IERT::NotEqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
@@ -1047,6 +1054,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::NotEqualOp)
     CASE(IE::GreaterOp)
     CASE(IE::GreaterEqualOp)
+    CASE(IE::TopKOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

@@ -2052,6 +2052,37 @@ operation ::= `VPUIP.TanhUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.TopK` (vpux::VPUIP::TopKUPAOp)
+
+TopK UPA SHAVE kernel
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::TopKModeAttr | TopKMode that the InferenceEngine supports
+`sort` | vpux::IE::TopKSortTypeAttr | TopKSortType that the InferenceEngine supports
+`element_type` | ::mlir::TypeAttr | any type attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`k` | memref of 32-bit signed integer values
+`output_values_buff` | memref of 16-bit float values
+`target_shape_buff` | memref of 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output_values` | memref of 16-bit float values
+`target_shape` | memref of 32-bit signed integer values
+
 ### `VPUIP.WeightsTableOp` (vpux::VPUIP::WeightsTableOp)
 
 Intermediate task for creating weights table based on the addresses of CMX buffers

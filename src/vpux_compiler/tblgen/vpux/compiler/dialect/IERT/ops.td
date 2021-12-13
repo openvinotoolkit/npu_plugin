@@ -2776,4 +2776,34 @@ def IERT_NotEqualOp :
     }];
 }
 
+//
+// TopKOp
+//
+
+def IERT_TopKOp:
+        IERT_LayerOp<2, "TopK",
+            [
+                MultiViewOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time TopK layer";
+
+    let arguments = (ins
+        MemRefOf<[F16]>:$input,
+        MemRefOf<[SI32]>:$k,
+        MemRefOf<[F16]>:$output_values_buff,
+        MemRefOf<[SI32]>:$target_shape_buff,
+
+        IntAttr:$axis,
+        IE_TopKMode:$mode,
+        IE_TopKSortType:$sort,
+        TypeAttr:$element_type
+    );
+
+    let results = (outs
+        MemRefOf<[F16]>:$output_values,
+        MemRefOf<[SI32]>:$target_shape
+    );
+}
+
 #endif
