@@ -652,6 +652,81 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp o
     return mlir::success();
 }
 
+//
+// verifyEltwisePrefetchCMX
+//
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwisePrefetchCMX(mlir::Operation* op, vpux::OutputTiling tiling,
+                                                                        Logger log) {
+    log.setName("NCEInvariant");
+    VPUX_THROW_UNLESS(tiling.size() > 1, "Prefetch tiling support at least 2 tiles, found {0}", tiling.size());
+
+    auto module = op->getParentOfType<mlir::ModuleOp>();
+    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
+    const size_t nParallelTiles = 2;  // pipeline two tiles
+    const auto cmxSize = getCMXSize(module);  // TODO set a max memory usage ratio to avoid fragmentation.
+    log.trace("[{0}] prefetch tiling with {0} parallel tiles", nParallelTiles);
+
+    Byte requiredCMX = Byte(0);
+
+    for (auto tileIndex: irange(nParallelTiles-1)) {
+        auto curTile = tiling[tileIndex];
+        auto nextTile = tiling[tileIndex+1];
+
+        auto curTileConf = vpux::IE::backInferEltwiseTile(op, curTile);
+        auto nextTileConf = vpux::IE::backInferEltwiseTile(op, nextTile);
+
+        const auto curInputTileVal1 = vpux::IE::makeTile(builder, op->getLoc(),
+                                                        op->getOperand(0), curTileConf.tiles[0], "input");
+        const auto curInputTileVal2 = vpux::IE::makeTile(builder, op->getLoc(),
+                                                         op->getOperand(0), curTileConf.tiles[0], "input");
+        const auto curOutputTileVal = getDenseTileType(op->getResult(0).getType().cast<mlir::ShapedType>(),
+                                                       curTile.offsets, curTile.shape);
+
+        const auto nextInputTileVal1 = vpux::IE::makeTile(builder, op->getLoc(),
+                                                        op->getOperand(0), nextTileConf.tiles[0], "input");
+        const auto nextInputTileVal2 = vpux::IE::makeTile(builder, op->getLoc(),
+                                                         op->getOperand(0), nextTileConf.tiles[0], "input");
+        const auto nextOutputTileVal = getDenseTileType(op->getResult(0).getType().cast<mlir::ShapedType>(),
+                                                        nextTile.offsets, nextTile.shape);
+
+        requiredCMX += std::max(getRequiredCMX({curInputTileVal1.getType().cast<mlir::ShapedType>(),
+                                                curInputTileVal2.getType().cast<mlir::ShapedType>(),
+                                                curOutputTileVal,
+                                                nextInputTileVal1.getType().cast<mlir::ShapedType>(),
+                                                nextInputTileVal2.getType().cast<mlir::ShapedType>()
+                                               }, 0),
+                                getRequiredCMX({curOutputTileVal,
+                                                nextInputTileVal1.getType().cast<mlir::ShapedType>(),
+                                                nextInputTileVal2.getType().cast<mlir::ShapedType>(),
+                                                nextOutputTileVal
+                                               }, 0));
+        if (requiredCMX > cmxSize) {
+            log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'",
+                      op->getLoc(), cmxSize, requiredCMX);
+            return mlir::failure();
+        }
+    }
+
+    return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::AddOp origOp, vpux::OutputTiling tiling, Logger log) {
+    return verifyEltwisePrefetchCMX(origOp.getOperation(), tiling, log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MultiplyOp origOp, vpux::OutputTiling tiling, Logger log) {
+    return verifyEltwisePrefetchCMX(origOp.getOperation(), tiling, log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::SubtractOp origOp, vpux::OutputTiling tiling, Logger log) {
+    return verifyEltwisePrefetchCMX(origOp.getOperation(), tiling, log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::AndOp origOp, vpux::OutputTiling tiling, Logger log) {
+    return verifyEltwisePrefetchCMX(origOp.getOperation(), tiling, log);
+}
+
 
 //
 // verifyKernel

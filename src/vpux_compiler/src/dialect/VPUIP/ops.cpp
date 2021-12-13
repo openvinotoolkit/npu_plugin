@@ -387,8 +387,50 @@ public:
         });
     }
 
-    bool isSupportedPrefetchTiling(mlir::Operation* /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) const {
-        return false;
+    bool isSupportedPrefetchTiling(mlir::Operation* op, const Shape& tileAxis, Logger log) const {
+        bool isSingleTile = false;
+        Dim tileDim = Dim(0);
+        for (unsigned i = 0; i < tileAxis.size(); i++) {
+            if (tileAxis[Dim(i)] > 1) {
+                tileDim = Dim(i);
+                if (isSingleTile)
+                    return false;
+                else
+                    isSingleTile = true;
+            }
+        }
+        if (!isSingleTile)
+            return false;
+        auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
+        const Shape nTilesOnDim = tileAxis;
+
+        auto isDivisibleTile = [&]() -> bool {
+          int64_t minChannelSize = 1;
+          if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
+              minChannelSize = channelsInfo.getChannelAlignment();
+          }
+          if (tileDim == Dims4D::Act::C) {
+              return (outputShape[tileDim] / nTilesOnDim[tileDim] >= minChannelSize) &&
+                     (outputShape[tileDim] % nTilesOnDim[tileDim] == 0) &&
+                     ((outputShape[tileDim] / nTilesOnDim[tileDim]) % minChannelSize == 0);
+          }
+          else
+              return outputShape[tileDim] / nTilesOnDim[tileDim] >= 1;
+        };
+
+        auto isMemPrefetchable = [&]() -> bool {
+          auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+          return vpux::VPUIP::NCEInvariant::verifyEltwisePrefetchCMX(op, tileResult, log).succeeded();
+        };
+
+        auto isLastTileBiggest = [&]() -> bool {
+          auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+          auto lastTile = tileResult.end() - 1;
+          auto firstTile = tileResult.begin();
+          return lastTile->shape[tileDim] > firstTile->shape[tileDim];
+        };
+
+        return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest();
     }
 
 private:
