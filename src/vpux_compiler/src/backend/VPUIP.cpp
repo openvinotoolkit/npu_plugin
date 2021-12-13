@@ -29,7 +29,6 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/numeric.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
@@ -266,47 +265,6 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     return builder.Finish();
 }
 
-MVCNN::TargetDevice mapTargetDevice(VPU::ArchKind kind) {
-    switch (kind) {
-    case VPU::ArchKind::KMB:
-        return MVCNN::TargetDevice::TargetDevice_KMB;
-    case VPU::ArchKind::TBH:
-        return MVCNN::TargetDevice::TargetDevice_TBH;
-    case VPU::ArchKind::MTL:
-        return MVCNN::TargetDevice::TargetDevice_MTL;
-    case VPU::ArchKind::LNL:
-        return MVCNN::TargetDevice::TargetDevice_LNL;
-    default:
-        VPUX_THROW("Unsupported architecture '{0}'", kind);
-    }
-}
-
-MVCNN::TargetDeviceRevision mapTargetDeviceRevision(VPU::ArchKind kind) {
-    switch (kind) {
-    case VPU::ArchKind::KMB:
-        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
-    default:
-        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
-    }
-}
-
-const EnumMap<vpux::PreProcessColorSpace, MVCNN::PreProcessColorSpace> mapPreProcessColorFormat = {
-        {vpux::PreProcessColorSpace::BGR, MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR},
-        {vpux::PreProcessColorSpace::RGB, MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB},
-        {vpux::PreProcessColorSpace::NV12, MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12},
-        {vpux::PreProcessColorSpace::I420, MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420},
-        {vpux::PreProcessColorSpace::NONE, MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT},
-};
-
-const EnumMap<vpux::PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm> mapPreProcessResizeAlgorithm = {
-        {vpux::PreProcessResizeAlgorithm::RESIZE_BILINEAR,
-         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR},
-        {vpux::PreProcessResizeAlgorithm::RESIZE_AREA,
-         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA},
-        {vpux::PreProcessResizeAlgorithm::NO_RESIZE,
-         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE},
-};
-
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
                                                               IE::CNNNetworkOp netOp, mlir::FuncOp netFunc,
                                                               bool withDynamicBarriers, mlir::TimingScope& rootTiming,
@@ -378,8 +336,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
     for (const auto& pr : preprocessInfo) {
         preprocInfo.push_back(MVCNN::CreatepreprocessingInfo(
-                writer, writer.createString(pr._inputName), mapPreProcessColorFormat.at(pr._inputFormat),
-                mapPreProcessColorFormat.at(pr._outputFormat), mapPreProcessResizeAlgorithm.at(pr._algorithm)));
+                writer, writer.createString(pr._inputName), VPUIP::mapPreProcessColorFormat.at(pr._inputFormat),
+                VPUIP::mapPreProcessColorFormat.at(pr._outputFormat), VPUIP::mapPreProcessResizeAlgorithm.at(pr._algorithm)));
     }
 
     SmallVector<int8_t> options;
@@ -411,8 +369,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     builder.add_in_tensor_desc(serializedUserInputs);
     builder.add_out_tensor_desc(serializedUserOutputs);
     builder.add_pre_process_info(serializedPreProcInfo);
-    builder.add_device(mapTargetDevice(VPU::getArch(module)));
-    builder.add_device_revision(mapTargetDeviceRevision(VPU::getArch(module)));
+    builder.add_device(VPUIP::mapTargetDevice(VPU::getArch(module)));
+    builder.add_device_revision(VPUIP::mapTargetDeviceRevision(VPU::getArch(module)));
     builder.add_act_kernel_runtime(serializedActKernelsRuntime);
     return builder.Finish();
 }

@@ -61,47 +61,6 @@ flatbuffers::Offset<MVCNN::Version> createVersion(EMU::BlobWriter& writer, Logge
     return builder.Finish();
 }
 
-MVCNN::TargetDevice mapTargetDevice(const VPU::ArchKind kind) {
-    switch (kind) {
-    case VPU::ArchKind::KMB:
-        return MVCNN::TargetDevice::TargetDevice_KMB;
-    case VPU::ArchKind::TBH:
-        return MVCNN::TargetDevice::TargetDevice_TBH;
-    case VPU::ArchKind::MTL:
-        return MVCNN::TargetDevice::TargetDevice_MTL;
-    case VPU::ArchKind::LNL:
-        return MVCNN::TargetDevice::TargetDevice_LNL;
-    default:
-        VPUX_THROW("Unsupported architecture '{0}'", kind);
-    }
-}
-
-MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const VPU::ArchKind kind) {
-    switch (kind) {
-    case VPU::ArchKind::KMB:
-        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
-    default:
-        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
-    }
-}
-
-const EnumMap<vpux::PreProcessColorSpace, MVCNN::PreProcessColorSpace> mapPreProcessColorFormat = {
-        {vpux::PreProcessColorSpace::BGR, MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR},
-        {vpux::PreProcessColorSpace::RGB, MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB},
-        {vpux::PreProcessColorSpace::NV12, MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12},
-        {vpux::PreProcessColorSpace::I420, MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420},
-        {vpux::PreProcessColorSpace::NONE, MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT},
-};
-
-const EnumMap<vpux::PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm> mapPreProcessResizeAlgorithm = {
-        {vpux::PreProcessResizeAlgorithm::RESIZE_BILINEAR,
-         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR},
-        {vpux::PreProcessResizeAlgorithm::RESIZE_AREA,
-         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA},
-        {vpux::PreProcessResizeAlgorithm::NO_RESIZE,
-         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE},
-};
-
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(EMU::BlobWriter& writer, mlir::ModuleOp module,
                                                               IE::CNNNetworkOp netOp, mlir::FuncOp netFunc,
                                                               mlir::TimingScope& rootTiming,
@@ -127,9 +86,9 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(EMU::BlobWriter& w
 
         const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
-        graphInputs.push_back(writer.createTensor(val, userInfo.name(), EMU::MemoryLocation::ProgrammableInput));
+        graphInputs.push_back(writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableInput));
 
-        userInputs.push_back(writer.createTensor(userInfo.name(), userType, EMU::MemoryLocation::ProgrammableInput));
+        userInputs.push_back(writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableInput));
     }
 
     SmallVector<EMU::BlobWriter::TensorReference> graphOutputs, userOutputs;
@@ -147,9 +106,9 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(EMU::BlobWriter& w
 
         const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
-        graphOutputs.push_back(writer.createTensor(val, userInfo.name(), EMU::MemoryLocation::ProgrammableOutput));
+        graphOutputs.push_back(writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableOutput));
 
-        userOutputs.push_back(writer.createTensor(userInfo.name(), userType, EMU::MemoryLocation::ProgrammableOutput));
+        userOutputs.push_back(writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableOutput));
     }
 
     SmallVector<VPUIP::BlobWriter::PreprocessingInfo> preprocInfo;
@@ -157,8 +116,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(EMU::BlobWriter& w
 
     for (const auto& pr : preprocessInfo) {
         preprocInfo.push_back(MVCNN::CreatepreprocessingInfo(
-                writer, writer.createString(pr._inputName), mapPreProcessColorFormat.at(pr._inputFormat),
-                mapPreProcessColorFormat.at(pr._outputFormat), mapPreProcessResizeAlgorithm.at(pr._algorithm)));
+                writer, writer.createString(pr._inputName), VPUIP::mapPreProcessColorFormat.at(pr._inputFormat),
+                VPUIP::mapPreProcessColorFormat.at(pr._outputFormat), VPUIP::mapPreProcessResizeAlgorithm.at(pr._algorithm)));
     }
 
 
@@ -177,8 +136,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(EMU::BlobWriter& w
     builder.add_task_count(checked_cast<uint32_t>(taskCount));
     builder.add_in_tensor_desc(serializedUserInputs);
     builder.add_out_tensor_desc(serializedUserOutputs);
-    builder.add_device(mapTargetDevice(VPU::getArch(module)));
-    builder.add_device_revision(mapTargetDeviceRevision(VPU::getArch(module)));
+    builder.add_device(VPUIP::mapTargetDevice(VPU::getArch(module)));
+    builder.add_device_revision(VPUIP::mapTargetDeviceRevision(VPU::getArch(module)));
     return builder.Finish();
 }
 
@@ -239,7 +198,7 @@ SmallVector<EMU::BlobWriter::BinaryData> serializeBinaryData(EMU::BlobWriter& wr
         binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<mlir::ShapedType>());
 
         writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
-                            EMU::MemoryLocation::GraphFile, constTensorInd);
+                            VPUIP::MemoryLocation::GraphFile, constTensorInd);
     }
 
     return binaryData;

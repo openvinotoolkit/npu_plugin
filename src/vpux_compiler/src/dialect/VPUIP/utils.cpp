@@ -230,3 +230,113 @@ mlir::Value vpux::VPUIP::alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, m
     }
     return alignedFilter;
 }
+
+MVCNN::TargetDevice vpux::VPUIP::mapTargetDevice(VPU::ArchKind kind) {
+    switch (kind) {
+    case VPU::ArchKind::KMB:
+        return MVCNN::TargetDevice::TargetDevice_KMB;
+    case VPU::ArchKind::TBH:
+        return MVCNN::TargetDevice::TargetDevice_TBH;
+    case VPU::ArchKind::MTL:
+        return MVCNN::TargetDevice::TargetDevice_MTL;
+    case VPU::ArchKind::LNL:
+        return MVCNN::TargetDevice::TargetDevice_LNL;
+    default:
+        VPUX_THROW("Unsupported architecture '{0}'", kind);
+    }
+}
+
+MVCNN::TargetDeviceRevision vpux::VPUIP::mapTargetDeviceRevision(VPU::ArchKind kind) {
+    switch (kind) {
+    case VPU::ArchKind::KMB:
+        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
+    default:
+        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
+    }
+}
+
+
+MVCNN::DType vpux::VPUIP::createDType(mlir::Type type) {
+    if (type.isF64()) {
+        return MVCNN::DType_FP64;
+    } else if (type.isF32()) {
+        return MVCNN::DType_FP32;
+    } else if (type.isF16()) {
+        return MVCNN::DType_FP16;
+    } else if (type.isBF16()) {
+        return MVCNN::DType_FP16;
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int64_t))) {
+        return MVCNN::DType_I64;
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int32_t))) {
+        return MVCNN::DType_I32;
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int16_t))) {
+        return MVCNN::DType_I16;
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int8_t))) {
+        return MVCNN::DType_I8;
+    } else if (type.isSignedInteger(4)) {
+        return MVCNN::DType_I4;
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint64_t))) {
+        return MVCNN::DType_U64;
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint32_t))) {
+        return MVCNN::DType_U32;
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint16_t))) {
+        return MVCNN::DType_U16;
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint8_t))) {
+        return MVCNN::DType_U8;
+    } else if (type.isInteger(4)) {
+        return MVCNN::DType_U4;
+    } else if (type.isInteger(2)) {
+        return MVCNN::DType_I2;
+    } else if (type.isInteger(1)) {
+        return MVCNN::DType_BIN;
+    } else if (type.isa<mlir::quant::QuantizedType>()) {
+        return createDType(type.cast<mlir::quant::QuantizedType>().getStorageType());
+    } else {
+        VPUX_THROW("Unsupported element type {0}", type);
+    }
+}
+
+MVCNN::MemoryLocation vpux::VPUIP::createMemoryLocation(MemoryLocation location) {
+#define CASE(_val_)             \
+    case MemoryLocation::_val_: \
+        return VPUX_COMBINE(MVCNN::MemoryLocation_, _val_)
+
+    switch (location) {
+        CASE(ProgrammableInput);
+        CASE(ProgrammableOutput);
+        CASE(ProfilingOutput);
+        CASE(VPU_DDR_Heap);
+        CASE(GraphFile);
+        CASE(VPU_CMX_NN);
+        CASE(VPU_CMX_UPA);
+        CASE(VPU_DDR_BSS);
+        CASE(VPU_CSRAM);
+        CASE(AbsoluteAddr);
+        CASE(MAC_Accumulators);
+        CASE(GFEmbeddedKernel);
+    default:
+        VPUX_THROW("Unsupported MemoryLocation {0}", location);
+    }
+
+#undef CASE
+}
+
+MVCNN::order3 vpux::VPUIP::createOrder3(mlir::ArrayAttr attr) {
+    auto vec = parseIntArrayAttr<int64_t>(attr);
+    std::reverse(vec.begin(), vec.end());
+
+    VPUX_THROW_UNLESS(vec.size() <= 3, "Got wrong order array : {0}", vec);
+
+    uint8_t x = 0, y = 0, z = 0;
+    if (vec.size() >= 1) {
+        x = checked_cast<uint8_t>(vec[0]);
+    }
+    if (vec.size() >= 2) {
+        y = checked_cast<uint8_t>(vec[1]);
+    }
+    if (vec.size() >= 3) {
+        z = checked_cast<uint8_t>(vec[2]);
+    }
+
+    return MVCNN::order3(x, y, z);
+}

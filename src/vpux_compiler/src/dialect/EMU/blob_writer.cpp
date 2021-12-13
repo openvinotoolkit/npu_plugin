@@ -17,6 +17,7 @@
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/EMU/ops.hpp"
 #include "vpux/compiler/dialect/EMU/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
@@ -85,11 +86,11 @@ EMU::BlobWriter::SpecificTask vpux::EMU::BlobWriter::createUPALayerTask(mlir::Op
 EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(StringRef name, mlir::ShapedType type,
                                                                      ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift,
                                                                      int8_t postShift, ArrayRef<uint8_t> zeroPoints,
-                                                                     MemoryLocation locale,
+                                                                     VPUIP::MemoryLocation locale,
                                                                      const uint32_t localeIndex) {
     const auto serializedName = createString(name);
 
-    const auto serializedDataType = createDType(type.getElementType());
+    const auto serializedDataType = VPUIP::createDType(type.getElementType());
     const auto serializedDims = createDims(type);
     const auto serializedStrides = createStrides(type);
     const auto dimsOrder = DimsOrder::fromType(type);
@@ -98,7 +99,7 @@ EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(StringRef n
     Vector<uint16_t> serializedQuantMult = createVector(mult);
     Vector<uint8_t> serializedQuantShift = createVector(shift);
 
-    const auto serializedLocale = createMemoryLocation(locale);
+    const auto serializedLocale = VPUIP::createMemoryLocation(locale);
     const std::vector<uint32_t> localeIndexVec = {localeIndex};
     Vector<uint32_t> serializedLocaleIndex = _impl.CreateVector(localeIndexVec.data(), localeIndexVec.size());
 
@@ -118,7 +119,7 @@ EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(StringRef n
 }
 
 EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(StringRef name, mlir::ShapedType type,
-                                                                     MemoryLocation locale,
+                                                                     VPUIP::MemoryLocation locale,
                                                                      const uint32_t localeIndex) {
     std::vector<uint8_t> zeroPoints;
     std::vector<uint16_t> mult;
@@ -150,7 +151,7 @@ EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(StringRef n
 }
 
 EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(mlir::Value val, StringRef name,
-                                                                     MemoryLocation locale,
+                                                                     VPUIP::MemoryLocation locale,
                                                                      const uint32_t localeIndex) {
     VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value {0} was already serialized", val);
 
@@ -165,63 +166,6 @@ EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::getTensor(mlir::Value va
     const auto it = _tensors.find(val);
     VPUX_THROW_UNLESS(it != _tensors.end(), "Value {0} wasn't serialized yet", val);
     return it->second;
-}
-
-MVCNN::DType vpux::EMU::BlobWriter::createDType(mlir::Type type) {
-    if (type.isF64()) {
-        return MVCNN::DType_FP64;
-    } else if (type.isF32()) {
-        return MVCNN::DType_FP32;
-    } else if (type.isF16()) {
-        return MVCNN::DType_FP16;
-    } else if (type.isBF16()) {
-        return MVCNN::DType_FP16;
-    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int64_t))) {
-        return MVCNN::DType_I64;
-    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int32_t))) {
-        return MVCNN::DType_I32;
-    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int16_t))) {
-        return MVCNN::DType_I16;
-    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int8_t))) {
-        return MVCNN::DType_I8;
-    } else if (type.isSignedInteger(4)) {
-        return MVCNN::DType_I4;
-    } else if (type.isInteger(CHAR_BIT * sizeof(uint64_t))) {
-        return MVCNN::DType_U64;
-    } else if (type.isInteger(CHAR_BIT * sizeof(uint32_t))) {
-        return MVCNN::DType_U32;
-    } else if (type.isInteger(CHAR_BIT * sizeof(uint16_t))) {
-        return MVCNN::DType_U16;
-    } else if (type.isInteger(CHAR_BIT * sizeof(uint8_t))) {
-        return MVCNN::DType_U8;
-    } else if (type.isInteger(4)) {
-        return MVCNN::DType_U4;
-    } else if (type.isInteger(2)) {
-        return MVCNN::DType_I2;
-    } else if (type.isInteger(1)) {
-        return MVCNN::DType_BIN;
-    } else if (type.isa<mlir::quant::QuantizedType>()) {
-        return createDType(type.cast<mlir::quant::QuantizedType>().getStorageType());
-    } else {
-        VPUX_THROW("Unsupported element type {0}", type);
-    }
-}
-
-MVCNN::MemoryLocation vpux::EMU::BlobWriter::createMemoryLocation(MemoryLocation location) {
-#define CASE(_val_)             \
-    case MemoryLocation::_val_: \
-        return VPUX_COMBINE(MVCNN::MemoryLocation_, _val_)
-
-    switch (location) {
-        CASE(ProgrammableInput);
-        CASE(ProgrammableOutput);
-        CASE(GraphFile);
-        CASE(VPU_DDR_Heap);
-    default:
-        VPUX_THROW("Unsupported MemoryLocation {0}", location);
-    }
-
-#undef CASE
 }
 
 EMU::BlobWriter::Vector<uint32_t> vpux::EMU::BlobWriter::createDims(ShapeRef shape) {
@@ -262,26 +206,6 @@ EMU::BlobWriter::Vector<float> vpux::EMU::BlobWriter::createStrides(mlir::Shaped
     const auto strides = order.toLogicalOrder(memStrides);
 
     return createStrides(strides, getElemTypeSize(type));
-}
-
-MVCNN::order3 vpux::EMU::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
-    auto vec = parseIntArrayAttr<int64_t>(attr);
-    std::reverse(vec.begin(), vec.end());
-
-    VPUX_THROW_UNLESS(vec.size() <= 3, "Got wrong order array : {0}", vec);
-
-    uint8_t x = 0, y = 0, z = 0;
-    if (vec.size() >= 1) {
-        x = checked_cast<uint8_t>(vec[0]);
-    }
-    if (vec.size() >= 2) {
-        y = checked_cast<uint8_t>(vec[1]);
-    }
-    if (vec.size() >= 3) {
-        z = checked_cast<uint8_t>(vec[2]);
-    }
-
-    return MVCNN::order3(x, y, z);
 }
 
 EMU::BlobWriter::BinaryData vpux::EMU::BlobWriter::createBinaryData(ArrayRef<uint64_t> content, mlir::ShapedType type) {

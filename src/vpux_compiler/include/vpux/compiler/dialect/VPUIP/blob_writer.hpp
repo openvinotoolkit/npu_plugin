@@ -127,20 +127,13 @@ public:
     uint32_t getBarrierVirtualID(mlir::Value val) const;
 
 public:
-    static MVCNN::DType createDType(mlir::Type type);
-
     Vector<uint32_t> createDims(ShapeRef shape);
     Vector<uint32_t> createDims(mlir::ShapedType type);
-
-    VPUIP::BlobWriter::Vector<float> createStrides(StridesRef strides, Bit elemSize);
+    Vector<float> createStrides(StridesRef strides, Bit elemSize);
     Vector<float> createStrides(mlir::ShapedType type);
-
-    static MVCNN::MemoryLocation createMemoryLocation(MemoryLocation location);
     IndirectDataReference createIndirectDataReference(int64_t dataIndex, Optional<int64_t> sparsityIndex = None,
                                                       Optional<int64_t> storageElementIndex = None,
                                                       Optional<int64_t> storageElementSize = None);
-
-    static MVCNN::order3 createOrder3(mlir::ArrayAttr attr);
 
 public:
     auto createString(StringRef str) {

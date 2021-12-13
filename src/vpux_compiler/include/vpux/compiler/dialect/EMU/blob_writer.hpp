@@ -18,6 +18,7 @@
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/EMU/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
@@ -77,10 +78,10 @@ public:
 public:
     TensorReference createTensor(StringRef name, mlir::ShapedType type, ArrayRef<uint16_t> mult,
                                  ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints,
-                                 MemoryLocation locale = MemoryLocation::VPU_DDR_Heap, const uint32_t localeIndex = 0);
+                                 VPUIP::MemoryLocation locale = VPUIP::MemoryLocation::VPU_DDR_Heap, const uint32_t localeIndex = 0);
     TensorReference createTensor(StringRef name, mlir::ShapedType type,
-                                 MemoryLocation locale = MemoryLocation::VPU_DDR_Heap, const uint32_t localeIndex = 0);
-    TensorReference createTensor(mlir::Value val, StringRef name, MemoryLocation locale = MemoryLocation::VPU_DDR_Heap,
+                                 VPUIP::MemoryLocation locale = VPUIP::MemoryLocation::VPU_DDR_Heap, const uint32_t localeIndex = 0);
+    TensorReference createTensor(mlir::Value val, StringRef name, VPUIP::MemoryLocation locale = VPUIP::MemoryLocation::VPU_DDR_Heap,
                                  const uint32_t localeIndex = 0);
     TensorReference getTensor(mlir::Value val) const;
 
@@ -88,16 +89,10 @@ public:
     BinaryData createBinaryData(ArrayRef<uint64_t> content, mlir::ShapedType type);
 
 public:
-    static MVCNN::DType createDType(mlir::Type type);
-
-    static MVCNN::MemoryLocation createMemoryLocation(MemoryLocation location);
     Vector<uint32_t> createDims(ShapeRef shape);
     Vector<uint32_t> createDims(mlir::ShapedType type);
-
-    EMU::BlobWriter::Vector<float> createStrides(StridesRef strides, Bit elemSize);
+    Vector<float> createStrides(StridesRef strides, Bit elemSize);
     Vector<float> createStrides(mlir::ShapedType type);
-
-    static MVCNN::order3 createOrder3(mlir::ArrayAttr attr);
 
 public:
     auto createString(StringRef str) {
