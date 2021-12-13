@@ -12,21 +12,9 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
-
-#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/core/tiling.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
 #include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/IR/PatternMatch.h>
-#include <mlir/Transforms/DialectConversion.h>
-
-#include <llvm/ADT/FunctionExtras.h>
-
-#include <numeric>
-#include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
 
