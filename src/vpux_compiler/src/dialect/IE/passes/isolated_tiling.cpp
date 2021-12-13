@@ -19,6 +19,7 @@
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
+#include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
 
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/PatternMatch.h>
