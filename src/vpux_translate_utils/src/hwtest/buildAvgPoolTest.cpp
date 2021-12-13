@@ -58,7 +58,7 @@ llvm::Optional<double> calculateQuantScaleVectorForAvgPool(mlir::Type inputEleme
 
     double ppeScale = 1.0;
 
-    int64_t divisor = std::accumulate(filter_size.begin(), filter_size.end(), 1ul, std::multiplies<int64_t>());
+    int64_t divisor = std::accumulate(filter_size.begin(), filter_size.end(), 1ll, std::multiplies<int64_t>());
     ppeScale = scaleInput / scaleOutput / static_cast<double>(divisor);
 
     return {ppeScale};

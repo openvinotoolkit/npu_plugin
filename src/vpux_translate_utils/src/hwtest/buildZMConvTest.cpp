@@ -123,8 +123,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     VPUX_THROW_UNLESS(INPUT_CMX_OFFSET % alignment == 0, "INPUT_CMX_OFFSET must be multiple of {0}, got {1}", alignment,
                       INPUT_CMX_OFFSET);
 
-    const auto WEIGHTSTABLE_CMX_OFFSET =
-            vpux::alignVal(INPUT_CMX_OFFSET + inputCMXSize, static_cast<unsigned long>(weightsAlignment));
+    const auto WEIGHTSTABLE_CMX_OFFSET = vpux::alignVal(static_cast<unsigned long>(INPUT_CMX_OFFSET + inputCMXSize),
+                                                        static_cast<unsigned long>(weightsAlignment));
     VPUX_THROW_UNLESS(WEIGHTSTABLE_CMX_OFFSET % alignment == 0,
                       "WEIGHTSTABLE_CMX_OFFSET must be multiple of {0}, got {1}", alignment, WEIGHTSTABLE_CMX_OFFSET);
 
