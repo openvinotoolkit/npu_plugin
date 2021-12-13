@@ -159,7 +159,7 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         if (arch != VPU::ArchKind::MTL && channelsInfo != nullptr) {
             const auto chanAlignment = channelsInfo.getChannelAlignment();
-            if (outputTile.shape[Dims4D::Act::C] == chanAlignment) { //WA for KMB
+            if (outputTile.shape[Dims4D::Act::C] != chanAlignment) { //WA for KMB
                 return false;
             }
         }
