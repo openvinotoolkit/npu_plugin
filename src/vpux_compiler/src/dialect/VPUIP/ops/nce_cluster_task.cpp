@@ -208,8 +208,15 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
                        OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
     }
 
-    if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
-        return mlir::failure();
+    if (arch != VPU::ArchKind::MTL) {
+        if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
+            return mlir::failure();
+        }
+    } else {
+        // MTL supports ODU permutation, thus only input must have NHWC layout.
+        if (DimsOrder::fromValue(op.input()) != DimsOrder::NHWC) {
+            return mlir::failure();
+        }
     }
 
     const auto weightsLayout = DimsOrder::fromValue(op.weights());

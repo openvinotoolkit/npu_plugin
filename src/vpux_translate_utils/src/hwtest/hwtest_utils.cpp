@@ -367,5 +367,40 @@ vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder 
     return dpuTask;
 }
 
+const vpux::DimsOrder NWHC = vpux::DimsOrder::fromCode(0x1432);
+const vpux::DimsOrder NWCH = vpux::DimsOrder::fromCode(0x1423);
+const vpux::DimsOrder NCWH = vpux::DimsOrder::fromCode(0x1243);
+
+vpux::DimsOrder oduPermutationToLayout(const vpux::VPUIP::ODUPermutation oduPermutation) {
+    switch (oduPermutation) {
+    case vpux::VPUIP::ODUPermutation::ZXY:
+        return vpux::DimsOrder::NHWC;
+    case vpux::VPUIP::ODUPermutation::ZYX:
+        return vpux::hwtest::NWHC;
+    case vpux::VPUIP::ODUPermutation::YZX:
+        return vpux::hwtest::NWCH;
+    case vpux::VPUIP::ODUPermutation::YXZ:
+        return vpux::hwtest::NCWH;
+    case vpux::VPUIP::ODUPermutation::XZY:
+        return vpux::DimsOrder::NHCW;
+    case vpux::VPUIP::ODUPermutation::XYZ:
+        return vpux::DimsOrder::NCHW;
+    default:
+        return vpux::DimsOrder::NHWC;
+    }
+}
+
+vpux::Dim getInnermostDim(const vpux::DimsOrder& order) {
+    static const std::unordered_map<vpux::DimsOrder, vpux::Dim> orderToDim = {
+            {vpux::DimsOrder::NHWC, vpux::Dims4D::Act::C}, {vpux::hwtest::NWHC, vpux::Dims4D::Act::C},
+            {vpux::hwtest::NWCH, vpux::Dims4D::Act::H},    {vpux::hwtest::NCWH, vpux::Dims4D::Act::H},
+            {vpux::DimsOrder::NHCW, vpux::Dims4D::Act::W}, {vpux::DimsOrder::NCHW, vpux::Dims4D::Act::W},
+    };
+
+    const auto dimIter = orderToDim.find(order);
+    VPUX_THROW_UNLESS(dimIter != orderToDim.end(), "getInnermostDim: {0} layout is not supported", order);
+    return dimIter->second;
+}
+
 }  // namespace hwtest
 }  // namespace vpux

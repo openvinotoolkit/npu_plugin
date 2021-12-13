@@ -1423,6 +1423,16 @@ def generate_options(args):
         genZMConvs(input_types=[Int8(3), FP16(4)],
                    output_orders=[Order.NWHC, Order.NWCH, Order.NCWH, Order.NHCW, Order.NCHW]),
 
+        genZMConvs(
+            input_types=[FP16(2)],
+            input_shapes=[[1, 32, 2, 15]],
+            weight_types=[FP16(2)],
+            kernel_channels=[64],
+            kernel_shapes=[[1, 1]],
+            output_types=[FP16()],
+            output_orders=[Order.NCHW],
+            pads=[[0, 0, 0, 0]]),
+
         # Z-Major Convolution, integer cuboid combinations
         genZMConvs(input_types=[Int8(3)],
                    input_shapes=[[1, 16, 32, 64]],
@@ -1847,6 +1857,7 @@ def generate_options(args):
             output_types=[FP16()],
             pads=[[0, 0, 0, 0]]
         ),
+
     )
 
 

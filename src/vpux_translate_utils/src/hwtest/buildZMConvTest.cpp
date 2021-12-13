@@ -86,8 +86,26 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         }
     }
 
+    const auto outputLayout = oduPermutationToLayout(testDesc.getODUPermutation());
+    auto outputCMXShape = outputShape;
+    const auto outAlignDim = getInnermostDim(outputLayout);
+    const auto outAlignmentInBits = 16 * CHAR_BIT;
+    const auto outElSizeInBits = static_cast<vpux::Bit>(getElemTypeSize(outputType)).count();
+    // ODU data size = Output Z mutiple
+    // 32 bit        = 16
+    // 16 bit        = 16
+    // 8 bit         = 16
+    // 4 bit         = 32
+    // 2 bit         = 64
+    // 1 bit         = 128
+    const auto outAlignment = std::max<int64_t>(outAlignmentInBits / outElSizeInBits, 16);
+    const auto outAlignRemainder = outputCMXShape[outAlignDim.ind()] % outAlignment;
+    if (outAlignRemainder != 0) {
+        outputCMXShape[outAlignDim.ind()] += (outAlignment - outAlignRemainder);
+    }
+
     const auto weightsCMXSize = vpux::hwtest::totalTensorSize(paddedWeightsCMXShape, weightsType);
-    const auto outputCMXSize = vpux::hwtest::totalTensorSize(outputShape, outputType);
+    const auto outputCMXSize = vpux::hwtest::totalTensorSize(outputCMXShape, outputType);
     const auto inputCMXSize = vpux::hwtest::totalTensorSize(inputCMXShape, inputType);
 
     const auto alignment =
@@ -110,8 +128,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     VPUX_THROW_UNLESS(WEIGHTSTABLE_CMX_OFFSET % alignment == 0,
                       "WEIGHTSTABLE_CMX_OFFSET must be multiple of {0}, got {1}", alignment, WEIGHTSTABLE_CMX_OFFSET);
 
-    const auto outputParamType =
-            getMemRefType(builder, vpux::VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC);
+    const auto outputParamType = changeDimsOrder(
+            getMemRefType(builder, vpux::VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC),
+            outputLayout);
 
     llvm::SmallVector<mlir::Type, 2> inputTypes;
     inputTypes.push_back(
@@ -208,8 +227,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto weightsDDR =
             functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType, weightsAttribute);
 
+    auto outputCMXpadded =
+            getMemRefType(builder, VPURT::BufferSection::CMX_NN, outputCMXShape, outputType, outputLayout);
     auto outputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
-                                           DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
+                                           outputLayout, vpux::getStrides(outputCMXpadded), 0, OUTPUT_CMX_OFFSET);
 
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
     const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(
@@ -285,7 +306,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     buildCNNOp(builder, function.getName(),
                {getTensorType(ShapeRef(inputShape), inputType, vpux::DimsOrder::NHWC, nullptr)},
-               {getTensorType(ShapeRef(outputShape), outputType, vpux::DimsOrder::NHWC, nullptr)});
+               {getTensorType(ShapeRef(outputShape), outputType, outputLayout, nullptr)});
 }
 
 }  // namespace hwtest
