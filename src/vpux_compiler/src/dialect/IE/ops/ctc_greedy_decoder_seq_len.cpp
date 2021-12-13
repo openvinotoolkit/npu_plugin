@@ -45,3 +45,16 @@ mlir::LogicalResult vpux::IE::CTCGreedyDecoderSeqLenOp::inferReturnTypeComponent
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::CTCGreedyDecoderSeqLenOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::CTCGreedyDecoderSeqLenParamsBuilder builder(writer);
+    builder.add_mergeRepeated(mergeRepeated());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this,
+                                     {paramsOff.Union(), MVCNN::SoftwareLayerParams_CTCGreedyDecoderSeqLenParams});
+}

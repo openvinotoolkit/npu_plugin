@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -55,4 +56,24 @@ mlir::LogicalResult vpux::IE::RegionYoloOp::inferReturnTypeComponents(
 
     inferredReturnShapes.emplace_back(outputShape, inType.getElementType());
     return mlir::success();
+}
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::RegionYoloOp::serialize(EMU::BlobWriter& writer) {
+    EMU::BlobWriter::Vector<int32_t> serializedMask;
+    serializedMask = writer.createVector(parseIntArrayAttr<int32_t>(mask()));
+
+    MVCNN::RegionYOLOParamsBuilder builder(writer);
+    builder.add_coords(checked_cast<int32_t>(coords()));
+    builder.add_classes(checked_cast<int32_t>(classes()));
+    builder.add_num(checked_cast<int32_t>(regions()));
+    builder.add_do_softmax(do_softmax());
+    builder.add_mask(serializedMask);
+
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_RegionYOLOParams});
 }

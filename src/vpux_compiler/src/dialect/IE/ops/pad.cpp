@@ -194,3 +194,50 @@ mlir::OpFoldResult vpux::IE::PadOp::fold(ArrayRef<mlir::Attribute> operands) {
 
     return nullptr;
 }
+
+namespace {
+
+MVCNN::PadMode converVPUXPadModeToMVCNN(vpux::IE::PadMode vpux_mode) {
+    MVCNN::PadMode mvcnn_mode;
+    switch (vpux_mode) {
+    case IE::PadMode::EDGE:
+        mvcnn_mode = MVCNN::PadMode::PadMode_Edge;
+        break;
+    case IE::PadMode::REFLECT:
+        mvcnn_mode = MVCNN::PadMode::PadMode_Reflect;
+        break;
+    case IE::PadMode::CONSTANT:
+        mvcnn_mode = MVCNN::PadMode::PadMode_Constant;
+        break;
+    case IE::PadMode::SYMMETRIC:
+        mvcnn_mode = MVCNN::PadMode::PadMode_Symmetric;
+        break;
+    default:
+        VPUX_THROW("Unsupported PadMode {0}", vpux_mode);
+    }
+    return mvcnn_mode;
+}
+
+}  // namespace
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::PadOp::serialize(EMU::BlobWriter& writer) {
+    const auto padsBegin = writer.createVector(parseIntArrayAttr<uint32_t>(pads_begin_attr().getValue()));
+    const auto padsEnd = writer.createVector(parseIntArrayAttr<uint32_t>(pads_end_attr().getValue()));
+
+    MVCNN::PadParamsBuilder builder(writer);
+    const auto padMode = converVPUXPadModeToMVCNN(mode());
+    builder.add_pad_mode(padMode);
+    if (padMode == MVCNN::PadMode::PadMode_Constant) {
+        builder.add_padValue(static_cast<float>(pad_value_attr()->convertToDouble()));
+    }
+    builder.add_pads_begin(padsBegin);
+    builder.add_pads_end(padsEnd);
+
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PadParams});
+}

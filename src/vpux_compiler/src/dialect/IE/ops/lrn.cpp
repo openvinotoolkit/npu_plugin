@@ -33,3 +33,11 @@ mlir::LogicalResult vpux::IE::LRNOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::LRNOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("LRN op without regions is not implemented in low level dialects.");
+}

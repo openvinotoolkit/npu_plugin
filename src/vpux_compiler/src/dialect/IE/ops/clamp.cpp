@@ -33,3 +33,21 @@ mlir::LogicalResult vpux::IE::ClampOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::ClampOp::serialize(EMU::BlobWriter& writer) {
+    const float min_val = static_cast<float>(min().convertToDouble());
+    const float max_val = static_cast<float>(max().convertToDouble());
+
+    const auto clamp = MVCNN::CreateClampParams(writer, min_val, max_val);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_ClampParams);
+    builder.add_nested_params(clamp.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

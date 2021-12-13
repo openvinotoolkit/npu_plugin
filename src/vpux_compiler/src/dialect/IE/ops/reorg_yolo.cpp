@@ -54,3 +54,12 @@ mlir::LogicalResult vpux::IE::ReorgYoloOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(outputShape, inType.getElementType());
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::ReorgYoloOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("Not implemented in low level dialects.");
+}
+

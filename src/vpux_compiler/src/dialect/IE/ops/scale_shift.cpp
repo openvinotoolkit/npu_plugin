@@ -91,3 +91,29 @@ void vpux::IE::ScaleShiftOp::getCanonicalizationPatterns(mlir::RewritePatternSet
                                                          mlir::MLIRContext* context) {
     patterns.insert<FuseScaleAndBias>(context);
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::ScaleShiftOp::serialize(EMU::BlobWriter& writer) {
+    const auto scaleShift = MVCNN::CreateScaleShiftParams(writer);
+
+    MVCNN::PostOpsNestedParams opType{};
+    if (weights() != nullptr && biases() != nullptr) {
+        opType = MVCNN::PostOpsNestedParams_ScaleShiftParams;
+    } else if (weights() != nullptr) {
+        opType = MVCNN::PostOpsNestedParams_ScaleParams;
+    } else if (biases() != nullptr) {
+        opType = MVCNN::PostOpsNestedParams_BiasParams;
+    } else {
+        VPUX_THROW("ScaleShift must have weights or biases");
+    }
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(opType);
+    builder.add_nested_params(scaleShift.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

@@ -20,7 +20,24 @@ bool printAttributes(llvm::raw_ostream&os);
 If non empty overrides the default attributes in the dot graph
 NOTE: This method *must* be implemented by the user.
 
-## MultiViewOpInterface (`MultiViewOpInterface`)
+## EMUSerializeInterface (`EMUSerializeInterface`)
+
+Interface to serialize tasks for EMU backend
+### Methods:
+#### `serialize`
+
+```c++
+vpux::EMU::BlobWriter::SpecificTask serialize(vpux::EMU::BlobWriter&writer);
+```
+Serialize the Task to BLOB format
+NOTE: This method *must* be implemented by the user.
+
+#### `getTaskType`
+
+```c++
+static vpux::VPUIP::TaskType getTaskType();
+```
+Get the VPUIP TaskType for the Operation## MultiViewOpInterface (`MultiViewOpInterface`)
 
 An extended version of view-like operation.
 It allows to define several resulting views in single operation.

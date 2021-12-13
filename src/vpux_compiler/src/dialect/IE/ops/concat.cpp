@@ -361,3 +361,18 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(outShape.getValue().raw(), outElemType.getValue(), inDesc);
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::ConcatOp::serialize(EMU::BlobWriter& writer) {
+    // TODO::Add support for static offsets
+    // As well look into support for offset and stride of per_axis attributes
+
+    MVCNN::ConcatParamsBuilder builder(writer);
+    builder.add_axis(static_cast<uint32_t>(per_axis().getValue().axis().getValue().getSExtValue()));
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConcatParams});
+}

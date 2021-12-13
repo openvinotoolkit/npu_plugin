@@ -39,3 +39,30 @@ mlir::LogicalResult vpux::IE::LessOp::inferReturnTypeComponents(
 
     return outShapeRes;
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::LessOp::serialize(EMU::BlobWriter& writer) {
+    EMU::BlobWriter::String type;
+    type = writer.createString("sum");
+    type = writer.createString("prod");
+    type = writer.createString("div");
+    type = writer.createString("sqdiff");
+    type = writer.createString("pow");
+    type = writer.createString("floormod");
+    type = writer.createString("min");
+    type = writer.createString("max");
+    type = writer.createString("logicaland");
+    type = writer.createString("compareeq");
+    type = writer.createString("comparelt");
+    type = writer.createString("comparele");
+    type = writer.createString("comparene");
+
+    MVCNN::EltwiseParamsBuilder builder(writer);
+    builder.add_operation(type);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_EltwiseParams});
+}

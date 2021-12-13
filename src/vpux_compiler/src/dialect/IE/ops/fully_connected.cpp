@@ -108,3 +108,14 @@ void vpux::IE::FullyConnectedOp::getCanonicalizationPatterns(mlir::RewritePatter
                                                              mlir::MLIRContext* context) {
     patterns.insert<FuseFCAndBias>(context);
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::FullyConnectedOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::FullyConnectedParamsBuilder builder(writer);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_FullyConnectedParams});
+}

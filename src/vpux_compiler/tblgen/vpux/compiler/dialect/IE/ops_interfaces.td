@@ -51,6 +51,9 @@ def IE_LayerOpInterface : OpInterface<"LayerOpInterface"> {
                                                     mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
             return vpux::IE::inferTensorTypes(ConcreteOp::inferReturnTypeComponents, ctx, loc, operands, attrs, regions, inferredTypes);
         }
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::UPA;
+        }
     }];
 
     let verify = [{

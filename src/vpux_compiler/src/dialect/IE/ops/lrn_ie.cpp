@@ -33,3 +33,31 @@ mlir::LogicalResult vpux::IE::LRN_IEOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::LRN_IEOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::NormParamsBuilder builder(writer);
+
+    EMU::BlobWriter::String region;
+    switch (this->region()) {
+    case IE::LRN_IERegion::across:
+        region = writer.createString("across");
+        break;
+    case IE::LRN_IERegion::same:
+        region = writer.createString("same");
+        break;
+    default:
+        VPUX_THROW("Unsupported LRN_IERegion {0}", this->region());
+    }
+
+    builder.add_alpha(static_cast<float>(alpha().convertToDouble()));
+    builder.add_beta(static_cast<float>(beta().convertToDouble()));
+    builder.add_local_size(checked_cast<int32_t>(size()));
+    builder.add_region(region);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_NormParams});
+}

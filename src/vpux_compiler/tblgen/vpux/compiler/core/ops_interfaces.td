@@ -72,4 +72,32 @@ def DotInterface : OpInterface<"DotInterface"> {
     ];
 }
 
+//
+// EMUSerializeInterface
+//
+
+def EMUSerializeInterface : OpInterface<"EMUSerializeInterface"> {
+    let description = "Interface to serialize tasks for EMU backend";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+
+        InterfaceMethod<
+            "Serialize the Task to BLOB format",
+            "vpux::EMU::BlobWriter::SpecificTask",
+            "serialize", (ins "vpux::EMU::BlobWriter&":$writer)
+        >,
+
+        StaticInterfaceMethod<
+            "Get the VPUIP TaskType for the Operation",
+            "vpux::VPUIP::TaskType", "getTaskType", (ins),
+            [{
+                return ConcreteOp::getTaskType();
+            }]
+        >,
+    ];
+
+}
+
 #endif

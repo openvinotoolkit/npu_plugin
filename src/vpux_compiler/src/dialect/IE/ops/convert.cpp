@@ -70,3 +70,20 @@ mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute> operands)
 
     return nullptr;
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::ConvertOp::serialize(EMU::BlobWriter& writer) {
+
+    MVCNN::ConvertParamsBuilder builder(writer);
+    builder.add_scale(checked_cast<float>(1.0));
+    builder.add_bias(checked_cast<float>(0.0));
+    builder.add_from_detection_output(false);
+    builder.add_have_batch(false);
+    builder.add_batch_id(0);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvertParams});
+}

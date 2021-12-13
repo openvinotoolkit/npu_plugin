@@ -69,3 +69,11 @@ mlir::OpFoldResult vpux::IE::ReorderOp::fold(ArrayRef<mlir::Attribute> operands)
 
     return nullptr;
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::ReorderOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("Unreacheable code, since all reorders are converted to IE::MemPermute");
+}

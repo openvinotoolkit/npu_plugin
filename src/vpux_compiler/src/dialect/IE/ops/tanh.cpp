@@ -29,3 +29,18 @@ mlir::LogicalResult vpux::IE::TanhOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::TanhOp::serialize(EMU::BlobWriter& writer) {
+    const auto tanh = MVCNN::CreateTanhParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_TanhParams);
+    builder.add_nested_params(tanh.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

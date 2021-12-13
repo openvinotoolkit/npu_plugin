@@ -361,3 +361,13 @@ void vpux::IE::ReshapeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& p
     patterns.insert<ConvertConstToAttr>(ctx);
     patterns.insert<ConvertToAffineReshape>(ctx);
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::ReshapeOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::ReshapeParamsBuilder builder(writer);
+    const auto paramsOff = builder.Finish();
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ReshapeParams});
+}

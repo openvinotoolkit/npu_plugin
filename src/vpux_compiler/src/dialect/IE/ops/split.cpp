@@ -157,3 +157,16 @@ void vpux::IE::SplitOp::getCanonicalizationPatterns(mlir::OwningRewritePatternLi
                                                     mlir::MLIRContext* context) {
     patterns.insert<ConvertConstToAttr>(context);
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::SplitOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::SplitParamsBuilder builder(writer);
+    const auto paramsOff = builder.Finish();
+    builder.add_axis(checked_cast<uint32_t>(axis_valueAttr().getValue().getSExtValue()));
+    builder.add_num_splits(checked_cast<uint32_t>(num_splitsAttr().getValue().getSExtValue()));
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SplitParams});
+}

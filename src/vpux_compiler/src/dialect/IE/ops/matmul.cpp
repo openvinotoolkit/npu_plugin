@@ -208,3 +208,11 @@ void vpux::IE::MatMulOp::getCanonicalizationPatterns(mlir::RewritePatternSet& pa
     patterns.insert<TransposeWeights>(context);
     patterns.insert<UseFullyConnected>(context);
 }
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::MatMulOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("Unreacheable code, since all matmuls are converted to IE::FullyConnected");
+}

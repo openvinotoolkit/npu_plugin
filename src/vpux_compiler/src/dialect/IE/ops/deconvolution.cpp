@@ -41,6 +41,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -122,4 +123,34 @@ mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
     }
 
     return mlir::success();
+}
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::IE::DeconvolutionOp::serialize(EMU::BlobWriter& writer) {
+    static const auto dY = Dim(Dims4D::Filter::KY);
+    static const auto dX = Dim(Dims4D::Filter::KX);
+
+    const auto strides = VPUIP::createOrder3(stridesAttr());
+    const auto dilations = VPUIP::createOrder3(dilationsAttr());
+    const auto padsBegin = VPUIP::createOrder3(pads_beginAttr());
+    const auto padsEnd = VPUIP::createOrder3(pads_endAttr());
+    const auto outputPadding = VPUIP::createOrder3(output_paddingAttr());
+
+    const auto filterShape = getShape(filter());
+    const auto kernel =
+            MVCNN::order3(checked_cast<uint8_t>(filterShape[dX]), checked_cast<uint8_t>(filterShape[dY]), 0);
+
+    MVCNN::DeconvolutionParamsBuilder builder(writer);
+    builder.add_kernel(&kernel);
+    builder.add_strides(&strides);
+    builder.add_dilations(&dilations);
+    builder.add_pads_begin(&padsBegin);
+    builder.add_pads_end(&padsEnd);
+    builder.add_output_padding(&outputPadding);
+    builder.add_is_depthwise(false);
+    const auto paramsOff = builder.Finish();
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_DeconvolutionParams});
 }
