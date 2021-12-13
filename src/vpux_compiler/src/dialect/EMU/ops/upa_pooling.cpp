@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/EMU/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
@@ -116,10 +117,10 @@ mlir::LogicalResult vpux::EMU::verifyOp(PoolingUPAOp op) {
 }
 
 EMU::BlobWriter::SpecificTask vpux::EMU::PoolingUPAOp::serialize(EMU::BlobWriter& writer) {
-    const auto kernel = EMU::BlobWriter::createOrder3(this->kernel());
-    const auto strides = EMU::BlobWriter::createOrder3(this->strides());
-    const auto padsBegin = EMU::BlobWriter::createOrder3(this->padsBegin());
-    const auto padsEnd = EMU::BlobWriter::createOrder3(this->padsEnd());
+    const auto kernel = VPUIP::createOrder3(this->kernel());
+    const auto strides = VPUIP::createOrder3(this->strides());
+    const auto padsBegin = VPUIP::createOrder3(this->padsBegin());
+    const auto padsEnd = VPUIP::createOrder3(this->padsEnd());
 
     EMU::BlobWriter::String type;
     switch (this->type()) {

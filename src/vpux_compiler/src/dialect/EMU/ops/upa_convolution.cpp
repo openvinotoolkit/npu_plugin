@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/EMU/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
@@ -39,10 +40,10 @@ EMU::BlobWriter::SpecificTask vpux::EMU::ConvolutionUPAOp::serialize(EMU::BlobWr
     static const auto dY = Dim(2);
     static const auto dX = Dim(3);
 
-    const auto strides = EMU::BlobWriter::createOrder3(this->strides());
-    const auto dilations = EMU::BlobWriter::createOrder3(this->dilations());
-    const auto padsBegin = EMU::BlobWriter::createOrder3(this->padsBegin());
-    const auto padsEnd = EMU::BlobWriter::createOrder3(this->padsEnd());
+    const auto strides = VPUIP::createOrder3(this->strides());
+    const auto dilations = VPUIP::createOrder3(this->dilations());
+    const auto padsBegin = VPUIP::createOrder3(this->padsBegin());
+    const auto padsEnd = VPUIP::createOrder3(this->padsEnd());
 
     const auto filterShape = getShape(filter());
     const auto kernel =

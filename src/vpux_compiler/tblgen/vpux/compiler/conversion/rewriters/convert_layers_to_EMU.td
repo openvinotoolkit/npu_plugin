@@ -778,7 +778,7 @@ def RewriteCeiling :
         >;
 
 //
-// IE.NormalizeL2 -> EMU.NormalizeIEUPA
+// IE.NormalizeIE -> EMU.NormalizeIEUPA
 //
 
 def createNormalizeIEUPAOp :
