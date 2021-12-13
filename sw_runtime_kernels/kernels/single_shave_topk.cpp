@@ -124,24 +124,24 @@ extern "C" {
 
 void singleShaveTopK(uint32_t lParamsAddr) {
 
-    half* p_act_input = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->input.dataAddr);
-    int32_t k = *(int32_t*)(reinterpret_cast<TopKParams*>(lParamsAddr)->k.dataAddr);
-    half* p_act_value = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->value.dataAddr);
-    int32_t* p_act_index = (int32_t*)(reinterpret_cast<TopKParams*>(lParamsAddr)->index.dataAddr);
+    half* p_act_input = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->inputValues.dataAddr);
+    int32_t k = *(int32_t*)(reinterpret_cast<TopKParams*>(lParamsAddr)->inputK.dataAddr);
+    half* p_act_value = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->outputValues.dataAddr);
+    int32_t* p_act_index = (int32_t*)(reinterpret_cast<TopKParams*>(lParamsAddr)->outputIndex.dataAddr);
 
     const TopKParams* lParams = reinterpret_cast<const TopKParams *>(lParamsAddr);
 
-    int32_t numInputDims = (int32_t)lParams->input.numDims;
-    int32_t* pInputDims = (int32_t*)(lParams->input.dimsAddr);
-    int64_t* pInputStrides = (int64_t*)(lParams->input.stridesAddr);
+    int32_t numInputDims = (int32_t)lParams->inputValues.numDims;
+    int32_t* pInputDims = (int32_t*)(lParams->inputValues.dimsAddr);
+    int64_t* pInputStrides = (int64_t*)(lParams->inputValues.stridesAddr);
 
-    int32_t numValueDims = (int32_t)lParams->value.numDims;
-    int32_t* pValueDims = (int32_t*)(lParams->value.dimsAddr);
-    int64_t* pValueStrides = (int64_t*)(lParams->value.stridesAddr);
+    int32_t numValueDims = (int32_t)lParams->outputValues.numDims;
+    int32_t* pValueDims = (int32_t*)(lParams->outputValues.dimsAddr);
+    int64_t* pValueStrides = (int64_t*)(lParams->outputValues.stridesAddr);
 
-    int32_t numIndexDims = (int32_t)lParams->index.numDims;
-    int32_t* pIndexDims = (int32_t*)(lParams->index.dimsAddr);
-    int64_t* pIndexStrides = (int64_t*)(lParams->index.stridesAddr);
+    int32_t numIndexDims = (int32_t)lParams->outputIndex.numDims;
+    int32_t* pIndexDims = (int32_t*)(lParams->outputIndex.dimsAddr);
+    int64_t* pIndexStrides = (int64_t*)(lParams->outputIndex.stridesAddr);
 
     int32_t axis = (int32_t)lParams->axis;
     int32_t mode = (int32_t)lParams->mode; // max: 0, min: 1

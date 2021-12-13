@@ -92,16 +92,16 @@ protected:
         const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
 
         m_inputTensor.init(storageOrder, dims3In);
-        m_kTensor.init(storageOrder, dims3K);
-        m_valueTensor.init(storageOrder, dims3Out);
-        m_indexTensor.init(storageOrder, dims3Out);
+        m_inputKTensor.init(storageOrder, dims3K);
+        m_outputValuesTensor.init(storageOrder, dims3Out);
+        m_outputIndexTensor.init(storageOrder, dims3Out);
         m_referenceValueTensor.init(storageOrder, dims3Out);
         m_referenceIndexTensor.init(storageOrder, dims3Out);
         
         allocBuffer(m_inputTensor);
-        allocBuffer(m_kTensor);
-        allocBuffer(m_valueTensor);
-        allocBuffer(m_indexTensor);
+        allocBuffer(m_inputKTensor);
+        allocBuffer(m_outputValuesTensor);
+        allocBuffer(m_outputIndexTensor);
         allocBuffer(m_referenceValueTensor);
         allocBuffer(m_referenceIndexTensor);
         
@@ -149,15 +149,15 @@ protected:
         customCppOp->addInputBuffer(inBuff, m_requiredTensorLocation);
 
         Buffer kBuff;
-        m_kTensor.exportToBuffer(kBuff);
+        m_inputKTensor.exportToBuffer(kBuff);
         customCppOp->addInputBuffer(kBuff, m_requiredTensorLocation);
         
         Buffer valueBuff;
-        m_valueTensor.exportToBuffer(valueBuff);
+        m_outputValuesTensor.exportToBuffer(valueBuff);
         customCppOp->addOutputBuffer(valueBuff, m_requiredTensorLocation);
 
         Buffer indexBuff;
-        m_indexTensor.exportToBuffer(indexBuff);
+        m_outputIndexTensor.exportToBuffer(indexBuff);
         customCppOp->addOutputBuffer(indexBuff, m_requiredTensorLocation);
 
         customCppOp->ops = *getParams();
@@ -198,8 +198,8 @@ protected:
                               });
         
         int32_t k = m_k;
-        m_kTensor.forEach(false, [&](const MemoryDims& indices) {
-            m_kTensor.at(indices) = k;
+        m_inputKTensor.forEach(false, [&](const MemoryDims& indices) {
+            m_inputKTensor.at(indices) = k;
         });
     }
     
@@ -276,27 +276,27 @@ protected:
         bool test_failed = false;
         
         m_inputTensor.confirmBufferData();
-        m_valueTensor.confirmBufferData();
-        m_indexTensor.confirmBufferData();
+        m_outputValuesTensor.confirmBufferData();
+        m_outputIndexTensor.confirmBufferData();
         m_referenceValueTensor.confirmBufferData();
         
         saveMemoryToFile(reinterpret_cast<u32>(m_inputTensor.buffer()), m_inputTensor.bufferSize(), "input.bin");
-        saveMemoryToFile(reinterpret_cast<u32>(m_valueTensor.buffer()), m_valueTensor.bufferSize(), "outvalue.bin");
+        saveMemoryToFile(reinterpret_cast<u32>(m_outputValuesTensor.buffer()), m_outputValuesTensor.bufferSize(), "outvalue.bin");
         saveMemoryToFile(reinterpret_cast<u32>(m_referenceValueTensor.buffer()), m_referenceValueTensor.bufferSize(), "outref.bin");
-        saveMemoryToFile(reinterpret_cast<u32>(m_indexTensor.buffer()), m_indexTensor.bufferSize(), "outindex.bin");
+        saveMemoryToFile(reinterpret_cast<u32>(m_outputIndexTensor.buffer()), m_outputIndexTensor.bufferSize(), "outindex.bin");
         
         m_referenceValueTensor.forEach(true, [this, &test_failed](const MemoryDims& indices){
             const float gt_value    = f16Tof32(m_referenceValueTensor.at(indices));
-            float value = f16Tof32(m_valueTensor.at(indices));
+            float value = f16Tof32(m_outputValuesTensor.at(indices));
             float abs_diff = fabs(value - gt_value);
             bool value_differ = !bool(abs_diff <= m_test_threshold);
             const Index gt_index = m_referenceIndexTensor.at(indices);
-            const Index out_index = m_indexTensor.at(indices);
+            const Index out_index = m_outputIndexTensor.at(indices);
             const bool index_differ = (out_index != gt_index);
             const bool differ = value_differ || index_differ;
             test_failed = test_failed || differ;
-            printf("m_valueTensor value = %f, gt_value = %f\n", value, gt_value);
-            printf("m_indexTensor out_index = %ld, gt_index = %ld\n", out_index, gt_index);
+            printf("m_outputValuesTensor value = %f, gt_value = %f\n", value, gt_value);
+            printf("m_outputIndexTensor out_index = %ld, gt_index = %ld\n", out_index, gt_index);
         });
         return !test_failed;
     }
@@ -312,9 +312,9 @@ private:
     std::vector<uint64_t> paramContainer;
     sw_params::TopKParams* m_TopKParams;
     
-    Tensor<fp16> m_valueTensor;
-    Tensor<int32_t> m_indexTensor;
-    Tensor<int32_t> m_kTensor;
+    Tensor<fp16> m_outputValuesTensor;
+    Tensor<int32_t> m_outputIndexTensor;
+    Tensor<int32_t> m_inputKTensor;
     
     Tensor<fp16> m_referenceValueTensor;
     Tensor<int32_t> m_referenceIndexTensor;
