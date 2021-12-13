@@ -4022,7 +4022,7 @@
                 "disabled" : true
             },
             "NetTest-CalcRef": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["224x224/husky.bmp"]],
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
@@ -4030,7 +4030,7 @@
                 ]
             },
             "NetTest-Validate": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["224x224/husky.bmp"]],
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
@@ -4071,19 +4071,21 @@
                 "disabled" : true
             },
             "NetTest": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["224x224/watch.bmp"]],
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "0.6"
+                    "--prob_tolerance", "0.6",
+                    "--color_format", "RGB"
                 ]
             },
             "NetTest-Validate": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["224x224/watch.bmp"]],
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "0.6"
+                    "--prob_tolerance", "0.6",
+                    "--color_format", "RGB"
                 ],
                 "input_precision" : "FP16",
                 "output_precision" : "FP16"
