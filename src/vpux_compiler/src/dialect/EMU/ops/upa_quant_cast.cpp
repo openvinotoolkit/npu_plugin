@@ -31,8 +31,8 @@ namespace {
 
 std::pair<EMU::BlobWriter::Vector<uint16_t>, EMU::BlobWriter::Vector<uint16_t>> serializeScalesAndZeroPoints(
         mlir::Value input, mlir::Value output, EMU::BlobWriter& writer) {
-    const auto inType = input.getType().cast<mlir::MemRefType>().getElementType();
-    const auto outType = output.getType().cast<mlir::MemRefType>().getElementType();
+    const auto inType = input.getType().cast<mlir::RankedTensorType>().getElementType();
+    const auto outType = output.getType().cast<mlir::RankedTensorType>().getElementType();
 
     const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
                                                                 : outType.cast<mlir::quant::QuantizedType>();
@@ -66,8 +66,8 @@ std::pair<EMU::BlobWriter::Vector<uint16_t>, EMU::BlobWriter::Vector<uint16_t>> 
 }  // namespace
 
 mlir::LogicalResult vpux::EMU::verifyOp(QuantCastUPAOp op) {
-    const auto inType = op.input().getType().cast<mlir::MemRefType>().getElementType();
-    const auto outType = op.output().getType().cast<mlir::MemRefType>().getElementType();
+    const auto inType = op.input().getType().cast<mlir::RankedTensorType>().getElementType();
+    const auto outType = op.output().getType().cast<mlir::RankedTensorType>().getElementType();
 
     if (!((inType.isF16() && outType.isa<mlir::quant::QuantizedType>()) ||
           (inType.isa<mlir::quant::QuantizedType>() && outType.isF16()))) {
