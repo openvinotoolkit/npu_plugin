@@ -2872,4 +2872,62 @@ def VPUIP_YuvToRgbUPAOp :
 
 }
 
+//
+// ExtractImagePatchesUPAOp - TODO
+//
+
+def VPUIP_ExtractImagePatchesUPAOp :
+        VPUIP_UPATaskOp<1, "ExtractImagePatchesUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameElementType
+            ]
+        > {
+    let summary = "ExtractImagePatches UPA SHAVE kernel (reference implementation)";
+
+    let arguments = (ins
+        F16MemRef:$data,
+        F16MemRef:$output_buff,
+
+        I64ArrayAttr:$sizes,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$rates,
+        //I64ArrayAttr:$rates, //string
+        //IntAttr:$groups,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$data, "mlir::Value":$output,
+                "mlir::ArrayAttr":$sizes, "mlir::ArrayAttr":$strides,
+                "mlir::ArrayAttr":$rates 
+                //"mlir::ArrayAttr":$auto_pad,
+                //"uint32_t":$groups
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $data `:` type($data) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+
+    //let extraClassDeclaration = [{
+   //     static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+   // }] # commonExtraClassDeclaration;
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+}
+
 #endif

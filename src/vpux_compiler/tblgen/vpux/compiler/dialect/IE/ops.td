@@ -3064,4 +3064,35 @@ def IE_YuvToRgbOp :
     );
 }
 
+//
+// ExtractImagePatchesOp - TODO
+//
+
+def IE_ExtractImagePatchesOp :
+        IE_LayerOp<
+            "ExtractImagePatches",
+            [
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
+            ]
+        > {
+    let summary = "InferenceEngine ExtractImagePatches layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$data,
+
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$sizes,
+        I64ArrayAttr:$rates,
+       // I64ArrayAttr:$auto_pad, //string
+       
+       // OptionalAttr<IE_PostOp>:$post_op
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
+
 #endif
