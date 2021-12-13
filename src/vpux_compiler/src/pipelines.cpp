@@ -113,7 +113,8 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
     // Level 1 : VPU RunTime
 
     pm.addPass(VPURT::createAssignVirtualBarriersPass(log));
-    pm.addPass(VPURT::createBarrierSimulationPass(log));
+    // pm.addPass(VPURT::createBarrierSimulationPass(log));
+    pm.addPass(VPURT::createAssignPhysicalBarrierIDsPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }
 
@@ -203,7 +204,8 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     // Level 1 : VPU RunTime
 
     pm.addPass(VPURT::createAssignVirtualBarriersPass(log));
-    pm.addPass(VPURT::createBarrierSimulationPass(log));
+    // pm.addPass(VPURT::createBarrierSimulationPass(log));
+    pm.addPass(VPURT::createAssignPhysicalBarrierIDsPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }
 
