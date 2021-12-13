@@ -2890,8 +2890,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "hg-s8-b1-mpii-caffe2.yml",
-                "subsample_size": 50
+                "config": "hg-s8-b1-mpii-caffe2.yml"
             },
             "CI-options" : {
                 "blob_name" : "bdk_StackedHourglass",
@@ -2923,8 +2922,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "hg-s8-b1-mpii-caffe2.yml",
-                "subsample_size": 100
+                "config": "hg-s8-b1-mpii-caffe2.yml"
             },
             "CI-options" : {
                 "blob_name" : "bdk_StackedHourglass"
