@@ -255,11 +255,14 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, 
 
     auto isDivisibleTile = [&]() -> bool {
         auto kernelSize = getShape(origOp.filter());
+        int64_t minChannelSize = 1;
+        if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation())) {
+          minChannelSize = channelsInfo.getChannelAlignment();
+        }
         if (tileDim == Dims4D::Act::C) {
-            // TODO replace '16' with correct parameter
-            return (outputShape[tileDim] / nTilesOnDim[tileDim] >= 16) &&
+            return (outputShape[tileDim] / nTilesOnDim[tileDim] >= minChannelSize) &&
                    (outputShape[tileDim] % nTilesOnDim[tileDim] == 0) && 
-                   ((outputShape[tileDim] / nTilesOnDim[tileDim]) % 16 == 0);
+                   ((outputShape[tileDim] / nTilesOnDim[tileDim]) % minChannelSize == 0);
         }
         else {
             return outputShape[tileDim] / nTilesOnDim[tileDim] >= kernelSize[tileDim];
