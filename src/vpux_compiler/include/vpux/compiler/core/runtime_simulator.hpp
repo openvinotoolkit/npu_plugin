@@ -45,7 +45,8 @@ public:
         }
     };
 
-    RuntimeSimulator(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, int64_t numDmaEngines);
+    RuntimeSimulator(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, int64_t numDmaEngines,
+                     size_t numRealBarriers);
     void init();
     bool assignPhysicalIDs();
     void buildTaskLists();
@@ -57,7 +58,6 @@ public:
     void computeOpIndegree();
     void computeOpOutdegree();
     std::pair<int64_t, int64_t> getID(mlir::Operation* val) const;
-    static bool orderbyID(TaskInfo& a, TaskInfo& b);
     bool processTasks(std::vector<TaskInfo>& dma_task_list);
     bool fillBarrierTasks(std::list<VPURT::DeclareVirtualBarrierOp>& barrier_task_list);
     int64_t getVirtualId(VPURT::ConfigureBarrierOp op);
@@ -68,13 +68,12 @@ private:
     std::array<std::vector<TaskInfo>, MAX_DMA_ENGINES> _dmaTasks;
     std::list<VPURT::DeclareVirtualBarrierOp> _barrierOps;
     std::map<mlir::Operation*, std::pair<int64_t, int64_t>> _virtualToPhysicalBarrierMap;
-    std::map<int64_t, VirtualBarrierInfo> _virtualBarriers;
 
     mlir::MLIRContext* _ctx;
     mlir::FuncOp _func;
     Logger _log;
     int64_t _numDmaEngines;
-    int64_t _numRealBarriers;
+    size_t _numRealBarriers;
 
     struct active_barrier_info_t {
         size_t real_barrier_;
