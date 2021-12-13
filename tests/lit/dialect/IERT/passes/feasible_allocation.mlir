@@ -591,3 +591,84 @@ func @main(%in: memref<1x120000xf16>, %out: memref<1x120000xf16>) -> memref<1x12
 }
 
 }
+
+// -----
+
+// CHECK-LABEL: @ControlEdgeOverlapMemory
+module @ControlEdgeOverlapMemory {
+
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        DataInfo "data" : tensor<200000xf16>
+    }
+    outputsInfo : {
+        DataInfo "prob" : tensor<200000xf16>
+    }
+
+func @main(%in: memref<200000xf16>, %out: memref<200000xf16>) -> memref<200000xf16> {
+    %buf0 = memref.alloc() : memref<200000xf16, "CMX_NN">
+    %buf1 = memref.alloc() : memref<200000xf16, "CMX_NN">
+    %buf2 = memref.alloc() : memref<200000xf16, "CMX_NN">
+
+    // Task 0
+    %t0, %f0 = async.execute -> !async.value<memref<200000xf16, "CMX_NN">> {
+        %0 = IERT.Copy inputs(%in : memref<200000xf16>) outputs(%buf0 : memref<200000xf16, "CMX_NN">) -> memref<200000xf16, "CMX_NN">
+        async.yield %0 : memref<200000xf16, "CMX_NN">
+    }
+
+    // Task 1
+    %t1, %f1 = async.execute (%f0 as %0 : !async.value<memref<200000xf16, "CMX_NN">>)
+            -> !async.value<memref<200000xf16, "CMX_NN">> {
+        %1 = IERT.ReLU inputs(%0: memref<200000xf16, "CMX_NN">) outputs(%buf1 : memref<200000xf16, "CMX_NN">) -> memref<200000xf16, "CMX_NN">
+        async.yield %1 : memref<200000xf16, "CMX_NN">
+    }
+
+    // Task 2
+    %t2, %f2 = async.execute (%f1 as %1 : !async.value<memref<200000xf16, "CMX_NN">>)
+            -> !async.value<memref<200000xf16, "CMX_NN">> {
+        %2 = IERT.ReLU inputs(%1: memref<200000xf16, "CMX_NN">) outputs(%buf2 : memref<200000xf16, "CMX_NN">) -> memref<200000xf16, "CMX_NN">
+        async.yield %2 : memref<200000xf16, "CMX_NN">
+    }
+
+    // Task 3
+    %t3, %f3 = async.execute (%f2 as %2 : !async.value<memref<200000xf16, "CMX_NN">>)
+            -> !async.value<memref<200000xf16>> {
+        %3 = IERT.Copy inputs(%2 : memref<200000xf16, "CMX_NN">) outputs(%out : memref<200000xf16>) -> memref<200000xf16>
+        async.yield %3 : memref<200000xf16>
+    }
+
+    %3 = async.await %f3 : !async.value<memref<200000xf16>>
+    return %3 : memref<200000xf16>
+
+    // Token dependencies will match data flow by default:
+    //  Task0 -> Task1
+    //  Task1 -> Task2
+    //  Task2 -> Task3
+    // besides that due to overlapping memory ranges of Task2 and Task0
+    // additional control edge will be inserted:
+    //  Task0 -> Task2
+    // Optimization of token dependencies (transitive reduction) is beyond
+    // this pass and done as a separate step
+
+    // CHECK:       [[BUF0:%.*]] = IERT.StaticAlloc<0>
+    // CHECK:       [[BUF1:%.*]] = IERT.StaticAlloc<400000>
+    // CHECK:       [[BUF2:%.*]] = IERT.StaticAlloc<0>
+
+    // CHECK:       [[T0:%.+]], [[R0:%.+]] = async.execute ->
+    // CHECK-NEXT:       IERT.Copy
+
+    // CHECK:       [[T1:%.+]], [[R1:%.+]] = async.execute
+    // CHECK-SAME:      [[T0]]
+    // CHECK-NEXT:       IERT.ReLU
+
+    // CHECK:       [[T2:%.+]], [[R2:%.+]] = async.execute
+    // CHECK-SAME:      [[T0]], [[T1]]
+    // CHECK-NEXT:       IERT.ReLU
+
+    // CHECK:       [[T3:%.+]], [[R3:%.+]] = async.execute
+    // CHECK-SAME:      [[T2]]
+    // CHECK-NEXT:       IERT.Copy
+}
+
+}
