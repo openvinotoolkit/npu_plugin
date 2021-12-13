@@ -19,7 +19,6 @@
 
 namespace vpux {
 
-static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
 
 typedef mlir::Operation const* operation_t;
 
@@ -58,12 +57,8 @@ struct op_resource_state_t {
         Logger::global().error("Scheduling an operation");
         assert(is_resource_available(demand));
         if (barrier_map_.find(op) != barrier_map_.end()) {
-            // Logger::global().error("Could not find operation  {0} in the barrier map" ,
-            // getUniqueID(const_cast<mlir::Operation*>(op)), demand);
             return false;
         }
-        // Logger::global().error("Inserting operation  {0}, in barrier_map_ with demand {1}" ,
-        // getUniqueID(const_cast<mlir::Operation*>(op)), demand);
         size_t bid = state_.assign_slots(demand);
         barrier_map_.insert(std::make_pair(op, barrier_info_t(bid, demand)));
         return true;
@@ -82,13 +77,8 @@ struct op_resource_state_t {
         return true;
     }
 
-    mlir::IntegerAttr getUniqueID(const mlir::Operation* op) const {
-        auto taskOp = mlir::dyn_cast<VPUIP::TaskOpInterface>(const_cast<mlir::Operation*>(op));
-        return taskOp->getAttr(uniqueIdAttrName).dyn_cast_or_null<mlir::IntegerAttr>();
-    }
-
+  
     const barrier_info_t& get_barrier_info(const operation_t& op) const {
-        // Logger::global().error("Looking for operation {0}, in barrier_map_", getUniqueID(op));
         auto itr = barrier_map_.find(op);
 
         assert(itr != barrier_map_.end());

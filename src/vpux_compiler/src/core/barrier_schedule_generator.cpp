@@ -57,9 +57,9 @@ void BarrierScheduleGenerator::operator++() {
 
 const BarrierScheduleGenerator::schedule_info_t& BarrierScheduleGenerator::operator*(void) {
     sinfo_.op_ = *scheduler_begin_;
-    sinfo_.schedule_time_ = scheduler_begin_.current_time();
-    const resource_state_t& rstate = scheduler_begin_.resource_state();
-    Logger::global().error("Get barrier info for operation {0}", FeasibleScheduleGenerator::getUniqueID(sinfo_.op_));
+    sinfo_.schedule_time_ = scheduler_begin_.currentTime();
+    const resource_state_t& rstate = scheduler_begin_.resourceState();
+    Logger::global().error("Get barrier info for operation {0}", FeasibleBarrierScheduler::getUniqueID(sinfo_.op_));
     const barrier_info_t& binfo = rstate.get_barrier_info(sinfo_.op_);
     sinfo_.barrier_index_ = binfo.bindex_;
     sinfo_.slot_count_ = binfo.slot_count_;

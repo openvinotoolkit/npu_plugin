@@ -46,7 +46,7 @@
 namespace vpux {
 
 // Forward declaration
-class FeasibleScheduleGenerator;
+class FeasibleBarrierScheduler;
 class BarrierScheduleGenerator {
 public:
     BarrierScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func, size_t n, size_t m);
@@ -98,8 +98,8 @@ private:
     size_t barrierCount_;
     size_t slotsPerBarrier_;
     const resource_state_t startState_;
-    FeasibleScheduleGenerator scheduler_begin_;
-    FeasibleScheduleGenerator scheduler_end_;
+    FeasibleBarrierScheduler scheduler_begin_;
+    FeasibleBarrierScheduler scheduler_end_;
     mutable schedule_info_t sinfo_;
 
 };  // class Barrier_Schedule_Generator //

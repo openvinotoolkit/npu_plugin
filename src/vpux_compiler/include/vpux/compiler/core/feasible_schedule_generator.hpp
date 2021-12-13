@@ -39,7 +39,6 @@
 #include <llvm/ADT/BitVector.h>
 #include <llvm/ADT/DenseSet.h>
 
-//#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/core/barrier_resource_state.hpp"
 #include "vpux/compiler/core/op_resource_state.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -48,23 +47,9 @@
 namespace vpux {
 
 struct op_resource_state_t;
-class FeasibleScheduleGenerator {
+static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
+class FeasibleBarrierScheduler {
 public:
-    typedef size_t schedule_time_t;
-    struct heap_element_t {
-        heap_element_t(mlir::Operation* op = NULL, schedule_time_t t = 0UL): op_(op), time_(t) {
-        }
-
-        mlir::Operation* op_;
-        schedule_time_t time_;
-    };  // struct heap_element_t //
-
-    struct min_heap_ordering_t {
-        bool operator()(const heap_element_t& a, const heap_element_t& b) {
-            return a.time_ > b.time_;
-        }
-    };  // struct min_heap_ordering_t //
-
     struct operation_comparator_t {
         bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
             int64_t uniqueId1 = checked_cast<int64_t>(
@@ -75,66 +60,79 @@ public:
             return uniqueId1 < uniqueId2;
         }
     };
+    struct HeapElement {
+        HeapElement(mlir::Operation* op = NULL, schedule_time_t t = 0UL): op_(op), time_(t) {
+        }
+
+        mlir::Operation* op_;
+        schedule_time_t time_;
+    };
+
+    struct MinHeapOrdering {
+        bool operator()(const HeapElement& a, const HeapElement& b) {
+            return a.time_ > b.time_;
+        }
+    };
 
     using delay_t = size_t;
     using schedulable_ops_t = std::list<mlir::Operation*>;
-    typedef typename schedulable_ops_t::iterator schedulable_ops_iterator_t;
+    using schedulable_ops_iterator_t = typename schedulable_ops_t::iterator;
     using processed_ops_t = std::set<mlir::Operation*>;
-    using schedule_heap_t = std::vector<heap_element_t>;
+    using schedule_heap_t = std::vector<HeapElement>;
     using operation_in_degree_t = std::map<mlir::Operation*, size_t, operation_comparator_t>;
     using priority_map_t = std::map<mlir::Operation*, size_t, operation_comparator_t>;
     using resource_utility_map_t = std::unordered_map<mlir::Operation*, unsigned>;
-    resource_utility_map_t resource_utility_map_;
+    using schedule_time_t = size_t;
 
-    FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func, const resource_state_t& rstate);
-    FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func);
+    FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, const resource_state_t& rstate);
+    FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func);
 
-    bool operator==(const FeasibleScheduleGenerator& o) const;
-    bool reached_end() const;
     void operator++();
-    bool next_schedulable_operation();
-    mlir::Operation*& operator*();  // should be const ?
-    size_t current_time() const;
-    const resource_state_t& resource_state() const;
     void getAllBarriersProducersAndConsumers();
+    void initResourceState(const resource_state_t& start_state);
+    void computeOpIndegree(operation_in_degree_t& in_degree);
+    void addToCandidateSet(mlir::Operation* op);
+    void computeOperationPriorities();
+    void createResourceUtilityTable();
+    void addOutGoingOperationsToCandidateList(mlir::Operation* op);
+    void assignUniqueIds();
+    void pushToHeap(const HeapElement& elem);
+
+    bool operator==(const FeasibleBarrierScheduler& o) const;
+    bool reached_end() const;
+    bool nextSchedulableOperation();
     bool init(const resource_state_t& upper_bound);
-    void init_resource_state(const resource_state_t& start_state);
-    void compute_op_indegree(operation_in_degree_t& in_degree);
-    void add_to_candidate_set(mlir::Operation* op);
-    void compute_operation_priorities();
-    schedulable_ops_iterator_t find_schedulable_op();
-    void create_resource_utility_table_for_barrier_scheduling();
     bool doesOpRunOnNCE(mlir::Operation* op);
+
+    mlir::Operation*& operator*();
+    size_t currentTime() const;
+    const resource_state_t& resourceState() const;
+    bool isValidOp(schedulable_ops_iterator_t itr) const;
+    schedulable_ops_iterator_t find_schedulable_op();
     unsigned countProducerConsumerTasks(mlir::Operation* op);
     static SmallVector<mlir::Operation*> getConsumerOps(mlir::Operation* op);
     static std::string printOpType(VPURT::TaskOp taskOp);
-    void printInfo(mlir::FuncOp func);
-    bool is_valid_op(schedulable_ops_iterator_t itr) const;
-    void pushToHeap(const heap_element_t& elem);
-    heap_element_t popFromHeap();
-    void add_outgoing_operations_to_candidate_list(mlir::Operation* op);
-    void assignUniqueIds();
+    HeapElement popFromHeap();
     static mlir::IntegerAttr getUniqueID(mlir::Operation* op);
 
 protected:
     mlir::MLIRContext* _ctx;
     mlir::FuncOp _func;
-    operation_in_degree_t in_degree_;
-    schedule_heap_t heap_;
-    schedule_time_t current_time_;
-    schedulable_ops_t candidates_;
-    resource_state_t resource_state_;
-    min_heap_ordering_t heap_ordering_;
-    mlir::Operation* schedulable_op_;
-    processed_ops_t processed_ops_;
-    priority_map_t priority_;
+    operation_in_degree_t _in_degree;
+    schedule_heap_t _heap;
+    schedule_time_t _current_time;
+    schedulable_ops_t _candidates;
+    resource_state_t _resource_state;
+    MinHeapOrdering _heap_ordering;
+    mlir::Operation* _schedulable_op;
+    processed_ops_t _processed_ops;
+    priority_map_t _priority;
+    resource_utility_map_t _resource_utility_map;
     // outputs of the graph
     llvm::DenseSet<mlir::Operation*> _outputOps;
     // operation out-degree, number of outgoing edges
     std::map<mlir::Operation*, size_t> _outDegreeTable;
 
-    // std::unordered_map<mlir::Operation*, size_t> _operationInDegree;
-    // std::unordered_map<mlir::Operation*, size_t> _operationOutDegree;
     SmallVector<IERT::LayerOpInterface> _allTaskOps;
     SmallVector<VPURT::DeclareVirtualBarrierOp> _allBarrierOps;
     static std::map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap;

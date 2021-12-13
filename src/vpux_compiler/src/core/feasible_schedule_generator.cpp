@@ -16,75 +16,75 @@
 
 using namespace vpux;
 
-std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenerator::barrierProducersMap{};
-std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenerator::barrierConsumersMap{};
+std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleBarrierScheduler::barrierProducersMap{};
+std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleBarrierScheduler::barrierConsumersMap{};
 
 static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
-FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func,
-                                                     const resource_state_t& rstate)
+FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func,
+                                                   const resource_state_t& rstate)
         : _ctx(ctx),
           _func(func),
-          in_degree_(),
-          heap_(),
-          current_time_(0),
-          candidates_(),
-          resource_state_(),
-          heap_ordering_(),
-          schedulable_op_(),
-          processed_ops_(),
-          priority_() {
+          _in_degree(),
+          _heap(),
+          _current_time(0),
+          _candidates(),
+          _resource_state(),
+          _heap_ordering(),
+          _schedulable_op(),
+          _processed_ops(),
+          _priority() {
     init(rstate);
 };
 
-FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func)
+FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func)
         : _ctx(ctx),
           _func(func),
-          in_degree_(),
-          heap_(),
-          current_time_(0),
-          candidates_(),
-          resource_state_(),
-          heap_ordering_(),
-          schedulable_op_(),
-          processed_ops_(),
-          priority_(){};
+          _in_degree(),
+          _heap(),
+          _current_time(0),
+          _candidates(),
+          _resource_state(),
+          _heap_ordering(),
+          _schedulable_op(),
+          _processed_ops(),
+          _priority(){};
 
-bool FeasibleScheduleGenerator::reached_end() const {
-    Logger::global().error("Schedule reached end True/False {0}", (candidates_.empty() && heap_.empty()));
-    return candidates_.empty() && heap_.empty();
+bool FeasibleBarrierScheduler::reached_end() const {
+    Logger::global().error("Schedule reached end True/False {0}", (_candidates.empty() && _heap.empty()));
+    return _candidates.empty() && _heap.empty();
 }
 
-bool FeasibleScheduleGenerator::operator==(const FeasibleScheduleGenerator& o) const {
+bool FeasibleBarrierScheduler::operator==(const FeasibleBarrierScheduler& o) const {
     return reached_end() && o.reached_end();
 }
 
-void FeasibleScheduleGenerator::operator++() {
+void FeasibleBarrierScheduler::operator++() {
     Logger::global().error("Calling operator++ for Feasible Schedule generator");
-    next_schedulable_operation();
+    nextSchedulableOperation();
 }
 
-void FeasibleScheduleGenerator::pushToHeap(const heap_element_t& elem) {
-    heap_.push_back(elem);
-    std::push_heap(heap_.begin(), heap_.end(), heap_ordering_);
+void FeasibleBarrierScheduler::pushToHeap(const HeapElement& elem) {
+    _heap.push_back(elem);
+    std::push_heap(_heap.begin(), _heap.end(), _heap_ordering);
 }
 
-FeasibleScheduleGenerator::heap_element_t FeasibleScheduleGenerator::popFromHeap() {
-    std::pop_heap(heap_.begin(), heap_.end(), heap_ordering_);
-    heap_element_t elem = heap_.back();
-    heap_.pop_back();
+FeasibleBarrierScheduler::HeapElement FeasibleBarrierScheduler::popFromHeap() {
+    std::pop_heap(_heap.begin(), _heap.end(), _heap_ordering);
+    HeapElement elem = _heap.back();
+    _heap.pop_back();
     return elem;
 }
 
-void FeasibleScheduleGenerator::add_to_candidate_set(mlir::Operation* op) {
-    if (processed_ops_.find(op) != processed_ops_.end()) {
+void FeasibleBarrierScheduler::addToCandidateSet(mlir::Operation* op) {
+    if (_processed_ops.find(op) != _processed_ops.end()) {
         return;
     }
     Logger::global().error("Adding operation  to candidates list {0} to candidates list", getUniqueID(op));
-    candidates_.push_back(op);
-    processed_ops_.insert(op);
+    _candidates.push_back(op);
+    _processed_ops.insert(op);
 }
 
-void FeasibleScheduleGenerator::add_outgoing_operations_to_candidate_list(mlir::Operation* op) {
+void FeasibleBarrierScheduler::addOutGoingOperationsToCandidateList(mlir::Operation* op) {
     Logger::global().error("Add outgoing operations to candidate list");
 
     // Reduce indegree (number of incoming edges) for consumers of ready data ops
@@ -104,84 +104,85 @@ void FeasibleScheduleGenerator::add_outgoing_operations_to_candidate_list(mlir::
 
         Logger::global().error("Decrementing the in-degree of operation {0}", getUniqueID(*itr));
 
-        typename operation_in_degree_t::iterator deg_itr = in_degree_.find(op);
-        assert((deg_itr != in_degree_.end()) && (deg_itr->second > 0));
+        typename operation_in_degree_t::iterator deg_itr = _in_degree.find(op);
+
+        VPUX_THROW_UNLESS((deg_itr != _in_degree.end()) && (deg_itr->second > 0), "Invalid indegree");
+        //assert((deg_itr != _in_degree.end()) && (deg_itr->second > 0));
 
         if (deg_itr->second == 1) {
             Logger::global().error("Adding operation {0} to candidate_list", getUniqueID(*itr));
-            add_to_candidate_set(op);
+            addToCandidateSet(op);
             Logger::global().error("Erasing operation {0} from the in_degree table", getUniqueID(*itr));
-            in_degree_.erase(deg_itr);
+            _in_degree.erase(deg_itr);
         } else {
             --(deg_itr->second);
         }
     }
 }
 
-bool FeasibleScheduleGenerator::next_schedulable_operation() {
-    schedulable_op_ = NULL;
+bool FeasibleBarrierScheduler::nextSchedulableOperation() {
+    _schedulable_op = NULL;
 
     do {
         schedulable_ops_iterator_t op_itr = find_schedulable_op();
 
-        if (is_valid_op(op_itr)) {
+        if (isValidOp(op_itr)) {
             // found a schedulable operation //
             mlir::Operation* op = (*op_itr);
 
             delay_t op_delay = 1;
-            resource_t op_resources = resource_utility_map_[*op_itr];
-            schedule_time_t op_end_time = current_time_ + op_delay;
+            resource_t op_resources = _resource_utility_map[*op_itr];
+            schedule_time_t op_end_time = _current_time + op_delay;
 
             Logger::global().error("Operation {0} end time is {1} pushing to heap", getUniqueID(*op_itr), op_end_time);
-            pushToHeap(heap_element_t(op, op_end_time));
-            candidates_.erase(op_itr);
+            pushToHeap(HeapElement(op, op_end_time));
+            _candidates.erase(op_itr);
 
             vpux::BarrierScheduleGenerator::barrier_scheduler_traits::schedule_operation(op, op_resources,
-                                                                                         resource_state_);
-            schedulable_op_ = op;
-            Logger::global().error("The schedulable_op_ ID is {0}", getUniqueID(schedulable_op_));
+                                                                                         _resource_state);
+            _schedulable_op = op;
+            Logger::global().error("The _schedulable_op ID is {0}", getUniqueID(_schedulable_op));
 
-        } else if (!heap_.empty()) {
+        } else if (!_heap.empty()) {
             // no-op found so move up the schedule time to the smallest completion
             // time among the active operations. //
-            heap_element_t top_elem = popFromHeap();
+            HeapElement top_elem = popFromHeap();
             mlir::Operation* op = top_elem.op_;
 
-            assert(current_time_ <= top_elem.time_);
-            current_time_ = top_elem.time_;
+            //assert(_current_time <= top_elem.time_);
+            VPUX_THROW_UNLESS(_current_time <= top_elem.time_, "Invalid indegree");
+            _current_time = top_elem.time_;
             // since operation is now complete update the schedule //
 
-            BarrierScheduleGenerator::barrier_scheduler_traits::unschedule_operation(op, resource_state_);
+            BarrierScheduleGenerator::barrier_scheduler_traits::unschedule_operation(op, _resource_state);
             // since op has completed add all out-going ops to candidates //
-            add_outgoing_operations_to_candidate_list(op);
+            addOutGoingOperationsToCandidateList(op);
         } else {
             // schedule is not feasible //
-            candidates_.clear();
+            _candidates.clear();
             break;
         }
-    } while (!schedulable_op_ && !reached_end());
+    } while (!_schedulable_op && !reached_end());
 
-    // Logger::global().error("Returning Op is schedulable, the schedulable_op_ ID is {0}",
-    // getUniqueID(schedulable_op_));
-    return schedulable_op_ != NULL;
+    return _schedulable_op != NULL;
 }
 
-bool FeasibleScheduleGenerator::is_valid_op(schedulable_ops_iterator_t itr) const {
-    return !(itr == candidates_.end());
+bool FeasibleBarrierScheduler::isValidOp(schedulable_ops_iterator_t itr) const {
+    return !(itr == _candidates.end());
 }
 
-FeasibleScheduleGenerator::schedulable_ops_iterator_t FeasibleScheduleGenerator::find_schedulable_op() {
+FeasibleBarrierScheduler::schedulable_ops_iterator_t FeasibleBarrierScheduler::find_schedulable_op() {
     Logger::global().error("Looking for a a scheduleable operation");
 
-    schedulable_ops_iterator_t itr = candidates_.end();
+    schedulable_ops_iterator_t itr = _candidates.end();
     std::list<schedulable_ops_iterator_t> ready_list;
 
-    Logger::global().error("There are {0} candiates and for each candiate", candidates_.size());
+    Logger::global().error("There are {0} candiates and for each candiate", _candidates.size());
 
-    for (itr = candidates_.begin(); itr != candidates_.end(); ++itr) {
-        Logger::global().error("The demand for operation {0} is {1}", getUniqueID(*itr), resource_utility_map_[*itr]);
-        if (vpux::BarrierScheduleGenerator::barrier_scheduler_traits::is_resource_available(resource_utility_map_[*itr],
-                                                                                            resource_state_)) {
+    for (itr = _candidates.begin(); itr != _candidates.end(); ++itr) {
+        Logger::global().error("The demand for operation {0} is {1}", getUniqueID(*itr), _resource_utility_map[*itr]);
+        if (vpux::BarrierScheduleGenerator::barrier_scheduler_traits::is_resource_available(_resource_utility_map[*itr],
+                                                                                            _resource_state)) {
             Logger::global().error("Adding operation {0} to the ready list", getUniqueID(*itr));
             ready_list.push_back(itr);
         }
@@ -192,39 +193,38 @@ FeasibleScheduleGenerator::schedulable_ops_iterator_t FeasibleScheduleGenerator:
     if (!ready_list.empty()) {
         size_t min_priority = std::numeric_limits<size_t>::max();
         for (auto ritr = ready_list.begin(); ritr != ready_list.end(); ++ritr) {
-            size_t curr_priority = priority_[*(*ritr)];
+            size_t curr_priority = _priority[*(*ritr)];
             if (curr_priority < min_priority) {
                 itr = *ritr;
                 min_priority = curr_priority;
             }
         }
     }
-    // Logger::global().error("Returning operation ID {0} as a schedulable op", getUniqueID(*itr));
     return itr;
 }
 
-mlir::Operation*& FeasibleScheduleGenerator::operator*() {
-    Logger::global().error("Calling FeasibleScheduleGenerator::operator*()");
-    if (!schedulable_op_)
+mlir::Operation*& FeasibleBarrierScheduler::operator*() {
+    Logger::global().error("Calling FeasibleBarrierScheduler::operator*()");
+    if (!_schedulable_op)
         std::runtime_error("Feasible_Schedule_Generator: Null ptr dereference");
 
-    Logger::global().error("Returning operation {0}", getUniqueID(schedulable_op_));
-    return schedulable_op_;
+    Logger::global().error("Returning operation {0}", getUniqueID(_schedulable_op));
+    return _schedulable_op;
 }
 
-size_t FeasibleScheduleGenerator::current_time() const {
-    return current_time_;
+size_t FeasibleBarrierScheduler::currentTime() const {
+    return _current_time;
 }
 
-const resource_state_t& FeasibleScheduleGenerator::resource_state() const {
-    return resource_state_;
+const resource_state_t& FeasibleBarrierScheduler::resourceState() const {
+    return _resource_state;
 }
 
-void FeasibleScheduleGenerator::init_resource_state(const resource_state_t& start_state) {
-    vpux::BarrierScheduleGenerator::barrier_scheduler_traits::initialize_resource_state(start_state, resource_state_);
+void FeasibleBarrierScheduler::initResourceState(const resource_state_t& start_state) {
+    vpux::BarrierScheduleGenerator::barrier_scheduler_traits::initialize_resource_state(start_state, _resource_state);
 }
 
-SmallVector<mlir::Operation*> FeasibleScheduleGenerator::getConsumerOps(mlir::Operation* op) {
+SmallVector<mlir::Operation*> FeasibleBarrierScheduler::getConsumerOps(mlir::Operation* op) {
     SmallVector<mlir::Operation*> consumerOps;
     if (auto task = mlir::dyn_cast<VPURT::TaskOp>(op)) {
         for (auto updateBarrier : task.updateBarriers()) {
@@ -242,7 +242,7 @@ SmallVector<mlir::Operation*> FeasibleScheduleGenerator::getConsumerOps(mlir::Op
     return consumerOps;
 }
 
-std::string FeasibleScheduleGenerator::printOpType(VPURT::TaskOp task) {
+std::string FeasibleBarrierScheduler::printOpType(VPURT::TaskOp task) {
     if (task.getExecutorKind() == VPU::ExecutorKind::NCE)
         return "NCE task";
     if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN)
@@ -253,32 +253,32 @@ std::string FeasibleScheduleGenerator::printOpType(VPURT::TaskOp task) {
     return "task";
 }
 
-mlir::IntegerAttr FeasibleScheduleGenerator::getUniqueID(mlir::Operation* op) {
+mlir::IntegerAttr FeasibleBarrierScheduler::getUniqueID(mlir::Operation* op) {
     auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op);
     return taskOp->getAttr(uniqueIdAttrName).dyn_cast_or_null<mlir::IntegerAttr>();
 }
 
-void FeasibleScheduleGenerator::compute_operation_priorities() {
+void FeasibleBarrierScheduler::computeOperationPriorities() {
     operation_in_degree_t in_degree;
 
-    compute_op_indegree(in_degree);
+    computeOpIndegree(in_degree);
 
     // assign topological sort level as priority to start with //
     std::list<mlir::Operation*> zero_in_degree_nodes[2];
-    priority_.clear();
+    _priority.clear();
 
     size_t curr_priority = 0;
 
-    operation_in_degree_t::iterator itr = in_degree_.begin();
-    operation_in_degree_t::iterator itr_end = in_degree_.end();
+    operation_in_degree_t::iterator itr = _in_degree.begin();
+    operation_in_degree_t::iterator itr_end = _in_degree.end();
 
     while (itr != itr_end) {
         auto op = itr->first;
-        if (in_degree_.find(op)->second == 0) {
+        if (_in_degree.find(op)->second == 0) {
             Logger::global().error("Adding op {0}  to zero_in_degree_nodes ", getUniqueID(op));
             zero_in_degree_nodes[curr_priority % 2].push_back(op);
             Logger::global().error("Priority for  op {0}  is {1}", getUniqueID(op), curr_priority);
-            priority_[op] = curr_priority;
+            _priority[op] = curr_priority;
         }
         ++itr;
     }
@@ -296,6 +296,9 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
             while (jtr != jtr_end) {
                 Logger::global().error("Looking up operation {0} in the in_degree table ", getUniqueID(*jtr));
                 typename operation_in_degree_t::iterator deg_itr = in_degree.find(*jtr);
+
+                VPUX_THROW_UNLESS((deg_itr != in_degree.end()) && (deg_itr->second > 0), "Invalid indegree");
+                
                 // assert((deg_itr != in_degree.end()) && (deg_itr->second > 0));
                 std::cout << "Operation  has an indegree of " << deg_itr->second << std::endl;
                 (deg_itr->second)--;
@@ -310,7 +313,7 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
                     Logger::global().error("The priority of op {0}  has become  {1} ", getUniqueID(deg_itr->first),
                                            (curr_priority + 1));
 
-                    priority_[deg_itr->first] = (curr_priority + 1);
+                    _priority[deg_itr->first] = (curr_priority + 1);
                     zero_in_degree_nodes[(curr_priority + 1) % 2].push_back(deg_itr->first);
 
                     Logger::global().error("Erasing op {0} from the in-degree table ", getUniqueID(deg_itr->first));
@@ -324,11 +327,11 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
     }
 
     Logger::global().error("Printing priority map");
-    for (auto const& pair : priority_) {
+    for (auto const& pair : _priority) {
         Logger::global().error("{Operation {0}  priority {1}", getUniqueID(pair.first), pair.second);
     }
 
-    for (typename priority_map_t::iterator pitr = priority_.begin(); pitr != priority_.end(); ++pitr) {
+    for (typename priority_map_t::iterator pitr = _priority.begin(); pitr != _priority.end(); ++pitr) {
         Logger::global().error("Checking priority of {0} ", getUniqueID(pitr->first));
         auto opConsumers = getConsumerOps((pitr->first));
         // set priority to max of all out going priorities //
@@ -338,15 +341,14 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
         if (!(pitr->second)) {
             size_t max = pitr->second;
             while (jtr != jtr_end) {
-                max = std::max(priority_[*jtr], max);
+                max = std::max(_priority[*jtr], max);
                 ++jtr;
             }
             std::cout << "Setting the priority of " << /*printOpType(pitr->first) <<*/ " to " << max << std::endl;
             pitr->second = max;
         }
     }
-    std::cout << "Printing priority map " << std::endl;
-    for (auto const& pair : priority_) {
+    for (auto const& pair : _priority) {
         Logger::global().error("{Operation {0}  priority {1}", getUniqueID(pair.first), pair.second);
     }
 
@@ -370,24 +372,21 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
 
     // reassign the priority
     std::set<std::pair<unsigned, mlir::Operation*>, custom_compare> s;  // The new (temporary) container.
-    for (auto const& pair : priority_)
+    for (auto const& pair : _priority)
         s.emplace(pair.second, pair.first);  // Flip the pairs.
 
     size_t newPriority = 1;
     for (auto const& pair : s) {
-        priority_[pair.second] = newPriority++;
-        // Logger::global().error("{Operation {0}  priority {1}", getUniqueID(pair.second), pair.first);
+        _priority[pair.second] = newPriority++;
     }
 
-    std::cout << "Printing priority map " << std::endl;
-    for (auto const& pair : priority_) {
+    for (auto const& pair : _priority) {
         Logger::global().error("{Operation {0}  priority {1}", getUniqueID(pair.first), pair.second);
     }
 
-    std::cout << "Finished compute_operation_priorities " << std::endl;
 }
 
-void FeasibleScheduleGenerator::assignUniqueIds() {
+void FeasibleBarrierScheduler::assignUniqueIds() {
     int64_t uniqueId = 0;
     auto assignUniqueIDs = [&](VPURT::TaskOp taskOp) {
         taskOp->setAttr(uniqueIdAttrName, getIntAttr(_ctx, uniqueId++));
@@ -418,33 +417,7 @@ void FeasibleScheduleGenerator::assignUniqueIds() {
     });
 }
 
-void FeasibleScheduleGenerator::printInfo(mlir::FuncOp func) {
-    auto getTaskInfo = [&](VPURT::TaskOp taskOp) {
-        std::cout << printOpType(taskOp) << " # wait barriers " << taskOp.waitBarriers().size() << std::endl;
-    };
-
-    func.walk([&](VPURT::TaskOp taskOp) {
-        switch (taskOp.getExecutorKind()) {
-        //case VPU::ExecutorKind::UPADMA:
-        case VPU::ExecutorKind::DMA_NN: {
-            getTaskInfo(taskOp);
-            break;
-        }
-        case VPU::ExecutorKind::NCE: {
-            getTaskInfo(taskOp);
-            break;
-        }
-        case VPU::ExecutorKind::SHAVE_UPA: {
-            getTaskInfo(taskOp);
-            break;
-        }
-        default:
-            VPUX_THROW("Unsupported task type '{0}'", taskOp.getExecutorKind());
-        }
-    });
-}
-
-void FeasibleScheduleGenerator::getAllBarriersProducersAndConsumers() {
+void FeasibleBarrierScheduler::getAllBarriersProducersAndConsumers() {
     // Get all producers and consumers of barriers (NCE,UPA, DMA) only
     _allBarrierOps = to_small_vector(_func.getOps<VPURT::DeclareVirtualBarrierOp>());
 
@@ -471,10 +444,6 @@ void FeasibleScheduleGenerator::getAllBarriersProducersAndConsumers() {
                     barrierOp->getLoc(), valEffects.size(), userOp->getLoc());
 
             const auto& effect = valEffects.front();
-
-            // VPUX_THROW_WHEN(effect.getResource() != VPUIP::BarrierResource::get(),
-            //                 "Barrier '{0}' has non Barrier Resource for Operation '{1}'", barrierOp->getLoc(),
-            //                 userOp->getLoc());
 
             if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
                 auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
@@ -504,7 +473,7 @@ void FeasibleScheduleGenerator::getAllBarriersProducersAndConsumers() {
     }
 }
 
-void FeasibleScheduleGenerator::compute_op_indegree(operation_in_degree_t& in_degree) {
+void FeasibleBarrierScheduler::computeOpIndegree(operation_in_degree_t& in_degree) {
     in_degree.clear();
 
     _func.walk([&](VPURT::TaskOp taskOp) {
@@ -520,10 +489,9 @@ void FeasibleScheduleGenerator::compute_op_indegree(operation_in_degree_t& in_de
 
         in_degree.insert(std::make_pair(taskOp.getOperation(), waitBarrierIncomingEdges));
     });
-    std::cout << "The size of indegree table is " << in_degree.size() << std::endl;
 }
 
-bool FeasibleScheduleGenerator::doesOpRunOnNCE(mlir::Operation* op) {
+bool FeasibleBarrierScheduler::doesOpRunOnNCE(mlir::Operation* op) {
     if ((mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::NCE) ||
         (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::DMA_NN))
         return true;
@@ -531,78 +499,74 @@ bool FeasibleScheduleGenerator::doesOpRunOnNCE(mlir::Operation* op) {
         return false;
 }
 
-unsigned FeasibleScheduleGenerator::countProducerConsumerTasks(mlir::Operation* op) {
+unsigned FeasibleBarrierScheduler::countProducerConsumerTasks(mlir::Operation* op) {
     if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::NCE) {
         auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op);
         auto& block = taskOp.body().getBlocks().front();
         auto wrappedTaskOp = block.begin();
         auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
         VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
-        std::cout << "nceOp.getNumVariants() = " << nceOp.getNumVariants() << std::endl;
         return nceOp.getNumVariants();
-        // return 5;
     }
-    if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::DMA_NN)
+    if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
         return 1;
-    else
-        exit(1);
+    }
+    else {
+        VPUX_THROW("This operation does not run on hardware");
+    }
 }
 
-void FeasibleScheduleGenerator::create_resource_utility_table_for_barrier_scheduling() {
-    for (auto& op : in_degree_) {
+void FeasibleBarrierScheduler::createResourceUtilityTable() {
+    for (auto& op : _in_degree) {
         Logger::global().error("Operation: {0} ", getUniqueID(op.first));
         if (doesOpRunOnNCE(op.first)) {
             auto resource_utility = countProducerConsumerTasks(op.first);
             // resource utility //
             Logger::global().error("Operation: {0} uses {1} slots", getUniqueID(op.first), resource_utility);
-            resource_utility_map_.insert(std::make_pair(op.first, resource_utility));
+            _resource_utility_map.insert(std::make_pair(op.first, resource_utility));
         } else  // UPA tasks
         {
             // resource utility is 0 //
             Logger::global().error("Operation: {0} uses 0 slots", getUniqueID(op.first));
-            resource_utility_map_.insert(std::make_pair(op.first, 0));
+            _resource_utility_map.insert(std::make_pair(op.first, 0));
         }
     }
 }
 
-bool FeasibleScheduleGenerator::init(const resource_state_t& upper_bound) {
+bool FeasibleBarrierScheduler::init(const resource_state_t& upper_bound) {
     Logger::global().error("**Initializing the feasible scheduler **");
 
-    // printInfo(_func);
     assignUniqueIds();
-    processed_ops_.clear();
-    resource_utility_map_.clear();
+    _processed_ops.clear();
+    _resource_utility_map.clear();
 
     getAllBarriersProducersAndConsumers();
 
     Logger::global().error("Initializing the resource upper state");
-    init_resource_state(upper_bound);
+    initResourceState(upper_bound);
 
-    compute_op_indegree(in_degree_);
+    computeOpIndegree(_in_degree);
 
-    create_resource_utility_table_for_barrier_scheduling();
+    createResourceUtilityTable();
 
     // collect the ones with zero-in degree into candidates //
-    candidates_.clear();
+    _candidates.clear();
 
-    operation_in_degree_t::iterator itr = in_degree_.begin();
-    operation_in_degree_t::iterator itr_end = in_degree_.end();
+    operation_in_degree_t::iterator itr = _in_degree.begin();
+    operation_in_degree_t::iterator itr_end = _in_degree.end();
 
     while (itr != itr_end) {
         auto op = itr->first;
-        if (in_degree_.find(op)->second == 0) {
+        if (_in_degree.find(op)->second == 0) {
             Logger::global().error("Adding op: {0} to candidate set", getUniqueID(op));
-            add_to_candidate_set(op);
+            addToCandidateSet(op);
         }
         ++itr;
     }
 
-    if (candidates_.empty()) {
-        fprintf(stderr, "Feasible_Schedule_Generator: no operations with ZERO"
-                        " in-degree means there must be a cycle in the input");
-        return false;
-    }
-    compute_operation_priorities();
+    VPUX_THROW_UNLESS(!_candidates.empty(), "No operations with zero in-degree, error processing the dependencies");
 
-    return next_schedulable_operation();
+    computeOperationPriorities();
+
+    return nextSchedulableOperation();
 }

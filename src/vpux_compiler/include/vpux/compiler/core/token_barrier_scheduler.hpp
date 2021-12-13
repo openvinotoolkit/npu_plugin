@@ -13,7 +13,6 @@
 
 #pragma once
 
-//#include "vpux/compiler/core/deps_info.hpp"
 #include "vpux/compiler/core/mem_live_range_info.hpp"
 #include "vpux/compiler/utils/linear_scan.hpp"
 
@@ -46,6 +45,7 @@
 
 #include "vpux/compiler/core/barrier_schedule_generator.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/compiler/core/barrier_transition_structure.hpp"
 
 namespace vpux {
 
@@ -131,7 +131,7 @@ public:
 
             Logger::global().error(
                     "The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
-                    sinfo.schedule_time_, FeasibleScheduleGenerator::getUniqueID(sinfo.op_), sinfo.barrier_index_,
+                    sinfo.schedule_time_, FeasibleBarrierScheduler::getUniqueID(sinfo.op_), sinfo.barrier_index_,
                     sinfo.slot_count_);
 
             Logger::global().error("The global time is {0}", time_);
@@ -165,7 +165,7 @@ public:
             Logger::global().error("Calling maintain_invariant_temporal_change()");
             Logger::global().error(
                     "The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
-                    sinfo.schedule_time_, FeasibleScheduleGenerator::getUniqueID(sinfo.op_), sinfo.barrier_index_,
+                    sinfo.schedule_time_, FeasibleBarrierScheduler::getUniqueID(sinfo.op_), sinfo.barrier_index_,
                     sinfo.slot_count_);
             //              B_prev
             // curr_state : Prod_list={p_0, p_1, ... p_n}-->B_curr
@@ -196,7 +196,6 @@ public:
             // assert(is_barrier_task(bop_curr_new));
 
             // STEP-1 //
-            // std::cout << "bop_curr = " << bop_curr << " bop_end = " << bop_end << std::endl;
             if (bop_curr != bop_end) {
                 Logger::global().error("The ID of barrier bop_curr is {0}", bop_curr->getAttr("id"));
                 process_current_barrier_producer_list_close_event(bop_curr, bop_prev);
@@ -235,7 +234,7 @@ public:
 
                 if (barrierProducersItr != tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end()) {
                     Logger::global().error("Adding producer Op with ID {0} to barrier {1}",
-                                           FeasibleScheduleGenerator::getUniqueID(source), bop_curr->getAttr("id"));
+                                           FeasibleBarrierScheduler::getUniqueID(source), bop_curr->getAttr("id"));
                     barrierProducersItr->second.first.insert(source);
                 } else
                     VPUX_THROW("Not found");
@@ -244,10 +243,10 @@ public:
                 auto barrierConsumersItr = tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.find(bop_curr);
 
                 if (barrierConsumersItr != tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end()) {
-                    auto opConsumers = FeasibleScheduleGenerator::getConsumerOps(source);
+                    auto opConsumers = FeasibleBarrierScheduler::getConsumerOps(source);
                     for (auto consumer = opConsumers.begin(); consumer != opConsumers.end(); ++consumer) {
                         Logger::global().error("STEP-1.2 Adding consumer Op with ID {0} to barrier {1}",
-                                               FeasibleScheduleGenerator::getUniqueID(*consumer),
+                                               FeasibleBarrierScheduler::getUniqueID(*consumer),
                                                bop_curr->getAttr("id"));
                         barrierConsumersItr->second.second.insert(*consumer);
                     }
@@ -259,7 +258,7 @@ public:
                     auto barrierConsumersItr = tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.find(b_prev);
                     if (barrierConsumersItr != tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end()) {
                         Logger::global().error("STEP-1.3 Adding consumer Op with ID {0} to barrier {1}",
-                                               FeasibleScheduleGenerator::getUniqueID(source), b_prev->getAttr("id"));
+                                               FeasibleBarrierScheduler::getUniqueID(source), b_prev->getAttr("id"));
                         barrierConsumersItr->second.second.insert(source);
                     } else
                         VPUX_THROW("Not found");
@@ -281,10 +280,8 @@ public:
 
             static size_t barrier_task_id = 1UL;
 
-            // mlir::OpBuilder builder(_func.getBody());
-            // builder.setInsertionPointAfter(Operation *op);
             auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc(),
-                                                                             barrier_task_id);  // Neds to be virtual.
+                                                                             barrier_task_id);  
 
             std::set<mlir::Operation*, task_operation_comparator_t> newBarrierProducers{};
             std::set<mlir::Operation*, task_operation_comparator_t> newBarrierConsumers{};
@@ -292,7 +289,7 @@ public:
                     std::make_pair(newBarrier, std::make_pair(newBarrierProducers, newBarrierConsumers)));
 
             Logger::global().error("Created a new barrier task with barrier ID {0} after OP id is {1}", barrier_task_id,
-                                   FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
+                                   FeasibleBarrierScheduler::getUniqueID(sinfo.op_));
             barrier_task_id++;
             return newBarrier;
         }

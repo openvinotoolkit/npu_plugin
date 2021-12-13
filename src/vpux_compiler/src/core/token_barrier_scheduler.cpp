@@ -76,7 +76,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
             Logger::global().error("Getting the schedule information sinfo from the Barrier_Schedule_Generator class");
             Logger::global().error("The time is {0}, the Operation is {1} end time is {1}", sinfo.schedule_time_,
-                                   FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
+                                   FeasibleBarrierScheduler::getUniqueID(sinfo.op_));
             Logger::global().error("The barrier index is {0}, , the slot cout is {1}", sinfo.barrier_index_,
                                    sinfo.slot_count_);
 
@@ -90,7 +90,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
             // Set scheduling number
             Logger::global().error("Assigning scheduling number {0} to the Operation {1} ", scheduling_number,
-                                   FeasibleScheduleGenerator::getUniqueID(sinfo.op_));
+                                   FeasibleBarrierScheduler::getUniqueID(sinfo.op_));
             sinfo.op_->setAttr(schedulingNumberAttrName, getIntAttr(_ctx, scheduling_number));
 
             scheduling_number++;
@@ -115,14 +115,14 @@ size_t TokenBasedBarrierScheduler::schedule() {
     for (auto& barrier : configureBarrierOpUpdateWaitMap) {
         Logger::global().error("Barrier ID {0} has the following producers", barrier.first->getAttr("id"));
         for (auto op : barrier.second.first)
-            Logger::global().error("producer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(op),
+            Logger::global().error("producer Op with ID {0} to barrier {1}", FeasibleBarrierScheduler::getUniqueID(op),
                                    barrier.first->getAttr("id"));
     }
 
     for (auto& barrier : configureBarrierOpUpdateWaitMap) {
         Logger::global().error("Barrier ID {0} has the following consumers", barrier.first->getAttr("id"));
         for (auto op : barrier.second.second)
-            Logger::global().error("consumer Op with ID {0} to barrier {1}", FeasibleScheduleGenerator::getUniqueID(op),
+            Logger::global().error("consumer Op with ID {0} to barrier {1}", FeasibleBarrierScheduler::getUniqueID(op),
                                    barrier.first->getAttr("id"));
     }
 
@@ -241,7 +241,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
             assert(taskOp != NULL);
             assert(barrierOp.barrier() != NULL);
             Logger::global().error("Adding Barrier ID {0} as an update barrier for operation {1}",
-                                   barrierOp->getAttr("id"), FeasibleScheduleGenerator::getUniqueID(user));
+                                   barrierOp->getAttr("id"), FeasibleBarrierScheduler::getUniqueID(user));
             taskOp.updateBarriersMutable().append(barrierOp.barrier());
         }
     }
@@ -253,7 +253,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
             assert(taskOp != NULL);
             assert(barrierOp.barrier() != NULL);
             Logger::global().error("Adding Barrier ID {0} as an wait barrier for operation {1}",
-                                   barrierOp->getAttr("id"), FeasibleScheduleGenerator::getUniqueID(user));
+                                   barrierOp->getAttr("id"), FeasibleBarrierScheduler::getUniqueID(user));
             taskOp.waitBarriersMutable().append(barrierOp.barrier());
         }
     }
