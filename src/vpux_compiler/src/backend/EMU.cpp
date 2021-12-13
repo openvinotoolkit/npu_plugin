@@ -68,7 +68,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(EMU::BlobWriter& w
                                                               Logger log) {
     auto scopeTiming = rootTiming.nest("Create summary header");
 
-    const auto allTasks = netFunc.getOps<EMU::TaskOpInterface>();
+    const auto allTasks = netFunc.getOps<EMUSerializeInterface>();
     const auto taskCount = std::distance(allTasks.begin(), allTasks.end());
 
     auto inputsInfo = netOp.getInputsInfo();
@@ -145,7 +145,7 @@ void serializeTensorDecls(EMU::BlobWriter& writer, mlir::FuncOp netFunc, mlir::T
     auto scopeTiming = rootTiming.nest("Serialize tensor declarations");
 
     size_t tempTensorInd = 0;
-    netFunc.walk([&](EMU::TaskOpInterface op) {
+    netFunc.walk([&](EMUSerializeInterface op) {
         for (auto result : op->getResults()) {
             auto users = result.getUsers();
             auto isNetworkResult = false;
@@ -209,10 +209,10 @@ SmallVector<EMU::BlobWriter::TaskList> serializeTaskLists(EMU::BlobWriter& write
     auto scopeTiming = rootTiming.nest("Serialize task lists");
 
     using TaskList = SmallVector<EMU::BlobWriter::Task>;
-    using TaskListMap = EnumMap<EMU::TaskType, TaskList>;
+    using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
     TaskListMap tasksMap;
 
-    netFunc.walk([&](EMU::TaskOpInterface taskOp) {
+    netFunc.walk([&](EMUSerializeInterface taskOp) {
         log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
         tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
     });

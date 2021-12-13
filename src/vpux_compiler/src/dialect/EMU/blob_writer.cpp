@@ -38,7 +38,7 @@ using namespace vpux;
 EMU::BlobWriter::Task vpux::EMU::BlobWriter::createTask(mlir::Operation* op) {
     _log.trace("Create BLOB Task for {0}", *op);
 
-    auto task = mlir::dyn_cast<EMU::TaskOpInterface>(op);
+    auto task = mlir::dyn_cast<EMUSerializeInterface>(op);
     VPUX_THROW_UNLESS(task != nullptr, "Got non Task operation {0}", op->getName());
 
     VPUX_THROW_UNLESS(_tasks.count(op) == 0, "Operation {0} was already serialized", *op);
