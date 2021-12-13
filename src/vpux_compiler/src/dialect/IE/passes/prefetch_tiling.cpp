@@ -32,30 +32,6 @@ using namespace vpux;
 
 namespace {
 
-void applyWAForGroupConv(mlir::Operation* op, Shape& nTilesOnDim) {
-    auto groupCovn = mlir::dyn_cast<IE::GroupConvolutionOp>(op);
-    if (groupCovn == nullptr) {
-        return;
-    }
-
-    const auto module = op->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-    if (arch == VPU::ArchKind::MTL) {
-        return;
-    }
-
-    if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
-        const auto chanAlignment = channelsInfo.getChannelAlignment();
-        const auto outputShape = getShape(groupCovn.output());
-
-        VPUX_THROW_UNLESS(outputShape[Dims4D::Act::C] % chanAlignment == 0,
-                          "Depthwise convolution output channels must be a multiple of {0}, got {1}", chanAlignment,
-                          outputShape[Dims4D::Act::C]);
-
-        nTilesOnDim[Dims4D::Act::C] = outputShape[Dims4D::Act::C] / chanAlignment;
-    }
-}
-
 Shape computeGeneralTileStrategy(mlir::Operation* op, Logger log) {
     auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
     VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
@@ -74,7 +50,6 @@ Shape computeGeneralTileStrategy(mlir::Operation* op, Logger log) {
     }
 
     Shape nTilesOnDim(outputShape.size(), 1);
-    applyWAForGroupConv(op, nTilesOnDim);
 
     // Try to tile the largest dim (C or H) first, then proceed with other dims
     SmallVector<Dim> tileDimOrder = {Dims4D::Act::C, Dims4D::Act::H, Dims4D::Act::W};
@@ -154,10 +129,6 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
                     tiledBuilderOp->getName());
 
     tiledBuilderOp.adjustAttrs(inputTiling);
-
-    VPUX_THROW_UNLESS(origOp->getNumResults() == 1,
-                      "Unsupported operation '{0}' at '{1}', it must have one and only one result", origOp->getName(),
-                      origOp->getLoc());
 
     const auto baseResType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
     const auto tiledResType = getDenseTileType(baseResType, outputTile.offsets, outputTile.shape);
@@ -286,7 +257,8 @@ void PrefetchTilingPass::safeRunOnFunc() {
     target.addLegalOp<IE::SliceOp, IE::ConcatOp>();
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
-            return !iface.needTiling(_log.nest());
+          const auto resShape = getShape(op->getResult(0));
+          return iface.isSupportedTiling({TileInfo(resShape)}, _log.nest());
         }
 
         return true;
