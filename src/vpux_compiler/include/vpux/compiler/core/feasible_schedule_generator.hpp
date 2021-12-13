@@ -65,13 +65,23 @@ public:
         }
     };  // struct min_heap_ordering_t //
 
+    struct operation_comparator_t {
+    bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+
+        int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
+        int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
+
+        return uniqueId1 < uniqueId2;
+    }
+    };
+
     using delay_t = size_t;
     using schedulable_ops_t = std::list<mlir::Operation*>;
     typedef typename schedulable_ops_t::iterator schedulable_ops_iterator_t;
     using processed_ops_t = std::set<mlir::Operation*>;
     using schedule_heap_t = std::vector<heap_element_t>;
-    using operation_in_degree_t = std::map<mlir::Operation*, size_t>;
-    using priority_map_t = std::map<mlir::Operation*, size_t>;
+    using operation_in_degree_t = std::map<mlir::Operation*, size_t, operation_comparator_t>;
+    using priority_map_t = std::map<mlir::Operation*, size_t, operation_comparator_t>;
     using resource_utility_map_t = std::unordered_map<mlir::Operation*, unsigned>;
     resource_utility_map_t resource_utility_map_;
 
@@ -126,8 +136,8 @@ protected:
     // std::unordered_map<mlir::Operation*, size_t> _operationOutDegree;
     SmallVector<IERT::LayerOpInterface> _allTaskOps;
     SmallVector<VPURT::DeclareVirtualBarrierOp> _allBarrierOps;
-    static std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap;
-    static std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierConsumersMap;
+    static std::map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap;
+    static std::map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierConsumersMap;
 };
 
 }  // namespace vpux

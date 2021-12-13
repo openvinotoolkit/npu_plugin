@@ -54,16 +54,44 @@ public:
     explicit TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers,
                                         int64_t slotCount);
 
-    // typedef BarrierScheduleGenerator scheduler_t;
+    struct operation_comparator_t {
+    bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+
+        int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op1)->getAttr("id").cast<mlir::IntegerAttr>().getInt());
+        int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op2)->getAttr("id").cast<mlir::IntegerAttr>().getInt());
+
+        return uniqueId1 < uniqueId2;
+    }
+    };
+
+    struct task_operation_comparator_t {
+    bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+
+        int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
+        int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
+
+        return uniqueId1 < uniqueId2;
+    }
+    };
+
     typedef size_t schedule_time_t;
-    std::unordered_map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>
-            configureBarrierOpUpdateWaitMap;  // update,wait
+    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,std::set<mlir::Operation*, task_operation_comparator_t>>,operation_comparator_t> configureBarrierOpUpdateWaitMap;  // update,wait
 
     // One transition structure for each physical barrier //
     // TODO John: Move barrier_transition_structure_t to another file
     class barrier_transition_structure_t {
     public:
-        typedef std::set<mlir::Operation*> producers_t;
+       struct operation_comparator_t {
+            bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+
+            int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
+            int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
+
+            return uniqueId1 < uniqueId2;
+        }
+        };
+
+        typedef std::set<mlir::Operation*,operation_comparator_t> producers_t;
         typedef typename producers_t::const_iterator producer_iterator_t;
 
         barrier_transition_structure_t(mlir::FuncOp func, TokenBasedBarrierScheduler& tokenBasedBarrierScheduler,
@@ -236,15 +264,15 @@ public:
                                                  mlir::OpBuilder& builder) {
             Logger::global().error("CREATING A NEW BARRIER TASK");
 
-            static size_t barrier_task_id = 0UL;
+            static size_t barrier_task_id = 1UL;
 
             // mlir::OpBuilder builder(_func.getBody());
             // builder.setInsertionPointAfter(Operation *op);
             auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc(),
                                                                              barrier_task_id);  // Neds to be virtual.
 
-            std::set<mlir::Operation*> newBarrierProducers{};
-            std::set<mlir::Operation*> newBarrierConsumers{};
+            std::set<mlir::Operation*, task_operation_comparator_t> newBarrierProducers{};
+            std::set<mlir::Operation*, task_operation_comparator_t> newBarrierConsumers{};
             tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.insert(
                     std::make_pair(newBarrier, std::make_pair(newBarrierProducers, newBarrierConsumers)));
 

@@ -16,8 +16,8 @@
 
 using namespace vpux;
 
-std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenerator::barrierProducersMap{};
-std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenerator::barrierConsumersMap{};
+std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenerator::barrierProducersMap{};
+std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenerator::barrierConsumersMap{};
 
 static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
 FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func,
