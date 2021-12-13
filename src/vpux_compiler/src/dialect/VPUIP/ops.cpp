@@ -152,17 +152,17 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
     const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
     const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
 
-    const auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    // const auto module = origOp->getParentOfType<mlir::ModuleOp>();
+    // const auto arch = VPU::getArch(module);
+    // auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
-        if (arch != VPU::ArchKind::MTL && channelsInfo != nullptr) {
-            const auto chanAlignment = channelsInfo.getChannelAlignment();
-            if (outputTile.shape[Dims4D::Act::C] != chanAlignment) {
-                return false;
-            }
-        }
+        // if (arch != VPU::ArchKind::MTL && channelsInfo != nullptr) {
+        //     const auto chanAlignment = channelsInfo.getChannelAlignment();
+        //     if (outputTile.shape[Dims4D::Act::C] != chanAlignment) {
+        //         return false;
+        //     }
+        // }
 
         const auto origInputShape = getShape(origOp.input());
         const auto origFilterShape = getShape(origOp.filter());
