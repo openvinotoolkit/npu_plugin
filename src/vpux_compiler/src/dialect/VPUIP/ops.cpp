@@ -98,6 +98,25 @@ public:
         return VPUIP::NCEInvariant::getChannelAlignment(inputType.getElementType());
     }
 
+    bool checkChannelRestrictions(mlir::Operation* op, const int64_t channels) const {
+        if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
+            // there are no such restrictions in SW mode
+            return true;
+        }
+
+        const auto module = op->getParentOfType<mlir::ModuleOp>();
+        const auto arch = VPU::getArch(module);
+
+        if (mlir::isa<IE::GroupConvolutionOp>(op) || (arch == VPU::ArchKind::MTL && mlir::isa<IE::MaxPoolOp>(op))) {
+            // HW restrictions for channel number
+            SmallVector<size_t> availiableChannels = {16, 32, 64};
+            return std::find(availiableChannels.begin(), availiableChannels.end(), channels) !=
+                   availiableChannels.end();
+        }
+
+        return true;
+    }
+
 private:
     static bool canBeExecutedOnNCE(mlir::Operation* op) {
         if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
@@ -152,16 +171,11 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
     const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
     const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
 
-    const auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
     auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
-        if (arch != VPU::ArchKind::MTL && channelsInfo != nullptr) {
-            const auto chanAlignment = channelsInfo.getChannelAlignment();
-            if (outputTile.shape[Dims4D::Act::C] != chanAlignment) {
-                return false;
-            }
+        if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(outputTile.shape[Dims4D::Act::C])) {
+            return false;
         }
 
         const auto origInputShape = getShape(origOp.input());
@@ -191,7 +205,13 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
     const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
 
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(outputTile.shape[Dims4D::Act::C])) {
+            return false;
+        }
+
         const auto origInputShape = getShape(origOp.input());
 
         const auto inputTiling = backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(),
