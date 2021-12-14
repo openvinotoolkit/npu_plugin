@@ -40,6 +40,75 @@ FeasibleMemorySchedulerSpilling::FeasibleMemorySchedulerSpilling(mlir::FuncOp ne
                       "Unable to find insertion point for new allocation operations");
 }
 
+void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
+        SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps) {
+    _log.trace("Remove redundant Spill Writes");
+
+    // Flow for identifying if SpillWrite can be removed
+    // 1. Traverse scheduledOps container for SpillWrite type ops
+    // 2. Redundant Spill Write detection
+    //   a) Check if matching SpillWrite was already encountered
+    //   b) (TODO) Check if for a consecutive SpillWrite buffer state has not changed
+    //      since previous SpillRead. If there was an operation in between writing to it
+    //      then such SpillWrite cannot be removed
+    // 3. Store information about SpillWrite
+    // 4. Remove all previously identified redundant SpillWrite operations
+    //    from scheduledOps structure
+
+    SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> spillWrites;
+    SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> duplicateSpillWrites;
+    SmallVector<size_t> duplicateSpillWritesIndexes;
+
+    size_t index = 0;
+    for (auto& op : scheduledOps) {
+        if (op.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_WRITE) {
+            if (std::find_if(spillWrites.begin(), spillWrites.end(),
+                             [op](FeasibleMemoryScheduler::ScheduledOpInfo spillWriteOp) {
+                                 if (op.resourceInfo_.empty() || spillWriteOp.resourceInfo_.empty()) {
+                                     return false;
+                                 }
+
+                                 return op.getBuffer(0) == spillWriteOp.getBuffer(0);
+                             }) != spillWrites.end()) {
+                // Duplication detected
+                duplicateSpillWrites.push_back(op);
+                duplicateSpillWritesIndexes.push_back(index);
+            }
+            spillWrites.push_back(op);
+        }
+        index++;
+    }
+    _log.trace("Spill writes - {0}, duplicate spill writes - {1}", spillWrites.size(), duplicateSpillWrites.size());
+
+    // Remove in reverse order to have indexes valid after erasing entries in scheduledOp
+    for (auto opIt = duplicateSpillWritesIndexes.rbegin(); opIt != duplicateSpillWritesIndexes.rend(); opIt++) {
+        scheduledOps.erase(scheduledOps.begin() + *opIt);
+    }
+
+    // for (auto& op : duplicateSpillWrites) {
+    //     auto opToRemove = std::find_if(scheduledOps.begin(), scheduledOps.end(),
+    //                                    [op](FeasibleMemoryScheduler::ScheduledOpInfo schedOp) {
+    //                                        if (schedOp.opType_ !=
+    //                                        FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_WRITE) {
+    //                                            return false;
+    //                                        }
+
+    //                                        if (schedOp.time_ != op.time_ || schedOp.op_ != op.op_) {
+    //                                            return false;
+    //                                        }
+
+    //                                        if (op.resourceInfo_.empty() || schedOp.resourceInfo_.empty()) {
+    //                                            return false;
+    //                                        }
+
+    //                                        return op.getBuffer(0) == schedOp.getBuffer(0);
+    //                                    });
+    //     if (opToRemove != scheduledOps.end()) {
+    //         scheduledOps.erase(opToRemove);
+    //     }
+    // }
+}
+
 SmallVector<mlir::Value> FeasibleMemorySchedulerSpilling::getAsyncResultsForBuffer(
         mlir::async::ExecuteOp opThatWasSpilled, mlir::Value buffer) {
     SmallVector<mlir::Value> buffersToCheck = {buffer};
@@ -485,10 +554,11 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
     // After both SpillWrite and SpillRead are inserted update connections
     updateSpillWriteReadUsers(spillBuffer, spillWriteExecOp, spillReadExecOp);
 
-    // Remove given spillWrite operation from opId-spillWrite pair vector storage
-    // after it was used to prevent from invalid usage once same buffer gets
-    // spilled for a second time
-    _opIdAndSpillWritePairs.erase(opIdAndSpillWritePair);
+    // mateusz
+    // // Remove given spillWrite operation from opId-spillWrite pair vector storage
+    // // after it was used to prevent from invalid usage once same buffer gets
+    // // spilled for a second time
+    // _opIdAndSpillWritePairs.erase(opIdAndSpillWritePair);
 
     size_t spillReadIndex = _depsInfo.getIndex(spillReadExecOp);
     _log.trace("Spill Read new opId - '{0}'", spillReadIndex);
