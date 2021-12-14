@@ -34,21 +34,37 @@ bool TokenBasedBarrierScheduler::isPathExist(mlir::Operation* a, mlir::Operation
     if (numa >= numb)
         return false;
     else {
-        for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end();
-             iter++) {
-            auto produces = (*iter).second.first;
-            if (std::find(produces.begin(), produces.end(), a) != produces.end()) {
-                auto consumers = (*iter).second.second;
-                if (std::find(consumers.begin(), consumers.end(), b) != consumers.end())
+        auto updateBarriers = configureTaskOpUpdateWaitMap[a].second;
+        std::set<mlir::Operation*> consumers;
+        for (auto iter = updateBarriers.begin(); iter != updateBarriers.end(); iter++) {
+            auto barrierConsumers = configureBarrierOpUpdateWaitMap[*iter].second;
+            consumers.insert(barrierConsumers.begin(), barrierConsumers.end());
+        }
+
+        if (std::find(consumers.begin(), consumers.end(), b) != consumers.end())
+            return true;
+        else {
+            for (auto consumer = consumers.begin(); consumer != consumers.end(); consumer++) {
+                if (isPathExist(*consumer, b))
                     return true;
-                else {
-                    for (auto consumer = consumers.begin(); consumer != consumers.end(); consumer++) {
-                        if (isPathExist(*consumer, b))
-                            return true;
-                    }
-                }
             }
         }
+
+        // for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end();
+        //      iter++) {
+        //     auto produces = (*iter).second.first;
+        //     if (std::find(produces.begin(), produces.end(), a) != produces.end()) {
+        //         auto consumers = (*iter).second.second;
+        //         if (std::find(consumers.begin(), consumers.end(), b) != consumers.end())
+        //             return true;
+        //         else {
+        //             for (auto consumer = consumers.begin(); consumer != consumers.end(); consumer++) {
+        //                 if (isPathExist(*consumer, b))
+        //                     return true;
+        //             }
+        //         }
+        //     }
+        // }
         return false;
     }
 }
@@ -133,9 +149,41 @@ size_t TokenBasedBarrierScheduler::schedule() {
         op.waitBarriersMutable().clear();
     });
 
+    for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+        auto barrierOp = (*iter).first;
+        auto producers = (*iter).second.first;
+        auto consumers = (*iter).second.second;
+        for (auto prod = producers.begin(); prod != producers.end(); prod++) {
+            auto taskUpateItr = configureTaskOpUpdateWaitMap.find(*prod);
+            if (taskUpateItr != configureTaskOpUpdateWaitMap.end()) {
+                taskUpateItr->second.second.insert(barrierOp);
+            } else {
+                std::set<mlir::Operation*> newBarrierProducers{};
+                std::set<mlir::Operation*> newBarrierConsumers{barrierOp};
+                configureTaskOpUpdateWaitMap.insert(
+                        std::make_pair(*prod, std::make_pair(newBarrierProducers, newBarrierConsumers)));
+            }
+        }
+
+        for (auto cons = consumers.begin(); cons != consumers.end(); cons++) {
+            auto taskWaitItr = configureTaskOpUpdateWaitMap.find(*cons);
+            if (taskWaitItr != configureTaskOpUpdateWaitMap.end()) {
+                taskWaitItr->second.first.insert(barrierOp);
+            } else {
+                std::set<mlir::Operation*> newBarrierProducers{barrierOp};
+                std::set<mlir::Operation*> newBarrierConsumers{};
+                configureTaskOpUpdateWaitMap.insert(
+                        std::make_pair(*cons, std::make_pair(newBarrierProducers, newBarrierConsumers)));
+            }
+        }
+    }
+
+    std::cout << "Done creating configureTaskOpUpdateWaitMap" << std::endl;
+
     // remove redundant deps
     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
         // producers
+        std::cout << (*iter).first->getAttr("id").cast<mlir::IntegerAttr>().getInt() << std::endl;
         auto producers = (*iter).second.first;
         for (auto prod = producers.begin(); prod != producers.end();) {
             auto prod1 = prod;
@@ -145,10 +193,12 @@ size_t TokenBasedBarrierScheduler::schedule() {
                     auto removedIter = prod1;
                     prod1++;
                     producers.erase(removedIter);
+                    configureTaskOpUpdateWaitMap[*prod1].second.erase((*iter).first);
                 } else if (isPathExist(*prod, *prod1)) {
                     auto removedIter = prod;
                     prod++;
                     producers.erase(removedIter);
+                    configureTaskOpUpdateWaitMap[*prod].second.erase((*iter).first);
                     break;
                 } else
                     prod1++;
@@ -168,10 +218,12 @@ size_t TokenBasedBarrierScheduler::schedule() {
                     auto removedIter = cons1;
                     cons1++;
                     consumers.erase(removedIter);
+                    configureTaskOpUpdateWaitMap[*cons1].first.erase((*iter).first);
                 } else if (isPathExist(*cons1, *cons)) {
                     auto removedIter = cons;
                     cons++;
                     consumers.erase(removedIter);
+                    configureTaskOpUpdateWaitMap[*cons].first.erase((*iter).first);
                     break;
                 } else
                     cons1++;

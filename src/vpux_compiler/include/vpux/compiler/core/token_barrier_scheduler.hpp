@@ -87,6 +87,10 @@ public:
              operation_comparator_t>
             configureBarrierOpUpdateWaitMap;  // update,wait
 
+    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>,
+                                         std::set<mlir::Operation*>>>
+            configureTaskOpUpdateWaitMap;  // update,wait
+
     // One transition structure for each physical barrier //
     // TODO John: Move barrier_transition_structure_t to another file
     class barrier_transition_structure_t {
