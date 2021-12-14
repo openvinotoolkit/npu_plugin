@@ -129,6 +129,11 @@ def IE_AlignedChannelsOpInterface : OpInterface<"AlignedChannelsOpInterface"> {
         InterfaceMethod<
             "Get channel alignement factor in elements",
             "int64_t", "getChannelAlignment", (ins)
+        >,
+
+        InterfaceMethod<
+            "Check HW channel number restrictions",
+            "bool", "checkChannelRestrictions", (ins "const int64_t":$channels)
         >
     ];
 }

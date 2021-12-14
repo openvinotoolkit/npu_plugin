@@ -20,6 +20,14 @@ int64_t getChannelAlignment();
 Get channel alignement factor in elements
 NOTE: This method *must* be implemented by the user.
 
+#### `checkChannelRestrictions`
+
+```c++
+bool checkChannelRestrictions(const int64_t channels);
+```
+Check HW channel number restrictions
+NOTE: This method *must* be implemented by the user.
+
 ## LayerOpInterface (`IE_LayerOpInterface`)
 
 Base interface for IE Layer Operation
