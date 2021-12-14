@@ -115,7 +115,7 @@ void act_shave_runtime_shaveMain() {
 
     win_d_address = 0x2E000000;
     shv_job_header* job_ptr = 0;
-    set_window_address(1, win_d_address);
+//    set_window_address(1, win_d_address);
 
     while(1) {
         fifoWaitGpio();
@@ -160,17 +160,18 @@ void act_shave_runtime_shaveMain() {
             // execute kernel
         auto kernel_func = reinterpret_cast<void (*)(void *)>(job_ptr->shv_kernel_address);
         if (kernel_func) {
+            set_window_address(1, job_ptr->shv_kernel_address);
             (*kernel_func)(reinterpret_cast<void *>(actShaveParam));
         }
 
             // decrement_wait_barriers(job_ptr->wait_barrier_mask);
             // decrement_update_barriers(job_ptr->update_barrier_mask);
 
-        }
+//        }
         if(job_ptr->job_completed_pointer){
             *reinterpret_cast<uint32_t*>(job_ptr->job_completed_pointer) = 1;
         }
-        continue;
+//        continue;
     }
 
 //    write(0x2e1100B0, win_c_address);
