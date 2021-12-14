@@ -171,6 +171,7 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
         if (cfg->kernel) {
 #ifdef CONFIG_TARGET_SOC_3720
             set_window_address(1, cfg->kernel);
+//#else
 #endif
             Kernel k = reinterpret_cast<Kernel>(cfg->kernel);
             (*k)(reinterpret_cast<uint32_t>(cmxParams->argBuffer));
