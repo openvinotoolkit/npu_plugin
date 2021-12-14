@@ -163,6 +163,19 @@ def DPUProfiling : PassBase<"dpu-profiling", "vpux::ModulePass"> {
     }];
 }
 
+// Linearization
+//
+
+def Linearization : PassBase<"linearization", "vpux::ModulePass"> {
+    let summary = "Perform linearization of the IR";
+
+    let description = [{
+        Perform linearization of the IR.
+    }];
+
+    let constructor = "vpux::IERT::createLinearizationPass()";
+}
+
 //=================================================================================
 // Asynchronous Scheduling
 //=================================================================================

@@ -193,6 +193,25 @@ void FeasibleAllocationPass::safeRunOnModule() {
     auto& liveRangeInfo = getChildAnalysis<MemLiveRangeInfo>(netFunc);
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
 
+
+    mlir::async::ExecuteOp prevExecOp;
+    for (auto curExecOp : netFunc.getOps<mlir::async::ExecuteOp>()) {
+
+        //TODO: remove temporary linearization
+        if (prevExecOp != nullptr) {
+            _log.trace("Add explicit dependency from '{0}' to '{1}'", prevExecOp->getLoc(), curExecOp->getLoc());
+            depsInfo.addDependency(prevExecOp, curExecOp);
+        }
+
+        prevExecOp = curExecOp;
+
+        _log = _log.unnest();
+    }
+
+    depsInfo.updateTokenDependencies();
+
+
+
     // feasible memory scheduler - list scheduler
     FeasibleMemoryScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, aliasesInfo, _log, scan);
     // 1. initial schedule
