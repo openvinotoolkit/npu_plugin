@@ -86,6 +86,7 @@ private:
 void BarrierSimulator::assignVirtualIds(mlir::FuncOp func) {
     int64_t virtualId = 0;
     func.walk([&](VPURT::ConfigureBarrierOp op) {
+        std::cout << "setting virtualIDs" << std::endl;
         op->setAttr(virtualIdAttrName, getIntAttr(_ctx, virtualId++));
     });
 }
@@ -97,6 +98,7 @@ void BarrierSimulator::cleanUpVirtualIds(mlir::FuncOp func) {
 }
 
 int64_t BarrierSimulator::getVirtualId(VPURT::ConfigureBarrierOp op) {
+    std::cout << "get virtualIDs" << std::endl;
     return checked_cast<int64_t>(op->getAttr(virtualIdAttrName).cast<mlir::IntegerAttr>().getInt());
 }
 

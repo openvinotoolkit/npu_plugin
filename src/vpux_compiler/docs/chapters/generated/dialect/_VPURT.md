@@ -35,7 +35,7 @@ operation ::= `VPURT.ConfigureBarrier` `<` $id `>` attr-dict `->` type(results)
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `id` | mlir::IntegerAttr | Integer attribute
-`virtualId` | mlir::IntegerAttr | Integer attribute
+`virtualbarrierId` | mlir::IntegerAttr | Integer attribute
 
 #### Results:
 
