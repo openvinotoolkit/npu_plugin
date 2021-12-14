@@ -123,7 +123,7 @@ TEST_P(HeteroPluginSplitNetworkTest, splitOverAllLayers) {
             if (finishTime == 0) {
                 const int64_t nowtime = time_int64();
                 sqlite.updateLayer(startTime, nowtime, inferStateEnum::FAIL_REBOOT);
-                std::cout << "Last persisted split layer '" << lastLayer << "', updated status "
+                std::cout << "Last persisted split layer was '" << lastLayer << "' with no finish time; set updated status to rebooted "
                           << (int)inferStateEnum::FAIL_REBOOT << std::endl;
             } else {
                 std::cerr << "Invalid sqlite database state: last to be run record has finish time " << std::endl;
