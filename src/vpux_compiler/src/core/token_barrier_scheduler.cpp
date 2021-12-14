@@ -25,7 +25,7 @@ static constexpr StringLiteral schedulingNumberAttrName = "SchedulingNumber";
 
 TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers,
                                                        int64_t slotCount)
-        : _ctx(ctx), _func(func), builder(_func.getBody()), barrierCount_(numBarriers), slotCount_(slotCount) {
+        : _ctx(ctx), _func(func), _builder(_func.getBody()), _barrierCount(numBarriers), _slotCount(slotCount) {
 }
 
 bool TokenBasedBarrierScheduler::isPathExist(mlir::Operation* a, mlir::Operation* b) {
@@ -60,14 +60,14 @@ size_t TokenBasedBarrierScheduler::schedule() {
     barrier_association_table_t barrier_association;
 
     Logger::global().error("STEP-0: Initialize the association table");
-    for (size_t barrierId = 1; barrierId <= barrierCount_; barrierId++) {
-        auto bitr = barrier_association.insert(std::make_pair(barrierId, barrier_transition_structure_t(_func, *this)));
-        barrier_transition_structure_t& bstructure = (bitr.first)->second;
+    for (size_t barrierId = 1; barrierId <= _barrierCount; barrierId++) {
+        auto bitr = barrier_association.insert(std::make_pair(barrierId, barrierTransitionStructure(_func, *this)));
+        barrierTransitionStructure& bstructure = (bitr.first)->second;
         bstructure.init();
     }
     {
         Logger::global().error("STEP-1: run the scheduler");
-        BarrierScheduleGenerator scheduler_begin(_ctx, _func, barrierCount_, slotCount_);
+        BarrierScheduleGenerator scheduler_begin(_ctx, _func, _barrierCount, _slotCount);
         BarrierScheduleGenerator scheduler_end(_ctx, _func);
         size_t scheduling_number = 0UL;
 
@@ -86,7 +86,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
             auto bitr = barrier_association.find(sinfo.barrier_index_);
             assert(bitr != barrier_association.end());
-            barrier_transition_structure_t& bstructure = bitr->second;
+            barrierTransitionStructure& bstructure = bitr->second;
 
             // Set scheduling number
             Logger::global().error("Assigning scheduling number {0} to the Operation {1} ", scheduling_number,
@@ -95,7 +95,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
             scheduling_number++;
             // STEP-2: update barrier structure invariant //
-            bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo, builder);
+            bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo, _builder);
 
             if (new_barrier_task_created) {
                 ++btask_count;
@@ -106,7 +106,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
     // STEP-2.5: process trailing barrier control structures //
     {
         for (auto bitr = barrier_association.begin(); bitr != barrier_association.end(); ++bitr) {
-            barrier_transition_structure_t& bstruct = bitr->second;
+            barrierTransitionStructure& bstruct = bitr->second;
             bstruct.close_barrier_producer_list();
         }
     }
