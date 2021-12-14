@@ -110,7 +110,7 @@ namespace graphOptimizer
 {
 
 HeuristicGraphOptimizer::HeuristicGraphOptimizer(OpModel& model,mv::Element& passDesc) :
-        model_(model),passDesc_(passDesc)
+        model_(model),passDesc_(passDesc), strategy_model_()
 {
 }
 
