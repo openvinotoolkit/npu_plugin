@@ -157,7 +157,7 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
 
-        const auto inputTiling = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
+        const auto inputTiling = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
                                                    origOp.strides(), origOp.pads_begin(), origOp.pads_end());
 
         const auto& tileConf = inputTiling.tiles;
