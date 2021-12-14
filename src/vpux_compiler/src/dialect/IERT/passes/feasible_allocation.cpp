@@ -198,13 +198,14 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // 1. initial schedule
     auto scheduledOps = scheduler.generateSchedule();
 
-    // 2. optimize spills
-
-    // 3. re-order the IR
+    // 2. re-order the IR
     updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
 
-    // 4. insert spill dmas
+    // 3. optimize spills
     FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
+    spilling.removeRedundantSpillWrites(scheduledOps);
+
+    // 4. insert spill dmas
     spilling.insertSpillCopyOps(scheduledOps);
 
     // 5. update dependencies
