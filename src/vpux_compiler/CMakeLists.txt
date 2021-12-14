@@ -260,9 +260,6 @@ add_enum_attrs("VPU")
 add_passes("dialect/VPU" "VPU")
 
 add_dialect("EMU")
-add_op_interfaces("dialect/EMU")
-add_enum_attrs("EMU")
-add_passes("dialect/EMU" "EMU")
 
 add_dialect("IERT")
 add_op_interfaces("dialect/IERT")

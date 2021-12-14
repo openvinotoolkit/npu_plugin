@@ -17,6 +17,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -33,8 +34,8 @@ static constexpr int64_t WEIGHT_TABLE_NUM_ELEMENTS_PER_OC = 4;
 namespace {
 
 mlir::LogicalResult verifyNCEConv(EMU::NCEClusterTaskOp op) {
-    VPUX_THROW_UNLESS(op.task_type() == EMU::NCETaskType::CONV, "Expected task type '{0}', but got '{1}'",
-                      EMU::NCETaskType::CONV, op.task_type());
+    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::CONV, "Expected task type '{0}', but got '{1}'",
+                      VPUIP::NCETaskType::CONV, op.task_type());
 
     if (op.weights() == nullptr) {
         return errorAt(op, "weights is required for NCETaskType : '{0}'", op.task_type());
@@ -68,9 +69,9 @@ mlir::LogicalResult verifyNCEConv(EMU::NCEClusterTaskOp op) {
 }
 
 mlir::LogicalResult verifyNCEPool(EMU::NCEClusterTaskOp op) {
-    VPUX_THROW_UNLESS(op.task_type() == EMU::NCETaskType::AVEPOOL || op.task_type() == EMU::NCETaskType::MAXPOOL,
-                      "Expected task type '{0}' or '{1}', but got '{2}'", EMU::NCETaskType::AVEPOOL,
-                      EMU::NCETaskType::MAXPOOL, op.task_type());
+    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::AVEPOOL || op.task_type() == VPUIP::NCETaskType::MAXPOOL,
+                      "Expected task type '{0}' or '{1}', but got '{2}'", VPUIP::NCETaskType::AVEPOOL,
+                      VPUIP::NCETaskType::MAXPOOL, op.task_type());
 
     if (op.weight_table() == nullptr) {
         return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
@@ -90,8 +91,8 @@ mlir::LogicalResult verifyNCEPool(EMU::NCEClusterTaskOp op) {
 }
 
 mlir::LogicalResult verifyNCEEltwise(EMU::NCEClusterTaskOp op) {
-    VPUX_THROW_UNLESS(op.task_type() == EMU::NCETaskType::ELTWISE, "Expected task type '{0}', but got '{1}'",
-                      EMU::NCETaskType::ELTWISE, op.task_type());
+    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::ELTWISE, "Expected task type '{0}', but got '{1}'",
+                      VPUIP::NCETaskType::ELTWISE, op.task_type());
 
     if (op.weight_table() != nullptr) {
         return errorAt(op, "weight_table should be empty for NCETaskType : '{0}'", op.task_type());
@@ -111,8 +112,8 @@ mlir::LogicalResult verifyNCEEltwise(EMU::NCEClusterTaskOp op) {
 }
 
 mlir::LogicalResult verifyNCEDWConv(EMU::NCEClusterTaskOp op) {
-    VPUX_THROW_UNLESS(op.task_type() == EMU::NCETaskType::DWCONV, "Expected task type '{0}', but got '{1}'",
-                      EMU::NCETaskType::CONV, op.task_type());
+    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::DWCONV, "Expected task type '{0}', but got '{1}'",
+                      VPUIP::NCETaskType::CONV, op.task_type());
 
     if (op.weights() == nullptr) {
         return errorAt(op, "weights is required for NCETaskType : '{0}'", op.task_type());
@@ -148,19 +149,19 @@ mlir::LogicalResult verifyNCEDWConv(EMU::NCEClusterTaskOp op) {
 }  // namespace
 
 mlir::LogicalResult vpux::EMU::verifyOp(EMU::NCEClusterTaskOp op) {
-    if (op.task_type() == EMU::NCETaskType::CONV) {
+    if (op.task_type() == VPUIP::NCETaskType::CONV) {
         if (mlir::failed(verifyNCEConv(op))) {
             return mlir::failure();
         }
-    } else if (op.task_type() == EMU::NCETaskType::MAXPOOL || op.task_type() == EMU::NCETaskType::AVEPOOL) {
+    } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL || op.task_type() == VPUIP::NCETaskType::AVEPOOL) {
         if (mlir::failed(verifyNCEPool(op))) {
             return mlir::failure();
         }
-    } else if (op.task_type() == EMU::NCETaskType::ELTWISE) {
+    } else if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {
         if (mlir::failed(verifyNCEEltwise(op))) {
             return mlir::failure();
         }
-    } else if (op.task_type() == EMU::NCETaskType::DWCONV) {
+    } else if (op.task_type() == VPUIP::NCETaskType::DWCONV) {
         if (mlir::failed(verifyNCEDWConv(op))) {
             return mlir::failure();
         }
@@ -183,84 +184,84 @@ mlir::LogicalResult vpux::EMU::verifyOp(EMU::NCEClusterTaskOp op) {
 
 namespace {
 
-MVCNN::DPULayerType getDPULayerType(EMU::NCETaskType taskType) {
+MVCNN::DPULayerType getDPULayerType(VPUIP::NCETaskType taskType) {
     switch (taskType) {
-    case EMU::NCETaskType::CONV:
+    case VPUIP::NCETaskType::CONV:
         return MVCNN::DPULayerType_CONV;
-    case EMU::NCETaskType::DWCONV:
+    case VPUIP::NCETaskType::DWCONV:
         return MVCNN::DPULayerType_DWCONV;
-    case EMU::NCETaskType::MAXPOOL:
+    case VPUIP::NCETaskType::MAXPOOL:
         return MVCNN::DPULayerType_MAXPOOL;
-    case EMU::NCETaskType::AVEPOOL:
+    case VPUIP::NCETaskType::AVEPOOL:
         return MVCNN::DPULayerType_AVEPOOL;
-    case EMU::NCETaskType::FCL:
+    case VPUIP::NCETaskType::FCL:
         return MVCNN::DPULayerType_FCL;
-    case EMU::NCETaskType::ELTWISE:
+    case VPUIP::NCETaskType::ELTWISE:
         return MVCNN::DPULayerType_ELTWISE;
-    case EMU::NCETaskType::IDENTITY:
+    case VPUIP::NCETaskType::IDENTITY:
         return MVCNN::DPULayerType_IDENTITY;
-    case EMU::NCETaskType::CMCONV:
+    case VPUIP::NCETaskType::CMCONV:
         return MVCNN::DPULayerType_CMCONV;
     default:
         VPUX_THROW("Unsupported DPU Layer type: '{0}'", taskType);
     }
 }
 
-MVCNN::PPELayerType getPPELayerType(EMU::PPELayerType ppeType) {
+MVCNN::PPELayerType getPPELayerType(VPUIP::PPELayerType ppeType) {
     switch (ppeType) {
-    case EMU::PPELayerType::STORE:
+    case VPUIP::PPELayerType::STORE:
         return MVCNN::PPELayerType_STORE;
-    case EMU::PPELayerType::LOAD:
+    case VPUIP::PPELayerType::LOAD:
         return MVCNN::PPELayerType_LOAD;
-    case EMU::PPELayerType::CLEAR:
+    case VPUIP::PPELayerType::CLEAR:
         return MVCNN::PPELayerType_CLEAR;
-    case EMU::PPELayerType::NOOP:
+    case VPUIP::PPELayerType::NOOP:
         return MVCNN::PPELayerType_NOOP;
-    case EMU::PPELayerType::HALT:
+    case VPUIP::PPELayerType::HALT:
         return MVCNN::PPELayerType_HALT;
-    case EMU::PPELayerType::ADD:
+    case VPUIP::PPELayerType::ADD:
         return MVCNN::PPELayerType_ADD;
-    case EMU::PPELayerType::SUB:
+    case VPUIP::PPELayerType::SUB:
         return MVCNN::PPELayerType_SUB;
-    case EMU::PPELayerType::MULT:
+    case VPUIP::PPELayerType::MULT:
         return MVCNN::PPELayerType_MULT;
-    case EMU::PPELayerType::MAXIMUM:
+    case VPUIP::PPELayerType::MAXIMUM:
         return MVCNN::PPELayerType_MAXIMUM;
-    case EMU::PPELayerType::MINIMUM:
+    case VPUIP::PPELayerType::MINIMUM:
         return MVCNN::PPELayerType_MINIMUM;
-    case EMU::PPELayerType::AND:
+    case VPUIP::PPELayerType::AND:
         return MVCNN::PPELayerType_AND;
-    case EMU::PPELayerType::OR:
+    case VPUIP::PPELayerType::OR:
         return MVCNN::PPELayerType_OR;
-    case EMU::PPELayerType::XOR:
+    case VPUIP::PPELayerType::XOR:
         return MVCNN::PPELayerType_XOR;
-    case EMU::PPELayerType::LRELU:
+    case VPUIP::PPELayerType::LRELU:
         return MVCNN::PPELayerType_LRELU;
-    case EMU::PPELayerType::LRELUX:
+    case VPUIP::PPELayerType::LRELUX:
         return MVCNN::PPELayerType_LRELUX;
-    case EMU::PPELayerType::LPRELU:
+    case VPUIP::PPELayerType::LPRELU:
         return MVCNN::PPELayerType_LPRELU;
-    case EMU::PPELayerType::CEIL:
+    case VPUIP::PPELayerType::CEIL:
         return MVCNN::PPELayerType_CEIL;
-    case EMU::PPELayerType::FLOOR:
+    case VPUIP::PPELayerType::FLOOR:
         return MVCNN::PPELayerType_FLOOR;
-    case EMU::PPELayerType::EXP:
+    case VPUIP::PPELayerType::EXP:
         return MVCNN::PPELayerType_EXP;
-    case EMU::PPELayerType::SIGMOID:
+    case VPUIP::PPELayerType::SIGMOID:
         return MVCNN::PPELayerType_SIGMOID;
-    case EMU::PPELayerType::TANH:
+    case VPUIP::PPELayerType::TANH:
         return MVCNN::PPELayerType_TANH;
-    case EMU::PPELayerType::SQRT:
+    case VPUIP::PPELayerType::SQRT:
         return MVCNN::PPELayerType_SQRT;
-    case EMU::PPELayerType::RSQRT:
+    case VPUIP::PPELayerType::RSQRT:
         return MVCNN::PPELayerType_RSQRT;
-    case EMU::PPELayerType::FLEXARB:
+    case VPUIP::PPELayerType::FLEXARB:
         return MVCNN::PPELayerType_FLEXARB;
-    case EMU::PPELayerType::NOT:
+    case VPUIP::PPELayerType::NOT:
         return MVCNN::PPELayerType_NOT;
-    case EMU::PPELayerType::ABS:
+    case VPUIP::PPELayerType::ABS:
         return MVCNN::PPELayerType_ABS;
-    case EMU::PPELayerType::NEG:
+    case VPUIP::PPELayerType::NEG:
         return MVCNN::PPELayerType_NEG;
     default:
         VPUX_THROW("Unsupported PPE Layer type: '{0}'", ppeType);

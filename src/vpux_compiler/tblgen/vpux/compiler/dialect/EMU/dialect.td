@@ -40,6 +40,7 @@ It has the following properties:
     let dependentDialects = [
         "vpux::Const::ConstDialect",
         "vpux::IE::IEDialect",
+        "vpux::VPU::VPUDialect",
         "mlir::StandardOpsDialect",
         "mlir::tensor::TensorDialect",
         "mlir::quant::QuantizationDialect"

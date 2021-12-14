@@ -18,9 +18,6 @@ to process encoding attribute in mlir::RankedTensorType
 This pass inlines 'async.execute' body to parent Block and replaces '!async.token' based dependencies with
 VPUIP virtual barriers.
 ### `-convert-declarations-to-VPUIP`: Convert declarations (constants and memory buffers) to VPUIP Dialect
-### `-convert-layers-to-EMU`: Convert Layers Operations to EMU Dialect (UPA tasks)
-This pass converts layer of IE Dialect into EMU dialect. Patterns are primarly
-descriptively defined in tablegen.
 ### `-convert-layers-to-VPUIP`: Convert Layers Operations to VPUIP Dialect (UPA and DMA tasks)
 ### `-convert-sw-layers-to-VPUIP`: Convert Software Layers Operations to VPUIP SW_kernel
 ### `-convert-to-nce-ops`: Convert to NCE2 ops

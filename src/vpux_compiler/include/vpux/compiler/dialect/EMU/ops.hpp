@@ -15,9 +15,8 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/EMU/attributes/enums.hpp"
-#include "vpux/compiler/dialect/EMU/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPU/dialect.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
@@ -51,27 +50,7 @@ namespace EMU {
 
 constexpr Bit FP16_SIZE = 16_Bit;
 
-mlir::LogicalResult verifyOp(ConvertUPAOp op);
-mlir::LogicalResult verifyOp(SoftMaxUPAOp op);
-mlir::LogicalResult verifyOp(PoolingUPAOp op);
-mlir::LogicalResult verifyOp(FakeQuantizeUPAOp op);
-mlir::LogicalResult verifyOp(QuantCastUPAOp op);
-mlir::LogicalResult verifyOp(PerAxisTileUPAOp op);
-mlir::LogicalResult verifyOp(ROIPoolingUPAOp op);
-mlir::LogicalResult verifyOp(ProposalUPAOp op);
-mlir::LogicalResult verifyOp(PermuteUPAOp op);
-mlir::LogicalResult verifyOp(CTCGreedyDecoderUPAOp op);
-mlir::LogicalResult verifyOp(MVNUPAOp op);
-mlir::LogicalResult verifyOp(PadUPAOp op);
-mlir::LogicalResult verifyOp(GatherUPAOp op);
-mlir::LogicalResult verifyOp(ConvolutionUPAOp op);
 mlir::LogicalResult verifyOp(NCEClusterTaskOp op);
-mlir::LogicalResult verifyOp(NormUPAOp op);
-mlir::LogicalResult verifyOp(ConcatUPAOp op);
-mlir::LogicalResult verifyOp(SplitUPAOp op);
-mlir::LogicalResult verifyOp(SliceUPAOp op);
-mlir::LogicalResult verifyOp(ReshapeUPAOp op);
-mlir::LogicalResult verifyOp(CopyUPAOp op);
 mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 
 }  // namespace EMU

@@ -56,17 +56,6 @@ void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, const LowerIERT
 }
 
 //
-// LowerIE2EMU
-//
-
-void vpux::buildLowerIE2EMUPipeline(mlir::OpPassManager& pm, Logger log) {
-    const auto grc = getDefaultGreedyRewriteConfig();
-
-    pm.addPass(createConvertLayers2EMUPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(grc));
-}
-
-//
 // registerConversionPipelines
 //
 
@@ -81,9 +70,4 @@ void vpux::registerConversionPipelines() {
             [](mlir::OpPassManager& pm, const LowerIERT2VPUIPOptions& options) {
                 buildLowerIERT2VPUIPPipeline(pm, options);
             });
-
-    mlir::PassPipelineRegistration<>("lower-IE-to-EMU", "Performs full lowering from the IE Dialect to EMU Dialect",
-                                     [](mlir::OpPassManager& pm) {
-                                         buildLowerIE2EMUPipeline(pm);
-                                     });
 }
