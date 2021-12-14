@@ -17,9 +17,16 @@
 
 using namespace vpux;
 
+
+TokenBasedBarrierScheduler::barrierTransitionStructure::barrierTransitionStructure(mlir::FuncOp func, TokenBasedBarrierScheduler& tokenBasedBarrierScheduler,
+                                       schedule_time_t time)
+                : _func(func), tokenBasedBarrierScheduler_(tokenBasedBarrierScheduler), time_(time), producers_() {
+            Logger::global().error("Initialising a new barrier_transition_structure");
+        }
+
 void TokenBasedBarrierScheduler::barrierTransitionStructure::init() {
     time_ = std::numeric_limits<schedule_time_t>::max();
-    prev_barrier_task_ = NULL;  // Initalize to Op 0 ?
+    prev_barrier_task_ = NULL;  
     curr_barrier_task_ = NULL;
     producers_.clear();
 }

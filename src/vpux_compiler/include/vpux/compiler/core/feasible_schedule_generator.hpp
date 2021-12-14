@@ -128,11 +128,7 @@ protected:
     processed_ops_t _processed_ops;
     priority_map_t _priority;
     resource_utility_map_t _resource_utility_map;
-    // outputs of the graph
-    llvm::DenseSet<mlir::Operation*> _outputOps;
-    // operation out-degree, number of outgoing edges
     std::map<mlir::Operation*, size_t> _outDegreeTable;
-
     SmallVector<IERT::LayerOpInterface> _allTaskOps;
     SmallVector<VPURT::DeclareVirtualBarrierOp> _allBarrierOps;
     static std::map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap;

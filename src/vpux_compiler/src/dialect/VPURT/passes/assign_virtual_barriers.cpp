@@ -42,7 +42,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
 
 
     // Barrier scheduler
-    TokenBasedBarrierScheduler barrierScheduler(&ctx, func, 4, 256);
+    TokenBasedBarrierScheduler barrierScheduler(&ctx, func, 4, 256, _log);
     barrierScheduler.schedule();
 
   

@@ -24,8 +24,8 @@ static constexpr StringLiteral schedulingNumberAttrName = "SchedulingNumber";
 //
 
 TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers,
-                                                       int64_t slotCount)
-        : _ctx(ctx), _func(func), _builder(_func.getBody()), _barrierCount(numBarriers), _slotCount(slotCount) {
+                                                       int64_t slotCount, Logger log)
+        : _ctx(ctx), _func(func), _builder(_func.getBody()), _barrierCount(numBarriers), _slotCount(slotCount), _log(log) {
 }
 
 bool TokenBasedBarrierScheduler::isPathExist(mlir::Operation* a, mlir::Operation* b) {

@@ -51,7 +51,7 @@ namespace vpux {
 class TokenBasedBarrierScheduler {
 public:
     explicit TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers,
-                                        int64_t slotCount);
+                                        int64_t slotCount, Logger log);
 
     struct operation_comparator_t {
         bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
@@ -79,16 +79,21 @@ public:
         }
     };
 
-    typedef size_t schedule_time_t;
-    std::map<mlir::Operation*,
-             std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
-                       std::set<mlir::Operation*, task_operation_comparator_t>>,
-             operation_comparator_t>
-            configureBarrierOpUpdateWaitMap;  // update,wait
+    using schedule_time_t = size_t;
+
+    /*Stores every barrier's associated update and wait operations*/
+    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*, task_operation_comparator_t>, std::set<mlir::Operation*, task_operation_comparator_t>>, operation_comparator_t> configureBarrierOpUpdateWaitMap;  // update,wait
 
     
     class barrierTransitionStructure {
     public:
+
+        barrierTransitionStructure(mlir::FuncOp func, TokenBasedBarrierScheduler& tokenBasedBarrierScheduler,
+                                       schedule_time_t time = std::numeric_limits<schedule_time_t>::max());
+
+        void init();
+        bool process_next_scheduled_op(const BarrierScheduleGenerator::schedule_info_t& sinfo, mlir::OpBuilder& builder);
+        void close_barrier_producer_list();
         struct operation_comparator_t {
             bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
                 int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op1)
@@ -104,38 +109,14 @@ public:
             }
         };
 
-        typedef std::set<mlir::Operation*, operation_comparator_t> producers_t;
-        typedef typename producers_t::const_iterator producer_iterator_t;
-
-        barrierTransitionStructure(mlir::FuncOp func, TokenBasedBarrierScheduler& tokenBasedBarrierScheduler,
-                                       schedule_time_t time = std::numeric_limits<schedule_time_t>::max())
-                : _func(func), tokenBasedBarrierScheduler_(tokenBasedBarrierScheduler), time_(time), producers_() {
-            Logger::global().error("Initialising a new barrier_transition_structure");
-        }
-
-        void init();
-   
-
-        // returns true if this call has resulted in creating a new barrier
-        // task (also means there is a temporal change) //
-        bool process_next_scheduled_op(const BarrierScheduleGenerator::schedule_info_t& sinfo,
-                                       mlir::OpBuilder& builder);
-
-        void close_barrier_producer_list();
+        using producers_t = std::set<mlir::Operation*, operation_comparator_t>;
+        using producer_iterator_t = typename producers_t::const_iterator;
 
     private:
-        void maintain_invariant_temporal_change(const BarrierScheduleGenerator::schedule_info_t& sinfo,
-                                                mlir::OpBuilder& builder);
-
-        // Maintain the invariant given that that we are closing the producer
-        // list of the current barrier.
-        inline void process_current_barrier_producer_list_close_event(mlir::Operation* bop_curr,
-                                                                      mlir::Operation* bop_prev);
-
+        void maintain_invariant_temporal_change(const BarrierScheduleGenerator::schedule_info_t& sinfo, mlir::OpBuilder& builder);
+        inline void process_current_barrier_producer_list_close_event(mlir::Operation* bop_curr, mlir::Operation* bop_prev);
         void add_scheduled_op_to_producer_list(const BarrierScheduleGenerator::schedule_info_t& sinfo);
-
-        mlir::Operation* create_new_barrier_task(const BarrierScheduleGenerator::schedule_info_t& sinfo,
-                                                 mlir::OpBuilder& builder);
+        mlir::Operation* create_new_barrier_task(const BarrierScheduleGenerator::schedule_info_t& sinfo, mlir::OpBuilder& builder);
 
         mlir::FuncOp _func;
         // Outer class
@@ -144,7 +125,7 @@ public:
         mlir::Operation* curr_barrier_task_;
         mlir::Operation* prev_barrier_task_;
         producers_t producers_;
-    };  // class barrierTransitionStructure //
+    };  
 
     size_t schedule();
     bool isPathExist(mlir::Operation* a, mlir::Operation* b);
@@ -152,6 +133,7 @@ public:
 private:
     typedef std::unordered_map<size_t, barrierTransitionStructure> barrier_association_table_t;
 
+    Logger _log;
     mlir::MLIRContext* _ctx;
     mlir::FuncOp _func;
     mlir::OpBuilder _builder;
