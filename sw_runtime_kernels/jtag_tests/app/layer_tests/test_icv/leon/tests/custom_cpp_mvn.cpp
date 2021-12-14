@@ -16,18 +16,27 @@ __attribute__((aligned(1024)))
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
 
-    const bool save_to_file = true;
+    const bool save_to_file = false;
     const bool customData = true;
 
-
     static constexpr std::initializer_list<SingleTest> mvn_test_list{
-            {{20, 3, 3},
-             {20, 3, 3},
+            {{20, 2, 10},
+             {20, 2, 10},
+             orderHWC,
+             FPE("mvn.elf"),
+             {/*across_channels*/ 0, /*normalize_variance*/ 0, /*eps = 10^(-5)*/ 925353388, sw_params::Location::NN_CMX}},
+            {{20, 2, 10},
+             {20, 2, 10},
+             orderHWC,
+             FPE("mvn.elf"),
+             {/*across_channels*/ 0, /*normalize_variance*/ 1, /*eps = 10^(-5)*/ 925353388, sw_params::Location::NN_CMX}},
+            {{20, 2, 10},
+             {20, 2, 10},
              orderCHW,
              FPE("mvn.elf"),
              {/*across_channels*/ 0, /*normalize_variance*/ 0, /*eps = 10^(-5)*/ 925353388, sw_params::Location::NN_CMX}},
-            {{20, 3, 3},
-             {20, 3, 3},
+            {{20, 2, 10},
+             {20, 2, 10},
              orderCHW,
              FPE("mvn.elf"),
              {/*across_channels*/ 0, /*normalize_variance*/ 1, /*eps = 10^(-5)*/ 925353388, sw_params::Location::NN_CMX}},
