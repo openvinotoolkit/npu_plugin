@@ -3071,14 +3071,11 @@ def IE_YuvToRgbOp :
 def IE_ExtractImagePatchesOp :
         IE_LayerOp<
             "ExtractImagePatches",
-            [
-                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
-            ]
         > {
     let summary = "InferenceEngine ExtractImagePatches layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$data,
+        4DTensorOf<[AnyType]>:$data,
 
         I64ArrayAttr:$strides,
         I64ArrayAttr:$sizes,
@@ -3089,10 +3086,8 @@ def IE_ExtractImagePatchesOp :
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        4DTensorOf<[AnyType]>:$output
     );
-
-    let hasCanonicalizer = 1;
 }
 
 #endif

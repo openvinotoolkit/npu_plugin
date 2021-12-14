@@ -1116,21 +1116,14 @@ def RewriteDepthToSpace :
 
 def createExtractImagePatchesUPAOp :
         NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::ConvolutionUPAOp>( //TODO
-                $_loc, $0, $1,
-                $2.size() == 1 ? $2[0] : nullptr,
-                $3, $4, $5, $6, $7, $8.getInt())
+            $_builder.create<vpux::VPUIP::ExtractImagePatchesUPAOp>( //TODO
+                $_loc, $0, $1, $2, $3, $4, $5, $6)
         }]>;
-
-def HasGroupsAttr : Constraint<CPred<"$0 != nullptr">>;
 
 def RewriteExtractImagePatches :
         Pat<
             (IERT_ExtractImagePatchesOp $data, $output, $sizes, $strides, $rates, $auto_pad),
-            (createExtractImagePatchesUPAOp $data, $output, $sizes, $strides, $rates, $auto_pad),
-            [
-                (HasGroupsAttr $groups)
-            ]
+            (createExtractImagePatchesUPAOp $data, $output, $sizes, $strides, $rates, $auto_pad)
         >;
 
 #endif

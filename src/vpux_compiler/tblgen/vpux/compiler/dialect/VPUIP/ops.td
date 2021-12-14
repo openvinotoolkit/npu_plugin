@@ -2880,10 +2880,9 @@ def VPUIP_ExtractImagePatchesUPAOp :
         VPUIP_UPATaskOp<1, "ExtractImagePatchesUPA",
             [
                 ViewLikeOpInterface,
-                IERT_SameElementType
             ]
         > {
-    let summary = "ExtractImagePatches UPA SHAVE kernel (reference implementation)";
+    let summary = "ExtractImagePatches UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$data,
@@ -2905,11 +2904,12 @@ def VPUIP_ExtractImagePatchesUPAOp :
     let builders = [
         OpBuilder<
             (ins
-                "mlir::Value":$data, "mlir::Value":$output,
-                "mlir::ArrayAttr":$sizes, "mlir::ArrayAttr":$strides,
+                "mlir::Value":$data, 
+                "mlir::Value":$output,
+                "mlir::ArrayAttr":$sizes, 
+                "mlir::ArrayAttr":$strides,
                 "mlir::ArrayAttr":$rates 
                 //"mlir::ArrayAttr":$auto_pad,
-                //"uint32_t":$groups
             )
         >
     ];

@@ -3362,11 +3362,11 @@ operation ::= `IE.ExtractImagePatches` `(` operands `)` attr-dict `:` type(opera
 
 | Operand | Description |
 | :-----: | ----------- |
-`data` | 4D tensor of 16-bit float or 32-bit float values
+`data` | 4D tensor of any type values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | 4D tensor of 16-bit float or 32-bit float values
+`output` | 4D tensor of any type values 
 

@@ -3125,12 +3125,12 @@ operation ::= `IERT.ExtractImagePatches` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`data` | memref of 4D tensor of 16-bit float or 32-bit float values
-`output_buff` | memref of 16-bit float or 32-bit float values
+`data` | memref of 4D tensor of any type values
+`output_buff` | memref of 4D tensor of any type values 
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 4D tensor of 16-bit float or 32-bit float values
+`output` | memref of 4D tensor of any type values 
 
