@@ -4599,6 +4599,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS":"1"
             },
