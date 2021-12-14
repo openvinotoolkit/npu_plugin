@@ -20,8 +20,17 @@ typedef int32_t Index;
 typedef t_D8StorageOrder StorageOrder;
 
 static constexpr std::initializer_list<SingleTest> topk_test_list{
-    {{4, 3, 3}, {4, 3, 1}, orderZYX, FPE("topk.elf"), {{1,2/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
-//    {{1, 4, 5}, {1, 1, 5}, orderZYX, FPE("topk.elf"), {{1,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //int only
+//    {{11, 20, 10}, {11, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+//    {{21, 513, 513}, {21, 1, 513}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //FAIL CORE DUMP, CMX:11139282 Byte (over)
+//    {{21, 40, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:18480 Byte 321.222015 ms
+//    {{21, 80, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:35280 Byte Byte 917.265503 ms
+//    {{21, 120, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:52080 Byte Byte 917.265503 ms
+//    {{21, 160, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:68880 Byte Byte 1150.348999 ms
+//    {{21, 240, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:102480 Byte Byte 1700.640259 ms
+//    {{21, 300, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:127680 Byte Byte 2112.416992 ms
+//    {{21, 320, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:136080 Byte Byte  2250.272949 ms
+//    {{21, 513, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:217140 Byte Byte  2689.700195 ms
+//    {{21, 513, 20}, {21, 1, 80}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:444360 Byte Byte  3854.895508 ms
 };
 
 // pair of (value, index) used in sorting
@@ -97,7 +106,12 @@ protected:
         m_outputIndexTensor.init(storageOrder, dims3Out);
         m_referenceValueTensor.init(storageOrder, dims3Out);
         m_referenceIndexTensor.init(storageOrder, dims3Out);
-        
+
+        printf("m_inputTensor's size = %d Byte\n",dimIn.width*dimIn.height*dimIn.channels*2);
+        printf("m_outputValuesTensor's size = %d Byte\n",dimOut.width*dimOut.height*dimOut.channels*4);
+        printf("m_outputIndexTensor's size = %d Byte\n",dimOut.width*dimOut.height*dimOut.channels*4);
+        printf("Total in CMX:%d Byte\n",dimIn.width*dimIn.height*dimIn.channels*2 +dimOut.width*dimOut.height*dimOut.channels*4+ dimOut.width*dimOut.height*dimOut.channels*4);
+              
         allocBuffer(m_inputTensor);
         allocBuffer(m_inputKTensor);
         allocBuffer(m_outputValuesTensor);
@@ -227,7 +241,7 @@ protected:
         
         const int inputValuesAxisStep = m_inputTensor.memorySteps().dims[axis];
         for (int i = 0; i < 3; i++) {
-            printf("m_inputTensor.memorySteps().dims[%d] = %d\n", i, m_inputTensor.memorySteps().dims[i]);
+//            printf("m_inputTensor.memorySteps().dims[%d] = %d\n", i, m_inputTensor.memorySteps().dims[i]);
         }
 
         const int refValuesAxisStep = m_referenceValueTensor.memorySteps().dims[axis];
@@ -241,8 +255,8 @@ protected:
             
             for (int i = 0; i < n; ++i) {
                 temp[i] = Pair(inputValuesData[i * inputValuesAxisStep], i);
-                printf("inputValuesData[i * inputValuesAxisStep] = %f\n",
-                       f16Tof32(inputValuesData[i * inputValuesAxisStep]));
+//                printf("inputValuesData[i * inputValuesAxisStep] = %f\n",
+//                       f16Tof32(inputValuesData[i * inputValuesAxisStep]));
             }
             
             std::partial_sort(temp.begin(), temp.begin() + k, temp.begin() + n, compareValues);
@@ -256,7 +270,7 @@ protected:
                 const auto& t = temp[i];
                 refValuesData[i * refValuesAxisStep] = t.first;
                 refIndicesData[i * refIndicesAxisStep] = t.second;
-                printf("refValuesData[%d] = %f, refIndicesData[%d] = %d\n", i * refValuesAxisStep, f16Tof32(refValuesData[i * refValuesAxisStep]), i * refIndicesAxisStep, refIndicesData[i * refIndicesAxisStep]);
+//                printf("refValuesData[%d] = %f, refIndicesData[%d] = %d\n", i * refValuesAxisStep, f16Tof32(refValuesData[i * refValuesAxisStep]), i * refIndicesAxisStep, refIndicesData[i * refIndicesAxisStep]);
             }
         });
     }
@@ -280,10 +294,10 @@ protected:
         m_outputIndexTensor.confirmBufferData();
         m_referenceValueTensor.confirmBufferData();
         
-        saveMemoryToFile(reinterpret_cast<u32>(m_inputTensor.buffer()), m_inputTensor.bufferSize(), "input.bin");
-        saveMemoryToFile(reinterpret_cast<u32>(m_outputValuesTensor.buffer()), m_outputValuesTensor.bufferSize(), "outvalue.bin");
-        saveMemoryToFile(reinterpret_cast<u32>(m_referenceValueTensor.buffer()), m_referenceValueTensor.bufferSize(), "outref.bin");
-        saveMemoryToFile(reinterpret_cast<u32>(m_outputIndexTensor.buffer()), m_outputIndexTensor.bufferSize(), "outindex.bin");
+//        saveMemoryToFile(reinterpret_cast<u32>(m_inputTensor.buffer()), m_inputTensor.bufferSize(), "input.bin");
+//        saveMemoryToFile(reinterpret_cast<u32>(m_outputValuesTensor.buffer()), m_outputValuesTensor.bufferSize(), "outvalue.bin");
+//        saveMemoryToFile(reinterpret_cast<u32>(m_referenceValueTensor.buffer()), m_referenceValueTensor.bufferSize(), "outref.bin");
+//        saveMemoryToFile(reinterpret_cast<u32>(m_outputIndexTensor.buffer()), m_outputIndexTensor.bufferSize(), "outindex.bin");
         
         m_referenceValueTensor.forEach(true, [this, &test_failed](const MemoryDims& indices){
             const float gt_value    = f16Tof32(m_referenceValueTensor.at(indices));
@@ -295,8 +309,8 @@ protected:
             const bool index_differ = (out_index != gt_index);
             const bool differ = value_differ || index_differ;
             test_failed = test_failed || differ;
-            printf("m_outputValuesTensor value = %f, gt_value = %f\n", value, gt_value);
-            printf("m_outputIndexTensor out_index = %ld, gt_index = %ld\n", out_index, gt_index);
+//            printf("m_outputValuesTensor value = %f, gt_value = %f\n", value, gt_value);
+//            printf("m_outputIndexTensor out_index = %ld, gt_index = %ld\n", out_index, gt_index);
         });
         return !test_failed;
     }
