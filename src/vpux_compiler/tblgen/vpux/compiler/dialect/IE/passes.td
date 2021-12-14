@@ -479,6 +479,24 @@ def HandleLargeStrides : PassBase<"handle-large-strides", "vpux::FunctionPass"> 
     ];
 }
 
+//
+// SwapMaxPoolWithActivation
+//
+
+def SwapMaxPoolWithActivation : PassBase<"swap-maxpool-with-act", "vpux::FunctionPass"> {
+    let summary = "Swaps the MaxPool and activation";
+
+    let description = [{
+        This pass is needed for MTL only since HW MaxPool does not support post-op operations.
+        Operations are swapped only if there is an operation before MaxPool that supports post-ops.
+    }];
+
+    let constructor = "vpux::IE::createSwapMaxPoolWithActivation()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
 
 //=================================================================================
 // LowPrecision

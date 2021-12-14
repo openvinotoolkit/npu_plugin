@@ -47,6 +47,12 @@ bool isSupportedHWPostOp(mlir::Operation* postOp) {
         // TODO: should be check maxVal?
     }
 
+    const auto module = postOp->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
+    if (arch == VPU::ArchKind::MTL && mlir::isa<IE::MaxPoolOp>(postOp)) {
+        return false;
+    }
+
     return true;
 }
 
