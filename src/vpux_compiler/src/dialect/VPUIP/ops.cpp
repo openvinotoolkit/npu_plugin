@@ -152,39 +152,27 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
     const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
     const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
 
-    // const auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    // const auto arch = VPU::getArch(module);
-    // auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    const auto origInputShape = getShape(origOp.input());
+    const auto origFilterShape = getShape(origOp.filter());
+    const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
 
-    return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
-        // if (arch != VPU::ArchKind::MTL && channelsInfo != nullptr) {
-        //     const auto chanAlignment = channelsInfo.getChannelAlignment();
-        //     if (outputTile.shape[Dims4D::Act::C] != chanAlignment) {
-        //         return false;
-        //     }
-        // }
+    const auto inputTiling = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
+                                                    origOp.strides(), origOp.pads_begin(), origOp.pads_end());
 
-        const auto origInputShape = getShape(origOp.input());
-        const auto origFilterShape = getShape(origOp.filter());
-        const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+    const auto& tileConf = inputTiling.tiles;
+    VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
+                      tileConf.size());
+    const auto& inputTile = tileConf[0];
+    const auto& filterTile = tileConf[1];
 
-        const auto inputTiling = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                        origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+    const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
+    const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
+    const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
-        const auto& tileConf = inputTiling.tiles;
-        VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
-                          tileConf.size());
-        const auto& inputTile = tileConf[0];
-        const auto& filterTile = tileConf[1];
-
-        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
-        const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
-        const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
-
-        return mlir::succeeded(VPUIP::NCEInvariant::verifyGroupConvCMX(
-                origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(), inputTileType, filterTileType,
-                outputTileType, origOp.strides(), log));
-    });
+    return mlir::succeeded(VPUIP::NCEInvariant::verifyGroupConvCMX(
+            origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(), inputTileType, filterTileType, outputTileType,
+            origOp.strides(), log));
+});
 }
 
 bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger log) {

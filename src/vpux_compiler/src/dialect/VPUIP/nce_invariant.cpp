@@ -447,13 +447,6 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     // FIXME verify CMX is not a proper place for this. But it is required to fail CMX check during tiling.
     const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
 
-    const auto arch = VPU::getArch(module);
-    if (OC != depthwiseOutChanCount && arch != VPU::ArchKind::MTL) {
-        log.debug("[{0}] Depthwise convolution must have exactly {1} output channels, got {2}", loc,
-                  depthwiseOutChanCount, OC);
-        // return mlir::failure();
-    }
-
     if (OC % depthwiseOutChanCount != 0) {
         log.debug("[{0}] Output channels count of depthwise convolution must be a multiple of {1}, got {2}", loc,
                   depthwiseOutChanCount, OC);
