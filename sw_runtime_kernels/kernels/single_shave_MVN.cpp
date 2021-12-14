@@ -27,6 +27,9 @@ namespace {
 
 #define WORK_BUFFER_SIZE (((p->availableCmxBytes)/4))
 
+#define MAX_CHANNEL_SIZE 64
+#define MAX_JOBS 1
+
 struct t_MvMVNParamNClasses
 {
     half* input;
@@ -54,7 +57,7 @@ struct t_MvMVNParamNClasses
     uint32_t normalize;
     float eps;
 
-    float intermediate_mean[MAX_ND_DIMS];
+    float intermedia_mean[MAX_CHANNEL_SIZE * MAX_JOBS * 2];
 };
 
 static void calc_mean_NHWC_fp16(const half *line, int W, int C, int stride, float *intermedia_mean){
@@ -149,7 +152,7 @@ void mvMVN_1(t_MvMVNParamNClasses *p){
     int buf_size = nShaves * C;
 
     half* input  = (p->inputInCmx) ? p->input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
-    float *intermedia_mean = p->intermediate_mean;
+    float *intermedia_mean = p->intermedia_mean;
 
     for (int c = 0; c < C; ++c) {
         intermedia_mean[c * nShaves + idy] = 0;
@@ -196,8 +199,8 @@ void mvMVN_23(t_MvMVNParamNClasses *p){
     float epsilon = p->eps;
     int nShaves = p->nShaves; // Use only one shave for now
 
-    const float* variance_part = p->intermediate_mean + nShaves * C;
-    const float* mean_part = p->intermediate_mean;
+    const float* variance_part = p->intermedia_mean + nShaves * C;
+    const float* mean_part = p->intermedia_mean;
 
     half* input  = (p->inputInCmx) ? p->input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
     half* output = (p->outputInCmx) ? p->output : reinterpret_cast<half*>(p->cmxslice + 2 * WORK_BUFFER_SIZE);
