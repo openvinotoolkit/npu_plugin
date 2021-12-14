@@ -158,7 +158,7 @@ def VPURT_ConfigureBarrierOp :
 
     let arguments = (ins
         IntAttr:$id,
-        IntAttr:$virtualId
+        IntAttr:$virtualbarrierId
     );
 
     let results = (outs
