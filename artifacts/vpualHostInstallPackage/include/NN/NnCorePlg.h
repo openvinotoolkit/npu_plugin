@@ -105,6 +105,14 @@ public:
     unsigned int GetNumberOfOutputs() const;
 
     /***************************************************************************
+     * @brief Get number of profiling outputs for the loaded network.
+     *
+     * @return Number of outputs.
+     *
+     **************************************************************************/
+    unsigned int GetNumberOfProfilingOutputs() const;
+
+    /***************************************************************************
      * @brief Get the blob version of the loaded network.
      *
      * @param version   Output version info.
@@ -133,6 +141,16 @@ public:
      *
      **************************************************************************/
     flicTensorDescriptor_t GetOutputTensorDescriptor(unsigned int index) const;
+
+    /***************************************************************************
+     * @brief Get the profiling output tensor descriptor at a given index.
+     *
+     * @param index Index of output tensor to return.
+     *
+     * @return Pointer to the tensor descriptor.
+     *
+     **************************************************************************/
+    flicTensorDescriptor_t GetProfilingOutputTensorDescriptor(unsigned int index) const;
 
     /***************************************************************************
      * @brief Provide scratch buffers for the network to use.
