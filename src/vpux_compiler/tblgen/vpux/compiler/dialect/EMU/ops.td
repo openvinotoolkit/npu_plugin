@@ -47,7 +47,7 @@ class EMU_TaskOp<string mnemonic, list<OpTrait> traits = []> :
             mnemonic,
             [
                 NoSideEffect,
-                DeclareOpInterfaceMethods<EMU_TaskOpInterface>
+                DeclareOpInterfaceMethods<EMUSerializeInterface>
             ] # traits
         > {
 

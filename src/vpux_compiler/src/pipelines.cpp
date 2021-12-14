@@ -333,10 +333,6 @@ void vpux::buildEMUReferenceSWModePipeline(mlir::OpPassManager& pm, const Refere
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
-
-    // EMU Dialect lowering
-
-    buildLowerIE2EMUPipeline(pm, log);
 }
 
 //
@@ -395,8 +391,6 @@ void vpux::buildEMUReferenceHWModePipeline(mlir::OpPassManager& pm, const Refere
     // pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
 
     // EMU Dialect lowering
-
-    buildLowerIE2EMUPipeline(pm, log);
 }
 
 //
@@ -458,8 +452,6 @@ void vpux::buildEMUDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultH
     // pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
 
     // EMU Dialect lowering
-
-    buildLowerIE2EMUPipeline(pm, log);
 }
 
 //
