@@ -147,11 +147,29 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
     return mlir::success();
 }
 
-//
-// Generated
-//
+class RewriteConcatView final : public mlir::OpRewritePattern<IERT::ConcatViewOp> {
+public:
+    RewriteConcatView(::mlir::MLIRContext* ctx): mlir::OpRewritePattern<IERT::ConcatViewOp>(ctx) {
+    }
 
-#include <vpux/compiler/conversion/rewriters/generated/convert_view_ops_to_VPUIP.hpp.inc>
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::ConcatViewOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult RewriteConcatView::matchAndRewrite(IERT::ConcatViewOp origOp,
+                                                       mlir::PatternRewriter& rewriter) const {
+    for (auto input : origOp.inputs()) {
+        if (auto waitOp = input.getDefiningOp<mlir::async::AwaitOp>()) {
+            if (waitOp->hasOneUse()) {
+                waitOp->dropAllUses();
+                waitOp->erase();
+            }
+        }
+    }
+
+    rewriter.replaceOp(origOp, origOp.output_buff());
+    return ::mlir::success();
+};
 
 //
 // ConvertViewOps2VPUIPPass
@@ -186,7 +204,7 @@ void ConvertViewOps2VPUIPPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ViewLikeRewrite>(&ctx, &aliasInfo, _log);
-    populateWithGenerated(patterns);
+    patterns.insert<RewriteConcatView>(&ctx);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {

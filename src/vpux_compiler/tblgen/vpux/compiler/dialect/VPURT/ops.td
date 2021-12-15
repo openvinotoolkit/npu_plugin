@@ -93,10 +93,10 @@ def VPURT_DeclareBufferOp :
 
     let builders = [
         OpBuilder<
-            (ins "mlir::MemRefType":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$byteOffset)
+            (ins "mlir::Type":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$byteOffset)
         >,
         OpBuilder<
-            (ins "mlir::MemRefType":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$sectionIndex, "int64_t":$byteOffset)
+            (ins "mlir::Type":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$sectionIndex, "int64_t":$byteOffset)
         >
     ];
 
@@ -194,6 +194,7 @@ def VPURT_TaskOp :
     let summary = "Hold common scheduling logic (barriers configuration and profiling support).";
 
     let arguments = (ins
+        Optional<MemRefOf<[UI32]>>:$profiling_data,
         Variadic<VPURT_Barrier>:$waitBarriers,
         Variadic<VPURT_Barrier>:$updateBarriers,
         DefaultValuedAttr<BoolAttr, "false">:$isTrailingSWLayer
@@ -206,6 +207,12 @@ def VPURT_TaskOp :
     let verifier = [{
         return vpux::VPURT::verifyTaskOp(*this);
     }];
+
+    let builders = [
+        OpBuilder<(ins
+            "mlir::ValueRange":$waitBarriers, "mlir::ValueRange":$updateBarriers
+        )>
+    ];
 
     let extraClassDeclaration = [{
         vpux::VPUIP::TaskOpInterface getInnerTaskOp();
@@ -220,6 +227,7 @@ def VPURT_TaskOp :
     }];
 
     let assemblyFormat = [{
+        (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         attr-dict-with-keyword

@@ -2,7 +2,8 @@
 #include <fstream>
 #include <sys/stat.h>
 
-#include "mcm/utils/profiling_parser.hpp"
+#include "vpux/utils/plugin/profiling_parser.hpp"
+#include "vpux/utils/IE/profiling.hpp"
 
 int main(int argc, char** argv)
 {
@@ -36,13 +37,7 @@ int main(int argc, char** argv)
     output_file.read((char*)output_bin.data(), output_stat.st_size);
     output_file.close();
 
-    std::vector<mv::utils::ProfInfo> deviceProfiling;
-    mv::utils::ProfTotalInfo prof_total_info;
-    mv::utils::getProfilingInfo(blob_bin.data(), output_bin.data(), deviceProfiling, &prof_total_info);
+    vpux::printProfiling(blob_bin.data(), blob_stat.st_size, output_bin.data(), output_stat.st_size);
 
-    for (auto& task : deviceProfiling ) {
-        std::cout << "Task(" << task.start_layer_id <<"->" << task.end_layer_id << "): " << task.name << " Time: " << task.time << std::endl;
-    }
-    std::cout << "TotalTime: " << prof_total_info.time << std::endl;
     return 0;
 }

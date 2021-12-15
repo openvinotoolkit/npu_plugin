@@ -249,10 +249,9 @@ def IERT_StaticAllocOp :
 //
 
 def IERT_TimestampOp :
-        IERT_Op<
-            "Timestamp",
+        IERT_LayerOp<1, "Timestamp",
             [
-                NoSideEffect,
+                ViewLikeOpInterface,
                 SameOperandsAndResultElementType,
                 DotInterface
             ]
@@ -275,7 +274,7 @@ def IERT_TimestampOp :
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::BLUE;
         }
-    }];
+    }] # IERT_InferLayerReturnTypes<1>.impl;
 
     let assemblyFormat = [{
         attr-dict

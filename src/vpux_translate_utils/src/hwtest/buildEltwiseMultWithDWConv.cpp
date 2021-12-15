@@ -332,7 +332,6 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     nceTask.addPPETask(funcbuilder);
 
     // DPU task for NCE task
-    nceTask.variants().emplaceBlock();
     auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
     createDPUTaskOp(builder, variantbuilder, output_nce_shape, padding_vec);
 

@@ -93,10 +93,6 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 2 : Abstract RunTime
 
-    if (options.enableProfiling) {
-        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPU::MemoryKind::DDR>, log));
-    }
-
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
@@ -111,6 +107,13 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
     buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
 
     // Level 1 : VPU RunTime
+
+    if (options.enableProfiling) {
+        if (options.enableSWProfiling) {
+            pm.addPass(VPUIP::createUPAProfilingPass(log));
+        }
+        pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+    }
 
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
@@ -181,13 +184,17 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 2 : Abstract RunTime
 
-    if (options.enableProfiling) {
-        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
-    }
-
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
+    if (options.enableProfiling && options.enableDPUProfiling) {
+        pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
+
     IERT::buildAsyncSchedulingPipeline(pm, log);
+
+    if (options.enableProfiling && options.enableDMAProfiling) {
+        pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
 
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
@@ -202,6 +209,12 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 1 : VPU RunTime
 
+    if (options.enableProfiling) {
+        if (options.enableSWProfiling) {
+            pm.addPass(VPUIP::createUPAProfilingPass(log));
+        }
+        pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+    }
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
@@ -274,10 +287,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     // Level 2 : Abstract RunTime
 
-    if (options.enableProfiling) {
-        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
-    }
-
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
     if (options.enableOptimizeCopies) {
@@ -285,7 +294,15 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
         pm.addPass(IERT::createCopyOpHoistingPass(log));
     }
 
+    if (options.enableProfiling && options.enableDPUProfiling) {
+        pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
+
     IERT::buildAsyncSchedulingPipeline(pm, log);
+
+    if (options.enableProfiling && options.enableDMAProfiling) {
+        pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
 
     pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPU::MemoryKind::CMX_NN>,
                                                   getMemSpace<VPU::MemoryKind::DDR>, log));
@@ -305,6 +322,13 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
 
     // Level 1 : VPU RunTime
+
+    if (options.enableProfiling) {
+        if (options.enableSWProfiling) {
+            pm.addPass(VPUIP::createUPAProfilingPass(log));
+        }
+        pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+    }
 
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));

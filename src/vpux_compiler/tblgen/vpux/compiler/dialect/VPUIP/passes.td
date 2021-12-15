@@ -17,6 +17,36 @@
 include "mlir/Pass/PassBase.td"
 
 //
+// UPAProfiling
+//
+
+def UPAProfiling : PassBase<"upa-profiling", "vpux::ModulePass"> {
+    let summary = "upa task profiling";
+
+    let description = [{
+        This pass allocate required memory in DDR space for UPA profiling and is own profiling output to the network
+    }];
+
+    let constructor = "vpux::VPUIP::createUPAProfilingPass()";
+    
+}
+
+//
+// GroupProfilingBuffers
+//
+
+def GroupProfilingBuffers : PassBase<"group-profiling-buffers", "vpux::ModulePass"> {
+    let summary = "Group profiling buffers into single profiling output buffer";
+
+    let description = [{
+        Group profiling buffers from different profiling engines into single profiling output buffer with name as 
+        [offset]_[profiling name]_[offset]_[profiling name] so postprocessing tool can parse it back
+    }];
+
+    let constructor = "vpux::VPUIP::createGroupProfilingBuffersPass()";
+}
+
+//
 // ConvertWeightsTableOp2Const
 //
 

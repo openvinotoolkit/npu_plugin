@@ -34,6 +34,7 @@ void vpux::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<USE_SIPP>();
     desc.add<EXECUTOR_STREAMS>();
     desc.add<INFERENCE_TIMEOUT_MS>();
+    desc.add<PRINT_PROFILING>();
 }
 
 //

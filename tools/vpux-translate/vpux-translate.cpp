@@ -37,6 +37,9 @@ using namespace vpux;
 
 namespace {
 
+llvm::cl::opt<bool> vpuxProfiling("vpux-profiling", llvm::cl::desc("Add profilingOutput region to the imported IR"),
+                                  llvm::cl::init(false));
+
 //
 // import-IE
 //
@@ -76,7 +79,7 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ct
         mlir::DefaultTimingManager tm;
         auto rootTiming = tm.getRootScope();
         std::vector<vpux::PreProcessInfo> preProcInfo;
-        module = IE::importNetwork(ctx, cnnNet, preProcInfo, false, rootTiming, false);
+        module = IE::importNetwork(ctx, cnnNet, preProcInfo, false, rootTiming, vpuxProfiling);
     } catch (const std::exception& ex) {
         printTo(llvm::errs(), "Failed to translate IE IR {0} to MLIR : {1}", netFileName, ex.what());
         return nullptr;

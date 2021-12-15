@@ -25,6 +25,11 @@ VPUIP::TaskOpInterface vpux::VPURT::TaskOp::getInnerTaskOp() {
     return mlir::cast<VPUIP::TaskOpInterface>(body().front().front());
 }
 
+void vpux::VPURT::TaskOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
+                                mlir::ValueRange waitBarriers, mlir::ValueRange updateBarriers) {
+    build(odsBuilder, odsState, nullptr, waitBarriers, updateBarriers);
+}
+
 VPUIP::BlobWriter::SpecificTask vpux::VPURT::TaskOp::serialize(VPUIP::BlobWriter& writer) {
     auto task = getInnerTaskOp();
     writer.setAliasForSerializedTensors(task);

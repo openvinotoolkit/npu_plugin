@@ -119,7 +119,8 @@ Hold common scheduling logic (barriers configuration and profiling support).
 Syntax:
 
 ```
-operation ::= `VPURT.Task` (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+operation ::= `VPURT.Task` (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
               attr-dict-with-keyword
               $body
@@ -136,6 +137,7 @@ operation ::= `VPURT.Task` (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `
 
 | Operand | Description |
 | :-----: | ----------- |
+`profiling_data` | memref of 32-bit unsigned integer values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 

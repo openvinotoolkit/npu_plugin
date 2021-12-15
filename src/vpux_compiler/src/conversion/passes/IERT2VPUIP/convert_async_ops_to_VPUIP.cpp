@@ -131,7 +131,7 @@ mlir::LogicalResult RemoveWait::matchAndRewrite(mlir::async::AwaitOp waitOp, OpA
     // If you faced with "'async.await' has more than one consumer" make sure you add your layer
     // into src/vpux_compiler/src/dialect/VPUIP/ops.cpp `redirectOpInterfacesForIE(...)`
     // and `redirectOpInterfacesForIERT(...)`
-    VPUX_THROW_UNLESS(waitOp.result().hasOneUse(), "'async.await' has more than one consumer");
+    VPUX_THROW_UNLESS(waitOp.result().hasOneUse(), "'async.await' doesn't have only one consumer");
     VPUX_THROW_UNLESS(mlir::isa<mlir::ReturnOp>(*waitOp.result().user_begin()),
                       "'async.await' has non 'return' consumer");
 

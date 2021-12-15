@@ -38,7 +38,24 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
-          parent_output, output_buff, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
+          parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
+          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
+
+    for (auto& region : state.regions) {
+        region->emplaceBlock();
+    }
+}
+
+void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output,
+                                          mlir::Value input, mlir::Value weights, mlir::Value weight_table,
+                                          mlir::Value activation_window, mlir::Value parent_input,
+                                          mlir::Value parent_output, mlir::Value output_buff,
+                                          vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
+                                          mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
+                                          mlir::IntegerAttr activation_window_channel_length,
+                                          mlir::UnitAttr is_continued) {
+    build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
+          output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
           kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
 
     for (auto& region : state.regions) {
@@ -117,6 +134,21 @@ vpux::VPU::SparsitySupport vpux::VPUIP::NCEClusterTaskOp::sparsitySupport() {
                     ? vpux::VPU::SparsitySupport::SPARSE_INPUTS
                     : vpux::VPU::SparsitySupport::NONE;
     return sparseInputs | vpux::VPU::SparsitySupport::SPARSE_OUTPUTS;
+}
+
+//
+// NCEClusterTaskOp::inferReturnTypes
+//
+
+mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::inferReturnTypes(
+        mlir::MLIRContext*, llvm::Optional<mlir::Location>, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
+        mlir::RegionRange ranges, llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
+    VPUIP::NCEClusterTaskOpAdaptor adaptor(operands, attrs, ranges);
+    inferredReturnTypes.push_back(adaptor.output_buff().getType());
+    if (adaptor.profiling_data() != nullptr) {
+        inferredReturnTypes.push_back(adaptor.profiling_data().getType());
+    }
+    return mlir::success();
 }
 
 //
@@ -574,9 +606,9 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
     auto bufferOp = nceTask.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
     VPUX_THROW_UNLESS(bufferOp != nullptr, "Unable to find parent DeclareBufferOp to build new TensorReference");
 
-    return writer.createTensorRef("output_tensor_scale_updated", nceTask.getType(), bufferOp.section(),
-                                  bufferOp.sectionIndex().getValueOr(0), bufferOp.byteOffset(), ppeQuantMult,
-                                  ppeQuantShift, ppeQuantPostShift, quantZeroPoints);
+    return writer.createTensorRef("output_tensor_scale_updated", nceTask.getType(0).cast<mlir::ShapedType>(),
+                                  bufferOp.section(), bufferOp.sectionIndex().getValueOr(0), bufferOp.byteOffset(),
+                                  ppeQuantMult, ppeQuantShift, ppeQuantPostShift, quantZeroPoints);
 }
 
 }  // namespace
@@ -587,6 +619,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         const auto start = parseIntArrayAttr<int64_t>(dpuTaskOp.start());
         const auto end = parseIntArrayAttr<int64_t>(dpuTaskOp.end());
         const auto pad = dpuTaskOp.pad();
+        const auto profilingData =
+                (profiling_data() != nullptr && !variantList.size()) ? writer.getTensorRef(profiling_data()) : 0;
 
         const auto variant = MVCNN::CreateNCEVariantFields(writer,
                                                            0,                                            // Barriers
@@ -600,7 +634,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                                            static_cast<int16_t>(start[2]),  // workload_start_Z
                                                            static_cast<int16_t>(end[0]),    // workload_end_X
                                                            static_cast<int16_t>(end[1]),    // workload_end_Y
-                                                           static_cast<int16_t>(end[2])     // workload_end_Z
+                                                           static_cast<int16_t>(end[2]),    // workload_end_Z
+                                                           0,                               // flex_map_column
+                                                           0,                               // flex_map_array
+                                                           0,                               // flex_inner
+                                                           0,                               // flex_outer
+                                                           0,                               // flex_outer_order
+                                                           profilingData                    // profiling_data
         );
         variantList.push_back(variant);
     }
