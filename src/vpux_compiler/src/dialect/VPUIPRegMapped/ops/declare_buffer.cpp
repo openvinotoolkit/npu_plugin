@@ -11,10 +11,10 @@
 // included with the Software Package for additional details.
 //
 
+#include <host_parsed_inference.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
-#include <mlir/IR/BuiltinTypes.h>
-#include <host_parsed_inference.h>
 
 using namespace vpux;
 
@@ -24,10 +24,12 @@ template <size_t N>
 uint32_t round_up(uint32_t t) {
     return static_cast<uint32_t>((t + N - 1) & ~(N - 1));
 }
-}
+}  // namespace
 
 void VPUIPRegMapped::DeclareBufferOp::serialize(std::vector<char>& buff) {
-    //no serialization for declareBuffer
+    VPUX_UNUSED(buff);
+    // no serialization for declareBuffer
+
     return;
 }
 

@@ -44,23 +44,22 @@ void vpux::ELF::ELFDialect::initialize() {
 
 namespace {
 using SectionMap = vpux::OpOrderedMap<elf::writer::Section*>;
-//TODO::this works only if IR is being immutable troughout the life-time of the map....
-//which in our case it is.... don't we have nicer way of mapping mlir::Operation's????
+// TODO::this works only if IR is being immutable troughout the life-time of the map....
+// which in our case it is.... don't we have nicer way of mapping mlir::Operation's????
 using SymbolMap = std::map<mlir::Operation*, elf::writer::Symbol*>;
 
 mlir::Operation* opParentSection(mlir::Value val) {
-
-    //If one of the users of the value is a "PutAnyOpInSectionOp", then we are interested in the encapsulation section of it.
-    //Based on IR validity, assume, any "PutAnyOpInSectionOp" is always in a "Section" op
-    //If it has no successors of this type, then based on IR validity we assume that the op itself is placed in a section
+    // If one of the users of the value is a "PutOpInSectionOp", then we are interested in the encapsulation section
+    // of it. Based on IR validity, assume, any "PutOpInSectionOp" is always in a "Section" op If it has no
+    // successors of this type, then based on IR validity we assume that the op itself is placed in a section
     mlir::Operation* op = nullptr;
-    for(mlir::Operation* user : val.getUsers()) {
-        if(auto placeholder = llvm::dyn_cast_or_null<vpux::ELF::PutAnyOpInSectionOp>(user)) {
+    for (mlir::Operation* user : val.getUsers()) {
+        if (auto placeholder = llvm::dyn_cast_or_null<vpux::ELF::PutOpInSectionOp>(user)) {
             op = user;
             break;
         }
     }
-    if(op == nullptr) {
+    if (op == nullptr) {
         op = val.getDefiningOp();
     }
 
@@ -68,7 +67,7 @@ mlir::Operation* opParentSection(mlir::Value val) {
     return region->getParentOp();
 }
 
-}
+}  // namespace
 
 void vpux::ELF::CreateSectionOp::serialize(elf::Writer& writer, SectionMap& sectionMap, SymbolMap& symbolMap) {
     VPUX_UNUSED(symbolMap);
@@ -78,8 +77,8 @@ void vpux::ELF::CreateSectionOp::serialize(elf::Writer& writer, SectionMap& sect
     section->setAddrAlign(secAddrAlign());
 
     auto block = getBody();
-    for(auto& op : block->getOperations()) {
-        if(op.hasTrait<vpux::ELF::BinaryOpInterface::Trait>()) {
+    for (auto& op : block->getOperations()) {
+        if (op.hasTrait<vpux::ELF::BinaryOpInterface::Trait>()) {
             auto binaryOp = llvm::cast<vpux::ELF::BinaryOpInterface>(op);
 
             std::vector<char> buf;
@@ -102,11 +101,11 @@ void vpux::ELF::CreateLogicalsectionOp::serialize(elf::Writer& writer, SectionMa
 
     size_t totalSize = 0;
     auto block = getBody();
-    for(auto& op : block->getOperations()) {
-        if(op.hasTrait<vpux::ELF::BinaryOpInterface::Trait>()) {
+    for (auto& op : block->getOperations()) {
+        if (op.hasTrait<vpux::ELF::BinaryOpInterface::Trait>()) {
             auto binaryOp = llvm::cast<vpux::ELF::BinaryOpInterface>(op);
 
-            totalSize+= binaryOp.getBinarySize();
+            totalSize += binaryOp.getBinarySize();
         }
     }
     section->setSize(totalSize);
@@ -116,30 +115,31 @@ void vpux::ELF::CreateLogicalsectionOp::serialize(elf::Writer& writer, SectionMa
     return;
 }
 
-void vpux::ELF::CreateSymbolTableSectionOp::serialize(elf::Writer& writer, SectionMap& sectionMap, SymbolMap& symbolMap) {
+void vpux::ELF::CreateSymbolTableSectionOp::serialize(elf::Writer& writer, SectionMap& sectionMap,
+                                                      SymbolMap& symbolMap) {
     const auto name = secName().str();
     auto section = writer.addSymbolSection(name);
     section->maskFlags(static_cast<elf::Elf_Xword>(secFlags()));
 
     auto block = getBody();
-    for(auto& op : block->getOperations()) {
+    for (auto& op : block->getOperations()) {
         elf::writer::Symbol* symbol = section->addSymbolEntry();
 
-        if(vpux::ELF::SymbolOp symOp = mlir::dyn_cast<vpux::ELF::SymbolOp>(op)) {
-            symOp.serialize(symbol,sectionMap);
+        if (vpux::ELF::SymbolOp symOp = mlir::dyn_cast<vpux::ELF::SymbolOp>(op)) {
+            symOp.serialize(symbol, sectionMap);
             symbolMap[symOp.getOperation()] = symbol;
-        }
-        else if(vpux::ELF::PutAnyOpInSectionOp placeholder = mlir::dyn_cast<vpux::ELF::PutAnyOpInSectionOp>(op)) {
+        } else if (vpux::ELF::PutOpInSectionOp placeholder = mlir::dyn_cast<vpux::ELF::PutOpInSectionOp>(op)) {
             auto actualOp = placeholder.inputArg().getDefiningOp();
             vpux::ELF::SymbolOp symOp = mlir::dyn_cast<vpux::ELF::SymbolOp>(actualOp);
 
-            VPUX_THROW_UNLESS(symOp, "Symbol table section op is expected to have placeholders that point to SymbolOps only");
+            VPUX_THROW_UNLESS(symOp,
+                              "Symbol table section op is expected to have placeholders that point to SymbolOps only");
 
-            symOp.serialize(symbol,sectionMap);
+            symOp.serialize(symbol, sectionMap);
             symbolMap[symOp.getOperation()] = symbol;
-        }
-        else {
-            VPUX_THROW("Symbol table section op is expected to have either SymbolOps or placeholders that point to SymbolOps");
+        } else {
+            VPUX_THROW("Symbol table section op is expected to have either SymbolOps or placeholders that point to "
+                       "SymbolOps");
         }
     }
 
@@ -148,16 +148,18 @@ void vpux::ELF::CreateSymbolTableSectionOp::serialize(elf::Writer& writer, Secti
     return;
 }
 
-void vpux::ELF::CreateRelocationSectionOp::serialize(elf::Writer& writer, SectionMap& sectionMap, SymbolMap& symbolMap) {
+void vpux::ELF::CreateRelocationSectionOp::serialize(elf::Writer& writer, SectionMap& sectionMap,
+                                                     SymbolMap& symbolMap) {
     const auto name = secName().str();
     auto section = writer.addRelocationSection(name);
 
-    //Look up dependent sections
+    // Look up dependent sections
     auto symTab = mlir::dyn_cast<vpux::ELF::CreateSymbolTableSectionOp>(sourceSymbolTableSection().getDefiningOp());
     VPUX_THROW_UNLESS(symTab, "Reloc section expected to point at a symbol table section");
 
     auto symTabMapEntry = sectionMap.find(symTab.getOperation());
-    VPUX_THROW_UNLESS(symTabMapEntry != sectionMap.end(), "Serializing a reloc section before serializing it's dependent SymTabSection");
+    VPUX_THROW_UNLESS(symTabMapEntry != sectionMap.end(),
+                      "Serializing a reloc section before serializing it's dependent SymTabSection");
 
     elf::writer::Section* symTabSection = symTabMapEntry->second;
 
@@ -165,32 +167,34 @@ void vpux::ELF::CreateRelocationSectionOp::serialize(elf::Writer& writer, Sectio
     VPUX_THROW_UNLESS(target, "Reloc section expected to point ot a valid Section op");
 
     auto targetMapEntry = sectionMap.find(target.getOperation());
-    VPUX_THROW_UNLESS(targetMapEntry != sectionMap.end(), "Serializing a reloc section before serializing it's dependent target section");
+    VPUX_THROW_UNLESS(targetMapEntry != sectionMap.end(),
+                      "Serializing a reloc section before serializing it's dependent target section");
 
     elf::writer::Section* targetSection = targetMapEntry->second;
 
     section->setSymbolTable(dynamic_cast<elf::writer::SymbolSection*>(symTabSection));
     section->setSectionToPatch(targetSection);
     section->maskFlags(static_cast<elf::Elf_Xword>(secFlags()));
-    section->maskFlags(elf::SHF_INFO_LINK); //TODO(Review) : @abakalin , is there any scenario where we would not need to set this link? shoould we expose the option in the dialect?
+    section->maskFlags(elf::SHF_INFO_LINK);  // TODO(Review) : @abakalin , is there any scenario where we would not need
+                                             // to set this link? shoould we expose the option in the dialect?
 
     auto block = getBody();
-    for(auto& op : block->getOperations()) {
+    for (auto& op : block->getOperations()) {
         elf::writer::Relocation* relocation = section->addRelocationEntry();
 
-        if(vpux::ELF::RelocOp relocOp = mlir::dyn_cast<vpux::ELF::RelocOp>(op)) {
+        if (vpux::ELF::RelocOp relocOp = mlir::dyn_cast<vpux::ELF::RelocOp>(op)) {
             relocOp.serialize(relocation, symbolMap);
-        }
-        else if(vpux::ELF::PutAnyOpInSectionOp placeholder = mlir::dyn_cast<vpux::ELF::PutAnyOpInSectionOp>(op)) {
+        } else if (vpux::ELF::PutOpInSectionOp placeholder = mlir::dyn_cast<vpux::ELF::PutOpInSectionOp>(op)) {
             auto actualOp = placeholder.inputArg().getDefiningOp();
             vpux::ELF::RelocOp relocOp = mlir::dyn_cast<vpux::ELF::RelocOp>(actualOp);
 
-            VPUX_THROW_UNLESS(relocOp, "Relocation section op is expected to have placeholders that point to RelocOps only");
+            VPUX_THROW_UNLESS(relocOp,
+                              "Relocation section op is expected to have placeholders that point to RelocOps only");
 
             relocOp.serialize(relocation, symbolMap);
-        }
-        else {
-            VPUX_THROW("Relocation Section op is expected to have either RelocOps or placeholders that point to RelocOps");
+        } else {
+            VPUX_THROW(
+                    "Relocation Section op is expected to have either RelocOps or placeholders that point to RelocOps");
         }
     }
 
@@ -199,50 +203,50 @@ void vpux::ELF::CreateRelocationSectionOp::serialize(elf::Writer& writer, Sectio
     return;
 }
 
-void vpux::ELF::PutAnyOpInSectionOp::serialize(std::vector<char>& writer) {
-
+void vpux::ELF::PutOpInSectionOp::serialize(std::vector<char>& writer) {
     auto parent = inputArg().getDefiningOp();
     auto binaryIface = llvm::dyn_cast<vpux::ELF::BinaryOpInterface>(parent);
 
-    VPUX_THROW_UNLESS(binaryIface != nullptr, "Parent of PutAnyOpInSection is expected to define elf::BinaryOpInterface");
+    VPUX_THROW_UNLESS(binaryIface != nullptr, "Parent of PutOpInSection is expected to define elf::BinaryOpInterface");
 
     binaryIface.serialize(writer);
 
     return;
 }
 
-size_t vpux::ELF::PutAnyOpInSectionOp::getBinarySize() {
+size_t vpux::ELF::PutOpInSectionOp::getBinarySize() {
     auto parent = inputArg().getDefiningOp();
     auto binaryIface = llvm::dyn_cast<vpux::ELF::BinaryOpInterface>(parent);
 
-    VPUX_THROW_UNLESS(binaryIface != nullptr, "Parent of PutAnyOpInSection is expected to define elf::BinaryOpInterface");
+    VPUX_THROW_UNLESS(binaryIface != nullptr, "Parent of PutOpInSection is expected to define elf::BinaryOpInterface");
 
     return binaryIface.getBinarySize();
 }
 
 void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, SectionMap& sectionMap) {
-
     auto symName = name().getValueOr("");
     auto symType = type().getValueOr(vpux::ELF::SymbolTypeAttr::STT_NOTYPE);
     auto symSize = size().getValueOr(0);
     auto symVal = value().getValueOr(0);
 
-    /*From serialization perspective symbols can be of 5 types
+    /* From serialization perspective symbols can be of 5 types
         - SECTION symbols : in this case the parentSection is the defining opt itself
-        - Generic symbols : Symbols representing an OP inside the IR. In this case we need the parent section of either the OP or it's placeholder
-        - I/O symbols : symbols that represent function arguments. In this case we will not have a parentSection, and no relatedSection
+        - Generic symbols : Symbols representing an OP inside the IR. In this case we need the parent section of either
+       the OP or it's placeholder
+        - I/O symbols : symbols that represent function arguments. In this case we will not have a parentSection, and no
+       relatedSection
         - Symbols refering to the "Special Symbol Table" : TODO(iszilve)  handle this case
-        - Standalone symbols : symbols that do not relate to any entity inside the IR (nor the ELF itself ). TODO(iszilve) handlle this case
+        - Standalone symbols : symbols that do not relate to any entity inside the IR (nor the ELF itself ).
+       TODO(iszilve) handlle this case
     */
 
     mlir::Operation* parentSection = nullptr;
-    if(inputArg().getDefiningOp()) {
-        if(llvm::isa<ELF::ElfSectionInterface>(inputArg().getDefiningOp())) {
+    if (inputArg().getDefiningOp()) {
+        if (llvm::isa<ELF::ElfSectionInterface>(inputArg().getDefiningOp())) {
             parentSection = inputArg().getDefiningOp();
-        }
-        else {
+        } else {
             parentSection = opParentSection(inputArg());
-            VPUX_THROW_UNLESS(parentSection," Could not find valid parent section for op");
+            VPUX_THROW_UNLESS(parentSection, " Could not find valid parent section for op");
         }
     }
 
@@ -251,7 +255,7 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, SectionMap& sec
     symbol->setSize(symSize);
     symbol->setValue(symVal);
 
-    if(parentSection){
+    if (parentSection) {
         auto sectionMapEntry = sectionMap.find(parentSection);
         VPUX_THROW_UNLESS(sectionMapEntry != sectionMap.end(), "Unable to find section entry for SymbolOp");
         auto sectionEntry = sectionMapEntry->second;
@@ -263,7 +267,6 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, SectionMap& sec
 }
 
 void vpux::ELF::RelocOp::serialize(elf::writer::Relocation* relocation, SymbolMap& symbolMap) {
-
     auto symbolOp = sourceSymbol().getDefiningOp();
     auto symbolMapEntry = symbolMap.find(symbolOp);
     VPUX_THROW_UNLESS(symbolMapEntry != symbolMap.end(), "Unable to locate symbol entry for relocation");
@@ -279,5 +282,4 @@ void vpux::ELF::RelocOp::serialize(elf::writer::Relocation* relocation, SymbolMa
     relocation->setAddend(relocAddend);
 
     return;
-
 }

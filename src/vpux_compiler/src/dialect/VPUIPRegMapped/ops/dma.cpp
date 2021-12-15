@@ -11,10 +11,10 @@
 // included with the Software Package for additional details.
 //
 
+#include <host_parsed_inference.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
-#include <mlir/IR/BuiltinTypes.h>
-#include <host_parsed_inference.h>
 
 using namespace vpux;
 
@@ -22,9 +22,9 @@ using namespace vpux;
 // NNDMAOp
 //
 
-//TODO::copy pasted from VPUIP.cpp .... TODO::find a place for these commont serialization utils
-//TODO2:: this logic should be done in dedicated passes, where we transform the DmaTransaction in a form that is
-//guaranteed as-is supported by HW
+// TODO: copy pasted from VPUIP.cpp .... TODO::find a place for these commont serialization utils
+// TODO2:  this logic should be done in dedicated passes, where we transform the DmaTransaction in a form that is
+// guaranteed as-is supported by HW
 
 namespace {
 
@@ -59,7 +59,7 @@ llvm::SmallVector<std::pair<uint32_t, int32_t>> reduce_dims_for_dma(mlir::MemRef
         finalDims.push_back({final_size, final_stride});
     }
 
-    // TODO:: could there be some way to iterate over all MemDim's of a particular shape/order?
+    // TODO: could there be some way to iterate over all MemDim's of a particular shape/order?
     for (int dim = inner_most_index - 1; dim > 0; --dim) {
         auto memDim = MemDim(dim);
 
@@ -85,13 +85,12 @@ llvm::SmallVector<std::pair<uint32_t, int32_t>> reduce_dims_for_dma(mlir::MemRef
 
     return finalDims;
 }
-}
+}  // namespace
 
 void vpux::VPUIPRegMapped::NNDMAOp::serialize(std::vector<char>& buffer) {
-
     host_parsing::DmaWrapper dmaTask;
-    //safe init to zero the structure
-    memset(reinterpret_cast<void*>(&dmaTask),0,sizeof(dmaTask));
+    // safe init to zero the structure
+    memset(reinterpret_cast<void*>(&dmaTask), 0, sizeof(dmaTask));
 
     auto inputType = input().getType().cast<mlir::MemRefType>();
     auto outputType = output().getType().cast<mlir::MemRefType>();
@@ -104,12 +103,12 @@ void vpux::VPUIPRegMapped::NNDMAOp::serialize(std::vector<char>& buffer) {
     descriptor.cfg_link.cfg_bits.barrier_en = 1;
 
     uint64_t cons_mask = 0;
-    for(auto waitBarrier : waitBarriers()) {
+    for (auto waitBarrier : waitBarriers()) {
         auto op = llvm::dyn_cast<VPUIPRegMapped::ConfigureBarrierOp>(waitBarrier.getDefiningOp());
         cons_mask |= 1 << op.id();
     }
     uint64_t prod_mask = 0;
-    for(auto updateBarrier : updateBarriers()) {
+    for (auto updateBarrier : updateBarriers()) {
         auto op = llvm::dyn_cast<VPUIPRegMapped::ConfigureBarrierOp>(updateBarrier.getDefiningOp());
         prod_mask |= 1 << op.id();
     }
@@ -118,9 +117,8 @@ void vpux::VPUIPRegMapped::NNDMAOp::serialize(std::vector<char>& buffer) {
 
     descriptor.length = inputType.getNumElements() * vpux::Byte(vpux::getElemTypeSize(inputType)).count();
 
-
-    // TODO::can't we have this reduction at a pass at memref level?
-    // TODO::need to place some conditions on the DMA, and in some scenarios, may have to do 1*DMA -> n*DMA
+    // TODO: can we have this reduction at a pass at memref level?
+    // TODO: need to place some conditions on the DMA, and in some scenarios, may have to do 1*DMA -> n*DMA
     // transaction rewrites
     auto reduced_dims_input = reduce_dims_for_dma(inputType);
     auto reduced_dims_output = reduce_dims_for_dma(outputType);
@@ -136,7 +134,7 @@ void vpux::VPUIPRegMapped::NNDMAOp::serialize(std::vector<char>& buffer) {
 
     if (reduced_dims_input.size() == 2 && reduced_dims_output.size() == 2) {
         VPUX_THROW_UNLESS(reduced_dims_input[1].first == reduced_dims_output[1].first,
-                            "Dma's don't have equal plane stride");
+                          "Dma's don't have equal plane stride");
         descriptor.src_plane_stride = reduced_dims_input[1].second;
         descriptor.dst_plane_stride = reduced_dims_output[1].second;
 

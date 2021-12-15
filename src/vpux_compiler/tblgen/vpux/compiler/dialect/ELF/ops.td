@@ -249,16 +249,16 @@ def RelocOp :
 }
 
 //
-// PutAnyOpInSectionOp
+// PutOpInSectionOp
 //
 
-def PutAnyOpInSectionOp :
-        ELF_Op<"PutAnyOpInSection",
+def PutOpInSectionOp :
+        ELF_Op<"PutOpInSection",
             [
                 DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
             ]
         > {
-    let summary = "Put Any Op in ELF Section";
+    let summary = "Put the Argument Op in the ELF Section";
 
     let arguments = (ins
           AnyType:$inputArg // Inspired from mlir/Dialect/StandardOps/IR/Ops.td, "def AtomicYieldOp"
@@ -267,7 +267,6 @@ def PutAnyOpInSectionOp :
     let results = (outs);
 
     let assemblyFormat = "$inputArg attr-dict `:` type($inputArg)"; // Inspired from mlir/Dialect/StandardOps/IR/Ops.td, "def AtomicYieldOp"
-    // Gives <<error: type of operand #0, named 'result', is not buildable and a buildable type cannot be inferred>>: let assemblyFormat = "$result attr-dict";
 }
 
 #endif

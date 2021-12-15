@@ -17,12 +17,12 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
+#include "vpux/compiler/dialect/VPUIP/elf_blob_serializer.hpp"
 #include "vpux/compiler/dialect/VPUIP/generated/schema/gf_version.h"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/elf_blob_serializer.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/array_ref.hpp"
@@ -804,13 +804,14 @@ host_parsing::OutputTensorDType Type2OutputDType(mlir::Type type) {
 }
 
 bool areSupportedInputOutputTypes(host_parsing::DType in_type, host_parsing::DType out_type) {
-    bool in_supported = (in_type == host_parsing::DType::BFP16) || (in_type == host_parsing::DType::FP8) || (in_type == host_parsing::DType::U8) ||
-                        (in_type == host_parsing::DType::I8) || (in_type == host_parsing::DType::I4) || (in_type == host_parsing::DType::FP16);
+    bool in_supported = (in_type == host_parsing::DType::BFP16) || (in_type == host_parsing::DType::FP8) ||
+                        (in_type == host_parsing::DType::U8) || (in_type == host_parsing::DType::I8) ||
+                        (in_type == host_parsing::DType::I4) || (in_type == host_parsing::DType::FP16);
 
-    bool out_supported = (out_type == host_parsing::DType::BFP16) || (out_type == host_parsing::DType::FP8) || (out_type == host_parsing::DType::U8) ||
-                         (out_type == host_parsing::DType::I8) || (out_type == host_parsing::DType::I32) || (out_type == host_parsing::DType::I4) ||
+    bool out_supported = (out_type == host_parsing::DType::BFP16) || (out_type == host_parsing::DType::FP8) ||
+                         (out_type == host_parsing::DType::U8) || (out_type == host_parsing::DType::I8) ||
+                         (out_type == host_parsing::DType::I32) || (out_type == host_parsing::DType::I4) ||
                          (out_type == host_parsing::DType::FP16) || (out_type == host_parsing::DType::FP32);
-
 
     return in_supported && out_supported;
 }
@@ -826,37 +827,37 @@ using u32f32 = union {
 struct ActivationFunctionDesc {
     float alpha;
     u32f32 alphaFP32;
-    uint32_t alphaMult;  // Mult Register value
-    uint32_t alphaShift; // Shift register value (number of bits to shift left by)
+    uint32_t alphaMult;   // Mult Register value
+    uint32_t alphaShift;  // Shift register value (number of bits to shift left by)
     ActivationFunction funcType;
     int32_t clampLow;
     int32_t clampHigh;
 
     ActivationFunctionDesc()
-        : alpha(1.0)
-        , alphaMult(0)
-        , alphaShift(1)
-        , funcType(ActivationFunction::no_activation_function)
-        , clampLow(0)
-        , clampHigh(0) {
+            : alpha(1.0),
+              alphaMult(0),
+              alphaShift(1),
+              funcType(ActivationFunction::no_activation_function),
+              clampLow(0),
+              clampHigh(0) {
         alphaFP32.u32 = 0;
     }
 };
 
-#define PACK_F32(x, y, z)     ((x << 31) + (y << 23) + z)
-#define PACK_F16(x, y, z)     ((x << 15) + (y << 10) + z)
-#define PACK_B16(x, y, z)     ((x << 15) + (y << 7) + (z))
+#define PACK_F32(x, y, z) ((x << 31) + (y << 23) + z)
+#define PACK_F16(x, y, z) ((x << 15) + (y << 10) + z)
+#define PACK_B16(x, y, z) ((x << 15) + (y << 7) + (z))
 
-#define EXTRACT_F32_SIGN(x)   ((x >> 31) & 0x1)
-#define EXTRACT_F32_EXP(x)    ((x >> 23) & 0xFF)
-#define EXTRACT_F32_FRAC(x)   (x & 0x007FFFFF)
+#define EXTRACT_F32_SIGN(x) ((x >> 31) & 0x1)
+#define EXTRACT_F32_EXP(x) ((x >> 23) & 0xFF)
+#define EXTRACT_F32_FRAC(x) (x & 0x007FFFFF)
 #define PACK_B16(x, y, z) ((x << 15) + (y << 7) + (z))
 
 #define F32_EX_INEXACT 0x00000001    // 0x00000020
 #define F32_EX_UNDERFLOW 0x00000008  // 0x00000010
-#define F32_EX_INVALID     0x00000004//0x00000001
-#define F32_EX_UNDERFLOW   0x00000008//0x00000010
-#define F32_EX_OVERFLOW    0x00000010//0x00000008
+#define F32_EX_INVALID 0x00000004    // 0x00000001
+#define F32_EX_UNDERFLOW 0x00000008  // 0x00000010
+#define F32_EX_OVERFLOW 0x00000010   // 0x00000008
 
 #define F32_RND_NEAREST_EVEN 0
 #define F32_RND_MINUS_INF 1
@@ -869,33 +870,34 @@ constexpr uint32_t fp16ExpBias = 15;
 constexpr uint32_t fp16FracBits = 10;
 constexpr uint32_t bf16FracBits = 7;
 constexpr uint32_t bf16NanOutput = 0x7FC0;
-constexpr uint32_t fp32NanOutput = 0x7FC00000; // Aligns with Synopsys DWC_FP_MULT fixed NAN output
+constexpr uint32_t fp32NanOutput = 0x7FC00000;  // Aligns with Synopsys DWC_FP_MULT fixed NAN output
 
 // Apply RNE rounding to fp16 fractional part
 // Note if overflow of frac (>10 bits) occurs when rounding up this will
 // propagate to the exponent when added in the PACK16 function
-uint32_t RoundFp16(uint32_t &dataIn, uint32_t fracWidth) {
+uint32_t RoundFp16(uint32_t& dataIn, uint32_t fracWidth) {
     uint32_t frac;
     uint32_t precisionBitsMask;
-    uint32_t precisionBits; // Bits used to determine precision
+    uint32_t precisionBits;  // Bits used to determine precision
     uint32_t tie;
 
     if (fracWidth > fp16FracBits) {
-        precisionBitsMask = (0x01 << (fracWidth - fp16FracBits)) - 1; // Bits to determine rounding
+        precisionBitsMask = (0x01 << (fracWidth - fp16FracBits)) - 1;  // Bits to determine rounding
         precisionBits = dataIn & precisionBitsMask;
-        frac = dataIn >> (fracWidth - fp16FracBits); // Pre-rounded fp16 fraction
+        frac = dataIn >> (fracWidth - fp16FracBits);  // Pre-rounded fp16 fraction
 
-        tie = 0x01 << (fracWidth - fp16FracBits - 1); // -1 so that we end up with leading 1-bit at MSB of precisionBits
+        tie = 0x01 << (fracWidth - fp16FracBits -
+                       1);  // -1 so that we end up with leading 1-bit at MSB of precisionBits
         if (precisionBits > tie) {
             frac++;
         } else if (precisionBits == tie) {
             if ((frac & 0x01)) {
-                frac++; // Add 1 if tie and frac is odd (ties to even)
+                frac++;  // Add 1 if tie and frac is odd (ties to even)
             }
         }
     } else {
-        precisionBits = 0;                           // No rounding needed
-        frac = dataIn << (fp16FracBits - fracWidth); // fp16 fraction
+        precisionBits = 0;                            // No rounding needed
+        frac = dataIn << (fp16FracBits - fracWidth);  // fp16 fraction
     }
 
     return frac;
@@ -915,7 +917,7 @@ int32_t fixedPointToFp16(int32_t x, uint32_t intBits, uint32_t fracBits) {
     uint32_t frac;
 
     // Extract the sign and absolute value of x
-    sign = (x >> (intBits + fracBits - 1)) & 0x01; // Extract sign bit (assumes signed fixed point input)
+    sign = (x >> (intBits + fracBits - 1)) & 0x01;  // Extract sign bit (assumes signed fixed point input)
     uint32_t xAbs;
     if (sign) {
         xAbs = (~x + 1);
@@ -926,7 +928,7 @@ int32_t fixedPointToFp16(int32_t x, uint32_t intBits, uint32_t fracBits) {
     // Detect position of leading 1-bit of input (excluding the sign)
     uint32_t xAbsShift = xAbs;
     uint32_t count = 0;
-    while (xAbsShift >>= 1) // Shift right until the leading 1 bit has been shifted off (xAbs becomes false)
+    while (xAbsShift >>= 1)  // Shift right until the leading 1 bit has been shifted off (xAbs becomes false)
     {
         count++;
     }
@@ -937,12 +939,12 @@ int32_t fixedPointToFp16(int32_t x, uint32_t intBits, uint32_t fracBits) {
 
     // Calculate the fp16 fractional part (remaining bits after the leading 1-bit)
     uint32_t xAbsFrac;
-    if (count == 0) // Input is zero or denorm
+    if (count == 0)  // Input is zero or denorm
     {
         // Shift frac bits of fixed point input to fill upper bits of fp16 frac
         frac = xAbs << (fp16FracBits - count - 1);
     } else {
-        xAbsFrac = xAbs ^ (0x01 << count); // Fractional part excluding leading 1-bit
+        xAbsFrac = xAbs ^ (0x01 << count);  // Fractional part excluding leading 1-bit
         frac = RoundFp16(xAbsFrac, count);
     }
 
@@ -951,7 +953,7 @@ int32_t fixedPointToFp16(int32_t x, uint32_t intBits, uint32_t fracBits) {
     return result;
 }
 
-unsigned int f32_to_b16_conv(unsigned int x, unsigned int rnd_mode, unsigned int *exceptions) {
+unsigned int f32_to_b16_conv(unsigned int x, unsigned int rnd_mode, unsigned int* exceptions) {
     unsigned int result;
     unsigned int sign;
     int exp;
@@ -1027,12 +1029,13 @@ unsigned int f32_to_b16_conv(unsigned int x, unsigned int rnd_mode, unsigned int
     return result;
 }
 
-void setupInt(host_parsing::DType in_type, host_parsing::DType out_type, host_parsing::DPUInvariantRegisters &regs,
-               ActivationFunctionDesc &actFuncDesc, uint8_t out_zero_point) {
-    if (in_type == host_parsing::DType::I8 || in_type == host_parsing::DType::U8 || in_type == host_parsing::DType::I4) {
+void setupInt(host_parsing::DType in_type, host_parsing::DType out_type, host_parsing::DPUInvariantRegisters& regs,
+              ActivationFunctionDesc& actFuncDesc, uint8_t out_zero_point) {
+    if (in_type == host_parsing::DType::I8 || in_type == host_parsing::DType::U8 ||
+        in_type == host_parsing::DType::I4) {
         // I8/U8/I4 in, INT32 convolution, I8/U8/I4 out
         regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_bypass = 1;
-        regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert = 0x000; // INT32 convolution -> bypass FP clamp/gain
+        regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert = 0x000;  // INT32 convolution -> bypass FP clamp/gain
         regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_prelu_en = 0;
         regs.ppe_fp_prelu = 0;
 
@@ -1042,19 +1045,19 @@ void setupInt(host_parsing::DType in_type, host_parsing::DType out_type, host_pa
             regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = actFuncDesc.alphaMult;
             regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = actFuncDesc.alphaShift;
         } else if (actFuncDesc.funcType == ActivationFunction::relu_x) {
-            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 0; // ReLU zero negative slope
+            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 0;  // ReLU zero negative slope
             regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = 0;
         } else if (actFuncDesc.funcType == ActivationFunction::relu) {
-            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 0; // ReLU zero negative slope
+            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 0;  // ReLU zero negative slope
             regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = 0;
         } else {
-            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 1;  // no activation function
-            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = 0; // no activation function
+            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 1;   // no activation function
+            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = 0;  // no activation function
         }
     } else {
         // FP16/BF16/FP8 in, FP32 convolution, U8 out
         regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_bypass = 0;
-        regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert = 0x004; // FP32 convolution -> INT32 (and eventually U8) out
+        regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert = 0x004;  // FP32 convolution -> INT32 (and eventually U8) out
 
         // Derive fp _prelu
         regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 1;
@@ -1065,10 +1068,11 @@ void setupInt(host_parsing::DType in_type, host_parsing::DType out_type, host_pa
         regs.ppe_scale.ppe_scale_bf.ppe_scale_mult = 1;
         regs.ppe_scale.ppe_scale_bf.ppe_scale_round = 0;
         regs.ppe_scale.ppe_scale_bf.ppe_scale_shift = 0;
-        regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_prelu_en = 0; // can be overridden by LeakyReLU case
+        regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_prelu_en = 0;  // can be overridden by LeakyReLU case
 
         // FP32 prelu
-        if ((actFuncDesc.funcType == ActivationFunction::leaky_relu) || (actFuncDesc.funcType == ActivationFunction::relu) ||
+        if ((actFuncDesc.funcType == ActivationFunction::leaky_relu) ||
+            (actFuncDesc.funcType == ActivationFunction::relu) ||
             (actFuncDesc.funcType == ActivationFunction::relu_x)) {
             // for LeakyReLU, apply alpha; for ReLU and ReLUX, apply a negative-X slope of 0
             regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_prelu_en = 1;
@@ -1079,40 +1083,40 @@ void setupInt(host_parsing::DType in_type, host_parsing::DType out_type, host_pa
     //
     // U8 offset is added before clamping in VPU2.6
     switch (out_type) {
-        case host_parsing::DType::I4:
-            regs.ppe_scale_lclamp = -8;
-            break;
-        case host_parsing::DType::I8:
-            regs.ppe_scale_lclamp = -128;
-            break;
-        case host_parsing::DType::U8:
-            regs.ppe_scale_lclamp = 0;
-            break;
-        case host_parsing::DType::I32:
-            regs.ppe_scale_lclamp = 0x80000000;
-            break;
-        default:
-            VPUX_THROW("Unexpected dtype: {0}", static_cast<uint8_t>(out_type));
+    case host_parsing::DType::I4:
+        regs.ppe_scale_lclamp = -8;
+        break;
+    case host_parsing::DType::I8:
+        regs.ppe_scale_lclamp = -128;
+        break;
+    case host_parsing::DType::U8:
+        regs.ppe_scale_lclamp = 0;
+        break;
+    case host_parsing::DType::I32:
+        regs.ppe_scale_lclamp = 0x80000000;
+        break;
+    default:
+        VPUX_THROW("Unexpected dtype: {0}", static_cast<uint8_t>(out_type));
     }
 
     if (actFuncDesc.funcType == ActivationFunction::relu_x) {
         regs.ppe_scale_hclamp = (uint32_t)actFuncDesc.clampHigh;
     } else {
         switch (out_type) {
-            case host_parsing::DType::I4:
-                regs.ppe_scale_hclamp = 7;
-                break;
-            case host_parsing::DType::I8:
-                regs.ppe_scale_hclamp = 127;
-                break;
-            case host_parsing::DType::U8:
-                regs.ppe_scale_hclamp = 255;
-                break;
-            case host_parsing::DType::I32:
-                regs.ppe_scale_hclamp = 0x7FFFFFFF;
-                break;
-            default:
-                VPUX_THROW("Unexpected dtype: {0}", static_cast<uint8_t>(out_type));
+        case host_parsing::DType::I4:
+            regs.ppe_scale_hclamp = 7;
+            break;
+        case host_parsing::DType::I8:
+            regs.ppe_scale_hclamp = 127;
+            break;
+        case host_parsing::DType::U8:
+            regs.ppe_scale_hclamp = 255;
+            break;
+        case host_parsing::DType::I32:
+            regs.ppe_scale_hclamp = 0x7FFFFFFF;
+            break;
+        default:
+            VPUX_THROW("Unexpected dtype: {0}", static_cast<uint8_t>(out_type));
         }
     }
 
@@ -1121,71 +1125,71 @@ void setupInt(host_parsing::DType in_type, host_parsing::DType out_type, host_pa
 }
 
 // FP8/FP16/FP32 out
-void setupFloat(host_parsing::DType in_type, host_parsing::DType out_type, host_parsing::DPUInvariantRegisters &regs,
-                ActivationFunctionDesc &actFuncDesc) {
+void setupFloat(host_parsing::DType in_type, host_parsing::DType out_type, host_parsing::DPUInvariantRegisters& regs,
+                ActivationFunctionDesc& actFuncDesc) {
     switch (in_type) {
-        case host_parsing::DType::I8:
-        case host_parsing::DType::U8: {
-            VPUX_THROW_UNLESS(out_type == host_parsing::DType::FP32,
-                "Input datatype {0} with FP32 output is not supported", static_cast<uint8_t>(in_type));
-            // U8 in, INT32 convolution, FP16 out
-            regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_bypass = 1;
-            regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert = 0x000; // INT32 convolution -> bypass FP clamp/gain
-                                                                  //
-            regs.ppe_misc.ppe_misc_bf.ppe_i32_convert =
-                (out_type == host_parsing::DType::FP8) ? 0x2 : 0x1; // INT32 s17.15 fixed-point convert to FP8/FP16
+    case host_parsing::DType::I8:
+    case host_parsing::DType::U8: {
+        VPUX_THROW_UNLESS(out_type == host_parsing::DType::FP32, "Input datatype {0} with FP32 output is not supported",
+                          static_cast<uint8_t>(in_type));
+        // U8 in, INT32 convolution, FP16 out
+        regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_bypass = 1;
+        regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert = 0x000;  // INT32 convolution -> bypass FP clamp/gain
+                                                               //
+        regs.ppe_misc.ppe_misc_bf.ppe_i32_convert =
+                (out_type == host_parsing::DType::FP8) ? 0x2 : 0x1;  // INT32 s17.15 fixed-point convert to FP8/FP16
 
-            if (actFuncDesc.funcType == ActivationFunction::leaky_relu) {
-                // in this case, we have to convert a high-precision floating-point
-                // LeakyReLU alpha value to integer multiply and shift register values
-                regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = actFuncDesc.alphaMult;
-                regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = actFuncDesc.alphaShift;
-            } else if (actFuncDesc.funcType == ActivationFunction::relu_x) {
-                regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 0; // ReLU zero negative slope
-                regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = 0;
-            } else if (actFuncDesc.funcType == ActivationFunction::relu) {
-                regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 0; // ReLU zero negative slope
-                regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = 0;
-            } else {
-                regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 1;  // no activation function
-                regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = 0; // no activation function
-            }
-
-            break;
-        }
-        case host_parsing::DType::BFP16:
-        case host_parsing::DType::FP16:
-        case host_parsing::DType::FP8: {
-            // FP16 in, FP32 convolution, FP16 out
-            regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_bypass = 0;
-            if (out_type != host_parsing::DType::FP32)
-                regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert =
-                    (out_type == host_parsing::DType::FP8) ? 0x003 : 0x001; // FP32 convolution -> FP8/FP16 out
-
-            // FP32 Prelu
-            if ((actFuncDesc.funcType == ActivationFunction::leaky_relu) || (actFuncDesc.funcType == ActivationFunction::relu) ||
-                (actFuncDesc.funcType == ActivationFunction::relu_x)) {
-                regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_prelu_en = 1;
-                regs.ppe_fp_prelu =
-                    actFuncDesc.alphaFP32.u32; // deliberately apply gain of zero to values less than zero
-            } else {
-                regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_prelu_en = 0;
-            }
-
-            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 1;
+        if (actFuncDesc.funcType == ActivationFunction::leaky_relu) {
+            // in this case, we have to convert a high-precision floating-point
+            // LeakyReLU alpha value to integer multiply and shift register values
+            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = actFuncDesc.alphaMult;
+            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = actFuncDesc.alphaShift;
+        } else if (actFuncDesc.funcType == ActivationFunction::relu_x) {
+            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 0;  // ReLU zero negative slope
             regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = 0;
-
-            // Do not apply the scaling table to the integer PPE
-            regs.ppe_scale_ctrl.ppe_scale_ctrl_bf.ppe_scale_override = 1;
-            regs.ppe_scale.ppe_scale_bf.ppe_scale_mult = 1;
-            regs.ppe_scale.ppe_scale_bf.ppe_scale_shift = 0;
-
-            break;
+        } else if (actFuncDesc.funcType == ActivationFunction::relu) {
+            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 0;  // ReLU zero negative slope
+            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = 0;
+        } else {
+            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 1;   // no activation function
+            regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = 0;  // no activation function
         }
-        default: {
-            VPUX_THROW("Support for input datatype {0} with FP output is not yet implemented",
-                static_cast<uint8_t>(in_type));
+
+        break;
+    }
+    case host_parsing::DType::BFP16:
+    case host_parsing::DType::FP16:
+    case host_parsing::DType::FP8: {
+        // FP16 in, FP32 convolution, FP16 out
+        regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_bypass = 0;
+        if (out_type != host_parsing::DType::FP32)
+            regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert =
+                    (out_type == host_parsing::DType::FP8) ? 0x003 : 0x001;  // FP32 convolution -> FP8/FP16 out
+
+        // FP32 Prelu
+        if ((actFuncDesc.funcType == ActivationFunction::leaky_relu) ||
+            (actFuncDesc.funcType == ActivationFunction::relu) ||
+            (actFuncDesc.funcType == ActivationFunction::relu_x)) {
+            regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_prelu_en = 1;
+            regs.ppe_fp_prelu = actFuncDesc.alphaFP32.u32;  // deliberately apply gain of zero to values less than zero
+        } else {
+            regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_prelu_en = 0;
         }
+
+        regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 1;
+        regs.ppe_prelu.ppe_prelu_bf.ppe_prelu_shift = 0;
+
+        // Do not apply the scaling table to the integer PPE
+        regs.ppe_scale_ctrl.ppe_scale_ctrl_bf.ppe_scale_override = 1;
+        regs.ppe_scale.ppe_scale_bf.ppe_scale_mult = 1;
+        regs.ppe_scale.ppe_scale_bf.ppe_scale_shift = 0;
+
+        break;
+    }
+    default: {
+        VPUX_THROW("Support for input datatype {0} with FP output is not yet implemented",
+                   static_cast<uint8_t>(in_type));
+    }
     }
 
     // ReLUX is ReLU with an upper clamp
@@ -1203,21 +1207,23 @@ void setupFloat(host_parsing::DType in_type, host_parsing::DType out_type, host_
     }
 }
 
-void setupBFloat(host_parsing::DType in_dtype, host_parsing::DType out_type, host_parsing::DPUInvariantRegisters &regs,
-                 const ActivationFunctionDesc &actFunc) {
+void setupBFloat(host_parsing::DType in_dtype, host_parsing::DType out_type, host_parsing::DPUInvariantRegisters& regs,
+                 const ActivationFunctionDesc& actFunc) {
     VPUX_UNUSED(out_type);
 
-    VPUX_THROW_UNLESS(in_dtype != host_parsing::DType::I8 && in_dtype != host_parsing::DType::U8, "X8 in, I32 convolution, BF16 out is not supported by the hardware");
+    VPUX_THROW_UNLESS(in_dtype != host_parsing::DType::I8 && in_dtype != host_parsing::DType::U8,
+                      "X8 in, I32 convolution, BF16 out is not supported by the hardware");
 
     // FP8/FP16/BF16 in, FP32 convolution, BF16 out
     regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_bypass = 0;
-    regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert = 0x002; // FP32 convolution -> BF16 out
-    regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_bf16_round = 1;     // Round to Nearest, Ties to Even (RNE)
+    regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert = 0x002;  // FP32 convolution -> BF16 out
+    regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_bf16_round = 1;      // Round to Nearest, Ties to Even (RNE)
 
     // FP32 Prelu
-    if ((actFunc.funcType == ActivationFunction::leaky_relu) || (actFunc.funcType == ActivationFunction::relu) || (actFunc.funcType == ActivationFunction::relu_x)) {
+    if ((actFunc.funcType == ActivationFunction::leaky_relu) || (actFunc.funcType == ActivationFunction::relu) ||
+        (actFunc.funcType == ActivationFunction::relu_x)) {
         regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_prelu_en = 1;
-        regs.ppe_fp_prelu = actFunc.alphaFP32.u32; // deliberately apply gain of zero to values less than zero
+        regs.ppe_fp_prelu = actFunc.alphaFP32.u32;  // deliberately apply gain of zero to values less than zero
     } else {
         regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_prelu_en = 0;
     }
@@ -1253,7 +1259,7 @@ VPUIP::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
         // vpux::printTo(std::cerr, "Successfully extracted {0} mpe mode\n", mpeMode);
         // ++umap[mpeMode];
         // if (umap.size() > 1) {
-            // VPUX_THROW("Non-uniform DPU task MPE modes is not supported yet.");
+        // VPUX_THROW("Non-uniform DPU task MPE modes is not supported yet.");
         // }
     }
     return umap.begin()->first;
@@ -1318,7 +1324,7 @@ int integerPreluAlphaDeltaSgn(float targetPreluAlpha, float actualPreluAlpha) {
 // Approximate the HW integer prelu alpha settings given the target float alpha value in the blob
 // Start at the largest values possible in the PPE registers and work backward until the target is reached
 // If both fields reach 0 then we can't approximate this alpha value and return failure
-bool approximatePreluAlpha(float targetAlpha, ActivationFunctionDesc &actFunctionDesc) {
+bool approximatePreluAlpha(float targetAlpha, ActivationFunctionDesc& actFunctionDesc) {
     // Size of fields in PPE prelu register
     constexpr uint32_t intPreluMultBits = 11;
     constexpr uint32_t intPreluShiftBits = 5;
@@ -1408,47 +1414,45 @@ bool approximatePreluAlpha(float targetAlpha, ActivationFunctionDesc &actFunctio
 
 unsigned int configWorkloadSize(vpux::VPUIP::NCETaskType taskType, unsigned int inputShapeC, unsigned int size) {
     switch (taskType) {
-        case vpux::VPUIP::NCETaskType::CONV:
-        case vpux::VPUIP::NCETaskType::ELTWISE:
-        case vpux::VPUIP::NCETaskType::CMCONV:
-            // TODO: There seems to be some kind of untold convention with
-            // the compiler that this value will be overwritten in runtime
-            // OPEN: check this moment
-            if (size != inputShapeC)
-                size = inputShapeC;
-            break;
+    case vpux::VPUIP::NCETaskType::CONV:
+    case vpux::VPUIP::NCETaskType::ELTWISE:
+    case vpux::VPUIP::NCETaskType::CMCONV:
+        // TODO: There seems to be some kind of untold convention with
+        // the compiler that this value will be overwritten in runtime
+        // OPEN: check this moment
+        if (size != inputShapeC)
+            size = inputShapeC;
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 
     return size;
 }
 
-uint8_t getODUDTypeSizeBits(host_parsing::OutputTensorDType type)
-{
-    switch (type)
-    {
-        //case host_parsing::OutputTensorDType::FP16:
-        case host_parsing::OutputTensorDType::BF16:
-            return 16;
-        case host_parsing::OutputTensorDType::U8F:
-        case host_parsing::OutputTensorDType::G8:
-        case host_parsing::OutputTensorDType::I8:
-            return 8;
-        //case host_parsing::OutputTensorDType::FP32:
-        case host_parsing::OutputTensorDType::I32:
-            return 32;
-        case host_parsing::OutputTensorDType::I4:
-            return 4;
-        case host_parsing::OutputTensorDType::I2:
-            return 2;
-        case host_parsing::OutputTensorDType::LOG:
-            return 4;
-        case host_parsing::OutputTensorDType::BIN:
-            return 1;
-        default:
-            return 1;
+uint8_t getODUDTypeSizeBits(host_parsing::OutputTensorDType type) {
+    switch (type) {
+    // case host_parsing::OutputTensorDType::FP16:
+    case host_parsing::OutputTensorDType::BF16:
+        return 16;
+    case host_parsing::OutputTensorDType::U8F:
+    case host_parsing::OutputTensorDType::G8:
+    case host_parsing::OutputTensorDType::I8:
+        return 8;
+    // case host_parsing::OutputTensorDType::FP32:
+    case host_parsing::OutputTensorDType::I32:
+        return 32;
+    case host_parsing::OutputTensorDType::I4:
+        return 4;
+    case host_parsing::OutputTensorDType::I2:
+        return 2;
+    case host_parsing::OutputTensorDType::LOG:
+        return 4;
+    case host_parsing::OutputTensorDType::BIN:
+        return 1;
+    default:
+        return 1;
     }
 }
 
@@ -1525,8 +1529,8 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-//    log.trace("Extract 'VPUIP.{0}' from Module (ELF)", VPUIP::GraphOp::getOperationName());
-//    auto graphOp = VPUIP::GraphOp::getFromModule(module);
+    //    log.trace("Extract 'VPUIP.{0}' from Module (ELF)", VPUIP::GraphOp::getOperationName());
+    //    auto graphOp = VPUIP::GraphOp::getFromModule(module);
 
     std::deque<host_parsing::BarrierWrapper> barriersList;
     mlir::DenseMap<mlir::Value, std::deque<host_parsing::BarrierWrapper>::iterator> barriers;
@@ -1539,14 +1543,15 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
                 "Encountered the same barrierOp {0} in function twice", barrierOp);
     });
 
-//    VPUX_THROW_UNLESS(barriersList.size() <= 32, "Networks with barrriers count more than 32 are not supported");
+    //    VPUX_THROW_UNLESS(barriersList.size() <= 32, "Networks with barrriers count more than 32 are not supported");
 
     for (auto barriersPosition = barriersList.begin(); barriersPosition != barriersList.end(); ++barriersPosition) {
         const auto nextSameId =
                 std::find_if(std::next(barriersPosition), barriersList.end(), [&barriersPosition](const auto& barrier) {
                     return barriersPosition->real_id == barrier.real_id;
                 });
-        barriersPosition->next_same_id = nextSameId != barriersList.end() ? std::distance(barriersList.begin(), nextSameId) : -1;
+        barriersPosition->next_same_id =
+                nextSameId != barriersList.end() ? std::distance(barriersList.begin(), nextSameId) : -1;
     }
 
     host_parsing::HostParsedInference hostParsedInference{};
@@ -1580,7 +1585,8 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             const auto oldSize = constants.size();
             const auto newSize = static_cast<vpux::Byte>(content.getTotalSize()).count();
             constants.resize(oldSize + newSize);
-            content.copyTo(llvm::MutableArrayRef<char>(reinterpret_cast<char*>(constants.data()) + oldSize, checked_cast<size_t>(newSize)));
+            content.copyTo(llvm::MutableArrayRef<char>(reinterpret_cast<char*>(constants.data()) + oldSize,
+                                                       checked_cast<size_t>(newSize)));
         }
     });
 
@@ -1659,11 +1665,11 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
         for (const auto& barrierValue : taskOp.waitBarriers()) {
             auto barrierOp = barrierValue.getDefiningOp<VPURT::ConfigureBarrierOp>();
             VPUX_THROW_UNLESS(barrierOp, "Encountered unexpected barrier value {0} in waitBarriers range of {1}",
-                            barrierValue, dmaTask);
+                              barrierValue, dmaTask);
 
             const auto& barrier = barrierOp.barrier();
             VPUX_THROW_UNLESS(barriers.count(barrier),
-                            "Encountered unpexpected {0}, all bariers must have been parsed already", barrier);
+                              "Encountered unpexpected {0}, all bariers must have been parsed already", barrier);
             auto& barrierWrapper = barriers[barrier];
 
             barrierWrapper->consumer_count++;
@@ -1673,11 +1679,11 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
         for (const auto& barrierValue : taskOp.updateBarriers()) {
             auto barrierOp = barrierValue.getDefiningOp<VPURT::ConfigureBarrierOp>();
             VPUX_THROW_UNLESS(barrierOp, "Encountered unexpected barrier value {0} in updateBarriers range of {1}",
-                            barrierValue, dmaTask);
+                              barrierValue, dmaTask);
 
             const auto& barrier = barrierOp.barrier();
             VPUX_THROW_UNLESS(barriers.count(barrier),
-                            "Encountered unpexpected {0}, all bariers must have been parsed already", barrier);
+                              "Encountered unpexpected {0}, all bariers must have been parsed already", barrier);
             auto& barrierWrapper = barriers[barrier];
 
             barrierWrapper->producer_count++;
@@ -1760,7 +1766,8 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             inputZeroPoint = checked_cast<uint8_t>(quantizedType.getZeroPoint());
             registers.mpe_cfg.mpe_cfg_bf.mpe_actbias = inputZeroPoint;
             registers.tensor_mode.tensor_mode_bf.pad_value = inputZeroPoint;
-        } else if (const auto quantizedType = inputElementType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        } else if (const auto quantizedType =
+                           inputElementType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
             const auto zeroPoints = quantizedType.getZeroPoints();
             VPUX_THROW_UNLESS(!zeroPoints.empty(), "Expected to see non-empty zero points array in {0}",
                               inputElementType);
@@ -1791,8 +1798,10 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
         mlir::Type weightsElementType;
         mlir::Value weights;
         if (taskType == vpux::VPUIP::NCETaskType::MAXPOOL) {
-            weightsElementType = mlir::IntegerType::get(module->getContext(), 8, mlir::IntegerType::SignednessSemantics::Signed);
-            registers.tensor_mode.tensor_mode_bf.wmode = static_cast<uint8_t>(host_parsing::MpeActivationWeightDtype::I8);
+            weightsElementType =
+                    mlir::IntegerType::get(module->getContext(), 8, mlir::IntegerType::SignednessSemantics::Signed);
+            registers.tensor_mode.tensor_mode_bf.wmode =
+                    static_cast<uint8_t>(host_parsing::MpeActivationWeightDtype::I8);
         } else {
             weights = nceTask.weights();
             VPUX_THROW_UNLESS(weights, "Encountered DPU operation {0} without weights", nceTask);
@@ -1806,7 +1815,8 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
                 weightsZeroPoint = checked_cast<uint8_t>(quantizedType.getZeroPoint());
                 weightsScale = vpux::getQuantMultFromScale(quantizedType.getScale());
                 weightsShift = vpux::getQuantShiftFromScale(quantizedType.getScale());
-            } else if (const auto quantizedType = weightsElementType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+            } else if (const auto quantizedType =
+                               weightsElementType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
                 const auto zeroPoints = quantizedType.getZeroPoints();
                 VPUX_THROW_UNLESS(!zeroPoints.empty(), "Expected to see non-empty zero points array in {0}",
                                   weightsElementType);
@@ -1881,15 +1891,15 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
 
         // OPEN: data types are inconsistent compiler/registers/runtime logic
         int16_t kernelPadL = 0;
-//        int16_t kernelPadR = 0;
+        //        int16_t kernelPadR = 0;
         int16_t kernelPadT = 0;
-//        int16_t kernelPadB = 0;
+        //        int16_t kernelPadB = 0;
         if (const auto kernelPaddingAttr = nceTask.kernel_paddingAttr()) {
             const auto kernelPadding = parseIntArrayAttr<int64_t>(kernelPaddingAttr);
             kernelPadL = checked_cast<int16_t>(kernelPadding[0]);
-//            kernelPadR = checked_cast<int16_t>(kernelPadding[1]);
+            //            kernelPadR = checked_cast<int16_t>(kernelPadding[1]);
             kernelPadT = checked_cast<int16_t>(kernelPadding[2]);
-//            kernelPadB = checked_cast<int16_t>(kernelPadding[3]);
+            //            kernelPadB = checked_cast<int16_t>(kernelPadding[3]);
         }
 
         registers.tensor_mode.tensor_mode_bf.stride = kernelStrideW - 1;
@@ -1976,7 +1986,8 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             zeroPoint = checked_cast<uint8_t>(quantizedType.getZeroPoint());
             scale = vpux::getQuantMultFromScale(quantizedType.getScale());
             shift = vpux::getQuantShiftFromScale(quantizedType.getScale());
-        } else if (const auto quantizedType = outputElementType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        } else if (const auto quantizedType =
+                           outputElementType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
             const auto zeroPoints = quantizedType.getZeroPoints();
             VPUX_THROW_UNLESS(!zeroPoints.empty(), "Expected to see non-empty zero points array in {0}",
                               outputElementType);
@@ -2067,11 +2078,12 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             }
 
             if (registers.odu_cfg.odu_cfg_bf.grid != static_cast<uint8_t>(host_parsing::ODUGrid::GRID_16x1) &&
-                registers.odu_cfg.odu_cfg_bf.grid != static_cast<uint8_t>(host_parsing::ODUGrid::GRID_4x1))
-            {
+                registers.odu_cfg.odu_cfg_bf.grid != static_cast<uint8_t>(host_parsing::ODUGrid::GRID_4x1)) {
                 registers.odu_cfg.odu_cfg_bf.grid =
-                    registers.odu_cfg.odu_cfg_bf.dtype == static_cast<uint8_t>(host_parsing::OutputTensorDType::FP16) ?
-                        static_cast<uint8_t>(host_parsing::ODUGrid::GRID_4x1) : static_cast<uint8_t>(host_parsing::ODUGrid::GRID_16x1);
+                        registers.odu_cfg.odu_cfg_bf.dtype ==
+                                        static_cast<uint8_t>(host_parsing::OutputTensorDType::FP16)
+                                ? static_cast<uint8_t>(host_parsing::ODUGrid::GRID_4x1)
+                                : static_cast<uint8_t>(host_parsing::ODUGrid::GRID_16x1);
             }
             break;
         }
@@ -2104,41 +2116,43 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             // NOTE: VPU2p7 HW feature allowing different quantization scales is not supported yet
             // So this branch is forced off with 0, even if the blob gives these params
             // See EISW-5671
-//            if (0 && in_tensor_ref->quant_mult()->size() && wt_tensor_ref->quant_mult()->size()) {
-//                unsigned short aMult = in_tensor_ref->quant_mult()->Get(0);
-//                unsigned short bMult = wt_tensor_ref->quant_mult()->Get(0);
-//                unsigned short aShift = in_tensor_ref->quant_shift()->Get(0);
-//                unsigned short bShift = wt_tensor_ref->quant_shift()->Get(0);
-//                unsigned short outMult = out_tensor_ref->quant_mult()->Get(0);
-//                unsigned short outShift = out_tensor_ref->quant_shift()->Get(0);
-//
-//                uint64_t fScaleFactor1 = static_cast<uint64_t>(aMult * outMult) << 15;
-//                uint64_t fScaleFactor2 = static_cast<uint64_t>(bMult * outMult) << 15;
-//                unsigned scaleFactor1Shift = aShift + outShift;
-//                unsigned scaleFactor2Shift = bShift + outShift;
-//
-//                unsigned short elopScaleA = static_cast<unsigned short>(fScaleFactor1 >> scaleFactor1Shift);
-//                unsigned short elopScaleB = static_cast<unsigned short>(fScaleFactor2 >> scaleFactor2Shift);
-//
-//                registers.elop_scale.elop_scale_bf.elop_scale_a = elopScaleA;
-//                registers.elop_scale.elop_scale_bf.elop_scale_b = elopScaleB;
-//            } else {
-                registers.elop_scale.elop_scale_bf.elop_scale_a = 1;
-                registers.elop_scale.elop_scale_bf.elop_scale_b = 1;
-//            }
+            //            if (0 && in_tensor_ref->quant_mult()->size() && wt_tensor_ref->quant_mult()->size()) {
+            //                unsigned short aMult = in_tensor_ref->quant_mult()->Get(0);
+            //                unsigned short bMult = wt_tensor_ref->quant_mult()->Get(0);
+            //                unsigned short aShift = in_tensor_ref->quant_shift()->Get(0);
+            //                unsigned short bShift = wt_tensor_ref->quant_shift()->Get(0);
+            //                unsigned short outMult = out_tensor_ref->quant_mult()->Get(0);
+            //                unsigned short outShift = out_tensor_ref->quant_shift()->Get(0);
+            //
+            //                uint64_t fScaleFactor1 = static_cast<uint64_t>(aMult * outMult) << 15;
+            //                uint64_t fScaleFactor2 = static_cast<uint64_t>(bMult * outMult) << 15;
+            //                unsigned scaleFactor1Shift = aShift + outShift;
+            //                unsigned scaleFactor2Shift = bShift + outShift;
+            //
+            //                unsigned short elopScaleA = static_cast<unsigned short>(fScaleFactor1 >>
+            //                scaleFactor1Shift); unsigned short elopScaleB = static_cast<unsigned short>(fScaleFactor2
+            //                >> scaleFactor2Shift);
+            //
+            //                registers.elop_scale.elop_scale_bf.elop_scale_a = elopScaleA;
+            //                registers.elop_scale.elop_scale_bf.elop_scale_b = elopScaleB;
+            //            } else {
+            registers.elop_scale.elop_scale_bf.elop_scale_a = 1;
+            registers.elop_scale.elop_scale_bf.elop_scale_b = 1;
+            //            }
 
             // For FP16 eltwise grid needs to be 4x4
             if ((inputElementType.isF16() && weightsElementType.isF16()) || outputElementType.isF16()) {
                 registers.odu_cfg.odu_cfg_bf.grid = static_cast<uint8_t>(host_parsing::ODUGrid::GRID_4x4);
-                registers.kernel_pad_cfg.kernel_pad_cfg_bf.mpe_assign = static_cast<uint8_t>(host_parsing::MPEGrid::GRID_4x4);
+                registers.kernel_pad_cfg.kernel_pad_cfg_bf.mpe_assign =
+                        static_cast<uint8_t>(host_parsing::MPEGrid::GRID_4x4);
             }
 
             registers.kernel_pad_cfg.kernel_pad_cfg_bf.wt_dense = isWeightsDense;
 
             registers.elops_wload.elops_wload_bf.elop_wload =
-                    1; // read in 2 tensors instead of a tensor and weight sets for a standard convolution.
+                    1;  // read in 2 tensors instead of a tensor and weight sets for a standard convolution.
 
-//            SetupInvariant_SOH_Input(fb_invariant_, registers);
+            //            SetupInvariant_SOH_Input(fb_invariant_, registers);
             // OPEN: VPUx assumes parent input and input are the same (so here I do nothing)
             // check SetupInvariant_SOH & SetupInvariant_SOH_Input & Input Size if-block after
 
@@ -2165,7 +2179,8 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
         registers.ppe_scale.ppe_scale_bf.ppe_scale_mult = 1;
         registers.ppe_prelu.ppe_prelu_bf.ppe_prelu_mult = 1;  // Serialised in fixed function
         registers.ppe_fp_prelu = 1;                           // Derive from ppe_prelu_mult & ppe_prelu_shift
-        registers.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_bypass = 1; // Set based on data types, if we see float point - don't bypass!
+        registers.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_bypass =
+                1;  // Set based on data types, if we see float point - don't bypass!
 
         const auto outputZeroPoint = taskType == vpux::VPUIP::NCETaskType::MAXPOOL ? 0 : zeroPoint;
         VPUX_THROW_UNLESS(areSupportedInputOutputTypes(Type2DType(inputElementType), Type2DType(outputElementType)),
@@ -2217,53 +2232,55 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             // https://github.com/movidius/Fathom/blob/master/scripts/validation_test_script/mix_precision_blobs.py
             // scale_shift_to_fp(scale,shift): scale * 2 ** (-float(shift))
             // scale_shift_to_fp(ppe_ops["Lrelu_Mult"], ppe_ops["Lrelu_Shift"])
-            auto lReluMult  = checked_cast<float>(LreluMult);
+            auto lReluMult = checked_cast<float>(LreluMult);
             auto lReluShift = checked_cast<int8_t>(LreluShift & 0xFF);
 
             actFuncDesc.funcType = ActivationFunction::leaky_relu;
             actFuncDesc.alpha = std::ldexp(lReluMult, -lReluShift);
 
             if (inputElementType.isUnsignedInteger(CHAR_BIT * sizeof(uint8_t)) ||
-                inputElementType.isSignedInteger  (CHAR_BIT * sizeof( int8_t)) ||
-                inputElementType.isSignedInteger  (CHAR_BIT * sizeof(int32_t))) {
-                VPUX_THROW_UNLESS(approximatePreluAlpha(actFuncDesc.alpha, actFuncDesc), "Failed to approximate PReLU alpha");
+                inputElementType.isSignedInteger(CHAR_BIT * sizeof(int8_t)) ||
+                inputElementType.isSignedInteger(CHAR_BIT * sizeof(int32_t))) {
+                VPUX_THROW_UNLESS(approximatePreluAlpha(actFuncDesc.alpha, actFuncDesc),
+                                  "Failed to approximate PReLU alpha");
             } else {
                 if ((checked_cast<uint32_t>(clampHigh) == 0x7FFFFFFF ||
-                     checked_cast<uint32_t>(clampHigh) == 0x00000000) && checked_cast<uint32_t>(clampLow) == 0) {
+                     checked_cast<uint32_t>(clampHigh) == 0x00000000) &&
+                    checked_cast<uint32_t>(clampLow) == 0) {
                     actFuncDesc.funcType = ActivationFunction::relu;
-                    actFuncDesc.alpha = -0.0; // note: -0.0, to ensure zero-gained data uses positive zero in FP32
-                                              // (0x00000000), not negative zero (0x80000000)
+                    actFuncDesc.alpha = -0.0;  // note: -0.0, to ensure zero-gained data uses positive zero in FP32
+                                               // (0x00000000), not negative zero (0x80000000)
                 } else if (checked_cast<uint32_t>(clampHigh) < 0x7FFFFFFF && checked_cast<uint32_t>(clampLow) == 0) {
                     actFuncDesc.funcType = ActivationFunction::relu_x;
-                    actFuncDesc.alpha = -0.0; // note: -0.0, to ensure zero-gained data uses positive zero in FP32
-                                              // (0x00000000), not negative zero (0x80000000)
+                    actFuncDesc.alpha = -0.0;  // note: -0.0, to ensure zero-gained data uses positive zero in FP32
+                                               // (0x00000000), not negative zero (0x80000000)
                 } else {
                     actFuncDesc.funcType = ActivationFunction::no_activation_function;
                 }
             }
 
-            actFuncDesc.alphaFP32.f32 = actFuncDesc.alpha; // alpha (accessible as uint32_t FP32 bit pattern in .u)
+            actFuncDesc.alphaFP32.f32 = actFuncDesc.alpha;  // alpha (accessible as uint32_t FP32 bit pattern in .u)
             actFuncDesc.clampHigh = clampHigh;
             actFuncDesc.clampLow = clampLow;
         }
 
         switch (outputDType) {
-            case host_parsing::DType::I4:
-            case host_parsing::DType::I8:
-            case host_parsing::DType::U8:
-            case host_parsing::DType::I32:
-                setupInt(inputDType, outputDType, registers, actFuncDesc, outputZeroPoint);
-                break;
-            case host_parsing::DType::FP8:
-            case host_parsing::DType::FP16:
-            case host_parsing::DType::FP32:
-                setupFloat(inputDType, outputDType, registers, actFuncDesc);
-                break;
-            case host_parsing::DType::BFP16:
-                setupBFloat(inputDType, outputDType, registers, actFuncDesc);
-                break;
-            default:
-                VPUX_THROW("only U8, I8, FP16 are currently supported for BF16 out");
+        case host_parsing::DType::I4:
+        case host_parsing::DType::I8:
+        case host_parsing::DType::U8:
+        case host_parsing::DType::I32:
+            setupInt(inputDType, outputDType, registers, actFuncDesc, outputZeroPoint);
+            break;
+        case host_parsing::DType::FP8:
+        case host_parsing::DType::FP16:
+        case host_parsing::DType::FP32:
+            setupFloat(inputDType, outputDType, registers, actFuncDesc);
+            break;
+        case host_parsing::DType::BFP16:
+            setupBFloat(inputDType, outputDType, registers, actFuncDesc);
+            break;
+        default:
+            VPUX_THROW("only U8, I8, FP16 are currently supported for BF16 out");
         }
 
         const auto isFP16 = inputDType == host_parsing::DType::FP16 || inputDType == host_parsing::DType::BFP16;
@@ -2286,12 +2303,12 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
 
             if (isFP) {
                 registers.ppe_scale_ctrl.ppe_scale_ctrl_bf.ppe_fp_scale_override = 0x1;
-                registers.ppe_fp_scale = 0x3f800000; // fp32 equiv of 1
+                registers.ppe_fp_scale = 0x3f800000;  // fp32 equiv of 1
                 registers.ppe_fp_bias = 0x0;
             }
         } else if (taskType == vpux::VPUIP::NCETaskType::MAXPOOL) {
             registers.ppe_scale_ctrl.ppe_scale_ctrl_bf.ppe_scale_override = 1;
-            registers.ppe_scale.ppe_scale_bf.ppe_scale_round = 0x3; // 0x3 - no round
+            registers.ppe_scale.ppe_scale_bf.ppe_scale_round = 0x3;  // 0x3 - no round
             registers.ppe_scale.ppe_scale_bf.ppe_scale_mult = 0x1;
             registers.ppe_scale.ppe_scale_bf.ppe_scale_shift = 0x0;
             registers.ppe_cfg.ppe_cfg_bf.ppe_g8_bias_a = 0x0;
@@ -2300,30 +2317,31 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             if (isFP16) {
                 registers.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_bypass = 0x1;
                 registers.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert =
-                    0x0; // FP16 MaxPool result is already FP16 with CRL FP MAC => no conversion
+                        0x0;  // FP16 MaxPool result is already FP16 with CRL FP MAC => no conversion
             }
             if (isFP) {
                 registers.ppe_scale_ctrl.ppe_scale_ctrl_bf.ppe_fp_scale_override = 0x1;
-                registers.ppe_fp_scale = 0x3f800000; // fp32 equiv of 1
+                registers.ppe_fp_scale = 0x3f800000;  // fp32 equiv of 1
                 registers.ppe_fp_bias = 0x0;
             }
-        } else if (registers.elops_wload.elops_wload_bf.pool_wt_rd_dis && taskType == vpux::VPUIP::NCETaskType::AVEPOOL) {
+        } else if (registers.elops_wload.elops_wload_bf.pool_wt_rd_dis &&
+                   taskType == vpux::VPUIP::NCETaskType::AVEPOOL) {
             registers.ppe_scale_ctrl.ppe_scale_ctrl_bf.ppe_scale_override = 1;
             u32f32 fp32_scale;
             fp32_scale.f32 = 1.0f / (kernelH * kernelW);
             switch (weightsDType) {
-                case host_parsing::DType::I8:
-                case host_parsing::DType::U8:
-                    registers.ppe_scale.ppe_scale_bf.ppe_scale_mult = weightsScale;
-                    registers.ppe_scale.ppe_scale_bf.ppe_scale_shift = weightsShift;
-                    break;
-                case host_parsing::DType::FP16:
-                case host_parsing::DType::BFP16:
-                    registers.ppe_scale_ctrl.ppe_scale_ctrl_bf.ppe_fp_scale_override = 1;
-                    registers.ppe_fp_scale = fp32_scale.u32;
-                    break;
-                default:
-                    break;
+            case host_parsing::DType::I8:
+            case host_parsing::DType::U8:
+                registers.ppe_scale.ppe_scale_bf.ppe_scale_mult = weightsScale;
+                registers.ppe_scale.ppe_scale_bf.ppe_scale_shift = weightsShift;
+                break;
+            case host_parsing::DType::FP16:
+            case host_parsing::DType::BFP16:
+                registers.ppe_scale_ctrl.ppe_scale_ctrl_bf.ppe_fp_scale_override = 1;
+                registers.ppe_fp_scale = fp32_scale.u32;
+                break;
+            default:
+                break;
             }
         }
 
@@ -2368,35 +2386,41 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             registers.weight_num = op_size_z;
 
             switch (taskType) {
-                case vpux::VPUIP::NCETaskType::CONV:
-                    registers.weight_size = inputShapeC * kernelW * kernelH;
+            case vpux::VPUIP::NCETaskType::CONV:
+                registers.weight_size = inputShapeC * kernelW * kernelH;
                 break;
-                case vpux::VPUIP::NCETaskType::DWCONV:
-                case vpux::VPUIP::NCETaskType::AVEPOOL:
-                case vpux::VPUIP::NCETaskType::MAXPOOL:
-                    registers.weight_size = op_size_z * kernelW * kernelH;
+            case vpux::VPUIP::NCETaskType::DWCONV:
+            case vpux::VPUIP::NCETaskType::AVEPOOL:
+            case vpux::VPUIP::NCETaskType::MAXPOOL:
+                registers.weight_size = op_size_z * kernelW * kernelH;
                 break;
-                case vpux::VPUIP::NCETaskType::ELTWISE:
-                    registers.weight_size = inputShapeW * inputShapeH * inputShapeC;
+            case vpux::VPUIP::NCETaskType::ELTWISE:
+                registers.weight_size = inputShapeW * inputShapeH * inputShapeC;
                 break;
-                default:
-                    VPUX_THROW("Can't setup weight size. Layer type unknown : {0}", taskType);
+            default:
+                VPUX_THROW("Can't setup weight size. Layer type unknown : {0}", taskType);
             }
 
             // OPEN: why negate, no just dense
             registers.offset_addr.offset_addr_bf.dense_se = !isInputDense;
             registers.offset_addr.offset_addr_bf.conv_cond = nceTask.is_continuedAttr() != nullptr;
 
-            registers.workload_size0.workload_size0_bf.workload_size_x = stride_w * (op_size_x - 1) + K_w - local_PL - local_PR;
-            registers.workload_size0.workload_size0_bf.workload_size_y = stride_h * (op_size_y - 1) + K_h - local_PT - local_PB;
-            registers.workload_size1.workload_size1_bf.workload_size_z = configWorkloadSize(taskType, inputShapeC, op_size_z);
+            registers.workload_size0.workload_size0_bf.workload_size_x =
+                    stride_w * (op_size_x - 1) + K_w - local_PL - local_PR;
+            registers.workload_size0.workload_size0_bf.workload_size_y =
+                    stride_h * (op_size_y - 1) + K_h - local_PT - local_PB;
+            registers.workload_size1.workload_size1_bf.workload_size_z =
+                    configWorkloadSize(taskType, inputShapeC, op_size_z);
             registers.workload_size1.workload_size1_bf.pad_count_up = local_PT;
             registers.workload_size1.workload_size1_bf.pad_count_down = local_PB;
             registers.workload_size1.workload_size1_bf.pad_count_left = local_PL;
             registers.workload_size1.workload_size1_bf.pad_count_right = local_PR;
-            registers.workload_start0.workload_start0_bf.workload_start_x = (output_start_x * stride_w) - global_PL + local_PL;
-            registers.workload_start0.workload_start0_bf.workload_start_y = (output_start_y * stride_h) - global_PT + local_PT;
-            registers.workload_start1.workload_start1_bf.workload_start_z = configWorkloadSize(taskType, inputShapeC, op_size_z);
+            registers.workload_start0.workload_start0_bf.workload_start_x =
+                    (output_start_x * stride_w) - global_PL + local_PL;
+            registers.workload_start0.workload_start0_bf.workload_start_y =
+                    (output_start_y * stride_h) - global_PT + local_PT;
+            registers.workload_start1.workload_start1_bf.workload_start_z =
+                    configWorkloadSize(taskType, inputShapeC, op_size_z);
             registers.te_beg1.te_beg1_bf.te_beg_x = output_start_x;
             registers.te_beg0.te_beg0_bf.te_beg_y = output_start_y;
             registers.te_beg0.te_beg0_bf.te_beg_z = output_start_z;
@@ -2426,20 +2450,20 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             // output channel subset we compute in that particular cluster
             // OPEN: assuming output is the same as parent output
             // if (srcInvariant.output_data->dimensions[Z] !=
-                // srcInvariant.parent_output_tensor->dimensions[Z]) {
-                // if (srcInvariant.output_data->locale_index.size() > 1) {
-                    // nnLog(MVLOG_INFO, "Using symmetric SoK: %u instead of %u",
-                        // variant.weight_table_offset % srcInvariant.output_data->dimensions[Z],
-                        // variant.weight_table_offset);
+            // srcInvariant.parent_output_tensor->dimensions[Z]) {
+            // if (srcInvariant.output_data->locale_index.size() > 1) {
+            // nnLog(MVLOG_INFO, "Using symmetric SoK: %u instead of %u",
+            // variant.weight_table_offset % srcInvariant.output_data->dimensions[Z],
+            // variant.weight_table_offset);
 
-                    // variant.weight_table_offset %= srcInvariant.output_data->dimensions[Z];
-                // } else {
-                    // OPEN: check this out
-                    // Fathom can split an output among invariants but weights don't need to be adjusted
-                    // The blob has the correct offsets already
-                    // TODO: What about Fathom blobs which are really SOH/SOK. Is the above logic sufficient?
-                    // nnLog(MVLOG_WARN, "Invariant Z dim different than parent but no slices to broadcast");
-                // }
+            // variant.weight_table_offset %= srcInvariant.output_data->dimensions[Z];
+            // } else {
+            // OPEN: check this out
+            // Fathom can split an output among invariants but weights don't need to be adjusted
+            // The blob has the correct offsets already
+            // TODO: What about Fathom blobs which are really SOH/SOK. Is the above logic sufficient?
+            // nnLog(MVLOG_WARN, "Invariant Z dim different than parent but no slices to broadcast");
+            // }
             // }
 
             // Point into the 16 byte weight table entry, corresponding to the output channels subset
@@ -2469,7 +2493,8 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
 
                 //     if (((unsigned)output_start_y > srcInvariant.output_data->dimensions[Y]) ||
                 //         ((unsigned)output_end_y > srcInvariant.output_data->dimensions[Y]))
-                //         nnLog(MVLOG_WARN, "SOH workload still too big: %u-%u, tensor dim_y %lu", output_start_y, output_end_y,
+                //         nnLog(MVLOG_WARN, "SOH workload still too big: %u-%u, tensor dim_y %lu", output_start_y,
+                //         output_end_y,
                 //             srcInvariant.output_data->dimensions[Y]);
 
                 //     // Workload start needs adjustment if SOH was not set in invariant
@@ -2495,21 +2520,25 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             {
                 // Sets up on NTHW on IDU
                 switch (mpeFrequencyMode) {
-                    case vpux::VPUIP::MPEMode::VECTOR:
-                        registers.offset_addr.offset_addr_bf.nthw_ntk = static_cast<uint8_t>(host_parsing::IDUNthw_Ntk::IDU_8_8);
-                        break;
-                    case vpux::VPUIP::MPEMode::CUBOID_4x16: // NTH = 1, NTW=4, NTK = 16 (4, 16)
-                        registers.offset_addr.offset_addr_bf.nthw_ntk = static_cast<uint8_t>(host_parsing::IDUNthw_Ntk::IDU_4_16);
-                        break;
-                    case vpux::VPUIP::MPEMode::CUBOID_8x16: // NTH = 2, NTW=4, NTK = 8 (8, 8)
-                        registers.offset_addr.offset_addr_bf.nthw_ntk = static_cast<uint8_t>(host_parsing::IDUNthw_Ntk::IDU_8_8);
-                        break;
-                    case vpux::VPUIP::MPEMode::CUBOID_16x16: // NTH = 4, NTW=4, NTK = 4  (16, 4)
-                        registers.offset_addr.offset_addr_bf.nthw_ntk = static_cast<uint8_t>(host_parsing::IDUNthw_Ntk::IDU_16_4);
-                        break;
-                    default:
-                        VPUX_THROW("mpe_frequent_mode {0}", static_cast<uint8_t>(mpeFrequencyMode));
-                        break;
+                case vpux::VPUIP::MPEMode::VECTOR:
+                    registers.offset_addr.offset_addr_bf.nthw_ntk =
+                            static_cast<uint8_t>(host_parsing::IDUNthw_Ntk::IDU_8_8);
+                    break;
+                case vpux::VPUIP::MPEMode::CUBOID_4x16:  // NTH = 1, NTW=4, NTK = 16 (4, 16)
+                    registers.offset_addr.offset_addr_bf.nthw_ntk =
+                            static_cast<uint8_t>(host_parsing::IDUNthw_Ntk::IDU_4_16);
+                    break;
+                case vpux::VPUIP::MPEMode::CUBOID_8x16:  // NTH = 2, NTW=4, NTK = 8 (8, 8)
+                    registers.offset_addr.offset_addr_bf.nthw_ntk =
+                            static_cast<uint8_t>(host_parsing::IDUNthw_Ntk::IDU_8_8);
+                    break;
+                case vpux::VPUIP::MPEMode::CUBOID_16x16:  // NTH = 4, NTW=4, NTK = 4  (16, 4)
+                    registers.offset_addr.offset_addr_bf.nthw_ntk =
+                            static_cast<uint8_t>(host_parsing::IDUNthw_Ntk::IDU_16_4);
+                    break;
+                default:
+                    VPUX_THROW("mpe_frequent_mode {0}", static_cast<uint8_t>(mpeFrequencyMode));
+                    break;
                 }
             }
 
@@ -2527,7 +2556,8 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             // OPEN: skip convert relative address
             // OPEN: do not see invariant extension
             // OPEN: should I skip invariant_addr
-            // variantWrapper.variant.invariant_addr = checked_cast<uint32_t>(reinterpret_cast<uint64_t>(&invariant.invariant));
+            // variantWrapper.variant.invariant_addr =
+            // checked_cast<uint32_t>(reinterpret_cast<uint64_t>(&invariant.invariant));
 
             vpux::VPUIP::DPUVariantTask variantTask;
             variantTask.dpuVariantWrapper = std::move(variantWrapper);
@@ -2546,11 +2576,11 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
         for (const auto& barrierValue : taskOp.waitBarriers()) {
             auto barrierOp = barrierValue.getDefiningOp<VPURT::ConfigureBarrierOp>();
             VPUX_THROW_UNLESS(barrierOp, "Encountered unexpected barrier value {0} in waitBarriers range of {1}",
-                            barrierValue, nceTask);
+                              barrierValue, nceTask);
 
             const auto& barrier = barrierOp.barrier();
             VPUX_THROW_UNLESS(barriers.count(barrier),
-                            "Encountered unpexpected {0}, all bariers must have been parsed already", barrier);
+                              "Encountered unpexpected {0}, all bariers must have been parsed already", barrier);
             auto& barrierWrapper = barriers[barrier];
 
             barrierWrapper->consumer_count++;
@@ -2560,11 +2590,11 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
         for (const auto& barrierValue : taskOp.updateBarriers()) {
             auto barrierOp = barrierValue.getDefiningOp<VPURT::ConfigureBarrierOp>();
             VPUX_THROW_UNLESS(barrierOp, "Encountered unexpected barrier value {0} in updateBarriers range of {1}",
-                            barrierValue, nceTask);
+                              barrierValue, nceTask);
 
             const auto& barrier = barrierOp.barrier();
             VPUX_THROW_UNLESS(barriers.count(barrier),
-                            "Encountered unpexpected {0}, all bariers must have been parsed already", barrier);
+                              "Encountered unpexpected {0}, all bariers must have been parsed already", barrier);
             auto& barrierWrapper = barriers[barrier];
 
             barrierWrapper->producer_count++;
@@ -2587,9 +2617,9 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             inputPatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::GraphFile;
             inputPatchingInfo.location.locationIndex = 0;
         } else if (input.isa<mlir::BlockArgument>()) {
-            inputPatchingInfo.dataOffset = 0; // dataOffset inside input
+            inputPatchingInfo.dataOffset = 0;  // dataOffset inside input
             inputPatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableInput;
-            inputPatchingInfo.location.locationIndex = 0; // input's index
+            inputPatchingInfo.location.locationIndex = 0;  // input's index
         } else {
             VPUX_THROW("Encountered unsupported defining op {0} for input of {1}", input, nceTask);
         }
@@ -2643,9 +2673,9 @@ std::vector<char> vpux::VPUIP::exportToBlobELF(mlir::ModuleOp module, mlir::Timi
             outputPatchingInfo.location.memLocation = outputDeclareOp.locale();
             outputPatchingInfo.location.locationIndex = 0;
         } else if (output.isa<mlir::BlockArgument>()) {
-            outputPatchingInfo.dataOffset = 0; // dataOffset inside output
+            outputPatchingInfo.dataOffset = 0;  // dataOffset inside output
             outputPatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableOutput;
-            outputPatchingInfo.location.locationIndex = 0; // output's index
+            outputPatchingInfo.location.locationIndex = 0;  // output's index
         } else {
             VPUX_THROW("Encountered unsupported defining op for output of {0}", nceTask);
         }

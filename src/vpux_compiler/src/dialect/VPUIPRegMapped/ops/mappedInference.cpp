@@ -11,10 +11,10 @@
 // included with the Software Package for additional details.
 //
 
+#include <host_parsed_inference.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
-#include <mlir/IR/BuiltinTypes.h>
-#include <host_parsed_inference.h>
 
 using namespace vpux;
 
@@ -23,7 +23,6 @@ using namespace vpux;
 //
 
 void vpux::VPUIPRegMapped::MappedInferenceOp::serialize(std::vector<char>& buffer) {
-
     host_parsing::MappedInference mi;
     memset(reinterpret_cast<void*>(&mi), 0, sizeof(host_parsing::MappedInference));
 

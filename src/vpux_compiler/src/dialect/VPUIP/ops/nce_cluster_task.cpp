@@ -523,7 +523,7 @@ VPUIP::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
         return dpuTaskOp.mpe_mode();
         // ++umap[dpuTaskOp.mpe_mode()];
         // if (umap.size() > 1) {
-            // VPUX_THROW("Non-uniform DPU task MPE modes is not supported yet.");
+        // VPUX_THROW("Non-uniform DPU task MPE modes is not supported yet.");
         // }
     }
     return VPUIP::MPEMode::NOP;

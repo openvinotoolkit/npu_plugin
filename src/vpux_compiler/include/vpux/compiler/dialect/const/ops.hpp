@@ -14,8 +14,9 @@
 #pragma once
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/ELF/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
-#include "vpux/compiler/dialect/const/ops_interfaces.hpp"  // 2021_10_22
+#include "vpux/compiler/dialect/const/ops_interfaces.hpp"
 
 #include "vpux/utils/core/logger.hpp"
 

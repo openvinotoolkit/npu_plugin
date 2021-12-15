@@ -29,8 +29,7 @@ flatbuffers::DetachedBuffer exportToBlobGraphFile(mlir::ModuleOp module, mlir::T
                                                   Logger log = Logger::global());
 
 std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                  const std::vector<PreProcessInfo>& preprocessInfo,
-                                  Logger log = Logger::global());
+                                  const std::vector<PreProcessInfo>& preprocessInfo, Logger log = Logger::global());
 
 }  // namespace VPUIP
 }  // namespace vpux

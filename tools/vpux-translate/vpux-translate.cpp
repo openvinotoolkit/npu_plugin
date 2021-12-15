@@ -11,8 +11,8 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/backend/ELF.hpp"
+#include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/frontend/VPUIP.hpp"
 #include "vpux/compiler/init.hpp"
@@ -136,9 +136,7 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
     return mlir::success();
 }
 
-mlir::LogicalResult exportELF(mlir::ModuleOp module, llvm::raw_ostream& output,
-                                StringRef outputFileName) {
-
+mlir::LogicalResult exportELF(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
     mlir::DefaultTimingManager tm;
     auto rootTiming = tm.getRootScope();
     std::vector<vpux::PreProcessInfo> preProcInfo;

@@ -227,16 +227,6 @@ def VPUIPRegMapped_ConfigureBarrierOp :
             return vpux::DotNodeColor::AQUA;
         }
 
-        /*
-        std::string printAttributes() {
-            std::ostringstream os;
-            os << "id: " << idAttr().getInt() << std::endl;
-
-            os << "next_same_id: " << next_same_idAttr().getInt() << std::endl; // Alex
-
-            return os.str();
-        }
-        */
         bool printAttributes(llvm::raw_ostream& os) { // 2021_10_14: after source repo rebase
             os << "id: " << idAttr().getInt();
             return true;

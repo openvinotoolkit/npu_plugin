@@ -219,8 +219,6 @@ def Convert2VPUIPRegMappedAndELF : PassBase<"convert-to-VPUIPRegMapped-and-ELF",
     let constructor = "vpux::createConvert2VPUIPRegMappedAndELFPass()";
 
     let dependentDialects = [
-        //"vpux::VPUIP::VPUIPDialect",
-        //"vpux::VPURT::VPURTDialect",
         "vpux::VPUIPRegMapped::VPUIPRegMappedDialect",
         "vpux::ELF::ELFDialect"
     ];

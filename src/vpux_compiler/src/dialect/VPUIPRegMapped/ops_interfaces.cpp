@@ -31,7 +31,11 @@ using namespace vpux;
 //
 
 void vpux::VPUIPRegMapped::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects) {
-    //TODO:: do VPUIPRegMapped ops have modelable effects?
+    VPUX_UNUSED(op);
+    VPUX_UNUSED(effects);
+
+    // TODO:: do VPUIPRegMapped ops have modelable effects?
+
     return;
 }
 
@@ -64,18 +68,10 @@ mlir::Attribute vpux::VPUIPRegMapped::getTaskOpExecutor(mlir::Operation* op, uin
     const auto taskType = task.getTaskType();
 
     switch (taskType) {
-    // case VPUIPRegMapped::TaskType::UPADMA:
-    //    return VPUIPRegMapped::getDMAEngine(numUnits, op->getContext(), VPUIPRegMapped::DMAEngine::DMA_UPA);
     case VPUIPRegMapped::TaskType::NNDMA:
         return VPUIPRegMapped::getDMAEngine(numUnits, op->getContext(), VPUIPRegMapped::DMAEngine::DMA_NN);
     case VPUIPRegMapped::TaskType::NCE2:
         return VPUIPRegMapped::getPhysicalProcessor(numUnits, op, VPUIPRegMapped::PhysicalProcessor::NCE_Cluster, 1);
-        // case VPUIPRegMapped::TaskType::UPA: {
-        //        auto upaTask = mlir::cast<VPUIPRegMapped::UPATaskOpInterface>(op);
-        //        return VPUIPRegMapped::getPhysicalProcessor(numUnits, op,
-        //        VPUIPRegMapped::PhysicalProcessor::SHAVE_UPA,
-        //                                                    upaTask.maxShaves());
-        //}
     default:
         VPUX_THROW("Unsupported task type '{0}'", taskType);
     }

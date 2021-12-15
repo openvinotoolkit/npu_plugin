@@ -28,9 +28,6 @@ def ELF_SectionTypeAttr :
             "SectionTypeAttr",
             "Enum for describing ELF section types",
             [
-                // From include/mlir/IR/OpBase.td: class StrEnumAttrCase<string sym, int val = -1>. So we can add an integer, which is the value of the respectiv enum case.
-                // Cases are taken from elfio/elf_types.hpp
-                // See https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblj/index.html for meaning of these Section Header Types.
                 StrEnumAttrCase<"SHT_NULL",           0>,
                 StrEnumAttrCase<"SHT_PROGBITS",       1>,
                 StrEnumAttrCase<"SHT_SYMTAB",         2>,
@@ -53,18 +50,11 @@ def ELF_SectionTypeAttr :
                 StrEnumAttrCase<"SHT_GNU_LIBLIST",    0x6ffffff7>,
                 StrEnumAttrCase<"SHT_GNU_CHECKSUM",   0x6ffffff8>,
                 StrEnumAttrCase<"SHT_GNU_LOSUNW",     0x6ffffffa>,
-                // <<error: duplicate case value>>: StrEnumAttrCase<"SHT_SUNW_move",      0x6ffffffa>,
                 StrEnumAttrCase<"SHT_SUNW_COMDAT",    0x6ffffffb>,
                 StrEnumAttrCase<"SHT_SUNW_syminfo",   0x6ffffffc>,
                 StrEnumAttrCase<"SHT_GNU_verdef",     0x6ffffffd>,
                 StrEnumAttrCase<"SHT_GNU_verneed",    0x6ffffffe>,
                 StrEnumAttrCase<"SHT_GNU_versym",     0x6fffffff>,
-                //StrEnumAttrCase<"SHT_LOOS",           0x60000000>,
-                // <<error: duplicate case value>>: StrEnumAttrCase<"SHT_HIOS",           0x6fffffff>,
-                //StrEnumAttrCase<"SHT_LOPROC",         0x70000000>,
-                //StrEnumAttrCase<"SHT_HIPROC",         0x7FFFFFFF>,
-                // <<error: enumerator value ‘2147483648’ is outside the range of underlying type ‘int’>>: StrEnumAttrCase<"SHT_LOUSER",         0x80000000>,
-                // <<error: enumerator value ‘4294967295’ is outside the range of underlying type ‘int’>>: StrEnumAttrCase<"SHT_HIUSER",         0xFFFFFFFF>,
             ]
         > {
     let cppNamespace = "vpux::ELF";
@@ -100,9 +90,9 @@ def ELF_SymbolTypeAttr :
 // SectionFlagsAttr
 //
 
-//TODO::BitEnumAttr has underlying type as uint32_t. ELF section flags can span uint64_t range.
-//Need to write "own version" of BitEnumAttr with underlying type as uint64_t
-//Until then restrict only to flags that fit in uint32_t!
+// TODO: BitEnumAttr has underlying type as uint32_t. ELF section flags can span uint64_t range.
+// Need to write "own version" of BitEnumAttr with underlying type as uint64_t
+// Until then restrict only to flags that fit in uint32_t!
 def ELF_SectionFlagsAttr :
         BitEnumAttr<
             "SectionFlagsAttr",
@@ -133,8 +123,6 @@ def ELF_RelocationTypeAttr :
             "RelocationTypeAttr",
             "Enum for describing ELF relocation types",
             [
-                // From include/mlir/IR/OpBase.td: class StrEnumAttrCase<string sym, int val = -1>. So we can add an integer, which is the value of the respectiv enum case.
-                // Cases are taken from [kmb-plugin]/src/vpux_elf/include/elf/types/vpu_extensions.hpp
                 StrEnumAttrCase<"R_VPU_64",                                  0>,
                 StrEnumAttrCase<"R_VPU_64_OR",                               1>,
                 StrEnumAttrCase<"R_VPU_64_OR_RTM",                           2>,

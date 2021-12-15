@@ -16,7 +16,6 @@
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/utils/core/format.hpp"
 
-
 using namespace vpux;
 
 //
@@ -24,12 +23,11 @@ using namespace vpux;
 //
 
 void vpux::VPUIPRegMapped::ConfigureBarrierOp::serialize(std::vector<char>& buffer) {
-
     host_parsing::BarrierWrapper barrier;
 
     barrier.next_same_id = next_same_id();
     barrier.real_id = id();
-    barrier.consumer_count = consumer_count().getValueOr(0); //make it fixed after dialect refactor......
+    barrier.consumer_count = consumer_count().getValueOr(0);  // make it fixed after dialect refactor......
     barrier.producer_count = producer_count().getValueOr(0);
 
     char* ptrCharTmp = reinterpret_cast<char*>(&barrier);

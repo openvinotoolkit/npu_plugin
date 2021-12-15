@@ -12,15 +12,13 @@
 //
 
 #include "vpux/compiler/backend/ELF.hpp"
-#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/ELF/ops.hpp"
+#include "vpux/compiler/dialect/IE/ops.hpp"
 
 using namespace vpux;
 
-std::vector<char> ELF::exportToELF(mlir::ModuleOp module, mlir::TimingScope& ,
-                                    const std::vector<PreProcessInfo>&,
-                                    Logger log) {
-
+std::vector<char> ELF::exportToELF(mlir::ModuleOp module, mlir::TimingScope&, const std::vector<PreProcessInfo>&,
+                                   Logger log) {
     log.setName("VPUIP::BackEnd (ELF File)");
 
     log.trace("Extract 'IE.{0}' from Module (ELF File)", IE::CNNNetworkOp::getOperationName());
@@ -30,35 +28,35 @@ std::vector<char> ELF::exportToELF(mlir::ModuleOp module, mlir::TimingScope& ,
 
     elf::Writer elfWriter;
     vpux::OpOrderedMap<elf::writer::Section*> sectionMap;
-    std::map<mlir::Operation*,elf::writer::Symbol*> symbolMap;
+    std::map<mlir::Operation*, elf::writer::Symbol*> symbolMap;
 
-    //NOTE:
-    //TODO(iszilve): normally elf serialization process requires raw data to be serialized first,
-    //then symbols, then relocations, simply because of data dependency. However if we could
-    //introduce ordering constrains on IR validity, then we could serialize all data in one function
-    //and just using a SectionInterface rather than ops themselves.
+    // NOTE:
+    // TODO(iszilve): normally elf serialization process requires raw data to be serialized first,
+    // then symbols, then relocations, simply because of data dependency. However if we could
+    // introduce ordering constrains on IR validity, then we could serialize all data in one function
+    // and just using a SectionInterface rather than ops themselves.
 
     log.trace("Serializing 'ELF.{0}' ops", ELF::CreateSectionOp::getOperationName());
     auto sectionOps = netFunc.getOps<ELF::CreateSectionOp>();
-    for(auto sectionOp : sectionOps) {
+    for (auto sectionOp : sectionOps) {
         sectionOp.serialize(elfWriter, sectionMap, symbolMap);
     }
 
     log.trace("Serializing 'ELF.{0}' ops", ELF::CreateLogicalsectionOp::getOperationName());
     auto logicalSectionOps = netFunc.getOps<ELF::CreateLogicalsectionOp>();
-    for(auto logicalSectionOp : logicalSectionOps ) {
+    for (auto logicalSectionOp : logicalSectionOps) {
         logicalSectionOp.serialize(elfWriter, sectionMap, symbolMap);
     }
 
     log.trace("Serializing 'ELF.{0}' ops", ELF::CreateSymbolTableSectionOp::getOperationName());
     auto symTabOps = netFunc.getOps<ELF::CreateSymbolTableSectionOp>();
-    for(auto symTabOp : symTabOps) {
+    for (auto symTabOp : symTabOps) {
         symTabOp.serialize(elfWriter, sectionMap, symbolMap);
     }
 
     log.trace("Serializing 'ELF.{0}' ops", ELF::CreateRelocationSectionOp::getOperationName());
     auto relocSectionOps = netFunc.getOps<ELF::CreateRelocationSectionOp>();
-    for(auto relocSection : relocSectionOps) {
+    for (auto relocSection : relocSectionOps) {
         relocSection.serialize(elfWriter, sectionMap, symbolMap);
     }
 

@@ -31,23 +31,23 @@ func @main(%arg0: memref<1x1x2x1000xf16>, %arg1: memref<1x1x2x1000xf16>) -> memr
 
     %dmaSection = ELF.CreateSection secFlags(SHF_EXECINSTR) {secName=".text.dmaTasks", secType="SHT_PROGBITS", secInfo = 1, secAddrAlign = 64 } -> !ELF.Section
     {
-        ELF.PutAnyOpInSection %dma0 : memref<1x1x2x1000xf16, "DDR">
-        ELF.PutAnyOpInSection %dma1 : memref<1x1x2x1000xf16>
+        ELF.PutOpInSection %dma0 : memref<1x1x2x1000xf16, "DDR">
+        ELF.PutOpInSection %dma1 : memref<1x1x2x1000xf16>
     }
 
     %barriersSection = ELF.CreateSection secFlags(SHF_EXECINSTR) {secName = ".text.barriers", secType="SHT_PROGBITS", secInfo = 1, secAddrAlign = 64} -> !ELF.Section
     {
-        ELF.PutAnyOpInSection %barrier0 : !VPURT.Barrier
+        ELF.PutOpInSection %barrier0 : !VPURT.Barrier
     }
 
     %mappedInfSec = ELF.CreateSection secFlags(SHF_EXECINSTR) {secName=".text.mappedInference", secType="SHT_PROGBITS", secInfo = 1, secAddrAlign = 64} -> !ELF.Section
     {
-        ELF.PutAnyOpInSection %mappedInference : index
+        ELF.PutOpInSection %mappedInference : index
     }
 
     %scratchSection = ELF.CreateLogicalSection secFlags(SHF_NONE) {secName=".bss.ddrScratch", secType="SHT_NOBITS", secInfo = 1, secAddrAlign = 64} -> !ELF.Section
     {
-        ELF.PutAnyOpInSection %buffer : memref<1x1x2x1000xf16, "DDR">
+        ELF.PutOpInSection %buffer : memref<1x1x2x1000xf16, "DDR">
     }
 
     %sym_for_dmaSection = ELF.Symbol %dmaSection : !ELF.Section
@@ -60,21 +60,21 @@ func @main(%arg0: memref<1x1x2x1000xf16>, %arg1: memref<1x1x2x1000xf16>) -> memr
 
     %genericSymSection = ELF.CreateSymbolTableSection secName(".symTab") secFlags(SHF_NONE) -> !ELF.Section
     {
-        ELF.PutAnyOpInSection %sym_for_dmaSection : !ELF.Symbol
-        ELF.PutAnyOpInSection %sym_for_barrierSection : !ELF.Symbol
-        ELF.PutAnyOpInSection %sym_for_mappedInfSec : !ELF.Symbol
-        ELF.PutAnyOpInSection %sym_for_scratchSection : !ELF.Symbol
+        ELF.PutOpInSection %sym_for_dmaSection : !ELF.Symbol
+        ELF.PutOpInSection %sym_for_barrierSection : !ELF.Symbol
+        ELF.PutOpInSection %sym_for_mappedInfSec : !ELF.Symbol
+        ELF.PutOpInSection %sym_for_scratchSection : !ELF.Symbol
 
         ELF.Symbol %mappedInference name("MappedInference") type("VPU_STT_ENTRY") : index
     }
 
     %inputSymSection = ELF.CreateSymbolTableSection secName(".symTab.inputs") secFlags(VPU_SHF_USERINPUT) -> !ELF.Section
     {
-        ELF.PutAnyOpInSection %symArg0 : !ELF.Symbol
+        ELF.PutOpInSection %symArg0 : !ELF.Symbol
     }
     %outputSymSection = ELF.CreateSymbolTableSection secName(".symTab.outputs") secFlags(VPU_SHF_USEROUTPUT) -> !ELF.Section
     {
-        ELF.PutAnyOpInSection %symArg1 : !ELF.Symbol
+        ELF.PutOpInSection %symArg1 : !ELF.Symbol
     }
 
     %mappedInferenceRelocs = ELF.CreateRelocationSection secName(".RelA.mappedInference") sourceSymbolTableSection(%genericSymSection) targetSection(%mappedInfSec) secFlags(SHF_NONE) -> !ELF.Section

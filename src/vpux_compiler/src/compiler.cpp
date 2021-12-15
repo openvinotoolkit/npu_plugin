@@ -365,7 +365,7 @@ auto exportToBlobGraphFile(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
 }
 
 auto exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                           const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log) {
+                     const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log) {
     auto exportTiming = rootTiming.nest("Export to blob (ELF)");
     return VPUIP::exportToBlobELF(module, exportTiming, preprocessInfo, log);
 }

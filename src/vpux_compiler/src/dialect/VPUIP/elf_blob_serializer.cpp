@@ -527,12 +527,12 @@ void VPUIP::ELFBlobSerializer::updateInvariant(DPUInvariantTask& invariantTask, 
         // Start of Tensor A = adr0_offset[31:0] + [tensor_start[19:0],0000]
         // Start of Tensor B = adr0_offset[31:0] + [weight_start[19:0],0000]
 
-        relocationManager.addRelocation(
-                invariantTask.weights, R_VPU_32,
-                invariantSectionOffset + offsetof(DPUInvariant, registers) + offsetof(DPUInvariantRegisters, act_offset));
-        relocationManager.addRelocation(
-                invariantTask.weights, R_VPU_32,
-                invariantSectionOffset + offsetof(DPUInvariant, registers) + offsetof(DPUInvariantRegisters, weight_start));
+        relocationManager.addRelocation(invariantTask.weights, R_VPU_32,
+                                        invariantSectionOffset + offsetof(DPUInvariant, registers) +
+                                                offsetof(DPUInvariantRegisters, act_offset));
+        relocationManager.addRelocation(invariantTask.weights, R_VPU_32,
+                                        invariantSectionOffset + offsetof(DPUInvariant, registers) +
+                                                offsetof(DPUInvariantRegisters, weight_start));
 
         // OPEN: Why we use min and max here?
         // invariant.registers.act_offset[0] = std::min(adrInput, adrWeights);

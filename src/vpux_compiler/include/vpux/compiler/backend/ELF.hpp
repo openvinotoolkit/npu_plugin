@@ -26,8 +26,7 @@ namespace vpux {
 namespace ELF {
 
 std::vector<char> exportToELF(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                const std::vector<PreProcessInfo>& preprocessInfo,
-                                Logger log = Logger::global());
+                              const std::vector<PreProcessInfo>& preprocessInfo, Logger log = Logger::global());
 
 }  // namespace ELF
 }  // namespace vpux

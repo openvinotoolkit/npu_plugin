@@ -1,5 +1,4 @@
 module @SingleLayer attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"}  {
-  VPUIP.Graph options : "NONE" version : {contextStr = "VPUX Compiler", hash = "custom_asusu/ELF_dialect_new_97243d38d6237c2889487a98f2210348366fecfa", majorV = 3 : i64, minorV = 28 : i64, patchV = 1 : i64}
   IERT.RunTimeResources availableMemory :  {
     MemoryResource 524288000 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
     MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
@@ -22,32 +21,32 @@ module @SingleLayer attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "Ref
     %1 = VPUIPRegMapped.ConfigureBarrier<0, 1> -> !VPURT.Barrier
     %2 = VPUIPRegMapped.NNDMA {port = 0 : i64} inputs(%0 : memref<1x1000xf16, "DDR">) outputs(%arg1 : memref<1x1000xf16>) waits(%1 : !VPURT.Barrier) start_after(0) -> memref<1x1000xf16>
     %3 = ELF.CreateSection secFlags(SHF_ALLOC) {secAddrAlign = 64 : i64, secInfo = 1 : i64, secName = ".data.Weights", secType = "SHT_PROGBITS"} -> !ELF.Section  {
-      ELF.PutAnyOpInSection %0 : memref<1x1000xf16, "DDR">
+      ELF.PutOpInSection %0 : memref<1x1000xf16, "DDR">
     }
     %4 = ELF.CreateSection secFlags(SHF_ALLOC) {secAddrAlign = 64 : i64, secInfo = 1 : i64, secName = ".data.Weights_ct", secType = "SHT_PROGBITS"} -> !ELF.Section  {
     }
     %5 = ELF.CreateSection secFlags("SHF_ALLOC|SHF_EXECINSTR") {secAddrAlign = 64 : i64, secInfo = 1 : i64, secName = ".text.dmaTasks", secType = "SHT_PROGBITS"} -> !ELF.Section  {
-      ELF.PutAnyOpInSection %2 : memref<1x1000xf16>
+      ELF.PutOpInSection %2 : memref<1x1000xf16>
     }
     %6 = ELF.CreateSection secFlags(SHF_EXECINSTR) {secAddrAlign = 64 : i64, secInfo = 1 : i64, secName = ".text.BarrierConfigs", secType = "SHT_PROGBITS"} -> !ELF.Section  {
-      ELF.PutAnyOpInSection %1 : !VPURT.Barrier
+      ELF.PutOpInSection %1 : !VPURT.Barrier
     }
     %7 = ELF.Symbol %0 : memref<1x1000xf16, "DDR">
     %8 = ELF.Symbol %arg1 : memref<1x1000xf16>
     %9 = ELF.CreateSymbolTableSection secName(".rest.symbolTableSection") secFlags("SHF_NONE") -> !ELF.Section  {
-      ELF.PutAnyOpInSection %7 : !ELF.Symbol
+      ELF.PutOpInSection %7 : !ELF.Symbol
     }
-    %10 = ELF.CreateSymbolTableSection secName(".input.symbolTableSection") secFlags(SHF_USERINPUT) -> !ELF.Section  {
+    %10 = ELF.CreateSymbolTableSection secName(".input.symbolTableSection") secFlags(VPU_SHF_USERINPUT) -> !ELF.Section  {
     }
-    %11 = ELF.CreateSymbolTableSection secName(".output.symbolTableSection") secFlags(SHF_USEROUTPUT) -> !ELF.Section  {
-      ELF.PutAnyOpInSection %8 : !ELF.Symbol
+    %11 = ELF.CreateSymbolTableSection secName(".output.symbolTableSection") secFlags(VPU_SHF_USEROUTPUT) -> !ELF.Section  {
+      ELF.PutOpInSection %8 : !ELF.Symbol
     }
     %12 = ELF.CreateRelocationSection secName(".rela.dma") sourceSymbolTableSection(%9) targetSection(%5) secFlags("SHF_NONE") -> !ELF.Section  {
       ELF.Reloc 16 "R_VPU_64" %7 0
     }
-    %13 = ELF.CreateRelocationSection secName(".rela.input") sourceSymbolTableSection(%10) targetSection(%5) secFlags(SHF_USERINPUT) -> !ELF.Section  {
+    %13 = ELF.CreateRelocationSection secName(".rela.input") sourceSymbolTableSection(%10) targetSection(%5) secFlags(VPU_SHF_USERINPUT) -> !ELF.Section  {
     }
-    %14 = ELF.CreateRelocationSection secName(".rela.output") sourceSymbolTableSection(%11) targetSection(%5) secFlags(SHF_USEROUTPUT) -> !ELF.Section  {
+    %14 = ELF.CreateRelocationSection secName(".rela.output") sourceSymbolTableSection(%11) targetSection(%5) secFlags(VPU_SHF_USEROUTPUT) -> !ELF.Section  {
       ELF.Reloc 24 "R_VPU_64" %8 0
     }
     return %arg1 : memref<1x1000xf16>
