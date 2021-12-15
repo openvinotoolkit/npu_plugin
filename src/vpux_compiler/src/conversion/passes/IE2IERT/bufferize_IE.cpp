@@ -963,6 +963,16 @@ mlir::Operation* createRTLayer(IE::GreaterEqualOp origOp, ArrayRef<mlir::Value> 
     return b.create<IERT::GreaterEqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::LogicalOrOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::LogicalOrOp::Adaptor newOp(allBufs);
+    return b.create<IERT::LogicalOrOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::LogicalXorOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::LogicalXorOp::Adaptor newOp(allBufs);
+    return b.create<IERT::LogicalXorOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -1067,6 +1077,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::GreaterOp)
     CASE(IE::GreaterEqualOp)
     CASE(IE::TopKOp)
+    CASE(IE::LogicalOrOp)
+    CASE(IE::LogicalXorOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

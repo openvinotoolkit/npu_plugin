@@ -606,6 +606,60 @@ def IE_GreaterEqualOp :
 }
 
 //
+// LogicalOrOp
+//
+
+def IE_LogicalOrOp :
+        IE_LayerOp<
+            "LogicalOr",
+            [
+                IE_TilingBuilderOpInterface,
+                Commutative,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine LogicalOr layer";
+
+    let arguments = (ins
+        RankedTensorOf<[I8, F16, F32]>:$input1,
+        RankedTensorOf<[I8, F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[I8, F16, F32]>:$output
+    );
+}
+
+//
+// LogicalXorOp
+//
+
+def IE_LogicalXorOp :
+        IE_LayerOp<
+            "LogicalXor",
+            [
+                IE_TilingBuilderOpInterface,
+                Commutative,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine LogicalXor layer";
+
+    let arguments = (ins
+        RankedTensorOf<[I8, F16, F32]>:$input1,
+        RankedTensorOf<[I8, F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[I8, F16, F32]>:$output
+    );
+}
+
+//
 // MultiplyOp
 //
 

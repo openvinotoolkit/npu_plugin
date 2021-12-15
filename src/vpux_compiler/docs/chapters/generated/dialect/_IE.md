@@ -1426,6 +1426,68 @@ operation ::= `IE.Log` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.LogicalOr` (vpux::IE::LogicalOrOp)
+
+InferenceEngine LogicalOr layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LogicalOr` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+`input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+### `IE.LogicalXor` (vpux::IE::LogicalXorOp)
+
+InferenceEngine LogicalXor layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LogicalXor` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+`input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
 ### `IE.MVN` (vpux::IE::MVNOp)
 
 InferenceEngine MVN layer
