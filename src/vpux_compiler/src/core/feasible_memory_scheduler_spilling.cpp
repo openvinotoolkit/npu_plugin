@@ -55,62 +55,32 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
     // 4. Remove all previously identified redundant SpillWrite operations
     //    from scheduledOps structure
 
-    SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> spillWrites;
     SmallVector<size_t> spillWriteIndexes;
     std::map<size_t, size_t> spillWriteReadIndexMap;
-    SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> duplicateSpillWrites;
     std::map<size_t, size_t> duplicateSpillWritePrevReadIndexMap;
 
-    size_t index = 0;
-    for (auto& op : scheduledOps) {
+    for (size_t index = 0; index < scheduledOps.size(); index++) {
+        auto& op = scheduledOps[index];
         if (op.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_WRITE) {
-            // if (std::find_if(spillWrites.rbegin(), spillWrites.rend(),
-            //                  [op](FeasibleMemoryScheduler::ScheduledOpInfo spillWriteOp) {
-            //                      if (op.resourceInfo_.empty() || spillWriteOp.resourceInfo_.empty()) {
-            //                          return false;
-            //                      }
-
-            //                      return op.getBuffer(0) == spillWriteOp.getBuffer(0);
-            //                  }) != spillWrites.rend()) {
-            if (std::find_if(spillWriteIndexes.rbegin(), spillWriteIndexes.rend(), [&](size_t spillIndex) {
-                    if (op.resourceInfo_.empty() || scheduledOps[spillIndex].resourceInfo_.empty()) {
-                        return false;
-                    }
-
-                    return op.getBuffer(0) == scheduledOps[spillIndex].getBuffer(0);
-                }) != spillWriteIndexes.rend()) {
-                // Duplication detected
-                duplicateSpillWrites.push_back(op);
-
-                for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
-                     spillWriteIndexIt++) {
-                    if (scheduledOps[*spillWriteIndexIt].resourceInfo_.empty() || op.resourceInfo_.empty()) {
-                        continue;
-                    }
-
-                    if (scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
-                        duplicateSpillWritePrevReadIndexMap[index] = spillWriteReadIndexMap[*spillWriteIndexIt];
-                        break;
-                    }
+            for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
+                 spillWriteIndexIt++) {
+                if (scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
+                    // Duplication detected
+                    duplicateSpillWritePrevReadIndexMap[index] = spillWriteReadIndexMap[*spillWriteIndexIt];
+                    break;
                 }
             }
-            spillWrites.push_back(op);
             spillWriteIndexes.push_back(index);
         } else if (op.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_READ) {
             // Find corresponding SpillRead
             for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
                  spillWriteIndexIt++) {
-                if (scheduledOps[*spillWriteIndexIt].resourceInfo_.empty() || op.resourceInfo_.empty()) {
-                    continue;
-                }
-
                 if (scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
                     spillWriteReadIndexMap[*spillWriteIndexIt] = index;
                     break;
                 }
             }
         }
-        index++;
     }
     _log.trace("Spill writes - {0}, duplicate spill writes - {1}", spillWriteReadIndexMap.size(),
                duplicateSpillWritePrevReadIndexMap.size());
@@ -156,29 +126,6 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
         _log.nest().trace("spill write to remove- {0}", *opIt);
         scheduledOps.erase(scheduledOps.begin() + *opIt);
     }
-
-    // for (auto& op : duplicateSpillWrites) {
-    //     auto opToRemove = std::find_if(scheduledOps.begin(), scheduledOps.end(),
-    //                                    [op](FeasibleMemoryScheduler::ScheduledOpInfo schedOp) {
-    //                                        if (schedOp.opType_ !=
-    //                                        FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_WRITE) {
-    //                                            return false;
-    //                                        }
-
-    //                                        if (schedOp.time_ != op.time_ || schedOp.op_ != op.op_) {
-    //                                            return false;
-    //                                        }
-
-    //                                        if (op.resourceInfo_.empty() || schedOp.resourceInfo_.empty()) {
-    //                                            return false;
-    //                                        }
-
-    //                                        return op.getBuffer(0) == schedOp.getBuffer(0);
-    //                                    });
-    //     if (opToRemove != scheduledOps.end()) {
-    //         scheduledOps.erase(opToRemove);
-    //     }
-    // }
 }
 
 SmallVector<mlir::Value> FeasibleMemorySchedulerSpilling::getAsyncResultsForBuffer(
