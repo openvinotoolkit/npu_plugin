@@ -484,4 +484,23 @@ def IE_ColorFmt :
     let genSpecializedAttr = 1;
     }
 
+
+//
+// ExtractImagePatchesAutoPadType
+//
+
+def IE_ExtractImagePatchesAutoPadType :
+        StrEnumAttr<
+            "ExtractImagePatchesAutoPadType",
+            "ExtractImagePatchesAutoPadType that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"same_upper">,
+                StrEnumAttrCase<"same_lower">,
+                StrEnumAttrCase<"valid">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
 #endif

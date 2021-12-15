@@ -262,6 +262,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalOr>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalXor>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::SpaceToDepth>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ExtractImagePatches>& origNode);
 
     SmallVector<mlir::Value> getInputs(const OrigNodePtr& node);
     void addOutputs(const OrigNodePtr& node, mlir::Operation* op);
@@ -286,6 +287,7 @@ private:
     IE::RNNSequenceDirectionAttr importRNNSequenceDirection(const ngraph::op::RecurrentSequenceDirection val);
     IE::DepthToSpaceModeAttr importDepthToSpaceMode(const ngraph::op::v0::DepthToSpace::DepthToSpaceMode val);
     IE::SpaceToDepthModeAttr importSpaceToDepthMode(const ngraph::op::SpaceToDepth::SpaceToDepthMode val);
+    IE::ExtractImagePatchesAutoPadTypeAttr importExtractImagePatchesAutoPadType(const ngraph::op::v3::ExtractImagePatchesAutoPadType::paddingType& mode);
 
     mlir::MLIRContext* _ctx = nullptr;
     std::shared_ptr<const ngraph::Function> _netGraph;
