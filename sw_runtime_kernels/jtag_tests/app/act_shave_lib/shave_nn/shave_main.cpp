@@ -160,7 +160,7 @@ void act_shave_runtime_shaveMain() {
             // execute kernel
         auto kernel_func = reinterpret_cast<void (*)(void *)>(job_ptr->shv_kernel_address);
         if (kernel_func) {
-            set_window_address(1, job_ptr->shv_kernel_address);
+//            set_window_address(1, job_ptr->shv_kernel_address);
             (*kernel_func)(reinterpret_cast<void *>(actShaveParam));
         }
 
