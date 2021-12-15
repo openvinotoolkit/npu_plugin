@@ -56,32 +56,104 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
     //    from scheduledOps structure
 
     SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> spillWrites;
+    SmallVector<size_t> spillWriteIndexes;
+    std::map<size_t, size_t> spillWriteReadIndexMap;
     SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> duplicateSpillWrites;
-    SmallVector<size_t> duplicateSpillWritesIndexes;
+    std::map<size_t, size_t> duplicateSpillWritePrevReadIndexMap;
 
     size_t index = 0;
     for (auto& op : scheduledOps) {
         if (op.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_WRITE) {
-            if (std::find_if(spillWrites.begin(), spillWrites.end(),
-                             [op](FeasibleMemoryScheduler::ScheduledOpInfo spillWriteOp) {
-                                 if (op.resourceInfo_.empty() || spillWriteOp.resourceInfo_.empty()) {
-                                     return false;
-                                 }
+            // if (std::find_if(spillWrites.rbegin(), spillWrites.rend(),
+            //                  [op](FeasibleMemoryScheduler::ScheduledOpInfo spillWriteOp) {
+            //                      if (op.resourceInfo_.empty() || spillWriteOp.resourceInfo_.empty()) {
+            //                          return false;
+            //                      }
 
-                                 return op.getBuffer(0) == spillWriteOp.getBuffer(0);
-                             }) != spillWrites.end()) {
+            //                      return op.getBuffer(0) == spillWriteOp.getBuffer(0);
+            //                  }) != spillWrites.rend()) {
+            if (std::find_if(spillWriteIndexes.rbegin(), spillWriteIndexes.rend(), [&](size_t spillIndex) {
+                    if (op.resourceInfo_.empty() || scheduledOps[spillIndex].resourceInfo_.empty()) {
+                        return false;
+                    }
+
+                    return op.getBuffer(0) == scheduledOps[spillIndex].getBuffer(0);
+                }) != spillWriteIndexes.rend()) {
                 // Duplication detected
                 duplicateSpillWrites.push_back(op);
-                duplicateSpillWritesIndexes.push_back(index);
+
+                for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
+                     spillWriteIndexIt++) {
+                    if (scheduledOps[*spillWriteIndexIt].resourceInfo_.empty() || op.resourceInfo_.empty()) {
+                        continue;
+                    }
+
+                    if (scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
+                        duplicateSpillWritePrevReadIndexMap[index] = spillWriteReadIndexMap[*spillWriteIndexIt];
+                        break;
+                    }
+                }
             }
             spillWrites.push_back(op);
+            spillWriteIndexes.push_back(index);
+        } else if (op.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_READ) {
+            // Find corresponding SpillRead
+            for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
+                 spillWriteIndexIt++) {
+                if (scheduledOps[*spillWriteIndexIt].resourceInfo_.empty() || op.resourceInfo_.empty()) {
+                    continue;
+                }
+
+                if (scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
+                    spillWriteReadIndexMap[*spillWriteIndexIt] = index;
+                    break;
+                }
+            }
         }
         index++;
     }
-    _log.trace("Spill writes - {0}, duplicate spill writes - {1}", spillWrites.size(), duplicateSpillWrites.size());
+    _log.trace("Spill writes - {0}, duplicate spill writes - {1}", spillWriteReadIndexMap.size(),
+               duplicateSpillWritePrevReadIndexMap.size());
+    _log.trace("spillWriteReadIndexMap size - {0}", spillWriteReadIndexMap.size());
+    for (auto& el : spillWriteReadIndexMap) {
+        _log.nest().trace("spill write - {0} , read - {1}", el.first, el.second);
+    }
+
+    _log.trace("duplicateSpillWritePrevReadIndexMap size - {0}", duplicateSpillWritePrevReadIndexMap.size());
+    for (auto& el : duplicateSpillWritePrevReadIndexMap) {
+        _log.nest().trace("duplicate spill write - {0} , prev read - {1}", el.first, el.second);
+    }
+
+    // Check in scheduler if between previous SpillRead of given buffer and
+    // SpillWrite that is considered a duplicate no one used this buffer
+    SmallVector<size_t> spillWriteToRemoveIndexes;
+    for (auto& el : duplicateSpillWritePrevReadIndexMap) {
+        auto prevSpillReadIndex = el.second;
+        auto spillWriteIndex = el.first;
+        auto spilledBuffer = scheduledOps[spillWriteIndex].getBuffer(0);
+        bool spillWriteCanBeRemoved = true;
+        for (size_t index = prevSpillReadIndex + 1; index < spillWriteIndex; index++) {
+            for (size_t resIndex = 0; resIndex < scheduledOps[index].numOfResources(); resIndex++) {
+                if (scheduledOps[index].getBuffer(resIndex) == spilledBuffer) {
+                    spillWriteCanBeRemoved = false;
+                    break;
+                }
+            }
+
+            if (!spillWriteCanBeRemoved) {
+                break;
+            }
+        }
+
+        if (spillWriteCanBeRemoved) {
+            spillWriteToRemoveIndexes.push_back(spillWriteIndex);
+        }
+    }
 
     // Remove in reverse order to have indexes valid after erasing entries in scheduledOp
-    for (auto opIt = duplicateSpillWritesIndexes.rbegin(); opIt != duplicateSpillWritesIndexes.rend(); opIt++) {
+    _log.trace("spillWriteToRemoveIndexes size - {0}", spillWriteToRemoveIndexes.size());
+    for (auto opIt = spillWriteToRemoveIndexes.rbegin(); opIt != spillWriteToRemoveIndexes.rend(); opIt++) {
+        _log.nest().trace("spill write to remove- {0}", *opIt);
         scheduledOps.erase(scheduledOps.begin() + *opIt);
     }
 
