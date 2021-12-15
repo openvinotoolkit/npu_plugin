@@ -13,6 +13,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
             },
@@ -112,6 +115,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
             },
@@ -143,6 +149,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
             },
@@ -173,6 +182,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -206,7 +218,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -301,7 +314,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -431,6 +445,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -461,6 +478,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -490,6 +510,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -522,6 +545,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -552,6 +578,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -586,7 +615,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -680,6 +710,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -772,6 +805,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -803,6 +839,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -897,6 +936,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "299x299"
             },
@@ -990,6 +1032,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "227x227"
             },
@@ -1056,7 +1101,8 @@
                 "input_precision" : "U8",
                 "input_layout" : "NHWC",
                 "output_precision" : "FP32",
-                "output_layout" : "NHWC"
+                "output_layout" : "NHWC",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "227x227"
@@ -1122,6 +1168,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "512x512"
             },
@@ -1156,6 +1205,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "299x299"
             },
@@ -1188,6 +1240,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "300x300"
@@ -1224,6 +1279,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "1024x1024"
             },
@@ -1252,6 +1310,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -1344,6 +1405,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "1024x1024"
@@ -1439,6 +1503,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "300x300"
             },
@@ -1505,6 +1572,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -1533,6 +1603,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "320x320"
@@ -1565,6 +1638,9 @@
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
             "disabled" : true,
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "320x240"
             },
@@ -1595,6 +1671,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "48x48"
@@ -1627,6 +1706,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -1658,7 +1740,8 @@
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
-                "input_precision" : "FP32"
+                "input_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "48x48"
@@ -1693,7 +1776,8 @@
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
-                "input_precision" : "FP32"
+                "input_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -1725,6 +1809,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "112x112"
             },
@@ -1754,6 +1841,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -1786,6 +1876,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -1817,6 +1910,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -1847,6 +1943,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -1880,6 +1979,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "320x180"
             },
@@ -1910,6 +2012,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "320x180"
             },
@@ -1938,6 +2043,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -1968,6 +2076,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -2262,6 +2373,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "24x94"
             },
@@ -2290,6 +2404,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -2363,6 +2480,9 @@
                 "VPUX_THROUGHPUT_STREAMS": "1",
                 "VPUX_EXECUTOR_STREAMS":"1"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true,
                 "input_folder" : "1280x720"
@@ -2434,6 +2554,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2467,6 +2590,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2499,6 +2625,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -2591,6 +2720,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" :  true,
                 "input_folder" : "224x224"
@@ -2624,6 +2756,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -2780,6 +2915,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2814,6 +2952,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2847,6 +2988,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2878,6 +3022,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -2974,6 +3121,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3003,6 +3153,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -3035,6 +3188,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3065,6 +3221,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -3098,6 +3257,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -3165,6 +3327,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3197,7 +3362,8 @@
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3230,7 +3396,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "368x368"
@@ -3266,7 +3433,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3301,7 +3469,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3336,7 +3505,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3371,7 +3541,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3406,7 +3577,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3441,7 +3613,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3472,6 +3645,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -3504,6 +3680,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -3535,6 +3714,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -3565,6 +3747,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3600,7 +3785,8 @@
             },
             "Compile" : {
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3635,7 +3821,8 @@
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
-                "input_precision" : "FP16"
+                "input_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3670,7 +3857,8 @@
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
-                "input_precision" : "FP16"
+                "input_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3702,6 +3890,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3737,7 +3928,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3769,6 +3961,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3802,6 +3997,9 @@
                 "VPUX_EXECUTOR_STREAMS": "2",
                 "VPU_COMPILER_NUM_CLUSTER": "1"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3834,6 +4032,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -3862,6 +4063,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3897,7 +4101,8 @@
             },
             "Compile" : {
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3929,6 +4134,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true,
@@ -4276,7 +4484,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4311,7 +4520,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4346,7 +4556,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4387,7 +4598,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4502,7 +4714,8 @@
             },
             "Compile" : {
                 "input_precision" : "FP32",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -4534,6 +4747,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "512x512"
@@ -4607,7 +4823,8 @@
             },
             "Compile" : {
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
