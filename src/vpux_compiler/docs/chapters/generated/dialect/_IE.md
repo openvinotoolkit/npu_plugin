@@ -49,6 +49,30 @@ IE.CNNNetwork
 
 ## Operation definition
 
+### `IE.Acosh` (vpux::IE::AcoshOp)
+
+InferenceEngine Acosh layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Acosh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Add` (vpux::IE::AddOp)
 
 InferenceEngine Add layer
@@ -143,6 +167,30 @@ operation ::= `IE.And` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or QuantizedType values
+
+### `IE.Asinh` (vpux::IE::AsinhOp)
+
+InferenceEngine Asinh layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Asinh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.AvgPool` (vpux::IE::AvgPoolOp)
 

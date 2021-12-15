@@ -20,6 +20,74 @@ It handles such VPU-specifics as:
 
 ## Operation definition
 
+### `VPUIP.AcoshUPA` (vpux::VPUIP::AcoshUPAOp)
+
+Acosh UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AcoshUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.AsinhUPA` (vpux::VPUIP::AsinhUPAOp)
+
+Asinh UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AsinhUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.BroadcastUPA` (vpux::VPUIP::BroadcastUPAOp)
 
 Broadcast UPA SHAVE kernel

@@ -96,6 +96,34 @@ The `IERT.RunTimeResources` is filled by underlying low-level dialect to provide
 
 ## Operation definition
 
+### `IERT.Acosh` (vpux::IERT::AcoshOp)
+
+InferenceEngine run-time Acosh layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Acosh` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Add` (vpux::IERT::AddOp)
 
 InferenceEngine run-time Add layer
@@ -165,6 +193,34 @@ operation ::= `IERT.And` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float or QuantizedType values
+
+### `IERT.Asinh` (vpux::IERT::AsinhOp)
+
+InferenceEngine run-time Asinh layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Asinh` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
 
 ### `IERT.AvgPool` (vpux::IERT::AvgPoolOp)
 

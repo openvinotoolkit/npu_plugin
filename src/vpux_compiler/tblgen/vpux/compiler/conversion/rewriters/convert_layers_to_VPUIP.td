@@ -383,6 +383,38 @@ def RewriteSqrt :
         >;
 
 //
+// IERT.Asinh -> VPUIP.AsinhUPA
+//
+
+def createAsinhUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::AsinhUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteAsinh :
+        Pat<
+            (IERT_AsinhOp $input, $output),
+            (createAsinhUPAOp $input, $output)
+        >;
+
+
+//
+// IERT.Acosh -> VPUIP.AcoshUPA
+//
+
+def createAcoshUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::AcoshUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteAcosh :
+        Pat<
+            (IERT_AcoshOp $input, $output),
+            (createAcoshUPAOp $input, $output)
+        >;
+        
+
+//
 // IERT.Log -> VPUIP.LogUPA
 //
 

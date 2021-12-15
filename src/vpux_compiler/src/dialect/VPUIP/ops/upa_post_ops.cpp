@@ -252,6 +252,46 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SqrtUPAOp::serialize(VPUIP::BlobWri
 }
 
 //
+// Asinh
+//
+
+void vpux::VPUIP::AsinhUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                    mlir::Value output) {
+    build(builder, state, input, output, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AsinhUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto asinh = MVCNN::CreateAsinhParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_AsinhParams);
+    builder.add_nested_params(asinh.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
+// Acosh
+//
+
+void vpux::VPUIP::AcoshUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                    mlir::Value output) {
+    build(builder, state, input, output, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AcoshUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto acosh = MVCNN::CreateAcoshParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_AcoshParams);
+    builder.add_nested_params(acosh.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
 // LogUPAOp
 //
 
@@ -509,6 +549,12 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
         break;
     case MVCNN::PostOpsNestedParams_SqrtParams:
         op = builder.create<VPUIP::SqrtUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_AsinhParams:
+        op = builder.create<VPUIP::AsinhUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_AcoshParams:
+        op = builder.create<VPUIP::AcoshUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
     case MVCNN::PostOpsNestedParams_LogParams:
         op = builder.create<VPUIP::LogUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);

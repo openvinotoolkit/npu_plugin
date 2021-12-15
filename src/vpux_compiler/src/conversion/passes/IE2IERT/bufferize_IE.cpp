@@ -610,6 +610,16 @@ mlir::Operation* createRTLayer(IE::SqrtOp origOp, ArrayRef<mlir::Value> allBufs,
     return b.create<IERT::SqrtOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::AsinhOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AsinhOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AsinhOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::AcoshOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AcoshOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AcoshOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 mlir::Operation* createRTLayer(IE::LogOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::LogOp::Adaptor newOp(allBufs);
     return b.create<IERT::LogOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
@@ -1010,6 +1020,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::ReduceSumOp)
     CASE(IE::TanhOp)
     CASE(IE::SqrtOp)
+    CASE(IE::AsinhOp)
+    CASE(IE::AcoshOp)
     CASE(IE::LogOp)
     CASE(IE::FakeQuantizeOp)
     CASE(IE::PReluOp)

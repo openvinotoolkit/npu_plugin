@@ -50,6 +50,8 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::RoundHalfToEven,
     ngraph::helpers::RoundHalfAwayFromZero,
     ngraph::helpers::Sqrt,
+    ngraph::helpers::Asinh,
+    ngraph::helpers::Acosh,
     ngraph::helpers::Log,
     ngraph::helpers::Ceiling,
 };
@@ -143,6 +145,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Mish,     {{1.0f}}},
     {Floor,    {{1.0f}}},
     {Sqrt,     {{1.0f}}},
+    {Asinh,    {{1.0f}}},
+    {Acosh,    {{1.0f}}},
     {Erf,      {{1.0f}}},
     {Gelu,     {{1.0f}}},
     {Exp,      {{1.0f}}},

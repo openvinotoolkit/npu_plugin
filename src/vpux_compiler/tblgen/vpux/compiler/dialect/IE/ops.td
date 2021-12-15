@@ -1357,6 +1357,52 @@ def IE_SqrtOp :
 }
 
 //
+// AsinhOp
+//
+
+def IE_AsinhOp :
+        IE_LayerOp<
+            "Asinh",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Asinh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AcoshOp
+//
+
+def IE_AcoshOp :
+        IE_LayerOp<
+            "Acosh",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Acosh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // LogOp
 //
 
