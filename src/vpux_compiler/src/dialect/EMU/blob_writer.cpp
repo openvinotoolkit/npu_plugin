@@ -42,8 +42,6 @@ EMU::BlobWriter::Task vpux::EMU::BlobWriter::createTask(mlir::Operation* op) {
 
     VPUX_THROW_UNLESS(_tasks.count(op) == 0, "Operation {0} was already serialized", *op);
 
-    setAliasForSerializedTensors(op);
-
     String name = createString(StringRef(stringifyLocation(op->getLoc())));
 
     const auto specifics = task.serialize(*this);
@@ -194,10 +192,6 @@ EMU::BlobWriter::Vector<float> vpux::EMU::BlobWriter::createStrides(StridesRef s
 }
 
 EMU::BlobWriter::Vector<float> vpux::EMU::BlobWriter::createStrides(mlir::ShapedType type) {
-    if (const auto memref = type.dyn_cast<mlir::MemRefType>()) {
-        return createStrides(getStrides(memref), getElemTypeSize(type));
-    }
-
     const auto order = DimsOrder::fromType(type);
 
     const auto stridesReqs = StrideReqs::simple(checked_cast<size_t>(type.getRank()));
@@ -219,33 +213,4 @@ EMU::BlobWriter::BinaryData vpux::EMU::BlobWriter::createBinaryData(ArrayRef<uin
     builder.add_length(totalByteSize);
     builder.add_data(serializedContent);
     return builder.Finish();
-}
-
-void vpux::EMU::BlobWriter::setAliasForSerializedTensors(mlir::Operation* op) {
-    if (auto layer = mlir::dyn_cast<mlir::ViewLikeOpInterface>(op)) {
-        const auto result = layer->getResult(0);
-        const auto source = layer.getViewSource();
-
-        VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
-                          result.getType());
-        VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
-                          source.getType());
-
-        _tensors.insert({result, getTensor(source)});
-    } else if (auto multiLayer = mlir::dyn_cast<MultiViewOpInterface>(op)) {
-        for (const auto result : multiLayer->getResults()) {
-            VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
-                              "Only MemRef type tensors are supported, got '{0}'", result.getType());
-
-            const auto source = multiLayer.getViewSource(result.getResultNumber());
-            if (source == nullptr) {
-                continue;
-            }
-
-            VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(),
-                              "Only MemRef type tensors are supported, got '{0}'", source.getType());
-
-            _tensors.insert({result, getTensor(source)});
-        }
-    }
 }
