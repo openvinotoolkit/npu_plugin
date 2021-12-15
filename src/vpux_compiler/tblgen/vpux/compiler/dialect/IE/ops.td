@@ -898,6 +898,28 @@ def IE_GatherElementsOp :
 
 }
 
+
+//
+// ScatterNDUpdateOp
+//
+
+def IE_ScatterNDUpdateOp :
+        IE_LayerOp<
+            "ScatterNDUpdate"
+        > {
+    let summary = "InferenceEngine ScatterNDUpdate layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        RankedTensorOf<[AnyInteger]>:$indices,
+        AnyRankedTensor:$updates
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
 //
 // ClampOp
 //

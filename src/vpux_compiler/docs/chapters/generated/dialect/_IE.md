@@ -2410,6 +2410,32 @@ operation ::= `IE.ScaleShift` `(` operands `)` attr-dict `:` type(operands) `->`
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.ScatterNDUpdate` (vpux::IE::ScatterNDUpdateOp)
+
+InferenceEngine ScatterNDUpdate layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ScatterNDUpdate` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`indices` | ranked tensor of integer values
+`updates` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Sigmoid` (vpux::IE::SigmoidOp)
 
 InferenceEngine Sigmoid layer

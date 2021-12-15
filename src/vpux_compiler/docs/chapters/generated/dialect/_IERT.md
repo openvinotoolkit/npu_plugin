@@ -2418,6 +2418,36 @@ operation ::= `IERT.ScaleShift` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ScatterNDUpdate` (vpux::IERT::ScatterNDUpdateOp)
+
+InferenceEngine run-time ScatterNDUpdate layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ScatterNDUpdate` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `,` $updates `:` type($updates) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`indices` | memref of 64-bit signed integer or 32-bit signed integer values
+`updates` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.Sigmoid` (vpux::IERT::SigmoidOp)
 
 InferenceEngine run-time Sigmoid layer
