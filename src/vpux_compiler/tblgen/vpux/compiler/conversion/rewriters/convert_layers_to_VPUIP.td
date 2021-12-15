@@ -430,6 +430,21 @@ def RewriteLog :
         >;
 
 //
+// IERT.Gelu -> VPUIP.GeluUPA
+//
+
+def createGeluUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::GeluUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteGelu :
+        Pat<
+            (IERT_GeluOp $input, $output),
+            (createGeluUPAOp $input, $output)
+        >;
+
+//
 // IERT.Exp -> VPUIP.ExpUPA
 //
 

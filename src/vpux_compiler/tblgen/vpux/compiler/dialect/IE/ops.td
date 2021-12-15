@@ -1502,6 +1502,29 @@ def IE_LogOp :
 }
 
 //
+// GeluOp
+//
+
+def IE_GeluOp :
+        IE_LayerOp<
+            "Gelu",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Gelu layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // ExpOp
 //
 

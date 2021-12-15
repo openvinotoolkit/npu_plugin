@@ -54,6 +54,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Acosh,
     ngraph::helpers::Log,
     ngraph::helpers::Ceiling,
+    ngraph::helpers::Gelu,
 };
 
 } // namespace

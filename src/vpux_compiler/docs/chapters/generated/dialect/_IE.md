@@ -1009,6 +1009,30 @@ operation ::= `IE.Gather` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.Gelu` (vpux::IE::GeluOp)
+
+InferenceEngine Gelu layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Gelu` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.GreaterEqual` (vpux::IE::GreaterEqualOp)
 
 InferenceEngine GreaterEqual layer

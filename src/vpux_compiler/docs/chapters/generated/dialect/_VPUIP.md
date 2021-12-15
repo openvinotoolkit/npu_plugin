@@ -801,6 +801,40 @@ operation ::= `VPUIP.GatherUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
+### `VPUIP.GeluUPA` (vpux::VPUIP::GeluUPAOp)
+
+Gelu UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.GeluUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.HSwishUPA` (vpux::VPUIP::HSwishUPAOp)
 
 HSwish UPA SHAVE kernel

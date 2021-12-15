@@ -52,6 +52,7 @@
 #include <legacy/ngraph_ops/lrn_ie.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
+#include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset7.hpp>
 
@@ -175,6 +176,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Asinh>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Acosh>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Log>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset2::Gelu>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Exp>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::HSwish>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Floor>& origNode);
@@ -300,6 +302,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Asinh),
             MAP_ENTRY(opset_latest::Acosh),
             MAP_ENTRY(opset_latest::Log),
+            MAP_ENTRY(ngraph::opset2::Gelu),
             MAP_ENTRY(opset_latest::Exp),
             MAP_ENTRY(opset_latest::HSwish),
             MAP_ENTRY(opset_latest::Floor),
@@ -1075,6 +1078,17 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::LogOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset2::Gelu>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Gelu>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Gelu node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::GeluOp>(createLocation(origNode), inputs[0]);
     addOutputs(origNode, op);
 }
 
@@ -2204,6 +2218,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, std::vec
     manager.register_pass<vpux::pass::FuseScaleShift>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ConvertGELU>();
     manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     manager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
     manager.register_pass<vpux::pass::FuseScaleAfterClamp>();
