@@ -267,6 +267,10 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // 2. optimize spills
     scheduledOps = removeRedundantPrefetchSpills(scheduledOps);
 
+    FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log,
+                                             prefetchScan);
+    spilling.removeRedundantSpillWrites(scheduledOps);
+
     for (const auto& op : scheduledOps) {
         std::string resourceInfo = "<none>";
         if (op.hasActiveResource()) {
@@ -287,10 +291,6 @@ void FeasibleAllocationPass::safeRunOnModule() {
 
     // 3. re-order the IR
     updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
-
-    // 3. optimize spills
-    FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
-    spilling.removeRedundantSpillWrites(scheduledOps);
 
     // 4. insert spill dmas
     spilling.insertSpillCopyOps(scheduledOps);
@@ -324,7 +324,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     });
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<AllocRewrite>(scan.handler(), &ctx, _log);
+    patterns.add<AllocRewrite>(prefetchScan.handler(), &ctx, _log);  // mateusz
 
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
         _log.error("Failed to replace Alloc/Dealloc Operations");
@@ -332,7 +332,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
         return;
     }
 
-    resources.setUsedMemory(_memSpace, scan.handler().maxAllocatedSize());
+    resources.setUsedMemory(_memSpace, prefetchScan.handler().maxAllocatedSize());  // mateusz
 }
 
 }  // namespace
