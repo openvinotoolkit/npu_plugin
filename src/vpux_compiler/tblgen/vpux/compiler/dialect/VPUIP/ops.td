@@ -1115,7 +1115,7 @@ def VPUIP_QuantCastUPAOp :
                 VPUIP_Legacy4D
             ]
         > {
-    let summary = "FakeQuantize UPA SHAVE kernel";
+    let summary = "QuantCast UPA SHAVE kernel";
 
     let arguments = (ins
         MemRefOf<[F16, quant_QuantizedType]>:$input,
