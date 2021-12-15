@@ -282,7 +282,8 @@ void FeasibleAllocationPass::safeRunOnModule() {
     updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
 
     // 4. insert spill dmas
-    FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
+    FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log,
+                                             prefetchScan);
     spilling.insertSpillCopyOps(scheduledOps);
 
     // NOTE: observed worse perf with the below addition of dependencies
@@ -314,7 +315,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     });
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<AllocRewrite>(scan.handler(), &ctx, _log);
+    patterns.add<AllocRewrite>(prefetchScan.handler(), &ctx, _log);  // mateusz
 
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
         _log.error("Failed to replace Alloc/Dealloc Operations");
@@ -322,7 +323,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
         return;
     }
 
-    resources.setUsedMemory(_memSpace, scan.handler().maxAllocatedSize());
+    resources.setUsedMemory(_memSpace, prefetchScan.handler().maxAllocatedSize());  // mateusz
 }
 
 }  // namespace
