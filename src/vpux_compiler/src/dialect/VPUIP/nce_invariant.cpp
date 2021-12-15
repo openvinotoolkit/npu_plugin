@@ -508,8 +508,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::GroupConvolutionO
 //
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, int64_t KY, int64_t KX, int64_t SY,
-                                                            int64_t SX, int64_t padTop, int64_t padBottom,
-                                                            int64_t padLeft, int64_t padRight, Logger log) {
+                                                            int64_t SX, int64_t, int64_t, int64_t, int64_t,
+                                                            Logger log) {
     log.setName("NCEInvariant");
 
     static const int32_t NCE_MAX_KERNEL_SIZE = 11;
@@ -541,22 +541,22 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
         return mlir::failure();
     }
 
-    if (padTop < 0 || (padTop > 1 && padTop > KY / 2)) {
-        log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padTop, KY / 2);
-        return mlir::failure();
-    }
-    if (padBottom < 0 || (padBottom > 1 && padBottom > KY / 2)) {
-        log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padBottom, KY / 2);
-        return mlir::failure();
-    }
-    if (padLeft < 0 || (padLeft > 1 && padLeft > KX / 2)) {
-        log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padLeft, KX / 2);
-        return mlir::failure();
-    }
-    if (padRight < 0 || (padRight > 1 && padRight > KX / 2)) {
-        log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padRight, KX / 2);
-        return mlir::failure();
-    }
+    // if (padTop < 0 || (padTop > 1 && padTop > KY / 2)) {
+    //     log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padTop, KY / 2);
+    //     return mlir::failure();
+    // }
+    // if (padBottom < 0 || (padBottom > 1 && padBottom > KY / 2)) {
+    //     log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padBottom, KY / 2);
+    //     return mlir::failure();
+    // }
+    // if (padLeft < 0 || (padLeft > 1 && padLeft > KX / 2)) {
+    //     log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padLeft, KX / 2);
+    //     return mlir::failure();
+    // }
+    // if (padRight < 0 || (padRight > 1 && padRight > KX / 2)) {
+    //     log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padRight, KX / 2);
+    //     return mlir::failure();
+    // }
 
     return mlir::success();
 }
