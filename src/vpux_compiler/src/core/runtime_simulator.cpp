@@ -80,7 +80,7 @@ void RuntimeSimulator::buildTaskLists() {
         auto& block = taskOp.body().getBlocks().front();
         auto wrappedTaskOp = block.begin();
         switch (taskOp.getExecutorKind()) {
-        //case VPU::ExecutorKind::UPADMA:
+        // case VPU::ExecutorKind::UPADMA:
         case VPU::ExecutorKind::DMA_NN: {
             int64_t port = 0;
             if (auto dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(wrappedTaskOp)) {
@@ -104,7 +104,7 @@ void RuntimeSimulator::buildTaskLists() {
             break;
         }
         // TODO: should we introduce _swTask?
-        //case VPU::ExecutorKind::ACTShave:
+        // case VPU::ExecutorKind::ACTShave:
         case VPU::ExecutorKind::SHAVE_UPA: {
             Logger::global().error("Adding UPA scheduling number {0} ", taskOp->getAttr("SchedulingNumber"));
             _upaTasks.push_back(getTaskInfo(taskOp));

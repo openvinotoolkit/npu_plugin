@@ -19,7 +19,6 @@
 
 namespace vpux {
 
-
 typedef mlir::Operation const* operation_t;
 
 struct barrier_info_t {
@@ -77,7 +76,6 @@ struct op_resource_state_t {
         return true;
     }
 
-  
     const barrier_info_t& get_barrier_info(const operation_t& op) const {
         auto itr = barrier_map_.find(op);
 

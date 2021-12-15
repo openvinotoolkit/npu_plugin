@@ -21,8 +21,9 @@ std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleBarrierSchedul
 
 static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
 FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func,
-                                                   const resource_state_t& rstate)
-        : _ctx(ctx),
+                                                   const resource_state_t& rstate, Logger log)
+        :  _log(log),
+          _ctx(ctx),
           _func(func),
           _in_degree(),
           _heap(),
@@ -36,8 +37,27 @@ FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir:
     init(rstate);
 };
 
-FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func)
-        : _ctx(ctx),
+FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func,
+                                                   Logger log, size_t numberOfBarriers, size_t maxProducersPerBarrier)
+        : _barrierCount(numberOfBarriers),
+          _slotsPerBarrier(maxProducersPerBarrier), 
+          _resource_state(numberOfBarriers, maxProducersPerBarrier),
+          _log(log),
+          _ctx(ctx),
+          _func(func),
+          _in_degree(),
+          _heap(),
+          _current_time(0),
+          _candidates(),
+          _heap_ordering(),
+          _schedulable_op(),
+          _processed_ops(),
+          _priority() {
+};
+
+FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log)
+        : _log(log),
+         _ctx(ctx),
           _func(func),
           _in_degree(),
           _heap(),
@@ -50,7 +70,6 @@ FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir:
           _priority(){};
 
 bool FeasibleBarrierScheduler::reached_end() const {
-    Logger::global().error("Schedule reached end True/False {0}", (_candidates.empty() && _heap.empty()));
     return _candidates.empty() && _heap.empty();
 }
 
@@ -107,7 +126,7 @@ void FeasibleBarrierScheduler::addOutGoingOperationsToCandidateList(mlir::Operat
         typename operation_in_degree_t::iterator deg_itr = _in_degree.find(op);
 
         VPUX_THROW_UNLESS((deg_itr != _in_degree.end()) && (deg_itr->second > 0), "Invalid indegree");
-        //assert((deg_itr != _in_degree.end()) && (deg_itr->second > 0));
+        // assert((deg_itr != _in_degree.end()) && (deg_itr->second > 0));
 
         if (deg_itr->second == 1) {
             Logger::global().error("Adding operation {0} to candidate_list", getUniqueID(*itr));
@@ -136,11 +155,14 @@ bool FeasibleBarrierScheduler::nextSchedulableOperation() {
 
             Logger::global().error("Operation {0} end time is {1} pushing to heap", getUniqueID(*op_itr), op_end_time);
             pushToHeap(HeapElement(op, op_end_time));
+
+            
             _candidates.erase(op_itr);
 
-            vpux::BarrierScheduleGenerator::barrier_scheduler_traits::schedule_operation(op, op_resources,
-                                                                                         _resource_state);
+            //vpux::BarrierScheduleGenerator::barrier_scheduler_traits::schedule_operation(op, op_resources, _resource_state);
+
             _schedulable_op = op;
+            populateScheduledOps(op);
             Logger::global().error("The _schedulable_op ID is {0}", getUniqueID(_schedulable_op));
 
         } else if (!_heap.empty()) {
@@ -149,12 +171,12 @@ bool FeasibleBarrierScheduler::nextSchedulableOperation() {
             HeapElement top_elem = popFromHeap();
             mlir::Operation* op = top_elem.op_;
 
-            //assert(_current_time <= top_elem.time_);
+            // assert(_current_time <= top_elem.time_);
             VPUX_THROW_UNLESS(_current_time <= top_elem.time_, "Invalid indegree");
             _current_time = top_elem.time_;
             // since operation is now complete update the schedule //
 
-            BarrierScheduleGenerator::barrier_scheduler_traits::unschedule_operation(op, _resource_state);
+            //BarrierScheduleGenerator::barrier_scheduler_traits::unschedule_operation(op, _resource_state);
             // since op has completed add all out-going ops to candidates //
             addOutGoingOperationsToCandidateList(op);
         } else {
@@ -181,11 +203,12 @@ FeasibleBarrierScheduler::schedulable_ops_iterator_t FeasibleBarrierScheduler::f
 
     for (itr = _candidates.begin(); itr != _candidates.end(); ++itr) {
         Logger::global().error("The demand for operation {0} is {1}", getUniqueID(*itr), _resource_utility_map[*itr]);
-        if (vpux::BarrierScheduleGenerator::barrier_scheduler_traits::is_resource_available(_resource_utility_map[*itr],
-                                                                                            _resource_state)) {
-            Logger::global().error("Adding operation {0} to the ready list", getUniqueID(*itr));
-            ready_list.push_back(itr);
-        }
+
+        // if (vpux::BarrierScheduleGenerator::barrier_scheduler_traits::is_resource_available(_resource_utility_map[*itr], _resource_state)) {
+            
+        //     Logger::global().error("Adding operation {0} to the ready list", getUniqueID(*itr));
+        //     ready_list.push_back(itr);
+        // }
     }
 
     Logger::global().error("Finding the operation with lowest priority in ready list");
@@ -220,8 +243,12 @@ const resource_state_t& FeasibleBarrierScheduler::resourceState() const {
     return _resource_state;
 }
 
+// void FeasibleBarrierScheduler::initResourceState(const resource_state_t& start_state) {
+//     vpux::BarrierScheduleGenerator::barrier_scheduler_traits::initialize_resource_state(start_state, _resource_state);
+// }
+
 void FeasibleBarrierScheduler::initResourceState(const resource_state_t& start_state) {
-    vpux::BarrierScheduleGenerator::barrier_scheduler_traits::initialize_resource_state(start_state, _resource_state);
+    //vpux::BarrierScheduleGenerator::barrier_scheduler_traits::initialize_resource_state(start_state, _resource_state);
 }
 
 SmallVector<mlir::Operation*> FeasibleBarrierScheduler::getConsumerOps(mlir::Operation* op) {
@@ -298,7 +325,7 @@ void FeasibleBarrierScheduler::computeOperationPriorities() {
                 typename operation_in_degree_t::iterator deg_itr = in_degree.find(*jtr);
 
                 VPUX_THROW_UNLESS((deg_itr != in_degree.end()) && (deg_itr->second > 0), "Invalid indegree");
-                
+
                 // assert((deg_itr != in_degree.end()) && (deg_itr->second > 0));
                 std::cout << "Operation  has an indegree of " << deg_itr->second << std::endl;
                 (deg_itr->second)--;
@@ -383,7 +410,6 @@ void FeasibleBarrierScheduler::computeOperationPriorities() {
     for (auto const& pair : _priority) {
         Logger::global().error("{Operation {0}  priority {1}", getUniqueID(pair.first), pair.second);
     }
-
 }
 
 void FeasibleBarrierScheduler::assignUniqueIds() {
@@ -395,10 +421,6 @@ void FeasibleBarrierScheduler::assignUniqueIds() {
 
     _func.walk([&](VPURT::TaskOp taskOp) {
         switch (taskOp.getExecutorKind()) {
-        // case VPU::ExecutorKind::UPADMA: {
-        //     assignUniqueIDs(taskOp);
-        //     break;
-        // }
         case VPU::ExecutorKind::DMA_NN: {
             assignUniqueIDs(taskOp);
             break;
@@ -510,8 +532,7 @@ unsigned FeasibleBarrierScheduler::countProducerConsumerTasks(mlir::Operation* o
     }
     if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
         return 1;
-    }
-    else {
+    } else {
         VPUX_THROW("This operation does not run on hardware");
     }
 }
@@ -569,4 +590,56 @@ bool FeasibleBarrierScheduler::init(const resource_state_t& upper_bound) {
     computeOperationPriorities();
 
     return nextSchedulableOperation();
+}
+
+size_t FeasibleBarrierScheduler::schedule()
+{
+
+}
+
+void FeasibleBarrierScheduler::initializeBarrierAssociationTable()
+{
+    Logger::global().error("STEP-0: Initialize the association table");
+    // for (size_t barrierId = 1; barrierId <= _barrierCount; barrierId++) {
+    //     auto bitr = barrier_association.insert(std::make_pair(barrierId, barrierTransitionStructure(_func, *this)));
+    //     barrierTransitionStructure& bstructure = (bitr.first)->second;
+    //     //bstructure.init();
+    // }
+
+}
+
+
+void FeasibleBarrierScheduler::removeRedundantWaitBarriers()
+{
+
+}
+
+void FeasibleBarrierScheduler::removeRedundantDependencies()
+{
+
+}
+
+void FeasibleBarrierScheduler::populateScheduledOps(mlir::Operation* scheduledOp) {
+    
+    // populate the struct fields
+    ScheduledOpInfo scheduled;
+
+    scheduled.op_ = scheduledOp;
+    scheduled.schedule_time_ = _current_time;
+    //const barrier_info_t& binfo = rstate.get_barrier_info(sinfo_.op_);
+
+    // sinfo_.op_ = *scheduler_begin_;
+    // sinfo_.schedule_time_ = scheduler_begin_.currentTime();
+    // const resource_state_t& rstate = scheduler_begin_.resourceState();
+    // Logger::global().error("Get barrier info for operation {0}", FeasibleBarrierScheduler::getUniqueID(sinfo_.op_));
+    // const barrier_info_t& binfo = rstate.get_barrier_info(sinfo_.op_);
+    // sinfo_.barrier_index_ = binfo.bindex_;
+    // sinfo_.slot_count_ = binfo.slot_count_;
+    
+    // scheduled.op_ = scheduledOp.op_;
+    // scheduled.opType_ = scheduledOp.opType_;
+    // scheduled.time_ = scheduledOp.time_;
+    // scheduled.resourceInfo_ = intervals;
+     Logger::global().error("Pushing to _scheduledOps, the time is {0}, the Operation is {1}", scheduled.schedule_time_, FeasibleBarrierScheduler::getUniqueID(scheduledOp));
+     _scheduledOps.push_back(scheduled);
 }
