@@ -47,10 +47,7 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
     // Flow for identifying if SpillWrite can be removed
     // 1. Traverse scheduledOps container for SpillWrite type ops
     // 2. Redundant Spill Write detection
-    //   a) Check if matching SpillWrite was already encountered
-    //   b) (TODO) Check if for a consecutive SpillWrite buffer state has not changed
-    //      since previous SpillRead. If there was an operation in between writing to it
-    //      then such SpillWrite cannot be removed
+    //   - Check if matching SpillWrite was already encountered
     // 3. Store information about SpillWrite
     // 4. Remove all previously identified redundant SpillWrite operations
     //    from scheduledOps structure
@@ -64,7 +61,8 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
         if (op.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_WRITE) {
             for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
                  spillWriteIndexIt++) {
-                if (scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
+                if (scheduledOps[*spillWriteIndexIt].op_ == op.op_ &&
+                    scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
                     // Duplication detected
                     duplicateSpillWritePrevReadIndexMap[index] = spillWriteReadIndexMap[*spillWriteIndexIt];
                     break;
@@ -75,7 +73,8 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
             // Find corresponding SpillRead
             for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
                  spillWriteIndexIt++) {
-                if (scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
+                if (scheduledOps[*spillWriteIndexIt].op_ == op.op_ &&
+                    scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
                     spillWriteReadIndexMap[*spillWriteIndexIt] = index;
                     break;
                 }
@@ -98,39 +97,13 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
         _log.nest().trace("duplicate spill write - {0} , prev read - {1}", el.first, el.second);
     }
 
-    // Check in scheduler if between previous SpillRead of given buffer and
-    // SpillWrite that is considered a duplicate no one used this buffer
-    SmallVector<size_t> spillWriteToRemoveIndexes;
-    for (auto& el : duplicateSpillWritePrevReadIndexMap) {
-        auto prevSpillReadIndex = el.second;
-        auto spillWriteIndex = el.first;
-        auto spilledBuffer = scheduledOps[spillWriteIndex].getBuffer(0);
-        bool spillWriteCanBeRemoved = true;
-        for (size_t index = prevSpillReadIndex + 1; index < spillWriteIndex; index++) {
-            for (size_t resIndex = 0; resIndex < scheduledOps[index].numOfResources(); resIndex++) {
-                if (scheduledOps[index].getBuffer(resIndex) == spilledBuffer) {
-                    spillWriteCanBeRemoved = false;
-                    break;
-                }
-            }
-
-            if (!spillWriteCanBeRemoved) {
-                break;
-            }
-        }
-
-        if (spillWriteCanBeRemoved) {
-            spillWriteToRemoveIndexes.push_back(spillWriteIndex);
-        }
-    }
-
+    std::cout << "Spill write to remove size- " << duplicateSpillWritePrevReadIndexMap.size() << "\n";
     // Remove in reverse order to have indexes valid after erasing entries in scheduledOp
-    _log.trace("spillWriteToRemoveIndexes size - {0}", spillWriteToRemoveIndexes.size());
-    std::cout << "spillWriteToRemoveIndexes size - " << spillWriteToRemoveIndexes.size() << "\n";
-    for (auto opIt = spillWriteToRemoveIndexes.rbegin(); opIt != spillWriteToRemoveIndexes.rend(); opIt++) {
-        std::cout << "  spill write to remove - " << *opIt << "\n";
-        _log.nest().trace("spill write to remove- {0}", *opIt);
-        scheduledOps.erase(scheduledOps.begin() + *opIt);
+    for (auto opIt = duplicateSpillWritePrevReadIndexMap.rbegin(); opIt != duplicateSpillWritePrevReadIndexMap.rend();
+         opIt++) {
+        std::cout << "  spill write to remove - " << opIt->first << "\n";
+        _log.nest().trace("spill write to remove- {0}", opIt->first);
+        scheduledOps.erase(scheduledOps.begin() + opIt->first);
     }
 }
 
