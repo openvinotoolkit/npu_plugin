@@ -100,22 +100,7 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
     const auto specifics = serializeInterface.serialize(*this);
     const auto curID = _tasks.size();
 
-    flatbuffers::Offset<MVCNN::BarrierReference> barriers;
-    if (auto task = mlir::dyn_cast<VPURT::TaskOp>(op)) {
-        const auto waitBarriers = createVector(task.waitBarriers() | transformed([this](mlir::Value val) {
-                                                   return getBarrierVirtualID(val);
-                                               }));
-        const auto updateBarriers = createVector(task.updateBarriers() | transformed([this](mlir::Value val) {
-                                                     return getBarrierVirtualID(val);
-                                                 }));
-
-        MVCNN::BarrierReferenceBuilder barriersBuilder(_impl);
-        barriersBuilder.add_wait_barriers(waitBarriers);
-        barriersBuilder.add_virtual_wait_barriers(waitBarriers);
-        barriersBuilder.add_update_barriers(updateBarriers);
-        barriersBuilder.add_virtual_update_barriers(updateBarriers);
-        barriers = barriersBuilder.Finish();
-    }
+    const auto barriers = createBarrierReference(op);
 
     MVCNN::TaskBuilder builder(_impl);
     if (!name.IsNull()) {
@@ -252,14 +237,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     auto taskOp = op->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_WHEN(taskOp == nullptr, "VPUIP task is doesn`t have VPURT TaskOp as a parent");
 
-    const auto getBarrierIdCb = [this](mlir::Value val) {
-        return getBarrierVirtualID(val);
-    };
-
-    const auto waitBarriers = createVector(taskOp.waitBarriers() | transformed(getBarrierIdCb));
-    const auto updateBarriers = createVector(taskOp.updateBarriers() | transformed(getBarrierIdCb));
-
-    auto barrierReference = MVCNN::CreateBarrierReference(_impl, waitBarriers, updateBarriers);
+    auto barrierReference = createBarrierReference(taskOp);
 
     // NOTE: order of .data, and invocation args matters in WIN_E
     // . 1K aligned data section followed by invocation args.
@@ -452,8 +430,8 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::getTensorRef(mlir::V
     return it->second;
 }
 
-VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value val, int64_t physicalID) {
-    VPUX_THROW_UNLESS(_barriers.count(val) == 0, "Value {0} was already serialized", val);
+VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value val, Optional<int64_t> physicalID) {
+    VPUX_THROW_UNLESS(_barriersVirtIds.count(val) == 0, "Value {0} was already serialized", val);
 
     size_t numConsumers = 0;
     size_t numProducers = 0;
@@ -499,20 +477,76 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
     }
 
     MVCNN::BarrierBuilder builder(_impl);
-    builder.add_barrier_id(checked_cast<int16_t>(physicalID));
+    if (physicalID.hasValue()) {
+        builder.add_barrier_id(checked_cast<int16_t>(physicalID.getValue()));
+    }
     builder.add_consumer_count(checked_cast<int16_t>(numConsumers));
     builder.add_producer_count(checked_cast<int16_t>(numProducers));
     const auto off = builder.Finish();
 
-    _barriers.insert({val, checked_cast<uint32_t>(_barriers.size())});
+    _barriersVirtIds.insert({val, checked_cast<uint32_t>(_barriersVirtIds.size())});
+    if (physicalID.hasValue()) {
+        _barriersPhysIds.insert({val, checked_cast<uint32_t>(physicalID.getValue())});
+    }
 
     return off;
 }
 
 uint32_t vpux::VPUIP::BlobWriter::getBarrierVirtualID(mlir::Value val) const {
-    const auto it = _barriers.find(val);
-    VPUX_THROW_UNLESS(it != _barriers.end(), "Value {0} wasn't serialized yet", val);
+    const auto it = _barriersVirtIds.find(val);
+    VPUX_THROW_UNLESS(it != _barriersVirtIds.end(), "Value {0} wasn't serialized yet", val);
     return it->second;
+}
+
+Optional<uint32_t> vpux::VPUIP::BlobWriter::getBarrierPhysicalID(mlir::Value val) const {
+    const auto it = _barriersPhysIds.find(val);
+    if (it == _barriersPhysIds.end()) {
+        return None;
+    }
+    return it->second;
+}
+
+VPUIP::BlobWriter::BarrierReference vpux::VPUIP::BlobWriter::createBarrierReference(mlir::Operation* op) {
+    auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op);
+    if (taskOp == nullptr) {
+        return {};
+    }
+
+    const auto extractBarriersIDs = [this](mlir::ValueRange barriers, std::vector<uint32_t>& virtIds,
+                                           std::vector<uint32_t>& physIds) {
+        for (const auto bar : barriers) {
+            virtIds.push_back(getBarrierVirtualID(bar));
+
+            if (auto physID = getBarrierPhysicalID(bar)) {
+                physIds.push_back(physID.getValue());
+            }
+        }
+    };
+
+    std::vector<uint32_t> waitVirtIds, waitPhysIds;
+    extractBarriersIDs(taskOp.waitBarriers(), waitVirtIds, waitPhysIds);
+
+    std::vector<uint32_t> updateVirtIds, updatePhysIds;
+    extractBarriersIDs(taskOp.updateBarriers(), updateVirtIds, updatePhysIds);
+
+    // FIXME: BarrierReference structure specification requires to fill it as:
+    //   * wait_barriers / update_barriers - physical IDs
+    //   * virtual_wait_barriers / virtual_update_barriers - virtual IDs
+    // But right now MTL POR runtime parses and interprets wait_barriers / update_barriers as virtual IDs.
+    // KMB POR runtime uses only virtual_wait_barriers / virtual_update_barriers as expected (virtual IDs).
+    // So, until MTL POR runtime is fixed we have to serialize virtual IDs to both lists.
+
+#if 0
+    return MVCNN::CreateBarrierReferenceDirect(_impl, /*wait_barriers=*/&waitPhysIds,
+                                               /*update_barriers=*/&updatePhysIds,
+                                               /*virtual_wait_barriers=*/&waitVirtIds,
+                                               /*virtual_update_barriers=*/&updateVirtIds);
+#else
+    return MVCNN::CreateBarrierReferenceDirect(_impl, /*wait_barriers=*/&waitVirtIds,
+                                               /*update_barriers=*/&updateVirtIds,
+                                               /*virtual_wait_barriers=*/&waitVirtIds,
+                                               /*virtual_update_barriers=*/&updateVirtIds);
+#endif
 }
 
 MVCNN::DType vpux::VPUIP::BlobWriter::createDType(mlir::Type type) {

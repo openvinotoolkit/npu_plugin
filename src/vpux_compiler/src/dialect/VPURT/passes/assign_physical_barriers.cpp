@@ -16,6 +16,8 @@
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
+#include "vpux/utils/core/enums.hpp"
+
 #include <mlir/Transforms/DialectConversion.h>
 
 #include <llvm/ADT/DenseMap.h>
@@ -24,8 +26,12 @@ using namespace vpux;
 
 namespace {
 
-// Same value for all architectures for now
-constexpr int64_t MAX_BARRIERS_FOR_ARCH = 64;
+const EnumMap<VPU::ArchKind, int64_t> MAX_BARRIERS_PER_INFERENCE = {
+        {VPU::ArchKind::KMB, 64 / 2},  // half barries are used (runtime limitation)
+        {VPU::ArchKind::TBH, 64 / 2},  // half barries are used (runtime limitation)
+        {VPU::ArchKind::MTL, 64},      //
+        {VPU::ArchKind::LNL, 64},      //
+};
 
 //
 // BarrierAllocation
@@ -109,6 +115,8 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
+    const auto arch = VPU::getArch(func);
+
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
@@ -121,7 +129,11 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     const auto maxNumClustersForArch = VPU::getMaxDPUClusterNum(module);
     VPUX_THROW_UNLESS(maxNumClustersForArch != 0, "Failed to get maxNumClustersForArch");
 
-    constexpr auto maxBarriersPerInference = MAX_BARRIERS_FOR_ARCH / 2;  // half barries are used
+    const auto barIt = MAX_BARRIERS_PER_INFERENCE.find(arch);
+    VPUX_THROW_WHEN(barIt == MAX_BARRIERS_PER_INFERENCE.end(), "Unsupported VPU architecture '{0}'", arch);
+
+    const auto maxBarriersPerInference = barIt->second;
+
     const auto barriersPerCluster = maxBarriersPerInference / maxNumClustersForArch;
     const auto maxNumBarriers = std::min(maxBarriersPerInference, barriersPerCluster * numClusters);
 

@@ -56,22 +56,22 @@ public:
     };
 
     using TensorReference = flatbuffers::Offset<MVCNN::TensorReference>;
-    using PreprocessingInfo = flatbuffers::Offset<MVCNN::preprocessingInfo>;
-    using Barrier = flatbuffers::Offset<MVCNN::Barrier>;
-
     using IndirectDataReference = flatbuffers::Offset<MVCNN::IndirectDataReference>;
+
+    using Barrier = flatbuffers::Offset<MVCNN::Barrier>;
+    using BarrierReference = flatbuffers::Offset<MVCNN::BarrierReference>;
 
     using BinaryData = flatbuffers::Offset<MVCNN::BinaryData>;
 
     using KernelData = flatbuffers::Offset<MVCNN::KernelData>;
     using ActKernel = flatbuffers::Offset<MVCNN::ActKernel>;
-
     using KernelDataRef = flatbuffers::Offset<MVCNN::KernelDataReference>;
-
-    using String = flatbuffers::Offset<flatbuffers::String>;
-
     using ActShavesKernelDataMap =
             llvm::MapVector<std::string, SerializedKernelDataDesc, std::unordered_map<std::string, size_t>>;
+
+    using PreprocessingInfo = flatbuffers::Offset<MVCNN::preprocessingInfo>;
+
+    using String = flatbuffers::Offset<flatbuffers::String>;
 
     template <typename T>
     using Vector = flatbuffers::Offset<flatbuffers::Vector<T>>;
@@ -114,8 +114,12 @@ public:
     BinaryData createBinaryData(ArrayRef<uint64_t> content, mlir::ShapedType type, bool csram_cacheable = false);
 
 public:
-    Barrier createBarrier(mlir::Value val, int64_t physicalID = 0);
+    Barrier createBarrier(mlir::Value val, Optional<int64_t> physicalID = None);
+
     uint32_t getBarrierVirtualID(mlir::Value val) const;
+    Optional<uint32_t> getBarrierPhysicalID(mlir::Value val) const;
+
+    BarrierReference createBarrierReference(mlir::Operation* op);
 
 public:
     static MVCNN::DType createDType(mlir::Type type);
@@ -176,7 +180,8 @@ private:
     TaskMap _tasks;
     ActShavesKernelDataMap _actKernelsData;
     TensorReferenceMap _tensors;
-    BarrierMap _barriers;
+    BarrierMap _barriersVirtIds;
+    BarrierMap _barriersPhysIds;
 };
 
 }  // namespace VPUIP
