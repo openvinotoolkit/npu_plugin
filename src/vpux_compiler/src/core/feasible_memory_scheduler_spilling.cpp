@@ -85,12 +85,16 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
     _log.trace("Spill writes - {0}, duplicate spill writes - {1}", spillWriteReadIndexMap.size(),
                duplicateSpillWritePrevReadIndexMap.size());
     _log.trace("spillWriteReadIndexMap size - {0}", spillWriteReadIndexMap.size());
+    std::cout << "spillWriteReadIndexMap size - " << spillWriteReadIndexMap.size() << "\n";
     for (auto& el : spillWriteReadIndexMap) {
+        std::cout << "  spill write - " << el.first << " , read - " << el.second << "\n";
         _log.nest().trace("spill write - {0} , read - {1}", el.first, el.second);
     }
 
     _log.trace("duplicateSpillWritePrevReadIndexMap size - {0}", duplicateSpillWritePrevReadIndexMap.size());
+    std::cout << "duplicateSpillWritePrevReadIndexMap size - " << duplicateSpillWritePrevReadIndexMap.size() << "\n";
     for (auto& el : duplicateSpillWritePrevReadIndexMap) {
+        std::cout << "  duplicate spill write - " << el.first << " , prev read - " << el.second << "\n";
         _log.nest().trace("duplicate spill write - {0} , prev read - {1}", el.first, el.second);
     }
 
@@ -122,7 +126,9 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
 
     // Remove in reverse order to have indexes valid after erasing entries in scheduledOp
     _log.trace("spillWriteToRemoveIndexes size - {0}", spillWriteToRemoveIndexes.size());
+    std::cout << "spillWriteToRemoveIndexes size - " << spillWriteToRemoveIndexes.size() << "\n";
     for (auto opIt = spillWriteToRemoveIndexes.rbegin(); opIt != spillWriteToRemoveIndexes.rend(); opIt++) {
+        std::cout << "  spill write to remove - " << *opIt << "\n";
         _log.nest().trace("spill write to remove- {0}", *opIt);
         scheduledOps.erase(scheduledOps.begin() + *opIt);
     }
