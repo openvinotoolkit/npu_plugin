@@ -70,6 +70,7 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createSupportBatchForPadPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
+    pm.addPass(IE::createSwapMaxPoolWithActivation(log));
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }

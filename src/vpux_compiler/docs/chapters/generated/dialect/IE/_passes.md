@@ -145,6 +145,9 @@ Create `IE::PadOp` with pads_begin[0, x, x, x] and pads_end[0, x, x, x] attribut
 Append tensor of size M * batchSize to the beginning, and tensor of size N * batchSize to the end.
 Replace original `IE::PadOp` with `IE::Concat(%cst_front, %batchless_pad, %cst_back)`.
 Only `IE::PadMode::CONSTANT` case is supported.
+### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
+This pass is needed for MTL only since HW MaxPool does not support post-op operations.
+Operations are swapped only if there is an operation before MaxPool that supports post-ops.
 ### `-uniquify-ops`: Remove duplicating operations with a common producer Value
 The pass is a part of `AdjustForVPU` pipeline.
 
