@@ -20,7 +20,7 @@ typedef int32_t Index;
 typedef t_D8StorageOrder StorageOrder;
 
 static constexpr std::initializer_list<SingleTest> topk_test_list{
-//    {{11, 20, 10}, {11, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+    {{11, 20, 10}, {11, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
 //    {{21, 513, 513}, {21, 1, 513}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //FAIL CORE DUMP, CMX:11139282 Byte (over)
 //    {{21, 40, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:18480 Byte 321.222015 ms
 //    {{21, 80, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:35280 Byte 917.265503 ms
@@ -30,9 +30,10 @@ static constexpr std::initializer_list<SingleTest> topk_test_list{
 //    {{21, 300, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:127680 Byte 2112.416992 ms
 //    {{21, 320, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:136080 Byte  2250.272949 ms
 //    {{21, 513, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:217140 Byte  2689.700195 ms
-    {{21, 513, 20}, {21, 1, 20}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:434280 Byte  2890.895508 ms
-//    {{21, 513, 80}, {21, 1, 80}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //FAILED, CMX:1737120 Byte Byte  3854.895508 ms
-//533725 bytes max
+//    {{21, 513, 20}, {21, 1, 20}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:434280 Byte  2890.895508 ms
+//    {{21, 513, 80}, {21, 1, 80}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //FAILED, CMX:1737120 Byte Byte  
+//    {{21, 513, 5}, {21, 513, 1}, orderZYX, FPE("topk.elf"), {{1/*K*/,2/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //FAILED, CMX:1809864 Byte
+        //533725 bytes max
 };
 
 // pair of (value, index) used in sorting
@@ -125,10 +126,10 @@ protected:
         int32_t ind[subspace::MAX_DIMS] = {0};
         subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
         
-        m_k = ind[test->customLayerParams.layerParams[0]];
+        m_k = test->customLayerParams.layerParams[0];
         m_axis = ind[test->customLayerParams.layerParams[1]];
-        m_mode = ind[test->customLayerParams.layerParams[2]];
-        m_sort = ind[test->customLayerParams.layerParams[3]];
+        m_mode = test->customLayerParams.layerParams[2];
+        m_sort = test->customLayerParams.layerParams[3];
         m_hasOutputValues = 1;
         m_hasOutputIndices = 1;
         
