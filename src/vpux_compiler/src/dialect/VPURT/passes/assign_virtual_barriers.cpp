@@ -45,7 +45,18 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     TokenBasedBarrierScheduler barrierScheduler(&ctx, func, 4, 256);
     barrierScheduler.schedule();
 
-  
+    bool success = false;
+
+    // Barrier Simulation
+    //for (size_t barrier_bound = 4; !success && (barrier_bound >= 1UL); --barrier_bound) {
+        TokenBasedBarrierScheduler barrierScheduler(&ctx, func, 4, 256);
+        barrierScheduler.schedule();
+
+        //RuntimeSimulator simulator(&ctx, func, _log, numDmaEngines, 8);
+        //success = simulator.assignPhysicalIDs();
+
+        //std::cout << "Barrier simualtion result is " << success << " with upperbound " << barrier_bound << std::endl;
+   // }
 }
 
 }  // namespace

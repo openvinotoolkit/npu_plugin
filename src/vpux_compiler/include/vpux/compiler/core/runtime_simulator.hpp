@@ -45,7 +45,23 @@ public:
         }
     };
 
-    RuntimeSimulator(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, int64_t numDmaEngines, size_t numRealBarriers);
+    struct operation_comparator_t {
+        bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+            int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op1)
+                                                              ->getAttr("id")
+                                                              .cast<mlir::IntegerAttr>()
+                                                              .getInt());
+            int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op2)
+                                                              ->getAttr("id")
+                                                              .cast<mlir::IntegerAttr>()
+                                                              .getInt());
+
+            return uniqueId1 < uniqueId2;
+        }
+    };
+
+    RuntimeSimulator(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, int64_t numDmaEngines,
+                     size_t numRealBarriers);
     void init();
     bool assignPhysicalIDs();
     void buildTaskLists();
@@ -67,8 +83,8 @@ private:
     std::vector<TaskInfo> _upaTasks;
     std::array<std::vector<TaskInfo>, MAX_DMA_ENGINES> _dmaTasks;
     std::list<VPURT::DeclareVirtualBarrierOp> _barrierOps;
-    std::map<mlir::Operation*, std::pair<int64_t, int64_t>> _virtualToPhysicalBarrierMap;
     std::map<int64_t, VirtualBarrierInfo> _virtualBarriers;
+    std::map<mlir::Operation*, std::pair<int64_t, int64_t>, operation_comparator_t> _virtualToPhysicalBarrierMap;
 
     mlir::MLIRContext* _ctx;
     mlir::FuncOp _func;
@@ -77,11 +93,12 @@ private:
     int64_t _numRealBarriers;
 
     struct active_barrier_info_t {
+        int64_t virtual_id_;
         size_t real_barrier_;
         size_t in_degree_;
         size_t out_degree_;
-        active_barrier_info_t(size_t real, size_t in, size_t out)
-                : real_barrier_(real), in_degree_(in), out_degree_(out) {
+        active_barrier_info_t(size_t virtualID, size_t real, size_t in, size_t out)
+                : virtual_id_(virtualID), real_barrier_(real), in_degree_(in), out_degree_(out) {
         }
     };
 
