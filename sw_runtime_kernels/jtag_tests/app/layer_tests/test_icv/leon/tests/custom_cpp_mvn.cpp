@@ -105,11 +105,9 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
             srand(ticks_for_seed);
 
             // input
-            float i = 0.f;
             m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
-                float val = customData ? (float)(10 + i) : (float)((rand() % 1400) - 700);
-                i++;
-                m_inputTensor.at(indices) = f32Tof16(i);
+                float tmp = float(rand() % 1000) / 100 - 5.0f;
+                m_inputTensor.at(indices) = f32Tof16(tmp);
             });
         }
         void generateReferenceData() override {
