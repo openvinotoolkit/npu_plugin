@@ -40,7 +40,8 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::IntegerAttr cm_sp_pattern) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
           parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
-          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, odu_permutation, cm_sp_pattern);
+          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, odu_permutation,
+          cm_sp_pattern);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -54,9 +55,12 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
                                           mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
-                                          mlir::UnitAttr is_continued) {
+                                          mlir::UnitAttr is_continued, vpux::VPUIP::ODUPermutationAttr odu_permutation,
+                                          mlir::IntegerAttr cm_sp_pattern) {
     build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
           output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
+          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, odu_permutation,
+          cm_sp_pattern);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -636,7 +640,8 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
 
     return writer.createTensorRef("output_tensor_scale_updated", nceTask.getType(0).cast<mlir::ShapedType>(),
                                   bufferOp.section(), bufferOp.sectionIndex().getValueOr(0), bufferOp.byteOffset(),
-                                  bufferOp.swizzlingKey().getValueOr(0), ppeQuantMult, ppeQuantShift, ppeQuantPostShift, quantZeroPoints);
+                                  bufferOp.swizzlingKey().getValueOr(0), ppeQuantMult, ppeQuantShift, ppeQuantPostShift,
+                                  quantZeroPoints);
 }
 
 }  // namespace
