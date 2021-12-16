@@ -941,6 +941,21 @@ def RewriteMemPermute :
         Pat<
             (IERT_MemPermuteOp $input, $output, $mem_perm),
             (createMemPermuteUPAOp $input, $output, $mem_perm)
+            >;
+
+//
+// IERT.SoftPlus -> VPUIP.SoftPlusUPA
+//
+
+def createSoftPlusUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SoftPlusUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteSoftPlus :
+        Pat<
+            (IERT_SoftPlusOp $input, $output),
+            (createSoftPlusUPAOp $input, $output)
         >;
 
 //

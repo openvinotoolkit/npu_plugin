@@ -2546,6 +2546,30 @@ operation ::= `IE.SoftMax` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.SoftPlus` (vpux::IE::SoftPlusOp)
+
+InferenceEngine SoftPlus layer
+
+
+Syntax:
+
+```
+operation ::= `IE.SoftPlus` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Split` (vpux::IE::SplitOp)
 
 InferenceEngine Split layer

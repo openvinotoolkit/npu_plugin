@@ -926,6 +926,11 @@ mlir::Operation* createRTLayer(IE::MemPermuteOp origOp, ArrayRef<mlir::Value> al
     return b.create<IERT::MemPermuteOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.mem_perm());
 }
 
+mlir::Operation* createRTLayer(IE::SoftPlusOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::SoftPlusOp::Adaptor newOp(allBufs);
+    return b.create<IERT::SoftPlusOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 mlir::Operation* createRTLayer(IE::CeilingOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::CeilingOp::Adaptor newOp(allBufs);
     return b.create<IERT::CeilingOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
@@ -1081,6 +1086,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::MVNOp)
     CASE(IE::SubtractOp)
     CASE(IE::MemPermuteOp)
+    CASE(IE::SoftPlusOp)
     CASE(IE::CeilingOp)
     CASE(IE::NormalizeIEOp)
     CASE(IE::EqualOp)

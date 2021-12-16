@@ -3126,4 +3126,48 @@ def VPUIP_TopKUPAOp:
     ];
 }
 
+//
+// SoftPlusUPAOp
+//
+
+def VPUIP_SoftPlusUPAOp :
+        VPUIP_UPATaskOp<1, "SoftPlusUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "SoftPlus UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output)
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif

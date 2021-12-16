@@ -1995,6 +1995,40 @@ operation ::= `VPUIP.SoftMaxUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.SoftPlusUPA` (vpux::VPUIP::SoftPlusUPAOp)
+
+SoftPlus UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SoftPlusUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.SqrtUPA` (vpux::VPUIP::SqrtUPAOp)
 
 Sqrt UPA SHAVE kernel

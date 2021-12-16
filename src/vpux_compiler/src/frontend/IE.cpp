@@ -212,6 +212,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Less>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LessEqual>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::NotEqual>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::SoftPlus>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Greater>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GreaterEqual>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalOr>& origNode);
@@ -334,6 +335,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::LogicalAnd),
             MAP_ENTRY(opset_latest::LSTMSequence),
             MAP_ENTRY(opset_latest::Ceiling),
+            MAP_ENTRY(opset_latest::SoftPlus),
             MAP_ENTRY(opset_latest::Equal),
             MAP_ENTRY(opset_latest::Less),
             MAP_ENTRY(opset_latest::LessEqual),
@@ -1618,6 +1620,19 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     auto op = builder.create<IE::EqualOp>(createLocation(origNode), inputs[0], inputs[1],
                                           importBroadcastType(autob.m_type));
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::SoftPlus>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v4::SoftPlus>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph SoftPlus node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::SoftPlusOp>(createLocation(origNode), inputs[0]);
+
     addOutputs(origNode, op);
 }
 

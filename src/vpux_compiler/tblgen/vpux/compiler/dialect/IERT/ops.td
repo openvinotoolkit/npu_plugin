@@ -2991,4 +2991,35 @@ def IERT_TopKOp:
     );
 }
 
+//
+// SoftPlusOp
+//
+
+def IERT_SoftPlusOp :
+        IERT_LayerOp<1, "SoftPlus",
+            [
+                SameOperandsShape,
+                SameOperandsElementType,
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time SoftPlus layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif

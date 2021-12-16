@@ -2660,4 +2660,27 @@ def IE_NotEqualOp :
     );
 }
 
+//
+// SoftPlusOp
+//
+
+def IE_SoftPlusOp :
+        IE_LayerOp<
+            "SoftPlus",
+            [
+                IE_EltwiseOp,
+                IE_TilingBuilderOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine SoftPlus layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
 #endif
