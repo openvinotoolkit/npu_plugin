@@ -20,7 +20,12 @@ typedef int32_t Index;
 typedef t_D8StorageOrder StorageOrder;
 
 static constexpr std::initializer_list<SingleTest> topk_test_list{
+    {{11, 20, 10}, {1, 20, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,0/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
     {{11, 20, 10}, {11, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+    {{11, 20, 10}, {11, 20, 1}, orderZYX, FPE("topk.elf"), {{1/*K*/,2/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+    {{11, 20, 10}, {2, 20, 10}, orderZYX, FPE("topk.elf"), {{2/*K*/,0/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+    {{11, 20, 10}, {11, 2, 10}, orderZYX, FPE("topk.elf"), {{2/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+    {{11, 20, 10}, {11, 20, 2}, orderZYX, FPE("topk.elf"), {{2/*K*/,2/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
 //    {{21, 513, 513}, {21, 1, 513}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //FAIL CORE DUMP, CMX:11139282 Byte (over)
 //    {{21, 40, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:18480 Byte 321.222015 ms
 //    {{21, 80, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:35280 Byte 917.265503 ms
@@ -263,9 +268,7 @@ protected:
             }
             
             std::partial_sort(temp.begin(), temp.begin() + k, temp.begin() + n, compareValues);
-            if (sort == 0) {
-                std::sort(temp.begin(), temp.begin() + k, compareIndices);
-            }
+            std::sort(temp.begin(), temp.begin() + k, compareIndices);
 
             auto refValuesData = &m_referenceValueTensor.at(id);
             auto refIndicesData = &m_referenceIndexTensor.at(id);
