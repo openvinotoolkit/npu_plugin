@@ -1,0 +1,14 @@
+# Importing all previously exported global scons variables
+Import('*')
+
+if 'y' in default_env.subst("$CONFIG_HAS_LRT_SRCS"):
+    default_env.addSystemSources(default_env.File(Glob('src/*.c*')), ['lrt'])
+
+if 'y' in default_env.subst("$CONFIG_HAS_LNN_SRCS"):
+    default_env.addSystemSources([default_env.File('src/nn_semaphore.cpp'),
+                                default_env.File('src/nn_task_context.cpp'),
+                                default_env.File('src/nn_thread.cpp')], ['lnn'])
+
+# Compiler includes path
+default_env.addSystemIncludes(default_env.Dir('inc/'), ['lrt', 'lnn', 'shave_nn'])
+

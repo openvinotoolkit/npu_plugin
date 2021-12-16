@@ -31,11 +31,18 @@ ccopt-shave-y += -DCONFIG_USE_COMPONENT_NN
 ccopt-shave_nn-y += -DCONFIG_USE_COMPONENT_NN
 
 subdirs-lrt-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/blob nn/nce_lib nn/shave_lib nn/inference_runtime_common ../../kernels
+#subdirs-lrt-$(CONFIG_TARGET_SOC_2490) += $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/blob nn/nce_lib nn/shave_lib nn/inference_runtime_common
+#subdirs-lrt-y += nn/common ../../kernels nn/inference_runtime_common  nn/shave_lib 
 subdirs-lnn-y += nn/common nn/inference_runtime_common
 subdirs-shave-y += nn/common
 subdirs-shave-y += nn/shave_lib
 subdirs-shave-y += ../../kernels
-subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
+
+#subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  $(VSYSTEM)/nn_mtl $(VSYSTEM)/nn_mtl/common_runtime $(VSYSTEM)/nn_mtl/common $(VSYSTEM)/nn_mtl/platform_abstraction $(VSYSTEM)/nn_mtl/inference_runtime
+
+#$(info "!!!!!!!!!!!!!!!!!!! $(subdirs-lrt-y)")
+
+subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib 
 subdirs-lnn-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  ../../kernels

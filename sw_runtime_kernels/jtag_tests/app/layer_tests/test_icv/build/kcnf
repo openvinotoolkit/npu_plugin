@@ -1,5 +1,11 @@
 source ../../../kcnf
 
+#config USE_COMPONENT_NN
+#  bool "Use mdk component NeuralNet"
+#  default y
+#  help
+#    Check this if you intend to use neural networks in your MDK-based application
+#
 config USE_COMPONENT_NN_ICV_TEST
   bool "Use mdk component NeuralNet"
   default n
