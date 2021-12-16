@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include "vpux/compiler/core/token_barrier_scheduler.hpp"
+
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
@@ -61,6 +63,14 @@ public:
     bool processTasks(std::vector<TaskInfo>& dma_task_list);
     bool fillBarrierTasks(std::list<VPURT::DeclareVirtualBarrierOp>& barrier_task_list);
     int64_t getVirtualId(VPURT::ConfigureBarrierOp op);
+    bool isTaskReadyByBarrierMap(VPURT::TaskOp taskOp);
+    void processTaskByBarrierMap(VPURT::TaskOp task);
+    bool processTasksByBarrierMap(std::vector<TaskInfo>& dma_task_list);
+    bool simulate(std::list<VPURT::DeclareVirtualBarrierOp>& barrierOps,
+                  std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>>& barrierProducersMap,
+                  std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>>& barrierConsumersMap,
+                  std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
+                          configureTaskOpUpdateWaitMap);
 
 private:
     std::vector<TaskInfo> _nceTasks;
@@ -95,9 +105,11 @@ private:
     std::list<size_t> _real_barrier_list;
     in_degree_map_t in_degree_map_;
     out_degree_map_t out_degree_map_;
+    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>
+            _configureTaskOpUpdateWaitMap;
 
-    std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap{};
-    std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierConsumersMap{};
+    std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> _barrierProducersMap{};
+    std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> _barrierConsumersMap{};
 };
 
 }  // namespace vpux

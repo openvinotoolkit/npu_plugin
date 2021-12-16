@@ -45,14 +45,15 @@
 #include <llvm/ADT/DenseSet.h>
 
 #include "vpux/compiler/core/barrier_schedule_generator.hpp"
+#include "vpux/compiler/core/runtime_simulator.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 namespace vpux {
 
 class TokenBasedBarrierScheduler {
 public:
-    explicit TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers,
-                                        int64_t slotCount);
+    explicit TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, int64_t numBarriers,
+                                        int64_t slotCount, int64_t numDmaEngines);
 
     struct operation_comparator_t {
         bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
@@ -318,9 +319,11 @@ private:
 
     mlir::MLIRContext* _ctx;
     mlir::FuncOp _func;
+    Logger _log;
     mlir::OpBuilder builder;
     size_t barrierCount_;
     size_t slotCount_;
+    int64_t _numDmaEngines;
 };
 
 }  // namespace vpux

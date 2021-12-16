@@ -297,10 +297,10 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
                 Logger::global().error("Looking up operation {0} in the in_degree table ", getUniqueID(*jtr));
                 typename operation_in_degree_t::iterator deg_itr = in_degree.find(*jtr);
                 // assert((deg_itr != in_degree.end()) && (deg_itr->second > 0));
-                std::cout << "Operation  has an indegree of " << deg_itr->second << std::endl;
+                // std::cout << "Operation  has an indegree of " << deg_itr->second << std::endl;
                 (deg_itr->second)--;
-                std::cout << "Decrementing the in-degree of ther operation, the indegree is now " << deg_itr->second
-                          << std::endl;
+                // std::cout << "Decrementing the in-degree of ther operation, the indegree is now " << deg_itr->second
+                //   << std::endl;
 
                 if (!(deg_itr->second)) {
                     // in-degree of this node has become zero//
@@ -425,7 +425,7 @@ void FeasibleScheduleGenerator::printInfo(mlir::FuncOp func) {
 
     func.walk([&](VPURT::TaskOp taskOp) {
         switch (taskOp.getExecutorKind()) {
-        //case VPU::ExecutorKind::UPADMA:
+        // case VPU::ExecutorKind::UPADMA:
         case VPU::ExecutorKind::DMA_NN: {
             getTaskInfo(taskOp);
             break;
