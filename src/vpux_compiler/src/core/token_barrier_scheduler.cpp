@@ -71,6 +71,10 @@ size_t TokenBasedBarrierScheduler::schedule() {
         BarrierScheduleGenerator scheduler_end(_ctx, _func);
         size_t scheduling_number = 0UL;
 
+        std::unordered_map<schedule_time_t, std::set<size_t>> active_barriers_at_time;
+        std::unordered_set<mlir::Operation*> scheduled_ops;
+        size_t make_span = 0UL;
+
         for (; scheduler_begin != scheduler_end; ++scheduler_begin) {
             const BarrierScheduleGenerator::schedule_info_t& sinfo = *scheduler_begin;
 
@@ -87,6 +91,18 @@ size_t TokenBasedBarrierScheduler::schedule() {
             auto bitr = barrier_association.find(sinfo.barrier_index_);
             assert(bitr != barrier_association.end());
             barrier_transition_structure_t& bstructure = bitr->second;
+            
+            int64_t opID = checked_cast<int64_t>(sinfo.op_->getAttr("uniqueId").cast<mlir::IntegerAttr>().getInt());
+            printf("[time=%lu barrier_id=%lu slot_count=%lu op=%lu]\n", sinfo.schedule_time_, sinfo.barrier_index_,
+                   sinfo.slot_count_, opID);
+
+            scheduled_ops.insert(sinfo.op_);
+            if (active_barriers_at_time.find(sinfo.schedule_time_) == active_barriers_at_time.end()) {
+                active_barriers_at_time[sinfo.schedule_time_] = std::set<size_t>();
+            }
+            active_barriers_at_time[sinfo.schedule_time_].insert(sinfo.barrier_index_);
+            scheduled_ops.insert(sinfo.op_);
+            make_span = std::max(make_span, sinfo.schedule_time_);
 
             // Set scheduling number
             Logger::global().error("Assigning scheduling number {0} to the Operation {1} ", scheduling_number,
@@ -101,6 +117,12 @@ size_t TokenBasedBarrierScheduler::schedule() {
                 ++btask_count;
             }
         }
+        size_t max_active = 0UL;
+        for (auto aitr=active_barriers_at_time.begin(); aitr!=active_barriers_at_time.end(); ++aitr) {
+          max_active = std::max(max_active, (aitr->second).size());
+        }
+        std::cout << "The max active barrier are: " << max_active << std::endl;
+        
     }
 
     // STEP-2.5: process trailing barrier control structures //

@@ -250,7 +250,7 @@ void RuntimeSimulator::processTask(VPURT::TaskOp task) {
 
             active_barrier_info_t& barrier_info = aitr->second;
             assert(barrier_info.in_degree_ > 0UL);
-            Logger::global().error("Decrmenting the out degree of the update virtual barrier {0} which is physical barrier {1}",
+            Logger::global().error("Decrmenting the in-degree of the update virtual barrier {0} which is physical barrier {1}",
                                    barrier_info.virtual_id_, barrier_info.real_barrier_);
             barrier_info.in_degree_--;
         }

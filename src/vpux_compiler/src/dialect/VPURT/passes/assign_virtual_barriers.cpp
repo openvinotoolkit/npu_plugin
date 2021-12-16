@@ -54,7 +54,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
 
     // Barrier Simulation
     //for (size_t barrier_bound = 4; !success && (barrier_bound >= 1UL); --barrier_bound) {
-        TokenBasedBarrierScheduler barrierScheduler(&ctx, func, 4, 256);
+        TokenBasedBarrierScheduler barrierScheduler(&ctx, func, 1, 256);
         barrierScheduler.schedule();
 
         //RuntimeSimulator simulator(&ctx, func, _log, numDmaEngines, 8);
