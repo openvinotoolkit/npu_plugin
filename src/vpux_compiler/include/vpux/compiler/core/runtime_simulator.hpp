@@ -76,6 +76,7 @@ public:
     bool processTasks(std::vector<TaskInfo>& dma_task_list);
     bool fillBarrierTasks(std::list<VPURT::DeclareVirtualBarrierOp>& barrier_task_list);
     int64_t getVirtualId(VPURT::ConfigureBarrierOp op);
+    static bool orderbyID(TaskInfo& a, TaskInfo& b);
 
 private:
     std::vector<TaskInfo> _nceTasks;
