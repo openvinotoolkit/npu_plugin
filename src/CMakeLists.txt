@@ -46,6 +46,9 @@ endif()
 if(ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(zero_backend)
 endif()
+
+# FIXME Should be inside BUILD_COMPILER_FOR_DRIVER ?
+add_subdirectory(zero_compiler_adapter)
 if(BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(VPUXCompilerL0)
 endif()
