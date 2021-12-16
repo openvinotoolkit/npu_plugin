@@ -2,7 +2,8 @@
 
 #include <sw_nn_runtime_types.h>
 #include "upa_task_runner.hpp"
-#include "act_shave_dispatcher.h"
+//#include "act_shave_dispatcher.h"
+//#include <nn_shave_manager.h>
 #include <nn_cache.h>
 #include <nn_time.h>
 
@@ -18,7 +19,7 @@ bool UPATaskRunner::enqueTask(Op * operation,
                               int /*numSHAVEs*/,
                               PerformanceData *perfData) {
 
-    static std::shared_ptr<nn::act_shave_lib::ACTShaveDispatcher> actDisp;
+//    static std::shared_ptr<nn::act_shave_lib::ACTShaveDispatcher> actDisp;
 
     memset(&sl, 0, sizeof(sl));
     memset(&layer, 0, sizeof(layer));
@@ -67,31 +68,31 @@ bool UPATaskRunner::enqueTask(Op * operation,
     leonPipePrintFlushBuffer();
 #endif
 
-//     Initialize ACT dispatcher
-    actDisp = nn::act_shave_lib::ACTShaveDispatcher::getInstance();
-    actDisp->initSWShaveDispatcher();
-#ifdef NN_MAX_UPA_SHAVE_POOL_SIZE
-    actDisp->resizeShavePool(NN_MAX_UPA_SHAVE_POOL_SIZE);
-#endif
-    actDisp->flushShaveL2DataCache();
-
-    nn::time::Timer timer;
-
-//     Enqueue layer
-    if (!actDisp->enqueueLayerExec(&sl)) {
-        return false;
-    }
-
-    timer.start();
-
-//     Await layer completion - TODO possible async
-    if (nullptr == actDisp->dequeueCompletedLayerExec()) {
-        return false;
-    }
-
-    perfData->elapsedTimeNs = timer.elapsedNs();
-
-    _enqued = true;
+////     Initialize ACT dispatcher
+//    actDisp = nn::act_shave_lib::ACTShaveDispatcher::getInstance();
+//    actDisp->initSWShaveDispatcher();
+//#ifdef NN_MAX_UPA_SHAVE_POOL_SIZE
+//    actDisp->resizeShavePool(NN_MAX_UPA_SHAVE_POOL_SIZE);
+//#endif
+//    actDisp->flushShaveL2DataCache();
+//
+//    nn::time::Timer timer;
+//
+////     Enqueue layer
+//    if (!actDisp->enqueueLayerExec(&sl)) {
+//        return false;
+//    }
+//
+//    timer.start();
+//
+////     Await layer completion - TODO possible async
+//    if (nullptr == actDisp->dequeueCompletedLayerExec()) {
+//        return false;
+//    }
+//
+//    perfData->elapsedTimeNs = timer.elapsedNs();
+//
+//    _enqued = true;
 
     return true;
 }
