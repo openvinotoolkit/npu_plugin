@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/IR/Operation.h>
@@ -239,7 +240,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::GroupConvolu
 
 namespace {
 
-Byte getCMXSize(mlir::ModuleOp module) {
+Byte getCMXSizeForTiling(mlir::ModuleOp module) {
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
     const auto cmxAttr = VPU::MemoryKindAttr::get(module->getContext(), VPU::MemoryKind::CMX_NN);
@@ -247,10 +248,17 @@ Byte getCMXSize(mlir::ModuleOp module) {
     auto cmxRes = resOp.getAvailableMemory(cmxAttr);
     VPUX_THROW_UNLESS(cmxRes != nullptr, "Can't get information about {0} memory", VPU::MemoryKind::CMX_NN);
 
-    return cmxRes.size();
+    // This function is used to determine the best tile size. It tries to put maximum data in CMX.
+    // Available CMX memory is decreased by two profilingBufferSize even if profiling is disabled
+    // because we want to get exactly same compiled networks with profiling enabled and disabled.
+    // Two buffer sizes are required in case when profiling allocates new buffer and old buffer
+    // is still not disposed. Second buffer can be treated as an optimisation that prevents spilling.
+    const int64_t profilingBufferSize =
+            vpux::VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE + vpux::VPUIP::HW_DPU_PROFILING_MAX_BUFFER_SIZE;
+    return cmxRes.size() - Byte(2 * profilingBufferSize);
 }
 
-Byte getRequiredCMX(ArrayRef<mlir::ShapedType> operands, int64_t numChannels) {
+Byte getRequiredCMXForTiling(ArrayRef<mlir::ShapedType> operands, int64_t numChannels) {
     Byte requiredCMX(0);
 
     for (const auto& operand : operands) {
@@ -272,9 +280,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc,
     const auto filterShape = getShape(filterType);
     // consider alignment when calculating required CMX
     const auto OC = filterShape[Dims4D::Filter::OC];
-    const auto requiredCMX = getRequiredCMX({inputType, filterType, outputType}, OC);
+    const auto requiredCMX = getRequiredCMXForTiling({inputType, filterType, outputType}, OC);
 
-    const auto cmxSize = getCMXSize(module);
+    const auto cmxSize = getCMXSizeForTiling(module);
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for Convolution, available '{1}', required '{2}'", loc, cmxSize,
                   requiredCMX);
@@ -320,9 +328,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
     const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(kernelSizeVals, kernelStridesVals[0],
                                                                                   inputType.getElementType(), IC);
 
-    const auto requiredCMX = getRequiredCMX({inputType, outputType}, IC) + activationWindowSize * 1_Byte;
+    const auto requiredCMX = getRequiredCMXForTiling({inputType, outputType}, IC) + activationWindowSize * 1_Byte;
 
-    const auto cmxSize = getCMXSize(module);
+    const auto cmxSize = getCMXSizeForTiling(module);
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for Pooling, available '{1}', required '{2}'", loc, cmxSize,
                   requiredCMX);
@@ -356,9 +364,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseCMX(mlir::Location l
                                                                 mlir::ShapedType outputType, Logger log) {
     log.setName("NCEInvariant");
 
-    const auto requiredCMX = getRequiredCMX({firstInputType, secondInputType, outputType}, 0);
+    const auto requiredCMX = getRequiredCMXForTiling({firstInputType, secondInputType, outputType}, 0);
 
-    const auto cmxSize = getCMXSize(module);
+    const auto cmxSize = getCMXSizeForTiling(module);
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for Eltwise, available '{1}', required '{2}'", loc, cmxSize,
                   requiredCMX);
@@ -470,9 +478,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     const auto alignedFilterType = mlir::RankedTensorType::get(alignedWeightShape, filterType.getElementType());
 
     const auto requiredCMX =
-            getRequiredCMX({inputType, alignedFilterType, outputType}, OC) + activationWindowSize * 1_Byte;
+            getRequiredCMXForTiling({inputType, alignedFilterType, outputType}, OC) + activationWindowSize * 1_Byte;
 
-    const auto cmxSize = getCMXSize(module);
+    const auto cmxSize = getCMXSizeForTiling(module);
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for Depthwise Convolution, available '{1}', required '{2}'", loc,
                   cmxSize, requiredCMX);
