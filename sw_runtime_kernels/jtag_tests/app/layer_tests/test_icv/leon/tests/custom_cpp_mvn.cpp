@@ -14,6 +14,8 @@ __attribute__((aligned(1024)))
 
 #include "param_mvn.h"
 
+#define F_EPS 0x3727c5ac // Hex representation of 10^(-5)f
+
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
 
     const bool save_to_file = false;
@@ -24,22 +26,22 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
              {20, 2, 10},
              orderHWC,
              FPE("mvn.elf"),
-             {/*across_channels*/ 0, /*normalize_variance*/ 0, /*eps = 10^(-5)*/ 925353388, sw_params::Location::NN_CMX}},
+             {/*across_channels*/ 0, /*normalize_variance*/ 0, /*eps*/ F_EPS, sw_params::Location::NN_CMX}},
             {{20, 2, 10},
              {20, 2, 10},
              orderHWC,
              FPE("mvn.elf"),
-             {/*across_channels*/ 0, /*normalize_variance*/ 1, /*eps = 10^(-5)*/ 925353388, sw_params::Location::NN_CMX}},
+             {/*across_channels*/ 0, /*normalize_variance*/ 1, /*eps*/ F_EPS, sw_params::Location::NN_CMX}},
             {{20, 2, 10},
              {20, 2, 10},
              orderCHW,
              FPE("mvn.elf"),
-             {/*across_channels*/ 0, /*normalize_variance*/ 0, /*eps = 10^(-5)*/ 925353388, sw_params::Location::NN_CMX}},
+             {/*across_channels*/ 0, /*normalize_variance*/ 0, /*eps*/ F_EPS, sw_params::Location::NN_CMX}},
             {{20, 2, 10},
              {20, 2, 10},
              orderCHW,
              FPE("mvn.elf"),
-             {/*across_channels*/ 0, /*normalize_variance*/ 1, /*eps = 10^(-5)*/ 925353388, sw_params::Location::NN_CMX}},
+             {/*across_channels*/ 0, /*normalize_variance*/ 1, /*eps*/ F_EPS, sw_params::Location::NN_CMX}},
     };
 
     class CustomCppMvnTest : public CustomCppTests<fp16> {
@@ -74,7 +76,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
 
             uint32_t acrossChannels = test->customLayerParams.layerParams[0];
             uint32_t normalize = test->customLayerParams.layerParams[1];
-            float eps = *((float *)(&test->customLayerParams.layerParams[2]));
+            float eps = *(float *)(&test->customLayerParams.layerParams[2]);
 
             m_mvnParams->acrossChannels = acrossChannels;
             m_mvnParams->normalize = normalize;
