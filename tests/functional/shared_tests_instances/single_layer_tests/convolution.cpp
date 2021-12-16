@@ -13,6 +13,12 @@ namespace LayerTestsDefinitions {
 
 class KmbConvolutionLayerTest : public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
+class KmbConvolutionLayerTest_MTL : public KmbConvolutionLayerTest {
+    void SkipBeforeInfer() override {
+        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+    }
+};
+
 // Comparisons fail (ticket???)
 TEST_P(KmbConvolutionLayerTest, DISABLED_CompareWithRefs) {
     Run();
@@ -26,6 +32,13 @@ TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR_SW) {
 
 TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR_HW) {
     useCompilerMLIR();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(KmbConvolutionLayerTest_MTL, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    setPlatformMTL();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -82,6 +95,27 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid, KmbConvolutionLayerTes
                                                                             {1, 16, 24, 24},
                                                                             {1, 24, 16, 16},
                                                                             {1, 32, 8, 8}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
+
+const auto conv2DParams_AutoPadValid_MTL =
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{1, 1}}),              // kernels
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // strides
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padBegins
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padEnds
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // dilations
+                           ::testing::Values(8),                                   // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::VALID)           // padType
+        );
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_MTL, KmbConvolutionLayerTest_MTL,
+                        ::testing::Combine(conv2DParams_AutoPadValid_MTL,              //
+                                           ::testing::Values(Precision::FP16),         // netPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),  // inPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),  // outPrc
+                                           ::testing::Values(Layout::NCHW),            // inLayout
+                                           ::testing::Values(Layout::NCHW),            // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 8, 32, 32}}),  // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         ConvolutionLayerTest::getTestCaseName);
 

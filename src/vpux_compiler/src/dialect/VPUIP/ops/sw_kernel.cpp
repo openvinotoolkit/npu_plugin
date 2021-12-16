@@ -71,6 +71,11 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                         {"singleShaveSoftmax"},
                                         {"single_shave_softmax.cpp"}};
             })
+            .Case<IERT::MemPermuteOp>([&](IERT::MemPermuteOp mempermute) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{mempermute.mem_permAttr()},
+                                        {"reorder_fp16"},
+                                        {"reorder_fp16.cpp"}};
+            })
             .Default([](mlir::Operation* unknownOp) -> IERT::KernelInfo {
                 VPUX_THROW("Operation '{0}' is not supported by the act-shaves", unknownOp->getName());
             });
