@@ -2484,6 +2484,37 @@ operation ::= `IE.ScatterNDUpdate` `(` operands `)` attr-dict `:` type(operands)
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.ShuffleChannels` (vpux::IE::ShuffleChannelsOp)
+
+InferenceEngine ShuffleChannels layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ShuffleChannels` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis` | mlir::IntegerAttr | Integer attribute
+`group` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | 4D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of 16-bit float or 32-bit float values
+
 ### `IE.Sigmoid` (vpux::IE::SigmoidOp)
 
 InferenceEngine Sigmoid layer

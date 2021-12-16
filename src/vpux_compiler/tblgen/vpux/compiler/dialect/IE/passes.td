@@ -230,6 +230,25 @@ def ConvertFCToConv : PassBase<"convert-fc-to-conv", "vpux::FunctionPass"> {
 }
 
 //
+// ConvertShuffleChannels
+//
+
+def ConvertShuffleChannels : PassBase<"convert-shuffle-channels", "vpux::FunctionPass"> {
+    let summary = "Convert ShuffleChannels to Reshape->Transpose->Reshape";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+        Converts ShuffleChannels to Reshape->Transpose->Reshape.
+    }];
+
+    let constructor = "vpux::IE::createConvertShuffleChannelsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // UnrollBatch
 //
 

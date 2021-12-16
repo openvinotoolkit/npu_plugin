@@ -852,6 +852,32 @@ def IE_MaxPoolOp :
 }
 
 //
+// ShuffleChannelsOp
+//
+
+def IE_ShuffleChannelsOp :
+        IE_LayerOp<
+            "ShuffleChannels",
+            [
+                SameOperandsAndResultType,
+                SameOperandsAndResultShape
+            ]
+        > {
+    let summary = "InferenceEngine ShuffleChannels layer";
+
+    let arguments = (ins
+        4DTensorOf<[F16, F32]>:$input,
+
+        IntAttr:$axis,
+        IntAttr:$group
+    );
+
+    let results = (outs
+        4DTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // GatherOp
 //
 

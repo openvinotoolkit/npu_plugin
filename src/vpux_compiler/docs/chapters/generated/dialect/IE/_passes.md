@@ -50,6 +50,9 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces ND tensor with 4D analogues for layers, which has such limitations on VPUIP level.
 Also this pass replaces ND network inputs and outputs with 4D analogues to overcome runtime limitations.
+### `-convert-shuffle-channels`: Convert ShuffleChannels to Reshape->Transpose->Reshape
+The pass is a part of `AdjustForVPU` pipeline.
+Converts ShuffleChannels to Reshape->Transpose->Reshape.
 ### `-convert-tile-to-per-axis-tiles`: Convert tile op by multiple axes to multiple PerAxisTile operations
 The pass is a part of `AdjustForVPU` pipeline.
 
