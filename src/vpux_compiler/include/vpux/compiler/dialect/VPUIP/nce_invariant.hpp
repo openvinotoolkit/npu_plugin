@@ -77,7 +77,6 @@ public:
     static mlir::LogicalResult verifyEltwisePrefetchCMX(mlir::Operation* op, vpux::OutputTiling tiling,
                                                         Logger log = Logger::global());
 
-
 public:
     static mlir::LogicalResult verifyChannels(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::ConvolutionOp origOp, Logger log = Logger::global());
