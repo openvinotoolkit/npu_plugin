@@ -240,12 +240,14 @@ void FeasibleAllocationPass::safeRunOnModule() {
     auto prefetchLiveRangeInfo = liveRangeInfo;
 
     // feasible memory scheduler - list scheduler
-    FeasibleMemoryScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, aliasesInfo, _log, scan);
+    // mateusz
+    // FeasibleMemoryScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, aliasesInfo, _log, scan);
+    FeasibleMemoryScheduler scheduler(_memSpace, prefetchLiveRangeInfo, depsInfo, aliasesInfo, _log, prefetchScan);
 
     // 1. initial schedule
     auto scheduledOps = scheduler.generateSchedule();
 
-    bool PREFETCHING_ENABLED = true;
+    bool PREFETCHING_ENABLED = false;  // mateusz
     if (PREFETCHING_ENABLED) {
         // 2. optimization for inital schedule - generating prefetche edges
         PrefetchEdgeGenerator PrefetchEdgeGenerator(scheduledOps, depsInfo);
