@@ -2154,14 +2154,14 @@
                 "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
-                    "--raw_tolerance", "1"
+                    "--raw_tolerance", "0.1"
                 ]
             },
             "NetTest-Validate": {
                 "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
-                    "--raw_tolerance", "1"
+                    "--raw_tolerance", "0.1"
                 ],
                 "input_precision" : "FP16",
                 "output_precision" : "FP16"
@@ -4186,14 +4186,14 @@
                 "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
-                    "--raw_tolerance", "1"
+                    "--raw_tolerance", "0.1"
                 ]
             },
             "NetTest-Validate": {
                 "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
-                    "--raw_tolerance", "1"
+                    "--raw_tolerance", "0.1"
                 ],
                 "input_precision" : "FP16",
                 "output_precision" : "FP16"
