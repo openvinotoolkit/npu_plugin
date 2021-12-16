@@ -1433,6 +1433,52 @@ def IE_SqrtOp :
 }
 
 //
+// SinhOp
+//
+
+def IE_SinhOp :
+        IE_LayerOp<
+            "Sinh",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Sinh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// CoshOp
+//
+
+def IE_CoshOp :
+        IE_LayerOp<
+            "Cosh",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Cosh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // AsinhOp
 //
 
