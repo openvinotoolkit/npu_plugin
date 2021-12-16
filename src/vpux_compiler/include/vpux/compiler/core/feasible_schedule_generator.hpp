@@ -90,47 +90,47 @@ public:
 
     class barrierTransitionStructure {
     public:
-        barrierTransitionStructure(mlir::FuncOp func, /*TokenBasedBarrierScheduler& tokenBasedBarrierScheduler,*/
+        barrierTransitionStructure(mlir::FuncOp func, FeasibleBarrierScheduler& feasibleBarrierScheduler,
                                    schedule_time_t time = std::numeric_limits<schedule_time_t>::max());
 
-    //     void init();
-    //     bool process_next_scheduled_op(const BarrierScheduleGenerator::schedule_info_t& sinfo,
-    //                                    mlir::OpBuilder& builder);
-    //     void close_barrier_producer_list();
-    //     struct operation_comparator_t {
-    //         bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
-    //             int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op1)
-    //                                                               ->getAttr(uniqueIdAttrName)
-    //                                                               .cast<mlir::IntegerAttr>()
-    //                                                               .getInt());
-    //             int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op2)
-    //                                                               ->getAttr(uniqueIdAttrName)
-    //                                                               .cast<mlir::IntegerAttr>()
-    //                                                               .getInt());
+        void init();
+        // bool process_next_scheduled_op(const BarrierScheduleGenerator::schedule_info_t& sinfo,
+        //                                mlir::OpBuilder& builder);
+        void close_barrier_producer_list();
+        struct operation_comparator_t {
+            bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+                int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op1)
+                                                                  ->getAttr(uniqueIdAttrName)
+                                                                  .cast<mlir::IntegerAttr>()
+                                                                  .getInt());
+                int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op2)
+                                                                  ->getAttr(uniqueIdAttrName)
+                                                                  .cast<mlir::IntegerAttr>()
+                                                                  .getInt());
 
-    //             return uniqueId1 < uniqueId2;
-    //         }
-    //     };
+                return uniqueId1 < uniqueId2;
+            }
+        };
 
-    //     using producers_t = std::set<mlir::Operation*, operation_comparator_t>;
-    //     using producer_iterator_t = typename producers_t::const_iterator;
+        using producers_t = std::set<mlir::Operation*, operation_comparator_t>;
+        using producer_iterator_t = typename producers_t::const_iterator;
 
-    // private:
-    //     void maintain_invariant_temporal_change(const BarrierScheduleGenerator::schedule_info_t& sinfo,
-    //                                             mlir::OpBuilder& builder);
-    //     inline void process_current_barrier_producer_list_close_event(mlir::Operation* bop_curr,
-    //                                                                   mlir::Operation* bop_prev);
-    //     void add_scheduled_op_to_producer_list(const BarrierScheduleGenerator::schedule_info_t& sinfo);
-    //     mlir::Operation* create_new_barrier_task(const BarrierScheduleGenerator::schedule_info_t& sinfo,
-    //                                              mlir::OpBuilder& builder);
+    private:
+        // void maintain_invariant_temporal_change(const BarrierScheduleGenerator::schedule_info_t& sinfo,
+        //                                         mlir::OpBuilder& builder);
+        // inline void process_current_barrier_producer_list_close_event(mlir::Operation* bop_curr,
+        //                                                               mlir::Operation* bop_prev);
+        // void add_scheduled_op_to_producer_list(const BarrierScheduleGenerator::schedule_info_t& sinfo);
+        // mlir::Operation* create_new_barrier_task(const BarrierScheduleGenerator::schedule_info_t& sinfo,
+        //                                         mlir::OpBuilder& builder);
 
-    //     mlir::FuncOp _func;
-    //     // Outer class
-    //     TokenBasedBarrierScheduler& tokenBasedBarrierScheduler_;
-    //     schedule_time_t time_;
-    //     mlir::Operation* curr_barrier_task_;
-    //     mlir::Operation* prev_barrier_task_;
-    //     producers_t producers_;
+        mlir::FuncOp _func;
+        // Outer class
+        FeasibleBarrierScheduler& feasibleBarrierScheduler_;
+        schedule_time_t time_;
+        mlir::Operation* curr_barrier_task_;
+        mlir::Operation* prev_barrier_task_;
+        producers_t producers_;
     };
 
     typedef mlir::Operation const* operation_t;
@@ -225,7 +225,8 @@ public:
     bool operator==(const FeasibleBarrierScheduler& o) const;
     bool reached_end() const;
     bool nextSchedulableOperation();
-    bool init(const resource_state_t& upper_bound);
+    //bool init(const resource_state_t& upper_bound);
+    bool init();
     bool doesOpRunOnNCE(mlir::Operation* op);
 
     mlir::Operation*& operator*();

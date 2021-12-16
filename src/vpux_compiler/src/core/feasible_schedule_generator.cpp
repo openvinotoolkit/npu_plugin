@@ -34,7 +34,7 @@ FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir:
           _schedulable_op(),
           _processed_ops(),
           _priority() {
-    init(rstate);
+    //init(rstate);
 };
 
 FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func,
@@ -53,6 +53,7 @@ FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir:
           _schedulable_op(),
           _processed_ops(),
           _priority() {
+         init();
 };
 
 FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log)
@@ -554,21 +555,25 @@ void FeasibleBarrierScheduler::createResourceUtilityTable() {
     }
 }
 
-bool FeasibleBarrierScheduler::init(const resource_state_t& upper_bound) {
-    Logger::global().error("**Initializing the feasible scheduler **");
+bool FeasibleBarrierScheduler::init() {
+    
+    _log.trace("Feasible Barrier Scheduler initialization");
 
     assignUniqueIds();
     _processed_ops.clear();
     _resource_utility_map.clear();
 
     getAllBarriersProducersAndConsumers();
-
-    Logger::global().error("Initializing the resource upper state");
-    initResourceState(upper_bound);
-
     computeOpIndegree(_in_degree);
-
     createResourceUtilityTable();
+    initializeBarrierAssociationTable();
+    
+    Logger::global().error("Initializing the resource upper state");
+    //initResourceState(upper_bound);
+
+    
+
+    
 
     // collect the ones with zero-in degree into candidates //
     _candidates.clear();
@@ -600,11 +605,11 @@ size_t FeasibleBarrierScheduler::schedule()
 void FeasibleBarrierScheduler::initializeBarrierAssociationTable()
 {
     Logger::global().error("STEP-0: Initialize the association table");
-    // for (size_t barrierId = 1; barrierId <= _barrierCount; barrierId++) {
-    //     auto bitr = barrier_association.insert(std::make_pair(barrierId, barrierTransitionStructure(_func, *this)));
-    //     barrierTransitionStructure& bstructure = (bitr.first)->second;
-    //     //bstructure.init();
-    // }
+    for (size_t barrierId = 1; barrierId <= _barrierCount; barrierId++) {
+        auto bitr = _barrierAssociationTable.insert(std::make_pair(barrierId, barrierTransitionStructure(_func, *this)));
+        barrierTransitionStructure& bstructure = (bitr.first)->second;
+        bstructure.init();
+    }
 
 }
 
