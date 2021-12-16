@@ -353,6 +353,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
                 }
             });
             configureBarrierOpUpdateWaitMap.clear();
+            configureTaskOpUpdateWaitMap.clear();
         }
 
         std::cout << "Barrier simualtion result is " << success << " with upperbound " << barrierCount_ << std::endl;
