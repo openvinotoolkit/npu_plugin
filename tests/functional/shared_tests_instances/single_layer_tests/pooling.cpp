@@ -249,4 +249,158 @@ INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargeStrides, KmbPoolingLayerTest,
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         PoolingLayerTest::getTestCaseName);
 
+/* ============= Padding valitation ( > K_SZ/2) ============= */
+
+const auto pool_LargePadding2 = ::testing::Combine(::testing::Values(PoolingTypes::MAX),                 //
+                                                  ::testing::ValuesIn<SizeVector>({{2, 2}, {3,3}}),  // kernels
+                                                  ::testing::ValuesIn<SizeVector>({{1, 1}}),            // strides
+                                                  ::testing::ValuesIn<SizeVector>({{2, 2}}),            // padBegins
+                                                  ::testing::ValuesIn<SizeVector>({{2, 2}}),            // padEnds
+                                                  ::testing::Values(ngraph::op::RoundingType::FLOOR),   //
+                                                  ::testing::Values(ngraph::op::PadType::VALID),        //
+                                                  ::testing::Values(false)                              // excludePad
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargePadding2, KmbPoolingLayerTest,
+                        ::testing::Combine(pool_LargePadding2,                                   //
+                                           ::testing::Values(Precision::FP16),                  // netPrc
+                                           ::testing::Values(Precision::FP16),                  // inPrc
+                                           ::testing::Values(Precision::FP16),                  // outPrc
+                                           ::testing::Values(Layout::ANY),                      // inLayout
+                                           ::testing::Values(Layout::ANY),                      // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        PoolingLayerTest::getTestCaseName);
+
+const auto pool_LargePadding3 = ::testing::Combine(::testing::Values(PoolingTypes::MAX),                 //
+                                                  ::testing::ValuesIn<SizeVector>({{3,3}, {4,4}, {5, 5}}),  // kernels
+                                                  ::testing::ValuesIn<SizeVector>({{1, 1}}),            // strides
+                                                  ::testing::ValuesIn<SizeVector>({{3, 3}}),            // padBegins
+                                                  ::testing::ValuesIn<SizeVector>({{3, 3}}),            // padEnds
+                                                  ::testing::Values(ngraph::op::RoundingType::FLOOR),   //
+                                                  ::testing::Values(ngraph::op::PadType::VALID),        //
+                                                  ::testing::Values(false)                              // excludePad
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargePadding3, KmbPoolingLayerTest,
+                        ::testing::Combine(pool_LargePadding3,                                   //
+                                           ::testing::Values(Precision::FP16),                  // netPrc
+                                           ::testing::Values(Precision::FP16),                  // inPrc
+                                           ::testing::Values(Precision::FP16),                  // outPrc
+                                           ::testing::Values(Layout::ANY),                      // inLayout
+                                           ::testing::Values(Layout::ANY),                      // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        PoolingLayerTest::getTestCaseName);
+
+
+const auto pool_LargePadding4 = ::testing::Combine(::testing::Values(PoolingTypes::MAX),                 //
+                                                  ::testing::ValuesIn<SizeVector>({{4,4}, {5, 5}, {6,6}, {7,7}}),  // kernels
+                                                  ::testing::ValuesIn<SizeVector>({{1, 1}}),            // strides
+                                                  ::testing::ValuesIn<SizeVector>({{4, 4}}),            // padBegins
+                                                  ::testing::ValuesIn<SizeVector>({{4, 4}}),            // padEnds
+                                                  ::testing::Values(ngraph::op::RoundingType::FLOOR),   //
+                                                  ::testing::Values(ngraph::op::PadType::VALID),        //
+                                                  ::testing::Values(false)                              // excludePad
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargePadding4, KmbPoolingLayerTest,
+                        ::testing::Combine(pool_LargePadding4,                                   //
+                                           ::testing::Values(Precision::FP16),                  // netPrc
+                                           ::testing::Values(Precision::FP16),                  // inPrc
+                                           ::testing::Values(Precision::FP16),                  // outPrc
+                                           ::testing::Values(Layout::ANY),                      // inLayout
+                                           ::testing::Values(Layout::ANY),                      // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        PoolingLayerTest::getTestCaseName);
+
+
+const auto pool_LargePadding5 = ::testing::Combine(::testing::Values(PoolingTypes::MAX),                 //
+                                                  ::testing::ValuesIn<SizeVector>({{5, 5}, {6,6}, {7,7}, {8,8}, {9,9}}),  // kernels
+                                                  ::testing::ValuesIn<SizeVector>({{1, 1}}),            // strides
+                                                  ::testing::ValuesIn<SizeVector>({{5, 5}}),            // padBegins
+                                                  ::testing::ValuesIn<SizeVector>({{5, 5}}),            // padEnds
+                                                  ::testing::Values(ngraph::op::RoundingType::FLOOR),   //
+                                                  ::testing::Values(ngraph::op::PadType::VALID),        //
+                                                  ::testing::Values(false)                              // excludePad
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargePadding5, KmbPoolingLayerTest,
+                        ::testing::Combine(pool_LargePadding5,                                   //
+                                           ::testing::Values(Precision::FP16),                  // netPrc
+                                           ::testing::Values(Precision::FP16),                  // inPrc
+                                           ::testing::Values(Precision::FP16),                  // outPrc
+                                           ::testing::Values(Layout::ANY),                      // inLayout
+                                           ::testing::Values(Layout::ANY),                      // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        PoolingLayerTest::getTestCaseName);
+
+
+const auto pool_LargePadding6 = ::testing::Combine(::testing::Values(PoolingTypes::MAX),                 //
+                                                  ::testing::ValuesIn<SizeVector>({{6,6}, {7,7}, {8,8}, {9,9}, {10,10}, {11,11}}),  // kernels
+                                                  ::testing::ValuesIn<SizeVector>({{1, 1}}),            // strides
+                                                  ::testing::ValuesIn<SizeVector>({{6, 6}}),            // padBegins
+                                                  ::testing::ValuesIn<SizeVector>({{6, 6}}),            // padEnds
+                                                  ::testing::Values(ngraph::op::RoundingType::FLOOR),   //
+                                                  ::testing::Values(ngraph::op::PadType::VALID),        //
+                                                  ::testing::Values(false)                              // excludePad
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargePadding6, KmbPoolingLayerTest,
+                        ::testing::Combine(pool_LargePadding6,                                   //
+                                           ::testing::Values(Precision::FP16),                  // netPrc
+                                           ::testing::Values(Precision::FP16),                  // inPrc
+                                           ::testing::Values(Precision::FP16),                  // outPrc
+                                           ::testing::Values(Layout::ANY),                      // inLayout
+                                           ::testing::Values(Layout::ANY),                      // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        PoolingLayerTest::getTestCaseName);
+
+
+const auto pool_LargePadding7 = ::testing::Combine(::testing::Values(PoolingTypes::MAX),                 //
+                                                  ::testing::ValuesIn<SizeVector>({{7,7}, {8,8}, {9,9}, {10,10}, {11,11}}),  // kernels
+                                                  ::testing::ValuesIn<SizeVector>({{1, 1}}),            // strides
+                                                  ::testing::ValuesIn<SizeVector>({{7, 7}}),            // padBegins
+                                                  ::testing::ValuesIn<SizeVector>({{7, 7}}),            // padEnds
+                                                  ::testing::Values(ngraph::op::RoundingType::FLOOR),   //
+                                                  ::testing::Values(ngraph::op::PadType::VALID),        //
+                                                  ::testing::Values(false)                              // excludePad
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargePadding7, KmbPoolingLayerTest,
+                        ::testing::Combine(pool_LargePadding7,                                   //
+                                           ::testing::Values(Precision::FP16),                  // netPrc
+                                           ::testing::Values(Precision::FP16),                  // inPrc
+                                           ::testing::Values(Precision::FP16),                  // outPrc
+                                           ::testing::Values(Layout::ANY),                      // inLayout
+                                           ::testing::Values(Layout::ANY),                      // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        PoolingLayerTest::getTestCaseName);
+
+
+const auto pool_LargePadding8 = ::testing::Combine(::testing::Values(PoolingTypes::MAX),                 //
+                                                  ::testing::ValuesIn<SizeVector>({{8,8}, {9,9}, {10,10}, {11,11}}),  // kernels
+                                                  ::testing::ValuesIn<SizeVector>({{1, 1}}),            // strides
+                                                  ::testing::ValuesIn<SizeVector>({{8, 8}}),            // padBegins
+                                                  ::testing::ValuesIn<SizeVector>({{8, 8}}),            // padEnds
+                                                  ::testing::Values(ngraph::op::RoundingType::FLOOR),   //
+                                                  ::testing::Values(ngraph::op::PadType::VALID),        //
+                                                  ::testing::Values(false)                              // excludePad
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargePadding8, KmbPoolingLayerTest,
+                        ::testing::Combine(pool_LargePadding8,                                   //
+                                           ::testing::Values(Precision::FP16),                  // netPrc
+                                           ::testing::Values(Precision::FP16),                  // inPrc
+                                           ::testing::Values(Precision::FP16),                  // outPrc
+                                           ::testing::Values(Layout::ANY),                      // inLayout
+                                           ::testing::Values(Layout::ANY),                      // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        PoolingLayerTest::getTestCaseName);
+
 }  // namespace
