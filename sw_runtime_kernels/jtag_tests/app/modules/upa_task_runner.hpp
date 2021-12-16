@@ -19,8 +19,8 @@ class UPATaskRunner {
      * @return true if succeeded
      */
     bool enqueTask(Op * operation,
-                   const std::vector<Buffer> &inputs,
-                   const std::vector<Buffer> &outputs,
+                   const std::vector<OpTensor> &inputs,
+                   const std::vector<OpTensor> &outputs,
                    int numSHAVEs,
                    PerformanceData *perfData);
     bool dequeResult();

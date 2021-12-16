@@ -71,8 +71,8 @@ protected:
 
         static_assert(std::is_base_of<Op, CustomCpp>());
         CustomCpp* customCppOp = static_cast<CustomCpp*>(m_op);
-        Buffer inBuff;
-        Buffer outBuff;
+        OpTensor inBuff;
+        OpTensor outBuff;
         m_inputTensor.exportToBuffer(inBuff);
         m_outputTensor.exportToBuffer(outBuff);
 

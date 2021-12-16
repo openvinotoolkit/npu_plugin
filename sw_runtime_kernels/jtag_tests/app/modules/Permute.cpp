@@ -21,7 +21,7 @@ void copyElement(void * in, void * out) {
     *(static_cast<T*>(out)) = *(static_cast<T*>(in));
 }
 
-void standartLayoutPermutationToStorageOrderPermutation(Buffer &input, Buffer &output,
+void standartLayoutPermutationToStorageOrderPermutation(OpTensor &input, OpTensor &output,
         const int32_t standartLayoutPerm[], int32_t storageOrderPerm[]) {
     int32_t orderPerm[subspace::MAX_DIMS] = {0, };
     int32_t orderInd[subspace::MAX_DIMS] = {0, };

@@ -29,11 +29,11 @@ public:
     virtual void run(mv::tensor::Processor& mvtp,
             t_MvTensorMyriadResources& myriadRes,
             t_MvTensorDebugInfo& debugInfo) override;
-    void addInputBuffer(const Buffer& input, sw_params::Location loc = sw_params::Location::DDR) {
+    void addInputBuffer(const OpTensor& input, sw_params::Location loc = sw_params::Location::DDR) {
         inputVec.push_back(input);
         inputLocations.push_back(loc);
     }
-    void addOutputBuffer(const Buffer& output, sw_params::Location loc = sw_params::Location::DDR) {
+    void addOutputBuffer(const OpTensor& output, sw_params::Location loc = sw_params::Location::DDR) {
         outputVec.push_back(output);
         outputLocations.push_back(loc);
     }
@@ -43,8 +43,8 @@ public:
     CustomCppLayerParams ops;
 
 private:
-    std::vector<Buffer> inputVec;
+    std::vector<OpTensor> inputVec;
     std::vector<sw_params::Location> inputLocations;
-    std::vector<Buffer> outputVec;
+    std::vector<OpTensor> outputVec;
     std::vector<sw_params::Location> outputLocations;
 };

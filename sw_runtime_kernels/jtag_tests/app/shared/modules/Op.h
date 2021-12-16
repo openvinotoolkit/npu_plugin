@@ -14,14 +14,14 @@
 
 #include <nn_perf_measurement.h>
 
-typedef nn::TensorRefNDData BufferData;
+//typedef nn::TensorRefNDData BufferData;
 
 using namespace nn::shave_lib;
 
 struct MvNCIExecutor;
 typedef struct MvNCIExecutor *MvNCIExecutorHandle;
 
-class Buffer: public nn::TensorRef {
+class OpTensor: public nn::TensorRef {
 public:
     unsigned int getByteSize() const { return 0; };
     subspace::t_D8StorageOrder order;

@@ -16,8 +16,8 @@ static SoftLayerExec __attribute__((section(".cmx_direct.data"))) sl;
 static Layer __attribute__((section(".cmx_direct.data"))) layer;
 
 bool UPATaskRunner::enqueTask(Op * operation,
-                              const std::vector<Buffer> &inputs,
-                              const std::vector<Buffer> &outputs,
+                              const std::vector<OpTensor> &inputs,
+                              const std::vector<OpTensor> &outputs,
                               int numSHAVEs,
                               PerformanceData *perfData) {
 
@@ -39,7 +39,7 @@ bool UPATaskRunner::enqueTask(Op * operation,
 
     sl.counters_ = perfData->perfCounters;
 
-    auto totalByteSize = [](const Buffer & b) {
+    auto totalByteSize = [](const OpTensor & b) {
         return b.getFullDataSize();
     };
 

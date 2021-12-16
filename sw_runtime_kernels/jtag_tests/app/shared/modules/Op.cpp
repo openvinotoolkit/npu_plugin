@@ -52,13 +52,13 @@ uint32_t Op::getNumShaves() const
     return numShaves;
 }
 
-void Buffer::set(void* addr, uint32_t dataType, subspace::t_D8StorageOrder oldOrder, const int32_t dims[], const int32_t strides[]) {
+void OpTensor::set(void* addr, uint32_t dataType, subspace::t_D8StorageOrder oldOrder, const int32_t dims[], const int32_t strides[]) {
     this->order = oldOrder;
     NDOrder newOrder = subspace::orderToNDOrder(oldOrder);
     TensorRef::set(addr, dataType, newOrder, dims, strides);
 }
 
-void Buffer::printDims(const char * prefix) {
+void OpTensor::printDims(const char * prefix) {
     int32_t permutation[subspace::MAX_DIMS] = {};
     int nDims = subspace::orderToPermutation(order, permutation);
 

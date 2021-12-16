@@ -3,7 +3,7 @@
 #include <sw_nn_runtime_types.h>
 #include "upa_task_runner.hpp"
 //#include "act_shave_dispatcher.h"
-//#include <nn_shave_manager.h>
+#include <nn_shave_manager.h>
 #include <nn_cache.h>
 #include <nn_time.h>
 
@@ -14,8 +14,8 @@ static Layer __attribute__((section(".nncmx0.shared.data"))) layer;
 using namespace nn;
 
 bool UPATaskRunner::enqueTask(Op * operation,
-                              const std::vector<Buffer> &inputs,
-                              const std::vector<Buffer> &outputs,
+                              const std::vector<OpTensor> &inputs,
+                              const std::vector<OpTensor> &outputs,
                               int /*numSHAVEs*/,
                               PerformanceData *perfData) {
 
@@ -37,7 +37,7 @@ bool UPATaskRunner::enqueTask(Op * operation,
 
     sl.counters_ = perfData->perfCounters;
 
-    auto totalByteSize = [](const Buffer & b) {
+    auto totalByteSize = [](const OpTensor & b) {
         return b.getFullDataSize();
     };
 
