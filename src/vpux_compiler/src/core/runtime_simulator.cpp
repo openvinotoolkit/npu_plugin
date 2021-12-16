@@ -63,7 +63,9 @@ void RuntimeSimulator::buildTaskLists() {
     // to ensure that the correct simulation occurs
     _func.walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
         Logger::global().error("Adding Barrier ID {0}", barrierOp->getAttr("id").cast<mlir::IntegerAttr>().getInt());
-        _barrierOps.push_back(barrierOp);
+        std::cout << barrierOp->getAttr("id").cast<mlir::IntegerAttr>().getInt() << std::endl;
+        if (barrierOp->getAttr("id").cast<mlir::IntegerAttr>().getInt() > 0)
+            _barrierOps.push_back(barrierOp);
     });
 
     _func.walk([&](VPURT::TaskOp taskOp) {

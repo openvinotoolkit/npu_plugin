@@ -90,6 +90,10 @@ public:
 
     std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>,
                                          std::set<mlir::Operation*>>>
+            configureBarrierOpUpdateWaitMapBackUp;  // update,wait
+
+    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>,
+                                         std::set<mlir::Operation*>>>
             configureTaskOpUpdateWaitMap;  // update,wait
 
     // One transition structure for each physical barrier //
