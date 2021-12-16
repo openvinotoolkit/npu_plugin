@@ -1,2 +1,2 @@
-tag:ci_tag_kmb_MR2_vpu_release_21ww47.5.2
-commit:d39e2414faf74ddc5202f3ddb332a3f8488df31b
+tag:ci_tag_vpu_release_21ww51.2.1
+commit:34acd74d987e8fd496301d55bd6fd883f4f608e1
