@@ -394,6 +394,7 @@ void vpux::buildEMUReferenceHWModePipeline(mlir::OpPassManager& pm, const Refere
     // pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
 
     // EMU Dialect lowering
+    EMU::buildAdjustForEMU(pm, log);
 }
 
 //
@@ -455,6 +456,7 @@ void vpux::buildEMUDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultH
     // pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
 
     // EMU Dialect lowering
+    EMU::buildAdjustForEMU(pm, log);
 }
 
 //
