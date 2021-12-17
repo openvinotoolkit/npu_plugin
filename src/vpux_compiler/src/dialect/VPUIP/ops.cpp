@@ -113,7 +113,7 @@ public:
         const auto module = op->getParentOfType<mlir::ModuleOp>();
         const auto arch = VPU::getArch(module);
 
-        if (mlir::isa<IE::GroupConvolutionOp>(op) || (arch == VPU::ArchKind::MTL && mlir::isa<IE::MaxPoolOp>(op))) {
+        if (arch == VPU::ArchKind::MTL && (mlir::isa<IE::MaxPoolOp>(op) || mlir::isa<IE::GroupConvolutionOp>(op))) {
             // HW restrictions for channel number
             static const SmallVector<int64_t> availiableChannels = {16, 32, 64};
             return std::find(availiableChannels.begin(), availiableChannels.end(), channels) !=

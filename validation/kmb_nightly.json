@@ -4823,8 +4823,7 @@
             },
             "Compile" : {
                 "input_precision" : "FP16",
-                "output_precision" : "FP16",
-                "old_api" : true
+                "output_precision" : "FP16"
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
