@@ -116,28 +116,28 @@ void RuntimeSimulator::buildTaskLists() {
     });
 
     // sort barriers
-    _barrierOps.sort([](mlir::Operation* a, mlir::Operation* b) -> bool {
-        int64_t aID = checked_cast<int64_t>(a->getAttr("id").cast<mlir::IntegerAttr>().getInt());
-        int64_t bID = checked_cast<int64_t>(b->getAttr("id").cast<mlir::IntegerAttr>().getInt());
-        return aID < bID;
-    });
+    // _barrierOps.sort([](mlir::Operation* a, mlir::Operation* b) -> bool {
+    //     int64_t aID = checked_cast<int64_t>(a->getAttr("id").cast<mlir::IntegerAttr>().getInt());
+    //     int64_t bID = checked_cast<int64_t>(b->getAttr("id").cast<mlir::IntegerAttr>().getInt());
+    //     return aID < bID;
+    // });
 
     for (auto& barrier : _barrierOps)
         Logger::global().error("Barrier ID {0} ", barrier->getAttr("id"));
 
-    // sort DMA
-    std::sort(_dmaTasks[0].begin(), _dmaTasks[0].end(), orderbyID);
+    // // sort DMA
+    // std::sort(_dmaTasks[0].begin(), _dmaTasks[0].end(), orderbyID);
 
     for (auto& dma : _dmaTasks[0])
         Logger::global().error("DMA scheduling number {0} ", dma.taskOp->getAttr("SchedulingNumber"));
-    // sort ncetasks
-    std::sort(_nceTasks.begin(), _nceTasks.end(), orderbyID);
+    // // sort ncetasks
+    // std::sort(_nceTasks.begin(), _nceTasks.end(), orderbyID);
 
     for (auto& nce : _nceTasks)
         Logger::global().error("NCE scheduling number {0} ", nce.taskOp->getAttr("SchedulingNumber"));
 
-    // sort upatasks
-    std::sort(_upaTasks.begin(), _upaTasks.end(), orderbyID);
+    // // sort upatasks
+    // std::sort(_upaTasks.begin(), _upaTasks.end(), orderbyID);
 
     for (auto& upa : _upaTasks)
         Logger::global().error("UPA scheduling number {0} ", upa.taskOp->getAttr("SchedulingNumber"));
@@ -210,8 +210,8 @@ void RuntimeSimulator::acquireRealBarrier(VPURT::DeclareVirtualBarrierOp btask) 
     _virtualToPhysicalBarrierMap.insert(std::make_pair(
             btask.getOperation(),
             std::make_pair(real, checked_cast<int64_t>(btask->getAttr("id").cast<mlir::IntegerAttr>().getInt()))));
-    _active_barrier_table.insert(
-            std::make_pair(btask.getOperation(), active_barrier_info_t(virtualID, real, in_itr->second, out_itr->second)));
+    _active_barrier_table.insert(std::make_pair(
+            btask.getOperation(), active_barrier_info_t(virtualID, real, in_itr->second, out_itr->second)));
 }
 
 bool RuntimeSimulator::isTaskReady(VPURT::TaskOp taskOp) {
@@ -224,7 +224,9 @@ bool RuntimeSimulator::isTaskReady(VPURT::TaskOp taskOp) {
             if ((aitr == _active_barrier_table.end()) ||
                 ((aitr->second).in_degree_ > 0))  // double check this condition
             {
-                Logger::global().error("Is task with scheduling number {0} is NOT ready, its wait barrier {1} is not in the active barrier table or its indegree is > 0", barrierOp->getAttr("id"), taskOp->getAttr("SchedulingNumber"));
+                Logger::global().error("Is task with scheduling number {0} is NOT ready, its wait barrier {1} is not "
+                                       "in the active barrier table or its indegree is > 0",
+                                       barrierOp->getAttr("id"), taskOp->getAttr("SchedulingNumber"));
                 return false;
             }
         }
@@ -236,7 +238,9 @@ bool RuntimeSimulator::isTaskReady(VPURT::TaskOp taskOp) {
             Logger::global().error("Looking for Barrier ID {1} in the _active_barrier_table ",
                                    barrierOp->getAttr("id"));
             if (aitr == _active_barrier_table.end()) {
-                Logger::global().error("Is task with scheduling number {0} is NOT ready, its update barrier {1} is not in the active barrier table", barrierOp->getAttr("id"), taskOp->getAttr("SchedulingNumber"));
+                Logger::global().error("Is task with scheduling number {0} is NOT ready, its update barrier {1} is not "
+                                       "in the active barrier table",
+                                       barrierOp->getAttr("id"), taskOp->getAttr("SchedulingNumber"));
                 return false;
             }
         }
@@ -264,14 +268,18 @@ void RuntimeSimulator::processTask(VPURT::TaskOp task) {
             assert(barrier_info.in_degree_ == 0UL);
             assert(barrier_info.out_degree_ > 0UL);
 
-            Logger::global().error("Decrmenting the out degree of the wait virtual barrier {0} which is physical barrier {1}",
-                                   barrier_info.virtual_id_, barrier_info.real_barrier_);
+            Logger::global().error(
+                    "Decrmenting the out degree of the wait virtual barrier {0} which is physical barrier {1}",
+                    barrier_info.virtual_id_, barrier_info.real_barrier_);
             barrier_info.out_degree_--;
 
             if (barrier_info.out_degree_ == 0UL) {
                 // return the barrier //
-                Logger::global().error("The out degree of the wait virtual barrier {0} which is physical barrier {1} is 0", barrier_info.virtual_id_, barrier_info.real_barrier_);
-                Logger::global().error("Returning the virtual barrier {0} which is physical barrier {1}", barrier_info.virtual_id_, barrier_info.real_barrier_);
+                Logger::global().error(
+                        "The out degree of the wait virtual barrier {0} which is physical barrier {1} is 0",
+                        barrier_info.virtual_id_, barrier_info.real_barrier_);
+                Logger::global().error("Returning the virtual barrier {0} which is physical barrier {1}",
+                                       barrier_info.virtual_id_, barrier_info.real_barrier_);
                 returnRealBarrier(barrierOp);
             }
         }
@@ -285,8 +293,9 @@ void RuntimeSimulator::processTask(VPURT::TaskOp task) {
 
             active_barrier_info_t& barrier_info = aitr->second;
             assert(barrier_info.in_degree_ > 0UL);
-            Logger::global().error("Decrmenting the in-degree of the update virtual barrier {0} which is physical barrier {1}",
-                                   barrier_info.virtual_id_, barrier_info.real_barrier_);
+            Logger::global().error(
+                    "Decrmenting the in-degree of the update virtual barrier {0} which is physical barrier {1}",
+                    barrier_info.virtual_id_, barrier_info.real_barrier_);
             barrier_info.in_degree_--;
         }
     }
