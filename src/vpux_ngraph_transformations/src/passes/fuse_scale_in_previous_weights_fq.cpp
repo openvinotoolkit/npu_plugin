@@ -26,7 +26,7 @@
 #include <vector>
 #include <memory>
 #include <limits>
-#include <ngraph_ops/convolution_ie.hpp>
+#include <legacy/ngraph_ops/convolution_ie.hpp>
 
 namespace vpux {
 namespace pass {
