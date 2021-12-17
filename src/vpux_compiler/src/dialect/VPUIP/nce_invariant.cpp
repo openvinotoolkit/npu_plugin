@@ -509,7 +509,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::GroupConvolutionO
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::ConvolutionOp origOp, vpux::OutputTiling tiling,
                                                                  Logger log) {
     log.setName("NCEInvariant");
-    VPUX_THROW_UNLESS(tiling.size() > 1, "Prefetch tiling support at least 2 tiles, found {0}", tiling.size());
+    if (tiling.size() <= 1)
+        return mlir::failure();
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
     const size_t nParallelTiles = 2;          // pipeline two tiles
@@ -584,7 +585,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::Convolution
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp origOp, vpux::OutputTiling tiling,
                                                                  Logger log) {
     log.setName("NCEInvariant");
-    VPUX_THROW_UNLESS(tiling.size() > 1, "Prefetch tiling support at least 2 tiles, found {0}", tiling.size());
+    if (tiling.size() <= 1)
+        return mlir::failure();
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
     const size_t nParallelTiles = 2;          // pipeline two tiles
@@ -652,8 +654,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp o
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwisePrefetchCMX(mlir::Operation* op, vpux::OutputTiling tiling,
                                                                         Logger log) {
     log.setName("NCEInvariant");
-    VPUX_THROW_UNLESS(tiling.size() > 1, "Prefetch tiling support at least 2 tiles, found {0}", tiling.size());
-
+    if (tiling.size() <= 1)
+        return mlir::failure();
     auto module = op->getParentOfType<mlir::ModuleOp>();
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
     const size_t nParallelTiles = 2;          // pipeline two tiles

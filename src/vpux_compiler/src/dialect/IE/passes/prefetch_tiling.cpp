@@ -23,9 +23,6 @@ namespace {
 
 OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
     log.trace("Generating prefetch tiles for op {0} at {1}", op->getName(), op->getLoc());
-    VPUX_THROW_UNLESS(op->getNumResults() == 1,
-                      "Unsupported operation '{0}' at '{1}', it must have one and only one result", op->getName(),
-                      op->getLoc());
 
     auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
     VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
@@ -33,8 +30,8 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
     const auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
     VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
                       op->getName(), op->getLoc());
-    auto getDimsToTile = [](const Shape& nTilesOnDim) -> llvm::SmallVector<Dim> {
-        llvm::SmallVector<Dim> res = {};
+    auto getDimsToTile = [](const Shape& nTilesOnDim) -> SmallVector<Dim> {
+        SmallVector<Dim> res;
         for (unsigned i = 0; i < nTilesOnDim.size(); i++) {
             if (nTilesOnDim[Dim(i)] > 1)
                 res.emplace_back(Dim(i));
@@ -52,7 +49,7 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
     // step 2: increase the general tile strategy to satisfy prefetching
     const auto targetDim = dimsToTile[0];
     Shape prefetchableTilesOnDim = nTilesOnDim;
-    while (prefetchableTilesOnDim[targetDim] < 3 * nTilesOnDim[targetDim] &&  // donnot tile too much for prefetching
+    while (prefetchableTilesOnDim[targetDim] < 3 * nTilesOnDim[targetDim] &&  // do not tile too much for prefetching
            !tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)) {
         prefetchableTilesOnDim[targetDim]++;
     }

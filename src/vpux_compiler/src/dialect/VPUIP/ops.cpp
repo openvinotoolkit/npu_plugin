@@ -236,7 +236,7 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     });
 }
 
-bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, Logger log) {
+bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
     bool isSingleTile = false;
     Dim tileDim = Dim(0);
     for (unsigned i = 0; i < tileAxis.size(); i++) {
@@ -251,7 +251,6 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, 
     if (!isSingleTile)
         return false;
     auto outputShape = getShape(origOp.output());
-    const Shape nTilesOnDim = tileAxis;
 
     auto isDivisibleTile = [&]() -> bool {
         auto kernelSize = getShape(origOp.filter());
@@ -260,21 +259,21 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, 
             minChannelSize = channelsInfo.getChannelAlignment();
         }
         if (tileDim == Dims4D::Act::C) {
-            return (outputShape[tileDim] / nTilesOnDim[tileDim] >= minChannelSize) &&
-                   (outputShape[tileDim] % nTilesOnDim[tileDim] == 0) &&
-                   ((outputShape[tileDim] / nTilesOnDim[tileDim]) % minChannelSize == 0);
+            return (outputShape[tileDim] / tileAxis[tileDim] >= minChannelSize) &&
+                   (outputShape[tileDim] % tileAxis[tileDim] == 0) &&
+                   ((outputShape[tileDim] / tileAxis[tileDim]) % minChannelSize == 0);
         } else {
-            return outputShape[tileDim] / nTilesOnDim[tileDim] >= kernelSize[tileDim];
+            return outputShape[tileDim] / tileAxis[tileDim] >= kernelSize[tileDim];
         }
     };
 
     auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+        auto tileResult = fillDividedTiles(tileAxis, outputShape);
         return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
     };
 
     auto isLastTileBiggest = [&]() -> bool {
-        auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+        auto tileResult = fillDividedTiles(tileAxis, outputShape);
         auto lastTile = tileResult.end() - 1;
         auto firstTile = tileResult.begin();
         return lastTile->shape[tileDim] > firstTile->shape[tileDim];
@@ -283,13 +282,13 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const Shape& tileAxis, 
     return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest();
 }
 
-bool isSupportedPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, const Shape& /*tileAxis*/, Logger /*log*/) {
+bool isSupportedPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, ShapeRef /*tileAxis*/, Logger /*log*/) {
     //  GroupConvolution has been tiled over C according to the chanAlignment
     //  No more prefetch tiling applied
     return false;
 }
 
-bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, const Shape& tileAxis, Logger log) {
+bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, ShapeRef tileAxis, Logger log) {
     bool isSingleTile = false;
     Dim tileDim = Dim(0);
     for (unsigned i = 0; i < tileAxis.size(); i++) {
@@ -304,28 +303,27 @@ bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, const Shape& tileAxis, Logg
     if (!isSingleTile)
         return false;
     auto outputShape = getShape(origOp.output());
-    const Shape nTilesOnDim = tileAxis;
 
     auto isDivisibleTile = [&]() -> bool {
         auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_sizeAttr());
         if (tileDim == Dims4D::Act::C) {
             // TODO replace '16' with correct parameter
-            return (outputShape[tileDim] / nTilesOnDim[tileDim] >= 16) &&
-                   (outputShape[tileDim] % nTilesOnDim[tileDim] == 0) &&
-                   ((outputShape[tileDim] / nTilesOnDim[tileDim]) % 16 == 0);
+            return (outputShape[tileDim] / tileAxis[tileDim] >= 16) &&
+                   (outputShape[tileDim] % tileAxis[tileDim] == 0) &&
+                   ((outputShape[tileDim] / tileAxis[tileDim]) % 16 == 0);
         } else {
             size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
-            return outputShape[tileDim] / nTilesOnDim[tileDim] >= kernelSize[realKernelIndex];
+            return outputShape[tileDim] / tileAxis[tileDim] >= kernelSize[realKernelIndex];
         }
     };
 
     auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+        auto tileResult = fillDividedTiles(tileAxis, outputShape);
         return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
     };
 
     auto isLastTileBiggest = [&]() -> bool {
-        auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+        auto tileResult = fillDividedTiles(tileAxis, outputShape);
         auto lastTile = tileResult.end() - 1;
         auto firstTile = tileResult.begin();
         return lastTile->shape[tileDim] > firstTile->shape[tileDim];
@@ -346,7 +344,7 @@ public:
         return ::isSupportedTiling(mlir::cast<MainOpType>(origOp), tiles, log);
     }
 
-    bool isSupportedPrefetchTiling(mlir::Operation* origOp, const Shape& tileAxis, Logger log) const {
+    bool isSupportedPrefetchTiling(mlir::Operation* origOp, ShapeRef tileAxis, Logger log) const {
         return ::isSupportedPrefetchTiling(mlir::cast<MainOpType>(origOp), tileAxis, log);
     }
 
@@ -385,7 +383,7 @@ public:
         });
     }
 
-    bool isSupportedPrefetchTiling(mlir::Operation* op, const Shape& tileAxis, Logger log) const {
+    bool isSupportedPrefetchTiling(mlir::Operation* op, ShapeRef tileAxis, Logger log) const {
         bool isSingleTile = false;
         Dim tileDim = Dim(0);
         for (unsigned i = 0; i < tileAxis.size(); i++) {
@@ -400,7 +398,6 @@ public:
         if (!isSingleTile)
             return false;
         auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
-        const Shape nTilesOnDim = tileAxis;
 
         auto isDivisibleTile = [&]() -> bool {
             int64_t minChannelSize = 1;
@@ -408,20 +405,20 @@ public:
                 minChannelSize = channelsInfo.getChannelAlignment();
             }
             if (tileDim == Dims4D::Act::C) {
-                return (outputShape[tileDim] / nTilesOnDim[tileDim] >= minChannelSize) &&
-                       (outputShape[tileDim] % nTilesOnDim[tileDim] == 0) &&
-                       ((outputShape[tileDim] / nTilesOnDim[tileDim]) % minChannelSize == 0);
+                return (outputShape[tileDim] / tileAxis[tileDim] >= minChannelSize) &&
+                       (outputShape[tileDim] % tileAxis[tileDim] == 0) &&
+                       ((outputShape[tileDim] / tileAxis[tileDim]) % minChannelSize == 0);
             } else
-                return outputShape[tileDim] / nTilesOnDim[tileDim] >= 1;
+                return outputShape[tileDim] / tileAxis[tileDim] >= 1;
         };
 
         auto isMemPrefetchable = [&]() -> bool {
-            auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+            auto tileResult = fillDividedTiles(tileAxis, outputShape);
             return vpux::VPUIP::NCEInvariant::verifyEltwisePrefetchCMX(op, tileResult, log).succeeded();
         };
 
         auto isLastTileBiggest = [&]() -> bool {
-            auto tileResult = fillDividedTiles(nTilesOnDim, outputShape);
+            auto tileResult = fillDividedTiles(tileAxis, outputShape);
             auto lastTile = tileResult.end() - 1;
             auto firstTile = tileResult.begin();
             return lastTile->shape[tileDim] > firstTile->shape[tileDim];
