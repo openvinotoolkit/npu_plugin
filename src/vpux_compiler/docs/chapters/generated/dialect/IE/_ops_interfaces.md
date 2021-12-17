@@ -155,7 +155,7 @@ NOTE: This method *must* be implemented by the user.
 #### `isSupportedPrefetchTiling`
 
 ```c++
-bool isSupportedPrefetchTiling(const Shape&tileAxis, vpux::Logger log);
+bool isSupportedPrefetchTiling(ShapeRef tileAxis, vpux::Logger log);
 ```
 Check, if the operation support prefetch tiling with cmx memory checking only
 NOTE: This method *must* be implemented by the user.
