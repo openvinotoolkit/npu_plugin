@@ -542,7 +542,7 @@ size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
     // schedule active op that fit in CMX
     for (auto& readyOp : _activeComputeOps) {
         if (isReadyComputeOperationSchedulable(readyOp.first)) {
-            _log.trace("Scheduling ready op: '{0}'", readyOp.first);
+            _log.trace("Scheduling active op: '{0}'", readyOp.first);
             computeOpStartTime = scheduleComputeOp(readyOp.first);
             scheduledOps.push_back(readyOp);
             break;
