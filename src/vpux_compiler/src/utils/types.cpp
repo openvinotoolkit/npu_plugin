@@ -135,7 +135,7 @@ Byte vpux::getTotalSize(mlir::Value val) {
 }
 
 Byte vpux::getCompactSize(mlir::ShapedType type) {
-    const auto typeSize = static_cast<Bit>(getElemTypeSize(type));
+    const auto typeSize = getElemTypeSize(type);
     if (type.getRank() == 0) {
         return typeSize;
     }
