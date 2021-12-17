@@ -49,6 +49,30 @@ IE.CNNNetwork
 
 ## Operation definition
 
+### `IE.Acosh` (vpux::IE::AcoshOp)
+
+InferenceEngine Acosh layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Acosh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Add` (vpux::IE::AddOp)
 
 InferenceEngine Add layer
@@ -143,6 +167,30 @@ operation ::= `IE.And` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or QuantizedType values
+
+### `IE.Asinh` (vpux::IE::AsinhOp)
+
+InferenceEngine Asinh layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Asinh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.AvgPool` (vpux::IE::AvgPoolOp)
 
@@ -454,6 +502,30 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+
+### `IE.Cosh` (vpux::IE::CoshOp)
+
+InferenceEngine Cosh layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Cosh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.DataInfo` (vpux::IE::DataInfoOp)
 
@@ -961,6 +1033,30 @@ operation ::= `IE.Gather` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.Gelu` (vpux::IE::GeluOp)
+
+InferenceEngine Gelu layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Gelu` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.GreaterEqual` (vpux::IE::GreaterEqualOp)
 
 InferenceEngine GreaterEqual layer
@@ -1377,6 +1473,68 @@ operation ::= `IE.Log` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.LogicalOr` (vpux::IE::LogicalOrOp)
+
+InferenceEngine LogicalOr layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LogicalOr` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+`input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+### `IE.LogicalXor` (vpux::IE::LogicalXorOp)
+
+InferenceEngine LogicalXor layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LogicalXor` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+`input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
 
 ### `IE.MVN` (vpux::IE::MVNOp)
 
@@ -2244,6 +2402,38 @@ operation ::= `IE.Reshape` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.ReverseSequence` (vpux::IE::ReverseSequenceOp)
+
+Reverse variable length sequence operation
+
+
+Syntax:
+
+```
+operation ::= `IE.ReverseSequence` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`seq_axis` | mlir::IntegerAttr | Integer attribute
+`batch_axis` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | ranked tensor of any type values
+`seq_length` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Round` (vpux::IE::RoundOp)
 
 InferenceEngine Round layer
@@ -2300,6 +2490,63 @@ operation ::= `IE.ScaleShift` `(` operands `)` attr-dict `:` type(operands) `->`
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.ScatterNDUpdate` (vpux::IE::ScatterNDUpdateOp)
+
+InferenceEngine ScatterNDUpdate layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ScatterNDUpdate` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`indices` | ranked tensor of integer values
+`updates` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `IE.ShuffleChannels` (vpux::IE::ShuffleChannelsOp)
+
+InferenceEngine ShuffleChannels layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ShuffleChannels` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis` | mlir::IntegerAttr | Integer attribute
+`group` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | 4D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of 16-bit float or 32-bit float values
+
 ### `IE.Sigmoid` (vpux::IE::SigmoidOp)
 
 InferenceEngine Sigmoid layer
@@ -2309,6 +2556,30 @@ Syntax:
 
 ```
 operation ::= `IE.Sigmoid` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.Sinh` (vpux::IE::SinhOp)
+
+InferenceEngine Sinh layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Sinh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
 ```
 
 
@@ -2373,6 +2644,30 @@ operation ::= `IE.SoftMax` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `axisInd` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.SoftPlus` (vpux::IE::SoftPlusOp)
+
+InferenceEngine SoftPlus layer
+
+
+Syntax:
+
+```
+operation ::= `IE.SoftPlus` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
 
 #### Operands:
 

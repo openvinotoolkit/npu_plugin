@@ -36,6 +36,7 @@ target_include_directories(${TARGET_NAME}
 target_include_directories(${TARGET_NAME}
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${CMAKE_BINARY_DIR}/src/vpux_compiler/include/vpux/compiler/dialect/VPUIP/generated"
 )
 
 link_system_libraries(${TARGET_NAME}
@@ -45,4 +46,9 @@ link_system_libraries(${TARGET_NAME}
         IE::inference_engine
         IE::ngraph
         LLVMSupport
+        flatbuffers
+)
+
+add_dependencies(${TARGET_NAME}
+    vpux_compiler_schema
 )

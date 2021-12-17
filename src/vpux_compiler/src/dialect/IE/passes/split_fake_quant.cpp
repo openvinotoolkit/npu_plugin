@@ -241,12 +241,14 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
 
             if (ratioHigh.getValue() == 1.0f) {
                 // FQ input and output ranges are equal, only remove FQ
-                rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), inConst.contentAttr());
+                rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), inConst.contentAttr())
+                        ->setLoc(inConst->getLoc());
             } else {
                 // FQ input and output ranges are NOT equal, rescale weights
                 innerLog.trace("Rescale weights");
                 const auto newConstAttr = inConst.contentAttr().rescale(ratioHigh.getValue());
-                rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), newConstAttr);
+                rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), newConstAttr)
+                        ->setLoc(inConst->getLoc());
             }
 
             return mlir::success();

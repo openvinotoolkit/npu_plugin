@@ -50,6 +50,9 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces ND tensor with 4D analogues for layers, which has such limitations on VPUIP level.
 Also this pass replaces ND network inputs and outputs with 4D analogues to overcome runtime limitations.
+### `-convert-shuffle-channels`: Convert ShuffleChannels to Reshape->Transpose->Reshape
+The pass is a part of `AdjustForVPU` pipeline.
+Converts ShuffleChannels to Reshape->Transpose->Reshape.
 ### `-convert-tile-to-per-axis-tiles`: Convert tile op by multiple axes to multiple PerAxisTile operations
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -110,6 +113,11 @@ This pass converts `MatMul` inputs to 2d.
 
 For example, `MatMul` input with 4x1x64 geometry will be split to four inputs with 1x64 dimensions.
 Resulting inputs with filters go to `MatMul` operations and the outputs are concatenated.
+### `-handle-large-kernels`: Handle large kernels ops
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces average pooling layers that have kernels bigger than supported by hardware (11x11),
+with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13).
 ### `-merge-fake-quant`: Merge back to FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 
@@ -145,6 +153,9 @@ Create `IE::PadOp` with pads_begin[0, x, x, x] and pads_end[0, x, x, x] attribut
 Append tensor of size M * batchSize to the beginning, and tensor of size N * batchSize to the end.
 Replace original `IE::PadOp` with `IE::Concat(%cst_front, %batchless_pad, %cst_back)`.
 Only `IE::PadMode::CONSTANT` case is supported.
+### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
+This pass is needed for MTL only since HW MaxPool does not support post-op operations.
+Operations are swapped only if there is an operation before MaxPool that supports post-ops.
 ### `-uniquify-ops`: Remove duplicating operations with a common producer Value
 The pass is a part of `AdjustForVPU` pipeline.
 

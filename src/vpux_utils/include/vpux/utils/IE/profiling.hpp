@@ -11,22 +11,17 @@
 // included with the Software Package for additional details.
 //
 
-#ifndef VPUX_COMPILER_CONVERSION_REWRITERS_CONVERT_VIEW_OPS_TO_VPUIP
-#define VPUX_COMPILER_CONVERSION_REWRITERS_CONVERT_VIEW_OPS_TO_VPUIP
+#pragma once
 
-include "vpux/compiler/dialect/IERT/ops.td"
-include "vpux/compiler/dialect/VPUIP/ops.td"
+#include <ie_blob.h>
+#include <ie_common.h>
+#include "vpux/utils/plugin/profiling_parser.hpp"
 
-include "mlir/IR/OpBase.td"
+namespace vpux {
 
-//
-// IERT.ConcatView -> output_buff
-//
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> convertProfilingLayersToIEInfo(
+        std::vector<vpux::ProfilingLayerInfo>& layerInfo);
 
-def RewriteConcatView :
-        Pat<
-            (IERT_ConcatViewOp $inputs, $output_buff),
-            (replaceWithValue $output_buff)
-        >;
+void printProfiling(const void* data, size_t data_len, const void* output, size_t output_len);
 
-#endif
+}  // namespace vpux

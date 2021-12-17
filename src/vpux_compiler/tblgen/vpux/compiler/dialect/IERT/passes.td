@@ -105,25 +105,6 @@ def StaticAllocation : PassBase<"static-allocation", "vpux::ModulePass"> {
 }
 
 //
-// TimestampProfiling
-//
-
-def TimestampProfiling : PassBase<"profiling-timestamp", "vpux::ModulePass"> {
-    let summary = "DMA-Timestamp based network profiling";
-
-    let description = [{
-        This pass add dma-timestamp based network profiling.
-    }];
-
-    let constructor = [{
-        vpux::IERT::createTimestampProfilingPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
-            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
-            return mlir::StringAttr::get(ctx, memSpaceName);
-        })
-    }];
-}
-
-//
 // BreakDataFlow
 //
 
@@ -136,6 +117,50 @@ def BreakDataFlow : PassBase<"break-data-flow", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IERT::createBreakDataFlowPass()";
+}
+
+//
+// DMATaskProfiling
+//
+
+def DMATaskProfiling : PassBase<"dma-task-profiling", "vpux::ModulePass"> {
+    let summary = "DMA task profiling using DMA-Timestamps";
+
+    let description = [{
+        This pass add DMA task profiling.
+    }];
+
+    let constructor = [{
+        vpux::IERT::createDMATaskProfilingPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            if (memSpaceName.empty()) {
+                return mlir::StringAttr::get(ctx, "CMX_NN");
+            }
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
+}
+
+//
+// DPUProfiling
+//
+
+def DPUProfiling : PassBase<"dpu-profiling", "vpux::ModulePass"> {
+    let summary = "DPU task profiling";
+
+    let description = [{
+        This pass allocate required memory for DPU profiling and perform buffer spilling
+    }];
+
+    let constructor = [{
+        vpux::IERT::createDPUProfilingPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            if (memSpaceName.empty()) {
+                return mlir::StringAttr::get(ctx, "CMX_NN");
+            }
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
 }
 
 //=================================================================================

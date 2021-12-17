@@ -73,6 +73,8 @@ std::vector<InferenceEngine::Precision> inputsPrecisions = {
 
 std::vector<ngraph::helpers::LogicalTypes> logicalOpTypes = {
         ngraph::helpers::LogicalTypes::LOGICAL_AND,
+        ngraph::helpers::LogicalTypes::LOGICAL_OR,
+        ngraph::helpers::LogicalTypes::LOGICAL_XOR,
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {

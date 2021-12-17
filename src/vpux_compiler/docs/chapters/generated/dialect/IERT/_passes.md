@@ -5,6 +5,10 @@ because all VPUIP dialect tasks will be inside body of the TaskOp and it is impo
 ### `-copy-op-hoisting`: Update location of CopyOps in the block
 This pass checks all CopyOps and updates their position in the parent block to be close to source op
 that generates the copy op source buffer
+### `-dma-task-profiling`: DMA task profiling using DMA-Timestamps
+This pass add DMA task profiling.
+### `-dpu-profiling`: DPU task profiling
+This pass allocate required memory for DPU profiling and perform buffer spilling
 ### `-feasible-allocation`: Feasible Memory Scheduling Pass
 Schedule async.execute opeations based on their dependecies and CMX memory availability
 
@@ -22,8 +26,6 @@ The pass tries to remove extra explicit `!async.token` based dependencies,
 if they are represented implicitly (as a result of transitive dependencies).
 ### `-optimize-copies`: Removes Copy Ops which are unnecessary
 This pass checks if Copy Op can be optimized out to reduce the amount of unnecessary DMAs and intermediate buffers.
-### `-profiling-timestamp`: DMA-Timestamp based network profiling
-This pass add dma-timestamp based network profiling.
 ### `-set-internal-memory-space`: Set specific memory space for all internal memory buffers
 This pass updates all Types for internal memory buffers and sets the specified memory space for them.
 

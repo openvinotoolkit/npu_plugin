@@ -94,9 +94,11 @@ std::unique_ptr<mlir::Pass> createConvertTile2PerAxisTilePass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertConv1DToConv2DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertShuffleChannelsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSupportBatchForPadPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSwapMaxPoolWithActivation(Logger log = Logger::global());
 
 //
 // LowPrecision
@@ -128,6 +130,7 @@ std::unique_ptr<mlir::Pass> createSplitConvWithMultipleFQPass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createHandleLargeKernelsPass(Logger log = Logger::global());
 
 //
 // Tiling

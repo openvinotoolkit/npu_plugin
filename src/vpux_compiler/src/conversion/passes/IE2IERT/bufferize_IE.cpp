@@ -511,6 +511,48 @@ mlir::LogicalResult LSTMSequenceRewrite::matchAndRewrite(IE::LSTMSequenceOp orig
 }
 
 //
+// ReverseSequenceRewrite
+//
+
+class ReverseSequenceRewrite final : public mlir::OpConversionPattern<IE::ReverseSequenceOp> {
+public:
+    ReverseSequenceRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<IE::ReverseSequenceOp>(typeConverter, ctx), _log(log) {
+        setDebugName("ReverseSequenceRewrite");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ReverseSequenceOp origOp, OpAdaptor newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ReverseSequenceRewrite::matchAndRewrite(IE::ReverseSequenceOp origOp, OpAdaptor newArgs,
+                                                            mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found ReverseSequence Operation '{0}'", origOp->getLoc());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    auto origSeqLengthShapeType = origOp.seq_length().getType().cast<mlir::ShapedType>();
+    auto newSeqLengthShapeType =
+            origSeqLengthShapeType.clone(origSeqLengthShapeType.getShape(), mlir::Float16Type::get(getContext()));
+    auto memRefType = typeConverter->convertType(newSeqLengthShapeType);
+    auto allocOp = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), memRefType.cast<mlir::MemRefType>());
+
+    auto convertOp = rewriter.create<IERT::ConvertOp>(origOp->getLoc(), newArgs.seq_length(), allocOp.memref());
+
+    auto resultBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
+
+    rewriter.replaceOpWithNewOp<IERT::ReverseSequenceOp>(origOp, newArgs.data(), convertOp.output(), resultBufs[0],
+                                                         origOp.seq_axisAttr(), origOp.batch_axisAttr());
+
+    return mlir::success();
+}
+
+//
 // QuantizeCastRewriter
 //
 
@@ -610,9 +652,34 @@ mlir::Operation* createRTLayer(IE::SqrtOp origOp, ArrayRef<mlir::Value> allBufs,
     return b.create<IERT::SqrtOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::SinhOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::SinhOp::Adaptor newOp(allBufs);
+    return b.create<IERT::SinhOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::CoshOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::CoshOp::Adaptor newOp(allBufs);
+    return b.create<IERT::CoshOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::AsinhOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AsinhOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AsinhOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::AcoshOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AcoshOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AcoshOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 mlir::Operation* createRTLayer(IE::LogOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::LogOp::Adaptor newOp(allBufs);
     return b.create<IERT::LogOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::GeluOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::GeluOp::Adaptor newOp(allBufs);
+    return b.create<IERT::GeluOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::NegativeOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -635,6 +702,12 @@ mlir::Operation* createRTLayer(IE::GatherElementsOp origOp, ArrayRef<mlir::Value
     IERT::GatherElementsOp::Adaptor newOp(allBufs);
     return b.create<IERT::GatherElementsOp>(origOp.getLoc(), newOp.input(), newOp.indices(), newOp.output_buff(),
                                             origOp.axisAttr());
+}
+
+mlir::Operation* createRTLayer(IE::ScatterNDUpdateOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ScatterNDUpdateOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ScatterNDUpdateOp>(origOp.getLoc(), newOp.input(), newOp.indices(), newOp.updates(),
+                                             newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::AddOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -905,6 +978,11 @@ mlir::Operation* createRTLayer(IE::MemPermuteOp origOp, ArrayRef<mlir::Value> al
     return b.create<IERT::MemPermuteOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.mem_perm());
 }
 
+mlir::Operation* createRTLayer(IE::SoftPlusOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::SoftPlusOp::Adaptor newOp(allBufs);
+    return b.create<IERT::SoftPlusOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 mlir::Operation* createRTLayer(IE::CeilingOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::CeilingOp::Adaptor newOp(allBufs);
     return b.create<IERT::CeilingOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
@@ -931,6 +1009,13 @@ mlir::Operation* createRTLayer(IE::LessEqualOp origOp, ArrayRef<mlir::Value> all
     return b.create<IERT::LessEqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::TopKOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::TopKOp::Adaptor newOp(allBufs);
+    return b.create<IERT::TopKOp>(origOp.getLoc(), newOp.input(), newOp.k(), newOp.output_values_buff(),
+                                  newOp.target_shape_buff(), origOp.axisAttr(), origOp.modeAttr(), origOp.sortAttr(),
+                                  origOp.element_typeAttr());
+}
+
 mlir::Operation* createRTLayer(IE::NotEqualOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::NotEqualOp::Adaptor newOp(allBufs);
     return b.create<IERT::NotEqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
@@ -944,6 +1029,16 @@ mlir::Operation* createRTLayer(IE::GreaterOp origOp, ArrayRef<mlir::Value> allBu
 mlir::Operation* createRTLayer(IE::GreaterEqualOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::GreaterEqualOp::Adaptor newOp(allBufs);
     return b.create<IERT::GreaterEqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::LogicalOrOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::LogicalOrOp::Adaptor newOp(allBufs);
+    return b.create<IERT::LogicalOrOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::LogicalXorOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::LogicalXorOp::Adaptor newOp(allBufs);
+    return b.create<IERT::LogicalXorOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
 class LayerRewrite final : public mlir::ConversionPattern {
@@ -1003,11 +1098,17 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::ReduceSumOp)
     CASE(IE::TanhOp)
     CASE(IE::SqrtOp)
+    CASE(IE::SinhOp)
+    CASE(IE::CoshOp)
+    CASE(IE::AsinhOp)
+    CASE(IE::AcoshOp)
     CASE(IE::LogOp)
+    CASE(IE::GeluOp)
     CASE(IE::FakeQuantizeOp)
     CASE(IE::PReluOp)
     CASE(IE::GatherOp)
     CASE(IE::GatherElementsOp)
+    CASE(IE::ScatterNDUpdateOp)
     CASE(IE::LeakyReluOp)
     CASE(IE::AddOp)
     CASE(IE::MultiplyOp)
@@ -1039,6 +1140,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::MVNOp)
     CASE(IE::SubtractOp)
     CASE(IE::MemPermuteOp)
+    CASE(IE::SoftPlusOp)
     CASE(IE::CeilingOp)
     CASE(IE::NormalizeIEOp)
     CASE(IE::EqualOp)
@@ -1047,6 +1149,9 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::NotEqualOp)
     CASE(IE::GreaterOp)
     CASE(IE::GreaterEqualOp)
+    CASE(IE::TopKOp)
+    CASE(IE::LogicalOrOp)
+    CASE(IE::LogicalXorOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });
@@ -1123,6 +1228,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     patterns.add<LSTMSequenceRewrite>(typeConverter, &ctx, _log);
     patterns.add<PermuteCastRewrite>(typeConverter, &ctx, _log);
     patterns.add<QuantizeCastRewriter>(typeConverter, &ctx, _log);
+    patterns.add<ReverseSequenceRewrite>(typeConverter, &ctx, _log);
     Const::ConstDialect::populateBufferizePatterns(patterns, typeConverter, _log);
 
     auto func = getFunction();

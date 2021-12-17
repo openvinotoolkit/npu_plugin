@@ -230,6 +230,25 @@ def ConvertFCToConv : PassBase<"convert-fc-to-conv", "vpux::FunctionPass"> {
 }
 
 //
+// ConvertShuffleChannels
+//
+
+def ConvertShuffleChannels : PassBase<"convert-shuffle-channels", "vpux::FunctionPass"> {
+    let summary = "Convert ShuffleChannels to Reshape->Transpose->Reshape";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+        Converts ShuffleChannels to Reshape->Transpose->Reshape.
+    }];
+
+    let constructor = "vpux::IE::createConvertShuffleChannelsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // UnrollBatch
 //
 
@@ -479,6 +498,24 @@ def HandleLargeStrides : PassBase<"handle-large-strides", "vpux::FunctionPass"> 
     ];
 }
 
+//
+// SwapMaxPoolWithActivation
+//
+
+def SwapMaxPoolWithActivation : PassBase<"swap-maxpool-with-act", "vpux::FunctionPass"> {
+    let summary = "Swaps the MaxPool and activation";
+
+    let description = [{
+        This pass is needed for MTL only since HW MaxPool does not support post-op operations.
+        Operations are swapped only if there is an operation before MaxPool that supports post-ops.
+    }];
+
+    let constructor = "vpux::IE::createSwapMaxPoolWithActivation()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
 
 //=================================================================================
 // LowPrecision
@@ -731,6 +768,27 @@ def UpstreamSlice : PassBase<"upstream-slice", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createUpstreamSlicePass()";
+    
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// HandleLargeKernels
+//
+
+def HandleLargeKernels : PassBase<"handle-large-kernels", "vpux::FunctionPass"> {
+    let summary = "Handle large kernels ops";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass replaces average pooling layers that have kernels bigger than supported by hardware (11x11),
+        with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13).
+    }];
+
+    let constructor = "vpux::IE::createHandleLargeKernelsPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

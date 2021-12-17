@@ -272,7 +272,6 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     nceTask.addPPETask(funcbuilder);
 
     // Create DPU task for NCE task
-    nceTask.variants().emplaceBlock();
     auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
 
     std::vector<int32_t> start_vec{0, 0, 0};

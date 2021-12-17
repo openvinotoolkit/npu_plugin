@@ -66,10 +66,12 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createConvertShapeTo4DPass(log));
     pm.addPass(IE::createConvertConv1DToConv2DPass(log));
     pm.addPass(IE::createConvertPaddingsToFloorModePass(log));
+    pm.addPass(IE::createConvertShuffleChannelsPass(log));
     pm.addPass(IE::createResolveStridedSlicePass(log));
     pm.addPass(IE::createSupportBatchForPadPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
+    pm.addPass(IE::createSwapMaxPoolWithActivation(log));
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }

@@ -381,6 +381,68 @@ def RewriteSqrt :
             (IERT_SqrtOp $input, $output),
             (createSqrtUPAOp $input, $output)
         >;
+        
+//
+// IERT.Sinh -> VPUIP.SinhUPA
+//
+
+def createSinhUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SinhUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteSinh :
+        Pat<
+            (IERT_SinhOp $input, $output),
+            (createSinhUPAOp $input, $output)
+        >;
+
+//
+// IERT.Cosh -> VPUIP.CoshUPA
+//
+
+def createCoshUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::CoshUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteCosh :
+        Pat<
+            (IERT_CoshOp $input, $output),
+            (createCoshUPAOp $input, $output)
+        >;
+
+//
+// IERT.Asinh -> VPUIP.AsinhUPA
+//
+
+def createAsinhUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::AsinhUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteAsinh :
+        Pat<
+            (IERT_AsinhOp $input, $output),
+            (createAsinhUPAOp $input, $output)
+        >;
+
+
+//
+// IERT.Acosh -> VPUIP.AcoshUPA
+//
+
+def createAcoshUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::AcoshUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteAcosh :
+        Pat<
+            (IERT_AcoshOp $input, $output),
+            (createAcoshUPAOp $input, $output)
+        >;
+        
 
 //
 // IERT.Log -> VPUIP.LogUPA
@@ -395,6 +457,21 @@ def RewriteLog :
         Pat<
             (IERT_LogOp $input, $output),
             (createLogUPAOp $input, $output)
+        >;
+
+//
+// IERT.Gelu -> VPUIP.GeluUPA
+//
+
+def createGeluUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::GeluUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteGelu :
+        Pat<
+            (IERT_GeluOp $input, $output),
+            (createGeluUPAOp $input, $output)
         >;
 
 //
@@ -482,7 +559,7 @@ def RewriteTile :
         >;
 
 //
-// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|And|Equal|Less|LessEqual|NotEqual|Greater|GreaterEqual]Pool -> VPUIP.EltwiseUPA
+// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|And|Equal|Less|LessEqual|NotEqual|Greater|GreaterEqual|LogicalOr|LogicalXor]Pool -> VPUIP.EltwiseUPA
 //
 
 class createEltwiseUPAOp<string method> :
@@ -574,6 +651,17 @@ def RewriteLessEqual :
         Pat<
             (IERT_LessEqualOp $input1, $input2, $output),
             (createEltwiseUPAOp<"LESS_EQUAL"> $input1, $input2, $output)
+        >;
+def RewriteLogicalOr :
+        Pat<
+            (IERT_LogicalOrOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"LOGICAL_OR"> $input1, $input2, $output)
+        >;
+
+def RewriteLogicalXor :
+        Pat<
+            (IERT_LogicalXorOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"LOGICAL_XOR"> $input1, $input2, $output)
         >;
 
 def RewriteNotEqual :
@@ -854,6 +942,22 @@ def RewriteGatherElements :
         >;
 
 //
+// IERT.ScatterNDUpdate -> VPUIP.ScatterNDUpdate
+//
+
+def createScatterNDUpdateUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ScatterNDUpdateUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteScatterNDUpdate :
+        Pat<
+            (IERT_ScatterNDUpdateOp $input, $indices, $updates, $output),
+            (createScatterNDUpdateUPAOp $input, $indices, $updates, $output)
+        >;
+
+//
 // IERT.MemPermute -> VPUIP.Permute
 //
 
@@ -867,6 +971,21 @@ def RewriteMemPermute :
         Pat<
             (IERT_MemPermuteOp $input, $output, $mem_perm),
             (createMemPermuteUPAOp $input, $output, $mem_perm)
+            >;
+
+//
+// IERT.SoftPlus -> VPUIP.SoftPlusUPA
+//
+
+def createSoftPlusUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SoftPlusUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteSoftPlus :
+        Pat<
+            (IERT_SoftPlusOp $input, $output),
+            (createSoftPlusUPAOp $input, $output)
         >;
 
 //
@@ -898,6 +1017,22 @@ def RewriteNormalizeIE :
         Pat<
             (IERT_NormalizeIEOp $data, $weights, $output, $eps, $across_spatial, $channel_shared),
             (createNormalizeIEUPAOp $data, $weights, $output, $eps, $across_spatial, $channel_shared)
+        >;
+
+//
+// IERT.ReverseSequence -> VPUIP.ReverseSequenceUPA
+//
+
+def createReverseSequenceUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReverseSequenceUPAOp>(
+                $_loc, $0, $1, $2, $3, $4)
+        }]>;
+
+def RewriteReverseSequence :
+        Pat<
+            (IERT_ReverseSequenceOp $data, $seq_length, $output, $seq_axis, $batch_axis),
+            (createReverseSequenceUPAOp $data, $seq_length, $output, $seq_axis, $batch_axis)
         >;
 
 #endif

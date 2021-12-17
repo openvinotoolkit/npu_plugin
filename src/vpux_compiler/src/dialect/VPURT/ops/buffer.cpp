@@ -18,13 +18,13 @@
 
 using namespace vpux;
 
-void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::MemRefType type,
+void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
                                          VPURT::BufferSection section, int64_t byteOffset) {
     build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section), /*sectionIndex=*/nullptr,
           getIntAttr(builder, byteOffset));
 }
 
-void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::MemRefType type,
+void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
                                          VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset) {
     build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section),
           getIntAttr(builder, sectionIndex), getIntAttr(builder, byteOffset));

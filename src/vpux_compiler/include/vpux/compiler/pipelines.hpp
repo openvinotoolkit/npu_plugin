@@ -34,6 +34,8 @@ void registerPipelines();
 
 struct ReferenceSWOptions : mlir::PassPipelineOptions<ReferenceSWOptions> {
     BoolOption enableProfiling{*this, "profiling", llvm::cl::desc("Enable profiling"), llvm::cl::init(false)};
+    BoolOption enableSWProfiling{*this, "sw-profiling", llvm::cl::desc("Enable SW task profiling"),
+                                 llvm::cl::init(true)};
 
     StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("KMB")};
 
@@ -58,6 +60,12 @@ void buildReferenceSWModePipeline(mlir::OpPassManager& pm, const ReferenceSWOpti
 
 struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
     BoolOption enableProfiling{*this, "profiling", llvm::cl::desc("Enable profiling"), llvm::cl::init(false)};
+    BoolOption enableDMAProfiling{*this, "dma-profiling", llvm::cl::desc("Enable DMA task profiling"),
+                                  llvm::cl::init(true)};
+    BoolOption enableDPUProfiling{*this, "dpu-profiling", llvm::cl::desc("Enable DPU task profiling"),
+                                  llvm::cl::init(true)};
+    BoolOption enableSWProfiling{*this, "sw-profiling", llvm::cl::desc("Enable SW task profiling"),
+                                 llvm::cl::init(true)};
 
     StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("KMB")};
 
@@ -113,6 +121,12 @@ void buildReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOpti
 
 struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
     BoolOption enableProfiling{*this, "profiling", llvm::cl::desc("Enable profiling"), llvm::cl::init(false)};
+    BoolOption enableDMAProfiling{*this, "dma-profiling", llvm::cl::desc("Enable DMA task profiling"),
+                                  llvm::cl::init(true)};
+    BoolOption enableDPUProfiling{*this, "dpu-profiling", llvm::cl::desc("Enable DPU task profiling"),
+                                  llvm::cl::init(true)};
+    BoolOption enableSWProfiling{*this, "sw-profiling", llvm::cl::desc("Enable SW task profiling"),
+                                 llvm::cl::init(true)};
 
     StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("KMB")};
 
