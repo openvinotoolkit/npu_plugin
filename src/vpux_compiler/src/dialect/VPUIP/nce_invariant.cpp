@@ -451,7 +451,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     if (OC != depthwiseOutChanCount && arch != VPU::ArchKind::MTL) {
         log.debug("[{0}] Depthwise convolution must have exactly {1} output channels, got {2}", loc,
                   depthwiseOutChanCount, OC);
-        //return mlir::failure();
+        // return mlir::failure();
     }
 
     if (OC % depthwiseOutChanCount != 0) {
