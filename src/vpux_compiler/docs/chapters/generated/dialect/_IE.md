@@ -2402,6 +2402,38 @@ operation ::= `IE.Reshape` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.ReverseSequence` (vpux::IE::ReverseSequenceOp)
+
+Reverse variable length sequence operation
+
+
+Syntax:
+
+```
+operation ::= `IE.ReverseSequence` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`seq_axis` | mlir::IntegerAttr | Integer attribute
+`batch_axis` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | ranked tensor of any type values
+`seq_length` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Round` (vpux::IE::RoundOp)
 
 InferenceEngine Round layer

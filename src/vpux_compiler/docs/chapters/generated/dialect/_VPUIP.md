@@ -1853,6 +1853,43 @@ operation ::= `VPUIP.RegionYoloUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.ReverseSequenceUPA` (vpux::VPUIP::ReverseSequenceUPAOp)
+
+ReverseSequence UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ReverseSequenceUPA` attr-dict
+              `inputs` `(` $data `:` type($data) `,` $seq_length `:` type($seq_length) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`seq_axis` | mlir::IntegerAttr | Integer attribute
+`batch_axis` | mlir::IntegerAttr | Integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of 16-bit float values
+`seq_length` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.RoundUPA` (vpux::VPUIP::RoundUPAOp)
 
 Round UPA SHAVE kernel

@@ -2733,6 +2733,32 @@ def IE_NotEqualOp :
 }
 
 //
+// ReverseSequenceOp
+//
+
+def IE_ReverseSequenceOp :
+        IE_LayerOp<
+            "ReverseSequence"
+        > {
+    let summary = "Reverse variable length sequence operation";
+
+    let arguments = (ins
+        AnyRankedTensor:$data,
+        1DTensorOf<[AnyInteger]>:$seq_length,
+
+        IntAttr:$seq_axis,
+        IntAttr:$batch_axis
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+}
+
+//
 // SoftPlusOp
 //
 

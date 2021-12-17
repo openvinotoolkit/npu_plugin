@@ -3024,6 +3024,40 @@ def IERT_NotEqualOp :
 }
 
 //
+// ReverseSequenceOp
+//
+
+def IERT_ReverseSequenceOp :
+        IERT_LayerOp<1, 
+            "ReverseSequence",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine Run-Time ReverseSequence layer";
+
+    let arguments = (ins
+        F16MemRef:$data,
+        F16MemRef:$seq_length,
+        F16MemRef:$output_buff,
+
+        IntAttr:$seq_axis,
+        IntAttr:$batch_axis
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $data `:` type($data) `,` $seq_length `:` type($seq_length) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // TopKOp
 //
 

@@ -1019,4 +1019,20 @@ def RewriteNormalizeIE :
             (createNormalizeIEUPAOp $data, $weights, $output, $eps, $across_spatial, $channel_shared)
         >;
 
+//
+// IERT.ReverseSequence -> VPUIP.ReverseSequenceUPA
+//
+
+def createReverseSequenceUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReverseSequenceUPAOp>(
+                $_loc, $0, $1, $2, $3, $4)
+        }]>;
+
+def RewriteReverseSequence :
+        Pat<
+            (IERT_ReverseSequenceOp $data, $seq_length, $output, $seq_axis, $batch_axis),
+            (createReverseSequenceUPAOp $data, $seq_length, $output, $seq_axis, $batch_axis)
+        >;
+
 #endif

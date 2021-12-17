@@ -511,6 +511,48 @@ mlir::LogicalResult LSTMSequenceRewrite::matchAndRewrite(IE::LSTMSequenceOp orig
 }
 
 //
+// ReverseSequenceRewrite
+//
+
+class ReverseSequenceRewrite final : public mlir::OpConversionPattern<IE::ReverseSequenceOp> {
+public:
+    ReverseSequenceRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<IE::ReverseSequenceOp>(typeConverter, ctx), _log(log) {
+        setDebugName("ReverseSequenceRewrite");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ReverseSequenceOp origOp, OpAdaptor newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ReverseSequenceRewrite::matchAndRewrite(IE::ReverseSequenceOp origOp, OpAdaptor newArgs,
+                                                            mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found ReverseSequence Operation '{0}'", origOp->getLoc());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    auto origSeqLengthShapeType = origOp.seq_length().getType().cast<mlir::ShapedType>();
+    auto newSeqLengthShapeType =
+            origSeqLengthShapeType.clone(origSeqLengthShapeType.getShape(), mlir::Float16Type::get(getContext()));
+    auto memRefType = typeConverter->convertType(newSeqLengthShapeType);
+    auto allocOp = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), memRefType.cast<mlir::MemRefType>());
+
+    auto convertOp = rewriter.create<IERT::ConvertOp>(origOp->getLoc(), newArgs.seq_length(), allocOp.memref());
+
+    auto resultBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
+
+    rewriter.replaceOpWithNewOp<IERT::ReverseSequenceOp>(origOp, newArgs.data(), convertOp.output(), resultBufs[0],
+                                                         origOp.seq_axisAttr(), origOp.batch_axisAttr());
+
+    return mlir::success();
+}
+
+//
 // QuantizeCastRewriter
 //
 
@@ -1186,6 +1228,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     patterns.add<LSTMSequenceRewrite>(typeConverter, &ctx, _log);
     patterns.add<PermuteCastRewrite>(typeConverter, &ctx, _log);
     patterns.add<QuantizeCastRewriter>(typeConverter, &ctx, _log);
+    patterns.add<ReverseSequenceRewrite>(typeConverter, &ctx, _log);
     Const::ConstDialect::populateBufferizePatterns(patterns, typeConverter, _log);
 
     auto func = getFunction();

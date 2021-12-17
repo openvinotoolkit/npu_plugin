@@ -2390,6 +2390,42 @@ operation ::= `IERT.RegionYolo` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ReverseSequence` (vpux::IERT::ReverseSequenceOp)
+
+InferenceEngine Run-Time ReverseSequence layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReverseSequence` attr-dict
+              `inputs` `(` $data `:` type($data) `,` $seq_length `:` type($seq_length) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`seq_axis` | mlir::IntegerAttr | Integer attribute
+`batch_axis` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of 16-bit float values
+`seq_length` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `IERT.Round` (vpux::IERT::RoundOp)
 
 InferenceEngine run-time Round layer

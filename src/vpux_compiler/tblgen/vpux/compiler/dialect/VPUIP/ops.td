@@ -3170,6 +3170,58 @@ def VPUIP_NormalizeIEUPAOp :
 }
 
 //
+// ReverseSequenceOp
+//
+
+def VPUIP_ReverseSequenceUPAOp :
+        VPUIP_UPATaskOp<1, "ReverseSequenceUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "ReverseSequence UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$data,
+        F16MemRef:$seq_length,
+        F16MemRef:$output_buff,
+
+        IntAttr:$seq_axis,
+        IntAttr:$batch_axis,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$data,
+                "mlir::Value":$seq_length,
+                "mlir::Value":$output,
+                "mlir::IntegerAttr":$seq_axis,
+                "mlir::IntegerAttr":$batch_axis
+            )
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $data `:` type($data) `,` $seq_length `:` type($seq_length) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // TopKOp
 //
 
