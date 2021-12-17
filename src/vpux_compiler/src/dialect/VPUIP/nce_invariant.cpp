@@ -523,8 +523,10 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::Convolution
         auto curTile = tiling[tileIndex];
         auto nextTile = tiling[tileIndex + 1];
         bool isWeightPrefetch = curTile.axis[Dims4D::Act::C] > 1;
-        VPUX_THROW_WHEN(isWeightPrefetch && curTile.axis[Dims4D::Act::H] > 1,
-                        "Nested tiling is not supported for prefetch tiling");
+        if (isWeightPrefetch && curTile.axis[Dims4D::Act::H] > 1) {
+            // Nested tiling is not supported for prefetch tiling
+            return mlir::failure();
+        }
 
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
         auto curTileConf =
@@ -599,8 +601,10 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp o
         auto curTile = tiling[tileIndex];
         auto nextTile = tiling[tileIndex + 1];
         bool isWeightPrefetch = curTile.axis[Dims4D::Act::C] > 1;
-        VPUX_THROW_WHEN(isWeightPrefetch && curTile.axis[Dims4D::Act::H] > 1,
-                        "Nested tiling is not supported for prefetch tiling");
+        if (isWeightPrefetch && curTile.axis[Dims4D::Act::H] > 1) {
+            // Nested tiling is not supported for prefetch tiling
+            return mlir::failure();
+        }
 
         auto curTileConf =
                 vpux::backInferPoolTile(curTile, getShape(origOp.input()), origOp.kernel_sizeAttr(),

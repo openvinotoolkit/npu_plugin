@@ -236,22 +236,28 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     });
 }
 
-bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
-    bool isSingleTile = false;
-    Dim tileDim = Dim(0);
+SmallVector<Dim> getTileDims(ShapeRef tileAxis) {
+    SmallVector<Dim> tileDims;
     for (unsigned i = 0; i < tileAxis.size(); i++) {
-        if (tileAxis[Dim(i)] > 1) {
-            tileDim = Dim(i);
-            if (isSingleTile)
-                return false;
-            else
-                isSingleTile = true;
-        }
+        if (tileAxis[Dim(i)] > 1)
+            tileDims.emplace_back(Dim(i));
     }
-    if (!isSingleTile)
-        return false;
-    auto outputShape = getShape(origOp.output());
+    return tileDims;
+}
 
+bool isLastTileBiggest(ShapeRef tileAxis, ShapeRef outputShape, Dim tileDim) {
+    auto tileResult = fillDividedTiles(tileAxis, outputShape);
+    auto lastTile = tileResult.end() - 1;
+    auto firstTile = tileResult.begin();
+    return lastTile->shape[tileDim] > firstTile->shape[tileDim];
+};
+
+bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
+    auto outputShape = getShape(origOp.output());
+    auto tileDims = getTileDims(tileAxis);
+    if (tileDims.size() != 1)
+        return false;
+    auto tileDim = tileDims[0];
     auto isDivisibleTile = [&]() -> bool {
         auto kernelSize = getShape(origOp.filter());
         int64_t minChannelSize = 1;
@@ -272,14 +278,7 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, ShapeRef tileAxis, Logg
         return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
     };
 
-    auto isLastTileBiggest = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        auto lastTile = tileResult.end() - 1;
-        auto firstTile = tileResult.begin();
-        return lastTile->shape[tileDim] > firstTile->shape[tileDim];
-    };
-
-    return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest();
+    return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
 bool isSupportedPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, ShapeRef /*tileAxis*/, Logger /*log*/) {
@@ -289,28 +288,22 @@ bool isSupportedPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, ShapeRef /*til
 }
 
 bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, ShapeRef tileAxis, Logger log) {
-    bool isSingleTile = false;
-    Dim tileDim = Dim(0);
-    for (unsigned i = 0; i < tileAxis.size(); i++) {
-        if (tileAxis[Dim(i)] > 1) {
-            tileDim = Dim(i);
-            if (isSingleTile)
-                return false;
-            else
-                isSingleTile = true;
-        }
-    }
-    if (!isSingleTile)
+    auto tileDims = getTileDims(tileAxis);
+    if (tileDims.size() != 1)
         return false;
+    auto tileDim = tileDims[0];
     auto outputShape = getShape(origOp.output());
 
     auto isDivisibleTile = [&]() -> bool {
         auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_sizeAttr());
+        int64_t minChannelSize = 1;
+        if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation())) {
+            minChannelSize = channelsInfo.getChannelAlignment();
+        }
         if (tileDim == Dims4D::Act::C) {
-            // TODO replace '16' with correct parameter
-            return (outputShape[tileDim] / tileAxis[tileDim] >= 16) &&
+            return (outputShape[tileDim] / tileAxis[tileDim] >= minChannelSize) &&
                    (outputShape[tileDim] % tileAxis[tileDim] == 0) &&
-                   ((outputShape[tileDim] / tileAxis[tileDim]) % 16 == 0);
+                   ((outputShape[tileDim] / tileAxis[tileDim]) % minChannelSize == 0);
         } else {
             size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
             return outputShape[tileDim] / tileAxis[tileDim] >= kernelSize[realKernelIndex];
@@ -322,14 +315,7 @@ bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, ShapeRef tileAxis, Logger l
         return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
     };
 
-    auto isLastTileBiggest = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        auto lastTile = tileResult.end() - 1;
-        auto firstTile = tileResult.begin();
-        return lastTile->shape[tileDim] > firstTile->shape[tileDim];
-    };
-
-    return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest();
+    return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
 template <class MainOpType>
@@ -384,19 +370,10 @@ public:
     }
 
     bool isSupportedPrefetchTiling(mlir::Operation* op, ShapeRef tileAxis, Logger log) const {
-        bool isSingleTile = false;
-        Dim tileDim = Dim(0);
-        for (unsigned i = 0; i < tileAxis.size(); i++) {
-            if (tileAxis[Dim(i)] > 1) {
-                tileDim = Dim(i);
-                if (isSingleTile)
-                    return false;
-                else
-                    isSingleTile = true;
-            }
-        }
-        if (!isSingleTile)
+        auto tileDims = getTileDims(tileAxis);
+        if (tileDims.size() != 1)
             return false;
+        auto tileDim = tileDims[0];
         auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
 
         auto isDivisibleTile = [&]() -> bool {
@@ -417,14 +394,7 @@ public:
             return vpux::VPUIP::NCEInvariant::verifyEltwisePrefetchCMX(op, tileResult, log).succeeded();
         };
 
-        auto isLastTileBiggest = [&]() -> bool {
-            auto tileResult = fillDividedTiles(tileAxis, outputShape);
-            auto lastTile = tileResult.end() - 1;
-            auto firstTile = tileResult.begin();
-            return lastTile->shape[tileDim] > firstTile->shape[tileDim];
-        };
-
-        return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest();
+        return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
     }
 
 private:
