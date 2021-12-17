@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/passes.hpp"
+#include "vpux/compiler/dialect/EMU/passes.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
@@ -333,6 +334,8 @@ void vpux::buildEMUReferenceSWModePipeline(mlir::OpPassManager& pm, const Refere
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
+
+    EMU::buildAdjustForEMU(pm, log);
 }
 
 //
