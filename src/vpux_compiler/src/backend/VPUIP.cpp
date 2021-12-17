@@ -534,7 +534,7 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
 
     netFunc.walk([&](VPURT::ConfigureBarrierOp taskOp) {
         _barrierOps.push_back(taskOp);
-        //log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getExecutorKind(), taskOp->getName(), taskOp->getLoc());
+        // log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getExecutorKind(), taskOp->getName(), taskOp->getLoc());
         Logger::global().error("Physical Barrier ID is {0}", taskOp->getAttr("id"));
         // tasksMap[taskOp.getExecutorKind()].push_back(writer.createTask(taskOp));
     });
@@ -585,7 +585,7 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     log.trace("Serialize barriers list");
     serializeTaskList(barriersList);
 
-     for (const auto& taskList : tasksMap) {
+    for (const auto& taskList : tasksMap) {
         log.trace("Serialize tasks list '{0}'", taskList.first);
         serializeTaskList(taskList.second);
     }
