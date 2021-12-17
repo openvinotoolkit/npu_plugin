@@ -81,7 +81,7 @@ void AssignPhysicalBarrierIDsPass::safeRunOnFunc() {
     VPUX_THROW_UNLESS(numDmaEngines <= MAX_DMA_ENGINES, "Found {0} DMA engines (max {1})", numDmaEngines,
                       MAX_DMA_ENGINES);
 
-    RuntimeSimulator simulator(&ctx, func, _log, numDmaEngines, 2);
+    RuntimeSimulator simulator(&ctx, func, _log, numDmaEngines, 8);
     simulator.assignPhysicalIDs();
 
     mlir::ConversionTarget target(ctx);
