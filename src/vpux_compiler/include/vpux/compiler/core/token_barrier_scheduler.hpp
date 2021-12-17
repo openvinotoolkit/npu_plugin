@@ -279,7 +279,7 @@ public:
             static size_t barrier_task_id = 1UL;
 
             mlir::OpBuilder builder(_func.getBody());
-            //builder.setInsertionPointAfter(Operation *op);
+            // builder.setInsertionPointAfter(Operation *op);
             auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc(),
                                                                              barrier_task_id);  // Neds to be virtual.
 

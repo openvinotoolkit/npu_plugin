@@ -390,7 +390,7 @@ void FeasibleScheduleGenerator::printInfo(mlir::FuncOp func) {
 
     func.walk([&](VPURT::TaskOp taskOp) {
         switch (taskOp.getExecutorKind()) {
-        //case VPU::ExecutorKind::UPADMA:
+        // case VPU::ExecutorKind::UPADMA:
         case VPU::ExecutorKind::DMA_NN: {
             getTaskInfo(taskOp);
             break;
