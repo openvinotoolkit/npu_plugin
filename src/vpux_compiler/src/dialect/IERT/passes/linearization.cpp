@@ -47,7 +47,6 @@ private:
 };
 
 void LinearizationPass::safeRunOnModule() {
-
     auto module = getOperation();
 
     IE::CNNNetworkOp netOp;
@@ -58,15 +57,12 @@ void LinearizationPass::safeRunOnModule() {
 
     mlir::async::ExecuteOp prevExecOp;
     for (auto curExecOp : netFunc.getOps<mlir::async::ExecuteOp>()) {
-
         if (prevExecOp != nullptr) {
             _log.trace("Add explicit dependency from '{0}' to '{1}'", prevExecOp->getLoc(), curExecOp->getLoc());
             depsInfo.addDependency(prevExecOp, curExecOp);
         }
 
         prevExecOp = curExecOp;
-
-    
     }
 
     depsInfo.updateTokenDependencies();
