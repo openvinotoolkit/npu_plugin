@@ -88,7 +88,7 @@ Logger vpux::Logger::unnest(size_t inc) const {
 bool vpux::Logger::isActive(LogLevel msgLevel) const {
 #if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
     static const auto logFilter = []() -> llvm::Regex {
-        if (const auto env = std::getenv("IE_VPUX_COMPILER_LOG_FILTER")) {
+        if (const auto env = std::getenv("IE_VPUX_LOG_FILTER")) {
             const StringRef filter(env);
 
             if (!filter.empty()) {

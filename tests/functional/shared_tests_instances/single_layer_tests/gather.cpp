@@ -21,6 +21,24 @@ class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils
     }
 };
 
+class KmbGather7LayerTest: public Gather7LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+
+    void SkipBeforeLoad() override {
+        auto inputRank = std::get<0>(GetParam()).size();
+        auto indexRank = std::get<1>(GetParam()).size();
+        auto batchDims = std::get<1>(std::get<2>(GetParam()));
+
+        if (inputRank != 4) {
+            throw LayerTestsUtils::KmbSkipTestException("Gather7 only supports 4D input shape, inRank = " + std::to_string(inputRank));
+        }
+
+        auto outRank = inputRank + indexRank - 1 - batchDims;
+        if (outRank != 4){
+            throw LayerTestsUtils::KmbSkipTestException("Gather7 only supports 4D output shape, outRank = " + std::to_string(outRank));
+        }
+    }
+};
+
 TEST_P(KmbGatherLayerTest, CompareWithRefs) {
    // Enable NCHW layout
     core->SetConfig({{VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT), CONFIG_VALUE(YES)}},
@@ -29,6 +47,11 @@ TEST_P(KmbGatherLayerTest, CompareWithRefs) {
 }
 
 TEST_P(KmbGatherLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
+TEST_P(KmbGather7LayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
@@ -74,7 +97,7 @@ const auto params = testing::Combine(
 // nGraph parser doesn't contain specific gather parser
 // [Track number: S#40603]
 INSTANTIATE_TEST_SUITE_P(
-        smoke_Gather,
+        smoke_Gather1,
         KmbGatherLayerTest,
         params,
         KmbGatherLayerTest::getTestCaseName
@@ -119,7 +142,7 @@ const auto genParams(const std::vector<size_t> inputShape, const int axis, const
 
 #define GEN_TEST(no,inputShape,axis,numIndices)\
 INSTANTIATE_TEST_CASE_P( \
-        conform_Gather_ ## no, \
+        conform_Gather1_ ## no, \
         KmbGatherLayerTest, \
         genParams(inputShape,axis,numIndices),\
         KmbGatherLayerTest::getTestCaseName)
@@ -143,5 +166,33 @@ GEN_TEST(14,(std::vector<size_t>{960,  1,  3,  3}), 0, 954); //=> {954,1,3,3}
 GEN_TEST(15,(std::vector<size_t>{960,  1,  3,  3}), 0, 959); //=> {959,1,3,3}
 GEN_TEST(16,(std::vector<size_t>{  2,  64,  1, 1}), 0, 128); //=> {128,64,1,1}
 GEN_TEST(17,(std::vector<size_t>{  2,  64,  1, 1}), 1, 128); //=> {2,128,1,1}
+
+}  // namespace
+
+namespace { // opset7::Gather tests
+
+#define GEN7_TEST(no,inputShape,indicesShape,axis,batch_dims) \
+INSTANTIATE_TEST_CASE_P( \
+        smoke_Gather7_ ## no, \
+        KmbGather7LayerTest, \
+        testing::Combine( \
+          testing::Values(std::vector<size_t>inputShape), \
+          testing::Values(std::vector<size_t>indicesShape), \
+          testing::Values(std::tuple<int,int>{axis,batch_dims}), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Layout::ANY), \
+          testing::Values(InferenceEngine::Layout::ANY), \
+          testing::Values(LayerTestsUtils::testPlatformTargetDevice)), \
+        KmbGather7LayerTest::getTestCaseName )
+
+GEN7_TEST(0, ({3,5,1,1}),     ({3,2}), 1, 1);
+GEN7_TEST(1, ({4,3,5,1}),     ({4,4}), 2, 1);
+GEN7_TEST(2, ({3,2,1,1}),     ({3,2}), 1, 1);
+GEN7_TEST(3, ({2,2,5,1}),   ({2,2,3}), 2, 2);
+GEN7_TEST(4, ({2,1,5,4}),     ({2,3}), 2, 1);
+GEN7_TEST(5, ({2,5,2,1}),   ({2,2,3}), 1, 1);
+GEN7_TEST(6, ({2,5,1,1}),     ({2,3}), 1, 1);
 
 }  // namespace

@@ -16,7 +16,7 @@
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_conv.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_conv.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_bias.hpp"
-#include <ngraph_ops/convolution_ie.hpp>
+#include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <ngraph/rt_info.hpp>
 #include <memory>
 

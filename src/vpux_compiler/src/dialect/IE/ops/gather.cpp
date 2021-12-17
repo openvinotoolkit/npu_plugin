@@ -35,6 +35,14 @@ mlir::FailureOr<int64_t> extractAxis(mlir::Location loc, IE::GatherOpAdaptor gat
         }
 
         int64_t axisInd = axisContent.getSplatValue<int64_t>();
+
+        if (axisInd < 0) {
+            const auto inType = gather.input().getType().cast<mlir::ShapedType>();
+            const auto inRank = inType.getRank();
+            axisInd += inRank;
+            VPUX_THROW_UNLESS(axisInd >= 0 && axisInd < inRank, "Wrong Gather axis {0}", axisInd);
+        }
+
         return axisInd;
     } else if (gather.axis_value() != nullptr) {
         return gather.axis_value().getValue().getSExtValue();
@@ -66,17 +74,25 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
     }
 
     SmallVector<int64_t> outShape;
-    outShape.reserve(inputShape.size() + indicesShape.size() - 1);
 
-    // calculate output shapes
-    for (size_t i = 0; i < inputShape.size(); ++i) {
-        if (i == checked_cast<size_t>(*axis)) {
-            for (size_t j = 0; j < indicesShape.size(); ++j) {
-                outShape.push_back(indicesShape[j]);
-            }
-        } else {
-            outShape.push_back(inputShape[i]);
-        }
+    // calculate output shape
+    int64_t batchDims = gather.batch_dims().getValue().getSExtValue();
+    int64_t axisVal = checked_cast<int64_t>(*axis);
+    int64_t outRank = inputShape.size() + indicesShape.size() - 1 - batchDims;
+    int64_t indicesRank = indicesShape.size();
+    int64_t i = 0;
+
+    for (; i < batchDims; i++) {
+        outShape.push_back(inputShape[i] & indicesShape[i]);
+    }
+    for (; i < axisVal; i++) {
+        outShape.push_back(inputShape[i]);
+    }
+    for (; i < axisVal + indicesRank - batchDims; i++) {
+        outShape.push_back(indicesShape[batchDims - axisVal + i]);
+    }
+    for (; i < outRank; i++) {
+        outShape.push_back(inputShape[batchDims + 1 - indicesRank + i]);
     }
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
@@ -115,8 +131,8 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::GatherOp gatherOp, m
     }
 
     rewriter.replaceOpWithNewOp<IE::GatherOp>(gatherOp, gatherOp.getType(), gatherOp.input(), gatherOp.indices(),
-                                              nullptr,
-                                              rewriter.getI64IntegerAttr(axisContent.getSplatValue<int64_t>()));
+                                              nullptr, rewriter.getI64IntegerAttr(axisContent.getSplatValue<int64_t>()),
+                                              gatherOp.batch_dims());
     return mlir::success();
 }
 

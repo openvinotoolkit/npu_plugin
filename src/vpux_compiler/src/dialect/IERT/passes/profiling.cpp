@@ -421,7 +421,7 @@ void DPUProfilingPass::safeRunOnModule() {
         newCluster.profiling_dataMutable().assign(sub);
         dpuProfilingOutputs.push_back(newCluster.profiling_output());
 
-        cluster->replaceAllUsesWith(newCluster);
+        cluster->replaceAllUsesWith(mlir::ValueRange(newCluster.output()));
         cluster->erase();
         chunkWalker.increment();
         dpuId++;
