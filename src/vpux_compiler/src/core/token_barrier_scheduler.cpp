@@ -32,6 +32,127 @@ TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, m
           barrierCount_(numBarriers),
           slotCount_(slotCount),
           _numDmaEngines(numDmaEngines) {
+    configureBarrierOpUpdateWaitMapBackUp.clear();
+    configureTaskOpUpdateWaitMapBackUp.clear();
+
+    auto _barrierOps = to_small_vector(_func.getOps<VPURT::DeclareVirtualBarrierOp>());
+    std::cout << "get initial barriers " << _barrierOps.size() << std::endl;
+    for (auto& barrierOp : _barrierOps) {
+        // Logger::global().error("Barrier ID {0}", barrierOp->getAttr("id"));
+
+        std::set<mlir::Operation*> producers{};
+        std::set<mlir::Operation*> consumers{};
+
+        for (auto* userOp : barrierOp->getUsers()) {
+            std::cout << "get Users " << std::endl;
+            auto opEffects = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(userOp);
+
+            VPUX_THROW_WHEN(opEffects == nullptr,
+                            "Barrier '{0}' is used by Operation '{1}' without MemoryEffects interface",
+                            barrierOp->getLoc(), userOp->getName());
+
+            using MemEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
+
+            SmallVector<MemEffect> valEffects;
+
+            opEffects.getEffectsOnValue(barrierOp.barrier(), valEffects);
+
+            VPUX_THROW_WHEN(
+                    valEffects.size() != 1,
+                    "Barrier '{0}' must have exactly 1 MemoryEffect per Operation, got '{1}' for Operation '{2}'",
+                    barrierOp->getLoc(), valEffects.size(), userOp->getLoc());
+
+            const auto& effect = valEffects.front();
+
+            std::cout << "detect producers and consumers " << std::endl;
+
+            if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
+                auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
+                if (task == nullptr) {
+                    exit(0);
+                }
+                // Logger::global().error("Task with scheduling number {0}", task->getAttr("SchedulingNumber"));
+                std::cout << "producers " << std::endl;
+                if (task.getExecutorKind() == VPU::ExecutorKind::NCE) {
+                    std::cout << "producers NCE" << std::endl;
+                    producers.insert(userOp);
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
+                    std::cout << "producers DMA_NN" << std::endl;
+                    producers.insert(userOp);
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA) {
+                    std::cout << "producers SHAVE_UPA" << std::endl;
+                    producers.insert(userOp);
+                }
+            } else if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
+                auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
+                if (task == nullptr) {
+                    exit(0);
+                }
+                // Logger::global().error("Task with scheduling number {0}", task->getAttr("SchedulingNumber"));
+                std::cout << "consumers " << std::endl;
+                if (task.getExecutorKind() == VPU::ExecutorKind::NCE) {
+                    std::cout << "consumers " << std::endl;
+                    consumers.insert(userOp);
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
+                    std::cout << "consumers " << std::endl;
+                    consumers.insert(userOp);
+                } else if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA) {
+                    std::cout << "consumers " << std::endl;
+                    consumers.insert(userOp);
+                }
+            } else {
+                VPUX_THROW("Barrier '{0}' has unsupported Effect in Operation '{1}'", barrierOp->getLoc(),
+                           userOp->getLoc());
+            }
+
+            std::cout << "finish" << std::endl;
+        }
+        configureBarrierOpUpdateWaitMapBackUp.insert(std::make_pair(barrierOp, std::make_pair(producers, consumers)));
+        // _barrierProducersMap.insert(std::make_pair(barrierOp, producers));
+        // _barrierConsumersMap.insert(std::make_pair(barrierOp, consumers));
+    }
+
+    for (auto iter = configureBarrierOpUpdateWaitMapBackUp.begin(); iter != configureBarrierOpUpdateWaitMapBackUp.end();
+         iter++) {
+        auto barrierOp = (*iter).first;
+        auto producers = (*iter).second.first;
+        auto consumers = (*iter).second.second;
+        for (auto prod = producers.begin(); prod != producers.end(); prod++) {
+            auto taskUpateItr = configureTaskOpUpdateWaitMapBackUp.find(*prod);
+            if (taskUpateItr != configureTaskOpUpdateWaitMapBackUp.end()) {
+                taskUpateItr->second.second.insert(barrierOp);
+            } else {
+                std::set<mlir::Operation*> newBarrierProducers{};
+                std::set<mlir::Operation*> newBarrierConsumers{barrierOp};
+                configureTaskOpUpdateWaitMapBackUp.insert(
+                        std::make_pair(*prod, std::make_pair(newBarrierProducers, newBarrierConsumers)));
+            }
+        }
+
+        for (auto cons = consumers.begin(); cons != consumers.end(); cons++) {
+            auto taskWaitItr = configureTaskOpUpdateWaitMapBackUp.find(*cons);
+            if (taskWaitItr != configureTaskOpUpdateWaitMapBackUp.end()) {
+                taskWaitItr->second.first.insert(barrierOp);
+            } else {
+                std::set<mlir::Operation*> newBarrierProducers{barrierOp};
+                std::set<mlir::Operation*> newBarrierConsumers{};
+                configureTaskOpUpdateWaitMapBackUp.insert(
+                        std::make_pair(*cons, std::make_pair(newBarrierProducers, newBarrierConsumers)));
+            }
+        }
+    }
+
+    _func->walk([](VPURT::TaskOp op) {
+        op.updateBarriersMutable().clear();
+        op.waitBarriersMutable().clear();
+    });
+
+    _func->walk([&](VPURT::DeclareVirtualBarrierOp op) {
+        op->dropAllUses();
+        op.erase();
+    });
+
+    std::cout << "Removed all declare virtual barrier ops" << std::endl;
 }
 
 bool TokenBasedBarrierScheduler::isPathExist(mlir::Operation* a, mlir::Operation* b) {
@@ -93,7 +214,8 @@ size_t TokenBasedBarrierScheduler::schedule() {
         {
             Logger::global().error("STEP-1: run the scheduler");
             BarrierScheduleGenerator scheduler_begin(_ctx, _func, barrierCount_, slotCount_,
-                                                     configureTaskOpUpdateWaitMapBackUp);
+                                                     configureTaskOpUpdateWaitMapBackUp,
+                                                     configureBarrierOpUpdateWaitMapBackUp);
             BarrierScheduleGenerator scheduler_end(_ctx, _func);
             size_t scheduling_number = 0UL;
 
@@ -202,12 +324,12 @@ size_t TokenBasedBarrierScheduler::schedule() {
                         auto removedIter = prod1;
                         prod1++;
                         producers.erase(removedIter);
-                        configureTaskOpUpdateWaitMap[*prod1].second.erase((*iter).first);
+                        // configureTaskOpUpdateWaitMap[*prod1].second.erase((*iter).first);
                     } else if (isPathExist(*prod, *prod1)) {
                         auto removedIter = prod;
                         prod++;
                         producers.erase(removedIter);
-                        configureTaskOpUpdateWaitMap[*prod].second.erase((*iter).first);
+                        // configureTaskOpUpdateWaitMap[*prod].second.erase((*iter).first);
                         break;
                     } else
                         prod1++;
@@ -227,12 +349,12 @@ size_t TokenBasedBarrierScheduler::schedule() {
                         auto removedIter = cons1;
                         cons1++;
                         consumers.erase(removedIter);
-                        configureTaskOpUpdateWaitMap[*cons1].first.erase((*iter).first);
+                        // configureTaskOpUpdateWaitMap[*cons1].first.erase((*iter).first);
                     } else if (isPathExist(*cons1, *cons)) {
                         auto removedIter = cons;
                         cons++;
                         consumers.erase(removedIter);
-                        configureTaskOpUpdateWaitMap[*cons].first.erase((*iter).first);
+                        // configureTaskOpUpdateWaitMap[*cons].first.erase((*iter).first);
                         break;
                     } else
                         cons1++;
@@ -261,6 +383,8 @@ size_t TokenBasedBarrierScheduler::schedule() {
                     }
                     auto removedIter = iter1;
                     iter1++;
+                    (*removedIter).first->dropAllUses();
+                    (*removedIter).first->erase();
                     configureBarrierOpUpdateWaitMap.erase(removedIter);
                 } else
                     iter1++;
@@ -271,6 +395,8 @@ size_t TokenBasedBarrierScheduler::schedule() {
             if (itr->second.second.empty()) {
                 Logger::global().error("Earsing virtual Barrier ID {0} as it has no producers",
                                        itr->first->getAttr("id"));
+                (*itr).first->dropAllUses();
+                (*itr).first->erase();
                 itr = configureBarrierOpUpdateWaitMap.erase(itr);
             } else {
                 ++itr;
@@ -279,70 +405,6 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
         // run simulation
         RuntimeSimulator simulator(_ctx, _func, _log, _numDmaEngines, 8);
-        std::list<VPURT::DeclareVirtualBarrierOp> barrierOps;
-        std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap;
-        std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierConsumersMap;
-        configureTaskOpUpdateWaitMap.clear();
-        // std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>
-        //         configureTaskOpUpdateWaitMap;
-        // for (auto iter = configureTaskOpUpdateWaitMap.begin(); iter != configureTaskOpUpdateWaitMap.end(); iter++) {
-        //     // if ((*iter).second.first.empty())
-        //     //     exit(0);
-        //     if ((*iter).second.second.empty())
-        //         exit(0);
-        // }
-
-        _func.walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
-            if (configureBarrierOpUpdateWaitMap.count(barrierOp))
-                barrierOps.push_back(barrierOp);
-        });
-
-        for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end();
-             iter++) {
-            SmallVector<mlir::Operation*> barrierProducers((*iter).second.first.begin(), (*iter).second.first.end());
-            SmallVector<mlir::Operation*> barrierConsumers((*iter).second.second.begin(), (*iter).second.second.end());
-            // auto producers = (*iter).second.first;
-            // for (auto prod = producers.begin(); prod != producers.end(); ++)
-            // {
-            //     barrierProducers.push_back()
-            // }
-            barrierProducersMap.insert(
-                    std::pair<mlir::Operation*, SmallVector<mlir::Operation*>>((*iter).first, barrierProducers));
-            barrierConsumersMap.insert(
-                    std::pair<mlir::Operation*, SmallVector<mlir::Operation*>>((*iter).first, barrierConsumers));
-
-            auto barrierOp = (*iter).first;
-            auto producers = (*iter).second.first;
-            auto consumers = (*iter).second.second;
-            for (auto prod = producers.begin(); prod != producers.end(); prod++) {
-                auto taskUpateItr = configureTaskOpUpdateWaitMap.find(*prod);
-                if (taskUpateItr != configureTaskOpUpdateWaitMap.end()) {
-                    taskUpateItr->second.second.insert(barrierOp);
-                } else {
-                    std::set<mlir::Operation*> newBarrierProducers{};
-                    std::set<mlir::Operation*> newBarrierConsumers{barrierOp};
-                    configureTaskOpUpdateWaitMap.insert(
-                            std::make_pair(*prod, std::make_pair(newBarrierProducers, newBarrierConsumers)));
-                }
-            }
-
-            for (auto cons = consumers.begin(); cons != consumers.end(); cons++) {
-                auto taskWaitItr = configureTaskOpUpdateWaitMap.find(*cons);
-                if (taskWaitItr != configureTaskOpUpdateWaitMap.end()) {
-                    taskWaitItr->second.first.insert(barrierOp);
-                } else {
-                    std::set<mlir::Operation*> newBarrierProducers{barrierOp};
-                    std::set<mlir::Operation*> newBarrierConsumers{};
-                    configureTaskOpUpdateWaitMap.insert(
-                            std::make_pair(*cons, std::make_pair(newBarrierProducers, newBarrierConsumers)));
-                }
-            }
-        }
-
-        _func->walk([](VPURT::TaskOp op) {
-            op.updateBarriersMutable().clear();
-            op.waitBarriersMutable().clear();
-        });
 
         for (const auto& p : configureBarrierOpUpdateWaitMap) {
             auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
@@ -355,14 +417,6 @@ size_t TokenBasedBarrierScheduler::schedule() {
             Logger::global().error("Virtual Barrier ID {0} has {1} producers", barrierOp->getAttr("id"),
                                    p.second.first.size());
         }
-
-        _func->walk([&](VPURT::DeclareVirtualBarrierOp op) {
-            if (!configureBarrierOpUpdateWaitMap.count(op)) {
-                Logger::global().error("Erasing Barrier ID {0} ", op->getAttr("id"));
-                op->dropAllUses();
-                op.erase();
-            }
-        });
 
         for (const auto& p : configureBarrierOpUpdateWaitMap) {
             auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
@@ -388,8 +442,6 @@ size_t TokenBasedBarrierScheduler::schedule() {
             }
         }
 
-        std::cout << "Removed all declare virtual barrier ops" << std::endl;
-
         // success = true;
         success = simulator.assignPhysicalIDs();
 
@@ -397,12 +449,14 @@ size_t TokenBasedBarrierScheduler::schedule() {
         //     success = false;
 
         if (!success) {
+            _func->walk([](VPURT::TaskOp op) {
+                op.updateBarriersMutable().clear();
+                op.waitBarriersMutable().clear();
+            });
             _func->walk([&](VPURT::DeclareVirtualBarrierOp op) {
-                if (configureBarrierOpUpdateWaitMap.count(op)) {
-                    Logger::global().error("Erasing Barrier ID {0} ", op->getAttr("id"));
-                    op->dropAllUses();
-                    op.erase();
-                }
+                Logger::global().error("Erasing Barrier ID {0} ", op->getAttr("id"));
+                op->dropAllUses();
+                op.erase();
             });
             configureBarrierOpUpdateWaitMap.clear();
             configureTaskOpUpdateWaitMap.clear();

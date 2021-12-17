@@ -57,7 +57,7 @@ StringLiteral vpux::stringifyEnum(LogLevel val) {
 
 Logger& vpux::Logger::global() {
 #ifdef VPUX_DEVELOPER_BUILD
-    static Logger log("global", LogLevel::None);
+    static Logger log("global", LogLevel::Error);
 #else
     static Logger log("global", LogLevel::None);
 #endif

@@ -55,43 +55,6 @@ public:
     explicit TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, int64_t numBarriers,
                                         int64_t slotCount, int64_t numDmaEngines);
 
-    struct operation_comparator_t {
-        bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
-            int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op1)
-                                                              ->getAttr("id")
-                                                              .cast<mlir::IntegerAttr>()
-                                                              .getInt());
-            int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op2)
-                                                              ->getAttr("id")
-                                                              .cast<mlir::IntegerAttr>()
-                                                              .getInt());
-
-            return uniqueId1 < uniqueId2;
-        }
-    };
-
-    struct task_operation_comparator_t {
-        bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
-            int64_t uniqueId1 = checked_cast<int64_t>(
-                    mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
-            int64_t uniqueId2 = checked_cast<int64_t>(
-                    mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
-
-            return uniqueId1 < uniqueId2;
-        }
-    };
-
-    // struct task_operation_comparator_by_schedule_time_t {
-    //     bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
-    //         int64_t schedulingNumber1 = checked_cast<int64_t>(
-    //                 mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
-    //         int64_t schedulingNumber2 = checked_cast<int64_t>(
-    //                 mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
-
-    //         return schedulingNumber1 < schedulingNumber2;
-    //     }
-    // };
-
     typedef size_t schedule_time_t;
     std::map<mlir::Operation*,
              std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
@@ -103,9 +66,12 @@ public:
              task_operation_comparator_by_schedule_time_t>
             configureTaskOpUpdateWaitMap;  // update,wait
 
-    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-             task_operation_comparator_by_schedule_time_t>
+    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>
             configureTaskOpUpdateWaitMapBackUp;  // update,wait
+
+    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>,
+                                         std::set<mlir::Operation*>>>
+            configureBarrierOpUpdateWaitMapBackUp;  // update,wait
 
     // One transition structure for each physical barrier //
     // TODO John: Move barrier_transition_structure_t to another file
@@ -264,7 +230,18 @@ public:
                 auto barrierConsumersItr = tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.find(bop_curr);
 
                 if (barrierConsumersItr != tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMap.end()) {
-                    auto opConsumers = FeasibleScheduleGenerator::getConsumerOps(source);
+                    // auto opConsumers = FeasibleScheduleGenerator::getConsumerOps(source);
+                    SmallVector<mlir::Operation*> opConsumers;
+                    for (auto updateBarrier :
+                         tokenBasedBarrierScheduler_.configureTaskOpUpdateWaitMapBackUp[source].second) {
+                        opConsumers.insert(
+                                opConsumers.end(),
+                                tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMapBackUp.find(updateBarrier)
+                                        ->second.second.begin(),
+                                tokenBasedBarrierScheduler_.configureBarrierOpUpdateWaitMapBackUp.find(updateBarrier)
+                                        ->second.second.end());
+                    }
+
                     for (auto consumer = opConsumers.begin(); consumer != opConsumers.end(); ++consumer) {
                         Logger::global().error("STEP-1.2 Adding consumer Op with ID {0} to barrier {1}",
                                                FeasibleScheduleGenerator::getUniqueID(*consumer),

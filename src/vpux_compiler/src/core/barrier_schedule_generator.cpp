@@ -25,12 +25,14 @@ using namespace vpux;
 
 BarrierScheduleGenerator::BarrierScheduleGenerator(
         mlir::MLIRContext* ctx, mlir::FuncOp func, size_t n, size_t m,
-        std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-                 task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap)
+        std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
+                taskOpUpdateWaitMap,
+        std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
+                barrierOpUpdateWaitMap)
         : barrierCount_(n),
           slotsPerBarrier_(m),
           startState_(n, m),
-          scheduler_begin_(ctx, func, startState_, taskOpUpdateWaitMap),
+          scheduler_begin_(ctx, func, startState_, taskOpUpdateWaitMap, barrierOpUpdateWaitMap),
           scheduler_end_(ctx, func),
           sinfo_() {
 }
