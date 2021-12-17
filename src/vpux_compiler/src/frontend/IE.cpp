@@ -785,14 +785,17 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                   "opset operation mismatch");
 
     const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 3 || inputs.size() == 4,
-                      "nGraph Gather node '{0}' has unsupported number of inputs '{1}'", origNode->get_friendly_name(),
-                      inputs.size());
+    VPUX_THROW_UNLESS(inputs.size() == 3, "nGraph Gather node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
 
-    VPUX_THROW_UNLESS(origNode->get_batch_dims() == 0, "Batch dim for gather '{0}' is not supported",
-                      origNode->get_friendly_name());
+    auto batchDims = origNode->get_batch_dims();
+    auto idxRank = origNode->get_input_partial_shape(1).rank().get_length();
+    batchDims = (batchDims < 0) ? (batchDims + idxRank) : batchDims;
+    auto normBatchDims = getIntAttr(_ctx, batchDims);
+    VPUX_THROW_UNLESS(batchDims >= 0, "Invalid batch_dims value '{0}'", batchDims);
 
-    auto op = builder.create<IE::GatherOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], nullptr);
+    auto op = builder.create<IE::GatherOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], nullptr,
+                                           normBatchDims);
     addOutputs(origNode, op);
 }
 
