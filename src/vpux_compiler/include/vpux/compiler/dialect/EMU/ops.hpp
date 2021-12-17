@@ -15,7 +15,6 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
@@ -29,8 +28,6 @@
 #include <mlir/IR/SymbolTable.h>
 #include <mlir/Interfaces/CastInterfaces.h>
 #include <mlir/Interfaces/InferTypeOpInterface.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/Interfaces/ViewLikeInterface.h>
 
 //
 // Generated
