@@ -18,7 +18,8 @@
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <ngraph_ops/convolution_ie.hpp>
+#include <ngraph/coordinate_diff.hpp>
+#include <ngraph/op/op.hpp>
 
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>

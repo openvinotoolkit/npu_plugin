@@ -62,9 +62,9 @@
 
 #include <ngraph/op/fake_quantize.hpp>
 
-#include <ngraph_ops/convolution_ie.hpp>
+#include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <legacy/ngraph_ops/crop_ie.hpp>
-#include <ngraph_ops/deconvolution_ie.hpp>
+#include <legacy/ngraph_ops/deconvolution_ie.hpp>
 #include <legacy/ngraph_ops/scaleshift.hpp>
 
 #include <ngraph/op/parameter.hpp>

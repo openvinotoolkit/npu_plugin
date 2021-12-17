@@ -15,7 +15,7 @@
 
 // clang-format off
 
-#include <ngraph_ops/convolution_ie.hpp>
+#include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <memory>
 
 class McmConv final : public ngraph::op::ConvolutionIE {
