@@ -20,8 +20,10 @@ std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenera
 std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleScheduleGenerator::barrierConsumersMap{};
 
 static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
-FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func,
-                                                     const resource_state_t& rstate)
+FeasibleScheduleGenerator::FeasibleScheduleGenerator(
+        mlir::MLIRContext* ctx, mlir::FuncOp func, const resource_state_t& rstate,
+        std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
+                 task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap)
         : _ctx(ctx),
           _func(func),
           in_degree_(),
@@ -32,7 +34,8 @@ FeasibleScheduleGenerator::FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mli
           heap_ordering_(),
           schedulable_op_(),
           processed_ops_(),
-          priority_() {
+          priority_(),
+          _taskOpUpdateWaitMap(taskOpUpdateWaitMap) {
     init(rstate);
 };
 

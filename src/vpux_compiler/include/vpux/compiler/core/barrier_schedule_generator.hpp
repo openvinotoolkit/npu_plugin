@@ -49,7 +49,10 @@ namespace vpux {
 class FeasibleScheduleGenerator;
 class BarrierScheduleGenerator {
 public:
-    BarrierScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func, size_t n, size_t m);
+    BarrierScheduleGenerator(
+            mlir::MLIRContext* ctx, mlir::FuncOp func, size_t n, size_t m,
+            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
+                     task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap);
     BarrierScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func);
 
     typedef size_t schedule_time_t;

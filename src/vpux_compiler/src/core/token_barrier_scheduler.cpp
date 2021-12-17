@@ -92,7 +92,8 @@ size_t TokenBasedBarrierScheduler::schedule() {
         }
         {
             Logger::global().error("STEP-1: run the scheduler");
-            BarrierScheduleGenerator scheduler_begin(_ctx, _func, barrierCount_, slotCount_);
+            BarrierScheduleGenerator scheduler_begin(_ctx, _func, barrierCount_, slotCount_,
+                                                     configureTaskOpUpdateWaitMapBackUp);
             BarrierScheduleGenerator scheduler_end(_ctx, _func);
             size_t scheduling_number = 0UL;
 
@@ -338,8 +339,59 @@ size_t TokenBasedBarrierScheduler::schedule() {
             }
         }
 
-        success =
-                simulator.simulate(barrierOps, barrierProducersMap, barrierConsumersMap, configureTaskOpUpdateWaitMap);
+        _func->walk([](VPURT::TaskOp op) {
+            op.updateBarriersMutable().clear();
+            op.waitBarriersMutable().clear();
+        });
+
+        for (const auto& p : configureBarrierOpUpdateWaitMap) {
+            auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
+            Logger::global().error("Virtual Barrier ID {0} has {1} consumers", barrierOp->getAttr("id"),
+                                   p.second.second.size());
+        }
+
+        for (const auto& p : configureBarrierOpUpdateWaitMap) {
+            auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
+            Logger::global().error("Virtual Barrier ID {0} has {1} producers", barrierOp->getAttr("id"),
+                                   p.second.first.size());
+        }
+
+        _func->walk([&](VPURT::DeclareVirtualBarrierOp op) {
+            if (!configureBarrierOpUpdateWaitMap.count(op)) {
+                Logger::global().error("Erasing Barrier ID {0} ", op->getAttr("id"));
+                op->dropAllUses();
+                op.erase();
+            }
+        });
+
+        for (const auto& p : configureBarrierOpUpdateWaitMap) {
+            auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
+            for (auto* user : p.second.first) {
+                auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
+                assert(taskOp != NULL);
+                assert(barrierOp.barrier() != NULL);
+                Logger::global().error("Adding Barrier ID {0} as an update barrier for operation {1}",
+                                       barrierOp->getAttr("id"), FeasibleScheduleGenerator::getUniqueID(user));
+                taskOp.updateBarriersMutable().append(barrierOp.barrier());
+            }
+        }
+
+        for (const auto& p : configureBarrierOpUpdateWaitMap) {
+            auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
+            for (auto* user : p.second.second) {
+                auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
+                assert(taskOp != NULL);
+                assert(barrierOp.barrier() != NULL);
+                Logger::global().error("Adding Barrier ID {0} as an wait barrier for operation {1}",
+                                       barrierOp->getAttr("id"), FeasibleScheduleGenerator::getUniqueID(user));
+                taskOp.waitBarriersMutable().append(barrierOp.barrier());
+            }
+        }
+
+        std::cout << "Removed all declare virtual barrier ops" << std::endl;
+
+        // success = true;
+        success = simulator.assignPhysicalIDs();
 
         // if (barrierCount_ == 4)
         //     success = false;
@@ -359,55 +411,15 @@ size_t TokenBasedBarrierScheduler::schedule() {
         std::cout << "Barrier simualtion result is " << success << " with upperbound " << barrierCount_ << std::endl;
     }
 
-    _func->walk([](VPURT::TaskOp op) {
-        op.updateBarriersMutable().clear();
-        op.waitBarriersMutable().clear();
-    });
-
-    for (const auto& p : configureBarrierOpUpdateWaitMap) {
-        auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
-        Logger::global().error("Virtual Barrier ID {0} has {1} consumers", barrierOp->getAttr("id"),
-                               p.second.second.size());
-    }
-
-    for (const auto& p : configureBarrierOpUpdateWaitMap) {
-        auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
-        Logger::global().error("Virtual Barrier ID {0} has {1} producers", barrierOp->getAttr("id"),
-                               p.second.first.size());
-    }
-
-    _func->walk([&](VPURT::DeclareVirtualBarrierOp op) {
-        if (!configureBarrierOpUpdateWaitMap.count(op)) {
-            Logger::global().error("Erasing Barrier ID {0} ", op->getAttr("id"));
-            op->dropAllUses();
-            op.erase();
+    // reorder IR by scheduling number
+    mlir::Operation* preTask = nullptr;
+    for (auto iter = configureTaskOpUpdateWaitMap.begin(); iter != configureTaskOpUpdateWaitMap.end(); iter++) {
+        auto curTask = (*iter).first;
+        if (preTask) {
+            curTask->moveAfter(preTask);
         }
-    });
-
-    for (const auto& p : configureBarrierOpUpdateWaitMap) {
-        auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
-        for (auto* user : p.second.first) {
-            auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
-            assert(taskOp != NULL);
-            assert(barrierOp.barrier() != NULL);
-            Logger::global().error("Adding Barrier ID {0} as an update barrier for operation {1}",
-                                   barrierOp->getAttr("id"), FeasibleScheduleGenerator::getUniqueID(user));
-            taskOp.updateBarriersMutable().append(barrierOp.barrier());
-        }
+        preTask = curTask;
     }
 
-    for (const auto& p : configureBarrierOpUpdateWaitMap) {
-        auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
-        for (auto* user : p.second.second) {
-            auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
-            assert(taskOp != NULL);
-            assert(barrierOp.barrier() != NULL);
-            Logger::global().error("Adding Barrier ID {0} as an wait barrier for operation {1}",
-                                   barrierOp->getAttr("id"), FeasibleScheduleGenerator::getUniqueID(user));
-            taskOp.waitBarriersMutable().append(barrierOp.barrier());
-        }
-    }
-
-    std::cout << "Removed all declare virtual barrier ops" << std::endl;
     return btask_count;
 }

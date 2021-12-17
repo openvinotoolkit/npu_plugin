@@ -47,6 +47,16 @@
 
 namespace vpux {
 
+struct task_operation_comparator_by_schedule_time_t {
+    bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+        int64_t schedulingNumber1 = checked_cast<int64_t>(
+                mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
+        int64_t schedulingNumber2 = checked_cast<int64_t>(
+                mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
+
+        return schedulingNumber1 < schedulingNumber2;
+    }
+};
 struct op_resource_state_t;
 class FeasibleScheduleGenerator {
 public:
@@ -86,7 +96,10 @@ public:
     using resource_utility_map_t = std::unordered_map<mlir::Operation*, unsigned>;
     resource_utility_map_t resource_utility_map_;
 
-    FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func, const resource_state_t& rstate);
+    FeasibleScheduleGenerator(
+            mlir::MLIRContext* ctx, mlir::FuncOp func, const resource_state_t& rstate,
+            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
+                     task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap);
     FeasibleScheduleGenerator(mlir::MLIRContext* ctx, mlir::FuncOp func);
 
     bool operator==(const FeasibleScheduleGenerator& o) const;
@@ -139,6 +152,9 @@ protected:
     SmallVector<VPURT::DeclareVirtualBarrierOp> _allBarrierOps;
     static std::map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap;
     static std::map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierConsumersMap;
+    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
+             task_operation_comparator_by_schedule_time_t>
+            _taskOpUpdateWaitMap;
 };
 
 }  // namespace vpux
