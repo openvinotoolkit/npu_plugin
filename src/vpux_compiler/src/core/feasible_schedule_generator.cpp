@@ -349,41 +349,6 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
     for (auto const& pair : priority_) {
         Logger::global().error("{Operation {0}  priority {1}", getUniqueID(pair.first), pair.second);
     }
-
-    struct custom_compare final {
-        bool operator()(const std::pair<unsigned, mlir::Operation*>& left,
-                        const std::pair<unsigned, mlir::Operation*>& right) const {
-            unsigned priorityLeft = left.first;
-            unsigned priorityRight = right.first;
-            unsigned opIDLeft = getUniqueID(left.second).getInt();
-            unsigned opIDright = getUniqueID(right.second).getInt();
-
-            if (priorityLeft < priorityRight)
-                return true;
-            else if (priorityLeft > priorityRight)
-                return false;
-            else {
-                return opIDLeft < opIDright;
-            }
-        }
-    };
-
-    // reassign the priority
-    std::set<std::pair<unsigned, mlir::Operation*>, custom_compare> s;  // The new (temporary) container.
-    for (auto const& pair : priority_)
-        s.emplace(pair.second, pair.first);  // Flip the pairs.
-
-    size_t newPriority = 1;
-    for (auto const& pair : s) {
-        priority_[pair.second] = newPriority++;
-        // Logger::global().error("{Operation {0}  priority {1}", getUniqueID(pair.second), pair.first);
-    }
-
-    std::cout << "Printing priority map " << std::endl;
-    for (auto const& pair : priority_) {
-        Logger::global().error("{Operation {0}  priority {1}", getUniqueID(pair.first), pair.second);
-    }
-
     std::cout << "Finished compute_operation_priorities " << std::endl;
 }
 

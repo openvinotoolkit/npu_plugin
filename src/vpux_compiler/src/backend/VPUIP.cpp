@@ -539,14 +539,14 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
         // tasksMap[taskOp.getExecutorKind()].push_back(writer.createTask(taskOp));
     });
 
-    // _barrierOps.sort([](VPURT::ConfigureBarrierOp a, VPURT::ConfigureBarrierOp b) -> bool {
-    //     int64_t aID = checked_cast<int64_t>(a->getAttr("virtualId").cast<mlir::IntegerAttr>().getInt());
-    //     int64_t bID = checked_cast<int64_t>(b->getAttr("virtualId").cast<mlir::IntegerAttr>().getInt());
-    //     return aID < bID;
-    // });
+    _barrierOps.sort([](VPURT::ConfigureBarrierOp a, VPURT::ConfigureBarrierOp b) -> bool {
+        int64_t aID = checked_cast<int64_t>(a->getAttr("virtualbarrierId").cast<mlir::IntegerAttr>().getInt());
+        int64_t bID = checked_cast<int64_t>(b->getAttr("virtualbarrierId").cast<mlir::IntegerAttr>().getInt());
+        return aID < bID;
+    });
 
     for (auto& barrier : _barrierOps)
-        Logger::global().error("Barrier virtual ID {0} and physical Id {1} ", barrier->getAttr("virtualId"),
+        Logger::global().error("Barrier virtual ID {0} and physical Id {1} ", barrier->getAttr("virtualbarrierId"),
                                barrier->getAttr("id"));
 
     for (auto& barrierOp : _barrierOps)
@@ -559,11 +559,11 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
         // tasksMap[taskOp.getExecutorKind()].push_back(writer.createTask(taskOp));
     });
 
-    // _taskOps.sort([](VPURT::TaskOp a, VPURT::TaskOp b) -> bool {
-    //     int64_t aID = checked_cast<int64_t>(a->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
-    //     int64_t bID = checked_cast<int64_t>(b->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
-    //     return aID < bID;
-    // });
+    _taskOps.sort([](VPURT::TaskOp a, VPURT::TaskOp b) -> bool {
+        int64_t aID = checked_cast<int64_t>(a->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
+        int64_t bID = checked_cast<int64_t>(b->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
+        return aID < bID;
+    });
 
     for (auto& task : _taskOps)
         Logger::global().error("Task scheduling number {0} ", task->getAttr("SchedulingNumber"));
