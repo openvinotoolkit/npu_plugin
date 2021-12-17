@@ -155,11 +155,11 @@ void FeasibleAllocationPass::updateAsyncExecuteOpDependencies(
     // Go through all the tasks and add token dependencies between
     // all tasks with start time t to all tasks with time t+1
     for (auto opIt = scheduledOps.begin(); opIt != scheduledOps.end(); opIt++) {
-        if (opIt->isOriginalOp()) {
+        if (!opIt->isOriginalOp()) {
             continue;
         }
         for (auto nextTimeOpIt = opIt; nextTimeOpIt != scheduledOps.end(); nextTimeOpIt++) {
-            if (nextTimeOpIt->isOriginalOp()) {
+            if (!nextTimeOpIt->isOriginalOp()) {
                 continue;
             } else if (nextTimeOpIt->time_ == opIt->time_ + 1) {
                 // Insert dependency between op at time t to op at
