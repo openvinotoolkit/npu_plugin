@@ -40,13 +40,6 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
-
-    // Barrier scheduler
-    TokenBasedBarrierScheduler barrierScheduler(&ctx, func, 4, 256);
-    barrierScheduler.schedule();
-
-    bool success = false;
-
     // Barrier Simulation
     //for (size_t barrier_bound = 4; !success && (barrier_bound >= 1UL); --barrier_bound) {
         TokenBasedBarrierScheduler barrierScheduler(&ctx, func, 4, 256);
