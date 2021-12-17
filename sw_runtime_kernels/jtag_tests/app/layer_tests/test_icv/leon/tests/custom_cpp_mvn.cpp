@@ -14,7 +14,7 @@ __attribute__((aligned(1024)))
 
 #include "param_mvn.h"
 
-#define F_EPS 0x3727c5ac // Hex representation of 10^(-5)f
+#define F_EPS 0x3727c5ac  // Hex representation of 10^(-5)f
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
 
@@ -76,7 +76,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
 
             uint32_t acrossChannels = test->customLayerParams.layerParams[0];
             uint32_t normalize = test->customLayerParams.layerParams[1];
-            float eps = *(float *)(&test->customLayerParams.layerParams[2]);
+            float eps = *(float*)(&test->customLayerParams.layerParams[2]);
 
             m_mvnParams->acrossChannels = acrossChannels;
             m_mvnParams->normalize = normalize;
@@ -113,22 +113,22 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
             });
         }
         void generateReferenceData() override {
-            const auto &dims = m_inputTensor.tensorDims();
+            const auto& dims = m_inputTensor.tensorDims();
             const bool normalize_variance = m_mvnParams->normalize;
             const bool across_channels = m_mvnParams->acrossChannels;
             const float epsilon = m_mvnParams->eps;
             int b = 0;
 
-            if(across_channels) {
+            if (across_channels) {
                 float sum = 0.f;
                 float sqsum = 0.f;
 
-                for(int c = 0; c < dims.channels; c++){
-                    for(int h = 0; h < dims.height; h++) {
-                        for(int w = 0; w < dims.width; w++) {
+                for (int c = 0; c < dims.channels; c++) {
+                    for (int h = 0; h < dims.height; h++) {
+                        for (int w = 0; w < dims.width; w++) {
                             sum += f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b)));
                             sqsum += f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) *
-                                        f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b)));
+                                     f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b)));
                         }
                     }
                 }
@@ -139,28 +139,28 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
                 variance = variance < 0 ? 1.f : variance;
                 variance = sqrtf(variance) + epsilon;
 
-                for(int c = 0; c < dims.channels; c++){
-                    for(int h = 0; h < dims.height; h++) {
-                        for(int w = 0; w < dims.width; w++) {
+                for (int c = 0; c < dims.channels; c++) {
+                    for (int h = 0; h < dims.height; h++) {
+                        for (int w = 0; w < dims.width; w++) {
                             m_referenceOutputTensor.at(TensorDims(w, h, c, b)) =
-                                f32Tof16(f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) - mean);
-                            if(normalize_variance){
+                                    f32Tof16(f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) - mean);
+                            if (normalize_variance) {
                                 m_referenceOutputTensor.at(TensorDims(w, h, c, b)) =
-                                    f32Tof16(f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) / variance);
+                                        f32Tof16(f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) / variance);
                             }
                         }
                     }
                 }
-            } else { // across_channels == false
-                for(int c = 0; c < dims.channels; c++) {
+            } else {  // across_channels == false
+                for (int c = 0; c < dims.channels; c++) {
                     float sum = 0.f;
                     float sqsum = 0.f;
 
-                    for(int h = 0; h < dims.height; h++) {
-                        for(int w = 0; w < dims.width; w++) {
+                    for (int h = 0; h < dims.height; h++) {
+                        for (int w = 0; w < dims.width; w++) {
                             sum += f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b)));
                             sqsum += f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) *
-                                        f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b)));
+                                     f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b)));
                         }
                     }
                     float mean = sum / (dims.height * dims.width);
@@ -170,13 +170,13 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
                     variance = variance < 0 ? 1.f : variance;
                     variance = sqrtf(variance) + epsilon;
 
-                    for(int h = 0; h < dims.height; h++) {
-                        for(int w = 0; w < dims.width; w++) {
+                    for (int h = 0; h < dims.height; h++) {
+                        for (int w = 0; w < dims.width; w++) {
                             m_referenceOutputTensor.at(TensorDims(w, h, c, b)) =
-                                f32Tof16(f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) - mean);
-                            if(normalize_variance){
-                                m_referenceOutputTensor.at(TensorDims(w, h, c, b)) =
-                                    f32Tof16(f16Tof32(m_referenceOutputTensor.at(TensorDims(w, h, c, b))) / variance);
+                                    f32Tof16(f16Tof32(m_inputTensor.at(TensorDims(w, h, c, b))) - mean);
+                            if (normalize_variance) {
+                                m_referenceOutputTensor.at(TensorDims(w, h, c, b)) = f32Tof16(
+                                        f16Tof32(m_referenceOutputTensor.at(TensorDims(w, h, c, b))) / variance);
                             }
                         }
                     }
@@ -195,8 +195,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
                 saveMemoryToFile(reinterpret_cast<u32>(m_outputTensor.buffer()), m_outputTensor.bufferSize(),
                                  "outMyriad.bin");
 
-                saveMemoryToFile(reinterpret_cast<u32>(m_referenceOutputTensor.buffer()), m_referenceOutputTensor.bufferSize(),
-                                 "refOutMyriad.bin");
+                saveMemoryToFile(reinterpret_cast<u32>(m_referenceOutputTensor.buffer()),
+                                 m_referenceOutputTensor.bufferSize(), "refOutMyriad.bin");
             }
 
             bool threshold_test_failed = false;

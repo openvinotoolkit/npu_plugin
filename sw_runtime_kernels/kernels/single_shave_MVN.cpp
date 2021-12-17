@@ -5,9 +5,9 @@
 #else
 #define nnLog(level, ...)
 #endif
-#include <param_softmax.h>
 #include <mvSubspaces.h>
-#define INFINITY (1.0f /0.0f)
+#include <param_softmax.h>
+#define INFINITY (1.0f / 0.0f)
 #include <moviVectorConvert.h>
 
 #ifdef CONFIG_TARGET_SOC_3720
@@ -25,13 +25,12 @@ using namespace subspace;
 
 namespace {
 
-#define WORK_BUFFER_SIZE (((p->availableCmxBytes)/4))
+#define WORK_BUFFER_SIZE (((p->availableCmxBytes) / 4))
 
 #define MAX_CHANNEL_SIZE 64
 #define MAX_JOBS 1
 
-struct t_MvMVNParamNClasses
-{
+struct t_MvMVNParamNClasses {
     half* input;
     Location inLocation;
     half* output;
@@ -60,29 +59,29 @@ struct t_MvMVNParamNClasses
     float intermedia_mean[MAX_CHANNEL_SIZE * MAX_JOBS * 2];
 };
 
-static void calc_mean_NHWC_fp16(const half *line, int W, int C, int stride, float *intermedia_mean){
-    for(int c = 0; c < C; c += 8){
+static void calc_mean_NHWC_fp16(const half* line, int W, int C, int stride, float* intermedia_mean) {
+    for (int c = 0; c < C; c += 8) {
         float8 m_sum = 0;
 
-        for(int w = 0; w < W; w++){
-            half8 temp = *((half8 *)(line + w * stride + c));
+        for (int w = 0; w < W; w++) {
+            half8 temp = *((half8*)(line + w * stride + c));
 
             m_sum += mvuConvert_float8(temp);
         }
 
-        for(int i = 0; i < 8 && c + i < C; i++){
+        for (int i = 0; i < 8 && c + i < C; i++) {
             intermedia_mean[c + i] += m_sum[i];
         }
     }
 }
 
-static void calc_mean_var_NHWC_fp16(const half *line, int W, int C, int stride, float *intermedia_mean, int buf_size){
-    for(int c = 0; c < C; c += 8){
+static void calc_mean_var_NHWC_fp16(const half* line, int W, int C, int stride, float* intermedia_mean, int buf_size) {
+    for (int c = 0; c < C; c += 8) {
         float8 m_sum = 0;
         float8 v_sum = 0;
 
-        for(int w = 0; w < W; w++){
-            half8 temp = *((half8 *)(line + w * stride + c));
+        for (int w = 0; w < W; w++) {
+            half8 temp = *((half8*)(line + w * stride + c));
             float8 ftemp = mvuConvert_float8(temp);
 
             m_sum += ftemp;
@@ -96,30 +95,30 @@ static void calc_mean_var_NHWC_fp16(const half *line, int W, int C, int stride, 
     }
 }
 
-static void calc_mean_CHW_fp16(const half *line, int W, float* intermedia_mean, int index){
+static void calc_mean_CHW_fp16(const half* line, int W, float* intermedia_mean, int index) {
     float8 m_sum = 0;
     int w;
 
-    for(w = 0; w < (W / 8) * 8; w += 8){
-        half8 temp = *((half8 *)(line + w));
+    for (w = 0; w < (W / 8) * 8; w += 8) {
+        half8 temp = *((half8*)(line + w));
         m_sum += mvuConvert_float8(temp);
     }
     for (int i = 0; i < 8; i++) {
         intermedia_mean[index] += m_sum[i];
     }
 
-    for(; w < W; w++){
-        intermedia_mean[index] += (float)*((half *)(line + w));
+    for (; w < W; w++) {
+        intermedia_mean[index] += (float)*((half*)(line + w));
     }
 }
 
-static void calc_mean_var_CHW_fp16(const half *line, int W, float* intermedia_mean, int index, int buf_size){
+static void calc_mean_var_CHW_fp16(const half* line, int W, float* intermedia_mean, int index, int buf_size) {
     float8 m_sum = 0;
     float8 v_sum = 0;
     int w;
 
-    for(w = 0; w < (W / 8) * 8; w += 8){
-        half8 temp = *((half8 *)(line + w));
+    for (w = 0; w < (W / 8) * 8; w += 8) {
+        half8 temp = *((half8*)(line + w));
         float8 ftemp = mvuConvert_float8(temp);
 
         m_sum += ftemp;
@@ -130,15 +129,15 @@ static void calc_mean_var_CHW_fp16(const half *line, int W, float* intermedia_me
         intermedia_mean[buf_size + index] += v_sum[i];
     }
 
-    for(; w < W; w++){
-        float temp = (float)*((half *)(line + w));
+    for (; w < W; w++) {
+        float temp = (float)*((half*)(line + w));
 
         intermedia_mean[index] += temp;
         intermedia_mean[buf_size + index] += temp * temp;
     }
 }
 
-void mvMVN_1(t_MvMVNParamNClasses *p){
+void mvMVN_1(t_MvMVNParamNClasses* p) {
     NDOrder order = p->storageOrder;
 
     int W = p->width;
@@ -147,20 +146,20 @@ void mvMVN_1(t_MvMVNParamNClasses *p){
     int stride = p->stride;
 
     uint32_t normalize_variance = p->normalize;
-    int nShaves = p->nShaves; // Use only one shave for now
+    int nShaves = p->nShaves;  // Use only one shave for now
     int idy = p->jobNum;
     int buf_size = nShaves * C;
 
-    half* input  = (p->inputInCmx) ? p->input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
-    float *intermedia_mean = p->intermedia_mean;
+    half* input = (p->inputInCmx) ? p->input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
+    float* intermedia_mean = p->intermedia_mean;
 
     for (int c = 0; c < C; ++c) {
         intermedia_mean[c * nShaves + idy] = 0;
         intermedia_mean[buf_size + c * nShaves + idy] = 0;
     }
 
-    if(order == ND_HWC || order == ND_NHWC){
-        for(int h = 0; h < H; h++){
+    if (order == ND_HWC || order == ND_NHWC) {
+        for (int h = 0; h < H; h++) {
             half* line = input + h * W * stride;
 
             if (!normalize_variance) {
@@ -170,10 +169,10 @@ void mvMVN_1(t_MvMVNParamNClasses *p){
             }
         }
     } else {
-        for(int c = 0; c < C; c++){
+        for (int c = 0; c < C; c++) {
             int index = c * nShaves + idy;
 
-            for(int h = 0; h < H; h++){
+            for (int h = 0; h < H; h++) {
                 half* line = input + c * H * stride + h * stride;
 
                 if (!normalize_variance) {
@@ -186,7 +185,7 @@ void mvMVN_1(t_MvMVNParamNClasses *p){
     }
 }
 
-void mvMVN_23(t_MvMVNParamNClasses *p){
+void mvMVN_23(t_MvMVNParamNClasses* p) {
     NDOrder order = p->storageOrder;
 
     int W = p->width;
@@ -197,12 +196,12 @@ void mvMVN_23(t_MvMVNParamNClasses *p){
     uint32_t normalize_variance = p->normalize;
     uint32_t acrossChannels = p->acrossChannels;
     float epsilon = p->eps;
-    int nShaves = p->nShaves; // Use only one shave for now
+    int nShaves = p->nShaves;  // Use only one shave for now
 
     const float* variance_part = p->intermedia_mean + nShaves * C;
     const float* mean_part = p->intermedia_mean;
 
-    half* input  = (p->inputInCmx) ? p->input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
+    half* input = (p->inputInCmx) ? p->input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
     half* output = (p->outputInCmx) ? p->output : reinterpret_cast<half*>(p->cmxslice + 2 * WORK_BUFFER_SIZE);
 
     float mean;
@@ -243,7 +242,6 @@ void mvMVN_23(t_MvMVNParamNClasses *p){
 
 }  // namespace
 
-
 using namespace subspace;
 
 namespace nn {
@@ -251,28 +249,28 @@ namespace shave_lib {
 
 extern "C" {
 void singleShaveMVN(uint32_t lParams) {
-    const MvnParams * layerParams = reinterpret_cast<const MvnParams *>(lParams);
+    const MvnParams* layerParams = reinterpret_cast<const MvnParams*>(lParams);
 
-    uint8_t * cmxData = nullptr;   // TODO: Restore the possibility of working with DDR tensors
+    uint8_t* cmxData = nullptr;  // TODO: Restore the possibility of working with DDR tensors
     int32_t availableCmxBytes = 0;
     // Special DMA to copy layer params from physical DDR
-    half* p_act_data = (half*)(layerParams->input.dataAddr); // 0x1F000000
-    half* p_act_out = (half*)(layerParams->output.dataAddr); // 0x1F004000
+    half* p_act_data = (half*)(layerParams->input.dataAddr);  // 0x1F000000
+    half* p_act_out = (half*)(layerParams->output.dataAddr);  // 0x1F004000
     t_MvMVNParamNClasses mvnParamsCMX;
     t_MvMVNParamNClasses* sp = &mvnParamsCMX;
 
     sp->inputInCmx = true;
     sp->outputInCmx = true;
 
-    int32_t *pDims     = (int32_t *)(layerParams->input.dimsAddr);
-    int64_t *iPStrides = (int64_t *)(layerParams->input.stridesAddr);
-    int64_t *oPStrides = (int64_t *)(layerParams->output.stridesAddr);
+    int32_t* pDims = (int32_t*)(layerParams->input.dimsAddr);
+    int64_t* iPStrides = (int64_t*)(layerParams->input.stridesAddr);
+    int64_t* oPStrides = (int64_t*)(layerParams->output.stridesAddr);
 
     sp->acrossChannels = layerParams->acrossChannels;
     sp->normalize = layerParams->normalize;
     sp->eps = layerParams->eps;
 
-    if(layerParams->acrossChannels != false){
+    if (layerParams->acrossChannels != false) {
         nnLog(MVLOG_ERROR, "Unsuported case, expected across_channels = false");
         return;
     }
@@ -302,16 +300,16 @@ void singleShaveMVN(uint32_t lParams) {
     int i = firstShave;
     int processed = 0;
 
-    t_MvMVNParamNClasses *mvnParamNClasses = &mvnParamsCMX;
+    t_MvMVNParamNClasses* mvnParamNClasses = &mvnParamsCMX;
     int to_process_on_shave = step_size + ((step_size_rem-- > 0) ? 1 : 0);
     nnLog(MVLOG_DEBUG, "i %d, to_process_on_shave %d lines, started from %d\n", i, to_process_on_shave, processed);
 
-    mvnParamNClasses->input = reinterpret_cast<half *>(p_act_data);
-    mvnParamNClasses->inLocation = sw_params::Location::NN_CMX;//layerParams->input.location;
-    mvnParamNClasses->inputInCmx = true;//layerParams->input.location;
-    mvnParamNClasses->output = reinterpret_cast<half *>(p_act_out);
-    mvnParamNClasses->outLocation = sw_params::Location::NN_CMX;//layerParams->output.location;
-    mvnParamNClasses->outputInCmx = true;//layerParams->input.location;
+    mvnParamNClasses->input = reinterpret_cast<half*>(p_act_data);
+    mvnParamNClasses->inLocation = sw_params::Location::NN_CMX;  // layerParams->input.location;
+    mvnParamNClasses->inputInCmx = true;                         // layerParams->input.location;
+    mvnParamNClasses->output = reinterpret_cast<half*>(p_act_out);
+    mvnParamNClasses->outLocation = sw_params::Location::NN_CMX;  // layerParams->output.location;
+    mvnParamNClasses->outputInCmx = true;                         // layerParams->input.location;
 
     mvnParamNClasses->cmxslice = cmxData;
     mvnParamNClasses->availableCmxBytes = availableCmxBytes;
@@ -329,5 +327,5 @@ void singleShaveMVN(uint32_t lParams) {
 }
 }
 
-} // namespace shave_lib
-} // namespace nn
+}  // namespace shave_lib
+}  // namespace nn
