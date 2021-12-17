@@ -79,7 +79,7 @@ VPU::ArchKind getArchKind(const Config& config) {
 
 VPU::CompilationMode getCompilationMode(const Config& config) {
     if (!config.has<COMPILATION_MODE>()) {
-        return VPU::CompilationMode::ReferenceHW;
+        return VPU::CompilationMode::DefaultHW;
     }
 
     const auto parsed = VPU::symbolizeCompilationMode(config.get<COMPILATION_MODE>());
