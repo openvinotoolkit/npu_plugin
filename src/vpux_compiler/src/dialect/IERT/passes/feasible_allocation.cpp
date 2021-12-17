@@ -262,13 +262,14 @@ void FeasibleAllocationPass::safeRunOnModule() {
         FeasibleMemoryScheduler schedulerWithPrefetch(_memSpace, prefetchLiveRangeInfo, depsInfo, aliasesInfo, _log,
                                                       prefetchScan);
         scheduledOps = schedulerWithPrefetch.generateSchedule(prefetchEdges);
+
+        scan = prefetchScan;
     }
 
     // 2. optimize spills
     scheduledOps = removeRedundantPrefetchSpills(scheduledOps);
 
-    FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log,
-                                             prefetchScan);
+    FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
     spilling.removeRedundantSpillWrites(scheduledOps);
 
     for (const auto& op : scheduledOps) {
@@ -324,7 +325,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     });
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<AllocRewrite>(prefetchScan.handler(), &ctx, _log);  // mateusz
+    patterns.add<AllocRewrite>(scan.handler(), &ctx, _log);  // mateusz
 
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
         _log.error("Failed to replace Alloc/Dealloc Operations");
@@ -332,7 +333,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
         return;
     }
 
-    resources.setUsedMemory(_memSpace, prefetchScan.handler().maxAllocatedSize());  // mateusz
+    resources.setUsedMemory(_memSpace, scan.handler().maxAllocatedSize());  // mateusz
 }
 
 }  // namespace
