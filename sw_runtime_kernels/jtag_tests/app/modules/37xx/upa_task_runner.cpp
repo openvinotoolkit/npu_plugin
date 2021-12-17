@@ -4,10 +4,35 @@
 #include "upa_task_runner.hpp"
 //#include "act_shave_dispatcher.h"
 #include <nn_shave_manager.h>
+//#include <nn_cmx_memory_map.h>
 #include <nn_cache.h>
 #include <nn_time.h>
 
 //volatile u32 __attribute__((section(".nncmx.data0"))) shaveErrors;
+
+
+
+
+namespace {
+using namespace nn::inference_runtime;
+using namespace nn::common_runtime;
+
+const unsigned int IR_EVENT = RTEMS_EVENT_17;
+const unsigned int WORK_QUEUE_LENGTH = IR_WORKER_COUNT * 2;
+
+#if !defined(CONFIG_TARGET_SOC_3600) && !defined(CONFIG_TARGET_SOC_3710) && !defined(CONFIG_TARGET_SOC_3720)
+const uint32_t NN_CMX_BASE = 0x3e000000;
+#else
+const uint32_t NN_CMX_BASE = 0x2e000000;
+#endif
+#if defined(NN_ENABLE_SCALABILITY_REPORTING)
+const uint32_t NN_LOG_BUFFER_SIZE = 0x800;
+#endif /* NN_ENABLE_SCALABILITY_REPORTING */
+} // namespace
+
+
+
+
 
 static SoftLayerExec __attribute__((section(".nncmx0.shared.data"))) sl;
 static Layer __attribute__((section(".nncmx0.shared.data"))) layer;
@@ -20,6 +45,9 @@ bool UPATaskRunner::enqueTask(Op * operation,
                               PerformanceData *perfData) {
 
 //    static std::shared_ptr<nn::act_shave_lib::ACTShaveDispatcher> actDisp;
+    nn::common_runtime::NNCmxMemoryMap *nnCmx = util::MemoryMap::project<NNCmxMemoryMap>(NN_CMX_BASE);
+    alignas(NN_CACHE_LINE_LENGTH) nn::common_runtime::StaticMapping globalAreas(nnCmx);
+    nn::inference_runtime::shaves::ShaveManager shaveManager(globalAreas);
 
     memset(&sl, 0, sizeof(sl));
     memset(&layer, 0, sizeof(layer));

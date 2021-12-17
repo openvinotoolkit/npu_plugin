@@ -17,6 +17,8 @@ include-dirs-shave_nn-y += leon/inc
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  shave_nn
 subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  leon
 
+#subdirs-lrt-$(CONFIG_TARGET_SOC_3720) += $(VPUIP_2_REL_THROUGH_ROOT)/system/shave
+
 #presilicon-dir := ../../../../../vpuip_2/presilicon
 #presilicon-dir := $(VPUIP_2_REL_THROUGH_ROOT)/presilicon
 
