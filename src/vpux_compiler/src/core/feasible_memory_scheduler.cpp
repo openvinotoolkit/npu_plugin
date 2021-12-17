@@ -436,7 +436,7 @@ void FeasibleMemoryScheduler::scheduleSpilledOpBuffer(operationIdxType inputIdx,
     pushToStartTimeHeap(HeapElement(inputIdx, _currentTime, EOpType::IMPLICIT_OP_READ, spilledReadBuffer));
 }
 
-size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opIdx) {
+size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opIdx, Partitioner::Direction allocDir) {
     // retrieve op demand list - input ops
     auto usedBuffers = getNonAliveBuffersUsedByOperation(opIdx);
     auto demandList = getNonEmptyOpDemandList(opIdx, usedBuffers);
@@ -481,7 +481,7 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
 
     // allocate buffers using LinearScan
     _log.nest().trace("Allocate memory for the alive buffers");
-    VPUX_THROW_UNLESS(_scan.alloc(sortedBuffers, /*allowSpills*/ false), "Failed to statically allocate '{0}' memory",
+    VPUX_THROW_UNLESS(_scan.alloc(sortedBuffers, false, allocDir), "Failed to statically allocate '{0}' memory",
                       _memSpace);
 
     // Check if any of operation input dependencies have been scheduled
@@ -581,37 +581,17 @@ void FeasibleMemoryScheduler::schedulePrefetchedDataOps(size_t computeOpStartTim
         if (inDegree == _inDegreeTable.end() || inDegree->second == 0) {
             // if op can fit in NNCMX
             if (isReadyComputeOperationSchedulable(prefetchDataOpIdx)) {
-                // retrieve buffers and mark as alive
-                // std::cout << "scheduling data op " << prefetchDataOpIdx << std::endl;
                 scheduledOps.insert(prefetchDataOpIdx);
-                auto usedBuffers = getNonAliveBuffersUsedByOperation(prefetchDataOpIdx);
 
-                if (usedBuffers.empty()) {
-                    // op already allocated
-                    continue;
-                }
-
-                mlir::DenseSet<mlir::Value> buffersNeedingAllocation;
-                // mark buffers as alive
-                for (auto& val : usedBuffers) {
-                    _log.nest().trace("Mark prefetch buffer as alive, '{0}'", val);
-                    _scan.handler().markAsAlive(val);
-                    buffersNeedingAllocation.insert(val);
-                }
-
-                // sort buffers to allocate efficiently
-                auto sortedBuffers = sortUsedBuffers(buffersNeedingAllocation);
-
-                // allocate buffers using LinearScan
-                _log.nest().trace("Allocate memory for the alive buffers");
-                VPUX_THROW_UNLESS(_scan.alloc(sortedBuffers, false, Partitioner::Direction::Down),
-                                  "Failed to statically allocate '{0}' memory", _memSpace);
-
-                // schedule the prefetched data op
-                _log.nest().trace("Scheduling prefetched data op:'{0}'", prefetchDataOpIdx);
+                // Step 1: add to output result table
                 _opOutputTable.insert(std::make_pair(
                         prefetchDataOpIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[prefetchDataOpIdx])));
-                // std::cout << computeOpStartTime << std::endl;
+
+                // Step 2: assign resources simultaneously
+                allocateBuffersAndInputOps(prefetchDataOpIdx, Partitioner::Direction::Down);
+
+                // Step 3: schedule the prefetched data op
+                _log.nest().trace("Scheduling prefetched data op:'{0}'", prefetchDataOpIdx);
                 pushToStartTimeHeap(HeapElement(prefetchDataOpIdx, computeOpStartTime, EOpType::PREFETCHED_OP));
             }
         }
@@ -952,8 +932,9 @@ llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemorySchedu
             }
         }
         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
-        std::cout << "op = " << op.op_ << "\t type = " << op.opTypeName().data() << "\t time = " << op.time_ << " \t "
-                  << resourceInfo << std::endl;
+        // std::cout << "op = " << op.op_ << "\t type = " << op.opTypeName().data() << "\t time = " << op.time_ << " \t
+        // "
+        //           << resourceInfo << std::endl;
     }
     _log = _log.unnest();
 
