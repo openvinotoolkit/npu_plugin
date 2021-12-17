@@ -19,8 +19,6 @@
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <ngraph_ops/convolution_ie.hpp>
-
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <ngraph/slice_plan.hpp>
