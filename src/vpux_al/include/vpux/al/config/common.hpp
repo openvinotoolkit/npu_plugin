@@ -57,7 +57,7 @@ struct PERF_COUNT final : OptionBase<PERF_COUNT, bool> {
     }
 
     static bool defaultValue() {
-        return false;
+        return true;
     }
 };
 
