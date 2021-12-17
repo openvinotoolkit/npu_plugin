@@ -1,13 +1,13 @@
 // RUN: vpux-translate --export-EMU -o %t %s && flatc --raw-binary --json %vpuip_schema_file% -- %t && FileCheck %s --input-file %basename_t.json
 
-module @Test attributes {VPUIP.arch = "KMB"} {
+module @Test attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
 
 IERT.RunTimeResources
     availableMemory : {
         MemoryResource 1073741824 bytes
-        MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
-        MemoryResource 4194304 bytes of "CMX_UPA" {VPUIP.bandwidth = 16, VPUIP.derateFactor = 8.500000e-01}
-        MemoryResource 1048576 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
+        MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
+        MemoryResource 4194304 bytes of "CMX_UPA" {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}
+        MemoryResource 1048576 bytes of "CMX_NN" {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
     }
     usedMemory : {
         MemoryResource 2048 bytes of "DDR"
@@ -25,16 +25,6 @@ IERT.RunTimeResources
         ExecutorResource 1 of "DMA_NN"
     }
 
-VPUIP.Graph
-    options : "NONE"
-    version : {
-        majorV = 3,
-        minorV = 11,
-        patchV = 0,
-        hash = "",
-        contextStr = "VPUX Compiler"
-    }
-
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
@@ -45,7 +35,7 @@ IE.CNNNetwork
     }
 
 func @main(%arg0: tensor<1x1x1x1000xf16>) -> tensor<1x1x1x1000xf16> {
-    %0 = EMU.SoftMaxUPA {axisInd = 3} inputs(%arg0 : tensor<1x1x1x1000xf16>) -> tensor<1x1x1x1000xf16>
+    %0 = IE.SoftMax(%arg0) {axisInd = 3} : tensor<1x1x1x1000xf16> -> tensor<1x1x1x1000xf16>
     return %0: tensor<1x1x1x1000xf16>
 }
 
