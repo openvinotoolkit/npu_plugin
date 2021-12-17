@@ -111,7 +111,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
             scheduling_number++;
             // STEP-2: update barrier structure invariant //
-            bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo, builder);
+            bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo);
 
             if (new_barrier_task_created) {
                 ++btask_count;

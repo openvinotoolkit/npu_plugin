@@ -139,8 +139,7 @@ public:
 
         // returns true if this call has resulted in creating a new barrier
         // task (also means there is a temporal change) //
-        bool process_next_scheduled_op(const BarrierScheduleGenerator::schedule_info_t& sinfo,
-                                       mlir::OpBuilder& builder) {
+        bool process_next_scheduled_op(const BarrierScheduleGenerator::schedule_info_t& sinfo) {
             schedule_time_t curr_time = sinfo.schedule_time_;
             bool created_new_barrier_task = false;
 
@@ -157,7 +156,7 @@ public:
                                        "maintain_invariant_temporal_change");
                 // CASE-1: temporal transition happened //
                 created_new_barrier_task = true;
-                maintain_invariant_temporal_change(sinfo, builder);
+                maintain_invariant_temporal_change(sinfo);
                 time_ = curr_time;
             } else {
                 // CASE-2: trival case //
@@ -175,8 +174,7 @@ public:
         }
 
     private:
-        void maintain_invariant_temporal_change(const BarrierScheduleGenerator::schedule_info_t& sinfo,
-                                                mlir::OpBuilder& builder) {
+        void maintain_invariant_temporal_change(const BarrierScheduleGenerator::schedule_info_t& sinfo) {
             Logger::global().error("Calling maintain_invariant_temporal_change()");
             Logger::global().error(
                     "The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
@@ -205,7 +203,7 @@ public:
             mlir::Operation* bop_end = NULL;
             mlir::Operation* bop_curr_new = bop_end;
 
-            bop_curr_new = create_new_barrier_task(sinfo, builder);
+            bop_curr_new = create_new_barrier_task(sinfo);
 
             assert(bop_curr_new != bop_end);
             // assert(is_barrier_task(bop_curr_new));
@@ -290,14 +288,13 @@ public:
             producers_.insert(scheduled_op);
         }
 
-        mlir::Operation* create_new_barrier_task(const BarrierScheduleGenerator::schedule_info_t& sinfo,
-                                                 mlir::OpBuilder& builder) {
+        mlir::Operation* create_new_barrier_task(const BarrierScheduleGenerator::schedule_info_t& sinfo) {
             Logger::global().error("CREATING A NEW BARRIER TASK");
 
             static size_t barrier_task_id = 1UL;
 
-            // mlir::OpBuilder builder(_func.getBody());
-            // builder.setInsertionPointAfter(Operation *op);
+            mlir::OpBuilder builder(_func.getBody());
+            //builder.setInsertionPointAfter(Operation *op);
             auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc(),
                                                                              barrier_task_id);  // Neds to be virtual.
 

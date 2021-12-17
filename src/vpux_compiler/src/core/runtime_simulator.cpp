@@ -116,28 +116,29 @@ void RuntimeSimulator::buildTaskLists() {
     });
 
     // sort barriers
-    // _barrierOps.sort([](mlir::Operation* a, mlir::Operation* b) -> bool {
-    //     int64_t aID = checked_cast<int64_t>(a->getAttr("id").cast<mlir::IntegerAttr>().getInt());
-    //     int64_t bID = checked_cast<int64_t>(b->getAttr("id").cast<mlir::IntegerAttr>().getInt());
-    //     return aID < bID;
-    // });
+    _barrierOps.sort([](mlir::Operation* a, mlir::Operation* b) -> bool {
+        int64_t aID = checked_cast<int64_t>(a->getAttr("id").cast<mlir::IntegerAttr>().getInt());
+        int64_t bID = checked_cast<int64_t>(b->getAttr("id").cast<mlir::IntegerAttr>().getInt());
+        return aID < bID;
+    });
 
     for (auto& barrier : _barrierOps)
         Logger::global().error("Barrier ID {0} ", barrier->getAttr("id"));
 
-    // // sort DMA
-    // std::sort(_dmaTasks[0].begin(), _dmaTasks[0].end(), orderbyID);
+    // sort DMA
+    std::sort(_dmaTasks[0].begin(), _dmaTasks[0].end(), orderbyID);
 
     for (auto& dma : _dmaTasks[0])
         Logger::global().error("DMA scheduling number {0} ", dma.taskOp->getAttr("SchedulingNumber"));
-    // // sort ncetasks
-    // std::sort(_nceTasks.begin(), _nceTasks.end(), orderbyID);
+    
+    // sort ncetasks
+    std::sort(_nceTasks.begin(), _nceTasks.end(), orderbyID);
 
     for (auto& nce : _nceTasks)
         Logger::global().error("NCE scheduling number {0} ", nce.taskOp->getAttr("SchedulingNumber"));
 
-    // // sort upatasks
-    // std::sort(_upaTasks.begin(), _upaTasks.end(), orderbyID);
+    // sort upatasks
+    std::sort(_upaTasks.begin(), _upaTasks.end(), orderbyID);
 
     for (auto& upa : _upaTasks)
         Logger::global().error("UPA scheduling number {0} ", upa.taskOp->getAttr("SchedulingNumber"));
