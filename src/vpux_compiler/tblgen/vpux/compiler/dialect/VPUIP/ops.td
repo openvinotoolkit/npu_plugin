@@ -2953,6 +2953,7 @@ def VPUIP_GatherUPAOp :
         AnyMemRef:$output_buff,
 
         IntAttr:$axis,
+        IntAttr:$batch_dims,
 
         OptionalAttr<IntAttr>:$maxShaves
     );
@@ -2967,7 +2968,8 @@ def VPUIP_GatherUPAOp :
                 "mlir::Value":$input,
                 "mlir::Value":$indices,
                 "mlir::Value":$output,
-                "mlir::IntegerAttr":$axis
+                "mlir::IntegerAttr":$axis,
+                "mlir::IntegerAttr":$batch_dims
             )
         >
     ];
