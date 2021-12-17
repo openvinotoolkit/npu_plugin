@@ -91,14 +91,15 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
-    auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
-    if (qty != nullptr) {
-        weightsAttribute = weightsAttribute.quantCast(qty);
-    }
     weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
 
-    if (qty != nullptr && qty.getStorageType().isInteger(4)) {
-        weightsAttribute = weightsAttribute.bitPack(4);
+    auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
+
+    if (qty != nullptr) {
+        if (qty.getStorageType().isInteger(4)) {
+            weightsAttribute = weightsAttribute.bitPack(4);
+        }
+        weightsAttribute = weightsAttribute.quantCast(qty);
     }
 
     const auto weightsDDRType = getMemRef(weightsShape, weightsType, VPURT::BufferSection::Constant);
