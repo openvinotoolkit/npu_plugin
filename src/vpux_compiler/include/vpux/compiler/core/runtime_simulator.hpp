@@ -45,7 +45,7 @@ public:
         }
     };
 
-    RuntimeSimulator(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, int64_t numDmaEngines);
+    RuntimeSimulator(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, int64_t numDmaEngines, size_t numRealBarriers);
     void init();
     bool assignPhysicalIDs();
     void buildTaskLists();

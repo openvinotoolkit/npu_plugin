@@ -15,12 +15,12 @@
 
 using namespace vpux;
 
-RuntimeSimulator::RuntimeSimulator(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, int64_t numDmaEngines)
+RuntimeSimulator::RuntimeSimulator(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, int64_t numDmaEngines, size_t numRealBarriers)
         : _ctx(ctx),
           _func(func),
           _log(log),
           _numDmaEngines(numDmaEngines),
-          _numRealBarriers(),
+          _numRealBarriers(numRealBarriers),
           _active_barrier_table(),
           _real_barrier_list() {
 }
@@ -29,7 +29,7 @@ void RuntimeSimulator::init() {
     _real_barrier_list.clear();
 
     Logger::global().error("Populating _real_barrier_list");
-    for (size_t i = 0; i < 8; i++) {
+    for (size_t i = 0; i < _numRealBarriers; i++) {
         _real_barrier_list.push_back(i);
     }
 }
@@ -194,7 +194,7 @@ void RuntimeSimulator::acquireRealBarrier(VPURT::DeclareVirtualBarrierOp btask) 
 
     _real_barrier_list.pop_front();
 
-    assert(_active_barrier_table.size() < 8);
+    assert(_active_barrier_table.size() < _numRealBarriers);
 
     auto in_itr = in_degree_map_.find(btask.getOperation());
     auto out_itr = out_degree_map_.find(btask.getOperation());
@@ -294,12 +294,12 @@ void RuntimeSimulator::returnRealBarrier(mlir::Operation* btask) {
     assert(aitr != _active_barrier_table.end());
     assert(((aitr->second).in_degree_ == 0UL) && ((aitr->second).out_degree_ == 0UL));
 
-    assert(_real_barrier_list.size() < 8);
+    assert(_real_barrier_list.size() < _numRealBarriers);
 
     active_barrier_info_t& abinfo = aitr->second;
     _real_barrier_list.push_back(abinfo.real_barrier_);
 
-    assert(_real_barrier_list.size() <= 8);
+    assert(_real_barrier_list.size() < _numRealBarriers);
 
     _active_barrier_table.erase(aitr);
 }
