@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/passes.hpp"
+#include "vpux/compiler/dialect/EMU/passes.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
@@ -35,6 +36,8 @@ int main(int argc, char* argv[]) {
         vpux::registerDialects(registry);
 
         vpux::registerCorePasses();
+        vpux::EMU::registerEMUPasses();
+        vpux::EMU::registerEMUPipelines();
         vpux::IE::registerIEPasses();
         vpux::IE::registerIEPipelines();
         vpux::VPU::registerVPUPasses();
