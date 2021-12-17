@@ -185,6 +185,7 @@ void FeasibleAllocationPass::updateAsyncExecuteOpDependencies(
 }
 
 // only optimize prefetch spills for now, extend to optimize all spills
+// TODO: This is temporary code and will be replaced by more generic spilling optimization solution
 SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleAllocationPass::removeRedundantPrefetchSpills(
         llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps) {
     SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> optimizedSchedule;
@@ -242,7 +243,9 @@ void FeasibleAllocationPass::safeRunOnModule() {
     auto& liveRangeInfo = getChildAnalysis<MemLiveRangeInfo>(netFunc);
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
 
-    // copy classes for iteration with prefetch edges
+    // Copy classes for iteration with prefetch edges, as for prefetching
+    // scheduler will run twice and first iteration is used to gather information
+    // about the schedule and second one will perform the final allocation
     auto prefetchScan = scan;
     auto prefetchLiveRangeInfo = liveRangeInfo;
 
@@ -252,21 +255,24 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // 1. initial schedule
     auto scheduledOps = scheduler.generateSchedule();
 
+    // 2. prefetching
     bool PREFETCHING_ENABLED = true;
     if (PREFETCHING_ENABLED) {
-        // 2. optimization for inital schedule - generating prefetche edges
+        // 2.1. optimization for inital schedule - generating prefetch edges
         PrefetchEdgeGenerator PrefetchEdgeGenerator(scheduledOps, depsInfo);
         auto prefetchEdges = PrefetchEdgeGenerator.generatePrefetchEdges();
 
-        // 3. schedule with prefetching
-        FeasibleMemoryScheduler schedulerWithPrefetch(_memSpace, prefetchLiveRangeInfo, depsInfo, aliasesInfo, _log,
-                                                      prefetchScan);
-        scheduledOps = schedulerWithPrefetch.generateSchedule(prefetchEdges);
+        // 2.2. schedule again with prefetching
+        if (!prefetchEdges.empty()) {
+            FeasibleMemoryScheduler schedulerWithPrefetch(_memSpace, prefetchLiveRangeInfo, depsInfo, aliasesInfo, _log,
+                                                          prefetchScan);
+            scheduledOps = schedulerWithPrefetch.generateSchedule(prefetchEdges);
 
-        scan = prefetchScan;
+            scan = prefetchScan;
+        }
     }
 
-    // 2. optimize spills
+    // 3. optimize spills
     scheduledOps = removeRedundantPrefetchSpills(scheduledOps);
 
     FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
@@ -290,33 +296,16 @@ void FeasibleAllocationPass::safeRunOnModule() {
                   << resourceInfo << std::endl;
     }
 
-    // 3. re-order the IR
+    // 4. re-order the IR
     updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
 
-    // 4. insert spill dmas
+    // 5. insert spill dmas
     spilling.insertSpillCopyOps(scheduledOps);
 
-    // NOTE: observed worse perf with the below addition of dependencies
-    // auto inputAsyncExecOp = depsInfo.getExecuteOpAtIndex(0);
-    // for (auto opIt = scheduledOps.begin(); opIt != scheduledOps.end(); opIt++) {
-    //     // if operation has no dependencies
-    //     if (opIt->op_ != 0 && opIt->isPrefetched() && depsInfo.getOpDeps(opIt->op_).empty()) {
-    //         // add dependency to input
-    //         if (opIt->op_ == 6 || opIt->op_ == 7) {
-    //             std::cout << "adding to input dep from " << opIt->op_ << std::endl;
-    //             auto asyncExecOp = depsInfo.getExecuteOpAtIndex(opIt->op_);
-    //             depsInfo.addDependency(inputAsyncExecOp, asyncExecOp);
-    //         }
-    //     }
-    // }
-
-    // depsInfo.updateTokenDependencies();
-    // depsInfo.optimizeDepsMap();
-
-    // 5. update dependencies
+    // 6. update dependencies
     updateAsyncExecuteOpDependencies(depsInfo, scheduledOps);
 
-    // 6. convert to allocated ops
+    // 7. convert to allocated ops
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<IERT::IERTDialect>();
     target.addDynamicallyLegalOp<mlir::memref::AllocOp>([&](mlir::memref::AllocOp op) {
