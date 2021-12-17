@@ -39,8 +39,8 @@ class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTe
                 return {"OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels."};
             }
 
-#if defined(__arm__) || defined(__aarch64__)
-            return {"Does not compile on ARM."};
+#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
+            return {"Does not compile on ARM and Windows."};
 #endif
         }
 
