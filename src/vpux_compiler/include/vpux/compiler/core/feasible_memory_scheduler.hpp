@@ -274,7 +274,8 @@ private:
                                                              llvm::ArrayRef<mlir::Value> neededBuffers);
     void scheduleInputOpForComputeOp(operationIdxType inputIdx, size_t delay);
     void scheduleSpilledOpBuffer(operationIdxType inputIdx, mlir::Value* buffer);
-    size_t allocateBuffersAndInputOps(operationIdxType opIdx);
+    size_t allocateBuffersAndInputOps(operationIdxType opIdx,
+                                      Partitioner::Direction allocDir = Partitioner::Direction::Up);
     size_t scheduleComputeOp(operationIdxType opIdx);
     size_t scheduleAllPossibleReadyOpsAndUpdate();
     void schedulePrefetchedDataOps(size_t computeOpStartTime);
