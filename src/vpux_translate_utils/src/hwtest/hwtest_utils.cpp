@@ -30,21 +30,7 @@ namespace {
 
 template <typename T>
 std::vector<T> readFile(std::ifstream& file) {
-    std::vector<T> vec;
-    if (file.is_open()) {
-        file.unsetf(std::ios::skipws);
-
-        std::streampos fileSize;
-
-        file.seekg(0, std::ios::end);
-        fileSize = file.tellg();
-        file.seekg(0, std::ios::beg);
-
-        vec.reserve(fileSize);
-
-        vec.insert(vec.begin(), std::istream_iterator<T>(file), std::istream_iterator<T>());
-    }
-    return vec;
+    return {std::istream_iterator<T>{file}, std::istream_iterator<T>{}};
 }
 
 mlir::Type parseType(mlir::OpBuilder builder, mlir::Type ty, const nb::QuantParams& qp) {
