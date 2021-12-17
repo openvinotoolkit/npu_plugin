@@ -768,6 +768,27 @@ def UpstreamSlice : PassBase<"upstream-slice", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createUpstreamSlicePass()";
+    
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// HandleLargeKernels
+//
+
+def HandleLargeKernels : PassBase<"handle-large-kernels", "vpux::FunctionPass"> {
+    let summary = "Handle large kernels ops";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass replaces average pooling layers that have kernels bigger than supported by hardware (11x11),
+        with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13).
+    }];
+
+    let constructor = "vpux::IE::createHandleLargeKernelsPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

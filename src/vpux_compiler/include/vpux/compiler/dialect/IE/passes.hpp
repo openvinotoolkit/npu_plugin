@@ -130,6 +130,7 @@ std::unique_ptr<mlir::Pass> createSplitConvWithMultipleFQPass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createHandleLargeKernelsPass(Logger log = Logger::global());
 
 //
 // Tiling

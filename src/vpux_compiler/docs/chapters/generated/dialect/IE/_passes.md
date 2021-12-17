@@ -113,6 +113,11 @@ This pass converts `MatMul` inputs to 2d.
 
 For example, `MatMul` input with 4x1x64 geometry will be split to four inputs with 1x64 dimensions.
 Resulting inputs with filters go to `MatMul` operations and the outputs are concatenated.
+### `-handle-large-kernels`: Handle large kernels ops
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces average pooling layers that have kernels bigger than supported by hardware (11x11),
+with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13).
 ### `-merge-fake-quant`: Merge back to FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 

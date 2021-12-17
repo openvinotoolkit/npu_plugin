@@ -139,6 +139,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     if (options.enableConvertFCToConv) {
         pm.addPass(IE::createConvertFCToConvPass(log));
     }
+    pm.addPass(IE::createHandleLargeKernelsPass(log));
     if (options.enableConvertAvgPoolToDWConv) {
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     }
@@ -238,6 +239,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     if (options.enableConvertFCToConv) {
         pm.addPass(IE::createConvertFCToConvPass(log));
     }
+    pm.addPass(IE::createHandleLargeKernelsPass(log));
     if (options.enableConvertAvgPoolToDWConv) {
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     }
