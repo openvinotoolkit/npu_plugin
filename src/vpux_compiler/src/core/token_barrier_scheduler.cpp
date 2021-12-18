@@ -23,7 +23,8 @@
 // // Constructor
 // //
 
-// TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t numBarriers,
+// TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, int64_t
+// numBarriers,
 //                                                        int64_t slotCount, Logger log)
 //         : _ctx(ctx),
 //           _func(func),
@@ -79,13 +80,14 @@
 //         for (; scheduler_begin != scheduler_end; ++scheduler_begin) {
 //             const BarrierScheduleGenerator::schedule_info_t& sinfo = *scheduler_begin;
 
-//             Logger::global().error("Getting the schedule information sinfo from the Barrier_Schedule_Generator class");
-//             Logger::global().error("The time is {0}, the Operation is {1}", sinfo.schedule_time_,
+//             Logger::global().error("Getting the schedule information sinfo from the Barrier_Schedule_Generator
+//             class"); Logger::global().error("The time is {0}, the Operation is {1}", sinfo.schedule_time_,
 //                                    FeasibleBarrierScheduler::getUniqueID(sinfo.op_));
 //             Logger::global().error("The barrier index is {0}, , the slot cout is {1}", sinfo.barrier_index_,
 //                                    sinfo.slot_count_);
 
-//             Logger::global().error("Now looking up the barrier association table for the barrier {0} and getting the "
+//             Logger::global().error("Now looking up the barrier association table for the barrier {0} and getting the
+//             "
 //                                    "barrier association table",
 //                                    sinfo.barrier_index_);
 
@@ -120,14 +122,16 @@
 //     for (auto& barrier : configureBarrierOpUpdateWaitMap) {
 //         Logger::global().error("Barrier ID {0} has the following producers", barrier.first->getAttr("id"));
 //         for (auto op : barrier.second.first)
-//             Logger::global().error("producer Op with ID {0} to barrier {1}", FeasibleBarrierScheduler::getUniqueID(op),
+//             Logger::global().error("producer Op with ID {0} to barrier {1}",
+//             FeasibleBarrierScheduler::getUniqueID(op),
 //                                    barrier.first->getAttr("id"));
 //     }
 
 //     for (auto& barrier : configureBarrierOpUpdateWaitMap) {
 //         Logger::global().error("Barrier ID {0} has the following consumers", barrier.first->getAttr("id"));
 //         for (auto op : barrier.second.second)
-//             Logger::global().error("consumer Op with ID {0} to barrier {1}", FeasibleBarrierScheduler::getUniqueID(op),
+//             Logger::global().error("consumer Op with ID {0} to barrier {1}",
+//             FeasibleBarrierScheduler::getUniqueID(op),
 //                                    barrier.first->getAttr("id"));
 //     }
 
@@ -139,7 +143,8 @@
 //     });
 
 //     // remove redundant deps
-//     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+//     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++)
+//     {
 //         // producers
 //         auto producers = (*iter).second.first;
 //         for (auto prod = producers.begin(); prod != producers.end();) {
@@ -188,7 +193,8 @@
 //     }
 
 //     // remove redundant barriers
-//     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+//     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++)
+//     {
 //         auto consumers = (*iter).second.second;
 //         auto iter1 = iter;
 //         iter1++;
@@ -224,8 +230,8 @@
 
 //     for (auto itr = configureBarrierOpUpdateWaitMap.begin(); itr != configureBarrierOpUpdateWaitMap.end();) {
 //         if (itr->second.second.empty()) {
-//             Logger::global().error("Earsing virtual Barrier ID {0} as it has no producers", itr->first->getAttr("id"));
-//             itr = configureBarrierOpUpdateWaitMap.erase(itr);
+//             Logger::global().error("Earsing virtual Barrier ID {0} as it has no producers",
+//             itr->first->getAttr("id")); itr = configureBarrierOpUpdateWaitMap.erase(itr);
 //         } else {
 //             ++itr;
 //         }

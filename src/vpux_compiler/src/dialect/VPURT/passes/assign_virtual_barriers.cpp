@@ -11,8 +11,8 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/core/runtime_simulator.hpp"
 #include "vpux/compiler/core/feasible_schedule_generator.hpp"
+#include "vpux/compiler/core/runtime_simulator.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
@@ -62,10 +62,10 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
                       "Number of physical barriers '{0}' is out of range '{1}'", numBarriers, maxNumBarriers);
 
     // Barrier scheduler
-    //TokenBasedBarrierScheduler barrierScheduler(&ctx, func, numBarriers, MAX_PRODUCERS_PER_BARRIER, _log);
-   // barrierScheduler.schedule();
+    // TokenBasedBarrierScheduler barrierScheduler(&ctx, func, numBarriers, MAX_PRODUCERS_PER_BARRIER, _log);
+    // barrierScheduler.schedule();
 
-   FeasibleBarrierScheduler(&ctx, func, _log, numBarriers, MAX_PRODUCERS_PER_BARRIER);
+    FeasibleBarrierScheduler(&ctx, func, _log, numBarriers, MAX_PRODUCERS_PER_BARRIER);
 }
 
 }  // namespace

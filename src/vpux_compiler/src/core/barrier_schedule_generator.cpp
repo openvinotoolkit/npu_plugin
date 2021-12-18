@@ -23,7 +23,8 @@
 // // Constructor
 // //
 
-// BarrierScheduleGenerator::BarrierScheduleGenerator(Logger log, mlir::MLIRContext* ctx, mlir::FuncOp func, size_t n, size_t m = 1UL)
+// BarrierScheduleGenerator::BarrierScheduleGenerator(Logger log, mlir::MLIRContext* ctx, mlir::FuncOp func, size_t n,
+// size_t m = 1UL)
 //         : barrierCount_(n),
 //           slotsPerBarrier_(m),
 //           startState_(n, m),

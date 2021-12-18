@@ -225,7 +225,7 @@ public:
     bool operator==(const FeasibleBarrierScheduler& o) const;
     bool reached_end() const;
     bool nextSchedulableOperation();
-    //bool init(const resource_state_t& upper_bound);
+    // bool init(const resource_state_t& upper_bound);
     bool init();
     bool doesOpRunOnNCE(mlir::Operation* op);
 
@@ -272,7 +272,9 @@ protected:
     barrierAssociationTable _barrierAssociationTable;
 
     /*Stores every barrier's associated update and wait operations*/
-    //std::map<mlir::Operation*,std::pair<std::set<mlir::Operation*, task_operation_comparator_t>, std::set<mlir::Operation*, task_operation_comparator_t>>,operation_comparator_t> configureBarrierOpUpdateWaitMap;  // update,wait
+    // std::map<mlir::Operation*,std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
+    // std::set<mlir::Operation*, task_operation_comparator_t>>,operation_comparator_t> configureBarrierOpUpdateWaitMap;
+    // // update,wait
 };
 
 }  // namespace vpux

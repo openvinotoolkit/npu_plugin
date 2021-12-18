@@ -36,8 +36,8 @@
 //     bool created_new_barrier_task = false;
 
 //     Logger::global().error("The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
-//                            sinfo.schedule_time_, FeasibleBarrierScheduler::getUniqueID(sinfo.op_), sinfo.barrier_index_,
-//                            sinfo.slot_count_);
+//                            sinfo.schedule_time_, FeasibleBarrierScheduler::getUniqueID(sinfo.op_),
+//                            sinfo.barrier_index_, sinfo.slot_count_);
 
 //     Logger::global().error("The global time is {0}", time_);
 //     Logger::global().error("The current time is {0}", curr_time);
@@ -64,7 +64,8 @@
 //     process_current_barrier_producer_list_close_event(curr_barrier_task_, prev_barrier_task_);
 // }
 
-// inline void TokenBasedBarrierScheduler::barrierTransitionStructure::process_current_barrier_producer_list_close_event(
+// inline void
+// TokenBasedBarrierScheduler::barrierTransitionStructure::process_current_barrier_producer_list_close_event(
 //         mlir::Operation* bop_curr, mlir::Operation* bop_prev) {
 //     Logger::global().error("Process current barrier producer list close event");
 
@@ -123,8 +124,8 @@
 //         const BarrierScheduleGenerator::schedule_info_t& sinfo, mlir::OpBuilder& builder) {
 //     Logger::global().error("Calling maintain_invariant_temporal_change()");
 //     Logger::global().error("The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
-//                            sinfo.schedule_time_, FeasibleBarrierScheduler::getUniqueID(sinfo.op_), sinfo.barrier_index_,
-//                            sinfo.slot_count_);
+//                            sinfo.schedule_time_, FeasibleBarrierScheduler::getUniqueID(sinfo.op_),
+//                            sinfo.barrier_index_, sinfo.slot_count_);
 //     //              B_prev
 //     // curr_state : Prod_list={p_0, p_1, ... p_n}-->B_curr
 //     // event: Prod_list={q_0}->B_curr_new

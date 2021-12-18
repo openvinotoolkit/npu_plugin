@@ -80,8 +80,6 @@
 //             return state.schedule_operation(op, demand);
 //         }
 
-   
-
 //         static bool unschedule_operation(mlir::Operation*& op, resource_state_t& rstate) {
 //             return rstate.unschedule_operation(op);
 //         }
