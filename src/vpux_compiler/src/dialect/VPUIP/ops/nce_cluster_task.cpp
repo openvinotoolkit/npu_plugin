@@ -100,7 +100,7 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
                 const auto inputTensorWidth = getShape(op.input())[Dims4D::Act::W];
                 const auto inputChannels = getShape(op.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
                 const auto inDimsOrder = info.getInput(0);
-              
+
                 const auto inLayout =
                         VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth)
                                 ? DimsOrder::NCHW
