@@ -99,12 +99,8 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
                 const auto inputTensorWidth = getShape(op.input())[Dims4D::Act::W];
                 const auto inputChannels = getShape(op.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
-                const auto inDimsOrder = DimsOrder::fromValue(op->getOperand(0));
-                // TODO: This should be
-                // const auto inDimsOrder = info.getInput(0);
-                // but it causes a compilation error in ConvertLayers2VPUIP - "Operation's input/output element types
-                // mismatch"
-
+                const auto inDimsOrder = info.getInput(0);
+              
                 const auto inLayout =
                         VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth)
                                 ? DimsOrder::NCHW
