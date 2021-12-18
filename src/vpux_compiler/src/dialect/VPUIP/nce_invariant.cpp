@@ -35,7 +35,8 @@ int64_t vpux::VPUIP::NCEInvariant::getChannelAlignment(mlir::Type elemType) {
     return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location loc, mlir::ShapedType filterType,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool channelMajorConvolution, mlir::Location loc,
+                                                                  mlir::ShapedType filterType, int64_t width,
                                                                   Logger log) {
     log.setName("NCEInvariant");
 
@@ -52,20 +53,40 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location
         log.trace("[{0}] Convolution output channels are not aligned", loc);
         return mlir::failure();
     }
-    if (IC % getChannelAlignment(filterType.getElementType()) != 0) {
+
+    if (!channelMajorConvolution && IC % getChannelAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Convolution input channels are not aligned", loc);
+        return mlir::failure();
+    }
+
+    if (channelMajorConvolution && (width % NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT != 0)) {
+        log.trace("[{0}] Channel Major Convolution width not aligned", loc);
         return mlir::failure();
     }
 
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::ConvolutionOp origOp, Logger log) {
-    return verifyConvChannels(origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp origOp, Logger log) {
+    const auto inputTensorWidth = getShape(origOp.input())[Dims4D::Act::W];
+    const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
+    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
+    bool isChannelMajorConvolution =
+            VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
+
+    return verifyConvChannels(isChannelMajorConvolution, origOp->getLoc(),
+                              origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::ConvolutionOp origOp, Logger log) {
-    return verifyConvChannels(origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp origOp, Logger log) {
+    const auto inputTensorWidth = getShape(origOp.input())[Dims4D::Act::W];
+    const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
+    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
+    bool isChannelMajorConvolution =
+            VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
+
+    return verifyConvChannels(isChannelMajorConvolution, origOp->getLoc(),
+                              origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
 }
 
 //
@@ -92,11 +113,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolChannels(mlir::Location
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::MaxPoolOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::MaxPoolOp origOp, Logger log) {
     return verifyPoolChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(), log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::MaxPoolOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::MaxPoolOp origOp, Logger log) {
     return verifyPoolChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(), log);
 }
 
@@ -136,49 +157,49 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseChannels(mlir::Locat
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::AddOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::AddOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::AddOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::AddOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::MultiplyOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::MultiplyOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::MultiplyOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::MultiplyOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::SubtractOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::SubtractOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::SubtractOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::SubtractOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::AndOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::AndOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::AndOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::AndOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
@@ -225,12 +246,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvChannels(mlir::Loc
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::GroupConvolutionOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::GroupConvolutionOp origOp, Logger log) {
     return verifyGroupConvChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(),
                                    origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::GroupConvolutionOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::GroupConvolutionOp origOp, Logger log) {
     return verifyGroupConvChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(),
                                    origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
@@ -323,7 +344,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
     const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(kernelStrides));
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
-            kernelSizeVals, kernelStridesVals[Dims4D::Strides::X], inputType.getElementType(), IC);
+            VPUIP::NCETaskType::MAXPOOL, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
+            inputType.getElementType(), IC);
 
     const auto requiredCMX = getRequiredCMXForTiling({inputType, outputType}, IC) + activationWindowSize * 1_Byte;
 
@@ -462,7 +484,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(kernelStrides));
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
-            kernelSizeVals, kernelStridesVals[Dims4D::Strides::X], inputType.getElementType(), OC);
+            VPUIP::NCETaskType::DWCONV, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
+            inputType.getElementType(), OC);
 
     // consider alignment when calculating required CMX
     const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
@@ -893,18 +916,18 @@ namespace {
 
 template <class ConcreteOp>
 mlir::LogicalResult verifyConcreteOp(ConcreteOp origOp, Logger log) {
-    const auto inputShape = getShape(origOp->getOperand(0));
-    if (inputShape[Dims4D::Act::N] != 1) {
-        log.trace("Input has unsupported batch: {0}", inputShape[Dims4D::Act::N]);
-        return mlir::failure();
-    }
-
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(origOp, log))) {
         return mlir::failure();
     }
 
-    if (mlir::failed(VPUIP::NCEInvariant::verifyChannels(origOp, log))) {
-        return mlir::failure();
+    if (mlir::isa<IERT::ConvolutionOp>(origOp)) {
+        if (mlir::failed(VPUIP::NCEInvariant::verifyDims(origOp, log))) {
+            return mlir::failure();
+        }
+    } else {
+        if (mlir::failed(VPUIP::NCEInvariant::verifyDims(origOp, log))) {
+            return mlir::failure();
+        }
     }
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyCMX(origOp, log))) {

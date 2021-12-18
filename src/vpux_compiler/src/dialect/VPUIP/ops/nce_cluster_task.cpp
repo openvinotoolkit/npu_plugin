@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
@@ -19,6 +20,7 @@
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -94,8 +96,20 @@ int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
 
 void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
-            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp) {
-                info.setInput(0, DimsOrder::NHWC);
+            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
+                const auto inputTensorWidth = getShape(op.input())[Dims4D::Act::W];
+                const auto inputChannels = getShape(op.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
+                const auto inDimsOrder = DimsOrder::fromValue(op->getOperand(0));
+                // TODO: This should be
+                // const auto inDimsOrder = info.getInput(0);
+                // but it causes a compilation error in ConvertLayers2VPUIP - "Operation's input/output element types
+                // mismatch"
+
+                const auto inLayout =
+                        VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth)
+                                ? DimsOrder::NCHW
+                                : DimsOrder::NHWC;
+                info.setInput(0, inLayout);
                 info.setInput(1, DimsOrder::OYXI);
                 info.setOutput(0, DimsOrder::NHWC);
             })
@@ -158,8 +172,9 @@ mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::inferReturnTypes(
 namespace {
 
 mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch) {
-    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::CONV, "Expected task type '{0}', but got '{1}'",
-                      VPUIP::NCETaskType::CONV, op.task_type());
+    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::CONV || op.task_type() == VPUIP::NCETaskType::CMCONV,
+                      "Expected task type '{0}' or {1}, but got '{2}'", VPUIP::NCETaskType::CONV,
+                      VPUIP::NCETaskType::CMCONV, op.task_type());
 
     if (op.weights() == nullptr) {
         return errorAt(op, "weights is required for NCETaskType : '{0}'", op.task_type());
@@ -167,7 +182,11 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
     if (op.weight_table() == nullptr) {
         return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
     }
-
+    if (op.task_type() == VPUIP::NCETaskType::CMCONV) {
+        if (op.activation_window() == nullptr) {
+            return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
+        }
+    }
     if (op.kernel_sizeAttr() == nullptr) {
         return errorAt(op, "kernel_size is required for NCETaskType : '{0}'", op.task_type());
     }
@@ -208,14 +227,23 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
                        OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
     }
 
-    if (arch != VPU::ArchKind::MTL) {
+    if (arch != VPU::ArchKind::MTL && op.task_type() == VPUIP::NCETaskType::CONV) {
         if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
             return mlir::failure();
         }
     } else {
         // MTL supports ODU permutation, thus only input must have NHWC layout.
-        if (DimsOrder::fromValue(op.input()) != DimsOrder::NHWC) {
+        if (arch == VPU::ArchKind::MTL && DimsOrder::fromValue(op.input()) != DimsOrder::NHWC) {
             return mlir::failure();
+
+        const auto inOrder = DimsOrder::fromValue(op.getInputs()[0]);
+        const auto outputOrder = DimsOrder::fromValue(op.getOutputs()[0]);
+
+        if (inOrder != DimsOrder::NCHW || outputOrder != DimsOrder::NHWC) {
+            return errorAt(op,
+                           "For channel major convolution layout must be NCHW for input and NHWC for output, got input "
+                           "{0} and output {1]",
+                           inOrder, outputOrder);
         }
     }
 
@@ -398,7 +426,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
         }
     }
 
-    if (op.task_type() == VPUIP::NCETaskType::CONV) {
+    if (op.task_type() == VPUIP::NCETaskType::CONV || op.task_type() == VPUIP::NCETaskType::CMCONV) {
         if (mlir::failed(verifyNCEConv(op, arch))) {
             return mlir::failure();
         }

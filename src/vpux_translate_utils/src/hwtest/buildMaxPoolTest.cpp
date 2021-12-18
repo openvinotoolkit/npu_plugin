@@ -100,12 +100,14 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                                             : inputType;
     // Generate activation window
 
-    const auto bitPatternSize =
-            VPU::NCESparsity::getBitPatternSize(ShapeRef(filter_size), stride_vec[1], uderlyingInputType);
+    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(VPUIP::NCETaskType::MAXPOOL, ShapeRef(filter_size),
+                                                                    stride_vec[1], uderlyingInputType, in_shape[1]);
+
     mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
 
     const auto fakeSparsity =
-            VPU::NCESparsity::getFakeSparsity(ShapeRef(filter_size), stride_vec[1], uderlyingInputType, in_shape[1]);
+            VPU::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::MAXPOOL, ShapeRef(filter_size), stride_vec[1],
+                                              uderlyingInputType, in_shape[1], in_shape[1]);
 
     const auto elemType = getUInt8Type(ctx);
     int64_t numChannels = in_shape[1];
