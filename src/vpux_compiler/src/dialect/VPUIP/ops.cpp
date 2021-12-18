@@ -17,6 +17,7 @@
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
 
@@ -81,13 +82,13 @@ template <class MainOpType>
 class AlignedChannelsOpModel final :
         public IE::AlignedChannelsOpInterface::ExternalModel<AlignedChannelsOpModel<MainOpType>, MainOpType> {
 public:
-    mlir::LogicalResult verifyChannels(mlir::Operation* op) const {
+    mlir::LogicalResult verifyDims(mlir::Operation* op) const {
         if (!canBeExecutedOnNCE(op)) {
             // SW version of the operation has no specific requirements
             return mlir::success();
         }
 
-        return VPUIP::NCEInvariant::verifyChannels(mlir::cast<MainOpType>(op));
+        return VPUIP::NCEInvariant::verifyDims(mlir::cast<MainOpType>(op));
     }
 
     int64_t getChannelAlignment(mlir::Operation* op) const {
@@ -251,7 +252,7 @@ private:
         }
 
         return VPUIP::NCEInvariant::verifyKernel(op, log).succeeded() &&
-               VPUIP::NCEInvariant::verifyChannels(op, log).succeeded();
+               VPUIP::NCEInvariant::verifyDims(op, log).succeeded();
     }
 };
 
@@ -286,7 +287,7 @@ private:
         }
 
         return VPUIP::NCEInvariant::verifyKernel(op, log).succeeded() &&
-               VPUIP::NCEInvariant::verifyChannels(op, log).succeeded();
+               VPUIP::NCEInvariant::verifyDims(op, log).succeeded();
     }
 };
 
@@ -332,7 +333,7 @@ private:
             // Basic NCE invariants check failed, the operation will fallback to SW mode
             return false;
         }
-        if (VPUIP::NCEInvariant::verifyChannels(mlir::cast<OrigOpType>(op)).failed()) {
+        if (VPUIP::NCEInvariant::verifyDims(mlir::cast<OrigOpType>(op)).failed()) {
             // Basic NCE invariants check failed, the operation will fallback to SW mode
             return false;
         }

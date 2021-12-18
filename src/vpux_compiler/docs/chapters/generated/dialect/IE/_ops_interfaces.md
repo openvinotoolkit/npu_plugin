@@ -16,10 +16,10 @@ NOTE: This method *must* be implemented by the user.
 
 Interface for operations that require channel alignment
 ### Methods:
-#### `verifyChannels`
+#### `verifyDims`
 
 ```c++
-mlir::LogicalResult verifyChannels();
+mlir::LogicalResult verifyDims();
 ```
 Verify channel alignement
 NOTE: This method *must* be implemented by the user.

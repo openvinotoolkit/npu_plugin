@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/enums.hpp"
@@ -34,11 +35,14 @@ using PPEConverterCb = int32_t (*)(unsigned, unsigned, double, mlir::Type);
 extern const EnumMap<ArchKind, PPEConverterCb> ppeConvertersMap;
 extern const EnumMap<ArchKind, BiasConverterCb> biasConvertersMap;
 
-int64_t getBitPatternSize(ShapeRef kernelSize, int64_t SX, mlir::Type elemType);
+int64_t getBitPatternSize(vpux::VPUIP::NCETaskType taskType, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
+                          int64_t IC);
 
-int64_t getActivationWindowSize(ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);
+int64_t getActivationWindowSize(vpux::VPUIP::NCETaskType taskType, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
+                                int64_t IC);
 
-std::vector<uint8_t> getFakeSparsity(ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);
+std::vector<uint8_t> getFakeSparsity(vpux::VPUIP::NCETaskType taskType, ShapeRef kernelSize, int64_t SX,
+                                     mlir::Type elemType, int64_t IC, int64_t OC);
 
 std::vector<int32_t> getWeightsTable(mlir::Type inElemType, mlir::Type outElemType, Optional<int32_t> weightPtrOffset,
                                      int32_t weightPtrStep, Optional<int32_t> sparsityPtrOffset, ArchKind arch,
