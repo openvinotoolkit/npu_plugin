@@ -23,7 +23,7 @@
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
-#include <ngraph_ops/convolution_ie.hpp>
+#include <legacy/ngraph_ops/convolution_ie.hpp>
 
 using namespace vpux;
 
