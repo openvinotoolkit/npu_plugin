@@ -44,27 +44,23 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
         SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps) {
     _log.trace("Remove redundant Spill Writes");
 
-    // Flow for identifying if SpillWrite can be removed
-    // 1. Traverse scheduledOps container for SpillWrite type ops
-    // 2. Redundant Spill Write detection
-    //   - Check if matching SpillWrite was already encountered
-    // 3. Store information about SpillWrite
-    // 4. Remove all previously identified redundant SpillWrite operations
-    //    from scheduledOps structure
-
     SmallVector<size_t> spillWriteIndexes;
     std::map<size_t, size_t> spillWriteReadIndexMap;
     std::map<size_t, size_t> duplicateSpillWritePrevReadIndexMap;
 
+    // Traverse whole scheduled ops structure and check each spill write/read op
     for (size_t index = 0; index < scheduledOps.size(); index++) {
         auto& op = scheduledOps[index];
         if (op.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_WRITE) {
             _log.trace("SPILL WRITE for op '{0}', idx - '{1}'", op.op_, index);
+            // For each spill write op check if this is a duplicate by comparing op number and buffer of each
+            // previously encountered spill writes
             for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
                  spillWriteIndexIt++) {
                 if (scheduledOps[*spillWriteIndexIt].op_ == op.op_ &&
                     scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
-                    // Duplication detected
+                    // If op and buffer match then duplicate was detected
+                    // Store information about duplicate spill write and previous spill read of same buffer
                     duplicateSpillWritePrevReadIndexMap[index] = spillWriteReadIndexMap[*spillWriteIndexIt];
                     _log.nest().trace(
                             "Duplicate spill for op '{0}': SPILL WRITE idx - '{1}' , previous SPILL READ idx - '{2}'",
@@ -72,9 +68,11 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
                     break;
                 }
             }
+            // Store information about position of each spill write for reference
             spillWriteIndexes.push_back(index);
         } else if (op.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_READ) {
-            // Find corresponding SpillRead
+            // For each spill read find a corresponding spill write to create
+            // database of such spii write-read pairs
             _log.trace("SPILL READ for op '{0}', idx - '{1}'", op.op_, index);
             for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
                  spillWriteIndexIt++) {
@@ -91,28 +89,21 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
     _log.trace("Spills detected - '{0}', spill writes to remove - '{1}'", spillWriteReadIndexMap.size(),
                duplicateSpillWritePrevReadIndexMap.size());
 
-    _log.trace("Spill writes - {0}, duplicate spill writes - {1}", spillWriteReadIndexMap.size(),
-               duplicateSpillWritePrevReadIndexMap.size());
-    _log.trace("spillWriteReadIndexMap size - {0}", spillWriteReadIndexMap.size());
+    // DEBUG LOG
     std::cout << "spillWriteReadIndexMap size - " << spillWriteReadIndexMap.size() << "\n";
     for (auto& el : spillWriteReadIndexMap) {
         std::cout << "  spill write - " << el.first << " , read - " << el.second << "\n";
-        _log.nest().trace("spill write - {0} , read - {1}", el.first, el.second);
     }
 
+    // DEBUG LOG
     _log.trace("duplicateSpillWritePrevReadIndexMap size - {0}", duplicateSpillWritePrevReadIndexMap.size());
-    std::cout << "duplicateSpillWritePrevReadIndexMap size - " << duplicateSpillWritePrevReadIndexMap.size() << "\n";
     for (auto& el : duplicateSpillWritePrevReadIndexMap) {
         std::cout << "  duplicate spill write - " << el.first << " , prev read - " << el.second << "\n";
-        _log.nest().trace("duplicate spill write - {0} , prev read - {1}", el.first, el.second);
     }
 
-    std::cout << "Spill write to remove size- " << duplicateSpillWritePrevReadIndexMap.size() << "\n";
     // Remove in reverse order to have indexes valid after erasing entries in scheduledOp
     for (auto opIt = duplicateSpillWritePrevReadIndexMap.rbegin(); opIt != duplicateSpillWritePrevReadIndexMap.rend();
          opIt++) {
-        std::cout << "  spill write to remove - " << opIt->first << "\n";
-        _log.nest().trace("spill write to remove- {0}", opIt->first);
         scheduledOps.erase(scheduledOps.begin() + opIt->first);
     }
 }
