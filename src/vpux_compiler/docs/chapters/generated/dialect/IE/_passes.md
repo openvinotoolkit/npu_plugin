@@ -98,6 +98,11 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass splits operations so that they are able to be infered with symmetric strides
     on dpu because of hardware limitation.
+### `-handle-large-kernels`: Handle large kernels ops
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces average pooling layers that have kernels bigger than supported by hardware (11x11),
+with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13).
 ### `-handle-large-strides`: Handle operations with large strides
 This pass splits operations with strides larger than supported on hardware.
 ### `-isolated-tiling`: Tile layers in isolation so that all their I/O fit into requirements
@@ -113,11 +118,6 @@ This pass converts `MatMul` inputs to 2d.
 
 For example, `MatMul` input with 4x1x64 geometry will be split to four inputs with 1x64 dimensions.
 Resulting inputs with filters go to `MatMul` operations and the outputs are concatenated.
-### `-handle-large-kernels`: Handle large kernels ops
-The pass is a part of `AdjustForVPU` pipeline.
-
-This pass replaces average pooling layers that have kernels bigger than supported by hardware (11x11),
-with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13).
 ### `-merge-fake-quant`: Merge back to FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 

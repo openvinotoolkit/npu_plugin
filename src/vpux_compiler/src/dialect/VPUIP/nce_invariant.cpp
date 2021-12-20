@@ -531,7 +531,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::Convolution
     if (tiling.size() <= 1)
         return mlir::failure();
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    const auto cmxSize = getCMXSize(module);  // TODO set a max memory usage ratio to avoid fragmentation.
+    const auto cmxSize = getCMXSizeForTiling(module);  // TODO set a max memory usage ratio to avoid fragmentation.
 
     Byte requiredCMX = Byte(0);
 
@@ -558,19 +558,21 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::Convolution
 
     if (isWeightPrefetch) {
         const auto nextOC = getShape(nextFilterTileType)[Dims4D::Filter::OC];
-        requiredCMX += std::max(getRequiredCMX(
+        requiredCMX += std::max(getRequiredCMXForTiling(
                                         {// Computing current tile, prefetch the next tile.
                                          curInputTileType, curFilterTileType, curOutputTileType, nextFilterTileType},
                                         curOC + nextOC),
-                                getRequiredCMX(
+                                getRequiredCMXForTiling(
                                         {//  Current tile computation finishes, copying out
                                          //  Next tile about to start computation
                                          curInputTileType, curOutputTileType, nextFilterTileType, nextOutputTileType},
                                         nextOC));
     } else {
-        requiredCMX += std::max(
-                getRequiredCMX({curInputTileType, curFilterTileType, curOutputTileType, nextInputTileType}, curOC),
-                getRequiredCMX({curFilterTileType, curOutputTileType, nextInputTileType, nextOutputTileType}, curOC));
+        requiredCMX +=
+                std::max(getRequiredCMXForTiling(
+                                 {curInputTileType, curFilterTileType, curOutputTileType, nextInputTileType}, curOC),
+                         getRequiredCMXForTiling(
+                                 {curFilterTileType, curOutputTileType, nextInputTileType, nextOutputTileType}, curOC));
     }
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'",
@@ -599,7 +601,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp o
     if (tiling.size() <= 1)
         return mlir::failure();
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    const auto cmxSize = getCMXSize(module);  // TODO set a max memory usage ratio to avoid fragmentation.
+    const auto cmxSize = getCMXSizeForTiling(module);  // TODO set a max memory usage ratio to avoid fragmentation.
 
     Byte requiredCMX = Byte(0);
 
@@ -632,10 +634,101 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp o
             parseIntArrayAttr<int64_t>(origOp.kernel_sizeAttr()), parseIntArrayAttr<int64_t>(origOp.stridesAttr())[0],
             inType.getElementType(), nextIC);
 
-    requiredCMX += std::max(getRequiredCMX({curInputTileType, curOutputTileType, nextInputTileType}, curIC + nextIC) +
-                                    Byte(curActivationWindowSize + nextActivationWindowSize),
-                            getRequiredCMX({curOutputTileType, nextInputTileType, nextOutputTileType}, nextIC) +
-                                    Byte(nextActivationWindowSize));
+    requiredCMX +=
+            std::max(getRequiredCMXForTiling({curInputTileType, curOutputTileType, nextInputTileType}, curIC + nextIC) +
+                             Byte(curActivationWindowSize + nextActivationWindowSize),
+                     getRequiredCMXForTiling({curOutputTileType, nextInputTileType, nextOutputTileType}, nextIC) +
+                             Byte(nextActivationWindowSize));
+    if (requiredCMX > cmxSize) {
+        log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'",
+                  origOp->getLoc(), cmxSize, requiredCMX);
+        return mlir::failure();
+    }
+
+    return mlir::success();
+}
+
+SmallVector<mlir::ShapedType> getTileTypes(IE::GroupConvolutionOp origOp, const TileInfo& outTile) {
+    const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+    auto tileConf =
+            vpux::backInferGroupConvTile(outTile, getShape(origOp.input()), getShape(origOp.filter()), origBiasShape,
+                                         origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+
+    SmallVector<mlir::ShapedType> tileTypes;
+
+    tileTypes.push_back(addTiledType(tileConf.tiles[0], origOp.input()));
+    tileTypes.push_back(addTiledType(tileConf.tiles[1], origOp.filter()));
+    tileTypes.push_back(getDenseTileType(origOp.getType(), outTile.offsets, outTile.shape));
+
+    return tileTypes;
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::GroupConvolutionOp origOp,
+                                                                 vpux::OutputTiling tiling, Logger log) {
+    log.setName("NCEInvariant");
+    if (tiling.size() <= 1)
+        return mlir::failure();
+    auto module = origOp->getParentOfType<mlir::ModuleOp>();
+    const auto cmxSize = getCMXSizeForTiling(module);  // TODO set a max memory usage ratio to avoid fragmentation.
+
+    Byte requiredCMX = Byte(0);
+
+    auto curTile = tiling[0];
+    auto nextTile = tiling[1];
+    bool isWeightPrefetch = curTile.axis[Dims4D::Act::C] > 1;
+    if (isWeightPrefetch && curTile.axis[Dims4D::Act::H] > 1) {
+        // Nested tiling is not supported for prefetch tiling
+        return mlir::failure();
+    }
+
+    const auto& curTileTypes = getTileTypes(origOp, curTile);
+    const auto& nextTileTypes = getTileTypes(origOp, nextTile);
+
+    const auto curOC = getShape(curTileTypes[1])[Dims4D::Filter::OC];
+
+    const auto curInputTileType = curTileTypes[0];
+    const auto curFilterTileType = curTileTypes[1];
+    const auto curOutputTileType = curTileTypes[2];
+
+    const auto nextInputTileType = nextTileTypes[0];
+    const auto nextFilterTileType = nextTileTypes[1];
+    const auto nextOutputTileType = nextTileTypes[2];
+
+    const auto curIC = getShape(curInputTileType)[Dims4D::Act::C];
+    const auto nextIC = getShape(nextInputTileType)[Dims4D::Act::C];
+    const auto inType = origOp.input().getType().cast<mlir::RankedTensorType>();
+
+    const auto kernelSizeVals = SmallVector<int64_t>{getShape(curFilterTileType)[Dims4D::Filter::KX],
+                                                     getShape(curFilterTileType)[Dims4D::Filter::KY]};
+
+    const auto curActivationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(
+            kernelSizeVals, parseIntArrayAttr<int64_t>(origOp.stridesAttr())[0], inType.getElementType(), curIC);
+    const auto nextActivationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(
+            kernelSizeVals, parseIntArrayAttr<int64_t>(origOp.stridesAttr())[0], inType.getElementType(), nextIC);
+
+    if (isWeightPrefetch) {
+        const auto nextOC = getShape(nextFilterTileType)[Dims4D::Filter::OC];
+        requiredCMX += std::max(
+                getRequiredCMXForTiling(
+                        {// Computing current tile, prefetch the next tile.
+                         curInputTileType, curFilterTileType, curOutputTileType, nextInputTileType, nextFilterTileType},
+                        curOC + nextOC) +
+                        Byte(curActivationWindowSize + nextActivationWindowSize),
+                getRequiredCMXForTiling(
+                        {//  Current tile computation finishes, copying out
+                         //  Next tile about to start computation
+                         curOutputTileType, nextInputTileType, nextFilterTileType, nextOutputTileType},
+                        nextOC) +
+                        Byte(nextActivationWindowSize));
+    } else {
+        requiredCMX +=
+                std::max(getRequiredCMXForTiling(
+                                 {curInputTileType, curFilterTileType, curOutputTileType, nextInputTileType}, curOC) +
+                                 Byte(curActivationWindowSize + nextActivationWindowSize),
+                         getRequiredCMXForTiling(
+                                 {curFilterTileType, curOutputTileType, nextInputTileType, nextOutputTileType}, curOC) +
+                                 Byte(nextActivationWindowSize));
+    }
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'",
                   origOp->getLoc(), cmxSize, requiredCMX);
@@ -668,7 +761,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwisePrefetchCMX(mlir::Op
     if (tiling.size() <= 1)
         return mlir::failure();
     auto module = op->getParentOfType<mlir::ModuleOp>();
-    const auto cmxSize = getCMXSize(module);  // TODO set a max memory usage ratio to avoid fragmentation.
+    const auto cmxSize = getCMXSizeForTiling(module);  // TODO set a max memory usage ratio to avoid fragmentation.
 
     Byte requiredCMX = Byte(0);
 
@@ -687,10 +780,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwisePrefetchCMX(mlir::Op
     const auto nextOutputTileType = nextTileTypes[2];
 
     requiredCMX += std::max(
-            getRequiredCMX(
+            getRequiredCMXForTiling(
                     {curInputTileType1, curInputTileType2, curOutputTileType, nextInputTileType1, nextInputTileType2},
                     0),
-            getRequiredCMX({curOutputTileType, nextInputTileType1, nextInputTileType2, nextOutputTileType}, 0));
+            getRequiredCMXForTiling({curOutputTileType, nextInputTileType1, nextInputTileType2, nextOutputTileType},
+                                    0));
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'", op->getLoc(),
                   cmxSize, requiredCMX);

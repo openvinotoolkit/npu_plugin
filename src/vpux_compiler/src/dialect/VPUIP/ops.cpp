@@ -282,10 +282,25 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, ShapeRef tileAxis, Logg
            isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
-bool isSupportedPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, ShapeRef /*tileAxis*/, Logger /*log*/) {
-    //  GroupConvolution has been tiled over C according to the chanAlignment
-    //  No more prefetch tiling applied
-    return false;
+bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
+    auto outputShape = getShape(origOp.output());
+    auto tileDims = getTileDims(tileAxis);
+    if (tileDims.size() != 1)
+        return false;
+    auto tileDim = tileDims[0];
+
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
+        return false;
+    }
+
+    auto isMemPrefetchable = [&]() -> bool {
+        auto tileResult = fillDividedTiles(tileAxis, outputShape);
+        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
+    };
+
+    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
+           isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
 bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, ShapeRef tileAxis, Logger log) {
