@@ -62,13 +62,6 @@ bool vpux::PrefetchEdgeGenerator::allDataOpDependenciesExecuted(operationIdxType
     // the activation from being prefetched and reducing the availible free NNCMX
     // size as it will not be scheduled at that time but some other data op might
 
-    if (_depsInfo.getOpDeps(dataIdx).empty()) {
-        return true;
-    }
-    return false;
-
-    // TODO: enable activation prefetching
-
     // check if all dependencies of the operations were executed
     for (auto opDepIdx : _depsInfo.getOpDeps(dataIdx)) {
         // if a dependency was not executed this op can not be prefetched at this time
