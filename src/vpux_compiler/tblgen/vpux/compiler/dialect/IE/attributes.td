@@ -53,6 +53,7 @@ def IE_TensorAttr :
             [
                 StructFieldAttr<"order", OptionalAttr<AffineMapAttr>>,
                 StructFieldAttr<"mem_space", OptionalAttr<AnyAttr>>,
+                StructFieldAttr<"sparse", OptionalAttr<UnitAttr>>,
             ]
         >;
 

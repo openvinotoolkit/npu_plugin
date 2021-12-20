@@ -53,13 +53,15 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
     list<string> elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     bit checkInferredDimsOrder = 0;
     bit checkInferredMemSpace = 0;
+    bit checkInferredSparsity = 0;
 
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
             return vpux::IE::isCompatibleTensorTypes(lhs, rhs,
                 }] # !interleave(elemComparisonModes, "|") # [{,
                 static_cast<bool>(}] # checkInferredDimsOrder # [{),
-                static_cast<bool>(}] # checkInferredMemSpace # [{)
+                static_cast<bool>(}] # checkInferredMemSpace # [{),
+                static_cast<bool>(}] # checkInferredSparsity # [{)
             );
         }
     }];
@@ -1026,6 +1028,7 @@ def IE_ReshapeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -1058,6 +1061,7 @@ def IE_SqueezeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -1091,6 +1095,7 @@ def IE_UnsqueezeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -2622,6 +2627,7 @@ def IE_PermuteCastOp :
 
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -2728,6 +2734,7 @@ def IE_AffineReshapeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //

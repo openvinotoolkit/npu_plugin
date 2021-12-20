@@ -26,25 +26,26 @@ using namespace vpux;
 // TensorAttr
 //
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMapAttr order, mlir::Attribute memSpace) {
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMapAttr order, mlir::Attribute memSpace, bool sparse) {
     // Initially, tensors do not have an encoding attribute, which is equivalent to an empty TensorAttr.
     // But in fact, such tensors have a different type: `tensor<1x8x4x2xf16> != tensor<1x8x4x2xf16, {}>`.
     // So let's not use empty attributes to avoid ambiguous representation of the same type.
-    if ((order == nullptr || order.getValue().isIdentity()) && memSpace == nullptr) {
+    if ((order == nullptr || order.getValue().isIdentity()) && memSpace == nullptr && !sparse) {
         return nullptr;
     }
 
     auto* ctx = order != nullptr ? order.getContext() : memSpace.getContext();
+    auto sparseAttr = sparse ? mlir::UnitAttr::get(ctx) : nullptr;
 
-    return IE::TensorAttr::get(order, memSpace, ctx);
+    return IE::TensorAttr::get(order, memSpace, sparseAttr, ctx);
 }
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMap order, mlir::Attribute memSpace) {
-    return IE::getTensorAttr(mlir::AffineMapAttr::get(order), memSpace);
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMap order, mlir::Attribute memSpace, bool sparse) {
+    return IE::getTensorAttr(mlir::AffineMapAttr::get(order), memSpace, sparse);
 }
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::Attribute memSpace) {
-    return IE::getTensorAttr(order.toAffineMap(ctx), memSpace);
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::Attribute memSpace, bool sparse) {
+    return IE::getTensorAttr(order.toAffineMap(ctx), memSpace, sparse);
 }
 
 IE::TensorAttr vpux::IE::getTensorAttr(mlir::RankedTensorType type) {
@@ -75,6 +76,14 @@ mlir::Attribute vpux::IE::getMemorySpace(mlir::RankedTensorType type) {
     }
 
     return nullptr;
+}
+
+bool vpux::IE::isSparse(mlir::RankedTensorType type) {
+    if (const auto desc = IE::getTensorAttr(type)) {
+        return desc.sparse() != nullptr;
+    }
+
+    return false;
 }
 
 //
