@@ -49,8 +49,10 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
     // step 2: increase the general tile strategy to satisfy prefetching
     const auto targetDim = dimsToTile[0];
     Shape prefetchableTilesOnDim = nTilesOnDim;
-    while (prefetchableTilesOnDim[targetDim] < 3 * nTilesOnDim[targetDim] &&  // do not tile too much for prefetching
+    while (prefetchableTilesOnDim[targetDim] < 3 * nTilesOnDim[targetDim] &&
            !tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)) {
+        // The "3" here is an experimental number from MCM activation prefetch pass.
+        // The purpose is to avoid excessive tiling.
         prefetchableTilesOnDim[targetDim]++;
     }
 
