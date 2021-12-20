@@ -171,7 +171,9 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkM
     try {
         auto localConfig = mergeConfigs(_globalConfig, config, OptionMode::RunTime);
         auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
-        return std::make_shared<ExecutableNetwork>(networkModel, device, localConfig);
+        const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, device, localConfig);
+        executableNetwork->SetPointerToPlugin(shared_from_this());
+        return executableNetwork;
     } catch (const std::exception&) {
         throw;
     } catch (...) {
@@ -186,7 +188,9 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkM
     try {
         auto localConfig = mergeConfigs(_globalConfig, config, OptionMode::RunTime);
         auto device = _backends->getDevice(context);
-        return std::make_shared<ExecutableNetwork>(networkModel, device, localConfig);
+        const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, device, localConfig);
+        executableNetwork->SetPointerToPlugin(shared_from_this());
+        return executableNetwork;
     } catch (const std::exception&) {
         throw;
     } catch (...) {

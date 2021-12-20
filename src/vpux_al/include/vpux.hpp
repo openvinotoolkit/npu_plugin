@@ -153,7 +153,10 @@ public:
         return _actual->getPhysicalAddress(handle);
     }
 
-    ~AllocatorWrapper() = default;
+    ~AllocatorWrapper() {
+        // It's necessary to destroy _actual before _plg to avoid potential program crashes
+        _actual = nullptr;
+    };
 };
 
 //------------------------------------------------------------------------------
@@ -212,7 +215,10 @@ public:
         return _actual->getName();
     }
 
-    ~Device() = default;
+    ~Device() {
+        // It's necessary to destroy _actual before _plg to avoid potential program crashes
+        _actual = nullptr;
+    }
 };
 //------------------------------------------------------------------------------
 using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;

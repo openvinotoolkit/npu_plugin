@@ -205,7 +205,8 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*PrePostProcessTest.*",
                 ".*PreprocessingPrecisionConvertTest.*",
                 ".*SetPreProcessToInputInfo.*",
-                ".*InferRequestPreprocess.*"
+                ".*InferRequestPreprocess.*",
+                ".*HoldersTestOnImportedNetwork.*"
             }
         );
 
