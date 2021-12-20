@@ -456,3 +456,140 @@ func @main(%in: memref<100000xf16>, %out: memref<100000xf16>) -> memref<100000xf
 }
 
 }
+
+// -----
+
+// CHECK-LABEL: @SpillWriteOptimize
+module @SpillWriteOptimize {
+
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        DataInfo "data" : tensor<1x120000xf16>
+    }
+    outputsInfo : {
+        DataInfo "prob" : tensor<1x120000xf16>
+    }
+
+func @main(%in: memref<1x120000xf16>, %out: memref<1x120000xf16>) -> memref<1x120000xf16> {
+    %cst0 = const.Declare memref<1x120000xf16> = #const.Content<dense<2.0> : tensor<1x120000xf16>>
+//    %cst1 = const.Declare memref<1x120000xf16> = #const.Content<dense<3.0> : tensor<1x120000xf16>>
+
+    %buf_in = memref.alloc() : memref<1x120000xf16, "CMX_NN">
+
+    %buf0 = memref.alloc() : memref<1x120000xf16, "CMX_NN">
+    %buf1 = memref.alloc() : memref<1x120000xf16, "CMX_NN">
+    %buf2 = memref.alloc() : memref<1x120000xf16, "CMX_NN">
+    %buf3 = memref.alloc() : memref<1x120000xf16, "CMX_NN">
+    %buf4 = memref.alloc() : memref<1x120000xf16, "CMX_NN">
+    %buf5 = memref.alloc() : memref<1x120000xf16, "CMX_NN">
+    %buf6 = memref.alloc() : memref<1x120000xf16, "CMX_NN">
+
+    %t_in, %r_in = async.execute -> !async.value<memref<1x120000xf16, "CMX_NN">> {
+        %0 = IERT.Copy inputs(%in : memref<1x120000xf16>) outputs(%buf_in : memref<1x120000xf16, "CMX_NN">) -> memref<1x120000xf16, "CMX_NN">
+        async.yield %0 : memref<1x120000xf16, "CMX_NN">
+    }
+
+    %t0, %r0 = async.execute -> !async.value<memref<1x120000xf16, "CMX_NN">> {
+        %0 = IERT.Copy inputs(%cst0 : memref<1x120000xf16>) outputs(%buf0 : memref<1x120000xf16, "CMX_NN">) -> memref<1x120000xf16, "CMX_NN">
+        async.yield %0 : memref<1x120000xf16, "CMX_NN">
+    }
+
+    %t1, %r1 = async.execute [%t_in] (%r_in as %0 : !async.value<memref<1x120000xf16, "CMX_NN">>)
+            -> !async.value<memref<1x120000xf16, "CMX_NN">> {
+        %1 = IERT.ReLU inputs(%0: memref<1x120000xf16, "CMX_NN">) outputs(%buf1 : memref<1x120000xf16, "CMX_NN">) -> memref<1x120000xf16, "CMX_NN">
+        async.yield %1 : memref<1x120000xf16, "CMX_NN">
+    }
+
+    %t2, %r2 = async.execute [%t0, %t1] (%r0 as %0 : !async.value<memref<1x120000xf16, "CMX_NN">>, %r1 as %1 : !async.value<memref<1x120000xf16, "CMX_NN">>)
+            -> !async.value<memref<1x120000xf16, "CMX_NN">> {
+        %2 = IERT.Add inputs(%0: memref<1x120000xf16, "CMX_NN">, %1: memref<1x120000xf16, "CMX_NN">) outputs(%buf2 : memref<1x120000xf16, "CMX_NN">) -> memref<1x120000xf16, "CMX_NN">
+        async.yield %2 : memref<1x120000xf16, "CMX_NN">
+    }
+
+    %t3, %r3 = async.execute [%t_in, %t2] (%r_in as %0 : !async.value<memref<1x120000xf16, "CMX_NN">>, %r2 as %1 : !async.value<memref<1x120000xf16, "CMX_NN">>)
+            -> !async.value<memref<1x120000xf16, "CMX_NN">> {
+        %2 = IERT.Add inputs(%0: memref<1x120000xf16, "CMX_NN">, %1: memref<1x120000xf16, "CMX_NN">) outputs(%buf3 : memref<1x120000xf16, "CMX_NN">) -> memref<1x120000xf16, "CMX_NN">
+        async.yield %2 : memref<1x120000xf16, "CMX_NN">
+    }
+
+    %t4, %r4 = async.execute [%t3] -> !async.value<memref<1x120000xf16, "CMX_NN">> {
+        %0 = IERT.Copy inputs(%cst0 : memref<1x120000xf16>) outputs(%buf4 : memref<1x120000xf16, "CMX_NN">) -> memref<1x120000xf16, "CMX_NN">
+        async.yield %0 : memref<1x120000xf16, "CMX_NN">
+    }
+
+    %t5, %r5 = async.execute [%t3, %t4] (%r3 as %0 : !async.value<memref<1x120000xf16, "CMX_NN">>, %r4 as %1 : !async.value<memref<1x120000xf16, "CMX_NN">>)
+            -> !async.value<memref<1x120000xf16, "CMX_NN">> {
+        %2 = IERT.Add inputs(%0: memref<1x120000xf16, "CMX_NN">, %1: memref<1x120000xf16, "CMX_NN">) outputs(%buf5 : memref<1x120000xf16, "CMX_NN">) -> memref<1x120000xf16, "CMX_NN">
+        async.yield %2 : memref<1x120000xf16, "CMX_NN">
+    }
+
+    %t6, %r6 = async.execute [%t_in, %t5] (%r_in as %0 : !async.value<memref<1x120000xf16, "CMX_NN">>, %r5 as %1 : !async.value<memref<1x120000xf16, "CMX_NN">>)
+            -> !async.value<memref<1x120000xf16, "CMX_NN">> {
+        %2 = IERT.Add inputs(%0: memref<1x120000xf16, "CMX_NN">, %1: memref<1x120000xf16, "CMX_NN">) outputs(%buf6 : memref<1x120000xf16, "CMX_NN">) -> memref<1x120000xf16, "CMX_NN">
+        async.yield %2 : memref<1x120000xf16, "CMX_NN">
+    }
+
+    %t7, %r7 = async.execute [%t6] (%r6 as %0 : !async.value<memref<1x120000xf16, "CMX_NN">>)
+            -> !async.value<memref<1x120000xf16>> {
+        %1 = IERT.Copy inputs(%0 : memref<1x120000xf16, "CMX_NN">) outputs(%out : memref<1x120000xf16>) -> memref<1x120000xf16>
+        async.yield %1 : memref<1x120000xf16>
+    }
+
+    %result = async.await %r7 : !async.value<memref<1x120000xf16>>
+    return %result : memref<1x120000xf16>
+
+    // CHECK:       [[BUF_SPILL_WRITE:%.*]] = memref.alloc() : memref<1x120000xf16, "DDR">
+    // CHECK:       [[BUF_SPILL_READ0:%.*]] = IERT.StaticAlloc<
+    // CHECK:       [[BUF_SPILL_READ1:%.*]] = IERT.StaticAlloc<
+
+    // Operation 0 whose output will be later spilled
+    // CHECK:       [[T0:%.+]], [[R0:%.+]] = async.execute ->
+    // CHECK-NEXT:       IERT.Copy inputs(%arg0 : memref<1x120000xf16>) outputs([[BUF_TO_SPILL:%.*]] :
+
+    // CHECK:       [[T1:%.+]], [[R1:%.+]] = async.execute ->
+    // CHECK-NEXT:       IERT.Copy
+
+    // CHECK:       [[T2:%.+]], [[R2:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.ReLU
+
+    // First SPILL WRITE for buffer from operation 0
+    // CHECK:       [[T3:%.+]], [[R3:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Copy inputs([[BUF_TO_SPILL]] : memref<1x120000xf16, "CMX_NN">) outputs([[BUF_SPILL_WRITE]] : memref<1x120000xf16, "DDR">)
+
+    // CHECK:       [[T4:%.+]], [[R4:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Add
+
+    // First SPILL READ of spilled buffer from operation 0
+    // CHECK:       [[T5:%.+]], [[R5:%.+]] = async.execute
+    // CHECK-SAME:      ([[R3]] as [[ARG0:%.*]]: !async.value<memref<1x120000xf16, "DDR">>
+    // CHECK:       IERT.Copy inputs([[ARG0]] : memref<1x120000xf16, "DDR">) outputs([[BUF_SPILL_READ0]] : memref<1x120000xf16, "CMX_NN">)
+
+    // CHECK:       [[T6:%.+]], [[R6:%.+]] = async.execute
+    // CHECK-SAME:      ([[R5]] as [[ARG1:%.*]]: !async.value<memref<1x120000xf16, "CMX_NN">>,
+    // CHECK:       IERT.Add inputs
+    // CHECK-SAME:      [[ARG1]] : memref<1x120000xf16, "CMX_NN">
+
+    // CHECK:       [[T7:%.+]], [[R7:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Copy
+
+    // Here second SPILL WRITE of operation 0 output would be inserted if no optimization was performed
+    
+    // CHECK:       [[T8:%.+]], [[R8:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Add
+
+    // Second SPILL READ of spilled buffer from operation 0
+    // CHECK:       [[T9:%.+]], [[R9:%.+]] = async.execute
+    // CHECK-SAME:      ([[R3]] as [[ARG2:%.*]]: !async.value<memref<1x120000xf16, "DDR">>
+    // CHECK:       IERT.Copy inputs([[ARG2]] : memref<1x120000xf16, "DDR">) outputs([[BUF_SPILL_READ1]] : memref<1x120000xf16, "CMX_NN">)
+
+    // CHECK:       [[T10:%.+]], [[R10:%.+]] = async.execute
+    // CHECK-SAME:      ([[R9]] as [[ARG3:%.*]]: !async.value<memref<1x120000xf16, "CMX_NN">>,
+    // CHECK:       IERT.Add inputs
+    // CHECK-SAME:      [[ARG3]] : memref<1x120000xf16, "CMX_NN">
+
+    // CHECK:       [[T11:%.+]], [[R11:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Copy
+}
+
+}
