@@ -25,16 +25,16 @@ static constexpr StringLiteral virtualIdAttrName = "virtualId";
 
 class RuntimeSimulator final {
 public:
-    struct TaskInfo {
-        VPURT::TaskOp taskOp;
-        SmallVector<int64_t> waitBarriers;
-        SmallVector<int64_t> updateBarriers;
+    // struct TaskInfo {
+    //     VPURT::TaskOp taskOp;
+    //     SmallVector<int64_t> waitBarriers;
+    //     SmallVector<int64_t> updateBarriers;
 
-        TaskInfo() {
-        }
-        TaskInfo(VPURT::TaskOp taskOp): taskOp(taskOp) {
-        }
-    };
+    //     TaskInfo() {
+    //     }
+    //     TaskInfo(VPURT::TaskOp taskOp): taskOp(taskOp) {
+    //     }
+    // };
 
     struct VirtualBarrierInfo {
         int64_t realId;
@@ -60,22 +60,14 @@ public:
     void computeOpIndegree();
     void computeOpOutdegree();
     std::pair<int64_t, int64_t> getID(mlir::Operation* val) const;
-    bool processTasks(std::vector<TaskInfo>& dma_task_list);
+    bool processTasks(std::vector<VPURT::TaskOp>& dma_task_list);
     bool fillBarrierTasks(std::list<VPURT::DeclareVirtualBarrierOp>& barrier_task_list);
     int64_t getVirtualId(VPURT::ConfigureBarrierOp op);
-    bool isTaskReadyByBarrierMap(VPURT::TaskOp taskOp);
-    void processTaskByBarrierMap(VPURT::TaskOp task);
-    bool processTasksByBarrierMap(std::vector<TaskInfo>& dma_task_list);
-    bool simulate(std::list<VPURT::DeclareVirtualBarrierOp>& barrierOps,
-                  std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>>& barrierProducersMap,
-                  std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>>& barrierConsumersMap,
-                  std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
-                          configureTaskOpUpdateWaitMap);
 
 private:
-    std::vector<TaskInfo> _nceTasks;
-    std::vector<TaskInfo> _upaTasks;
-    std::array<std::vector<TaskInfo>, MAX_DMA_ENGINES> _dmaTasks;
+    std::vector<VPURT::TaskOp> _nceTasks;
+    std::vector<VPURT::TaskOp> _upaTasks;
+    std::array<std::vector<VPURT::TaskOp>, MAX_DMA_ENGINES> _dmaTasks;
     std::list<VPURT::DeclareVirtualBarrierOp> _barrierOps;
     std::map<mlir::Operation*, std::pair<int64_t, int64_t>> _virtualToPhysicalBarrierMap;
 
@@ -97,7 +89,7 @@ private:
     typedef std::unordered_map<mlir::Operation*, active_barrier_info_t> active_barrier_table_t;
     typedef active_barrier_table_t::iterator active_barrier_table_iterator_t;
     typedef std::list<VPURT::DeclareVirtualBarrierOp>::iterator barrier_list_iterator_t;
-    typedef std::vector<TaskInfo>::iterator taskInfo_iterator_t;
+    typedef std::vector<VPURT::TaskOp>::iterator taskInfo_iterator_t;
     typedef std::unordered_map<mlir::Operation*, size_t> in_degree_map_t;
     typedef std::unordered_map<mlir::Operation*, size_t> out_degree_map_t;
 

@@ -42,23 +42,6 @@ int64_t RuntimeSimulator::getVirtualId(VPURT::ConfigureBarrierOp op) {
 void RuntimeSimulator::buildTaskLists() {
     _log.trace("Building task lists");
 
-    auto getTaskInfo = [&](VPURT::TaskOp taskOp) {
-        TaskInfo taskInfo(taskOp);
-        for (auto waitBarrier : taskOp.waitBarriers()) {
-            if (auto barrierOp = mlir::dyn_cast<VPURT::ConfigureBarrierOp>(waitBarrier.getDefiningOp())) {
-                const auto virtualId = getVirtualId(barrierOp);
-                taskInfo.waitBarriers.push_back(virtualId);
-            }
-        }
-        for (auto updateBarrier : taskOp.updateBarriers()) {
-            if (auto barrierOp = mlir::dyn_cast<VPURT::ConfigureBarrierOp>(updateBarrier.getDefiningOp())) {
-                const auto virtualId = getVirtualId(barrierOp);
-                taskInfo.updateBarriers.push_back(virtualId);
-            }
-        }
-        return taskInfo;
-    };
-
     // The task lists have to be populated in the same order as during the serialization phase
     // to ensure that the correct simulation occurs
     _func.walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
@@ -88,20 +71,20 @@ void RuntimeSimulator::buildTaskLists() {
                               "NNDMAOp port value ({0}) larger than maximum number of engines ({1})", port,
                               MAX_DMA_ENGINES);
             Logger::global().error("Adding DMA scheduling number {0} ", taskOp->getAttr("SchedulingNumber"));
-            _dmaTasks[port].push_back(getTaskInfo(taskOp));
+            _dmaTasks[port].push_back(taskOp);
             break;
         }
         case VPU::ExecutorKind::NCE: {
             auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
             VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
-            _nceTasks.push_back(getTaskInfo(taskOp));
+            _nceTasks.push_back(taskOp);
             break;
         }
         // TODO: should we introduce _swTask?
         // case VPU::ExecutorKind::ACTShave:
         case VPU::ExecutorKind::SHAVE_UPA: {
             Logger::global().error("Adding UPA scheduling number {0} ", taskOp->getAttr("SchedulingNumber"));
-            _upaTasks.push_back(getTaskInfo(taskOp));
+            _upaTasks.push_back(taskOp);
             break;
         }
         default:
@@ -360,30 +343,30 @@ std::pair<int64_t, int64_t> RuntimeSimulator::getID(mlir::Operation* val) const 
     return it->second;
 }
 
-bool RuntimeSimulator::processTasks(std::vector<TaskInfo>& task_list) {
+bool RuntimeSimulator::processTasks(std::vector<VPURT::TaskOp>& task_list) {
     for (auto& task : task_list)
-        Logger::global().error("Task scheduling number {0} ", task.taskOp->getAttr("SchedulingNumber"));
+        Logger::global().error("Task scheduling number {0} ", task->getAttr("SchedulingNumber"));
 
     taskInfo_iterator_t tbegin = task_list.begin();
     bool progressed = false;
 
     while (tbegin != task_list.end()) {
         auto op = *tbegin;
-        Logger::global().error("Task scheduling number is {0}", op.taskOp->getAttr("SchedulingNumber"));
-        if (!isTaskReady(op.taskOp)) {
+        Logger::global().error("Task scheduling number is {0}", op->getAttr("SchedulingNumber"));
+        if (!isTaskReady(op)) {
             Logger::global().error("Task with scheduling number {0} is NOT ready, its wait/update barriers are not in "
                                    "the active barrier table ",
-                                   op.taskOp->getAttr("SchedulingNumber"));
+                                   op->getAttr("SchedulingNumber"));
             ++tbegin;
             break;
         }
         Logger::global().error(
                 "Task with scheduling number {0} IS ready, its wait/update barriers ARE in the active barrier table ",
-                op.taskOp->getAttr("SchedulingNumber"));
-        processTask(op.taskOp);
+                op->getAttr("SchedulingNumber"));
+        processTask(op);
         progressed = true;
         Logger::global().error("Removing task with scheduling number {0} from its repective list",
-                               op.taskOp->getAttr("SchedulingNumber"));
+                               op->getAttr("SchedulingNumber"));
         tbegin = task_list.erase(tbegin);
     }
     return progressed;
@@ -407,279 +390,4 @@ bool RuntimeSimulator::fillBarrierTasks(std::list<VPURT::DeclareVirtualBarrierOp
         barrier_task_list.erase(berase);
     }
     return progressed;
-}
-
-bool RuntimeSimulator::isTaskReadyByBarrierMap(VPURT::TaskOp taskOp) {
-    Logger::global().error("Is task with scheduling number {0} ready?", taskOp->getAttr("SchedulingNumber"));
-    // // wait barriers //
-    // for (const auto waitBarrier : taskOp.waitBarriers()) {
-    //     if (auto barrierOp = waitBarrier.getDefiningOp()) {
-    //         active_barrier_table_iterator_t aitr = _active_barrier_table.find(barrierOp);
-
-    //         if ((aitr == _active_barrier_table.end()) ||
-    //             ((aitr->second).in_degree_ > 0))  // double check this condition
-    //         {
-    //             return false;
-    //         }
-    //     }
-    // }
-    // // update barriers //
-    // for (const auto updateBarrier : taskOp.updateBarriers()) {
-    //     if (auto barrierOp = updateBarrier.getDefiningOp()) {
-    //         active_barrier_table_iterator_t aitr = _active_barrier_table.find(barrierOp);
-    //         Logger::global().error("Looking for Barrier ID {1} in the _active_barrier_table ",
-    //                                barrierOp->getAttr("id"));
-    //         if (aitr == _active_barrier_table.end()) {
-    //             return false;
-    //         }
-    //     }
-    // }
-    // wait barriers //
-    for (const auto waitBarrier : _configureTaskOpUpdateWaitMap[taskOp].first) {
-        active_barrier_table_iterator_t aitr = _active_barrier_table.find(waitBarrier);
-
-        if ((aitr == _active_barrier_table.end()) || ((aitr->second).in_degree_ > 0))  // double check this condition
-        {
-            return false;
-        }
-    }
-    // update barriers //
-    for (const auto updateBarrier : _configureTaskOpUpdateWaitMap[taskOp].second) {
-        active_barrier_table_iterator_t aitr = _active_barrier_table.find(updateBarrier);
-        Logger::global().error("Looking for Barrier ID {1} in the _active_barrier_table ",
-                               updateBarrier->getAttr("id"));
-        if (aitr == _active_barrier_table.end()) {
-            return false;
-        }
-    }
-    return true;
-}
-
-void RuntimeSimulator::processTaskByBarrierMap(VPURT::TaskOp task) {
-    // assert(isTaskReady(task));
-    Logger::global().error("Now processing task with scheduling number {0}", task->getAttr("SchedulingNumber"));
-
-    active_barrier_table_iterator_t aitr;
-
-    // wait barrier
-    // for (const auto waitBarrier : task.waitBarriers()) {
-    //     if (auto barrierOp = waitBarrier.getDefiningOp()) {
-    //         aitr = _active_barrier_table.find(barrierOp);
-    //         assert(aitr != _active_barrier_table.end());
-
-    //         Logger::global().error(
-    //                 "Found the wait barrier for task with scheduling number {0} in the active barrier table",
-    //                 task->getAttr("SchedulingNumber"));
-
-    //         active_barrier_info_t& barrier_info = aitr->second;
-    //         assert(barrier_info.in_degree_ == 0UL);
-    //         assert(barrier_info.out_degree_ > 0UL);
-
-    //         Logger::global().error("Decrmenting the out degree of the physical barrier {0}",
-    //                                barrier_info.real_barrier_);
-    //         barrier_info.out_degree_--;
-
-    //         if (barrier_info.out_degree_ == 0UL) {
-    //             // return the barrier //
-    //             Logger::global().error("The out degree of the physical barrier {0} is 0",
-    //             barrier_info.real_barrier_); returnRealBarrier(barrierOp);
-    //         }
-    //     }
-    // }
-
-    // // update barriers //
-    // for (const auto updateBarrier : task.updateBarriers()) {
-    //     if (auto barrierOp = updateBarrier.getDefiningOp()) {
-    //         aitr = _active_barrier_table.find(barrierOp);
-    //         assert(aitr != _active_barrier_table.end());
-
-    //         active_barrier_info_t& barrier_info = aitr->second;
-    //         assert(barrier_info.in_degree_ > 0UL);
-    //         Logger::global().error("Decrmenting the out degree of the physical barrier {0}",
-    //                                barrier_info.real_barrier_);
-    //         barrier_info.in_degree_--;
-    //     }
-    // }
-
-    for (const auto waitBarrier : _configureTaskOpUpdateWaitMap[task].first) {
-        aitr = _active_barrier_table.find(waitBarrier);
-        assert(aitr != _active_barrier_table.end());
-
-        Logger::global().error("Found the wait barrier for task with scheduling number {0} in the active barrier table",
-                               task->getAttr("SchedulingNumber"));
-
-        active_barrier_info_t& barrier_info = aitr->second;
-        assert(barrier_info.in_degree_ == 0UL);
-        assert(barrier_info.out_degree_ > 0UL);
-
-        Logger::global().error("Decrmenting the out degree of the physical barrier {0}", barrier_info.real_barrier_);
-        barrier_info.out_degree_--;
-
-        if (barrier_info.out_degree_ == 0UL) {
-            // return the barrier //
-            Logger::global().error("The out degree of the physical barrier {0} is 0", barrier_info.real_barrier_);
-            returnRealBarrier(waitBarrier);
-        }
-    }
-    // update barriers //
-    for (const auto updateBarrier : _configureTaskOpUpdateWaitMap[task].second) {
-        aitr = _active_barrier_table.find(updateBarrier);
-        assert(aitr != _active_barrier_table.end());
-
-        active_barrier_info_t& barrier_info = aitr->second;
-        assert(barrier_info.in_degree_ > 0UL);
-        Logger::global().error("Decrmenting the out degree of the physical barrier {0}", barrier_info.real_barrier_);
-        barrier_info.in_degree_--;
-    }
-}
-
-bool RuntimeSimulator::processTasksByBarrierMap(std::vector<TaskInfo>& task_list) {
-    for (auto& task : task_list)
-        Logger::global().error("Task scheduling number {0} ", task.taskOp->getAttr("SchedulingNumber"));
-
-    taskInfo_iterator_t tbegin = task_list.begin();
-    bool progressed = false;
-
-    while (tbegin != task_list.end()) {
-        auto op = *tbegin;
-        Logger::global().error("Task scheduling number is {0}", op.taskOp->getAttr("SchedulingNumber"));
-        if (!isTaskReadyByBarrierMap(op.taskOp)) {
-            Logger::global().error("Task with scheduling number {0} is NOT ready, its wait/update barriers are not in "
-                                   "the active barrier table ",
-                                   op.taskOp->getAttr("SchedulingNumber"));
-            ++tbegin;
-            break;
-        }
-        Logger::global().error(
-                "Task with scheduling number {0} IS ready, its wait/update barriers ARE in the active barrier table ",
-                op.taskOp->getAttr("SchedulingNumber"));
-        processTaskByBarrierMap(op.taskOp);
-        progressed = true;
-        Logger::global().error("Removing task with scheduling number {0} from its repective list",
-                               op.taskOp->getAttr("SchedulingNumber"));
-        tbegin = task_list.erase(tbegin);
-    }
-    return progressed;
-}
-
-bool RuntimeSimulator::simulate(
-        std::list<VPURT::DeclareVirtualBarrierOp>& barrierOps,
-        std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>>& barrierProducersMap,
-        std::unordered_map<mlir::Operation*, SmallVector<mlir::Operation*>>& barrierConsumersMap,
-        std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
-                configureTaskOpUpdateWaitMap) {
-    _log.trace("Running barrier simulator");
-    // VPUX_UNUSED(barrierOps);
-    // VPUX_UNUSED(barrierProducersMap);
-    // VPUX_UNUSED(barrierConsumersMap);
-    init();
-
-    // build task list
-    // _barrierOps = barrierOps;
-    _configureTaskOpUpdateWaitMap = configureTaskOpUpdateWaitMap;
-
-    auto getTaskInfo = [&](VPURT::TaskOp taskOp) {
-        TaskInfo taskInfo(taskOp);
-        for (auto waitBarrier : taskOp.waitBarriers()) {
-            if (auto barrierOp = mlir::dyn_cast<VPURT::ConfigureBarrierOp>(waitBarrier.getDefiningOp())) {
-                const auto virtualId = getVirtualId(barrierOp);
-                taskInfo.waitBarriers.push_back(virtualId);
-            }
-        }
-        for (auto updateBarrier : taskOp.updateBarriers()) {
-            if (auto barrierOp = mlir::dyn_cast<VPURT::ConfigureBarrierOp>(updateBarrier.getDefiningOp())) {
-                const auto virtualId = getVirtualId(barrierOp);
-                taskInfo.updateBarriers.push_back(virtualId);
-            }
-        }
-        return taskInfo;
-    };
-
-    // The task lists have to be populated in the same order as during the serialization phase
-    // to ensure that the correct simulation occurs
-    _func.walk([&](VPURT::TaskOp taskOp) {
-        auto& block = taskOp.body().getBlocks().front();
-        auto wrappedTaskOp = block.begin();
-        switch (taskOp.getExecutorKind()) {
-        // case VPU::ExecutorKind::UPADMA:
-        case VPU::ExecutorKind::DMA_NN: {
-            int64_t port = 0;
-            if (auto dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(wrappedTaskOp)) {
-                port = dmaOp.port();
-            } else if (auto compressedDmaOp = mlir::dyn_cast<VPUIP::CompressedDMAOp>(wrappedTaskOp)) {
-                port = compressedDmaOp.port();
-            } else {
-                VPUX_THROW("Could not cast to DMA task");
-            }
-            VPUX_THROW_UNLESS(port < MAX_DMA_ENGINES,
-                              "NNDMAOp port value ({0}) larger than maximum number of engines ({1})", port,
-                              MAX_DMA_ENGINES);
-            Logger::global().error("Adding DMA scheduling number {0} ", taskOp->getAttr("SchedulingNumber"));
-            _dmaTasks[port].push_back(getTaskInfo(taskOp));
-            break;
-        }
-        case VPU::ExecutorKind::NCE: {
-            auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
-            VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
-            _nceTasks.push_back(getTaskInfo(taskOp));
-            break;
-        }
-        // TODO: should we introduce _swTask?
-        // case VPU::ExecutorKind::ACTShave:
-        case VPU::ExecutorKind::SHAVE_UPA: {
-            Logger::global().error("Adding UPA scheduling number {0} ", taskOp->getAttr("SchedulingNumber"));
-            _upaTasks.push_back(getTaskInfo(taskOp));
-            break;
-        }
-        default:
-            VPUX_THROW("Unsupported task type '{0}'", taskOp.getExecutorKind());
-        }
-    });
-
-    // getAllBarriersProducersAndConsumers
-    _barrierProducersMap = barrierProducersMap;
-    _barrierConsumersMap = barrierConsumersMap;
-
-    computeOpIndegree();
-    computeOpOutdegree();
-
-    size_t barrier = 0;
-    size_t nce = 0;
-    size_t upa = 0;
-    std::array<size_t, MAX_DMA_ENGINES> dma = {0};
-
-    std::cout << "barrier number is" << barrierOps.size() << std::endl;
-
-    while (barrier < barrierOps.size() || dma[0] < _dmaTasks[0].size() || dma[1] < _dmaTasks[1].size() ||
-           nce < _nceTasks.size() || upa < _upaTasks.size()) {
-        _log.nest(2).trace("BAR: {0} / {1}; DMA: {2} / {3}, {4} / {5}; NCE: {6} / {7}; UPA: {8} / {9}", barrier,
-                           barrierOps.size(), dma[0], _dmaTasks[0].size(), dma[1], _dmaTasks[1].size(), nce,
-                           _nceTasks.size(), upa, _upaTasks.size());
-
-        std::cout << "Starting runtime simulation" << std::endl;
-        bool progressed = false;
-        while (!_dmaTasks[0].empty() || !_nceTasks.empty() || !barrierOps.empty() || !_upaTasks.empty()) {
-            progressed = false;
-            std::cout << "fillBarrierTasks" << std::endl;
-            progressed |= fillBarrierTasks(barrierOps);
-            std::cout << "processTasksByBarrierMap" << std::endl;
-            progressed |= processTasksByBarrierMap(_dmaTasks[0]);
-            progressed |= processTasksByBarrierMap(_nceTasks);
-            progressed |= processTasksByBarrierMap(_upaTasks);
-
-            if (!progressed) {
-                return false;
-            }
-        }
-
-        std::cout << "simulate" << std::endl;
-        for (auto& barrier : _virtualToPhysicalBarrierMap) {
-            // Logger::global().error("Virtual Barrier ID {0} has physical ID {1}", barrier.first->getAttr("id"),
-            //                        barrier.second.first);
-            std::cout << barrier.first->getAttr("id").cast<mlir::IntegerAttr>().getInt() << " " << barrier.second.first
-                      << std::endl;
-        }
-    }
-
-    return true;
 }
