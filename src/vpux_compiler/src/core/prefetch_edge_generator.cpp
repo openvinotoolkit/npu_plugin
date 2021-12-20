@@ -142,18 +142,24 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                         // reduce max free size with this data op size
                         maxFreeSize = maxFreeSize - dataOpSize;
                         dataOp->freeCmx_ = maxFreeSize;
+
+                        // update free size for all ops to the prefetch op
+                        auto temp = computeOp;
+                        while (temp != dataOp && temp->time_ < dataOp->time_) {
+                            VPUX_THROW_UNLESS(
+                                    temp->freeCmx_ >= dataOpSize,
+                                    "Prefetched operation ('{0}', size - '{1}') size does not fit at operation '{2}' "
+                                    "where free CMX - '{3}', "
+                                    "prefetched op size - '{1}'",
+                                    dataOp->op_, dataOpSize, temp->op_, temp->freeCmx_);
+                            temp->freeCmx_ -= dataOpSize;
+                            ++temp;
+                        }
                     }
                 }
 
-                // 3. update variables
-                // choose the min from new free sizes
+                // 3. update variables - choose the min from new free sizes
                 maxFreeSize = std::min(maxFreeSize, dataOp->freeCmx_);
-                // update free size for all ops to the prefetch op
-                auto temp = computeOp;
-                while (temp != dataOp) {
-                    temp->freeCmx_ = maxFreeSize;
-                    ++temp;
-                }
                 // advance to data next op
                 ++dataOp;
             }
