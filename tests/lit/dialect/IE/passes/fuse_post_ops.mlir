@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB compilation-mode=DefaultHW" --fuse-post-ops %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB compilation-mode=DefaultHW" --fuse-post-ops %s | FileCheck %s
 
 func @Conv2dWithReluTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
     %filters = const.Declare tensor<16x16x2x2xf16> = #const.Content<dense<1.0> : tensor<16x16x2x2xf16>>
@@ -47,7 +47,6 @@ func @MaxPoolWithReluTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
     // CHECK-SAME:     kernel_size = [2, 2]
     // CHECK-SAME:     pads_begin = [0, 0]
     // CHECK-SAME:     pads_end = [0, 0]
-    // CHECK-SAME:     post_op = {attrs = {}, name = "IE.ReLU"}
     // CHECK-SAME:     rounding_type = "CEIL"
     // CHECK-SAME:     strides = [1, 1]
     // CHECK-NOT:   IE.ReLU
@@ -153,4 +152,58 @@ func @ShouldNotFuseScaleShiftTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x
 
     // CHECK:   IE.Convolution
     // CHECK:   IE.ScaleShift
+}
+
+// -----
+
+func @Conv2dWithSigmoidTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
+    %filters = const.Declare tensor<16x16x2x2xf16> = #const.Content<dense<1.0> : tensor<16x16x2x2xf16>>
+    %0 = IE.Convolution(%arg0, %filters)
+        {
+            strides = [1, 1],
+            pads_begin = [0, 0],
+            pads_end = [0, 0],
+            dilations = [1, 1]
+        } :
+        tensor<1x16x4x4xf16>, tensor<16x16x2x2xf16> -> tensor<1x16x3x3xf16>
+
+    %1 = IE.Sigmoid(%0) :
+        tensor<1x16x3x3xf16> -> tensor<1x16x3x3xf16>
+
+    return %1 : tensor<1x16x3x3xf16>
+
+    // CHECK:       IE.Convolution
+    // CHECK-SAME:     dilations = [1, 1]
+    // CHECK-SAME:     pads_begin = [0, 0]
+    // CHECK-SAME:     pads_end = [0, 0]
+    // CHECK-SAME:     post_op = {attrs = {}, name = "IE.Sigmoid"}
+    // CHECK-SAME:     strides = [1, 1]
+    // CHECK-NOT:   IE.Sigmoid
+}
+
+// -----
+
+func @Conv2dWithTanhTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
+    %filters = const.Declare tensor<16x16x2x2xf16> = #const.Content<dense<1.0> : tensor<16x16x2x2xf16>>
+    %0 = IE.Convolution(%arg0, %filters)
+        {
+            strides = [1, 1],
+            pads_begin = [0, 0],
+            pads_end = [0, 0],
+            dilations = [1, 1]
+        } :
+        tensor<1x16x4x4xf16>, tensor<16x16x2x2xf16> -> tensor<1x16x3x3xf16>
+
+    %1 = IE.Tanh(%0) :
+        tensor<1x16x3x3xf16> -> tensor<1x16x3x3xf16>
+
+    return %1 : tensor<1x16x3x3xf16>
+
+    // CHECK:       IE.Convolution
+    // CHECK-SAME:     dilations = [1, 1]
+    // CHECK-SAME:     pads_begin = [0, 0]
+    // CHECK-SAME:     pads_end = [0, 0]
+    // CHECK-SAME:     post_op = {attrs = {}, name = "IE.Tanh"}
+    // CHECK-SAME:     strides = [1, 1]
+    // CHECK-NOT:   IE.Tanh
 }

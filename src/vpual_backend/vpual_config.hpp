@@ -13,28 +13,28 @@
 
 #pragma once
 
-#include <ie_common.h>
+#include "vpux/utils/IE/config.hpp"
 
-#include <map>
-#include <string>
-#include <unordered_set>
-#include <vpux_config.hpp>
+#include "vpual_private_config.hpp"
 
 namespace vpux {
 
-class VpualConfig final : public vpux::VPUXConfig {
-public:
-    VpualConfig();
+//
+// REPACK_INPUT_LAYOUT
+//
 
-    bool repackInputLayout() const {
-        return _repackInputLayout;
+struct VPUAL_REPACK_INPUT_LAYOUT final : OptionBase<VPUAL_REPACK_INPUT_LAYOUT, bool> {
+    static StringRef key() {
+        return VPUX_VPUAL_CONFIG_KEY(REPACK_INPUT_LAYOUT);
     }
 
-protected:
-    void parse(const std::map<std::string, std::string>& config) override;
+    static bool defaultValue() {
+        return false;
+    }
 
-private:
-    bool _repackInputLayout = false;
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
 };
 
 }  // namespace vpux

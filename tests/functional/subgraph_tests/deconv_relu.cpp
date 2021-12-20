@@ -3,16 +3,23 @@
 //
 
 #include "kmb_layer_test.hpp"
+#include "common/functions.h"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
-#include <ngraph_ops/deconvolution_ie.hpp>
+#include <legacy/ngraph_ops/deconvolution_ie.hpp>
 #include <legacy/ngraph_ops/relu_ie.hpp>
 
 namespace {
 
 class KmbDeconvReluTest : public LayerTestsUtils::KmbLayerTestsCommon {
+    // [Track number: E#26428]
+    void SkipBeforeLoad() override {
+        if (getBackendName(*getCore()) == "VPUAL") {
+            throw LayerTestsUtils::KmbSkipTestException("LoadNetwork throws an exception");
+        }
+    }
     void ConfigureNetwork() override {
         cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
         cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);

@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB" --convert-wtable-op-to-constant %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --convert-wtable-op-to-constant %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 

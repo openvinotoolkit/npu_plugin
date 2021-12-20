@@ -57,8 +57,15 @@ void ConvertPrecisionToI32Pass::safeRunOnModule() {
     target.addDynamicallyLegalOp<IE::BroadcastOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceMaxOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceSumOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::TopKOp>(isLegalOp);
 
+    // Convert TopK element type attribute to avoid failures in infer return type checking.
     auto module = getOperation();
+    module.walk([&](IE::TopKOp op) {
+        mlir::Type sInt32Type = mlir::IntegerType::get(&ctx, 32, mlir::IntegerType::Signed);
+        op->setAttr("element_type", mlir::TypeAttr::get(sInt32Type));
+    });
+
     if (mlir::failed(runConvertPrecision(module, typeConverter, target, _log))) {
         signalPassFailure();
     }

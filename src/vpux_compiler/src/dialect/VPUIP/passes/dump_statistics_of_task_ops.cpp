@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
+
 #include <llvm/ADT/DenseMap.h>
 
 using namespace vpux;
@@ -52,7 +54,7 @@ void DumpStatisticsOfTaskOpsPass::safeRunOnFunc() {
     for (auto& taskOp : taskMap) {
         _log.nest().info("{0} - {1} ops", taskOp.first, taskOp.second);
 
-        if (VPUIP::getCompilationMode(func) == VPUIP::CompilationMode::ReferenceSW) {
+        if (VPU::getCompilationMode(func) == VPU::CompilationMode::ReferenceSW) {
             continue;
         }
 

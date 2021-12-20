@@ -38,9 +38,11 @@ public:
 private:
     void safeRunOnFunc() final;
 
-    void updateOperation(IE::MaxPoolOp op);
-    void updateOperation(IE::AvgPoolOp op);
-    void updateOperation(IE::ConvolutionOp op);
+    template <class ConcreteOp>
+    void updatePoolOperation(ConcreteOp op);
+
+    template <class ConcreteOp>
+    void updateConvOperation(ConcreteOp op);
 };
 
 //
@@ -53,13 +55,16 @@ void ConvertPaddingsToFloorModePass::safeRunOnFunc() {
     const auto callback = [this](mlir::Operation* op) {
         llvm::TypeSwitch<mlir::Operation*, void>(op)
                 .Case<IE::MaxPoolOp>([this](IE::MaxPoolOp op) {
-                    updateOperation(op);
+                    updatePoolOperation<IE::MaxPoolOp>(op);
                 })
                 .Case<IE::AvgPoolOp>([this](IE::AvgPoolOp op) {
-                    updateOperation(op);
+                    updatePoolOperation<IE::AvgPoolOp>(op);
                 })
                 .Case<IE::ConvolutionOp>([this](IE::ConvolutionOp op) {
-                    updateOperation(op);
+                    updateConvOperation<IE::ConvolutionOp>(op);
+                })
+                .Case<IE::GroupConvolutionOp>([this](IE::GroupConvolutionOp op) {
+                    updateConvOperation<IE::GroupConvolutionOp>(op);
                 });
     };
 
@@ -112,7 +117,8 @@ void cvtPaddingsToFloorMode(ShapeRef inShape, ShapeRef outShape, ArrayRef<int64_
     cvtPaddingsToFloorMode(inShape[W], outShape[W], kernelX * dilationX - (dilationX - 1), strideX, padBeginX, padEndX);
 }
 
-void ConvertPaddingsToFloorModePass::updateOperation(IE::MaxPoolOp op) {
+template <class ConcreteOp>
+void ConvertPaddingsToFloorModePass::updatePoolOperation(ConcreteOp op) {
     const auto inShape = getShape(op.input());
     const auto outShape = getShape(op.output());
 
@@ -131,26 +137,8 @@ void ConvertPaddingsToFloorModePass::updateOperation(IE::MaxPoolOp op) {
     op.rounding_typeAttr(IE::RoundingTypeAttr::get(op.getContext(), IE::RoundingType::FLOOR));
 }
 
-void ConvertPaddingsToFloorModePass::updateOperation(IE::AvgPoolOp op) {
-    const auto inShape = getShape(op.input());
-    const auto outShape = getShape(op.output());
-
-    const auto kernel = parseIntArrayAttr<int64_t>(op.kernel_size());
-    const auto strides = parseIntArrayAttr<int64_t>(op.strides());
-    auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
-    auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
-
-    cvtPaddingsToFloorMode(inShape, outShape, kernel, strides, {1, 1}, padsBegin, padsEnd);
-
-    const auto newPadsBeginAttr = getIntArrayAttr(op.getContext(), padsBegin);
-    const auto newPadsEndAttr = getIntArrayAttr(op.getContext(), padsEnd);
-
-    op.pads_beginAttr(newPadsBeginAttr);
-    op.pads_endAttr(newPadsEndAttr);
-    op.rounding_typeAttr(IE::RoundingTypeAttr::get(op.getContext(), IE::RoundingType::FLOOR));
-}
-
-void ConvertPaddingsToFloorModePass::updateOperation(IE::ConvolutionOp op) {
+template <class ConcreteOp>
+void ConvertPaddingsToFloorModePass::updateConvOperation(ConcreteOp op) {
     static const auto KY = Dim(2);
     static const auto KX = Dim(3);
 

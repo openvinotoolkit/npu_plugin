@@ -13,6 +13,9 @@
 
 #include "hddl2_executor.h"
 
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/runtime.hpp"
+
 #include "vpux/utils/IE/blob.hpp"
 
 #include <ie_compound_blob.h>
@@ -145,10 +148,11 @@ std::atomic<size_t> HDDL2Executor::_executorIdCounter{0};
 std::map<size_t, std::weak_ptr<HddlUniteGraph>> HDDL2Executor::_uniteGraphMap;
 
 HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
-                                                  const VPUXConfig& config,
+                                                  const Config& config,
                                                   const std::shared_ptr<vpux::Allocator>& allocator,
                                                   const HddlUnite::WorkloadContext::Ptr& workloadContext) {
-    auto logger = std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput());
+    const Logger logger("Executor", config.get<LOG_LEVEL>());
+
     HDDL2Executor::Ptr executor = nullptr;
 
     if (!HDDL2Backend::isServiceAvailable()) {
@@ -158,38 +162,38 @@ HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription
     try {
         executor = std::make_shared<HDDL2Executor>(networkDesc, config, allocator, workloadContext);
     } catch (const IE::NetworkNotLoaded&) {
-        logger->error(FAILED_LOAD_NETWORK.c_str());
+        logger.error("{0}", FAILED_LOAD_NETWORK);
     } catch (const IE::Exception& exception) {
-        logger->error("%s%s", EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
+        logger.error("{0} ERROR: {1}", EXECUTOR_NOT_CREATED, exception.what());
     } catch (const std::exception& exception) {
-        logger->error("%s%s", EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
+        logger.error("{0} ERROR: {1}", EXECUTOR_NOT_CREATED, exception.what());
     }
     return executor;
 }
 
-HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
+HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const Config& config,
                              const std::shared_ptr<vpux::Allocator>& allocator,
                              const HddlUnite::WorkloadContext::Ptr& workloadContext)
         // TODO Make executor logger name unique
-        : _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())),
+        : _config(config),
+          _logger("Executor", config.get<LOG_LEVEL>()),
           _network(network),
           _allocatorPtr(allocator),
           _workloadContext(workloadContext),
           _baseExecutorId(_executorIdCounter++) {
-    _config.parseFrom(config);
-    setUniteLogLevel(_config.logLevel(), _logger);
-    _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
+    setUniteLogLevel(_logger);
+    _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.get<GRAPH_COLOR_FORMAT>());
 }
 
 HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
         : _config(ex._config),
-          _logger(std::make_shared<vpu::Logger>("Executor", _config.logLevel(), vpu::consoleOutput())),
+          _logger("Executor", _config.get<LOG_LEVEL>()),
           _network(ex._network),
           _uniteGraphPtr(ex._uniteGraphPtr),
           _allocatorPtr(ex._allocatorPtr),
           _workloadContext(ex._workloadContext),
           _baseExecutorId(ex._baseExecutorId) {
-    _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
+    _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.get<GRAPH_COLOR_FORMAT>());
 }
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
@@ -209,13 +213,13 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
     try {
         loadGraphToDevice();
     } catch (const IE::NetworkNotLoaded&) {
-        _logger->error(FAILED_LOAD_NETWORK.c_str());
+        _logger.error("{0}", FAILED_LOAD_NETWORK);
         throw;
     } catch (const IE::Exception& exception) {
-        _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
+        _logger.error("{0} ERROR: {1}", FAILED_LOAD_NETWORK, exception.what());
         throw;
     } catch (const std::exception& exception) {
-        _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
+        _logger.error("{0} ERROR: {1}", FAILED_LOAD_NETWORK, exception.what());
         IE_THROW() << "Couldn't load the graph into the device." << exception.what();
     }
 
@@ -223,13 +227,13 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
     const auto& deviceInputs = _network->getDeviceInputsInfo();
 
     if (inputs.size() != networkInputs.size()) {
-        _logger->warning("Amount of blobs and network inputs mismatch!\n"
-                         "Blobs: %d, network inputs: %d",
-                         inputs.size(), networkInputs.size());
+        _logger.warning("Amount of blobs and network inputs mismatch!\n"
+                        "Blobs: {0}, network inputs: {1}",
+                        inputs.size(), networkInputs.size());
     } else if (networkInputs.size() != deviceInputs.size()) {
-        _logger->warning("Amount of network inputs and expected device inputs mismatch!\n"
-                         "Network inputs: %d, Device inputs: %d",
-                         networkInputs.size(), deviceInputs.size());
+        _logger.warning("Amount of network inputs and expected device inputs mismatch!\n"
+                        "Network inputs: {0}, Device inputs: {1}",
+                        networkInputs.size(), deviceInputs.size());
     }
 
     for (const auto& networkInput : networkInputs) {
@@ -356,8 +360,9 @@ bool HDDL2Executor::isPreProcessingSupported(const PreprocMap& preProcMap) const
         const auto& preProcInfo = input.second;
         const auto preProcessingSupported =
                 preProcSupported(preProcInfo.getResizeAlgorithm(), preProcInfo.getColorFormat());
-        _logger->debug("Preprocessing for color format '{}' resize algorithm '{}' is {}.", preProcInfo.getColorFormat(),
-                       preProcInfo.getResizeAlgorithm(), preProcessingSupported ? "supported" : "not supported");
+        _logger.debug("Preprocessing for color format '{0}' resize algorithm '{1}' is {2}.",
+                      preProcInfo.getColorFormat(), preProcInfo.getResizeAlgorithm(),
+                      preProcessingSupported ? "supported" : "not supported");
         isPreProcSupported &= preProcessingSupported;
     }
     return isPreProcSupported;
@@ -374,7 +379,7 @@ InferenceEngine::Parameter HDDL2Executor::getParameter(const std::string& paramN
 
 void HDDL2Executor::loadGraphToDevice() {
     std::unordered_map<std::string, std::string> hddlUniteConfig = {};
-    const auto csramSize = _config.CSRAMSize();
+    const auto csramSize = _config.get<CSRAM_SIZE>();
     // HddlUnite requires CSRAM size in Kb
     const decltype(csramSize) toKilobytes = 1024;
     const auto csramSizeUnite = (csramSize >= 0) ? csramSize / toKilobytes : csramSize;
@@ -387,8 +392,8 @@ void HDDL2Executor::loadGraphToDevice() {
         // No graph in the map - need to load it to the device and add to the map
         if (findUniteGraph == _uniteGraphMap.end()) {
             if (_workloadContext == nullptr) {
-                _uniteGraphPtr =
-                        std::make_shared<HddlUniteGraph>(_network, getSwDeviceIdFromName(_config.deviceId()), _config);
+                _uniteGraphPtr = std::make_shared<HddlUniteGraph>(
+                        _network, getSwDeviceIdFromName(_config.get<DEVICE_ID>()), _config);
             } else {
                 _uniteGraphPtr = std::make_shared<HddlUniteGraph>(_network, _workloadContext, _config);
             }

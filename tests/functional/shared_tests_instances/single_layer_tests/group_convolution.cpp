@@ -76,7 +76,7 @@ TEST_P(KmbGroupConvolutionLayerTest, CompareWithRefs_MLIR_SW) {
 
 TEST_P(KmbGroupConvolutionLayerTest, CompareWithRefs_MLIR_HW) {
     useCompilerMLIR();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 

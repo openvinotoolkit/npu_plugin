@@ -71,7 +71,7 @@ std::map<std::vector<size_t>, std::vector<std::vector<int>>> axesVectors = {
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP16
 };
 
 const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {

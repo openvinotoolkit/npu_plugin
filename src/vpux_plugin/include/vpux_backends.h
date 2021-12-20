@@ -12,12 +12,16 @@
 //
 
 #pragma once
+
 // System
 #include <memory>
 #include <set>
 #include <vector>
+
 // Plugin
 #include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
+#include "vpux_private_config.hpp"
 
 namespace vpux {
 
@@ -34,14 +38,14 @@ public:
     std::shared_ptr<Device> getDevice(const std::shared_ptr<InferenceEngine::RemoteContext>& context) const;
     std::vector<std::string> getAvailableDevicesNames() const;
     std::string getBackendName() const;
-    std::unordered_set<std::string> getSupportedOptions() const;
+    void registerOptions(OptionsDesc& options) const;
     std::string getCompilationPlatform(const InferenceEngine::VPUXConfigParams::VPUXPlatform platform,
                                        const std::string& deviceId) const;
 
-    void setup(const VPUXConfig& config);
+    void setup(const Config& config);
 
 private:
-    vpu::Logger _logger;
+    Logger _logger;
     std::shared_ptr<EngineBackend> _backend;
 };
 

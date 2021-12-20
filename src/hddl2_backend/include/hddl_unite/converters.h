@@ -13,10 +13,11 @@
 
 #pragma once
 
+#include "vpux/utils/core/logger.hpp"
+
 // IE
-#include "ie_precision.hpp"
-// Plugin
-#include <vpux_config.hpp>
+#include <ie_precision.hpp>
+
 // Low-level
 #include <HddlUnite.h>
 #include <Inference.h>
@@ -58,21 +59,21 @@ inline HddlUnite::Inference::Precision convertFromIEPrecision(const InferenceEng
     }
 }
 
-inline HddlUnite::clientLogLevel convertIELogLevelToUnite(const vpu::LogLevel ieLogLevel) {
+inline HddlUnite::clientLogLevel convertIELogLevelToUnite(const LogLevel ieLogLevel) {
     switch (ieLogLevel) {
-    case vpu::LogLevel::None:
+    case LogLevel::None:
         return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;
-    case vpu::LogLevel::Fatal:
+    case LogLevel::Fatal:
         return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;
-    case vpu::LogLevel::Error:
+    case LogLevel::Error:
         return HddlUnite::clientLogLevel::LOGLEVEL_ERROR;
-    case vpu::LogLevel::Warning:
+    case LogLevel::Warning:
         return HddlUnite::clientLogLevel::LOGLEVEL_WARN;
-    case vpu::LogLevel::Info:
+    case LogLevel::Info:
         return HddlUnite::clientLogLevel::LOGLEVEL_INFO;
-    case vpu::LogLevel::Debug:
+    case LogLevel::Debug:
         return HddlUnite::clientLogLevel::LOGLEVEL_DEBUG;
-    case vpu::LogLevel::Trace:
+    case LogLevel::Trace:
         return HddlUnite::clientLogLevel::LOGLEVEL_PROCESS;
     default:
         return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;

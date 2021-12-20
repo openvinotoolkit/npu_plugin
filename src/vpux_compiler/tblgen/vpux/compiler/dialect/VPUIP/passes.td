@@ -17,41 +17,33 @@
 include "mlir/Pass/PassBase.td"
 
 //
-// SetCompileParams
+// UPAProfiling
 //
 
-def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
-    let summary = "Set compilation parameters related to VPUIP Dialect";
+def UPAProfiling : PassBase<"upa-profiling", "vpux::ModulePass"> {
+    let summary = "upa task profiling";
 
     let description = [{
-        This pass attaches compilation parameters related to **VPUIP Dialect** to Module attributes and
-        initializes **IERT Dialect** run-time resources information.
+        This pass allocate required memory in DDR space for UPA profiling and is own profiling output to the network
     }];
 
-    let constructor = "vpux::VPUIP::createSetCompileParamsPass()";
+    let constructor = "vpux::VPUIP::createUPAProfilingPass()";
+    
+}
 
-    let options = [
-        Option<
-            "archOpt", "vpu-arch",
-            "std::string", [{"KMB"}],
-            "VPU architecture to compile for"
-        >,
-        Option<
-            "compilationModeOpt", "compilation-mode",
-            "std::string", [{"DefaultHW"}],
-            "Set compilation mode as reference (ReferenceSW) or hardware (ReferenceHW or DefaultHW)"
-        >,
-        Option<
-            "numberOfDPUGroupsOpt", "num-of-dpu-groups",
-            "int", "",
-            "Number of DPU groups"
-        >
-    ];
+//
+// GroupProfilingBuffers
+//
 
-    let dependentDialects = [
-        "vpux::IERT::IERTDialect",
-        "vpux::VPUIP::VPUIPDialect"
-    ];
+def GroupProfilingBuffers : PassBase<"group-profiling-buffers", "vpux::ModulePass"> {
+    let summary = "Group profiling buffers into single profiling output buffer";
+
+    let description = [{
+        Group profiling buffers from different profiling engines into single profiling output buffer with name as 
+        [offset]_[profiling name]_[offset]_[profiling name] so postprocessing tool can parse it back
+    }];
+
+    let constructor = "vpux::VPUIP::createGroupProfilingBuffersPass()";
 }
 
 //

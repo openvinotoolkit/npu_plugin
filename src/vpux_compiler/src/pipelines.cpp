@@ -17,7 +17,7 @@
 #include "vpux/compiler/core/passes.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
+#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -39,16 +39,15 @@ namespace {
 // Common utilities
 //
 
-template <VPUIP::PhysicalMemory KIND>
+template <VPU::MemoryKind KIND>
 mlir::Attribute getMemSpace(mlir::MLIRContext* ctx, StringRef) {
-    return VPUIP::PhysicalMemoryAttr::get(ctx, KIND);
+    return VPU::MemoryKindAttr::get(ctx, KIND);
 }
 
-VPUIP::ArchKind getArchKind(const StrOption& archKind) {
+VPU::ArchKind getArchKind(const StrOption& archKind) {
     VPUX_THROW_UNLESS(archKind.hasValue(), "Platform architecture is not provided. Please try 'vpu-arch=KMB'");
-
-    const auto& archKindStr = archKind.getValue();
-    const auto parsed = VPUIP::symbolizeArchKind(archKindStr);
+    const auto archKindStr = archKind.getValue();
+    const auto parsed = VPU::symbolizeArchKind(archKindStr);
     VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported platform architecture '{0}'", archKindStr);
     return parsed.getValue();
 }
@@ -94,24 +93,27 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 2 : Abstract RunTime
 
-    if (options.enableProfiling) {
-        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
-    }
-
-    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
-    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
 
     // Lowering
 
-    buildLowerIERT2VPUIPPipeline(pm, log);
+    buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
 
     // Level 1 : VPU RunTime
+
+    if (options.enableProfiling) {
+        if (options.enableSWProfiling) {
+            pm.addPass(VPUIP::createUPAProfilingPass(log));
+        }
+        pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+    }
 
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
@@ -137,6 +139,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     if (options.enableConvertFCToConv) {
         pm.addPass(IE::createConvertFCToConvPass(log));
     }
+    pm.addPass(IE::createHandleLargeKernelsPass(log));
     if (options.enableConvertAvgPoolToDWConv) {
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     }
@@ -160,6 +163,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     if (options.enableLowPrecision) {
         IE::buildLowPrecisionPipeline(pm, log);
     }
+    pm.addPass(IE::createResolvePWLPostOpsPass(log));
 
     if (options.enableExpandActivationChannels) {
         pm.addPass(IE::createExpandActivationChannelsPass(log));
@@ -181,16 +185,20 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 2 : Abstract RunTime
 
-    if (options.enableProfiling) {
-        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
-    }
+    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
-    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    if (options.enableProfiling && options.enableDPUProfiling) {
+        pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
-    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
-    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    if (options.enableProfiling && options.enableDMAProfiling) {
+        pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
+
+    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
@@ -198,10 +206,16 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     // Lowering
 
     pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
-    buildLowerIERT2VPUIPPipeline(pm, log);
+    buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
 
     // Level 1 : VPU RunTime
 
+    if (options.enableProfiling) {
+        if (options.enableSWProfiling) {
+            pm.addPass(VPUIP::createUPAProfilingPass(log));
+        }
+        pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+    }
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
@@ -225,6 +239,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     if (options.enableConvertFCToConv) {
         pm.addPass(IE::createConvertFCToConvPass(log));
     }
+    pm.addPass(IE::createHandleLargeKernelsPass(log));
     if (options.enableConvertAvgPoolToDWConv) {
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     }
@@ -248,6 +263,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     if (options.enableLowPrecision) {
         IE::buildLowPrecisionPipeline(pm, log);
     }
+    pm.addPass(IE::createResolvePWLPostOpsPass(log));
 
     if (options.enableUpstreamSlice) {
         pm.addPass(IE::createUpstreamSlicePass(log));
@@ -273,27 +289,31 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     // Level 2 : Abstract RunTime
 
-    if (options.enableProfiling) {
-        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
-    }
-
-    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
     if (options.enableOptimizeCopies) {
         pm.addPass(IERT::createOptimizeCopiesPass(log));
         pm.addPass(IERT::createCopyOpHoistingPass(log));
     }
 
+    if (options.enableProfiling && options.enableDPUProfiling) {
+        pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
+
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
-    pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>,
-                                                  getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    if (options.enableProfiling && options.enableDMAProfiling) {
+        pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
+
+    pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPU::MemoryKind::CMX_NN>,
+                                                  getMemSpace<VPU::MemoryKind::DDR>, log));
 
     if (options.enableGroupAsyncExecuteOps) {
         pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
     }
 
-    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
@@ -301,9 +321,16 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     // Lowering
 
     pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
-    buildLowerIERT2VPUIPPipeline(pm, log);
+    buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
 
     // Level 1 : VPU RunTime
+
+    if (options.enableProfiling) {
+        if (options.enableSWProfiling) {
+            pm.addPass(VPUIP::createUPAProfilingPass(log));
+        }
+        pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+    }
 
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
@@ -319,7 +346,7 @@ void vpux::registerPipelines() {
             "reference-sw-mode", "Compile IE Network in Reference Software mode (SW only execution)",
             [](mlir::OpPassManager& pm, const ReferenceSWOptions& options) {
                 const auto archKind = getArchKind(options.arch);
-                pm.addPass(VPUIP::createSetCompileParamsPass(archKind, VPUIP::CompilationMode::ReferenceSW));
+                pm.addPass(VPU::createInitCompilerPass(archKind, VPU::CompilationMode::ReferenceSW));
 
                 buildReferenceSWModePipeline(pm, options);
             });
@@ -329,8 +356,7 @@ void vpux::registerPipelines() {
             [](mlir::OpPassManager& pm, const ReferenceHWOptions& options) {
                 const auto archKind = getArchKind(options.arch);
                 const auto numOfDPUGroups = getNumOfDPUGroups(options.numberOfDPUGroups);
-                pm.addPass(VPUIP::createSetCompileParamsPass(archKind, VPUIP::CompilationMode::ReferenceHW,
-                                                             numOfDPUGroups));
+                pm.addPass(VPU::createInitCompilerPass(archKind, VPU::CompilationMode::ReferenceHW, numOfDPUGroups));
 
                 buildReferenceHWModePipeline(pm, options);
             });
@@ -340,8 +366,7 @@ void vpux::registerPipelines() {
             [](mlir::OpPassManager& pm, const DefaultHWOptions& options) {
                 const auto archKind = getArchKind(options.arch);
                 const auto numOfDPUGroups = getNumOfDPUGroups(options.numberOfDPUGroups);
-                pm.addPass(
-                        VPUIP::createSetCompileParamsPass(archKind, VPUIP::CompilationMode::DefaultHW, numOfDPUGroups));
+                pm.addPass(VPU::createInitCompilerPass(archKind, VPU::CompilationMode::DefaultHW, numOfDPUGroups));
 
                 buildDefaultHWModePipeline(pm, options);
             });

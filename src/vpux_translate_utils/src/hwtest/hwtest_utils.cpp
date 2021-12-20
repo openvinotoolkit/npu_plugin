@@ -13,14 +13,15 @@
 
 #include "vpux/hwtest/hwtest_utils.hpp"
 
-#include <numeric>
-
-#include <mlir/Dialect/Quant/QuantTypes.h>
-
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/error.hpp"
+
+#include <mlir/Dialect/Quant/QuantTypes.h>
+
+#include <numeric>
 
 namespace vpux {
 namespace hwtest {
@@ -48,6 +49,8 @@ mlir::Type convertToMLIRType(mlir::OpBuilder builder, nb::DType dtype) {
         return getSInt4Type(ctx);
     case nb::DType::I8:
         return getSInt8Type(ctx);
+    case nb::DType::I32:
+        return getSInt32Type(ctx);
     case nb::DType::FP8:
         return builder.getF16Type();
     case nb::DType::FP16:
@@ -264,25 +267,35 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
     return wt_data_vals;
 }
 
-mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation, ArrayRef<int64_t> shape,
+mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPURT::BufferSection section, ArrayRef<int64_t> shape,
                                mlir::Type elemType, DimsOrder order) {
-    const auto memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
+    const auto memSpaceAttr = VPU::MemoryKindAttr::get(builder.getContext(), VPURT::getMemoryKind(section));
     return vpux::getMemRefType(ShapeRef(shape), elemType, order, memSpaceAttr);
 }
 
-vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
-                                                   ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
-                                                   int locale, size_t offset) {
-    const auto type = getMemRefType(builder, memlocation, shape, elemType, order);
-    return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, memlocation, locale, offset);
+mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPURT::BufferSection section, ArrayRef<int64_t> shape,
+                               mlir::Type elemType, DimsOrder order, StridesRef strides) {
+    const auto memSpaceAttr = VPU::MemoryKindAttr::get(builder.getContext(), VPURT::getMemoryKind(section));
+    return vpux::getMemRefType(ShapeRef(shape), elemType, order, strides, memSpaceAttr);
 }
 
-vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,
-                                                   size_t offset) {
-    auto op = builder.create<VPURT::DeclareBufferOp>(
-            builder.getUnknownLoc(), type, type.getMemorySpace().dyn_cast<VPUIP::MemoryLocationAttr>().getValue(),
-            locale, offset);
-    return op;
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
+                                                   ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
+                                                   int locale, size_t offset) {
+    const auto type = getMemRefType(builder, section, shape, elemType, order);
+    return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
+}
+
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPURT::BufferSection section,
+                                                   ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
+                                                   StridesRef strides, int locale, size_t offset) {
+    const auto type = getMemRefType(builder, section, shape, elemType, order, strides);
+    return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
+}
+
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::MemRefType type,
+                                                   VPURT::BufferSection section, int locale, size_t offset) {
+    return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
 }
 
 mlir::OpResult getTensorResult(VPURT::DeclareBufferOp op) {

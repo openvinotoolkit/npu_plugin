@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -18,11 +18,58 @@
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
-namespace vpux {
-namespace VPUIP {
+using namespace vpux;
+
+//
+// Run-time info
+//
+
+double vpux::VPUIP::getMemoryDerateFactor(IERT::MemoryResourceOp mem) {
+    VPUX_THROW_UNLESS(mem.kindAttr() != nullptr, "Got empty memory resource kind");
+    VPUX_THROW_UNLESS(mem.kindAttr().isa<VPU::MemoryKindAttr>(), "Unsupported memory resource kind '{0}'", mem.kind());
+
+    auto attr = mem->getAttr(VPU::getMemoryDerateAttrName());
+    VPUX_THROW_UNLESS(attr != nullptr, "Memory resource '{0}' has no '{1}' attribute", mem.kind(),
+                      VPU::getMemoryDerateAttrName());
+    VPUX_THROW_UNLESS(attr.isa<mlir::FloatAttr>(), "Memory resource '{0}' has wrong '{1}' attribute : '{2}'",
+                      mem.kind(), VPU::getMemoryDerateAttrName(), attr);
+
+    return attr.cast<mlir::FloatAttr>().getValueAsDouble();
+}
+
+uint32_t vpux::VPUIP::getMemoryBandwidth(IERT::MemoryResourceOp mem) {
+    VPUX_THROW_UNLESS(mem.kindAttr() != nullptr, "Got empty memory resource kind");
+    VPUX_THROW_UNLESS(mem.kindAttr().isa<VPU::MemoryKindAttr>(), "Unsupported memory resource kind '{0}'", mem.kind());
+
+    auto attr = mem->getAttr(VPU::getMemoryBandwidthAttrName());
+    VPUX_THROW_UNLESS(attr != nullptr, "Memory resource '{0}' has no '{1}' attribute", mem.kind(),
+                      VPU::getMemoryBandwidthAttrName());
+    VPUX_THROW_UNLESS(attr.isa<mlir::IntegerAttr>(), "Memory resource '{0}' has wrong '{1}' attribute : '{2}'",
+                      mem.kind(), VPU::getMemoryBandwidthAttrName(), attr);
+
+    return checked_cast<uint32_t>(attr.cast<mlir::IntegerAttr>().getInt());
+}
+
+double vpux::VPUIP::getProcessorFrequency(IERT::ExecutorResourceOp res) {
+    VPUX_THROW_UNLESS(res.kindAttr() != nullptr, "Got empty executor resource kind");
+
+    auto attr = res->getAttr(VPU::getProcessorFrequencyAttrName());
+    VPUX_THROW_UNLESS(attr != nullptr, "Executor resource '{0}' has no '{1}' attribute", res.kind(),
+                      VPU::getProcessorFrequencyAttrName());
+    VPUX_THROW_UNLESS(attr.isa<mlir::FloatAttr>(), "Executor resource '{0}' has wrong '{1}' attribute : '{2}'",
+                      res.kind(), VPU::getProcessorFrequencyAttrName(), attr);
+
+    return attr.cast<mlir::FloatAttr>().getValueAsDouble();
+}
+
+//
+// DW Convolution utility
+//
+
+namespace {
 
 mlir::Value getAlignedConstWeights(mlir::OpBuilder& builder, mlir::Location loc, Const::DeclareOp weightsConst,
-                                   Shape flatWeightShape, const int64_t alignment) {
+                                   Shape flatWeightShape, int64_t alignment) {
     auto weightsContentAttr = weightsConst.contentAttr();
     auto nchwWeightsContentAttr = weightsContentAttr.reorder(DimsOrder::NCHW);
 
@@ -42,7 +89,7 @@ mlir::Value getAlignedConstWeights(mlir::OpBuilder& builder, mlir::Location loc,
 }
 
 mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter,
-                                      Shape flatWeightShape, const int64_t alignment) {
+                                      Shape flatWeightShape, int64_t alignment) {
     auto ctx = builder.getContext();
     // Step 1: Flatten input to OCxICx1x1, where IC = filters * KY * KX.
     const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
@@ -105,7 +152,10 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
     return outOpNCHW.result();
 }
 
-mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter) {
+}  // namespace
+
+mlir::Value vpux::VPUIP::alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc,
+                                                     mlir::Value origFilter) {
     const auto filterShape = getShape(origFilter);
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto filtersPerInChan = filterShape[Dims4D::Filter::IC];
@@ -132,6 +182,3 @@ mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location
     }
     return alignedFilter;
 }
-
-}  // namespace VPUIP
-}  // namespace vpux

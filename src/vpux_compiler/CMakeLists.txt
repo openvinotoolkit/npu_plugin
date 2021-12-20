@@ -255,6 +255,11 @@ add_struct_attrs("IE")
 add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")
 
+add_dialect("VPU")
+add_op_interfaces("dialect/VPU")
+add_enum_attrs("VPU")
+add_passes("dialect/VPU" "VPU")
+
 add_dialect("IERT")
 add_op_interfaces("dialect/IERT")
 add_struct_attrs("IERT")
@@ -270,6 +275,7 @@ add_passes("dialect/VPUIP" "VPUIP")
 add_dialect("VPURT")
 add_op_interfaces("dialect/VPURT")
 add_types("VPURT")
+add_enum_attrs("VPURT")
 add_passes("dialect/VPURT" "VPURT")
 
 add_passes("conversion" "Conversion")
@@ -327,13 +333,21 @@ set_target_properties(${SCHEMA_TARGET_NAME} PROPERTIES FOLDER "src")
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "*.cpp" "*.hpp")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES})
+if(BUILD_COMPILER_FOR_DRIVER)
+    addVersionDefines(${COMPILER_FOR_DRIVER_VERSION_FILE} CI_BUILD_NUMBER)
+    add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES} ${COMPILER_FOR_DRIVER_VERSION_FILE})
+    target_compile_definitions(${OBJ_TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+else()
+    add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES})
+endif()
+
 set_target_properties(${OBJ_TARGET_NAME} PROPERTIES FOLDER "src")
 
 add_dependencies(${OBJ_TARGET_NAME}
     ${TBLGEN_TARGET_NAME}
     ${SCHEMA_TARGET_NAME}
     bitcompactor
+    huffman_codec
 )
 
 ie_faster_build(${OBJ_TARGET_NAME}
@@ -354,12 +368,11 @@ target_compile_definitions(${OBJ_TARGET_NAME}
         IMPLEMENT_INFERENCE_ENGINE_PLUGIN
         "DEVICE_NAME=\"${VPUX_DEVICE_NAME}\""
         "LIBRARY_OUTPUT_DIRECTORY=\"${CMAKE_LIBRARY_OUTPUT_DIRECTORY}\""
-        "KERNEL_DIRECTORY=\"${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels\""
 )
 
 # either copy sources or binaries to output folder
 add_custom_target(copy-act-shave-runtime ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/sw_runtime_kernels/kernels ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/act-kernels
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels/prebuild/act_shave_bin ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/act-kernels
         DEPENDS ${OBJ_TARGET_NAME})
 
 target_include_directories(${OBJ_TARGET_NAME}
@@ -373,6 +386,7 @@ target_include_directories(${OBJ_TARGET_NAME}
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
         $<TARGET_PROPERTY:bitcompactor,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:huffman_codec,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 link_system_libraries(${OBJ_TARGET_NAME}
@@ -398,24 +412,37 @@ link_system_libraries(${OBJ_TARGET_NAME}
         # TODO: get rid of this dependency
         IE::vpu_common_lib
 )
-target_link_libraries(${OBJ_TARGET_NAME}
-    PUBLIC
-        vpux_utils
-        vpux_al
-)
+
+if(BUILD_COMPILER_FOR_DRIVER)
+    target_link_libraries(${OBJ_TARGET_NAME}
+        PUBLIC
+            vpux_utils
+    )
+
+    target_include_directories(${OBJ_TARGET_NAME}
+        PUBLIC
+            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_al/include"
+    )
+else()
+    target_link_libraries(${OBJ_TARGET_NAME}
+        PUBLIC
+            vpux_utils
+            vpux_al
+    )
+endif()
 
 #
 # MODULE target
 #
 
-add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor>)
+add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
 target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
 
 #
 # STATIC target
 #
 
-add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor>)
+add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
 target_link_libraries(${STATIC_TARGET_NAME} PUBLIC ${OBJ_TARGET_NAME})
 
 #

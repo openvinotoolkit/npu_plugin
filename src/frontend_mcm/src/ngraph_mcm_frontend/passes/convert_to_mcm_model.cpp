@@ -62,9 +62,9 @@
 
 #include <ngraph/op/fake_quantize.hpp>
 
-#include <ngraph_ops/convolution_ie.hpp>
+#include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <legacy/ngraph_ops/crop_ie.hpp>
-#include <ngraph_ops/deconvolution_ie.hpp>
+#include <legacy/ngraph_ops/deconvolution_ie.hpp>
 #include <legacy/ngraph_ops/scaleshift.hpp>
 
 #include <ngraph/op/parameter.hpp>
@@ -138,6 +138,12 @@
 #include <include/mcm/pass/pass_utils.hpp>
 #include <converters.hpp>
 #include <custom_layer/custom_layer.hpp>
+
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
+#include "vpux/al/config/mcm_compiler.hpp"
+
+using namespace vpux;
 
 // clang-format on
 
@@ -335,9 +341,9 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
     // TODO: remove these workarounds when this case will be handled on mcm compiler side
     if (mvShape.ndims() == 1) {
         for (auto&& consumerNode : constant->get_users()) {
-            if (ngraph::op::GatherIE::type_info == consumerNode->get_type_info() ||
-                ngraph::op::v1::Split::type_info == consumerNode->get_type_info() ||
-                ngraph::op::v1::StridedSlice::type_info == consumerNode->get_type_info()) {
+            if (ngraph::op::GatherIE::get_type_info_static() == consumerNode->get_type_info() ||
+                ngraph::op::v1::Split::get_type_info_static() == consumerNode->get_type_info() ||
+                ngraph::op::v1::StridedSlice::get_type_info_static() == consumerNode->get_type_info()) {
                 mvShape = mv::Shape::augment_major(mvShape, 4);
                 // int64 precision for indices is not supported by runtime yet
                 if (ngraph::element::i64 == constant->get_element_type()) {
@@ -1347,26 +1353,26 @@ void convert(std::shared_ptr<ngraph::op::Interp> interp, mv::OpModel& mcmModel, 
 }
 
 const static std::map<ngraph::op::v4::Interpolate::InterpolateMode, std::string> interpolateMode = {
-        {ngraph::op::v4::Interpolate::InterpolateMode::nearest, "nearest"},
-        {ngraph::op::v4::Interpolate::InterpolateMode::cubic, "cubic"},
-        {ngraph::op::v4::Interpolate::InterpolateMode::linear, "linear"},
-        {ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx, "linear_onnx"},
+        {ngraph::op::v4::Interpolate::InterpolateMode::NEAREST, "nearest"},
+        {ngraph::op::v4::Interpolate::InterpolateMode::CUBIC, "cubic"},
+        {ngraph::op::v4::Interpolate::InterpolateMode::LINEAR, "linear"},
+        {ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX, "linear_onnx"},
 };
 
 const static std::map<ngraph::op::v4::Interpolate::CoordinateTransformMode, std::string> coordMode = {
-        {ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel, "half_pixel"},
-        {ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel, "pytorch_half_pixel"},
-        {ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric, "asymmetric"},
-        {ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn, "tf_half_pixel_for_nn"},
-        {ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners, "align_corners"},
+        {ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL, "half_pixel"},
+        {ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL, "pytorch_half_pixel"},
+        {ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC, "asymmetric"},
+        {ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN, "tf_half_pixel_for_nn"},
+        {ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS, "align_corners"},
 };
 
 const static std::map<ngraph::op::v4::Interpolate::NearestMode, std::string> nearestMode = {
-        {ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor, "round_prefer_floor"},
-        {ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil, "round_prefer_ceil"},
-        {ngraph::op::v4::Interpolate::NearestMode::floor, "floor"},
-        {ngraph::op::v4::Interpolate::NearestMode::ceil, "ceil"},
-        {ngraph::op::v4::Interpolate::NearestMode::simple, "simple"},
+        {ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR, "round_prefer_floor"},
+        {ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL, "round_prefer_ceil"},
+        {ngraph::op::v4::Interpolate::NearestMode::FLOOR, "floor"},
+        {ngraph::op::v4::Interpolate::NearestMode::CEIL, "ceil"},
+        {ngraph::op::v4::Interpolate::NearestMode::SIMPLE, "simple"},
 };
 
 void convert(std::shared_ptr<ngraph::op::v4::Interpolate> interpolate, mv::OpModel& mcmModel,
@@ -2192,7 +2198,7 @@ void convertDispatch<ngraph::op::Transpose>(std::shared_ptr<ngraph::Node> node, 
 }
 
 #define MAP_ENTRY(__OP__) \
-    { __OP__::type_info, convertDispatch<__OP__> }
+    { __OP__::get_type_info_static(), convertDispatch<__OP__> }
 
 static const DispatchMap dispatchMap{MAP_ENTRY(ngraph::op::Parameter),
                                      MAP_ENTRY(ngraph::op::Result),
@@ -2275,14 +2281,14 @@ static const DispatchMap dispatchMap{MAP_ENTRY(ngraph::op::Parameter),
 #undef MAP_ENTRY
 
 void ConvertNode(const std::shared_ptr<ngraph::Node> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-                 InferenceEngine::DataPtr ieData, bool allowNCHWInput, const vpu::MCMConfig& config) {
+                 InferenceEngine::DataPtr ieData, bool allowNCHWInput, const Config& config) {
     const auto dispatchIt = dispatchMap.find(op->get_type_info());
     if (dispatchIt != dispatchMap.end()) {
         const auto convertor = dispatchIt->second;
         if (convertor != nullptr) {
             try {
-                const auto allowPermuteND = config.allowPermuteND();
-                const auto outputFp16ToFp32HostConversion = config.outputFp16ToFp32HostConversion();
+                const auto allowPermuteND = config.get<MCM_ALLOW_PERMUTE_ND>();
+                const auto outputFp16ToFp32HostConversion = config.get<MCM_OUTPUT_FP16_TO_FP32_HOST_CONVERSION>();
                 convertDispatchExtraArgs extraArgs{ieData, allowNCHWInput, allowPermuteND,
                                                    outputFp16ToFp32HostConversion};
                 convertor(op, mcmModel, mcmOutputsMap, extraArgs);
@@ -2384,8 +2390,8 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
     // FIXME
     // McmModel hard-codes NHWC layout for all of its inputs
     // Provide an opportunity to use NCHW layout for McmModel inputs
-    const auto allowNCHWInput = _config.allowNCHWLayoutForMcmModelInput();
-    const auto allowU8InputForFp16Models = _config.allowU8InputForFp16Models();
+    const auto allowNCHWInput = _config.get<MCM_ALLOW_NCHW_MCM_INPUT>();
+    const auto allowU8InputForFp16Models = _config.get<MCM_ALLOW_U8_INPUT_FOR_FP16_MODELS>();
     for (const auto& inputInfo : _networkInputs) {
         bool isFound = false;
         for (const auto& op : func->get_parameters()) {
@@ -2398,22 +2404,22 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
             IE_THROW() << "Input not found: " << inputInfo.first;
     }
 
-    if (!_config.customLayers().empty()) {
-        _customLayers = vpu::CustomLayer::loadFromFile(_config.customLayers());
+    if (_config.has<CUSTOM_LAYERS>()) {
+        _customLayers = vpu::CustomLayer::loadFromFile(_config.get<CUSTOM_LAYERS>());
     }
 
     for (const auto& op : func->get_ordered_ops()) {
-        if (ngraph::op::Constant::type_info == op->get_type_info()) {
+        if (ngraph::op::Constant::get_type_info_static() == op->get_type_info()) {
             ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr, false, _config);
         }
     }
 
     for (const auto& op : func->get_ordered_ops()) {
-        if (ngraph::op::Parameter::type_info == op->get_type_info())
+        if (ngraph::op::Parameter::get_type_info_static() == op->get_type_info())
             continue;
-        if (ngraph::op::Result::type_info == op->get_type_info())
+        if (ngraph::op::Result::get_type_info_static() == op->get_type_info())
             continue;
-        if (ngraph::op::Constant::type_info == op->get_type_info())
+        if (ngraph::op::Constant::get_type_info_static() == op->get_type_info())
             continue;
 
         const auto customLayersForType = _customLayers.find(op->description());

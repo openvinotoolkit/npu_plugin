@@ -16,13 +16,15 @@
 // System
 #include <memory>
 #include <string>
+
 // Inference-Engine
-#include "ie_blob.h"
-#include "ie_remote_context.hpp"
-// Plugin
-#include <vpux_config.hpp>
+#include <ie_blob.h>
+#include <ie_remote_context.hpp>
+
 // Subplugin
 #include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
+
 namespace vpux {
 
 class VPUXRemoteContext : public InferenceEngine::RemoteContext {
@@ -31,7 +33,7 @@ public:
     using CPtr = std::shared_ptr<const VPUXRemoteContext>;
 
     explicit VPUXRemoteContext(const std::shared_ptr<Device>& device, const InferenceEngine::ParamMap& paramMap,
-                               const VPUXConfig& config = {});
+                               LogLevel logLvl = LogLevel::None);
 
     InferenceEngine::RemoteBlob::Ptr CreateBlob(const InferenceEngine::TensorDesc& tensorDesc,
                                                 const InferenceEngine::ParamMap& blobParams) noexcept override;
@@ -50,8 +52,7 @@ public:
 
 protected:
     std::shared_ptr<Device> _devicePtr = nullptr;
-    const VPUXConfig _config;
-    const vpu::Logger::Ptr _logger;
+    Logger _logger;
     const InferenceEngine::ParamMap _contextParams;
 };
 

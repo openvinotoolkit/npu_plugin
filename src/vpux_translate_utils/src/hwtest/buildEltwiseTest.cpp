@@ -15,8 +15,8 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
@@ -48,12 +48,12 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     SmallVector<mlir::Type> inputTypes;
     inputTypes.push_back(
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, DimsOrder::NHWC));
-    inputTypes.push_back(getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, weights_shape, weightsType,
-                                       DimsOrder::NHWC));
+            getMemRefType(builder, VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC));
+    inputTypes.push_back(
+            getMemRefType(builder, VPURT::BufferSection::NetworkInput, weights_shape, weightsType, DimsOrder::NHWC));
 
     auto outputParamType =
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, DimsOrder::NHWC);
+            getMemRefType(builder, VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
@@ -70,39 +70,40 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     auto funcoutput = func.getArgument(2);
 
     // input - output cmx tensors
-    auto inputcmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, DimsOrder::NHWC);
-    auto inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT0_CMX_OFFSET);
+    auto inputcmx_type = getMemRefType(builder, VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
+    auto inputcmx =
+            createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT0_CMX_OFFSET);
 
     auto weightscmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, weights_shape, weightsType, DimsOrder::NHWC);
-    auto weightscmx = createDeclareTensorOp(funcbuilder, weightscmx_type, 0, INPUT1_CMX_OFFSET);
+            getMemRefType(builder, VPURT::BufferSection::CMX_NN, weights_shape, weightsType, DimsOrder::NHWC);
+    auto weightscmx =
+            createDeclareTensorOp(funcbuilder, weightscmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT1_CMX_OFFSET);
 
-    auto outputcmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, DimsOrder::NHWC);
-    auto outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
+    auto outputcmx_type = getMemRefType(builder, VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
+    auto outputcmx =
+            createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
-    auto parent_inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT0_CMX_OFFSET);
-    auto parent_outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
+    auto parent_inputcmx =
+            createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT0_CMX_OFFSET);
+    auto parent_outputcmx =
+            createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
     // barrier config
     auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
     auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     // DMAs
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
-                                                builder.getUnknownLoc(), funcinput,
-                                                inputcmx.getOperation()->getResult(0), false);
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
-                                                builder.getUnknownLoc(), funcweights,
-                                                weightscmx.getOperation()->getResult(0), false);
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
-                                                builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0),
-                                                funcoutput, false);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+                                          builder.getUnknownLoc(), funcinput, inputcmx.getOperation()->getResult(0));
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+                                          builder.getUnknownLoc(), funcweights,
+                                          weightscmx.getOperation()->getResult(0));
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
+                                          builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0), funcoutput);
 
     // NCE Task
     mlir::IntegerAttr actChannelLength = builder.getI32IntegerAttr(0);
-    auto nceTask = vpux::VPURT::WrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
+    auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()),
             builder.getUnknownLoc(), outputcmx_type, inputcmx.getOperation()->getResult(0),
             weightscmx.getOperation()->getResult(0), mlir::Value(), nullptr,
@@ -113,7 +114,6 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     nceTask.addPPETask(funcbuilder);
 
     // Create DPU task for NCE task
-    nceTask.variants().emplaceBlock();
     auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
 
     std::vector<int32_t> start_vec{0, 0, 0};
@@ -132,7 +132,7 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPUIP::createSetCompileParamsPass(VPUIP::ArchKind::MTL, VPUIP::CompilationMode(), None, log));
+    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::DefaultHW, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

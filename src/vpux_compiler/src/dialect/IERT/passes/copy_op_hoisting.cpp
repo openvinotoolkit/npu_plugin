@@ -13,7 +13,7 @@
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -82,9 +82,9 @@ void CopyOpHoistingPass::safeRunOnFunc() {
     const auto needToHoist = [this](IERT::CopyOp copyOp) {
         _log.trace("Check '{0}' operation at '{1}'", copyOp->getName(), copyOp->getLoc());
 
-        const auto sourceMemory = VPUIP::getPhysicalMemory(copyOp.input().getType().cast<mlir::MemRefType>());
+        const auto sourceMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
 
-        if (mlir::failed(sourceMemory) || sourceMemory.getValue() != VPUIP::PhysicalMemory::CMX_NN) {
+        if (sourceMemory != VPU::MemoryKind::CMX_NN) {
             _log.nest().trace("It doesn't work with CMX_NN input");
             return false;
         }

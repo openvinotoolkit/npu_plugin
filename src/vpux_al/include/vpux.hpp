@@ -27,13 +27,16 @@
 #include <ie_remote_context.hpp>
 #include <ie_icnn_network.hpp>
 
+#include "vpux/utils/IE/config.hpp"
+
 #include "vpux_compiler.hpp"
-#include <vpux_config.hpp>
 
 namespace vpux {
 
 bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
                                 const std::shared_ptr<InferenceEngine::IAllocator>& allocator);
+
+std::string getLibFilePath(const std::string& baseName);
 
 //------------------------------------------------------------------------------
 class IDevice;
@@ -51,29 +54,32 @@ public:
     virtual const std::vector<std::string> getDeviceNames() const;
     /** @brief Get name of backend */
     virtual const std::string getName() const = 0;
-    /** @brief Get a list of supported options */
-    virtual std::unordered_set<std::string> getSupportedOptions() const;
+    /** @brief Register backend-specific options */
+    virtual void registerOptions(OptionsDesc& options) const;
 
 protected:
     ~IEngineBackend() = default;
 };
 
+// [track: C#71607]
+IE_SUPPRESS_DEPRECATED_START
 using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
+IE_SUPPRESS_DEPRECATED_END
 
 class EngineBackend final {
 public:
-    virtual ~EngineBackend() = default;
-    virtual const std::shared_ptr<Device> getDevice() const;
-    virtual const std::shared_ptr<Device> getDevice(const std::string& specificDeviceName) const;
-    virtual const std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
-    virtual const std::vector<std::string> getDeviceNames() const {
+    const std::shared_ptr<Device> getDevice() const;
+    const std::shared_ptr<Device> getDevice(const std::string& specificDeviceName) const;
+    const std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
+    const std::vector<std::string> getDeviceNames() const {
         return _impl->getDeviceNames();
     }
-    virtual const std::string getName() const {
+    const std::string getName() const {
         return _impl->getName();
     }
-    virtual const std::unordered_set<std::string> getSupportedOptions() const {
-        return _impl->getSupportedOptions();
+    void registerOptions(OptionsDesc& options) const {
+        _impl->registerOptions(options);
+        options.addSharedObject(_impl);
     }
 
     EngineBackend(std::string pathToLib);
@@ -107,12 +113,17 @@ private:
     // AllocatorWrapper has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
     // an instance of Allocator
     std::shared_ptr<Allocator> _actual;
+
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::details::SharedObjectLoader _plg;
+    IE_SUPPRESS_DEPRECATED_END
 
 public:
+    IE_SUPPRESS_DEPRECATED_START
     AllocatorWrapper(const std::shared_ptr<Allocator> actual, const InferenceEngine::details::SharedObjectLoader& plg)
             : _actual(actual), _plg(plg) {
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     virtual void* lock(void* handle, InferenceEngine::LockOp op = InferenceEngine::LOCK_FOR_WRITE) noexcept override {
         return _actual->lock(handle, op);
@@ -156,7 +167,7 @@ public:
     virtual std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) const;
 
     virtual std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
-                                                     const VPUXConfig& config) = 0;
+                                                     const Config& config) = 0;
 
     virtual std::string getName() const = 0;
 
@@ -177,12 +188,14 @@ public:
     using Ptr = std::shared_ptr<Device>;
     using CPtr = std::shared_ptr<const Device>;
 
+    IE_SUPPRESS_DEPRECATED_START
     Device(const std::shared_ptr<IDevice> device, const InferenceEngine::details::SharedObjectLoader& plg)
             : _actual(device), _plg(plg) {
         if (_actual->getAllocator()) {
             _allocatorWrapper = std::make_shared<AllocatorWrapper>(_actual->getAllocator(), _plg);
         }
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     std::shared_ptr<Allocator> getAllocator() const {
         return _allocatorWrapper;
@@ -191,8 +204,7 @@ public:
         return std::make_shared<AllocatorWrapper>(_actual->getAllocator(paramMap), _plg);
     }
 
-    std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
-                                             const VPUXConfig& config) {
+    std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription, const Config& config) {
         return _actual->createExecutor(networkDescription, config);
     }
 

@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/logger.hpp"
@@ -48,6 +49,7 @@ struct TileInfo final {
     }
 };
 
+// Operation output tiles information
 using OutputTiling = SmallVector<TileInfo>;
 
 // helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
@@ -96,34 +98,40 @@ struct PadInfo final {
 PadInfo backInferPadsTile(const TileInfo& outputTile, ShapeRef outShape, const PadInfo& origPads);
 
 //
+// TilingInfo
+//
+
+struct TilingInfo final {
+    SmallVector<TileInfo> tiles;
+    Optional<PadInfo> pads;
+
+    explicit TilingInfo(ArrayRef<TileInfo> tiles): tiles(tiles.begin(), tiles.end()) {
+    }
+
+    explicit TilingInfo(ArrayRef<TileInfo> tiles, PadInfo pads): tiles(tiles.begin(), tiles.end()), pads(pads) {
+    }
+};
+
+// Operation inputs tiling information
+using InputTiling = TilingInfo;
+
+//
 // Convolution tiling
 //
 
-struct ConvTileConfig final {
-    TileInfo inputTile;
-    TileInfo filterTile;
-    TileInfo biasTile;
-    PadInfo pads;
-};
+InputTiling backInferConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
+                              ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
+                              mlir::ArrayAttr pads_end);
 
-ConvTileConfig backInferConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
-                                 ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
-                                 mlir::ArrayAttr pads_end);
-
-ConvTileConfig backInferGroupConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
-                                      ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
-                                      mlir::ArrayAttr pads_end);
+InputTiling backInferGroupConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
+                                   ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
+                                   mlir::ArrayAttr pads_end);
 
 //
 // Pooling tiling
 //
 
-struct PoolTileConfig final {
-    TileInfo inputTile;
-    PadInfo pads;
-};
-
-PoolTileConfig backInferPoolTile(const TileInfo& outputTile, ShapeRef origInputShape, mlir::ArrayAttr kernel_size,
-                                 mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end);
+InputTiling backInferPoolTile(const TileInfo& outputTile, ShapeRef origInputShape, mlir::ArrayAttr kernel_size,
+                              mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end);
 
 }  // namespace vpux

@@ -13,6 +13,8 @@
 
 #include "vpual_backend.hpp"
 
+#include "vpual_config.hpp"
+
 #include <ie_common.h>
 
 #include <description_buffer.hpp>
@@ -105,11 +107,14 @@ std::vector<PlatformInfo> getAvailableDevices() {
 }  // namespace
 
 VpualEngineBackend::VpualEngineBackend()
-        : _logger(std::unique_ptr<vpu::Logger>(
-                  // [Track number: S#42840]
-                  // TODO: config will come by another PR, for now let's use Error log level
-                  new vpu::Logger("VpualBackend", vpu::LogLevel::Error /*_config.logLevel()*/, vpu::consoleOutput()))),
+        :  // [Track number: S#42840]
+           // TODO: config will come by another PR, for now let's use Error log level
+          _logger("VpualBackend", LogLevel::Error /*_config.logLevel()*/),
           _devices(createDeviceMap()) {
+}
+
+void VpualEngineBackend::registerOptions(OptionsDesc& options) const {
+    options.add<VPUAL_REPACK_INPUT_LAYOUT>();
 }
 
 const std::map<std::string, std::shared_ptr<IDevice>> VpualEngineBackend::createDeviceMap() {
@@ -117,7 +122,7 @@ const std::map<std::string, std::shared_ptr<IDevice>> VpualEngineBackend::create
     std::map<std::string, std::shared_ptr<IDevice>> devices;
     for (const auto& id : deviceIds) {
         devices.insert({id._name, std::make_shared<VpualDevice>(id._name, id._platform)});
-        _logger->info("Device %s found.", id._name);
+        _logger.info("Device {0} found.", id._name);
     }
 
     return devices;
@@ -151,20 +156,20 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const std::string& 
                     return device.second;
                 }
             }
-            _logger->warning("Device %s not found", deviceId);
+            _logger.warning("Device {0} not found", deviceId);
             return nullptr;
         }
 
         const auto expectedPlatformName = utils::getPlatformNameByDeviceName(deviceId);
         const auto currentPlatformName = utils::getPlatformNameByDeviceName(_devices.begin()->second->getName());
         if (expectedPlatformName != currentPlatformName) {
-            _logger->warning("Device with platform %s not found", expectedPlatformName);
+            _logger.warning("Device with platform {0} not found", expectedPlatformName);
             return nullptr;
         }
         const std::string expectedDeviceName = expectedPlatformName + "." + std::to_string(expectedSliceId);
         return _devices.at(expectedDeviceName);
     } catch (...) {
-        _logger->warning("Device %s not found", deviceId);
+        _logger.warning("Device {0} not found", deviceId);
     }
     return nullptr;
 }
@@ -188,7 +193,7 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const InferenceEngi
     try {
         return getDevice(deviceId);
     } catch (...) {
-        _logger->warning("Device %s not found", deviceId);
+        _logger.warning("Device {0} not found", deviceId);
     }
     return nullptr;
 }

@@ -11,8 +11,9 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+
+#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/IE/utils/permute_infer.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
 
@@ -91,14 +92,17 @@ public:
 
 mlir::LogicalResult ConvertToPermuteCast::matchAndRewrite(IE::MemPermuteOp memPermuteOp,
                                                           mlir::PatternRewriter& rewriter) const {
-    const auto inputShape = getShape(memPermuteOp.input());
-    if (isTrivial(inputShape) || memPermuteOp.mem_perm().isIdentity()) {
-        rewriter.replaceOpWithNewOp<IE::PermuteCastOp>(memPermuteOp, memPermuteOp.input(), memPermuteOp.dst_orderAttr(),
-                                                       memPermuteOp.mem_permAttr());
-        return mlir::success();
+    const auto inOrder = DimsOrder::fromValue(memPermuteOp.input());
+    const auto inShape = getShape(memPermuteOp.input());
+    const auto inMemShape = inOrder.toMemoryOrder(inShape);
+
+    if (!isTrivialPermute(inMemShape, memPermuteOp.mem_perm())) {
+        return mlir::failure();
     }
 
-    return mlir::failure();
+    rewriter.replaceOpWithNewOp<IE::PermuteCastOp>(memPermuteOp, memPermuteOp.input(), memPermuteOp.dst_orderAttr(),
+                                                   memPermuteOp.mem_permAttr());
+    return mlir::success();
 }
 
 }  // namespace
@@ -111,7 +115,7 @@ void vpux::IE::MemPermuteOp::getCanonicalizationPatterns(mlir::OwningRewritePatt
 }
 
 mlir::OpFoldResult vpux::IE::MemPermuteOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() == output().getType()) {
+    if (input().getType() == output().getType() && mem_perm().isIdentity()) {
         return input();
     }
 

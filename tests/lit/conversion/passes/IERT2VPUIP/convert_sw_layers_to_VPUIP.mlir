@@ -1,7 +1,8 @@
 // RUN: vpux-opt --split-input-file --convert-sw-layers-to-VPUIP %s | FileCheck %s
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-module @Test attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceHW"} {
+
+module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
 
 // CHECK: module @VPU.SW {
 // CHECK:   func private @builtin_SoftMax(memref<*xf16>, memref<*xf16>, i64) attributes {VPU.kernel_code = "single_shave_softmax.cpp", VPU.kernel_entry = "singleShaveSoftmax"}
@@ -31,7 +32,8 @@ func @SingleSWLayer(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>
 // -----
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-module @Test attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceHW"} {
+
+module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
 
 // CHECK: module @VPU.SW  {
 // CHECK:     func private @builtin_Sigmoid(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "sigmoid_fp16.c", VPU.kernel_entry = "sigmoid_fp16"}

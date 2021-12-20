@@ -20,14 +20,46 @@
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <ngraph_ops/convolution_ie.hpp>
-
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
 namespace {
+
+//         NON-QUANTIZED case
+//   input                  input      weights
+//      │                      │         │
+//      │                      │         │ defined as a kernel
+//      │                      │         │ with values 1/kern_size
+//      │                      │         │          ┌───┬───┬───┐
+// ┌────▼────┐              ┌──▼─────────▼───┐      │1/9│1/9│1/9│
+// │ AvgPool │  ======►     │ DW convolution │      ├───┼───┼───┤
+// └────┬────┘              └────────┬───────┘      │1/9│1/9│1/9│
+//      │                            │              ├───┼───┼───┤
+//      │                            │              │1/9│1/9│1/9│
+//      ▼                            ▼              └───┴───┴───┘
+//
+//
+//            QUANTIZED case
+//                                               Weights are defined as a kernel
+//      input               input    weights     with ALL the values set to 1
+//        │                    │         │         ┌───┬───┬───┐
+// ┌──────▼──────┐          ┌──▼──┐   ┌──▼──┐      │ 1 │ 1 │ 1 │
+// │FakeQuantize │          │ FQ  │   │ FQ  │      ├───┼───┼───┤
+// └──────┬──────┘          └──┬──┘   └──┬──┘      │ 1 │ 1 │ 1 │
+//        │                    │         │         ├───┼───┼───┤
+// ┌──────▼──────┐          ┌──▼─────────▼───┐     │ 1 │ 1 │ 1 │
+// │   AvgPool   │  ====►   │ DW convolution │     └───┴───┴───┘
+// └──────┬──────┘          └────────┬───────┘   Next FQ layer transforms 1 to 1/kern_size
+//        │                          │           values to produce average after DWconv
+// ┌──────▼──────┐                ┌──▼──┐          ┌───┬───┬───┐
+// │FakeQuantize │                │ FQ  │          │1/9│1/9│1/9│
+// └──────┬──────┘                └──┬──┘          ├───┼───┼───┤
+//        │                          │             │1/9│1/9│1/9│
+//        │                          │             ├───┼───┼───┤
+//        ▼                          ▼             │1/9│1/9│1/9│
+//                                                 └───┴───┴───┘
 
 //
 // ConvertAvgPoolToDWConvPass
@@ -59,47 +91,92 @@ public:
     mlir::LogicalResult matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    bool isAvgPoolQuantized(IE::AvgPoolOp& origOp) const;
+
     Logger _log;
 };
 
-static mlir::DenseElementsAttr buildWeightData(const mlir::RankedTensorType dataStorageType, const int64_t kernelY,
-                                               const int64_t kernelX) {
-    const float weightRealVal = 1.0f / static_cast<float>(kernelY * kernelX);
+static mlir::DenseElementsAttr wrapData(const mlir::RankedTensorType dataStorageType, float data) {
     const auto elemType = dataStorageType.getElementType();
     if (elemType.isF32()) {
-        return mlir::DenseElementsAttr::get(dataStorageType, weightRealVal);
+        return mlir::DenseElementsAttr::get(dataStorageType, data);
     } else if (elemType.isF16()) {
-        const ngraph::float16 weightHalfVal = weightRealVal;
+        const ngraph::float16 weightHalfVal = data;
         return mlir::DenseElementsAttr::get(dataStorageType, weightHalfVal);
     }
     return nullptr;
 }
 
+static inline Const::DeclareOp declareFloatConst(mlir::Location loc, float val, mlir::RankedTensorType argType,
+                                                 mlir::PatternRewriter& rewriter) {
+    const auto denseElementVal = wrapData(argType, val);
+    // Must never fail, given the 'RankedTensorOf<[F16, F32]>:$input,' declaration.
+    VPUX_THROW_UNLESS(denseElementVal != nullptr,
+                      "Average pool has incompatible data type {0}, only float16 or float32 are supported",
+                      argType.getElementType());
+
+    return rewriter.create<Const::DeclareOp>(loc, argType, Const::ContentAttr::get(denseElementVal));
+}
+
+bool ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::isAvgPoolQuantized(IE::AvgPoolOp& origOp) const {
+    const mlir::Operation* inputOp = origOp.input().getDefiningOp();
+    if (inputOp == nullptr) {
+        _log.trace("AvgPool's input is the region argument. Assuming it is not quantized.");
+        return false;
+    }
+    const bool isInputLayerFQ = mlir::isa<IE::FakeQuantizeOp>(inputOp);
+    const auto outputLayerUsers = origOp.output().getUsers();
+    bool areAllUsersFQ = !outputLayerUsers.empty() && ::llvm::all_of(outputLayerUsers, [](auto user) {
+        return ::mlir::isa<IE::FakeQuantizeOp>(user);
+    });
+    return isInputLayerFQ && areAllUsersFQ;
+}
+
 mlir::LogicalResult ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::matchAndRewrite(
         IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const {
+    const auto& ctx = origOp.getContext();
     const auto outputShape = getShape(origOp.output());
+    const mlir::Location location = origOp.getLoc();
     const auto OC = outputShape[Dims4D::Act::C];
     const auto kernel = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     const auto kernelY = kernel[0];
     const auto kernelX = kernel[1];
+    const float weightsScaleFactor = 1.0f / static_cast<float>(kernelY * kernelX);
 
     const auto elemType = origOp.input().getType().cast<mlir::ShapedType>().getElementType();
-    const SmallVector<int64_t> weightShape = {OC, 1, 1, kernelY, kernelX};
+    const SmallVector<int64_t> weightShape = {OC, 1, kernelY, kernelX};
     const auto dataStorageType = mlir::RankedTensorType::get(weightShape, elemType);
-    const auto dataAttr = buildWeightData(dataStorageType, kernelY, kernelX);
-    // Must never fail, given the 'RankedTensorOf<[F16, F32]>:$input,' declaration.
-    VPUX_THROW_UNLESS(dataAttr != nullptr,
-                      "Average pool has incompatible data type {0}, only float16 or float32 are supported", elemType);
 
-    auto dwConvFilter =
-            rewriter.create<Const::DeclareOp>(origOp.getLoc(), dataStorageType, Const::ContentAttr::get(dataAttr));
+    const bool isAvgPoolQuantizedVal = isAvgPoolQuantized(origOp);
+    const float weightRealVal = (isAvgPoolQuantizedVal) ? 1.0f : weightsScaleFactor;
+    auto dwConvFilter = declareFloatConst(location, weightRealVal, dataStorageType, rewriter);
+    auto weights = dwConvFilter.output();
+
+    if (isAvgPoolQuantizedVal) {
+        _log.trace("AvgPool is quantized, replacing it by DW convolution with quantized weights.");
+
+        const auto fqArgType = mlir::RankedTensorType::get({}, elemType);
+
+        auto fqLevelsVal = getIntAttr(ctx, 255);
+        auto fqLowVal = declareFloatConst(location, 0.0f, fqArgType, rewriter);
+        auto fqInHighVal = declareFloatConst(location, 254.0f, fqArgType, rewriter);
+        auto fqOutHighVal = declareFloatConst(location, 254.0f * weightsScaleFactor, fqArgType, rewriter);
+
+        IE::FakeQuantizeOp inputLayerFQ = origOp.input().getDefiningOp<IE::FakeQuantizeOp>();
+
+        IE::FakeQuantizeOp quantizationForWeights = rewriter.create<IE::FakeQuantizeOp>(
+                origOp.getLoc(), dataStorageType, dwConvFilter.output(), fqLowVal, fqInHighVal, fqLowVal, fqOutHighVal,
+                fqLevelsVal, inputLayerFQ.auto_broadcastAttr());
+        weights = quantizationForWeights.output();
+    }
+
     const SmallVector<int32_t> dilations = {1, 1};
-    auto dilationsAttr = getIntArrayAttr(origOp.getContext(), dilations);
+    auto dilationsAttr = getIntArrayAttr(ctx, dilations);
 
-    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(origOp, origOp.input(), dwConvFilter.output(), /*bias=*/nullptr,
+    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(origOp, origOp.input(), weights, /*bias=*/nullptr,
                                                         origOp.stridesAttr(), origOp.pads_beginAttr(),
-                                                        origOp.pads_endAttr(), dilationsAttr,
-                                                        /*groups=*/nullptr, /*post_opAttr=*/nullptr);
+                                                        origOp.pads_endAttr(), dilationsAttr, getIntAttr(ctx, OC),
+                                                        /*post_opAttr=*/nullptr);
 
     return mlir::success();
 }
@@ -128,12 +205,14 @@ void ConvertAvgPoolToDWConvPass::safeRunOnFunc() {
         const auto padRight = padsEnd[1];
 
         // The logic is reversed here. If AvgPoolOp can be represented as an NCE task, it becomes illegal.
+        const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
         return mlir::failed(VPUIP::NCEInvariant::verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom,
-                                                              padLeft, padRight));
+                                                              padLeft, padRight, arch));
     };
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::AvgPoolOp>(isLegal);
+    target.addLegalOp<IE::FakeQuantizeOp>();
     target.addLegalOp<IE::GroupConvolutionOp>();
     target.addLegalOp<Const::DeclareOp>();
 

@@ -13,14 +13,9 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/optional.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>

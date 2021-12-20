@@ -13,11 +13,9 @@
 
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/passes.hpp"
-#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
@@ -39,6 +37,7 @@ int main(int argc, char* argv[]) {
         vpux::registerCorePasses();
         vpux::IE::registerIEPasses();
         vpux::IE::registerIEPipelines();
+        vpux::VPU::registerVPUPasses();
         vpux::IERT::registerIERTPasses();
         vpux::IERT::registerIERTPipelines();
         vpux::VPUIP::registerVPUIPPasses();

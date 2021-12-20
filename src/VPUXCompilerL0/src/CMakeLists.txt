@@ -12,7 +12,7 @@
 #
 
 set(TARGET_NAME VPUXCompilerL0)
-add_library(${TARGET_NAME} vpux_compiler_l0.cpp)
+add_library(${TARGET_NAME} SHARED vpux_compiler_l0.cpp)
 
 target_include_directories(${TARGET_NAME}
   PRIVATE

@@ -14,9 +14,11 @@
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+
+#include "vpux/compiler/core/aliases_info.hpp"
+
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -53,18 +55,16 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
     auto parentCopyOp = copyOp.input().getDefiningOp<IERT::CopyOp>();
     if (parentCopyOp == nullptr) {
         // Check current CopyOp source and destination
-        const auto srcMemory = VPUIP::getPhysicalMemory(copyOp.input().getType().cast<mlir::MemRefType>());
-        const auto dstMemory = VPUIP::getPhysicalMemory(copyOp.output().getType().cast<mlir::MemRefType>());
-        // If failed to obtain return
-        if (mlir::failed(srcMemory) || mlir::failed(dstMemory)) {
-            return mlir::failure();
-        }
+        const auto srcMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
+        const auto dstMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
+
         // Remove redundant CMX2CMX CopyOps
-        if (srcMemory == dstMemory && srcMemory.getValue() == VPUIP::PhysicalMemory::CMX_NN) {
+        if (srcMemory == dstMemory && srcMemory == VPU::MemoryKind::CMX_NN) {
             copyOp.output().replaceAllUsesWith(copyOp.input());
             rewriter.eraseOp(copyOp);
             return mlir::success();
         }
+
         return mlir::failure();
     }
 
@@ -88,6 +88,57 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
     rewriter.replaceOpWithNewOp<IERT::CopyOp>(copyOp, parentCopyOp.input(), copyOp.output_buff());
 
     return mlir::success();
+}
+
+//
+// fuseLastCopy
+//
+
+void fuseLastCopy(IERT::CopyOp copyOp, const AliasesInfo& aliasesInfo, Logger log) {
+    if (!copyOp.output_buff().isa<mlir::BlockArgument>()) {
+        return;
+    }
+
+    auto inSourceMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
+    auto outSourceMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
+    if (inSourceMemory != outSourceMemory) {
+        return;
+    }
+
+    auto sourceOp = copyOp.input().getDefiningOp();
+    if (sourceOp == nullptr) {
+        // input also is block argument
+        return;
+    }
+
+    const auto sourceRoot = aliasesInfo.getRoot(copyOp.input());
+    if (sourceRoot == nullptr || sourceRoot.isa<mlir::BlockArgument>()) {
+        // input also is block argument
+        return;
+    }
+
+    if (!isBufAllocOp(sourceRoot.getDefiningOp())) {
+        // input is constant, for example
+        return;
+    }
+
+    if (sourceRoot.getType() != copyOp.output_buff().getType()) {
+        // TODO: It is necessary to rearrange the operations of type casting
+        return;
+    }
+
+    // Function outputs have to be an alias of the output buffer
+    log.trace("Root of the copy operation input {0}", sourceRoot);
+    log.trace("Reassign outputs from {0} to {1}", sourceRoot, copyOp.output_buff());
+
+    for (auto& use : llvm::make_early_inc_range(sourceRoot.getUses())) {
+        log.nest().trace("Got user {0}", use.getOwner()->getName());
+        log.nest().trace("Reassign {0} to {1}", use.get(), copyOp.output_buff());
+        use.set(copyOp.output_buff());
+    }
+
+    copyOp.replaceAllUsesWith(copyOp.input());
+    copyOp->erase();
 }
 
 //
@@ -115,6 +166,11 @@ void OptimizeCopiesPass::safeRunOnFunc() {
     patterns.insert<CopyOpSequence>(&ctx, _log);
 
     auto func = getFunction();
+    auto& aliasInfo = getAnalysis<AliasesInfo>();
+    func->walk([&](IERT::CopyOp op) {
+        fuseLastCopy(op, aliasInfo, _log);
+    });
+
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

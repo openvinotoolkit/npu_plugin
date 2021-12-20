@@ -20,8 +20,6 @@ namespace vpux {
 
 MemShape applyPerm(MemShapeRef memShape, mlir::AffineMap memPerm);
 
-bool isTrivial(const ShapeRef shape);
-
-bool isShapeNotTrivAndIsPermNotIdentity(const ShapeRef shape, mlir::AffineMap memPerm);
+bool isTrivialPermute(MemShapeRef inShape, mlir::AffineMap memPerm);
 
 }  // namespace vpux

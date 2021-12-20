@@ -16,9 +16,10 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -151,7 +152,6 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     const auto OUTPUT_CMX_OFFSET = 0;
     const auto INPUT0_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
     const auto INPUT1_CMX_OFFSET = INPUT0_CMX_OFFSET + input_totalsize;
-    const auto ZERO_PAD_DDR_OFFSET = 0;
     const auto ZERO_PAD_CMX_OFFSET = INPUT1_CMX_OFFSET + input1_leadingoffset;
     const auto WEIGHTS_PAD_CMX_OFFSET = INPUT1_CMX_OFFSET;
     const auto ACTIVATIONWINDOW_CMX_OFFSET = WEIGHTS_PAD_CMX_OFFSET + weights_nce_totalsize;
@@ -159,11 +159,11 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     SmallVector<mlir::Type> inputTypes;
     inputTypes.reserve(num_func_args);
     auto inputParamType =
-            getMemRefType(builder, MemoryLocation::ProgrammableInput, in_shape, inputType, DimsOrder::NHWC);
+            getMemRefType(builder, VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC);
     auto weightsParamType =
-            getMemRefType(builder, MemoryLocation::ProgrammableInput, weights_shape, weightsType, DimsOrder::NHWC);
+            getMemRefType(builder, VPURT::BufferSection::Constant, weights_shape, weightsType, DimsOrder::NHWC);
     auto outputParamType =
-            getMemRefType(builder, MemoryLocation::ProgrammableOutput, out_shape, outputType, DimsOrder::NHWC);
+            getMemRefType(builder, VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(inputParamType);
     inputTypes.push_back(weightsParamType);
     inputTypes.push_back(outputParamType);
@@ -182,36 +182,34 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     auto funcweights = func.getArgument(1);
     auto funcoutput = func.getArgument(2);
 
-    // Tensors - constant zero padding
-    createDeclareTensorOp(funcbuilder, MemoryLocation::GraphFile, zero_pad_shape, weightsType, DimsOrder::NHWC, 0,
-                          ZERO_PAD_DDR_OFFSET);
-
     // Tensor - input cmx
-    auto input_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, in_shape, inputType,
+    auto input_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, in_shape, inputType,
                                            DimsOrder::NHWC, 0, INPUT0_CMX_OFFSET);
 
+    auto padded_weights_type =
+            getMemRefType(builder, VPURT::BufferSection::CMX_NN, weights_pad_shape, weightsType, DimsOrder::NHWC);
+    auto padded_weights_strides = vpux::getStrides(padded_weights_type);
     // Tensors - concat input/output
-    auto weights_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_shape, weightsType,
-                                             DimsOrder::NHWC, 0, WEIGHTS_PAD_CMX_OFFSET);
-    auto zero_pad_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, zero_pad_shape, weightsType,
-                                              DimsOrder::NHWC, 0, ZERO_PAD_CMX_OFFSET);
-    createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_pad_shape, weightsType, DimsOrder::NHWC, 0,
-                          WEIGHTS_PAD_CMX_OFFSET);
+    auto weights_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, weights_shape, weightsType,
+                                             DimsOrder::NHWC, padded_weights_strides, 0, WEIGHTS_PAD_CMX_OFFSET);
+    auto zero_pad_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, zero_pad_shape, weightsType,
+                                              DimsOrder::NHWC, padded_weights_strides, 0, ZERO_PAD_CMX_OFFSET);
 
     // Tensors - NCE input/output
-    auto input_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, input_nce_shape, inputType,
+    auto input_nce_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, input_nce_shape, inputType,
                                                DimsOrder::NHWC, 0, INPUT0_CMX_OFFSET);
-    auto weights_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_nce_shape,
-                                                 weightsType, DimsOrder::NHWC, 0, WEIGHTS_PAD_CMX_OFFSET);
-    auto output_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, output_nce_shape, outputType,
+    auto weights_nce_cmx =
+            createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, weights_nce_shape, weightsType,
+                                  DimsOrder::NHWC, padded_weights_strides, 0, WEIGHTS_PAD_CMX_OFFSET);
+    auto output_nce_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, output_nce_shape, outputType,
                                                 DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
-    auto parent_input_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, input_nce_shape,
+    auto parent_input_nce_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, input_nce_shape,
                                                       inputType, DimsOrder::NHWC, 0, INPUT0_CMX_OFFSET);
-    auto parent_output_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, output_nce_shape,
+    auto parent_output_nce_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, output_nce_shape,
                                                        outputType, DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
 
     // Tensor - output cmx
-    auto output_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, out_shape, outputType,
+    auto output_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, out_shape, outputType,
                                             DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
 
     // Barriers
@@ -226,17 +224,17 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
         wt_data_attr = wt_data_attr.quantCast(qty);
     }
     auto zero_pad_type =
-            getMemRefType(builder, MemoryLocation::GraphFile, zero_pad_shape, weightsType, DimsOrder::NHWC);
+            getMemRefType(builder, VPURT::BufferSection::Constant, zero_pad_shape, weightsType, DimsOrder::NHWC);
     auto zero_pad_data = funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), zero_pad_type,
                                                               wt_data_attr.reorder(DimsOrder::NHWC));
 
     // Input DMAs
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
-                                                funcinput, getTensorResult(input_cmx), false);
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
-                                                zero_pad_data, getTensorResult(zero_pad_cmx), false);
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
-                                                funcweights, getTensorResult(weights_cmx), false);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
+                                          funcinput, getTensorResult(input_cmx));
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
+                                          zero_pad_data, getTensorResult(zero_pad_cmx));
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
+                                          funcweights, getTensorResult(weights_cmx));
 
     // Activation Window
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
@@ -259,7 +257,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
 
     auto act_window_ddr_memreftype =
-            getMemRefType(funcbuilder, MemoryLocation::GraphFile, sparsity_shape, sparsity_type, DimsOrder::NHWC);
+            getMemRefType(funcbuilder, VPURT::BufferSection::Constant, sparsity_shape, sparsity_type, DimsOrder::NHWC);
 
     auto act_window_totalsize = totalTensorSize(sparsity_shape, sparsity_type);
     auto act_window_totalsize_bytes = act_window_totalsize * sparsity_type.getIntOrFloatBitWidth() / CHAR_BIT;
@@ -267,23 +265,24 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     auto act_window_ddr =
             funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), act_window_ddr_memreftype,
                                                  Const::ContentAttr::get(sparsityAttr).reorder(DimsOrder::NHWC));
-    auto act_window_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, sparsity_shape, sparsity_type,
-                                                DimsOrder::NHWC, 0, ACTIVATIONWINDOW_CMX_OFFSET);
+    auto act_window_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, sparsity_shape,
+                                                sparsity_type, DimsOrder::NHWC, 0, ACTIVATIONWINDOW_CMX_OFFSET);
 
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
-                                                getConstResult(act_window_ddr), getTensorResult(act_window_cmx), false);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
+                                          getConstResult(act_window_ddr), getTensorResult(act_window_cmx));
 
     // weights table ddr
     SmallVector<int64_t> weightstable_data_shape{sparsity_shape[0], 1, 1, 4};
-    auto weightstable_ddr_memreftype = getMemRefType(funcbuilder, MemoryLocation::GraphFile, weightstable_data_shape,
-                                                     builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC);
+    auto weightstable_ddr_memreftype =
+            getMemRefType(funcbuilder, VPURT::BufferSection::Constant, weightstable_data_shape,
+                          builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC);
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(weightstable_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
-    auto weights_cmx_memreftype =
-            getMemRefType(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_nce_shape, weightsType, DimsOrder::NHWC);
+    auto weights_cmx_memreftype = getMemRefType(funcbuilder, VPURT::BufferSection::CMX_NN, weights_nce_shape,
+                                                weightsType, DimsOrder::NHWC, padded_weights_strides);
     auto output_cmx_memreftype =
-            getMemRefType(funcbuilder, MemoryLocation::VPU_CMX_NN, output_nce_shape, outputType, DimsOrder::NHWC);
+            getMemRefType(funcbuilder, VPURT::BufferSection::CMX_NN, output_nce_shape, outputType, DimsOrder::NHWC);
 
     auto weights_set_size = weights_cmx_memreftype.getShape()[1] * weights_cmx_memreftype.getShape()[2] *
                             weights_cmx_memreftype.getShape()[3];
@@ -296,10 +295,10 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     }
     auto weights_set_nbytes = weights_set_size * elementsize_bytes;
 
-    const std::vector<int32_t> weightstable_data_values_vec = vpux::VPUIP::NCESparsity::getWeightsTable(
+    const std::vector<int32_t> weightstable_data_values_vec = VPUIP::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<int32_t>(WEIGHTS_PAD_CMX_OFFSET),
             static_cast<int32_t>(weights_set_nbytes), static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET),
-            vpux::VPUIP::ArchKind::MTL, output_nce_shape[1], weightsType);
+            VPU::ArchKind::MTL, output_nce_shape[1], weightsType);
 
     auto weightstable_data_values = makeArrayRef<int32_t>(weightstable_data_values_vec);
     auto weightstable_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, weightstable_data_values);
@@ -310,21 +309,20 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     // weights table cmx tensor
     const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + act_window_totalsize_bytes;
-    auto weightstable_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weightstable_data_shape,
+    auto weightstable_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, weightstable_data_shape,
                                                   builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC, 0,
                                                   WEIGHTSTABLE_CMX_OFFSET);
 
     // weights table dma ddr->cmx
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
-                                                getConstResult(weightstable_data_ddr),
-                                                getTensorResult(weightstable_cmx), false);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), BARRIER_0, builder.getUnknownLoc(),
+                                          getConstResult(weightstable_data_ddr), getTensorResult(weightstable_cmx));
 
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
     auto strides = getIntArrayAttr(builder, stride_vec);
     auto kernel_padding = getIntArrayAttr(builder, padding_vec);
 
-    auto nceTask = vpux::VPURT::WrapIntoTaskOp<NCEClusterTaskOp>(
+    auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, BARRIER_0, BARRIER_1, builder.getUnknownLoc(), output_cmx_memreftype,
             getTensorResult(input_nce_cmx), getTensorResult(weights_nce_cmx), getTensorResult(weightstable_cmx),
             getTensorResult(act_window_cmx), getTensorResult(parent_input_nce_cmx),
@@ -334,20 +332,19 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     nceTask.addPPETask(funcbuilder);
 
     // DPU task for NCE task
-    nceTask.variants().emplaceBlock();
     auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
     createDPUTaskOp(builder, variantbuilder, output_nce_shape, padding_vec);
 
     // Output DMA
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, BARRIER_1, mlir::ValueRange(), builder.getUnknownLoc(),
-                                                getTensorResult(output_cmx), funcoutput, false);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, BARRIER_1, mlir::ValueRange(), builder.getUnknownLoc(),
+                                          getTensorResult(output_cmx), funcoutput);
 
     // Return op
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 
     // Runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(createSetCompileParamsPass(ArchKind::MTL, CompilationMode(), None, log));
+    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::DefaultHW, None, log));
 
     // Compile
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");

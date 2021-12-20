@@ -20,6 +20,8 @@
 
 class McmEltwise final : public ngraph::op::Op {
 public:
+    OPENVINO_OP("McmEltwise");
+
     enum OperationType {
         SUM = 0
     };
@@ -41,8 +43,6 @@ public:
 
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
 
-    static const ngraph::NodeTypeInfo type_info;
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info; }
     OperationType getOperationType() const { return _operation; }
 
 private:

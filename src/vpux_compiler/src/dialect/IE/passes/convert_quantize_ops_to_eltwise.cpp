@@ -12,8 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -169,7 +169,7 @@ void ConvertQuantizeOpsToEltwisePass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
     auto module = func->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPUIP::getArch(module);
+    const auto arch = VPU::getArch(module);
 
     // HW Eltwise supports only per-tensor bias/scale parameters
     mlir::ConversionTarget target(ctx);
@@ -186,7 +186,7 @@ void ConvertQuantizeOpsToEltwisePass::safeRunOnFunc() {
     target.addLegalOp<IE::QuantizeCastOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    if (arch == VPUIP::ArchKind::MTL) {
+    if (arch == VPU::ArchKind::MTL) {
         patterns.insert<DequantizeToAddRewriter>(&ctx, _log);
         patterns.insert<QuantizeToAddRewriter>(&ctx, _log);
     } else {

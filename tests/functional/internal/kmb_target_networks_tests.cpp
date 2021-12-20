@@ -181,7 +181,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
             1, 0.5f);
 }
 
+// [Track number: E#26421]
 TEST_F(PersonAttrRecNetworkTest, precommit_person_attribute_recognitnion_crossroad_0238) {
+    SKIP_ON("VPUAL", "Exception - allocateGraph: failed to create NnCorePlg: 6");
     SKIP_INFER_ON("EMULATOR", "Gather layer with different dtypes on inputs is not supported yet");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml")
@@ -277,6 +279,8 @@ INSTANTIATE_TEST_SUITE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, :
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw_fuse_scale_input_accuracy_drop) {
     // [Track number: #E20190]
     SKIP_ON("LEVEL0", "Sporadic bad results");
+    // [Track number: #E22402]
+    SKIP_ON("VPUAL", "Pipeline object destruction failed: CallVpu error: -1");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -290,6 +294,8 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc_fuse_scale_input_accuracy_drop) {
     // [Track number: #E20190]
     SKIP_ON("LEVEL0", "Sporadic bad results");
+    // [Track number: #E22402]
+    SKIP_ON("VPUAL", "Pipeline object destruction failed: CallVpu error: -1");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -335,7 +341,9 @@ TEST_F(HeadPoseEstimationNetworkTest, head_pose_estimation_adas_0001) {
         0.1f);
 }
 
+// [Track number: E#26421]
 TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0234) {
+    SKIP_ON("VPUAL", "Exception - allocateGraph: failed to create NnCorePlg: 6");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0234.xml")
                 .setUserInputPrecision("input", Precision::U8)

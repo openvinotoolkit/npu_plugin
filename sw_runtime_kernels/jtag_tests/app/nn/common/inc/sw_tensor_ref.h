@@ -3,7 +3,6 @@
 */
 #pragma once
 
-#include <mv_types.h>
 #include <mvSubspaces.h>
 #include <limits.h>
 #include "common_types.h"

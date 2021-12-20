@@ -23,9 +23,10 @@
 #include <vector>
 
 #include "vpux.hpp"
-#include "ze_api.h"
+#include "vpux/utils/core/logger.hpp"
 
-#include "ze_graph_ext.h"
+#include <ze_api.h>
+#include <ze_graph_ext.h>
 
 namespace vpux {
 
@@ -44,12 +45,12 @@ protected:
 public:
     ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
                  ze_graph_dditable_ext_t* graph_ddi_table_ext, const vpux::NetworkDescription::Ptr& networkDescription,
-                 const VPUXConfig& config);
+                 const Config& config);
 
     ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
                  ze_graph_dditable_ext_t* graph_ddi_table_ext, const vpux::NetworkDescription::Ptr& networkDescription,
                  const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue,
-                 const std::shared_ptr<Graph>& graph, const VPUXConfig& config);
+                 const std::shared_ptr<Graph>& graph, const Config& config);
 
     void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;
     void push(const InferenceEngine::BlobMap& inputs) override;
@@ -284,8 +285,8 @@ protected:
     };
 
 private:
-    const VPUXConfig& _config;
-    vpu::Logger::Ptr _logger;
+    const Config _config;
+    Logger _logger;
 
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;

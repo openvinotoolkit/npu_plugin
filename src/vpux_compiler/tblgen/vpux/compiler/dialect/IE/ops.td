@@ -50,7 +50,6 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
                 DeclareOpInterfaceMethods<IE_LayerOpInterface>
             ] # traits
         > {
-
     list<string> elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     bit checkInferredDimsOrder = 0;
     bit checkInferredMemSpace = 0;
@@ -280,7 +279,7 @@ def IE_TileOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        RankedTensorOf<[SI64]>:$repeats
+        RankedTensorOf<[AnyInteger]>:$repeats
     );
 
     let results = (outs
@@ -555,6 +554,112 @@ def IE_LessEqualOp :
 }
 
 //
+// GreaterOp
+//
+
+def IE_GreaterOp :
+        IE_LayerOp<
+            "Greater",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Greater layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// GreaterEqualOp
+//
+
+def IE_GreaterEqualOp :
+        IE_LayerOp<
+            "GreaterEqual",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine GreaterEqual layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// LogicalOrOp
+//
+
+def IE_LogicalOrOp :
+        IE_LayerOp<
+            "LogicalOr",
+            [
+                IE_TilingBuilderOpInterface,
+                Commutative,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine LogicalOr layer";
+
+    let arguments = (ins
+        RankedTensorOf<[I8, F16, F32]>:$input1,
+        RankedTensorOf<[I8, F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[I8, F16, F32]>:$output
+    );
+}
+
+//
+// LogicalXorOp
+//
+
+def IE_LogicalXorOp :
+        IE_LayerOp<
+            "LogicalXor",
+            [
+                IE_TilingBuilderOpInterface,
+                Commutative,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine LogicalXor layer";
+
+    let arguments = (ins
+        RankedTensorOf<[I8, F16, F32]>:$input1,
+        RankedTensorOf<[I8, F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[I8, F16, F32]>:$output
+    );
+}
+
+//
 // MultiplyOp
 //
 
@@ -660,7 +765,7 @@ def IE_GroupConvolutionOp :
         IE_LayerOp<
             "GroupConvolution",
             [
-                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface, ["generateTiling"]>
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
             ]
         > {
     let summary = "InferenceEngine GroupConvolution layer";
@@ -747,6 +852,32 @@ def IE_MaxPoolOp :
 }
 
 //
+// ShuffleChannelsOp
+//
+
+def IE_ShuffleChannelsOp :
+        IE_LayerOp<
+            "ShuffleChannels",
+            [
+                SameOperandsAndResultType,
+                SameOperandsAndResultShape
+            ]
+        > {
+    let summary = "InferenceEngine ShuffleChannels layer";
+
+    let arguments = (ins
+        4DTensorOf<[F16, F32]>:$input,
+
+        IntAttr:$axis,
+        IntAttr:$group
+    );
+
+    let results = (outs
+        4DTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // GatherOp
 //
 
@@ -758,9 +889,10 @@ def IE_GatherOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        RankedTensorOf<[SI64,SI32]>:$indices,
+        RankedTensorOf<[AnyInteger]>:$indices,
         Optional<AnyRankedTensor>:$axis,
-        OptionalAttr<IntAttr>:$axis_value
+        OptionalAttr<IntAttr>:$axis_value,
+        IntAttr:$batch_dims
     );
 
     let results = (outs
@@ -782,7 +914,7 @@ def IE_GatherElementsOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        RankedTensorOf<[SI64,SI32]>:$indices,
+        RankedTensorOf<[AnyInteger]>:$indices,
 
         IntAttr:$axis
     );
@@ -791,6 +923,28 @@ def IE_GatherElementsOp :
         AnyRankedTensor:$output
     );
 
+}
+
+
+//
+// ScatterNDUpdateOp
+//
+
+def IE_ScatterNDUpdateOp :
+        IE_LayerOp<
+            "ScatterNDUpdate"
+        > {
+    let summary = "InferenceEngine ScatterNDUpdate layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        RankedTensorOf<[AnyInteger]>:$indices,
+        AnyRankedTensor:$updates
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
 }
 
 //
@@ -1024,8 +1178,8 @@ def IE_BroadcastOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[SI64, SI32]>:$target_shape,
-        Optional<1DTensorOf<[SI64, SI32]>>:$axes_mapping,
+        1DTensorOf<[AnyInteger]>:$target_shape,
+        Optional<1DTensorOf<[AnyInteger]>>:$axes_mapping,
 
         OptionalAttr<IE_BroadcastType>:$mode
     );
@@ -1047,7 +1201,7 @@ def IE_ReduceMaxOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[SI64, SI32]>:$axes,
+        1DTensorOf<[AnyInteger]>:$axes,
 
         BoolAttr:$keep_dims
     );
@@ -1069,7 +1223,7 @@ def IE_ReduceSumOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[SI64, SI32]>:$axes,
+        1DTensorOf<[AnyInteger]>:$axes,
 
         BoolAttr:$keep_dims
     );
@@ -1306,6 +1460,98 @@ def IE_SqrtOp :
 }
 
 //
+// SinhOp
+//
+
+def IE_SinhOp :
+        IE_LayerOp<
+            "Sinh",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Sinh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// CoshOp
+//
+
+def IE_CoshOp :
+        IE_LayerOp<
+            "Cosh",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Cosh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AsinhOp
+//
+
+def IE_AsinhOp :
+        IE_LayerOp<
+            "Asinh",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Asinh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AcoshOp
+//
+
+def IE_AcoshOp :
+        IE_LayerOp<
+            "Acosh",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Acosh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // LogOp
 //
 
@@ -1318,6 +1564,29 @@ def IE_LogOp :
             ]
         > {
     let summary = "InferenceEngine Log layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// GeluOp
+//
+
+def IE_GeluOp :
+        IE_LayerOp<
+            "Gelu",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Gelu layer";
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input
@@ -1480,7 +1749,7 @@ def IE_TransposeOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        Optional<RankedTensorOf<[SI64]>>:$order,
+        Optional<RankedTensorOf<[AnyInteger]>>:$order,
 
         OptionalAttr<AffineMapAttr>:$order_value
     );
@@ -2435,6 +2704,82 @@ def IE_AffineReshapeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+}
+
+//
+// NotEqualOp
+//
+
+def IE_NotEqualOp :
+        IE_LayerOp<
+            "NotEqual",
+            [
+                IE_TilingBuilderOpInterface,
+                Commutative,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine NotEqual layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// ReverseSequenceOp
+//
+
+def IE_ReverseSequenceOp :
+        IE_LayerOp<
+            "ReverseSequence"
+        > {
+    let summary = "Reverse variable length sequence operation";
+
+    let arguments = (ins
+        AnyRankedTensor:$data,
+        1DTensorOf<[AnyInteger]>:$seq_length,
+
+        IntAttr:$seq_axis,
+        IntAttr:$batch_axis
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+}
+
+//
+// SoftPlusOp
+//
+
+def IE_SoftPlusOp :
+        IE_LayerOp<
+            "SoftPlus",
+            [
+                IE_EltwiseOp,
+                IE_TilingBuilderOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine SoftPlus layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
 }
 
 #endif

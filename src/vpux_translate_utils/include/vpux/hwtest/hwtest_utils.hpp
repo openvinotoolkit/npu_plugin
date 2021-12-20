@@ -19,7 +19,6 @@
 #include <mlir/IR/BuiltinTypes.h>
 
 #include "vpux/compiler/backend/VPUIP.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
@@ -70,21 +69,30 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                   Logger& log, mlir::Type input0Type, mlir::Type outputType);
 void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                             Logger& log, mlir::Type inputType, mlir::Type outputType);
+void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                  Logger& log, mlir::Type inputType, mlir::Type outputType);
+void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                 Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 mlir::DenseElementsAttr splitWeightsOverC(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape, mlir::Type dtype,
                                           mlir::MLIRContext* ctx, size_t startC, size_t endC);
 template <typename T>
 mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape,
                                               mlir::Type dtype, T elementType, mlir::MLIRContext* ctx, size_t start_C,
                                               size_t end_C);
-mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation, ArrayRef<int64_t> shape,
-                               mlir::Type elemType, DimsOrder order);
 
-vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
+mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPURT::BufferSection section, ArrayRef<int64_t> shape,
+                               mlir::Type elemType, DimsOrder order);
+mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPURT::BufferSection section, ArrayRef<int64_t> shape,
+                               mlir::Type elemType, DimsOrder order, StridesRef strides);
+
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    int locale, size_t offset);
-
-vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,
-                                                   size_t offset);
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPURT::BufferSection section,
+                                                   ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
+                                                   StridesRef strides, int locale, size_t offset);
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::MemRefType type,
+                                                   VPURT::BufferSection section, int locale, size_t offset);
 
 mlir::OpResult getTensorResult(VPURT::DeclareBufferOp op);
 

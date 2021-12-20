@@ -16,7 +16,7 @@
 
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
-include "vpux/compiler/dialect/VPUIP/attributes.td"
+include "vpux/compiler/dialect/VPURT/attributes.td"
 include "vpux/compiler/dialect/VPURT/types.td"
 include "vpux/compiler/dialect/VPURT/dialect.td"
 include "vpux/compiler/dialect/VPURT/ops_interfaces.td"
@@ -37,6 +37,35 @@ class VPURT_Op<string mnemonic, list<OpTrait> traits = []> :
             traits
         >;
 
+
+//
+// SWRunTimeResourcesOp
+//
+
+def VPURT_SWRunTimeOp :
+        VPURT_Op<"SW.Runtime"> {
+    let summary = "Definition of run-time";
+
+    let description = [{
+        This operation defines various resources consumed by compiled-in Runtime Kernel:
+
+          * stack configuration
+          * Runtime kernel entry point
+    }];
+
+    let arguments = (ins
+        SymbolRefAttr:$entryPoint,
+        I64ArrayAttr : $stacks
+    );
+
+    let assemblyFormat = [{
+        attr-dict-with-keyword
+        `entryPoint` `:` $entryPoint
+        `stack_configuration` `:` $stacks
+    }];
+}
+
+
 //
 // DeclareBufferOp
 //
@@ -50,34 +79,24 @@ def VPURT_DeclareBufferOp :
                 DotInterface
             ]
         > {
-    let summary = "TensorReference value declaration";
+    let summary = "Declare VPU run-time buffer";
 
     let arguments = (ins
-        VPUIP_MemoryLocation:$locale,
-        I64ArrayAttr:$localeIndex,
-
-        IntAttr:$dataIndex,
-        OptionalAttr<IntAttr>:$sparsityIndex,
-        OptionalAttr<IntAttr>:$storageElementIndex,
-        OptionalAttr<IntAttr>:$storageElementSize,
-
-        OptionalAttr<IntAttr>:$leadingOffset,
-        OptionalAttr<IntAttr>:$trailingOffset
+        VPURT_BufferSection:$section,
+        OptionalAttr<IntAttr>:$sectionIndex,
+        IntAttr:$byteOffset
     );
 
     let results = (outs
-        AnyMemRef:$memory
+        AnyMemRef:$buffer
     );
 
     let builders = [
         OpBuilder<
-            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint64_t":$dataIndex)
+            (ins "mlir::Type":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$byteOffset)
         >,
         OpBuilder<
-            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint32_t":$localeIndex, "uint64_t":$dataIndex)
-        >,
-        OpBuilder<
-            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "ArrayRef<int64_t>":$localeIndex, "uint64_t":$dataIndex)
+            (ins "mlir::Type":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$sectionIndex, "int64_t":$byteOffset)
         >
     ];
 
@@ -86,13 +105,10 @@ def VPURT_DeclareBufferOp :
     }];
 
     let assemblyFormat = [{
-        $locale custom<LocaleIndex>($localeIndex) `<` $dataIndex `>` attr-dict `->` type(results)
+        $section (`[` $sectionIndex^ `]`)? `<` $byteOffset `>` attr-dict `->` type(results)
     }];
 
     let extraClassDeclaration = [{
-        static mlir::ParseResult parseLocaleIndex(mlir::OpAsmParser& parser, mlir::ArrayAttr& localeIndex);
-        static void printLocaleIndex(mlir::OpAsmPrinter& printer, vpux::VPURT::DeclareBufferOp& op, mlir::ArrayAttr localeIndex);
-
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::ORANGE;
         }
@@ -145,24 +161,18 @@ def VPURT_ConfigureBarrierOp :
     );
 
     let extraClassDeclaration = [{
-        static vpux::VPUIP::TaskType getTaskType() {
-            return vpux::VPUIP::TaskType::Controller;
-        }
-
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::AQUA;
         }
 
         bool printAttributes(llvm::raw_ostream& os) {
-            os << "id: " << idAttr().getInt();
+            os << "id: " << id();
             return true;
         }
     }];
 
     let assemblyFormat = [{
-        attr-dict
-        `<` $id `>`
-        `->` type(results)
+        `<` $id `>` attr-dict `->` type(results)
     }];
 }
 
@@ -184,33 +194,44 @@ def VPURT_TaskOp :
     let summary = "Hold common scheduling logic (barriers configuration and profiling support).";
 
     let arguments = (ins
+        Optional<MemRefOf<[UI32]>>:$profiling_data,
         Variadic<VPURT_Barrier>:$waitBarriers,
         Variadic<VPURT_Barrier>:$updateBarriers,
         DefaultValuedAttr<BoolAttr, "false">:$isTrailingSWLayer
     );
 
     let regions = (region
-        SizedRegion<1>:$op
+        SizedRegion<1>:$body
     );
 
     let verifier = [{
         return vpux::VPURT::verifyTaskOp(*this);
     }];
 
+    let builders = [
+        OpBuilder<(ins
+            "mlir::ValueRange":$waitBarriers, "mlir::ValueRange":$updateBarriers
+        )>
+    ];
+
     let extraClassDeclaration = [{
+        vpux::VPUIP::TaskOpInterface getInnerTaskOp();
+
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::AQUA;
         }
 
         void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-        vpux::VPUIP::TaskType getTaskType();
+
+        vpux::VPU::ExecutorKind getExecutorKind();
     }];
 
     let assemblyFormat = [{
-        attr-dict
+        (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-        `op` `:` $op
+        attr-dict-with-keyword
+        $body
     }];
 }
 

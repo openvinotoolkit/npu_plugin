@@ -230,6 +230,25 @@ def ConvertFCToConv : PassBase<"convert-fc-to-conv", "vpux::FunctionPass"> {
 }
 
 //
+// ConvertShuffleChannels
+//
+
+def ConvertShuffleChannels : PassBase<"convert-shuffle-channels", "vpux::FunctionPass"> {
+    let summary = "Convert ShuffleChannels to Reshape->Transpose->Reshape";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+        Converts ShuffleChannels to Reshape->Transpose->Reshape.
+    }];
+
+    let constructor = "vpux::IE::createConvertShuffleChannelsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // UnrollBatch
 //
 
@@ -306,6 +325,25 @@ def FusePostOps : PassBase<"fuse-post-ops", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createFusePostOpsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ResolvePWLPostOps
+//
+
+def ResolvePWLPostOps : PassBase<"resolve-pwl-post-ops", "vpux::FunctionPass"> {
+    let summary = "Resolve requirements for fused PWL post-ops";
+
+    let description = [{
+        Ensures the correct quantization ranges are used for fused PWL activation functions or
+        unfuses them if surrounding tensors are not quantized per-tensor.
+    }];
+
+    let constructor = "vpux::IE::createResolvePWLPostOpsPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"
@@ -460,6 +498,24 @@ def HandleLargeStrides : PassBase<"handle-large-strides", "vpux::FunctionPass"> 
     ];
 }
 
+//
+// SwapMaxPoolWithActivation
+//
+
+def SwapMaxPoolWithActivation : PassBase<"swap-maxpool-with-act", "vpux::FunctionPass"> {
+    let summary = "Swaps the MaxPool and activation";
+
+    let description = [{
+        This pass is needed for MTL only since HW MaxPool does not support post-op operations.
+        Operations are swapped only if there is an operation before MaxPool that supports post-ops.
+    }];
+
+    let constructor = "vpux::IE::createSwapMaxPoolWithActivation()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
 
 //=================================================================================
 // LowPrecision
@@ -525,6 +581,29 @@ def MergeFakeQuant : PassBase<"merge-fake-quant", "vpux::FunctionPass"> {
 
     let dependentDialects = [
         "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// DeletePerAxisQuantize
+//
+
+def DeletePerAxisQuantization : PassBase<"delete-peraxis-quantization", "vpux::FunctionPass"> {
+    let summary = "Delete PerAxis Quantize Dequantize for MTL";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+
+        It deletes per axis quantization which left after LPT.
+        Conversion is not mathimatically equal, but for now it gives small
+            accuracy deviation
+    }];
+
+    let constructor = "vpux::IE::createDeletePerAxisQuantizationPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
     ];
 }
 
@@ -651,6 +730,30 @@ def HandleAsymmetricStrides : PassBase<"handle-asymmetric-strides", "vpux::Funct
 }
 
 //
+// SupportBatchForPadOp
+//
+
+def SupportBatchForPad : PassBase<"support-batch-for-pad", "vpux::FunctionPass"> {
+    let summary = "Handle PadOp with non-zero padding on batch dimension";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        Split `IE::PadOp` with pads_begin[M, x, x, x] and pads_end[N, x, x, x] into several parts.
+        Create `IE::PadOp` with pads_begin[0, x, x, x] and pads_end[0, x, x, x] attributes.
+        Append tensor of size M * batchSize to the beginning, and tensor of size N * batchSize to the end.
+        Replace original `IE::PadOp` with `IE::Concat(%cst_front, %batchless_pad, %cst_back)`.
+        Only `IE::PadMode::CONSTANT` case is supported.
+    }];
+
+    let constructor = "vpux::IE::createSupportBatchForPadPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // UpstreamSlice
 //
 
@@ -665,6 +768,27 @@ def UpstreamSlice : PassBase<"upstream-slice", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createUpstreamSlicePass()";
+    
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// HandleLargeKernels
+//
+
+def HandleLargeKernels : PassBase<"handle-large-kernels", "vpux::FunctionPass"> {
+    let summary = "Handle large kernels ops";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass replaces average pooling layers that have kernels bigger than supported by hardware (11x11),
+        with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13).
+    }];
+
+    let constructor = "vpux::IE::createHandleLargeKernelsPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

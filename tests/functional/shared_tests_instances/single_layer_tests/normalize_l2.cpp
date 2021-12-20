@@ -11,9 +11,11 @@ namespace LayerTestsDefinitions {
     class KmbNormalizeL2LayerTest: public NormalizeL2LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
     TEST_P(KmbNormalizeL2LayerTest, CompareWithRefs) {
+        threshold = 0.04;
         Run();
     }
     TEST_P(KmbNormalizeL2LayerTest, CompareWithRefs_MLIR) {
+        threshold = 0.04;
         useCompilerMLIR();
         Run();
     }

@@ -15,14 +15,20 @@
 
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/hash.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 #include "vpux/utils/core/string_utils.hpp"
 
+#include <ie/details/ie_so_loader.h>
 #include <ie_parameter.hpp>
 
+#include <llvm/ADT/FunctionExtras.h>
+#include <llvm/Support/TypeName.h>
+
+#include <cassert>
 #include <chrono>
 #include <functional>
 #include <map>
@@ -41,9 +47,9 @@ template <typename T>
 struct OptionParser;
 
 template <>
-struct OptionParser<StringRef> final {
-    static StringRef parse(StringRef val) {
-        return val;
+struct OptionParser<std::string> final {
+    static std::string parse(StringRef val) {
+        return val.str();
     }
 };
 
@@ -116,7 +122,7 @@ struct OptionBase {
 
     // Overload this to provide default value if it wasn't specified by user.
     // If it is None - exception will be thrown in case of missing option access.
-    static llvm::NoneType defaultValue() {
+    static Optional<T> defaultValue() {
         return None;
     }
 
@@ -127,15 +133,6 @@ struct OptionBase {
 
     // Overload this to provide more specific validation
     static void validateValue(const ValueType&) {
-    }
-
-    static void validate(StringRef val) {
-        try {
-            const auto parsedVal = ActualOpt::parse(val);
-            ActualOpt::validateValue(parsedVal);
-        } catch (const std::exception& e) {
-            VPUX_THROW("Failed to parse '{0}' option : {1}", ActualOpt::key(), e.what());
-        }
     }
 
     // Overload this to provide more specific implementation.
@@ -150,43 +147,80 @@ struct OptionBase {
 };
 
 //
+// OptionValue
+//
+
+namespace details {
+
+class OptionValue {
+public:
+    virtual ~OptionValue();
+
+    virtual StringRef getTypeName() const = 0;
+};
+
+template <typename T>
+class OptionValueImpl final : public OptionValue {
+public:
+    template <typename U>
+    OptionValueImpl(U&& val): _val(std::forward<U>(val)) {
+    }
+
+    StringRef getTypeName() const final {
+        return llvm::getTypeName<T>();
+    }
+
+    const T& getValue() const {
+        return _val;
+    }
+
+private:
+    T _val;
+};
+
+}  // namespace details
+
+//
 // OptionConcept
 //
 
 namespace details {
 
-class OptionConcept {
-public:
-    using Ptr = std::shared_ptr<OptionConcept>;
-
-public:
-    virtual ~OptionConcept() = default;
-
-    virtual StringRef key() const = 0;
-    virtual void validate(StringRef val) const = 0;
-    virtual OptionMode mode() const = 0;
-    virtual bool isPublic() const = 0;
+struct OptionConcept final {
+    StringRef (*key)() = nullptr;
+#ifdef VPUX_DEVELOPER_BUILD
+    StringRef (*envVar)() = nullptr;
+#endif
+    OptionMode (*mode)() = nullptr;
+    bool (*isPublic)() = nullptr;
+    std::shared_ptr<OptionValue> (*validateAndParse)(StringRef val) = nullptr;
 };
 
 template <class Opt>
-class OptionModel final : public OptionConcept {
-public:
-    StringRef key() const final {
-        return Opt::key();
-    }
+std::shared_ptr<OptionValue> validateAndParse(StringRef val) {
+    using ValueType = typename Opt::ValueType;
 
-    void validate(StringRef val) const final {
-        Opt::validate(val);
+    try {
+        auto parsedVal = Opt::parse(val);
+        Opt::validateValue(parsedVal);
+        return std::make_shared<OptionValueImpl<ValueType>>(std::move(parsedVal));
+    } catch (const std::exception& e) {
+        VPUX_THROW("Failed to parse '{0}' option : {1}", Opt::key(), e.what());
     }
+}
 
-    OptionMode mode() const final {
-        return Opt::mode();
-    }
-
-    bool isPublic() const final {
-        return Opt::isPublic();
-    }
-};
+template <class Opt>
+OptionConcept makeOptionModel() {
+    return {
+            &Opt::key,
+#ifdef VPUX_DEVELOPER_BUILD
+            &Opt::envVar,
+#endif
+            &Opt::mode,              //
+            &Opt::isPublic,          //
+            &validateAndParse<Opt>,  //
+    };
+}
 
 }  // namespace details
 
@@ -197,25 +231,38 @@ public:
 class OptionsDesc final {
 public:
     template <class Opt>
-    void addOption();
+    void add();
 
-    const details::OptionConcept& validate(StringRef key, StringRef val, OptionMode mode) const;
+    IE_SUPPRESS_DEPRECATED_START
+    void addSharedObject(const InferenceEngine::details::SharedObjectLoader& so) {
+        _soObjs.push_back(so);
+    }
+    IE_SUPPRESS_DEPRECATED_END
 
+public:
     std::vector<std::string> getSupported(bool includePrivate = false) const;
 
+public:
+    details::OptionConcept get(StringRef key, OptionMode mode) const;
+    void walk(FuncRef<void(const details::OptionConcept&)> cb) const;
+
 private:
-    std::unordered_map<StringRef, details::OptionConcept::Ptr> _impl;
-    std::unordered_map<StringRef, details::OptionConcept::Ptr> _deprecated;
+    std::unordered_map<StringRef, details::OptionConcept> _impl;
+    std::unordered_map<StringRef, StringRef> _deprecated;
+
+    IE_SUPPRESS_DEPRECATED_START
+    std::vector<InferenceEngine::details::SharedObjectLoader> _soObjs;
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 template <class Opt>
-void OptionsDesc::addOption() {
+void OptionsDesc::add() {
     VPUX_THROW_UNLESS(_impl.count(Opt::key()) == 0, "Option '{0}' was already registered", Opt::key());
-    const auto res = _impl.insert({Opt::key(), std::make_shared<details::OptionModel<Opt>>()});
+    _impl.insert({Opt::key(), details::makeOptionModel<Opt>()});
 
     for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
         VPUX_THROW_UNLESS(_deprecated.count(deprecatedKey) == 0, "Option '{0}' was already registered", deprecatedKey);
-        _deprecated.insert({deprecatedKey, res.first->second});
+        _deprecated.insert({deprecatedKey, Opt::key()});
     }
 }
 
@@ -226,21 +273,17 @@ void OptionsDesc::addOption() {
 class Config final {
 public:
     using ConfigMap = std::map<std::string, std::string>;
-    using ImplMap = std::unordered_map<StringRef, std::string>;
+    using ImplMap = std::unordered_map<StringRef, std::shared_ptr<details::OptionValue>>;
 
 public:
-    Config();
-
-public:
-    const OptionsDesc& desc() const {
-        return *_desc;
-    }
-    OptionsDesc& desc() {
-        return *_desc;
-    }
+    explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
 public:
     void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
+
+#ifdef VPUX_DEVELOPER_BUILD
+    void parseEnvVars();
+#endif
 
 public:
     template <class Opt>
@@ -250,42 +293,40 @@ public:
     typename Opt::ValueType get() const;
 
 private:
-    std::shared_ptr<OptionsDesc> _desc;
+    std::shared_ptr<const OptionsDesc> _desc;
     ImplMap _impl;
 };
 
 template <class Opt>
 bool Config::has() const {
-#ifdef VPUX_DEVELOPER_BUILD
-    if (!Opt::envVar().empty()) {
-        if (std::getenv(Opt::envVar().data()) != nullptr) {
-            return true;
-        }
-    }
-#endif
-
     return _impl.count(Opt::key()) != 0;
 }
 
 template <class Opt>
 typename Opt::ValueType Config::get() const {
-#ifdef VPUX_DEVELOPER_BUILD
-    if (!Opt::envVar().empty()) {
-        if (const auto envVar = std::getenv(Opt::envVar().data())) {
-            return Opt::parse(envVar);
-        }
-    }
-#endif
+    using ValueType = typename Opt::ValueType;
+
+    auto log = Logger::global().nest("Config", 0);
+    log.trace("Get value for the option '{0}'", Opt::key());
 
     const auto it = _impl.find(Opt::key());
 
     if (it == _impl.end()) {
-        const Optional<typename Opt::ValueType> res = Opt::defaultValue();
-        VPUX_THROW_UNLESS(res.hasValue(), "Option '{0}' was not provided, no default value is available", Opt::key());
-        return res.getValue();
+        const Optional<ValueType> optional = Opt::defaultValue();
+        log.nest().trace("The option was not set by user, try default value");
+
+        VPUX_THROW_UNLESS(optional.hasValue(), "Option '{0}' was not provided, no default value is available",
+                          Opt::key());
+        return optional.getValue();
     }
 
-    return Opt::parse(it->second);
+    VPUX_THROW_WHEN(it->second == nullptr, "Got NULL OptionValue for '{0}'", Opt::key());
+
+    const auto optVal = std::dynamic_pointer_cast<details::OptionValueImpl<ValueType>>(it->second);
+    VPUX_THROW_WHEN(optVal == nullptr, "Option '{0}' has wrong parsed type: expected '{1}', got '{2}'", Opt::key(),
+                    llvm::getTypeName<ValueType>(), it->second->getTypeName());
+
+    return optVal->getValue();
 }
 
 bool envVarStrToBool(const char* varName, const char* varValue);

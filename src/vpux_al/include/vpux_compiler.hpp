@@ -12,20 +12,31 @@
 //
 
 #pragma once
-#include <details/ie_so_loader.h>
 
 #include <cstddef>
 #include <set>
 
+#include <details/ie_so_loader.h>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <details/ie_so_pointer.hpp>
 #include <ie_icnn_network.hpp>
 #include <ie_input_info.hpp>
 #include <ie_remote_context.hpp>
-#include <vpux_config.hpp>
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+
+#include "vpux/utils/IE/config.hpp"
+#include "vpux/utils/core/preprocessing.hpp"
 #include "vpux/utils/core/quant_params.hpp"
 
 namespace vpux {
+
+class ICompiler;
+#ifdef OPENVINO_STATIC_LIBRARY
+using CompilerPluginPtr = std::shared_ptr<ICompiler>;
+#else
+IE_SUPPRESS_DEPRECATED_START
+using CompilerPluginPtr = InferenceEngine::details::SOPointer<ICompiler>;
+IE_SUPPRESS_DEPRECATED_END
+#endif
 
 /**
  * @brief A helper map to represent descriptions for inputs and outputs
@@ -114,11 +125,22 @@ public:
     virtual const void* getNetworkModel() const = 0;
 
     /**
+     * @brief Returns a map with information about preprocess inputs.
+     * @return Constant reference to an internally held map containing information about preprocess for inputs
+     */
+    const std::unordered_map<std::string, InferenceEngine::PreProcessInfo>& getPreprocessInfo() const {
+        return _iePreprocessInfo;
+    }
+
+    /**
      * @brief Returns size of the compiled model in bytes
      * @return size in bytes
      */
     virtual std::size_t getNetworkModelSize() const = 0;
     virtual ~INetworkDescription() = default;
+
+protected:
+    std::unordered_map<std::string, InferenceEngine::PreProcessInfo> _iePreprocessInfo;
 };
 
 /**
@@ -133,7 +155,7 @@ public:
     using Ptr = std::shared_ptr<NetworkDescription>;
     using CPtr = std::shared_ptr<const NetworkDescription>;
 
-    NetworkDescription(INetworkDescription::Ptr actual, const InferenceEngine::details::SharedObjectLoader& plg = {});
+    NetworkDescription(INetworkDescription::Ptr actual, const CompilerPluginPtr& plg = {});
 
     const std::string& getName() const {
         return _actual->getName();
@@ -170,7 +192,8 @@ public:
 
 private:
     INetworkDescription::Ptr _actual;
-    InferenceEngine::details::SharedObjectLoader _plg;
+
+    CompilerPluginPtr _plg;
 };
 
 /**
@@ -199,7 +222,7 @@ public:
                                                          const std::string& netName,
                                                          const InferenceEngine::InputsDataMap& inputsInfo,
                                                          const InferenceEngine::OutputsDataMap& outputsInfo,
-                                                         const VPUXConfig& config = {}) = 0;
+                                                         const Config& config) = 0;
 
     /**
      * @brief Returns information about supported layers of the network passed
@@ -209,7 +232,7 @@ public:
      * @returns QueryNetworkResult structure with information about supported layers
      */
     virtual InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network,
-                                                      const VPUXConfig& config = {}) = 0;
+                                                      const Config& config) = 0;
 
     /**
      * @brief Parses already compiled network to extract meta information:
@@ -222,18 +245,12 @@ public:
      *        to be used for creating network description
      * @return a shared pointer on an object implementing INetworkDescription interface
      */
-    virtual std::shared_ptr<vpux::INetworkDescription> parse(const std::vector<char>& network,
-                                                             const VPUXConfig& config = {},
-                                                             const std::string& netName = "") = 0;
+    virtual std::shared_ptr<vpux::INetworkDescription> parse(const std::vector<char>& network, const Config& config,
+                                                             const std::string& netName) = 0;
 
-    virtual std::shared_ptr<vpux::INetworkDescription> parse(const std::string& filename,
-                                                             const VPUXConfig& config = {});
-    virtual std::shared_ptr<vpux::INetworkDescription> parse(std::istream& stream, const VPUXConfig& config = {},
-                                                             const std::string& netName = "");
-
-    virtual std::unordered_set<std::string> getSupportedOptions() {
-        return {};
-    };
+    virtual std::shared_ptr<vpux::INetworkDescription> parse(const std::string& filename, const Config& config);
+    virtual std::shared_ptr<vpux::INetworkDescription> parse(std::istream& stream, const Config& config,
+                                                             const std::string& netName);
 
 protected:
     ~ICompiler() = default;
@@ -245,44 +262,41 @@ public:
     using Ptr = std::shared_ptr<Compiler>;
     using CPtr = std::shared_ptr<const Compiler>;
 
-    static Ptr create(const VPUXConfig& config = {});
+    static Ptr create(const Config& config);
 
+#ifdef OPENVINO_STATIC_LIBRARY
+    Compiler(ICompiler::Ptr com): _actual(com){};
+#else
     Compiler(std::string libpath): _actual(std::move(libpath)){};
+#endif
 
     std::shared_ptr<vpux::NetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
                                                       const std::string& netName,
                                                       const InferenceEngine::InputsDataMap& inputsInfo,
                                                       const InferenceEngine::OutputsDataMap& outputsInfo,
-                                                      const vpux::VPUXConfig& config = {}) {
+                                                      const Config& config) {
         return std::make_shared<NetworkDescription>(_actual->compile(func, netName, inputsInfo, outputsInfo, config),
                                                     _actual);
     }
 
-    InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network,
-                                              const vpux::VPUXConfig& config = {}) {
+    InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network, const Config& config) {
         return _actual->query(network, config);
     }
 
-    std::shared_ptr<vpux::NetworkDescription> parse(const std::vector<char>& network,
-                                                    const vpux::VPUXConfig& config = {}) {
-        return std::make_shared<NetworkDescription>(_actual->parse(network, config), _actual);
+    std::shared_ptr<vpux::NetworkDescription> parse(const std::vector<char>& network, const Config& config) {
+        return std::make_shared<NetworkDescription>(_actual->parse(network, config, ""), _actual);
     }
 
-    std::shared_ptr<vpux::NetworkDescription> parse(const std::string& filename, const VPUXConfig& config = {}) {
+    std::shared_ptr<vpux::NetworkDescription> parse(const std::string& filename, const Config& config) {
         return std::make_shared<NetworkDescription>(_actual->parse(filename, config), _actual);
     }
 
-    std::shared_ptr<vpux::NetworkDescription> parse(std::istream& stream, const VPUXConfig& config = {},
-                                                    const std::string& graphName = "") {
+    std::shared_ptr<vpux::NetworkDescription> parse(std::istream& stream, const Config& config,
+                                                    const std::string& graphName) {
         return std::make_shared<NetworkDescription>(_actual->parse(stream, config, graphName), _actual);
     }
 
-    std::unordered_set<std::string> getSupportedOptions() {
-        return _actual->getSupportedOptions();
-    };
-
 private:
-    using CompilerPluginPtr = InferenceEngine::details::SOPointer<vpux::ICompiler>;
     CompilerPluginPtr _actual;
 };
 

@@ -12,12 +12,13 @@
 //
 
 #pragma once
-// Plugin
-#include <vpux.hpp>
-#include <vpux_config.hpp>
+
+#include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 namespace vpux {
 namespace hddl2 {
+
 class HDDL2Backend final : public vpux::IEngineBackend {
 public:
     using Ptr = std::shared_ptr<HDDL2Backend>;
@@ -32,19 +33,16 @@ public:
     const std::string getName() const override {
         return "HDDL2";
     }
-    std::unordered_set<std::string> getSupportedOptions() const override {
-        return _config.getRunTimeOptions();
-    }
 
     // TODO remove static and make them private
-    static bool isServiceAvailable(const vpu::Logger::Ptr& logger = nullptr);
+    static bool isServiceAvailable(Logger logger = Logger::global());
     static bool isServiceRunning();
 
 private:
-    VPUXConfig _config;
-    vpu::Logger::Ptr _logger = nullptr;
+    Logger _logger;
     std::map<std::string, std::shared_ptr<IDevice>> _devices;
     std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();
 };
+
 }  // namespace hddl2
 }  // namespace vpux

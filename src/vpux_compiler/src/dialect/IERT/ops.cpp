@@ -21,8 +21,8 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/IR/BuiltinDialect.h>
 #include <mlir/IR/BuiltinTypes.h>
-#include <mlir/IR/OpImplementation.h>
 
 using namespace vpux;
 
@@ -95,8 +95,6 @@ void vpux::IERT::IERTDialect::initialize() {
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/IERT/generated/ops.cpp.inc>
             >();
-
-    IERT::MemRefAttr::attachInterface<MemRefAttrLayout>(*getContext());
 }
 
 //
@@ -117,6 +115,14 @@ mlir::Operation* vpux::IERT::IERTDialect::materializeConstant(mlir::OpBuilder& b
 
     return builder.create<Const::DeclareOp>(loc, eraseTiledInfo(type.cast<mlir::MemRefType>()),
                                             value.cast<Const::ContentAttr>());
+}
+
+//
+// setupExtraInterfaces
+//
+
+void IERT::IERTDialect::setupExtraInterfaces(mlir::DialectRegistry& registry) {
+    registry.addAttrInterface<mlir::BuiltinDialect, IERT::MemRefAttr, MemRefAttrLayout>();
 }
 
 //

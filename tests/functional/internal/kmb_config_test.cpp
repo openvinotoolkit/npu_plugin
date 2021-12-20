@@ -13,6 +13,7 @@
 
 #include "common/functions.h"
 #include "test_model/kmb_test_base.hpp"
+#include "vpux_private_config.hpp"
 
 using ConfigMap = std::map<std::string, std::string>;
 using ConfigTestParams = std::tuple<ConfigMap, ConfigMap, ConfigMap, ConfigMap, ConfigMap, ConfigMap>;
@@ -71,6 +72,8 @@ TEST_P(KmbConfigTest, setConfig) {
     inferConfig.insert(preProcConfig.cbegin(), preProcConfig.cend());
     inferConfig.insert(preProcParamConfig.cbegin(), preProcParamConfig.cend());
     inferConfig.insert(inferShavesConfig.cbegin(), inferShavesConfig.cend());
+    if(inferConfig.find(VPUX_CONFIG_KEY(COMPILER_TYPE)) == inferConfig.end())
+        inferConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
 
     runTest(compileConfig, inferConfig);
 }

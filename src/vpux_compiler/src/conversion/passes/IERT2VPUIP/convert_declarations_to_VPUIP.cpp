@@ -12,6 +12,8 @@
 //
 
 #include "vpux/compiler/conversion.hpp"
+
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>

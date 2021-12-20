@@ -110,6 +110,7 @@ TEST_P(LoadNetwork, CheckDeviceInBlob) {
         // Load CNNNetwork to target plugins
         auto netConfiguration = configuration;
         netConfiguration[VPUX_CONFIG_KEY(PLATFORM)] = getWrongDevice(PlatformEnvironment::PLATFORM);
+        netConfiguration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
 #if defined(__arm__) || defined(__aarch64__)
         EXPECT_ANY_THROW(ie->LoadNetwork(cnnNet, targetDevice, netConfiguration));
 #else

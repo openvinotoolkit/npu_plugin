@@ -13,12 +13,15 @@
 
 #include "vpux/compiler/compiler.hpp"
 
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
+
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/network_description.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/pipelines.hpp"
@@ -49,45 +52,22 @@ using namespace InferenceEngine;
 namespace {
 
 //
-// getLogLevel
-//
-
-LogLevel getLogLevel(const VPUXConfig& config) {
-    switch (config.logLevel()) {
-    case vpu::LogLevel::Fatal:
-        return LogLevel::Fatal;
-    case vpu::LogLevel::Error:
-        return LogLevel::Error;
-    case vpu::LogLevel::Warning:
-        return LogLevel::Warning;
-    case vpu::LogLevel::Info:
-        return LogLevel::Info;
-    case vpu::LogLevel::Debug:
-        return LogLevel::Debug;
-    case vpu::LogLevel::Trace:
-        return LogLevel::Trace;
-    default:
-        return LogLevel::None;
-    }
-}
-
-//
 // getArchKind
 //
 
-VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
-    switch (config.platform()) {
+VPU::ArchKind getArchKind(const Config& config) {
+    switch (config.get<PLATFORM>()) {
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
-        return VPUIP::ArchKind::UNKNOWN;
+        return VPU::ArchKind::UNKNOWN;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
-        return VPUIP::ArchKind::KMB;
+        return VPU::ArchKind::KMB;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
-        return VPUIP::ArchKind::TBH;
+        return VPU::ArchKind::TBH;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720:
-        return VPUIP::ArchKind::MTL;
+        return VPU::ArchKind::MTL;
     default:
         VPUX_THROW("Unsupported VPUX platform");
     }
@@ -97,9 +77,13 @@ VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
 // getCompilationMode
 //
 
-VPUIP::CompilationMode getCompilationMode(const VPUXConfig& config) {
-    const auto parsed = VPUIP::symbolizeCompilationMode(config.compilationMode());
-    VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", config.compilationMode());
+VPU::CompilationMode getCompilationMode(const Config& config) {
+    if (!config.has<COMPILATION_MODE>()) {
+        return VPU::CompilationMode::DefaultHW;
+    }
+
+    const auto parsed = VPU::symbolizeCompilationMode(config.get<COMPILATION_MODE>());
+    VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", config.get<COMPILATION_MODE>());
     return parsed.getValue();
 }
 
@@ -107,11 +91,16 @@ VPUIP::CompilationMode getCompilationMode(const VPUXConfig& config) {
 // getNumberOfDPUGroups
 //
 
-Optional<int> getNumberOfDPUGroups(const VPUXConfig& config) {
-    if (config.numberOfDPUGroups().hasValue())
-        return config.numberOfDPUGroups();
+Optional<int> getNumberOfDPUGroups(const Config& config) {
+    if (config.has<DPU_GROUPS>()) {
+        return checked_cast<int>(config.get<DPU_GROUPS>());
+    }
 
-    switch (config.performanceHint()) {
+    if (!config.has<PERFORMANCE_HINT>()) {
+        return 1;  // TODO: consider updating once multi-clustering is enabled
+    }
+
+    switch (config.get<PERFORMANCE_HINT>()) {
     case PerformanceHint::Latency:
         return 4;
     case PerformanceHint::Throughput:
@@ -147,6 +136,7 @@ private:
     std::string _irPrintingFile;
     bool _printFullIR = false;
     bool _printFullConstant = false;
+    bool _printDebugInfo = false;
     std::string _printDotOptions;
 
     llvm::raw_ostream* _timingStream = nullptr;
@@ -181,6 +171,7 @@ DeveloperConfig::DeveloperConfig(Logger log): _log(log) {
     parseEnv("IE_VPUX_IR_PRINTING_FILE", _irPrintingFile);
     parseEnv("IE_VPUX_PRINT_FULL_IR", _printFullIR);
     parseEnv("IE_VPUX_PRINT_FULL_CONSTANT", _printFullConstant);
+    parseEnv("IE_VPUX_PRINT_DEBUG_INFO", _printDebugInfo);
 
     parseEnv("IE_VPUX_PRINT_DOT", _printDotOptions);
 #endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
@@ -259,9 +250,12 @@ void DeveloperConfig::setup(mlir::PassManager& pm) const {
             pm.getContext()->disableMultithreading();
         }
 
-        mlir::OpPrintingFlags flags = mlir::OpPrintingFlags();
+        mlir::OpPrintingFlags flags;
         if (!_printFullConstant) {
             flags.elideLargeElementsAttrs();
+        }
+        if (_printDebugInfo) {
+            flags.enableDebugInfo(true);
         }
 
         pm.enableIRPrinting(shouldPrintBeforePass, shouldPrintAfterPass, _printFullIR, printAfterOnlyOnChange,
@@ -281,8 +275,8 @@ void DeveloperConfig::setup(mlir::PassManager& pm) const {
 //
 
 InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEngine::CNNNetwork& network,
-                                                              const vpux::VPUXConfig& config) {
-    Logger log("vpux-compiler", getLogLevel(config));
+                                                              const Config& config) {
+    Logger log("vpux-compiler", config.get<LOG_LEVEL>());
     InferenceEngine::QueryNetworkResult result;
     const std::string plugin_name = DEVICE_NAME;
 
@@ -291,7 +285,8 @@ InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEng
     devConf.setup(tm);
     auto rootTiming = tm.getRootScope();
 
-    auto supportedLayers = IE::queryNetwork(network, rootTiming, log);
+    std::vector<vpux::PreProcessInfo> preProcInfo;
+    auto supportedLayers = IE::queryNetwork(network, preProcInfo, rootTiming, log);
 
     for (auto&& layerName : supportedLayers) {
         result.supportedLayersMap.emplace(layerName, plugin_name);
@@ -306,28 +301,28 @@ InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEng
 
 namespace {
 
-void buildPipeline(mlir::PassManager& pm, const VPUXConfig& config, mlir::TimingScope& rootTiming, Logger log) {
+void buildPipeline(mlir::PassManager& pm, const Config& config, mlir::TimingScope& rootTiming, Logger log) {
     auto buildTiming = rootTiming.nest("Build compilation pipeline");
 
     const auto archKind = getArchKind(config);
     const auto compilationMode = getCompilationMode(config);
-    const auto enableProfiling = config.performanceCounting();
+    const auto enableProfiling = config.get<PERF_COUNT>();
     const auto numOfDPUGroups = getNumberOfDPUGroups(config);
 
-    pm.addPass(createSetCompileParamsPass(archKind, compilationMode, numOfDPUGroups, log.nest()));
+    pm.addPass(VPU::createInitCompilerPass(archKind, compilationMode, numOfDPUGroups, log.nest()));
 
-    if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
-        const auto options = ReferenceSWOptions::createFromString(config.pipelineOptions());
+    if (compilationMode == VPU::CompilationMode::ReferenceSW) {
+        const auto options = ReferenceSWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
         options->enableProfiling = enableProfiling;
 
         buildReferenceSWModePipeline(pm, *options, log.nest());
-    } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
-        const auto options = ReferenceHWOptions::createFromString(config.pipelineOptions());
+    } else if (compilationMode == VPU::CompilationMode::ReferenceHW) {
+        const auto options = ReferenceHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
         options->enableProfiling = enableProfiling;
 
         buildReferenceHWModePipeline(pm, *options, log.nest());
-    } else if (compilationMode == VPUIP::CompilationMode::DefaultHW) {
-        const auto options = DefaultHWOptions::createFromString(config.pipelineOptions());
+    } else if (compilationMode == VPU::CompilationMode::DefaultHW) {
+        const auto options = DefaultHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
         options->enableProfiling = enableProfiling;
 
         buildDefaultHWModePipeline(pm, *options, log.nest());
@@ -355,9 +350,11 @@ CNNNetwork prepareNetwork(const std::shared_ptr<ngraph::Function>& func, const I
 }
 
 auto importNetwork(mlir::MLIRContext* ctx, CNNNetwork cnnNet, const DeveloperConfig& devConf,
-                   mlir::TimingScope& rootTiming, bool enableProfiling, Logger log) {
+                   std::vector<vpux::PreProcessInfo>& preProcInfo, mlir::TimingScope& rootTiming, bool enableProfiling,
+                   Logger log) {
     auto importTiming = rootTiming.nest("Import network");
-    return IE::importNetwork(ctx, cnnNet, devConf.useSharedConstants(), importTiming, enableProfiling, log.nest());
+    return IE::importNetwork(ctx, cnnNet, preProcInfo, devConf.useSharedConstants(), importTiming, enableProfiling,
+                             log.nest());
 }
 
 void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingScope& rootTiming) {
@@ -366,9 +363,10 @@ void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingSc
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 }
 
-auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log) {
+auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                  const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log) {
     auto exportTiming = rootTiming.nest("Export to blob");
-    return VPUIP::exportToBlob(module, exportTiming, log);
+    return VPUIP::exportToBlob(module, exportTiming, preprocessInfo, log);
 }
 
 }  // namespace
@@ -376,8 +374,8 @@ auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger l
 std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shared_ptr<ngraph::Function>& func,
                                                                  const std::string&, const InputsDataMap& inputsInfo,
                                                                  const OutputsDataMap& outputsInfo,
-                                                                 const VPUXConfig& config) {
-    Logger log("vpux-compiler", getLogLevel(config));
+                                                                 const Config& config) {
+    Logger log("vpux-compiler", config.get<LOG_LEVEL>());
 
     DeveloperConfig devConf(log);
 
@@ -398,9 +396,10 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     buildPipeline(pm, config, rootTiming, log);
 
     const auto cnnNet = prepareNetwork(func, inputsInfo, outputsInfo, rootTiming);
-    const auto module = importNetwork(&ctx, cnnNet, devConf, rootTiming, config.performanceCounting(), log);
+    std::vector<vpux::PreProcessInfo> preProcInfo;
+    const auto module = importNetwork(&ctx, cnnNet, devConf, preProcInfo, rootTiming, config.get<PERF_COUNT>(), log);
     compileNetwork(module.get(), pm, rootTiming);
-    const auto blob = exportToBlob(module.get(), rootTiming, log);
+    const auto blob = exportToBlob(module.get(), rootTiming, preProcInfo, log);
 
     auto finalTiming = rootTiming.nest("Wrap into NetworkDescription");
     std::vector<char> compiledNetwork(blob.size());
@@ -413,23 +412,17 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
 //
 
 std::shared_ptr<vpux::INetworkDescription> vpux::CompilerImpl::parse(const std::vector<char>& compiledNetwork,
-                                                                     const vpux::VPUXConfig&, const std::string&) {
+                                                                     const Config&, const std::string&) {
     return std::make_shared<VPUIP::NetworkDescription>(compiledNetwork);
-}
-
-//
-// CompilerImpl::getSupportedOptions
-//
-
-std::unordered_set<std::string> vpux::CompilerImpl::getSupportedOptions() {
-    return {};
 }
 
 //
 // CreateVPUXCompiler
 //
 
+#ifndef OPENVINO_STATIC_LIBRARY
 INFERENCE_PLUGIN_API(void)
 CreateVPUXCompiler(std::shared_ptr<ICompiler>& compiler) {
     compiler = std::make_shared<CompilerImpl>();
 }
+#endif

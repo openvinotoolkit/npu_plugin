@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,9 +12,6 @@
 //
 
 #include "vpux/compiler/backend/VPUIP.hpp"
-#include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/frontend/VPUIP.hpp"
 #include "vpux/compiler/init.hpp"
@@ -39,6 +36,9 @@
 using namespace vpux;
 
 namespace {
+
+llvm::cl::opt<bool> vpuxProfiling("vpux-profiling", llvm::cl::desc("Add profilingOutput region to the imported IR"),
+                                  llvm::cl::init(false));
 
 //
 // import-IE
@@ -78,7 +78,8 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ct
     try {
         mlir::DefaultTimingManager tm;
         auto rootTiming = tm.getRootScope();
-        module = IE::importNetwork(ctx, cnnNet, false, rootTiming, false);
+        std::vector<vpux::PreProcessInfo> preProcInfo;
+        module = IE::importNetwork(ctx, cnnNet, preProcInfo, false, rootTiming, vpuxProfiling);
     } catch (const std::exception& ex) {
         printTo(llvm::errs(), "Failed to translate IE IR {0} to MLIR : {1}", netFileName, ex.what());
         return nullptr;
@@ -131,7 +132,8 @@ mlir::OwningModuleRef importVPUIP(llvm::SourceMgr& sourceMgr, mlir::MLIRContext*
 mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
     mlir::DefaultTimingManager tm;
     auto rootTiming = tm.getRootScope();
-    const auto buf = VPUIP::exportToBlob(module, rootTiming);
+    std::vector<vpux::PreProcessInfo> preProcInfo;
+    const auto buf = VPUIP::exportToBlob(module, rootTiming, preProcInfo);
     output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
     return mlir::success();
 }

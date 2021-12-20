@@ -39,8 +39,9 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16};
+    InferenceEngine::Precision::FP32, // Testing FP32/FP16 netPrecision functionality only for small scope of
+    InferenceEngine::Precision::FP16  // tests: KmbGRNLayerTest, KmbSplitLayerTest, KmbCTCGreedyDecoderLayerTest
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Split, KmbSplitLayerTest,
                         ::testing::Combine(::testing::Values(2, 3), ::testing::Values(0, 1, 2, 3),

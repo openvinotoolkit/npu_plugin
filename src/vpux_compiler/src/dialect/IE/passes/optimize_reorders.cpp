@@ -147,40 +147,30 @@ mlir::LogicalResult ReorderWithSplit::matchAndRewrite(IE::SplitOp origSplitOp, m
 
     _log.trace("Got reorder at '{0}' -> Split at '{1}' pair", origReorderOp->getLoc(), origSplitOp->getLoc());
 
-    const auto initialOrder = DimsOrder::fromValue(origReorderOp.input());
+    const auto inOrder = DimsOrder::fromValue(origReorderOp.input());
+    const auto outOrder = DimsOrder::fromValue(origReorderOp.output());
+    const auto dstOrderAttr = origReorderOp.dstOrderAttr();
+    auto newSplit = rewriter.create<IE::SplitOp>(origSplitOp->getLoc(), origReorderOp.input(), origSplitOp.axis(),
+                                                 origSplitOp.num_splitsAttr(), origSplitOp.axis_valueAttr());
 
-    SmallVector<IE::ReorderOp> outputReorders;
-    outputReorders.reserve(origSplitOp.outputs().size());
+    SmallVector<mlir::Value> newOutputs;
+    newOutputs.reserve(origSplitOp.outputs().size());
 
     for (auto res : origSplitOp.outputs()) {
-        if (!res.hasOneUse()) {
-            return matchFailed(_log.nest(), rewriter, origSplitOp, "Split output #{0} has more then one user",
-                               res.getResultNumber());
+        if (res.getUses().empty()) {
+            newOutputs.push_back(newSplit.getResult(res.getResultNumber()));
+            continue;
         }
 
-        auto resReorderOp = mlir::dyn_cast<IE::ReorderOp>(*res.user_begin());
-        if (resReorderOp == nullptr) {
-            return matchFailed(_log.nest(), rewriter, origSplitOp, "Split output #{0} consumed by non Reorder",
-                               res.getResultNumber());
-        }
-
-        const auto resOrder = DimsOrder::fromValue(resReorderOp.output());
-        if (resOrder != initialOrder) {
-            return matchFailed(_log.nest(), rewriter, origSplitOp, "Split output #{0} is reordered to different order",
-                               res.getResultNumber());
-        }
-
-        outputReorders.push_back(resReorderOp);
+        _log.trace("Insert reorder '{0}' -> '{1}' for Split output at idx='{2}'.", inOrder, outOrder,
+                   res.getResultNumber());
+        auto reorder = rewriter.create<IE::ReorderOp>(origSplitOp->getLoc(), newSplit.getResult(res.getResultNumber()),
+                                                      dstOrderAttr);
+        newOutputs.push_back(reorder);
     }
 
-    auto newSplitOp = rewriter.create<IE::SplitOp>(origSplitOp->getLoc(), origReorderOp.input(), origSplitOp.axis(),
-                                                   origSplitOp.num_splitsAttr(), origSplitOp.axis_valueAttr());
-
-    for (auto ind : irange(outputReorders.size())) {
-        auto oldResReorderOp = outputReorders[ind];
-        auto newResVal = newSplitOp->getResult(checked_cast<uint32_t>(ind));
-        rewriter.replaceOp(oldResReorderOp, newResVal);
-    }
+    _log.trace("Replace Split with new output values.");
+    rewriter.replaceOp(origSplitOp, newOutputs);
 
     return mlir::success();
 }
@@ -268,10 +258,6 @@ mlir::LogicalResult ReorderWithQuantCast::matchAndRewrite(IE::QuantizeCastOp ori
 
     _log.trace("Got reorder at '{0}' -> quantize cast at '{1}' pair", origReorderOp->getLoc(),
                origQuantCastOp->getLoc());
-
-    if (!origReorderOp.getResult().hasOneUse()) {
-        return matchFailed(_log.nest(), rewriter, origQuantCastOp, "Reorder has more then one user");
-    }
 
     auto newQuantCastOp = rewriter.create<IE::QuantizeCastOp>(origQuantCastOp->getLoc(), origReorderOp.input(),
                                                               origQuantCastOp.dstElemTypeAttr());

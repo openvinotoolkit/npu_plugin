@@ -32,7 +32,7 @@ TEST_P(KmbFakeQuantizeLayerTest, CompareWithRefs_MLIR_SW) {
 
 TEST_P(KmbFakeQuantizeLayerTest_HW, CompareWithRefs_MLIR) {
     useCompilerMLIR();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -43,7 +43,6 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::FP16
 };
 

@@ -40,8 +40,6 @@ void vpux::VPUIP::NormUPAOp::build(mlir::OpBuilder& builder, mlir::OperationStat
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NormUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    MVCNN::NormParamsBuilder builder(writer);
-
     VPUIP::BlobWriter::String region;
     switch (this->region()) {
     case IE::LRN_IERegion::across:
@@ -54,6 +52,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NormUPAOp::serialize(VPUIP::BlobWri
         VPUX_THROW("Unsupported LRN_IERegion {0}", this->region());
     }
 
+    MVCNN::NormParamsBuilder builder(writer);
     builder.add_alpha(static_cast<float>(alpha().convertToDouble()));
     builder.add_beta(static_cast<float>(beta().convertToDouble()));
     builder.add_local_size(checked_cast<int32_t>(local_size()));

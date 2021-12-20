@@ -4,9 +4,6 @@
 
 // CHECK-LABEL: @Convolution
 module @Convolution {
-    // CHECK:       VPUIP.Graph
-    // CHECK-SAME:      options : "NONE"
-
     // CHECK:   IERT.RunTimeResources
     // CHECK:       usedMemory :
     // CHECK-DAG:       MemoryResource {{[0-9]+}} bytes of "CMX_NN"
@@ -14,8 +11,8 @@ module @Convolution {
     // CHECK:       executors :
     // CHECK-DAG:       ExecutorResource 1 of "DMA_NN"
     // CHECK-DAG:       ExecutorResource 16 of "SHAVE_UPA"
-    // CHECK-DAG:       ExecutorResource {VPUIP.processorFrequency = 7.000000e+02 : f64} 4 of "NCE_Cluster"
-    // CHECK-DAG:           ExecutorResource 5 of "NCE_PerClusterDPU"
+    // CHECK-DAG:       ExecutorResource {VPU.processorFrequency = 7.000000e+02 : f64} 4 of "NCE"
+    // CHECK-DAG:           ExecutorResource 5 of "DPU"
 
     IE.CNNNetwork entryPoint : @main
     inputsInfo : {

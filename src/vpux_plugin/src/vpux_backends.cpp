@@ -11,12 +11,12 @@
 // included with the Software Package for additional details.
 //
 
-// Plugin
 #include "vpux_backends.h"
 
 #include <fstream>
 #include <memory>
 
+#include "vpux/al/config/common.hpp"
 #include "vpux_exceptions.h"
 #include "vpux_remote_context.h"
 
@@ -26,8 +26,7 @@ namespace vpux {
 namespace IE = InferenceEngine;
 
 // TODO Config will be useless here, since only default values will be used
-VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry)
-        : _logger(vpu::Logger("VPUXBackends", vpu::LogLevel::Error, vpu::consoleOutput())) {
+VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry): _logger("VPUXBackends", LogLevel::Error) {
     std::vector<std::shared_ptr<EngineBackend>> registeredBackends;
     for (const auto& name : backendRegistry) {
         const auto path = getLibFilePath(name);
@@ -36,13 +35,13 @@ VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry)
             try {
                 const auto backend = std::make_shared<EngineBackend>(path);
                 if (backend->getDeviceNames().size() != 0) {
-                    _logger.debug("Register %s", name);
+                    _logger.debug("Register {0}", name);
                     registeredBackends.emplace_back(backend);
                 }
             } catch (const IE::Exception& e) {
-                _logger.warning("Exception '%s' while searching for a device by %s", e.what(), name);
+                _logger.warning("Exception '{0}' while searching for a device by {1}", e.what(), name);
             } catch (...) {
-                _logger.warning("Unknown exception while searching for a device by %s", name);
+                _logger.warning("Unknown exception while searching for a device by {0}", name);
             }
         }
     }
@@ -65,7 +64,7 @@ std::string VPUXBackends::getBackendName() const {
 }
 
 std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName) const {
-    _logger.debug("Searching for device %s to use started...", specificName);
+    _logger.debug("Searching for device {0} to use started...", specificName);
     // TODO iterate over all available backends
     std::shared_ptr<Device> deviceToUse = nullptr;
 
@@ -80,7 +79,7 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName)
     if (deviceToUse == nullptr) {
         _logger.warning("Device to use not found!");
     } else {
-        _logger.debug("Device to use found: %s", deviceToUse->getName());
+        _logger.debug("Device to use found: {0}", deviceToUse->getName());
     }
     return deviceToUse;
 }
@@ -96,7 +95,7 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const IE::RemoteContext::Ptr& co
         IE_THROW() << FAILED_CAST_CONTEXT;
     }
     const auto device = privateContext->getDevice();
-    _logger.debug("Device from context found: {}", device->getName());
+    _logger.debug("Device from context found: {0}", device->getName());
     return device;
 }
 
@@ -104,13 +103,15 @@ std::vector<std::string> VPUXBackends::getAvailableDevicesNames() const {
     return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
 }
 
-std::unordered_set<std::string> VPUXBackends::getSupportedOptions() const {
-    return _backend == nullptr ? std::unordered_set<std::string>() : _backend->getSupportedOptions();
+void VPUXBackends::registerOptions(OptionsDesc& options) const {
+    if (_backend != nullptr) {
+        _backend->registerOptions(options);
+    }
 }
 
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below
-void VPUXBackends::setup(const VPUXConfig& config) {
-    _logger.setLevel(config.logLevel());
+void VPUXBackends::setup(const Config& config) {
+    _logger.setLevel(config.get<LOG_LEVEL>());
 }
 
 static std::map<IE::VPUXConfigParams::VPUXPlatform, std::string> compilationPlatformMap = {

@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/passes.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Dialect/StandardOps/Transforms/Passes.h>
@@ -39,13 +40,16 @@ void vpux::buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log) {
 // LowerIERT2VPUIP
 //
 
-void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log) {
+void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, const LowerIERT2VPUIPOptions& options, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(createConvertLayers2VPUIPPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(createConvertDeclarations2VPUIPPass(log));
     pm.addPass(createConvertViewOps2VPUIPPass(log));
+    if (options.enableCompressWeights) {
+        pm.addPass(vpux::VPUIP::createCompressWeightsPass(log));
+    }
     pm.addPass(createConvertAsyncOps2VPUIPPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(createMoveDeclarationsToTopPass(log));
@@ -61,9 +65,9 @@ void vpux::registerConversionPipelines() {
                                          buildLowerIE2IERTPipeline(pm);
                                      });
 
-    mlir::PassPipelineRegistration<>("lower-IERT-to-VPUIP",
-                                     "Performs full lowering from the IERT Dialect to VPUIP Dialect",
-                                     [](mlir::OpPassManager& pm) {
-                                         buildLowerIERT2VPUIPPipeline(pm);
-                                     });
+    mlir::PassPipelineRegistration<LowerIERT2VPUIPOptions>(
+            "lower-IERT-to-VPUIP", "Performs full lowering from the IERT Dialect to VPUIP Dialect",
+            [](mlir::OpPassManager& pm, const LowerIERT2VPUIPOptions& options) {
+                buildLowerIERT2VPUIPPipeline(pm, options);
+            });
 }

@@ -13,23 +13,17 @@
 
 #include "emulator_backend.hpp"
 
+#include "device_helpers.hpp"
+#include "emulator_device.hpp"
+
 #include <ie_common.h>
 #include <description_buffer.hpp>
-#include <device_helpers.hpp>
-
-#include "emulator_device.hpp"
 
 namespace ie = InferenceEngine;
 
 namespace vpux {
 
-EmulatorBackend::EmulatorBackend()
-        : _logger(std::unique_ptr<vpu::Logger>(
-                  // [Track number: S#42840]
-                  // TODO: config will come by another PR, for now let's use Error log level [Track number: S#42840]
-                  new vpu::Logger("EmulatorBackend", vpu::LogLevel::Error /*_config.logLevel()*/,
-                                  vpu::consoleOutput()))),
-          _device(std::make_shared<EmulatorDevice>()) {
+EmulatorBackend::EmulatorBackend(): _device(std::make_shared<EmulatorDevice>()) {
 }
 
 // nullptr is returned to make sure that

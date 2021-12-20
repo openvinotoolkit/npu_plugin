@@ -76,9 +76,11 @@ mlir::LogicalResult FuseWithConv::matchAndRewrite(IE::QuantizeOp quantizeOp, mli
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(
-            quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(), filterDequantizeOp.input(), convOp.bias(),
-            convOp.strides(), convOp.pads_begin(), convOp.pads_end(), convOp.dilations(), convOp.post_opAttr());
+    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(),
+                                                   filterDequantizeOp.input(), convOp.bias(), convOp.strides(),
+                                                   convOp.pads_begin(), convOp.pads_end(), convOp.dilations(),
+                                                   convOp.post_opAttr())
+            ->setLoc(convOp->getLoc());
 
     return mlir::success();
 }
@@ -134,9 +136,10 @@ mlir::LogicalResult FuseWithGroupConv::matchAndRewrite(IE::QuantizeOp quantizeOp
     }
 
     rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(
-            quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(), filterDequantizeOp.input(), grConvOp.bias(),
-            grConvOp.strides(), grConvOp.pads_begin(), grConvOp.pads_end(), grConvOp.dilations(), grConvOp.groupsAttr(),
-            grConvOp.post_opAttr());
+                    quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(), filterDequantizeOp.input(),
+                    grConvOp.bias(), grConvOp.strides(), grConvOp.pads_begin(), grConvOp.pads_end(),
+                    grConvOp.dilations(), grConvOp.groupsAttr(), grConvOp.post_opAttr())
+            ->setLoc(grConvOp->getLoc());
 
     return mlir::success();
 }
@@ -180,14 +183,25 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
         return mlir::failure();
     }
 
+    // MaxPool IDU does not support zero-point subtraction, so it compensates by ignoring output zero-point as well.
+    // Since we are not subtracting the input zero-point, the non-linear post-op will operate on improper data.
+    // Only zero-centered values would be supported. Currently, quantized MaxPool is disabled for all post-ops.
+    auto mainOp = mlir::dyn_cast<IE::LayerWithPostOpInterface>(maxPoolOp.getOperation());
+    if (mainOp != nullptr) {
+        if (mainOp.getPostOp().hasValue()) {
+            return mlir::failure();
+        }
+    }
+
     auto inputDequantizeOp = maxPoolOp.input().getDefiningOp<IE::DequantizeOp>();
     if (inputDequantizeOp == nullptr) {
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(
-            quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(), maxPoolOp.kernel_size(), maxPoolOp.strides(),
-            maxPoolOp.pads_begin(), maxPoolOp.pads_end(), maxPoolOp.rounding_type(), maxPoolOp.post_opAttr());
+    rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(),
+                                               maxPoolOp.kernel_size(), maxPoolOp.strides(), maxPoolOp.pads_begin(),
+                                               maxPoolOp.pads_end(), maxPoolOp.rounding_type(), maxPoolOp.post_opAttr())
+            ->setLoc(maxPoolOp->getLoc());
 
     return mlir::success();
 }
@@ -233,7 +247,8 @@ mlir::LogicalResult FuseWithSlice::matchAndRewrite(IE::QuantizeOp quantizeOp, ml
     }
 
     rewriter.replaceOpWithNewOp<IE::SliceOp>(quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(),
-                                             sliceOp.static_offsetsAttr(), sliceOp.static_sizesAttr());
+                                             sliceOp.static_offsetsAttr(), sliceOp.static_sizesAttr())
+            ->setLoc(sliceOp->getLoc());
 
     return mlir::success();
 }
@@ -308,7 +323,8 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
     }
 
     rewriter.replaceOpWithNewOp<IE::ConcatOp>(quantizeOp, newConcatInputs, concatOp.per_axisAttr(),
-                                              concatOp.static_offsetsAttr());
+                                              concatOp.static_offsetsAttr())
+            ->setLoc(concatOp->getLoc());
 
     return mlir::success();
 }
@@ -462,7 +478,8 @@ mlir::LogicalResult FuseWithEltwiseConverter<ConcreteOp>::matchAndRewrite(IE::Qu
 
     rewriter.replaceOpWithNewOp<ConcreteOp>(quantizeOp, quantizeOp.getType(), input1DequantizeOp.input(),
                                             input2DequantizeOp.input(), eltwiseOp.auto_broadcastAttr(),
-                                            eltwiseOp.post_opAttr());
+                                            eltwiseOp.post_opAttr())
+            ->setLoc(eltwiseOp->getLoc());
 
     return mlir::success();
 }

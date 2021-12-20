@@ -36,6 +36,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Relu,
     ngraph::helpers::Sigmoid,
     ngraph::helpers::Clamp,
+    ngraph::helpers::SoftPlus,
     ngraph::helpers::Elu,
     ngraph::helpers::HSwish,
     ngraph::helpers::Floor,
@@ -50,8 +51,13 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::RoundHalfToEven,
     ngraph::helpers::RoundHalfAwayFromZero,
     ngraph::helpers::Sqrt,
+    ngraph::helpers::Sinh,
+    ngraph::helpers::Cosh,
+    ngraph::helpers::Asinh,
+    ngraph::helpers::Acosh,
     ngraph::helpers::Log,
     ngraph::helpers::Ceiling,
+    ngraph::helpers::Gelu,
 };
 
 } // namespace
@@ -86,16 +92,16 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
 
 class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
     void SkipBeforeLoad() override {
-        if (std::getenv("MV_TOOLS_DIR") && std::getenv("MV_TOOLS_VERSION")) {
-            return;
+        if (std::getenv("OV_BUILD_DIR") == nullptr) {
+            throw LayerTestsUtils::KmbSkipTestException(
+                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
         }
 
-        throw LayerTestsUtils::KmbSkipTestException("Movi tools environment is not set.");
+#if defined(__arm__) || defined(__aarch64__)
+        throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM.");
+#endif
     }
     void SkipBeforeInfer() override {
-        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
-    }
-    void SkipBeforeValidate() override {
         throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
     }
 };
@@ -109,10 +115,11 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
     Run();
 }
 
+// [Track number: EISW-26724]
 TEST_P(KmbActivationLayerTest_MTL, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     setPlatformMTL();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -124,11 +131,10 @@ using namespace ngraph::helpers;
 namespace {
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP32
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::FP16};
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
@@ -140,9 +146,12 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {HSwish,   {{1.0f}}},
     {Mish,     {{1.0f}}},
     {SoftPlus, {{1.0f}}},
-    {Mish,     {{1.0f}}},
     {Floor,    {{1.0f}}},
     {Sqrt,     {{1.0f}}},
+    {Sinh,     {{1.0f}}},
+    {Cosh,     {{1.0f}}},
+    {Asinh,    {{1.0f}}},
+    {Acosh,    {{1.0f}}},
     {Erf,      {{1.0f}}},
     {Gelu,     {{1.0f}}},
     {Exp,      {{1.0f}}},
@@ -242,12 +251,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_FP16Only, KmbActivationLayerTest,
 
 // ------ MTL ------
 
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basicShapesMTL = {
-        {{1, 1, 1, 1000}, {{}}},
-};
-
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesMTL = {
         {Sigmoid,  {{1.0f}}},
+        {HSwish,   {{1.0f}}},
 };
 
 const auto basicCasesMTL = ::testing::Combine(
@@ -257,7 +263,7 @@ const auto basicCasesMTL = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basicShapesMTL)),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest_MTL, basicCasesMTL, ActivationLayerTest::getTestCaseName);

@@ -13,24 +13,27 @@
 
 #pragma once
 
+#include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
+
 #include <memory>
 #include <string>
-#include <vpux.hpp>
 
 namespace vpux {
 
 class EmulatorDevice final : public IDevice {
 public:
     EmulatorDevice();
-    std::shared_ptr<Executor> createExecutor(
-        const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;
+    std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
+                                             const Config& config) override;
 
     virtual std::shared_ptr<Allocator> getAllocator() const {
         return nullptr;
     }
     std::string getName() const override;
+
 private:
-    std::unique_ptr<vpu::Logger> _logger;
+    Logger _logger;
 };
 
 }  // namespace vpux

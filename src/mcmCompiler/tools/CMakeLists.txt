@@ -1,2 +1,1 @@
 add_subdirectory(validate_tensor)
-add_subdirectory(profiling_parser)

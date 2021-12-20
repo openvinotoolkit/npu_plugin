@@ -11,16 +11,18 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/utils/IE/itt.hpp"
+#include "vpux/utils/core/logger.hpp"
+
 #include <NnCorePlg.h>
 #include <NnXlinkPlg.h>
 #include <mvMacros.h>
 #include <xlink_uapi.h>
+
 #include <condition_variable>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
-#include <vpu/utils/logger.hpp>
-#include "vpux/utils/IE/itt.hpp"
 
 namespace vpux {
 
@@ -48,7 +50,7 @@ private:
 template <class InferenceImpl>
 class VpualCoreNNSynchronizer {
 public:
-    VpualCoreNNSynchronizer(InferenceImpl& impl, vpu::Logger::Ptr logger): _impl(impl), _logger(logger) {
+    VpualCoreNNSynchronizer(InferenceImpl& impl, Logger logger): _impl(impl), _logger(logger) {
         _pollingThread = std::thread(&VpualCoreNNSynchronizer::poll_for_response_thread, this);
     }
 
@@ -87,7 +89,7 @@ public:
         {
             std::lock_guard<std::mutex> lck(_mapProtectMtx);
             if (!_inferIdToRespEntry.count(inference_id)) {
-                _logger->error("[SYNC] Unable to map inference-id(%u) to response-entry.", inference_id);
+                _logger.error("[SYNC] Unable to map inference-id({0}) to response-entry.", inference_id);
                 return MVNCI_INTERNAL_ERROR;
             }
             entry = _inferIdToRespEntry[inference_id];
@@ -104,7 +106,7 @@ public:
         {
             std::lock_guard<std::mutex> lck(_mapProtectMtx);
             if (_inferIdToRespEntry.erase(inference_id) != 1) {
-                _logger->warning("[SYNC] Unable to erase inference-id(%u) from response-entry map.", inference_id);
+                _logger.warning("[SYNC] Unable to erase inference-id({0}) from response-entry map.", inference_id);
             }
         }
 
@@ -118,7 +120,7 @@ private:
      * After some response is received, corresponding thread is notified.
      */
     void poll_for_response_thread() {
-        _logger->info("Start polling for inference results");
+        _logger.info("Start polling for inference results");
         std::unique_lock<std::mutex> lck(_pollingThreadMtx);
         while (!_bStop) {
             // when awaiting for response is started before
@@ -148,9 +150,9 @@ private:
                     lck_entry.unlock();
                     entry->cond.notify_one();
                 } else
-                    _logger->error("[SYNC] inference completed for unknown inferenceId: %u", response.inferenceID);
+                    _logger.error("[SYNC] inference completed for unknown inferenceId: {0}", response.inferenceID);
             } else {
-                _logger->error("[SYNC] WaitForResponse returned status: %d", status);
+                _logger.error("[SYNC] WaitForResponse returned status: {0}", status);
                 // when status != X_LINK_SUCCESS, some more critical issue has occurred,
                 // and we can't expect inferenceID to be set correctly in the resultant
                 // response struct. So in this case, set error status & wake up
@@ -167,7 +169,7 @@ private:
             }
             lck.lock();
         }
-        _logger->info("Finish polling for inference results");
+        _logger.info("Finish polling for inference results");
     }
 
     struct WaitResponseEntry {
@@ -189,7 +191,7 @@ private:
     unsigned int _nWaitsPending{0};
     bool _bStop{false};
     InferenceImpl& _impl;
-    vpu::Logger::Ptr _logger;
+    Logger _logger;
 };
 
 }  // namespace vpux

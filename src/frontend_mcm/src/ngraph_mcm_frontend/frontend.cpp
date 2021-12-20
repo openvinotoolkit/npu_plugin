@@ -13,6 +13,8 @@
 
 // clang-format off
 
+#include "vpux/utils/core/logger.hpp"
+
 #include "ngraph_mcm_frontend/frontend.hpp"
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
 #include "ngraph_mcm_frontend/passes/add_io_convert_ops.hpp"
@@ -45,7 +47,6 @@
 #include "vpux/utils/core/error.hpp"
 
 #include <file_utils.h>
-#include <vpu/utils/logger.hpp>
 #include <device_helpers.hpp>
 
 #include <ngraph/pass/manager.hpp>
@@ -73,7 +74,12 @@
 #include <vector>
 #include <utility>
 #include <transformations/serialize.hpp>
-#include <mcm_config.hpp>
+
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
+#include "vpux/al/config/mcm_compiler.hpp"
+
+using namespace vpux;
 
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     const std::string& tensorName,
@@ -82,7 +88,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     const std::string& tensorName,
     const InferenceEngine::TensorDesc& tensorInfo,
-    const mv::Data::TensorIterator& opModelTensor, const vpu::MCMConfig& config);
+    const mv::Data::TensorIterator& opModelTensor, const Config& config);
 
 
 namespace {
@@ -142,26 +148,25 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
     const std::string& netName,
     const ie::InputsDataMap& inputsInfo,
     const ie::OutputsDataMap& outputsInfo,
-    const vpu::MCMConfig& config,
-    std::shared_ptr<vpu::Logger> log,
+    const Config& config,
+    vpux::Logger log,
     std::string & errMsg)
 {
     auto mcmCompiler = std::unique_ptr<mv::CompilationUnit>(new mv::CompilationUnit(netName));
     {
-        log->debug("Configure MCM Compiler");
-        VPU_LOGGER_SECTION(log);
+        log.debug("Configure MCM Compiler");
+        log = log.nest();
 
         std::string compDescName;
         std::string targetDescName;
 
-        if (config.mcmTargetDescriptor() != "release_kmb") {
-            targetDescName = !config.mcmTargetDescriptor().empty() ?
-                              config.mcmTargetDescriptor() : "release_kmb";
+        if (config.get<MCM_TARGET_DESCRIPTOR>() != "release_kmb") {
+            targetDescName = config.get<MCM_TARGET_DESCRIPTOR>();
         }
         else {
-            auto platform = config.platform();
+            auto platform = config.get<PLATFORM>();
             if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
-                const auto platformName = utils::getPlatformNameByDeviceName(config.deviceId());
+                const auto platformName = utils::getPlatformNameByDeviceName(config.get<DEVICE_ID>());
                 const auto targetPos = platformName.rfind("_EMU");
                 if (targetPos == std::string::npos) {
                     errMsg = "Error: Emulator target platform is not defined.";
@@ -193,12 +198,11 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             }
         }
 
-        if (config.mcmCompilationDescriptor() != "release_kmb") {
-            compDescName = !config.mcmCompilationDescriptor().empty() ?
-                            config.mcmCompilationDescriptor() : "release_kmb";
+        if (config.get<MCM_COMPILATION_DESCRIPTOR>() != "release_kmb") {
+            compDescName = config.get<MCM_COMPILATION_DESCRIPTOR>();
         }
         else {
-            switch (config.platform()) {
+            switch (config.get<PLATFORM>()) {
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
@@ -225,16 +229,16 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             }
         }
 
-        const auto targetPath = ie::getIELibraryPath() + "/" + config.mcmTargetDescriptorPath() + "/" + targetDescName + ".json";
-        const auto compDescPath = ie::getIELibraryPath() + "/" + config.mcmCompilationDescriptorPath() + "/" + compDescName + ".json";
+        const auto targetPath = ie::getIELibraryPath() + "/" + config.get<MCM_TARGET_DESCRIPTOR_PATH>() + "/" + targetDescName + ".json";
+        const auto compDescPath = ie::getIELibraryPath() + "/" + config.get<MCM_COMPILATION_DESCRIPTOR_PATH>() + "/" + compDescName + ".json";
 
         IE_ASSERT(mcmCompiler->loadTargetDescriptor(targetPath));
         IE_ASSERT(mcmCompiler->loadCompilationDescriptor(compDescPath));
 
         auto& mcmCompDesc = mcmCompiler->compilationDescriptor();
 
-        mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.mcmLogLevel()));
-        mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.removePermuteNoOp());
+        mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.get<MCM_LOG_LEVEL>()));
+        mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.get<MCM_REMOVE_PERMUTE_NOOP>());
         mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv",
                                        std::find_if(inputsInfo.begin(), inputsInfo.end(),
                                                         [](const std::pair<std::string, ie::InputInfo::Ptr>& input) {
@@ -242,16 +246,16 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                            input.second->getLayout() != InferenceEngine::Layout::CHW;
                 }) == inputsInfo.end());
         mcmCompDesc.setPassArg("GlobalConfigParams", "DeviceRevision",
-                               std::string(MVCNN::EnumNameTargetDeviceRevision(getDeviceRevision(config.platform()))));
+                               std::string(MVCNN::EnumNameTargetDeviceRevision(getDeviceRevision(config.get<PLATFORM>()))));
 
-        if (config.platform() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR)
+        if (config.get<PLATFORM>() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR)
             mcmCompDesc.setPassArg("GlobalConfigParams", "target_emulator", true);
 
-        if (config.referenceMode()) {
+        if (config.get<MCM_REFERENCE_MODE>()) {
             mcmCompDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
         }
 
-        if (config.performanceCounting()) {
+        if (config.get<PERF_COUNT>()) {
             mcmCompDesc.setPassArg("GlobalConfigParams", "PerformanceCounting", true);
         }
 
@@ -331,12 +335,12 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             graphFileInstance.header->identifier = netName;
         };
 
-        if (config.platform() != InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+        if (config.get<PLATFORM>() != InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
             mcmCompDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
         }
 
-        if (config.numberOfClusters() > 0) {
-            const int clusterCount = config.numberOfClusters();
+        if (config.has<DPU_GROUPS>()) {
+            const int clusterCount = config.get<DPU_GROUPS>();
             // number of DPU and barriers per cluster was deduced empirically
             // other values lead either to exceptions in mcmCompiler
             // or to hang-ups during inference
@@ -353,8 +357,8 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             mcmCompDesc.setPassArg("GlobalConfigParams", "barrier_bound", boundCount);
         }
 
-        if (!config.mcmCompilationPassBanList().empty()) {
-            std::stringstream banList{config.mcmCompilationPassBanList()};
+        if (config.has<MCM_COMPILATION_PASS_BAN_LIST>()) {
+            std::stringstream banList{config.get<MCM_COMPILATION_PASS_BAN_LIST>()};
             std::string groupPassPair;
             while (std::getline(banList, groupPassPair, ';')) {
                 const auto delim = groupPassPair.find(',');
@@ -369,10 +373,10 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         }
 
         // override a layer's split strategy - if provided
-        if (!config.layerSplitStrategies().empty()) {
-            std::stringstream splitList{config.layerSplitStrategies()};
+        if (config.has<MCM_LAYER_SPLIT_STRATEGIES>()) {
+            std::stringstream splitList{config.get<MCM_LAYER_SPLIT_STRATEGIES>()};
             std::string layerStrategyPair;
-            
+
             std::vector<mv::Element> overrideStrategies;
             while (std::getline(splitList, layerStrategyPair, ',')) {
                 // parse layer:strategy
@@ -383,7 +387,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                                  layerStrategyPair);
                 const auto layerName = layerStrategyPair.substr(0, delim);
                 const auto splitStrategy = layerStrategyPair.substr(delim + 1, std::string::npos);
-                
+
                 // save to vector
                 mv::Element strategyElem("item");
                 strategyElem.set<std::string>("name_filter", layerName);
@@ -394,8 +398,8 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         }
 
         // override a layer's stream strategy - if provided
-        if (!config.layerStreamStrategies().empty()) {
-            std::stringstream splitList{config.layerStreamStrategies()};
+        if (config.has<MCM_LAYER_STREAM_STRATEGIES>()) {
+            std::stringstream splitList{config.get<MCM_LAYER_STREAM_STRATEGIES>()};
             std::string layerStrategySet;
             try {
                 std::vector<mv::Element> overrideStrategies;
@@ -411,7 +415,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     mv::Element strategyElem("item");
                     strategyElem.set<std::string>("name_filter", allVals[0]);
                     std::vector<mv::Element> streams;
-                    
+
                     mv::Element itemW("W");
                     itemW.set<int>("W", std::stoi(allVals[1]));
                     streams.emplace_back(itemW);
@@ -419,7 +423,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     mv::Element itemH("H");
                     itemH.set<int>("H", std::stoi(allVals[2]));
                     streams.emplace_back(itemH);
-                    
+
                     mv::Element itemC("C");
                     itemC.set<int>("C", std::stoi(allVals[3]));
                     streams.emplace_back(itemC);
@@ -427,7 +431,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     mv::Element itemK("K");
                     itemK.set<int>("K", std::stoi(allVals[4]));
                     streams.emplace_back(itemK);
-                    
+
                     mv::Element itemN("N");
                     itemN.set<int>("N", std::stoi(allVals[5]));
                     streams.emplace_back(itemN);
@@ -444,8 +448,8 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         }
 
         // override a layer's sparsity strategy - if provided
-        if (!config.layerSparsityStrategies().empty()) {
-            std::stringstream splitList{config.layerSparsityStrategies()};
+        if (config.has<MCM_LAYER_SPARSITY_STRATEGIES>()) {
+            std::stringstream splitList{config.get<MCM_LAYER_SPARSITY_STRATEGIES>()};
             std::string layerStrategySet;
 
             try {
@@ -474,8 +478,8 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         }
 
         // override a layer's location strategy - if provided
-        if (!config.layerLocationStrategies().empty()) {
-            std::stringstream splitList{config.layerLocationStrategies()};
+        if (config.has<MCM_LAYER_LOCATION_STRATEGIES>()) {
+            std::stringstream splitList{config.get<MCM_LAYER_LOCATION_STRATEGIES>()};
             std::string layerStrategyPair;
 
             std::vector<mv::Element> overrideStrategies;
@@ -509,13 +513,13 @@ void applyTransformations(
     std::unique_ptr<mv::CompilationUnit>& mcmCompiler,
     const ie::InputsDataMap& inputsInfo,
     const ie::OutputsDataMap& outputsInfo,
-    const vpu::MCMConfig& config,
-    std::shared_ptr<vpu::Logger> log,
+    const Config& config,
+    vpux::Logger log,
     const bool useCompiler,
     std::shared_ptr<std::unordered_set<std::string>> supported
     )
 {
-    log->debug("Convert nGraph to MCM Model");
+    log.debug("Convert nGraph to MCM Model");
 
     bool needConvertInputPrecision = false;
 
@@ -529,7 +533,7 @@ void applyTransformations(
     passManager.register_pass<ngraph::pass::ConstantFolding>();
     passManager.register_pass<vpux::pass::FusePadding>();
 
-    if (config.scaleShiftFusing()) {
+    if (config.get<MCM_SCALESHIFT_FUSING>()) {
         passManager.register_pass<vpux::pass::FuseScaleShift>();
     }
 
@@ -545,10 +549,10 @@ void applyTransformations(
     passManager.register_pass<vpux::passes::AlignScales>();
     passManager.register_pass<ConvertMinMaxToClamp>();
 
-    if (!config.serializeCNNBeforeCompileFile().empty()) {
-        std::string origFileName = config.serializeCNNBeforeCompileFile();
-        auto baseFileName = (origFileName.substr(origFileName.length() - 4, 4) == ".xml")
-                            ? origFileName.substr(0, origFileName.length() - 4)
+    if (config.has<MCM_SERIALIZE_CNN_BEFORE_COMPILE_FILE>()) {
+        auto origFileName = config.get<MCM_SERIALIZE_CNN_BEFORE_COMPILE_FILE>();
+        auto baseFileName = (origFileName.substr(origFileName.size() - 4, 4) == ".xml")
+                            ? origFileName.substr(0, origFileName.size() - 4)
                             : origFileName;
 
         passManager.register_pass<ngraph::pass::Serialize>(baseFileName + ".xml", baseFileName + ".bin");
@@ -576,9 +580,9 @@ void applyTransformations(
     passManager.register_pass<InsertMaxPool>();
     passManager.register_pass<ReplaceShuffle>();
     passManager.register_pass<Handle3DTranspose>();
-    if (config.forcePluginInputQuantization()) {
+    if (config.get<MCM_FORCE_PLUGIN_INPUT_QUANTIZATION>()) {
         needConvertInputPrecision = true;
-    } else if (config.optimizeInputPrecision()) {
+    } else if (config.get<MCM_OPTIMIZE_INPUT_PRECISION>()) {
         passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
     }
     // TODO: [Track number: E#13091]
@@ -611,7 +615,7 @@ void applyTransformations(
     passManager.run_passes(func);
     const auto end = std::chrono::high_resolution_clock::now();
     const auto process_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
-    log->info("Plugin processing time: %v ms", process_time.count());
+    log.info("Plugin processing time: {0} ms", process_time.count());
 }
 
 std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
@@ -619,11 +623,11 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         const std::string& netName,
         const ie::InputsDataMap& inputsInfo,
         const ie::OutputsDataMap& outputsInfo,
-        const vpu::MCMConfig& config,
+        const Config& config,
         std::string & errMsg) {
-    const auto log = std::make_shared<vpu::Logger>("VPUX nGraph Parser", config.logLevel(), vpu::consoleOutput());
+    vpux::Logger log("VPUX nGraph Parser", config.get<LOG_LEVEL>());
 
-    log->info("Parse nGraph %v", netName);
+    log.info("Parse nGraph {0}", netName);
 
     auto mcmCompiler = createCompilationUnit(netName, inputsInfo, outputsInfo, config, log, errMsg);
 
@@ -638,27 +642,27 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
     //
 
     {
-        log->debug("Run MCM Compiler");
+        log.debug("Run MCM Compiler");
         try {
             const auto start = std::chrono::high_resolution_clock::now();
             mcmCompiler->run();
             const auto end = std::chrono::high_resolution_clock::now();
             const auto compile_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
-            log->info("Compiler processing time: %v ms", compile_time.count());
+            log.info("Compiler processing time: {0} ms", compile_time.count());
         } catch (std::string& str) {
-            log->error("MCM Compiler error: %v", str);
+            log.error("MCM Compiler error: {0}", str);
             errMsg = str;
             return {};
         } catch (const char* str) {
             errMsg = (str != nullptr) ? std::string(str) : "(null)";
-            log->error("MCM Compiler error: %s", errMsg);
+            log.error("MCM Compiler error: {0}", errMsg);
             return {};
         } catch (std::exception& ex) {
-            log->error("MCM Compiler exception: %v", ex.what());
+            log.error("MCM Compiler exception: {0}", ex.what());
             errMsg = ex.what();
             return {};
         } catch (...) {
-            log->error("MCM Compiler general exception");
+            log.error("MCM Compiler general exception");
             errMsg = "MCM Compiler general exception";
             return {};
         }
@@ -669,7 +673,7 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
 
 std::shared_ptr<std::unordered_set<std::string>> getSupportedLayers(
         const InferenceEngine::CNNNetwork& network,
-        const vpu::MCMConfig& config)
+        const Config& config)
 {
     std::shared_ptr<std::unordered_set<std::string>> supported = std::make_shared<std::unordered_set<std::string>>();
 
@@ -677,7 +681,7 @@ std::shared_ptr<std::unordered_set<std::string>> getSupportedLayers(
     auto mcmCompiler = std::unique_ptr<mv::CompilationUnit>();
     ie::InputsDataMap inputsInfo = network.getInputsInfo();
     ie::OutputsDataMap outputsInfo = network.getOutputsInfo();
-    const auto log = std::make_shared<vpu::Logger>("VPUX nGraph Parser", config.logLevel(), vpu::consoleOutput());
+    vpux::Logger log("VPUX nGraph Parser", config.get<LOG_LEVEL>());
 
     applyTransformations(ngraph_function, mcmCompiler, inputsInfo, outputsInfo, config, log, false, supported);
 
@@ -704,7 +708,7 @@ std::vector<char> compileNGraph(
         const std::string& netName,
         const ie::InputsDataMap& inputsInfo,
         const ie::OutputsDataMap& outputsInfo,
-        const vpu::MCMConfig& config,
+        const Config& config,
         std::string & errMsg) {
     const std::unique_ptr<mv::CompilationUnit> compilationUnit = compileNGraphIntoCompilationUnit(func, netName, inputsInfo, outputsInfo, config, errMsg);
     if (!errMsg.empty()) return {};

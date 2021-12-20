@@ -4,13 +4,14 @@
 #include "mvSubspaces.h"
 #include "layers/param_custom_cpp.h"
 
+#include "param_softmax.h"
+
 #ifdef CONFIG_TARGET_SOC_3720
-extern void*  (shvNN0_singleShaveSoftmax);
+__attribute__((aligned(1024)))
+#include "sk.singleShaveSoftmax.3010xx.text.xdat"
 #else
 #include "svuSLKernels_EP.h"
 #endif
-
-#include "param_softmax.h"
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Softmax))
 {
@@ -29,7 +30,7 @@ static constexpr std::initializer_list<SingleTest> softmax_test_list
 
 class CustomCppSoftmaxTest: public CustomCppTests<fp16> {
 public:
-    explicit CustomCppSoftmaxTest(): m_testsLoop(softmax_test_list) {}
+    explicit CustomCppSoftmaxTest(): m_testsLoop(softmax_test_list, "test") {}
     virtual ~CustomCppSoftmaxTest() {}
 protected:
     const char* suiteName() const override
@@ -84,7 +85,7 @@ protected:
         const auto customData = false;//m_testLoop.value().customData;
 
 #ifdef CONFIG_TARGET_SOC_3720
-        m_params.kernel  = reinterpret_cast<uint64_t>(&shvNN0_singleShaveSoftmax);
+        m_params.kernel  = reinterpret_cast<uint64_t>(sk_singleShaveSoftmax_3010xx_text);
 #else
         m_params.kernel  = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(singleShaveSoftmax));
 #endif

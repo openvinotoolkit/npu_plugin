@@ -16,13 +16,16 @@
 // System
 #include <memory>
 #include <string>
+
 // IE
 #include "ie_allocator.hpp"
+
 // Plugin
 #include "vpux.hpp"
 
 namespace vpux {
 namespace hddl2 {
+
 /**
  * @brief General device, for ImageWorkload.
  * If specific name not provided, device selection will be postponed until inference
@@ -40,7 +43,7 @@ public:
         return _name;
     }
 
-    Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;
+    Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const Config& config) override;
 
 private:
     std::shared_ptr<Allocator> _allocatorPtr = nullptr;

@@ -10,12 +10,24 @@
 
 namespace LayerTestsDefinitions {
 
-    class KmbReverseSequenceLayerTest: public ReverseSequenceLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    };
-
-    TEST_P(KmbReverseSequenceLayerTest, CompareWithRefs) {
-        Run();
+class KmbReverseSequenceLayerTest :
+        public ReverseSequenceLayerTest,
+        virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeLoad() override {
+        if (isCompilerMCM()) {
+            // [Track number: S#45145]
+            throw LayerTestsUtils::KmbSkipTestException("Issues with MCM compiler");
+        }
     }
+};
+
+TEST_P(KmbReverseSequenceLayerTest, CompareWithRefs) {
+    Run();
+}
+TEST_P(KmbReverseSequenceLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -23,12 +35,8 @@ using namespace LayerTestsDefinitions;
 namespace {
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::FP16,
-            InferenceEngine::Precision::U8,
-            // InferenceEngine::Precision::I8,  - This precision is not supported by KMB
-            // InferenceEngine::Precision::U16, - This precision is not supported by KMB
-            // InferenceEngine::Precision::I32  - This precision is not supported by KMB
+            InferenceEngine::Precision::U8
     };
 
     const std::vector<int64_t> batchAxisIndices = { 0L };
@@ -44,14 +52,7 @@ namespace {
             ngraph::helpers::InputLayerType::PARAMETER
     };
 
-    // Test fails with error:
-    // Expected: executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration) doesn't throw
-    // an exception.
-    // Actual: it throws:Input data type is not supported: I32
-    // kmb-plugin/src/frontend_mcm/src/ngraph_mcm_frontend/passes/convert_to_mcm_model.cpp:212
-    // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64
-    // [Track number: S#45145]
-    INSTANTIATE_TEST_SUITE_P(DISABLED_Basic_smoke, KmbReverseSequenceLayerTest,
+    INSTANTIATE_TEST_SUITE_P(Basic_smoke, KmbReverseSequenceLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(batchAxisIndices),
                                     ::testing::ValuesIn(seqAxisIndices),

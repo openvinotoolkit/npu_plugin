@@ -51,7 +51,7 @@ protected:
 
     void useCompilerMLIR();
     void setReferenceSoftwareModeMLIR();
-    void setReferenceHardwareModeMLIR();
+    void setDefaultHardwareModeMLIR();
     void setPlatformMTL();
     bool isCompilerMCM() const;
     bool isCompilerMLIR() const;

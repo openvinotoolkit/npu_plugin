@@ -13,7 +13,9 @@
 
 #include <gtest/gtest.h>
 
-#include <vpux_backends.h>
+#include "vpux_backends.h"
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/runtime.hpp"
 
 namespace ie = InferenceEngine;
 
@@ -24,8 +26,13 @@ TEST_F(VPUXBackendsUnitTests, DISABLED_notStopSearchingIfBackendThrow) {
     const std::vector<std::string> dummyBackendRegistry = {"throw_test_backend", "one_device_test_backend"};
     vpux::VPUXBackends backends(dummyBackendRegistry);
 
-    vpux::VPUXConfig config;
+    auto options = std::make_shared<vpux::OptionsDesc>();
+    vpux::registerCommonOptions(*options);
+    vpux::registerRunTimeOptions(*options);
+
+    vpux::Config config(options);
     config.update({{"LOG_LEVEL", "LOG_DEBUG"}});
+
     backends.setup(config);
 
     auto device = backends.getDevice();

@@ -25,8 +25,7 @@
 namespace vpux {
 namespace IE = InferenceEngine;
 
-Encryption::Encryption(const std::string& nameOfLib)
-        : _logger(vpu::Logger("Encryption", vpu::LogLevel::Warning, vpu::consoleOutput())) {
+Encryption::Encryption(const std::string& nameOfLib): _logger("Encryption", LogLevel::Warning) {
     try {
         _sharedLibHandle = dlopen(nameOfLib.data(), RTLD_LAZY | RTLD_LOCAL);
 
@@ -52,7 +51,7 @@ Encryption::Encryption(const std::string& nameOfLib)
             IE_THROW() << "dlsym_error";
         }
     } catch (const std::exception& ex) {
-        _logger.info(ex.what());
+        _logger.info("{0}", ex.what());
     }
 }
 

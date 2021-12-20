@@ -13,19 +13,19 @@
 
 #pragma once
 
-#include <memory>
+#include "vpux/utils/core/logger.hpp"
+#include "vpux_compiler.hpp"
 
 #include <include/mcm/compiler/compilation_unit.hpp>
-#include <mcm_config.hpp>
-#include <vpu/utils/logger.hpp>
-#include <vpux_compiler.hpp>
+
+#include <memory>
 
 namespace vpu {
 namespace MCMAdapter {
 
 class EmulatorNetworkDescription final : public vpux::INetworkDescription {
 public:
-    EmulatorNetworkDescription(const std::vector<char>& compiledNetwork, const vpu::MCMConfig& config,
+    EmulatorNetworkDescription(const std::vector<char>& compiledNetwork, const vpux::Config& config,
                                const std::string& name);
 
     const vpux::DataMap& getInputsInfo() const final;
@@ -50,7 +50,7 @@ public:
 
 private:
     std::string _name;
-    std::unique_ptr<vpu::Logger> _logger;
+    vpux::Logger _logger;
     vpux::DataMap _dataMapPlaceholder;
     std::vector<char> _compiledNetwork;
     vpux::QuantizationParamMap _quantParams;

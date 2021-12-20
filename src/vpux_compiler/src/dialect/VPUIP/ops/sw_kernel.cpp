@@ -60,6 +60,9 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
 
 IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
     return llvm::TypeSwitch<mlir::Operation*, IERT::KernelInfo>(origOp)
+            .Case<IERT::HSwishOp>([&](IERT::HSwishOp) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"hswish_fp16"}, {"hswish_fp16.cpp"}};
+            })
             .Case<IERT::SigmoidOp>([&](IERT::SigmoidOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"sigmoid_fp16"}, {"sigmoid_fp16.c"}};
             })

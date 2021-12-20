@@ -14,11 +14,12 @@
 #pragma once
 
 // IE
-#include <ie_input_info.hpp>
-// Plugin
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <vpux.hpp>
-#include <vpux_config.hpp>
+#include <ie_input_info.hpp>
+
+// Plugin
+#include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 namespace vpux {
 
@@ -28,7 +29,7 @@ public:
 
     explicit InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
                           const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor,
-                          const VPUXConfig& config, const std::string& netName,
+                          const Config& config, const std::string& netName,
                           const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
 
     void Infer() override;
@@ -81,8 +82,8 @@ protected:
 
 protected:
     const Executor::Ptr _executorPtr;
-    const VPUXConfig& _config;
-    const vpu::Logger::Ptr _logger;
+    const Config _config;
+    Logger _logger;
     std::shared_ptr<InferenceEngine::IAllocator> _allocator;
     const int _deviceId;
     const std::string _netUniqueId;

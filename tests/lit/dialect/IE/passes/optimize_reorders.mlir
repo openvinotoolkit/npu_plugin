@@ -4,7 +4,7 @@
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithSubView
-module @ReorderWithSubView attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderWithSubView attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16>)
 func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x4x4x2xf16> {
@@ -26,7 +26,7 @@ func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x4x4x2xf16> {
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithExpand
-module @ReorderWithExpand attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderWithExpand attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf16, {order = #NHWC}> {
@@ -75,7 +75,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
 !qElemType2 = type !quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>
 !qElemType3 = type !quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127, 0.0013264333169291339:127,9.8713551919291337E-4:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>
 
-module @ReorderWithQuantExpandAndSlice attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "DefaultHW"} {
+module @ReorderWithQuantExpandAndSlice attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30x!qElemType0>)
 func @main(%arg0: tensor<1x3x30x30x!qElemType0>) -> tensor<1x3x15x13x!qElemType1> {
@@ -129,7 +129,7 @@ func @main(%arg0: tensor<1x3x30x30x!qElemType0>) -> tensor<1x3x15x13x!qElemType1
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithSplit
-module @ReorderWithSplit attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderWithSplit attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
@@ -164,8 +164,42 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
+// CHECK-LABEL: @ReorderWithSplitMultipleUses
+module @ReorderWithSplitMultipleUses attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+
+// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = #NHWC}>)
+func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
+        (tensor<1x1x30x30xf16, {order = #NHWC}>, tensor<1x1x30x30xf16, {order = #NHWC}>){
+    %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x3x30x30xf16, {order = #NHWC}> -> tensor<1x3x30x30xf16>
+
+    %1:3 = IE.Split(%0) {axis_value = 1, num_splits = 3} :
+        tensor<1x3x30x30xf16> -> tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16>
+
+    %2 = IE.Reorder(%1#1) {dstOrder = #NHWC} : tensor<1x1x30x30xf16> -> tensor<1x1x30x30xf16, {order = #NHWC}>
+    %3 = IE.Reorder(%1#1) {dstOrder = #NHWC} : tensor<1x1x30x30xf16> -> tensor<1x1x30x30xf16, {order = #NHWC}>
+
+    return %2, %3 : tensor<1x1x30x30xf16, {order = #NHWC}>, tensor<1x1x30x30xf16, {order = #NHWC}>
+
+    // CHECK:       [[VAR0:%[0-9]+]]:3 = IE.Split([[ARG0]])
+    // CHECK-SAME:      tensor<1x3x30x30xf16, {order = #NHWC}> ->
+    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = #NHWC}>
+
+    // CHECK:       return [[VAR0]]#1, [[VAR0]]#1
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>
+}
+
+}
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
 // CHECK-LABEL: @ReorderWithConcat
-module @ReorderWithConcat attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderWithConcat attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK:       func @main(
 // CHECK-SAME:      [[ARG0:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = #NHWC}>,
@@ -193,7 +227,7 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderPropagationWithConcat
-module @ReorderPropagationWithConcat attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderPropagationWithConcat attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK:       func @main(
 // CHECK-SAME:      [[ARG0:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = #NHWC}>,
@@ -224,7 +258,7 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithExpandTwoBranches
-module @ReorderWithExpandTwoBranches attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderWithExpandTwoBranches attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK:       func @main([[ARG0:%arg[0-9]+]]: tensor<1x24x56x56xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x24x56x56xf16, {order = #NHWC}>) -> tensor<1x32x56x56xf16, {order = #NHWC}> {
@@ -278,7 +312,7 @@ func @main(%arg0: tensor<1x24x56x56xf16, {order = #NHWC}>) -> tensor<1x32x56x56x
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithLayer
-module @ReorderWithLayer attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderWithLayer attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x30x30xf16, {order = #NHWC}> {
@@ -303,7 +337,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x30x30xf1
 !qElemType = type !quant.uniform<u8:f16, 1.1534313725490195:128>
 
 // CHECK-LABEL: @ReorderWithQuantizeCast
-module @ReorderWithQuantizeCast attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "DefaultHW"} {
+module @ReorderWithQuantizeCast attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
 
 // CHECK: func @main([[ARG0:%.+]]: tensor<1x3x30x30xui8, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xui8, {order = #NHWC}>) -> tensor<1x3x30x30x!qElemType, {order = #NHWC}> {
@@ -330,4 +364,44 @@ func @main(%arg0: tensor<1x3x30x30xui8, {order = #NHWC}>) -> tensor<1x3x30x30x!q
     // CHECK:      return [[VAR1]] : tensor<1x3x30x30x!qElemType, {order = #NHWC}>
 }
 
+}
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!qElemType0 = type !quant.uniform<u8:f16, 0.51323526419845278:128>
+!qElemType1 = type !quant.uniform<u8:f16, 0.25661763209922639:128>
+!qElemType2 = type !quant.uniform<u8:f16, 0.12830881604961319:128>
+
+module @ReorderWithQuantizeCastTwoBranches attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+
+func @main(%arg0: tensor<1x48x14x14x!qElemType0, {order = #NHWC}>) -> (tensor<1x48x14x14x!qElemType2, {order = #NHWC}>, tensor<1x14x14x40x!qElemType1>) {
+    %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x48x14x14x!qElemType0, {order = #NHWC}> -> tensor<1x48x14x14x!qElemType0>
+    %1 = IE.Slice %0 [0, 0, 0, 0] [1, 40, 14, 14] : tensor<1x48x14x14x!qElemType0> to tensor<1x40x14x14x!qElemType0>
+    %2 = IE.QuantizeCast(%1) {dstElemType = !qElemType1} : tensor<1x40x14x14x!qElemType0> -> tensor<1x40x14x14x!qElemType1>
+    %3 = IE.QuantizeCast(%2) {dstElemType = !qElemType2} : tensor<1x40x14x14x!qElemType1> -> tensor<1x40x14x14x!qElemType2>
+    %4 = IE.Expand(%3) {pads_begin = [0, 0, 0, 0], pads_end = [0, 8, 0, 0]} : tensor<1x40x14x14x!qElemType2> -> tensor<1x48x14x14x!qElemType2>
+    %5 = IE.Reorder(%4) {dstOrder = #NHWC} : tensor<1x48x14x14x!qElemType2> -> tensor<1x48x14x14x!qElemType2, {order = #NHWC}>
+    %6 = IE.Reshape(%2) {shape_value = [1, 14, 14, 40]} : tensor<1x40x14x14x!qElemType1> -> tensor<1x14x14x40x!qElemType1>
+
+   return %5, %6 : tensor<1x48x14x14x!qElemType2, {order = #NHWC}>, tensor<1x14x14x40x!qElemType1>
+
+    // CHECK-NOT:  IE.Reorder
+    // CHECK:      [[SLICE:%.+]] = IE.Slice %arg0 
+    // CHECK-SAME:  tensor<1x48x14x14x!qElemType0, {order = #NHWC}> to tensor<1x40x14x14x!qElemType0, {order = #NHWC}>
+    // CHECK:      [[QCAST0:%.+]] = IE.QuantizeCast([[SLICE]]) {dstElemType = !qElemType2} 
+    // CHECK-SAME: tensor<1x40x14x14x!qElemType0, {order = #NHWC}> -> tensor<1x40x14x14x!qElemType2, {order = #NHWC}>
+    // CHECK:      [[REORDER:%.+]] = IE.Reorder([[QCAST0]]) {dstOrder = #NCHW} 
+    // CHECK-SAME: tensor<1x40x14x14x!qElemType2, {order = #NHWC}> -> tensor<1x40x14x14x!qElemType2>
+    // CHECK:      [[QCAST1:%.+]] = IE.QuantizeCast([[QCAST0]]) {dstElemType = !qElemType1} 
+    // CHECK-SAME: tensor<1x40x14x14x!qElemType2, {order = #NHWC}> -> tensor<1x40x14x14x!qElemType1, {order = #NHWC}>
+    // CHECK:      [[RESULT0:%.+]] = IE.Expand([[QCAST1]]) 
+    // CHECK-SAME: tensor<1x40x14x14x!qElemType1, {order = #NHWC}> -> tensor<1x48x14x14x!qElemType1, {order = #NHWC}>
+    // CHECK:      [[RESULT1:%.+]] = IE.Reshape([[REORDER]]) 
+    // CHECK-SAME: tensor<1x40x14x14x!qElemType2> -> tensor<1x14x14x40x!qElemType2>
+    // CHECK:      return [[RESULT0]], [[RESULT1]] : tensor<1x48x14x14x!qElemType1, {order = #NHWC}>, tensor<1x14x14x40x!qElemType2>
+
+}
 }

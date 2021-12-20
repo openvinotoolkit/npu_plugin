@@ -56,6 +56,8 @@ ie_option(ENABLE_MCM_COMPILER_PACKAGE "Enable build of separate mcmCompiler pack
 
 ie_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend" ON "NOT AARCH64" OFF)
 
+ie_dependent_option(BUILD_COMPILER_FOR_DRIVER "Enable build of VPUXCompilerL0" ON "NOT BUILD_SHARED_LIBS" OFF)
+
 ie_option(ENABLE_DEVELOPER_BUILD "Enable developer build with extra validation/logging functionality" OFF)
 
 if(NOT DEFINED MV_TOOLS_PATH AND DEFINED ENV{MV_TOOLS_DIR} AND DEFINED ENV{MV_TOOLS_VERSION})

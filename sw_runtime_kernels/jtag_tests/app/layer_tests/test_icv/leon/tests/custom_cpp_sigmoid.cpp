@@ -6,7 +6,8 @@
 #include "mvSubspaces.h"
 
 #ifdef CONFIG_TARGET_SOC_3720
-extern void*(shvNN0_sigmoid_fp16);
+__attribute__((aligned(1024)))
+#include "sk.sigmoid_fp16.3010xx.text.xdat"
 #else
 #include "svuSLKernels_EP.h"
 #endif
@@ -21,7 +22,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
 
     class CustomCppSigmoidTest : public CustomCppTests<fp16> {
     public:
-        explicit CustomCppSigmoidTest(): m_testsLoop(sigmoid_test_list) {
+        explicit CustomCppSigmoidTest(): m_testsLoop(sigmoid_test_list, "test") {
         }
         virtual ~CustomCppSigmoidTest() {
         }
@@ -65,7 +66,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
             const auto customData = false;  // m_testLoop.value().customData;
 
 #ifdef CONFIG_TARGET_SOC_3720
-            m_params.kernel = reinterpret_cast<uint64_t>(&shvNN0_sigmoid_fp16);
+            m_params.kernel = reinterpret_cast<uint64_t>(sk_sigmoid_fp16_3010xx_text);
 #else
             m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(sigmoid_fp16));
 #endif

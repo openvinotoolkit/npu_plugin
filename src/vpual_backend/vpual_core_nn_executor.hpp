@@ -27,13 +27,10 @@
 #include "vpual_core_nn_synchronizer.hpp"
 #endif
 
-// FIXME: get back config
-// #include <kmb_config.h>
-#include <vpu/utils/logger.hpp>
-#include <vpux.hpp>
-#include <vpux_config.hpp>
+#include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
+#include "vpux_private_config.hpp"
 
-#include "vpual_config.hpp"
 #include "vpual_core_nn_watchdog.hpp"
 #include "vpusmm_allocator.hpp"
 
@@ -52,7 +49,7 @@ public:
     virtual ~VpualCoreNNExecutor();
     VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
                         const uint32_t deviceId, const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform,
-                        const VpualConfig& config);
+                        const Config& config);
 
 #if defined(__arm__) || defined(__aarch64__)
     VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
@@ -60,7 +57,7 @@ public:
                         const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
                         const std::shared_ptr<VpualCoreNNSynchronizer<VpualSyncXLinkImpl>>& other_nnSync,
                         const std::shared_ptr<Pipeline>& other_pipe, const std::shared_ptr<WatchDog>& watchDog,
-                        const VpualConfig& config);
+                        const Config& config);
 #endif
 
     void push(const InferenceEngine::BlobMap& inputs) override;
@@ -79,8 +76,8 @@ private:
     VpusmmAllocator::Ptr _csramAllocator;
     std::function<void(uint8_t*)> _deallocator;
     std::function<void(uint8_t*)> _csramDeallocator;
-    const VpualConfig& _config;
-    vpu::Logger::Ptr _logger;
+    Config _config;
+    Logger _logger;
 
 #if defined(__arm__) || defined(__aarch64__)
     std::shared_ptr<WatchDog> _wd;

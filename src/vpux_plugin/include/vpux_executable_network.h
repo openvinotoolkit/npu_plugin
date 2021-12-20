@@ -12,16 +12,19 @@
 //
 
 #pragma once
+
 // System
 #include <memory>
 #include <queue>
 #include <string>
 #include <vector>
+
 // IE
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
+
 // Plugin
 #include "vpux.hpp"
-#include "vpux_config.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 namespace vpux {
 
@@ -30,8 +33,8 @@ public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
     explicit ExecutableNetwork(const InferenceEngine::CNNNetwork& network, const Device::Ptr& device,
-                               const VPUXConfig& config);
-    explicit ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const VPUXConfig& config);
+                               const Config& config);
+    explicit ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const Config& config);
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
             const InferenceEngine::InputsDataMap networkInputs,
@@ -44,16 +47,16 @@ public:
     InferenceEngine::Parameter GetMetric(const std::string& name) const override;
 
 private:
-    explicit ExecutableNetwork(const VPUXConfig& config, const Device::Ptr& device);
-    Executor::Ptr createExecutor(const NetworkDescription::Ptr& network, const VPUXConfig& config,
+    explicit ExecutableNetwork(const Config& config, const Device::Ptr& device);
+    Executor::Ptr createExecutor(const NetworkDescription::Ptr& network, const Config& config,
                                  const Device::Ptr& device);
 
 private:
     void ConfigureStreamsExecutor(const std::string& networkName);
     InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor();
 
-    const VPUXConfig _config;
-    const vpu::Logger::Ptr _logger;
+    const Config _config;
+    Logger _logger;
     const Device::Ptr _device;
     std::string _networkName;
 

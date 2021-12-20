@@ -11,22 +11,37 @@
 // included with the Software Package for additional details.
 //
 
-#include <gtest/gtest.h>
 #include "hddl2_executor.h"
-#include "helpers/network_desc.h"
+#include <gtest/gtest.h>
 #include "hddl2_helpers/skip_conditions.h"
+#include "helpers/network_desc.h"
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
+#include "vpux/al/config/mcm_compiler.hpp"
+#include "vpux/al/config/runtime.hpp"
 
 using namespace vpux::hddl2;
 
-class Executor_UnitTests: public ::testing::Test {
+class Executor_UnitTests : public ::testing::Test {
 public:
     vpux::NetworkDescription::Ptr networkDescPtr = nullptr;
-    const vpux::VPUXConfig config;
+
+    std::shared_ptr<vpux::OptionsDesc> options;
+    vpux::Config config;
+
+    Executor_UnitTests(): options(std::make_shared<vpux::OptionsDesc>()), config(options) {
+    }
+
 protected:
     void SetUp() override;
 };
 
 void Executor_UnitTests::SetUp() {
+    vpux::registerCommonOptions(*options);
+    vpux::registerCompilerOptions(*options);
+    vpux::registerMcmCompilerOptions(*options);
+    vpux::registerRunTimeOptions(*options);
+
     if (isEmulatorDevice())
         return;
 

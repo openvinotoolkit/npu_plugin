@@ -28,41 +28,41 @@ public:
     class Section {
     public:
         Section() = delete;
-        Section(const SectionHeader* sectionHeader, char* data, const char* name);
+        Section(const SectionHeader* sectionHeader, const uint8_t* data, const char* name);
 
         const SectionHeader* getHeader() const;
         size_t getEntriesNum() const;
         const char* getName() const;
 
         template<typename T>
-        T* getData() {
-            return reinterpret_cast<T*>(m_data);
+        const T* getData() const {
+            return reinterpret_cast<const T*>(m_data);
         }
 
     private:
         const SectionHeader* m_sectionHeader;
-        char* m_data;
+        const uint8_t* m_data;
         const char* m_name;
     };
 
     class Segment {
     public:
         Segment() = delete;
-        Segment(const ProgramHeader* programHeader, char* data);
+        Segment(const ProgramHeader* programHeader, const uint8_t* data);
 
         const ProgramHeader* getHeader() const;
-        char* getData();
+        const uint8_t* getData() const;
 
     private:
         Reader* m_reader;
         const ProgramHeader* m_programHeader;
-        char* m_data;
+        const uint8_t* m_data;
     };
 
 public:
-    explicit Reader(char* blob, size_t size);
+    explicit Reader(const uint8_t* blob, size_t size);
 
-    char* getBlob();
+    const uint8_t* getBlob() const;
     const ELFHeader* getHeader() const;
 
     size_t getSectionsNum() const;
@@ -72,7 +72,7 @@ public:
     Segment getSegment(size_t index);
 
 private:
-    char* m_blob = nullptr;
+    const uint8_t* m_blob = nullptr;
 
     const ELFHeader* m_elfHeader = nullptr;
     const SectionHeader* m_sectionHeadersStart = nullptr;

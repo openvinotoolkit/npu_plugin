@@ -20,7 +20,6 @@
 #include "helper_remote_allocator.h"
 
 using namespace vpux::hddl2;
-using namespace vpu;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------

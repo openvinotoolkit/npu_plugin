@@ -52,7 +52,7 @@ Byte ViewLikeRewrite::calculateOffset(mlir::Value val) const {
     }
 
     if (auto declareOp = mlir::dyn_cast_or_null<VPURT::DeclareBufferOp>(val.getDefiningOp())) {
-        offset += Byte(declareOp.dataIndex());
+        offset += Byte(declareOp.byteOffset());
     }
 
     if (auto subViewOp = mlir::dyn_cast_or_null<IERT::SubViewOp>(val.getDefiningOp())) {
@@ -79,18 +79,18 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
     _log.trace("Found view-like Operation '{0}'", origOp->getLoc());
 
     const auto origVal = origOp->getResult(0);
-    const Byte dataOffset = calculateOffset(origVal);
+    const Byte offset = calculateOffset(origVal);
 
     const auto rootVal = _aliasInfo->getRoot(origVal);
 
-    VPUIP::MemoryLocation locale = VPUIP::MemoryLocation::VPU_DDR_Heap;
-    SmallVector<int64_t> localeIndex;
+    VPURT::BufferSection section = VPURT::BufferSection::DDR;
+    Optional<int64_t> sectionIndex;
 
     if (auto declareOp = rootVal.getDefiningOp<VPURT::DeclareBufferOp>()) {
         _log.nest().trace("It aliases internal buffer produced by '{0}'", declareOp->getLoc());
 
-        locale = declareOp.locale();
-        localeIndex = parseIntArrayAttr<int64_t>(declareOp.localeIndex());
+        section = declareOp.section();
+        sectionIndex = declareOp.sectionIndex();
     } else if (auto blockArg = rootVal.dyn_cast<mlir::BlockArgument>()) {
         _log.nest().trace("It aliases Block argument '{0}'", blockArg);
 
@@ -116,18 +116,18 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         if (argInd < numNetInputs) {
             _log.nest(2).trace("It aliases network input");
 
-            locale = VPUIP::MemoryLocation::ProgrammableInput;
-            localeIndex.push_back(argInd);
+            section = VPURT::BufferSection::NetworkInput;
+            sectionIndex = argInd;
         } else if (argInd < numNetInputs + numNetOutputs) {
             _log.nest(2).trace("It aliases network output");
 
-            locale = VPUIP::MemoryLocation::ProgrammableOutput;
-            localeIndex.push_back(argInd - numNetInputs);
+            section = VPURT::BufferSection::NetworkOutput;
+            sectionIndex = argInd - numNetInputs;
         } else if (argInd < numNetInputs + numOutputs) {
             _log.nest(2).trace("It aliases network output");
 
-            locale = VPUIP::MemoryLocation::ProfilingOutput;
-            localeIndex.push_back(argInd - numNetInputs - numNetOutputs);
+            section = VPURT::BufferSection::ProfilingOutput;
+            sectionIndex = argInd - numNetInputs - numNetOutputs;
         } else {
             VPUX_THROW("The view source doesn't belong to network entry point Function");
         }
@@ -135,17 +135,41 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         VPUX_THROW("Unknown source owner");
     }
 
-    const auto outType = origOp->getResult(0).getType();
-    rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, locale, localeIndex, dataOffset.count());
+    const auto outType = origOp->getResult(0).getType().cast<mlir::MemRefType>();
+
+    if (sectionIndex.hasValue()) {
+        rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, section, sectionIndex.getValue(),
+                                                            offset.count());
+    } else {
+        rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, section, offset.count());
+    }
 
     return mlir::success();
 }
 
-//
-// Generated
-//
+class RewriteConcatView final : public mlir::OpRewritePattern<IERT::ConcatViewOp> {
+public:
+    RewriteConcatView(::mlir::MLIRContext* ctx): mlir::OpRewritePattern<IERT::ConcatViewOp>(ctx) {
+    }
 
-#include <vpux/compiler/conversion/rewriters/generated/convert_view_ops_to_VPUIP.hpp.inc>
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::ConcatViewOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult RewriteConcatView::matchAndRewrite(IERT::ConcatViewOp origOp,
+                                                       mlir::PatternRewriter& rewriter) const {
+    for (auto input : origOp.inputs()) {
+        if (auto waitOp = input.getDefiningOp<mlir::async::AwaitOp>()) {
+            if (waitOp->hasOneUse()) {
+                waitOp->dropAllUses();
+                waitOp->erase();
+            }
+        }
+    }
+
+    rewriter.replaceOp(origOp, origOp.output_buff());
+    return ::mlir::success();
+};
 
 //
 // ConvertViewOps2VPUIPPass
@@ -180,7 +204,7 @@ void ConvertViewOps2VPUIPPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ViewLikeRewrite>(&ctx, &aliasInfo, _log);
-    populateWithGenerated(patterns);
+    patterns.insert<RewriteConcatView>(&ctx);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {

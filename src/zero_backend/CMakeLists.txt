@@ -32,7 +32,8 @@ target_include_directories(${TARGET_NAME}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/thirdparty/level-zero/include)
+        ${PROJECT_SOURCE_DIR}/thirdparty/level-zero/include
+        ${PROJECT_SOURCE_DIR}/thirdparty/level-zero-ext)
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
@@ -56,7 +57,5 @@ endif()
 # targets install
 #
 
-if(WIN32)
-    install(TARGETS ${TARGET_NAME}
-            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
-endif()
+install(TARGETS ${TARGET_NAME}
+        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})

@@ -4,20 +4,24 @@
 
 #pragma once
 
-#include <ie_common.h>
-
-#include <caseless.hpp>
 #include <custom_layer/custom_kernel.hpp>
-#include <functional>
+
+#include "vpux/utils/core/logger.hpp"
+
 #include <include/mcm/op_model.hpp>
+
+#include <ie_common.h>
+#include <caseless.hpp>
+#include <vpu/utils/enums.hpp>
+
+#include <pugixml.hpp>
+
+#include <functional>
 #include <map>
 #include <memory>
-#include <pugixml.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <vpu/utils/enums.hpp>
-#include <vpu/utils/logger.hpp>
 
 namespace vpu {
 
@@ -62,7 +66,7 @@ private:
 class SizeRuleValidator : public CustomKernelVisitor {
 public:
     explicit SizeRuleValidator(CustomLayer::Ptr customLayer, const std::map<std::string, std::string>& cnnLayerParams,
-                               Logger::Ptr logger = {});
+                               vpux::Logger logger = vpux::Logger::global());
 
     void visitCpp(const CustomKernelCpp& kernel) override;
     void visitCL(const CustomKernelOcl& kernel) override;
@@ -74,7 +78,7 @@ public:
 private:
     CustomLayer::Ptr _customLayer;
     const std::map<std::string, std::string>& _cnnLayerParams;
-    Logger::Ptr _logger;
+    vpux::Logger _logger;
     bool _result = false;
 };
 

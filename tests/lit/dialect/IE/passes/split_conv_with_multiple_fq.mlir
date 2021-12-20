@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="compilation-mode=ReferenceHW" --split-conv-with-multiple-fq %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="compilation-mode=ReferenceHW" --split-conv-with-multiple-fq %s | FileCheck %s
 
 // CHECK-LABEL: @SplitConvWithOnlyFakeQuantConsumers
 func @SplitConvWithOnlyFakeQuantConsumers(%input: tensor<1x3x62x62xf32>) -> (tensor<1x4x60x60xf32>, tensor<1x4x60x60xf32>, tensor<1x4x60x60xf32>) {

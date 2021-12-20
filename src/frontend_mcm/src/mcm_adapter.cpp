@@ -13,6 +13,10 @@
 
 #include "mcm_adapter.hpp"
 
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/mcm_compiler.hpp"
+#include "vpux/utils/core/logger.hpp"
+
 #include <file_utils.h>
 #include <sys/stat.h>
 
@@ -33,6 +37,7 @@
 
 using namespace InferenceEngine;
 using namespace vpu;
+using namespace vpux;
 
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string& tensorName,
                                                               const InferenceEngine::TensorDesc& tensorInfo) {
@@ -89,7 +94,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string& tensorName,
                                                               const InferenceEngine::TensorDesc& tensorInfo,
                                                               const mv::Data::TensorIterator& opModelTensor,
-                                                              const MCMConfig& config) {
+                                                              const Config& config) {
     InferenceEngine::TensorDesc newTensorInfo(tensorInfo);
 
     const InferenceEngine::SizeVector& tensorInfoDimVec = tensorInfo.getDims();
@@ -111,7 +116,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
             newTensorInfo.reshape(newDimVec, Layout::NHWC);
     }
 
-    return buildTensorReference(tensorName, newTensorInfo, quantParams, config.forcePluginInputQuantization());
+    return buildTensorReference(tensorName, newTensorInfo, quantParams,
+                                config.get<MCM_FORCE_PLUGIN_INPUT_QUANTIZATION>());
 }
 
 bool vpu::MCMAdapter::isMCMCompilerAvailable() {
@@ -119,23 +125,21 @@ bool vpu::MCMAdapter::isMCMCompilerAvailable() {
 }
 
 vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::SummaryHeader& header,
-                                                               const MCMConfig& config) {
+                                                               const Config& config) {
     IE_ASSERT(header.identifier() != nullptr);
     IE_ASSERT(header.in_tensor_desc() != nullptr);
     IE_ASSERT(header.out_tensor_desc() != nullptr);
-    Logger::Ptr logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
-    if (logger == nullptr) {
-        IE_THROW() << "Logger has not been created";
-    }
+
+    vpux::Logger logger("compileMCM", config.get<LOG_LEVEL>());
 
     const std::string& resultNetworkName = header.identifier()->str();
-    logger->debug("networkName: %s", resultNetworkName);
+    logger.debug("networkName: {0}", resultNetworkName);
 
     vpux::QuantizationParamMap resultQuantParamMap;
     InferenceEngine::InputsDataMap resultNetworkInputs;
     const auto& inputTensorDesc = *header.in_tensor_desc();
     size_t inputTensorsCount = inputTensorDesc.size();
-    logger->debug("inputTensorsCount: %d", inputTensorsCount);
+    logger.debug("inputTensorsCount: {0}", inputTensorsCount);
     for (size_t inputIdx = 0; inputIdx < inputTensorsCount; inputIdx++) {
         const auto tensorRef = inputTensorDesc[inputIdx];
         IE_ASSERT(tensorRef != nullptr);
@@ -156,7 +160,7 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
 
         InferenceEngine::TensorDesc inputDesc(iePrecision, dimVec, ieLayout);
         InferenceEngine::Data inputData(tensorRef->name()->str(), inputDesc);
-        logger->debug("input info:\n%s\n", inputSerializer.str());
+        logger.debug("input info: {0}", inputSerializer.str());
 
         InferenceEngine::InputInfo inputInfo;
         inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
@@ -179,7 +183,7 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
     InferenceEngine::OutputsDataMap resultNetworkOutputs;
     const auto& outputTensorDesc = *header.out_tensor_desc();
     size_t outputTensorsCount = outputTensorDesc.size();
-    logger->debug("outputTensorsCount: %d", outputTensorsCount);
+    logger.debug("outputTensorsCount: {0}", outputTensorsCount);
     for (size_t outputIdx = 0; outputIdx < outputTensorsCount; outputIdx++) {
         const auto tensorRef = outputTensorDesc[outputIdx];
         IE_ASSERT(tensorRef != nullptr);
@@ -197,7 +201,7 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
         const auto iePrecision = MvcnnDTypeToPrecision(tensorRef->data_dtype());
         outputSerializer << "Layout: " << ieLayout << std::endl;
         outputSerializer << "Precision: " << iePrecision << std::endl;
-        logger->debug("output info:\n%s\n", outputSerializer.str());
+        logger.debug("output info: {0}", outputSerializer.str());
 
         InferenceEngine::TensorDesc outputDesc(iePrecision, dimVec, ieLayout);
         InferenceEngine::Data outputData(tensorRef->name()->str(), outputDesc);

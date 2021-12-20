@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/frontend/VPUIP.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -182,44 +183,26 @@ void vpux::VPUIP::BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog
 
 namespace {
 
-VPUIP::PhysicalMemory convertMemoryLocation(MVCNN::MemoryLocation grLocation) {
-    VPUIP::MemoryLocation location;
+VPU::MemoryKind convertMemoryLocation(MVCNN::MemoryLocation grLocation) {
     switch (grLocation) {
     case MVCNN::MemoryLocation_ProgrammableInput:
-        location = VPUIP::MemoryLocation::ProgrammableInput;
-        break;
     case MVCNN::MemoryLocation_ProgrammableOutput:
-        location = VPUIP::MemoryLocation::ProgrammableOutput;
-        break;
     case MVCNN::MemoryLocation_VPU_DDR_Heap:
-        location = VPUIP::MemoryLocation::VPU_DDR_Heap;
-        break;
     case MVCNN::MemoryLocation_GraphFile:
-        location = VPUIP::MemoryLocation::GraphFile;
-        break;
-    case MVCNN::MemoryLocation_VPU_CMX_NN:
-        location = VPUIP::MemoryLocation::VPU_CMX_NN;
-        break;
-    case MVCNN::MemoryLocation_VPU_CMX_UPA:
-        location = VPUIP::MemoryLocation::VPU_CMX_UPA;
-        break;
     case MVCNN::MemoryLocation_VPU_DDR_BSS:
-        location = VPUIP::MemoryLocation::VPU_DDR_BSS;
-        break;
+        return VPU::MemoryKind::DDR;
+    case MVCNN::MemoryLocation_VPU_CMX_NN:
+        return VPU::MemoryKind::CMX_NN;
+    case MVCNN::MemoryLocation_VPU_CMX_UPA:
+        return VPU::MemoryKind::CMX_UPA;
     case MVCNN::MemoryLocation_VPU_CSRAM:
-        location = VPUIP::MemoryLocation::VPU_CSRAM;
-        break;
+        return VPU::MemoryKind::CSRAM;
     case MVCNN::MemoryLocation_AbsoluteAddr:
-        location = VPUIP::MemoryLocation::AbsoluteAddr;
-        break;
     case MVCNN::MemoryLocation_MAC_Accumulators:
-        location = VPUIP::MemoryLocation::MAC_Accumulators;
-        break;
+        return VPU::MemoryKind::Register;
     default:
         VPUX_THROW("Unsupported MemoryLocation value '{0}'", grLocation);
     }
-
-    return VPUIP::getPhysicalMemory(location);
 }
 
 }  // namespace
@@ -245,7 +228,7 @@ mlir::MemRefType vpux::VPUIP::BlobReader::parseTensorRef(const MVCNN::TensorRefe
     const auto order = DimsOrder::fromCode(tensorRef->order());
     const auto memKind = convertMemoryLocation(tensorRef->locale());
 
-    return getMemRefType(ShapeRef(shape), elemType, order, strides, VPUIP::PhysicalMemoryAttr::get(_ctx, memKind));
+    return getMemRefType(ShapeRef(shape), elemType, order, strides, VPU::MemoryKindAttr::get(_ctx, memKind));
 }
 
 mlir::ArrayAttr vpux::VPUIP::BlobReader::parseOrder3(const MVCNN::order3* order, int32_t ndims) {
@@ -263,24 +246,24 @@ mlir::ArrayAttr vpux::VPUIP::BlobReader::parseOrder3(const MVCNN::order3* order,
     return getIntArrayAttr(_ctx, coords);
 }
 
-VPUIP::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision() {
+VPU::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision() {
     const auto* header = _graphFile->header();
     switch (header->device()) {
     case MVCNN::TargetDevice_NONE:
-        return VPUIP::ArchKind::UNKNOWN;
+        return VPU::ArchKind::UNKNOWN;
     case MVCNN::TargetDevice_KMB:
         switch (header->device_revision()) {
         case MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0:
-            return VPUIP::ArchKind::KMB;
+            return VPU::ArchKind::KMB;
         default:
             VPUX_THROW("Unsupported KMB Revision '{0}'", header->device_revision());
         }
     case MVCNN::TargetDevice_TBH:
-        return VPUIP::ArchKind::TBH;
+        return VPU::ArchKind::TBH;
     case MVCNN::TargetDevice::TargetDevice_MTL:
-        return VPUIP::ArchKind::MTL;
+        return VPU::ArchKind::MTL;
     case MVCNN::TargetDevice::TargetDevice_LNL:
-        return VPUIP::ArchKind::LNL;
+        return VPU::ArchKind::LNL;
     default:
         VPUX_THROW("Unsupported TargetDevice '{0}'", header->device());
     }
@@ -331,7 +314,7 @@ mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, co
         return netFunc.getArgument(argOffset + static_cast<unsigned>(std::distance(ioTypes.begin(), ioTypeIt)));
     };
 
-    VPUIP::MemoryLocation location;
+    VPURT::BufferSection section;
     switch (tensorRef->locale()) {
     case MVCNN::MemoryLocation::MemoryLocation_ProgrammableInput: {
         return getArgument(_inputTypes);
@@ -356,31 +339,30 @@ mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, co
                                                 Const::ContentAttr::get(value));
     }
     case MVCNN::MemoryLocation::MemoryLocation_VPU_DDR_BSS:
-        location = VPUIP::MemoryLocation::VPU_DDR_BSS;
-        break;
     case MVCNN::MemoryLocation::MemoryLocation_VPU_DDR_Heap:
-        location = VPUIP::MemoryLocation::VPU_DDR_Heap;
+        section = VPURT::BufferSection::DDR;
         break;
     case MVCNN::MemoryLocation::MemoryLocation_VPU_CMX_UPA:
-        location = VPUIP::MemoryLocation::VPU_CMX_UPA;
+        section = VPURT::BufferSection::CMX_UPA;
         break;
     case MVCNN::MemoryLocation::MemoryLocation_VPU_CMX_NN:
-        location = VPUIP::MemoryLocation::VPU_CMX_NN;
+        section = VPURT::BufferSection::CMX_NN;
         break;
     case MVCNN::MemoryLocation::MemoryLocation_VPU_CSRAM:
-        location = VPUIP::MemoryLocation::VPU_CSRAM;
+        section = VPURT::BufferSection::CSRAM;
         break;
     default:
         VPUX_THROW("Location {0} is not supported", tensorRef->locale());
     }
 
-    return builder.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(_ctx), importedType, location,
+    return builder.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(_ctx), importedType, section,
                                                   tensorRef->locale_index()->Get(0), tensorRef->data()->data_index());
 }
 
 void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {
     const auto arch = parseDeviceRevision();
-    setArch(_module, arch);
+    VPU::setArch(_module, arch);
+
     auto resourcesOp = IERT::RunTimeResourcesOp::getFromModule(_module);
 
     const auto* header = _graphFile->header();
@@ -392,11 +374,11 @@ void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {
             const auto* entry = memSizes->Get(i);
             switch (entry->item()) {
             case MVCNN::PhysicalMem_NN_CMX:
-                resourcesOp.setUsedMemory(VPUIP::PhysicalMemoryAttr::get(_ctx, VPUIP::PhysicalMemory::CMX_NN),
+                resourcesOp.setUsedMemory(VPU::MemoryKindAttr::get(_ctx, VPU::MemoryKind::CMX_NN),
                                           Byte(static_cast<int64_t>(entry->number())));
                 break;
             case MVCNN::PhysicalMem_DDR:
-                resourcesOp.setUsedMemory(VPUIP::PhysicalMemoryAttr::get(_ctx, VPUIP::PhysicalMemory::DDR),
+                resourcesOp.setUsedMemory(VPU::MemoryKindAttr::get(_ctx, VPU::MemoryKind::DDR),
                                           Byte(static_cast<int64_t>(entry->number())));
                 break;
             default:
@@ -404,30 +386,6 @@ void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {
             }
         }
     }
-}
-
-void vpux::VPUIP::BlobReader::buildGraphOp() {
-    OpBuilderLogger builderLog(_log.nest());
-    auto builder = mlir::OpBuilder::atBlockEnd(_module.getBody(), &builderLog);
-
-    auto execFlag = VPUIP::ExecutionFlag::NONE;
-    const auto* header = _graphFile->header();
-    if (header->options() && header->options()->size() > 0) {
-        if (header->options()->Get(0) == MVCNN::ExecutionFlag_DynamicBarriers) {
-            execFlag = VPUIP::ExecutionFlag::DynamicBarriers;
-        } else {
-            VPUX_THROW("Unknown ExecutionFlag option {0}", header->options()->Get(0));
-        }
-    }
-
-    const auto options = VPUIP::ExecutionFlagAttr::get(_ctx, execFlag);
-    VPUX_THROW_UNLESS(header->version(), "Blob has no version");
-    const auto version = VPUIP::VersionAttr::get(
-            getIntAttr(_ctx, header->version()->majorV()), getIntAttr(_ctx, header->version()->minorV()),
-            getIntAttr(_ctx, header->version()->patchV()),
-            mlir::StringAttr::get(_ctx, header->version()->hash()->str()),
-            mlir::StringAttr::get(_ctx, header->version()->context()->str()), _ctx);
-    builder.create<VPUIP::GraphOp>(mlir::UnknownLoc::get(_ctx), options, version);
 }
 
 void vpux::VPUIP::BlobReader::buildCNNNetworkOp() {
@@ -480,13 +438,22 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_GatherParams, &BlobReader::parseGather},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_GatherElementsParams, &BlobReader::parseGatherElements},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_BroadcastParams, &BlobReader::parseBroadcast},
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_TileParams, &BlobReader::parseTile},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReduceParams, &BlobReader::parseReduce},
-            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_TileParams, &BlobReader::parseTile}};
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReversesequenceParams, &BlobReader::parseReverseSequence}};
 
     VPUX_THROW_UNLESS(_graphFile->task_lists(), "Blob contains no task lists");
     TaskIterator taskIterator(_graphFile->task_lists());
     while (!taskIterator.tasksEnded()) {
         const auto task = taskIterator.next();
+
+        mlir::LocationAttr loc;
+        if (task->name() == nullptr) {
+            loc = mlir::UnknownLoc::get(_ctx);
+        } else {
+            loc = mlir::NameLoc::get(
+                    mlir::Identifier::get(StringRef(task->name()->c_str(), task->name()->size()), _ctx));
+        }
 
         SmallVector<mlir::Value> inputs;
         SmallVector<mlir::Value> outputs;
@@ -526,8 +493,8 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
                               upaTask->softLayerParams_type());
             const auto parser = dispatchIt->second;
 
-            auto taskOp = opsBuilder.create<VPURT::TaskOp>(mlir::UnknownLoc::get(_ctx), waitBarriers, updateBarriers);
-            auto& block = taskOp.op().emplaceBlock();
+            auto taskOp = opsBuilder.create<VPURT::TaskOp>(loc, waitBarriers, updateBarriers);
+            auto& block = taskOp.body().emplaceBlock();
             lastInsertPoint = opsBuilder.saveInsertionPoint();
             opsBuilder.setInsertionPointToStart(&block);
             (this->*parser)(opsBuilder, inputs, outputs, upaTask);
@@ -541,19 +508,23 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             const auto dst = nnDMATask->dst();
             outputs.push_back(createTensorOp(opsBuilder, dst));
 
-            auto taskOp = opsBuilder.create<VPURT::TaskOp>(mlir::UnknownLoc::get(_ctx), waitBarriers, updateBarriers);
-            auto& block = taskOp.op().emplaceBlock();
+            auto taskOp = opsBuilder.create<VPURT::TaskOp>(loc, waitBarriers, updateBarriers);
+            auto& block = taskOp.body().emplaceBlock();
             lastInsertPoint = opsBuilder.saveInsertionPoint();
             opsBuilder.setInsertionPointToStart(&block);
-            opsBuilder.create<VPUIP::NNDMAOp>(mlir::NameLoc::get(mlir::Identifier::get("1", _ctx)), inputs.front(),
-                                              outputs.front());
+            if (nnDMATask->compression()) {
+                opsBuilder.create<VPUIP::CompressedDMAOp>(loc, inputs.front(), outputs.front(), nnDMATask->port(),
+                                                          !nnDMATask->set_ord(), nnDMATask->set_crit());
+            } else {
+                opsBuilder.create<VPUIP::NNDMAOp>(loc, inputs.front(), outputs.front(), nnDMATask->port(),
+                                                  !nnDMATask->set_ord(), nnDMATask->set_crit());
+            }
             opsBuilder.restoreInsertionPoint(lastInsertPoint);
         } else if (const auto controllerTask = task->task_as_ControllerTask()) {
             const auto barrierTask = controllerTask->task_as_BarrierConfigurationTask();
             VPUX_THROW_UNLESS(barrierTask, "Unsupported controller task type {0}", controllerTask->task_type());
             VPUX_THROW_UNLESS(barrierTask->target(), "Barrier has no target");
-            auto barrier = opsBuilder.create<VPURT::ConfigureBarrierOp>(mlir::UnknownLoc::get(_ctx),
-                                                                        barrierTask->target()->barrier_id());
+            auto barrier = opsBuilder.create<VPURT::ConfigureBarrierOp>(loc, barrierTask->target()->barrier_id());
             _barriers.push_back(barrier.barrier());
         } else {
             VPUX_THROW("Unsupported task type {0}", task->task_type());
@@ -573,7 +544,6 @@ mlir::OwningModuleRef vpux::VPUIP::BlobReader::read() {
     _module = mlir::ModuleOp::create(mlir::UnknownLoc::get(_ctx), StringRef(moduleName));
 
     buildRunTimeResourcesOp();
-    buildGraphOp();
     buildCNNNetworkOp();
     buildMainFunc();
 

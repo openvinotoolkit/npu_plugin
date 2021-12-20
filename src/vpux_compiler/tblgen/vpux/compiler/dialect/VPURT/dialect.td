@@ -36,6 +36,7 @@ It handles such VPU-specifics as:
     let dependentDialects = [
         "mlir::StandardOpsDialect",
         "vpux::IERT::IERTDialect",
+        "vpux::VPU::VPUDialect",
         "vpux::VPUIP::VPUIPDialect",
     ];
 }

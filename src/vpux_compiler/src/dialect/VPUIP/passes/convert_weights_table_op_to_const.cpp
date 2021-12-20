@@ -88,8 +88,7 @@ Optional<int32_t> getTensorPtrOffset(mlir::Value input, const AliasesInfo* alias
 
 class CreateWTableOpsConverter final : public mlir::OpRewritePattern<VPUIP::WeightsTableOp> {
 public:
-    CreateWTableOpsConverter(mlir::MLIRContext* ctx, Logger log, vpux::VPUIP::ArchKind arch,
-                             const AliasesInfo* aliasInfo)
+    CreateWTableOpsConverter(mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch, const AliasesInfo* aliasInfo)
             : mlir::OpRewritePattern<VPUIP::WeightsTableOp>(ctx), _log(log), _arch(arch), _aliasInfo(aliasInfo) {
         VPUX_THROW_UNLESS(_aliasInfo != nullptr, "Got NULL pointer for AliasesInfo in ViewLikeRewrite");
     }
@@ -100,7 +99,7 @@ public:
 
 private:
     Logger _log;
-    vpux::VPUIP::ArchKind _arch;
+    VPU::ArchKind _arch;
     const AliasesInfo* _aliasInfo = nullptr;
 };
 
@@ -159,7 +158,7 @@ void ConvertWeightsTableOp2Const::safeRunOnFunc() {
 
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
-    const auto arch = VPUIP::getArch(module);
+    const auto arch = VPU::getArch(module);
 
     VPUX_THROW_UNLESS(
             vpux::VPUIP::NCESparsity::biasConvertersMap.find(arch) != vpux::VPUIP::NCESparsity::biasConvertersMap.end(),

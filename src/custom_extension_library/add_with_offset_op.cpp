@@ -6,8 +6,6 @@
 
 using namespace SampleExtension;
 
-constexpr ngraph::NodeTypeInfo AddWOffsetOp::type_info;
-
 AddWOffsetOp::AddWOffsetOp(const ngraph::Output<ngraph::Node>& inp1, const ngraph::Output<ngraph::Node>& inp2, float _offset)
     : Op({inp1, inp2}) {
     constructor_validate_and_infer_types();
@@ -30,4 +28,3 @@ bool AddWOffsetOp::visit_attributes(ngraph::AttributeVisitor &visitor) {
     visitor.on_attribute("offset", offset);
     return true;
 }
-

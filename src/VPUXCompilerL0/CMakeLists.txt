@@ -51,3 +51,50 @@ endif()
 ie_add_api_validator_post_build_step(TARGET compilerTest)
 ie_add_api_validator_post_build_step(TARGET compilerThreadTest)
 ie_add_api_validator_post_build_step(TARGET compilerThreadTest2)
+
+set(CID_COMPONENT "CiD")
+ie_cpack_add_component(${CID_COMPONENT})
+
+install(FILES "${InferenceEngineVPUXPlugin_SOURCE_DIR}/src/VPUXCompilerL0/include/VPUXCompilerL0.h"
+        DESTINATION cid
+        COMPONENT ${CID_COMPONENT})
+
+install(FILES "${InferenceEngineVPUXPlugin_SOURCE_DIR}/src/VPUXCompilerL0/CHANGES.txt"
+        DESTINATION cid
+        COMPONENT ${CID_COMPONENT})
+
+install(FILES "${InferenceEngineVPUXPlugin_SOURCE_DIR}/src/VPUXCompilerL0/README.md"
+        DESTINATION cid
+        COMPONENT ${CID_COMPONENT})
+
+if(WIN32)
+    install(TARGETS VPUXCompilerL0
+        RUNTIME DESTINATION cid/lib COMPONENT ${CID_COMPONENT})
+    install(FILES $<TARGET_PDB_FILE:VPUXCompilerL0>
+            DESTINATION cid/pdb
+            COMPONENT ${CID_COMPONENT})
+
+    install(FILES $<TARGET_PDB_FILE:compilerThreadTest>
+            DESTINATION cid/pdb
+            COMPONENT ${CID_COMPONENT})
+
+    install(FILES $<TARGET_PDB_FILE:compilerThreadTest2>
+            DESTINATION cid/pdb
+            COMPONENT ${CID_COMPONENT})
+
+    install(FILES $<TARGET_PDB_FILE:compilerTest>
+            DESTINATION cid/pdb
+            COMPONENT ${CID_COMPONENT})
+else()
+    install(TARGETS VPUXCompilerL0
+        LIBRARY DESTINATION cid/lib COMPONENT ${CID_COMPONENT})
+endif()
+
+install(TARGETS compilerThreadTest
+        RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})
+
+install(TARGETS compilerThreadTest2
+        RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})
+
+install(TARGETS compilerTest
+        RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})

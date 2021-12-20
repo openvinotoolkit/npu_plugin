@@ -14,6 +14,7 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
@@ -281,12 +282,13 @@ private:
         } else if (elemType.isBF16()) {
             return caller(bfloat16(0.0f));
         } else if (const auto qType = elemType.dyn_cast<mlir::quant::QuantizedType>()) {
-            if (qType.getStorageType().isSignedInteger(8)) {
+            const auto quantStorageType = vpux::normalizeQuantStorageType(qType);
+            if (quantStorageType.isSignedInteger(8)) {
                 return caller(int8_t(0));
-            } else if (qType.getStorageType().isUnsignedInteger(8)) {
+            } else if (quantStorageType.isUnsignedInteger(8)) {
                 return caller(uint8_t(0));
             } else {
-                VPUX_THROW("Unsupported quantized storage type '{0}'", qType.getStorageType());
+                VPUX_THROW("Unsupported quantized storage type '{0}'", quantStorageType);
             }
         } else {
             VPUX_THROW("Unsupported element type '{0}'", elemType);

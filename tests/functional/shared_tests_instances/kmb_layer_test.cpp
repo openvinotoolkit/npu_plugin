@@ -9,8 +9,8 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "kmb_test_tool.hpp"
 
-#include "vpux/utils/core/format.hpp"
 #include <common/functions.h>
+#include "vpux/utils/core/format.hpp"
 
 namespace LayerTestsUtils {
 
@@ -29,7 +29,7 @@ const KmbTestEnvConfig KmbLayerTestsCommon::envConfig;
 KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
     IE_ASSERT(core != nullptr);
 
-    const std::string configDevice = testPlatformTargetDevice.substr(0, 
+    const std::string configDevice = testPlatformTargetDevice.substr(0,
                                          testPlatformTargetDevice.find("."));
 
     if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
@@ -44,7 +44,8 @@ void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
     if(configuration.count(VPUX_CONFIG_KEY(PLATFORM)) == 0) {
         configuration[VPUX_CONFIG_KEY(PLATFORM)] = envConfig.IE_KMB_TESTS_PLATFORM;
     }
-
+    if(configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE)) == configuration.end())
+        configuration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
     ConfigureNetwork();
 }
 
@@ -222,6 +223,13 @@ void KmbLayerTestsCommon::Validate() {
 }
 
 void KmbLayerTestsCommon::Run() {
+    LayerTestsUtils::PassRate::Statuses status = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()
+                                                         ? LayerTestsUtils::PassRate::Statuses::SKIPPED
+                                                         : LayerTestsUtils::PassRate::Statuses::CRASHED;
+    auto& summary = Summary::getInstance();
+    summary.setDeviceName(targetDevice);
+    summary.updateOPsStats(function, status);
+
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     functionRefs = ngraph::clone_function(*function);
 
@@ -231,6 +239,7 @@ void KmbLayerTestsCommon::Run() {
     const auto& testInfo = testing::UnitTest::GetInstance()->current_test_info();
     report.run(testInfo);
 
+    std::string errorMessage;
     try {
         if (envConfig.IE_KMB_TESTS_RUN_COMPILER) {
             std::cout << "KmbLayerTestsCommon::Compile" << std::endl;
@@ -288,6 +297,9 @@ void KmbLayerTestsCommon::Run() {
         if (runInfer) {
             std::cout << "KmbLayerTestsCommon::Infer() with backend '" << backendName << "'" << std::endl;
             SkipBeforeInfer();
+            if (!inferRequest) {
+                inferRequest = executableNetwork.CreateInferRequest();
+            }
             Infer();
             report.inferred(testInfo);
         } else {
@@ -313,10 +325,23 @@ void KmbLayerTestsCommon::Run() {
         } else {
             std::cout << "Skip KmbLayerTestsCommon::Validate() due to: " << runInferSkipReason << std::endl;
         }
+        status = LayerTestsUtils::PassRate::Statuses::PASSED;
     } catch (const KmbSkipTestException& e) {
         std::cout << "Skipping the test due to: " << e.what() << std::endl;
         report.skipped(testInfo);
         GTEST_SKIP() << "Skipping the test due to: " << e.what();
+    } catch (const std::exception& ex) {
+        status = LayerTestsUtils::PassRate::Statuses::FAILED;
+        errorMessage = ex.what();
+    } catch (...) {
+        status = LayerTestsUtils::PassRate::Statuses::FAILED;
+        errorMessage = "Unknown failure occurred.";
+    }
+
+    summary.updateOPsStats(function, status);
+    if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
+        std::cout << "Test has failed: " << errorMessage.c_str() << std::endl;
+        GTEST_FATAL_FAILURE_(errorMessage.c_str());
     }
 }
 
@@ -328,7 +353,7 @@ void KmbLayerTestsCommon::setReferenceSoftwareModeMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceSW";
 }
 
-void KmbLayerTestsCommon::setReferenceHardwareModeMLIR() {
+void KmbLayerTestsCommon::setDefaultHardwareModeMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "DefaultHW";
 }
 
@@ -339,8 +364,8 @@ void KmbLayerTestsCommon::setPlatformMTL() {
 bool KmbLayerTestsCommon::isCompilerMCM() const {
     const auto it = configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE));
     if (it == configuration.end()) {
-        // Default value for COMPILER_TYPE is MCM
-        return true;
+        // Default value for COMPILER_TYPE is MLIR
+        return false;
     }
 
     return it->second == VPUX_CONFIG_VALUE(MCM);
@@ -349,8 +374,8 @@ bool KmbLayerTestsCommon::isCompilerMCM() const {
 bool KmbLayerTestsCommon::isCompilerMLIR() const {
     const auto it = configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE));
     if (it == configuration.end()) {
-        // Default value for COMPILER_TYPE is MCM
-        return false;
+        // Default value for COMPILER_TYPE is MLIR
+        return true;
     }
 
     return it->second == VPUX_CONFIG_VALUE(MLIR);

@@ -26,7 +26,6 @@
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/utils/core/error.hpp"
-#include "vpux_config.hpp"
 
 namespace vpux {
 
@@ -54,6 +53,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     auto opType = jsonDesc.getCaseStr();
 
     bool isConv = jsonDesc.getCaseType() == nb::CaseType::ZMajorConvolution;
+    bool isDepthwiseConv = jsonDesc.getCaseType() == nb::CaseType::DepthWiseConv;
     bool isEltwiseAdd = jsonDesc.getCaseType() == nb::CaseType::EltwiseAdd;
     bool isMaxPool = jsonDesc.getCaseType() == nb::CaseType::MaxPool;
     bool isEltwiseMult = jsonDesc.getCaseType() == nb::CaseType::EltwiseMult;
@@ -75,6 +75,8 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         } else {
             hwtest::buildSimpleZMajorConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
         }
+    } else if (isDepthwiseConv) {
+        hwtest::buildDWConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else if (isEltwiseAdd) {
         hwtest::buildEltwiseAdd(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else if (isEltwiseMult) {
@@ -82,7 +84,8 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     } else if (isMaxPool) {
         hwtest::buildMaxPool(jsonDesc, module, builder, log, input_type, output_type);
     } else if (isAvgPool) {
-        hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_type, output_type);
+        // hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_type, output_type);
+        hwtest::buildAvgpool(jsonDesc, module, builder, log, input_type, output_type);
     } else {
         VPUX_THROW("Unknown type: {0}", opType);
     }
@@ -94,7 +97,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
 
     mlir::DefaultTimingManager tm;
     auto timing = tm.getRootScope();
-    auto blob = VPUIP::exportToBlob(module, timing, log);
+    auto blob = VPUIP::exportToBlob(module, timing, {}, log);
     std::string err;
     // dump the blob in a file
     std::unique_ptr<llvm::ToolOutputFile> outFile = mlir::openOutputFile("vpuip.blob", &err);

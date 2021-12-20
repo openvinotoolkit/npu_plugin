@@ -18,8 +18,6 @@
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <ngraph_ops/convolution_ie.hpp>
-
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <ngraph/slice_plan.hpp>
@@ -110,7 +108,7 @@ mlir::LogicalResult ResolveStridedSlicePass::SlicePlanning::matchAndRewrite(IE::
         })) {
         const auto endsAttr = getIntArrayAttr(getContext(), plan.ends);
         const auto stridesAttr = getIntArrayAttr(getContext(), plan.strides);
-        const auto zeroesArrayAttr = getIntArrayAttr(getContext(), llvm::SmallVector<int64_t>(plan.begins.size(), 0));
+        const auto zeroesArrayAttr = getIntArrayAttr(getContext(), SmallVector<int64_t>(plan.begins.size(), 0));
 
         newOp = rewriter.create<IE::StridedSliceOp>(origOp->getLoc(), origOp.input(), origOp.begins(), origOp.ends(),
                                                     origOp.strides(), beginAttr, endsAttr, stridesAttr, zeroesArrayAttr,

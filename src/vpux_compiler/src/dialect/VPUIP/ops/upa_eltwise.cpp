@@ -63,6 +63,21 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
     case VPUIP::EltwiseLayerType::LESS_EQUAL:
         type = writer.createString("comparele");
         break;
+    case VPUIP::EltwiseLayerType::GREATER:
+        type = writer.createString("comparegt");
+        break;
+    case VPUIP::EltwiseLayerType::GREATER_EQUAL:
+        type = writer.createString("comparege");
+        break;
+    case VPUIP::EltwiseLayerType::NOT_EQUAL:
+        type = writer.createString("comparene");
+        break;
+    case VPUIP::EltwiseLayerType::LOGICAL_OR:
+        type = writer.createString("logicalor");
+        break;
+    case VPUIP::EltwiseLayerType::LOGICAL_XOR:
+        type = writer.createString("logicalxor");
+        break;
     default:
         VPUX_THROW("Unsupported EltwiseLayerType {0}", this->type());
     }
@@ -106,12 +121,22 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseEltwise(mlir::OpBuilder& builder,
         type = EltwiseLayerType::MAX;
     } else if (strType == "logicaland") {
         type = EltwiseLayerType::AND;
-    } else if (strType == "equal") {
+    } else if (strType == "compareeq") {
         type = EltwiseLayerType::EQUAL;
     } else if (strType == "comparelt") {
         type = EltwiseLayerType::LESS;
     } else if (strType == "comparele") {
         type = EltwiseLayerType::LESS_EQUAL;
+    } else if (strType == "comparene") {
+        type = EltwiseLayerType::NOT_EQUAL;
+    } else if (strType == "comparegt") {
+        type = EltwiseLayerType::GREATER;
+    } else if (strType == "comparege") {
+        type = EltwiseLayerType::GREATER_EQUAL;
+    } else if (strType == "logicalor") {
+        type = EltwiseLayerType::LOGICAL_OR;
+    } else if (strType == "logicalxor") {
+        type = EltwiseLayerType::LOGICAL_XOR;
     } else {
         VPUX_THROW("Unsupported EltwiseLayerType {0}", strType);
     }

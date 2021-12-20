@@ -13,17 +13,45 @@
 
 #include "emulator_executor.hpp"
 
-#include <file_utils.h>
+#include "vpux/al/config/common.hpp"
+
 #include <emu/arithmetic_types.hpp>
+
+#include <file_utils.h>
 
 namespace ie = InferenceEngine;
 
 namespace vpux {
 
-EmulatorExecutor::EmulatorExecutor(const vpux::NetworkDescription::Ptr& network, const VPUXConfig& config)
-        : _logger("EmulatorBackend", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()),
+namespace {
+
+vpu::LogLevel toOldLogLevel(LogLevel lvl) {
+    switch (lvl) {
+    case LogLevel::None:
+        return vpu::LogLevel::None;
+    case LogLevel::Fatal:
+        return vpu::LogLevel::Fatal;
+    case LogLevel::Error:
+        return vpu::LogLevel::Error;
+    case LogLevel::Warning:
+        return vpu::LogLevel::Warning;
+    case LogLevel::Info:
+        return vpu::LogLevel::Info;
+    case LogLevel::Debug:
+        return vpu::LogLevel::Debug;
+    case LogLevel::Trace:
+        return vpu::LogLevel::Trace;
+    }
+
+    VPUX_THROW("LogLevel '{0}' is not supported", lvl);
+}
+
+}  // namespace
+
+EmulatorExecutor::EmulatorExecutor(const vpux::NetworkDescription::Ptr& network, const Config& config)
+        : _logger("EmulatorBackend", LogLevel::Debug /*_config.logLevel()*/),
           _network(network),
-          _manager(ie::getIELibraryPath() + "/vpux_emulator", config.logLevel()) {
+          _manager(ie::getIELibraryPath() + "/vpux_emulator", toOldLogLevel(config.get<LOG_LEVEL>())) {
 }
 
 void EmulatorExecutor::push(const ie::BlobMap& inputs, const PreprocMap&) {

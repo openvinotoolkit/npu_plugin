@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB" --group-async-execute-ops %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --group-async-execute-ops %s | FileCheck %s
 
 // CHECK-LABEL: @MergeUPAAndDMA
 func @MergeUPAAndDMA(%arg0: memref<16xui8>, %arg1: memref<16xf16>, %arg2: memref<16xf16>)

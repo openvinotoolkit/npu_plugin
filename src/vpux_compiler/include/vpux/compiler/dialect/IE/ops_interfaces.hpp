@@ -177,6 +177,11 @@ void setLayerPostOp(ConcreteOp mainOp, mlir::Operation* postOp) {
     mainOp.post_opAttr(postOpInfo);
 }
 
+template <typename ConcreteOp>
+void clearLayerPostOp(ConcreteOp mainOp) {
+    mainOp.removePost_opAttr();
+}
+
 //
 // LayoutInfoOpInterface
 //
@@ -202,8 +207,6 @@ void fillDefaultLayoutInfo(LayerLayoutInfo& info, FuncRef<bool(size_t)> inputFil
 mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal, const TileInfo& tile,
                      StringRef valName);
 
-OutputTiling generateTiles(mlir::Operation* op, Logger log);
-
 //
 // TilingInfoOpInterface
 //
@@ -215,7 +218,8 @@ mlir::LogicalResult verifyTilingInfo(mlir::Operation* op);
 //
 
 mlir::LogicalResult verifyEltwiseOp(mlir::Operation* op);
-mlir::Value reifyEltwiseTile(mlir::Operation* op, const TileInfo& outputTile, mlir::OpBuilder& builder);
+SmallVector<int64_t> getMaxNumTiles(mlir::Operation* op);
+InputTiling backInferEltwiseTile(mlir::Operation* op, const vpux::TileInfo& outputTile);
 
 template <typename ConcreteOp>
 class EltwiseOp : public mlir::OpTrait::TraitBase<ConcreteOp, EltwiseOp> {
@@ -224,8 +228,11 @@ public:
         return IE::verifyEltwiseOp(op);
     }
 
-    mlir::Value reifyTile(const TileInfo& outputTile, mlir::OpBuilder& builder) {
-        return IE::reifyEltwiseTile(this->getOperation(), outputTile, builder);
+    InputTiling backInferTileInfo(const vpux::TileInfo& outputTile) {
+        return IE::backInferEltwiseTile(this->getOperation(), outputTile);
+    }
+
+    void adjustAttrs(const TilingInfo&) {
     }
 };
 

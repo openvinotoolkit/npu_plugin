@@ -11,10 +11,14 @@
 // included with the Software Package for additional details.
 //
 
+#include "VPUXCompilerL0.h"
+
 #include <cpp/ie_cnn_network.h>
 #include <ie_core.hpp>
-#include <vpux/vpux_plugin_config.hpp>
-#include "VPUXCompilerL0.h"
+
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
+#include "vpux/vpux_plugin_config.hpp"
 #include "vpux_compiler.hpp"
 #include "vpux_private_config.hpp"
 
@@ -25,7 +29,7 @@
 #include <utility>
 
 // Version 1.2.1, used to identify the release
-#define VPUX_COMPILER_L0_ID "1.2.1"
+#define VPUX_COMPILER_L0_ID "1.2.2"
 const uint32_t maxNumberOfElements = 10;
 const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
 const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
@@ -173,22 +177,32 @@ public:
     vcl_compiler_desc_t getCompilerDesc() const {
         return _compilerDesc;
     }
+
+    std::shared_ptr<const OptionsDesc> getOptions() const {
+        return _options;
+    }
+
     std::pair<VPUXExecutableL0*, vcl_result_t> importNetwork(const uint8_t* buffer, uint64_t bufferSize,
                                                              const uint8_t* weights, uint64_t weightsSize,
-                                                             VPUXConfig& vpuxConfig, const IOInfo& ioInfo,
+                                                             Config& vpuxConfig, const IOInfo& ioInfo,
                                                              bool enableProfiling);
 
 private:
+    std::shared_ptr<OptionsDesc> _options;
     Compiler::Ptr _compiler = NULL;
     vcl_compiler_properties_t _compilerProp;
     vcl_compiler_desc_t _compilerDesc;
     std::mutex _mlock;
 };
 
-VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, std::string>& config) {
-    VPUXConfig vpuxConfig;
-    vpuxConfig.update(config);
-    _compiler = Compiler::create(vpuxConfig);
+VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, std::string>& config)
+        : _options(std::make_shared<OptionsDesc>()) {
+    registerCommonOptions(*_options);
+    registerCompilerOptions(*_options);
+
+    Config parsedConfig(_options);
+    parsedConfig.update(config, OptionMode::CompileTime);
+    _compiler = Compiler::create(parsedConfig);
 
     _compilerDesc = desc;
     _compilerProp.id = VPUX_COMPILER_L0_ID;
@@ -199,7 +213,7 @@ VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, s
 
 std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const uint8_t* buffer, uint64_t bufferSize,
                                                                          const uint8_t* weights, uint64_t weightsSize,
-                                                                         VPUXConfig& vpuxConfig, const IOInfo& ioInfo,
+                                                                         Config& config, const IOInfo& ioInfo,
                                                                          bool enableProfiling) {
     if (buffer == nullptr || weights == nullptr) {
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
@@ -251,7 +265,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const u
         }
 
         networkDesc = _compiler->compile(cnnNet.getFunction(), cnnNet.getName(), cnnNet.getInputsInfo(),
-                                         cnnNet.getOutputsInfo(), vpuxConfig);
+                                         cnnNet.getOutputsInfo(), config);
     } catch (const std::exception& error) {
         std::cerr << error.what() << std::endl;
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
@@ -347,37 +361,14 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
 
     // Check exeDesc and create VPUXConfig
     std::map<std::string, std::string> config;
-    std::stringstream input(desc.options);
+    // To avoid access violation
+    std::string descOptions(desc.options, desc.optionsSize);
+    std::stringstream input(descOptions);
     std::string result;
     std::vector<std::string> options;
     while (input >> result) {
         options.push_back(result);
     }
-
-    // Set log level
-    switch (desc.logLevel) {
-    case VCL_LOG_LEVEL_NONE:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_NONE);
-        break;
-    case VCL_LOG_LEVEL_ERROR:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_ERROR);
-        break;
-    case VCL_LOG_LEVEL_WARNING:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
-        break;
-    case VCL_LOG_LEVEL_INFO:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
-        enableProfiling = true;
-        break;
-    case VCL_LOG_LEVEL_DEBUG:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
-        break;
-    case VCL_LOG_LEVEL_TRACE:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_TRACE);
-        break;
-    default:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_NONE);
-    };
 
     // Set platform
     VPUXCompilerL0::VPUXCompilerL0* pvc = reinterpret_cast<VPUXCompilerL0::VPUXCompilerL0*>(compiler);
@@ -399,15 +390,6 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
         config[CONFIG_KEY(DEVICE_ID)] = "3700";
     };
 
-    switch (desc.compilationMode) {
-    case VCL_COMPILATION_MODE_HW:
-        config[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceHW";
-        break;
-    case VCL_COMPILATION_MODE_SW:
-        config[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceSW";
-        break;
-    };
-
     // Options will overwrite default configs.
     size_t count = options.size();
     for (size_t i = 0; i + 1 < count;) {
@@ -417,8 +399,14 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
     // Foce to use MLIR compiler.
     config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
 
-    VPUXConfig vpuxConfig;
-    vpuxConfig.update(config);
+    std::map<std::string, std::string>::iterator iter = config.find(CONFIG_KEY(LOG_LEVEL));
+    if (iter != config.end()) {
+        if (iter->second == CONFIG_VALUE(LOG_INFO))
+            enableProfiling = true;
+    }
+
+    Config parsedConfig(pvc->getOptions());
+    parsedConfig.update(config, OptionMode::CompileTime);
 
     uint32_t offset = 0;
     vcl_version_info_t APIVersion;
@@ -465,7 +453,7 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
     ioInfo.outLayout = ioInfo.getLayout(desc.outLayout);
 
     // Create blob and set blob size.
-    auto status = pvc->importNetwork(buffer, bufferSize, weights, weightsSize, vpuxConfig, ioInfo, enableProfiling);
+    auto status = pvc->importNetwork(buffer, bufferSize, weights, weightsSize, parsedConfig, ioInfo, enableProfiling);
     if (status.second != VCL_RESULT_SUCCESS) {
         *executable = NULL;
         return status.second;

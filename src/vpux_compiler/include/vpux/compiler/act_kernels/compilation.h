@@ -20,14 +20,18 @@
 #include <mlir/IR/BuiltinOps.h>
 
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
-#include "vpux/compiler/movitools/movitools.h"
+#include "vpux/utils/core/small_vector.hpp"
 
 namespace vpux {
+
+struct ActShaveCompileParams {
+    std::string cpu;
+};
 
 struct KernelDataDesc {
     std::string name;
     //flatbuffers::Offset<MVCNN::KernelData> data;
-    llvm::SmallVector<uint8_t, 128> data;
+    SmallVector<uint8_t> data;
     // unpadded size
     size_t size;
 };
@@ -47,32 +51,16 @@ struct SerializedKernelDataDesc {
 struct CompilationUnitDesc {
     mlir::StringRef name;
     mlir::StringRef entry;
-    mlir::StringRef codePath;
 };
-
-struct CompilationListDesc {
-    mlir::StringRef name;
-    mlir::StringRef entry;
-    mlir::SmallVector<StringRef> codePath = {};
-    mlir::SmallVector<StringRef> defines = {};
-    mlir::SmallVector<StringRef> includePaths = {};
-};
-
-bool checkVpuip2Dir();
-std::string getVpuip2Dir();
 
 ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
-                                       const movitools::MoviCompileParams& params);
+                                       const ActShaveCompileParams& params);
 
-ActKernelDesc compileKernelForACTShave(const CompilationListDesc & listDesc,
-                                       const movitools::MoviCompileParams& params);
+const CompilationUnitDesc& managementKernelCompilationDesc();
 
-const CompilationListDesc& managementKernelCompilationDesc();
-
-ActKernelDesc compileManagementKernelForACTShave(const movitools::MoviCompileParams& params);
+ActKernelDesc compileManagementKernelForACTShave(const ActShaveCompileParams& params);
 
 flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBuilder& fbb,
                                                        llvm::ArrayRef<uint8_t> content);
-
 
 }  // namespace vpux

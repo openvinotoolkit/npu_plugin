@@ -17,8 +17,8 @@ namespace SampleExtension {
 
 class INFERENCE_EXTENSION_API_CLASS(AddWOffsetOp) : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"add_with_offset", 0};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("add_with_offset");
+
     AddWOffsetOp() = default;
     AddWOffsetOp(const ngraph::Output<ngraph::Node>& inp1, const ngraph::Output<ngraph::Node>& inp2, float offset);
     void validate_and_infer_types() override;
@@ -31,5 +31,3 @@ private:
 };
 
 }
-
-

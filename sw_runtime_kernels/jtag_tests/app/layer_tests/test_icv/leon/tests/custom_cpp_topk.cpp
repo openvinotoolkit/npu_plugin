@@ -5,8 +5,8 @@
 #include "mvSubspaces.h"
 
 #ifdef CONFIG_TARGET_SOC_3720
-//kernel name 
-extern void*(shvNN0_singleShaveTopK);
+__attribute__((aligned(1024)))
+#include "sk.singleShaveTopK.3010xx.text.xdat"
 #else
 #include "svuSLKernels_EP.h"
 #endif
@@ -188,7 +188,7 @@ protected:
     void generateInputData() override {
         printf("generate input data.\n");
 #ifdef CONFIG_TARGET_SOC_3720
-        m_params.kernel  = reinterpret_cast<uint64_t>(&shvNN0_singleShaveTopK);
+        m_params.kernel  = reinterpret_cast<uint64_t>(sk_singleShaveTopK_3010xx_text);
 #else
         m_params.kernel  = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(singleShaveTopK));
 #endif

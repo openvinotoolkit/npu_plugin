@@ -13,8 +13,8 @@
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/init.hpp"
 
 #include <mlir/IR/MLIRContext.h>
@@ -48,8 +48,8 @@ TEST(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
     ASSERT_TRUE(func != nullptr);
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(vpux::VPUIP::createSetCompileParamsPass(vpux::VPUIP::ArchKind::KMB,
-                                                       vpux::VPUIP::CompilationMode::ReferenceSW));
+    pm.addPass(vpux::VPU::createInitCompilerPass(vpux::VPU::ArchKind::KMB, vpux::VPU::CompilationMode::ReferenceSW,
+                                                 vpux::None, vpux::Logger::global()));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
 
@@ -62,9 +62,8 @@ TEST(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
             auto kind = iface.getExecutor(numUnits);
 
             ASSERT_TRUE(kind != nullptr);
-            ASSERT_TRUE(kind.isa<vpux::VPUIP::PhysicalProcessorAttr>());
-            EXPECT_EQ(kind.cast<vpux::VPUIP::PhysicalProcessorAttr>().getValue(),
-                      vpux::VPUIP::PhysicalProcessor::SHAVE_UPA);
+            ASSERT_TRUE(kind.isa<vpux::VPU::ExecutorKindAttr>());
+            EXPECT_EQ(kind.cast<vpux::VPU::ExecutorKindAttr>().getValue(), vpux::VPU::ExecutorKind::SHAVE_UPA);
             EXPECT_GE(numUnits, 1u);
         } else if (mlir::isa<vpux::IERT::CopyOp>(op)) {
             auto iface = mlir::dyn_cast<vpux::IERT::AsyncLayerOpInterface>(op);
@@ -74,8 +73,8 @@ TEST(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
             auto kind = iface.getExecutor(numUnits);
 
             ASSERT_TRUE(kind != nullptr);
-            ASSERT_TRUE(kind.isa<vpux::VPUIP::DMAEngineAttr>());
-            EXPECT_EQ(kind.cast<vpux::VPUIP::DMAEngineAttr>().getValue(), vpux::VPUIP::DMAEngine::DMA_NN);
+            ASSERT_TRUE(kind.isa<vpux::VPU::ExecutorKindAttr>());
+            EXPECT_EQ(kind.cast<vpux::VPU::ExecutorKindAttr>().getValue(), vpux::VPU::ExecutorKind::DMA_NN);
             EXPECT_EQ(numUnits, 1u);
         }
     }

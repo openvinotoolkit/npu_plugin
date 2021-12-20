@@ -16,8 +16,6 @@
 #include "ngraph_mcm_frontend/ops/mcm_conv.hpp"
 #include <memory>
 
-const ngraph::NodeTypeInfo McmConv::type_info {"McmConv", 0};
-
 McmConv::McmConv(
         const ngraph::Output<ngraph::Node>& data,
         const ngraph::Output<ngraph::Node>& filters,

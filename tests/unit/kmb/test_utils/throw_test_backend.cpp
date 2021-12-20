@@ -31,9 +31,8 @@ public:
         return "ThrowTest";
     }
 
-    std::unordered_set<std::string> getSupportedOptions() const override {
+    void registerOptions(OptionsDesc&) const override {
         THROW_IE_EXCEPTION << "Error from ThrowTestBackend";
-        return {};
     }
     const std::shared_ptr<IDevice> getDevice() const override {
         THROW_IE_EXCEPTION << "Error from ThrowTestBackend";

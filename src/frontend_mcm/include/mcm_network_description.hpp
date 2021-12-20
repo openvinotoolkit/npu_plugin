@@ -13,9 +13,8 @@
 
 #pragma once
 
-#include <mcm_config.hpp>
-#include <vpu/utils/logger.hpp>
-#include <vpux_compiler.hpp>
+#include "vpux/utils/core/logger.hpp"
+#include "vpux_compiler.hpp"
 
 namespace vpu {
 namespace MCMAdapter {
@@ -23,7 +22,7 @@ namespace MCMAdapter {
 class MCMNetworkDescription final : public vpux::INetworkDescription {
 public:
     // TODO extract network name from blob
-    MCMNetworkDescription(const std::vector<char>& compiledNetwork, const MCMConfig& config,
+    MCMNetworkDescription(const std::vector<char>& compiledNetwork, const vpux::Config& config,
                           const std::string& name = "");
     const vpux::DataMap& getInputsInfo() const override;
 
@@ -58,7 +57,7 @@ private:
 
     vpux::QuantizationParamMap _quantParams;
 
-    std::shared_ptr<vpu::Logger> _logger;
+    vpux::Logger _logger;
 
     vpux::DataMap matchElementsByName(const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names);
     vpux::DataMap matchElementsByLexicographicalOrder(const vpux::DataMap& actualDeviceData,

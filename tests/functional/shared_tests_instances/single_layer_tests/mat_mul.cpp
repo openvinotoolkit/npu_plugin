@@ -59,7 +59,7 @@ TEST_P(KmbMatMulLayerTest, CompareWithRefs_MLIR_SW) {
 
 TEST_P(KmbMatMulLayerTest, CompareWithRefs_MLIR_HW) {
     useCompilerMLIR();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -82,6 +82,8 @@ const std::vector<ShapeRelatedParams> fullyConnectedShapeParams = {
     {{{1, 16}, false}, {{16, 64}, false}},
     {{{2, 1, 512}, false}, {{2, 40, 512}, true}},
     {{{1, 8, 4, 64}, false}, {{1, 8, 64, 76}, false}},
+    {{{1, 4, 64}, false}, {{8, 64}, true}},
+    {{{1, 1, 256}, false}, {{1, 16, 256}, true}},
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {

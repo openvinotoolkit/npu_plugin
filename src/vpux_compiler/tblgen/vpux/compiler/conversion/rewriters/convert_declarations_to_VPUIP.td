@@ -23,27 +23,24 @@ include "mlir/IR/OpBase.td"
 // IERT.StaticAlloc -> VPUIP.DeclareTensor
 //
 
-class createDeclareTensorOp<string memoryLocation> :
+class createDeclareTensorOp<string section> :
         NativeCodeCall<[{
             $_builder.create<vpux::VPURT::DeclareBufferOp>(
-                $_loc, $0.getType(),
-                vpux::VPUIP::MemoryLocation::}] # memoryLocation # [{,
+                $_loc, $0.getType().cast<mlir::MemRefType>(),
+                vpux::VPURT::BufferSection::}] # section # [{,
                 $1.getInt()
             )
         }]>;
 
 class HasMemSpace<string physicalMemory> :
         Constraint<CPred<[{
-            $0.getType().cast<mlir::MemRefType>().getMemorySpace() ==
-                vpux::VPUIP::PhysicalMemoryAttr::get(
-                    $0.getContext(), vpux::VPUIP::PhysicalMemory::}] # physicalMemory # [{
-                )
-        }]>>;
+            vpux::VPU::getMemoryKind($0.getType().cast<mlir::MemRefType>()) == vpux::VPU::MemoryKind::}] # physicalMemory
+        >>;
 
 def RewriteStaticAllocDDR :
         Pat<
             (IERT_StaticAllocOp:$memref $offset),
-            (createDeclareTensorOp<"VPU_DDR_Heap"> $memref, $offset),
+            (createDeclareTensorOp<"DDR"> $memref, $offset),
             [
                 (HasMemSpace<"DDR"> $memref)
             ]
@@ -52,7 +49,7 @@ def RewriteStaticAllocDDR :
 def RewriteStaticAllocNNCMX :
         Pat<
             (IERT_StaticAllocOp:$memref $offset),
-            (createDeclareTensorOp<"VPU_CMX_NN"> $memref, $offset),
+            (createDeclareTensorOp<"CMX_NN"> $memref, $offset),
             [
                 (HasMemSpace<"CMX_NN"> $memref)
             ]

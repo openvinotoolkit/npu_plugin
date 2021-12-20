@@ -20,6 +20,8 @@ include "vpux/compiler/dialect/const/attributes.td"
 include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IERT/ops_interfaces.td"
+include "vpux/compiler/dialect/VPU/ops_interfaces.td"
+include "vpux/compiler/dialect/VPU/attributes.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
@@ -54,7 +56,8 @@ class VPUIP_TaskOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
                     InferTypeOpInterface,
                     DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
                     IERT_AsyncLayerOpInterface,
-                    DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
+                    DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>,
+                    MemoryEffectsOpInterface
                 ]
             )
         > {
@@ -74,101 +77,6 @@ class VPUIP_UPATaskOp<int numResult, string mnemonic, list<OpTrait> traits = []>
                 ]
             )
         >;
-
-//
-// GraphOp
-//
-
-def VPUIP_GraphOp :
-        VPUIP_Op<
-            "Graph",
-            [
-                HasParent<"mlir::ModuleOp">
-            ]
-        > {
-    let summary = "The root object for the VPUIP Execution Graph";
-
-    let arguments = (ins
-        VPUIP_ExecutionFlag:$options,
-        VPUIP_Version:$version
-    );
-
-    let extraClassDeclaration = [{
-        static vpux::VPUIP::GraphOp getFromModule(mlir::ModuleOp module);
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        `options` `:` $options
-        `version` `:` $version
-    }];
-}
-
-
-//
-// EmptyOp
-//
-
-def VPUIP_EmptyOp :
-        VPUIP_Op<"Empty",
-            [
-                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
-            ]
-        > {
-    let summary = "Empty management task";
-
-    let extraClassDeclaration = [{
-        static vpux::VPUIP::TaskType getTaskType() {
-            return vpux::VPUIP::TaskType::Controller;
-        }
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-    }];
-}
-
-//
-// UPADMAOp
-//
-
-def VPUIP_UPADMAOp :
-        VPUIP_TaskOp<1, "UPADMA",
-            [
-                ViewLikeOpInterface,
-                IERT_SameShape,
-                IERT_SameElementType,
-                IERT_SameInOutDimsOrder
-            ]
-        > {
-    let summary = "UPA DMA task";
-
-    let arguments = (ins
-        AnyMemRef:$input,
-        AnyMemRef:$output_buff
-    );
-
-    let results = (outs
-        AnyMemRef:$output
-    );
-
-    let extraClassDeclaration = [{
-        static vpux::VPUIP::TaskType getTaskType() {
-            return vpux::VPUIP::TaskType::UPADMA;
-        }
-    }] # IERT_InferLayerReturnTypes<1>.impl;
-
-    let assemblyFormat = [{
-        attr-dict
-        `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output_buff `:` type($output_buff) `)`
-        `->` type(results)
-    }];
-
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
-}
 
 //
 // NNDMAOp
@@ -191,23 +99,28 @@ def VPUIP_NNDMAOp :
         AnyMemRef:$output_buff,
 
         DefaultValuedAttr<IntAttr, "0">:$port,
-        DefaultValuedAttr<BoolAttr, "true">:$set_ord,
-        DefaultValuedAttr<BoolAttr, "false">:$set_crit
+        UnitAttr:$is_out_of_order,
+        UnitAttr:$is_critical
     );
 
     let results = (outs
         AnyMemRef:$output
     );
 
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff)
+        >
+    ];
+
     let extraClassDeclaration = [{
-        static vpux::VPUIP::TaskType getTaskType() {
-            return vpux::VPUIP::TaskType::NNDMA;
+        static vpux::VPU::ExecutorKind getExecutorKind() {
+            return vpux::VPU::ExecutorKind::DMA_NN;
         }
+
         vpux::DotNodeColor getNodeColor() {
-            auto memResource = VPUIP::getPhysicalMemory(output().getType().cast<mlir::MemRefType>());
-            if (!mlir::failed(memResource) && memResource.getValue() == VPUIP::PhysicalMemory::DDR)
-                return DotNodeColor::RED;
-            return DotNodeColor::GREEN;
+            const auto memKind = vpux::VPU::getMemoryKind(getType());
+            return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;
 
@@ -242,22 +155,29 @@ def VPUIP_CompressedDMAOp :
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
 
-        DefaultValuedAttr<IntAttr, "0">:$port
+        DefaultValuedAttr<IntAttr, "0">:$port,
+        UnitAttr:$is_out_of_order,
+        UnitAttr:$is_critical
     );
 
     let results = (outs
         AnyMemRef:$output
     );
 
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff)
+        >
+    ];
+
     let extraClassDeclaration = [{
-        static vpux::VPUIP::TaskType getTaskType() {
-            return vpux::VPUIP::TaskType::NNDMA;
+        static vpux::VPU::ExecutorKind getExecutorKind() {
+            return vpux::VPU::ExecutorKind::DMA_NN;
         }
+
         vpux::DotNodeColor getNodeColor() {
-            auto memResource = VPUIP::getPhysicalMemory(output().getType().cast<mlir::MemRefType>());
-            if (!mlir::failed(memResource) && memResource.getValue() == VPUIP::PhysicalMemory::DDR)
-                return DotNodeColor::RED;
-            return DotNodeColor::GREEN;
+            const auto memKind = vpux::VPU::getMemoryKind(getType());
+            return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;
 
@@ -448,7 +368,7 @@ def VPUIP_ConvolutionUPAOp :
         I64ArrayAttr:$padsEnd,
         IntAttr:$groups,
 
-        OptionalAttr<IntAttr>:$maxShaves   
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -994,6 +914,186 @@ def VPUIP_SqrtUPAOp :
 }
 
 //
+// SinhUPAOp
+//
+
+def VPUIP_SinhUPAOp :
+        VPUIP_UPATaskOp<1, "SinhUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Sinh UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        OptionalAttr<IntAttr>:$maxShaves    
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output)
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// CoshUPAOp
+//
+
+def VPUIP_CoshUPAOp :
+        VPUIP_UPATaskOp<1, "CoshUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Cosh UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output)
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AsinhUPAOp
+//
+
+def VPUIP_AsinhUPAOp :
+        VPUIP_UPATaskOp<1, "AsinhUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Asinh UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output)
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AcoshUPAOp
+//
+
+def VPUIP_AcoshUPAOp :
+        VPUIP_UPATaskOp<1, "AcoshUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Acosh UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output)
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // LogUPAOp
 //
 
@@ -1008,6 +1108,51 @@ def VPUIP_LogUPAOp :
             ]
         > {
     let summary = "Log UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output)
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// GeluUPAOp
+//
+
+def VPUIP_GeluUPAOp :
+        VPUIP_UPATaskOp<1, "GeluUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Gelu UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
@@ -1636,7 +1781,7 @@ def VPUIP_ScaleShiftUPAOp :
             )
         >
     ];
-    
+
     let extraClassDeclaration = [{
         static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
     }] # commonExtraClassDeclaration;
@@ -2056,9 +2201,10 @@ def VPUIP_NCEClusterTaskOp :
         VPUIP_TaskOp<1, "NCEClusterTask",
             [
                 AttrSizedOperandSegments,
-                ViewLikeOpInterface,
+                MultiViewOpInterface,
                 NoRegionArguments,
-                OpAsmOpInterface
+                OpAsmOpInterface,
+                DeclareOpInterfaceMethods<VPU_SparseOpInterface>
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -2082,15 +2228,16 @@ def VPUIP_NCEClusterTaskOp :
     }];
 
     let arguments = (ins
-        MemRefOf<[F16, quant_QuantizedType]>:$input,
-        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$weights,
+        MemRefOf<[F16, BF16, quant_QuantizedType]>:$input,
+        Optional<MemRefOf<[F16, BF16, quant_QuantizedType]>>:$weights,
         Optional<MemRefOf<[SI32]>>:$weight_table,
         Optional<MemRefOf<[UI8]>>:$activation_window,
 
         AnyMemRef:$parent_input,
         AnyMemRef:$parent_output,
 
-        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
+        MemRefOf<[F16, F32, BF16, quant_QuantizedType]>:$output_buff,
+        Optional<MemRefOf<[UI64]>>:$profiling_data,
 
         VPUIP_NCETaskType:$task_type,
         OptionalAttr<I64ArrayAttr>:$kernel_size,
@@ -2101,7 +2248,8 @@ def VPUIP_NCEClusterTaskOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
+        MemRefOf<[F16, F32, BF16, quant_QuantizedType]>:$output,
+        Optional<MemRefOf<[UI64]>>:$profiling_output
     );
 
     let regions = (region
@@ -2111,6 +2259,16 @@ def VPUIP_NCEClusterTaskOp :
 
     let builders = [
         OpBuilder<(ins
+            "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$weight_table, "mlir::Value":$activation_window,
+            "mlir::Value":$parent_input, "mlir::Value":$parent_output,
+            "mlir::Value":$output_buff,
+            "vpux::VPUIP::NCETaskType":$task_type,
+            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "mlir::ArrayAttr":$kernel_padding,
+            "mlir::IntegerAttr":$activation_window_channel_length,
+            "mlir::UnitAttr":$is_continued
+        )>,
+        OpBuilder<(ins
+            "mlir::Type":$output,
             "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$weight_table, "mlir::Value":$activation_window,
             "mlir::Value":$parent_input, "mlir::Value":$parent_output,
             "mlir::Value":$output_buff,
@@ -2130,6 +2288,7 @@ def VPUIP_NCEClusterTaskOp :
         `parent_input` `(` $parent_input `:` type($parent_input) `)`
         `parent_output` `(` $parent_output `:` type($parent_output) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
         `->` type(results)
         `variants` `:` $variants
         `PPE` `:` $ppe
@@ -2151,14 +2310,22 @@ def VPUIP_NCEClusterTaskOp :
 
         static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
 
-        static vpux::VPUIP::TaskType getTaskType() {
-            return vpux::VPUIP::TaskType::NCE2;
+        static vpux::VPU::ExecutorKind getExecutorKind() {
+            return vpux::VPU::ExecutorKind::NCE;
         }
 
         static mlir::StringRef getDefaultDialect() {
             return "VPUIP";
         }
-    }] # IERT_InferLayerReturnTypes<1>.impl;
+
+        static mlir::LogicalResult inferReturnTypes(
+                mlir::MLIRContext*,
+                llvm::Optional<mlir::Location>,
+                mlir::ValueRange operands,
+                mlir::DictionaryAttr,
+                mlir::RegionRange,
+                llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes);
+    }];
 }
 
 //
@@ -2440,9 +2607,10 @@ def VPUIP_SwKernelOp :
     }];
 
     let extraClassDeclaration = [{
-        static vpux::VPUIP::TaskType getTaskType() {
-            return vpux::VPUIP::TaskType::ACTShave;
+        static vpux::VPU::ExecutorKind getExecutorKind() {
+            return vpux::VPU::ExecutorKind::SHAVE_ACT;
         }
+
         static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
                                                     mlir::ValueRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
                                                     mlir::SmallVectorImpl<mlir::Type>& inferredTypes);
@@ -2450,8 +2618,6 @@ def VPUIP_SwKernelOp :
         static vpux::IERT::KernelInfo getKernelInfo(mlir::Operation* origOp);
     }];
 }
-
-
 
 //
 // LSTMSequenceUPAOp
@@ -2787,6 +2953,7 @@ def VPUIP_GatherUPAOp :
         AnyMemRef:$output_buff,
 
         IntAttr:$axis,
+        IntAttr:$batch_dims,
 
         OptionalAttr<IntAttr>:$maxShaves
     );
@@ -2801,7 +2968,8 @@ def VPUIP_GatherUPAOp :
                 "mlir::Value":$input,
                 "mlir::Value":$indices,
                 "mlir::Value":$output,
-                "mlir::IntegerAttr":$axis
+                "mlir::IntegerAttr":$axis,
+                "mlir::IntegerAttr":$batch_dims
             )
         >
     ];
@@ -2813,6 +2981,51 @@ def VPUIP_GatherUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ScatterNDUpdateUPAOp
+//
+
+def VPUIP_ScatterNDUpdateUPAOp :
+        VPUIP_UPATaskOp<1, "ScatterNDUpdateUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_AnyDimsOrder
+            ]
+        > {
+    let summary = "ScatterNDUpdate UPA SHAVE kernel";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI32]>:$indices,
+        AnyMemRef:$updates,
+        AnyMemRef:$output_buff,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$indices,
+                "mlir::Value":$updates,
+                "mlir::Value":$output
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `,` $updates `:` type($updates) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
@@ -2957,4 +3170,148 @@ def VPUIP_NormalizeIEUPAOp :
         `->` type(results)
     }];
 }
+
+//
+// ReverseSequenceOp
+//
+
+def VPUIP_ReverseSequenceUPAOp :
+        VPUIP_UPATaskOp<1, "ReverseSequenceUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "ReverseSequence UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$data,
+        F16MemRef:$seq_length,
+        F16MemRef:$output_buff,
+
+        IntAttr:$seq_axis,
+        IntAttr:$batch_axis,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$data,
+                "mlir::Value":$seq_length,
+                "mlir::Value":$output,
+                "mlir::IntegerAttr":$seq_axis,
+                "mlir::IntegerAttr":$batch_axis
+            )
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $data `:` type($data) `,` $seq_length `:` type($seq_length) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// TopKOp
+//
+
+def VPUIP_TopKUPAOp:
+        VPUIP_UPATaskOp<2,"TopK",
+            [
+                MultiViewOpInterface
+            ]
+        > {
+    let summary = "TopK UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        MemRefOf<[SI32]>:$k,
+        F16MemRef:$output_values_buff,
+        MemRefOf<[SI32]>:$target_shape_buff,
+
+        IntAttr:$axis,
+        IE_TopKMode:$mode,
+        IE_TopKSortType:$sort,
+        TypeAttr:$element_type,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output_values,
+        MemRefOf<[SI32]>:$target_shape
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output_values,
+                "mlir::Value":$target_shape,
+                "mlir::IntegerAttr":$k,
+                "mlir::IntegerAttr":$axis,
+                "vpux::IE::TopKModeAttr":$mode,
+                "vpux::IE::TopKSortTypeAttr":$sort,
+                "mlir::TypeAttr":$element_type
+            )
+        >
+    ];
+}
+
+//
+// SoftPlusUPAOp
+//
+
+def VPUIP_SoftPlusUPAOp :
+        VPUIP_UPATaskOp<1, "SoftPlusUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "SoftPlus UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output)
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif

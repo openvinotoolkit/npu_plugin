@@ -38,7 +38,24 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
-          parent_output, output_buff, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
+          parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
+          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
+
+    for (auto& region : state.regions) {
+        region->emplaceBlock();
+    }
+}
+
+void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output,
+                                          mlir::Value input, mlir::Value weights, mlir::Value weight_table,
+                                          mlir::Value activation_window, mlir::Value parent_input,
+                                          mlir::Value parent_output, mlir::Value output_buff,
+                                          vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
+                                          mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
+                                          mlir::IntegerAttr activation_window_channel_length,
+                                          mlir::UnitAttr is_continued) {
+    build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
+          output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
           kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
 
     for (auto& region : state.regions) {
@@ -108,12 +125,39 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
 }
 
 //
+// NCEClusterTaskOp::sparsitySupport
+//
+
+vpux::VPU::SparsitySupport vpux::VPUIP::NCEClusterTaskOp::sparsitySupport() {
+    const auto sparseInputs =
+            (task_type() == vpux::VPUIP::NCETaskType::CONV) || (task_type() == vpux::VPUIP::NCETaskType::ELTWISE)
+                    ? vpux::VPU::SparsitySupport::SPARSE_INPUTS
+                    : vpux::VPU::SparsitySupport::NONE;
+    return sparseInputs | vpux::VPU::SparsitySupport::SPARSE_OUTPUTS;
+}
+
+//
+// NCEClusterTaskOp::inferReturnTypes
+//
+
+mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::inferReturnTypes(
+        mlir::MLIRContext*, llvm::Optional<mlir::Location>, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
+        mlir::RegionRange ranges, llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
+    VPUIP::NCEClusterTaskOpAdaptor adaptor(operands, attrs, ranges);
+    inferredReturnTypes.push_back(adaptor.output_buff().getType());
+    if (adaptor.profiling_data() != nullptr) {
+        inferredReturnTypes.push_back(adaptor.profiling_data().getType());
+    }
+    return mlir::success();
+}
+
+//
 // verifyOp
 //
 
 namespace {
 
-mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
+mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::CONV, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::CONV, op.task_type());
 
@@ -149,7 +193,7 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     const auto padBottom = kernelPadding[3];
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
-                                                       padRight))) {
+                                                       padRight, arch))) {
         return mlir::failure();
     }
 
@@ -176,16 +220,22 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     return mlir::success();
 }
 
-mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
+mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::AVEPOOL || op.task_type() == VPUIP::NCETaskType::MAXPOOL,
                       "Expected task type '{0}' or '{1}', but got '{2}'", VPUIP::NCETaskType::AVEPOOL,
                       VPUIP::NCETaskType::MAXPOOL, op.task_type());
 
-    if (op.weight_table() == nullptr) {
-        return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
-    }
-    if (op.activation_window() == nullptr) {
-        return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
+    // MTL hw doesn't require weights table and activation window for max/average pool ops
+    if (arch != VPU::ArchKind::MTL) {
+        if (op.weight_table() == nullptr) {
+            return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
+        }
+        if (op.activation_window() == nullptr) {
+            return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
+        }
+        if (op.activation_window_channel_lengthAttr() == nullptr) {
+            return errorAt(op, "activation_window_channel_length is required for NCETaskType : '{0}'", op.task_type());
+        }
     }
 
     if (op.kernel_sizeAttr() == nullptr) {
@@ -196,10 +246,6 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
     }
     if (op.kernel_paddingAttr() == nullptr) {
         return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", op.task_type());
-    }
-
-    if (op.activation_window_channel_lengthAttr() == nullptr) {
-        return errorAt(op, "activation_window_channel_length is required for NCETaskType : '{0}'", op.task_type());
     }
 
     const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_sizeAttr());
@@ -217,7 +263,7 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
     const auto padBottom = kernelPadding[3];
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
-                                                       padRight))) {
+                                                       padRight, arch))) {
         return mlir::failure();
     }
 
@@ -228,7 +274,7 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
     return mlir::success();
 }
 
-mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op) {
+mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op, VPU::ArchKind) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::ELTWISE, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::ELTWISE, op.task_type());
 
@@ -252,7 +298,7 @@ mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op) {
     return mlir::success();
 }
 
-mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op) {
+mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::DWCONV, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::CONV, op.task_type());
 
@@ -291,7 +337,7 @@ mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op) {
     const auto padBottom = kernelPadding[3];
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
-                                                       padRight))) {
+                                                       padRight, arch))) {
         return mlir::failure();
     }
 
@@ -334,20 +380,31 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::DPUTaskOp op) {
 }
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
+    const auto arch = VPU::getArch(op.getOperation()->getParentOfType<mlir::ModuleOp>());
+
+    for (const auto& operand : op.getOpOperands()) {
+        const auto val = operand.get();
+        const auto type = val.getType().cast<mlir::MemRefType>().getElementType();
+
+        if (arch != VPU::ArchKind::MTL && type.isBF16()) {
+            return errorAt(op, "BF16 is only supported by MTL");
+        }
+    }
+
     if (op.task_type() == VPUIP::NCETaskType::CONV) {
-        if (mlir::failed(verifyNCEConv(op))) {
+        if (mlir::failed(verifyNCEConv(op, arch))) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL || op.task_type() == VPUIP::NCETaskType::AVEPOOL) {
-        if (mlir::failed(verifyNCEPool(op))) {
+        if (mlir::failed(verifyNCEPool(op, arch))) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {
-        if (mlir::failed(verifyNCEEltwise(op))) {
+        if (mlir::failed(verifyNCEEltwise(op, arch))) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::DWCONV) {
-        if (mlir::failed(verifyNCEDWConv(op))) {
+        if (mlir::failed(verifyNCEDWConv(op, arch))) {
             return mlir::failure();
         }
     } else {
@@ -381,13 +438,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
         const auto val = operand.get();
         const auto type = val.getType().cast<mlir::MemRefType>();
 
-        auto mem = getPhysicalMemory(type);
-        if (mlir::failed(mem)) {
-            return errorAt(op, "Unsupported memory space '{0}'", type.getMemorySpace());
-        }
-        if (!((mem.getValue() == PhysicalMemory::CMX_NN) || (mem.getValue() == PhysicalMemory::Register))) {
-            return errorAt(op, "Can't operate with '{0}' PhysicalMemory. Only '{1}' or '{2} PhysicalMemory is allowed",
-                           mem.getValue(), PhysicalMemory::CMX_NN, PhysicalMemory::Register);
+        const auto mem = VPU::getMemoryKind(type);
+        if (mem != VPU::MemoryKind::CMX_NN && mem != VPU::MemoryKind::Register) {
+            return errorAt(op, "Can't operate with '{0}' MemoryKind. Only '{1}' or '{2} MemoryKind is allowed", mem,
+                           VPU::MemoryKind::CMX_NN, VPU::MemoryKind::Register);
         }
 
         const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(type.getRank() - 1)));
@@ -520,17 +574,17 @@ VPUIP::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
     return umap.begin()->first;
 }
 
-}  // namespace
-
 // This is a helper routine to build new TensorReference out of NCE task output with provided
 // quantization scale parameters
-vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParams(
-        vpux::VPUIP::NCEClusterTaskOp* nceTask, VPUIP::BlobWriter& writer, ArrayRef<uint16_t> ppeQuantMult,
-        ArrayRef<uint8_t> ppeQuantShift, int8_t ppeQuantPostShift) {
+vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParams(VPUIP::NCEClusterTaskOp nceTask,
+                                                                                  VPUIP::BlobWriter& writer,
+                                                                                  ArrayRef<uint16_t> ppeQuantMult,
+                                                                                  ArrayRef<uint8_t> ppeQuantShift,
+                                                                                  int8_t ppeQuantPostShift) {
     // Get also ZP from output
     SmallVector<uint8_t> quantZeroPoints;
 
-    auto outputElementType = nceTask->output().getType().cast<mlir::ShapedType>().getElementType();
+    auto outputElementType = nceTask.output().getType().cast<mlir::ShapedType>().getElementType();
     if (const auto uniformQuantType = outputElementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         quantZeroPoints.push_back(checked_cast<uint8_t>(uniformQuantType.getZeroPoint()));
     } else if (const auto uniformQuantPerAxisType =
@@ -548,26 +602,16 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
                       "Mismatch of size between quant shift/mult vector and quant ZP:  {0} != {1}",
                       ppeQuantShift.size(), quantZeroPoints.size());
 
-    // Find corresponding DeclaretensorOp to get all the data needed to build
-    // new TensorReference
-    VPURT::DeclareBufferOp tensorOp;
-    if (mlir::isa<VPURT::DeclareBufferOp>(nceTask->output_buff().getDefiningOp())) {
-        tensorOp = nceTask->output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
-    } else if (mlir::isa<VPURT::DeclareBufferOp>(nceTask->parent_output().getDefiningOp())) {
-        tensorOp = nceTask->parent_output().getDefiningOp<VPURT::DeclareBufferOp>();
-    }
+    // Find corresponding DeclareBufferOp to get all the data needed to build new TensorReference
+    auto bufferOp = nceTask.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
+    VPUX_THROW_UNLESS(bufferOp != nullptr, "Unable to find parent DeclareBufferOp to build new TensorReference");
 
-    VPUX_THROW_UNLESS(tensorOp != nullptr, "Unable to find parent DeclareBufferOp to build new TensorReference");
-
-    ArrayRef<uint8_t> zeroPointsArrRef = makeArrayRef(quantZeroPoints);
-
-    return writer.createTensor(llvm::formatv("output_tensor_scale_updated").str(),
-                               nceTask->output().getType().cast<mlir::ShapedType>(), tensorOp.locale(),
-                               parseIntArrayAttr<uint32_t>(tensorOp.localeIndex()), tensorOp.dataIndex(), ppeQuantMult,
-                               ppeQuantShift, ppeQuantPostShift, zeroPointsArrRef, tensorOp.sparsityIndex(),
-                               tensorOp.storageElementIndex(), tensorOp.storageElementSize(), tensorOp.leadingOffset(),
-                               tensorOp.trailingOffset());
+    return writer.createTensorRef("output_tensor_scale_updated", nceTask.getType(0).cast<mlir::ShapedType>(),
+                                  bufferOp.section(), bufferOp.sectionIndex().getValueOr(0), bufferOp.byteOffset(),
+                                  ppeQuantMult, ppeQuantShift, ppeQuantPostShift, quantZeroPoints);
 }
+
+}  // namespace
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::BlobWriter& writer) {
     SmallVector<flatbuffers::Offset<MVCNN::NCEVariantFields>> variantList;
@@ -575,6 +619,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         const auto start = parseIntArrayAttr<int64_t>(dpuTaskOp.start());
         const auto end = parseIntArrayAttr<int64_t>(dpuTaskOp.end());
         const auto pad = dpuTaskOp.pad();
+        const auto profilingData =
+                (profiling_data() != nullptr && !variantList.size()) ? writer.getTensorRef(profiling_data()) : 0;
 
         const auto variant = MVCNN::CreateNCEVariantFields(writer,
                                                            0,                                            // Barriers
@@ -588,7 +634,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                                            static_cast<int16_t>(start[2]),  // workload_start_Z
                                                            static_cast<int16_t>(end[0]),    // workload_end_X
                                                            static_cast<int16_t>(end[1]),    // workload_end_Y
-                                                           static_cast<int16_t>(end[2])     // workload_end_Z
+                                                           static_cast<int16_t>(end[2]),    // workload_end_Z
+                                                           0,                               // flex_map_column
+                                                           0,                               // flex_map_array
+                                                           0,                               // flex_inner
+                                                           0,                               // flex_outer
+                                                           0,                               // flex_outer_order
+                                                           profilingData                    // profiling_data
         );
         variantList.push_back(variant);
     }
@@ -672,13 +724,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         is_continued = true;
     }
 
-    const auto inputData = writer.getTensor(input());
-    const auto weightsData = weights() != nullptr ? writer.getTensor(weights()) : 0;
-    const auto weightsTable = weight_table() != nullptr ? writer.getTensor(weight_table()) : 0;
-    const auto activationWindow = activation_window() != nullptr ? writer.getTensor(activation_window()) : 0;
+    const auto inputData = writer.getTensorRef(input());
+    const auto weightsData = weights() != nullptr ? writer.getTensorRef(weights()) : 0;
+    const auto weightsTable = weight_table() != nullptr ? writer.getTensorRef(weight_table()) : 0;
+    const auto activationWindow = activation_window() != nullptr ? writer.getTensorRef(activation_window()) : 0;
     const auto activationWindowChannelLength = checked_cast<int32_t>(activation_window_channel_length().getValueOr(0));
 
-    auto outputData = writer.getTensor(output());
+    auto outputData = writer.getTensorRef(output());
 
     // If quant scale (mult, shift) settings were provided as part of PPE block then use it to build new
     // output TensorReference. This is required for Eltwise operation which doesn't have weights table
@@ -690,12 +742,12 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     VPUX_THROW_WHEN(!isQuantizationProvided && !isQuantizationNotProvided, "Missing quantization scale settings.");
 
     if (isQuantizationProvided) {
-        outputData = getTensorReferenceWithUpdatedQuantParams(this, writer, ppeQuantMult.getValue(),
+        outputData = getTensorReferenceWithUpdatedQuantParams(*this, writer, ppeQuantMult.getValue(),
                                                               ppeQuantShift.getValue(), ppeQuantPostShift.getValue());
     }
 
-    const auto parentInputTensor = writer.getTensor(parent_input());
-    const auto parentOutputTensor = writer.getTensor(parent_output());
+    const auto parentInputTensor = writer.getTensorRef(parent_input());
+    const auto parentOutputTensor = writer.getTensorRef(parent_output());
 
     const auto invariantMPEMode = getMPEFrequentModeFromDPUTasks(variants());
 

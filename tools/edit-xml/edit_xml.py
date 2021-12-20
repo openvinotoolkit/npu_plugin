@@ -1,6 +1,7 @@
 import sys, argparse
 from lxml import etree as et, objectify
 from pathlib import Path
+from shutil import copyfile
 
 def getOption(args=sys.argv[1:]):
    parser = argparse.ArgumentParser()
@@ -112,10 +113,15 @@ if tree is None:
 delLayers(tree, options.layername);
 
 #save to new file
-file_name = origin_path.parent / (origin_path.stem + "-cut-" + options.layername.replace('/', '-') + origin_path.suffix);
-tree.write(str(file_name), pretty_print=True);
+new_file_name = origin_path.parent / (origin_path.stem + "-cut-" + options.layername.replace('/', '-') + origin_path.suffix);
+tree.write(str(new_file_name), pretty_print=True);
 
-
-
-
-
+#copy *.bin file with the new_model_name.bin
+old_bin_path = origin_path.parent / (origin_path.stem + ".bin")
+new_bin_path = origin_path.parent / (new_file_name.stem + ".bin")
+if not new_bin_path.is_file():
+    print("Copy weights", old_bin_path, "->", new_bin_path)
+    copyfile(old_bin_path, new_bin_path)
+else:
+    print("Can't copy weights. File already exists:")
+    print(new_bin_path)

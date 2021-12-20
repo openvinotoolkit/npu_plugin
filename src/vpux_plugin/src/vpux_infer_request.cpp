@@ -25,9 +25,13 @@
 #include "vpux_infer_request.h"
 #include "vpux_remote_blob.h"
 
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/runtime.hpp"
+
 #include <device_helpers.hpp>
 #include "vpux/utils/IE/blob.hpp"
 #include "vpux/utils/IE/itt.hpp"
+#include "vpux/utils/core/checked_cast.hpp"
 
 // TODO KMB-standalone preprocessing details should be not exposed to plugin [Track number: S#43193]
 // Low-level
@@ -68,14 +72,14 @@ static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc,
 
 //------------------------------------------------------------------------------
 InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
-                           const Executor::Ptr& executor, const VPUXConfig& config, const std::string& netName,
+                           const Executor::Ptr& executor, const Config& config, const std::string& netName,
                            const std::shared_ptr<InferenceEngine::IAllocator>& allocator)
         : IInferRequestInternal(networkInputs, networkOutputs),
           _executorPtr(executor),
           _config(config),
-          _logger(std::make_shared<vpu::Logger>("InferRequest", config.logLevel(), vpu::consoleOutput())),
+          _logger("InferRequest", config.get<LOG_LEVEL>()),
           _allocator(allocator),
-          _deviceId(utils::getSliceIdByDeviceName(config.deviceId())),
+          _deviceId(utils::getSliceIdByDeviceName(config.get<DEVICE_ID>())),
           _netUniqueId(netName),
           _preprocBuffer(nullptr, [this](uint8_t* buffer) {
               _allocator->free(buffer);
@@ -147,13 +151,14 @@ void InferRequest::moveBlobsForPreprocessingToInputs(
 #ifdef __aarch64__
 void InferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "execPreprocessing");
-    if ((_config.useSIPP() || _config.useM2I() || _config.useSHAVE_only_M2I()) &&
+    if ((_config.get<USE_SIPP>() || _config.get<USE_M2I>() || _config.get<USE_SHAVE_ONLY_M2I>()) &&
         IE::KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
-        relocationAndExecKmbDataPreprocessing(inputs, _networkInputs, _config.graphColorFormat(),
-                                              _config.numberOfSIPPShaves(), _config.SIPPLpi(),
-                                              _config.numberOfPPPipes());
+        relocationAndExecKmbDataPreprocessing(inputs, _networkInputs, _config.get<GRAPH_COLOR_FORMAT>(),
+                                              checked_cast<unsigned int>(_config.get<PREPROCESSING_SHAVES>()),
+                                              checked_cast<unsigned int>(_config.get<PREPROCESSING_LPI>()),
+                                              checked_cast<unsigned int>(_config.get<PREPROCESSING_PIPES>()));
     } else {
-        _logger->warning("SIPP/M2I is enabled but configuration is not supported.");
+        _logger.warning("SIPP/M2I is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
     }
 }
@@ -184,7 +189,7 @@ void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMa
             IE::Blob::Ptr kmbUVBlob = origUVBlob;
             if (!isBlobAllocatedByAllocator(origYBlob, _allocator) ||
                 !isBlobAllocatedByAllocator(origUVBlob, _allocator)) {
-                _logger->warning("NV12 Blob located in memory not managed by plugin. Need to re-allocate the blob.");
+                _logger.warning("NV12 Blob located in memory not managed by plugin. Need to re-allocate the blob.");
                 _preprocBuffer.reset(
                         reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
 
@@ -231,11 +236,11 @@ void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
                                             InferenceEngine::ColorFormat out_format, unsigned int numShaves,
                                             unsigned int lpi, unsigned int numPipes) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "execKmbDataPreprocessing");
-    IE_ASSERT(_config.useSIPP() || _config.useM2I() || _config.useSHAVE_only_M2I());
+    IE_ASSERT(_config.get<USE_SIPP>() || _config.get<USE_M2I>() || _config.get<USE_SHAVE_ONLY_M2I>());
     IE::KmbPreproc::Path ppPath;
-    if (_config.useM2I()) {
+    if (_config.get<USE_M2I>()) {
         ppPath = IE::KmbPreproc::Path::M2I;
-    } else if (_config.useSHAVE_only_M2I()) {
+    } else if (_config.get<USE_SHAVE_ONLY_M2I>()) {
         ppPath = IE::KmbPreproc::Path::SHAVE_ONLY_M2I;
     } else {
         ppPath = IE::KmbPreproc::Path::SIPP;
@@ -259,7 +264,7 @@ void InferRequest::InferAsync() {
 #ifdef __aarch64__
         execPreprocessing(_inputs);
 #else
-        _logger->info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
+        _logger.info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
         execDataPreprocessing(_inputs);
 #endif
         updateRemoteBlobs(_inputs, preProcMap);
@@ -277,11 +282,11 @@ void InferRequest::GetResult() {
     if (dumpOutputPathEnv != nullptr) {
         dumpBlobs(_outputs, dumpOutputPathEnv, "output");
     }
-    _logger->debug("InferRequest::GetResult finished");
+    _logger.debug("InferRequest::GetResult finished");
 }
 
 std::map<std::string, IE::InferenceEngineProfileInfo> InferRequest::GetPerformanceCounts() const {
-    if (_config.performanceCounting()) {
+    if (_config.get<PERF_COUNT>()) {
         return _executorPtr->getLayerStatistics();
     } else {
         return {};

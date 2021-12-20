@@ -15,10 +15,11 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
+#include "vpux/compiler/dialect/VPUIP/generated/schema/gf_version.h"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
@@ -28,6 +29,7 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/numeric.hpp"
+#include "vpux/utils/core/preprocessing.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
@@ -35,6 +37,7 @@
 #include <mlir/IR/BuiltinTypes.h>
 
 #include <precision_utils.h>
+#include <version.hpp>
 
 #include <unordered_map>
 
@@ -42,51 +45,47 @@ using namespace vpux;
 
 namespace {
 
-flatbuffers::Offset<MVCNN::Version> createVersion(VPUIP::BlobWriter& writer, VPUIP::VersionAttr version) {
-    const auto serializedHash = writer.createString(version.hash().getValue());
-    const auto serializedContext = writer.createString(version.contextStr().getValue());
+flatbuffers::Offset<MVCNN::Version> createVersion(VPUIP::BlobWriter& writer, Logger log) {
+    log.info("Blob version: majorV={0}, minorV={1}, patch={2}, hash={3}, context={4}", MVCNN_VERSION_MAJOR,
+             MVCNN_VERSION_MINOR, MVCNN_VERSION_PATCH, VPUX_PLUGIN_VERSION, "VPUX Compiler");
+
+    const auto serializedHash = writer.createString(VPUX_PLUGIN_VERSION);
+    const auto serializedContext = writer.createString("VPUX Compiler");
 
     MVCNN::VersionBuilder builder(writer);
-    builder.add_majorV(checked_cast<uint32_t>(version.majorV().getInt()));
-    builder.add_minorV(checked_cast<uint32_t>(version.minorV().getInt()));
-    builder.add_patchV(checked_cast<uint32_t>(version.patchV().getInt()));
+    builder.add_majorV(checked_cast<uint32_t>(MVCNN_VERSION_MAJOR));
+    builder.add_minorV(checked_cast<uint32_t>(MVCNN_VERSION_MINOR));
+    builder.add_patchV(checked_cast<uint32_t>(MVCNN_VERSION_PATCH));
     builder.add_hash(serializedHash);
     builder.add_context(serializedContext);
     return builder.Finish();
 }
 
-MVCNN::PhysicalProcessor createPhysicalProcessor(VPUIP::PhysicalProcessor proc) {
-    switch (proc) {
-    case VPUIP::PhysicalProcessor::ARM:
-        return MVCNN::PhysicalProcessor_ARM;
-    case VPUIP::PhysicalProcessor::Leon_RT:
-        return MVCNN::PhysicalProcessor_LEON_RT;
-    case VPUIP::PhysicalProcessor::Leon_NN:
-        return MVCNN::PhysicalProcessor_LEON_NN;
-    case VPUIP::PhysicalProcessor::SHAVE_UPA:
+MVCNN::PhysicalProcessor createPhysicalProcessor(VPU::ExecutorKind execKind) {
+    switch (execKind) {
+    case VPU::ExecutorKind::SHAVE_UPA:
         return MVCNN::PhysicalProcessor_UPA_SHV;
-    case VPUIP::PhysicalProcessor::SHAVE_NN:
+    case VPU::ExecutorKind::SHAVE_NN:
         return MVCNN::PhysicalProcessor_NN_SHV;
-    case VPUIP::PhysicalProcessor::NCE_Cluster:
+    case VPU::ExecutorKind::NCE:
         return MVCNN::PhysicalProcessor_NCE_Cluster;
-    case VPUIP::PhysicalProcessor::NCE_PerClusterDPU:
+    case VPU::ExecutorKind::DPU:
         return MVCNN::PhysicalProcessor_NCE_PerClusterDPU;
     default:
-        VPUX_THROW("Unsupported PhysicalProcessor '{0}'", proc);
+        VPUX_THROW("Unsupported ExecutorKind '{0}'", execKind);
     }
 }
 
-void setActivityFactor(VPUIP::PhysicalProcessor processor, MVCNN::ProcessorMappingBuilder& builder,
-                       mlir::ModuleOp module) {
+void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilder& builder, mlir::ModuleOp module) {
     // TODO: calc this value during compilation
     static const float activityFactor = 90.0;
-    const auto arch = VPUIP::getArch(module);
-    if (arch == VPUIP::ArchKind::KMB || arch == VPUIP::ArchKind::TBH) {
-        if (processor == VPUIP::PhysicalProcessor::NCE_Cluster || processor == VPUIP::PhysicalProcessor::SHAVE_UPA) {
+    const auto arch = VPU::getArch(module);
+    if (arch == VPU::ArchKind::KMB || arch == VPU::ArchKind::TBH) {
+        if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_UPA) {
             builder.add_activity_factor(activityFactor);
         }
-    } else if (arch == VPUIP::ArchKind::MTL) {
-        if (processor == VPUIP::PhysicalProcessor::NCE_Cluster || processor == VPUIP::PhysicalProcessor::SHAVE_NN) {
+    } else if (arch == VPU::ArchKind::MTL) {
+        if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_NN) {
             builder.add_activity_factor(activityFactor);
         }
     }
@@ -95,51 +94,51 @@ void setActivityFactor(VPUIP::PhysicalProcessor processor, MVCNN::ProcessorMappi
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
                                                                     IERT::ExecutorResourceOp res,
                                                                     mlir::ModuleOp module) {
-    const auto kind = res.kind().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
-    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", res.kind());
+    const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
+    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
 
-    const auto processor = kind.getValue();
+    const auto execKind = execKindAttr.getValue();
     MVCNN::ProcessorMappingBuilder builder(writer);
-    builder.add_item(createPhysicalProcessor(processor));
+    builder.add_item(createPhysicalProcessor(execKind));
     builder.add_number(checked_cast<double>(res.count()));
     builder.add_is_bitmask(false);
-    setActivityFactor(processor, builder, module);
+    setActivityFactor(execKind, builder, module);
     return builder.Finish();
 }
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorFreqMapping(VPUIP::BlobWriter& writer,
                                                                         IERT::ExecutorResourceOp res) {
-    const auto kind = res.kind().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
-    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", res.kind());
+    const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
+    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
 
     MVCNN::ProcessorMappingBuilder builder(writer);
-    builder.add_item(createPhysicalProcessor(kind.getValue()));
+    builder.add_item(createPhysicalProcessor(execKindAttr.getValue()));
     builder.add_number(VPUIP::getProcessorFrequency(res));
     builder.add_is_bitmask(false);
     return builder.Finish();
 }
 
-MVCNN::PhysicalMem createPhysicalMem(VPUIP::PhysicalMemory mem) {
+MVCNN::PhysicalMem createPhysicalMem(VPU::MemoryKind mem) {
     switch (mem) {
-    case VPUIP::PhysicalMemory::DDR:
+    case VPU::MemoryKind::DDR:
         return MVCNN::PhysicalMem_DDR;
-    case VPUIP::PhysicalMemory::CSRAM:
+    case VPU::MemoryKind::CSRAM:
         return MVCNN::PhysicalMem_CSRAM;
-    case VPUIP::PhysicalMemory::CMX_UPA:
+    case VPU::MemoryKind::CMX_UPA:
         return MVCNN::PhysicalMem_UPA_CMX;
-    case VPUIP::PhysicalMemory::CMX_NN:
+    case VPU::MemoryKind::CMX_NN:
         return MVCNN::PhysicalMem_NN_CMX;
     default:
-        VPUX_THROW("Unsupported PhysicalMemory '{0}'", mem);
+        VPUX_THROW("Unsupported MemoryKind '{0}'", mem);
     }
 }
 
 flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer, IERT::MemoryResourceOp res) {
-    const auto kind = res.kindAttr().dyn_cast_or_null<VPUIP::PhysicalMemoryAttr>();
-    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown memory space kind '{0}'", res.kindAttr());
+    const auto memKindAttr = res.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
+    VPUX_THROW_UNLESS(memKindAttr != nullptr, "Got unknown memory space kind '{0}'", res.kindAttr());
 
     MVCNN::MemoryMappingBuilder builder(writer);
-    builder.add_item(createPhysicalMem(kind.getValue()));
+    builder.add_item(createPhysicalMem(memKindAttr.getValue()));
     builder.add_number(checked_cast<double>(res.byteSize()));
     return builder.Finish();
 }
@@ -149,9 +148,9 @@ flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createBandwidthMapping(VPU
                                                                              IERT::MemoryResourceOp dst,
                                                                              double bandwidth) {
     MVCNN::MemoryRelationshipMappingBuilder builder(writer);
-    const auto srcKind = src.kindAttr().dyn_cast_or_null<VPUIP::PhysicalMemoryAttr>();
+    const auto srcKind = src.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
     VPUX_THROW_UNLESS(srcKind != nullptr, "Got unknown memory space kind '{0}'", src.kindAttr());
-    const auto dstKind = dst.kindAttr().dyn_cast_or_null<VPUIP::PhysicalMemoryAttr>();
+    const auto dstKind = dst.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
     VPUX_THROW_UNLESS(dstKind != nullptr, "Got unknown memory space kind '{0}'", dst.kindAttr());
     builder.add_from_item(createPhysicalMem(srcKind.getValue()));
     builder.add_to_item(createPhysicalMem(dstKind.getValue()));
@@ -160,6 +159,13 @@ flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createBandwidthMapping(VPU
 }
 
 flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer, mlir::ModuleOp module) {
+    const EnumSet<VPU::ExecutorKind> supportedProcessors{
+            VPU::ExecutorKind::SHAVE_UPA,  //
+            VPU::ExecutorKind::SHAVE_NN,   //
+            VPU::ExecutorKind::NCE,        //
+            VPU::ExecutorKind::DPU         //
+    };
+
     auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
     VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources information");
 
@@ -171,10 +177,12 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
     resources.walk([&](IERT::ExecutorResourceOp res) {
-        if (res.kind().isa<VPUIP::PhysicalProcessorAttr>()) {
-            executorsOffsets.push_back(createProcessorMapping(writer, res, module));
-            if (res->hasAttr(VPUIP::getProcessorFrequencyAttrName())) {
-                processorVec.push_back(createProcessorFreqMapping(writer, res));
+        if (const auto execKind = res.kind().dyn_cast<VPU::ExecutorKindAttr>()) {
+            if (supportedProcessors.count(execKind.getValue()) != 0) {
+                executorsOffsets.push_back(createProcessorMapping(writer, res, module));
+                if (res->hasAttr(VPU::getProcessorFrequencyAttrName())) {
+                    processorVec.push_back(createProcessorFreqMapping(writer, res));
+                }
             }
         }
     });
@@ -184,7 +192,7 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     SmallVector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>> memoryVec;
     SmallVector<IERT::MemoryResourceOp> memoryTypes;
     resources.walk([&](IERT::MemoryResourceOp src) {
-        if (src->hasAttr(VPUIP::getBandwidthAttrName())) {
+        if (src->hasAttr(VPU::getMemoryBandwidthAttrName())) {
             memoryTypes.push_back(src);
         }
     });
@@ -211,13 +219,12 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     return builder.Finish();
 }
 
-flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer,
-                                                                    mlir::ModuleOp /*module*/, mlir::FuncOp netFunc,
-                                                                    Logger log) {
-    // only SwKernelOp operations can generate kernelData, from either built-in functions or from custom
+flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
+                                                                    mlir::FuncOp netFunc, Logger log) {
+    // only SwKernelOp operations can generate kernelData
     auto graphHasKernels = false;
     netFunc.walk([&](VPURT::TaskOp taskOp) {
-        if (taskOp.getTaskType() == vpux::VPUIP::TaskType::ACTShave) {
+        if (taskOp.getExecutorKind() == VPU::ExecutorKind::SHAVE_ACT) {
             graphHasKernels = true;
         }
     });
@@ -225,66 +232,108 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
         return {};
     }
 
-    // TODO: extract num shaves info from IERT::RuntimeResourcesOp, which can be extracted from module
-    const long int maxShaves = 4;
+    // TODO: always extract num shaves info from VPURT::SW.Runtime, which can be extracted from module
+    constexpr auto maxShaves = 4;
+    constexpr auto defaultStackSize = Byte(4_KB).count();
+    constexpr auto alignmentReq = Byte(1_KB).count();
 
-    const auto stack_size{1U << 12};  // 4KB stack
+    auto swRuntimeOps = module.getOps<VPURT::SWRunTimeOp>();
+    auto runtimeKernelDeclared = std::distance(swRuntimeOps.begin(), swRuntimeOps.end());
+    VPUX_THROW_UNLESS(runtimeKernelDeclared <= 1, "if runtime kernel is present it should be unique, but found {0}",
+                      runtimeKernelDeclared);
 
-    llvm::SmallVector<uint8_t, stack_size> shave_stack_data(stack_size);
-    std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(maxShaves);  // 4 Activation SHAVEs for MTL
+    flatbuffers::Offset<MVCNN::ActKernel> runtimeKernel;
+    SmallVector<uint32_t> runtimeStacks(maxShaves, defaultStackSize);
 
-    for (uint32_t shv{}; shv < maxShaves; ++shv) {
-        log.trace("act-shave {0}_stack size is {1}", shv, stack_size);
+    if (runtimeKernelDeclared) {
+        auto swRuntimeOp = *swRuntimeOps.begin();
+        runtimeKernel = writer.createRuntimeKernelTask(module, swRuntimeOp);
+        runtimeStacks = parseIntArrayAttr<uint32_t>(swRuntimeOp.stacks());
+    }
 
-        stacks[shv] = writer.createKernelDataRef("actSHAVE" + std::to_string(shv) + "_stack",
-                                                 vpux::VPUIP::MemoryLocation::GFEmbeddedKernel, 0, stack_size,
-                                                 shave_stack_data);
+    SmallVector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(runtimeStacks.size());
+
+    const auto maxStackIt = std::max_element(runtimeStacks.begin(), runtimeStacks.end());
+    const std::vector<uint8_t> shave_stack_data_max(*maxStackIt);
+
+    for (auto shvInd : irange(runtimeStacks.size())) {
+        const auto shaveStackData = makeArrayRef(shave_stack_data_max).take_front(runtimeStacks[shvInd]);
+
+        log.trace("act-shave {0}_stack size is {1}", shvInd, shaveStackData.size());
+
+        const auto dataName = llvm::formatv("actSHAVE{0}_stack", shvInd).str();
+        stacks[shvInd] = writer.createKernelDataRef(dataName, 0, shaveStackData.size(), shaveStackData);
     }
 
     const auto stackBuffers = writer.createVector(stacks);
 
-    llvm::SmallVector<uint8_t, 1024 + (1U << 16)> scratch_buffer(1024 +
-                                                                 (1U << 16));  // 64KB scratch buffer + 1024 to align
+    VPUIP::BlobWriter::KernelDataRef scratchBuffer;
+    if (!runtimeKernelDeclared) {
+        constexpr auto scratchBufferSize = Byte(64_KB).count();
 
-    const uint64_t non_empty_offset = 1;
-    const auto scratchBuffer =
-            writer.createKernelDataRef("scratch_buffer", vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
-                                       non_empty_offset, scratch_buffer.size() - 1024, scratch_buffer);
+        const std::vector<uint8_t> scratchBufferData(alignmentReq + scratchBufferSize);
+        constexpr uint64_t reservedOffset = 1;
+
+        scratchBuffer =
+                writer.createKernelDataRef("scratch_buffer", reservedOffset, scratchBufferSize, scratchBufferData);
+    }
 
     MVCNN::ActKernelRuntimeBuilder builder(writer);
     builder.add_shaveStacks(stackBuffers);
-    builder.add_codeScratchBuffer(scratchBuffer);
+    if (runtimeKernelDeclared) {
+        builder.add_kernel(runtimeKernel);
+    } else {
+        builder.add_codeScratchBuffer(scratchBuffer);
+    }
 
     return builder.Finish();
 }
 
-MVCNN::TargetDevice mapTargetDevice(const VPUIP::ArchKind kind) {
+MVCNN::TargetDevice mapTargetDevice(VPU::ArchKind kind) {
     switch (kind) {
-    case VPUIP::ArchKind::KMB:
+    case VPU::ArchKind::KMB:
         return MVCNN::TargetDevice::TargetDevice_KMB;
-    case VPUIP::ArchKind::TBH:
+    case VPU::ArchKind::TBH:
         return MVCNN::TargetDevice::TargetDevice_TBH;
-    case VPUIP::ArchKind::MTL:
+    case VPU::ArchKind::MTL:
         return MVCNN::TargetDevice::TargetDevice_MTL;
-    case VPUIP::ArchKind::LNL:
+    case VPU::ArchKind::LNL:
         return MVCNN::TargetDevice::TargetDevice_LNL;
     default:
         VPUX_THROW("Unsupported architecture '{0}'", kind);
     }
 }
 
-MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const VPUIP::ArchKind kind) {
+MVCNN::TargetDeviceRevision mapTargetDeviceRevision(VPU::ArchKind kind) {
     switch (kind) {
-    case VPUIP::ArchKind::KMB:
+    case VPU::ArchKind::KMB:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
     default:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
     }
 }
 
+const EnumMap<vpux::PreProcessColorSpace, MVCNN::PreProcessColorSpace> mapPreProcessColorFormat = {
+        {vpux::PreProcessColorSpace::BGR, MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR},
+        {vpux::PreProcessColorSpace::RGB, MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB},
+        {vpux::PreProcessColorSpace::NV12, MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12},
+        {vpux::PreProcessColorSpace::I420, MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420},
+        {vpux::PreProcessColorSpace::NONE, MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT},
+};
+
+const EnumMap<vpux::PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm> mapPreProcessResizeAlgorithm = {
+        {vpux::PreProcessResizeAlgorithm::RESIZE_BILINEAR,
+         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR},
+        {vpux::PreProcessResizeAlgorithm::RESIZE_AREA,
+         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA},
+        {vpux::PreProcessResizeAlgorithm::NO_RESIZE,
+         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE},
+};
+
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
-                                                              VPUIP::GraphOp graphOp, IE::CNNNetworkOp netOp,
-                                                              mlir::FuncOp netFunc, mlir::TimingScope& rootTiming,
+                                                              IE::CNNNetworkOp netOp, mlir::FuncOp netFunc,
+                                                              bool withDynamicBarriers, mlir::TimingScope& rootTiming,
+                                                              const std::vector<vpux::PreProcessInfo>& preprocessInfo,
                                                               Logger log) {
     auto scopeTiming = rootTiming.nest("Create summary header");
 
@@ -309,11 +358,10 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
         const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
-        graphInputs.push_back(
-                writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
+        graphInputs.push_back(writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkInput, ind, 0));
 
         userInputs.push_back(
-                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
+                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkInput, ind, 0));
     }
 
     SmallVector<VPUIP::BlobWriter::TensorReference> graphOutputs, graphProfilingOutputs, userOutputs;
@@ -331,10 +379,10 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
         graphOutputs.push_back(
-                writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
+                writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkOutput, ind, 0));
 
         userOutputs.push_back(
-                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
+                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkOutput, ind, 0));
     }
 
     for (const auto& p : profilingOutputsInfo | indexed) {
@@ -344,16 +392,25 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
         graphProfilingOutputs.push_back(
-                writer.createTensor(val, p.value().name(), VPUIP::MemoryLocation::ProfilingOutput, ind, 0));
+                writer.createTensorRef(val, p.value().name(), VPURT::BufferSection::ProfilingOutput, ind, 0));
+    }
+
+    SmallVector<VPUIP::BlobWriter::PreprocessingInfo> preprocInfo;
+    preprocInfo.reserve(preprocessInfo.size());
+
+    for (const auto& pr : preprocessInfo) {
+        preprocInfo.push_back(MVCNN::CreatepreprocessingInfo(
+                writer, writer.createString(pr._inputName), mapPreProcessColorFormat.at(pr._inputFormat),
+                mapPreProcessColorFormat.at(pr._outputFormat), mapPreProcessResizeAlgorithm.at(pr._algorithm)));
     }
 
     SmallVector<int8_t> options;
-    if (VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers)) {
+    if (withDynamicBarriers) {
         options.push_back(static_cast<int8_t>(MVCNN::ExecutionFlag_DynamicBarriers));
     }
     const auto serializedOptions = writer.createVector(options);
 
-    const auto serializedVersion = createVersion(writer, graphOp.version());
+    const auto serializedVersion = createVersion(writer, log);
     const auto serializedName = writer.createString(module.getName().getValueOr("network"));
     const auto serializedGraphInputs = writer.createVector(graphInputs);
     const auto serializedUserInputs = writer.createVector(userInputs);
@@ -361,6 +418,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     const auto serializedGraphProfilingOutputs = writer.createVector(graphProfilingOutputs);
     const auto serializedUserOutputs = writer.createVector(userOutputs);
     const auto serializedResources = createResources(writer, module);
+    const auto serializedPreProcInfo = writer.createVector(preprocInfo);
     const auto serializedActKernelsRuntime = createActKernelRuntime(writer, module, netFunc, log);
 
     MVCNN::SummaryHeaderBuilder builder(writer);
@@ -374,8 +432,9 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     builder.add_resources(serializedResources);
     builder.add_in_tensor_desc(serializedUserInputs);
     builder.add_out_tensor_desc(serializedUserOutputs);
-    builder.add_device(mapTargetDevice(VPUIP::getArch(module)));
-    builder.add_device_revision(mapTargetDeviceRevision(VPUIP::getArch(module)));
+    builder.add_pre_process_info(serializedPreProcInfo);
+    builder.add_device(mapTargetDevice(VPU::getArch(module)));
+    builder.add_device_revision(mapTargetDeviceRevision(VPU::getArch(module)));
     builder.add_act_kernel_runtime(serializedActKernelsRuntime);
     return builder.Finish();
 }
@@ -384,11 +443,9 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir:
     auto scopeTiming = rootTiming.nest("Serialize tensor declarations");
 
     size_t tempTensorInd = 0;
-    netFunc.walk([&](VPURT::DeclareBufferOp tensorOp) {
-        writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
-                            parseIntArrayAttr<uint32_t>(tensorOp.localeIndex()), tensorOp.dataIndex(),
-                            tensorOp.sparsityIndex(), tensorOp.storageElementIndex(), tensorOp.storageElementSize(),
-                            tensorOp.leadingOffset(), tensorOp.trailingOffset());
+    netFunc.walk([&](VPURT::DeclareBufferOp bufOp) {
+        writer.createTensorRef(bufOp.buffer(), llvm::formatv("temp-{0}", tempTensorInd).str(), bufOp.section(),
+                               bufOp.sectionIndex().getValueOr(0), bufOp.byteOffset());
 
         ++tempTensorInd;
     });
@@ -429,8 +486,8 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
 
         binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<mlir::ShapedType>());
 
-        writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
-                            VPUIP::MemoryLocation::GraphFile, checked_cast<uint32_t>(constTensorInd), 0);
+        writer.createTensorRef(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
+                               VPURT::BufferSection::Constant, checked_cast<uint32_t>(constTensorInd), 0);
     }
 
     return binaryData;
@@ -446,7 +503,7 @@ SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter
 }
 
 SmallVector<VPUIP::BlobWriter::Barrier> serializeVirtBarriers(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc,
-                                                              VPUIP::GraphOp graphOp, mlir::TimingScope& rootTiming,
+                                                              bool withDynamicBarriers, mlir::TimingScope& rootTiming,
                                                               Logger log) {
     auto scopeTiming = rootTiming.nest("Serialize virtual barriers");
 
@@ -455,8 +512,7 @@ SmallVector<VPUIP::BlobWriter::Barrier> serializeVirtBarriers(VPUIP::BlobWriter&
     netFunc.walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
         log.trace("Got virtual varrier at '{0}'", barrierOp->getLoc());
 
-        VPUX_THROW_UNLESS(VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers),
-                          "Graph was not configured for virtual barriers usage");
+        VPUX_THROW_UNLESS(withDynamicBarriers, "Compiler was not configured for virtual barriers usage");
 
         const auto virtBarrier = writer.createBarrier(barrierOp.barrier());
         virtBarriers.push_back(virtBarrier);
@@ -470,30 +526,37 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     auto scopeTiming = rootTiming.nest("Serialize task lists");
 
     using TaskList = SmallVector<VPUIP::BlobWriter::Task>;
-    using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
-    TaskListMap tasksMap;
+    using TaskListMap = EnumMap<VPU::ExecutorKind, TaskList>;
 
-    netFunc.walk([&](VPURT::ConfigureBarrierOp taskOp) {
-        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
-        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+    TaskList barriersList;
+    netFunc.walk([&](VPURT::ConfigureBarrierOp barrierOp) {
+        log.trace("Got '{0}' at '{1}'", barrierOp->getName(), barrierOp->getLoc());
+        barriersList.push_back(writer.createTask(barrierOp));
     });
 
+    TaskListMap tasksMap;
     netFunc.walk([&](VPURT::TaskOp taskOp) {
-        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
-        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getExecutorKind(), taskOp->getName(), taskOp->getLoc());
+        tasksMap[taskOp.getExecutorKind()].push_back(writer.createTask(taskOp));
     });
 
     SmallVector<VPUIP::BlobWriter::TaskList> taskLists;
-    taskLists.reserve(tasksMap.size());
+    taskLists.reserve(tasksMap.size() + 1);
 
-    for (const auto& taskList : tasksMap) {
-        log.trace("Serialize task list '{0}'", taskList.first);
-
-        const auto serializedTaskList = writer.createVector(taskList.second);
+    const auto serializeTaskList = [&](const TaskList& taskList) {
+        const auto serializedTaskList = writer.createVector(taskList);
 
         MVCNN::TaskListBuilder builder(writer);
         builder.add_content(serializedTaskList);
         taskLists.push_back(builder.Finish());
+    };
+
+    log.trace("Serialize barriers list");
+    serializeTaskList(barriersList);
+
+    for (const auto& taskList : tasksMap) {
+        log.trace("Serialize tasks list '{0}'", taskList.first);
+        serializeTaskList(taskList.second);
     }
 
     return taskLists;
@@ -526,6 +589,7 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
 }  // namespace
 
 flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                                                      const std::vector<vpux::PreProcessInfo>& preprocessInfo,
                                                       Logger log) {
     log.setName("VPUIP::BackEnd");
 
@@ -534,16 +598,16 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    log.trace("Extract 'VPUIP.{0}' from Module", VPUIP::GraphOp::getOperationName());
-    auto graphOp = VPUIP::GraphOp::getFromModule(module);
-
     VPUIP::BlobWriter writer(log.nest());
 
-    const auto header = createSummaryHeader(writer, module, graphOp, netOp, netFunc, rootTiming, log);
+    const auto withDynamicBarriers = !netFunc.getOps<VPURT::DeclareVirtualBarrierOp>().empty();
+
+    const auto header =
+            createSummaryHeader(writer, module, netOp, netFunc, withDynamicBarriers, rootTiming, preprocessInfo, log);
 
     serializeTensorDecls(writer, netFunc, rootTiming);
     const auto binaryData = serializeBinaryData(writer, netFunc, rootTiming, log);
-    const auto virtBarriers = serializeVirtBarriers(writer, netFunc, graphOp, rootTiming, log);
+    const auto virtBarriers = serializeVirtBarriers(writer, netFunc, withDynamicBarriers, rootTiming, log);
     const auto taskLists = serializeTaskLists(writer, netFunc, rootTiming, log);
     const auto kernelData = serializeKernelData(writer, netFunc, rootTiming, log);
     const auto graphFile = createGraphFile(writer, header, taskLists, binaryData, kernelData, virtBarriers, rootTiming);
@@ -554,39 +618,75 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     auto serializedGraphFile = MVCNN::GetGraphFile(detached.data());
 
+    const uint64_t reserved_offset = 1;
+    std::unordered_set<uint32_t> kernelDataAligned;
+
     // align KernelData section referenced by given KernelDataReference
     // returns moved offset
     auto alignKernelDataSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
+        //  current align requirements is 1KB, for .text, .data, .scratch
+        constexpr auto alignmentReq = Byte(1_KB).count();
+
         auto section_data = serializedGraphFile->kernel_data()->Get(section->locale_offset())->data();
 
-        auto offset = section_data->Data() - detached.data();
+        // checking that current description designates aligned section -
+        // TODO: implement cases where offset is 1 actually fixes alignment
+        auto section_data_plus_offset = section_data->Data() + section->data_offset() - detached.data();
+
+        if (!(section_data_plus_offset % alignmentReq)) {
+            VPUX_THROW_UNLESS(section->data_offset() != reserved_offset,
+                              "kernelDataReference: {0} {1}, offset from blob start: {2}, already aligned with "
+                              "reserved data_offset={3}",
+                              section->name()->c_str(), sectionLogical, section_data_plus_offset, reserved_offset);
+            return static_cast<ptrdiff_t>(0);
+        }
+        ptrdiff_t offset = section_data->Data() - detached.data();
         log.trace("offset to kernel {0} {1} in Finished FBB is {2}", section->name()->c_str(), sectionLogical, offset);
 
-        //  align calculations
-        const uint32_t kilobyteAlignment = 1024;
-
-        auto aligned_offset = llvm::alignTo(offset, kilobyteAlignment);
+        auto aligned_offset = llvm::alignTo(offset, alignmentReq);
         offset = aligned_offset - offset;
-        log.trace("move kernel {0} {1} by {2} bytes to be {3}", section->name()->c_str(), sectionLogical, offset,
-                  aligned_offset);
 
-        memmove(const_cast<uint8_t*>(section_data->Data() + offset), section_data->Data(),
-                section_data->Length() - kilobyteAlignment);
+        // check whether given kernelData element already aligned
+        if (kernelDataAligned.find(section->locale_offset()) == kernelDataAligned.end()) {
+            // if there is no data - do not move
+            if (section_data->Length() == 0) {
+                return static_cast<ptrdiff_t>(0);
+            }
+            // check whether we do have a room for alignment
+            VPUX_THROW_UNLESS(section_data->Length() > alignmentReq,
+                              "cannot align section: {0} {1},  space(alignment + size): {2} alignment: {3}",
+                              section->name()->c_str(), sectionLogical, section_data->Length(), alignmentReq);
 
-        // clear beginning
-        memset(const_cast<uint8_t*>(section_data->Data()), 0, offset);
+            auto moveSize = section_data->Length() - alignmentReq;
+            VPUX_THROW_UNLESS(section_data->Length() > moveSize + offset,
+                              "cannot align section: {0} {1}, no room for moving space={2} offset={3} size={4}",
+                              section->name()->c_str(), sectionLogical, section_data->Length(), offset, moveSize);
+
+            log.trace("move kernel {0} {1} by {2} bytes to be {3}", section->name()->c_str(), sectionLogical, offset,
+                      aligned_offset);
+
+            memmove(const_cast<uint8_t*>(section_data->Data() + offset), section_data->Data(),
+                    section_data->Length() - alignmentReq);
+
+            // clear beginning
+            memset(const_cast<uint8_t*>(section_data->Data()), 0, offset);
+            // marking this kernel data content already aligned
+            kernelDataAligned.insert(section->locale_offset());
+        }
 
         return offset;
     };
 
     auto alignReferenceSection = [&](const MVCNN::KernelDataReference* section, uint64_t offset) {
+        if (section->data_offset() != reserved_offset)
+            return;
         // correcting data offset for section in schema
         auto table = reinterpret_cast<flatbuffers::Table*>(const_cast<MVCNN::KernelDataReference*>(section));
 
-        const uint64_t non_empty_offset = 1;
         // updating offset pointer
+        // TODO: why we add here?
         table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET,
-                        checked_cast<uint32_t>(section->data_offset() + offset - non_empty_offset), 0u);
+                        checked_cast<uint32_t>(section->data_offset() + offset - reserved_offset), 0u);
     };
 
     auto alignSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
@@ -608,11 +708,19 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
                     alignReferenceSection(invocation->dataSection(), offset);
                     alignReferenceSection(invocation->invocationArgs(), offset);
                 }
-
-                // scratchBuffer aligning
-                auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer();
-                alignSection(scratchBuffer, ".scratchBuffer");
             }
+        }
+    }
+
+    if (serializedGraphFile->header()->act_kernel_runtime()) {
+        // scratchBuffer aligning
+        if (auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer()) {
+            alignSection(scratchBuffer, ".scratchBuffer");
+        }
+        // management kernel aligning if present
+        if (auto managementKernel = serializedGraphFile->header()->act_kernel_runtime()->kernel()) {
+            alignSection(managementKernel->kernelText(), ".runtime.text");
+            alignSection(managementKernel->globalArgs(), ".runtime.data");
         }
     }
 

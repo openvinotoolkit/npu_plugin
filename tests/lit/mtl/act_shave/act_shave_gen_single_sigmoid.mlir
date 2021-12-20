@@ -5,35 +5,22 @@
 // check for regressions in the VPUIP dialect.
 //
 
-module @Test attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceHW"} {
+module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
 
 IERT.RunTimeResources
     availableMemory : {
-        IERT.MemoryResource 1073741824 bytes
-        IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
-        IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+        IERT.MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
+        IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
     }
     usedMemory : {
     }
     executors : {
-        IERT.ExecutorResource 1 of  "Leon_RT"
-        IERT.ExecutorResource 1 of  "Leon_NN"
-        IERT.ExecutorResource 1 of  "ACT_SHAVE"
-        IERT.ExecutorResource 1 of  "SHAVE_NN"
-        IERT.ExecutorResource 1 of  "NCE_Cluster" {
-            IERT.ExecutorResource 1 of "NCE_PerClusterDPU"
-        }
-        IERT.ExecutorResource 1 of "DMA_UPA"
         IERT.ExecutorResource 1 of "DMA_NN"
-    }
-
-VPUIP.Graph
-    options : "NONE"
-    version : {
-        majorV = 3 : i32,
-        minorV = 11 : i32,
-        patchV = 0 : i32, hash = "",
-        contextStr = "VPUX Compiler"
+        IERT.ExecutorResource 1 of  "SHAVE_NN"
+        IERT.ExecutorResource 1 of  "SHAVE_ACT"
+        IERT.ExecutorResource 1 of  "NCE" {
+            IERT.ExecutorResource 1 of "DPU"
+        }
     }
 
 IE.CNNNetwork
@@ -45,56 +32,71 @@ IE.CNNNetwork
         IE.DataInfo "sigmoid" : tensor<1x1000xf16>
     }
 
+VPURT.SW.Runtime
+    entryPoint: @VPU.SW::@runtime
+    stack_configuration: [
+        4096, // Size in bytes for the SHAVEs in the first tile.
+        4096  // Size in bytes for the SHAVEs in the second tile.
+    ]
+
+
 // Sub-module, which holds SW kernel declarations and optional implementations.
 // Used to group those declarations for faster access.
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_sigmoid(%input : memref<*xf16>, %output : memref<*xf16>, %axis : i64)
+    func private @builtin_sigmoid(%input : memref<*xf16>, %output : memref<*xf16>)
         attributes {
             VPU.kernel_code = "sigmoid_fp16.c",
             VPU.kernel_entry = "sigmoid_fp16"
         }
+
+    // management kernel definition
+    func private @runtime()
+        attributes {
+            VPU.kernel_code = "nnActEntry"
+        }
 }
+
+
 
 func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
-    %in_tile0_cmx  = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
-    %out_tile0_cmx = VPURT.DeclareBuffer "VPU_CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "CMX_NN">
+    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "CMX_NN">
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
 
-    VPURT.Task updates(%b0 : !VPURT.Barrier) op : {
-        VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    VPURT.Task updates(%b0 : !VPURT.Barrier) {
+        VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) -> memref<1x1x1x1000xf16, "CMX_NN">
     }
 
     // Genetic Kernel information for the scheduler.
-    VPURT.Task waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) op : {
-    %sigmoid_krn =
+    VPURT.Task waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) {
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_sigmoid            // The reference to the Kernel function.
-                    inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">)     // Inputs/outputs buffers for generic operation interface
-                    outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">)   // and their mapping to inner region.
+                    inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">)     // Inputs/outputs buffers for generic operation interface
+                    outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">)   // and their mapping to inner region.
                     on tile 0                           // The tile index to execute on.
-                   
-        -> memref<1x1x1x1000xf16, "VPU_CMX_NN"> {
 
-            ^bb0(%arg0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">, %arg1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">):
+        -> memref<1x1x1x1000xf16, "CMX_NN"> {
+
+            ^bb0(%arg0 : memref<1x1x1x1000xf16, "CMX_NN">, %arg1 : memref<1x1x1x1000xf16, "CMX_NN">):
                 // Inner region, isolated from above, which holds the information about arguments mapping.
                 // We can use constant scalars/arrays definitions here.
                 %axis   = arith.constant 110 : i64
 
                 // The arguments mapping, the order must match the kernel parameter structure.
                 VPUIP.SW.Kernel.run(%arg0, %arg1, %axis)
-                    : memref<1x1x1x1000xf16, "VPU_CMX_NN">
-                    , memref<1x1x1x1000xf16, "VPU_CMX_NN">
+                    : memref<1x1x1x1000xf16, "CMX_NN">
+                    , memref<1x1x1x1000xf16, "CMX_NN">
                     , i64
         }
     }
 
-    VPURT.Task waits(%b1 : !VPURT.Barrier) op : {
-        %0 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%2 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+    VPURT.Task waits(%b1 : !VPURT.Barrier) {
+        %0 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) outputs(%2 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
     return %2: memref<1x1x1x1000xf16>
 
@@ -210,30 +212,21 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:          {
 // CHECK:            name: "actSHAVE1_stack",
 // CHECK:            locale: "GFEmbeddedKernel",
-// CHECK:            locale_offset: 1,
-// CHECK:            referenced_data_size: 4096
-// CHECK:          },
-// CHECK:          {
-// CHECK:            name: "actSHAVE2_stack",
-// CHECK:            locale: "GFEmbeddedKernel",
-// CHECK:            locale_offset: 2,
-// CHECK:            referenced_data_size: 4096
-// CHECK:          },
-// CHECK:          {
-// CHECK:            name: "actSHAVE3_stack",
-// CHECK:            locale: "GFEmbeddedKernel",
-// CHECK:            locale_offset: 3,
 // CHECK:            referenced_data_size: 4096
 // CHECK:          }
-// CHECK:        ],
-// CHECK:        codeScratchBuffer: {
-// CHECK:          name: "scratch_buffer",
+// CHECK:        ]
+// CHECK:      kernel: {
+// CHECK:        kernelText: {
+// CHECK:          name: "nnActEntry",
 // CHECK:          locale: "GFEmbeddedKernel",
-// CHECK:          locale_offset: 4,
-// CHECK:          data_offset: 856,
-// CHECK:          referenced_data_size: 65536
+// CHECK:          referenced_data_size: 832
+// CHECK:        },
+// CHECK:        globalArgs: {
+// CHECK:          name: "nnActEntry.data",
+// CHECK:          locale: "GFEmbeddedKernel",
 // CHECK:        }
-// CHECK:     }
+// CHECK:      }
+// CHECK:    }
 
 // CHECK:   task_lists: [
 // CHECK:      {
@@ -261,9 +254,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                kernelText: {
 // CHECK:                  name: "builtin_sigmoid",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  locale_offset: 5,
-// CHECK:                  data_offset: 240,
-// CHECK:                  referenced_data_size: 624
+// CHECK:                  referenced_data_size: 1376
 // CHECK:                }
 // CHECK:              },
 // CHECK:              invocations: [
@@ -279,14 +270,10 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                  dataSection: {
 // CHECK:                    name: "builtin_sigmoid_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
-// CHECK:                    locale_offset: 6,
-// CHECK:                    data_offset: 532
 // CHECK:                  },
 // CHECK:                  invocationArgs: {
 // CHECK:                    name: "builtin_sigmoid_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
-// CHECK:                    locale_offset: 6,
-// CHECK:                    data_offset: 532,
 // CHECK:                    referenced_data_size: 176
 // CHECK:                  }
 // CHECK:                }
@@ -299,4 +286,3 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
 // CHECK:   kernel_data: [
 // CHECK:      ]
-

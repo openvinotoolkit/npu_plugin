@@ -15,8 +15,11 @@
 //
 
 #pragma once
+
 #if defined(__arm__) || defined(__aarch64__)
+
 #include "vpux.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 namespace vpux {
 
@@ -48,8 +51,9 @@ private:
     void* _sharedLibHandle = nullptr;
     checkFile_t _checkFn = nullptr;
     decryptFile_t _decryptFn = nullptr;
-    vpu::Logger _logger;
+    Logger _logger;
 };
 
 }  // namespace vpux
+
 #endif

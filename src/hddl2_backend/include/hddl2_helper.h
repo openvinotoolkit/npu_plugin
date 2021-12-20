@@ -12,10 +12,12 @@
 //
 
 #pragma once
+
+#include "vpux/utils/core/logger.hpp"
+
 // IE
 #include <ie_remote_context.hpp>
-// Plugin
-#include <vpux_config.hpp>
+
 // Low-level
 #include <RemoteMemory.h>
 #include <WorkloadContext.h>
@@ -27,7 +29,7 @@ HddlUnite::RemoteMemory* getRemoteMemoryFromParams(const InferenceEngine::ParamM
 int32_t getRemoteMemoryFDFromParams(const InferenceEngine::ParamMap& params);
 std::shared_ptr<InferenceEngine::TensorDesc> getOriginalTensorDescFromParams(const InferenceEngine::ParamMap& params);
 WorkloadID getWorkloadIDFromParams(const InferenceEngine::ParamMap& params);
-void setUniteLogLevel(const vpu::LogLevel logLevel, const vpu::Logger::Ptr logger = nullptr);
+void setUniteLogLevel(Logger logger);
 std::map<uint32_t, std::string> getSwDeviceIdNameMap();
 std::string getSwDeviceIdFromName(const std::string& devName);
 

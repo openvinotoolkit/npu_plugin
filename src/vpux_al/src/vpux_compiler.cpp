@@ -11,15 +11,22 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux_compiler.hpp"
+
+#include "vpux.hpp"
+#include "vpux/al/config/compiler.hpp"
+
+#include <vpu/utils/io.hpp>
+
 #include <file_reader.h>
 #include <file_utils.h>
 
 #include <fstream>
-#include <vpu/utils/io.hpp>
-#include <vpux_compiler.hpp>
+#ifdef OPENVINO_STATIC_LIBRARY
+#include "vpux/compiler/compiler.hpp"
+#endif
 
-vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr actual,
-                                             const InferenceEngine::details::SharedObjectLoader& plg)
+vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr actual, const vpux::CompilerPluginPtr& plg)
         : _actual(actual), _plg(plg) {
     if (_actual == nullptr) {
         IE_THROW() << "ExecutableNetwork wrapper was not initialized.";
@@ -31,8 +38,7 @@ static std::string extractFileName(const std::string& fullPath) {
     return fullPath.substr(lastSlashIndex + 1);
 }
 
-std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(const std::string& filename,
-                                                                  const VPUXConfig& config) {
+std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(const std::string& filename, const Config& config) {
     std::ifstream stream(filename, std::ios::binary);
     if (!stream.is_open()) {
         IE_THROW() << "Could not open file: " << filename;
@@ -41,7 +47,7 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(const std::str
     return parse(stream, config, graphName);
 }
 
-std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& stream, const VPUXConfig& config,
+std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& stream, const Config& config,
                                                                   const std::string& graphName) {
     const size_t graphSize = vpu::KmbPlugin::utils::getFileSize(stream);
     if (graphSize == 0) {
@@ -52,8 +58,16 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& 
     return parse(blob, config, graphName);
 }
 
-vpux::Compiler::Ptr vpux::Compiler::create(const VPUXConfig& config) {
-    switch (config.compilerType()) {
+vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
+#ifdef OPENVINO_STATIC_LIBRARY
+    // Always use vpux compiler
+    (void)(config);
+    vpux::ICompiler::Ptr mlir = std::make_shared<vpux::CompilerImpl>();
+    return std::make_shared<Compiler>(mlir);
+#else
+    const auto compilerType = config.get<COMPILER_TYPE>();
+
+    switch (compilerType) {
     case InferenceEngine::VPUXConfigParams::CompilerType::MCM: {
         return std::make_shared<Compiler>(getLibFilePath("frontend_mcm"));
     }
@@ -64,6 +78,7 @@ vpux::Compiler::Ptr vpux::Compiler::create(const VPUXConfig& config) {
         IE_THROW() << "Compiler type not found";
     }
     IE_ASSERT(false);
+#endif
 }
 
 InferenceEngine::InputsDataMap vpux::helpers::dataMapIntoInputsDataMap(const vpux::DataMap& dataMap) {

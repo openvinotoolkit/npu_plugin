@@ -13,6 +13,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
             },
@@ -112,6 +115,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
             },
@@ -143,6 +149,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
             },
@@ -173,6 +182,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -206,7 +218,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -301,7 +314,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -323,8 +337,9 @@
         },
 
         {
-            "name" : "BDK_tf_FP16-INT8_yolo_v4_tiny",
-            "ir" : "models/clientmodels/BDK3/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
+            "name" : "por_tf_FP16-INT8_yolo_v4_tiny",
+            "oldName" : "BDK_tf_FP16-INT8_yolo_v4_tiny_MLIR",
+            "ir" : "por/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
             "category" : "MLIR/precommit",
             "3720": {
                 "disabled" : true
@@ -349,7 +364,7 @@
             },
             "AccuracyCheck" : {
                 "config": "yolo_v4_tiny_tf.yml",
-                "subsample_size": 10
+                "subsample_size": 100
             },
             "CI-options" : {
                 "blob_name" : "yolo_v4_tiny_MLIR"
@@ -366,7 +381,8 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
+                "VPUX_EXECUTOR_STREAMS": "2",
+                "VPUX_COMPILATION_MODE_PARAMS": "compress-weights"
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -416,7 +432,211 @@
                 "blob_name" : "resnet-50-pytorch_sparse50_BDK_fp16"
             }
         },
+        
+        {
+            "name" : "BDK_FP16-INT8_yolo-v2-tiny-ava-0001",
+            "ir" : "models/clientmodels/BDK3/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "yolo-v2-tiny-ava-0001_tf"
+            }
+        },
 
+        {
+            "name" : "BDK_FP16-INT8_yolo-v2-ava-0001",
+            "ir" : "models/clientmodels/BDK3/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "yolo-v2-ava-0001_tf"
+            }
+        },
+
+        {
+            "name" : "BDK_FP16-INT8_googlenet-v1",
+            "ir" : "models/clientmodels/BDK3/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "googlenet-v1_tf"
+            }
+        },
+ 
+        {
+            "name" : "BDK_FP16-INT8_googlenet-v3",
+            "ir" : "models/clientmodels/BDK3/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["299x299/n01537544_28.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "googlenet-v3_tf"
+            }
+        },
+  
+        {
+            "name" : "BDK_FP16-INT8_squeezenet1.1",
+            "ir" : "models/clientmodels/BDK3/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["227x227/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "squeezenet1-1_cf2"
+            }
+        },
+ 
+        {
+            "name" : "BDK_FP16-INT8_openpose-pose",
+            "ir" : "models/clientmodels/BDK3/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32",
+                "old_api" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["368x368/test.jpg"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "openpose-pose_cf"
+            }
+        },
+
+       
         {
             "name" : "por_tf_FP16_fsrcnn-x4",
             "ir" : "por/fsrcnn-x4/tf/FP16/fsrcnn-x4.xml",
@@ -489,6 +709,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -582,6 +805,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -613,6 +839,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -707,6 +936,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "299x299"
             },
@@ -800,6 +1032,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "227x227"
             },
@@ -866,7 +1101,8 @@
                 "input_precision" : "U8",
                 "input_layout" : "NHWC",
                 "output_precision" : "FP32",
-                "output_layout" : "NHWC"
+                "output_layout" : "NHWC",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "227x227"
@@ -932,6 +1168,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "512x512"
             },
@@ -955,36 +1194,6 @@
         },
 
         {
-            "name" : "scale_tf_FP16-INT8_faster_rcnn_resnet101_coco",
-            "ir" : "scale/faster_rcnn_resnet101_coco/tf/FP16-INT8/faster_rcnn_resnet101_coco.xml",
-            "category" : "MCM",
-            "disabled" :  true,
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "512x512"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "faster-rcnn-resnet101-coco_tf"
-            }
-        },
-
-        {
             "name" : "scale_tf_FP16-INT8_googlenet-v4",
             "ir" : "scale/googlenet-v4/tf/FP16-INT8/googlenet-v4.xml",
             "category" : "MCM/weekly_public",
@@ -995,6 +1204,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "299x299"
@@ -1029,6 +1241,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "300x300"
             },
@@ -1052,38 +1267,6 @@
         },
 
         {
-            "name" : "scale_tf_FP16-INT8_facenet-20180408-102900",
-            "ir" : "scale/facenet-20180408-102900/tf/FP16-INT8/facenet-20180408-102900.xml",
-            "category" : "MCM",
-            "disabled" :  true,
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "300x300"
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "NetTest": {
-                "inputs" : [["300x300/dog.bmp"]],
-                "params" : [
-                    "--mode", "raw",
-                    "--raw_tolerance", "0.1"
-                ]
-            },
-            "CI-options" : {
-                "blob_name" : "facenet-20180408-102900_tf",
-                "deprecated" : true
-            }
-        },
-
-        {
             "name" : "scale_caffe_FP16-INT8_person-vehicle-bike-detection-crossroad-0078",
             "ir" : "scale/person-vehicle-bike-detection-crossroad-0078/caffe/FP16-INT8/person-vehicle-bike-detection-crossroad-0078.xml",
             "category" : "MCM",
@@ -1095,6 +1278,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "1024x1024"
@@ -1114,66 +1300,6 @@
         },
 
         {
-            "name" : "scale_tf_FP16-INT8_vehicle-license-plate-detection-barrier-0106",
-            "ir" : "scale/vehicle-license-plate-detection-barrier-0106/tf/FP16-INT8/vehicle-license-plate-detection-barrier-0106.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "300x300"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "vehicle-license-plate-detection-barrier-0106.yml",
-                "subsample_size": 300
-            },
-            "CI-options" : {
-                "blob_name" : "vehicle-license-plate-detection-barrier-0106_tf"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16-INT8_face-detection-retail-0004",
-            "ir" : "scale/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004.xml",
-            "category" : "MCM",
-            "disabled" :  true,
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "300x300"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "face-detection-retail-0004_cf"
-            }
-        },
-
-        {
             "name" : "scale_caffe_FP16-INT8_resnet-101",
             "ir" : "scale/resnet-101/caffe/FP16-INT8/resnet-101.xml",
             "category" : "MCM/weekly_public",
@@ -1184,6 +1310,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -1204,163 +1333,6 @@
             }
         },
 
-        {
-            "name" : "scale_caffe_FP16-INT8_resnet-152",
-            "ir" : "scale/resnet-152/caffe/FP16-INT8/resnet-152.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "AccuracyCheck" : {
-                "disabled" : true,
-                "config": "resnet-152-cf_v10.yml"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.7"
-                ]
-            },
-            "CI-options" : {
-                "blob_name" : "resnet-152_cf"
-            },
-            "comments" :"AccuracyCheck disabled because model is not a priority."
-        },
-
-        {
-            "name" : "scale_caffe_FP16-INT8_alexnet",
-            "ir" : "scale/alexnet/caffe/FP16-INT8/alexnet.xml",
-            "category" : "MCM",
-            "disabled" :  true,
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "227x227"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "alexnet_cf"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16-INT8_vgg16",
-            "ir" : "scale/vgg16/caffe/FP16-INT8/vgg16.xml",
-            "category" : "MCM",
-            "disabled" :  true,
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.7"
-                ]
-            },
-            "CI-options" : {
-                "blob_name" : "vgg16_cf",
-                "deprecated" : true
-            }
-        },
-
-        {
-            "name" : "scale_onnx_FP16-INT8_resnet-18",
-            "ir" : "scale/resnet-18/onnx/FP16-INT8/resnet-18.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "AccuracyCheck" : {
-                "config": "resnet-18-pytorch_v10.yml"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.7"
-                ]
-            },
-            "CI-options" : {
-                "blob_name" : "resnet-18_onnx"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16-INT8_mobilenet-v1-1.0-224",
-            "ir" : "scale/mobilenet-v1-1.0-224/caffe/FP16-INT8/mobilenet-v1-1.0-224.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "AccuracyCheck" : {
-                "config": "mobilenet-v1-1.0-224_v10.yml"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.01"
-                ]
-            },
-            "CI-options" : {
-                "blob_name" : "mobilenet-v1-1-0-224_cf"
-            }
-        },
         {
             "name" : "scale_caffe_FP16_mobilenet-v1-1.0-224",
             "ir" : "scale/mobilenet-v1-1.0-224/caffe/FP16/mobilenet-v1-1.0-224.xml",
@@ -1421,160 +1393,6 @@
                 "blob_name" : "mobilenet-v1-1-0-224_cf"
             }
         },
-        {
-            "name" : "scale_caffe_FP16-INT8_resnet-50",
-            "ir" : "scale/resnet-50/caffe/FP16-INT8/resnet-50.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/cat3.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.01"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "resnet-50-caffe_v10.yml",
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "resnet-50_cf"
-            }
-        },
-
-        {
-            "name" : "scale_onnx_FP16-INT8_vehicle-attributes-recognition-barrier-0042",
-            "ir" : "scale/vehicle-attributes-recognition-barrier-0042/onnx/FP16-INT8/vehicle-attributes-recognition-barrier-0042.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "320x320"
-            },
-            "AccuracyCheck" : {
-                "config" : "vehicle-attributes-recognition-barrier-0042.yml",
-                "subsample_size": 100
-            },
-            "NetTest": {
-                "inputs" : [["320x320/car_fcn8_320.bmp"]],
-                "params" : [
-                    "--mode", "raw",
-                    "--raw_tolerance", "0.3"
-                ]
-            },
-            "CI-options" : {
-                "blob_name" : "vehicle-attributes-recognition-barrier-0042_onnx"
-            }
-        },
-
-        {
-            "name" : "scale_tf_FP16-INT8_yolo-v2-tiny-vehicle-detection-0001",
-            "ir" : "scale/yolo-v2-tiny-vehicle-detection-0001/tf/FP16-INT8/yolo-v2-tiny-vehicle-detection-0001.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "416x416"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config" : "yolo-v2-tiny-vehicle-detection-0001.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "yolo-v2-tiny-vehicle-detection-0001_tf"
-            }
-        },
-
-        {
-            "name" : "scale_onnx_FP16-INT8_resnet-34-pytorch",
-            "ir" : "scale/resnet-34-pytorch/onnx/FP16-INT8/resnet-34-pytorch.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/cat3.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.23"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "resnet-34-pytorch.yml",
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "resnet-34-pytorch_onnx"
-            }
-        },
-
-        {
-            "name" : "scale_tf_FP16-INT8_person-vehicle-bike-detection-crossroad-yolov3-1020",
-            "ir" : "scale/person-vehicle-bike-detection-crossroad-yolov3-1020/tf/FP16-INT8/person-vehicle-bike-detection-crossroad-yolov3-1020.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "416x416"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "person-vehicle-bike-detection-crossroad-yolov3-1020.yml",
-                "subsample_size": 10
-            },
-            "CI-options" : {
-                "blob_name" : "person-vehicle-bike-detection-crossroad-yolov3-1020_tf"
-            }
-        },
 
         {
             "name" : "por_tf_FP16-INT8_icnet-camvid-ava-0001",
@@ -1587,6 +1405,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "1024x1024"
@@ -1603,100 +1424,6 @@
             },
             "CI-options" : {
                 "blob_name" : "icnet-camvid-ava-0001_tf"
-            }
-        },
-
-        {
-            "name" : "cntk_FP16-INT8_tiny_yolo_v2",
-            "ir" : "tiny_yolo_v2/cntk/FP16-INT8/tiny_yolo_v2.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "416x416"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "tiny_yolo_v2-cntk.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "tiny-yolo-v2_cntk"
-            }
-        },
-
-        {
-            "name" : "scale_onnx_FP16-INT8_yolo_v2",
-            "ir" : "scale/yolo_v2/onnx/FP16-INT8/yolo_v2.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "416x416"
-            },
-            "AccuracyCheck" : {
-                "config": "yolo_v2-caffe2.yml",
-                "subsample_size": 100
-            },
-            "NetTest": {
-                "inputs" : [["416x416/person.bmp"]],
-                "params" : [
-                    "--mode", "raw",
-                    "--raw_tolerance", "1000"
-                ]
-            },
-            "CI-options" : {
-                "blob_name" : "yolo-v2_onnx"
-            }
-        },
-
-        {
-            "name" : "scale_tf_FP16-INT8_ssd_mobilenet_v2_coco",
-            "ir" : "scale/ssd_mobilenet_v2_coco/tf/FP16-INT8/ssd_mobilenet_v2_coco.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "300x300"
-            },
-            "NetTest": {
-                "inputs" : [["300x300/dog.bmp"]],
-                "params" : [
-                    "--mode", "ssd",
-                    "--confidence_threshold", "0.3",
-                    "--prob_tolerance", "0.3",
-                    "--box_tolerance", "0.1"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config" : "ssd_mobilenet_v2_coco.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "ssd-mobilenet-v2-coco_tf"
             }
         },
 
@@ -1776,6 +1503,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "300x300"
             },
@@ -1831,40 +1561,6 @@
         },
 
         {
-            "name" : "scale_tf_FP16-INT8_mobilenet-v1-0.25-128",
-            "ir" : "scale/mobilenet-v1-0.25-128/tf/FP16-INT8/mobilenet-v1-0.25-128.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/cat3.bmp"], ["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.08"
-                ]
-            },
-            "AccuracyCheck" : {
-                "disabled" : true,
-                "config" : "mobilenet-v1-0.25-128.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "mobilenet-v1-0-25-128_tf"
-            },
-            "comments" :"AccuracyCheck disabled because model is not a priority."
-        },
-
-        {
             "name" : "scale_caffe_FP16-INT8_emotions-recognition-retail-0003",
             "ir" : "scale/emotions-recognition-retail-0003/caffe/FP16-INT8/emotions-recognition-retail-0003.xml",
             "category" : "MCM/precommit",
@@ -1875,6 +1571,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -1894,471 +1593,6 @@
         },
 
         {
-            "name" : "scale_caffe_FP16-INT8_retinaface-mobilenetv2-0.25-modified",
-            "ir" : "scale/retinaface-mobilenetv2-0.25-modified/caffe/FP16-INT8/retinaface-mobilenetv2-0.25-modified.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "320x320"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config" : "retinaface-mobilenetv2-0.25-modified.yml",
-                "subsample_size": 10
-            },
-            "CI-options" : {
-                "blob_name" : "retinaface-mobilenetv2-0-25-modified_cf"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16_vas-face-detection-stage1",
-            "ir" : "scale/vas-face-detection-stage1/caffe/FP16/vas-face-detection-stage1.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "disabled" : true,
-            "BenchmarkApp" : {
-                "input_folder" : "320x240"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "vas_fd_stage1.yml",
-                "subsample_size": 100,
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-detection-stage1_cf"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16-INT8_vas-face-detection-stage2",
-            "ir" : "scale/vas-face-detection-stage2/caffe/FP16-INT8/vas-face-detection-stage2.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "48x48"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true,
-                "config": "vas_fd_stage2.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-detection-stage2_u8_cf"
-            }
-        },
-
-        {
-            "name" : "SINGLE_IMAGE_TEST_scale_caffe_FP16-INT8_vas-face-detection-stage2",
-            "ir" : "scale/vas-face-detection-stage2/caffe/FP16-INT8/vas-face-detection-stage2.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "disabled" : true
-            },
-            "NetTest": {
-                "inputs" : [["48x48/Alma_Powell_0_0.1133.jpg"]],
-                "params" : [
-                    "--mode", "raw",
-                    "--raw_tolerance", "0.02"
-                ]
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-detection-stage2_u8_cf_tmp"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16_vas-face-detection-stage2",
-            "ir" : "scale/vas-face-detection-stage2/caffe/FP16/vas-face-detection-stage2.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "Compile" : {
-                "input_precision" : "FP32"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "48x48"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true,
-                "config": "vas_fd_stage2.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-detection-stage2_fp16_cf"
-            },
-            "comments" :"AccuracyCheck disabled because model is not a priority."
-        },
-
-        {
-            "name" : "SINGLE_IMAGE_TEST_scale_caffe_FP16_vas-face-detection-stage2",
-            "ir" : "scale/vas-face-detection-stage2/caffe/FP16/vas-face-detection-stage2.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "Compile" : {
-                "input_precision" : "FP32"
-            },
-            "BenchmarkApp" : {
-                "disabled" : true
-            },
-            "NetTest": {
-                "inputs" : [["48x48/Alma_Powell_0_0.1133.jpg"]],
-                "params" : [
-                    "--mode", "raw",
-                    "--raw_tolerance", "0.002"
-                ]
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-detection-stage2_fp16_cf_tmp"
-            }
-        },
-
-        {
-            "name" : "scale_tf_FP16-INT8_vas-face-recognition-feature-extraction",
-            "ir" : "scale/vas-face-recognition-feature-extraction/tf/FP16-INT8/vas-face-recognition-feature-extraction.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "112x112"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "vas-face-recognition.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-recognition-feature-extraction_tf"
-            }
-        },
-
-        {
-            "name" : "scale_onnx_FP16-INT8_resnet50-v2",
-            "ir" : "scale/resnet50-v2/onnx/FP16-INT8/resnet50-v2.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.5"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "resnet-50-v2.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "resnet50-v2_onnx"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16-INT8_densenet-121",
-            "ir" : "scale/densenet-121/caffe/FP16-INT8/densenet-121.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.6"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "densenet-121-caffe.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "densenet-121_cf"
-            }
-        },
-
-        {
-            "name" : "scale_tf_FP16-INT8_densenet-121",
-            "ir" : "scale/densenet-121/tf/FP16-INT8/densenet-121.xml",
-            "category" : "MCM/weekly_public",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.04"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "densenet-121-tf.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "densenet-121_tf"
-            }
-        },
-
-        {
-            "name" : "por_caffe_FP16-INT8_densenet-169",
-            "ir" : "por/densenet-169/caffe/FP16-INT8/densenet-169.xml",
-            "category" : "MCM/weekly_public",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/rattlesnake.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.5"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "densenet-169-caffe.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "densenet-169_cf"
-            }
-        },
-
-    {
-            "name" : "scale_onnx_FP16-INT8_person-attributes-recognition-crossroad-0234",
-            "ir" : "scale/person-attributes-recognition-crossroad-0234/onnx/FP16-INT8/person-attributes-recognition-crossroad-0234.xml",
-            "category" : "MCM",
-            "disabled" : true,
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "320x180"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "person-attributes-recognition-crossroad-0234.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "person-attributes-recognition-crossroad-0234_onnx"
-            }
-        },
-
-        {
-            "name" : "scale_onnx_FP16-INT8_person-attributes-recognition-crossroad-0238",
-            "ir" : "scale/person-attributes-recognition-crossroad-0238/onnx/FP16-INT8/person-attributes-recognition-crossroad-0238.xml",
-            "category" : "MCM",
-            "disabled" : true,
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "320x180"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "person-attributes-recognition-crossroad-0238.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "person-attributes-recognition-crossroad-0238_onnx"
-            }
-        },
-
-        {
-            "name" : "scale_tf_FP16-INT8_text-detection-0003",
-            "ir" : "scale/text-detection-0003/tf/FP16-INT8/text-detection-0003.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "text-detection-0003.yml",
-                "subsample_size": 250
-            },
-            "CI-options" : {
-                "blob_name" : "text-detection-0003_tf"
-            }
-        },
-
-        {
-            "name" : "scale_tf_FP16-INT8_text-detection-0004",
-            "ir" : "scale/text-detection-0004/tf/FP16-INT8/text-detection-0004.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "text-detection-0004.yml",
-                "subsample_size": 250
-            },
-            "CI-options" : {
-                "blob_name" : "text-detection-0004_tf"
-            }
-        },
-
-        {
             "name" : "ea_caffe_FP16_age-gender-recognition-retail-0013_ww14",
             "ir" : "age-gender-recognition-retail-0013-ww14/caffe/FP16/age-gender-recognition-retail-0013.xml",
             "category" : "MLIR/precommit",
@@ -2368,9 +1602,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "BenchmarkApp" : {
                 "input_folder" : "62x62"
@@ -2391,6 +1623,52 @@
         },
 
         {
+            "name" : "MTL_scale_caffe_FP16_age-gender-recognition-retail-0013",
+            "ir" : "scale/age-gender-recognition-retail-0013/caffe/FP16/age-gender-recognition-retail-0013.xml",
+            "category" : "MLIR",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest-CalcRef": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.1"
+                ]
+            },
+            "NetTest-Validate": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.1"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_ea_caffe_FP16_age-gender-recognition-retail-0013"
+            }
+        },
+
+        {
             "name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013",
             "ir" : "scale/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013.xml",
             "category" : "MLIR/precommit",
@@ -2400,9 +1678,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "BenchmarkApp" : {
                 "input_folder" : "62x62"
@@ -2419,6 +1695,39 @@
             },
             "CI-options" : {
                 "blob_name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013"
+            }
+        },
+
+        {
+            "name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013_compressed",
+            "ir" : "scale/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013.xml",
+            "category" : "MLIR/precommit",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6",
+                "VPUX_COMPILATION_MODE_PARAMS": "compress-weights"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "62x62"
+            },
+            "NetTest": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.02"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "age-gender-recognition-retail-0013.yml"
+            },
+            "CI-options" : {
+                "blob_name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013_compressed"
             }
         },
 
@@ -2547,35 +1856,6 @@
         },
 
         {
-            "name" : "por_tf_FP16-INT8_license-plate-recognition-barrier-0007_ww34",
-            "ir" : "license-plate-recognition-barrier-0007-ww34/tf/FP16-INT8/license-plate-recognition-barrier-0007.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "24x94"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "license-plate-recognition-barrier-0007.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "license-plate-recognition-barrier-0007-ww34_tf"
-            }
-        },
-
-        {
             "name" : "BDK_FP16-INT8_ModelA",
             "ir" : "models/clientmodels/BDK3/ModelA/Surface/INT8/ModelA.xml",
             "category" : "MCM/precommit/weekly_private",
@@ -2586,6 +1866,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -2659,6 +1942,9 @@
                 "VPUX_THROUGHPUT_STREAMS": "1",
                 "VPUX_EXECUTOR_STREAMS":"1"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true,
                 "input_folder" : "1280x720"
@@ -2730,6 +2016,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2763,6 +2052,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2795,6 +2087,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -2887,6 +2182,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" :  true,
                 "input_folder" : "224x224"
@@ -2920,6 +2218,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -3076,6 +2377,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3110,6 +2414,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3143,6 +2450,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3174,6 +2484,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -3270,6 +2583,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3299,6 +2615,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -3331,6 +2650,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3361,6 +2683,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -3394,6 +2719,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -3461,6 +2789,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3481,74 +2812,6 @@
         },
 
         {
-            "name" : "por_onnx_FP16-INT8_unet-camvid-onnx-0001",
-            "ir" : "por/unet-camvid-onnx-0001/onnx/FP16-INT8/unet-camvid-onnx-0001.xml",
-            "category" : "MCM/weekly_public",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "Compile" : {
-                "output_precision" : "FP16"
-            },
-            "BenchmarkApp" : {
-                "disabled" : true
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "unet-camvid-onnx-0001_onnx"
-            }
-        },
-
-        {
-            "name" : "por_caffe_FP16-INT8_openpose-pose",
-            "ir" : "por/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
-            "category" : "MCM/weekly_public",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "Compile" : {
-                "input_precision" : "U8",
-                "output_precision" : "FP32"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "368x368"
-            },
-            "NetTest": {
-                "inputs" : [["368x368/test.jpg"]],
-                "params" : [
-                    "--mode", "raw",
-                    "--raw_tolerance", "1000"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "openpose-pose-caffe.yml",
-                "subsample_size": 50
-            },
-            "CI-options" : {
-                "blob_name" : "openpose-pose_cf"
-            }
-        },
-
-
-        {
             "name" : "stereo_U8_640x360",
             "ir" : "Stereo/Stereo_640x360.xml",
             "category" : "MCM",
@@ -3562,7 +2825,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3597,7 +2861,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3632,7 +2897,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3667,7 +2933,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3702,7 +2969,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3737,7 +3005,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3768,6 +3037,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -3800,6 +3072,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -3831,6 +3106,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -3861,6 +3139,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3896,7 +3177,8 @@
             },
             "Compile" : {
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3931,7 +3213,8 @@
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
-                "input_precision" : "FP16"
+                "input_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3966,7 +3249,8 @@
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
-                "input_precision" : "FP16"
+                "input_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3998,6 +3282,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4033,7 +3320,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4066,6 +3354,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -4086,68 +3377,6 @@
         },
 
         {
-            "name" : "scale_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
-            "ir" : "scale/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
-            "category" : "MCM/weekly_public",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPU_COMPILER_NUM_CLUSTER": "1"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "1.0"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "mobilenet-v3-large-1.0-224-tf.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "mobilenet-v3-large-1.0-224_tf"
-            }
-        },
-
-        {
-            "name" : "scale_onnx_FP16-INT8_mobilenet-v3-large-1.0-224",
-            "ir" : "scale/mobilenet-v3-large-1.0-224/onnx/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "disabled" : true
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "mobilenet-v3-large-1.0-224_onnx"
-            }
-        },
-
-        {
             "name" : "SINGLE_IMAGE_TEST_scale_tf_FP16-INT8_mobilenet-v1-0.25-128",
             "ir" : "scale/mobilenet-v1-0.25-128/tf/FP16-INT8/mobilenet-v1-0.25-128.xml",
             "category" : "MCM/precommit",
@@ -4158,6 +3387,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4193,7 +3425,8 @@
             },
             "Compile" : {
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4226,6 +3459,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true,
                 "input_folder" : "224x224"
@@ -4249,8 +3485,8 @@
         },
 
         {
-            "name" : "MTL_FP16_age-gender-recognition-retail-0013-16-chan",
-            "ir" : "models/mtl/age-gender-recognition-16-chan/FP16/age-gender-recognition-retail-0013-16-chan.xml",
+            "name" : "MTL_FP16_age-gender-recognition-retail-0013-cut",
+            "ir" : "age-gender-recognition-retail-0013-ww46/caffe/FP16/age-gender-recognition-retail-0013-cut.xml",
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
@@ -4259,9 +3495,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
@@ -4272,19 +3506,129 @@
             "BenchmarkApp" : {
                 "input_folder" : "62x62"
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
+            "NetTest-CalcRef": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.1"
+                ]
             },
-            "NetTest-Validate" : {
-                "disabled" : true
+            "NetTest-Validate": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.1"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
                 "disabled" : true
             },
             "CI-options" : {
-                "blob_name" : "age-gender-16-chan"
+                "blob_name" : "age-gender-cut"
             },
             "comments" : "NHWC layout was chosen on purpose because this model for MTL."
+        },
+
+        {
+            "name" : "MTL_por_onnx_FP16_INT8_resnet-50-pytorch",
+            "ir" : "por/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml",
+            "category" : "MLIR",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "U8",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest-CalcRef": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
+            },
+            "NetTest-Validate": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ],
+                "input_precision" : "U8",
+                "output_precision" : "FP16"
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_resnet-50-pytorch_onnx_fp16_int8"
+            },
+            "comments" : "NHWC layout and FP16 precision set for MTL compilation purposes."
+        },
+
+        {
+            "name" : "MTL_por_onnx_FP16_INT8_mobilenet-v2",
+            "ir" : "por/mobilenet-v2/onnx/FP16-INT8/mobilenet-v2.xml",
+            "category" : "MLIR",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "U8",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.6",
+                    "--color_format", "RGB"
+                ]
+            },
+            "NetTest-Validate": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.6",
+                    "--color_format", "RGB"
+                ],
+                "input_precision" : "U8",
+                "output_precision" : "FP16"
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_mobilenet-v2_onnx_fp16_int8"
+            },
+            "comments" : "NHWC layout and FP16 precision set for MTL compilation purposes."
         },
 
         {
@@ -4298,9 +3642,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
@@ -4337,9 +3679,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
@@ -4468,7 +3808,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4503,7 +3844,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4538,7 +3880,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4579,7 +3922,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4694,7 +4038,8 @@
             },
             "Compile" : {
                 "input_precision" : "FP32",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -4726,6 +4071,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "512x512"
@@ -4778,6 +4126,43 @@
             "CI-options" : {
                 "blob_name" : "bdk_edsr3",
                 "special" : true
+            }
+        },
+
+        {
+            "name" : "por_onnx_FP16-INT8_yolo_v5m",
+            "ir" : "por/yolo_v5m/onnx/FP16-INT8/yolo_v5m.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : true
+            },
+            "3900": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"1"
+            },
+            "Compile" : {
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "yolo_v5m"
             }
         }
     ]

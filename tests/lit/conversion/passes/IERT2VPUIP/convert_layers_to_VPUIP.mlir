@@ -143,12 +143,12 @@ func @TimestampLayer(%arg0: memref<1xui32>) -> memref<1xui32> {
 
     // CHECK:       [[VAR0:%.*]] = IERT.StaticAlloc<0>
     // CHECK-NOT:       IERT.Timestamp
-    // CHECK:       [[VAR1:%.*]] = VPURT.DeclareBuffer "AbsoluteAddr" [0]
-    // CHECK:       [[VAR2:%.*]] = VPUIP.NNDMA 
-    // CHECK-SAME:           inputs([[VAR1]] : memref<1xui32, "AbsoluteAddr">) 
+    // CHECK:       [[VAR1:%.*]] = VPURT.DeclareBuffer "Register"
+    // CHECK:       [[VAR2:%.*]] = VPUIP.NNDMA
+    // CHECK-SAME:           inputs([[VAR1]] : memref<1xui32, "Register">)
     // CHECK-SAME:           outputs([[VAR0]] : memref<1xui32, "CMX_NN">)
-    // CHECK:       [[VAR3:%.*]] = VPUIP.NNDMA 
-    // CHECK:           inputs([[VAR2]] : memref<1xui32, "CMX_NN">) 
+    // CHECK:       [[VAR3:%.*]] = VPUIP.NNDMA
+    // CHECK:           inputs([[VAR2]] : memref<1xui32, "CMX_NN">)
     // CHECK:           outputs(%arg0 : memref<1xui32>)
     // CHECK:       return [[VAR3]] : memref<1xui32>
 }

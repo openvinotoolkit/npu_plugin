@@ -13,12 +13,13 @@
 
 #pragma once
 
-#include <ie_common.h>
+#include "vpux/utils/IE/config.hpp"
+#include "vpux_compiler.hpp"
 
+#include <ie_common.h>
 #include <description_buffer.hpp>
-#include <mcm_config.hpp>
+
 #include <memory>
-#include <vpux_compiler.hpp>
 
 class MCMCompiler final : public vpux::ICompiler {
 public:
@@ -26,17 +27,10 @@ public:
                                                        const std::string& netName,
                                                        const InferenceEngine::InputsDataMap& inputsInfo,
                                                        const InferenceEngine::OutputsDataMap& outputsInfo,
-                                                       const vpux::VPUXConfig& config) override;
+                                                       const vpux::Config& config) override;
     InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network,
-                                              const vpux::VPUXConfig& config) override;
+                                              const vpux::Config& config) override;
 
-    std::shared_ptr<vpux::INetworkDescription> parse(const std::vector<char>& network, const vpux::VPUXConfig& config,
+    std::shared_ptr<vpux::INetworkDescription> parse(const std::vector<char>& network, const vpux::Config& config,
                                                      const std::string& graphName = "") override;
-
-    std::unordered_set<std::string> getSupportedOptions() override;
-
-private:
-    const vpu::MCMConfig _config = {};
-    const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
-            new vpu::Logger("MCMCompiler", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
 };

@@ -40,13 +40,33 @@ FeasibleMemorySchedulerSpilling::FeasibleMemorySchedulerSpilling(mlir::FuncOp ne
                       "Unable to find insertion point for new allocation operations");
 }
 
-mlir::Value FeasibleMemorySchedulerSpilling::getAsyncResultForBuffer(mlir::Value buffer) {
-    for (auto bufferAlias : _aliasInfo.getAllAliases(buffer)) {
-        if (bufferAlias.getType().isa<mlir::async::ValueType>()) {
-            return bufferAlias;
+SmallVector<mlir::Value> FeasibleMemorySchedulerSpilling::getAsyncResultsForBuffer(
+        mlir::async::ExecuteOp opThatWasSpilled, mlir::Value buffer) {
+    SmallVector<mlir::Value> buffersToCheck = {buffer};
+    SmallVector<mlir::Value> asyncResults;
+
+    // Search if this buffer is a replacement for some original buffer which got spilled
+    // If such original buffer is located use it for aliases as this information is not updated
+    // with new buffers in dependant operations
+    for (auto& replacementPairs : _bufferReplacementAfterSpillRead) {
+        if (replacementPairs.second == buffer) {
+            buffersToCheck.push_back(replacementPairs.first);
         }
     }
-    VPUX_THROW("No async result matched for a given buffer");
+    for (auto& bufferToCheck : buffersToCheck) {
+        for (auto bufferAlias : _aliasInfo.getAllAliases(bufferToCheck)) {
+            if (bufferAlias.getType().isa<mlir::async::ValueType>() &&
+                bufferAlias.getDefiningOp() == opThatWasSpilled.getOperation()) {
+                asyncResults.push_back(bufferAlias);
+            }
+        }
+    }
+
+    VPUX_THROW_WHEN(asyncResults.empty(),
+                    "No async result matched for a given buffer\n buffer - {0}\n op that was spilled - {1}", buffer,
+                    opThatWasSpilled);
+
+    return asyncResults;
 }
 
 mlir::Value FeasibleMemorySchedulerSpilling::getBufferFromAsyncResult(mlir::Value asyncResult) {
@@ -63,10 +83,8 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
                                        llvm::formatv("spill_write_{0}", _depsInfo.getIndex(opThatWasSpilled)).str());
     _log.trace("Insert Spill Write copyOp - '{0}'", spillWriteNameLoc);
 
-    // Get information about current returned memref type and prepare new one with proper memory location
-    auto opToSpillResult = getAsyncResultForBuffer(bufferToSpill);
-    auto opToSpillAsyncType = opToSpillResult.getType().dyn_cast<mlir::async::ValueType>();
-    auto opToSpillMemRefType = opToSpillAsyncType.getValueType().cast<mlir::MemRefType>();
+    auto opToSpillMemRefType = bufferToSpill.getType().dyn_cast<mlir::MemRefType>();
+
     auto spillBufferMemType = changeMemSpace(opToSpillMemRefType, _secondLvlMemSpace);
 
     // Update address of the buffer that is to be spilled as spillWrite source buffer
@@ -83,18 +101,11 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
     auto spillWriteExecOp =
             builder.create<mlir::async::ExecuteOp>(spillWriteNameLoc, spillBuffer->getResultTypes(), None, None);
 
-    // Update operands of new AsyncExecOp to contain result of AsyncExecOp to be spilled
-    spillWriteExecOp.operandsMutable().append(opToSpillResult);
-    auto innerArg = spillWriteExecOp.getBody()->addArgument(opToSpillAsyncType.getValueType());
-
     // Create CopyOp in the body of new AsyncExecOp
     auto bodyBlock = &spillWriteExecOp.body().front();
     builder.setInsertionPointToStart(bodyBlock);
-    auto spillWriteCopyOp = builder.create<IERT::CopyOp>(spillWriteNameLoc, innerArg, spillBuffer.memref());
+    auto spillWriteCopyOp = builder.create<IERT::CopyOp>(spillWriteNameLoc, bufferToSpill, spillBuffer.memref());
     builder.create<mlir::async::YieldOp>(spillWriteNameLoc, spillWriteCopyOp->getResults());
-
-    // Add token dependencies
-    spillWriteExecOp.dependenciesMutable().assign(makeArrayRef(opThatWasSpilled.token()));
 
     // Update aliases for spillWrite result
     _aliasInfo.addAlias(spillBuffer.memref(), spillBuffer.memref());
@@ -112,10 +123,14 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
     // Update dependencies map and get new operation index
     _depsInfo.insertNewExecOpToDepsMap(spillWriteExecOp);
 
+    // Update dependency
+    _depsInfo.addDependency(opThatWasSpilled, spillWriteExecOp);
+
     return spillWriteExecOp;
 }
 
 mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(mlir::async::ExecuteOp opThatWasSpilled,
+                                                                              mlir::Value bufferToSpill,
                                                                               mlir::async::ExecuteOp spillWriteExecOp,
                                                                               mlir::async::ExecuteOp insertAfterExecOp,
                                                                               size_t allocatedAddress) {
@@ -137,6 +152,23 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     auto newBuffer = builder.create<mlir::memref::AllocOp>(spillReadNameLoc, newBufferMemType);
     _scan.handler().setAddress(newBuffer.memref(), allocatedAddress);
 
+    _log.trace("newBuffer - '{0}'", newBuffer);
+
+    // Store information about what buffer replaces original buffer that was marked for spilling
+    // If such replacement pair already exists, then update it with a new buffer
+    bool replacementPairFound = false;
+    for (auto& replacementPairs : _bufferReplacementAfterSpillRead) {
+        if (replacementPairs.second == bufferToSpill) {
+            replacementPairs.second = newBuffer.memref();
+            replacementPairFound = true;
+            break;
+        }
+    }
+    // If this buffer didn't correspond to any exisitng buffer replacement pair then insert a new one
+    if (!replacementPairFound) {
+        _bufferReplacementAfterSpillRead.insert({bufferToSpill, newBuffer.memref()});
+    }
+
     // Create new AsyncExecOp in correct place
     builder.setInsertionPointAfter(insertAfterExecOp);
     auto spillReadExecOp =
@@ -151,9 +183,6 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     builder.setInsertionPointToStart(bodyBlock);
     auto spillReadCopyOp = builder.create<IERT::CopyOp>(spillReadNameLoc, innerArg, newBuffer.memref());
     builder.create<mlir::async::YieldOp>(spillReadNameLoc, spillReadCopyOp->getResults());
-
-    // Add token dependencies
-    spillReadExecOp.dependenciesMutable().assign(makeArrayRef(spillWriteExecOp.token()));
 
     // Update alias for spillRead result
     _aliasInfo.addAlias(newBuffer.memref(), newBuffer.memref());
@@ -171,7 +200,164 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     // Update dependencies map and get new operation index
     _depsInfo.insertNewExecOpToDepsMap(spillReadExecOp);
 
+    // Update dependency
+    _depsInfo.addDependency(spillWriteExecOp, spillReadExecOp);
+
     return spillReadExecOp;
+}
+
+mlir::Operation* FeasibleMemorySchedulerSpilling::SpillUsersUpdate::getViewOpForMasterBuffer(mlir::Value asyncResult) {
+    // Identify pure viewOp for master buffer that is related to result of
+    // asyncExecOp that is spilled
+    mlir::Operation* viewOpForMasterBuffer = nullptr;
+
+    mlir::Value sourceAlias = asyncResult;
+    while ((sourceAlias = _spillingParentClass._aliasInfo.getSource(sourceAlias))) {
+        auto sourceOp = sourceAlias.getDefiningOp();
+        if (IERT::isPureViewOp(sourceOp)) {
+            if (auto viewOp = mlir::dyn_cast<mlir::ViewLikeOpInterface>(sourceOp)) {
+                if (viewOp.getViewSource() == _bufferToSpill) {
+                    VPUX_THROW_UNLESS(
+                            viewOpForMasterBuffer == nullptr,
+                            "Chain of pure-view ops is not supported for the same buffer in single async.ExecuteOp. "
+                            "Pure-view has already been identified for given asyncResult - {0}",
+                            asyncResult);
+                    viewOpForMasterBuffer = viewOp.getOperation();
+                }
+            }
+        }
+    }
+
+    return viewOpForMasterBuffer;
+}
+
+SmallVector<mlir::async::ExecuteOp>
+FeasibleMemorySchedulerSpilling::SpillUsersUpdate::getUsersOfSpilledOpThatNeedUpdate(
+        mlir::Value opThatWasSpilledResult) {
+    // Get all asyncExecOps that are users of result of spilled op and appear in
+    // IR after spillRead. Those users would need to be updated to refer to result
+    // of spillRead
+    SmallVector<mlir::async::ExecuteOp> usersOfSpilledOpThatNeedUpdate;
+    for (auto* user : opThatWasSpilledResult.getUsers()) {
+        if (mlir::isa_and_nonnull<mlir::async::ExecuteOp>(user) && !user->isBeforeInBlock(_spillReadExecOp)) {
+            usersOfSpilledOpThatNeedUpdate.push_back(mlir::dyn_cast_or_null<mlir::async::ExecuteOp>(user));
+        }
+    }
+    return usersOfSpilledOpThatNeedUpdate;
+}
+
+unsigned int FeasibleMemorySchedulerSpilling::SpillUsersUpdate::getOperandIndexForSpillResultUser(
+        mlir::async::ExecuteOp spillResultUser, mlir::Value spilledAsyncResult) {
+    // For a given user of result of spilled operation identify the
+    // operand index for this dependency
+    unsigned int operandIndex = 0;
+    bool operandFound = false;
+    for (const auto& operand : spillResultUser.getOperands()) {
+        if (operand.getType().isa<mlir::async::ValueType>()) {
+            if (operand == spilledAsyncResult) {
+                operandFound = true;
+                break;
+            }
+            operandIndex++;
+        }
+    }
+    VPUX_THROW_UNLESS(operandFound, "Unable to find async.ExecOp operand index matching result of op that was spilled");
+    return operandIndex;
+}
+
+void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::updateSpillResultUsers(mlir::Value oldResult,
+                                                                               mlir::Value newResult) {
+    // Find operations which should be excluded from operand update to result of spillRead.
+    // Those are all operations which appear in IR before spillRead
+    llvm::SmallPtrSet<mlir::Operation*, 1> excludedUsersFromOperandsUpdate;
+    for (auto* user : oldResult.getUsers()) {
+        if (mlir::isa_and_nonnull<mlir::async::ExecuteOp>(user) &&
+            user->isBeforeInBlock(_spillReadExecOp.getOperation())) {
+            excludedUsersFromOperandsUpdate.insert(user);
+        }
+    }
+
+    // Update connections opThatWasSpilled -> SpillWrite -> SpillRead -> UserOfSpilledBuffer
+    oldResult.replaceAllUsesExcept(newResult, excludedUsersFromOperandsUpdate);
+}
+
+void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::updateSpillBufferUsers(mlir::Value oldBuffer,
+                                                                               mlir::Value newBuffer) {
+    // Get information about the users of original output buffer that should still refer to it
+    // (e.g. operations that appear in IR before)
+    llvm::SmallPtrSet<mlir::Operation*, 1> excludedUsersFromOrigBufferUpdate;
+    for (auto* user : oldBuffer.getUsers()) {
+        if (user != nullptr) {
+            if (user->getParentOp()->isBeforeInBlock(_spillReadExecOp)) {
+                excludedUsersFromOrigBufferUpdate.insert(user);
+            }
+        }
+    }
+
+    // Update all users of original output buffer with the new buffer from spillRead except
+    // the operations which were identified to refer to old output buffer
+    oldBuffer.replaceAllUsesExcept(newBuffer, excludedUsersFromOrigBufferUpdate);
+
+    // Below is a temporary solution to update weigthsTable reference to weights in case
+    // weights buffer has been spilled at one point and weightTable need to refer to
+    // new location for weights to set proper pointers
+    // This code can be removed after EISW-25951 is integrated
+    for (auto& use : oldBuffer.getUses()) {
+        if (auto wTOp = mlir::dyn_cast_or_null<VPUIP::WeightsTableOp>(use.getOwner())) {
+            if (wTOp.weights() == oldBuffer) {
+                use.set(newBuffer);
+            }
+        }
+    }
+}
+
+void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage() {
+    auto opThatWasSpilledResults = _spillingParentClass.getAsyncResultsForBuffer(_opThatWasSpilled, _bufferToSpill);
+
+    auto spillReadExecOpResult = _spillReadExecOp.results()[0];
+
+    // Users referring to spilled buffer need to be properly updated to now refer to result of spillRead
+    for (auto& opThatWasSpilledResult : opThatWasSpilledResults) {
+        auto usersOfSpilledOpThatNeedUpdate = getUsersOfSpilledOpThatNeedUpdate(opThatWasSpilledResult);
+
+        // Identify pure viewOp for master buffer that is related to result of asyncExecOp
+        // that is spilled. If such operation is located then users need to have
+        // similar operation injected to properly refer to replacement of spilled buffer
+        auto* viewOpForMasterBuffer = getViewOpForMasterBuffer(opThatWasSpilledResult);
+        if (viewOpForMasterBuffer && !usersOfSpilledOpThatNeedUpdate.empty()) {
+            for (auto userOfSpilledOpThatNeedUpdate : usersOfSpilledOpThatNeedUpdate) {
+                auto userOfSpilledOpBodyBlock = &userOfSpilledOpThatNeedUpdate.body().front();
+                // Insert view Op defining relation between spilled buffer and user of
+                // asyncExecOp result referring to this buffer
+                mlir::OpBuilder builder(userOfSpilledOpThatNeedUpdate);
+                builder.setInsertionPointToStart(userOfSpilledOpBodyBlock);
+                auto newViewOp = builder.clone(*viewOpForMasterBuffer);
+
+                // Get asyncExecOp argument index related to result of spilled asyncExecOp
+                auto operandIndex =
+                        getOperandIndexForSpillResultUser(userOfSpilledOpThatNeedUpdate, opThatWasSpilledResult);
+
+                // Get argument of asyncExecOp block that would need to be updated
+                // to be used in the body through newly inserted view op
+                auto arg = userOfSpilledOpBodyBlock->getArgument(operandIndex);
+                arg.replaceAllUsesWith(newViewOp->getOpResult(0));
+
+                auto finalType = newViewOp->getOpOperand(0).get().getType();
+                newViewOp->setOperand(0, arg);
+                newViewOp->getOpOperand(0).get().setType(finalType);
+            }
+        }
+
+        updateSpillResultUsers(opThatWasSpilledResult, spillReadExecOpResult);
+    }
+
+    // Get new output buffer that is the result of spillRead
+    auto newOutputBuffer = _spillingParentClass.getBufferFromAsyncResult(spillReadExecOpResult);
+
+    // If there are operations which were referring directly to output buffer that was spilled
+    // they should be updated to refer to result of spillRead if they appear in the IR
+    // after the op whose result was spilled
+    updateSpillBufferUsers(_bufferToSpill, newOutputBuffer);
 }
 
 // This function will update operands of users of spilled buffer
@@ -182,55 +368,34 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::Value buff
     _log.trace("Update users of Spill Write-Read pair: '{0}' -> '{1}'", spillWriteExecOp->getLoc(),
                spillReadExecOp->getLoc());
 
-    auto opThatWasSpilledResult = getAsyncResultForBuffer(bufferToSpill);
-    auto spillReadExecOpResult = spillReadExecOp.results()[0];
-
-    // Find operations which should be excluded from operand update to result of spillRead.
-    // By default this is always spillWrite operation
-    llvm::SmallPtrSet<mlir::Operation*, 1> excludedUsersFromOperandsUpdate = {spillWriteExecOp.getOperation()};
-    for (auto* user : opThatWasSpilledResult.getUsers()) {
-        if (mlir::isa_and_nonnull<mlir::async::ExecuteOp>(user) &&
-            user->isBeforeInBlock(spillReadExecOp.getOperation())) {
-            excludedUsersFromOperandsUpdate.insert(user);
-        }
-    }
-
-    // Update connections opThatWasSpilled -> SpillWrite -> SpillRead -> UserOfSpilledBuffer
-    opThatWasSpilledResult.replaceAllUsesExcept(spillReadExecOpResult, excludedUsersFromOperandsUpdate);
-
-    // Add tokens matching those new data dependencies
-    for (auto* user : spillReadExecOpResult.getUsers()) {
-        if (auto userAsyncOp = mlir::dyn_cast_or_null<mlir::async::ExecuteOp>(user)) {
-            userAsyncOp.dependenciesMutable().append(makeArrayRef(spillReadExecOp.token()));
-        }
-    }
-
-    // If there are operations which were referring directly to output buffer that was spilled
-    // they should be updated to refer to result of spillRead if they appear in the IR
-    // after the op whose result was spilled
-    // Get information about the users of original output buffer that should still refer to it
-    // (e.g. operations that appear in IR before)
-    llvm::SmallPtrSet<mlir::Operation*, 1> excludedUsersFromOrigBufferUpdate;
-    for (auto* user : bufferToSpill.getUsers()) {
-        if (user != nullptr) {
-            if (mlir::isa_and_nonnull<mlir::async::ExecuteOp>(user->getParentOp()) &&
-                user->getParentOp()->isBeforeInBlock(spillReadExecOp.getOperation())) {
-                excludedUsersFromOrigBufferUpdate.insert(user);
+    // Find asyncExecOps which have result corresponding to buffer that got spilled
+    SmallVector<mlir::async::ExecuteOp> opsThatWereSpilled;
+    for (auto bufferAlias : _aliasInfo.getAllAliases(bufferToSpill)) {
+        if (bufferAlias.getType().isa<mlir::async::ValueType>()) {
+            if (const auto execOpWithSpilledResult =
+                        mlir::dyn_cast<mlir::async::ExecuteOp>(bufferAlias.getDefiningOp())) {
+                if (execOpWithSpilledResult->isBeforeInBlock(spillReadExecOp)) {
+                    opsThatWereSpilled.push_back(execOpWithSpilledResult);
+                }
             }
         }
     }
 
-    // Get new output buffer that is the result of spillRead
-    auto newOutputBuffer = getBufferFromAsyncResult(spillReadExecOpResult);
+    std::sort(opsThatWereSpilled.begin(), opsThatWereSpilled.end(),
+              [](mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execOp2) {
+                  return execOp2.getOperation()->isBeforeInBlock(execOp1.getOperation());
+              });
 
-    // Update all users of original output buffer with the new buffer from spillRead except
-    // the operations which were identified to refer to old output buffer
-    bufferToSpill.replaceAllUsesExcept(newOutputBuffer, excludedUsersFromOrigBufferUpdate);
+    for (auto& opThatWasSpilled : opsThatWereSpilled) {
+        _log.trace("Resolve users of operation: '{0}'", opThatWasSpilled->getLoc());
+        SpillUsersUpdate spillUsersUpdateHandler(*this, opThatWasSpilled, spillReadExecOp, bufferToSpill);
+        spillUsersUpdateHandler.resolveSpillBufferUsage();
+    }
 }
 
 // Create Spill Write operation based on data from feasible scheduler
 void FeasibleMemorySchedulerSpilling::createSpillWrite(
-        llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
+        SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
     auto& schedOp = scheduledOps[schedOpIndex];
     auto schedOpBuffer = schedOp.getBuffer(0);
     _log = _log.nest();
@@ -253,8 +418,14 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
     // of the original operation which result had to be spilled
     auto opThatWasSpilled = _depsInfo.getExecuteOpAtIndex(schedOp.op_);
 
+    auto spillBuffer = schedOpBuffer;
+    if (_bufferReplacementAfterSpillRead.find(schedOpBuffer) != _bufferReplacementAfterSpillRead.end()) {
+        spillBuffer = _bufferReplacementAfterSpillRead[schedOpBuffer];
+        _log.trace("Actual buffer for Spill Write - '{0}'", spillBuffer);
+    }
+
     auto spillWriteExecOp =
-            insertSpillWriteCopyOp(opThatWasSpilled, spillWriteInsertionPoint, schedOpBuffer, schedOp.beginResource(0));
+            insertSpillWriteCopyOp(opThatWasSpilled, spillWriteInsertionPoint, spillBuffer, schedOp.beginResource(0));
     _opIdAndSpillWritePairs.push_back({schedOpBuffer, spillWriteExecOp});
 
     size_t spillWriteIndex = _depsInfo.getIndex(spillWriteExecOp);
@@ -270,7 +441,7 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
 
 // Create Spill Read operation based on data from feasible scheduler
 void FeasibleMemorySchedulerSpilling::createSpillRead(
-        llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
+        SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
     auto& schedOp = scheduledOps[schedOpIndex];
     auto schedOpBuffer = schedOp.getBuffer(0);
     _log = _log.nest();
@@ -302,11 +473,17 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
     // In scheduledOpInfo structure op_ identifier for a spillRead operation contains id
     // of the original operation which result had to be spilled
     auto opThatWasSpilled = _depsInfo.getExecuteOpAtIndex(schedOp.op_);
-    auto spillReadExecOp = insertSpillReadCopyOp(opThatWasSpilled, spillWriteExecOp, spillReadInsertionPoint,
-                                                 schedOp.beginResource(0));
+
+    auto spillBuffer = schedOpBuffer;
+    if (_bufferReplacementAfterSpillRead.find(schedOpBuffer) != _bufferReplacementAfterSpillRead.end()) {
+        spillBuffer = _bufferReplacementAfterSpillRead[schedOpBuffer];
+        _log.trace("Actual buffer for Spill Read - '{0}'", spillBuffer);
+    }
+    auto spillReadExecOp = insertSpillReadCopyOp(opThatWasSpilled, spillBuffer, spillWriteExecOp,
+                                                 spillReadInsertionPoint, schedOp.beginResource(0));
 
     // After both SpillWrite and SpillRead are inserted update connections
-    updateSpillWriteReadUsers(schedOpBuffer, spillWriteExecOp, spillReadExecOp);
+    updateSpillWriteReadUsers(spillBuffer, spillWriteExecOp, spillReadExecOp);
 
     // Remove given spillWrite operation from opId-spillWrite pair vector storage
     // after it was used to prevent from invalid usage once same buffer gets
@@ -325,8 +502,6 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
              otherSchedOp.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_READ) &&
             otherSchedOp.getBuffer(0) == schedOpBuffer) {
             otherSchedOp.op_ = spillReadIndex;
-            // Get new output buffer that is the result of spillRead
-            otherSchedOp.resourceInfo_[0].buffer_ = getBufferFromAsyncResult(spillReadExecOp.results()[0]);
         }
     }
     // After implicit spillRead operation has been replaced with a proper copy op task then update
@@ -339,7 +514,7 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
 // This method will go through all scheduled ops and when spill
 // operation is identified it will translate it to required CopyOp
 void FeasibleMemorySchedulerSpilling::insertSpillCopyOps(
-        llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps) {
+        SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps) {
     _log.trace("Insert Spill CopyOps if needed");
     _log = _log.nest();
 

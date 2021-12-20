@@ -8,7 +8,6 @@
 
 #include "sw_layer_params.h"
 #include "sw_shave_lib_common.h"
-#include "sw_tensor_ref.h"
 
 namespace nn
 {

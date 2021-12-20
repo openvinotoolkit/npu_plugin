@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB compilation-mode=DefaultHW" --convert-to-nce-ops %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB compilation-mode=DefaultHW" --convert-to-nce-ops %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
@@ -250,7 +250,7 @@ func @QuantEltwiseMulTest(%arg0: memref<1x64x28x28x!qElemType0, #NHWC>,
 // CHECK-SAME:      variants :
 // CHECK:               DPUTask {
 // CHECK-SAME:              end = [27, 4, 63]
-// CHECK-SAME:              mpe_mode = "VECTOR_FP16"
+// CHECK-SAME:              mpe_mode = "MATRIX"
 // CHECK-SAME:              pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
 // CHECK-SAME:              start = [0, 0, 0]
 

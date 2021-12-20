@@ -146,7 +146,7 @@ DECLARE_VPUX_CONFIG_KEY(INFERENCE_TIMEOUT);
 
 /**
  * @brief [Only for VPUX Plugin]
- * Type: string, default is MCM.
+ * Type: string, default is MLIR.
  * Type of VPU compiler to be used for compilation of a network
  */
 enum class CompilerType { MCM, MLIR };
@@ -170,6 +170,13 @@ DECLARE_VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS);
  * Number of DPU groups
  */
 DECLARE_VPUX_CONFIG_KEY(DPU_GROUPS);
+
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: "YES", "NO", default is "NO"
+ * Print detailed profiling info during inference
+ */
+DECLARE_VPUX_CONFIG_KEY(PRINT_PROFILING);
 
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

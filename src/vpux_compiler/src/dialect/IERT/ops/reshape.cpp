@@ -29,16 +29,6 @@ mlir::LogicalResult vpux::IERT::verifyOp(GenericReshapeOp op) {
         return errorAt(op, "Reshape input and output must have the same number of elements");
     }
 
-    const auto inDimsOrder = DimsOrder::fromType(inType);
-    const auto outDimsOrder = DimsOrder::fromType(outType);
-
-    if (!inDimsOrder.isIdentity()) {
-        return errorAt(op, "Only identity DimsOrder is supported for input");
-    }
-    if (!outDimsOrder.isIdentity()) {
-        return errorAt(op, "Only identity DimsOrder is supported for output");
-    }
-
     const auto inReqs = StrideReqs::compact(inType.getRank());
     const auto outReqs = StrideReqs::compact(outType.getRank());
 

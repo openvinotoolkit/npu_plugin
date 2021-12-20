@@ -33,7 +33,13 @@ class KmbLogicalLayerTest_MLIR : public KmbLogicalLayerTest {};
 
 TEST_P(KmbLogicalLayerTest_MLIR, CompareWithRefs_HW) {
     useCompilerMLIR();
-    setReferenceHardwareModeMLIR();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(KmbLogicalLayerTest_MLIR, CompareWithRefs_SW) {
+    useCompilerMLIR();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 
@@ -61,13 +67,14 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t >>> inputShapes = {
         // {{2, 17, 3, 4}, {{4}, {1, 3, 4}}},
 };
 
-
 std::vector<InferenceEngine::Precision> inputsPrecisions = {
         InferenceEngine::Precision::FP16,
 };
 
 std::vector<ngraph::helpers::LogicalTypes> logicalOpTypes = {
         ngraph::helpers::LogicalTypes::LOGICAL_AND,
+        ngraph::helpers::LogicalTypes::LOGICAL_OR,
+        ngraph::helpers::LogicalTypes::LOGICAL_XOR,
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {

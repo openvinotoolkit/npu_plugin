@@ -173,15 +173,15 @@ mlir::LogicalResult ComposeStridedSlice::matchAndRewrite(IE::StridedSliceOp orig
 
     const auto firstBegin = parseIntArrayAttr<int64_t>(producerSliceOp.begins_attr().getValue());
     const auto nextBegin = parseIntArrayAttr<int64_t>(origOp.begins_attr().getValue());
-    auto resultBegin = llvm::SmallVector<int64_t>(nextBegin.size());
+    auto resultBegin = SmallVector<int64_t>(nextBegin.size());
 
     const auto firstEnd = parseIntArrayAttr<int64_t>(producerSliceOp.ends_attr().getValue());
     const auto nextEnd = parseIntArrayAttr<int64_t>(origOp.ends_attr().getValue());
-    auto resultEnd = llvm::SmallVector<int64_t>(nextEnd.size());
+    auto resultEnd = SmallVector<int64_t>(nextEnd.size());
 
     const auto firstStride = parseIntArrayAttr<int64_t>(producerSliceOp.strides_attr().getValue());
     const auto nextStride = parseIntArrayAttr<int64_t>(origOp.strides_attr().getValue());
-    auto resultStride = llvm::SmallVector<int64_t>(nextStride.size());
+    auto resultStride = SmallVector<int64_t>(nextStride.size());
 
     for (auto i : irange(firstBegin.size())) {
         resultBegin[i] = firstBegin[i] + nextBegin[i] * firstStride[i];

@@ -149,7 +149,6 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/utils/custom_strings.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/compression/hde.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/helpers.cpp"
-    "${PROJECT_SOURCE_DIR}/src/utils/profiling_parser.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/compression/btc.cpp"
 
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"

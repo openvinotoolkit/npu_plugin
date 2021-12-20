@@ -50,6 +50,9 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces ND tensor with 4D analogues for layers, which has such limitations on VPUIP level.
 Also this pass replaces ND network inputs and outputs with 4D analogues to overcome runtime limitations.
+### `-convert-shuffle-channels`: Convert ShuffleChannels to Reshape->Transpose->Reshape
+The pass is a part of `AdjustForVPU` pipeline.
+Converts ShuffleChannels to Reshape->Transpose->Reshape.
 ### `-convert-tile-to-per-axis-tiles`: Convert tile op by multiple axes to multiple PerAxisTile operations
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -62,6 +65,12 @@ This pass replaces all `Reorder` and `Transpose` operations with `MemPermute` op
 The pass is a part of `LowPrecision` pipeline.
 
 Pass detects quantized convolution and shifts weights data from a signed range to an unsigned one
+### `-delete-peraxis-quantization`: Delete PerAxis Quantize Dequantize for MTL
+The pass is a part of `LowPrecision` pipeline.
+
+It deletes per axis quantization which left after LPT.
+Conversion is not mathimatically equal, but for now it gives small
+    accuracy deviation
 ### `-dequantize-const`: Dequantize constant tensors
 The pass is a part of `LowPrecision` pipeline.
 
@@ -104,6 +113,11 @@ This pass converts `MatMul` inputs to 2d.
 
 For example, `MatMul` input with 4x1x64 geometry will be split to four inputs with 1x64 dimensions.
 Resulting inputs with filters go to `MatMul` operations and the outputs are concatenated.
+### `-handle-large-kernels`: Handle large kernels ops
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces average pooling layers that have kernels bigger than supported by hardware (11x11),
+with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13).
 ### `-merge-fake-quant`: Merge back to FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 
@@ -114,6 +128,9 @@ The pass is a part of `IECommon` pipeline.
 
 This pass tries to optimize out Reorder operations for common cases
 by propagating them from inputs to outputs and merging into layers.
+### `-resolve-pwl-post-ops`: Resolve requirements for fused PWL post-ops
+Ensures the correct quantization ranges are used for fused PWL activation functions or
+unfuses them if surrounding tensors are not quantized per-tensor.
 ### `-resolve-strided-slice`: Decouple strided slice to slice + reshape
 The pass is a part of `AdjustForVPU` pipeline.
 It replaces IE::StridedSlice with non zero masks to a simpler IE::StridedSlice with zero masks + IE::Reshape
@@ -128,6 +145,17 @@ able to quantize convolution and fuse bias and post-processing operations.
 The pass is a part of `LowPrecision` pipeline.
 
 It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
+### `-support-batch-for-pad`: Handle PadOp with non-zero padding on batch dimension
+The pass is a part of `AdjustForVPU` pipeline.
+
+Split `IE::PadOp` with pads_begin[M, x, x, x] and pads_end[N, x, x, x] into several parts.
+Create `IE::PadOp` with pads_begin[0, x, x, x] and pads_end[0, x, x, x] attributes.
+Append tensor of size M * batchSize to the beginning, and tensor of size N * batchSize to the end.
+Replace original `IE::PadOp` with `IE::Concat(%cst_front, %batchless_pad, %cst_back)`.
+Only `IE::PadMode::CONSTANT` case is supported.
+### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
+This pass is needed for MTL only since HW MaxPool does not support post-op operations.
+Operations are swapped only if there is an operation before MaxPool that supports post-ops.
 ### `-uniquify-ops`: Remove duplicating operations with a common producer Value
 The pass is a part of `AdjustForVPU` pipeline.
 

@@ -35,6 +35,8 @@ void KmbProfilingTest::runTest(const std::string output_name, bool mlir, bool pr
     }
     if (mlir) {
         netConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+    } else {
+        netConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
     }
 
     registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {
@@ -95,21 +97,13 @@ void KmbProfilingTest::runTest(const std::string output_name, bool mlir, bool pr
 }
 
 TEST_F(KmbProfilingTest, precommit_profilingMatchedName) {
-    runTest("Result");
-}
-
-TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName) {
-    runTest("conv");
-}
-
-TEST_F(KmbProfilingTest, precommit_profilingMatchedName_MLIR) {
     runTest("Result", true);
 }
 
-TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName_MLIR) {
+TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName) {
     runTest("conv", true);
 }
 
-TEST_F(KmbProfilingTest, precommit_profilingDisabled_MLIR) {
+TEST_F(KmbProfilingTest, precommit_profilingDisabled) {
     runTest("conv", true, false);
 }

@@ -15,8 +15,7 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/core/tiling.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -28,10 +27,19 @@
 #include <llvm/ADT/FunctionExtras.h>
 
 #include <numeric>
+#include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
 
 namespace {
+
+OutputTiling generateTiles(IE::TilingBuilderOpInterface origOp, Logger log) {
+    auto* op = origOp.getOperation();
+    const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
+    const auto outputShape = getShape(outputType);
+    auto nTilesOnDim = IE::computeGeneralTileStrategy(op, log);
+    return vpux::fillDividedTiles(nTilesOnDim, outputShape);
+}
 
 //
 // GenericTiling
@@ -55,12 +63,8 @@ mlir::LogicalResult GenericTiling::matchAndRewrite(IE::TilingBuilderOpInterface 
                                                    mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
 
-    const auto tiles = origOp.generateTiling(_log.nest());
-
+    const auto tiles = generateTiles(origOp, _log);
     _log.nest(1).trace("Create {0} tiles:", tiles.size());
-    for (const auto& outputTile : tiles) {
-        _log.nest(2).trace("{0}", outputTile);
-    }
 
     SmallVector<mlir::Value> resultTileVals;
     SmallVector<ShapeRef> resultTileOffsets;
@@ -69,7 +73,7 @@ mlir::LogicalResult GenericTiling::matchAndRewrite(IE::TilingBuilderOpInterface 
     resultTileOffsets.reserve(tiles.size());
 
     for (const auto& outputTile : tiles) {
-        const auto tiledRes = origOp.reifyTile(outputTile, rewriter);
+        const auto tiledRes = reifyTile(origOp, outputTile, rewriter, _log);
 
         const auto tiledShape = getShape(tiledRes);
         VPUX_THROW_UNLESS(tiledShape == outputTile.shape,
@@ -106,7 +110,8 @@ void IsolatedTilingPass::safeRunOnFunc() {
     target.addLegalOp<IE::SliceOp, IE::ConcatOp>();
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
-            return !iface.needTiling(_log.nest());
+            const auto resShape = getShape(op->getResult(0));
+            return iface.isSupportedTiling({TileInfo(resShape)}, _log.nest());
         }
 
         return true;

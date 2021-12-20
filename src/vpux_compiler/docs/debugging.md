@@ -36,6 +36,25 @@ if (const auto loc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
 }
 ```
 
+## Inference profiling
+There is a possibility to generate blob which will collect different profiling information during the inference.
+There are there basic engines which could be enabled of disabled for profiling:
+1. DMA profiling. Measure duration of each DMA operation during the inference by wrapping it with DMA from free running counter.
+  Affect performatce at most(up to 12% of performance drop)
+  Disable it with `VPUX_COMPILATION_MODE_PARAMS dma-profiling=false`
+2. DPU profining. Measure the execution time of each DPU Cluster Task. Affect performance up to 4%.
+  Disable it with `VPUX_COMPILATION_MODE_PARAMS dpu-profiling=false`
+3. UPA profiling. Measure the execution time of each UPA task and collect active and stall(DDR access failure) cycles for it.
+  Affect performance similary to DPU profiling.
+  Disable it with `VPUX_COMPILATION_MODE_PARAMS sw-profiling=false`
+All engines are enabled by default(but could be disabled using pipeline option `VPUX_COMPILATION_MODE_PARAMS`) if global profiling flag is set to enabled:
+  `PERF_COUNT YES` in the compile_tool or benchmark_app config file.
+By default printing of profiling information is done only using standard openvino API and benchmark_app tool which reports summarised information for layer in the network
+but using special flag `"VPUX_PRINT_PROFILING":"YES"` in the benchmark_app config you can enable printing of internal full report of profiling data.
+Also running InferenceManagerDemo with profiling enabled blob you will get additional file `profiling-0.bin` which could be parsed to the same full report using the next command: `./prof_parser test.blob profiling-0.bin`
+In order to enable profiling using vpux-opt/vpux-translate engine use option `--vpux-profiling` for `vpux-translate` and after run `vpux-opt` with profiling enabled:
+  `--default-hw-mode="vpu-arch=KMB profiling=true" ...`
+
 ## Generating MLIR without big constants
 
 `./vpux-opt --mlir-elide-elementsattrs-if-larger 8 net.mlir -o net_user.mlir`
@@ -84,15 +103,15 @@ It should be set to the output file path.
 
 ## Pass Logging (Developer build)
 
-The Logging messages during passes can be enabled with `IE_VPUX_COMPILER_LOG_FILTER` environment variable.
+The Logging messages during passes can be enabled with `IE_VPUX_LOG_FILTER` environment variable.
 It should be set to Posix Regex filter for pass argument name (see `vpux-opt --help`).
-For example, `export IE_VPUX_COMPILER_LOG_FILTER=convert-.*-to-VPUIP`.
+For example, `export IE_VPUX_LOG_FILTER=convert-.*-to-VPUIP`.
 
 ## Pass Timing
 
 The **VPUX NN Compiler** can print the Pass performance information.
 It is printed via Logger at `INFO` level, so it will be visible, if that level is enabled.
-Also it can be enabled with `export IE_VPUX_COMPILER_LOG_FILTER=vpux-compiler`.
+Also it can be enabled with `export IE_VPUX_LOG_FILTER=vpux-compiler`.
 
 ## VS Code extension
 

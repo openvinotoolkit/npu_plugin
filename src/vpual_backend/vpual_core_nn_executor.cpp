@@ -14,6 +14,7 @@
 #include "vpual_core_nn_executor.hpp"
 
 #include "vpux/utils/IE/blob.hpp"
+#include "vpux/utils/IE/format.hpp"
 #include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
 
@@ -27,9 +28,9 @@
 #include <utility>
 #include <vector>
 #include <vpu/utils/enums.hpp>
-#include <vpu/utils/logger.hpp>
 
-#include "mcm/utils/profiling_parser.hpp"
+#include "vpux/utils/IE/profiling.hpp"
+#include "vpux/utils/plugin/profiling_parser.hpp"
 
 #if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
 #include "mmapped_pointer.hpp"
@@ -55,6 +56,9 @@
 #endif
 
 #include "vpual_config.hpp"
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/runtime.hpp"
+
 #include "vpusmm_allocator.hpp"
 
 namespace ie = InferenceEngine;
@@ -68,8 +72,8 @@ constexpr int VPU_CSRAM_DEVICE_ID = 32;
 constexpr uint16_t XLINK_IPC_CHANNELS = 1024;
 
 void VpualCoreNNExecutor::initWatchDog() {
-    _wd.reset(new WatchDog(_config.inferenceTimeoutMs(), _logger, [this]() {
-        _logger->error("%d milliseconds have passed, closing xlink channels.", _config.inferenceTimeoutMs());
+    _wd.reset(new WatchDog(_config.get<INFERENCE_TIMEOUT_MS>(), _logger, [this]() {
+        _logger.error("{0} milliseconds have passed, closing xlink channels.", _config.get<INFERENCE_TIMEOUT_MS>());
         auto xhndl{getXlinkDeviceHandle(_nnXlinkPlg->getDeviceId())};
         for (uint16_t i{0}; i < XLINK_IPC_CHANNELS; ++i) {
             xlink_close_channel(&xhndl, i);
@@ -223,7 +227,7 @@ void VpualCoreNNExecutor::PipePrintHandler::threadBody(PipePrintHandler* obj) {
 VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
                                          const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId,
                                          const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform,
-                                         const VpualConfig& config)
+                                         const Config& config)
         : _networkDescription(networkDescription),
           _allocator(allocator),
           _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
@@ -238,7 +242,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
               }
           }),
           _config(config),
-          _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
+          _logger("VpualCoreNNExecutor", _config.get<LOG_LEVEL>()),
 #if defined(__arm__) || defined(__aarch64__)
           _nnXlinkPlg(new NnXlinkPlg(deviceId)),
           _nnCorePlg(new NnCorePlg(deviceId),
@@ -289,7 +293,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
         inputsTotalSize += getMemorySize(tensorDesc);
     }
     _inputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(inputsTotalSize.count())));
-    _logger->debug("Allocated buffer for input with the size: %d", inputsTotalSize);
+    _logger.debug("Allocated buffer for input with the size: {0}", inputsTotalSize);
 
     allocateGraph(_networkDescription->getCompiledNetwork());
     initWatchDog();
@@ -303,7 +307,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
         const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
         const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg, const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
         const std::shared_ptr<VpualCoreNNSynchronizer<VpualSyncXLinkImpl>>& other_nnSync,
-        const std::shared_ptr<Pipeline>& other_pipe, const std::shared_ptr<WatchDog>& wd, const VpualConfig& config)
+        const std::shared_ptr<Pipeline>& other_pipe, const std::shared_ptr<WatchDog>& wd, const Config& config)
         : _networkDescription(networkDescription),
           _allocator(allocator),
           _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
@@ -318,7 +322,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
               }
           }),
           _config(config),
-          _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
+          _logger("VpualCoreNNExecutor", _config.get<LOG_LEVEL>()),
           _nnXlinkPlg(other_nnXlinkPlg),
           _nnCorePlg(other_nnCorePlg),
           _vpualSyncImpl(other_nnXlinkPlg),
@@ -350,7 +354,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
         inputsTotalSize += getMemorySize(tensorDesc);
     }
     _inputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(inputsTotalSize.count())));
-    _logger->debug("Allocated buffer for input with the size: %d", inputsTotalSize);
+    _logger.debug("Allocated buffer for input with the size: {0}", inputsTotalSize);
 
     const size_t outputsSize = _nnCorePlg->GetNumberOfOutputs();
     size_t outputTotalSize = 0;
@@ -360,7 +364,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
     }
 
     _outputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(outputTotalSize)));
-    _logger->debug("Allocated buffer for output with the size: %d", outputTotalSize);
+    _logger.debug("Allocated buffer for output with the size: {0}", outputTotalSize);
 
     off_t outputOffset = 0;
     auto outputAddress = _allocator->getPhysicalAddress(_outputBuffer.get());
@@ -379,7 +383,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
     }
 
     _profilingOutputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(profilingOutputTotalSize)));
-    _logger->debug("Allocated buffer for profiling output with the size: %d", profilingOutputTotalSize);
+    _logger.debug("Allocated buffer for profiling output with the size: {0}", profilingOutputTotalSize);
 
     off_t profilingOutputOffset = 0;
     auto profilingOutputAddress = _allocator->getPhysicalAddress(_profilingOutputBuffer.get());
@@ -414,13 +418,12 @@ namespace {
  * 5. Track allocated chunks by virtual addresses to free them properly
  */
 static std::vector<void*> setScratchHelper(const std::shared_ptr<NnCorePlg>& nnCorePtr, const unsigned int threadCount,
-                                           const std::shared_ptr<vpux::Allocator>& allocatorPtr,
-                                           const std::shared_ptr<vpu::Logger>& logger) {
+                                           const std::shared_ptr<vpux::Allocator>& allocatorPtr, Logger logger) {
     if (threadCount > 1) {
-        logger->warning("scratchHelper: trying to set scratch buffer to %u threads.", threadCount);
+        logger.warning("scratchHelper: trying to set scratch buffer to {0} threads.", threadCount);
     }
     uint32_t memoryReqs = nnCorePtr->GetScratchBufferSize();
-    logger->info("scratchHelper: GetMemoryRequirements returned %u", memoryReqs);
+    logger.info("scratchHelper: GetMemoryRequirements returned {0}", memoryReqs);
     constexpr uint32_t minimalScratchSize = 1024 * 1024;
     if (memoryReqs < minimalScratchSize) {
         memoryReqs = minimalScratchSize;
@@ -449,8 +452,7 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NnCorePlg>& nnC
 }
 
 static uint8_t* setPrefetchHelper(const std::shared_ptr<NnCorePlg>& nnCorePtr, const uint32_t preFetchSize,
-                                  const std::shared_ptr<vpux::Allocator>& allocatorPtr,
-                                  const std::shared_ptr<vpu::Logger>& logger) {
+                                  const std::shared_ptr<vpux::Allocator>& allocatorPtr, Logger logger) {
     uint8_t* preFetchVirtAddr = nullptr;
     if (preFetchSize > 0) {
         if (allocatorPtr == nullptr) {
@@ -464,7 +466,7 @@ static uint8_t* setPrefetchHelper(const std::shared_ptr<NnCorePlg>& nnCorePtr, c
         uint32_t preFetchAddrLower32Bits = preFetchPhysAddr & 0xffffffff;
         nnCorePtr->SetPrefetchBuffer({preFetchAddrLower32Bits, preFetchSize});
     } else {
-        logger->info("prefetchHelper: trying to set prefeth buffer with zero size. Skip.");
+        logger.info("prefetchHelper: trying to set prefeth buffer with zero size. Skip.");
     }
 
     return preFetchVirtAddr;
@@ -481,21 +483,24 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "allocateGraph");
     static int graphId_main = 1;
-    int nThreads = _config.throughputStreams();
+    int nThreads = _config.get<THROUGHPUT_STREAMS>();
     if (nThreads < 0) {
-        switch (_config.performanceHint()) {
-        case PerformanceHint::Latency:
-            nThreads = 3;
-            break;
-        case PerformanceHint::Throughput:
-            nThreads = 6;
-            break;
-        default:
+        if (_config.has<PERFORMANCE_HINT>()) {
+            switch (_config.get<PERFORMANCE_HINT>()) {
+            case PerformanceHint::Latency:
+                nThreads = 3;
+                break;
+            case PerformanceHint::Throughput:
+            default:
+                nThreads = 6;
+                break;
+            }
+        } else {
             nThreads = 6;  // TODO: consider updating once multi-clustering is enabled in compiler
         }
     }
 
-    _logger->info("allocateGraph begins");
+    _logger.info("allocateGraph begins");
 
     _blobHandle->graphid = graphId_main++;
     _blobHandle->graphBuff = 0x00000000;
@@ -506,7 +511,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     blob_file.reset(_allocator->alloc(_blobHandle->graphLen));
 
     if (blob_file == nullptr) {
-        _logger->error("allocateGraph: Error getting CMA for graph");
+        _logger.error("allocateGraph: Error getting CMA for graph");
         IE_THROW() << "allocateGraph: allocation failed for graph";
     }
 
@@ -520,7 +525,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
 
     auto status = _nnCorePlg->Create(*_blobHandle, nThreads);
     if (MVNCI_SUCCESS != status) {
-        _logger->error("allocateGraph: failed to create NnCorePlg");
+        _logger.error("allocateGraph: failed to create NnCorePlg");
         IE_THROW() << "VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: " << status;
     }
 
@@ -533,28 +538,27 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     const uint32_t pipelineDepth = nThreads * 2;
     auto xlinkStatus = _nnXlinkPlg->Create(pipelineDepth);
     if (xlinkStatus) {
-        _logger->error("VpualCoreNNExecutor::allocateGraph: failed to create NnXlinkPlg");
+        _logger.error("VpualCoreNNExecutor::allocateGraph: failed to create NnXlinkPlg");
         IE_THROW() << "VpualCoreNNExecutor::allocateGraph: failed to create NnXlinkPlg: " << xlinkStatus;
     }
 
     MvNCIVersion blobVersion;
     status = _nnCorePlg->GetBlobVersion(blobVersion);
     if (MVNCI_SUCCESS != status) {
-        _logger->error("allocateGraph: failed to get blob version");
+        _logger.error("allocateGraph: failed to get blob version");
         IE_THROW() << "VpualCoreNNExecutor::allocateGraph: failed to get blob version: " << status;
     }
 
-    const uint32_t upaShaves = _config.numberOfNnCoreShaves();
+    const uint32_t upaShaves = _config.get<INFERENCE_SHAVES>();
     if (upaShaves > 0) {
-        _logger->debug("::allocateGraph: SetNumUpaShaves to %d", upaShaves);
+        _logger.debug("::allocateGraph: SetNumUpaShaves to {0}", upaShaves);
         _nnCorePlg->SetNumUpaShaves(upaShaves);
     }
 
-    _logger->info("Blob Version: %d %d %d", static_cast<int>(blobVersion.major), static_cast<int>(blobVersion.minor),
-                  static_cast<int>(blobVersion.patch));
+    _logger.info("Blob Version: {0} {1} {2}", blobVersion.major, blobVersion.minor, blobVersion.patch);
     _scratchBuffers = setScratchHelper(_nnCorePlg, nThreads, _allocator, _logger);
     auto detectedPlatform = _platform;
-    auto configPlatform = _config.platform();
+    auto configPlatform = _config.get<PLATFORM>();
     auto targetPlatform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
     if (configPlatform == InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO) {
         // use detected platfrom when auto detect is set
@@ -564,7 +568,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
         targetPlatform = configPlatform;
     }
 
-    const auto csramUserSize = _config.CSRAMSize();
+    const auto csramUserSize = _config.get<CSRAM_SIZE>();
     const bool platformHasCSRAM =
             std::any_of(platformsWithCSRAM.begin(), platformsWithCSRAM.end(),
                         [targetPlatform](const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform) -> bool {
@@ -576,7 +580,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
             // if user set the size manually, use that amount
             preFetchSize = static_cast<uint32_t>(csramUserSize);
         } else {
-            _logger->warning("VPUX_CSRAM_SIZE is not equal to zero, but the platform cannot allocate CSRAM");
+            _logger.warning("VPUX_CSRAM_SIZE is not equal to zero, but the platform cannot allocate CSRAM");
         }
     } else if (csramUserSize < 0) {
         // otherwise, get the size from NN Core plug-in
@@ -588,22 +592,22 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     }
 
     auto tensorDeserializer = [&](const TensorRefNDData& descriptor) -> void {
-        _logger->info("{ Shape: %s, Strides: %s, DType: %s, Order: %s }", vpu::utils::serializeShape(descriptor),
-                      vpu::utils::serializeStrides(descriptor), vpu::utils::serializeDType(descriptor),
-                      vpu::utils::serializeOrder(descriptor));
+        _logger.info("{ Shape: {0}, Strides: {1}, DType: {2}, Order: {3} }", vpu::utils::serializeShape(descriptor),
+                     vpu::utils::serializeStrides(descriptor), vpu::utils::serializeDType(descriptor),
+                     vpu::utils::serializeOrder(descriptor));
     };
     auto tensorDeserializerFlic = [&](const flicTensorDescriptor_t& descriptor) -> void {
-        _logger->info(
-                "{ n: %d, c: %d, h: %d, w: %d, totalSize: %d, widthStride: %d, heightStride: %d, channelsStride: %d}",
-                descriptor.n, descriptor.c, descriptor.h, descriptor.w, descriptor.totalSize, descriptor.widthStride,
-                descriptor.heightStride, descriptor.channelsStride);
+        _logger.info("{ n: {0}, c: {1}, h: {2}, w: {3}, totalSize: {4}, widthStride: {5}, heightStride: {6}, "
+                     "channelsStride: {7}}",
+                     descriptor.n, descriptor.c, descriptor.h, descriptor.w, descriptor.totalSize,
+                     descriptor.widthStride, descriptor.heightStride, descriptor.channelsStride);
     };
 
-    _logger->info("Deserializing descriptors:");
+    _logger.info("Deserializing descriptors:");
     size_t inputsSize = _nnCorePlg->GetNumberOfInputs();
     for (size_t inputIdx = 0; inputIdx < inputsSize; inputIdx++) {
         TensorRefNDData descIn = _nnCorePlg->GetInputTensorRef(inputIdx);
-        _logger->info("Input: %d", inputIdx);
+        _logger.info("Input: {0}", inputIdx);
         tensorDeserializer(descIn);
     }
 
@@ -611,14 +615,14 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     size_t outputTotalSize = 0;
     for (size_t outputIdx = 0; outputIdx < outputsSize; outputIdx++) {
         TensorRefNDData descOut = _nnCorePlg->GetOutputTensorRef(outputIdx);
-        _logger->info("Output: %d", outputIdx);
+        _logger.info("Output: {0}", outputIdx);
         tensorDeserializer(descOut);
 
         outputTotalSize += vpu::utils::getTotalSize(descOut);
     }
 
     _outputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(outputTotalSize)));
-    _logger->debug("Allocated buffer for output with the size: %d", outputTotalSize);
+    _logger.debug("Allocated buffer for output with the size: {0}", outputTotalSize);
 
     off_t outputOffset = 0;
     for (size_t outputIdx = 0; outputIdx < outputsSize; outputIdx++) {
@@ -633,14 +637,14 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     size_t profilingOutputTotalSize = 0;
     for (size_t profilingOutputIdx = 0; profilingOutputIdx < profilingOutputsSize; profilingOutputIdx++) {
         flicTensorDescriptor_t descOut = _nnCorePlg->GetProfilingOutputTensorDescriptor(profilingOutputIdx);
-        _logger->info("Output: %d", profilingOutputIdx);
+        _logger.info("Output: {0}", profilingOutputIdx);
         tensorDeserializerFlic(descOut);
 
         profilingOutputTotalSize += descOut.totalSize;
     }
 
     _profilingOutputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(profilingOutputTotalSize)));
-    _logger->debug("Allocated buffer for profiling output with the size: %d", profilingOutputTotalSize);
+    _logger.debug("Allocated buffer for profiling output with the size: {0}", profilingOutputTotalSize);
 
     off_t profilingOutputOffset = 0;
     for (size_t profilingOutputIdx = 0; profilingOutputIdx < profilingOutputsSize; profilingOutputIdx++) {
@@ -660,7 +664,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
 
     _pipe->Start();
 
-    _logger->info("Started FLIC pipeline...");
+    _logger.info("Started FLIC pipeline...");
 #else
     VPUX_UNUSED(graphFileContent);
 #endif
@@ -690,16 +694,21 @@ static bool needRepackForNHWC(const ie::TensorDesc& actualDesc) {
          1) NC & C there isn't necessary to do repacking,
             because these layouts has the same representation in NCHW & NHWC
          2) NHWC isn't necessary to do repacking obviously
-         3) NCHW in general case it should be repacked, however if it is 11HW it isn't necessary
-         4) CHW the same as for NCHW case, it isn't necessary to do repacking in 1HW case
+         3) NDHWC isn't necessary to do repacking
+         4) NCHW in general case it should be repacked, however if it is 11HW it isn't necessary
+         5) CHW the same as for NCHW case, it isn't necessary to do repacking in 1HW case
+         6) NCDHW in general case it should be repacked, however if it is 111HW it isn't necessary
      */
     const auto actualLayout = actualDesc.getLayout();
     const auto& actualDims = actualDesc.getDims();
     switch (actualLayout) {
+    case ie::Layout::NDHWC:
     case ie::Layout::NHWC:
     case ie::Layout::NC:
     case ie::Layout::C:
         return false;
+    case ie::Layout::NCDHW:
+        return (actualDims[0] != 1) || (actualDims[1] != 1) || (actualDims[2] != 1);
     case ie::Layout::NCHW:
         return (actualDims[0] != 1) || (actualDims[1] != 1);
     case ie::Layout::CHW:
@@ -722,26 +731,26 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(const ie::Blob::Ptr&
     auto inputForInference = ie::as<ie::MemoryBlob>(actualInput);
 
     if (actualInputPrecision != devicePrecision) {
-        _logger->warning("Input blob is inconsistent with network input. "
-                         "Need to do convert precision from %d to %d.",
-                         actualInputPrecision, devicePrecision);
+        _logger.warning("Input blob is inconsistent with network input. "
+                        "Need to do convert precision from {0} to {1}.",
+                        actualInputPrecision, devicePrecision);
         inputForInference = toPrecision(inputForInference, devicePrecision, vpux::None, _allocator);
     }
 
     // HACK: to overcome inability python API to pass a blob of NHWC layout
-    if (_config.repackInputLayout()) {
-        _logger->warning("VPUX_VPUAL_REPACK_INPUT_LAYOUT is enabled. Need to do re-layout.");
+    if (_config.get<VPUAL_REPACK_INPUT_LAYOUT>()) {
+        _logger.warning("VPUX_VPUAL_REPACK_INPUT_LAYOUT is enabled. Need to do re-layout.");
         return reallocateBlobToLayoutIgnoringOriginalLayout(inputForInference, ie::Layout::NCHW, ie::Layout::NHWC,
                                                             _allocator);
     }
 
     if (!isBlobAllocatedByAllocator(inputForInference, _allocator)) {
-        _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
+        _logger.warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
         inputForInference = copyBlob(inputForInference, _allocator);
     }
 
     if (needRepackForNHWC(actualDesc) && deviceLayout == ie::Layout::NHWC) {
-        _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
+        _logger.warning("Input blob is inconsistent with network input. Need to do re-layout.");
 
         // NB: It's possible to make repack data only with the same number of dimensions
         // So just make a view without any copy
@@ -757,7 +766,7 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(const ie::Blob::Ptr&
 void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "push");
-    _logger->info("::push started");
+    _logger.info("::push started");
 
     ie::BlobMap updatedInputs;
     const auto& deviceInputs = _networkDescription->getDeviceInputsInfo();
@@ -787,11 +796,11 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 
     const auto status = _nnSync->RequestInference(request, _execInferId);
     if (X_LINK_SUCCESS != status) {
-        _logger->error("push: RequestInference failed");
+        _logger.error("push: RequestInference failed");
         IE_THROW() << "VpualCoreNNExecutor::push: RequestInference failed" << status;
     }
 
-    _logger->info("::push finished");
+    _logger.info("::push finished");
 #else
     VPUX_UNUSED(inputs);
 #endif
@@ -814,7 +823,7 @@ uint32_t VpualCoreNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inp
             IE_THROW() << "Memory of input is not valid";
         }
     } else {
-        _logger->warning("There are multiple blobs. Need to combine them into single buffer.");
+        _logger.warning("There are multiple blobs. Need to combine them into single buffer.");
         std::size_t offset = 0;
         for (const auto& input : inputs) {
             auto name = input.first;
@@ -841,22 +850,41 @@ uint32_t VpualCoreNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inp
 void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "pull");
-    _logger->info("pull started");
+    _logger.info("pull started");
     _wd->Start(this);
     const auto status = _nnSync->WaitForResponse(_execInferId);
     _wd->Pause(this);
     if (MVNCI_SUCCESS != status) {
-        _logger->error("pull: for inference: %d, received error response: %d", _execInferId, status);
+        _logger.error("pull: for inference: {0}, received error response: {1}", _execInferId, status);
         IE_THROW() << "VpualCoreNNExecutor::pull: "
                    << ", for inference: " << _execInferId << " received error response: " << status;
     }
     if (_outputPhysAddrs.empty()) {
-        _logger->error("_outputPhysAddrs.size() == 0");
+        _logger.error("_outputPhysAddrs.size() == 0");
         IE_THROW() << "Bad device output phys address";
     }
     ie::BlobMap deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
     repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
-    _logger->info("pull finished");
+
+    if (_config.get<PRINT_PROFILING>()) {
+        if (!_profilingOutputPhysAddrs.empty()) {
+            ie::BlobMap profilingOutputs = extractProfilingOutputsFromPhysAddr(_profilingOutputPhysAddrs.at(0));
+            if (!profilingOutputs.empty()) {
+                ie::BlobMap::iterator profilingOutputBlob = profilingOutputs.begin();
+                const auto profilingMemoryBlob = ie::as<ie::MemoryBlob>(profilingOutputBlob->second);
+                if (profilingMemoryBlob == nullptr) {
+                    IE_THROW() << "VPUX Plugin profiling blob is null: " << profilingOutputBlob->first;
+                }
+                const auto blob = _networkDescription->getCompiledNetwork();
+                const auto& profilingOutput = profilingMemoryBlob->rmap().as<const void*>();
+                vpux::printProfiling(blob.data(), blob.size(), profilingOutput, profilingMemoryBlob->byteSize());
+            }
+        } else {
+            _logger.error("Profiling printing is enabled but not profiling output detected");
+        }
+    }
+
+    _logger.info("pull finished");
 #else
     VPUX_UNUSED(outputs);
 #endif
@@ -910,8 +938,8 @@ void VpualCoreNNExecutor::repackDeviceOutputsToNetworkOutputs(const ie::BlobMap&
         const auto& networkDesc = outputBlob->getTensorDesc();
 
         if (deviceDesc.getPrecision() != networkDesc.getPrecision()) {
-            _logger->warning(
-                    "Output blob is inconsistent with network output. Need to do convert precision from %d to %d.",
+            _logger.warning(
+                    "Output blob is inconsistent with network output. Need to do convert precision from {0} to {1}.",
                     deviceDesc.getPrecision(), networkDesc.getPrecision());
         }
 
@@ -919,8 +947,8 @@ void VpualCoreNNExecutor::repackDeviceOutputsToNetworkOutputs(const ie::BlobMap&
 
         const auto outputMemory = outputBlob->wmap();
         if (needRepackForNHWC(networkDesc) && deviceDesc.getLayout() == ie::Layout::NHWC) {
-            _logger->warning("Output blob is inconsistent with network output. Need to do re-layout from %d to %d.",
-                             deviceDesc.getLayout(), networkDesc.getLayout());
+            _logger.warning("Output blob is inconsistent with network output. Need to do re-layout from {0} to {1}.",
+                            deviceDesc.getLayout(), networkDesc.getLayout());
 
             const auto actualView4D = makeBlob(vpu::getNCHW(networkDesc), nullptr, outputMemory.as<void*>());
             cvtBlobLayout(deviceBlobWithNetworkPrecision, actualView4D);
@@ -939,49 +967,35 @@ bool VpualCoreNNExecutor::isPreProcessingSupported(const PreprocMap&) const {
 }
 
 std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLayerStatistics() {
-    std::map<std::string, ie::InferenceEngineProfileInfo> perfCounts;
-
-    const auto blob = _networkDescription->getCompiledNetwork().data();
+    const auto blob = _networkDescription->getCompiledNetwork();
     ie::BlobMap deviceOutputs;
+    ie::BlobMap::iterator profilingOutputBlob;
     if (_profilingOutputPhysAddrs.size()) {
         deviceOutputs = extractProfilingOutputsFromPhysAddr(_profilingOutputPhysAddrs.at(0));
     }
-    auto profilingOutputBlob = deviceOutputs.find("profilingOutput");
-    if (profilingOutputBlob == deviceOutputs.end()) {
+    if (deviceOutputs.empty()) {
         deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
-    }
-    profilingOutputBlob = deviceOutputs.find("profilingOutput");
-    if (profilingOutputBlob == deviceOutputs.end()) {
-        _logger->warning("No profiling output. Blob was compiled without profiling enabled or does not contain "
-                         "profiling info.");
-        return perfCounts;
+        profilingOutputBlob = deviceOutputs.find("profilingOutput");
+        if (profilingOutputBlob == deviceOutputs.end()) {
+            _logger.warning("No profiling output. Blob was compiled without profiling enabled or does not contain "
+                            "profiling info.");
+            return std::map<std::string, ie::InferenceEngineProfileInfo>();
+        }
+    } else {
+        profilingOutputBlob = deviceOutputs.begin();
     }
 
     const auto profilingMemoryBlob = ie::as<ie::MemoryBlob>(profilingOutputBlob->second);
     if (profilingMemoryBlob == nullptr) {
         IE_THROW() << "VPUX Plugin profiling blob is null: " << profilingOutputBlob->first;
     }
-    const auto& profilingOutput = ie::as<ie::MemoryBlob>(profilingOutputBlob->second)->rmap().as<const void*>();
+    const auto& profilingOutput = profilingMemoryBlob->rmap().as<const void*>();
 
-    std::vector<mv::utils::ProfInfo> deviceProfiling;
-    mv::utils::getProfilingInfo(blob, profilingOutput, deviceProfiling);
+    std::vector<vpux::ProfilingLayerInfo> layerProfiling;
+    vpux::getLayerProfilingInfo(blob.data(), blob.size(), profilingOutput, profilingMemoryBlob->byteSize(),
+                                layerProfiling);
 
-    int execution_index = 0;
-    ie::InferenceEngineProfileInfo info;
-    for (const auto& profilingEntry : deviceProfiling) {
-        info.status = ie::InferenceEngineProfileInfo::EXECUTED;
-        info.cpu_uSec = info.realTime_uSec = profilingEntry.time;
-        info.execution_index = execution_index++;
-        size_t typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
-        std::size_t length = profilingEntry.layer_type.copy(info.layer_type, typeLen, 0);
-        info.layer_type[length] = '\0';
-        typeLen = sizeof(info.exec_type) / sizeof(info.exec_type[0]);
-        length = profilingEntry.exec_type.copy(info.exec_type, typeLen, 0);
-        info.exec_type[length] = '\0';
-        perfCounts[profilingEntry.name] = info;
-    }
-
-    return perfCounts;
+    return convertProfilingLayersToIEInfo(layerProfiling);
 }
 
 InferenceEngine::Parameter VpualCoreNNExecutor::getParameter(const std::string&) const {

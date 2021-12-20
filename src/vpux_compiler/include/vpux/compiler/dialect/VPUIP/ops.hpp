@@ -17,9 +17,8 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/structs.hpp"
-#include "vpux/compiler/dialect/VPUIP/effects.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
@@ -70,8 +69,9 @@ mlir::LogicalResult verifyOp(ConvolutionUPAOp op);
 mlir::LogicalResult verifyOp(NCEClusterTaskOp op);
 mlir::LogicalResult verifyOp(DPUTaskOp op);
 mlir::LogicalResult verifyOp(NormUPAOp op);
+mlir::LogicalResult verifyOp(ReverseSequenceUPAOp op);
+mlir::LogicalResult verifyOp(TopKUPAOp op);
 mlir::LogicalResult verifyPostOp(mlir::Operation* op);
-mlir::LogicalResult verifyOp(UPADMAOp op);
 mlir::LogicalResult verifyOp(NNDMAOp op);
 
 }  // namespace VPUIP

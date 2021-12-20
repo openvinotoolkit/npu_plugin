@@ -13,28 +13,31 @@
 
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
 
+#include "vpux/utils/IE/format.hpp"
+#include "vpux/utils/core/error.hpp"
+
 #include <algorithm>
 #include <sstream>
 #include <string>
 #include <vector>
 
-std::string cvtLogLevelToMCM(vpu::LogLevel lvl) {
+std::string cvtLogLevelToMCM(vpux::LogLevel lvl) {
     switch (lvl) {
-    case vpu::LogLevel::None:
+    case vpux::LogLevel::None:
         return "Silent";
 
-    case vpu::LogLevel::Fatal:
-    case vpu::LogLevel::Error:
+    case vpux::LogLevel::Fatal:
+    case vpux::LogLevel::Error:
         return "Error";
 
-    case vpu::LogLevel::Warning:
+    case vpux::LogLevel::Warning:
         return "Warning";
 
-    case vpu::LogLevel::Info:
+    case vpux::LogLevel::Info:
         return "Info";
 
-    case vpu::LogLevel::Debug:
-    case vpu::LogLevel::Trace:
+    case vpux::LogLevel::Debug:
+    case vpux::LogLevel::Trace:
         return "Debug";
 
     default:
@@ -50,10 +53,7 @@ mv::DType cvtOutputType(const ngraph::element::Type& elemType) {
     else if (ngraph::element::u8 == elemType)
         return mv::DType("UInt8");
     else {
-        std::stringstream msg;
-        msg << "Unsupported output element type: " << elemType;
-        IE_ASSERT(msg.str().c_str());
-        return mv::DType("Default");
+        VPUX_THROW("Unsupported output element type: {0}", elemType);
     }
 }
 

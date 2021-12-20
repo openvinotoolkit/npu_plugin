@@ -12,18 +12,22 @@
 //
 
 #pragma once
+
 // System
 #include <atomic>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <vector>
+
 // IE
-#include "ie_allocator.hpp"
-#include "ie_remote_context.hpp"
+#include <ie_allocator.hpp>
+#include <ie_remote_context.hpp>
+
 // Plugin
 #include "vpux.hpp"
-#include "vpux_config.hpp"
+#include "vpux/utils/core/logger.hpp"
+
 // Low-level
 #include <HddlUnite.h>
 #include <RemoteMemory.h>
@@ -52,7 +56,7 @@ public:
     using Ptr = std::shared_ptr<HDDL2RemoteAllocator>;
 
     explicit HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr,
-                                  const vpu::LogLevel logLevel = vpu::LogLevel::None);
+                                  const LogLevel logLevel = LogLevel::None);
 
     /**
      * @brief Lock memory and synchronize local buffer with remote
@@ -113,7 +117,7 @@ private:
 
     std::unordered_map<void*, HDDL2RemoteMemoryContainer> _memoryStorage;
     std::mutex memStorageMutex;
-    const vpu::Logger::Ptr _logger;
+    Logger _logger;
     std::unordered_map<void*, size_t> _memoryHandleCounter;
     std::unordered_map<void*, void*> _updatedMemoryHandle;
 };

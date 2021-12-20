@@ -13,22 +13,23 @@
 
 #pragma once
 
-#include <mlir/IR/Builders.h>
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+
+#include <mlir/IR/Builders.h>
 
 namespace vpux {
 namespace VPURT {
 
 template <typename OpTy, typename... Args>
-OpTy WrapIntoTaskOp(mlir::OpBuilder builder, mlir::ValueRange waitBarriers, mlir::ValueRange updateBarriers,
-                    mlir::Location location, Args&&... args) {
-    auto taskOp = builder.create<vpux::VPURT::TaskOp>(location, waitBarriers, updateBarriers);
-    auto& block = taskOp.op().emplaceBlock();
-    mlir::OpBuilder::InsertPoint lastInsertionPoint = builder.saveInsertionPoint();
+OpTy wrapIntoTaskOp(mlir::OpBuilder& builder, mlir::ValueRange waitBarriers, mlir::ValueRange updateBarriers,
+                    mlir::Location loc, Args&&... args) {
+    auto taskOp = builder.create<vpux::VPURT::TaskOp>(loc, waitBarriers, updateBarriers);
+    auto& block = taskOp.body().emplaceBlock();
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToStart(&block);
-    auto ret = builder.create<OpTy>(location, std::forward<Args>(args)...);
-    builder.restoreInsertionPoint(lastInsertionPoint);
-    return ret;
+
+    return builder.create<OpTy>(loc, std::forward<Args>(args)...);
 }
 
 mlir::LogicalResult verifyTaskOp(TaskOp task);

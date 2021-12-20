@@ -423,35 +423,28 @@
   ]
 }
 
-// CHECK:   module @Test attributes {VPUIP.arch = "KMB"} {
+// CHECK:   module @Test attributes {VPU.arch = "KMB"} {
 
-// CHECK:   MemoryResource 524288000 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
-// CHECK:   MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+// CHECK:   MemoryResource 524288000 bytes of "DDR" {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
+// CHECK:   MemoryResource 917504 bytes of "CMX_NN" {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
 // CHECK:   MemoryResource 2048 bytes of "DDR"
 // CHECK:   MemoryResource 917504 bytes of "CMX_NN"
 // CHECK:   ExecutorResource 1 of "DMA_NN"
 // CHECK:   ExecutorResource 16 of "SHAVE_UPA"
-// CHECK:   ExecutorResource {VPUIP.processorFrequency = 7.000000e+02 : f64} 4 of "NCE_Cluster" {
-// CHECK:   ExecutorResource 5 of "NCE_PerClusterDPU"
-
-// CHECK:   options : "NONE"
-// CHECK:   contextStr = "VPUX Compiler"
-// CHECK:   hash = ""
-// CHECK:   majorV = 3
-// CHECK:   minorV = 11
-// CHECK:   patchV = 0
+// CHECK:   ExecutorResource {VPU.processorFrequency = 7.000000e+02 : f64} 4 of "NCE" {
+// CHECK:   ExecutorResource 5 of "DPU"
 
 // CHECK:   DataInfo "input" : tensor<1x1000xf32>
 // CHECK:   DataInfo "softmax" : tensor<1x1000xf32>
 
 // CHECK:   func @main(%arg0: memref<1x1x1x1000xf16, "DDR">, %arg1: memref<1x1x1x1000xf16, "DDR">) -> memref<1x1x1x1000xf16, "DDR"> {
 // CHECK:   %0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
-// CHECK:   %1 = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
-// CHECK:   VPURT.Task 
+// CHECK:   %1 = VPURT.DeclareBuffer "DDR"[0] <0> -> memref<1x1x1x1000xf16, "DDR">
+// CHECK:   VPURT.Task
 // CHECK:     waits(%0 : !VPURT.Barrier)
-// CHECK:   VPUIP.NNDMA {port = 0 : i64, set_crit = false, set_ord = true} inputs(%1 : memref<1x1x1x1000xf16, "DDR">) outputs(%arg1 : memref<1x1x1x1000xf16, "DDR">) -> memref<1x1x1x1000xf16, "DDR">
-// CHECK:   %2 = VPURT.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
-// CHECK:   VPURT.Task 
+// CHECK:   VPUIP.NNDMA {is_out_of_order, port = 0 : i64} inputs(%1 : memref<1x1x1x1000xf16, "DDR">) outputs(%arg1 : memref<1x1x1x1000xf16, "DDR">) -> memref<1x1x1x1000xf16, "DDR">
+// CHECK:   %2 = VPURT.DeclareBuffer "DDR"[0] <0> -> memref<1x1x1x1000xf16, "DDR">
+// CHECK:   VPURT.Task
 // CHECK:     updates(%0 : !VPURT.Barrier)
 // CHECK:   VPUIP.SoftMaxUPA {axisInd = 3 : i64} inputs(%arg0 : memref<1x1x1x1000xf16, "DDR">) outputs(%2 : memref<1x1x1x1000xf16, "DDR">) -> memref<1x1x1x1000xf16, "DDR">
 // CHECK:   return %arg1 : memref<1x1x1x1000xf16, "DDR">

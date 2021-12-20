@@ -54,7 +54,7 @@ mlir::LogicalResult DequantizeConst::matchAndRewrite(IE::DequantizeOp dCastOp, m
 
     const auto newConstType = changeElemType(dCastOp.getType().cast<mlir::ShapedType>(), qElemType.getExpressedType());
     const auto newConstAttr = inputConst.contentAttr().dequantize();
-    rewriter.replaceOpWithNewOp<Const::DeclareOp>(dCastOp, newConstType, newConstAttr);
+    rewriter.replaceOpWithNewOp<Const::DeclareOp>(dCastOp, newConstType, newConstAttr)->setLoc(inputConst->getLoc());
 
     return mlir::success();
 }

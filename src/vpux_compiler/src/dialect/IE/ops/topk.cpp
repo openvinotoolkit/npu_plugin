@@ -48,7 +48,12 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     for (size_t i = 0; i < inputShape.size(); ++i) {
         outShape.push_back(inputShape[i]);
     }
-    outShape[topK.axis().getInt()] = kContent.getSplatValue<int64_t>();
+    int64_t axis = topK.axis().getInt();
+    const auto inRank = inType.getRank();
+    if (axis < 0) {
+        axis += inRank;
+    }
+    outShape[axis] = kContent.getSplatValue<int64_t>();
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
     inferredReturnShapes.emplace_back(outShape, topK.element_type().getValue());

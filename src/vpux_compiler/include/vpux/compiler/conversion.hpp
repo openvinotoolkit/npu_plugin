@@ -58,7 +58,22 @@ std::unique_ptr<mlir::Pass> createConvertToNCEOpsPass(Logger log = Logger::globa
 // Replaces Layers with VPUIP UPA/DMA tasks counterparts and declarations with VPUIP analogues.
 //
 
-void buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+struct LowerIERT2VPUIPOptions : mlir::PassPipelineOptions<LowerIERT2VPUIPOptions> {
+    BoolOption enableCompressWeights{*this, "compress-weights", llvm::cl::desc("Enable compress-weights pass"),
+                                     llvm::cl::init(false)};
+
+    LowerIERT2VPUIPOptions() = default;
+
+    template <
+            class OtherOptions,
+            typename = std::enable_if_t<std::is_base_of<mlir::PassPipelineOptions<OtherOptions>, OtherOptions>::value>>
+    explicit LowerIERT2VPUIPOptions(const OtherOptions& options) {
+        enableCompressWeights = options.enableCompressWeights;
+    }
+};
+
+void buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, const LowerIERT2VPUIPOptions& options,
+                                  Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createConvertSWLayers2VPUIPPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertLayers2VPUIPPass(Logger log = Logger::global());

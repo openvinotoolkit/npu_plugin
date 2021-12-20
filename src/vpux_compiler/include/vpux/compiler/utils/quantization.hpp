@@ -13,8 +13,8 @@
 
 #pragma once
 
+#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -54,7 +54,7 @@ std::pair<uint8_t, int8_t> getQuantShiftAndPostShiftFromScale(double quantScale)
 // FakeQuantize support
 //
 
-mlir::quant::QuantizedType getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst, int64_t levels,
+mlir::quant::QuantizedType getQuantizedType(mlir::Attribute lowConstAttr, mlir::Attribute highConstAttr, int64_t levels,
                                             mlir::FloatType realType, bool isSigned, mlir::Location loc);
 
 void getFakeQuantParams(mlir::quant::UniformQuantizedType qElemType, int64_t& levels, float& rMin, float& rMax);

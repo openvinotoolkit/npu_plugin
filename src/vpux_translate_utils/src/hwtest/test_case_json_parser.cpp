@@ -39,6 +39,8 @@ nb::DType nb::to_dtype(llvm::StringRef str) {
         return nb::DType::I4;
     if (isEqual(str, "int8"))
         return nb::DType::I8;
+    if (isEqual(str, "int32"))
+        return nb::DType::I32;
     if (isEqual(str, "fp8"))
         return nb::DType::FP8;
     if (isEqual(str, "fp16"))
@@ -61,6 +63,8 @@ std::string nb::to_string(nb::DType dtype) {
         return "int4";
     case nb::DType::I8:
         return "int8";
+    case nb::DType::I32:
+        return "int32";
     case nb::DType::FP8:
         return "fp8";
     case nb::DType::FP16:
@@ -115,6 +119,8 @@ std::string nb::to_string(CaseType case_) {
     switch (case_) {
     case CaseType::ZMajorConvolution:
         return "ZMajorConvolution";
+    case CaseType::DepthWiseConv:
+        return "DepthWiseConv";
     case CaseType::EltwiseAdd:
         return "EltwiseAdd";
     case CaseType::EltwiseMult:
@@ -131,6 +137,8 @@ std::string nb::to_string(CaseType case_) {
 nb::CaseType nb::to_case(llvm::StringRef str) {
     if (isEqual(str, "ZMajorConvolution"))
         return CaseType::ZMajorConvolution;
+    if (isEqual(str, "DepthWiseConv"))
+        return CaseType::DepthWiseConv;
     if (isEqual(str, "EltwiseAdd"))
         return CaseType::EltwiseAdd;
     if (isEqual(str, "EltwiseMult"))
@@ -407,7 +415,7 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
 
     // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
     // eltwise needed).
-    if (caseType_ == CaseType::ZMajorConvolution) {
+    if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv) {
         wtLayer_ = loadWeightLayer(json_obj);
         convLayer_ = loadConvLayer(json_obj);
         return;

@@ -34,7 +34,7 @@ public:
 
     explicit VPUXRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const VPUXRemoteContext::Ptr& contextPtr,
                             const std::shared_ptr<Allocator>& allocator, const InferenceEngine::ParamMap& params,
-                            const vpu::LogLevel logLevel = vpu::LogLevel::None);
+                            const LogLevel logLevel = LogLevel::None);
     ~VPUXRemoteBlob() override;
 
     /** @details Since Remote blob just wraps remote memory, allocation is not required */
@@ -76,7 +76,7 @@ private:
     std::weak_ptr<VPUXRemoteContext> _remoteContextPtr;
     std::shared_ptr<InferenceEngine::IAllocator> _allocatorPtr = nullptr;
 
-    const vpu::Logger::Ptr _logger;
+    Logger _logger;
 
     /** @brief After creation ROI blob information about original tensor will be lost.
      * Since it's not possible to restore information about full tensor, keep it in separate variable */
