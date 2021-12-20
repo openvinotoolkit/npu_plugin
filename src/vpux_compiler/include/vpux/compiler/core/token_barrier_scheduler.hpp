@@ -80,12 +80,27 @@ public:
         }
     };
 
+    struct task_operation_comparator_by_schedule_time_t {
+        bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+            int64_t schedulingNumber1 = checked_cast<int64_t>(
+                    mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
+            int64_t schedulingNumber2 = checked_cast<int64_t>(
+                    mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt());
+
+            return schedulingNumber1 < schedulingNumber2;
+        }
+    };
+
     typedef size_t schedule_time_t;
     std::map<mlir::Operation*,
              std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
                        std::set<mlir::Operation*, task_operation_comparator_t>>,
              operation_comparator_t>
             configureBarrierOpUpdateWaitMap;  // update,wait
+
+    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
+             task_operation_comparator_by_schedule_time_t>
+            configureTaskOpUpdateWaitMap;  // update,wait
 
     // One transition structure for each physical barrier //
     // TODO John: Move barrier_transition_structure_t to another file

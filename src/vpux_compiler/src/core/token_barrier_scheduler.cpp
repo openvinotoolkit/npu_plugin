@@ -259,5 +259,47 @@ size_t TokenBasedBarrierScheduler::schedule() {
     }
 
     std::cout << "Removed all declare virtual barrier ops" << std::endl;
+
+    for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+        auto barrierOp = (*iter).first;
+        auto producers = (*iter).second.first;
+        auto consumers = (*iter).second.second;
+        for (auto prod = producers.begin(); prod != producers.end(); prod++) {
+            auto taskUpateItr = configureTaskOpUpdateWaitMap.find(*prod);
+            if (taskUpateItr != configureTaskOpUpdateWaitMap.end()) {
+                taskUpateItr->second.second.insert(barrierOp);
+            } else {
+                std::set<mlir::Operation*> newBarrierProducers{};
+                std::set<mlir::Operation*> newBarrierConsumers{barrierOp};
+                configureTaskOpUpdateWaitMap.insert(
+                        std::make_pair(*prod, std::make_pair(newBarrierProducers, newBarrierConsumers)));
+            }
+        }
+
+        for (auto cons = consumers.begin(); cons != consumers.end(); cons++) {
+            auto taskWaitItr = configureTaskOpUpdateWaitMap.find(*cons);
+            if (taskWaitItr != configureTaskOpUpdateWaitMap.end()) {
+                taskWaitItr->second.first.insert(barrierOp);
+            } else {
+                std::set<mlir::Operation*> newBarrierProducers{barrierOp};
+                std::set<mlir::Operation*> newBarrierConsumers{};
+                configureTaskOpUpdateWaitMap.insert(
+                        std::make_pair(*cons, std::make_pair(newBarrierProducers, newBarrierConsumers)));
+            }
+        }
+    }
+
+    std::cout << "Done creating configureTaskOpUpdateWaitMap" << std::endl;
+
+    // reorder IR by scheduling number
+    mlir::Operation* preTask = nullptr;
+    for (auto iter = configureTaskOpUpdateWaitMap.begin(); iter != configureTaskOpUpdateWaitMap.end(); iter++) {
+        auto curTask = (*iter).first;
+        if (preTask) {
+            curTask->moveAfter(preTask);
+        }
+        preTask = curTask;
+    }
+
     return btask_count;
 }
