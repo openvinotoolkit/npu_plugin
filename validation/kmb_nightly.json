@@ -1668,6 +1668,42 @@
         },
 
         {
+            "name" : "MTL_scale_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
+            "ir" : "scale/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
+            "category" : "MLIR",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+             "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "U8",
+                "output_precision" : "FP16"
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_scale_tf_fp16-int8_mobilenet-v3-large-1.0-224_tf"
+            }
+        },
+
+        {
             "name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013",
             "ir" : "scale/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013.xml",
             "category" : "MLIR/precommit",
