@@ -2659,6 +2659,41 @@ operation ::= `IERT.SoftPlus` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.SpaceToDepth` (vpux::IERT::SpaceToDepthOp)
+
+InferenceEngine Run-Time SpaceToDepth layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.SpaceToDepth` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::SpaceToDepthModeAttr | SpaceToDepthMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `IERT.Sqrt` (vpux::IERT::SqrtOp)
 
 InferenceEngine run-time Sqrt layer

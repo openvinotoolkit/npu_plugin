@@ -1041,6 +1041,12 @@ mlir::Operation* createRTLayer(IE::LogicalXorOp origOp, ArrayRef<mlir::Value> al
     return b.create<IERT::LogicalXorOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::SpaceToDepthOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::SpaceToDepthOp::Adaptor newOp(allBufs);
+    return b.create<IERT::SpaceToDepthOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.block_size(),
+                                          origOp.mode());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -1149,6 +1155,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::NotEqualOp)
     CASE(IE::GreaterOp)
     CASE(IE::GreaterEqualOp)
+    CASE(IE::SpaceToDepthOp)
     CASE(IE::TopKOp)
     CASE(IE::LogicalOrOp)
     CASE(IE::LogicalXorOp)

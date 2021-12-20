@@ -2907,7 +2907,7 @@ def VPUIP_MVNUPAOp :
     );
 
     let results = (outs
-        F16MemRef:$output
+        AnyMemRef:$output
     );
 
     let builders = [
@@ -2987,6 +2987,57 @@ def VPUIP_GatherUPAOp :
 }
 
 //
+// SpaceToDepthOp
+//
+
+def VPUIP_SpaceToDepthUPAOp :
+        VPUIP_UPATaskOp<1, "SpaceToDepthUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+            ]
+        > {
+    let summary = "SpaceToDepth UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        IntAttr:$block_size,
+        IE_SpaceToDepthMode:$mode,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output,
+                "mlir::IntegerAttr":$block_size,
+                "IE::SpaceToDepthModeAttr":$mode
+            )
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ScatterNDUpdateUPAOp
 //
 
@@ -3009,7 +3060,7 @@ def VPUIP_ScatterNDUpdateUPAOp :
     );
 
     let results = (outs
-        AnyMemRef:$output
+        F16MemRef:$output
     );
 
     let builders = [
@@ -3099,7 +3150,7 @@ def VPUIP_GatherElementsUPAOp :
     );
 
     let results = (outs
-        AnyMemRef:$output
+        F16MemRef:$output
     );
 
     let builders = [

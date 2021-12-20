@@ -99,6 +99,8 @@ private:
                                const MVCNN::UPALayerTask* task);
     mlir::Operation* parseReverseSequence(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                           ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
+    mlir::Operation* parseSpaceToDepth(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                       ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
 
 private:
     using TensorReferenceOffset = flatbuffers::Offset<MVCNN::TensorReference>;

@@ -2663,6 +2663,39 @@ def IERT_RegionYoloOp :
 }
 
 //
+// SpaceToDepthOp
+//
+
+def IERT_SpaceToDepthOp :
+        IERT_LayerOp<1,
+            "SpaceToDepth",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine Run-Time SpaceToDepth layer";
+
+    let arguments = (ins
+        MemRefOf<[F16]>:$input,
+        MemRefOf<[F16]>:$output_buff,
+
+        IntAttr:$block_size,
+        IE_SpaceToDepthMode:$mode
+    );
+
+    let results = (outs
+        MemRefOf<[F16]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // LSTMSequenceOp
 //
 

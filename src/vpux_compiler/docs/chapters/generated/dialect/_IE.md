@@ -2682,6 +2682,37 @@ operation ::= `IE.SoftPlus` `(` operands `)` attr-dict `:` type(operands) `->` t
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.SpaceToDepthOp` (vpux::IE::SpaceToDepthOp)
+
+InferenceEngine SpaceToDepthOp layer
+
+
+Syntax:
+
+```
+operation ::= `IE.SpaceToDepthOp` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::SpaceToDepthModeAttr | SpaceToDepthMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Split` (vpux::IE::SplitOp)
 
 InferenceEngine Split layer

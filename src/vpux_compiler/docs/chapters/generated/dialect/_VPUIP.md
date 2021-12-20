@@ -2135,6 +2135,42 @@ operation ::= `VPUIP.SoftPlusUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.SpaceToDepthUPA` (vpux::VPUIP::SpaceToDepthUPAOp)
+
+SpaceToDepth UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SpaceToDepthUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::SpaceToDepthModeAttr | SpaceToDepthMode that the InferenceEngine supports
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.SqrtUPA` (vpux::VPUIP::SqrtUPAOp)
 
 Sqrt UPA SHAVE kernel

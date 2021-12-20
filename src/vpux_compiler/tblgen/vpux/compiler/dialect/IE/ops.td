@@ -2673,6 +2673,30 @@ def IE_EqualOp :
         RankedTensorOf<[F16, F32]>:$output
     );
 }
+//
+// SpaceToDepthOp
+//
+
+def IE_SpaceToDepthOp :
+        IE_LayerOp<
+            "SpaceToDepthOp"
+        > {
+    let summary = "InferenceEngine SpaceToDepthOp layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        DefaultValuedAttr<IntAttr, "1">:$block_size,
+        IE_SpaceToDepthMode:$mode
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+}
 
 //
 // AffineReshapeOp

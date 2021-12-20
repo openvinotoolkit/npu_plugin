@@ -431,4 +431,22 @@ def IE_ConcatAttrs :
             ]
         >;
 
+//
+// IE_SpaceToDepthMode
+//
+
+def IE_SpaceToDepthMode :
+        StrEnumAttr<
+            "SpaceToDepthMode",
+            "SpaceToDepthMode that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"BLOCKS_FIRST">,
+                StrEnumAttrCase<"DEPTH_FIRST">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+
 #endif

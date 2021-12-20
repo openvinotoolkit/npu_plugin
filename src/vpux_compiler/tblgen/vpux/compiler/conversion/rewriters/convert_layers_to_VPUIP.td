@@ -942,6 +942,22 @@ def RewriteGatherElements :
         >;
 
 //
+// IERT.SpaceToDepth -> VPUIP.SpaceToDepth
+//
+
+def createSpaceToDepthUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SpaceToDepthUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteSpaceToDepth :
+        Pat<
+            (IERT_SpaceToDepthOp $input, $output, $block_size, $mode),
+            (createSpaceToDepthUPAOp $input, $output, $block_size, $mode)
+        >;
+
+//
 // IERT.ScatterNDUpdate -> VPUIP.ScatterNDUpdate
 //
 
