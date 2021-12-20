@@ -110,10 +110,10 @@ mlir::ShapedType vpux::Const::BitPackAttr::inferOutputType(mlir::ShapedType inpu
         outElementType = mlir::quant::UniformQuantizedPerAxisType::get(
                 quantInType.getFlags(), elementIntegerType, quantInType.getExpressedType(), quantInType.getScales(),
                 quantInType.getZeroPoints(), quantInType.getQuantizedDimension(), minVal, maxVal);
+    } else if (auto intInType = input.getElementType().dyn_cast<mlir::IntegerType>()) {
+        outElementType = mlir::IntegerType::get(getContext(), bitWidth, intInType.getSignedness());
     } else {
-        const auto singedness =
-                input.getElementType().isSignedInteger() ? mlir::IntegerType::Signed : mlir::IntegerType::Unsigned;
-        outElementType = mlir::IntegerType::get(getContext(), bitWidth, singedness);
+        VPUX_THROW("Got unsupported input element type '{0}' in bitpack", input.getElementType());
     }
     const auto outputType = changeElemType(input, outElementType);
     return outputType;
