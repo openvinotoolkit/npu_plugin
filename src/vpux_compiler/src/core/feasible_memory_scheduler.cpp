@@ -584,6 +584,11 @@ void FeasibleMemoryScheduler::schedulePrefetchedDataOps(size_t computeOpStartTim
             if (isReadyComputeOperationSchedulable(prefetchDataOpIdx)) {
                 scheduledOps.insert(prefetchDataOpIdx);
 
+                // skip if operation already allocated
+                if (getNonAliveBuffersUsedByOperation(prefetchDataOpIdx).empty()) {
+                    continue;
+                }
+
                 // Step 1: add to output result table
                 _opOutputTable.insert(std::make_pair(
                         prefetchDataOpIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[prefetchDataOpIdx])));
