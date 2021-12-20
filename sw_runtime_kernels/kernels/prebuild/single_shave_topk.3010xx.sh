@@ -14,10 +14,10 @@ if [ -z ${FIRMWARE_VPU_DIR} ]; then echo "FIRMWARE_VPU_DIR is not set"; env_is_s
 
 if [ $env_is_set = 0 ]; then exit 1; fi
 
-rm -f ${KERNEL_DIR}/prebuild/singleShaveTopK_3010xx.o ${KERNEL_DIR}/prebuild/mvSubspaces_3010xx.o ${KERNEL_DIR}/prebuild/dma_shave_nn_3010xx.o ${KERNEL_DIR}/prebuild/singleShaveTopK_3010xx.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.hswish.3010xx.text ${KERNEL_DIR}/prebuild/act_shave_bin/sk.hswish.3010xx.data
+rm -f ${KERNEL_DIR}/prebuild/single_shave_topk_3010xx.o ${KERNEL_DIR}/prebuild/mvSubspaces_3010xx.o ${KERNEL_DIR}/prebuild/dma_shave_nn_3010xx.o ${KERNEL_DIR}/prebuild/single_shave_topk_3010xx.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.hswish.3010xx.text ${KERNEL_DIR}/prebuild/act_shave_bin/sk.hswish.3010xx.data
 
 ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx -O3 \
- -c ${KERNEL_DIR}/single_shave_topk.cpp -o ${KERNEL_DIR}/prebuild/singleShaveTopK_3010xx.o \
+ -c ${KERNEL_DIR}/single_shave_topk.cpp -o ${KERNEL_DIR}/prebuild/single_shave_topk_3010xx.o \
  -I ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION} \
  -I ${KERNEL_DIR}/inc \
  -I ${KERNEL_DIR}/common/inc \
@@ -51,33 +51,33 @@ if [ $? -ne 0 ]; then exit $?; fi
 
 ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld \
 --script ${KERNEL_DIR}/prebuild/shave_kernel.ld \
--entry singleShaveTopK \
+-entry single_shave_topk \
 --gc-sections \
 --strip-debug \
 --discard-all \
 -zmax-page-size=16 \
-${KERNEL_DIR}/prebuild/singleShaveTopK_3010xx.o ${KERNEL_DIR}/prebuild/mvSubspaces_3010xx.o ${KERNEL_DIR}/prebuild/dma_shave_nn_3010xx.o\
+${KERNEL_DIR}/prebuild/single_shave_topk_3010xx.o ${KERNEL_DIR}/prebuild/mvSubspaces_3010xx.o ${KERNEL_DIR}/prebuild/dma_shave_nn_3010xx.o\
  ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/ldbl2stri.o \
  -EL ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibm.a \
  -EL ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibc.a \
  -EL ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcxx.a \
  -EL ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcrt.a \
- --output ${KERNEL_DIR}/prebuild/singleShaveTopK_3010xx.elf
+ --output ${KERNEL_DIR}/prebuild/single_shave_topk_3010xx.elf
 
-if [ $? -ne 0 ]; then echo $'\nLinking of singleShaveTopK_3010.elf failed exit $?\n'; exit $?; fi
-${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy -O binary --only-section=.text ${KERNEL_DIR}/prebuild/singleShaveTopK_3010xx.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveTopK.3010xx.text
-if [ $? -ne 0 ]; then echo $'\nExtracting of sk.singleShaveTopK.3010xx.text failed exit $?\n'; exit $?; fi
-${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy -O binary --only-section=.arg.data ${KERNEL_DIR}/prebuild/singleShaveTopK_3010xx.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveTopK.3010xx.data
-if [ $? -ne 0 ]; then echo $'\nExtracting of sk.singleShaveTopK.3010xx.data failed exit $?\n'; exit $?; fi
+if [ $? -ne 0 ]; then echo $'\nLinking of single_shave_topk_3010.elf failed exit $?\n'; exit $?; fi
+${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy -O binary --only-section=.text ${KERNEL_DIR}/prebuild/single_shave_topk_3010xx.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.single_shave_topk.3010xx.text
+if [ $? -ne 0 ]; then echo $'\nExtracting of sk.single_shave_topk.3010xx.text failed exit $?\n'; exit $?; fi
+${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy -O binary --only-section=.arg.data ${KERNEL_DIR}/prebuild/single_shave_topk_3010xx.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.single_shave_topk.3010xx.data
+if [ $? -ne 0 ]; then echo $'\nExtracting of sk.single_shave_topk.3010xx.data failed exit $?\n'; exit $?; fi
 
 cd ${KERNEL_DIR}/prebuild/act_shave_bin
 if [ $? -ne 0 ]; then echo $'\nCan not cd to \"$${KERNEL_DIR}/prebuild/act_shave_bin\"\n'; exit $?; fi
-xxd -i sk.singleShaveTopK.3010xx.text ../sk.singleShaveTopK.3010xx.text.xdat
+xxd -i sk.single_shave_topk.3010xx.text ../sk.single_shave_topk.3010xx.text.xdat
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of text segment failed $?\n'; cd -; exit $?; fi
-xxd -i sk.singleShaveTopK.3010xx.data ../sk.singleShaveTopK.3010xx.data.xdat
+xxd -i sk.single_shave_topk.3010xx.data ../sk.single_shave_topk.3010xx.data.xdat
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of data segment failed $?\n'; cd -; exit $?; fi
 cd -
 
-rm ${KERNEL_DIR}/prebuild/singleShaveTopK_3010xx.o ${KERNEL_DIR}/prebuild/mvSubspaces_3010xx.o ${KERNEL_DIR}/prebuild/dma_shave_nn_3010xx.o
-printf "\n ${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveTopK.3010xx.text\n ${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveTopK.3010xx.data\nhave been created successfully\n"
+rm ${KERNEL_DIR}/prebuild/single_shave_topk_3010xx.o ${KERNEL_DIR}/prebuild/mvSubspaces_3010xx.o ${KERNEL_DIR}/prebuild/dma_shave_nn_3010xx.o
+printf "\n ${KERNEL_DIR}/prebuild/act_shave_bin/sk.single_shave_topk.3010xx.text\n ${KERNEL_DIR}/prebuild/act_shave_bin/sk.single_shave_topk.3010xx.data\nhave been created successfully\n"
 exit $?

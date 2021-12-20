@@ -122,13 +122,22 @@ using namespace sw_params;
 
 extern "C" {
 
-void singleShaveTopK(uint32_t lParamsAddr) {
+void single_shave_topk(uint32_t lParamsAddr) {
 
     half* p_act_input = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->inputValues.dataAddr);
     int32_t k = *(int32_t*)(reinterpret_cast<TopKParams*>(lParamsAddr)->inputK.dataAddr);
     half* p_act_value = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->outputValues.dataAddr);
     int32_t* p_act_index = (int32_t*)(reinterpret_cast<TopKParams*>(lParamsAddr)->outputIndex.dataAddr);
 
+//    for (int i = 0; i < 2 * 4 * 2; i++) {
+//        *p_act_value = *p_act_input;
+//        if (i == 0) {
+//            *p_act_value = 1234;
+//        }
+//        p_act_input++;
+//        p_act_value++;
+//    }
+    
     const TopKParams* lParams = reinterpret_cast<const TopKParams *>(lParamsAddr);
 
     int32_t numInputDims = (int32_t)lParams->inputValues.numDims;
