@@ -136,9 +136,11 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                 }
 
                 // 2. all constraints met, try to find a prefetch-able data op
+                size_t prefetchedOpSize = 0;
                 if (dataOp->isOriginalOp() && computeOp->isOriginalOp() && canDataOpBePrefetched(dataOp)) {
                     auto dataOpSize = dataOp->resourceSize();
                     if (dataOpSize < maxFreeSize && computeOp->time_ < dataOp->time_) {
+                        prefetchedOpSize = dataOpSize;
                         // ensure the data operation will fit through all ops scheduled intermediatly
                         std::cout << "data op " << dataOp->op_ << " will fit during compute " << computeOp->op_
                                   << " with time dif " << dataOp->time_ - computeOp->time_ << " and level dif "
@@ -147,18 +149,21 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                         _prefetchEdges[computeOp->op_].insert(dataOp->op_);
                         _prefetchedDataOps.insert(dataOp->op_);
                         // reduce max free size with this data op size
-                        maxFreeSize = maxFreeSize - dataOpSize;
+                        maxFreeSize = maxFreeSize - prefetchedOpSize;
                         dataOp->freeCmx_ = maxFreeSize;
                     }
                 }
 
                 // 3. update variables
-                // choose the min from new free sizes
-                maxFreeSize = std::min(maxFreeSize, dataOp->freeCmx_);
                 // update free size for all ops to the prefetch op
                 auto temp = computeOp;
                 while (temp != dataOp) {
-                    temp->freeCmx_ = maxFreeSize;
+                    VPUX_THROW_UNLESS(temp->freeCmx_ >= prefetchedOpSize,
+                                      "Prefetched operation ('{0}', size - '{1}') size does not fit at operation '{2}' "
+                                      "where free CMX - '{3}', "
+                                      "prefetched op size - '{3}'",
+                                      dataOp->op_, prefetchedOpSize, temp->op_, temp->freeCmx_);
+                    temp->freeCmx_ -= prefetchedOpSize;
                     ++temp;
                 }
                 // advance to data next op
