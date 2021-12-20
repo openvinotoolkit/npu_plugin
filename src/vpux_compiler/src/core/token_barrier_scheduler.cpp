@@ -291,6 +291,16 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
     std::cout << "Done creating configureTaskOpUpdateWaitMap" << std::endl;
 
+    // reorder barriers by id
+    mlir::Operation* preBarrier = nullptr;
+    for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+        auto curBarrier = (*iter).first;
+        if (preBarrier) {
+            curBarrier->moveAfter(preBarrier);
+        }
+        preBarrier = curBarrier;
+    }
+
     // reorder IR by scheduling number
     mlir::Operation* preTask = nullptr;
     for (auto iter = configureTaskOpUpdateWaitMap.begin(); iter != configureTaskOpUpdateWaitMap.end(); iter++) {
