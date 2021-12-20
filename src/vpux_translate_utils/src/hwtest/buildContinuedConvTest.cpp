@@ -221,7 +221,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     // NCE Task 0
     auto nceTask_0 = VPURT::wrapIntoTaskOp<NCEClusterTaskOp>(
             functionBuilder, barriers[0], barriers[1], builder.getUnknownLoc(), inputPartial0CMX.buffer(),
-            weightsPartial0CMX.buffer(), weightsTable0CMX.buffer(),
+            weightsPartial0CMX.buffer(), weightsTable0CMX.buffer(), /*instruction_table_list=*/nullptr,
             /*activation_window=*/nullptr, inputPartial0CMX.buffer(), output0CMX.buffer(), output0CMX.buffer(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr, isContinued, /*sp_pattern*/ nullptr);
@@ -237,7 +237,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     // NCE Task 1
     auto nceTask_1 = VPURT::wrapIntoTaskOp<NCEClusterTaskOp>(
             functionBuilder, barriers[1], barriers[2], builder.getUnknownLoc(), inputPartial1CMX.buffer(),
-            weightsPartial1CMX.buffer(), weightsTable1CMX.buffer(),
+            weightsPartial1CMX.buffer(), weightsTable1CMX.buffer(), /*instruction_table_list=*/nullptr,
             /*activation_window=*/nullptr, inputPartial1CMX.buffer(), output1CMX.buffer(), output1CMX.buffer(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr,

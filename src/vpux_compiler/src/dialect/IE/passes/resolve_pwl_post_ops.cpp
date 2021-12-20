@@ -143,8 +143,7 @@ mlir::LogicalResult FusableOpRewriter::matchAndRewrite(IE::LayerWithPostOpInterf
 
     if (postOpName == IE::SigmoidOp::getOperationName()) {
         if (isQuantizedPerTensor(origOp)) {
-            return ensureRequantizationRange(origOp, rewriter, VPU::getPwlQuantReqs(VPU::PPEMode::SIGMOID),
-                                             true);
+            return ensureRequantizationRange(origOp, rewriter, VPU::getPwlQuantReqs(VPU::PPEMode::SIGMOID), true);
         } else {
             return unfusePostOp<IE::SigmoidOp>(origOp, postOpName, rewriter);
         }

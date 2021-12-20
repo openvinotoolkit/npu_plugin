@@ -61,6 +61,20 @@ def ConvertWeightsTableOp2Const : PassBase<"convert-wtable-op-to-constant", "vpu
 }
 
 //
+// ConvertInstructionListTableOp2Const
+//
+
+def ConvertInstructionListTableOp2Const : PassBase<"convert-itable-op-to-constant", "vpux::FunctionPass"> {
+    let summary = "Convert InstructionListTable Operations to IERT.ConstantOp";
+
+    let description = [{
+        This pass fills instruction list table.
+    }];
+
+    let constructor = "vpux::VPUIP::createConvertInstructionListTableOp2ConstPass()";
+}
+
+//
 // DumpStatisticsOfTaskOps
 //
 

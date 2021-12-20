@@ -33,14 +33,15 @@ using namespace vpux;
 //
 
 void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                          mlir::Value weights, mlir::Value weight_table, mlir::Value activation_window,
+                                          mlir::Value weights, mlir::Value weight_table,
+                                          mlir::Value instruction_list_table, mlir::Value activation_window,
                                           mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
                                           VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
                                           mlir::ArrayAttr kernel_strides, VPU::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
                                           mlir::UnitAttr is_segmented) {
-    build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
+    build(builder, state, output_buff.getType(), input, weights, weight_table, instruction_list_table, activation_window, parent_input,
           parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
           kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern,
           is_segmented);
@@ -52,14 +53,14 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
 
 void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output,
                                           mlir::Value input, mlir::Value weights, mlir::Value weight_table,
-                                          mlir::Value activation_window, mlir::Value parent_input,
-                                          mlir::Value parent_output, mlir::Value output_buff,
+                                          mlir::Value instruction_list_table, mlir::Value activation_window,
+                                          mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
                                           VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
                                           mlir::ArrayAttr kernel_strides, VPU::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
                                           mlir::UnitAttr is_segmented) {
-    build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
+    build(builder, state, output, input, weights, weight_table, instruction_list_table, activation_window, parent_input, parent_output,
           output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
           kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented);
 

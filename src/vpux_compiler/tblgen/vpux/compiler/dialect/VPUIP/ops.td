@@ -1855,6 +1855,41 @@ def VPUIP_WeightsTableOp :
 }
 
 //
+// InstructionListTableOp
+//
+
+def VPUIP_InstructionListTableOp :
+        VPUIP_Op<"InstructionListTableOp",
+            [
+                NoSideEffect,
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "Intermediate task for creating instruction list table";
+
+    let arguments = (ins
+        I64ArrayAttr:$range,
+        I64ArrayAttr:$shift,
+        I64ArrayAttr:$bias
+    );
+
+    let results = (outs
+        MemRefOf<[SI32]>:$output
+    );
+
+    let extraClassDeclaration = [{
+        mlir::Value getViewSource() {
+            return output();
+        }
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `->` type(results)
+    }];
+}
+
+//
 // DPUTaskOp
 //
 
@@ -1971,6 +2006,7 @@ def VPUIP_NCEClusterTaskOp :
         AnyTypeOf<[MemRefOf<[F16, BF16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$input,
         Optional<AnyTypeOf<[MemRefOf<[F16, BF16, quant_QuantizedType]>, VPURT_SparseBuffer]>>:$weights,
         Optional<MemRefOf<[SI32]>>:$weight_table,
+        Optional<MemRefOf<[SI32]>>:$instruction_list_table,
         Optional<MemRefOf<[UI8]>>:$activation_window,
 
         AnyTypeOf<[AnyMemRef, VPURT_SparseBuffer, VPUIP_DistributedBuffer]>:$parent_input,
@@ -2001,7 +2037,8 @@ def VPUIP_NCEClusterTaskOp :
 
     let builders = [
         OpBuilder<(ins
-            "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$weight_table, "mlir::Value":$activation_window,
+            "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$weight_table, 
+            "mlir::Value":$instruction_list_table, "mlir::Value":$activation_window,
             "mlir::Value":$parent_input, "mlir::Value":$parent_output,
             "mlir::Value":$output_buff,
             "vpux::VPUIP::NCETaskType":$task_type,
@@ -2013,7 +2050,8 @@ def VPUIP_NCEClusterTaskOp :
         )>,
         OpBuilder<(ins
             "mlir::Type":$output,
-            "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$weight_table, "mlir::Value":$activation_window,
+            "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$weight_table,
+            "mlir::Value":$instruction_list_table, "mlir::Value":$activation_window,
             "mlir::Value":$parent_input, "mlir::Value":$parent_output,
             "mlir::Value":$output_buff,
             "vpux::VPUIP::NCETaskType":$task_type,
@@ -2030,6 +2068,7 @@ def VPUIP_NCEClusterTaskOp :
         `input` `(` $input  `:` type($input) `)`
         (`weights` `(` $weights^  `:` type($weights) `)`)?
         (`weight_table` `(` $weight_table^  `:` type($weight_table) `)`)?
+        (`instruction_list_table` `(` $instruction_list_table^  `:` type($instruction_list_table) `)`)?
         (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
         `parent_input` `(` $parent_input `:` type($parent_input) `)`
         `parent_output` `(` $parent_output `:` type($parent_output) `)`

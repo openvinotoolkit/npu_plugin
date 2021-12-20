@@ -3,21 +3,21 @@
 namespace vpux {
 
 PWLTableMap* customPWLTable_leakyRelu() {
-    PWLTableType pwl_type;
-    pwl_type.activation = "IE.LeakyRelu";
-    pwl_type.dtype = mlir::quant::UniformQuantizedType();
+    PWLTableType pwlType;
+    pwlType.activation = "IE.LeakyRelu";
+    pwlType.dtype = mlir::quant::UniformQuantizedType();
 
     std::vector<int> vecRange{-128, -109, -90, -72, -54, -36, -18, 0, 128};
     std::vector<int> vecShift{1, -1, 0, 0, 0, -1, -1, -4};
     std::vector<int> vecBias{-119, 44, -43, -31, -19, 18, 10, 0};
-    double range_min = -65504.0, range_max = 65504.0;
-    int post_shift = 4;
-    PWLTableEntry pwl_table = {vecRange, vecShift, vecBias, std::make_pair(range_min, range_max), post_shift};
+    double rangeMin = -65504.0, rangeMax = 65504.0;
+    int postShift = 4;
+    PWLTableEntry pwlTable = {vecRange, vecShift, vecBias, std::make_pair(rangeMin, rangeMax), postShift};
     std::vector<PWLTableEntry> vecTable;
-    vecTable.push_back(pwl_table);
+    vecTable.push_back(pwlTable);
 
     PWLTableMap* pwlTables = new PWLTableMap();
-    pwlTables->insert({pwl_type, vecTable});
+    pwlTables->insert({pwlType, vecTable});
     return pwlTables;
 }
 

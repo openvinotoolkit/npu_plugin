@@ -17,8 +17,8 @@ struct PWLTableEntry {
     std::vector<int> range;
     std::vector<int> shift;
     std::vector<int> bias;
-    std::pair<double, double> float_range;
-    int post_shift;
+    std::pair<double, double> floatRange;
+    int postShift;
 };
 
 struct PWLTableHash {
