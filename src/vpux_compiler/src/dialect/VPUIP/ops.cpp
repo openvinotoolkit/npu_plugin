@@ -246,72 +246,83 @@ bool isLastTileBiggest(ShapeRef tileAxis, ShapeRef outputShape, Dim tileDim) {
     auto lastTile = tileResult.end() - 1;
     auto firstTile = tileResult.begin();
     return lastTile->shape[tileDim] > firstTile->shape[tileDim];
-};
+}
+
+bool isDivisibleTile(mlir::Operation* op, ShapeRef tileAxis, Dim tileDim, int64_t kernelSize) {
+    int64_t minChannelSize = 1;
+    if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
+        minChannelSize = channelsInfo.getChannelAlignment();
+    }
+    auto outputShape = getShape(op->getResult(0));
+    if (tileDim == Dims4D::Act::C) {
+        return (outputShape[tileDim] / tileAxis[tileDim] >= minChannelSize) &&
+               (outputShape[tileDim] % tileAxis[tileDim] == 0) &&
+               ((outputShape[tileDim] / tileAxis[tileDim]) % minChannelSize == 0);
+    } else {
+        return outputShape[tileDim] / tileAxis[tileDim] >= kernelSize;
+    }
+}
 
 bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
     auto outputShape = getShape(origOp.output());
     auto tileDims = getTileDims(tileAxis);
-    if (tileDims.size() != 1)
+    if (tileDims.size() != 1) {
         return false;
+    }
     auto tileDim = tileDims[0];
-    auto isDivisibleTile = [&]() -> bool {
-        auto kernelSize = getShape(origOp.filter());
-        int64_t minChannelSize = 1;
-        if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation())) {
-            minChannelSize = channelsInfo.getChannelAlignment();
-        }
-        if (tileDim == Dims4D::Act::C) {
-            return (outputShape[tileDim] / tileAxis[tileDim] >= minChannelSize) &&
-                   (outputShape[tileDim] % tileAxis[tileDim] == 0) &&
-                   ((outputShape[tileDim] / tileAxis[tileDim]) % minChannelSize == 0);
-        } else {
-            return outputShape[tileDim] / tileAxis[tileDim] >= kernelSize[tileDim];
-        }
+    auto isMemPrefetchable = [&]() -> bool {
+        auto tileResult = fillDividedTiles(tileAxis, outputShape);
+        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
     };
+
+    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
+           isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
+}
+
+bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
+    auto outputShape = getShape(origOp.output());
+    auto tileDims = getTileDims(tileAxis);
+    if (tileDims.size() != 1) {
+        return false;
+    }
+    auto tileDim = tileDims[0];
+
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
+        return false;
+    }
 
     auto isMemPrefetchable = [&]() -> bool {
         auto tileResult = fillDividedTiles(tileAxis, outputShape);
         return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
     };
 
-    return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
-}
-
-bool isSupportedPrefetchTiling(IE::GroupConvolutionOp /*origOp*/, ShapeRef /*tileAxis*/, Logger /*log*/) {
-    //  GroupConvolution has been tiled over C according to the chanAlignment
-    //  No more prefetch tiling applied
-    return false;
+    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
+           isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
 bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, ShapeRef tileAxis, Logger log) {
     auto tileDims = getTileDims(tileAxis);
-    if (tileDims.size() != 1)
+    if (tileDims.size() != 1) {
         return false;
+    }
     auto tileDim = tileDims[0];
     auto outputShape = getShape(origOp.output());
 
-    auto isDivisibleTile = [&]() -> bool {
-        auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_sizeAttr());
-        int64_t minChannelSize = 1;
-        if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation())) {
-            minChannelSize = channelsInfo.getChannelAlignment();
-        }
-        if (tileDim == Dims4D::Act::C) {
-            return (outputShape[tileDim] / tileAxis[tileDim] >= minChannelSize) &&
-                   (outputShape[tileDim] % tileAxis[tileDim] == 0) &&
-                   ((outputShape[tileDim] / tileAxis[tileDim]) % minChannelSize == 0);
-        } else {
-            size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
-            return outputShape[tileDim] / tileAxis[tileDim] >= kernelSize[realKernelIndex];
-        }
-    };
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
+        return false;
+    }
 
     auto isMemPrefetchable = [&]() -> bool {
         auto tileResult = fillDividedTiles(tileAxis, outputShape);
         return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
     };
 
-    return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
+    size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
+    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim,
+                           parseIntArrayAttr<int64_t>(origOp.kernel_size())[realKernelIndex]) &&
+           isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
 template <class MainOpType>
@@ -367,30 +378,19 @@ public:
 
     bool isSupportedPrefetchTiling(mlir::Operation* op, ShapeRef tileAxis, Logger log) const {
         auto tileDims = getTileDims(tileAxis);
-        if (tileDims.size() != 1)
+        if (tileDims.size() != 1) {
             return false;
+        }
         auto tileDim = tileDims[0];
         auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
-
-        auto isDivisibleTile = [&]() -> bool {
-            int64_t minChannelSize = 1;
-            if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
-                minChannelSize = channelsInfo.getChannelAlignment();
-            }
-            if (tileDim == Dims4D::Act::C) {
-                return (outputShape[tileDim] / tileAxis[tileDim] >= minChannelSize) &&
-                       (outputShape[tileDim] % tileAxis[tileDim] == 0) &&
-                       ((outputShape[tileDim] / tileAxis[tileDim]) % minChannelSize == 0);
-            } else
-                return outputShape[tileDim] / tileAxis[tileDim] >= 1;
-        };
 
         auto isMemPrefetchable = [&]() -> bool {
             auto tileResult = fillDividedTiles(tileAxis, outputShape);
             return vpux::VPUIP::NCEInvariant::verifyEltwisePrefetchCMX(op, tileResult, log).succeeded();
         };
 
-        return isDivisibleTile() && isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
+        return isDivisibleTile(op, tileAxis, tileDim, 1) && isMemPrefetchable() &&
+               !isLastTileBiggest(tileAxis, outputShape, tileDim);
     }
 
 private:

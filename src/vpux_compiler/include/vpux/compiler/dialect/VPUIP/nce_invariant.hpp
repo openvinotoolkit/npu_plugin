@@ -65,6 +65,8 @@ public:
                                                  Logger log = Logger::global());
     static mlir::LogicalResult verifyPrefetchCMX(IE::MaxPoolOp origOp, vpux::OutputTiling tiling,
                                                  Logger log = Logger::global());
+    static mlir::LogicalResult verifyPrefetchCMX(IE::GroupConvolutionOp origOp, vpux::OutputTiling tiling,
+                                                 Logger log = Logger::global());
 
     static mlir::LogicalResult verifyPrefetchCMX(IE::AddOp origOp, vpux::OutputTiling tiling,
                                                  Logger log = Logger::global());
