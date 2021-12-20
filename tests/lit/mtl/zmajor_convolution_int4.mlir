@@ -63,6 +63,7 @@
         "compress": false,
         "mpe_cub": "CUBOID_16x16"
     },
+    "output_order": "nhwc",
     "activation": {
         "name": null
     }
