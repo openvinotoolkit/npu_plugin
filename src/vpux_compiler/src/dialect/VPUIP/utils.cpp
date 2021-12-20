@@ -229,6 +229,6 @@ mlir::Value vpux::VPUIP::alignChannelMajorWeightsTensor(mlir::OpBuilder& builder
 
 bool vpux::VPUIP::isChannelMajorCompatibleOperation(DimsOrder inDimsOrder, int64_t inputChannels,
                                                     int64_t inputTensorWidth) {
-    return ((inDimsOrder == DimsOrder::NCHW) && (inputChannels <= 3) &&
+    return ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) &&
             (inputTensorWidth % VPUIP::NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT == 0));
 }
