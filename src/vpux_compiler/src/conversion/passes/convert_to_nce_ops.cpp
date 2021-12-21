@@ -339,8 +339,8 @@ mlir::LogicalResult ChannelMajorConvRewrite::matchAndRewrite(IERT::ConvolutionOp
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
     const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
-    bool isChannelMajorConvolution =
-            VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth, arch);
+    bool isChannelMajorConvolution = VPUIP::isChannelMajorCompatibleOperation(origOp.getOperation(), inDimsOrder,
+                                                                              inputChannels, inputTensorWidth, arch);
 
     if (!isChannelMajorConvolution) {
         return matchFailed(rewriter, origOp, "This convolution must be a Z-major convolution", origOp);
@@ -468,8 +468,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
     const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
-    bool isChannelMajorConvolution =
-            VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth, arch);
+    bool isChannelMajorConvolution = VPUIP::isChannelMajorCompatibleOperation(origOp.getOperation(), inDimsOrder,
+                                                                              inputChannels, inputTensorWidth, arch);
 
     if (isChannelMajorConvolution) {
         return matchFailed(rewriter, origOp, "Converting Z-major convolution to channel major convolution", origOp);

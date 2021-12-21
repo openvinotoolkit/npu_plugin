@@ -102,10 +102,10 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
                 const auto inputChannels = getShape(op.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
                 // const auto inDimsOrder = info.getInput(0);
                 const auto inDimsOrder = DimsOrder::fromValue(op->getOperand(0));
-                const auto inLayout =
-                        VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth, arch)
-                                ? DimsOrder::NCHW
-                                : DimsOrder::NHWC;
+                const auto inLayout = VPUIP::isChannelMajorCompatibleOperation(origOp, inDimsOrder, inputChannels,
+                                                                               inputTensorWidth, arch)
+                                              ? DimsOrder::NCHW
+                                              : DimsOrder::NHWC;
                 info.setInput(0, inLayout);
                 info.setInput(1, DimsOrder::OYXI);
                 info.setOutput(0, DimsOrder::NHWC);

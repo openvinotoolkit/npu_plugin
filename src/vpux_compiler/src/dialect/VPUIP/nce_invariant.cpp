@@ -72,8 +72,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp orig
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
     const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
-    bool isChannelMajorConvolution =
-            VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth, arch);
+    bool isChannelMajorConvolution = VPUIP::isChannelMajorCompatibleOperation(origOp.getOperation(), inDimsOrder,
+                                                                              inputChannels, inputTensorWidth, arch);
 
     return verifyConvChannels(isChannelMajorConvolution, origOp->getLoc(),
                               origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
@@ -84,8 +84,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp or
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
     const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
-    bool isChannelMajorConvolution =
-            VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth, arch);
+    bool isChannelMajorConvolution = VPUIP::isChannelMajorCompatibleOperation(origOp.getOperation(), inDimsOrder,
+                                                                              inputChannels, inputTensorWidth, arch);
 
     return verifyConvChannels(isChannelMajorConvolution, origOp->getLoc(),
                               origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
