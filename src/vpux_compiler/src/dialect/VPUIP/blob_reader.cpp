@@ -441,6 +441,7 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_TileParams, &BlobReader::parseTile},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_SpaceToDepthParams, &BlobReader::parseSpaceToDepth},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReduceParams, &BlobReader::parseReduce},
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_DepthToSpaceParams, &BlobReader::parseDepthToSpace},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReversesequenceParams, &BlobReader::parseReverseSequence}};
 
     VPUX_THROW_UNLESS(_graphFile->task_lists(), "Blob contains no task lists");

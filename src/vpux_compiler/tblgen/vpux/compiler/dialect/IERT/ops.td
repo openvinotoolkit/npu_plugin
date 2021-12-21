@@ -3026,6 +3026,38 @@ def IERT_EqualOp :
     }];
 }
 
+// 
+// DepthToSpaceOp
+//
+
+def IERT_DepthToSpaceOp :
+        IERT_LayerOp<1, "DepthToSpace",
+            [
+                ViewLikeOpInterface,
+                IERT_SameDimsOrder
+            ]
+        > {
+    let summary = "InferenceEngine run-time DepthToSpace layer";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+        IntAttr:$block_size,
+        IE_DepthToSpaceMode:$mode
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 //
 // NotEqualOp
 //

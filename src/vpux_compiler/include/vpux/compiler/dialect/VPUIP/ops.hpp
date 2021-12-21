@@ -67,6 +67,7 @@ mlir::LogicalResult verifyOp(PadUPAOp op);
 mlir::LogicalResult verifyOp(GatherUPAOp op);
 mlir::LogicalResult verifyOp(ConvolutionUPAOp op);
 mlir::LogicalResult verifyOp(NCEClusterTaskOp op);
+mlir::LogicalResult verifyOp(DepthToSpaceUPAOp op);
 mlir::LogicalResult verifyOp(DPUTaskOp op);
 mlir::LogicalResult verifyOp(SpaceToDepthUPAOp op);
 mlir::LogicalResult verifyOp(NormUPAOp op);

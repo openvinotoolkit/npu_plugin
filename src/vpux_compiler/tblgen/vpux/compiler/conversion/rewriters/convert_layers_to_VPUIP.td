@@ -1051,4 +1051,20 @@ def RewriteReverseSequence :
             (createReverseSequenceUPAOp $data, $seq_length, $output, $seq_axis, $batch_axis)
         >;
 
+//
+// IERT.DepthToSpace -> VPUIP.DepthToSpaceUPA
+//
+
+def createDepthToSpaceUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::DepthToSpaceUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteDepthToSpace :
+        Pat<
+            (IERT_DepthToSpaceOp $input, $output, $block_size, $mode),
+            (createDepthToSpaceUPAOp $input, $output, $block_size, $mode)
+        >;
+
 #endif

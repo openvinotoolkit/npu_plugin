@@ -2791,6 +2791,30 @@ def IE_ReverseSequenceOp :
 }
 
 //
+// DepthToSpaceOp
+//
+
+def IE_DepthToSpaceOp :
+        IE_LayerOp<
+            "DepthToSpace"
+        > {
+    let summary = "InferenceEngine DepthToSpace layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        IntAttr:$block_size,
+        IE_DepthToSpaceMode:$mode
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+}
+
+//
 // SoftPlusOp
 //
 

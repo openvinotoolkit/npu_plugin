@@ -584,6 +584,41 @@ operation ::= `IERT.Cosh` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.DepthToSpace` (vpux::IERT::DepthToSpaceOp)
+
+InferenceEngine run-time DepthToSpace layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.DepthToSpace` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::DepthToSpaceModeAttr | DepthToSpaceMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `IERT.Dequantize` (vpux::IERT::DequantizeOp)
 
 InferenceEngine run-time Dequantize layer

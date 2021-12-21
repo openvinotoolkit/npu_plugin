@@ -589,6 +589,37 @@ operation ::= `IE.Deconvolution` `(` operands `)` attr-dict `:` type(operands) `
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.DepthToSpace` (vpux::IE::DepthToSpaceOp)
+
+InferenceEngine DepthToSpace layer
+
+
+Syntax:
+
+```
+operation ::= `IE.DepthToSpace` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::DepthToSpaceModeAttr | DepthToSpaceMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Dequantize` (vpux::IE::DequantizeOp)
 
 InferenceEngine Dequantize layer

@@ -3173,6 +3173,57 @@ def VPUIP_GatherElementsUPAOp :
 }
 
 //
+// DepthToSpaceUPAOp
+//
+
+def VPUIP_DepthToSpaceUPAOp :
+        VPUIP_UPATaskOp<1, "DepthToSpaceUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "DepthToSpace UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        IntAttr:$block_size,
+        IE_DepthToSpaceMode:$mode,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins 
+                "mlir::Value":$input, 
+                "mlir::Value":$output, 
+                "mlir::IntegerAttr":$block_size,
+                "IE::DepthToSpaceModeAttr":$mode
+            )
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // NormalizeIEOp
 //
 

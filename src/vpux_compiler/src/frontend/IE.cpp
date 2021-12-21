@@ -85,7 +85,6 @@
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 #include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
-#include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_upgrade.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -211,6 +210,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMSequence>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Ceiling>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Equal>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::DepthToSpace>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReverseSequence>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Less>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LessEqual>& origNode);
@@ -243,6 +243,7 @@ private:
     IE::RoundModeAttr importRoundMode(const ngraph::op::v5::Round::RoundMode val);
     IE::LRN_IERegionAttr importLRN_IERegion(const std::string& region);
     IE::RNNSequenceDirectionAttr importRNNSequenceDirection(const ngraph::op::RecurrentSequenceDirection val);
+    IE::DepthToSpaceModeAttr importDepthToSpaceMode(const ngraph::op::v0::DepthToSpace::DepthToSpaceMode val);
     IE::SpaceToDepthModeAttr importSpaceToDepthMode(const ngraph::op::SpaceToDepth::SpaceToDepthMode val);
 
     mlir::MLIRContext* _ctx = nullptr;
@@ -345,6 +346,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Ceiling),
             MAP_ENTRY(opset_latest::SoftPlus),
             MAP_ENTRY(opset_latest::Equal),
+            MAP_ENTRY(opset_latest::DepthToSpace),
             MAP_ENTRY(opset_latest::ReverseSequence),
             MAP_ENTRY(opset_latest::Less),
             MAP_ENTRY(opset_latest::LessEqual),
@@ -1780,6 +1782,21 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::DepthToSpace>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::DepthToSpace>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto blockSizeAttr = getIntAttr(_ctx, origNode->get_block_size());
+
+    auto op = builder.create<IE::DepthToSpaceOp>(createLocation(origNode), inputs[0], blockSizeAttr,
+                                                 importDepthToSpaceMode(origNode->get_mode()));
+    addOutputs(origNode, op);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalOr>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::LogicalOr>::value,
                   "opset operation mismatch");
@@ -2195,6 +2212,22 @@ IE::RoundModeAttr NGraphImporter::importRoundMode(const ngraph::op::v5::Round::R
     return attr;
 }
 
+IE::DepthToSpaceModeAttr NGraphImporter::importDepthToSpaceMode(
+        const ngraph::op::v0::DepthToSpace::DepthToSpaceMode val) {
+    IE::DepthToSpaceModeAttr attr;
+    switch (val) {
+    case ngraph::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+        attr = IE::DepthToSpaceModeAttr::get(_ctx, IE::DepthToSpaceMode::BLOCKS_FIRST);
+        break;
+    case ngraph::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+        attr = IE::DepthToSpaceModeAttr::get(_ctx, IE::DepthToSpaceMode::DEPTH_FIRST);
+        break;
+    default:
+        VPUX_THROW("Unknown DepthToSpace Mode");
+    }
+    return attr;
+}
+
 IE::SpaceToDepthModeAttr NGraphImporter::importSpaceToDepthMode(const ngraph::op::SpaceToDepth::SpaceToDepthMode val) {
     IE::SpaceToDepthModeAttr attr;
     switch (val) {
@@ -2278,7 +2311,6 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
     decomp->add_matcher<ngraph::pass::ConvertMod>();
     decomp->add_matcher<ngraph::pass::ConvertGELU>();
-    decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
     decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
