@@ -155,19 +155,26 @@ void FeasibleAllocationPass::updateAsyncExecuteOpDependencies(
         if (opIt->opType_ != FeasibleMemoryScheduler::EOpType::ORIGINAL_OP) {
             continue;
         }
+        size_t nextTimeDiff = 0;
         for (auto nextTimeOpIt = opIt; nextTimeOpIt != scheduledOps.end(); nextTimeOpIt++) {
             if (nextTimeOpIt->opType_ != FeasibleMemoryScheduler::EOpType::ORIGINAL_OP) {
                 continue;
-            } else if (nextTimeOpIt->time_ == opIt->time_ + 1) {
-                // Insert dependency between op at time t to op at
-                // time t+1
-                auto srcAsyncOp = depsInfo.getExecuteOpAtIndex(opIt->op_);
-                auto dstAsyncOp = depsInfo.getExecuteOpAtIndex(nextTimeOpIt->op_);
-                VPUX_THROW_UNLESS((srcAsyncOp != nullptr) && (dstAsyncOp != nullptr),
-                                  "srcAsyncOp/dstAsyncOp not located based on index");
-                depsInfo.addDependency(srcAsyncOp, dstAsyncOp);
-            } else if (nextTimeOpIt->time_ > (opIt->time_ + 1)) {
-                break;
+            } else if (nextTimeDiff == 0 && nextTimeOpIt->time_ > opIt->time_) {
+                nextTimeDiff = nextTimeOpIt->time_ - opIt->time_;
+            }
+
+            if (nextTimeDiff != 0) {
+                if (nextTimeOpIt->time_ == opIt->time_ + nextTimeDiff) {
+                    // Insert dependency between op at time t to op at
+                    // time t+1
+                    auto srcAsyncOp = depsInfo.getExecuteOpAtIndex(opIt->op_);
+                    auto dstAsyncOp = depsInfo.getExecuteOpAtIndex(nextTimeOpIt->op_);
+                    VPUX_THROW_UNLESS((srcAsyncOp != nullptr) && (dstAsyncOp != nullptr),
+                                      "srcAsyncOp/dstAsyncOp not located based on index");
+                    depsInfo.addDependency(srcAsyncOp, dstAsyncOp);
+                } else if (nextTimeOpIt->time_ > (opIt->time_ + nextTimeDiff)) {
+                    break;
+                }
             }
         }
     }
@@ -198,13 +205,14 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // 1. initial schedule
     auto scheduledOps = scheduler.generateSchedule();
 
-    // 2. optimize spills
-
-    // 3. re-order the IR
+    // 2. re-order the IR
     updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
 
-    // 4. insert spill dmas
+    // 3. optimize spills
     FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
+    spilling.removeRedundantSpillWrites(scheduledOps);
+
+    // 4. insert spill dmas
     spilling.insertSpillCopyOps(scheduledOps);
 
     // 5. update dependencies
