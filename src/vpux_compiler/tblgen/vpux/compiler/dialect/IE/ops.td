@@ -1217,6 +1217,28 @@ def IE_ReduceMaxOp :
 }
 
 //
+// ReduceMeanOp
+//
+
+def IE_ReduceMeanOp :
+        IE_LayerOp<
+            "ReduceMean"
+        > {
+    let summary = "InferenceEngine ReduceMean Layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[SI64, SI32]>:$axes,
+
+        BoolAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
 // ReduceSumOp
 //
 

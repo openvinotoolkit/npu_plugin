@@ -2274,6 +2274,37 @@ operation ::= `IE.ReduceMax` `(` operands `)` attr-dict `:` type(operands) `->` 
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.ReduceMean` (vpux::IE::ReduceMeanOp)
+
+InferenceEngine ReduceMean Layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReduceMean` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.ReduceSum` (vpux::IE::ReduceSumOp)
 
 InferenceEngine ReduceSum layer

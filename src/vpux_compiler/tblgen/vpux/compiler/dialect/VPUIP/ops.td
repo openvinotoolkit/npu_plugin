@@ -1610,10 +1610,9 @@ def VPUIP_ReduceUPAOp :
     let summary = "Reduce UPA SHAVE kernel";
 
     let arguments = (ins
-        F16MemRef:$input,
+        MemRefOf<[F16, SI32]>:$input,
         MemRefOf<[SI32]>:$axes,
-
-        F16MemRef:$output_buff,
+        MemRefOf<[F16, SI32]>:$output_buff,
 
         BoolAttr:$keep_dims,
         VPUIP_ReduceLayerType:$type,
@@ -1622,7 +1621,7 @@ def VPUIP_ReduceUPAOp :
     );
 
     let results = (outs
-        F16MemRef:$output
+        MemRefOf<[F16, SI32]>:$output
     );
 
     let builders = [

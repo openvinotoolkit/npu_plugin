@@ -659,6 +659,38 @@ def IERT_ReduceMaxOp :
 }
 
 //
+// ReduceMeanOp
+//
+
+def IERT_ReduceMeanOp :
+    IERT_LayerOp<1, "ReduceMean",
+        [
+            ViewLikeOpInterface
+        ]
+    > {
+    let summary = "InferenceEngine run-time ReduceMean layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI32, SI64]>:$axes,
+        AnyMemRef:$output_buff,
+
+        BoolAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ReduceSumOp
 //
 
