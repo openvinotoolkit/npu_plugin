@@ -270,8 +270,9 @@ bool isDivisibleTile(mlir::Operation* op, ShapeRef tileAxis, Dim tileDim, int64_
 bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
     auto outputShape = getShape(origOp.output());
     auto tileDims = getTileDims(tileAxis);
-    if (tileDims.size() != 1)
+    if (tileDims.size() != 1) {
         return false;
+    }
     auto tileDim = tileDims[0];
     auto isMemPrefetchable = [&]() -> bool {
         auto tileResult = fillDividedTiles(tileAxis, outputShape);
@@ -285,8 +286,9 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, ShapeRef tileAxis, Logg
 bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
     auto outputShape = getShape(origOp.output());
     auto tileDims = getTileDims(tileAxis);
-    if (tileDims.size() != 1)
+    if (tileDims.size() != 1) {
         return false;
+    }
     auto tileDim = tileDims[0];
 
     auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
@@ -305,10 +307,16 @@ bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, ShapeRef tileAxis,
 
 bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, ShapeRef tileAxis, Logger log) {
     auto tileDims = getTileDims(tileAxis);
-    if (tileDims.size() != 1)
+    if (tileDims.size() != 1) {
         return false;
+    }
     auto tileDim = tileDims[0];
     auto outputShape = getShape(origOp.output());
+
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
+        return false;
+    }
 
     auto isMemPrefetchable = [&]() -> bool {
         auto tileResult = fillDividedTiles(tileAxis, outputShape);
@@ -374,8 +382,9 @@ public:
 
     bool isSupportedPrefetchTiling(mlir::Operation* op, ShapeRef tileAxis, Logger log) const {
         auto tileDims = getTileDims(tileAxis);
-        if (tileDims.size() != 1)
+        if (tileDims.size() != 1) {
             return false;
+        }
         auto tileDim = tileDims[0];
         auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
 

@@ -504,11 +504,6 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::GroupConvolutionO
                               origOp.output().getType().cast<mlir::ShapedType>(), origOp.strides(), log);
 }
 
-mlir::ShapedType addTiledType(const TileInfo& tile, mlir::Value input) {
-    const auto inType = input.getType().cast<mlir::ShapedType>();
-    return getDenseTileType(inType, tile.offsets, tile.shape);
-};
-
 SmallVector<mlir::ShapedType> getTileTypes(IE::ConvolutionOp origOp, const TileInfo& outTile) {
     const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
     auto tileConf = vpux::backInferConvTile(outTile, getShape(origOp.input()), getShape(origOp.filter()), origBiasShape,
@@ -516,9 +511,11 @@ SmallVector<mlir::ShapedType> getTileTypes(IE::ConvolutionOp origOp, const TileI
 
     SmallVector<mlir::ShapedType> tileTypes;
 
-    tileTypes.push_back(addTiledType(tileConf.tiles[0], origOp.input()));
-    tileTypes.push_back(addTiledType(tileConf.tiles[1], origOp.filter()));
-    tileTypes.push_back(getDenseTileType(origOp.getType(), outTile.offsets, outTile.shape));
+    tileTypes.push_back(getDenseTileType(origOp.input().getType().cast<mlir::ShapedType>(), tileConf.tiles[0].offsets,
+                                         tileConf.tiles[0].shape));
+    tileTypes.push_back(getDenseTileType(origOp.filter().getType().cast<mlir::ShapedType>(), tileConf.tiles[1].offsets,
+                                         tileConf.tiles[1].shape));
+    tileTypes.push_back(getDenseTileType(origOp.getType().cast<mlir::ShapedType>(), outTile.offsets, outTile.shape));
 
     return tileTypes;
 }
@@ -528,10 +525,11 @@ SmallVector<mlir::ShapedType> getTileTypes(IE::ConvolutionOp origOp, const TileI
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::ConvolutionOp origOp, vpux::OutputTiling tiling,
                                                                  Logger log) {
     log.setName("NCEInvariant");
-    if (tiling.size() <= 1)
+    if (tiling.size() <= 1) {
         return mlir::failure();
+    }
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    const auto cmxSize = getCMXSizeForTiling(module);  // TODO set a max memory usage ratio to avoid fragmentation.
+    const auto cmxSize = getCMXSizeForTiling(module);
 
     Byte requiredCMX = Byte(0);
 
@@ -589,8 +587,9 @@ SmallVector<mlir::ShapedType> getTileTypes(IE::MaxPoolOp origOp, const TileInfo&
 
     SmallVector<mlir::ShapedType> tileTypes;
 
-    tileTypes.push_back(addTiledType(tileConf.tiles[0], origOp.input()));
-    tileTypes.push_back(getDenseTileType(origOp.getType(), outTile.offsets, outTile.shape));
+    tileTypes.push_back(getDenseTileType(origOp.input().getType().cast<mlir::ShapedType>(), tileConf.tiles[0].offsets,
+                                         tileConf.tiles[0].shape));
+    tileTypes.push_back(getDenseTileType(origOp.getType().cast<mlir::ShapedType>(), outTile.offsets, outTile.shape));
 
     return tileTypes;
 }
@@ -598,10 +597,11 @@ SmallVector<mlir::ShapedType> getTileTypes(IE::MaxPoolOp origOp, const TileInfo&
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp origOp, vpux::OutputTiling tiling,
                                                                  Logger log) {
     log.setName("NCEInvariant");
-    if (tiling.size() <= 1)
+    if (tiling.size() <= 1) {
         return mlir::failure();
+    }
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    const auto cmxSize = getCMXSizeForTiling(module);  // TODO set a max memory usage ratio to avoid fragmentation.
+    const auto cmxSize = getCMXSizeForTiling(module);
 
     Byte requiredCMX = Byte(0);
 
@@ -656,9 +656,11 @@ SmallVector<mlir::ShapedType> getTileTypes(IE::GroupConvolutionOp origOp, const 
 
     SmallVector<mlir::ShapedType> tileTypes;
 
-    tileTypes.push_back(addTiledType(tileConf.tiles[0], origOp.input()));
-    tileTypes.push_back(addTiledType(tileConf.tiles[1], origOp.filter()));
-    tileTypes.push_back(getDenseTileType(origOp.getType(), outTile.offsets, outTile.shape));
+    tileTypes.push_back(getDenseTileType(origOp.input().getType().cast<mlir::ShapedType>(), tileConf.tiles[0].offsets,
+                                         tileConf.tiles[0].shape));
+    tileTypes.push_back(getDenseTileType(origOp.filter().getType().cast<mlir::ShapedType>(), tileConf.tiles[1].offsets,
+                                         tileConf.tiles[1].shape));
+    tileTypes.push_back(getDenseTileType(origOp.getType().cast<mlir::ShapedType>(), outTile.offsets, outTile.shape));
 
     return tileTypes;
 }
@@ -666,10 +668,11 @@ SmallVector<mlir::ShapedType> getTileTypes(IE::GroupConvolutionOp origOp, const 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::GroupConvolutionOp origOp,
                                                                  vpux::OutputTiling tiling, Logger log) {
     log.setName("NCEInvariant");
-    if (tiling.size() <= 1)
+    if (tiling.size() <= 1) {
         return mlir::failure();
+    }
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    const auto cmxSize = getCMXSizeForTiling(module);  // TODO set a max memory usage ratio to avoid fragmentation.
+    const auto cmxSize = getCMXSizeForTiling(module);
 
     Byte requiredCMX = Byte(0);
 
@@ -747,8 +750,10 @@ SmallVector<mlir::ShapedType> getTileTypes(mlir::Operation* op, const TileInfo& 
 
     SmallVector<mlir::ShapedType> tileTypes;
 
-    tileTypes.push_back(addTiledType(tileConf.tiles[0], op->getOperand(0)));
-    tileTypes.push_back(addTiledType(tileConf.tiles[1], op->getOperand(1)));
+    tileTypes.push_back(getDenseTileType(op->getOperand(0).getType().cast<mlir::ShapedType>(),
+                                         tileConf.tiles[0].offsets, tileConf.tiles[0].shape));
+    tileTypes.push_back(getDenseTileType(op->getOperand(1).getType().cast<mlir::ShapedType>(),
+                                         tileConf.tiles[1].offsets, tileConf.tiles[1].shape));
     tileTypes.push_back(
             getDenseTileType(op->getResult(0).getType().cast<mlir::ShapedType>(), outTile.offsets, outTile.shape));
 
@@ -758,10 +763,11 @@ SmallVector<mlir::ShapedType> getTileTypes(mlir::Operation* op, const TileInfo& 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwisePrefetchCMX(mlir::Operation* op, vpux::OutputTiling tiling,
                                                                         Logger log) {
     log.setName("NCEInvariant");
-    if (tiling.size() <= 1)
+    if (tiling.size() <= 1) {
         return mlir::failure();
+    }
     auto module = op->getParentOfType<mlir::ModuleOp>();
-    const auto cmxSize = getCMXSizeForTiling(module);  // TODO set a max memory usage ratio to avoid fragmentation.
+    const auto cmxSize = getCMXSizeForTiling(module);
 
     Byte requiredCMX = Byte(0);
 

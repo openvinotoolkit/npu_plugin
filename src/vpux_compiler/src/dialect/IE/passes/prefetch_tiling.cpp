@@ -43,8 +43,10 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
     Shape nTilesOnDim = IE::computeGeneralTileStrategy(op, log);
     auto dimsToTile = getDimsToTile(nTilesOnDim);
     VPUX_THROW_WHEN(dimsToTile.size() == 0, "Must tile at least on one dimension");
-    if (dimsToTile.size() > 1)  // return general tiling when getting nested tiles.
+    if (dimsToTile.size() > 1) {
+        // return general tiling when getting nested tiles.
         return fillDividedTiles(nTilesOnDim, outputShape);
+    }
 
     // step 2: increase the general tile strategy to satisfy prefetching
     const auto targetDim = dimsToTile[0];
