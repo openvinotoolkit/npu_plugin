@@ -461,8 +461,8 @@ size_t TokenBasedBarrierScheduler::schedule() {
         // success = true;
         success = simulator.assignPhysicalIDs();
 
-        if (barrierCount_ == 4)
-            success = false;
+        // if (barrierCount_ == 4)
+        //     success = false;
 
         if (!success) {
             _func->walk([](VPURT::TaskOp op) {
