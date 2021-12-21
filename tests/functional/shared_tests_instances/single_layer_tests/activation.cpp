@@ -36,6 +36,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Relu,
     ngraph::helpers::Sigmoid,
     ngraph::helpers::Clamp,
+    ngraph::helpers::SoftPlus,
     ngraph::helpers::Elu,
     ngraph::helpers::HSwish,
     ngraph::helpers::Floor,
@@ -50,8 +51,13 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::RoundHalfToEven,
     ngraph::helpers::RoundHalfAwayFromZero,
     ngraph::helpers::Sqrt,
+    ngraph::helpers::Sinh,
+    ngraph::helpers::Cosh,
+    ngraph::helpers::Asinh,
+    ngraph::helpers::Acosh,
     ngraph::helpers::Log,
     ngraph::helpers::Ceiling,
+    ngraph::helpers::Gelu,
 };
 
 } // namespace
@@ -125,7 +131,7 @@ using namespace ngraph::helpers;
 namespace {
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP32
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -140,9 +146,12 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {HSwish,   {{1.0f}}},
     {Mish,     {{1.0f}}},
     {SoftPlus, {{1.0f}}},
-    {Mish,     {{1.0f}}},
     {Floor,    {{1.0f}}},
     {Sqrt,     {{1.0f}}},
+    {Sinh,     {{1.0f}}},
+    {Cosh,     {{1.0f}}},
+    {Asinh,    {{1.0f}}},
+    {Acosh,    {{1.0f}}},
     {Erf,      {{1.0f}}},
     {Gelu,     {{1.0f}}},
     {Exp,      {{1.0f}}},

@@ -29,7 +29,8 @@
 #include <vector>
 #include <vpu/utils/enums.hpp>
 
-#include "mcm/utils/profiling_parser.hpp"
+#include "vpux/utils/IE/profiling.hpp"
+#include "vpux/utils/plugin/profiling_parser.hpp"
 
 #if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
 #include "mmapped_pointer.hpp"
@@ -693,9 +694,9 @@ static bool needRepackForNHWC(const ie::TensorDesc& actualDesc) {
          1) NC & C there isn't necessary to do repacking,
             because these layouts has the same representation in NCHW & NHWC
          2) NHWC isn't necessary to do repacking obviously
-         3) NDHWC isn't necessary to do repacking 
+         3) NDHWC isn't necessary to do repacking
          4) NCHW in general case it should be repacked, however if it is 11HW it isn't necessary
-         5) CHW the same as for NCHW case, it isn't necessary to do repacking in 1HW case 
+         5) CHW the same as for NCHW case, it isn't necessary to do repacking in 1HW case
          6) NCDHW in general case it should be repacked, however if it is 111HW it isn't necessary
      */
     const auto actualLayout = actualDesc.getLayout();
@@ -864,6 +865,25 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     }
     ie::BlobMap deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
     repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
+
+    if (_config.get<PRINT_PROFILING>()) {
+        if (!_profilingOutputPhysAddrs.empty()) {
+            ie::BlobMap profilingOutputs = extractProfilingOutputsFromPhysAddr(_profilingOutputPhysAddrs.at(0));
+            if (!profilingOutputs.empty()) {
+                ie::BlobMap::iterator profilingOutputBlob = profilingOutputs.begin();
+                const auto profilingMemoryBlob = ie::as<ie::MemoryBlob>(profilingOutputBlob->second);
+                if (profilingMemoryBlob == nullptr) {
+                    IE_THROW() << "VPUX Plugin profiling blob is null: " << profilingOutputBlob->first;
+                }
+                const auto blob = _networkDescription->getCompiledNetwork();
+                const auto& profilingOutput = profilingMemoryBlob->rmap().as<const void*>();
+                vpux::printProfiling(blob.data(), blob.size(), profilingOutput, profilingMemoryBlob->byteSize());
+            }
+        } else {
+            _logger.error("Profiling printing is enabled but not profiling output detected");
+        }
+    }
+
     _logger.info("pull finished");
 #else
     VPUX_UNUSED(outputs);
@@ -947,49 +967,35 @@ bool VpualCoreNNExecutor::isPreProcessingSupported(const PreprocMap&) const {
 }
 
 std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLayerStatistics() {
-    std::map<std::string, ie::InferenceEngineProfileInfo> perfCounts;
-
-    const auto blob = _networkDescription->getCompiledNetwork().data();
+    const auto blob = _networkDescription->getCompiledNetwork();
     ie::BlobMap deviceOutputs;
+    ie::BlobMap::iterator profilingOutputBlob;
     if (_profilingOutputPhysAddrs.size()) {
         deviceOutputs = extractProfilingOutputsFromPhysAddr(_profilingOutputPhysAddrs.at(0));
     }
-    auto profilingOutputBlob = deviceOutputs.find("profilingOutput");
-    if (profilingOutputBlob == deviceOutputs.end()) {
+    if (deviceOutputs.empty()) {
         deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
-    }
-    profilingOutputBlob = deviceOutputs.find("profilingOutput");
-    if (profilingOutputBlob == deviceOutputs.end()) {
-        _logger.warning("No profiling output. Blob was compiled without profiling enabled or does not contain "
-                        "profiling info.");
-        return perfCounts;
+        profilingOutputBlob = deviceOutputs.find("profilingOutput");
+        if (profilingOutputBlob == deviceOutputs.end()) {
+            _logger.warning("No profiling output. Blob was compiled without profiling enabled or does not contain "
+                            "profiling info.");
+            return std::map<std::string, ie::InferenceEngineProfileInfo>();
+        }
+    } else {
+        profilingOutputBlob = deviceOutputs.begin();
     }
 
     const auto profilingMemoryBlob = ie::as<ie::MemoryBlob>(profilingOutputBlob->second);
     if (profilingMemoryBlob == nullptr) {
         IE_THROW() << "VPUX Plugin profiling blob is null: " << profilingOutputBlob->first;
     }
-    const auto& profilingOutput = ie::as<ie::MemoryBlob>(profilingOutputBlob->second)->rmap().as<const void*>();
+    const auto& profilingOutput = profilingMemoryBlob->rmap().as<const void*>();
 
-    std::vector<mv::utils::ProfInfo> deviceProfiling;
-    mv::utils::getProfilingInfo(blob, profilingOutput, deviceProfiling);
+    std::vector<vpux::ProfilingLayerInfo> layerProfiling;
+    vpux::getLayerProfilingInfo(blob.data(), blob.size(), profilingOutput, profilingMemoryBlob->byteSize(),
+                                layerProfiling);
 
-    int execution_index = 0;
-    ie::InferenceEngineProfileInfo info;
-    for (const auto& profilingEntry : deviceProfiling) {
-        info.status = ie::InferenceEngineProfileInfo::EXECUTED;
-        info.cpu_uSec = info.realTime_uSec = profilingEntry.time;
-        info.execution_index = execution_index++;
-        size_t typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
-        std::size_t length = profilingEntry.layer_type.copy(info.layer_type, typeLen, 0);
-        info.layer_type[length] = '\0';
-        typeLen = sizeof(info.exec_type) / sizeof(info.exec_type[0]);
-        length = profilingEntry.exec_type.copy(info.exec_type, typeLen, 0);
-        info.exec_type[length] = '\0';
-        perfCounts[profilingEntry.name] = info;
-    }
-
-    return perfCounts;
+    return convertProfilingLayersToIEInfo(layerProfiling);
 }
 
 InferenceEngine::Parameter VpualCoreNNExecutor::getParameter(const std::string&) const {

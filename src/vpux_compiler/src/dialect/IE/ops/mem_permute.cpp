@@ -115,7 +115,7 @@ void vpux::IE::MemPermuteOp::getCanonicalizationPatterns(mlir::OwningRewritePatt
 }
 
 mlir::OpFoldResult vpux::IE::MemPermuteOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() == output().getType()) {
+    if (input().getType() == output().getType() && mem_perm().isIdentity()) {
         return input();
     }
 

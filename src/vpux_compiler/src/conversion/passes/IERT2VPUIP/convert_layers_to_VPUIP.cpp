@@ -268,6 +268,39 @@ mlir::LogicalResult TimestampRewrite::matchAndRewrite(IERT::TimestampOp origOp, 
 }  // namespace
 
 //
+// TopKRewrite
+//
+
+class TopKRewrite final : public mlir::OpRewritePattern<IERT::TopKOp> {
+public:
+    TopKRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::TopKOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::TopKOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult TopKRewrite::matchAndRewrite(IERT::TopKOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found TopK Operation '{0}'", origOp->getLoc());
+
+    // Change value k from scalars (0D tensor) to 1D tensor
+    auto kType = origOp.k().getType().cast<mlir::MemRefType>();
+    const std::array<int64_t, 1> newKShape = {1};
+    ShapeRef newShape(newKShape);
+    auto newShapedKType = changeShape(kType, newShape);
+    auto k1DTensor = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newShapedKType, origOp.k());
+
+    rewriter.replaceOpWithNewOp<VPUIP::TopKUPAOp>(origOp, origOp.input(), k1DTensor, origOp.output_values_buff(),
+                                                  origOp.target_shape_buff(), origOp.axisAttr(), origOp.modeAttr(),
+                                                  origOp.sortAttr(), origOp.element_typeAttr(), nullptr);
+
+    return mlir::success();
+}
+
+//
 // Generated
 //
 
@@ -314,6 +347,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     patterns.insert<FullyConnectedRewrite>(&ctx, _log);
     patterns.insert<RewriteConvolution>(&ctx, _log);
     patterns.insert<TimestampRewrite>(&ctx, _log);
+    patterns.insert<TopKRewrite>(&ctx, _log);
     populateWithGenerated(patterns);
 
     auto func = getFunction();

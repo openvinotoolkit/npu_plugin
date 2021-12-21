@@ -46,7 +46,7 @@ LD_LIBRARY_PATH=./lib/ ./compilerThreadTest2 xxx.xml xxx.bin
    └── compilerThreadTest2
 ```
 
-- `data` contains an xml and bin for test.
+- `data` contains an xml and bin for test. E.g. if you want to test resnet-50, you can get its IR from `$KMB_PLUGIN_HOME/temp/models/src/models/KMB_models/FP16/resnet_50_pytorch/`
 - `lib` contains compiler module with all dependent dlls.
 - `pdb` contains pdb files for each dll.
 - `vpux_compiler_l0.h`  is the header file for exported functions.

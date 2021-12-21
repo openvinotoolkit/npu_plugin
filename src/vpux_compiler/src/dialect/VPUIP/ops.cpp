@@ -47,6 +47,12 @@ bool isSupportedHWPostOp(mlir::Operation* postOp) {
         // TODO: should be check maxVal?
     }
 
+    const auto module = postOp->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
+    if (arch == VPU::ArchKind::MTL && mlir::isa<IE::MaxPoolOp>(postOp)) {
+        return false;
+    }
+
     return true;
 }
 
@@ -96,6 +102,25 @@ public:
 
         const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
         return VPUIP::NCEInvariant::getChannelAlignment(inputType.getElementType());
+    }
+
+    bool checkChannelRestrictions(mlir::Operation* op, const int64_t channels) const {
+        if (!canBeExecutedOnNCE(op)) {
+            // there are no such restrictions in SW mode
+            return true;
+        }
+
+        const auto module = op->getParentOfType<mlir::ModuleOp>();
+        const auto arch = VPU::getArch(module);
+
+        if (arch == VPU::ArchKind::MTL && (mlir::isa<IE::MaxPoolOp>(op) || mlir::isa<IE::GroupConvolutionOp>(op))) {
+            // HW restrictions for channel number
+            static const SmallVector<int64_t> availiableChannels = {16, 32, 64};
+            return std::find(availiableChannels.begin(), availiableChannels.end(), channels) !=
+                   availiableChannels.end();
+        }
+
+        return true;
     }
 
 private:
@@ -152,17 +177,12 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
     const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
     const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
 
-    // const auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    // const auto arch = VPU::getArch(module);
-    // auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
-        // if (arch != VPU::ArchKind::MTL && channelsInfo != nullptr) {
-        //     const auto chanAlignment = channelsInfo.getChannelAlignment();
-        //     if (outputTile.shape[Dims4D::Act::C] != chanAlignment) {
-        //         return false;
-        //     }
-        // }
+        if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(outputTile.shape[Dims4D::Act::C])) {
+            return false;
+        }
 
         const auto origInputShape = getShape(origOp.input());
         const auto origFilterShape = getShape(origOp.filter());
@@ -191,7 +211,13 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
     const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
 
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(outputTile.shape[Dims4D::Act::C])) {
+            return false;
+        }
+
         const auto origInputShape = getShape(origOp.input());
 
         const auto inputTiling = backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(),
@@ -400,9 +426,15 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::RoundOp, OpModelForSW<VPUIP::RoundUPAOp>>();
     registry.addOpInterface<IE::TanhOp, OpModelForSW<VPUIP::TanhUPAOp>>();
     registry.addOpInterface<IE::SqrtOp, OpModelForSW<VPUIP::SqrtUPAOp>>();
+    registry.addOpInterface<IE::SinhOp, OpModelForSW<VPUIP::SinhUPAOp>>();
+    registry.addOpInterface<IE::CoshOp, OpModelForSW<VPUIP::CoshUPAOp>>();
+    registry.addOpInterface<IE::AsinhOp, OpModelForSW<VPUIP::AsinhUPAOp>>();
+    registry.addOpInterface<IE::AcoshOp, OpModelForSW<VPUIP::AcoshUPAOp>>();
     registry.addOpInterface<IE::LogOp, OpModelForSW<VPUIP::LogUPAOp>>();
+    registry.addOpInterface<IE::GeluOp, OpModelForSW<VPUIP::GeluUPAOp>>();
     registry.addOpInterface<IE::FakeQuantizeOp, OpModelForSW<VPUIP::FakeQuantizeUPAOp>>();
     registry.addOpInterface<IE::GatherOp, OpModelForSW<VPUIP::GatherUPAOp>>();
+    registry.addOpInterface<IE::ScatterNDUpdateOp, OpModelForSW<VPUIP::ScatterNDUpdateUPAOp>>();
     registry.addOpInterface<IE::QuantizeOp, OpModelForSW<VPUIP::QuantCastUPAOp>>();
     registry.addOpInterface<IE::DequantizeOp, OpModelForSW<VPUIP::QuantCastUPAOp>>();
     registry.addOpInterface<IE::PReluOp, OpModelForSW<VPUIP::PReluUPAOp>>();
@@ -441,12 +473,16 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::CeilingOp, OpModelForSW<VPUIP::CeilingUPAOp>>();
     registry.addOpInterface<IE::NormalizeIEOp, OpModelForSW<VPUIP::NormalizeIEUPAOp>>();
     registry.addOpInterface<IE::EqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::ReverseSequenceOp, OpModelForSW<VPUIP::ReverseSequenceUPAOp>>();
     registry.addOpInterface<IE::LessOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::LessEqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::NotEqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::SoftPlusOp, OpModelForSW<VPUIP::SoftPlusUPAOp>>();
     registry.addOpInterface<IE::GreaterOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::GreaterEqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::AndOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::LogicalOrOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::LogicalXorOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
 }
 
 //
@@ -481,12 +517,18 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::RoundOp, OpModelForSW>();
     registry.addOpInterface<IERT::TanhOp, OpModelForSW>();
     registry.addOpInterface<IERT::SqrtOp, OpModelForSW>();
+    registry.addOpInterface<IERT::SinhOp, OpModelForSW>();
+    registry.addOpInterface<IERT::CoshOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AsinhOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AcoshOp, OpModelForSW>();
     registry.addOpInterface<IERT::LogOp, OpModelForSW>();
+    registry.addOpInterface<IERT::GeluOp, OpModelForSW>();
     registry.addOpInterface<IERT::QuantizeOp, OpModelForSW>();
     registry.addOpInterface<IERT::DequantizeOp, OpModelForSW>();
     registry.addOpInterface<IERT::FakeQuantizeOp, OpModelForSW>();
     registry.addOpInterface<IERT::GatherOp, OpModelForSW>();
     registry.addOpInterface<IERT::GatherElementsOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ScatterNDUpdateOp, OpModelForSW>();
     registry.addOpInterface<IERT::PReluOp, OpModelForSW>();
     registry.addOpInterface<IERT::LeakyReluOp, OpModelForSW>();
     registry.addOpInterface<IERT::DivideOp, OpModelForSW>();
@@ -523,12 +565,17 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::CeilingOp, OpModelForSW>();
     registry.addOpInterface<IERT::NormalizeIEOp, OpModelForSW>();
     registry.addOpInterface<IERT::EqualOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ReverseSequenceOp, OpModelForSW>();
     registry.addOpInterface<IERT::LessOp, OpModelForSW>();
     registry.addOpInterface<IERT::LessEqualOp, OpModelForSW>();
     registry.addOpInterface<IERT::NotEqualOp, OpModelForSW>();
+    registry.addOpInterface<IERT::SoftPlusOp, OpModelForSW>();
     registry.addOpInterface<IERT::GreaterOp, OpModelForSW>();
     registry.addOpInterface<IERT::GreaterEqualOp, OpModelForSW>();
+    registry.addOpInterface<IERT::TopKOp, OpModelForSW>();
     registry.addOpInterface<IERT::AndOp, OpModelForSW>();
+    registry.addOpInterface<IERT::LogicalOrOp, OpModelForSW>();
+    registry.addOpInterface<IERT::LogicalXorOp, OpModelForSW>();
 }
 
 }  // namespace

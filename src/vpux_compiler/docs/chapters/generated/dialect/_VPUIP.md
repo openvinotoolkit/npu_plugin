@@ -20,6 +20,74 @@ It handles such VPU-specifics as:
 
 ## Operation definition
 
+### `VPUIP.AcoshUPA` (vpux::VPUIP::AcoshUPAOp)
+
+Acosh UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AcoshUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.AsinhUPA` (vpux::VPUIP::AsinhUPAOp)
+
+Asinh UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AsinhUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.BroadcastUPA` (vpux::VPUIP::BroadcastUPAOp)
 
 Broadcast UPA SHAVE kernel
@@ -310,6 +378,40 @@ operation ::= `VPUIP.ConvolutionUPA` attr-dict
 `input` | memref of 16-bit float values
 `filter` | memref of 16-bit float values
 `bias` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.CoshUPA` (vpux::VPUIP::CoshUPAOp)
+
+Cosh UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.CoshUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
 `output_buff` | memref of 16-bit float values
 
 #### Results:
@@ -717,6 +819,7 @@ operation ::= `VPUIP.GatherUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `axis` | mlir::IntegerAttr | Integer attribute
+`batch_dims` | mlir::IntegerAttr | Integer attribute
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
@@ -732,6 +835,40 @@ operation ::= `VPUIP.GatherUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of any type values
+
+### `VPUIP.GeluUPA` (vpux::VPUIP::GeluUPAOp)
+
+Gelu UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.GeluUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.HSwishUPA` (vpux::VPUIP::HSwishUPAOp)
 
@@ -1050,6 +1187,7 @@ operation ::= `VPUIP.NCEClusterTask` attr-dict
               `parent_input` `(` $parent_input `:` type($parent_input) `)`
               `parent_output` `(` $parent_output `:` type($parent_output) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
               `->` type(results)
               `variants` `:` $variants
               `PPE` `:` $ppe
@@ -1091,12 +1229,14 @@ mutually exclusive.
 `parent_input` | memref of any type values
 `parent_output` | memref of any type values
 `output_buff` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
+`profiling_data` | memref of 64-bit unsigned integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
+`profiling_output` | memref of 64-bit unsigned integer values
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 
@@ -1714,6 +1854,43 @@ operation ::= `VPUIP.RegionYoloUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.ReverseSequenceUPA` (vpux::VPUIP::ReverseSequenceUPAOp)
+
+ReverseSequence UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ReverseSequenceUPA` attr-dict
+              `inputs` `(` $data `:` type($data) `,` $seq_length `:` type($seq_length) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`seq_axis` | mlir::IntegerAttr | Integer attribute
+`batch_axis` | mlir::IntegerAttr | Integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of 16-bit float values
+`seq_length` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.RoundUPA` (vpux::VPUIP::RoundUPAOp)
 
 Round UPA SHAVE kernel
@@ -1785,6 +1962,42 @@ operation ::= `VPUIP.ScaleShiftUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.ScatterNDUpdateUPA` (vpux::VPUIP::ScatterNDUpdateUPAOp)
+
+ScatterNDUpdate UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ScatterNDUpdateUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `,` $updates `:` type($updates) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`indices` | memref of 32-bit signed integer values
+`updates` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `VPUIP.SigmoidUPA` (vpux::VPUIP::SigmoidUPAOp)
 
 Sigmoid UPA SHAVE kernel
@@ -1794,6 +2007,40 @@ Syntax:
 
 ```
 operation ::= `VPUIP.SigmoidUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.SinhUPA` (vpux::VPUIP::SinhUPAOp)
+
+Sinh UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SinhUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
@@ -1839,6 +2086,40 @@ operation ::= `VPUIP.SoftMaxUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `axisInd` | mlir::IntegerAttr | Integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.SoftPlusUPA` (vpux::VPUIP::SoftPlusUPAOp)
+
+SoftPlus UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SoftPlusUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
@@ -2051,6 +2332,37 @@ operation ::= `VPUIP.TanhUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float values
+
+### `VPUIP.TopK` (vpux::VPUIP::TopKUPAOp)
+
+TopK UPA SHAVE kernel
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::TopKModeAttr | TopKMode that the InferenceEngine supports
+`sort` | vpux::IE::TopKSortTypeAttr | TopKSortType that the InferenceEngine supports
+`element_type` | ::mlir::TypeAttr | any type attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`k` | memref of 32-bit signed integer values
+`output_values_buff` | memref of 16-bit float values
+`target_shape_buff` | memref of 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output_values` | memref of 16-bit float values
+`target_shape` | memref of 32-bit signed integer values
 
 ### `VPUIP.WeightsTableOp` (vpux::VPUIP::WeightsTableOp)
 

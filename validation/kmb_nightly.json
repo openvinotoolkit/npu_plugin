@@ -13,6 +13,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
             },
@@ -112,6 +115,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
             },
@@ -143,6 +149,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
             },
@@ -173,6 +182,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -206,7 +218,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -301,7 +314,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -431,6 +445,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -461,6 +478,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -490,6 +510,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -522,6 +545,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -552,6 +578,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -586,7 +615,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -680,6 +710,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -772,6 +805,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -803,6 +839,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -897,6 +936,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "299x299"
             },
@@ -990,6 +1032,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "227x227"
             },
@@ -1056,7 +1101,8 @@
                 "input_precision" : "U8",
                 "input_layout" : "NHWC",
                 "output_precision" : "FP32",
-                "output_layout" : "NHWC"
+                "output_layout" : "NHWC",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "227x227"
@@ -1122,6 +1168,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "512x512"
             },
@@ -1156,6 +1205,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "299x299"
             },
@@ -1188,6 +1240,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "300x300"
@@ -1224,6 +1279,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "1024x1024"
             },
@@ -1252,6 +1310,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -1344,6 +1405,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "1024x1024"
@@ -1439,6 +1503,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "300x300"
             },
@@ -1505,6 +1572,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -1519,471 +1589,6 @@
             },
             "CI-options" : {
                 "blob_name" : "emotions-recognition-retail-0003_cf"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16-INT8_retinaface-mobilenetv2-0.25-modified",
-            "ir" : "scale/retinaface-mobilenetv2-0.25-modified/caffe/FP16-INT8/retinaface-mobilenetv2-0.25-modified.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "320x320"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config" : "retinaface-mobilenetv2-0.25-modified.yml",
-                "subsample_size": 10
-            },
-            "CI-options" : {
-                "blob_name" : "retinaface-mobilenetv2-0-25-modified_cf"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16_vas-face-detection-stage1",
-            "ir" : "scale/vas-face-detection-stage1/caffe/FP16/vas-face-detection-stage1.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "disabled" : true,
-            "BenchmarkApp" : {
-                "input_folder" : "320x240"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "vas_fd_stage1.yml",
-                "subsample_size": 100,
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-detection-stage1_cf"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16-INT8_vas-face-detection-stage2",
-            "ir" : "scale/vas-face-detection-stage2/caffe/FP16-INT8/vas-face-detection-stage2.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "48x48"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true,
-                "config": "vas_fd_stage2.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-detection-stage2_u8_cf"
-            }
-        },
-
-        {
-            "name" : "SINGLE_IMAGE_TEST_scale_caffe_FP16-INT8_vas-face-detection-stage2",
-            "ir" : "scale/vas-face-detection-stage2/caffe/FP16-INT8/vas-face-detection-stage2.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "disabled" : true
-            },
-            "NetTest": {
-                "inputs" : [["48x48/Alma_Powell_0_0.1133.jpg"]],
-                "params" : [
-                    "--mode", "raw",
-                    "--raw_tolerance", "0.02"
-                ]
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-detection-stage2_u8_cf_tmp"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16_vas-face-detection-stage2",
-            "ir" : "scale/vas-face-detection-stage2/caffe/FP16/vas-face-detection-stage2.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "Compile" : {
-                "input_precision" : "FP32"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "48x48"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true,
-                "config": "vas_fd_stage2.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-detection-stage2_fp16_cf"
-            },
-            "comments" :"AccuracyCheck disabled because model is not a priority."
-        },
-
-        {
-            "name" : "SINGLE_IMAGE_TEST_scale_caffe_FP16_vas-face-detection-stage2",
-            "ir" : "scale/vas-face-detection-stage2/caffe/FP16/vas-face-detection-stage2.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "Compile" : {
-                "input_precision" : "FP32"
-            },
-            "BenchmarkApp" : {
-                "disabled" : true
-            },
-            "NetTest": {
-                "inputs" : [["48x48/Alma_Powell_0_0.1133.jpg"]],
-                "params" : [
-                    "--mode", "raw",
-                    "--raw_tolerance", "0.002"
-                ]
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-detection-stage2_fp16_cf_tmp"
-            }
-        },
-
-        {
-            "name" : "scale_tf_FP16-INT8_vas-face-recognition-feature-extraction",
-            "ir" : "scale/vas-face-recognition-feature-extraction/tf/FP16-INT8/vas-face-recognition-feature-extraction.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "112x112"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "vas-face-recognition.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "vas-face-recognition-feature-extraction_tf"
-            }
-        },
-
-        {
-            "name" : "scale_onnx_FP16-INT8_resnet50-v2",
-            "ir" : "scale/resnet50-v2/onnx/FP16-INT8/resnet50-v2.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.5"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "resnet-50-v2.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "resnet50-v2_onnx"
-            }
-        },
-
-        {
-            "name" : "scale_caffe_FP16-INT8_densenet-121",
-            "ir" : "scale/densenet-121/caffe/FP16-INT8/densenet-121.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.6"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "densenet-121-caffe.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "densenet-121_cf"
-            }
-        },
-
-        {
-            "name" : "scale_tf_FP16-INT8_densenet-121",
-            "ir" : "scale/densenet-121/tf/FP16-INT8/densenet-121.xml",
-            "category" : "MCM/weekly_public",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.04"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "densenet-121-tf.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "densenet-121_tf"
-            }
-        },
-
-        {
-            "name" : "por_caffe_FP16-INT8_densenet-169",
-            "ir" : "por/densenet-169/caffe/FP16-INT8/densenet-169.xml",
-            "category" : "MCM/weekly_public",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/rattlesnake.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.5"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "densenet-169-caffe.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "densenet-169_cf"
-            }
-        },
-
-    {
-            "name" : "scale_onnx_FP16-INT8_person-attributes-recognition-crossroad-0234",
-            "ir" : "scale/person-attributes-recognition-crossroad-0234/onnx/FP16-INT8/person-attributes-recognition-crossroad-0234.xml",
-            "category" : "MCM",
-            "disabled" : true,
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "320x180"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "person-attributes-recognition-crossroad-0234.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "person-attributes-recognition-crossroad-0234_onnx"
-            }
-        },
-
-        {
-            "name" : "scale_onnx_FP16-INT8_person-attributes-recognition-crossroad-0238",
-            "ir" : "scale/person-attributes-recognition-crossroad-0238/onnx/FP16-INT8/person-attributes-recognition-crossroad-0238.xml",
-            "category" : "MCM",
-            "disabled" : true,
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "320x180"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "person-attributes-recognition-crossroad-0238.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "person-attributes-recognition-crossroad-0238_onnx"
-            }
-        },
-
-        {
-            "name" : "scale_tf_FP16-INT8_text-detection-0003",
-            "ir" : "scale/text-detection-0003/tf/FP16-INT8/text-detection-0003.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "text-detection-0003.yml",
-                "subsample_size": 250
-            },
-            "CI-options" : {
-                "blob_name" : "text-detection-0003_tf"
-            }
-        },
-
-        {
-            "name" : "scale_tf_FP16-INT8_text-detection-0004",
-            "ir" : "scale/text-detection-0004/tf/FP16-INT8/text-detection-0004.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "text-detection-0004.yml",
-                "subsample_size": 250
-            },
-            "CI-options" : {
-                "blob_name" : "text-detection-0004_tf"
             }
         },
 
@@ -2043,14 +1648,14 @@
                 "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
-                    "--raw_tolerance", "1"
+                    "--raw_tolerance", "0.1"
                 ]
             },
             "NetTest-Validate": {
                 "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
-                    "--raw_tolerance", "1"
+                    "--raw_tolerance", "0.1"
                 ],
                 "input_precision" : "FP16",
                 "output_precision" : "FP16"
@@ -2251,35 +1856,6 @@
         },
 
         {
-            "name" : "por_tf_FP16-INT8_license-plate-recognition-barrier-0007_ww34",
-            "ir" : "license-plate-recognition-barrier-0007-ww34/tf/FP16-INT8/license-plate-recognition-barrier-0007.xml",
-            "category" : "MCM/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "24x94"
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "config": "license-plate-recognition-barrier-0007.yml"
-            },
-            "CI-options" : {
-                "blob_name" : "license-plate-recognition-barrier-0007-ww34_tf"
-            }
-        },
-
-        {
             "name" : "BDK_FP16-INT8_ModelA",
             "ir" : "models/clientmodels/BDK3/ModelA/Surface/INT8/ModelA.xml",
             "category" : "MCM/precommit/weekly_private",
@@ -2290,6 +1866,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -2363,6 +1942,9 @@
                 "VPUX_THROUGHPUT_STREAMS": "1",
                 "VPUX_EXECUTOR_STREAMS":"1"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true,
                 "input_folder" : "1280x720"
@@ -2434,6 +2016,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2467,6 +2052,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2499,6 +2087,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -2591,6 +2182,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" :  true,
                 "input_folder" : "224x224"
@@ -2624,6 +2218,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -2780,6 +2377,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2814,6 +2414,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2847,6 +2450,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -2878,6 +2484,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -2974,6 +2583,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3003,6 +2615,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -3035,6 +2650,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3065,6 +2683,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -3098,6 +2719,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -3165,6 +2789,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
             },
@@ -3185,74 +2812,6 @@
         },
 
         {
-            "name" : "por_onnx_FP16-INT8_unet-camvid-onnx-0001",
-            "ir" : "por/unet-camvid-onnx-0001/onnx/FP16-INT8/unet-camvid-onnx-0001.xml",
-            "category" : "MCM/weekly_public",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "Compile" : {
-                "output_precision" : "FP16"
-            },
-            "BenchmarkApp" : {
-                "disabled" : true
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "unet-camvid-onnx-0001_onnx"
-            }
-        },
-
-        {
-            "name" : "por_caffe_FP16-INT8_openpose-pose",
-            "ir" : "por/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
-            "category" : "MCM/weekly_public",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "Compile" : {
-                "input_precision" : "U8",
-                "output_precision" : "FP32"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "368x368"
-            },
-            "NetTest": {
-                "inputs" : [["368x368/test.jpg"]],
-                "params" : [
-                    "--mode", "raw",
-                    "--raw_tolerance", "1000"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "openpose-pose-caffe.yml",
-                "subsample_size": 50
-            },
-            "CI-options" : {
-                "blob_name" : "openpose-pose_cf"
-            }
-        },
-
-
-        {
             "name" : "stereo_U8_640x360",
             "ir" : "Stereo/Stereo_640x360.xml",
             "category" : "MCM",
@@ -3266,7 +2825,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3301,7 +2861,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3336,7 +2897,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3371,7 +2933,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3406,7 +2969,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3441,7 +3005,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3472,6 +3037,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
@@ -3504,6 +3072,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -3535,6 +3106,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -3565,6 +3139,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3600,7 +3177,8 @@
             },
             "Compile" : {
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3635,7 +3213,8 @@
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
-                "input_precision" : "FP16"
+                "input_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3670,7 +3249,8 @@
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
             "Compile" : {
-                "input_precision" : "FP16"
+                "input_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3702,6 +3282,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3737,7 +3320,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3770,6 +3354,9 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
+            "Compile" : {
+                "old_api" : true
+            },
             "BenchmarkApp" : {
                 "disabled" : true
             },
@@ -3790,68 +3377,6 @@
         },
 
         {
-            "name" : "scale_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
-            "ir" : "scale/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
-            "category" : "MCM/weekly_public",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPU_COMPILER_NUM_CLUSTER": "1"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "1.0"
-                ]
-            },
-            "AccuracyCheck" : {
-                "config": "mobilenet-v3-large-1.0-224-tf.yml",
-                "subsample_size": 100
-            },
-            "CI-options" : {
-                "blob_name" : "mobilenet-v3-large-1.0-224_tf"
-            }
-        },
-
-        {
-            "name" : "scale_onnx_FP16-INT8_mobilenet-v3-large-1.0-224",
-            "ir" : "scale/mobilenet-v3-large-1.0-224/onnx/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
-            "category" : "MCM",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
-            },
-            "BenchmarkApp" : {
-                "disabled" : true
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "mobilenet-v3-large-1.0-224_onnx"
-            }
-        },
-
-        {
             "name" : "SINGLE_IMAGE_TEST_scale_tf_FP16-INT8_mobilenet-v1-0.25-128",
             "ir" : "scale/mobilenet-v1-0.25-128/tf/FP16-INT8/mobilenet-v1-0.25-128.xml",
             "category" : "MCM/precommit",
@@ -3862,6 +3387,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3897,7 +3425,8 @@
             },
             "Compile" : {
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3929,6 +3458,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true,
@@ -3978,14 +3510,14 @@
                 "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
-                    "--raw_tolerance", "1"
+                    "--raw_tolerance", "0.1"
                 ]
             },
             "NetTest-Validate": {
                 "inputs" : [["62x62/face62.bmp"]],
                 "params" : [
                     "--mode", "raw",
-                    "--raw_tolerance", "1"
+                    "--raw_tolerance", "0.1"
                 ],
                 "input_precision" : "FP16",
                 "output_precision" : "FP16"
@@ -4015,14 +3547,14 @@
             "Compile" : {
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
-                "input_precision" : "FP16",
+                "input_precision" : "U8",
                 "output_precision" : "FP16"
             },
             "BenchmarkApp" : {
                 "disabled" : true
             },
             "NetTest-CalcRef": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["224x224/husky.bmp"]],
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
@@ -4030,13 +3562,13 @@
                 ]
             },
             "NetTest-Validate": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["224x224/husky.bmp"]],
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
                     "--prob_tolerance", "0.3"
                 ],
-                "input_precision" : "FP16",
+                "input_precision" : "U8",
                 "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
@@ -4064,28 +3596,30 @@
             "Compile" : {
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
-                "input_precision" : "FP16",
+                "input_precision" : "U8",
                 "output_precision" : "FP16"
             },
             "BenchmarkApp" : {
                 "disabled" : true
             },
             "NetTest": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["224x224/watch.bmp"]],
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "0.6"
+                    "--prob_tolerance", "0.6",
+                    "--color_format", "RGB"
                 ]
             },
             "NetTest-Validate": {
-                "inputs" : [["224x224/cat3.bmp"]],
+                "inputs" : [["224x224/watch.bmp"]],
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "1",
-                    "--prob_tolerance", "0.6"
+                    "--prob_tolerance", "0.6",
+                    "--color_format", "RGB"
                 ],
-                "input_precision" : "FP16",
+                "input_precision" : "U8",
                 "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
@@ -4274,7 +3808,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4309,7 +3844,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4344,7 +3880,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4385,7 +3922,8 @@
             },
             "Compile" : {
                 "input_precision" : "U8",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4500,7 +4038,8 @@
             },
             "Compile" : {
                 "input_precision" : "FP32",
-                "output_precision" : "FP32"
+                "output_precision" : "FP32",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -4532,6 +4071,9 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "Compile" : {
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "512x512"

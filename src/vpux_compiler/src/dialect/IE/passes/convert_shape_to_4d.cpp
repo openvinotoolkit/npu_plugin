@@ -259,6 +259,10 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::HSwishOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::TanhOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::SqrtOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::SinhOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::CoshOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AsinhOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AcoshOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ExpOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::AddOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::MultiplyOp>(isLegalOp);
@@ -272,6 +276,8 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::LessEqualOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::GreaterOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::GreaterEqualOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::LogicalOrOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::LogicalXorOp>(isLegalOp);
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<GenericConverter<IE::ClampOp>>(typeConverter, &ctx, _log);
@@ -281,6 +287,10 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.add<GenericConverter<IE::HSwishOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::TanhOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::SqrtOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::SinhOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::CoshOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AsinhOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AcoshOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::ExpOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::AddOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::MultiplyOp>>(typeConverter, &ctx, _log);
@@ -293,6 +303,8 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.add<GenericConverter<IE::NotEqualOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::GreaterOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::GreaterEqualOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::LogicalOrOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::LogicalXorOp>>(typeConverter, &ctx, _log);
     patterns.add<FakeQuantizeConverter>(typeConverter, &ctx, _log);
 
     auto func = getFunction();

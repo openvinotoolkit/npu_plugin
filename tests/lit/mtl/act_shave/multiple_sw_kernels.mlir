@@ -184,6 +184,12 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                  ],
 // CHECK:                  update_barriers: [
 // CHECK:                    1
+// CHECK:                  ],
+// CHECK:                  virtual_wait_barriers: [
+// CHECK:                    0
+// CHECK:                  ],
+// CHECK:                  virtual_update_barriers: [
+// CHECK:                    1
 // CHECK:                  ]
 // CHECK:                },
 // CHECK:                dataSection: {
@@ -229,6 +235,12 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                  ],
 // CHECK:                  update_barriers: [
 // CHECK:                    2
+// CHECK:                  ],
+// CHECK:                  virtual_wait_barriers: [
+// CHECK:                    1
+// CHECK:                  ],
+// CHECK:                  virtual_update_barriers: [
+// CHECK:                    2
 // CHECK:                  ]
 // CHECK:                },
 // CHECK:                dataSection: {
@@ -272,6 +284,12 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                    2
 // CHECK:                  ],
 // CHECK:                  update_barriers: [
+// CHECK:                    3
+// CHECK:                  ],
+// CHECK:                  virtual_wait_barriers: [
+// CHECK:                    2
+// CHECK:                  ],
+// CHECK:                  virtual_update_barriers: [
 // CHECK:                    3
 // CHECK:                  ]
 // CHECK:                },
@@ -363,12 +381,8 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:            wait_barriers: [
 // CHECK:              3
 // CHECK:            ],
-// CHECK:            update_barriers: [
-// CHECK:            ],
 // CHECK:            virtual_wait_barriers: [
 // CHECK:              3
-// CHECK:            ],
-// CHECK:            virtual_update_barriers: [
 // CHECK:            ]
 // CHECK:          },
 // CHECK:          task_type: "NNDMATask",

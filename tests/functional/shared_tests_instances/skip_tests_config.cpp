@@ -158,9 +158,6 @@ std::vector<std::string> disabledTestPatterns() {
             ".*InferConfigTests\\.withoutExclusiveAsyncRequests.*",
             ".*InferConfigTests\\.canSetExclusiveAsyncRequests.*",
 
-            // TODO Add safe Softplus support
-            ".*ActivationLayerTest.*SoftPlus.*",
-
             // TODO: GetExecGraphInfo function is not implemented for VPUX plugin
             ".*checkGetExecGraphInfoIsNotNullptr.*",
             ".*CanCreateTwoExeNetworksAndCheckFunction.*",
