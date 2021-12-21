@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/preprocessing.hpp"
@@ -60,7 +61,8 @@ mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location
 // CM Convolution utility
 //
 mlir::Value alignChannelMajorWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter);
-bool isChannelMajorCompatibleOperation(vpux::DimsOrder inDimsOrder, int64_t inputChannels, int64_t inputTensorWidth);
+bool isChannelMajorCompatibleOperation(vpux::DimsOrder inDimsOrder, int64_t inputChannels, int64_t inputTensorWidth,
+                                       VPU::ArchKind archKind);
 
 }  // namespace VPUIP
 }  // namespace vpux
