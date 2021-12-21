@@ -61,8 +61,8 @@ mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location
 // CM Convolution utility
 //
 mlir::Value alignChannelMajorWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter);
-bool isChannelMajorCompatibleOperation(vpux::DimsOrder inDimsOrder, int64_t inputChannels, int64_t inputTensorWidth,
-                                       VPU::ArchKind archKind);
+bool isChannelMajorCompatibleOperation(mlir::Operation* origOp, vpux::DimsOrder inDimsOrder, int64_t inputChannels,
+                                       int64_t inputTensorWidth, VPU::ArchKind archKind);
 
 }  // namespace VPUIP
 }  // namespace vpux

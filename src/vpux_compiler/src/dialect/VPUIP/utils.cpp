@@ -227,8 +227,23 @@ mlir::Value vpux::VPUIP::alignChannelMajorWeightsTensor(mlir::OpBuilder& builder
     return alignedWeightsOp.output();
 }
 
-bool vpux::VPUIP::isChannelMajorCompatibleOperation(DimsOrder inDimsOrder, int64_t inputChannels,
-                                                    int64_t inputTensorWidth, VPU::ArchKind archKind) {
+bool vpux::VPUIP::isChannelMajorCompatibleOperation(mlir::Operation* origOp, DimsOrder inDimsOrder,
+                                                    int64_t inputChannels, int64_t inputTensorWidth,
+                                                    VPU::ArchKind archKind) {
+    auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(origOp);
+    if (convOp != nullptr) {
+        if (mlir::dyn_cast<IE::GroupConvolutionOp>(convOp.input().getDefiningOp())) {
+            return false;
+        }
+    }
+
+    auto convOp1 = mlir::dyn_cast<IERT::ConvolutionOp>(origOp);
+    if (convOp1 != nullptr) {
+        if (mlir::dyn_cast<IERT::GroupConvolutionOp>(convOp1.input().getDefiningOp())) {
+            return false;
+        }
+    }
+
     return ((archKind == VPU::ArchKind::KMB) && (inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) &&
             (inputTensorWidth % VPUIP::NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT == 0));
 }
