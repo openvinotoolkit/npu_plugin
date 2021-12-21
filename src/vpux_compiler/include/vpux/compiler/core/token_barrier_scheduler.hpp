@@ -319,6 +319,7 @@ public:
                      task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap);
     void saveOriginalDependency();
     bool isPathExist(mlir::Operation* a, mlir::Operation* b);
+    void reorderIR();
 
 private:
     typedef std::unordered_map<size_t, barrier_transition_structure_t> barrier_association_table_t;

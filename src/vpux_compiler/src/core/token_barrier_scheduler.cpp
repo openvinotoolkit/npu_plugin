@@ -232,6 +232,28 @@ bool TokenBasedBarrierScheduler::isPathExist(mlir::Operation* a, mlir::Operation
     }
 }
 
+void TokenBasedBarrierScheduler::reorderIR() {
+    // reorder barrier by id
+    mlir::Operation* preBarrier = nullptr;
+    for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+        auto curBarrier = (*iter).first;
+        if (preBarrier) {
+            curBarrier->moveAfter(preBarrier);
+        }
+        preBarrier = curBarrier;
+    }
+
+    // reorder task by scheduling number
+    mlir::Operation* preTask = nullptr;
+    for (auto iter = configureTaskOpUpdateWaitMap.begin(); iter != configureTaskOpUpdateWaitMap.end(); iter++) {
+        auto curTask = (*iter).first;
+        if (preTask) {
+            curTask->moveAfter(preTask);
+        }
+        preTask = curTask;
+    }
+}
+
 size_t TokenBasedBarrierScheduler::schedule() {
     bool success = false;
     size_t btask_count = 0UL;
@@ -473,15 +495,7 @@ size_t TokenBasedBarrierScheduler::schedule() {
         std::cout << "Barrier simualtion result is " << success << " with upperbound " << barrierCount_ << std::endl;
     }
 
-    // reorder IR by scheduling number
-    mlir::Operation* preTask = nullptr;
-    for (auto iter = configureTaskOpUpdateWaitMap.begin(); iter != configureTaskOpUpdateWaitMap.end(); iter++) {
-        auto curTask = (*iter).first;
-        if (preTask) {
-            curTask->moveAfter(preTask);
-        }
-        preTask = curTask;
-    }
+    reorderIR();
 
     return btask_count;
 }
