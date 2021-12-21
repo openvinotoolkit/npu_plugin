@@ -230,16 +230,18 @@ mlir::Value vpux::VPUIP::alignChannelMajorWeightsTensor(mlir::OpBuilder& builder
 bool vpux::VPUIP::isChannelMajorCompatibleOperation(mlir::Operation* origOp, DimsOrder inDimsOrder,
                                                     int64_t inputChannels, int64_t inputTensorWidth,
                                                     VPU::ArchKind archKind) {
-    auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(origOp);
-    if (convOp != nullptr) {
-        if (mlir::dyn_cast<IE::GroupConvolutionOp>(convOp.input().getDefiningOp())) {
+    auto convOpIE = mlir::dyn_cast<IE::ConvolutionOp>(origOp);
+    if (convOpIE != nullptr) {
+        const auto inType = convOpIE.input().getType().cast<mlir::ShapedType>().getElementType();
+        if (!inType.isa<mlir::quant::QuantizedType>()) {
             return false;
         }
     }
 
-    auto convOp1 = mlir::dyn_cast<IERT::ConvolutionOp>(origOp);
-    if (convOp1 != nullptr) {
-        if (mlir::dyn_cast<IERT::GroupConvolutionOp>(convOp1.input().getDefiningOp())) {
+    auto convOpIERT = mlir::dyn_cast<IERT::ConvolutionOp>(origOp);
+    if (convOpIERT != nullptr) {
+        const auto inType = convOpIERT.input().getType().cast<mlir::ShapedType>().getElementType();
+        if (!inType.isa<mlir::quant::QuantizedType>()) {
             return false;
         }
     }
