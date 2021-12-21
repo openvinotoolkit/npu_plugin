@@ -1,6 +1,7 @@
 // {% copyright %}
 
 #include <sw_nn_runtime_types.h>
+#include <HglShaveCommon.h>
 #include "upa_task_runner.hpp"
 //#include "act_shave_dispatcher.h"
 #include <nn_shave_manager.h>
@@ -48,6 +49,9 @@ bool UPATaskRunner::enqueTask(Op * operation,
     nn::common_runtime::NNCmxMemoryMap *nnCmx = util::MemoryMap::project<NNCmxMemoryMap>(NN_CMX_BASE);
     alignas(NN_CACHE_LINE_LENGTH) nn::common_runtime::StaticMapping globalAreas(nnCmx);
     nn::inference_runtime::shaves::ShaveManager shaveManager(globalAreas);
+
+    nn::act_runtime::ActKernelRuntimeConfigs actRtConfigs;
+    shaveManager.startActShavesForTile(0, actRtConfigs, true);
 
     memset(&sl, 0, sizeof(sl));
     memset(&layer, 0, sizeof(layer));

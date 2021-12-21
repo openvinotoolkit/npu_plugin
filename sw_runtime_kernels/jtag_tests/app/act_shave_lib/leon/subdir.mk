@@ -1,6 +1,7 @@
 include-dirs-lrt-y += inc
 
 subdirs-lrt-y += common platform_abstraction inference_runtime common_runtime
+#subdirs-shave_nn-y += common platform_abstraction inference_runtime common_runtime
 
 #subdirs-lrt-y += common_runtime platform_abstraction inference_runtime common
 
