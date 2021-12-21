@@ -1990,16 +1990,22 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ExtractImagePatches>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::ExtractImagePatches>::value,
-                  "opset operation mismatch");
-    const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph ExtractImagePatches node '{0}' has unsupported number of inputs '{1}'",
-                      origNode->get_friendly_name(), inputs.size());
-    //TODO
-    auto op = builder.create<IE::ExtractImagePatchesOp>(createLocation(origNode), inputs[0]);
-    addOutputs(origNode, op);
+//    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v3::ExtractImagePatches>::value,
+//                  "opset operation mismatch");
+//    const auto inputs = getInputs(origNode);
+//    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph ExtractImagePatches node '{0}' has unsupported number of inputs '{1}'",
+//                      origNode->get_friendly_name(), inputs.size());
+//    //TODO
 
-}
+//    const auto sizes = getIntAttr(_ctx, origNode->get_sizes());
+//    const auto strides = getIntAttr(_ctx, origNode->get_strides());
+//    const auto rates = getIntAttr(_ctx, origNode->get_rates());
+//    const auto paddingType = importExtractImagePatchesAutoPadType(origNode->get_padding());
+
+//    auto op = builder.create<IE::ROIAlignOp>(createLocation(origNode), inputs[0], sizes,
+//                                                 strides, rates, paddingType);
+//    addOutputs(origNode, op);
+    }
 
 //
 // IR builder helpers
@@ -2317,6 +2323,20 @@ IE::ROIAlignMethodAttr NGraphImporter::importROIAlignMethod(const ngraph::op::v3
         attr = IE::ROIAlignMethodAttr::get(_ctx, IE::ROIAlignMethod::max);
     } else {
         VPUX_THROW("Unknown ROIAlignMethod");
+    }
+    return attr;
+}
+
+IE::ExtractImagePatchesAutoPadTypeAttr NGraphImporter::importExtractImagePatchesAutoPadType(const ngraph::op::v3::ExtractImagePatches::paddingType& padding) {
+    IE::ExtractImagePatchesAutoPadTypeAttr attr;
+    if (padding == ngraph::op::v3::ExtractImagePatches::paddingType::SAME_UPPER) {
+        attr = IE::ExtractImagePatchesAutoPadTypeAttr::get(_ctx, IE::ExtractImagePatchesAutoPadType::same_uper);
+    } else if (padding == ngraph::op::v3::ExtractImagePatches::paddingType::SAME_LOWER) {
+        attr = IE::ExtractImagePatchesAutoPadTypeAttr::get(_ctx, IE::ExtractImagePatchesAutoPadType::same_lower);
+    } else if (padding == ngraph::op::v3::ExtractImagePatches::paddingType::VALID) {
+            attr = IE::ExtractImagePatchesAutoPadTypeAttr::get(_ctx, IE::ExtractImagePatchesAutoPadType::valid);
+    } else {
+            VPUX_THROW("Unknown ExtractImagePatchesAutoPadType");
     }
     return attr;
 }

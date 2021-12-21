@@ -3065,7 +3065,7 @@ def IE_YuvToRgbOp :
 }
 
 //
-// ExtractImagePatchesOp - TODO
+// ExtractImagePatchesOp
 //
 
 def IE_ExtractImagePatchesOp :
@@ -3080,9 +3080,7 @@ def IE_ExtractImagePatchesOp :
         I64ArrayAttr:$strides,
         I64ArrayAttr:$sizes,
         I64ArrayAttr:$rates,
-       // I64ArrayAttr:$auto_pad, //string
-       
-       // OptionalAttr<IE_PostOp>:$post_op
+        IE_ExtractImagePatchesAutoPadType:$paddingType
     );
 
     let results = (outs

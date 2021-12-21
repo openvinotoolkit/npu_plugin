@@ -2873,7 +2873,7 @@ def VPUIP_YuvToRgbUPAOp :
 }
 
 //
-// ExtractImagePatchesUPAOp - TODO
+// ExtractImagePatchesUPAOp
 //
 
 def VPUIP_ExtractImagePatchesUPAOp :
@@ -2885,20 +2885,19 @@ def VPUIP_ExtractImagePatchesUPAOp :
     let summary = "ExtractImagePatches UPA SHAVE kernel";
 
     let arguments = (ins
-        F16MemRef:$data,
-        F16MemRef:$output_buff,
+        AnyMemRef:$data,
+        AnyMemRef:$output_buff,
 
         I64ArrayAttr:$sizes,
         I64ArrayAttr:$strides,
         I64ArrayAttr:$rates,
-        //I64ArrayAttr:$rates, //string
-        //IntAttr:$groups,
+        IE_ExtractImagePatchesAutoPadType:$paddingType
 
         OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
-        F16MemRef:$output
+        AnyMemRef:$output
     );
 
     let builders = [
@@ -2909,7 +2908,7 @@ def VPUIP_ExtractImagePatchesUPAOp :
                 "mlir::ArrayAttr":$sizes, 
                 "mlir::ArrayAttr":$strides,
                 "mlir::ArrayAttr":$rates 
-                //"mlir::ArrayAttr":$auto_pad,
+                "IE_ExtractImagePatchesAutoPadType":$paddingType
             )
         >
     ];

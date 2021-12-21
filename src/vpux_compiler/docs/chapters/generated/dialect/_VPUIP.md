@@ -2399,7 +2399,7 @@ operation ::= `VPUIP.YuvToRgbUPA` attr-dict
 
 ### `VPUIP.ExtractImagePatchesUPA` (vpux::VPUIP::ExtractImagePatchesUPAOp)
 
-ExtractImagePatches UPA SHAVE kernel (reference implementation)
+ExtractImagePatches UPA SHAVE kernel
 
 
 Syntax:

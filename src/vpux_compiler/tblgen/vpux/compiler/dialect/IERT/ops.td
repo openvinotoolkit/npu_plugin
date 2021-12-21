@@ -3159,7 +3159,7 @@ def IERT_YuvToRgbOp :
 }
 
 //
-// ExtractImagePatchesOp - TODO
+// ExtractImagePatchesOp
 //
 
 def IERT_ExtractImagePatchesOp :
@@ -3171,19 +3171,17 @@ def IERT_ExtractImagePatchesOp :
     let summary = "InferenceEngine run-time Convolution layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$data,
-        MemRefOf<[F16, F32]>:$output_buff,
+        AnyMemRef:$data,
+        AnyMemRef:$output_buff,
 
         I64ArrayAttr:$strides,
         I64ArrayAttr:$sizes,
         I64ArrayAttr:$rates,
-       // I64ArrayAttr:$auto_pad, //string
-       
-       // OptionalAttr<IE_PostOp>:$post_op
+        IE_ExtractImagePatchesAutoPadType:$paddingType
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        AnyMemRef:$output
     );
 
     let assemblyFormat = [{

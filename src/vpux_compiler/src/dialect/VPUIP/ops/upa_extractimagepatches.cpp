@@ -12,12 +12,13 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-
-#include "vpux/compiler/core/attributes/dim.hpp"
-#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
-#include "vpux/compiler/utils/analysis.hpp"
-#include "vpux/compiler/utils/error.hpp"
+
+//#include "vpux/compiler/core/attributes/dim.hpp"
+//#include "vpux/compiler/core/attributes/shape.hpp"
+
+//#include "vpux/compiler/utils/analysis.hpp"
+//#include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 
@@ -43,6 +44,8 @@ using namespace vpux;
 //}
 //}  // namespace
 
+//TODO
+
 //void vpux::VPUIP::ExtractImagePatchesUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
 //                                       mlir::Value data, mlir::Value output,
 //                                       mlir::ArrayAttr sizes, mlir::ArrayAttr strides, mlir::ArrayAttr rates
@@ -51,11 +54,13 @@ using namespace vpux;
 //}
 
 //VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExtractImagePatchesUPAOp::serialize(VPUIP::BlobWriter& writer) {
-//    const float spatial_scale_val = static_cast<float>(spatial_scale().convertToDouble());
-
-//    MVCNN::ExtractImagePatchesParamsBuilder builder(writer);
-////
-//    const auto paramsOff = builder.Finish();
+//      MVCNN::ExtractImagePatchesParamsBuilder builder(writer);
+//      builder.add_padding(ExtractImagePatchesAutoPadType2MVCNN(paddingType()));
+//      builder.add_sizes(checked_cast<uint64_t>(sizes()));
+//      builder.add_strides(checked_cast<uint64_t>(strides()));
+//      builder.add_rates(checked_cast<uint64_t>(rates()));
+//
+//      const auto paramsOff = builder.Finish();
 
 //    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ExtractImagePatchesParams});
 //}

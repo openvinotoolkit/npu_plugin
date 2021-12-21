@@ -12,22 +12,21 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+//#include "vpux/compiler/dialect/VPU/attributes.hpp"
 
-#include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/core/layers.hpp"
+//#include "vpux/compiler/core/attributes/shape.hpp"
+//#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/error.hpp"
+//#include "vpux/utils/core/checked_cast.hpp"
+//#include "vpux/utils/core/error.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/IR/PatternMatch.h>
+//#include <mlir/IR/BlockAndValueMapping.h>
+//#include <mlir/IR/PatternMatch.h>
 
-#include <ngraph/coordinate.hpp>
-#include <ngraph/op/max_pool.hpp>
-#include <ngraph/validation_util.hpp>
+//#include <ngraph/coordinate.hpp>
+//#include <ngraph/validation_util.hpp>
 
 using namespace vpux;
 
@@ -44,14 +43,21 @@ using namespace vpux;
 //        return mlir::failure();
 //    }
 
+//    // sizes, strides, rates, paddingType
+
+//    const auto <attribute_names> = extractImagePatches.<attribute_names>.get.. ;
+
 //    //data the 4-D tensor of type T with shape [batch, depth, in_rows, in_cols].
+
+//    const auto inShapeFeatureMap = inTypeFeatureMap.getShape();
 //    const auto inType = extractImagePatches.input().getType().cast<mlir::ShapedType>();
-//    const auto inShape = inType.getShape(); // !!!???
 
 //    if (inShapeFeatureMap.size() != 4) {
 //        return errorAt(loc, "Dimension of the tensor with shapes - input should be 4. Got {0} D tensor",
 //                       inShape.size());
 //    }
+
+//    // sizes, strides, rates  > 0 ( = non-negative integer number)
 
 //    SmallVector<int64_t> output_shape;
 //    output_shape.push_back(inShapeFeatureMap[1]);
