@@ -3,6 +3,7 @@
 #include <random>
 #include "layers/param_custom_cpp.h"
 #include "mvSubspaces.h"
+#include "param_topk.h"
 
 #ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
@@ -11,8 +12,6 @@ __attribute__((aligned(1024)))
 #include "svuSLKernels_EP.h"
 #endif
 
-#include "param_topk.h"
-
 #define USE_SEED_VALUE 0xbdd1cb13  // defined to use this value as random seed
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, TopK)) {
@@ -20,12 +19,12 @@ typedef int32_t Index;
 typedef t_D8StorageOrder StorageOrder;
 
 static constexpr std::initializer_list<SingleTest> topk_test_list{
-    {{2, 4, 2}, {1, 4, 2}, orderZYX, FPE("topk.elf"), {{1/*K*/,0/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
-//    {{11, 20, 10}, {11, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
-//    {{11, 20, 10}, {11, 20, 1}, orderZYX, FPE("topk.elf"), {{1/*K*/,2/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
-//    {{11, 20, 10}, {2, 20, 10}, orderZYX, FPE("topk.elf"), {{2/*K*/,0/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
-//    {{11, 20, 10}, {11, 2, 10}, orderZYX, FPE("topk.elf"), {{2/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
-//    {{11, 20, 10}, {11, 20, 2}, orderZYX, FPE("topk.elf"), {{2/*K*/,2/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+    {{3, 2, 3}, {1, 2, 3}, orderZYX, FPE("topk.elf"), {{1/*K*/,0/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+    {{2, 2, 2}, {2, 1, 2}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+    {{11, 10, 10}, {11, 10, 1}, orderZYX, FPE("topk.elf"), {{1/*K*/,2/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+    {{11, 10, 10}, {2, 10, 10}, orderZYX, FPE("topk.elf"), {{2/*K*/,0/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+    {{11, 20, 10}, {11, 2, 10}, orderZYX, FPE("topk.elf"), {{2/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
+    {{11, 20, 10}, {11, 20, 2}, orderZYX, FPE("topk.elf"), {{2/*K*/,2/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:5280 Byte, 96.245506 ms
 //    {{21, 513, 513}, {21, 1, 513}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //FAIL CORE DUMP, CMX:11139282 Byte (over)
 //    {{21, 40, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:18480 Byte 321.222015 ms
 //    {{21, 80, 10}, {21, 1, 10}, orderZYX, FPE("topk.elf"), {{1/*K*/,1/*axes*/,0/*mode=0,1(max,min)*/,1/*sort=0,1(value,index)*/,sw_params::Location::NN_CMX /*mem type*/,}}}, //PASS, CMX:35280 Byte 917.265503 ms
@@ -97,6 +96,7 @@ protected:
         m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
         paramContainer.resize(((int)sizeof(sw_params::TopKParams) + 7) / 8);
         
+        CustomCppTests<fp16>::initData();
         initElfBuffer();
         initTestCase();
         
@@ -115,10 +115,10 @@ protected:
         m_referenceValueTensor.init(storageOrder, dims3Out);
         m_referenceIndexTensor.init(storageOrder, dims3Out);
 
-        printf("m_inputTensor's size = %d Byte\n",dimIn.width*dimIn.height*dimIn.channels*2);
-        printf("m_outputValuesTensor's size = %d Byte\n",dimOut.width*dimOut.height*dimOut.channels*4);
-        printf("m_outputIndexTensor's size = %d Byte\n",dimOut.width*dimOut.height*dimOut.channels*4);
-        printf("Total in CMX:%d Byte\n",dimIn.width*dimIn.height*dimIn.channels*2 +dimOut.width*dimOut.height*dimOut.channels*4+ dimOut.width*dimOut.height*dimOut.channels*4);
+//        printf("m_inputTensor's size = %d Byte\n",dimIn.width*dimIn.height*dimIn.channels*2);
+//        printf("m_outputValuesTensor's size = %d Byte\n",dimOut.width*dimOut.height*dimOut.channels*4);
+//        printf("m_outputIndexTensor's size = %d Byte\n",dimOut.width*dimOut.height*dimOut.channels*4);
+//        printf("Total in CMX:%d Byte\n",dimIn.width*dimIn.height*dimIn.channels*2 +dimOut.width*dimOut.height*dimOut.channels*4+ dimOut.width*dimOut.height*dimOut.channels*4);
               
         allocBuffer(m_inputTensor);
         allocBuffer(m_inputKTensor);
@@ -140,16 +140,16 @@ protected:
         
         m_TopKParams = reinterpret_cast<sw_params::TopKParams*>(paramContainer.data());
         *m_TopKParams = sw_params::TopKParams();
+        m_TopKParams->axis = m_axis;
+        m_TopKParams->mode = m_mode;
+        m_TopKParams->sort = m_sort;
+//        m_TopKParams->K = m_k;
+        m_TopKParams->hasValues = m_hasOutputValues;
+        m_TopKParams->hasIndices = m_hasOutputIndices;
         m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
         m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
         m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[0]);
         m_params.baseParamData = sw_params::ToBaseKernelParams(m_TopKParams);
-        
-        m_TopKParams->axis = m_axis;
-        m_TopKParams->mode = m_mode;
-        m_TopKParams->sort = m_sort;
-        m_TopKParams->hasValues = m_hasOutputValues;
-        m_TopKParams->hasIndices = m_hasOutputIndices;
     }
     
     void initTestCase() override {
@@ -218,7 +218,7 @@ protected:
                                   float tmp = float(rand() % 1000) / 100 - 5.0f;
                                   m_inputTensor.at(indices) = f32Tof16(tmp);
                               });
-        
+
         int32_t k = m_k;
         m_inputKTensor.forEach(false, [&](const MemoryDims& indices) {
             m_inputKTensor.at(indices) = k;
@@ -249,7 +249,7 @@ protected:
         
         const int inputValuesAxisStep = m_inputTensor.memorySteps().dims[axis];
         for (int i = 0; i < 3; i++) {
-            printf("m_inputTensor.memorySteps().dims[%d] = %d\n", i, m_inputTensor.memorySteps().dims[i]);
+//            printf("m_inputTensor.memorySteps().dims[%d] = %d\n", i, m_inputTensor.memorySteps().dims[i]);
         }
 
         const int refValuesAxisStep = m_referenceValueTensor.memorySteps().dims[axis];
@@ -263,8 +263,8 @@ protected:
             
             for (int i = 0; i < n; ++i) {
                 temp[i] = Pair(inputValuesData[i * inputValuesAxisStep], i);
-                printf("inputValuesData[i * inputValuesAxisStep] = %f\n",
-                       f16Tof32(inputValuesData[i * inputValuesAxisStep]));
+//                printf("inputValuesData[i * inputValuesAxisStep] = %f\n",
+//                       f16Tof32(inputValuesData[i * inputValuesAxisStep]));
             }
             
             std::partial_sort(temp.begin(), temp.begin() + k, temp.begin() + n, compareValues);
@@ -276,7 +276,7 @@ protected:
                 const auto& t = temp[i];
                 refValuesData[i * refValuesAxisStep] = t.first;
                 refIndicesData[i * refIndicesAxisStep] = t.second;
-                printf("refValuesData[%d] = %f, refIndicesData[%d] = %d\n", i * refValuesAxisStep, f16Tof32(refValuesData[i * refValuesAxisStep]), i * refIndicesAxisStep, refIndicesData[i * refIndicesAxisStep]);
+//                printf("refValuesData[%d] = %f, refIndicesData[%d] = %d\n", i * refValuesAxisStep, f16Tof32(refValuesData[i * refValuesAxisStep]), i * refIndicesAxisStep, refIndicesData[i * refIndicesAxisStep]);
             }
         });
     }
@@ -315,8 +315,8 @@ protected:
             const bool index_differ = (out_index != gt_index);
             const bool differ = value_differ || index_differ;
             test_failed = test_failed || differ;
-            printf("m_outputValuesTensor value = %f, gt_value = %f\n", value, gt_value);
-            printf("m_outputIndexTensor out_index = %ld, gt_index = %ld\n", out_index, gt_index);
+//            printf("m_outputValuesTensor value = %f, gt_value = %f\n", value, gt_value);
+//            printf("m_outputIndexTensor out_index = %ld, gt_index = %ld\n", out_index, gt_index);
         });
         return !test_failed;
     }

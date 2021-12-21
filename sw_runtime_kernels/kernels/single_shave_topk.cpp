@@ -9,7 +9,7 @@ struct Pack {
     int32_t index;
 };
 
-using ComparePackedFunc = bool (*)(const Pack& a, const Pack& b);
+typedef bool (*ComparePackedFunc) (const Pack&, const Pack&);
 
 struct PartialHeapSortPacked {
     Pack* m_items;
@@ -119,9 +119,9 @@ bool isSmallIndex(const Pack& a, const Pack& b) {
 }
 
 using namespace sw_params;
-
+namespace nn {
+namespace shave_lib {
 extern "C" {
-
 void single_shave_topk(uint32_t lParamsAddr) {
 
     half* p_act_input = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->inputValues.dataAddr);
@@ -129,13 +129,15 @@ void single_shave_topk(uint32_t lParamsAddr) {
     half* p_act_value = (half*)(reinterpret_cast<TopKParams*>(lParamsAddr)->outputValues.dataAddr);
     int32_t* p_act_index = (int32_t*)(reinterpret_cast<TopKParams*>(lParamsAddr)->outputIndex.dataAddr);
 
-//    for (int i = 0; i < 2 * 4 * 2; i++) {
+//    for (int i = 0; i < 1 * 2 * 3; i++) {
 //        *p_act_value = *p_act_input;
+//        *p_act_index = k;
 //        if (i == 0) {
-//            *p_act_value = 1234;
+//            *p_act_value =1233;
 //        }
 //        p_act_input++;
 //        p_act_value++;
+//        p_act_index++;
 //    }
     
     const TopKParams* lParams = reinterpret_cast<const TopKParams *>(lParamsAddr);
@@ -156,14 +158,14 @@ void single_shave_topk(uint32_t lParamsAddr) {
     int32_t mode = (int32_t)lParams->mode; // max: 0, min: 1
     int32_t sort = (int32_t)lParams->sort;
 
-    ComparePackedFunc comparePacked = nullptr;
-    switch (mode) {
-    case 0: comparePacked = isSmallValue; break;
-    case 1: comparePacked = isLargeValue; break;
-    default: return;
-    }
+//    ComparePackedFunc comparePacked = nullptr;
+//    switch (mode) {
+//    case 0: comparePacked = isSmallValue; break;
+//    case 1: comparePacked = isLargeValue; break;
+//    default: return;
+//    }
 
-    // calculate top K inner (axis = 0)
+//    // calculate top K inner (axis = 0)
     if (axis == 0) {
 
         int numLines = 1;
@@ -188,8 +190,15 @@ void single_shave_topk(uint32_t lParamsAddr) {
             }
 
             PartialHeapSortPacked hsort(lineBuffer, k);
-            hsort.pushAll(pInputDims[0], comparePacked);
-            hsort.fullSort(comparePacked);
+            if(mode == 0)
+            {
+                hsort.pushAll(pInputDims[0], isSmallValue);
+                hsort.fullSort(isSmallValue);
+            }
+            else{
+                hsort.pushAll(pInputDims[0], isLargeValue);
+                hsort.fullSort(isLargeValue);
+            }
             if (sort) {
                 hsort.clear();
                 hsort.pushAll(k, isSmallIndex);
@@ -204,8 +213,8 @@ void single_shave_topk(uint32_t lParamsAddr) {
             }
         }
     }
-
-    // calculate top K outer (axis = 1 and axis = 2)
+//
+//    // calculate top K outer (axis = 1 and axis = 2)
     if (axis == 1) {
 
         int numLines = pInputDims[0] * pInputDims[2];
@@ -231,8 +240,15 @@ void single_shave_topk(uint32_t lParamsAddr) {
             }
 
             PartialHeapSortPacked hsort(lineBuffer, k);
-            hsort.pushAll(pInputDims[1], comparePacked);
-            hsort.fullSort(comparePacked);
+            if(mode == 0)
+            {
+                hsort.pushAll(pInputDims[1], isSmallValue);
+                hsort.fullSort(isSmallValue);
+            }
+            else{
+                hsort.pushAll(pInputDims[1], isLargeValue);
+                hsort.fullSort(isLargeValue);
+            }
             if (sort) {
                 hsort.clear();
                 hsort.pushAll(k, isSmallIndex);
@@ -247,7 +263,7 @@ void single_shave_topk(uint32_t lParamsAddr) {
             }
         }
     }
-
+//
     if (axis == 2) {
 
         int numLines = 1;
@@ -272,8 +288,15 @@ void single_shave_topk(uint32_t lParamsAddr) {
             }
 
             PartialHeapSortPacked hsort(lineBuffer, k);
-            hsort.pushAll(pInputDims[2], comparePacked);
-            hsort.fullSort(comparePacked);
+            if(mode == 0)
+            {
+                hsort.pushAll(pInputDims[2], isSmallValue);
+                hsort.fullSort(isSmallValue);
+            }
+            else{
+                hsort.pushAll(pInputDims[2], isLargeValue);
+                hsort.fullSort(isLargeValue);
+            }
             if (sort) {
                 hsort.clear();
                 hsort.pushAll(k, isSmallIndex);
@@ -289,4 +312,4 @@ void single_shave_topk(uint32_t lParamsAddr) {
         }
     }
 }
-}
+}}}
