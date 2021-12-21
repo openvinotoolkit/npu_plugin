@@ -33,10 +33,11 @@ target_include_directories(${TARGET_NAME}
         $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
         ${LLVM_INCLUDE_DIRS}
 )
+
 target_include_directories(${TARGET_NAME}
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${CMAKE_BINARY_DIR}/src/vpux_compiler/include/vpux/compiler/dialect/VPUIP/generated"
+        "${PROJECT_BINARY_DIR}/src/vpux_compiler/include/vpux/compiler/dialect/VPUIP/generated"
 )
 
 link_system_libraries(${TARGET_NAME}
