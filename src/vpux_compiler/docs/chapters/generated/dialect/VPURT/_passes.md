@@ -3,11 +3,6 @@
 This pass assign virtual barriers with physical IDs using a runtime simulation.
 ### `-assign-physical-barriers`: Assign physical barriers
 This pass replaces virtual barriers with physical barriers and assign IDs to them.
-
-#### Options
-```
--num-barriers : Number of physical barriers, available for usage
-```
 ### `-assign-virtual-barriers`: Schedules virtual barriers
 This pass schedules virtual barriers such that the number of active barrier does not exceed the hardware limit.
 
