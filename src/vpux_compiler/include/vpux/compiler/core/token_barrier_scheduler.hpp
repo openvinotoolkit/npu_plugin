@@ -24,6 +24,7 @@
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -47,6 +48,9 @@
 #include "vpux/compiler/core/barrier_schedule_generator.hpp"
 #include "vpux/compiler/core/runtime_simulator.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
+
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 namespace vpux {
 

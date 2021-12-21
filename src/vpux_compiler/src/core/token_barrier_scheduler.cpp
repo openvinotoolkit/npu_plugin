@@ -18,6 +18,7 @@
 #include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
+
 static constexpr StringLiteral schedulingNumberAttrName = "SchedulingNumber";
 //
 // Constructor
@@ -420,7 +421,8 @@ size_t TokenBasedBarrierScheduler::schedule() {
         }
 
         // run simulation
-        RuntimeSimulator simulator(_ctx, _func, _log, _numDmaEngines, 8);
+        // RuntimeSimulator simulator(_ctx, _func, _log, _numDmaEngines, 8);
+        // auto barrierSim = VPURT::BarrierSimulator((*configureBarrierOpUpdateWaitMap.begin()).first);
 
         for (const auto& p : configureBarrierOpUpdateWaitMap) {
             auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
@@ -459,7 +461,21 @@ size_t TokenBasedBarrierScheduler::schedule() {
         }
 
         // success = true;
-        success = simulator.assignPhysicalIDs();
+        // success = simulator.assignPhysicalIDs();
+        VPURT::BarrierSimulator barrierSim(_func);
+        if (!barrierSim.isDynamicBarriers()) {
+            exit(0);
+        }
+
+        // if (mlir::failed(barrierSim.checkProducerCount(_log.nest()))) {
+        //     signalPassFailure();
+        //     success = false;
+        // }
+        success = true;
+        if (mlir::failed(barrierSim.simulateBarriers(_log.nest()))) {
+            // signalPassFailure();
+            success = false;
+        }
 
         // if (barrierCount_ == 4)
         //     success = false;
