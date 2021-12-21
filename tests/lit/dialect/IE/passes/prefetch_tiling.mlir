@@ -269,8 +269,8 @@ func @SplitOverC(
 
 IERT.RunTimeResources
     availableMemory : {
-        // 1x16x4x8xf16 + weights_table + act_window
-        MemoryResource 2000 bytes of "CMX_NN"
+        // 1x16x4x8xf16 + weights_table + act_window + profiling buffer
+        MemoryResource 2400 bytes of "CMX_NN"
     }
     usedMemory : {
     }
