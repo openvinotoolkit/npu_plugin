@@ -212,23 +212,87 @@ bool TokenBasedBarrierScheduler::isPathExist(mlir::Operation* a, mlir::Operation
                     return true;
             }
         }
-
-        // for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end();
-        //      iter++) {
-        //     auto produces = (*iter).second.first;
-        //     if (std::find(produces.begin(), produces.end(), a) != produces.end()) {
-        //         auto consumers = (*iter).second.second;
-        //         if (std::find(consumers.begin(), consumers.end(), b) != consumers.end())
-        //             return true;
-        //         else {
-        //             for (auto consumer = consumers.begin(); consumer != consumers.end(); consumer++) {
-        //                 if (isPathExist(*consumer, b))
-        //                     return true;
-        //             }
-        //         }
-        //     }
-        // }
         return false;
+    }
+}
+
+void TokenBasedBarrierScheduler::removeRedundantDependency() {
+    for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+        // producers
+        auto producers = (*iter).second.first;
+        for (auto prod = producers.begin(); prod != producers.end();) {
+            auto prod1 = prod;
+            prod1++;
+            for (; prod1 != producers.end();) {
+                if (isPathExist(*prod1, *prod)) {
+                    auto removedIter = prod1;
+                    prod1++;
+                    producers.erase(removedIter);
+                    // configureTaskOpUpdateWaitMap[*prod1].second.erase((*iter).first);
+                } else if (isPathExist(*prod, *prod1)) {
+                    auto removedIter = prod;
+                    prod++;
+                    producers.erase(removedIter);
+                    // configureTaskOpUpdateWaitMap[*prod].second.erase((*iter).first);
+                    break;
+                } else
+                    prod1++;
+            }
+            if (prod1 == producers.end())
+                prod++;
+        }
+        (*iter).second.first = producers;
+
+        // consumers
+        auto consumers = (*iter).second.second;
+        for (auto cons = consumers.begin(); cons != consumers.end();) {
+            auto cons1 = cons;
+            cons1++;
+            for (; cons1 != consumers.end();) {
+                if (isPathExist(*cons, *cons1)) {
+                    auto removedIter = cons1;
+                    cons1++;
+                    consumers.erase(removedIter);
+                    // configureTaskOpUpdateWaitMap[*cons1].first.erase((*iter).first);
+                } else if (isPathExist(*cons1, *cons)) {
+                    auto removedIter = cons;
+                    cons++;
+                    consumers.erase(removedIter);
+                    // configureTaskOpUpdateWaitMap[*cons].first.erase((*iter).first);
+                    break;
+                } else
+                    cons1++;
+            }
+            if (cons1 == consumers.end())
+                cons++;
+        }
+        (*iter).second.second = consumers;
+    }
+}
+
+void TokenBasedBarrierScheduler::removeRedundantBarrier() {
+    for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
+        auto consumers = (*iter).second.second;
+        auto iter1 = iter;
+        iter1++;
+        for (; iter1 != configureBarrierOpUpdateWaitMap.end();) {
+            auto consumers1 = (*iter1).second.second;
+            if (consumers1 == consumers) {
+                Logger::global().error("found barrier {0} and {1} have same consumers", (*iter).first->getAttr("id"),
+                                       (*iter1).first->getAttr("id"));
+                auto producers = (*iter1).second.first;
+                // auto mergedProducers = (*iter).second.first
+                for (auto& task : producers) {
+                    (*iter).second.first.insert(task);
+                }
+                auto removedIter = iter1;
+                iter1++;
+                (*removedIter).first->dropAllUses();
+                (*removedIter).first->erase();
+                configureBarrierOpUpdateWaitMap.erase(removedIter);
+            } else
+                iter1++;
+        }
     }
 }
 
@@ -340,86 +404,8 @@ size_t TokenBasedBarrierScheduler::schedule() {
 
         std::cout << "Done creating configureTaskOpUpdateWaitMap" << std::endl;
 
-        // remove redundant deps
-        for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end();
-             iter++) {
-            // producers
-            std::cout << (*iter).first->getAttr("id").cast<mlir::IntegerAttr>().getInt() << std::endl;
-            auto producers = (*iter).second.first;
-            for (auto prod = producers.begin(); prod != producers.end();) {
-                auto prod1 = prod;
-                prod1++;
-                for (; prod1 != producers.end();) {
-                    if (isPathExist(*prod1, *prod)) {
-                        auto removedIter = prod1;
-                        prod1++;
-                        producers.erase(removedIter);
-                        // configureTaskOpUpdateWaitMap[*prod1].second.erase((*iter).first);
-                    } else if (isPathExist(*prod, *prod1)) {
-                        auto removedIter = prod;
-                        prod++;
-                        producers.erase(removedIter);
-                        // configureTaskOpUpdateWaitMap[*prod].second.erase((*iter).first);
-                        break;
-                    } else
-                        prod1++;
-                }
-                if (prod1 == producers.end())
-                    prod++;
-            }
-            (*iter).second.first = producers;
-
-            // consumers
-            auto consumers = (*iter).second.second;
-            for (auto cons = consumers.begin(); cons != consumers.end();) {
-                auto cons1 = cons;
-                cons1++;
-                for (; cons1 != consumers.end();) {
-                    if (isPathExist(*cons, *cons1)) {
-                        auto removedIter = cons1;
-                        cons1++;
-                        consumers.erase(removedIter);
-                        // configureTaskOpUpdateWaitMap[*cons1].first.erase((*iter).first);
-                    } else if (isPathExist(*cons1, *cons)) {
-                        auto removedIter = cons;
-                        cons++;
-                        consumers.erase(removedIter);
-                        // configureTaskOpUpdateWaitMap[*cons].first.erase((*iter).first);
-                        break;
-                    } else
-                        cons1++;
-                }
-                if (cons1 == consumers.end())
-                    cons++;
-            }
-            (*iter).second.second = consumers;
-        }
-
-        // remove redundant barriers
-        for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end();
-             iter++) {
-            auto consumers = (*iter).second.second;
-            auto iter1 = iter;
-            iter1++;
-            for (; iter1 != configureBarrierOpUpdateWaitMap.end();) {
-                auto consumers1 = (*iter1).second.second;
-                if (consumers1 == consumers) {
-                    Logger::global().error("found barrier {0} and {1} have same consumers",
-                                           (*iter).first->getAttr("id"), (*iter1).first->getAttr("id"));
-                    auto producers = (*iter1).second.first;
-                    // auto mergedProducers = (*iter).second.first
-                    for (auto& task : producers) {
-                        (*iter).second.first.insert(task);
-                    }
-                    auto removedIter = iter1;
-                    iter1++;
-                    (*removedIter).first->dropAllUses();
-                    (*removedIter).first->erase();
-                    configureBarrierOpUpdateWaitMap.erase(removedIter);
-                } else
-                    iter1++;
-            }
-        }
+        removeRedundantDependency();
+        removeRedundantBarrier();
 
         for (auto itr = configureBarrierOpUpdateWaitMap.begin(); itr != configureBarrierOpUpdateWaitMap.end();) {
             if (itr->second.second.empty()) {

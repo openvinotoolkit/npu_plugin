@@ -319,6 +319,8 @@ public:
                      task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap);
     void saveOriginalDependency();
     bool isPathExist(mlir::Operation* a, mlir::Operation* b);
+    void removeRedundantDependency();
+    void removeRedundantBarrier();
     void reorderIR();
 
 private:
