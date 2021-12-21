@@ -542,16 +542,16 @@ unsigned FeasibleBarrierScheduler::countProducerConsumerTasks(mlir::Operation* o
 
 void FeasibleBarrierScheduler::createOperationResourceUtilityTable() {
     for (auto& op : _in_degree) {
-        Logger::global().error("Operation: {0} ", getUniqueID(op.first));
+        _log.trace("Operation: {0} ", getUniqueID(op.first));
         if (doesOpRunOnNCE(op.first)) {
             auto resource_utility = countProducerConsumerTasks(op.first);
             // resource utility //
-            Logger::global().error("Operation: {0} uses {1} slots", getUniqueID(op.first), resource_utility);
+            _log.trace("Operation: {0} uses {1} slots", getUniqueID(op.first), resource_utility);
             _resource_utility_map.insert(std::make_pair(op.first, resource_utility));
         } else  // UPA tasks
         {
             // resource utility is 0 //
-            Logger::global().error("Operation: {0} uses 0 slots", getUniqueID(op.first));
+            _log.trace("Operation: {0} uses 0 slots", getUniqueID(op.first));
             _resource_utility_map.insert(std::make_pair(op.first, 0));
         }
     }
