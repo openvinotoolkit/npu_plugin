@@ -2319,6 +2319,7 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
 void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, std::vector<vpux::PreProcessInfo>& preProcInfo,
                      mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Common nGraph passes");
+    VPUX_UNUSED(preProcInfo);
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -2347,8 +2348,6 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, std::vec
     manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
     manager.register_pass<vpux::passes::ConvertVariadicSplitToStridedSliceOp>();
     manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
-    manager.register_pass<vpux::pass::RemoveNV12Conversion<ov::op::v8::NV12toBGR>>(preProcInfo);
-    manager.register_pass<vpux::pass::RemoveNV12Conversion<ov::op::v8::NV12toRGB>>(preProcInfo);
 
     manager.run_passes(netGraph);
 }
