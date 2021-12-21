@@ -304,6 +304,20 @@ public:
     };  // class barrier_transition_structure_t //
 
     size_t schedule();
+
+    void getTaskOpUpdateWaitMap(
+            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
+                    barrierOpUpdateWaitMap,
+            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
+                    taskOpUpdateWaitMap);
+    void getTaskOpUpdateWaitMap(
+            std::map<mlir::Operation*,
+                     std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
+                               std::set<mlir::Operation*, task_operation_comparator_t>>,
+                     operation_comparator_t>& barrierOpUpdateWaitMap,
+            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
+                     task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap);
+    void saveOriginalDependency();
     bool isPathExist(mlir::Operation* a, mlir::Operation* b);
 
 private:
