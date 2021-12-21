@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/core/feasible_barrier_generator.hpp"
 #include "vpux/compiler/core/runtime_simulator.hpp"
 #include "vpux/compiler/core/token_barrier_scheduler.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
@@ -51,9 +52,9 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
                       MAX_DMA_ENGINES);
 
     // bool success = false;
-
-    TokenBasedBarrierScheduler barrierScheduler(&ctx, func, _log, 4, 256, numDmaEngines);
-    barrierScheduler.schedule();
+    FeasibleBarrierScheduler bsbarrierScheduler(&ctx, func, _log, 4, 256);
+    // TokenBasedBarrierScheduler barrierScheduler(&ctx, func, _log, 4, 256, numDmaEngines);
+    // barrierScheduler.schedule();
 
     // Barrier Simulation
     // for (size_t barrier_bound = 4; !success && (barrier_bound >= 1UL); --barrier_bound) {
