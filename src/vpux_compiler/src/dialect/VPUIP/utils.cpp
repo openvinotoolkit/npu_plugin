@@ -246,6 +246,7 @@ bool vpux::VPUIP::isChannelMajorCompatibleOperation(mlir::Operation* origOp, Dim
         }
     }
 
-    return ((archKind == VPU::ArchKind::KMB) && (inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) &&
+    return ((archKind == VPU::ArchKind::KMB) && (inDimsOrder == DimsOrder::NCHW) &&
+            (inputChannels == VPUIP::NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_CHANNELS_LIMIT) &&
             (inputTensorWidth % VPUIP::NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT == 0));
 }
