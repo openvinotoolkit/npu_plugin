@@ -28,6 +28,20 @@ def AssignPhysicalBarriers : PassBase<"assign-physical-barriers", "vpux::Functio
     }];
 
     let constructor = "vpux::VPURT::createAssignPhysicalBarriersPass()";
+}
+
+//
+// AssignVirtualBarriers
+//
+
+def AssignVirtualBarriers : PassBase<"assign-virtual-barriers", "vpux::FunctionPass"> {
+    let summary = "Schedules virtual barriers";
+
+    let description = [{
+        This pass schedules virtual barriers such that the number of active barrier does not exceed the hardware limit.
+    }];
+
+    let constructor = "vpux::VPURT::createAssignVirtualBarriersPass()";
 
     let options = [
         Option<
