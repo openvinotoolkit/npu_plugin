@@ -447,19 +447,21 @@ size_t TokenBasedBarrierScheduler::schedule() {
             }
         }
 
-        // run simulation
-        VPURT::BarrierSimulator barrierSim(_func);
-        if (!barrierSim.isDynamicBarriers()) {
-            exit(0);
-        }
-
         success = true;
-        if (mlir::failed(barrierSim.simulateBarriers(_log.nest()))) {
-            success = false;
-        }
+        if (configureBarrierOpUpdateWaitMap.size()) {
+            // run simulation
+            VPURT::BarrierSimulator barrierSim(_func);
+            if (!barrierSim.isDynamicBarriers()) {
+                exit(0);
+            }
 
-        // if (barrierCount_ == 4)
-        //     success = false;
+            if (mlir::failed(barrierSim.simulateBarriers(_log.nest()))) {
+                success = false;
+            }
+
+            // if (barrierCount_ == 4)
+            //     success = false;
+        }
 
         if (!success) {
             cleanUpVirtualBarriers();
