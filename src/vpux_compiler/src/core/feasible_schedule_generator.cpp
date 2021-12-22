@@ -416,6 +416,10 @@ void FeasibleScheduleGenerator::assignUniqueIds() {
             assignUniqueIDs(taskOp);
             break;
         }
+        case VPU::ExecutorKind::SHAVE_ACT: {
+            assignUniqueIDs(taskOp);
+            break;
+        }
         default:
             VPUX_THROW("Unsupported task type '{0}'", taskOp.getExecutorKind());
         }

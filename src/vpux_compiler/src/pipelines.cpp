@@ -332,6 +332,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
             pm.addPass(VPUIP::createUPAProfilingPass(log));
         }
         pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+        pm.addPass(createMoveDeclarationsToTopPass(log));
     }
 
     pm.addPass(VPURT::createAssignVirtualBarriersPass(log));
