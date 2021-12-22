@@ -697,15 +697,12 @@ MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
 
 VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ArrayRef<uint64_t> content,
                                                                         mlir::ShapedType type, bool csram_cacheable) {
-    const Byte elemTypeSize = getElemTypeSize(type);
-    const size_t totalNumElements = type.getNumElements();
-    const size_t totalByteSize = totalNumElements * elemTypeSize.count();
-
+    const auto totalByteSize = static_cast<Byte>(getTotalSize(type));
     const auto serializedContent = createVector(content);
 
     MVCNN::BinaryDataBuilder builder(_impl);
     builder.add_underlying_type(MVCNN::DType::DType_U8);
-    builder.add_length(totalByteSize);
+    builder.add_length(totalByteSize.count());
     builder.add_data(serializedContent);
     builder.add_csram_cacheable(csram_cacheable);
     return builder.Finish();

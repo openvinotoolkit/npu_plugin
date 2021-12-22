@@ -465,14 +465,12 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
         const auto type = attr.getType();
         const auto content = attr.fold();
 
-        const Byte elemTypeSize = getElemTypeSize(type);
-        const size_t totalNumElements = type.getNumElements();
-        const size_t totalByteSize = totalNumElements * elemTypeSize.count();
+        const auto totalByteSize = static_cast<Byte>(getTotalSize(type));
+        bufs[static_cast<size_t>(ind)].resize(
+                alignVal(static_cast<size_t>(totalByteSize.count()), sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
-        bufs[static_cast<size_t>(ind)].resize(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
-
-        const auto buf =
-                makeMutableArrayRef(reinterpret_cast<char*>(bufs[static_cast<size_t>(ind)].data()), totalByteSize);
+        const auto buf = makeMutableArrayRef(reinterpret_cast<char*>(bufs[static_cast<size_t>(ind)].data()),
+                                             totalByteSize.count());
         content.copyTo(buf);
     });
 
