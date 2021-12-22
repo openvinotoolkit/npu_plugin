@@ -188,7 +188,10 @@ public:
         return _actual->getNetworkModelSize();
     }
 
-    ~NetworkDescription() = default;
+    ~NetworkDescription() {
+        // It's necessary to destroy _actual before _plg to avoid potential program crashes
+        _actual = nullptr;
+    }
 
 private:
     INetworkDescription::Ptr _actual;

@@ -87,7 +87,7 @@ mlir::LogicalResult vpux::IE::inferTensorTypes(InferTypeComponentsCb componentsC
 
 bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs,
                                        IE::TypeComparisonMode elemComparisonModes, bool checkDimsOrder,
-                                       bool checkMemSpace) {
+                                       bool checkMemSpace, bool checkSparsity) {
     if (lhs.size() != rhs.size()) {
         return false;
     }
@@ -98,6 +98,12 @@ bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs,
 
         if (lhsType == nullptr || rhsType == nullptr) {
             return false;
+        }
+
+        if (checkSparsity) {
+            if (IE::isSparse(lhsType) != IE::isSparse(rhsType)) {
+                return false;
+            }
         }
 
         if (lhsType.getShape() != rhsType.getShape()) {

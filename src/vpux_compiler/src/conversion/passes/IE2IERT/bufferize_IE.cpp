@@ -822,6 +822,12 @@ mlir::Operation* createRTLayer(IE::ReduceMaxOp origOp, ArrayRef<mlir::Value> all
                                        origOp.keep_dimsAttr());
 }
 
+mlir::Operation* createRTLayer(IE::ReduceMeanOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReduceMeanOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ReduceMeanOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
+                                        origOp.keep_dimsAttr());
+}
+
 mlir::Operation* createRTLayer(IE::ReduceSumOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ReduceSumOp::Adaptor newOp(allBufs);
     return b.create<IERT::ReduceSumOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
@@ -966,6 +972,12 @@ mlir::Operation* createRTLayer(IE::MVNOp origOp, ArrayRef<mlir::Value> allBufs, 
                                  origOp.normalize_variance(), origOp.eps());
 }
 
+mlir::Operation* createRTLayer(IE::DepthToSpaceOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::DepthToSpaceOp::Adaptor newOp(allBufs);
+    return b.create<IERT::DepthToSpaceOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.block_sizeAttr(),
+                                          origOp.modeAttr());
+}
+
 mlir::Operation* createRTLayer(IE::SubtractOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::SubtractOp::Adaptor newOp(allBufs);
     return b.create<IERT::SubtractOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff(),
@@ -1041,6 +1053,12 @@ mlir::Operation* createRTLayer(IE::LogicalXorOp origOp, ArrayRef<mlir::Value> al
     return b.create<IERT::LogicalXorOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::SpaceToDepthOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::SpaceToDepthOp::Adaptor newOp(allBufs);
+    return b.create<IERT::SpaceToDepthOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.block_size(),
+                                          origOp.mode());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -1095,6 +1113,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::ErfOp)
     CASE(IE::BroadcastOp)
     CASE(IE::ReduceMaxOp)
+    CASE(IE::ReduceMeanOp)
     CASE(IE::ReduceSumOp)
     CASE(IE::TanhOp)
     CASE(IE::SqrtOp)
@@ -1138,6 +1157,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::StridedSliceOp)
     CASE(IE::RegionYoloOp)
     CASE(IE::MVNOp)
+    CASE(IE::DepthToSpaceOp)
     CASE(IE::SubtractOp)
     CASE(IE::MemPermuteOp)
     CASE(IE::SoftPlusOp)
@@ -1149,6 +1169,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::NotEqualOp)
     CASE(IE::GreaterOp)
     CASE(IE::GreaterEqualOp)
+    CASE(IE::SpaceToDepthOp)
     CASE(IE::TopKOp)
     CASE(IE::LogicalOrOp)
     CASE(IE::LogicalXorOp)

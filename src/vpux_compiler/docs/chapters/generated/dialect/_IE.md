@@ -589,6 +589,37 @@ operation ::= `IE.Deconvolution` `(` operands `)` attr-dict `:` type(operands) `
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.DepthToSpace` (vpux::IE::DepthToSpaceOp)
+
+InferenceEngine DepthToSpace layer
+
+
+Syntax:
+
+```
+operation ::= `IE.DepthToSpace` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::DepthToSpaceModeAttr | DepthToSpaceMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Dequantize` (vpux::IE::DequantizeOp)
 
 InferenceEngine Dequantize layer
@@ -2243,6 +2274,37 @@ operation ::= `IE.ReduceMax` `(` operands `)` attr-dict `:` type(operands) `->` 
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.ReduceMean` (vpux::IE::ReduceMeanOp)
+
+InferenceEngine ReduceMean Layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReduceMean` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.ReduceSum` (vpux::IE::ReduceSumOp)
 
 InferenceEngine ReduceSum layer
@@ -2681,6 +2743,37 @@ operation ::= `IE.SoftPlus` `(` operands `)` attr-dict `:` type(operands) `->` t
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.SpaceToDepthOp` (vpux::IE::SpaceToDepthOp)
+
+InferenceEngine SpaceToDepthOp layer
+
+
+Syntax:
+
+```
+operation ::= `IE.SpaceToDepthOp` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::SpaceToDepthModeAttr | SpaceToDepthMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
 
 ### `IE.Split` (vpux::IE::SplitOp)
 

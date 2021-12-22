@@ -95,12 +95,14 @@ mlir::MemRefType eraseTiledInfo(mlir::MemRefType origType);
 // RankedTensorType utilities
 //
 
-mlir::RankedTensorType getTensorType(ShapeRef shape, mlir::Type elemType, DimsOrder order, mlir::Attribute memSpace);
+mlir::RankedTensorType getTensorType(ShapeRef shape, mlir::Type elemType, DimsOrder order, mlir::Attribute memSpace,
+                                     bool sparse = false);
 
 mlir::RankedTensorType changeElemType(mlir::RankedTensorType origType, mlir::Type elemType);
 mlir::RankedTensorType changeShape(mlir::RankedTensorType origType, ShapeRef shape);
 mlir::RankedTensorType changeDimsOrder(mlir::RankedTensorType origType, DimsOrder order);
 mlir::RankedTensorType changeMemSpace(mlir::RankedTensorType origType, mlir::Attribute memSpace);
+mlir::RankedTensorType changeSparse(mlir::RankedTensorType origType, bool sparse);
 
 mlir::RankedTensorType getDenseTileType(mlir::RankedTensorType origType, ShapeRef tileOffsets, ShapeRef tileShape);
 mlir::RankedTensorType getPaddedType(mlir::RankedTensorType origType, ShapeRef padBefore, ShapeRef padAfter);
@@ -113,6 +115,7 @@ mlir::ShapedType changeElemType(mlir::ShapedType origType, mlir::Type elemType);
 mlir::ShapedType changeShape(mlir::ShapedType origType, ShapeRef shape);
 mlir::ShapedType changeDimsOrder(mlir::ShapedType origType, DimsOrder order);
 mlir::ShapedType changeMemSpace(mlir::ShapedType origType, mlir::Attribute memSpace);
+mlir::ShapedType changeSparse(mlir::ShapedType origType, bool sparse);
 
 mlir::ShapedType getDenseTileType(mlir::ShapedType origType, ShapeRef tileOffsets, ShapeRef tileShape);
 mlir::ShapedType getPaddedType(mlir::ShapedType origType, ShapeRef padBefore, ShapeRef padAfter);

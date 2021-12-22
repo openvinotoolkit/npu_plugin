@@ -34,14 +34,15 @@ namespace IE {
 // TensorAttr
 //
 
-IE::TensorAttr getTensorAttr(mlir::AffineMapAttr order, mlir::Attribute memSpace);
-IE::TensorAttr getTensorAttr(mlir::AffineMap order, mlir::Attribute memSpace);
-IE::TensorAttr getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::Attribute memSpace);
+IE::TensorAttr getTensorAttr(mlir::AffineMapAttr order, mlir::Attribute memSpace, bool sparse);
+IE::TensorAttr getTensorAttr(mlir::AffineMap order, mlir::Attribute memSpace, bool sparse);
+IE::TensorAttr getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::Attribute memSpace, bool sparse);
 
 IE::TensorAttr getTensorAttr(mlir::RankedTensorType type);
 
 mlir::AffineMap getOrder(mlir::RankedTensorType type);
 mlir::Attribute getMemorySpace(mlir::RankedTensorType type);
+bool isSparse(mlir::RankedTensorType type);
 
 }  // namespace IE
 }  // namespace vpux

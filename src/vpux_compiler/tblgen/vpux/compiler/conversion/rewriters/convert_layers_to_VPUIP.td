@@ -131,43 +131,35 @@ def RewriteBroadcast :
         >;
 
 //
-// IERT.ReduceMax -> VPUIP.Reduce
+// IERT.Reduce[Max|Mean|Sum]Op -> VPUIP.ReduceUPA
 //
 
-def createReduceMaxUPAOp :
+class createReduceUPAOp<string method> :
         NativeCodeCall<[{
             $_builder.create<vpux::VPUIP::ReduceUPAOp>(
                 $_loc, $0, $1, $2, $3,
                 vpux::VPUIP::ReduceLayerTypeAttr::get(
                     $_builder.getContext(),
-                    vpux::VPUIP::ReduceLayerType::MAX
+                    vpux::VPUIP::ReduceLayerType::}] # method # [{
                 ))
         }]>;
 
 def RewriteReduceMax :
         Pat<
-                (IERT_ReduceMaxOp $input, $axes, $output, $keep_dims),
-                (createReduceMaxUPAOp $input, $axes, $output, $keep_dims)
+            (IERT_ReduceMaxOp $input, $axes, $output, $keep_dims),
+            (createReduceUPAOp<"MAX"> $input, $axes, $output, $keep_dims)
         >;
 
-//
-// IERT.ReduceSum -> VPUIP.Reduce
-//
-
-def createReduceSumUPAOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::ReduceUPAOp>(
-                $_loc, $0, $1, $2, $3,
-                vpux::VPUIP::ReduceLayerTypeAttr::get(
-                    $_builder.getContext(),
-                    vpux::VPUIP::ReduceLayerType::SUM
-                ))
-        }]>;
+def RewriteReduceMean :
+        Pat<
+            (IERT_ReduceMeanOp $input, $axes, $output, $keep_dims),
+            (createReduceUPAOp<"MEAN"> $input, $axes, $output, $keep_dims)
+        >;
 
 def RewriteReduceSum :
         Pat<
-                (IERT_ReduceSumOp $input, $axes, $output, $keep_dims),
-                (createReduceSumUPAOp $input, $axes, $output, $keep_dims)
+            (IERT_ReduceSumOp $input, $axes, $output, $keep_dims),
+            (createReduceUPAOp<"SUM"> $input, $axes, $output, $keep_dims)
         >;
 
 //
@@ -942,6 +934,22 @@ def RewriteGatherElements :
         >;
 
 //
+// IERT.SpaceToDepth -> VPUIP.SpaceToDepth
+//
+
+def createSpaceToDepthUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SpaceToDepthUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteSpaceToDepth :
+        Pat<
+            (IERT_SpaceToDepthOp $input, $output, $block_size, $mode),
+            (createSpaceToDepthUPAOp $input, $output, $block_size, $mode)
+        >;
+
+//
 // IERT.ScatterNDUpdate -> VPUIP.ScatterNDUpdate
 //
 
@@ -1033,6 +1041,22 @@ def RewriteReverseSequence :
         Pat<
             (IERT_ReverseSequenceOp $data, $seq_length, $output, $seq_axis, $batch_axis),
             (createReverseSequenceUPAOp $data, $seq_length, $output, $seq_axis, $batch_axis)
+        >;
+
+//
+// IERT.DepthToSpace -> VPUIP.DepthToSpaceUPA
+//
+
+def createDepthToSpaceUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::DepthToSpaceUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteDepthToSpace :
+        Pat<
+            (IERT_DepthToSpaceOp $input, $output, $block_size, $mode),
+            (createDepthToSpaceUPAOp $input, $output, $block_size, $mode)
         >;
 
 #endif

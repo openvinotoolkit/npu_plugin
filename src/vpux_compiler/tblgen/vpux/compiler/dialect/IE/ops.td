@@ -53,13 +53,15 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
     list<string> elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     bit checkInferredDimsOrder = 0;
     bit checkInferredMemSpace = 0;
+    bit checkInferredSparsity = 0;
 
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
             return vpux::IE::isCompatibleTensorTypes(lhs, rhs,
                 }] # !interleave(elemComparisonModes, "|") # [{,
                 static_cast<bool>(}] # checkInferredDimsOrder # [{),
-                static_cast<bool>(}] # checkInferredMemSpace # [{)
+                static_cast<bool>(}] # checkInferredMemSpace # [{),
+                static_cast<bool>(}] # checkInferredSparsity # [{)
             );
         }
     }];
@@ -1026,6 +1028,7 @@ def IE_ReshapeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -1058,6 +1061,7 @@ def IE_SqueezeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -1091,6 +1095,7 @@ def IE_UnsqueezeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -1202,6 +1207,28 @@ def IE_ReduceMaxOp :
     let arguments = (ins
         AnyRankedTensor:$input,
         1DTensorOf<[AnyInteger]>:$axes,
+
+        BoolAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ReduceMeanOp
+//
+
+def IE_ReduceMeanOp :
+        IE_LayerOp<
+            "ReduceMean"
+        > {
+    let summary = "InferenceEngine ReduceMean Layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[SI64, SI32]>:$axes,
 
         BoolAttr:$keep_dims
     );
@@ -2622,6 +2649,7 @@ def IE_PermuteCastOp :
 
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -2673,6 +2701,30 @@ def IE_EqualOp :
         RankedTensorOf<[F16, F32]>:$output
     );
 }
+//
+// SpaceToDepthOp
+//
+
+def IE_SpaceToDepthOp :
+        IE_LayerOp<
+            "SpaceToDepthOp"
+        > {
+    let summary = "InferenceEngine SpaceToDepthOp layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        DefaultValuedAttr<IntAttr, "1">:$block_size,
+        IE_SpaceToDepthMode:$mode
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+}
 
 //
 // AffineReshapeOp
@@ -2704,6 +2756,7 @@ def IE_AffineReshapeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -2749,6 +2802,30 @@ def IE_ReverseSequenceOp :
 
         IntAttr:$seq_axis,
         IntAttr:$batch_axis
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+}
+
+//
+// DepthToSpaceOp
+//
+
+def IE_DepthToSpaceOp :
+        IE_LayerOp<
+            "DepthToSpace"
+        > {
+    let summary = "InferenceEngine DepthToSpace layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        IntAttr:$block_size,
+        IE_DepthToSpaceMode:$mode
     );
 
     let results = (outs

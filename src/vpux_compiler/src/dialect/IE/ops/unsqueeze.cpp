@@ -156,7 +156,7 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
     }
 
     const auto outDesc = IE::getTensorAttr(ctx, inferOutputLayout(inOrder.toPermutation(), axes.getValue()),
-                                           IE::getMemorySpace(inType));
+                                           IE::getMemorySpace(inType), IE::isSparse(inType));
 
     inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType(), outDesc);
     return mlir::success();

@@ -659,6 +659,38 @@ def IERT_ReduceMaxOp :
 }
 
 //
+// ReduceMeanOp
+//
+
+def IERT_ReduceMeanOp :
+    IERT_LayerOp<1, "ReduceMean",
+        [
+            ViewLikeOpInterface
+        ]
+    > {
+    let summary = "InferenceEngine run-time ReduceMean layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI32, SI64]>:$axes,
+        AnyMemRef:$output_buff,
+
+        BoolAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ReduceSumOp
 //
 
@@ -2663,6 +2695,39 @@ def IERT_RegionYoloOp :
 }
 
 //
+// SpaceToDepthOp
+//
+
+def IERT_SpaceToDepthOp :
+        IERT_LayerOp<1,
+            "SpaceToDepth",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine Run-Time SpaceToDepth layer";
+
+    let arguments = (ins
+        MemRefOf<[F16]>:$input,
+        MemRefOf<[F16]>:$output_buff,
+
+        IntAttr:$block_size,
+        IE_SpaceToDepthMode:$mode
+    );
+
+    let results = (outs
+        MemRefOf<[F16]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // LSTMSequenceOp
 //
 
@@ -2988,6 +3053,38 @@ def IERT_EqualOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+// 
+// DepthToSpaceOp
+//
+
+def IERT_DepthToSpaceOp :
+        IERT_LayerOp<1, "DepthToSpace",
+            [
+                ViewLikeOpInterface,
+                IERT_SameDimsOrder
+            ]
+        > {
+    let summary = "InferenceEngine run-time DepthToSpace layer";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+        IntAttr:$block_size,
+        IE_DepthToSpaceMode:$mode
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];

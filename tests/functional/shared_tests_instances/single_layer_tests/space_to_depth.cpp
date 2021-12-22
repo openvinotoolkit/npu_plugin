@@ -17,6 +17,11 @@ namespace LayerTestsDefinitions {
     TEST_P(KmbSpaceToDepthLayerTest, CompareWithRefs) {
         Run();
     }
+
+    TEST_P(KmbSpaceToDepthLayerTest, CompareWithRefs_MLIR) {
+        useCompilerMLIR();
+        Run();
+    }
 }  // namespace LayerTestsDefinitions
 
 

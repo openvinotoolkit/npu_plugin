@@ -14,7 +14,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -22,22 +21,22 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::ReduceSumOp::inferReturnTypeComponents(
+mlir::LogicalResult vpux::IE::ReduceMeanOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    IE::ReduceSumOpAdaptor reduceSum(operands, attrs);
-    if (mlir::failed(reduceSum.verify(loc))) {
+    IE::ReduceMeanOpAdaptor reduceMean(operands, attrs);
+    if (mlir::failed(reduceMean.verify(loc))) {
         return mlir::failure();
     }
 
-    const auto inType = reduceSum.input().getType().cast<mlir::ShapedType>();
-    const auto inShape = reduceSum.input().getType().cast<mlir::ShapedType>().getShape();
+    const auto inType = reduceMean.input().getType().cast<mlir::ShapedType>();
+    const auto inShape = reduceMean.input().getType().cast<mlir::ShapedType>().getShape();
     const auto inRank = inType.getRank();
-    const auto keep_dims = reduceSum.keep_dims().getValue();
-    auto axes = IE::constInputToData(loc, reduceSum.axes()).getValue();
+    const auto keep_dims = reduceMean.keep_dims().getValue();
+    auto axes = IE::constInputToData(loc, reduceMean.axes()).getValue();
     SmallVector<int64_t> outShape;
 
     for (auto& axis : axes) {

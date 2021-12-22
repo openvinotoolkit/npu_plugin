@@ -584,6 +584,41 @@ operation ::= `IERT.Cosh` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.DepthToSpace` (vpux::IERT::DepthToSpaceOp)
+
+InferenceEngine run-time DepthToSpace layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.DepthToSpace` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::DepthToSpaceModeAttr | DepthToSpaceMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `IERT.Dequantize` (vpux::IERT::DequantizeOp)
 
 InferenceEngine run-time Dequantize layer
@@ -2315,6 +2350,41 @@ operation ::= `IERT.ReduceMax` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
+### `IERT.ReduceMean` (vpux::IERT::ReduceMeanOp)
+
+InferenceEngine run-time ReduceMean layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReduceMean` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`axes` | memref of 32-bit signed integer or 64-bit signed integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.ReduceSum` (vpux::IERT::ReduceSumOp)
 
 InferenceEngine run-time ReduceSum layer
@@ -2658,6 +2728,41 @@ operation ::= `IERT.SoftPlus` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.SpaceToDepth` (vpux::IERT::SpaceToDepthOp)
+
+InferenceEngine Run-Time SpaceToDepth layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.SpaceToDepth` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::SpaceToDepthModeAttr | SpaceToDepthMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `IERT.Sqrt` (vpux::IERT::SqrtOp)
 

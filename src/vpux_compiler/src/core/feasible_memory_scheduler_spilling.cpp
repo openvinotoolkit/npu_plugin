@@ -40,6 +40,49 @@ FeasibleMemorySchedulerSpilling::FeasibleMemorySchedulerSpilling(mlir::FuncOp ne
                       "Unable to find insertion point for new allocation operations");
 }
 
+// This function tries to eliminate redundant spill write operations if exactly the same
+// buffer was already spilled before and resides in DDR. In such case subsequent
+// spill write can be removed leaving just the needed spill read that will refer
+// to first DDR location of spilled buffer
+void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
+        SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps) {
+    _log.trace("Remove redundant Spill Writes");
+
+    SmallVector<size_t> spillWriteIndexes;
+    SmallVector<size_t> duplicateSpillWriteIndexes;
+
+    // Traverse whole scheduled ops structure and check each spill write/read op
+    for (size_t index = 0; index < scheduledOps.size(); index++) {
+        auto& op = scheduledOps[index];
+        if (op.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_WRITE) {
+            _log.trace("SPILL WRITE for op '{0}', idx - '{1}'", op.op_, index);
+            // For each spill write op check if this is a duplicate by comparing op number and buffer of each
+            // previously encountered spill writes
+            for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
+                 spillWriteIndexIt++) {
+                if (scheduledOps[*spillWriteIndexIt].op_ == op.op_ &&
+                    scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
+                    // If op and buffer match then duplicate was detected
+                    duplicateSpillWriteIndexes.push_back(index);
+                    _log.nest().trace(
+                            "Duplicate spill for op '{0}': SPILL WRITE idx - '{1}', previous SPILL WRITE idx - '{2}'",
+                            op.op_, index, *spillWriteIndexIt);
+                    break;
+                }
+            }
+            // Store information about position of each spill write for reference
+            spillWriteIndexes.push_back(index);
+        }
+    }
+    _log.trace("Spills detected - '{0}', spill writes to remove - '{1}'", spillWriteIndexes.size(),
+               duplicateSpillWriteIndexes.size());
+
+    // Remove in reverse order to have indexes valid after erasing entries in scheduledOp
+    for (auto opIt = duplicateSpillWriteIndexes.rbegin(); opIt != duplicateSpillWriteIndexes.rend(); opIt++) {
+        scheduledOps.erase(scheduledOps.begin() + *opIt);
+    }
+}
+
 SmallVector<mlir::Value> FeasibleMemorySchedulerSpilling::getAsyncResultsForBuffer(
         mlir::async::ExecuteOp opThatWasSpilled, mlir::Value buffer) {
     SmallVector<mlir::Value> buffersToCheck = {buffer};
@@ -484,11 +527,6 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
 
     // After both SpillWrite and SpillRead are inserted update connections
     updateSpillWriteReadUsers(spillBuffer, spillWriteExecOp, spillReadExecOp);
-
-    // Remove given spillWrite operation from opId-spillWrite pair vector storage
-    // after it was used to prevent from invalid usage once same buffer gets
-    // spilled for a second time
-    _opIdAndSpillWritePairs.erase(opIdAndSpillWritePair);
 
     size_t spillReadIndex = _depsInfo.getIndex(spillReadExecOp);
     _log.trace("Spill Read new opId - '{0}'", spillReadIndex);

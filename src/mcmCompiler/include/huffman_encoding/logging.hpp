@@ -20,7 +20,7 @@
 
 using std::string;
 
-#if defined(USE_INT128_CLASS) || defined(WIN32)
+#if defined(USE_INT128_CLASS) || defined(_WIN32)
 #include <cstdarg>
 #define VASPRINTF ms_vasprintf            // 'vasprintf' is gnu-specific
 extern int ms_vasprintf(char **ptr, const char *format, va_list ap);
@@ -35,14 +35,14 @@ void Error ( int level, std::stringstream &reportStream );
 extern std::string LOGFILE;
 
 extern string PrintToString(const char *fmt, ...)
-#ifndef WIN32
+#ifndef _WIN32
     __attribute__((format (printf, 1, 2)))
 #endif
 ;
     
 extern "C" {
 	extern void AssertFail(const char*, int, const char *fmt, ...)
-#ifndef WIN32
+#ifndef _WIN32
 		__attribute__((format(printf, 3, 4), __noreturn__))
 #endif
 ;
@@ -68,7 +68,7 @@ extern "C" {
  */
 extern "C" {
    extern void Log(int level, const char *fmt, ...)
-#ifndef WIN32
+#ifndef _WIN32
       __attribute__((format (printf, 2, 3)))
 #endif
 ;

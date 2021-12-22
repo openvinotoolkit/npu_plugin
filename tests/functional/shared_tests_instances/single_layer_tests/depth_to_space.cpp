@@ -12,14 +12,13 @@
 namespace LayerTestsDefinitions {
 
     class KmbDepthToSpaceLayerTest: public DepthToSpaceLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-        void SkipBeforeLoad() override {
-            if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-                throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
-            }
-        }
     };
 
     TEST_P(KmbDepthToSpaceLayerTest, CompareWithRefs) {
+        Run();
+    }
+    TEST_P(KmbDepthToSpaceLayerTest, CompareWithRefs_MLIR) {
+        useCompilerMLIR();
         Run();
     }
 }  // namespace LayerTestsDefinitions
