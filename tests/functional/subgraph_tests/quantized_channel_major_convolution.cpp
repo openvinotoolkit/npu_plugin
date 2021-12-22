@@ -88,7 +88,7 @@ TEST_P(KmbQuantizedChannelMajorConvSubGraphTest, CompareWithRefs_MLIR_HW) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbQuantizedChannelMajorConvSubGraphTest,
+INSTANTIATE_TEST_CASE_P(channelMajorConvolutionTest, KmbQuantizedChannelMajorConvSubGraphTest,
                         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 }  // namespace
