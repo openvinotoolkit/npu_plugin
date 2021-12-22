@@ -865,6 +865,13 @@ mlir::Operation* createRTLayer(IE::ROIPoolingOp origOp, ArrayRef<mlir::Value> al
                                         origOp.output_sizeAttr(), origOp.spatial_scaleAttr(), origOp.methodAttr());
 }
 
+mlir::Operation* createRTLayer(IE::PSROIPoolingOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::PSROIPoolingOp::Adaptor newOp(allBufs);
+    return b.create<IERT::PSROIPoolingOp>(origOp.getLoc(), newOp.input(), newOp.coords(), newOp.output_buff(),
+                                        origOp.output_dimAttr(), origOp.spatial_scaleAttr(), origOp.group_sizeAttr(),
+                                        origOp.spatial_bins_x(), origOp.spatial_bins_yAttr(), origOp.modeAttr());
+}
+
 mlir::Operation* createRTLayer(IE::ROIAlignOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ROIAlignOp::Adaptor newOp(allBufs);
     return b.create<IERT::ROIAlignOp>(
@@ -1170,6 +1177,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::PerAxisTileOp)
     CASE(IE::NegativeOp)
     CASE(IE::ROIPoolingOp)
+    CASE(IE::PSROIPoolingOp)
     CASE(IE::ROIAlignOp)
     CASE(IE::FullyConnectedOp)
     CASE(IE::DetectionOutputOp)

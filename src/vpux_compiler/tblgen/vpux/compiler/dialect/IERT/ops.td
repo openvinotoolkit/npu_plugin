@@ -2155,6 +2155,43 @@ def IERT_ROIPoolingOp :
 }
 
 //
+// PSROIPoolingOp
+//
+
+def IERT_PSROIPoolingOp :
+        IERT_LayerOp<1, "PSROIPooling",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time PSROIPooling layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$coords,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        I64Attr:$output_dim,
+        F64Attr:$spatial_scale,
+        OptionalAttr<IntAttr>:$group_size,
+        OptionalAttr<IntAttr>:$spatial_bins_x,
+        OptionalAttr<IntAttr>:$spatial_bins_y,
+        OptionalAttr<IE_PSROIPoolingMode>:$mode
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ROIAlignOp
 //
 

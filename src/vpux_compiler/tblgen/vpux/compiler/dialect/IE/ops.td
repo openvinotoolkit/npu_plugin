@@ -2189,6 +2189,33 @@ def IE_ROIPoolingOp :
 }
 
 //
+// PSROIPoolingOp
+//
+
+def IE_PSROIPoolingOp :
+        IE_LayerOp<
+            "PSROIPooling"
+        > {
+    let summary = "InferenceEngine PSROIPooling layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$coords,
+
+        IntAttr:$output_dim,
+        F64Attr:$spatial_scale,
+        OptionalAttr<IntAttr>:$group_size,
+        OptionalAttr<IntAttr>:$spatial_bins_x,
+        OptionalAttr<IntAttr>:$spatial_bins_y,
+        OptionalAttr<IE_PSROIPoolingMode>:$mode
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // ROIAlignOp
 //
 
