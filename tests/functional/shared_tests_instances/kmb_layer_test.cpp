@@ -35,6 +35,7 @@ KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
     if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
         core->SetConfig({{CONFIG_KEY(LOG_LEVEL), envConfig.IE_KMB_TESTS_LOG_LEVEL}}, configDevice);
     }
+    core->SetConfig({{CONFIG_KEY(LOG_LEVEL), "LOG_DEBUG"}}, configDevice);
 }
 
 void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
