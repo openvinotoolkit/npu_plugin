@@ -190,11 +190,11 @@ func @main(%in: memref<1x120000xf16>, %out: memref<1x120000xf16>) -> memref<1x12
     // CHECK:       [[T0:%.+]], [[R0:%.+]] = async.execute ->
     // CHECK-NEXT:       IERT.Copy inputs(%arg0 : memref<1x120000xf16>) outputs([[BUF0:%.*]] :
 
-    // CHECK:       [[T1:%.+]], [[R1:%.+]] = async.execute ->
-    // CHECK-NEXT:       IERT.Copy
+    // CHECK:       [[T1:%.+]], [[R1:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.ReLU
 
     // CHECK:       [[T2:%.+]], [[R2:%.+]] = async.execute
-    // CHECK-NEXT:       IERT.ReLU
+    // CHECK-NEXT:       IERT.Copy
 
     // CHECK:       [[T3:%.+]], [[R3:%.+]] = async.execute
     // CHECK-NEXT:       IERT.Copy inputs([[BUF0]] : memref<1x120000xf16, @CMX_NN>) outputs([[BUF_SPILL_WRITE]] : memref<1x120000xf16, @DDR>)
@@ -411,21 +411,21 @@ func @main(%in: memref<100000xf16>, %out: memref<100000xf16>) -> memref<100000xf
     // CHECK:       [[T0:%.+]], [[R0:%.+]] = async.execute ->
     // CHECK:       IERT.Copy
 
-    // CHECK:       [[T1:%.+]], [[R1:%.+]] = async.execute ->
-    // CHECK:       IERT.Copy
-
-    // CHECK:       [[T2:%.+]], [[R2:%.+]] = async.execute
+    // CHECK:       [[T1:%.+]], [[R1:%.+]] = async.execute
     // CHECK:       IERT.SubView
     // CHECK-SAME:      [100000] [100000] : memref<200000xf16, @CMX_NN> to memref<100000xf16, @CMX_NN>
     // CHECK:       IERT.ReLU
 
-    // CHECK:       [[T3:%.+]], [[R3:%.+]] = async.execute
+    // CHECK:       [[T2:%.+]], [[R2:%.+]] = async.execute
     // CHECK:       IERT.SubView
     // CHECK-SAME:      [0] [100000] : memref<200000xf16, @CMX_NN> to memref<100000xf16, @CMX_NN>
     // CHECK:       IERT.ReLU
 
-    // CHECK:       [[T4:%.+]], [[R4:%.+]] = async.execute
+    // CHECK:       [[T3:%.+]], [[R3:%.+]] = async.execute
     // CHECK:       IERT.ReLU
+
+    // CHECK:       [[T4:%.+]], [[R4:%.+]] = async.execute
+    // CHECK:       IERT.Copy
 
     // CHECK:       [[T5:%.+]], [[R5:%.+]] = async.execute
     // CHECK:       IERT.Copy inputs([[BUF_MASTER]] : memref<200000xf16, @CMX_NN>) outputs([[BUF_SPILL_WRITE]] : memref<200000xf16, @DDR>)
@@ -545,11 +545,11 @@ func @main(%in: memref<1x120000xf16>, %out: memref<1x120000xf16>) -> memref<1x12
     // CHECK:       [[T0:%.+]], [[R0:%.+]] = async.execute ->
     // CHECK-NEXT:       IERT.Copy inputs(%arg0 : memref<1x120000xf16>) outputs([[BUF_TO_SPILL:%.*]] :
 
-    // CHECK:       [[T1:%.+]], [[R1:%.+]] = async.execute ->
-    // CHECK-NEXT:       IERT.Copy
+    // CHECK:       [[T1:%.+]], [[R1:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.ReLU
 
     // CHECK:       [[T2:%.+]], [[R2:%.+]] = async.execute
-    // CHECK-NEXT:       IERT.ReLU
+    // CHECK-NEXT:       IERT.Copy
 
     // First SPILL WRITE for buffer from operation 0
     // CHECK:       [[T3:%.+]], [[R3:%.+]] = async.execute

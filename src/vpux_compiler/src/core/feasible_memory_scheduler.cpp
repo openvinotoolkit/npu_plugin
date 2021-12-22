@@ -464,7 +464,7 @@ void FeasibleMemoryScheduler::scheduleSpilledOpBuffer(operationIdxType inputIdx,
     pushToStartTimeHeap(HeapElement(inputIdx, _currentTime, EOpType::IMPLICIT_OP_READ, spilledReadBuffer));
 }
 
-size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opIdx) {
+size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opIdx, Partitioner::Direction allocDir) {
     // retrieve op demand list - input ops
     auto usedBuffers = getNonAliveBuffersUsedByOperation(opIdx);
     auto demandList = getNonEmptyOpDemandList(opIdx, usedBuffers);
@@ -509,7 +509,7 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
 
     // allocate buffers using LinearScan
     _log.nest().trace("Allocate memory for the alive buffers");
-    VPUX_THROW_UNLESS(_scan.alloc(sortedBuffers, /*allowSpills*/ false), "Failed to statically allocate '{0}' memory",
+    VPUX_THROW_UNLESS(_scan.alloc(sortedBuffers, false, allocDir), "Failed to statically allocate '{0}' memory",
                       _memSpace);
 
     // Check if any of operation input dependencies have been scheduled
@@ -543,6 +543,13 @@ size_t FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
     auto maxInputDelay = allocateBuffersAndInputOps(opIdx);
 
     // TODO: case for inplace ops
+
+    // check if any prefetched operations are unlocked by this op
+    if (_prefetchEdges.find(opIdx) != _prefetchEdges.end()) {
+        for (auto prefetchDataOpIdx : _prefetchEdges[opIdx]) {
+            _prefetchDataOps.insert(prefetchDataOpIdx);
+        }
+    }
 
     // Step 3: schedule the compute op
     size_t opStartTime = _currentTime + maxInputDelay;
@@ -603,6 +610,42 @@ size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
 
     _log = _log.unnest();
     return computeOpStartTime;
+}
+
+void FeasibleMemoryScheduler::schedulePrefetchedDataOps(size_t computeOpStartTime) {
+    std::set<operationIdxType> scheduledOps;
+    for (auto prefetchDataOpIdx : _prefetchDataOps) {
+        // if operation is ready
+        auto inDegree = _inDegreeTable.find(prefetchDataOpIdx);
+        if (inDegree == _inDegreeTable.end() || inDegree->second == 0) {
+            // if op can fit in NNCMX
+            if (isReadyComputeOperationSchedulable(prefetchDataOpIdx)) {
+                scheduledOps.insert(prefetchDataOpIdx);
+
+                // skip if operation already allocated
+                if (getNonAliveBuffersUsedByOperation(prefetchDataOpIdx).empty()) {
+                    continue;
+                }
+
+                // Step 1: add to output result table
+                _opOutputTable.insert(std::make_pair(
+                        prefetchDataOpIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[prefetchDataOpIdx])));
+
+                // Step 2: assign resources simultaneously
+                allocateBuffersAndInputOps(prefetchDataOpIdx, Partitioner::Direction::Down);
+
+                // Step 3: schedule the prefetched data op
+                _log.nest().trace("Scheduling prefetched data op:'{0}'", prefetchDataOpIdx);
+                pushToStartTimeHeap(HeapElement(prefetchDataOpIdx, computeOpStartTime, EOpType::PREFETCHED_OP));
+            }
+        }
+    }
+    for (auto scheduledOpIdx : scheduledOps) {
+        _prefetchDataOps.erase(scheduledOpIdx);
+    }
+
+    // leave the prefetch operations in the ready list
+    // _prefetchDataOps.clear();
 }
 
 void FeasibleMemoryScheduler::evictActiveOp(EvictionCandidate evictionCandidate) {
@@ -833,6 +876,8 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     scheduled.opType_ = scheduledOp.opType_;
     scheduled.time_ = scheduledOp.time_;
     scheduled.resourceInfo_ = intervals;
+    scheduled.isDataOp_ = isDataOp(scheduledOp.op_);
+    scheduled.freeCmx_ = _scan.totalFreeSize();
     _scheduledOps.push_back(scheduled);
 }
 
@@ -900,7 +945,8 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
                 // unschedule operations, and propagate through the graph by creating new ready ops
                 unscheduleAllCompletingOpsAtNextEarliestTime();
                 // with new ready ops created try to schedule new ops
-                scheduleAllPossibleReadyOpsAndUpdate();
+                auto computeOpStartTime = scheduleAllPossibleReadyOpsAndUpdate();
+                schedulePrefetchedDataOps(computeOpStartTime);
             } while (!_completionTimeHeap.empty() && _startTimeHeap.empty());
 
             if (_startTimeHeap.empty()) {
@@ -912,9 +958,19 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
     }
 }
 
-SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::generateSchedule() {
+llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::generateSchedule(
+        prefetchMap prefetchEdges) {
+    // iteration with prefetching edges
+    if (!prefetchEdges.empty()) {
+        _scan.handler().markAllBuffersAsDead();
+        _prefetchEdges = prefetchEdges;
+    }
+
+    // start the memory scheduler
     init();
+
     // TODO: save schedule from _scheduledOps to file
+
     _log.trace("Generated Schedule");
     _log = _log.nest();
     for (const auto& op : _scheduledOps) {
@@ -931,7 +987,11 @@ SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::g
             }
         }
         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
+        // std::cout << "op = " << op.op_ << "\t type = " << op.opTypeName().data() << "\t time = " << op.time_ << " \t
+        // "
+        //           << resourceInfo << std::endl;
     }
     _log = _log.unnest();
+
     return _scheduledOps;
 }
