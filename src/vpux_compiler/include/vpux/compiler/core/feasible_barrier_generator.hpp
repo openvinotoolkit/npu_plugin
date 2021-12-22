@@ -143,6 +143,7 @@ public:
     using processed_ops_t = std::set<mlir::Operation*>;
     using schedule_heap_t = std::vector<HeapElement>;
     using operation_in_degree_t = std::map<mlir::Operation*, size_t, operation_comparator_t>;
+    using operation_out_degree_t = std::map<mlir::Operation*, size_t, operation_comparator_t>;
     using priority_map_t = std::map<mlir::Operation*, size_t, operation_comparator_t>;
     using resource_utility_map_t = std::unordered_map<mlir::Operation*, unsigned>;
     using schedule_time_t = size_t;
@@ -214,7 +215,11 @@ public:
     void operator++();
     void getBarriersProducersAndConsumers();
     void initResourceState();
+    bool isResourceAvailable(const resource_t& demand);
+    bool scheduleOperation(mlir::Operation*& op, resource_t demand);
+    bool unScheduleOperation(mlir::Operation*& op);
     void computeOpIndegree(operation_in_degree_t& in_degree);
+    void computeOpOutdegree(operation_out_degree_t& out_degree);
     void addToCandidateSet(mlir::Operation* op);
     void computeOperationPriorities();
     void createOperationResourceUtilityTable();
@@ -234,7 +239,7 @@ public:
     size_t currentTime() const;
     const resource_state_t& resourceState() const;
     bool isValidOp(schedulable_ops_iterator_t itr) const;
-    schedulable_ops_iterator_t find_schedulable_op();
+    schedulable_ops_iterator_t findSchedulableOp();
     unsigned countProducerConsumerTasks(mlir::Operation* op);
     static SmallVector<mlir::Operation*> getConsumerOps(mlir::Operation* op);
     static std::string printOpType(VPURT::TaskOp taskOp);
@@ -250,6 +255,7 @@ protected:
     size_t _slotsPerBarrier;
     resource_state_t _resource_state;
     operation_in_degree_t _in_degree;
+    operation_out_degree_t _out_degree;
     schedule_heap_t _heap;
     schedule_time_t _current_time;
     schedulable_ops_t _candidates;
@@ -262,11 +268,12 @@ protected:
     mlir::FuncOp _func;
 
     resource_utility_map_t _resource_utility_map;
-    std::map<mlir::Operation*, size_t> _outDegreeTable;
+    // std::map<mlir::Operation*, size_t> _outDegreeTable;
     SmallVector<IERT::LayerOpInterface> _allTaskOps;
     SmallVector<VPURT::DeclareVirtualBarrierOp> _allBarrierOps;
     static std::map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap;
     static std::map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierConsumersMap;
+    std::set<mlir::Operation*> _outputOps;
 
     const resource_state_t _startState;
     // container for the schedule output
