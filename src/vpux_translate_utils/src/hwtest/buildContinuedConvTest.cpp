@@ -184,7 +184,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     std::vector<mlir::Value> barriers;
     auto num_barriers = 3;
     for (auto i = 0; i < num_barriers; ++i) {
-        auto barrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), i, i);
+        auto barrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), i);
         barriers.push_back(barrier.barrier());
     }
 

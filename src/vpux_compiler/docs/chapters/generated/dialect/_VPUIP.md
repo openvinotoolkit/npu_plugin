@@ -833,7 +833,7 @@ operation ::= `VPUIP.GatherElementsUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`output` | memref of 16-bit float values
 
 ### `VPUIP.GatherUPA` (vpux::VPUIP::GatherUPAOp)
 
@@ -1171,7 +1171,7 @@ operation ::= `VPUIP.MVNUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float values
+`output` | memref of any type values
 
 ### `VPUIP.MishUPA` (vpux::VPUIP::MishUPAOp)
 
@@ -2032,7 +2032,7 @@ operation ::= `VPUIP.ScatterNDUpdateUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`output` | memref of 16-bit float values
 
 ### `VPUIP.SigmoidUPA` (vpux::VPUIP::SigmoidUPAOp)
 

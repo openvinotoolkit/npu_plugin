@@ -157,8 +157,7 @@ def VPURT_ConfigureBarrierOp :
     let summary = "A task to configure the setup for a barrier";
 
     let arguments = (ins
-        IntAttr:$id,
-        IntAttr:$virtualbarrierId
+        IntAttr:$id
     );
 
     let results = (outs

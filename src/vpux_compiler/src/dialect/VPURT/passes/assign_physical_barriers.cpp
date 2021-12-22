@@ -48,8 +48,7 @@ mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPURT::DeclareVirtual
     const auto& conf = _barrierSim.getConfig(origOp.barrier());
     _log.nest().trace("Use physical barrier ID '{0}'", conf.realId);
 
-    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(
-            origOp, conf.realId, checked_cast<int64_t>(origOp->getAttr("id").cast<mlir::IntegerAttr>().getInt()));
+    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, conf.realId);
     return mlir::success();
 }
 
