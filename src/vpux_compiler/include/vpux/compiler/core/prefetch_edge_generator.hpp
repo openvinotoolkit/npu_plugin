@@ -42,6 +42,7 @@ public:
 
 private:
     bool prefetchConstraintsSatisifed(ScheduledOpInfo* dataOp, ScheduledOpInfo* computeOp);
+    bool prefetchOpsHaveTheSameConsumer(operationIdxType computeIdx, operationIdxType dataIdx);
     bool allDataOpDependenciesExecuted(operationIdxType dataIdx);
     bool canDataOpBePrefetched(ScheduledOpInfo* dataOp);
 

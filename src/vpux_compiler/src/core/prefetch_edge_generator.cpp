@@ -66,8 +66,34 @@ bool vpux::PrefetchEdgeGenerator::prefetchConstraintsSatisifed(ScheduledOpInfo* 
     return true;
 }
 
+bool vpux::PrefetchEdgeGenerator::prefetchOpsHaveTheSameConsumer(operationIdxType computeIdx,
+                                                                 operationIdxType dataIdx) {
+    // prefetch only data operations corresponding to one compute operation
+
+    // no prefetch consumers yet
+    if (_prefetchEdges[computeIdx].empty()) {
+        return true;
+    }
+
+    // look for a shared consumer
+    auto currentDataOpConsumers = _depsInfo.getConsumerOps(dataIdx);
+    for (auto prefetchEdge : _prefetchEdges[computeIdx]) {
+        auto prefetchDataOpConsumers = _depsInfo.getConsumerOps(prefetchEdge);
+        for (auto consumer : prefetchDataOpConsumers) {
+            for (auto newConsumers : currentDataOpConsumers) {
+                if (consumer == newConsumers) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // no shared consumer found
+    return false;
+}
+
 bool vpux::PrefetchEdgeGenerator::allDataOpDependenciesExecuted(operationIdxType dataIdx) {
-    // condition will be false in cases of consts such as weight, weight table
+    // condition will be true in cases of constants such as weight, weight table
     // however for tiled activations the DMAs will have a dependency, prevent
     // the activation from being prefetched and reducing the availible free NNCMX
     // size as it will not be scheduled at that time but some other data op might
@@ -142,6 +168,14 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                 if (dataOp->isOriginalOp() && computeOp->isOriginalOp() && canDataOpBePrefetched(dataOp)) {
                     auto dataOpSize = dataOp->resourceSize();
                     if (dataOpSize < maxFreeSize && computeOp->time_ < dataOp->time_) {
+                        
+                        // check consumers of prefetched ops
+                        if (prefetchOpsHaveTheSameConsumer(computeOp->op_, dataOp->op_)) {
+                            std::cout << "prefetched ops have SAME consumers" << std::endl;
+                        } else {
+                            std::cout << "prefetched ops have DIFFERENT consumers" << std::endl;
+                        }
+
                         // ensure the data operation will fit through all ops scheduled intermediatly
                         _log.trace("data op = '{0}' will fit during compute = '{1}' with time dif = '{2}' and level "
                                    "dif '{3}'",
