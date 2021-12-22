@@ -25,14 +25,13 @@ static constexpr StringLiteral schedulingNumberAttrName = "SchedulingNumber";
 //
 
 TokenBasedBarrierScheduler::TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log,
-                                                       int64_t numBarriers, int64_t slotCount, int64_t numDmaEngines)
+                                                       int64_t numBarriers, int64_t slotCount)
         : _ctx(ctx),
           _func(func),
           _log(log),
           builder(_func.getBody()),
           barrierCount_(numBarriers),
-          slotCount_(slotCount),
-          _numDmaEngines(numDmaEngines) {
+          slotCount_(slotCount) {
     saveOriginalDependency();
 }
 

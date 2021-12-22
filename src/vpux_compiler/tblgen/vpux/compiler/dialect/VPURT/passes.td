@@ -53,21 +53,6 @@ def AssignVirtualBarriers : PassBase<"assign-virtual-barriers", "vpux::FunctionP
 }
 
 //
-// AssignPhysicalBarrierIDs
-//
-
-def AssignPhysicalBarrierIDs : PassBase<"assign-physical-barrier-ids", "vpux::FunctionPass"> {
-    let summary = "Assign virtual barriers with physical IDs";
-
-    let description = [{
-        This pass assign virtual barriers with physical IDs using a runtime simulation.
-    }];
-
-    let constructor = "vpux::VPURT::createAssignPhysicalBarrierIDsPass()";
-
-}
-
-//
 // BarrierSimulation
 //
 

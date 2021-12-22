@@ -46,7 +46,6 @@
 #include <llvm/ADT/DenseSet.h>
 
 #include "vpux/compiler/core/barrier_schedule_generator.hpp"
-#include "vpux/compiler/core/runtime_simulator.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -57,7 +56,7 @@ namespace vpux {
 class TokenBasedBarrierScheduler {
 public:
     explicit TokenBasedBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, int64_t numBarriers,
-                                        int64_t slotCount, int64_t numDmaEngines);
+                                        int64_t slotCount);
 
     typedef size_t schedule_time_t;
     std::map<mlir::Operation*,
@@ -336,7 +335,6 @@ private:
     mlir::OpBuilder builder;
     size_t barrierCount_;
     size_t slotCount_;
-    int64_t _numDmaEngines;
 };
 
 }  // namespace vpux
