@@ -160,6 +160,16 @@ public:
         bool isPrefetched() const {
             return (opType_ == EOpType::PREFETCHED_OP);
         }
+
+        // mateusz
+        bool isSpillWrite() const {
+            return (opType_ == EOpType::IMPLICIT_OP_WRITE);
+        }
+        // mateusz
+        bool isSpillRead() const {
+            return (opType_ == EOpType::IMPLICIT_OP_READ);
+        }
+
         StringLiteral opTypeName() const {
             if (opType_ == EOpType::ORIGINAL_OP) {
                 return StringLiteral("ORIGINAL");

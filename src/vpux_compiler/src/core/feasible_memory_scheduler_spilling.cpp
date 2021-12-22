@@ -77,6 +77,8 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
     _log.trace("Spills detected - '{0}', spill writes to remove - '{1}'", spillWriteIndexes.size(),
                duplicateSpillWriteIndexes.size());
 
+    // mateusz
+    std::cout << "Removed spilled writes - " << duplicateSpillWriteIndexes.size() << "\n";
     // Remove in reverse order to have indexes valid after erasing entries in scheduledOp
     for (auto opIt = duplicateSpillWriteIndexes.rbegin(); opIt != duplicateSpillWriteIndexes.rend(); opIt++) {
         scheduledOps.erase(scheduledOps.begin() + *opIt);
