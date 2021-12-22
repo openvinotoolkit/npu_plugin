@@ -381,8 +381,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_COMPILATION_MODE_PARAMS": "compress-weights"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
