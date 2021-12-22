@@ -35,16 +35,10 @@ mlir::LogicalResult vpux::IE::ReduceSumOp::inferReturnTypeComponents(
 
     const auto inType = reduceSum.input().getType().cast<mlir::ShapedType>();
     const auto inShape = reduceSum.input().getType().cast<mlir::ShapedType>().getShape();
-    const auto inRank = inType.getRank();
     const auto keep_dims = reduceSum.keep_dims().getValue();
     auto axes = IE::constInputToData(loc, reduceSum.axes()).getValue();
     SmallVector<int64_t> outShape;
 
-    for (auto& axis : axes) {
-        if (axis < 0) {
-            axis += inRank;
-        }
-    }
     std::sort(axes.begin(), axes.end());
     bool isAllUnique = std::unique(axes.begin(), axes.end()) == axes.end();
     if (!isAllUnique) {

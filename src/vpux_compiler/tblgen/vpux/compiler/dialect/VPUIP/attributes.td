@@ -44,7 +44,6 @@ def VPUIP_ReduceLayerType :
             "Type of Reduce layer",
             [
                 StrEnumAttrCase<"MAX">,
-                StrEnumAttrCase<"MEAN">,
                 StrEnumAttrCase<"SUM">,
             ]
         > {

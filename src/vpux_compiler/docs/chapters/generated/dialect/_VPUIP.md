@@ -1841,15 +1841,15 @@ operation ::= `VPUIP.ReduceUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or 32-bit signed integer values
+`input` | memref of 16-bit float values
 `axes` | memref of 32-bit signed integer values
-`output_buff` | memref of 16-bit float or 32-bit signed integer values
+`output_buff` | memref of 16-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit signed integer values
+`output` | memref of 16-bit float values
 
 ### `VPUIP.RegionYoloUPA` (vpux::VPUIP::RegionYoloUPAOp)
 

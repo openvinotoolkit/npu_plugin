@@ -822,12 +822,6 @@ mlir::Operation* createRTLayer(IE::ReduceMaxOp origOp, ArrayRef<mlir::Value> all
                                        origOp.keep_dimsAttr());
 }
 
-mlir::Operation* createRTLayer(IE::ReduceMeanOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
-    IERT::ReduceMeanOp::Adaptor newOp(allBufs);
-    return b.create<IERT::ReduceMeanOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
-                                        origOp.keep_dimsAttr());
-}
-
 mlir::Operation* createRTLayer(IE::ReduceSumOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ReduceSumOp::Adaptor newOp(allBufs);
     return b.create<IERT::ReduceSumOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
@@ -1113,7 +1107,6 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::ErfOp)
     CASE(IE::BroadcastOp)
     CASE(IE::ReduceMaxOp)
-    CASE(IE::ReduceMeanOp)
     CASE(IE::ReduceSumOp)
     CASE(IE::TanhOp)
     CASE(IE::SqrtOp)
