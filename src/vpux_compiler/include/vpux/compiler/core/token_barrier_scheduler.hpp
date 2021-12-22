@@ -308,6 +308,9 @@ public:
 
     size_t schedule();
 
+    void getBarrierOpUpdateWaitMap(
+            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
+                    barrierOpUpdateWaitMap);
     void getTaskOpUpdateWaitMap(
             std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
                     barrierOpUpdateWaitMap,
@@ -320,6 +323,7 @@ public:
                      operation_comparator_t>& barrierOpUpdateWaitMap,
             std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
                      task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap);
+    void cleanUpVirtualBarriers();
     void saveOriginalDependency();
     bool isPathExist(mlir::Operation* a, mlir::Operation* b);
     void removeRedundantDependency();
