@@ -211,6 +211,7 @@ public:
         size_t time_;
         vpux::AddressType freeCmx_;
         bool isDataOp_;
+        size_t outDegree_;
         SmallVector<IntervalInfo> resourceInfo_;
     };
     // Struct storing eviction policy info for buffers

@@ -25,9 +25,19 @@ using namespace vpux;
 
 vpux::PrefetchEdgeGenerator::PrefetchEdgeGenerator(scheduledOps& initialSchedule, AsyncDepsInfo& depsInfo)
         : _log(Logger::global().nest("chain-pipelining", 0)), _scheduledOps(initialSchedule), _depsInfo(depsInfo) {
-    // TODO: consider storing ops in a struct with
-    // opIdx, time, out-degree, size, hasActiveResource, isData
     // sort by time -> out-degree -> size -> opIdx
+    llvm::sort(_scheduledOps.begin(), _scheduledOps.end(),
+               [](const ScheduledOpInfo& opInfo1, const ScheduledOpInfo& opInfo2) {
+                   if (opInfo1.time_ != opInfo2.time_) {
+                       return opInfo1.time_ < opInfo2.time_;
+                   } else if (opInfo1.outDegree_ != opInfo2.outDegree_) {
+                       return opInfo1.outDegree_ > opInfo2.outDegree_;
+                   } else if (opInfo1.resourceSize() != opInfo2.resourceSize()) {
+                       return opInfo1.resourceSize() > opInfo2.resourceSize();
+                   } else {
+                       return opInfo1.op_ < opInfo2.op_;
+                   }
+               });
 }
 
 bool vpux::PrefetchEdgeGenerator::prefetchConstraintsSatisifed(ScheduledOpInfo* dataOp, ScheduledOpInfo* computeOp) {

@@ -830,6 +830,7 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     scheduled.resourceInfo_ = intervals;
     scheduled.isDataOp_ = isDataOp(scheduledOp.op_);
     scheduled.freeCmx_ = _scan.totalFreeSize();
+    scheduled.outDegree_ = _outDegreeTable[scheduledOp.op_];
     _scheduledOps.push_back(scheduled);
 }
 
