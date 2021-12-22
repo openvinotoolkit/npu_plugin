@@ -138,6 +138,8 @@ std::unique_ptr<mlir::Pass> createHandleLargeKernelsPass(Logger log = Logger::gl
 
 std::unique_ptr<mlir::Pass> createIsolatedTilingPass(Logger log = Logger::global());
 
+std::unique_ptr<mlir::Pass> createPrefetchTilingPass(Logger log = Logger::global());
+
 //
 // Generic Optimizations
 //
