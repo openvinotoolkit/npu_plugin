@@ -119,6 +119,22 @@ def StaticAllocation : PassBase<"static-allocation", "vpux::ModulePass"> {
 }
 
 //
+// Patch Weight Table
+//
+
+def PatchWeightsTable : PassBase<"patch-weight-table", "vpux::FunctionPass"> {
+    let summary = "Adjusts weights and sparsity pointers after memory scheduling";
+
+    let description = [{
+        This pass adds RelocateWeightsTable transformation to weights table constants. The transformation adds weights and sparsity base pointers
+	to offset that are already filled in the weights table constants.
+    }];
+
+    let constructor = "vpux::IERT::createPatchWeightsTablePass()";
+}
+
+
+//
 // BreakDataFlow
 //
 

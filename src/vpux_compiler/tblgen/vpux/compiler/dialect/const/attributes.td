@@ -96,6 +96,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr quantCast(mlir::quant::QuantizedType newElemType = nullptr) const;
         vpux::Const::ContentAttr dequantize() const;
         vpux::Const::ContentAttr rescale(double scale) const;
+        vpux::Const::ContentAttr relocateWeightsTablePointers(uint64_t weightsPtr, uint64_t sparsityPtr) const;
         vpux::Const::ContentAttr add(double bias) const;
         vpux::Const::ContentAttr reshape(vpux::ShapeRef newShape) const;
         vpux::Const::ContentAttr reorder(vpux::DimsOrder newOrder) const;
@@ -392,6 +393,31 @@ def Const_TransposeAttr : Const_Attr<"Transpose",
 
     let storageNamespace = "details";
     let genVerifyDecl = 1;
+    let skipDefaultBuilders = 1;
+}
+
+//
+// WeightsTablePtrs
+//
+
+def Const_RelocateWeightsTableAttr : Const_Attr<"RelocateWeightsTable",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+    let summary = "Patches offsets in the weights table";
+
+    let parameters = (ins
+        "mlir::IntegerAttr":$weightsPtr,
+        "mlir::IntegerAttr":$sparsityPtr
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::IntegerAttr":$weightsPtr, "mlir::IntegerAttr":$sparsityPtr), [{
+                return $_get(weightsPtr.getContext(), weightsPtr, sparsityPtr);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
     let skipDefaultBuilders = 1;
 }
 
