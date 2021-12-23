@@ -183,6 +183,7 @@ void TokenBasedBarrierScheduler::saveOriginalDependency() {
     std::cout << "Removed all declare virtual barrier ops" << std::endl;
 }
 
+// detect if op b depends on a
 bool TokenBasedBarrierScheduler::isPathExist(mlir::Operation* a, mlir::Operation* b) {
     auto numa = a->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
     auto numb = b->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
@@ -208,6 +209,8 @@ bool TokenBasedBarrierScheduler::isPathExist(mlir::Operation* a, mlir::Operation
     }
 }
 
+// For two producers {a, b} of a barrier, if a depends on b then b isn't a necessary producer for this barrier
+// For two consumers {a, b} of a barrier, if a depends on b then a isn't a necessary consumer for this barrier
 void TokenBasedBarrierScheduler::removeRedundantDependency() {
     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
         // producers
@@ -220,12 +223,10 @@ void TokenBasedBarrierScheduler::removeRedundantDependency() {
                     auto removedIter = prod1;
                     prod1++;
                     producers.erase(removedIter);
-                    // configureTaskOpUpdateWaitMap[*prod1].second.erase((*iter).first);
                 } else if (isPathExist(*prod, *prod1)) {
                     auto removedIter = prod;
                     prod++;
                     producers.erase(removedIter);
-                    // configureTaskOpUpdateWaitMap[*prod].second.erase((*iter).first);
                     break;
                 } else
                     prod1++;
@@ -245,12 +246,10 @@ void TokenBasedBarrierScheduler::removeRedundantDependency() {
                     auto removedIter = cons1;
                     cons1++;
                     consumers.erase(removedIter);
-                    // configureTaskOpUpdateWaitMap[*cons1].first.erase((*iter).first);
                 } else if (isPathExist(*cons1, *cons)) {
                     auto removedIter = cons;
                     cons++;
                     consumers.erase(removedIter);
-                    // configureTaskOpUpdateWaitMap[*cons].first.erase((*iter).first);
                     break;
                 } else
                     cons1++;
@@ -262,6 +261,8 @@ void TokenBasedBarrierScheduler::removeRedundantDependency() {
     }
 }
 
+// If two barriers have same consumers, they can be merged
+// If a barrier has no producers, it can be removed
 void TokenBasedBarrierScheduler::removeRedundantBarrier() {
     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
         auto consumers = (*iter).second.second;
@@ -273,7 +274,6 @@ void TokenBasedBarrierScheduler::removeRedundantBarrier() {
                 Logger::global().error("found barrier {0} and {1} have same consumers", (*iter).first->getAttr("id"),
                                        (*iter1).first->getAttr("id"));
                 auto producers = (*iter1).second.first;
-                // auto mergedProducers = (*iter).second.first
                 for (auto& task : producers) {
                     (*iter).second.first.insert(task);
                 }
@@ -286,10 +286,21 @@ void TokenBasedBarrierScheduler::removeRedundantBarrier() {
                 iter1++;
         }
     }
+
+    for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end();) {
+        if (iter->second.second.empty()) {
+            Logger::global().error("Earsing virtual Barrier ID {0} as it has no producers", iter->first->getAttr("id"));
+            (*iter).first->dropAllUses();
+            (*iter).first->erase();
+            iter = configureBarrierOpUpdateWaitMap.erase(iter);
+        } else {
+            ++iter;
+        }
+    }
 }
 
 void TokenBasedBarrierScheduler::reorderIR() {
-    // reorder barrier by id
+    // reorder barrier by virtual id
     mlir::Operation* preBarrier = nullptr;
     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
         auto curBarrier = (*iter).first;
@@ -399,18 +410,6 @@ size_t TokenBasedBarrierScheduler::schedule() {
         removeRedundantDependency();
         removeRedundantBarrier();
 
-        for (auto itr = configureBarrierOpUpdateWaitMap.begin(); itr != configureBarrierOpUpdateWaitMap.end();) {
-            if (itr->second.second.empty()) {
-                Logger::global().error("Earsing virtual Barrier ID {0} as it has no producers",
-                                       itr->first->getAttr("id"));
-                (*itr).first->dropAllUses();
-                (*itr).first->erase();
-                itr = configureBarrierOpUpdateWaitMap.erase(itr);
-            } else {
-                ++itr;
-            }
-        }
-
         for (const auto& p : configureBarrierOpUpdateWaitMap) {
             auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
             Logger::global().error("Virtual Barrier ID {0} has {1} consumers", barrierOp->getAttr("id"),
@@ -451,13 +450,8 @@ size_t TokenBasedBarrierScheduler::schedule() {
         if (configureBarrierOpUpdateWaitMap.size()) {
             // run simulation
             VPURT::BarrierSimulator barrierSim(_func);
-            if (!barrierSim.isDynamicBarriers()) {
-                exit(0);
-            }
-
-            if (mlir::failed(barrierSim.simulateBarriers(_log.nest()))) {
-                success = false;
-            }
+            VPUX_THROW_UNLESS(barrierSim.isDynamicBarriers(), "Barrier generated by barrier scheduler must be dynamic");
+            success = mlir::succeeded(barrierSim.simulateBarriers(_log.nest()));
 
             // if (barrierCount_ == 4)
             //     success = false;
