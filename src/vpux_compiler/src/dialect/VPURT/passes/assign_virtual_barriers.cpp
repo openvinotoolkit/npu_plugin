@@ -52,9 +52,9 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
                       MAX_DMA_ENGINES);
 
     // bool success = false;
-    FeasibleBarrierScheduler bsbarrierScheduler(&ctx, func, _log, 4, 256);
-    // TokenBasedBarrierScheduler barrierScheduler(&ctx, func, _log, 4, 256, numDmaEngines);
-    // barrierScheduler.schedule();
+    // FeasibleBarrierScheduler bsbarrierScheduler(&ctx, func, _log, 4, 256, numDmaEngines);
+    TokenBasedBarrierScheduler barrierScheduler(&ctx, func, _log, 4, 256, numDmaEngines);
+    barrierScheduler.schedule();
 
     // Barrier Simulation for (size_t barrier_bound = 4; !success && (barrier_bound >= 1UL); --barrier_bound) {
     //     TokenBasedBarrierScheduler barrierScheduler(&ctx, func, _log, barrier_bound, 256, numDmaEngines);

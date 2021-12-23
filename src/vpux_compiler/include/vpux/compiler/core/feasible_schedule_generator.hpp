@@ -70,9 +70,9 @@ struct operation_comparator_t {
 struct task_operation_comparator_t {
     bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
         int64_t uniqueId1 = checked_cast<int64_t>(
-                mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
+                mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr("uniqueId").cast<mlir::IntegerAttr>().getInt());
         int64_t uniqueId2 = checked_cast<int64_t>(
-                mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
+                mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr("uniqueId").cast<mlir::IntegerAttr>().getInt());
 
         return uniqueId1 < uniqueId2;
     }
@@ -156,6 +156,7 @@ protected:
     llvm::DenseSet<mlir::Operation*> _outputOps;
     // operation out-degree, number of outgoing edges
     std::map<mlir::Operation*, size_t> _outDegreeTable;
+    size_t barrierCount_;
 
     // std::unordered_map<mlir::Operation*, size_t> _operationInDegree;
     // std::unordered_map<mlir::Operation*, size_t> _operationOutDegree;
