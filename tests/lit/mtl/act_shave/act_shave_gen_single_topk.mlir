@@ -26,12 +26,10 @@ IERT.RunTimeResources
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "inputValues" : tensor<1x1000xf16>
-        IE.DataInfo "inputK" : tensor<1x1000xf16>
+        IE.DataInfo "input" : tensor<1x1000xf16>
     }
     outputsInfo : {
-        IE.DataInfo "outputValues" : tensor<1x1000xf16>
-        IE.DataInfo "outputIndex" : tensor<1x1000xf16>
+        IE.DataInfo "output" : tensor<1x1000xf16>
     }
 
 // Sub-module, which holds SW kernel declarations and optional implementations.
@@ -46,35 +44,30 @@ module @VPU.SW {
         }
 }
 
-func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>,%3: memref<1x1x1x1000xf16>, %4: memref<1x1x1x1000xf16>) -> (memref<1x1x1x1000xf16>, memref<1x1x1x1000xf16>) {
+func @main(%1: memref<1x1x1x1000xf16>,%2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
     %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "CMX_NN">
-    %in_tile1_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "CMX_NN">
-    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <4000> -> memref<1x1x1x1000xf16, "CMX_NN">
-    %out_tile1_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <6000> -> memref<1x1x1x1000xf16, "CMX_NN">
+    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "CMX_NN">
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
-
+    
     VPURT.Task updates(%b0 : !VPURT.Barrier) {
         VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) -> memref<1x1x1x1000xf16, "CMX_NN">
-        VPUIP.NNDMA inputs(%2 : memref<1x1x1x1000xf16>) outputs(%in_tile1_cmx : memref<1x1x1x1000xf16, "CMX_NN">) -> memref<1x1x1x1000xf16, "CMX_NN">
     }
 
     // Genetic Kernel information for the scheduler.
-    VPURT.Task waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) {
+    VPURT.Task waits(%b0 : !VPURT.Barrier) updates(%b1 : !VPURT.Barrier) {
     %topk_krn =
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_topk            // The reference to the Kernel function.
                     inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">)     // Inputs/outputs buffers for generic operation interface
-                    inputs(%in_tile1_cmx : memref<1x1x1x1000xf16, "CMX_NN">) 
                     outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">)   // and their mapping to inner region.
-                    outputs(%out_tile1_cmx : memref<1x1x1x1000xf16, "CMX_NN">)
                     on tile 0                           // The tile index to execute on.
 
         -> memref<1x1x1x1000xf16, "CMX_NN"> {
 
-            ^bb0(%arg0 : memref<1x1x1x1000xf16, "CMX_NN">, %arg1 : memref<1x1x1x1000xf16, "CMX_NN">, %arg2 : memref<1x1x1x1000xf16, "CMX_NN">, %arg3 : memref<1x1x1x1000xf16, "CMX_NN">):
+            ^bb0(%arg0 : memref<1x1x1x1000xf16, "CMX_NN">, %arg1 : memref<1x1x1x1000xf16, "CMX_NN">):
                 // Inner region, isolated from above, which holds the information about arguments mapping.
                 // We can use constant scalars/arrays definitions here.
                 
@@ -83,10 +76,8 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>,%3: memref<1x1
                 %axis = arith.constant 0 : i64
                 
                 // The arguments mapping, the order must match the kernel parameter structure.
-                VPUIP.SW.Kernel.run(%arg0, %arg1, %arg2, %arg3, %mode, %sort, %axis)
+                VPUIP.SW.Kernel.run(%arg0, %arg1, %mode, %sort, %axis)
                     : memref<1x1x1x1000xf16, "CMX_NN">
-                    , memref<1x1x1x1000xf16, "CMX_NN">
-                    , memref<1x1x1x1000xf16, "CMX_NN">
                     , memref<1x1x1x1000xf16, "CMX_NN">
                     , i64
                     , i64
@@ -95,12 +86,196 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>,%3: memref<1x1
     }
 
     VPURT.Task waits(%b1 : !VPURT.Barrier) {
-        %5 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) outputs(%3 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
-        %6 = VPUIP.NNDMA inputs(%out_tile1_cmx : memref<1x1x1x1000xf16, "CMX_NN">) outputs(%4 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+        %3 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) outputs(%2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
-    return %5, %6: memref<1x1x1x1000xf16>, memref<1x1x1x1000xf16>
+    return %2: memref<1x1x1x1000xf16>
+}
 
 }
 
+// CHECK:    identifier: "Test",
+// CHECK:    net_input: [
+// CHECK:      {
+// CHECK:        name: "input",
+// CHECK:        dimensions: [
+// CHECK:          1,
+// CHECK:          1,
+// CHECK:          1,
+// CHECK:          1000
+// CHECK:        ],
+// CHECK:        strides: [
+// CHECK:          2.0,
+// CHECK:          2000.0,
+// CHECK:          2000.0,
+// CHECK:          2000.0,
+// CHECK:          2.0
+// CHECK:        ],
+// CHECK:        data: {
+// CHECK:          data_index: 0
+// CHECK:        },
+// CHECK:        locale: "ProgrammableInput",
+// CHECK:        locale_index: [
+// CHECK:          0
+// CHECK:        ],
+// CHECK:        data_dtype: "FP16"
+// CHECK:      }
+// CHECK:    ],
+// CHECK:    net_output: [
+// CHECK:      {
+// CHECK:        name: "output",
+// CHECK:        dimensions: [
+// CHECK:          1,
+// CHECK:          1,
+// CHECK:          1,
+// CHECK:          1000
+// CHECK:        ],
+// CHECK:        strides: [
+// CHECK:          2.0,
+// CHECK:          2000.0,
+// CHECK:          2000.0,
+// CHECK:          2000.0,
+// CHECK:          2.0
+// CHECK:        ],
+// CHECK:        data: {
+// CHECK:          data_index: 0
+// CHECK:        },
+// CHECK:        locale: "ProgrammableOutput",
+// CHECK:        data_dtype: "FP16",
+// CHECK:      }
+// CHECK:    ],
+// CHECK:    task_count: 5,
+// CHECK:    options: [
+// CHECK:        ],
+// CHECK:    in_tensor_desc: [
+// CHECK:      {
+// CHECK:        name: "input",
+// CHECK:        dimensions: [
+// CHECK:          1,
+// CHECK:          1000
+// CHECK:        ],
+// CHECK:        strides: [
+// CHECK:          2.0,
+// CHECK:          2000.0,
+// CHECK:          2.0
+// CHECK:        ],
+// CHECK:        data: {
+// CHECK:          data_index: 0
+// CHECK:        },
+// CHECK:        locale: "ProgrammableInput",
+// CHECK:        data_dtype: "FP16"
+// CHECK:      }
+// CHECK:    ],
+// CHECK:    out_tensor_desc: [
+// CHECK:      {
+// CHECK:        name: "output",
+// CHECK:        dimensions: [
+// CHECK:          1,
+// CHECK:          1000
+// CHECK:        ],
+// CHECK:        strides: [
+// CHECK:          2.0,
+// CHECK:          2000.0,
+// CHECK:          2.0
+// CHECK:        ],
+// CHECK:        data: {
+// CHECK:          data_index: 0
+// CHECK:        },
+// CHECK:        locale: "ProgrammableOutput",
+// CHECK:        data_dtype: "FP16",
+// CHECK:      }
+// CHECK:    ]
 
-}
+// CHECK:    device: "MTL",
+// CHECK:    act_kernel_runtime: {
+// CHECK:      shaveStacks: [
+// CHECK:        {
+// CHECK:          name: "actSHAVE0_stack",
+// CHECK:          locale: "GFEmbeddedKernel",
+// CHECK:          referenced_data_size: 4096
+// CHECK:        },
+// CHECK:        {
+// CHECK:          name: "actSHAVE1_stack",
+// CHECK:          locale: "GFEmbeddedKernel",
+// CHECK:          referenced_data_size: 4096
+// CHECK:        },
+// CHECK:        {
+// CHECK:          name: "actSHAVE2_stack",
+// CHECK:          locale: "GFEmbeddedKernel",
+// CHECK:          referenced_data_size: 4096
+// CHECK:        },
+// CHECK:        {
+// CHECK:          name: "actSHAVE3_stack",
+// CHECK:          locale: "GFEmbeddedKernel",
+// CHECK:          referenced_data_size: 4096
+// CHECK:        }
+// CHECK:      ],
+// CHECK:      codeScratchBuffer: {
+// CHECK:        name: "scratch_buffer",
+// CHECK:        locale: "GFEmbeddedKernel",
+// CHECK:        referenced_data_size: 65536
+// CHECK:      }
+// CHECK:    }
+
+// CHECK:    task_lists: [
+// CHECK:        {
+// CHECK:        content: [
+// CHECK:            {
+// CHECK:              name: "",
+// CHECK:              nodeID: 3,
+// CHECK:              associated_barriers: {
+// CHECK:                wait_barriers: [
+// CHECK:                  0
+// CHECK:                ],
+// CHECK:                update_barriers: [
+// CHECK:                  1
+// CHECK:                ],
+// CHECK:                virtual_wait_barriers: [
+// CHECK:                  0
+// CHECK:                ],
+// CHECK:                virtual_update_barriers: [
+// CHECK:                  1
+// CHECK:                ]
+// CHECK:              },
+// CHECK:              task_type: "ActKernelTask",
+// CHECK:              task: {
+// CHECK:                kernel: {
+// CHECK:                  kernelText: {
+// CHECK:                    name: "builtin_topk",
+// CHECK:                    locale: "GFEmbeddedKernel",
+// CHECK:                    referenced_data_size: 19584
+// CHECK:                  }
+// CHECK:                },
+// CHECK:                invocations: [
+// CHECK:                  {
+// CHECK:                    associatedBarriers: {
+// CHECK:                      wait_barriers: [
+// CHECK:                        0
+// CHECK:                      ],
+// CHECK:                      update_barriers: [
+// CHECK:                        1
+// CHECK:                      ],
+// CHECK:                      virtual_wait_barriers: [
+// CHECK:                        0
+// CHECK:                      ],
+// CHECK:                      virtual_update_barriers: [
+// CHECK:                        1
+// CHECK:                      ]
+// CHECK:                    },
+// CHECK:                    dataSection: {
+// CHECK:                      name: "builtin_topk_invo",
+// CHECK:                      locale: "GFEmbeddedKernel",
+// CHECK:                    },
+// CHECK:                    invocationArgs: {
+// CHECK:                      name: "builtin_topk_invo",
+// CHECK:                      locale: "GFEmbeddedKernel",
+// CHECK:                      referenced_data_size: 192
+// CHECK:                    }
+// CHECK:                  }
+// CHECK:                ]
+// CHECK:              }
+// CHECK:            }
+// CHECK:          ]
+// CHECK:        },
+
+// CHECK:    kernel_data: [
+// CHECK:       ]
