@@ -38,7 +38,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
         return errorAt(op, "Input rank {0} doesn't match output rank {1}", inType.getRank(), outType.getRank());
     }
 
-    const auto order = DimsOrder::fromAffineMap(op.order_value().getValue());
+    const auto order = DimsOrder::fromAffineMap(op.order_value());
     const auto inShape = getShape(inType);
 
     if (order.numDims() > inShape.size()) {
@@ -70,7 +70,7 @@ void vpux::VPUIP::PermuteUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::Ope
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PermuteUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const mlir::AffineMap inputOrderMap = DimsOrder::fromValue(input()).toAffineMap(this->getContext());
-    const mlir::AffineMap permMem = order_value().getValue();
+    const mlir::AffineMap permMem = order_value();
     const mlir::AffineMap outputOrderMapInv =
             inversePermutation(DimsOrder::fromValue(output()).toAffineMap(this->getContext()));
 

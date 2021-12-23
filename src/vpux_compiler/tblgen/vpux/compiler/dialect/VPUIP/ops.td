@@ -2037,7 +2037,7 @@ def VPUIP_PermuteUPAOp :
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
 
-        OptionalAttr<AffineMapAttr>:$order_value,
+        AffineMapAttr:$order_value,
 
         OptionalAttr<IntAttr>:$maxShaves
     );
