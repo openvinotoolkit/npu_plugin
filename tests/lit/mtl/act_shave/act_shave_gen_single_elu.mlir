@@ -32,6 +32,14 @@ IE.CNNNetwork
         IE.DataInfo "elu" : tensor<1x1000xf16>
     }
 
+VPURT.SW.Runtime
+    entryPoint: @VPU.SW::@runtime
+    stack_configuration: [
+        4096, // Size in bytes for the SHAVEs in the first tile.
+        4096  // Size in bytes for the SHAVEs in the second tile.
+    ]
+
+
 // Sub-module, which holds SW kernel declarations and optional implementations.
 // Used to group those declarations for faster access.
 module @VPU.SW {
@@ -42,7 +50,15 @@ module @VPU.SW {
             VPU.kernel_code = "elu_fp16.cpp",
             VPU.kernel_entry = "elu_fp16"
         }
+
+    // management kernel definition
+    func private @runtime()
+        attributes {
+            VPU.kernel_code = "nnActEntry"
+        }
 }
+
+
 
 func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
@@ -198,24 +214,20 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:            name: "actSHAVE1_stack",
 // CHECK:            locale: "GFEmbeddedKernel",
 // CHECK:            referenced_data_size: 4096
-// CHECK:          },
-// CHECK:          {
-// CHECK:            name: "actSHAVE2_stack",
-// CHECK:            locale: "GFEmbeddedKernel",
-// CHECK:            referenced_data_size: 4096
-// CHECK:          },
-// CHECK:          {
-// CHECK:            name: "actSHAVE3_stack",
-// CHECK:            locale: "GFEmbeddedKernel",
-// CHECK:            referenced_data_size: 4096
 // CHECK:          }
-// CHECK:        ],
-// CHECK:        codeScratchBuffer: {
-// CHECK:          name: "scratch_buffer",
+// CHECK:        ]
+// CHECK:      kernel: {
+// CHECK:        kernelText: {
+// CHECK:          name: "nnActEntry",
 // CHECK:          locale: "GFEmbeddedKernel",
-// CHECK:          referenced_data_size: 65536
+// CHECK:          referenced_data_size: 832
+// CHECK:        },
+// CHECK:        globalArgs: {
+// CHECK:          name: "nnActEntry.data",
+// CHECK:          locale: "GFEmbeddedKernel",
 // CHECK:        }
-// CHECK:     }
+// CHECK:      }
+// CHECK:    }
 
 // CHECK:   task_lists: [
 // CHECK:      {
@@ -243,7 +255,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                kernelText: {
 // CHECK:                  name: "builtin_elu",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  referenced_data_size: 1760
+// CHECK:                  referenced_data_size: 1552
 // CHECK:                }
 // CHECK:              },
 // CHECK:              invocations: [
@@ -263,7 +275,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                  invocationArgs: {
 // CHECK:                    name: "builtin_elu_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
-// CHECK:                    referenced_data_size: 168
+// CHECK:                    referenced_data_size: 172
 // CHECK:                  }
 // CHECK:                }
 // CHECK:              ]
