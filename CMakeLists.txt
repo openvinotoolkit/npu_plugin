@@ -45,6 +45,7 @@ include(cmake/compile_options.cmake)
 include(cmake/dependencies.cmake)
 include(cmake/cross_compilation.cmake)
 include(cmake/flatbuffers.cmake)
+include(cmake/bundle_static_library.cmake)
 
 if(ENABLE_TESTS)
     enable_testing()

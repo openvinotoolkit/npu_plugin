@@ -26,13 +26,22 @@ enable_warnings_as_errors(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include")
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include>
+)
+# FIXME: S#71607
+if(NOT MSVC)
+    target_compile_options(${TARGET_NAME}
+        PUBLIC
+            -Wno-error=deprecated-declarations
+    )
+endif()
 
 if(BUILD_COMPILER_FOR_DRIVER)
     target_include_directories(${TARGET_NAME}
         PUBLIC
-            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_compiler/include")
+            $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_compiler/include>
+    )
 
     target_link_libraries(${TARGET_NAME}
         PRIVATE
@@ -40,7 +49,8 @@ if(BUILD_COMPILER_FOR_DRIVER)
 
     target_compile_definitions(${TARGET_NAME}
         PUBLIC
-            OPENVINO_STATIC_LIBRARY)
+            BUILD_COMPILER_FOR_DRIVER
+    )
 endif()
 
 set(VPUX_VERSION_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp)
@@ -49,14 +59,24 @@ addVersionDefines(${VPUX_VERSION_FILE} CI_BUILD_NUMBER)
 link_system_libraries(${TARGET_NAME}
     PRIVATE
         IE::inference_engine
-        IE::vpu_common_lib)
+        IE::vpu_common_lib
+)
+
 target_link_libraries(${TARGET_NAME}
+    PUBLIC
+        vpux_utils
     PRIVATE
         kmb_utils
-    PUBLIC
-        vpux_utils)
+)
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
     add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
+endif()
+
+if (NOT BUILD_SHARED_LIBS)
+    install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
 endif()

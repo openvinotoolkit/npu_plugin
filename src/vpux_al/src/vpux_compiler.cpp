@@ -22,7 +22,12 @@
 #include <file_utils.h>
 
 #include <fstream>
-#ifdef OPENVINO_STATIC_LIBRARY
+
+// FIXME: use OPENVINO_STATIC_LIBRARY instead of
+// BUILD_COMPILER_FOR_DRIVER once the compiler can be used in
+// purely static build
+// #ifdef OPENVINO_STATIC_LIBRARY
+#ifdef BUILD_COMPILER_FOR_DRIVER
 #include "vpux/compiler/compiler.hpp"
 #endif
 
@@ -59,7 +64,11 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& 
 }
 
 vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
-#ifdef OPENVINO_STATIC_LIBRARY
+// FIXME: use OPENVINO_STATIC_LIBRARY instead of
+// BUILD_COMPILER_FOR_DRIVER once the compiler can be used in
+// purely static build
+// #ifdef OPENVINO_STATIC_LIBRARY
+#ifdef BUILD_COMPILER_FOR_DRIVER
     // Always use vpux compiler
     (void)(config);
     vpux::ICompiler::Ptr mlir = std::make_shared<vpux::CompilerImpl>();

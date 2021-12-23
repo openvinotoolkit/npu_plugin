@@ -35,8 +35,7 @@
 #include "vpux_private_metrics.hpp"
 #include "vpux_remote_context.h"
 
-#include "device_helpers.hpp"
-
+#include <device_helpers.hpp>
 #include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -91,7 +90,7 @@ Engine::Engine()
           _backends(std::make_shared<VPUXBackends>(backendRegistry)),
           _metrics(_backends),
           _logger("VPUXEngine", LogLevel::Error) {
-    _pluginName = DEVICE_NAME;  // "VPUX"
+    _pluginName = "VPUX";
 
     registerCommonOptions(*_options);
     registerCompilerOptions(*_options);

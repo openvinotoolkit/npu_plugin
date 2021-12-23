@@ -15,25 +15,26 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-
-set(GAPI_LIB "preproc_gapi" CACHE INTERNAL "")
+set(TARGET_NAME "preproc_gapi")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_library(${GAPI_LIB} STATIC ${SOURCES})
+add_library(${TARGET_NAME} STATIC ${SOURCES})
 
-enable_warnings_as_errors(${GAPI_LIB})
+enable_warnings_as_errors(${TARGET_NAME})
 
-target_include_directories(${GAPI_LIB}
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${TARGET_NAME}
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
-target_include_directories(${GAPI_LIB}
-    SYSTEM PUBLIC
-        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
+        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+)
 
-link_system_libraries(${GAPI_LIB}
+link_system_libraries(${TARGET_NAME}
     PRIVATE
         ${VPUMGR_LIBRARY}
         IE::inference_engine
@@ -41,12 +42,19 @@ link_system_libraries(${GAPI_LIB}
         ${GAPI_SIPP_LIBRARY}
         ${GAPI_M2I_LIBRARY}
         vpux_al
-        )
+)
 
 if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${GAPI_LIB}
-            FOR_TARGETS ${GAPI_LIB}
+    add_clang_format_target(clang_format_${TARGET_NAME}
+            FOR_TARGETS ${TARGET_NAME}
             ALL
             )
-    add_dependencies(${GAPI_LIB} clang_format_${GAPI_LIB})
+    add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
+endif()
+
+if (NOT BUILD_SHARED_LIBS)
+    install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
 endif()

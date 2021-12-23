@@ -30,7 +30,11 @@
 namespace vpux {
 
 class ICompiler;
-#ifdef OPENVINO_STATIC_LIBRARY
+// FIXME: use OPENVINO_STATIC_LIBRARY instead of
+// BUILD_COMPILER_FOR_DRIVER once the compiler can be used in
+// purely static build
+// #ifdef OPENVINO_STATIC_LIBRARY
+#ifdef BUILD_COMPILER_FOR_DRIVER
 using CompilerPluginPtr = std::shared_ptr<ICompiler>;
 #else
 IE_SUPPRESS_DEPRECATED_START
@@ -267,7 +271,11 @@ public:
 
     static Ptr create(const Config& config);
 
-#ifdef OPENVINO_STATIC_LIBRARY
+// FIXME: use OPENVINO_STATIC_LIBRARY instead of
+// BUILD_COMPILER_FOR_DRIVER once the compiler can be used in
+// purely static build
+// #ifdef OPENVINO_STATIC_LIBRARY
+#ifdef BUILD_COMPILER_FOR_DRIVER
     Compiler(ICompiler::Ptr com): _actual(com){};
 #else
     Compiler(std::string libpath): _actual(std::move(libpath)){};

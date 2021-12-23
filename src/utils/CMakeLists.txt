@@ -31,11 +31,15 @@ enable_warnings_as_errors(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include")
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    PRIVATE
+        ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include
+)
+
 target_include_directories(${TARGET_NAME}
-    SYSTEM PUBLIC
-        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+    SYSTEM PRIVATE
+        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+)
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
@@ -45,7 +49,8 @@ link_system_libraries(${TARGET_NAME}
     PUBLIC
         IE::inference_engine_legacy
         IE::vpu_common_lib
-        vpux_utils)
+        vpux_utils
+)
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME}
@@ -54,4 +59,11 @@ if(ENABLE_CLANG_FORMAT)
         ALL
     )
     add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
+endif()
+
+if (NOT BUILD_SHARED_LIBS)
+    install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
 endif()
