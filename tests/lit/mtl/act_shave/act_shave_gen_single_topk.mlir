@@ -46,7 +46,7 @@ module @VPU.SW {
         }
 }
 
-func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>,%3: memref<1x1x1x1000xf16>, %4: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
+func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>,%3: memref<1x1x1x1000xf16>, %4: memref<1x1x1x1000xf16>) -> (memref<1x1x1x1000xf16>, memref<1x1x1x1000xf16>) {
 
     %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "CMX_NN">
     %in_tile1_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "CMX_NN">
@@ -81,17 +81,13 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>,%3: memref<1x1
                 %mode = arith.constant 0 : i64
                 %sort = arith.constant 0 : i64
                 %axis = arith.constant 0 : i64
-                %hasValues = arith.constant 0 : i64
-                %hasIndices = arith.constant 0 : i64
                 
                 // The arguments mapping, the order must match the kernel parameter structure.
-                VPUIP.SW.Kernel.run(%arg0, %arg1, %arg2, %arg3, %mode, %sort, %axis, %hasValues, %hasIndices)
+                VPUIP.SW.Kernel.run(%arg0, %arg1, %arg2, %arg3, %mode, %sort, %axis)
                     : memref<1x1x1x1000xf16, "CMX_NN">
                     , memref<1x1x1x1000xf16, "CMX_NN">
                     , memref<1x1x1x1000xf16, "CMX_NN">
                     , memref<1x1x1x1000xf16, "CMX_NN">
-                    , i64
-                    , i64
                     , i64
                     , i64
                     , i64
@@ -102,7 +98,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>,%3: memref<1x1
         %5 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) outputs(%3 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
         %6 = VPUIP.NNDMA inputs(%out_tile1_cmx : memref<1x1x1x1000xf16, "CMX_NN">) outputs(%4 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
-    return %5: memref<1x1x1x1000xf16>, %6: memref<1x1x1x1000xf16>
+    return %5, %6: memref<1x1x1x1000xf16>, memref<1x1x1x1000xf16>
 
 }
 
