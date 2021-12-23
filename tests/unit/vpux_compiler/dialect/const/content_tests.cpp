@@ -28,42 +28,43 @@
 using namespace vpux;
 
 namespace {
-    template<typename T>
-    std::vector<T> generateValues(size_t n) {
-        std::vector<T> vals(n);
-        for (size_t i = 0; i < vals.size(); ++i) {
-            vals[i] = static_cast<T>(i);
-        }
-
-        return vals;
+template <typename T>
+std::vector<T> generateValues(size_t n) {
+    std::vector<T> vals(n);
+    for (size_t i = 0; i < vals.size(); ++i) {
+        vals[i] = static_cast<T>(i);
     }
 
-    template<typename T>
-    void checkPaddedBuffer(const Const::Content& actual, const std::vector<T>& expVals, ShapeRef buf, ShapeRef pad, T zp, size_t actOffset = 0, size_t originOffset = 0) {
-        const int64_t IC = buf[Dim(0)];
-        const int64_t IH = buf[Dim(1)];
-        const int64_t IW = buf[Dim(2)];
+    return vals;
+}
 
-        const int64_t PC = pad[Dim(0)];
-        const int64_t PH = pad[Dim(1)];
-        const int64_t PW = pad[Dim(2)];
+template <typename T>
+void checkPaddedBuffer(const Const::Content& actual, const std::vector<T>& expVals, ShapeRef buf, ShapeRef pad, T zp,
+                       size_t actOffset = 0, size_t originOffset = 0) {
+    const int64_t IC = buf[Dim(0)];
+    const int64_t IH = buf[Dim(1)];
+    const int64_t IW = buf[Dim(2)];
 
-        const auto actVals = actual.getValues<T>();
-        for (int64_t c = 0; c < IC + 2 * PC; ++c) {
-            for (int64_t h = 0; h < IH + 2 * PH; ++h) {
-                for (int64_t w = 0; w < IW + 2 * PW; ++w) {
-                    const auto newIndex = w + h * (IW + 2 * PW) + c * (IW + 2 * PW) * (IH + 2 * PH) + actOffset;
-                    if (c < PC || c >= IC + PC || h < PH || h >= IH + PH || w < PW || w >= IW + PW) {
-                        EXPECT_EQ(zp, actVals[newIndex]) << c << " " << h << " " << w;
-                    } else {
-                        const auto origIndex = (w - PW) + (h - PH) * IW + (c - PC) * IW * IH + originOffset;
-                        EXPECT_EQ(expVals[origIndex], actVals[newIndex]) << c << " " << h << " " << w;
-                    }
+    const int64_t PC = pad[Dim(0)];
+    const int64_t PH = pad[Dim(1)];
+    const int64_t PW = pad[Dim(2)];
+
+    const auto actVals = actual.getValues<T>();
+    for (int64_t c = 0; c < IC + 2 * PC; ++c) {
+        for (int64_t h = 0; h < IH + 2 * PH; ++h) {
+            for (int64_t w = 0; w < IW + 2 * PW; ++w) {
+                const auto newIndex = w + h * (IW + 2 * PW) + c * (IW + 2 * PW) * (IH + 2 * PH) + actOffset;
+                if (c < PC || c >= IC + PC || h < PH || h >= IH + PH || w < PW || w >= IW + PW) {
+                    EXPECT_EQ(zp, actVals[newIndex]) << c << " " << h << " " << w;
+                } else {
+                    const auto origIndex = (w - PW) + (h - PH) * IW + (c - PC) * IW * IH + originOffset;
+                    EXPECT_EQ(expVals[origIndex], actVals[newIndex]) << c << " " << h << " " << w;
                 }
             }
         }
     }
 }
+}  // namespace
 
 class MLIR_ConstContentAttrTest : public testing::Test {
 public:
@@ -507,7 +508,8 @@ TEST_F(MLIR_ConstContentAttrTest, PadUniformQuant) {
     const auto quantType = mlir::quant::UniformQuantizedType::get(0, getUInt8Type(&ctx), mlir::Float32Type::get(&ctx),
                                                                   0.078431372549019607, zp, 0, 255);
 
-    const auto quantContentAttr = baseContentAttr.convertElemType(normalizeQuantStorageType(quantType)).quantCast(quantType);
+    const auto quantContentAttr =
+            baseContentAttr.convertElemType(normalizeQuantStorageType(quantType)).quantCast(quantType);
     ASSERT_NE(quantContentAttr, nullptr);
     EXPECT_NE(quantContentAttr.getType(), baseType);
 
@@ -528,11 +530,9 @@ TEST_F(MLIR_ConstContentAttrTest, PadUniformQuant) {
 
     for (int64_t oc = 0; oc < OC; ++oc) {
         checkPaddedBuffer<float>(content, vals, {IC, IH, IW}, {PC, PH, PW}, zp,
-                                 oc * (IC + 2 * PC) * (IW + 2 * PW) * (IH + 2 * PH),
-                                 oc * IC * IW * IH);
+                                 oc * (IC + 2 * PC) * (IW + 2 * PW) * (IH + 2 * PH), oc * IC * IW * IH);
     }
 }
-
 
 TEST_F(MLIR_ConstContentAttrTest, PadPerAxisQuant) {
     ctx.loadDialect<mlir::quant::QuantizationDialect>();
@@ -552,11 +552,12 @@ TEST_F(MLIR_ConstContentAttrTest, PadPerAxisQuant) {
 
     const auto zp = 127;
     std::vector<double> scales(2, 0.5);
-    std::vector<int64_t> zeroPoints {zp, zp};
-    const auto quantType = mlir::quant::UniformQuantizedPerAxisType::get(0, getUInt8Type(&ctx), mlir::Float32Type::get(&ctx),
-                                                                         scales, zeroPoints, 0, 0, 255);
+    std::vector<int64_t> zeroPoints{zp, zp};
+    const auto quantType = mlir::quant::UniformQuantizedPerAxisType::get(
+            0, getUInt8Type(&ctx), mlir::Float32Type::get(&ctx), scales, zeroPoints, 0, 0, 255);
 
-    const auto quantContentAttr = baseContentAttr.convertElemType(normalizeQuantStorageType(quantType)).quantCast(quantType);
+    const auto quantContentAttr =
+            baseContentAttr.convertElemType(normalizeQuantStorageType(quantType)).quantCast(quantType);
     ASSERT_NE(quantContentAttr, nullptr);
     EXPECT_NE(quantContentAttr.getType(), baseType);
 
@@ -587,8 +588,7 @@ TEST_F(MLIR_ConstContentAttrTest, PadPerAxisQuant) {
 
     for (int64_t oc = 0; oc < OC + 2 * POC; ++oc) {
         checkPaddedBuffer<float>(content, expVals, {IC, IH, IW}, {PIC, PH, PW}, expZP[oc],
-                                 oc * (IC + 2 * PIC) * (IW + 2 * PW) * (IH + 2 * PH),
-                                 oc * channelSize);
+                                 oc * (IC + 2 * PIC) * (IW + 2 * PW) * (IH + 2 * PH), oc * channelSize);
     }
 }
 
@@ -686,7 +686,9 @@ TEST_F(MLIR_ConstContentAttrTest, BitPack) {
     ASSERT_NE(contentAttr, nullptr);
 
     const auto content = contentAttr.fold();
-    const auto expectedType = changeElemType(baseType, mlir::IntegerType::get(baseType.getContext(), bitWidth));
+    const auto expectedType = changeElemType(
+            baseType,
+            mlir::IntegerType::get(baseType.getContext(), bitWidth, mlir::IntegerType::SignednessSemantics::Signed));
     EXPECT_EQ(content.getType(), expectedType);
 
     std::vector<int8_t> actVals(vals.size() / 2, 0);
@@ -766,7 +768,7 @@ TEST_F(MLIR_ConstContentAttrTest, Transpose) {
     for (int64_t n = 0; n < N; ++n) {
         for (int64_t c = 0; c < C; ++c) {
             const auto origIndex = n * C + c * 1;
-            const auto newIndex =  n * 1 + c * N;
+            const auto newIndex = n * 1 + c * N;
             EXPECT_EQ(contentVals[newIndex], vals[origIndex]) << n << " " << c << " ";
         }
     }

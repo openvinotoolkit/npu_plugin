@@ -18,7 +18,7 @@
 #include "core_api.h"
 #include "gtest/gtest.h"
 #include "hddl2_helpers/helper_workload_context.h"
-#include "helper_remote_context.h"
+#include "hddl2_helpers/helper_remote_context.h"
 #include "simple_graph.hpp"
 
 namespace IE = InferenceEngine;

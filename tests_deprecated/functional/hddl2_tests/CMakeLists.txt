@@ -28,6 +28,7 @@ addIeTargetTest(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/vpu"
     LINK_LIBRARIES
         IE::IESharedTests
+        IE::funcTestUtils
         IE::vpu_common_lib
         kmb_utils
         frontend_mcm_static
