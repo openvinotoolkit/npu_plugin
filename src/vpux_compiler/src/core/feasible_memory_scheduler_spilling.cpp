@@ -519,18 +519,6 @@ void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::updateSpillBufferUsers(m
     // Update all users of original output buffer with the new buffer from spillRead except
     // the operations which were identified to refer to old output buffer
     oldBuffer.replaceAllUsesExcept(newBuffer, excludedUsersFromOrigBufferUpdate);
-
-    // Below is a temporary solution to update weigthsTable reference to weights in case
-    // weights buffer has been spilled at one point and weightTable need to refer to
-    // new location for weights to set proper pointers
-    // This code can be removed after EISW-25951 is integrated
-    for (auto& use : oldBuffer.getUses()) {
-        if (auto wTOp = mlir::dyn_cast_or_null<VPUIP::WeightsTableOp>(use.getOwner())) {
-            if (wTOp.weights() == oldBuffer) {
-                use.set(newBuffer);
-            }
-        }
-    }
 }
 
 void FeasibleMemorySchedulerSpilling::SpillUsersUpdate::resolveSpillBufferUsage() {

@@ -48,6 +48,7 @@ std::unique_ptr<mlir::Pass> createFeasibleAllocationPass(AttrCreateFunc memSpace
                                                          AttrCreateFunc secondLvlMemSpaceCb = nullptr,
                                                          Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createBreakDataFlowPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createPatchWeightsTablePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDMATaskProfilingPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDPUProfilingPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertScalarToTensorPass(Logger log = Logger::global());

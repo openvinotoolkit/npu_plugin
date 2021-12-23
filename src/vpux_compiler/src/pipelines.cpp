@@ -205,6 +205,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
+    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // Level 2 : Abstract RunTime
@@ -235,8 +236,8 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Lowering
 
-    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
     buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
+    pm.addPass(IERT::createPatchWeightsTablePass(log));
 
     // Level 1 : VPU RunTime
 
@@ -334,6 +335,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
+    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
+
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // Level 2 : Abstract RunTime
@@ -374,10 +377,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IERT::createBreakDataFlowPass(log));
     pm.addPass(IERT::createConvertScalarToTensorPass(log));
 
-    // Lowering
-
-    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
     buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
+    // Handle WeightsTable, which requires statically allocated memory
+    pm.addPass(IERT::createPatchWeightsTablePass(log));
 
     // Level 1 : VPU RunTime
 
