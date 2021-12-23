@@ -12,43 +12,18 @@
 //
 #pragma once
 
-#include "vpux/utils/core/func_ref.hpp"
-#include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/small_vector.hpp"
+#include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/passes.hpp"
 
-#include "vpux/compiler/core/attributes/strides.hpp"
-#include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
-
-#include <mlir/Dialect/Async/IR/Async.h>
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/IR/Operation.h>
-
-#include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/error.hpp"
-#include "vpux/utils/core/format.hpp"
-#include "vpux/utils/core/numeric.hpp"
-
-#include <mlir/Dialect/MemRef/IR/MemRef.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/Value.h>
 #include <mlir/Transforms/DialectConversion.h>
-
-#include <llvm/ADT/BitVector.h>
-#include <llvm/ADT/DenseSet.h>
 
 #include "vpux/compiler/core/barrier_resource_state.hpp"
 #include "vpux/compiler/core/op_resource_state.hpp"
-#include "vpux/compiler/core/runtime_simulator.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 namespace vpux {
 
 struct opResourceState;
-// static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
 class FeasibleBarrierScheduler {
 public:
     struct task_operation_comparator_by_schedule_time_t {
@@ -229,15 +204,11 @@ public:
         size_t slots_per_barrier_;
     }; /*struct opResourceState*/
 
-    // FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func /*, const resource_state_t& rstate, Logger
-    // log*/);
-    FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log, size_t numberOfBarriers,
-                             size_t maxProducersPerBarrier, int64_t numDmaEngines);
-    // FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log);
+    FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log);
 
     void operator++();
     void getBarriersProducersAndConsumers();
-    void initResourceState();
+    void initResourceState(size_t numberOfBarriers, size_t maxProducersPerBarrier);
     bool isResourceAvailable(const resource_t& demand);
     bool scheduleOperation(mlir::Operation*& op, resource_t demand);
     bool unScheduleOperation(mlir::Operation*& op);
@@ -254,9 +225,9 @@ public:
 
     bool operator==(const FeasibleBarrierScheduler& o) const;
     bool reached_end() const;
-    bool nextSchedulableOperation();
-    // bool init(const resource_state_t& upper_bound);
-    bool init();
+    bool scheduleOperations();
+    bool schedule(size_t numberOfBarriers, size_t maxProducersPerBarrier);
+    void init();
     bool doesOpRunOnNCE(mlir::Operation* op);
 
     mlir::Operation*& operator*();
@@ -268,7 +239,7 @@ public:
     SmallVector<mlir::Operation*> getConsumerOps(mlir::Operation* op);
     static std::string printOpType(VPURT::TaskOp taskOp);
     static mlir::IntegerAttr getUniqueID(mlir::Operation* op);
-    size_t insertBarriersinIR();
+    void insertBarriersinIR();
     void populateScheduledOps(mlir::Operation* scheduledOp);
     void removeRedundantWaitBarriers();
     void removeRedundantDependencies();
@@ -289,6 +260,8 @@ public:
     void removeRedundantBarrier();
     bool isPathExist(mlir::Operation* a, mlir::Operation* b);
     void reorderIR();
+    bool performRuntimeSimulation();
+    void cleanUpVirtualBarriers();
 
 protected:
     size_t _barrierCount;
@@ -307,10 +280,8 @@ protected:
     mlir::MLIRContext* _ctx;
     mlir::FuncOp _func;
     mlir::OpBuilder builder;
-    int64_t _numDmaEngines;
 
     resource_utility_map_t _resource_utility_map;
-    // std::map<mlir::Operation*, size_t> _outDegreeTable;
     SmallVector<IERT::LayerOpInterface> _allTaskOps;
     SmallVector<VPURT::DeclareVirtualBarrierOp> _allBarrierOps;
     static std::map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap;
