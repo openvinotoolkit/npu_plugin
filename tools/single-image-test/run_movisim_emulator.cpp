@@ -35,20 +35,20 @@ std::string string_format(const std::string& format, Args... args) {
 }
 
 InferenceEngine::BlobMap runMoviSimEmulator(InferenceEngine::ExecutableNetwork& exeNet, std::string pathToNetworkBlob,
-                                            const std::vector<std::string>& dumpedInputsPaths) {
+                                            const std::vector<std::string>& dumpedInputsPaths,
+                                            const std::map<std::string, size_t>& outputIndexes) {
     std::string runMovisimScriptLocation =
             std::getenv("MOVISIM_SCRIPT_LOCATION") != nullptr ? std::getenv("MOVISIM_SCRIPT_LOCATION") : "";
     if (runMovisimScriptLocation.empty()) {
         throw std::logic_error(
                 "MOVISIM_SCRIPT_LOCATION evnironment variable hasn't been provided. Please check your environment");
     }
-    std::string Python_EXECUTABLE =
-            std::getenv("PYTHONPATH") != nullptr ? std::getenv("PYTHONPATH") : "python3";
+    std::string Python_EXECUTABLE = std::getenv("PYTHONPATH") != nullptr ? std::getenv("PYTHONPATH") : "python3";
     if (Python_EXECUTABLE.empty()) {
         throw std::logic_error("PYTHONPATH location can't be defined. Please check your environment");
     }
-    std::string runScriptCommand = Python_EXECUTABLE + " " + runMovisimScriptLocation + "/run_MoviSim.py" +
-                                   " -n" + pathToNetworkBlob;
+    std::string runScriptCommand =
+            Python_EXECUTABLE + " " + runMovisimScriptLocation + "/run_MoviSim.py" + " -n" + pathToNetworkBlob;
     // provide inputs
     for (const auto& i : dumpedInputsPaths) {
         runScriptCommand += " -i" + i;
@@ -86,11 +86,11 @@ InferenceEngine::BlobMap runMoviSimEmulator(InferenceEngine::ExecutableNetwork& 
 
     // load movisim outputs into network output
     InferenceEngine::BlobMap output_blobs;
-    size_t counter = 0;
     for (const auto& out : exeNet.GetOutputsInfo()) {
-        std::cout << "load movisim_output: " << outputFiles[counter] << "\n\tinto: " << out.first << " with precision: "
-                  << out.second->getTensorDesc().getPrecision() << std::endl;
-        auto blob = loadBlob(out.second->getTensorDesc(), outputFiles[counter++]);
+        auto outputIndex = outputIndexes.at(out.first);
+        std::cout << "load movisim_output: " << outputFiles[outputIndex] << "\n\tinto: " << out.first
+                  << " with precision: " << out.second->getTensorDesc().getPrecision() << std::endl;
+        auto blob = loadBlob(out.second->getTensorDesc(), outputFiles[outputIndex]);
         output_blobs.insert({out.first, blob});
     }
 

@@ -438,12 +438,13 @@ ie::ExecutableNetwork importNetwork(const std::string& filePath) {
     THROW_IE_EXCEPTION << "ieCore object expired";
 }
 
-ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs, const std::vector<std::string>& dumpedInputsPaths) {
+ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs, const std::vector<std::string>& dumpedInputsPaths,
+                     const std::map<std::string, size_t> outputIndexes) {
     ie::BlobMap out;
 
     if(FLAGS_moviSim) {
 #ifdef ENABLE_MOVISIM
-        out = ms::runMoviSimEmulator(exeNet, FLAGS_network, dumpedInputsPaths);
+        out = ms::runMoviSimEmulator(exeNet, FLAGS_network, dumpedInputsPaths, outputIndexes);
 #else
         std::cout<< "Can't run MoviSim emulator. Please check your python installation. "
                     "Inference on MoviSim emulator is available for Lunix platforms only"<< std::endl;
@@ -809,6 +810,42 @@ bool testYoloV3(const ie::BlobMap& actBlobs,
     return result;
 };
 
+void dumpOutputIndexesMap(const std::map<std::string, size_t>& outputIndexes, const std::string& networkName) {
+    std::string data;
+    for(const auto& i : outputIndexes) {
+        data += i.first + ":" + std::to_string(i.second) + ";";
+    }
+    if(data.empty())
+        return;
+    std::ofstream out(networkName + "_output_indexes.txt");
+    out << data;
+    out.close();
+}
+
+void readOutputIndexesMap(std::map<std::string, size_t>& outputIndexes, const std::string& networkName) {
+    std::ifstream t(networkName + "_output_indexes.txt");
+    std::string str((std::istreambuf_iterator<char>(t)),
+                     std::istreambuf_iterator<char>());
+    // parse
+    std::string delimiter = ";";
+
+    size_t pos = 0;
+    while ((pos = str.find(delimiter)) != std::string::npos) {
+        std::string output = str.substr(0, pos);
+        size_t pos2 = output.find(':');
+        std::string output_name = output.substr(0, pos2);
+        output.erase(0, pos2 + delimiter.length());
+        std::string output_indx = output;
+        outputIndexes[output_name] = std::atoi(output_indx.c_str());
+
+        str.erase(0, pos + delimiter.length());
+    }
+    std::cout << "Parsed outputs indexes:" << std::endl;
+    for(const auto& i : outputIndexes) {
+        std::cout << i.first << " - " << i.second << std::endl;
+    }
+}
+
 //
 // main
 //
@@ -848,12 +885,40 @@ int main(int argc, char* argv[]) {
 
         setupInferenceEngine();
 
+        std::string netFileName;
+        {
+            auto startPos = FLAGS_network.rfind('/');
+            if (startPos == std::string::npos) {
+                startPos = FLAGS_network.rfind('\\');
+                if (startPos == std::string::npos) {
+                    startPos = 0;
+                }
+            }
+
+            auto endPos = FLAGS_network.rfind('.');
+            if (endPos == std::string::npos) {
+                endPos = FLAGS_network.size();
+            }
+
+            IE_ASSERT(endPos > startPos);
+            netFileName = cleanName(FLAGS_network.substr(startPos, endPos - startPos));
+        }
+
         ie::ExecutableNetwork exeNet;
 
+        std::map<std::string, size_t> outputIndexes;
         if (strEq(FileUtils::fileExt(FLAGS_network), "xml")) {
             std::cout << "Load network " << FLAGS_network << std::endl;
 
             auto cnnNet = ieCoreShared->ReadNetwork(FLAGS_network);
+
+            auto outputs = cnnNet.getFunction()->get_results();
+            std::cout << "get_results" << std::endl;
+            for(size_t i = 0; i < outputs.size(); ++i) {
+                auto parentNode = outputs[i]->get_input_node_ptr(0);
+                outputIndexes[parentNode->get_friendly_name()] = i;
+            }
+            dumpOutputIndexesMap(outputIndexes, netFileName);
 
             // Input precision
             ie::InputsDataMap inputInfo(cnnNet.getInputsInfo());
@@ -917,25 +982,7 @@ int main(int argc, char* argv[]) {
             std::cout << "Import network " << FLAGS_network << std::endl;
 
             exeNet = importNetwork(FLAGS_network);
-        }
-
-        std::string netFileName;
-        {
-            auto startPos = FLAGS_network.rfind('/');
-            if (startPos == std::string::npos) {
-                startPos = FLAGS_network.rfind('\\');
-                if (startPos == std::string::npos) {
-                    startPos = 0;
-                }
-            }
-
-            auto endPos = FLAGS_network.rfind('.');
-            if (endPos == std::string::npos) {
-                endPos = FLAGS_network.size();
-            }
-
-            IE_ASSERT(endPos > startPos);
-            netFileName = cleanName(FLAGS_network.substr(startPos, endPos - startPos));
+            readOutputIndexesMap(outputIndexes, netFileName);
         }
 
         for (size_t numberOfTestCase = 0; numberOfTestCase < inputFilesPerCase.size(); ++numberOfTestCase) {
@@ -967,7 +1014,7 @@ int main(int argc, char* argv[]) {
             }
 
             std::cout << "Run inference on " << FLAGS_device << std::endl;
-            const auto outputs = runInfer(exeNet, inputs, dumpedInputsPaths);
+            const auto outputs = runInfer(exeNet, inputs, dumpedInputsPaths, outputIndexes);
 
             if (FLAGS_run_test) {
                 ie::BlobMap refOutputs;

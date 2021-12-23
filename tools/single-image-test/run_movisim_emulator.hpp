@@ -19,9 +19,10 @@
 
 namespace ms {
 
-InferenceEngine::BlobMap runMoviSimEmulator(InferenceEngine::ExecutableNetwork& exeNet,
-                                            std::string pathToNetworkBlob, const std::vector<std::string>& dumpedInputsPaths);
+InferenceEngine::BlobMap runMoviSimEmulator(InferenceEngine::ExecutableNetwork& exeNet, std::string pathToNetworkBlob,
+                                            const std::vector<std::string>& dumpedInputsPaths,
+                                            const std::map<std::string, size_t>& outputIndexes);
 
 }  // namespace ms
 
-#endif // ENABLE_MOVISIM
+#endif  // ENABLE_MOVISIM
