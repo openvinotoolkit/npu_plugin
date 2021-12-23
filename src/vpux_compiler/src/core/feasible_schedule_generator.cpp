@@ -297,10 +297,11 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
                 Logger::global().error("Looking up operation {0} in the in_degree table ", getUniqueID(*jtr));
                 typename operation_in_degree_t::iterator deg_itr = in_degree.find(*jtr);
                 // assert((deg_itr != in_degree.end()) && (deg_itr->second > 0));
-                std::cout << "Operation  has an indegree of " << deg_itr->second << std::endl;
+                //                std::cout << "Operation  has an indegree of " << deg_itr->second << std::endl;
                 (deg_itr->second)--;
-                std::cout << "Decrementing the in-degree of ther operation, the indegree is now " << deg_itr->second
-                          << std::endl;
+                //                std::cout << "Decrementing the in-degree of ther operation, the indegree is now " <<
+                //                deg_itr->second
+                //                          << std::endl;
 
                 if (!(deg_itr->second)) {
                     // in-degree of this node has become zero//
@@ -341,22 +342,23 @@ void FeasibleScheduleGenerator::compute_operation_priorities() {
                 max = std::max(priority_[*jtr], max);
                 ++jtr;
             }
-            std::cout << "Setting the priority of " << /*printOpType(pitr->first) <<*/ " to " << max << std::endl;
+            //            std::cout << "Setting the priority of " << /*printOpType(pitr->first) <<*/ " to " << max <<
+            //            std::endl;
             pitr->second = max;
         }
     }
-    std::cout << "Printing priority map " << std::endl;
+    //    std::cout << "Printing priority map " << std::endl;
     for (auto const& pair : priority_) {
         Logger::global().error("{Operation {0}  priority {1}", getUniqueID(pair.first), pair.second);
     }
-    std::cout << "Finished compute_operation_priorities " << std::endl;
+    //    std::cout << "Finished compute_operation_priorities " << std::endl;
 }
 
 void FeasibleScheduleGenerator::assignUniqueIds() {
     int64_t uniqueId = 0;
     auto assignUniqueIDs = [&](VPURT::TaskOp taskOp) {
         taskOp->setAttr(uniqueIdAttrName, getIntAttr(_ctx, uniqueId++));
-        std::cout << "Assigning ID " << uniqueId << " to operation " << printOpType(taskOp) << std::endl;
+        //        std::cout << "Assigning ID " << uniqueId << " to operation " << printOpType(taskOp) << std::endl;
     };
 
     _func.walk([&](VPURT::TaskOp taskOp) {
@@ -485,7 +487,7 @@ void FeasibleScheduleGenerator::compute_op_indegree(operation_in_degree_t& in_de
 
         in_degree.insert(std::make_pair(taskOp.getOperation(), waitBarrierIncomingEdges));
     });
-    std::cout << "The size of indegree table is " << in_degree.size() << std::endl;
+    //    std::cout << "The size of indegree table is " << in_degree.size() << std::endl;
 }
 
 bool FeasibleScheduleGenerator::doesOpRunOnNCE(mlir::Operation* op) {
@@ -503,7 +505,7 @@ unsigned FeasibleScheduleGenerator::countProducerConsumerTasks(mlir::Operation* 
         auto wrappedTaskOp = block.begin();
         auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
         VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
-        std::cout << "nceOp.getNumVariants() = " << nceOp.getNumVariants() << std::endl;
+        //        std::cout << "nceOp.getNumVariants() = " << nceOp.getNumVariants() << std::endl;
         return nceOp.getNumVariants();
         // return 5;
     }
