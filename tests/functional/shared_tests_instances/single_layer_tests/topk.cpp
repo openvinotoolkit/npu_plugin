@@ -24,6 +24,13 @@ namespace LayerTestsDefinitions {
         useCompilerMLIR();
         Run();
     }
+    
+    TEST_P(KmbTopKLayerTest, CompareWithRefs_MLIR_MTL) {
+        useCompilerMLIR();
+        setPlatformMTL();
+        setDefaultHardwareModeMLIR();
+        Run();
+    }
 
 }  // namespace LayerTestsDefinitions
 

@@ -42,11 +42,12 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
         return mlir::failure();
     }
 
-    VPUX_THROW_UNLESS(swKernelOp.inputs().size() == 1, "For now act-kernels with only one input are supported. Got {0}",
-                      swKernelOp.inputs().size());
-    VPUX_THROW_UNLESS(swKernelOp.output_buffs().size() == 1,
-                      "For now act-kernels with only one output are supported. Got {0}",
-                      swKernelOp.output_buffs().size());
+        VPUX_THROW_UNLESS(swKernelOp.inputs().size() == 1, "For now act-kernels with only one input are supported. Got
+        {0}",
+                          swKernelOp.inputs().size());
+        VPUX_THROW_UNLESS(swKernelOp.output_buffs().size() == 1,
+                          "For now act-kernels with only one output are supported. Got {0}",
+                          swKernelOp.output_buffs().size());
 
     const auto inType = swKernelOp.inputs()[0].getType();
     const auto outType = swKernelOp.output_buffs()[0].getType();
@@ -60,6 +61,12 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
 
 IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
     return llvm::TypeSwitch<mlir::Operation*, IERT::KernelInfo>(origOp)
+            .Case<IERT::TopKOp>([&](IERT::TopKOp topk) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{topk.axisAttr(), topk.modeAttr(), topk.sortAttr(),
+                                                                     topk.element_typeAttr()},
+                                        {"single_shave_topk"},
+                                        {"single_shave_topk.cpp"}};
+            })
             .Case<IERT::HSwishOp>([&](IERT::HSwishOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"hswish_fp16"}, {"hswish_fp16.cpp"}};
             })
