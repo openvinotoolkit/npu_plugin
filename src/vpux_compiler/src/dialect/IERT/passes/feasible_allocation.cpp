@@ -87,9 +87,6 @@ private:
                                       llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
     void updateAsyncExecuteOpDependencies(AsyncDepsInfo& depsInfo,
                                           llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
-    // mateusz
-    void optimizeDataOpsSpills(SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps,
-                               AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo);
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
@@ -185,155 +182,6 @@ void FeasibleAllocationPass::updateAsyncExecuteOpDependencies(
     depsInfo.updateTokenDependencies();
 }
 
-// mateusz
-void FeasibleAllocationPass::optimizeDataOpsSpills(SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps,
-                                                   AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo) {
-    // Collect information about all data ops that have been spilled
-    // For each such dataOp store a sequence of indexes for scheduleOps array
-    // where each entry corresponds to related spillWrite/Read operation. First entry
-    // (index 0) is the index for original dataOp
-    std::unordered_map<FeasibleMemoryScheduler::operationIdxType, SmallVector<size_t>> dataOpSpillTree;
-    for (unsigned opIndex = 0; opIndex < scheduledOps.size(); opIndex++) {
-        auto& op = scheduledOps[opIndex];
-        // Check if this is spillRead/Write of data op
-        if ((op.isSpillWrite() || op.isSpillRead()) && op.isDataOp()) {
-            // Check if related dataOp has single output. If not
-            // then skip this optimization
-            if (depsInfo.getExecuteOpAtIndex(op.op_).results().size() > 1) {
-                continue;
-            }
-
-            // Find if this is spilling of already encountered dataOp
-            auto dataOpIt = dataOpSpillTree.find(op.op_);
-            if (dataOpIt != dataOpSpillTree.end()) {
-                // If dataOp was already identified store index of related spill operation
-                dataOpIt->second.push_back(opIndex);
-            } else {
-                // If this is spilling of new op, find source op and check if this is dataOp
-                int origOpIndex;
-                for (origOpIndex = opIndex - 1; origOpIndex >= 0; origOpIndex--) {
-                    auto schedOrigOp = scheduledOps[origOpIndex];
-                    if (schedOrigOp.isOriginalOp() && schedOrigOp.op_ == op.op_) {
-                        // As a first element store index to original operation
-                        dataOpSpillTree[schedOrigOp.op_].push_back(origOpIndex);
-                        // Store index to identified spillWrite/Read operation
-                        dataOpSpillTree[schedOrigOp.op_].push_back(opIndex);
-                        break;
-                    }
-                }
-                VPUX_THROW_UNLESS(origOpIndex >= 0,
-                                  "Unable to find in scheduled ops original operation for a given spill op '{0}'",
-                                  op.op_);
-            }
-        }
-    }
-
-    // Dump data ops spilling information
-    std::cout << "Data operation spilling sequence:\n";
-    for (auto& dataOp : dataOpSpillTree) {
-        std::cout << "  Operation " << dataOp.first << "\n";
-        for (auto& i : dataOp.second) {
-            auto& op = scheduledOps[i];
-            std::cout << "    [" << i << "]: op = " << op.op_ << "\t type = " << op.opTypeName().data()
-                      << "\t time = " << op.time_ << "\n";
-        }
-    }
-
-    SmallVector<size_t> operationIndexesToRemove;
-    // Check if between original op / spillRead and spillWrite buffer
-    // from dataOp is used by any operation
-    std::cout << "Check on possible removal of spills of data operations:\n";
-    for (auto& dataOp : dataOpSpillTree) {
-        std::cout << "  Operation " << dataOp.first << "\n";
-        auto dataOpSpillIndexes = dataOp.second;
-        for (size_t i = 0; i < dataOpSpillIndexes.size() - 1; i++) {
-            // Check for a sequence origOp/SpillRead -> SpillWrite
-            if (scheduledOps[dataOpSpillIndexes[i]].isSpillWrite()) {
-                continue;
-            }
-            if (!scheduledOps[dataOpSpillIndexes[i + 1]].isSpillWrite()) {
-                continue;
-            }
-            auto& origOrSpillReadOpIndex = dataOpSpillIndexes[i];
-            auto nextSpillWriteOpIndex = dataOpSpillIndexes[i + 1];
-
-            VPUX_THROW_UNLESS(origOrSpillReadOpIndex < nextSpillWriteOpIndex,
-                              "Incorrect order of indexes of spill read and next spill write ops for scheduledOps");
-
-            bool isBufferUsedAsArgument = false;
-            bool isBufferUsedAsResult = false;
-            auto buffer = scheduledOps[origOrSpillReadOpIndex].getBuffer(0);
-            for (size_t schedOpIdx = origOrSpillReadOpIndex + 1; schedOpIdx < nextSpillWriteOpIndex; schedOpIdx++) {
-                // TODO: optimize below code
-                auto execOp = depsInfo.getExecuteOpAtIndex(scheduledOps[schedOpIdx].op_);
-
-                for (auto operand : execOp->getOperands()) {
-                    if (operand.getType().isa<mlir::async::ValueType>()) {
-                        if (aliasInfo.getRoot(operand) == buffer) {
-                            isBufferUsedAsArgument = true;
-                            break;
-                        }
-                    }
-                }
-
-                for (auto res : execOp.results()) {
-                    if (aliasInfo.getRoot(res) == buffer) {
-                        isBufferUsedAsResult = true;
-                        break;
-                    }
-                }
-
-                if (isBufferUsedAsArgument && isBufferUsedAsResult) {
-                    break;
-                }
-            }
-
-            auto isBufferUsed = isBufferUsedAsArgument || isBufferUsedAsResult;
-
-            // If buffer was not used by any operation in between then given read-write pair is not needed
-            // This can happen if scheduler prefetched dataOp which got immediately spilled
-            if (!isBufferUsed) {
-                std::cout << "    Buffer not used at all between spillRead/OrigOp - " << origOrSpillReadOpIndex
-                          << " and next spillWrite op " << nextSpillWriteOpIndex << "\n";
-                std::cout << "      Remove spillRead/OrigOp -  " << origOrSpillReadOpIndex << "\n";
-                std::cout << "      Remove next spillWriteOp - " << nextSpillWriteOpIndex << "\n";
-
-                // Ops can be removed
-                operationIndexesToRemove.push_back(origOrSpillReadOpIndex);
-                operationIndexesToRemove.push_back(nextSpillWriteOpIndex);
-
-                // If read operation was origOp then change next corresponding operation
-                if (scheduledOps[origOrSpillReadOpIndex].isOriginalOp()) {
-                    // In such case update next read operation to be original operation
-                    for (size_t j = i + 2; j < dataOpSpillIndexes.size(); j++) {
-                        auto nextSpillReadIndex = dataOpSpillIndexes[j];
-                        if (scheduledOps[nextSpillReadIndex].isSpillRead()) {
-                            std::cout << "  Change next spillRead to origOp - " << nextSpillReadIndex << "\n";
-                            scheduledOps[nextSpillReadIndex].opType_ = scheduledOps[origOrSpillReadOpIndex].opType_;
-                            break;
-                        }
-                    }
-                }
-            } else if (isBufferUsedAsArgument && !isBufferUsedAsResult) {
-                // If buffer was used just as an argument then next spillWrite can be removed
-                // as buffer state has not changed
-                std::cout << "    Buffer used as input between spillRead/OrigOp - " << origOrSpillReadOpIndex
-                          << " and next spillWrite op " << nextSpillWriteOpIndex << "\n";
-                std::cout << "      Remove next spillWriteOp - " << nextSpillWriteOpIndex << "\n";
-                operationIndexesToRemove.push_back(nextSpillWriteOpIndex);
-            }
-        }
-    }
-
-    // Sort operation indexes
-    std::sort(operationIndexesToRemove.begin(), operationIndexesToRemove.end());
-
-    // Remove in reverse order to have indexes valid after erasing entries in scheduledOp
-    for (auto opIt = operationIndexesToRemove.rbegin(); opIt != operationIndexesToRemove.rend(); opIt++) {
-        scheduledOps.erase(scheduledOps.begin() + *opIt);
-    }
-}
-
 void FeasibleAllocationPass::safeRunOnModule() {
     auto& ctx = getContext();
     auto module = getOperation();
@@ -402,10 +250,8 @@ void FeasibleAllocationPass::safeRunOnModule() {
 
     // 3. optimize spills
     FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
+    spilling.optimizeDataOpsSpills(scheduledOps);
     spilling.removeRedundantSpillWrites(scheduledOps);
-
-    // mateusz
-    optimizeDataOpsSpills(scheduledOps, depsInfo, aliasesInfo);
 
     std::cout << "\nSchedule after optimize spills\n";
     for (const auto& op : scheduledOps) {
