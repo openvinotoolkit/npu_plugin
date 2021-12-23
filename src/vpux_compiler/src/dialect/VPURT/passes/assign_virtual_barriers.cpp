@@ -11,6 +11,8 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/core/feasible_barrier_generator.hpp"
+#include "vpux/compiler/core/runtime_simulator.hpp"
 #include "vpux/compiler/core/token_barrier_scheduler.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
@@ -38,14 +40,23 @@ private:
 void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+
+    const auto dmaAttr = VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::DMA_NN);
+    auto dmaResOp = resOp.getExecutor(dmaAttr);
+    VPUX_THROW_UNLESS(dmaResOp != nullptr, "Failed to get DMA_NN information");
+
+    const auto numDmaEngines = dmaResOp.count();
+    VPUX_THROW_UNLESS(numDmaEngines <= MAX_DMA_ENGINES, "Found {0} DMA engines (max {1})", numDmaEngines,
+                      MAX_DMA_ENGINES);
 
     // bool success = false;
-
-    TokenBasedBarrierScheduler barrierScheduler(&ctx, func, _log, 4, 256);
+    // FeasibleBarrierScheduler bsbarrierScheduler(&ctx, func, _log, 4, 256, numDmaEngines);
+    TokenBasedBarrierScheduler barrierScheduler(&ctx, func, _log, 4, 256, numDmaEngines);
     barrierScheduler.schedule();
 
-    // Barrier Simulation
-    // for (size_t barrier_bound = 4; !success && (barrier_bound >= 1UL); --barrier_bound) {
+    // Barrier Simulation for (size_t barrier_bound = 4; !success && (barrier_bound >= 1UL); --barrier_bound) {
     //     TokenBasedBarrierScheduler barrierScheduler(&ctx, func, _log, barrier_bound, 256, numDmaEngines);
     //     barrierScheduler.schedule();
 
