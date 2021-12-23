@@ -32,12 +32,15 @@ const uint32_t NN_LOG_BUFFER_SIZE = 0x800;
 } // namespace
 
 
-
+extern void const *shvNN0_nnActEntry;
 
 
 static SoftLayerExec __attribute__((section(".nncmx0.shared.data"))) sl;
 static Layer __attribute__((section(".nncmx0.shared.data"))) layer;
 using namespace nn;
+extern bool HglShaveAccessAllowed[HGL_SHAVE_TYPE_NB];
+
+nn::common_runtime::NNCmxMemoryMap *nnCmx = util::MemoryMap::project<NNCmxMemoryMap>(NN_CMX_BASE);
 
 bool UPATaskRunner::enqueTask(Op * operation,
                               const std::vector<OpTensor> &inputs,
@@ -46,13 +49,34 @@ bool UPATaskRunner::enqueTask(Op * operation,
                               PerformanceData *perfData) {
 
 //    static std::shared_ptr<nn::act_shave_lib::ACTShaveDispatcher> actDisp;
-    nn::common_runtime::NNCmxMemoryMap *nnCmx = util::MemoryMap::project<NNCmxMemoryMap>(NN_CMX_BASE);
+    HglShaveAccessAllowed[1] = false;
+    HglShaveAccessAllowed[2] = true;
+    cache::flush(HglShaveAccessAllowed, sizeof(bool) * HGL_SHAVE_TYPE_NB);
+    printf("!!!!!!!!!! before UPATaskRunner::enqueTask !!!!!!!!!!!!!\n");
+//    nn::common_runtime::NNCmxMemoryMap *nnCmx = util::MemoryMap::project<NNCmxMemoryMap>(NN_CMX_BASE);
+//    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!!\n", __FILE__, __LINE__);
     alignas(NN_CACHE_LINE_LENGTH) nn::common_runtime::StaticMapping globalAreas(nnCmx);
+    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!!\n", __FILE__, __LINE__);
     nn::inference_runtime::shaves::ShaveManager shaveManager(globalAreas);
+    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!!\n", __FILE__, __LINE__);
 
-    nn::act_runtime::ActKernelRuntimeConfigs actRtConfigs;
-    shaveManager.startActShavesForTile(0, actRtConfigs, true);
+    nn::act_runtime::ActKernelRuntimeConfigs actRtConfigs;  // Initialize properly
+    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!!\n", __FILE__, __LINE__);
 
+    actRtConfigs.useScheduleEmbeddedRt_ = false;
+    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!!\n", __FILE__, __LINE__);
+    actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::act_runtime::actRuntimeEntry>(&shvNN0_nnActEntry);
+
+    cache::flush(actRtConfigs);
+    return true;
+    printf("!!!!!!!!!! before start !!!!!!!!!!!!!\n");
+    shaveManager.startActShavesForTile(0, actRtConfigs, false);
+    printf("!!!!!!!!!! after start !!!!!!!!!!!!!\n");
+
+    shaveManager.stopActShavesForTiles();
+    printf("!!!!!!!!!! after stop !!!!!!!!!!!!!\n");
+//    shaveManager.stopActShavesForTile(TILE_0);
+    return true;
     memset(&sl, 0, sizeof(sl));
     memset(&layer, 0, sizeof(layer));
 

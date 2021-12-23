@@ -49,10 +49,10 @@ private:
 
     const StaticMapping &cmxMapping;
 
-    ShaveHandle *actShvHnd[AS_TOTAL];
+    ShaveHandle *actShvHnd[4/*AS_TOTAL*/];
     ShaveHandle *nnShvHnd[SNN_TOTAL];
 
-    uint32_t actShvStacks[AS_TOTAL]{0};
+    uint32_t actShvStacks[4/*AS_TOTAL*/]{0};
 
     actRuntimeEntry actShvEntries[MAX_TILES]{0};
     uint8_t *actShvTextsBuffers[MAX_TILES]{nullptr};

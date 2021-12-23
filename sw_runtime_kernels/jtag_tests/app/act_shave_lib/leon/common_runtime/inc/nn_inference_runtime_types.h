@@ -69,7 +69,7 @@ struct ActKernelInvocationWrapper {
 
 struct ActKernelRuntimeConfigsWrapper {
     act_runtime::ActKernelRuntimeConfigs asRtCfg_{};
-    RelativeAddress stacks_[AS_TOTAL]{};
+    RelativeAddress stacks_[4/*AS_TOTAL*/]{};
     RelativeAddress kernelDataBuffer_{};
 };
 

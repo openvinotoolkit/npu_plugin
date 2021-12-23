@@ -642,7 +642,7 @@ extern "C" struct ActKernelInvocation {
     unsigned int invo_index_{0};
 };
 extern "C" struct ActKernelRuntimeConfigs {
-    unsigned int stackFrames_[common_runtime::AS_TOTAL]{0};
+    unsigned int stackFrames_[4/*common_runtime::AS_TOTAL*/]{0};
     unsigned int stackSize_{0};
     bool useScheduleEmbeddedRt_{false};
 

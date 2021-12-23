@@ -59,6 +59,7 @@ ShaveManager::ShaveManager(const StaticMapping &sMapping)
 
     // ACTSHV handle init
     for (unsigned int shave = 0; shave < AS_TOTAL; ++shave) {
+//    for (unsigned int shave = 0; shave < 1/*AS_TOTAL*/; ++shave) {
         nnLog(MVLOG_DEBUG, "ShaveCtrlOpen: ACTSHV %d", shave);
         auto rc = ShaveCtrlOpen(SHAVE_ACT, shave, &actShvHnd[shave]);
         if (rc != SHAVE_CTRL_SUCCESS) {
@@ -70,14 +71,14 @@ ShaveManager::ShaveManager(const StaticMapping &sMapping)
                                            unpackSHVConfig(acts_cfgs[shave]).work.index);
     }
 
-    // NNSHV handle init
-    for (unsigned int shave = 0; shave < SNN_TOTAL; ++shave) {
-        nnLog(MVLOG_DEBUG, "ShaveCtrlOpen: NNSHV %d", shave);
-        auto rc = ShaveCtrlOpen(SHAVE_NN, nnShaveId[shave], &nnShvHnd[shave]);
-        if (rc != SHAVE_CTRL_SUCCESS) {
-            nnLog(MVLOG_ERROR, "ShaveCtrlOpen: rc = %x", (int)rc);
-        }
-    }
+//    // NNSHV handle init
+//    for (unsigned int shave = 0; shave < SNN_TOTAL; ++shave) {
+//        nnLog(MVLOG_DEBUG, "ShaveCtrlOpen: NNSHV %d", shave);
+//        auto rc = ShaveCtrlOpen(SHAVE_NN, nnShaveId[shave], &nnShvHnd[shave]);
+//        if (rc != SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_ERROR, ": rc = %x", (int)rc);
+//        }
+//    }
 
     // For STD FW apps: L2C_PAGE_TABLE is set in OsDrvInitShave.c
 #if (!(defined(CONFIG_STD_FW_APP_CLIENT)) && defined(CONFIG_NN_NCE_L2C_PAGE_TABLE))
@@ -93,19 +94,20 @@ ShaveManager::ShaveManager(const StaticMapping &sMapping)
 ShaveManager::~ShaveManager(void) {
     // ACTSHV handle de-init
     for (unsigned int shave = 0; shave < AS_TOTAL; ++shave) {
+//    for (unsigned int shave = 0; shave < 1/*AS_TOTAL*/; ++shave) {
         auto rc = ShaveCtrlClose(&actShvHnd[shave]);
         if (rc != SHAVE_CTRL_SUCCESS) {
             nnLog(MVLOG_WARN, "ShaveCtrlClose: rc = %x", (int)rc);
         }
     }
 
-    // NNSHV handle de-init
-    for (unsigned int shave = 0; shave < SNN_TOTAL; ++shave) {
-        auto rc = ShaveCtrlClose(&nnShvHnd[shave]);
-        if (rc != SHAVE_CTRL_SUCCESS) {
-            nnLog(MVLOG_WARN, "ShaveCtrlClose: rc = %x", (int)rc);
-        }
-    }
+//    // NNSHV handle de-init
+//    for (unsigned int shave = 0; shave < SNN_TOTAL; ++shave) {
+//        auto rc = ShaveCtrlClose(&nnShvHnd[shave]);
+//        if (rc != SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_WARN, "ShaveCtrlClose: rc = %x", (int)rc);
+//        }
+//    }
 }
 
 bool ShaveManager::processConfigChanges(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs) {
