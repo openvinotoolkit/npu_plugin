@@ -123,6 +123,27 @@ bool FeasibleMemoryScheduler::isDataOp(operationIdxType opIdx) {
     return false;
 }
 
+bool FeasibleMemoryScheduler::isCopyOutOp(operationIdxType opIdx) {
+    if (isDataOp(opIdx)) {
+        return false;
+    }
+
+    auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
+    auto* bodyBlock = &op.body().front();
+    for (auto& innerOp : bodyBlock->getOperations()) {
+        if (mlir::isa<IERT::CopyOp>(innerOp)) {
+            if (auto copyOp = mlir::dyn_cast<IERT::CopyOp>(innerOp)) {
+                // DMA from NN_CMX to DDR
+                auto srcMemSpace = copyOp.input().getType().dyn_cast<mlir::MemRefType>().getMemorySpace();
+                auto dstMemSpace = copyOp.output().getType().dyn_cast<mlir::MemRefType>().getMemorySpace();
+                return (_memSpace != dstMemSpace && _memSpace == srcMemSpace);
+            }
+        }
+    }
+
+    return false;
+}
+
 FeasibleMemoryScheduler::HeapElement const* FeasibleMemoryScheduler::topElementGen(ArrayRef<HeapElement> heap) const {
     return heap.empty() ? nullptr : &(heap.front());
 }
@@ -538,14 +559,22 @@ size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
     _log = _log.nest();
 
     // TODO: heuristic for choosing next schedulable op
+    // TODO: struct for active and ready ops with sort by priority
 
+    bool trueComputeScheduled = false;
     // schedule active op that fit in CMX
     for (auto& readyOp : _activeComputeOps) {
         if (isReadyComputeOperationSchedulable(readyOp.first)) {
-            _log.trace("Scheduling active op: '{0}'", readyOp.first);
-            computeOpStartTime = scheduleComputeOp(readyOp.first);
-            scheduledOps.push_back(readyOp);
-            break;
+            if (isCopyOutOp(readyOp.first)) {
+                _log.trace("Scheduling active copy-out op: '{0}'", readyOp.first);
+                computeOpStartTime = scheduleComputeOp(readyOp.first);
+                scheduledOps.push_back(readyOp);
+            } else if (!trueComputeScheduled) {
+                _log.trace("Scheduling active compute op: '{0}'", readyOp.first);
+                computeOpStartTime = scheduleComputeOp(readyOp.first);
+                scheduledOps.push_back(readyOp);
+                trueComputeScheduled = true;
+            }
         }
     }
     // update ready lists by removing scheduled ops
@@ -553,20 +582,24 @@ size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
         _activeComputeOps.erase(scheduledOp);
     }
 
-    // if no active ops scheduled, schedule ready compute op
-    if (scheduledOps.empty()) {
-        for (auto& readyOp : _readyComputeOps) {
-            if (isReadyComputeOperationSchedulable(readyOp.first)) {
-                _log.trace("Scheduling ready op: '{0}'", readyOp.first);
+    // schedule ready compute op
+    for (auto& readyOp : _readyComputeOps) {
+        if (isReadyComputeOperationSchedulable(readyOp.first)) {
+            if (isCopyOutOp(readyOp.first)) {
+                _log.trace("Scheduling ready copy-out op: '{0}'", readyOp.first);
                 computeOpStartTime = scheduleComputeOp(readyOp.first);
                 scheduledOps.push_back(readyOp);
-                break;
+            } else if (!trueComputeScheduled) {
+                _log.trace("Scheduling ready compute op: '{0}'", readyOp.first);
+                computeOpStartTime = scheduleComputeOp(readyOp.first);
+                scheduledOps.push_back(readyOp);
+                trueComputeScheduled = true;
             }
         }
-        // update ready lists by removing scheduled ops
-        for (auto scheduledOp : scheduledOps) {
-            _readyComputeOps.erase(scheduledOp);
-        }
+    }
+    // update ready lists by removing scheduled ops
+    for (auto scheduledOp : scheduledOps) {
+        _readyComputeOps.erase(scheduledOp);
     }
 
     _log = _log.unnest();
@@ -885,7 +918,7 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
             // add to output table
             populateScheduledOps(firstOp);
             // move to completion time heap
-            pushToCompletionTimeHeap(HeapElement(firstOp.op_, firstOp.time_ + 1, firstOp.opType_));
+            pushToCompletionTimeHeap(HeapElement(firstOp.op_, _currentTime + 1, firstOp.opType_));
             _log.trace("Scheduled op: '{0}'", firstOp.op_);
             // decrease outputs ops if output op scheduled
             if (_outputOps.find(firstOp.op_) != _outputOps.end()) {
