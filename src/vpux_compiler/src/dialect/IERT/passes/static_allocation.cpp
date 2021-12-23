@@ -161,12 +161,13 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc, IERT
                           _memSpace);
 
         _log = _log.unnest();
-        return newBufs.size();
+        return (newBufs.size() > 0);
     };
 
     const auto freeDeadBuffers = [&](const ValueOrderedSet& usedBufs, mlir::async::ExecuteOp op) {
         _log.trace("Locate dead buffers");
         _log = _log.nest();
+        bool bufferFreed = false;
 
         for (auto val : usedBufs) {
             const auto type = val.getType().cast<mlir::MemRefType>();
@@ -179,6 +180,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc, IERT
             if (liveRangeInfo.eraseUser(val, op) == 0) {
                 _log.nest().trace("This bucket is the last usage of the buffer, free it");
                 scan.handler().markAsDead(val);
+                bufferFreed = true;
             }
         }
 
@@ -186,6 +188,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc, IERT
         scan.freeNonAlive();
 
         _log = _log.unnest();
+        return bufferFreed;
     };
 
     mlir::async::ExecuteOp prevExecOp;
@@ -195,20 +198,16 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc, IERT
 
         const auto usedBufs = liveRangeInfo.getUsedBuffers(curExecOp);
 
-        auto allocated = allocNewBuffers(usedBufs);
-        freeDeadBuffers(usedBufs, curExecOp);
+        auto bufferUpdated = allocNewBuffers(usedBufs);
+        bufferUpdated |= freeDeadBuffers(usedBufs, curExecOp);
 
         // TODO: remove temporary linearization
-        if (prevExecOp != nullptr) {
-            if (allocated) {
+        if (bufferUpdated) {
+            if (prevExecOp != nullptr) {
                 _log.trace("Add explicit dependency from '{0}' to '{1}'", prevExecOp->getLoc(), curExecOp->getLoc());
                 depsInfo.addDependency(prevExecOp, curExecOp);
-                prevExecOp = curExecOp;
             }
-        } else {
-            if (allocated) {
-                prevExecOp = curExecOp;
-            }
+            prevExecOp = curExecOp;
         }
 
         _log = _log.unnest();
