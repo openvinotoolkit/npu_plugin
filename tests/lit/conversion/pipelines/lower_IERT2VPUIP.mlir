@@ -18,7 +18,7 @@ func @main(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
     return %1 : memref<10xf16>
 
     // CHECK:       [[BUF0:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<10xf16, "DDR">
-    // CHECK:       [[B0:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    // CHECK:       [[B0:%.+]] = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
 
     // CHECK:       VPURT.Task
     // CHECK-SAME:      updates([[B0]] : !VPURT.Barrier)
