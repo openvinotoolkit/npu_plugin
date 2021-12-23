@@ -239,12 +239,10 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.get<MCM_LOG_LEVEL>()));
         mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.get<MCM_REMOVE_PERMUTE_NOOP>());
-        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv",
-                                       std::find_if(inputsInfo.begin(), inputsInfo.end(),
-                                                        [](const std::pair<std::string, ie::InputInfo::Ptr>& input) {
-                    return input.second->getLayout() != InferenceEngine::Layout::NCHW &&
-                           input.second->getLayout() != InferenceEngine::Layout::CHW;
-                }) == inputsInfo.end());
+
+        /* Enable channel major conv by default, may be overridden in compilation descriptor (ie for MTL platform) */
+        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv", true);
+
         mcmCompDesc.setPassArg("GlobalConfigParams", "DeviceRevision",
                                std::string(MVCNN::EnumNameTargetDeviceRevision(getDeviceRevision(config.get<PLATFORM>()))));
 

@@ -507,7 +507,7 @@ bool mv::Op::supportsCMConv()
     {
         auto opIt = parents.back();
         parents.pop_back();
-        if (opIt->isImplicit() || opIt->isUPA() || (opIt->getOpType() == "Bias"))
+        if ((opIt->isImplicit() && opIt->getOpType() != "ImplicitInput") || opIt->isUPA() || (opIt->getOpType() == "Bias"))
         {
             // Traverse parent of C-Major-compatible op
             parents.push_back(om.getSourceOp(opIt->getInputTensor(0)));
@@ -518,7 +518,7 @@ bool mv::Op::supportsCMConv()
             for (auto& input : opIt->getInputTensor())
                 parents.push_back(om.getSourceOp(input));
         }
-        else if (opIt->getOpType() == "Input")
+        else if (opIt->getOpType() == "Input" || opIt->getOpType() == "ImplicitInput")
         {
             // Found Input; done traversing this path
         }
@@ -534,7 +534,7 @@ bool mv::Op::supportsCMConv()
     // All traversed paths are C-Major-friendly
     set<bool>("CMinput", true);
     for (auto& op : ops_in_input_path)
-        if (op->getOpType() != "Input")
+        if (op->getOpType() != "Input" && op->getOpType() != "ImplicitInput")
             op->set<bool>("CMinput", true);
 
     return true;

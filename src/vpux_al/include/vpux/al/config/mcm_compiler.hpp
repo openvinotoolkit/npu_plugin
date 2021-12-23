@@ -212,7 +212,7 @@ struct MCM_ALLOW_NCHW_MCM_INPUT final : OptionBase<MCM_ALLOW_NCHW_MCM_INPUT, boo
     }
 
     static bool defaultValue() {
-        return false;
+        return true;
     }
 
     static OptionMode mode() {

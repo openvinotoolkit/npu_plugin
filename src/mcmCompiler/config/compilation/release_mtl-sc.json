@@ -131,7 +131,7 @@
             "EltwiseToSWEltwise",
             "MarkEltWiseUpaInputs",
             "MarkCMCompatibleConvs",
-            "AddPermuteToNonCMConvPaths",
+            "AddPermuteToIOOps",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -367,6 +367,7 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             "DMAOrdering",
+            "VerifyDMASchedulingOrder",
             "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",
