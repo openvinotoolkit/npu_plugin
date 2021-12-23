@@ -244,7 +244,8 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
     auto strides = getIntArrayAttr(builder, stried_vec);
-    auto kernel_padding = getIntArrayAttr(builder, padding_vec);
+    auto kernel_padding = VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                                padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto nceTask = vpux::VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
@@ -265,10 +266,8 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     std::vector<int32_t> end_vec{static_cast<int32_t>(out_shape[3] - 1), static_cast<int32_t>(out_shape[2] - 1),
                                  static_cast<int32_t>(out_shape[1] - 1)};
     auto end = getIntArrayAttr(builder, end_vec);
-    auto pad = VPUIP::PaddingAttr::get(getIntAttr(builder, padding_vec[PAD_NCETASK_LEFT]),
-                                       getIntAttr(builder, padding_vec[PAD_NCETASK_RIGHT]),
-                                       getIntAttr(builder, padding_vec[PAD_NCETASK_TOP]),
-                                       getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), builder.getContext());
+    auto pad = VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                     padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     /* auto dpuTask = */ variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad,
                                                                  VPUIP::MPEMode::CUBOID_8x16);

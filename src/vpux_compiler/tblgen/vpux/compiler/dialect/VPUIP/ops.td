@@ -933,7 +933,7 @@ def VPUIP_SinhUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        OptionalAttr<IntAttr>:$maxShaves    
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2242,7 +2242,7 @@ def VPUIP_NCEClusterTaskOp :
         VPUIP_NCETaskType:$task_type,
         OptionalAttr<I64ArrayAttr>:$kernel_size,
         OptionalAttr<I64ArrayAttr>:$kernel_strides,
-        OptionalAttr<I64ArrayAttr>:$kernel_padding,
+        OptionalAttr<VPUIP_PaddingAttr>:$kernel_padding,
         OptionalAttr<IntAttr>:$activation_window_channel_length,
         OptionalAttr<UnitAttr>:$is_continued
     );
@@ -2263,7 +2263,7 @@ def VPUIP_NCEClusterTaskOp :
             "mlir::Value":$parent_input, "mlir::Value":$parent_output,
             "mlir::Value":$output_buff,
             "vpux::VPUIP::NCETaskType":$task_type,
-            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "mlir::ArrayAttr":$kernel_padding,
+            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPUIP::PaddingAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
             "mlir::UnitAttr":$is_continued
         )>,
@@ -2273,7 +2273,7 @@ def VPUIP_NCEClusterTaskOp :
             "mlir::Value":$parent_input, "mlir::Value":$parent_output,
             "mlir::Value":$output_buff,
             "vpux::VPUIP::NCETaskType":$task_type,
-            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "mlir::ArrayAttr":$kernel_padding,
+            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPUIP::PaddingAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
             "mlir::UnitAttr":$is_continued
         )>
@@ -3202,9 +3202,9 @@ def VPUIP_DepthToSpaceUPAOp :
 
     let builders = [
         OpBuilder<
-            (ins 
-                "mlir::Value":$input, 
-                "mlir::Value":$output, 
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output,
                 "mlir::IntegerAttr":$block_size,
                 "IE::DepthToSpaceModeAttr":$mode
             )

@@ -52,7 +52,7 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC>, %arg1: memref<1x16x16x16x
 // CHECK-SAME:      outputs([[WEIGHTS_TABLE_CMX_BUF]] : memref<16x1x1x4xsi32, "CMX_NN">)
 
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
-// CHECK-SAME:          kernel_padding = [0, 0, 0, 0]
+// CHECK-SAME:          kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
 // CHECK-SAME:          kernel_size = [1, 1]
 // CHECK-SAME:          strides = [1, 1]
 // CHECK-SAME:          task_type = "CONV"
@@ -125,7 +125,7 @@ func @MaxPoolTest(%arg0: memref<1x16x1x4xf16, #NHWC>, %arg1: memref<1x16x1x4xf16
 
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
 // CHECK-SAME:          activation_window_channel_length = 4
-// CHECK-SAME:          kernel_padding = [0, 0, 0, 0]
+// CHECK-SAME:          kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
 // CHECK-SAME:          kernel_size = [1, 1]
 // CHECK-SAME:          strides = [1, 1]
 // CHECK-SAME:          task_type = "MAXPOOL"
@@ -373,7 +373,7 @@ func @DepthwiseConvTest(%arg0: memref<1x16x40x80xf16, #NHWC>,
 // CHECK-SAME:      outputs([[WEIGHTS_TABLE_CMX_BUF]] : memref<16x1x1x4xsi32, "CMX_NN">)
 
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
-// CHECK-SAME:          kernel_padding = [0, 0, 0, 0]
+// CHECK-SAME:          kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
 // CHECK-SAME:          kernel_size = [4, 8]
 // CHECK-SAME:          strides = [1, 1]
 // CHECK-SAME:          task_type = "DWCONV"
@@ -451,7 +451,7 @@ func @Conv2dReLUTest(%arg0: memref<1x16x16x16xf16, #NHWC>, %arg1: memref<1x16x16
 // CHECK-SAME:      outputs([[WEIGHTS_TABLE_CMX_BUF]] : memref<16x1x1x4xsi32, "CMX_NN">)
 
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
-// CHECK-SAME:          kernel_padding = [0, 0, 0, 0]
+// CHECK-SAME:          kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
 // CHECK-SAME:          kernel_size = [1, 1]
 // CHECK-SAME:          strides = [1, 1]
 // CHECK-SAME:          task_type = "CONV"
@@ -534,7 +534,7 @@ func @Conv2dClampTest(%arg0: memref<1x16x16x16xf16, #NHWC>, %arg1: memref<1x16x1
 // CHECK-SAME:      outputs([[WEIGHTS_TABLE_CMX_BUF]] : memref<16x1x1x4xsi32, "CMX_NN">)
 
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
-// CHECK-SAME:          kernel_padding = [0, 0, 0, 0]
+// CHECK-SAME:          kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
 // CHECK-SAME:          kernel_size = [1, 1]
 // CHECK-SAME:          strides = [1, 1]
 // CHECK-SAME:          task_type = "CONV"
@@ -644,7 +644,7 @@ func @DepthwiseConvTwoInputsTest(%arg0: memref<1x16x20x10xf16, #NHWC>,
 // CHECK-SAME:      outputs([[WEIGHTS_TABLE_CMX_BUF]] : memref<16x1x1x4xsi32, "CMX_NN">)
 
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
-// CHECK-SAME:          kernel_padding = [0, 0, 0, 0]
+// CHECK-SAME:          kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
 // CHECK-SAME:          kernel_size = [1, 1]
 // CHECK-SAME:          strides = [1, 1]
 // CHECK-SAME:          task_type = "DWCONV"

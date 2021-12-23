@@ -14,7 +14,9 @@
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
@@ -124,8 +126,7 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
         const auto endAttr = getIntArrayAttr(ctx, makeArrayRef(dpuTile.end));
 
         const auto pad =
-                VPUIP::PaddingAttr::get(getIntAttr(ctx, dpuTile.padLeft), getIntAttr(ctx, dpuTile.padRight),
-                                        getIntAttr(ctx, dpuTile.padTop), getIntAttr(ctx, dpuTile.padBottom), ctx);
+                VPUIP::getPaddingAttr(ctx, dpuTile.padLeft, dpuTile.padRight, dpuTile.padTop, dpuTile.padBottom);
 
         nceOp.addDPUTask(rewriter, startAttr, endAttr, pad, mpeMode);
     }
@@ -341,8 +342,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
     const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
-    const auto kernelPaddingAttr =
-            getIntArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
+
+    const auto kernelPaddingAttr = vpux::IE::getPaddingAttr(getContext(), padsBegin, padsEnd);
 
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
@@ -475,8 +476,8 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
     const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
     const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
-    const auto kernelPaddingAttr =
-            getIntArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
+
+    const auto kernelPaddingAttr = vpux::IE::getPaddingAttr(getContext(), padsBegin, padsEnd);
 
     const auto activation_window_channel_length = getIntAttr(getContext(), static_cast<uint32_t>(bitPatternSize));
 
@@ -786,8 +787,8 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
 
     const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
     const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
-    const auto kernelPaddingAttr =
-            getIntArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
+
+    const auto kernelPaddingAttr = vpux::IE::getPaddingAttr(getContext(), padsBegin, padsEnd);
 
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 

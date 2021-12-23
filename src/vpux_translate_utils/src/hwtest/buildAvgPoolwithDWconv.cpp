@@ -17,6 +17,7 @@
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -259,7 +260,10 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
     auto strides = getIntArrayAttr(builder, stride_vec);
-    auto kernel_padding = getIntArrayAttr(builder, padding_vec);
+
+    auto kernel_padding =
+            vpux::VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                        padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
@@ -279,10 +283,8 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     std::vector<int32_t> end_vec{static_cast<int32_t>(out_shape[3] - 1), static_cast<int32_t>(out_shape[2] - 1),
                                  static_cast<int32_t>(out_shape[1] - 1)};
     auto end = getIntArrayAttr(builder, end_vec);
-    auto pad = VPUIP::PaddingAttr::get(getIntAttr(builder, padding_vec[PAD_NCETASK_LEFT]),
-                                       getIntAttr(builder, padding_vec[PAD_NCETASK_RIGHT]),
-                                       getIntAttr(builder, padding_vec[PAD_NCETASK_TOP]),
-                                       getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), ctx);
+    auto pad = vpux::VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                           padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     variantbuilder.create<VPUIP::DPUTaskOp>(loc, start, end, pad, VPUIP::MPEMode::CUBOID_16x16);
 

@@ -16,6 +16,7 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -120,7 +121,8 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     // NCE Task
     auto filtersize = getIntArrayAttr(funcbuilder, filter_size);
     auto strides = getIntArrayAttr(funcbuilder, stride_vec);
-    auto kernel_padding = getIntArrayAttr(funcbuilder, padding_vec);
+    auto kernel_padding = VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                                padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto nceTask = vpux::VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
@@ -139,10 +141,8 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     std::vector<int32_t> end_vec{static_cast<int32_t>(out_shape[3] - 1), static_cast<int32_t>(out_shape[2] - 1),
                                  static_cast<int32_t>(out_shape[1] - 1)};
     auto end = getIntArrayAttr(funcbuilder, end_vec);
-    auto pad = VPUIP::PaddingAttr::get(getIntAttr(funcbuilder, padding_vec[PAD_NCETASK_LEFT]),
-                                       getIntAttr(funcbuilder, padding_vec[PAD_NCETASK_RIGHT]),
-                                       getIntAttr(funcbuilder, padding_vec[PAD_NCETASK_TOP]),
-                                       getIntAttr(funcbuilder, padding_vec[PAD_NCETASK_BOTTOM]), ctx);
+    auto pad = VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                     padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     // NB For pooling operations, NTHW_NTK=(16, 4) is the only mode supported by
     // the hardware; this corresponds to CUBOID_16x16.

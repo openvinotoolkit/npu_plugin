@@ -38,7 +38,7 @@ func @Conv2dTest(%arg0: memref<1x8x20x20xf16, #NHWC>, %arg1: memref<1x16x19x19xf
         -> memref<16x1x1x4xsi32, "CMX_NN">
 
     %12 = VPUIP.NCEClusterTask {
-            kernel_padding = [0, 0, 0, 0],
+            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
             kernel_size = [2, 2],
             kernel_strides = [1, 1],
             task_type = "CONV"
@@ -142,7 +142,7 @@ func @MaxPoolTest(%arg0: memref<1x16x30x30xf16, #NHWC>, %arg1: memref<1x16x28x28
 
     %10 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 18,
-            kernel_padding = [0, 0, 0, 0],
+            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
             kernel_size = [3, 3],
             kernel_strides = [1, 1],
             task_type = "MAXPOOL"

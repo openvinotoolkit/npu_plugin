@@ -40,7 +40,7 @@ TEST(MLIR_VPUIP_Sparsity, SparseOpInterface) {
                 %2 = VPUIP.WeightsTableOp op_input(%arg0 : memref<1x8x20x20xf16, #NHWC, "CMX_NN">) op_output(%arg1 : memref<1x16x19x19xf16, #NHWC, "CMX_NN">)
                     weights(%1 : memref<16x8x2x2xf16, #NHWC, "CMX_NN">) bias(%0 : memref<1x16x1x1xf16, "CMX_NN">) -> memref<16x1x1x4xsi32, "CMX_NN">
 
-                %3 = VPUIP.NCEClusterTask { kernel_padding = [0, 0, 0, 0], kernel_size = [2, 2], kernel_strides = [1, 1], task_type = "CONV" }
+                %3 = VPUIP.NCEClusterTask { kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [2, 2], kernel_strides = [1, 1], task_type = "CONV" }
                     input(%arg0 : memref<1x8x20x20xf16, #NHWC, "CMX_NN">) weights(%1 : memref<16x8x2x2xf16, #NHWC, "CMX_NN">) weight_table(%2 : memref<16x1x1x4xsi32, "CMX_NN">)
                     parent_input(%arg0 : memref<1x8x20x20xf16, #NHWC, "CMX_NN">) parent_output(%arg1 : memref<1x16x19x19xf16, #NHWC, "CMX_NN">)
                     outputs(%arg1 : memref<1x16x19x19xf16, #NHWC, "CMX_NN">) -> memref<1x16x19x19xf16, #NHWC, "CMX_NN">

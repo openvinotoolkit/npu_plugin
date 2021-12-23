@@ -833,7 +833,7 @@ operation ::= `VPUIP.GatherElementsUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`output` | memref of 16-bit float values
 
 ### `VPUIP.GatherUPA` (vpux::VPUIP::GatherUPAOp)
 
@@ -1171,7 +1171,7 @@ operation ::= `VPUIP.MVNUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float values
+`output` | memref of any type values
 
 ### `VPUIP.MishUPA` (vpux::VPUIP::MishUPAOp)
 
@@ -1250,7 +1250,7 @@ mutually exclusive.
 `task_type` | vpux::VPUIP::NCETaskTypeAttr | NCE task type
 `kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `kernel_strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`kernel_padding` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`kernel_padding` | vpux::VPUIP::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 `is_continued` | ::mlir::UnitAttr | unit attribute
 
@@ -2032,7 +2032,7 @@ operation ::= `VPUIP.ScatterNDUpdateUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`output` | memref of 16-bit float values
 
 ### `VPUIP.SigmoidUPA` (vpux::VPUIP::SigmoidUPAOp)
 
