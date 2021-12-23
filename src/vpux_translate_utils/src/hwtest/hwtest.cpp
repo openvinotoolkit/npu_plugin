@@ -58,6 +58,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     bool isMaxPool = jsonDesc.getCaseType() == nb::CaseType::MaxPool;
     bool isEltwiseMult = jsonDesc.getCaseType() == nb::CaseType::EltwiseMult;
     bool isAvgPool = jsonDesc.getCaseType() == nb::CaseType::AvgPool;
+    bool isSoftmax = jsonDesc.getCaseType() == nb::CaseType::Softmax;
 
     auto weightType = [&]() {
         nb::WeightLayer weight = jsonDesc.getWeightLayer();
@@ -86,6 +87,8 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     } else if (isAvgPool) {
         // hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_type, output_type);
         hwtest::buildAvgpool(jsonDesc, module, builder, log, input_type, output_type);
+    } else if (isSoftmax) {
+        hwtest::buildSoftmax(jsonDesc, module, builder, log, input_type, output_type);
     } else {
         VPUX_THROW("Unknown type: {0}", opType);
     }

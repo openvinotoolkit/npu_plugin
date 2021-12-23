@@ -147,6 +147,8 @@ std::string nb::to_string(CaseType case_) {
         return "MaxPool";
     case CaseType::AvgPool:
         return "AvgPool";
+    case CaseType::Softmax:
+        return "Softmax";
     default:
         return "unknown";
     }
@@ -165,6 +167,8 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::MaxPool;
     if (isEqual(str, "AvgPool"))
         return CaseType::AvgPool;
+    if (isEqual(str, "Softmax"))
+        return CaseType::Softmax;
     return CaseType::Unknown;
 };
 
@@ -460,6 +464,10 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
 
     if (caseType_ == CaseType::MaxPool || caseType_ == CaseType::AvgPool) {
         poolLayer_ = loadPoolLayer(json_obj);
+        return;
+    }
+
+    if (caseType_ == CaseType::Softmax) {
         return;
     }
 
