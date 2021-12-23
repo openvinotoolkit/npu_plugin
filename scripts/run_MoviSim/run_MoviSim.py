@@ -93,15 +93,15 @@ command = "cd " + pathToIEDemoDir + " && make -f Makefile prepare-kconfig"
 print(command)
 os.system(command)
 
-# make elf
-command = "cd " + pathToIEDemoDir + " && make -j8 CONFIG_FILE=.config_sim_3720xx CONFIG_NN_LOG_VERBOSITY_LRT_WARN=y CONFIG_NN_LOG_VERBOSITY_LRT_INFO=n CONFIG_NN_LOG_VERBOSITY_LNN_WARN=y CONFIG_NN_LOG_VERBOSITY_LNN_INFO=n CONFIG_NN_LOG_VERBOSITY_SNN_WARN=y CONFIG_NN_LOG_VERBOSITY_SNN_INFO=n CONFIG_PROFILING_MASK=\"0b00000000\""
+# run inference on FPGA
+command = "cd " + pathToIEDemoDir + " && make -j8 CONFIG_FILE=.config_fpga_3720xx run srvIP=iirfpga019.ir.intel.com srvPort=30001 CONFIG_NN_LOG_VERBOSITY_LRT_WARN=y CONFIG_NN_LOG_VERBOSITY_LRT_INFO=n CONFIG_NN_LOG_VERBOSITY_LNN_WARN=y CONFIG_NN_LOG_VERBOSITY_LNN_INFO=n CONFIG_NN_LOG_VERBOSITY_SNN_WARN=y CONFIG_NN_LOG_VERBOSITY_SNN_INFO=n CONFIG_PROFILING_MASK=\"0b00000000\""
 print(command)
 os.system(command)
 
 # run inference
-command = "cd " + pathToIEDemoDir + " && " + pathToMoviSimDir + "/moviSim -cv:3700xx -nodasm -q -l:LRT:./mvbuild/3720/InferenceManagerDemo.elf"
-print(command)
-os.system(command)
+# command = "cd " + pathToIEDemoDir + " && " + pathToMoviSimDir + "/moviSim -cv:3700xx -nodasm -q -l:LRT:./mvbuild/3720/InferenceManagerDemo.elf"
+# print(command)
+# os.system(command)
 
 # copy inference result
 outputFilesList = glob.glob(pathToIEDemoDir + '/output-*.bin')
@@ -117,4 +117,3 @@ for outputFile, resultPath in zip(outputFilesList, pathToOutputBlobs):
         
 if(len(outputFilesList) != len(pathToOutputBlobs)) :
         print("Error: number of outputs <{0}> doesn't match with provided path_to_output_blobs <{1}>".format(len(outputFilesList), len(pathToOutputBlobs)));
-
