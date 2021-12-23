@@ -122,8 +122,6 @@ std::vector<uint8_t> getBitPattern(VPU::NCESparsity::Mode mode, ShapeRef kernelS
     return bitPattern;
 }
 
-constexpr int32_t SPARSITY_PTR_WHEN_NO_SPARISTY = 0xFFFFFF;
-
 constexpr std::int32_t ALIGNMENT_REQUIREMENT_IN_ELEMENTS = 16;
 
 int32_t toHex(double realVal) {
@@ -363,8 +361,8 @@ std::vector<uint8_t> vpux::VPU::NCESparsity::getFakeSparsity(Mode mode, ShapeRef
 }
 
 std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemType, mlir::Type outElemType,
-                                                             Optional<int32_t> weightPtrOffset, int32_t weightPtrStep,
-                                                             Optional<int32_t> sparsityPtrOffset, ArchKind arch,
+                                                             Optional<int32_t> weightPtr, int32_t weightPtrStep,
+                                                             Optional<int32_t> sparsityPtr, VPU::ArchKind arch,
                                                              int64_t OC, mlir::Type weightsElemType,
                                                              Const::ContentAttr bias, VPU::PPETaskAttr ppe) {
     VPUX_THROW_WHEN(inElemType == nullptr || outElemType == nullptr,
@@ -373,14 +371,21 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
     auto getMultShift = getMultShiftFunc(inElemType, outElemType, weightsElemType, ppe, arch, checked_cast<size_t>(OC));
     auto getBiasFP = getBiasFunc(inElemType, outElemType, weightsElemType, bias, arch, checked_cast<size_t>(OC));
 
-    // In case of dense operation use sparsityPtr beyond CMX memory range to satisfy HW requirements
-    auto sparsityPtr = sparsityPtrOffset.hasValue() ? sparsityPtrOffset.getValue() : SPARSITY_PTR_WHEN_NO_SPARISTY;
-    if (weightsElemType == nullptr && arch == ArchKind::MTL) {
-        sparsityPtr = SPARSITY_PTR_WHEN_NO_SPARISTY;
-    }
-    auto weightPtr = weightPtrOffset.hasValue() ? weightPtrOffset.getValue() : 0;
+    auto weightPtrOffset = weightPtr.hasValue() ? weightPtr.getValue() : 0;
+    std::vector<std::int32_t> weightsTableVals(OC * VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
 
-    std::vector<int32_t> weightsTableVals(OC * VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
+    // In case of dense operation use sparsityPtrOffset beyond CMX memory range to satisfy HW requirements
+    auto sparsityPtrOffset = sparsityPtr.hasValue() ? sparsityPtr.getValue() : SPARSITY_PTR_WHEN_NO_SPARISTY;
+    int32_t sparsityPtrStep = 0;
+    if (arch == VPU::ArchKind::MTL) {
+        if (weightsElemType) {
+            auto elementBitSize = static_cast<Bit>(getElemTypeSize(weightsElemType));
+            sparsityPtrStep = static_cast<int32_t>(
+                    static_cast<Byte>(Bit(weightPtrStep * CHAR_BIT / elementBitSize.count())).count());
+        } else {
+            sparsityPtrOffset = SPARSITY_PTR_WHEN_NO_SPARISTY;
+        }
+    }
 
     const auto weightsElementTypeBitSize =
             weightsElemType ? static_cast<Bit>(getElemTypeSize(weightsElemType)).count() : 0;
@@ -390,22 +395,17 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
 
         if (weightsElemType) {
             const auto alignment = (ALIGNMENT_REQUIREMENT_IN_ELEMENTS * weightsElementTypeBitSize) / CHAR_BIT;
-            VPUX_THROW_UNLESS(weightPtr % alignment == 0, "weightsPtrOffset must be multiple of {0}, got {1} on oc {2}",
-                              alignment, weightPtr, oc);
+            VPUX_THROW_UNLESS(weightPtrOffset % alignment == 0,
+                              "weightsPtrOffset must be multiple of {0}, got {1} on oc {2}", alignment, weightPtr, oc);
         }
 
-        weightsTableVals[wtInd + 0] = weightPtr;
-        weightsTableVals[wtInd + 1] = sparsityPtr;
+        weightsTableVals[wtInd + 0] = weightPtrOffset;
+        weightsTableVals[wtInd + 1] = sparsityPtrOffset;
         weightsTableVals[wtInd + 2] = getMultShift(oc);
         weightsTableVals[wtInd + 3] = getBiasFP(oc);
 
-        weightPtr += weightPtrStep;
-        if (arch == VPU::ArchKind::MTL && weightsElemType) {
-            auto elementBitSize = static_cast<Bit>(getElemTypeSize(weightsElemType));
-            sparsityPtr += static_cast<int32_t>(
-                    static_cast<Byte>(Bit(weightPtrStep * CHAR_BIT / elementBitSize.count())).count());
-        }
+        weightPtrOffset += weightPtrStep;
+        sparsityPtrOffset += sparsityPtrStep;
     }
-
     return weightsTableVals;
 }
