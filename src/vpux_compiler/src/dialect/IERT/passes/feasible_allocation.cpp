@@ -87,9 +87,6 @@ private:
                                       llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
     void updateAsyncExecuteOpDependencies(AsyncDepsInfo& depsInfo,
                                           llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
-    // SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> removeRedundantPrefetchSpills(
-    //         llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
-
     // mateusz
     void optimizeDataOpsSpills(SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps,
                                AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo);
@@ -337,46 +334,6 @@ void FeasibleAllocationPass::optimizeDataOpsSpills(SmallVector<FeasibleMemorySch
     }
 }
 
-// // only optimize prefetch spills for now, extend to optimize all spills
-// // TODO: This is temporary code and will be replaced by more generic spilling optimization solution
-// SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleAllocationPass::removeRedundantPrefetchSpills(
-//         llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps) {
-//     SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> optimizedSchedule;
-
-//     std::unordered_map<size_t, SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>> potentialRedundantDataSpills;
-//     std::set<size_t> prefetchedOps;
-
-//     for (auto& schedOp : scheduledOps) {
-//         if (schedOp.isPrefetched()) {
-//             prefetchedOps.insert(schedOp.op_);
-//         } else if (!schedOp.isOriginalOp() && schedOp.isDataOp()) {
-//             potentialRedundantDataSpills[schedOp.op_].push_back(schedOp);
-//         }
-//     }
-
-//     size_t removedSpillWriteStallTime = 0;
-//     for (auto schedOp : scheduledOps) {
-//         // remove spill write time
-//         schedOp.time_ -= removedSpillWriteStallTime;
-//         // check if redundant op can be removed
-//         if (prefetchedOps.find(schedOp.op_) != prefetchedOps.end() &&
-//             potentialRedundantDataSpills.find(schedOp.op_) != potentialRedundantDataSpills.end()) {
-//             // only insert the spill read but as original
-//             if (schedOp.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_READ) {
-//                 schedOp.opType_ = FeasibleMemoryScheduler::EOpType::ORIGINAL_OP;
-//                 optimizedSchedule.push_back(schedOp);
-//             } else if (schedOp.opType_ == FeasibleMemoryScheduler::EOpType::IMPLICIT_OP_WRITE) {
-//                 std::cout << "Removed redundat spill of opIdx: " << schedOp.op_ << std::endl;
-//                 ++removedSpillWriteStallTime;
-//             }
-//         } else {
-//             optimizedSchedule.push_back(schedOp);
-//         }
-//     }
-
-//     return optimizedSchedule;
-// }
-
 void FeasibleAllocationPass::safeRunOnModule() {
     auto& ctx = getContext();
     auto module = getOperation();
@@ -443,11 +400,12 @@ void FeasibleAllocationPass::safeRunOnModule() {
                   << resourceInfo << std::endl;
     }
 
+    // 3. optimize spills
+    FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
+    spilling.removeRedundantSpillWrites(scheduledOps);
+
     // mateusz
     optimizeDataOpsSpills(scheduledOps, depsInfo, aliasesInfo);
-
-    // 3. optimize spills
-    // scheduledOps = removeRedundantPrefetchSpills(scheduledOps);
 
     std::cout << "\nSchedule after optimize spills\n";
     for (const auto& op : scheduledOps) {
@@ -466,28 +424,6 @@ void FeasibleAllocationPass::safeRunOnModule() {
         std::cout << "op = " << op.op_ << "\t type = " << op.opTypeName().data() << "\t time = " << op.time_ << " \t"
                   << resourceInfo << std::endl;
     }
-
-    FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
-    spilling.removeRedundantSpillWrites(scheduledOps);
-
-    // for (const auto& op : scheduledOps) {
-    //     std::string resourceInfo = "<none>";
-    //     if (op.hasActiveResource()) {
-    //         resourceInfo = "";
-    //         for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
-    //             if (op.isActiveResource(resourceIdx)) {
-    //                 resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
-    //                                 std::to_string(op.endResource(resourceIdx)) + "] size = " +
-    //                                 std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
-    //                                 ", ";
-    //             }
-    //         }
-    //     }
-    //     _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_,
-    //     resourceInfo); std::cout << "op = " << op.op_ << "\t type = " << op.opTypeName().data() << "\t time = " <<
-    //     op.time_ << " \t "
-    //               << resourceInfo << std::endl;
-    // }
 
     // 4. re-order the IR
     updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
