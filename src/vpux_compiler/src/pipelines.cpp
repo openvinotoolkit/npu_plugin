@@ -278,7 +278,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
 
-    pm.addPass(IE::createIsolatedTilingPass(log));
+    pm.addPass(IE::createPrefetchTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // Lowering
