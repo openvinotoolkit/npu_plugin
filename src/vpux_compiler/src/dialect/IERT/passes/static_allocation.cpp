@@ -161,6 +161,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc, IERT
                           _memSpace);
 
         _log = _log.unnest();
+        return newBufs.size();
     };
 
     const auto freeDeadBuffers = [&](const ValueOrderedSet& usedBufs, mlir::async::ExecuteOp op) {
@@ -192,18 +193,23 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc, IERT
         _log.trace("Process next task at '{0}'", curExecOp->getLoc());
         _log = _log.nest();
 
-        // TODO: remove temporary linearization
-        if (prevExecOp != nullptr) {
-            _log.trace("Add explicit dependency from '{0}' to '{1}'", prevExecOp->getLoc(), curExecOp->getLoc());
-            depsInfo.addDependency(prevExecOp, curExecOp);
-        }
-
         const auto usedBufs = liveRangeInfo.getUsedBuffers(curExecOp);
 
-        allocNewBuffers(usedBufs);
+        auto allocated = allocNewBuffers(usedBufs);
         freeDeadBuffers(usedBufs, curExecOp);
 
-        prevExecOp = curExecOp;
+        // TODO: remove temporary linearization
+        if (prevExecOp != nullptr) {
+            if (allocated) {
+                _log.trace("Add explicit dependency from '{0}' to '{1}'", prevExecOp->getLoc(), curExecOp->getLoc());
+                depsInfo.addDependency(prevExecOp, curExecOp);
+                prevExecOp = curExecOp;
+            }
+        } else {
+            if (allocated) {
+                prevExecOp = curExecOp;
+            }
+        }
 
         _log = _log.unnest();
     }
