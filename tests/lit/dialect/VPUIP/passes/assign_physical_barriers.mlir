@@ -133,7 +133,7 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
 
     VPURT.Task waits(%bar1: !VPURT.Barrier) updates(%bar2: !VPURT.Barrier) {
         VPUIP.NCEClusterTask {
-                kernel_padding = [0, 0, 0, 0],
+                kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
                 task_type = "CONV"
@@ -178,7 +178,7 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
 
     VPURT.Task waits(%bar3: !VPURT.Barrier) updates(%bar5: !VPURT.Barrier) {
         VPUIP.NCEClusterTask {
-                kernel_padding = [0, 0, 0, 0],
+                kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
                 task_type = "CONV"
@@ -223,7 +223,7 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
 
     VPURT.Task waits(%bar6: !VPURT.Barrier) updates(%bar7: !VPURT.Barrier) {
         VPUIP.NCEClusterTask {
-                kernel_padding = [0, 0, 0, 0],
+                kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
                 task_type = "CONV"
@@ -268,7 +268,7 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
 
     VPURT.Task waits(%bar8: !VPURT.Barrier) updates(%bar9: !VPURT.Barrier) {
         VPUIP.NCEClusterTask {
-                kernel_padding = [0, 0, 0, 0],
+                kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
                 task_type = "CONV"
