@@ -112,6 +112,10 @@ nb::ActivationType nb::to_activation_type(llvm::StringRef str) {
     if (isEqual(str, "Mish")) {
         return nb::ActivationType::Mish;
     }
+    if (isEqual(str, "HSwish")) {
+        std::cout << "Parse HSwish" << std::endl;
+        return nb::ActivationType::HSwish;
+    }
 
     return nb::ActivationType::Unknown;
 }
@@ -128,6 +132,8 @@ std::string nb::to_string(nb::ActivationType activationType) {
         return "LeakyReLU";
     case ActivationType::Mish:
         return "Mish";
+    case ActivationType::HSwish:
+        return "HSwish";
     default:
         return "Unknown";
     }
@@ -147,6 +153,8 @@ std::string nb::to_string(CaseType case_) {
         return "MaxPool";
     case CaseType::AvgPool:
         return "AvgPool";
+    case CaseType::ActShave:
+        return "ActShave";
     default:
         return "unknown";
     }
@@ -165,6 +173,9 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::MaxPool;
     if (isEqual(str, "AvgPool"))
         return CaseType::AvgPool;
+    if (isEqual(str, "ActShave")) {
+        return CaseType::ActShave;
+    }
     return CaseType::Unknown;
 };
 
@@ -391,6 +402,11 @@ nb::ActivationLayer nb::TestCaseJsonDescriptor::loadActivationLayer(llvm::json::
         result.maximum = maximum.getValue();
     }
 
+    auto axis = act->getNumber("axis");
+    if (axis.hasValue()) {
+        result.axis = axis.getValue();
+    }
+
     return result;
 }
 
@@ -463,7 +479,13 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
         return;
     }
 
-    throw std::runtime_error{llvm::formatv("Unsupported case type: {0}", caseTypeStr_).str()};
+    if (caseType_ == CaseType::ActShave) {
+        std::cout << "********" << std::endl;
+        activationLayer_ = loadActivationLayer(json_obj);
+        return;
+    }
+
+    throw std::runtime_error{llvm::formatv("Unsupported case type: {0} 1", caseTypeStr_).str()};
 }
 
 nb::CaseType nb::TestCaseJsonDescriptor::loadCaseType(llvm::json::Object* jsonObj) {
