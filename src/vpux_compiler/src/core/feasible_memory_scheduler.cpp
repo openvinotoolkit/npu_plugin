@@ -545,7 +545,7 @@ size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
             _log.trace("Scheduling active op: '{0}'", readyOp.first);
             computeOpStartTime = scheduleComputeOp(readyOp.first);
             scheduledOps.push_back(readyOp);
-            break;
+            // break;
         }
     }
     // update ready lists by removing scheduled ops
@@ -560,7 +560,7 @@ size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
                 _log.trace("Scheduling ready op: '{0}'", readyOp.first);
                 computeOpStartTime = scheduleComputeOp(readyOp.first);
                 scheduledOps.push_back(readyOp);
-                break;
+                // break;
             }
         }
         // update ready lists by removing scheduled ops
