@@ -158,6 +158,9 @@ void FeasibleAllocationPass::updateAsyncExecuteOpDependencies(
         if (!opIt->isOriginalOp()) {
             continue;
         }
+        if (opIt->isPrefetched()) {
+            continue;
+        }
         size_t nextTimeDiff = 0;
         for (auto nextTimeOpIt = opIt; nextTimeOpIt != scheduledOps.end(); nextTimeOpIt++) {
             if (!nextTimeOpIt->isOriginalOp()) {
