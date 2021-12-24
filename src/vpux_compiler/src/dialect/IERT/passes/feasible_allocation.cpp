@@ -253,6 +253,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     FeasibleMemoryScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, aliasesInfo, _log, scan);
 
     // 1. initial schedule
+    std::cout << "<<<This is initial schedule>>>" << std::endl;
     auto scheduledOps = scheduler.generateSchedule();
 
     // 2. prefetching
@@ -266,6 +267,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
         if (!prefetchEdges.empty()) {
             FeasibleMemoryScheduler schedulerWithPrefetch(_memSpace, prefetchLiveRangeInfo, depsInfo, aliasesInfo, _log,
                                                           prefetchScan);
+            std::cout << "<<<This is Prefetch schedule>>>" << std::endl;
             scheduledOps = schedulerWithPrefetch.generateSchedule(prefetchEdges);
             scan = prefetchScan;
         }
@@ -273,6 +275,26 @@ void FeasibleAllocationPass::safeRunOnModule() {
 
     // 3. optimize spills
     scheduledOps = removeRedundantPrefetchSpills(scheduledOps);
+
+    std::cout << "<<<After optimize spills>>>" << std::endl;
+    for (const auto& op : scheduledOps) {
+        std::string resourceInfo = "<none>";
+        if (op.hasActiveResource()) {
+            resourceInfo = "";
+            for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
+                if (op.isActiveResource(resourceIdx)) {
+                    resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
+                                    std::to_string(op.endResource(resourceIdx)) + "] size = " +
+                                    std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
+                                    ", ";
+                }
+            }
+        }
+        _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
+        std::cout << llvm::formatv("name = {0} \t", depsInfo.getExecuteOpAtIndex(op.op_).getLoc()).str()
+                  << "op = " << op.op_ << "\t type = " << op.opTypeName().data() << "\t time = " << op.time_ << " \t "
+                  << resourceInfo << std::endl;
+    }
 
     // 2. re-order the IR
     updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
@@ -286,6 +308,26 @@ void FeasibleAllocationPass::safeRunOnModule() {
 
     // 5. update dependencies
     updateAsyncExecuteOpDependencies(depsInfo, scheduledOps);
+
+    std::cout << "<<<After 5. update dependencies>>>" << std::endl;
+    for (const auto& op : scheduledOps) {
+        std::string resourceInfo = "<none>";
+        if (op.hasActiveResource()) {
+            resourceInfo = "";
+            for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
+                if (op.isActiveResource(resourceIdx)) {
+                    resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
+                                    std::to_string(op.endResource(resourceIdx)) + "] size = " +
+                                    std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
+                                    ", ";
+                }
+            }
+        }
+        _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
+        std::cout << llvm::formatv("name = {0} \t", depsInfo.getExecuteOpAtIndex(op.op_).getLoc()).str()
+                  << "op = " << op.op_ << "\t type = " << op.opTypeName().data() << "\t time = " << op.time_ << " \t "
+                  << resourceInfo << std::endl;
+    }
 
     // 6. convert to allocated ops
     mlir::ConversionTarget target(ctx);

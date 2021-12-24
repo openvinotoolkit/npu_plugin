@@ -43,6 +43,9 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
     Shape nTilesOnDim = IE::computeGeneralTileStrategy(op, log);
     auto dimsToTile = getDimsToTile(nTilesOnDim);
     VPUX_THROW_WHEN(dimsToTile.size() == 0, "Must tile at least on one dimension");
+    std::cout << llvm::formatv("<<<< {0}, {1}: ", op->getLoc(), op->getName()).str() << std::endl;
+    std::cout << llvm::formatv("\t\t General tiling: {0} ", nTilesOnDim).str() << std::endl;
+
     if (dimsToTile.size() > 1) {
         // return general tiling when getting nested tiles.
         return fillDividedTiles(nTilesOnDim, outputShape);
@@ -56,6 +59,9 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
         // The "3" here is an experimental number from MCM activation prefetch pass.
         // The purpose is to avoid excessive tiling.
         prefetchableTilesOnDim[targetDim]++;
+    }
+    if (tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)) {
+        std::cout << llvm::formatv("\t\t Prefetch tiling: {0} ", prefetchableTilesOnDim).str() << std::endl;
     }
 
     return tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)
@@ -86,6 +92,11 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
 
     const auto tiles = generatePrefetchTiles(origOp.getOperation(), _log.nest());
     _log.nest(1).trace("Create {0} tiles:", tiles.size());
+    std::cout << llvm::formatv("result: {0}", tiles.size()).str() << std::endl;
+    for (auto tile : tiles) {
+        std::cout << llvm::formatv("\t{0}", tile).str() << std::endl;
+    }
+    std::cout << ">>>>>>" << std::endl << std::endl;
 
     return applyTileStrategy(origOp, tiles, rewriter, _log);
 }
