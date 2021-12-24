@@ -1691,11 +1691,23 @@
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
+            "NetTest-CalcRef": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.2"
+                ]
             },
             "NetTest-Validate": {
-                "disabled" : true
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.2"
+                ],
+                "input_precision" : "U8",
+                "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
                 "disabled" : true
