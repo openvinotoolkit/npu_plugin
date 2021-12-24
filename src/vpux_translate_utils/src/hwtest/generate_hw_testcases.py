@@ -58,6 +58,7 @@ else:
 
 from operators.compute_core import bfloat16
 from operators.vpu26 import Add, Mult, MTLConv2D, MaxPool, AveragePool
+from operators.vpu26 import Softmax
 from operators.platform.quantize_info import QuantizationInfo
 from operators.platform.quantized_tensor import NBQuantized
 from operators.platform.vpu26 import PlatformVPU26
@@ -1000,6 +1001,65 @@ class AvgPool(MPE):
         avgpool = AveragePool(kernel_shape=self.settings.kernel_shape, strides=self.settings.kernel_strides, pads=[0, 0, 0, 0])
         return avgpool.inference(lhs)
 
+    def result_bitwidth(self, values: List[Value]) -> int:
+        return values[0].bitwidth
+
+class SMax(MPE):
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
+
+    def __init__(self, settings):
+        self.settings = settings
+
+    @property
+    def ident(self) -> str:
+        return f'softmax_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def data(self) -> dict:
+        return {
+            'MPE Mode': 'SMax',
+            'Input Type': self.settings.input_ttype.stype,
+            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
+            'Output Type': self.settings.output_ttype.stype
+        }
+
+    # --------------------------------------------------------------------------
+
+    def validate(self):
+        return True
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
+        ]
+
+    def json_info(self, inputs, output):
+        assert(output.is_float)
+
+        return {
+            'case_type': 'SMax',
+            'input': inputs[0].json_info,
+            'output': output.json_info,
+            'pool_op': {
+                'sub_type': 'softmax'
+            }
+        }
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        lhs, rhs = idu(values[0], values[0])
+        softmax = Softmax()
+        return softmax.inference(lhs)
+
+    def result_bitwidth(self, values: List[Value]) -> int:
+        return values[0].bitwidth
 
 def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], bitshift: int) -> Value:
     """Models the hardware PPE"""
@@ -1316,9 +1376,20 @@ def genDepthWiseConvs(input_types=[FP16(2)],
                                                      pad
                                                      ))
 
+def genSoftmax(input_types,
+               input_shapes,
+               output_types):
+    for (input_type, input_shape, output_type) in itertools.product(input_types, input_shapes, output_types):
+        yield DPUPipeline(SMax.PARAMS, (SMax, input_type, input_shape, output_type))
 
 def generate_options(args):
     return itertools.chain(
+        # Softmax
+        genSoftmax(
+            input_types=[FP16(6)],
+            input_shapes=[[1, 1, 1, 1000]],
+            output_types=[FP16()]),
+
         # Z-Major Convolution
         #
         # NB MoviSim seems to require uint8 activations when using uint8
