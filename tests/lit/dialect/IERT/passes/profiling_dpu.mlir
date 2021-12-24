@@ -4,7 +4,7 @@
 
 // CHECK-LABEL: @DpuProfiling
 module @DpuProfiling attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"}  {
-  IERT.RunTimeResources availableMemory :  {
+  IE.RunTimeResources availableMemory :  {
     MemoryResource 524288000 bytes of "DDR" {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
     MemoryResource 917504 bytes of "CMX_NN" {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
   } usedMemory :  {

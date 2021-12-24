@@ -865,7 +865,7 @@ void ConvertToNCEOpsPass::safeRunOnFunc() {
     const auto arch = VPU::getArch(module);
     VPUX_THROW_UNLESS(mpeMap.find(arch) != mpeMap.end(), "Failed to map MPE mode to target arch");
 
-    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+    auto resOp = IE::RunTimeResourcesOp::getFromModule(module);
     VPUX_THROW_UNLESS(resOp != nullptr, "Missing IERT run-time resources definition");
 
     auto nceCluster = resOp.getExecutor(VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::NCE));

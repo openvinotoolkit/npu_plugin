@@ -12,7 +12,7 @@ IE.CNNNetwork
         DataInfo "prob" : tensor<1x1000xf16>
     }
 
-// CHECK:   IERT.RunTimeResources
+// CHECK:   IE.RunTimeResources
 // CHECK:       usedMemory
 // CHECK:           MemoryResource 4096 bytes of "DDR"
 

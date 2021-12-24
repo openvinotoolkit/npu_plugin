@@ -23,7 +23,7 @@ module @dual_tile attributes {VPU.arch = "MTL", VPU.compilationMode = "DefaultHW
       DataInfo "output_0" : tensor<2x16x16x16xf16, {order = #NHWC}>
     }
 
-  IERT.RunTimeResources
+  IE.RunTimeResources
     availableMemory :  {
       MemoryResource 1073741824 bytes
       MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}

@@ -363,7 +363,7 @@ void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {
     const auto arch = parseDeviceRevision();
     VPU::setArch(_module, arch);
 
-    auto resourcesOp = IERT::RunTimeResourcesOp::getFromModule(_module);
+    auto resourcesOp = IE::RunTimeResourcesOp::getFromModule(_module);
 
     const auto* header = _graphFile->header();
     VPUX_THROW_UNLESS(header->resources(), "Blob has no resources");

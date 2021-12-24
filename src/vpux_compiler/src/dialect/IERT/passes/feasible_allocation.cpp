@@ -190,7 +190,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     // linear scan
-    auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+    auto resources = IE::RunTimeResourcesOp::getFromModule(module);
     auto available = resources.getAvailableMemory(_memSpace);
     const auto maxSize = available.size();
     const uint64_t alignment = 64;

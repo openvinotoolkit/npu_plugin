@@ -92,8 +92,7 @@ void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilde
 }
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
-                                                                    IERT::ExecutorResourceOp res,
-                                                                    mlir::ModuleOp module) {
+                                                                    IE::ExecutorResourceOp res, mlir::ModuleOp module) {
     const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
     VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
 
@@ -107,7 +106,7 @@ flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobW
 }
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorFreqMapping(VPUIP::BlobWriter& writer,
-                                                                        IERT::ExecutorResourceOp res) {
+                                                                        IE::ExecutorResourceOp res) {
     const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
     VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
 
@@ -133,7 +132,7 @@ MVCNN::PhysicalMem createPhysicalMem(VPU::MemoryKind mem) {
     }
 }
 
-flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer, IERT::MemoryResourceOp res) {
+flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer, IE::MemoryResourceOp res) {
     const auto memKindAttr = res.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
     VPUX_THROW_UNLESS(memKindAttr != nullptr, "Got unknown memory space kind '{0}'", res.kindAttr());
 
@@ -144,8 +143,8 @@ flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter&
 }
 
 flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createBandwidthMapping(VPUIP::BlobWriter& writer,
-                                                                             IERT::MemoryResourceOp src,
-                                                                             IERT::MemoryResourceOp dst,
+                                                                             IE::MemoryResourceOp src,
+                                                                             IE::MemoryResourceOp dst,
                                                                              double bandwidth) {
     MVCNN::MemoryRelationshipMappingBuilder builder(writer);
     const auto srcKind = src.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
@@ -166,17 +165,16 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
             VPU::ExecutorKind::DPU         //
     };
 
-    auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+    auto resources = IE::RunTimeResourcesOp::getFromModule(module);
     VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources information");
 
-    const auto usedMemory =
-            writer.createVector(resources.getUsedMemory() | transformed([&](IERT::MemoryResourceOp res) {
-                                    return createMemoryMapping(writer, res);
-                                }));
+    const auto usedMemory = writer.createVector(resources.getUsedMemory() | transformed([&](IE::MemoryResourceOp res) {
+                                                    return createMemoryMapping(writer, res);
+                                                }));
 
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
-    resources.walk([&](IERT::ExecutorResourceOp res) {
+    resources.walk([&](IE::ExecutorResourceOp res) {
         if (const auto execKind = res.kind().dyn_cast<VPU::ExecutorKindAttr>()) {
             if (supportedProcessors.count(execKind.getValue()) != 0) {
                 executorsOffsets.push_back(createProcessorMapping(writer, res, module));
@@ -190,8 +188,8 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     const auto processorFrequency = writer.createVector(processorVec);
 
     SmallVector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>> memoryVec;
-    SmallVector<IERT::MemoryResourceOp> memoryTypes;
-    resources.walk([&](IERT::MemoryResourceOp src) {
+    SmallVector<IE::MemoryResourceOp> memoryTypes;
+    resources.walk([&](IE::MemoryResourceOp src) {
         if (src->hasAttr(VPU::getMemoryBandwidthAttrName())) {
             memoryTypes.push_back(src);
         }

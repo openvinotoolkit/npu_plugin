@@ -94,7 +94,7 @@ public:
 private:
     void safeRunOnModule() final;
 
-    LinearScanHandler runLinearScan(mlir::FuncOp netFunc, IERT::RunTimeResourcesOp resources);
+    LinearScanHandler runLinearScan(mlir::FuncOp netFunc, IE::RunTimeResourcesOp resources);
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
@@ -120,7 +120,7 @@ mlir::LogicalResult StaticAllocationPass::initialize(mlir::MLIRContext* ctx) {
     return mlir::success();
 }
 
-LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc, IERT::RunTimeResourcesOp resources) {
+LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc, IE::RunTimeResourcesOp resources) {
     auto& liveRangeInfo = getChildAnalysis<MemLiveRangeInfo>(netFunc);
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
 
@@ -221,7 +221,7 @@ void StaticAllocationPass::safeRunOnModule() {
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+    auto resources = IE::RunTimeResourcesOp::getFromModule(module);
 
     const auto allocInfo = runLinearScan(netFunc, resources);
     resources.setUsedMemory(_memSpace, allocInfo.maxAllocatedSize());

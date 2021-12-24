@@ -45,9 +45,9 @@ constexpr uint16_t HW_UPA_PROFILING_SIZE_BYTES = 24;
 // Run-time info
 //
 
-double getMemoryDerateFactor(IERT::MemoryResourceOp mem);
-uint32_t getMemoryBandwidth(IERT::MemoryResourceOp mem);
-double getProcessorFrequency(IERT::ExecutorResourceOp res);
+double getMemoryDerateFactor(IE::MemoryResourceOp mem);
+uint32_t getMemoryBandwidth(IE::MemoryResourceOp mem);
+double getProcessorFrequency(IE::ExecutorResourceOp res);
 
 //
 // DW Convolution utility

@@ -326,7 +326,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     if (maxShaves.hasValue()) {
         builder.add_maxShaves(checked_cast<uint8_t>(maxShaves.getValue()));
     } else {
-        auto resources = IERT::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
+        auto resources = IE::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
         VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources definition");
 
         auto available =

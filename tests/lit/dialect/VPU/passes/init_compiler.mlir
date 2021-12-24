@@ -3,7 +3,7 @@
 // CHECK: module @test attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"}
 module @test {
 
-// CHECK:       IERT.RunTimeResources
+// CHECK:       IE.RunTimeResources
 // CHECK-SAME:      availableMemory :  {
 // CHECK:               MemoryResource 524288000 bytes of "DDR" {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 // CHECK:               MemoryResource 917504 bytes of "CMX_NN" {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}

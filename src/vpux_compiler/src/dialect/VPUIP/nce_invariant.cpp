@@ -241,7 +241,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::GroupConvolu
 namespace {
 
 Byte getCMXSizeForTiling(mlir::ModuleOp module) {
-    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+    auto resOp = IE::RunTimeResourcesOp::getFromModule(module);
 
     const auto cmxAttr = VPU::MemoryKindAttr::get(module->getContext(), VPU::MemoryKind::CMX_NN);
 

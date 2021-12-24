@@ -139,7 +139,7 @@ int64_t getNumAvailableBarriers(mlir::Operation* parentOp) {
     const auto arch = VPU::getArch(parentOp);
 
     auto module = parentOp->getParentOfType<mlir::ModuleOp>();
-    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+    auto resOp = IE::RunTimeResourcesOp::getFromModule(module);
 
     const auto nceAttr = VPU::ExecutorKindAttr::get(parentOp->getContext(), VPU::ExecutorKind::NCE);
     auto nceResOp = resOp.getExecutor(nceAttr);

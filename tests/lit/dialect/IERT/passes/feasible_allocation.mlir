@@ -12,7 +12,7 @@ IE.CNNNetwork
         DataInfo "prob" : tensor<1x1000xf16>
     }
 
-// CHECK:   IERT.RunTimeResources
+// CHECK:   IE.RunTimeResources
 // CHECK:       usedMemory
 // CHECK:           MemoryResource 4096 bytes of "CMX_NN"
 
@@ -80,7 +80,7 @@ IE.CNNNetwork
         DataInfo "prob2" : tensor<2xf16>
     }
 
-// CHECK:   IERT.RunTimeResources
+// CHECK:   IE.RunTimeResources
 // CHECK:       usedMemory
 // CHECK:           MemoryResource 128 bytes of "CMX_NN"
 

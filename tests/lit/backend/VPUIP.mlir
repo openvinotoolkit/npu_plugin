@@ -2,7 +2,7 @@
 
 module @Test attributes {VPU.arch = "KMB"} {
 
-IERT.RunTimeResources
+IE.RunTimeResources
     availableMemory : {
         MemoryResource 1073741824 bytes
         MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
