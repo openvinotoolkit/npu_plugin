@@ -39,16 +39,26 @@ bool vpux::PrefetchEdgeGenerator::prefetchConstraintsSatisifed(ScheduledOpInfo* 
     // if a compute op, increase levels
     if (!dataOp->isDataOp()) {
         ++CURRENT_COMPUTE_OP_LEVEL;
-    }
+    } else {
+        // if a data op, check level and time constraints
+        if (_depsInfo.getOpDeps(dataOp->op_).empty()) {
+            // const prefetching, operation has no dependencies
+            if (CURRENT_COMPUTE_OP_LEVEL > PREFETCH_LEVEL_LIMIT_CONST) {
+                // const level difference constraint
+                return false;
+            }
+        } else {
+            // activation prefetching, operation contains dependencies
+            if (CURRENT_COMPUTE_OP_LEVEL > PREFETCH_LEVEL_LIMIT_ACT) {
+                // activation level difference constraint
+                return false;
+            }
+        }
 
-    // level difference constraint
-    if (CURRENT_COMPUTE_OP_LEVEL > PREFETCH_LEVEL_LIMIT) {
-        return false;
-    }
-
-    // time difference constraint
-    if (dataOp->time_ - computeOp->time_ > PREFETCH_TIME_LIMIT) {
-        return false;
+        // time difference constraint
+        if (dataOp->time_ - computeOp->time_ > PREFETCH_TIME_LIMIT) {
+            return false;
+        }
     }
 
     // NOTE: in future constraints taking into account number of cycles
