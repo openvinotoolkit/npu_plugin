@@ -2024,39 +2024,6 @@ def IERT_ScaleShiftOp :
 }
 
 //
-// UpsamplingOp
-//
-
-def IERT_UpsamplingOp :
-        IERT_LayerOp<1, "Upsampling",
-            [
-                ViewLikeOpInterface,
-                SameOperandsElementType
-            ]
-        > {
-    let summary = "InferenceEngine run-time Upsampling layer";
-
-    let arguments = (ins
-        MemRefOf<[F16, F32]>:$input,
-        I64ArrayAttr:$upsampling_factor,
-        I64ArrayAttr:$pad_l,
-        I64ArrayAttr:$pad_r,
-        MemRefOf<[F16, F32]>:$output_buff
-    );
-
-    let results = (outs
-        MemRefOf<[F16, F32]>:$output
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output_buff `:` type($output_buff) `)`
-        `->` type(results)
-    }];
-}
-
-//
 // GRNOp
 //
 

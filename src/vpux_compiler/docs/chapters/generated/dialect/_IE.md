@@ -3111,35 +3111,3 @@ operation ::= `IE.Unsqueeze` `(` operands `)` attr-dict `:` type(operands) `->` 
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
-### `IE.Upsampling` (vpux::IE::UpsamplingOp)
-
-InferenceEngine Upsampling layer
-
-
-Syntax:
-
-```
-operation ::= `IE.Upsampling` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`upsampling_factor` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`pad_l` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`pad_r` | ::mlir::ArrayAttr | 64-bit integer array attribute
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`input` | ranked tensor of 16-bit float or 32-bit float values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
-

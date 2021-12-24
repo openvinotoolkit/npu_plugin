@@ -17,10 +17,6 @@ strides:    {2} -> strides:    {1, 2}
 pads_begin: {2} -> pads_begin: {0, 2}
 pads_end:   {2} -> pads_end:   {0, 2}
 dilations:  {2} -> dilations:  {1, 2}
-### `-convert-deconv-to-conv`: Convert Deconvolution 2D to Convolution 2D
-The pass is a part of `AdjustForVPU` pipeline.
-
-Replaces deconvolution by upsampling and convolution
 ### `-convert-fc-to-conv`: Convert FullyConnected op to Convolution operation
 The pass is a part of `AdjustForVPU` pipeline.
 

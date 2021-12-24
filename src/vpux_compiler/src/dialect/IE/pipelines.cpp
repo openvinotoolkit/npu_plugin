@@ -74,7 +74,6 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createSwapMaxPoolWithActivation(log));
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
-    pm.addPass(IE::createConvertDeconv2DToConv2DPass(log));
 }
 
 //

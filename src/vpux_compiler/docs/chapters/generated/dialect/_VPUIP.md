@@ -2436,44 +2436,6 @@ TopK UPA SHAVE kernel
 `output_values` | memref of 16-bit float values
 `target_shape` | memref of 32-bit signed integer values
 
-### `VPUIP.UpsamplingUPA` (vpux::VPUIP::UpsamplingUPAOp)
-
-Upsampling UPA SHAVE kernel
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.UpsamplingUPA` attr-dict
-              `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output_buff `:` type($output_buff) `)`
-              `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`upsampling_factor` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`pad_l` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`pad_r` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`input` | memref of 16-bit float values
-`output_buff` | memref of 16-bit float values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | memref of 16-bit float values
-
 ### `VPUIP.WeightsTableOp` (vpux::VPUIP::WeightsTableOp)
 
 Intermediate task for creating weights table based on the addresses of CMX buffers
