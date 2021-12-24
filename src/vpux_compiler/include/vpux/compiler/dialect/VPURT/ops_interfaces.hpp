@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include <mlir/IR/OpDefinition.h>

@@ -13,7 +13,7 @@
 
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/core/layers.hpp"
-#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"

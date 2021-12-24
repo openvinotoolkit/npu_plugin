@@ -13,7 +13,7 @@
 
 #include <vpux/compiler/act_kernels/compilation.h>
 
-#include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
 
 #include <gtest/gtest.h>
 

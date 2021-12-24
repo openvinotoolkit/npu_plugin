@@ -18,7 +18,7 @@
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/logger.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/schema.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/IR/Value.h>

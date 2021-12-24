@@ -15,7 +15,8 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -124,10 +125,10 @@ void vpux::VPUIP::PoolingUPAOp::build(mlir::OpBuilder& builder, mlir::OperationS
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto kernel = VPUIP::BlobWriter::createOrder3(this->kernel());
-    const auto strides = VPUIP::BlobWriter::createOrder3(this->strides());
-    const auto padsBegin = VPUIP::BlobWriter::createOrder3(this->padsBegin());
-    const auto padsEnd = VPUIP::BlobWriter::createOrder3(this->padsEnd());
+    const auto kernel = VPUIP::createOrder3(this->kernel());
+    const auto strides = VPUIP::createOrder3(this->strides());
+    const auto padsBegin = VPUIP::createOrder3(this->padsBegin());
+    const auto padsEnd = VPUIP::createOrder3(this->padsEnd());
 
     VPUIP::BlobWriter::String type;
     switch (this->type()) {

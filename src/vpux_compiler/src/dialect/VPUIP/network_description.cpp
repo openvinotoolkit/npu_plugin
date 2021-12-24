@@ -14,7 +14,7 @@
 #include "vpux/compiler/dialect/VPUIP/network_description.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
-#include "vpux/compiler/dialect/VPUIP/schema.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -148,7 +148,7 @@ DataMap deserializeDataMap(const TensorReferenceVector* tensors,
     return out;
 }
 
-const EnumMap<MVCNN::PreProcessColorSpace, InferenceEngine::ColorFormat> mapPreProcessColorFormat = {
+const EnumMap<MVCNN::PreProcessColorSpace, InferenceEngine::ColorFormat> mapPreProcessColorFormatIE = {
         {MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR, ColorFormat::BGR},
         {MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB, ColorFormat::RGB},
         {MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12, ColorFormat::NV12},
@@ -156,7 +156,7 @@ const EnumMap<MVCNN::PreProcessColorSpace, InferenceEngine::ColorFormat> mapPreP
         {MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT, ColorFormat::RAW},
 };
 
-const EnumMap<MVCNN::PreProcessResizeAlgorithm, InferenceEngine::ResizeAlgorithm> mapPreProcessResizeAlgorithm = {
+const EnumMap<MVCNN::PreProcessResizeAlgorithm, InferenceEngine::ResizeAlgorithm> mapPreProcessResizeAlgorithmIE = {
         {MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR, ResizeAlgorithm::RESIZE_BILINEAR},
         {MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA, ResizeAlgorithm::RESIZE_AREA},
         {MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE, ResizeAlgorithm::NO_RESIZE},
@@ -174,8 +174,8 @@ void deserializePreprocessInfo(
         if (const auto* pr = mvcnnPreprocessInfo->Get(i)) {
             auto preprocess = InferenceEngine::PreProcessInfo();
 
-            preprocess.setColorFormat(mapPreProcessColorFormat.at(pr->input_format()));
-            preprocess.setResizeAlgorithm(mapPreProcessResizeAlgorithm.at(pr->algorithm()));
+            preprocess.setColorFormat(mapPreProcessColorFormatIE.at(pr->input_format()));
+            preprocess.setResizeAlgorithm(mapPreProcessResizeAlgorithmIE.at(pr->algorithm()));
             preProcInfo[pr->input_name()->str()] = preprocess;
         }
     }

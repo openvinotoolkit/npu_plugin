@@ -19,7 +19,7 @@
 #include <mlir/Support/DebugStringHelper.h>
 #include <mlir/Support/FileUtilities.h>
 
-#include "vpux/compiler/backend/VPUIP.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/init.hpp"
