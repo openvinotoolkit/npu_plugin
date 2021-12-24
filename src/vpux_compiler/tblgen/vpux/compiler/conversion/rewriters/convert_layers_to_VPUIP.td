@@ -757,6 +757,22 @@ def RewriteScaleShift :
         >;
 
 //
+// IERT.Upsampling -> VPUIP.UpsamplingUPA
+//
+
+def createUpsamplingUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::UpsamplingUPAOp>(
+                $_loc, $0, $1, $2, $3, $4)
+        }]>;
+
+def RewriteUpsampling :
+        Pat<
+            (IERT_UpsamplingOp $input, $upsampling_factor, $pad_l, $pad_r, $output),
+            (createUpsamplingUPAOp $input, $upsampling_factor, $pad_l, $pad_r, $output)
+        >;
+
+//
 // IERT.Negative -> VPUIP.NegativeUPA
 //
 

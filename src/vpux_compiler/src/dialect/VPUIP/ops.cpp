@@ -475,6 +475,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::EqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::DepthToSpaceOp, OpModelForSW<VPUIP::DepthToSpaceUPAOp>>();
     registry.addOpInterface<IE::ReverseSequenceOp, OpModelForSW<VPUIP::ReverseSequenceUPAOp>>();
+    registry.addOpInterface<IE::UpsamplingOp, OpModelForSW<VPUIP::UpsamplingUPAOp>>();
     registry.addOpInterface<IE::LessOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::LessEqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::NotEqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
@@ -569,6 +570,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::EqualOp, OpModelForSW>();
     registry.addOpInterface<IERT::DepthToSpaceOp, OpModelForSW>();
     registry.addOpInterface<IERT::ReverseSequenceOp, OpModelForSW>();
+    registry.addOpInterface<IERT::UpsamplingOp, OpModelForSW>();
     registry.addOpInterface<IERT::LessOp, OpModelForSW>();
     registry.addOpInterface<IERT::LessEqualOp, OpModelForSW>();
     registry.addOpInterface<IERT::NotEqualOp, OpModelForSW>();

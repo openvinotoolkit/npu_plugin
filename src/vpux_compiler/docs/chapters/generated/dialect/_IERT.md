@@ -3063,3 +3063,39 @@ InferenceEngine run-time TopK layer
 `output_values` | memref of 16-bit float values
 `target_shape` | memref of 32-bit signed integer values
 
+### `IERT.Upsampling` (vpux::IERT::UpsamplingOp)
+
+InferenceEngine run-time Upsampling layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Upsampling` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`upsampling_factor` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pad_l` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pad_r` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+

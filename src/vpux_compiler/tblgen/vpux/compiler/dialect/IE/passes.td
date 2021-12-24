@@ -481,6 +481,26 @@ def SplitConvWithMultipleFQ : PassBase<"split-conv-with-multiple-fq", "vpux::Fun
 }
 
 //
+// ConvertDeconvToConv
+//
+
+def ConvertDeconv2DToConv2D : PassBase<"convert-deconv-to-conv", "vpux::FunctionPass"> {
+    let summary = "Convert Deconvolution 2D to Convolution 2D";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        Replaces deconvolution by upsampling and convolution
+    }];
+
+    let constructor = "vpux::IE::createConvertDeconv2DToConv2DPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // HandleLargeStrides
 //
 

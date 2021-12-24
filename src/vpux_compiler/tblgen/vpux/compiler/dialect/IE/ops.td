@@ -2260,6 +2260,29 @@ def IE_ScaleShiftOp :
 }
 
 //
+// UpsamplingOp
+//
+
+def IE_UpsamplingOp :
+        IE_LayerOp<
+            "Upsampling"
+        > {
+    let summary = "InferenceEngine Upsampling layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        I64ArrayAttr:$upsampling_factor,
+        I64ArrayAttr:$pad_l,
+        I64ArrayAttr:$pad_r
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+
+//
 // GRNOp
 //
 
