@@ -233,10 +233,10 @@ void buildSoftmax(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     //     funcbuilder.getUnknownLoc(), inputcmx, outputcmx, 0);
 
     // IERT::KernelInfo kernelInfo = VPUIP::SwKernelOp::getKernelInfo(softmaxOp);
-    // auto softmaxOpResult = createBuiltInFunction(module, softmaxOp, kernelInfo, log);
+    // auto builtInFunction = createBuiltInFunction(module, softmaxOp, kernelInfo, log);
 
-    // auto swKernelOp = funcbuilder.create<VPUIP::SwKernelOp>(
-    //     funcbuilder.getUnknownLoc(), inputcmx, outputcmx, 0);
+    auto swKernelOp = funcbuilder.create<VPUIP::SwKernelOp>(builder.getUnknownLoc(), inputcmx, outputcmx,
+                                                            builtInFunction, getIntAttr(ctx, 0));
 
     // initSwKernel(softmaxOp, inputcmx, outputcmx, mlir::ValueRange(), log);
 
