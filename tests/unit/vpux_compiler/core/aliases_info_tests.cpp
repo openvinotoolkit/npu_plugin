@@ -27,6 +27,8 @@
 
 #include <gtest/gtest.h>
 
+using namespace vpux;
+
 namespace {
 
 class TestMultiViewOp : public mlir::Op<TestMultiViewOp, vpux::MultiViewOpInterface::Trait> {
@@ -37,7 +39,7 @@ public:
         return llvm::StringLiteral("test.multiview");
     }
 
-    static llvm::ArrayRef<llvm::StringRef> getAttributeNames() {
+    static ArrayRef<llvm::StringRef> getAttributeNames() {
         return {};
     }
 
@@ -46,7 +48,31 @@ public:
     }
 
     static void build(mlir::OpBuilder&, mlir::OperationState& state, mlir::TypeRange resultTypes,
-                      mlir::ValueRange operands, llvm::ArrayRef<mlir::NamedAttribute> attributes = {}) {
+                      mlir::ValueRange operands, ArrayRef<mlir::NamedAttribute> attributes = {}) {
+        state.addTypes(resultTypes);
+        state.addOperands(operands);
+        state.addAttributes(attributes);
+    }
+};
+
+class TestGroupedViewOp : public mlir::Op<TestGroupedViewOp, vpux::GroupedViewOpInterface::Trait> {
+public:
+    using Op::Op;
+
+    static constexpr llvm::StringLiteral getOperationName() {
+        return llvm::StringLiteral("test.groupedview");
+    }
+
+    static ArrayRef<llvm::StringRef> getAttributeNames() {
+        return {};
+    }
+
+    mlir::ValueRange getViewSources() {
+        return (*this)->getOperands();
+    }
+
+    static void build(mlir::OpBuilder&, mlir::OperationState& state, mlir::TypeRange resultTypes,
+                      mlir::ValueRange operands, ArrayRef<mlir::NamedAttribute> attributes = {}) {
         state.addTypes(resultTypes);
         state.addOperands(operands);
         state.addAttributes(attributes);
@@ -58,6 +84,7 @@ public:
     explicit TestDialect(mlir::MLIRContext* ctx)
             : mlir::Dialect(getDialectNamespace(), ctx, mlir::TypeID::get<TestDialect>()) {
         addOperations<TestMultiViewOp>();
+        addOperations<TestGroupedViewOp>();
     }
 
     static constexpr llvm::StringLiteral getDialectNamespace() {
@@ -67,7 +94,7 @@ public:
 
 }  // namespace
 
-TEST(MLIR_AliasesInfo, ValidCases) {
+TEST(MLIR_AliasesInfo, TestMultiViewOp) {
     mlir::DialectRegistry registry;
     registry.insert<mlir::memref::MemRefDialect>();
     registry.insert<mlir::StandardOpsDialect>();
@@ -99,8 +126,9 @@ TEST(MLIR_AliasesInfo, ValidCases) {
     const auto funcArgSource = info.getSource(funcArg);
     EXPECT_TRUE(funcArgSource == nullptr);
 
-    const auto funcArgRoot = info.getRoot(funcArg);
-    EXPECT_TRUE(funcArgRoot == funcArg);
+    const auto funcArgRoots = info.getRoots(funcArg);
+    EXPECT_EQ(funcArgRoots.size(), 1) << "funcArg roots: %arg";
+    EXPECT_TRUE(*funcArgRoots.begin() == funcArg);
 
     const auto& funcArgAliases = info.getAllAliases(funcArg);
     EXPECT_EQ(funcArgAliases.size(), 3) << "%arg aliases: %arg, %1, %2#1";
@@ -124,8 +152,9 @@ TEST(MLIR_AliasesInfo, ValidCases) {
             const auto allocSource = info.getSource(allocRes);
             EXPECT_TRUE(allocSource == nullptr);
 
-            const auto allocRoot = info.getRoot(allocRes);
-            EXPECT_TRUE(allocRoot == allocRes);
+            const auto allocRoots = info.getRoots(allocRes);
+            EXPECT_EQ(allocRoots.size(), 1) << "allocRes roots: %0";
+            EXPECT_TRUE(*allocRoots.begin() == allocRes);
 
             const auto& allocAliases = info.getAllAliases(allocRes);
             EXPECT_EQ(allocAliases.size(), 2) << "%0 aliases: %0, %2#0";
@@ -134,7 +163,7 @@ TEST(MLIR_AliasesInfo, ValidCases) {
                 ASSERT_TRUE(producerOp != nullptr);
 
                 EXPECT_TRUE(mlir::isa<mlir::memref::AllocOp>(producerOp) || mlir::isa<TestMultiViewOp>(producerOp))
-                    << "producerOp = " << producerOp->getName().getStringRef().data();
+                        << "producerOp = " << producerOp->getName().getStringRef().data();
 
                 if (mlir::isa<TestMultiViewOp>(producerOp)) {
                     EXPECT_EQ(alias.cast<mlir::OpResult>().getResultNumber(), 0);
@@ -148,24 +177,112 @@ TEST(MLIR_AliasesInfo, ValidCases) {
             const auto viewSource = info.getSource(viewRes);
             EXPECT_TRUE(viewSource == viewOp.getViewSource());
 
-            const auto viewRoot = info.getRoot(viewRes);
-            EXPECT_TRUE(viewRoot.isa<mlir::BlockArgument>());
+            const auto viewRoots = info.getRoots(viewRes);
+            EXPECT_EQ(viewRoots.size(), 1) << "viewRes roots: %arg";
+            EXPECT_TRUE((*viewRoots.begin()).isa<mlir::BlockArgument>());
         } else if (auto viewOp = mlir::dyn_cast<TestMultiViewOp>(op)) {
             const auto viewRes0 = viewOp->getResult(0);
 
             const auto viewSource0 = info.getSource(viewRes0);
             EXPECT_TRUE(viewSource0 == viewOp.getViewSource(0));
 
-            const auto viewRoot0 = info.getRoot(viewRes0);
-            EXPECT_TRUE(mlir::isa<mlir::memref::AllocOp>(viewRoot0.getDefiningOp()));
+            const auto viewRoots0 = info.getRoots(viewRes0);
+            EXPECT_EQ(viewRoots0.size(), 1) << "viewRes0 roots: %0";
+            EXPECT_TRUE(mlir::isa<mlir::memref::AllocOp>((*viewRoots0.begin()).getDefiningOp()));
 
             const auto viewRes1 = viewOp->getResult(1);
 
             const auto viewSource1 = info.getSource(viewRes1);
             EXPECT_TRUE(viewSource1 == viewOp.getViewSource(1));
 
-            const auto viewRoot1 = info.getRoot(viewRes1);
-            EXPECT_TRUE(viewRoot1.isa<mlir::BlockArgument>());
+            const auto viewRoots1 = info.getRoots(viewRes1);
+            EXPECT_EQ(viewRoots1.size(), 1) << "viewRes1 roots: %arg";
+            EXPECT_TRUE((*viewRoots1.begin()).isa<mlir::BlockArgument>());
+        }
+    });
+}
+
+TEST(MLIR_AliasesInfo, TestGroupedViewOp) {
+    mlir::DialectRegistry registry;
+    registry.insert<mlir::memref::MemRefDialect>();
+    registry.insert<mlir::StandardOpsDialect>();
+    registry.insert<TestDialect>();
+
+    mlir::MLIRContext ctx(registry);
+
+    constexpr llvm::StringLiteral inputIR = R"(
+        module @test {
+            func @main(%arg: memref<100xf32>) -> memref<100xf32> {
+                %0 = memref.alloc(): memref<50xf32>
+                %1 = "test.groupedview"(%arg, %0) : (memref<100xf32>, memref<50xf32>) -> memref<100xf32>
+                return %1 : memref<100xf32>
+            }
+        }
+    )";
+
+    auto module = mlir::parseSourceString(inputIR, &ctx);
+    ASSERT_TRUE(module.get() != nullptr);
+
+    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
+    ASSERT_TRUE(func != nullptr);
+
+    vpux::AliasesInfo info(func);
+
+    const auto funcArg = func.getArgument(0);
+
+    const auto funcArgSource = info.getSource(funcArg);
+    EXPECT_TRUE(funcArgSource == nullptr);
+
+    const auto funcArgRoots = info.getRoots(funcArg);
+    EXPECT_EQ(funcArgRoots.size(), 1) << "funcArg roots: %arg";
+    EXPECT_TRUE(*funcArgRoots.begin() == funcArg);
+
+    const auto& funcArgAliases = info.getAllAliases(funcArg);
+    EXPECT_EQ(funcArgAliases.size(), 2) << "%arg aliases: %arg, %1";
+
+    for (const auto alias : funcArgAliases) {
+        if (auto* producerOp = alias.getDefiningOp()) {
+            EXPECT_TRUE(mlir::isa<TestGroupedViewOp>(producerOp));
+        } else {
+            EXPECT_TRUE(alias == funcArg);
+        }
+    }
+
+    func.walk([&](mlir::Operation* op) {
+        if (auto allocOp = mlir::dyn_cast<mlir::memref::AllocOp>(op)) {
+            const auto allocRes = allocOp.getResult();
+
+            const auto allocSource = info.getSource(allocRes);
+            EXPECT_TRUE(allocSource == nullptr);
+
+            const auto allocRoots = info.getRoots(allocRes);
+            EXPECT_EQ(allocRoots.size(), 1) << "allocRes roots: %0";
+            EXPECT_TRUE(*allocRoots.begin() == allocRes);
+
+            const auto& allocAliases = info.getAllAliases(allocRes);
+            EXPECT_EQ(allocAliases.size(), 2) << "%0 aliases: %0, %1";
+            for (const auto alias : allocAliases) {
+                auto* producerOp = alias.getDefiningOp();
+                ASSERT_TRUE(producerOp != nullptr);
+
+                EXPECT_TRUE(mlir::isa<mlir::memref::AllocOp>(producerOp) || mlir::isa<TestGroupedViewOp>(producerOp))
+                        << "producerOp = " << producerOp->getName().getStringRef().data();
+            }
+        } else if (auto viewOp = mlir::dyn_cast<TestGroupedViewOp>(op)) {
+            const auto viewRes = viewOp->getResult(0);
+
+            const auto viewSources = info.getSources(viewRes);
+            EXPECT_EQ(viewSources.size(), 2) << "test.groupedview sources: %arg, %0";
+            EXPECT_TRUE(viewSources.size() == viewOp.getViewSources().size());
+            for (const auto& source : viewOp.getViewSources()) {
+                EXPECT_TRUE(viewSources.count(source) > 0);
+            }
+
+            const auto viewRoots = info.getRoots(viewRes);
+            EXPECT_EQ(viewRoots.size(), 2) << "test.groupedview roots: %arg, %0";
+            for (const auto& root : viewRoots) {
+                EXPECT_TRUE(root.isa<mlir::BlockArgument>() || mlir::isa<mlir::memref::AllocOp>(root.getDefiningOp()));
+            }
         }
     });
 }

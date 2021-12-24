@@ -115,7 +115,10 @@ SmallVector<mlir::Value> FeasibleMemorySchedulerSpilling::getAsyncResultsForBuff
 mlir::Value FeasibleMemorySchedulerSpilling::getBufferFromAsyncResult(mlir::Value asyncResult) {
     const auto resultType = asyncResult.getType();
     VPUX_THROW_UNLESS(resultType.isa<mlir::async::ValueType>(), "This is not async result. Got: '{0}'", resultType);
-    return _aliasInfo.getRoot(asyncResult);
+    const auto roots = _aliasInfo.getRoots(asyncResult);
+    VPUX_THROW_UNLESS(roots.size() == 1, "Value '{0}' expected to have only one root. Got {1}", asyncResult,
+                      roots.size());
+    return *roots.begin();
 }
 
 mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(mlir::async::ExecuteOp opThatWasSpilled,

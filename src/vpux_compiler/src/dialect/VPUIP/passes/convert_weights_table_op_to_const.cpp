@@ -76,7 +76,9 @@ Optional<int32_t> getTensorPtrOffset(mlir::Value input, const AliasesInfo* alias
         return None;
     }
 
-    auto output_buff = aliasInfo->getRoot(input);
+    auto roots = aliasInfo->getRoots(input);
+    VPUX_THROW_UNLESS(roots.size() == 1, "Value '{0}' expected to have only one root. Got {1}", input, roots.size());
+    auto output_buff = *roots.begin();
     auto tensor = output_buff.getDefiningOp<IERT::StaticAllocOp>();
     VPUX_THROW_UNLESS(tensor != nullptr, "Cannot get offset");
     return checked_cast<int32_t>(tensor.offset());

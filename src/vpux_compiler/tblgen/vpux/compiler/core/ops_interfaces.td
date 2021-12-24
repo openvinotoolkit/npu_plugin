@@ -37,6 +37,24 @@ def MultiViewOpInterface : OpInterface<"MultiViewOpInterface"> {
 }
 
 //
+// GroupedViewOpInterface
+//
+
+def GroupedViewOpInterface : OpInterface<"GroupedViewOpInterface"> {
+    let description = [{
+        An extended version of view-like operation.
+        It allows grouping several buffers into a resulting view.
+    }];
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+        "Returns the source buffers from which the view is created.",
+        "mlir::ValueRange", "getViewSources">
+    ];
+}
+
+//
 // DeclarationOp
 //
 

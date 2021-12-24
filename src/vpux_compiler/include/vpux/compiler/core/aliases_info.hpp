@@ -25,18 +25,23 @@ namespace vpux {
 class AliasesInfo {
 public:
     using ValuesSet = llvm::SmallPtrSet<mlir::Value, 16>;
-    using AliasesMap = llvm::DenseMap<mlir::Value, ValuesSet>;
-    using ValuesMap = llvm::DenseMap<mlir::Value, mlir::Value>;
+    using ValuesMap = llvm::DenseMap<mlir::Value, ValuesSet>;
     using OpRange = llvm::iterator_range<mlir::Region::OpIterator>;
 
 public:
     explicit AliasesInfo(mlir::FuncOp func);
 
-    // Will return NULL if the `val` is a root value.
+    // Returns the sources of a value.
+    // Will return an empty set if `val` is a root value.
+    const ValuesSet& getSources(mlir::Value val) const;
+
+    // Returns the source of a value. The value is expected to have only one source, otherwise will throw an error.
+    // Will return NULL if `val` is a root value.
     mlir::Value getSource(mlir::Value val) const;
 
-    // Will return `val` itlsef if the `val` is a root value.
-    mlir::Value getRoot(mlir::Value val) const;
+    // Returns the roots of a value.
+    // The set will contain `val` if it is a root value.
+    const ValuesSet& getRoots(mlir::Value val) const;
 
     // The `val` must be a root value.
     const ValuesSet& getAllAliases(mlir::Value val) const;
@@ -49,7 +54,7 @@ private:
     ValuesMap _sources;  // closest source of the alias
     ValuesMap _roots;    // top-root of the alias
 
-    AliasesMap _allAliases;  // all aliases, direct and indirect
+    ValuesMap _allAliases;  // all aliases, direct and indirect
 
     Logger _log;
 };

@@ -175,7 +175,10 @@ bool FeasibleMemoryScheduler::isComputeOpWithSomeActiveInputs(operationIdxType o
         if (!operand.getType().isa<mlir::async::ValueType>()) {
             continue;
         }
-        auto rootBuffer = _aliasInfo.getRoot(operand);
+        auto rootBuffers = _aliasInfo.getRoots(operand);
+        VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", operand,
+                          rootBuffers.size());
+        const auto rootBuffer = *rootBuffers.begin();
         const auto type = rootBuffer.getType().cast<mlir::MemRefType>();
         if (type.getMemorySpace() != _memSpace) {
             continue;
@@ -340,7 +343,10 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::getNonAliveBuffersUsedByOperat
     SmallVector<mlir::Value> operationBuffers;
 
     for (auto& buffer : usedBuffs) {
-        auto rootBuffer = _aliasInfo.getRoot(buffer);
+        auto rootBuffers = _aliasInfo.getRoots(buffer);
+        VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", buffer,
+                          rootBuffers.size());
+        const auto rootBuffer = *rootBuffers.begin();
 
         // Below is a temporary solution to not account inputs of WeightsTableOp
         // as this operation is in fact a constant.
@@ -633,9 +639,12 @@ size_t FeasibleMemoryScheduler::getOpBufferOutputIdx(operationIdxType opIdx, mli
     auto asyncExecOp = _depsInfo.getExecuteOpAtIndex(opIdx);
     mlir::Value asyncExecOpResult;
     for (auto res : asyncExecOp.results()) {
-        if (_aliasInfo.getRoot(res) == buffer) {
+        const auto rootBuffers = _aliasInfo.getRoots(res);
+        VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", res,
+                          rootBuffers.size());
+        const auto rootBuffer = *rootBuffers.begin();
+        if (rootBuffer == buffer) {
             asyncExecOpResult = res;
-            break;
         }
     }
 
@@ -662,7 +671,10 @@ FeasibleMemoryScheduler::EvictionCandidate FeasibleMemoryScheduler::chooseCandid
     // sort buffers using eviction priority
     std::set<EvictionCandidate, EvictionPriority> evictionCandidates;
     for (const auto& buffer : aliveBuffers) {
-        auto rootBuffer = _aliasInfo.getRoot(buffer);
+        auto rootBuffers = _aliasInfo.getRoots(buffer);
+        VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", buffer,
+                          rootBuffers.size());
+        const auto rootBuffer = *rootBuffers.begin();
         auto writerOp = retrieveBufferWriter(rootBuffer);
         auto executeOpIdx =
                 _depsInfo.getIndex(writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>());
@@ -739,19 +751,22 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
                     // Find the root buffer for a given output as output of an operation
                     // doesn't have to point directly to result of memref.alloc (e.g. might
                     // be a result of SubView).
-                    output = _aliasInfo.getRoot(output);
+                    const auto rootBuffers = _aliasInfo.getRoots(output);
+                    VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}",
+                                      output, rootBuffers.size());
+                    const auto rootBuffer = *rootBuffers.begin();
 
                     // in case of spill only allocate the spill buffer
-                    if (!scheduledOp.isOriginalOp() && output != scheduledOp.spillBuffer_) {
+                    if (!scheduledOp.isOriginalOp() && rootBuffer != scheduledOp.spillBuffer_) {
                         continue;
                     }
                     IntervalInfo interval;
                     // store operation writing to the buffer
-                    _opWritingToBuffer[output] = layerOp;
+                    _opWritingToBuffer[rootBuffer] = layerOp;
                     // retrieve and store operation addresses
-                    interval.begin_ = checked_cast<size_t>(_scan.handler().getAddress(output));
-                    interval.end_ = interval.begin_ + checked_cast<size_t>(_scan.handler().getSize(output));
-                    interval.buffer_ = output;
+                    interval.begin_ = checked_cast<size_t>(_scan.handler().getAddress(rootBuffer));
+                    interval.end_ = interval.begin_ + checked_cast<size_t>(_scan.handler().getSize(rootBuffer));
+                    interval.buffer_ = rootBuffer;
                     intervals.push_back(interval);
                 }
             }

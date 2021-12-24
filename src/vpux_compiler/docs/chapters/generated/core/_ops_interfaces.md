@@ -20,6 +20,20 @@ bool printAttributes(llvm::raw_ostream&os);
 If non empty overrides the default attributes in the dot graph
 NOTE: This method *must* be implemented by the user.
 
+## GroupedViewOpInterface (`GroupedViewOpInterface`)
+
+An extended version of view-like operation.
+It allows grouping several buffers into a resulting view.
+
+### Methods:
+#### `getViewSources`
+
+```c++
+mlir::ValueRange getViewSources();
+```
+Returns the source buffers from which the view is created.
+NOTE: This method *must* be implemented by the user.
+
 ## MultiViewOpInterface (`MultiViewOpInterface`)
 
 An extended version of view-like operation.
