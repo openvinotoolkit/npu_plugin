@@ -572,6 +572,10 @@ void FeasibleBarrierScheduler::assignUniqueIds() {
             assignUniqueIDs(taskOp);
             break;
         }
+        case VPU::ExecutorKind::SHAVE_ACT: {
+            assignUniqueIDs(taskOp);
+            break;
+        }
         default:
             VPUX_THROW("Unsupported task type '{0}'", taskOp.getExecutorKind());
         }
@@ -692,6 +696,15 @@ bool FeasibleBarrierScheduler::schedule(size_t numberOfBarriers, size_t maxProdu
     _barrierAssociationTable.clear();
     _barrierCount = numberOfBarriers;
     _slotsPerBarrier = maxProducersPerBarrier;
+
+    computeOpIndegree(_in_degree);
+
+    // retrieve output ops (ops with no out-degree)
+    for (auto& entry : _out_degree) {
+        if (entry.second == 0) {
+            _outputOps.insert(entry.first);
+        }
+    }
 
     initializeBarrierAssociationTable();
 
