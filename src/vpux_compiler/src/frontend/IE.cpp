@@ -444,7 +444,8 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
         funcOutputs.push_back(resultInputs[0]);
     }
 
-    builder.create<mlir::ReturnOp>(mlir::UnknownLoc::get(_ctx), makeArrayRef(funcOutputs));
+    builder.create<mlir::ReturnOp>(mlir::NameLoc::get(mlir::Identifier::get("output", _ctx)),
+                                   makeArrayRef(funcOutputs));
 
     return func;
 }
