@@ -431,7 +431,7 @@
                 "blob_name" : "resnet-50-pytorch_sparse50_BDK_fp16"
             }
         },
-        
+
         {
             "name" : "BDK_FP16-INT8_yolo-v2-tiny-ava-0001",
             "ir" : "models/clientmodels/BDK3/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
@@ -531,7 +531,7 @@
                 "blob_name" : "googlenet-v1_tf"
             }
         },
- 
+
         {
             "name" : "BDK_FP16-INT8_googlenet-v3",
             "ir" : "models/clientmodels/BDK3/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
@@ -565,7 +565,7 @@
                 "blob_name" : "googlenet-v3_tf"
             }
         },
-  
+
         {
             "name" : "BDK_FP16-INT8_squeezenet1.1",
             "ir" : "models/clientmodels/BDK3/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
@@ -599,7 +599,7 @@
                 "blob_name" : "squeezenet1-1_cf2"
             }
         },
- 
+
         {
             "name" : "BDK_FP16-INT8_openpose-pose",
             "ir" : "models/clientmodels/BDK3/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
@@ -635,7 +635,7 @@
             }
         },
 
-       
+
         {
             "name" : "por_tf_FP16_fsrcnn-x4",
             "ir" : "por/fsrcnn-x4/tf/FP16/fsrcnn-x4.xml",
@@ -1638,7 +1638,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -1682,7 +1683,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "U8",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
@@ -3536,7 +3538,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "62x62"
@@ -3583,7 +3586,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "U8",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3632,7 +3636,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "U8",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3683,7 +3688,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3720,7 +3726,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3801,7 +3808,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
