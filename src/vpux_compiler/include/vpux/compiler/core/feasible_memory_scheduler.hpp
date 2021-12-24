@@ -252,6 +252,7 @@ private:
     HeapElement popFromCompletionTimeHeap();
     HeapElement const* topElementGen(ArrayRef<HeapElement> heap) const;
     bool isDataOp(operationIdxType opIdx);
+    bool isCopyOutOp(operationIdxType opIdx);
     void unscheduleOp(const HeapElement& helement);
     bool isComputeOpWithSomeActiveInputs(operationIdxType opIdx);
     void distributeReadyOps(llvm::ArrayRef<operationIdxType> readyOps);

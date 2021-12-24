@@ -123,6 +123,27 @@ bool FeasibleMemoryScheduler::isDataOp(operationIdxType opIdx) {
     return false;
 }
 
+bool FeasibleMemoryScheduler::isCopyOutOp(operationIdxType opIdx) {
+    if (isDataOp(opIdx)) {
+        return false;
+    }
+
+    auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
+    auto* bodyBlock = &op.body().front();
+    for (auto& innerOp : bodyBlock->getOperations()) {
+        if (mlir::isa<IERT::CopyOp>(innerOp)) {
+            if (auto copyOp = mlir::dyn_cast<IERT::CopyOp>(innerOp)) {
+                // DMA from NN_CMX to DDR
+                auto srcMemSpace = copyOp.input().getType().dyn_cast<mlir::MemRefType>().getMemorySpace();
+                auto dstMemSpace = copyOp.output().getType().dyn_cast<mlir::MemRefType>().getMemorySpace();
+                return (_memSpace != dstMemSpace && _memSpace == srcMemSpace);
+            }
+        }
+    }
+
+    return false;
+}
+
 FeasibleMemoryScheduler::HeapElement const* FeasibleMemoryScheduler::topElementGen(ArrayRef<HeapElement> heap) const {
     return heap.empty() ? nullptr : &(heap.front());
 }
@@ -529,12 +550,20 @@ void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
     SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledOps;
     _log.trace("Scheduling all possible ready ops");
     _log = _log.nest();
+    bool trueComputeScheduled = false;
     // schedule ops that fit in CMX
     for (auto& readyOp : readyList) {
         if (isReadyComputeOperationSchedulable(readyOp.first)) {
-            _log.trace("Scheduling ready op: '{0}'", readyOp.first);
-            scheduleComputeOp(readyOp.first);
-            scheduledOps.push_back(readyOp);
+            if (isCopyOutOp(readyOp.first)) {
+                _log.trace("Scheduling ready op: '{0}'", readyOp.first);
+                scheduleComputeOp(readyOp.first);
+                scheduledOps.push_back(readyOp);
+            } else if (!trueComputeScheduled) {
+                _log.trace("Scheduling ready op: '{0}'", readyOp.first);
+                scheduleComputeOp(readyOp.first);
+                scheduledOps.push_back(readyOp);
+                trueComputeScheduled = true;
+            }
         }
     }
     _log = _log.unnest();
@@ -818,7 +847,7 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
             // add to output table
             populateScheduledOps(firstOp);
             // move to completion time heap
-            pushToCompletionTimeHeap(HeapElement(firstOp.op_, firstOp.time_ + 1, firstOp.opType_));
+            pushToCompletionTimeHeap(HeapElement(firstOp.op_, _currentTime + 1, firstOp.opType_));
             _log.trace("Scheduled op: '{0}'", firstOp.op_);
             // decrease outputs ops if output op scheduled
             if (_outputOps.find(firstOp.op_) != _outputOps.end()) {
