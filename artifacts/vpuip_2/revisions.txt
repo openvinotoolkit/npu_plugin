@@ -1,2 +1,2 @@
-tag:vpu_nightly_20211126
-commit:4b436a364bdf5b5cf69f74f7cb75127aebe8be03
+tag:vpu_nightly_20211223~1
+commit:0d432f4ced1d7a323b726b97145b643bf4171c6b
