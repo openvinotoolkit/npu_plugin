@@ -56,8 +56,9 @@ private:
     std::unordered_set<operationIdxType> _executedOps;
     // prefetching constraints
     size_t CURRENT_COMPUTE_OP_LEVEL;
-    size_t PREFETCH_LEVEL_LIMIT = 2;
-    size_t PREFETCH_TIME_LIMIT = 3;
+    size_t PREFETCH_LEVEL_LIMIT_CONST = 2;
+    size_t PREFETCH_LEVEL_LIMIT_ACT = 1;
+    size_t PREFETCH_TIME_LIMIT = 5;
 };
 
 }  // namespace vpux
