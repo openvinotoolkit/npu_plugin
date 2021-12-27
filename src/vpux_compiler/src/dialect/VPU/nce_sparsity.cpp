@@ -324,27 +324,26 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(vpux::VPUIP::NCET
     auto bitPattern = getBitPattern(taskType, kernelSize, windowSize, IC);
 
     // To align each activation map entry to 16 bytes to abide the hw restriction
-    const auto perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPattern.size() / 128.0) * 16);
-
     // MaxPool is supported only in depth wise mode.
     // Depth wise does not support weights sparsity in the real sense,
     // but it will have to have an activation window pointer,
     // which is regarded as "fake sparsity"
     SmallVector<uint8_t> perChannelSparsity;
-
+    size_t perChannelSparsitySize = 0;
     if (taskType == NCETaskType::CMCONV) {
         const auto windowSparsitySize = std::ceil(windowSize / 8.0);
         const auto numberOfRowsSparsityBytes = std::ceil((kernelSize[Dims4D::Kernel::X] * IC * windowSparsitySize) / 16.0);
         perChannelSparsity.resize(numberOfRowsSparsityBytes * 16);
     } else if (taskType == NCETaskType::DWCONV || taskType == NCETaskType::AVEPOOL ||
                taskType == NCETaskType::MAXPOOL) {
-        perChannelSparsity.resize(perChannelSparsitySize);
+        perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPattern.size() / 128.0) * 16);
     } else {
         VPUX_THROW("Unsupported task type '{0}'", taskType);
     }
 
     // Repackaging each byte from bitPattern to a bit from fakeSparsity
     // The rest of the bits remain zero
+    perChannelSparsity.resize(perChannelSparsitySize);
     for (size_t i = 0; i < bitPattern.size(); i++) {
         perChannelSparsity[(i / 128) * 16 + (i % 128) / 8] |= bitPattern[i] << (i % 8);
     }
