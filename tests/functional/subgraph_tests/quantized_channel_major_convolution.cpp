@@ -23,10 +23,11 @@ class KmbQuantizedChannelMajorConvSubGraphTest :
         public testing::WithParamInterface<KmbQuantizedChannelMajorConvSubGraphTestTestParams> {
     void ConfigureNetwork() override {
         auto test_params = GetParam();
-        cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
-        cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
-        cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
-        cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
+        const InferenceEngine::Layout inLayout = InferenceEngine::Layout::NCHW;
+        const InferenceEngine::Layout outLayout = InferenceEngine::Layout::NHWC;
+
+        const InferenceEngine::Precision inPrecision = InferenceEngine::Precision::FP16;
+        const InferenceEngine::Precision outPrecision = InferenceEngine::Precision::FP16;
     }
 
     void SetUp() override {
