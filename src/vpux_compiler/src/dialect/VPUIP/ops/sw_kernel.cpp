@@ -42,12 +42,12 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
         return mlir::failure();
     }
 
-        VPUX_THROW_UNLESS(swKernelOp.inputs().size() == 1, "For now act-kernels with only one input are supported. Got
-        {0}",
-                          swKernelOp.inputs().size());
-        VPUX_THROW_UNLESS(swKernelOp.output_buffs().size() == 1,
-                          "For now act-kernels with only one output are supported. Got {0}",
-                          swKernelOp.output_buffs().size());
+    VPUX_THROW_UNLESS(swKernelOp.inputs().size() == 1, "For now act-kernels with only one input are supported. Got
+    {0}",
+                      swKernelOp.inputs().size());
+    VPUX_THROW_UNLESS(swKernelOp.output_buffs().size() == 1,
+                      "For now act-kernels with only one output are supported. Got {0}",
+                      swKernelOp.output_buffs().size());
 
     const auto inType = swKernelOp.inputs()[0].getType();
     const auto outType = swKernelOp.output_buffs()[0].getType();
