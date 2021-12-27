@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
@@ -154,7 +154,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
         _actKernelsData[name.data()] = {name.data(), buildKernelData(_impl, content), content.size()};
     }
     auto strName = _impl.CreateString(name.data());
-    const auto serializedLocale = createMemoryLocation(VPURT::BufferSection::SW_KernelText);
+    const auto serializedLocale = VPUIP::createMemoryLocation(VPURT::BufferSection::SW_KernelText);
 
     MVCNN::KernelDataReferenceBuilder kernelData(_impl);
 
@@ -326,7 +326,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     if (maxShaves.hasValue()) {
         builder.add_maxShaves(checked_cast<uint8_t>(maxShaves.getValue()));
     } else {
-        auto resources = IERT::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
+        auto resources = IE::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
         VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources definition");
 
         auto available =
@@ -350,14 +350,14 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints) {
     const auto serializedName = createString(name);
 
-    const auto serializedDataType = createDType(type.getElementType());
+    const auto serializedDataType = VPUIP::createDType(type.getElementType());
     const auto serializedDims = createDims(type);
     const auto serializedStrides = createStrides(type);
     const auto dimsOrder = DimsOrder::fromType(type);
 
     const auto serializedDataReference = createIndirectDataReference(byteOffset);
 
-    const auto serializedLocale = createMemoryLocation(section);
+    const auto serializedLocale = VPUIP::createMemoryLocation(section);
     const auto serializedLocaleIndex = createVector(makeArrayRef({checked_cast<uint32_t>(sectionIndex)}));
 
     Vector<uint8_t> serializedQuantZero = createVector(zeroPoints);
@@ -549,46 +549,6 @@ VPUIP::BlobWriter::BarrierReference vpux::VPUIP::BlobWriter::createBarrierRefere
 #endif
 }
 
-MVCNN::DType vpux::VPUIP::BlobWriter::createDType(mlir::Type type) {
-    if (type.isF64()) {
-        return MVCNN::DType_FP64;
-    } else if (type.isF32()) {
-        return MVCNN::DType_FP32;
-    } else if (type.isF16()) {
-        return MVCNN::DType_FP16;
-    } else if (type.isBF16()) {
-        return MVCNN::DType_BFP16;
-    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int64_t))) {
-        return MVCNN::DType_I64;
-    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int32_t))) {
-        return MVCNN::DType_I32;
-    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int16_t))) {
-        return MVCNN::DType_I16;
-    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int8_t))) {
-        return MVCNN::DType_I8;
-    } else if (type.isSignedInteger(4)) {
-        return MVCNN::DType_I4;
-    } else if (type.isInteger(CHAR_BIT * sizeof(uint64_t))) {
-        return MVCNN::DType_U64;
-    } else if (type.isInteger(CHAR_BIT * sizeof(uint32_t))) {
-        return MVCNN::DType_U32;
-    } else if (type.isInteger(CHAR_BIT * sizeof(uint16_t))) {
-        return MVCNN::DType_U16;
-    } else if (type.isInteger(CHAR_BIT * sizeof(uint8_t))) {
-        return MVCNN::DType_U8;
-    } else if (type.isInteger(4)) {
-        return MVCNN::DType_U4;
-    } else if (type.isInteger(2)) {
-        return MVCNN::DType_I2;
-    } else if (type.isInteger(1)) {
-        return MVCNN::DType_BIN;
-    } else if (type.isa<mlir::quant::QuantizedType>()) {
-        return createDType(type.cast<mlir::quant::QuantizedType>().getStorageType());
-    } else {
-        VPUX_THROW("Unsupported element type {0}", type);
-    }
-}
-
 VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(ShapeRef shape) {
     return createVector(shape | transformed([](int64_t val) {
                             return checked_cast<uint32_t>(val);
@@ -629,35 +589,6 @@ VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(mlir::Sh
     return createStrides(strides, getElemTypeSize(type));
 }
 
-MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(VPURT::BufferSection section) {
-    switch (section) {
-    case VPURT::BufferSection::NetworkInput:
-        return MVCNN::MemoryLocation_ProgrammableInput;
-    case VPURT::BufferSection::NetworkOutput:
-        return MVCNN::MemoryLocation_ProgrammableOutput;
-    case VPURT::BufferSection::ProfilingOutput:
-        return MVCNN::MemoryLocation_ProfilingOutput;
-    case VPURT::BufferSection::Constant:
-        return MVCNN::MemoryLocation_GraphFile;
-    case VPURT::BufferSection::SW_KernelText:
-        return MVCNN::MemoryLocation_GFEmbeddedKernel;
-    case VPURT::BufferSection::DDR:
-        return MVCNN::MemoryLocation_VPU_DDR_Heap;
-    case VPURT::BufferSection::CSRAM:
-        return MVCNN::MemoryLocation_VPU_CSRAM;
-    case VPURT::BufferSection::CMX_UPA:
-        return MVCNN::MemoryLocation_VPU_CMX_UPA;
-    case VPURT::BufferSection::CMX_NN:
-        return MVCNN::MemoryLocation_VPU_CMX_NN;
-    case VPURT::BufferSection::Register:
-        return MVCNN::MemoryLocation_AbsoluteAddr;
-    case VPURT::BufferSection::MAC_Accumulators:
-        return MVCNN::MemoryLocation_MAC_Accumulators;
-    default:
-        VPUX_THROW("Unsupported BufferSection {0}", section);
-    }
-}
-
 VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirectDataReference(
         int64_t dataIndex, Optional<int64_t> sparsityIndex, Optional<int64_t> storageElementIndex,
         Optional<int64_t> storageElementSize) {
@@ -675,37 +606,14 @@ VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirect
     return builder.Finish();
 }
 
-MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
-    auto vec = parseIntArrayAttr<int64_t>(attr);
-    std::reverse(vec.begin(), vec.end());
-
-    VPUX_THROW_UNLESS(vec.size() <= 3, "Got wrong order array : {0}", vec);
-
-    uint8_t x = 0, y = 0, z = 0;
-    if (vec.size() >= 1) {
-        x = checked_cast<uint8_t>(vec[0]);
-    }
-    if (vec.size() >= 2) {
-        y = checked_cast<uint8_t>(vec[1]);
-    }
-    if (vec.size() >= 3) {
-        z = checked_cast<uint8_t>(vec[2]);
-    }
-
-    return MVCNN::order3(x, y, z);
-}
-
 VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ArrayRef<uint64_t> content,
                                                                         mlir::ShapedType type, bool csram_cacheable) {
-    const Byte elemTypeSize = getElemTypeSize(type);
-    const size_t totalNumElements = type.getNumElements();
-    const size_t totalByteSize = totalNumElements * elemTypeSize.count();
-
+    const auto totalByteSize = static_cast<Byte>(getTotalSize(type));
     const auto serializedContent = createVector(content);
 
     MVCNN::BinaryDataBuilder builder(_impl);
     builder.add_underlying_type(MVCNN::DType::DType_U8);
-    builder.add_length(totalByteSize);
+    builder.add_length(totalByteSize.count());
     builder.add_data(serializedContent);
     builder.add_csram_cacheable(csram_cacheable);
     return builder.Finish();

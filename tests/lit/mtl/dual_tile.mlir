@@ -23,7 +23,7 @@ module @dual_tile attributes {VPU.arch = "MTL", VPU.compilationMode = "DefaultHW
       DataInfo "output_0" : tensor<2x16x16x16xf16, {order = #NHWC}>
     }
 
-  IERT.RunTimeResources
+  IE.RunTimeResources
     availableMemory :  {
       MemoryResource 1073741824 bytes
       MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
@@ -111,7 +111,7 @@ module @dual_tile attributes {VPU.arch = "MTL", VPU.compilationMode = "DefaultHW
 
     VPURT.Task waits(%inputs_ready : !VPURT.Barrier) updates(%conv_complete : !VPURT.Barrier) {
       VPUIP.NCEClusterTask {
-          kernel_padding = [0, 0, 0, 0],
+          kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
           kernel_size = [1, 8],
           kernel_strides = [1, 1],
           task_type = "CONV"
@@ -137,7 +137,7 @@ module @dual_tile attributes {VPU.arch = "MTL", VPU.compilationMode = "DefaultHW
 
     VPURT.Task waits(%inputs_ready : !VPURT.Barrier) updates(%conv_complete : !VPURT.Barrier) {
       VPUIP.NCEClusterTask {
-          kernel_padding = [0, 0, 0, 0],
+          kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
           kernel_size = [1, 8],
           kernel_strides = [1, 1],
           task_type = "CONV"

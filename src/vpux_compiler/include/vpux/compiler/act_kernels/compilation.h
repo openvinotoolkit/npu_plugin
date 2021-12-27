@@ -19,7 +19,7 @@
 #include <llvm/ADT/StringRef.h>
 #include <mlir/IR/BuiltinOps.h>
 
-#include "vpux/compiler/dialect/VPUIP/schema.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
 namespace vpux {

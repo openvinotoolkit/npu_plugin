@@ -358,7 +358,12 @@ enable_warnings_as_errors(${OBJ_TARGET_NAME} WIN_STRICT)
 # FIXME: this flag is forced while building in a single tree with OV
 # but code cannot be compiled with the flag
 if(NOT MSVC)
-   target_compile_options(${OBJ_TARGET_NAME} PRIVATE -Wno-error=suggest-override)
+    target_compile_options(${OBJ_TARGET_NAME}
+        PUBLIC
+            -Wno-error=suggest-override
+            # FIXME: S#71607
+            -Wno-error=deprecated-declarations
+    )
 endif()
 
 vpux_enable_clang_format(${OBJ_TARGET_NAME})
@@ -413,11 +418,11 @@ link_system_libraries(${OBJ_TARGET_NAME}
         IE::vpu_common_lib
 )
 
+target_link_libraries(${OBJ_TARGET_NAME}
+    PUBLIC
+        vpux_utils
+)
 if(BUILD_COMPILER_FOR_DRIVER)
-    target_link_libraries(${OBJ_TARGET_NAME}
-        PUBLIC
-            vpux_utils
-    )
 
     target_include_directories(${OBJ_TARGET_NAME}
         PUBLIC
@@ -426,7 +431,6 @@ if(BUILD_COMPILER_FOR_DRIVER)
 else()
     target_link_libraries(${OBJ_TARGET_NAME}
         PUBLIC
-            vpux_utils
             vpux_al
     )
 endif()
@@ -443,11 +447,18 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
 #
 
 add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
-target_link_libraries(${STATIC_TARGET_NAME} PUBLIC ${OBJ_TARGET_NAME})
+target_link_libraries(${STATIC_TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${OBJ_TARGET_NAME}>)
 
 #
 # targets install
 #
-
-install(TARGETS ${TARGET_NAME}
-        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+if(BUILD_SHARED_LIBS)
+    set(INSTALL_TARGET_NAME ${TARGET_NAME})
+else()
+    set(INSTALL_TARGET_NAME ${STATIC_TARGET_NAME})
+endif()
+install(TARGETS ${INSTALL_TARGET_NAME} EXPORT OpenVINOTargets
+    RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+    ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+    LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+)

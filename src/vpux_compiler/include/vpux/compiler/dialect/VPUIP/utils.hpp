@@ -13,7 +13,11 @@
 
 #pragma once
 
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+
+#include "vpux/utils/core/enums.hpp"
+#include "vpux/utils/core/preprocessing.hpp"
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -41,9 +45,9 @@ constexpr uint16_t HW_UPA_PROFILING_SIZE_BYTES = 24;
 // Run-time info
 //
 
-double getMemoryDerateFactor(IERT::MemoryResourceOp mem);
-uint32_t getMemoryBandwidth(IERT::MemoryResourceOp mem);
-double getProcessorFrequency(IERT::ExecutorResourceOp res);
+double getMemoryDerateFactor(IE::MemoryResourceOp mem);
+uint32_t getMemoryBandwidth(IE::MemoryResourceOp mem);
+double getProcessorFrequency(IE::ExecutorResourceOp res);
 
 //
 // DW Convolution utility

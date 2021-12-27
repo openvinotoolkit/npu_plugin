@@ -85,7 +85,8 @@ void UPAProfilingPass::safeRunOnModule() {
         auto timestampType = mlir::MemRefType::get({elementSize}, getUInt32Type(ctx));
         int offset = upaId * elementSize * sizeof(uint32_t);
         auto declareOp = builder.create<VPURT::DeclareBufferOp>(
-                mlir::UnknownLoc::get(ctx), timestampType, VPURT::BufferSection::ProfilingOutput, profilingId, offset);
+                mlir::NameLoc::get(mlir::Identifier::get("declareProfilingBuffer", ctx)), timestampType,
+                VPURT::BufferSection::ProfilingOutput, profilingId, offset);
 
         const auto profilingMeta = llvm::formatv("_PROF_{0}", upaId).str();
         const auto loc = appendLoc(upaTask->getLoc(), profilingMeta);
@@ -140,8 +141,9 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
     auto outputUserResult = getTensorType(getShape(newOutputResult), newOutputResult.getElementType(),
                                           DimsOrder::fromType(newOutputResult), nullptr);
     auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&profilingOutputs.front(), &builderLog);
-    userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, newOutputName),
-                                           mlir::TypeAttr::get(outputUserResult));
+    userInfoBuilder.create<IE::DataInfoOp>(
+            mlir::NameLoc::get(mlir::Identifier::get("combinedProfilingDataOutputInfo", ctx)),
+            mlir::StringAttr::get(ctx, newOutputName), mlir::TypeAttr::get(outputUserResult));
 
     auto totalArgumentsCount = netFunc.getNumArguments();
     auto mainArgumentsCount = totalArgumentsCount - outputBases.size();
@@ -164,8 +166,9 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
                 auto taskOp = op->getParentOfType<VPURT::TaskOp>();
                 builder.setInsertionPoint((taskOp != nullptr) ? taskOp : op);
                 unsigned base = (removedArgs) ? outputBases[removedArgs] : 0;
-                auto declareOp = builder.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(ctx), arg->getType(),
-                                                                        VPURT::BufferSection::ProfilingOutput, 0, base);
+                auto declareOp = builder.create<VPURT::DeclareBufferOp>(
+                        mlir::NameLoc::get(mlir::Identifier::get("newProfilingBuffer", ctx)), arg->getType(),
+                        VPURT::BufferSection::ProfilingOutput, 0, base);
                 use->set(declareOp.buffer());
             }
             netFunc.eraseArgument(argNum);

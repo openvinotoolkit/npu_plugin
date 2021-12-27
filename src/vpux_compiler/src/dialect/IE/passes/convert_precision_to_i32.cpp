@@ -53,11 +53,17 @@ void ConvertPrecisionToI32Pass::safeRunOnModule() {
 
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<Const::ConstDialect>();
+    target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
     target.addDynamicallyLegalOp<IE::GatherOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::BroadcastOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceMaxOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceSumOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::TopKOp>(isLegalOp);
+    target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
+    target.addLegalOp<mlir::ModuleOp>();
+    target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
+        return typeConverter.isSignatureLegal(funcOp.getType());
+    });
 
     // Convert TopK element type attribute to avoid failures in infer return type checking.
     auto module = getOperation();

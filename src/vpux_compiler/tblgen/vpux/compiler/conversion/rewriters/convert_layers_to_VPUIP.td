@@ -942,6 +942,22 @@ def RewriteGatherElements :
         >;
 
 //
+// IERT.SpaceToDepth -> VPUIP.SpaceToDepth
+//
+
+def createSpaceToDepthUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SpaceToDepthUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteSpaceToDepth :
+        Pat<
+            (IERT_SpaceToDepthOp $input, $output, $block_size, $mode),
+            (createSpaceToDepthUPAOp $input, $output, $block_size, $mode)
+        >;
+
+//
 // IERT.ScatterNDUpdate -> VPUIP.ScatterNDUpdate
 //
 
@@ -1033,6 +1049,22 @@ def RewriteReverseSequence :
         Pat<
             (IERT_ReverseSequenceOp $data, $seq_length, $output, $seq_axis, $batch_axis),
             (createReverseSequenceUPAOp $data, $seq_length, $output, $seq_axis, $batch_axis)
+        >;
+
+//
+// IERT.DepthToSpace -> VPUIP.DepthToSpaceUPA
+//
+
+def createDepthToSpaceUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::DepthToSpaceUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteDepthToSpace :
+        Pat<
+            (IERT_DepthToSpaceOp $input, $output, $block_size, $mode),
+            (createDepthToSpaceUPAOp $input, $output, $block_size, $mode)
         >;
 
 #endif

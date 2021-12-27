@@ -81,7 +81,9 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
     const auto origVal = origOp->getResult(0);
     const Byte offset = calculateOffset(origVal);
 
-    const auto rootVal = _aliasInfo->getRoot(origVal);
+    const auto roots = _aliasInfo->getRoots(origVal);
+    VPUX_THROW_UNLESS(roots.size() == 1, "Value '{0}' expected to have only one root. Got {1}", origVal, roots.size());
+    const auto rootVal = *roots.begin();
 
     VPURT::BufferSection section = VPURT::BufferSection::DDR;
     Optional<int64_t> sectionIndex;

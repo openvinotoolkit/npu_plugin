@@ -141,7 +141,7 @@ mlir::LogicalResult inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::M
                                      SmallVectorImpl<mlir::Type>& inferredTypes);
 
 bool isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::TypeComparisonMode elemComparisonMode,
-                             bool checkDimsOrder, bool checkMemSpace);
+                             bool checkDimsOrder, bool checkMemSpace, bool checkSparsity);
 
 //
 // LayerWithPostOpInterface

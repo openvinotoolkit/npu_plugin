@@ -75,39 +75,6 @@ The **IERT Dialect** uses the following scheme to represent scheduling informati
 }
 ```
 
-The **IERT Dialect** provides separate Operation to describe the available and used run-time resources.
-It deals with the following resource types:
-
-* Memory space.
-* Executor (CPU, HW module, DMA).
-
-```MLIR
-IERT.RunTimeResources
-    availableMemory : {
-        IERT.MemoryResource 1073741824 bytes
-        IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
-        IERT.MemoryResource 4194304 bytes of "CMX_UPA" {VPUIP.bandwidth = 16 : i64, VPUIP.derateFactor = 8.500000e-01 : f64}
-        IERT.MemoryResource 1048576 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
-    }
-    usedMemory : {
-        IERT.MemoryResource 2048 bytes of "DDR"
-        IERT.MemoryResource 1048576 bytes of "CMX_NN"
-    }
-    executors : {
-        IERT.ExecutorResource 1 of "Leon_RT"
-        IERT.ExecutorResource 1 of "Leon_NN"
-        IERT.ExecutorResource 16 of "SHAVE_UPA"
-        IERT.ExecutorResource 20 of "SHAVE_NN"
-        IERT.ExecutorResource 4 of "NCE_Cluster" {
-            IERT.ExecutorResource 5 of "NCE_PerClusterDPU"
-        }
-        IERT.ExecutorResource 1 of "DMA_UPA"
-        IERT.ExecutorResource 1 of "DMA_NN"
-    }
-```
-
-The `IERT.RunTimeResources` is filled by underlying low-level dialect to provide information about HW-specific resources.
-
 [./IERT/_ops_interfaces.md]
     }];
 

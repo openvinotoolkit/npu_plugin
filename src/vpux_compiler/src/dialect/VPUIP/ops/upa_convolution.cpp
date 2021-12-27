@@ -15,7 +15,8 @@
 
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -59,10 +60,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvolutionUPAOp::serialize(VPUIP::
     static const auto dY = Dim(2);
     static const auto dX = Dim(3);
 
-    const auto strides = VPUIP::BlobWriter::createOrder3(this->strides());
-    const auto dilations = VPUIP::BlobWriter::createOrder3(this->dilations());
-    const auto padsBegin = VPUIP::BlobWriter::createOrder3(this->padsBegin());
-    const auto padsEnd = VPUIP::BlobWriter::createOrder3(this->padsEnd());
+    const auto strides = VPUIP::createOrder3(this->strides());
+    const auto dilations = VPUIP::createOrder3(this->dilations());
+    const auto padsBegin = VPUIP::createOrder3(this->padsBegin());
+    const auto padsEnd = VPUIP::createOrder3(this->padsEnd());
 
     const auto filterShape = getShape(filter());
     const auto kernel =

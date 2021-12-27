@@ -16,6 +16,7 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -42,6 +43,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
                         Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType) {
     using namespace VPUIP;
 
+    auto* ctx = builder.getContext();
     const auto int32 = builder.getIntegerType(32, true);
 
     const auto input = testDesc.getInputLayer();
@@ -114,7 +116,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     auto functionOutput = function.getArgument(1);
 
     // weights data
-    const auto weightsValues = generateWeights(weightsShape, weightsType, builder.getContext(), weightsFileName);
+    const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
 
     // Weights partial 0
     const auto weightsPartialParamType = getMemRef(weightsPartialShape, weightsType, vpux::VPU::MemoryKind::CMX_NN);
@@ -129,7 +131,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     // Weights partial 1
     auto weightsPartial1Values =
-            splitWeightsOverC(weightsValues, weightsShape, weightsType, builder.getContext(),
+            splitWeightsOverC(weightsValues, weightsShape, weightsType, ctx,
                               /*startC*/ weightsPartialShape[1], /*endC*/ 2 * weightsPartialShape[1]);
     auto weightsPartial1Attribute = Const::ContentAttr::get(weightsPartial1Values);
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
@@ -205,12 +207,15 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
                                           weightsTable1CMX.getOperation()->getResult(0));
 
     // NCE params
-    const auto strides = getIntArrayAttr(builder.getContext(), conv.stride);
+    const auto strides = getIntArrayAttr(ctx, conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
-    const auto kernelPaddings = getIntArrayAttr(builder.getContext(), paddings);
+    const auto kernelPaddings =
+            vpux::VPUIP::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
+                                        paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
+
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
-    const auto kernelSize = getIntArrayAttr(builder.getContext(), kernel);
-    const auto isContinued = mlir::UnitAttr::get(builder.getContext());
+    const auto kernelSize = getIntArrayAttr(ctx, kernel);
+    const auto isContinued = mlir::UnitAttr::get(ctx);
 
     // NCE Task 0
     auto nceTask_0 = VPURT::wrapIntoTaskOp<NCEClusterTaskOp>(
@@ -220,15 +225,11 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr, isContinued);
 
-    const auto start = getIntArrayAttr(builder.getContext(), std::vector<std::int64_t>{0, 0, 0});
+    const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
     const auto end =
-            getIntArrayAttr(builder.getContext(),
-                            std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
-    const auto pad = vpux::VPUIP::PaddingAttr::get(vpux::getIntAttr(builder, paddings[PAD_NCETASK_LEFT]),
-                                                   vpux::getIntAttr(builder, paddings[PAD_NCETASK_RIGHT]),
-                                                   vpux::getIntAttr(builder, paddings[PAD_NCETASK_TOP]),
-                                                   vpux::getIntAttr(builder, paddings[PAD_NCETASK_BOTTOM]),
-                                                   builder.getContext());
+            getIntArrayAttr(ctx, std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
+    const auto pad = VPUIP::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
+                                           paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
 
     nceTask_0.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
 

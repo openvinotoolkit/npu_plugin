@@ -268,6 +268,7 @@ void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel
     // IE_ASSERT(mv::Order("NHWC") == mvOrder);
     const auto mvDType = cvtElemTypeToMCM(param->get_element_type());
     const auto mcmOutput = mcmModel.input(opName, mvShape, mvDType, mvOrder, mvNetworkInput);
+    mcmOutput->setOrder(mv::Order("NHWC"));
     mcmOutput->setQuantParams(initialQuantParams());
 
     registerOutputs(param, {mcmOutput}, mcmOutputsMap);
@@ -323,6 +324,8 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
 
     // MCM Compiler requirements
     mcmModel.output(result->get_friendly_name(), mcmInputs.at(0), outputType);
+
+    mcmModel.getOp(result->get_friendly_name())->set<mv::Order>("order", layoutToOrder(outputLayout));
 }
 
 void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {

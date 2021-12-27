@@ -69,7 +69,7 @@ func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x8x4x2xf16, {order = #NHWC}> {
 // CHECK-LABEL: @HwOp
 module @HwOp attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
 
-IERT.RunTimeResources
+IE.RunTimeResources
     availableMemory :  {
         MemoryResource 201326592 bytes of "DDR" {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
         MemoryResource 917504 bytes of "CMX_NN" {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
@@ -113,7 +113,7 @@ func @main(%arg0: tensor<1x16x30x30xf16>) -> tensor<1x16x15x13xf16> {
 // CHECK-LABEL: @HwOpSameInputs
 module @HwOpSameInputs attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
 
-IERT.RunTimeResources
+IE.RunTimeResources
     availableMemory :  {
         MemoryResource 201326592 bytes of "DDR" {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
         MemoryResource 917504 bytes of "CMX_NN" {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
@@ -161,7 +161,7 @@ func @main(%arg0: tensor<1x16x30x25xf16>) -> tensor<1x16x30x25xf16> {
 // CHECK-LABEL: @HwOpDifferentDstOrder
 module @HwOpDifferentDstOrder attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
 
-IERT.RunTimeResources
+IE.RunTimeResources
     availableMemory :  {
         MemoryResource 201326592 bytes of "DDR" {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
         MemoryResource 917504 bytes of "CMX_NN" {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}

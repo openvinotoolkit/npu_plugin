@@ -49,13 +49,15 @@ class VPU_LayerOp<string mnemonic, list<OpTrait> traits = []> :
     list<string> elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     bit checkInferredDimsOrder = 0;
     bit checkInferredMemSpace = 0;
+    bit checkInferredSparsity = 0;
 
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
             return vpux::IE::isCompatibleTensorTypes(lhs, rhs,
                 }] # !interleave(elemComparisonModes, "|") # [{,
                 static_cast<bool>(}] # checkInferredDimsOrder # [{),
-                static_cast<bool>(}] # checkInferredMemSpace # [{)
+                static_cast<bool>(}] # checkInferredMemSpace # [{),
+                static_cast<bool>(}] # checkInferredSparsity # [{)
             );
         }
     }];

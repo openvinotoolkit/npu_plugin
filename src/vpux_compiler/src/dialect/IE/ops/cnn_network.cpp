@@ -68,7 +68,10 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
                 const auto output = operands[ind];
                 const auto outputBuffer = netFunc.getArgument(rawInd);
 
-                if (info.getRoot(output) != outputBuffer) {
+                const auto roots = info.getRoots(output);
+                VPUX_THROW_UNLESS(roots.size() == 1, "Value '{0}' expected to have only one root. Got {1}", output,
+                                  roots.size());
+                if (*roots.begin() != outputBuffer) {
                     op.emitError() << "function output at index=" << ind
                                    << " should be an alias of the output buffer, but it's not";
                     res = mlir::failure();

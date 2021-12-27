@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include <llvm/ADT/StringExtras.h>
 #include <mlir/IR/Builders.h>
@@ -25,3 +26,15 @@
 
 #include <vpux/compiler/dialect/VPUIP/generated/attributes/enums.cpp.inc>
 #include <vpux/compiler/dialect/VPUIP/generated/attributes/structs.cpp.inc>
+
+namespace vpux {
+namespace VPUIP {
+
+PaddingAttr getPaddingAttr(mlir::MLIRContext* ctx, int64_t padLeft, int64_t padRight, int64_t padTop,
+                           int64_t padBottom) {
+    return PaddingAttr::get(getIntAttr(ctx, padLeft), getIntAttr(ctx, padRight), getIntAttr(ctx, padTop),
+                            getIntAttr(ctx, padBottom), ctx);
+}
+
+}  // namespace VPUIP
+}  // namespace vpux

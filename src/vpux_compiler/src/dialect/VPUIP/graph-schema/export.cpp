@@ -11,14 +11,15 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/backend/VPUIP.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 #include "vpux/compiler/dialect/VPUIP/generated/schema/gf_version.h"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/schema.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
@@ -29,7 +30,6 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/numeric.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
@@ -92,8 +92,7 @@ void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilde
 }
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
-                                                                    IERT::ExecutorResourceOp res,
-                                                                    mlir::ModuleOp module) {
+                                                                    IE::ExecutorResourceOp res, mlir::ModuleOp module) {
     const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
     VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
 
@@ -107,7 +106,7 @@ flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobW
 }
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorFreqMapping(VPUIP::BlobWriter& writer,
-                                                                        IERT::ExecutorResourceOp res) {
+                                                                        IE::ExecutorResourceOp res) {
     const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
     VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
 
@@ -133,7 +132,7 @@ MVCNN::PhysicalMem createPhysicalMem(VPU::MemoryKind mem) {
     }
 }
 
-flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer, IERT::MemoryResourceOp res) {
+flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer, IE::MemoryResourceOp res) {
     const auto memKindAttr = res.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
     VPUX_THROW_UNLESS(memKindAttr != nullptr, "Got unknown memory space kind '{0}'", res.kindAttr());
 
@@ -144,8 +143,8 @@ flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter&
 }
 
 flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createBandwidthMapping(VPUIP::BlobWriter& writer,
-                                                                             IERT::MemoryResourceOp src,
-                                                                             IERT::MemoryResourceOp dst,
+                                                                             IE::MemoryResourceOp src,
+                                                                             IE::MemoryResourceOp dst,
                                                                              double bandwidth) {
     MVCNN::MemoryRelationshipMappingBuilder builder(writer);
     const auto srcKind = src.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
@@ -166,17 +165,16 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
             VPU::ExecutorKind::DPU         //
     };
 
-    auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+    auto resources = IE::RunTimeResourcesOp::getFromModule(module);
     VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources information");
 
-    const auto usedMemory =
-            writer.createVector(resources.getUsedMemory() | transformed([&](IERT::MemoryResourceOp res) {
-                                    return createMemoryMapping(writer, res);
-                                }));
+    const auto usedMemory = writer.createVector(resources.getUsedMemory() | transformed([&](IE::MemoryResourceOp res) {
+                                                    return createMemoryMapping(writer, res);
+                                                }));
 
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
-    resources.walk([&](IERT::ExecutorResourceOp res) {
+    resources.walk([&](IE::ExecutorResourceOp res) {
         if (const auto execKind = res.kind().dyn_cast<VPU::ExecutorKindAttr>()) {
             if (supportedProcessors.count(execKind.getValue()) != 0) {
                 executorsOffsets.push_back(createProcessorMapping(writer, res, module));
@@ -190,8 +188,8 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     const auto processorFrequency = writer.createVector(processorVec);
 
     SmallVector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>> memoryVec;
-    SmallVector<IERT::MemoryResourceOp> memoryTypes;
-    resources.walk([&](IERT::MemoryResourceOp src) {
+    SmallVector<IE::MemoryResourceOp> memoryTypes;
+    resources.walk([&](IE::MemoryResourceOp src) {
         if (src->hasAttr(VPU::getMemoryBandwidthAttrName())) {
             memoryTypes.push_back(src);
         }
@@ -289,47 +287,6 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     return builder.Finish();
 }
 
-MVCNN::TargetDevice mapTargetDevice(VPU::ArchKind kind) {
-    switch (kind) {
-    case VPU::ArchKind::KMB:
-        return MVCNN::TargetDevice::TargetDevice_KMB;
-    case VPU::ArchKind::TBH:
-        return MVCNN::TargetDevice::TargetDevice_TBH;
-    case VPU::ArchKind::MTL:
-        return MVCNN::TargetDevice::TargetDevice_MTL;
-    case VPU::ArchKind::LNL:
-        return MVCNN::TargetDevice::TargetDevice_LNL;
-    default:
-        VPUX_THROW("Unsupported architecture '{0}'", kind);
-    }
-}
-
-MVCNN::TargetDeviceRevision mapTargetDeviceRevision(VPU::ArchKind kind) {
-    switch (kind) {
-    case VPU::ArchKind::KMB:
-        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
-    default:
-        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
-    }
-}
-
-const EnumMap<vpux::PreProcessColorSpace, MVCNN::PreProcessColorSpace> mapPreProcessColorFormat = {
-        {vpux::PreProcessColorSpace::BGR, MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR},
-        {vpux::PreProcessColorSpace::RGB, MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB},
-        {vpux::PreProcessColorSpace::NV12, MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12},
-        {vpux::PreProcessColorSpace::I420, MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420},
-        {vpux::PreProcessColorSpace::NONE, MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT},
-};
-
-const EnumMap<vpux::PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm> mapPreProcessResizeAlgorithm = {
-        {vpux::PreProcessResizeAlgorithm::RESIZE_BILINEAR,
-         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR},
-        {vpux::PreProcessResizeAlgorithm::RESIZE_AREA,
-         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA},
-        {vpux::PreProcessResizeAlgorithm::NO_RESIZE,
-         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE},
-};
-
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
                                                               IE::CNNNetworkOp netOp, mlir::FuncOp netFunc,
                                                               bool withDynamicBarriers, mlir::TimingScope& rootTiming,
@@ -399,9 +356,10 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     preprocInfo.reserve(preprocessInfo.size());
 
     for (const auto& pr : preprocessInfo) {
-        preprocInfo.push_back(MVCNN::CreatepreprocessingInfo(
-                writer, writer.createString(pr._inputName), mapPreProcessColorFormat.at(pr._inputFormat),
-                mapPreProcessColorFormat.at(pr._outputFormat), mapPreProcessResizeAlgorithm.at(pr._algorithm)));
+        preprocInfo.push_back(MVCNN::CreatepreprocessingInfo(writer, writer.createString(pr._inputName),
+                                                             VPUIP::mapPreProcessColorFormat.at(pr._inputFormat),
+                                                             VPUIP::mapPreProcessColorFormat.at(pr._outputFormat),
+                                                             VPUIP::mapPreProcessResizeAlgorithm.at(pr._algorithm)));
     }
 
     SmallVector<int8_t> options;
@@ -433,8 +391,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     builder.add_in_tensor_desc(serializedUserInputs);
     builder.add_out_tensor_desc(serializedUserOutputs);
     builder.add_pre_process_info(serializedPreProcInfo);
-    builder.add_device(mapTargetDevice(VPU::getArch(module)));
-    builder.add_device_revision(mapTargetDeviceRevision(VPU::getArch(module)));
+    builder.add_device(VPUIP::mapTargetDevice(VPU::getArch(module)));
+    builder.add_device_revision(VPUIP::mapTargetDeviceRevision(VPU::getArch(module)));
     builder.add_act_kernel_runtime(serializedActKernelsRuntime);
     return builder.Finish();
 }
@@ -465,14 +423,12 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
         const auto type = attr.getType();
         const auto content = attr.fold();
 
-        const Byte elemTypeSize = getElemTypeSize(type);
-        const size_t totalNumElements = type.getNumElements();
-        const size_t totalByteSize = totalNumElements * elemTypeSize.count();
+        const auto totalByteSize = static_cast<Byte>(getTotalSize(type));
+        bufs[static_cast<size_t>(ind)].resize(
+                alignVal(static_cast<size_t>(totalByteSize.count()), sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
-        bufs[static_cast<size_t>(ind)].resize(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
-
-        const auto buf =
-                makeMutableArrayRef(reinterpret_cast<char*>(bufs[static_cast<size_t>(ind)].data()), totalByteSize);
+        const auto buf = makeMutableArrayRef(reinterpret_cast<char*>(bufs[static_cast<size_t>(ind)].data()),
+                                             totalByteSize.count());
         content.copyTo(buf);
     });
 

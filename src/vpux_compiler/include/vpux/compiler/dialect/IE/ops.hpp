@@ -50,6 +50,8 @@ namespace IE {
 
 mlir::LogicalResult verifyOp(CNNNetworkOp op);
 mlir::LogicalResult verifyOp(DataInfoOp op);
+mlir::LogicalResult verifyOp(RunTimeResourcesOp op);
+mlir::LogicalResult verifyOp(ExecutorResourceOp op);
 
 // Adjust paddings attributes for tiled input
 template <typename ConcreteOp>

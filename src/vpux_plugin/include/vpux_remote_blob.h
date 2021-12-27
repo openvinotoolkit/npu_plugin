@@ -59,7 +59,29 @@ public:
 
     std::string getDeviceName() const noexcept override;
 
-    InferenceEngine::Blob::Ptr createROI(const InferenceEngine::ROI& regionOfInterest) const override;
+    /**
+     * @brief Creates a blob describing given ROI object based on the current blob with memory sharing.
+     *
+     * Note: plane ROI is supported
+     *
+     * @param roi A ROI object inside of the current blob.
+     *
+     * @return A shared pointer to the newly created ROI blob.
+     */
+    InferenceEngine::Blob::Ptr createROI(const InferenceEngine::ROI& roi) const override;
+
+    /**
+     * @brief Creates a blob describing given ROI object based on the current blob with memory sharing.
+     *
+     * Note: multi-dimensional ROI is supported
+     *
+     * @param begin A ROI start coordinate
+     * @param end A ROI end coordinate
+     *
+     * @return A shared pointer to the newly created ROI blob.
+     */
+    InferenceEngine::Blob::Ptr createROI(const std::vector<std::size_t>& begin,
+                                         const std::vector<std::size_t>& end) const override;
 
     InferenceEngine::ParamMap getParams() const override {
         return _parsedParams.getParamMap();
@@ -86,7 +108,8 @@ private:
     /** @details Remote ROI blob can be created only based on full frame Remote blob.
      *  IE API assume, that Remote ROI blob can be created only by using blob->createROI call on RemoteBlob
      *  This will not allow to create ROI blob using paramMap, which is not API approach. */
-    explicit VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
+    explicit VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const std::vector<std::size_t>& begin,
+                            const std::vector<std::size_t>& end);
 
     InferenceEngine::TensorDesc getOriginalTensorDesc() const {
         return _originalTensorDesc;

@@ -26,7 +26,7 @@ public:
                                                  const Config& config) final;
 
     InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network,
-                                              const vpux::Config& config) override;
+                                              const vpux::Config& config) final;
 
     std::shared_ptr<INetworkDescription> parse(const std::vector<char>& network, const Config& config,
                                                const std::string& graphName) final;

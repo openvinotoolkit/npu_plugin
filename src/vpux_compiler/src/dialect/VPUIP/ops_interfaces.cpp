@@ -53,7 +53,7 @@ mlir::Attribute vpux::VPUIP::getExecutorAttr(uint32_t& numUnits, mlir::Operation
         numUnits = checked_cast<uint32_t>(opNumUnits.getValue());
     } else {
         auto module = op->getParentOfType<mlir::ModuleOp>();
-        auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+        auto resources = IE::RunTimeResourcesOp::getFromModule(module);
         auto available = resources.getExecutor(kindAttr);
         VPUX_THROW_UNLESS(available != nullptr, "Executor for '{0}' is not available", kind);
         numUnits = checked_cast<uint32_t>(available.count());
@@ -123,7 +123,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
     }
 
     if (upaTask.maxShaves().hasValue()) {
-        auto resources = IERT::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
+        auto resources = IE::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
         if (resources == nullptr) {
             return errorAt(op, "Missing IERT run-time resources definition");
         }

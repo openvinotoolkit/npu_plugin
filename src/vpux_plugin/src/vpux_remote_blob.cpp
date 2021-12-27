@@ -37,6 +37,9 @@ VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemot
     if (contextPtr == nullptr) {
         IE_THROW() << CONTEXT_ERROR_str << "Remote context is null.";
     }
+    if (_allocatorPtr == nullptr) {
+        IE_THROW() << "Remote allocator is null.";
+    }
 
     auto updatedParams = IE::ParamMap(params);
     updatedParams.insert(
@@ -108,8 +111,9 @@ static std::shared_ptr<IE::ROI> makeROIOverROI(const std::shared_ptr<const IE::R
     return resultROI;
 }
 
-VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& regionOfInterest)
-        : RemoteBlob(make_roi_desc(origBlob.getTensorDesc(), regionOfInterest, true)),
+VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const std::vector<std::size_t>& begin,
+                               const std::vector<std::size_t>& end)
+        : RemoteBlob(make_roi_desc(origBlob.getTensorDesc(), begin, end, true)),
           _parsedParams(origBlob._parsedParams),
           _remoteContextPtr(origBlob._remoteContextPtr),
           _allocatorPtr(origBlob._allocatorPtr),
@@ -122,6 +126,7 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
     if (tensorDesc.getDims().size() != 4) {
         IE_THROW() << "Unsupported layout for VPUXRemoteBlob";
     }
+    const IE::ROI regionOfInterest = {0, begin[3], begin[2], end[3] - begin[3], end[2] - begin[2]};
     const auto origBlobTensorDesc = origBlob.getOriginalTensorDesc();
     const auto orig_W = origBlobTensorDesc.getDims()[3];
     const auto orig_H = origBlobTensorDesc.getDims()[2];
@@ -196,7 +201,16 @@ const std::shared_ptr<IE::IAllocator>& VPUXRemoteBlob::getAllocator() const noex
     return _allocatorPtr;
 }
 
-IE::Blob::Ptr VPUXRemoteBlob::createROI(const IE::ROI& regionOfInterest) const {
-    return Blob::Ptr(new VPUXRemoteBlob(*this, regionOfInterest));
+IE::Blob::Ptr VPUXRemoteBlob::createROI(const IE::ROI& roi) const {
+    const auto& dims = getTensorDesc().getDims();
+    const std::vector<std::size_t> roiBegin = {0, 0, roi.posY, roi.posX};
+    const std::vector<std::size_t> roiEnd = {dims[0], dims[1], roi.posY + roi.sizeY, roi.posX + roi.sizeX};
+    return createROI(roiBegin, roiEnd);
 }
+
+IE::Blob::Ptr VPUXRemoteBlob::createROI(const std::vector<std::size_t>& begin,
+                                        const std::vector<std::size_t>& end) const {
+    return Blob::Ptr(new VPUXRemoteBlob(*this, begin, end));
+}
+
 }  // namespace vpux

@@ -441,6 +441,42 @@ operation ::= `VPUIP.DPUTask` attr-dict
 `pad` | vpux::VPUIP::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPUIP::MPEModeAttr | MPE Mode
 
+### `VPUIP.DepthToSpaceUPA` (vpux::VPUIP::DepthToSpaceUPAOp)
+
+DepthToSpace UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.DepthToSpaceUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::DepthToSpaceModeAttr | DepthToSpaceMode that the InferenceEngine supports
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.DetectionOutputUPA` (vpux::VPUIP::DetectionOutputUPAOp)
 
 DetectionOutput UPA SHAVE kernel
@@ -797,7 +833,7 @@ operation ::= `VPUIP.GatherElementsUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`output` | memref of 16-bit float values
 
 ### `VPUIP.GatherUPA` (vpux::VPUIP::GatherUPAOp)
 
@@ -1135,7 +1171,7 @@ operation ::= `VPUIP.MVNUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float values
+`output` | memref of any type values
 
 ### `VPUIP.MishUPA` (vpux::VPUIP::MishUPAOp)
 
@@ -1214,7 +1250,7 @@ mutually exclusive.
 `task_type` | vpux::VPUIP::NCETaskTypeAttr | NCE task type
 `kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `kernel_strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`kernel_padding` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`kernel_padding` | vpux::VPUIP::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 `is_continued` | ::mlir::UnitAttr | unit attribute
 
@@ -1996,7 +2032,7 @@ operation ::= `VPUIP.ScatterNDUpdateUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`output` | memref of 16-bit float values
 
 ### `VPUIP.SigmoidUPA` (vpux::VPUIP::SigmoidUPAOp)
 
@@ -2120,6 +2156,42 @@ operation ::= `VPUIP.SoftPlusUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.SpaceToDepthUPA` (vpux::VPUIP::SpaceToDepthUPAOp)
+
+SpaceToDepth UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SpaceToDepthUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::SpaceToDepthModeAttr | SpaceToDepthMode that the InferenceEngine supports
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:

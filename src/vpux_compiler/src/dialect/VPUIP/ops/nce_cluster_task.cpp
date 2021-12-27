@@ -34,7 +34,7 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::Value weights, mlir::Value weight_table, mlir::Value activation_window,
                                           mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
                                           vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
-                                          mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
+                                          mlir::ArrayAttr kernel_strides, vpux::VPUIP::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
@@ -51,7 +51,7 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::Value activation_window, mlir::Value parent_input,
                                           mlir::Value parent_output, mlir::Value output_buff,
                                           vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
-                                          mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
+                                          mlir::ArrayAttr kernel_strides, vpux::VPUIP::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued) {
     build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
@@ -186,11 +186,11 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
     const auto SY = kernelStrides[0];
     const auto SX = kernelStrides[1];
 
-    const auto kernelPadding = parseIntArrayAttr<int64_t>(op.kernel_paddingAttr());
-    const auto padLeft = kernelPadding[0];
-    const auto padRight = kernelPadding[1];
-    const auto padTop = kernelPadding[2];
-    const auto padBottom = kernelPadding[3];
+    const auto kernelPadding = op.kernel_paddingAttr();
+    const auto padLeft = kernelPadding.left().getInt();
+    const auto padRight = kernelPadding.right().getInt();
+    const auto padTop = kernelPadding.top().getInt();
+    const auto padBottom = kernelPadding.bottom().getInt();
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
                                                        padRight, arch))) {
@@ -256,11 +256,11 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
     const auto SY = kernelStrides[0];
     const auto SX = kernelStrides[1];
 
-    const auto kernelPadding = parseIntArrayAttr<int64_t>(op.kernel_paddingAttr());
-    const auto padLeft = kernelPadding[0];
-    const auto padRight = kernelPadding[1];
-    const auto padTop = kernelPadding[2];
-    const auto padBottom = kernelPadding[3];
+    const auto kernelPadding = op.kernel_paddingAttr();
+    const auto padLeft = kernelPadding.left().getInt();
+    const auto padRight = kernelPadding.right().getInt();
+    const auto padTop = kernelPadding.top().getInt();
+    const auto padBottom = kernelPadding.bottom().getInt();
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
                                                        padRight, arch))) {
@@ -330,11 +330,11 @@ mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind ar
     const auto SY = kernelStrides[0];
     const auto SX = kernelStrides[1];
 
-    const auto kernelPadding = parseIntArrayAttr<int64_t>(op.kernel_paddingAttr());
-    const auto padLeft = kernelPadding[0];
-    const auto padRight = kernelPadding[1];
-    const auto padTop = kernelPadding[2];
-    const auto padBottom = kernelPadding[3];
+    const auto kernelPadding = op.kernel_paddingAttr();
+    const auto padLeft = kernelPadding.left().getInt();
+    const auto padRight = kernelPadding.right().getInt();
+    const auto padTop = kernelPadding.top().getInt();
+    const auto padBottom = kernelPadding.bottom().getInt();
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
                                                        padRight, arch))) {
@@ -472,6 +472,8 @@ MVCNN::MPE_Mode getMPEMode(VPUIP::MPEMode mpeMode) {
         return MVCNN::MPE_Mode_CUBOID_16x16;
     case VPUIP::MPEMode::CUBOID_8x16:
         return MVCNN::MPE_Mode_CUBOID_8x16;
+    case VPUIP::MPEMode::CUBOID_4x16:
+        return MVCNN::MPE_Mode_CUBOID_4x16;
     case VPUIP::MPEMode::NOP:
         return MVCNN::MPE_Mode_NOP;
     default:
@@ -713,11 +715,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     }
 
     if (kernel_paddingAttr() != nullptr) {
-        const auto kernelPadding = parseIntArrayAttr<int64_t>(kernel_paddingAttr());
-        kernelPadL = checked_cast<int16_t>(kernelPadding[0]);
-        kernelPadR = checked_cast<int16_t>(kernelPadding[1]);
-        kernelPadT = checked_cast<int16_t>(kernelPadding[2]);
-        kernelPadB = checked_cast<int16_t>(kernelPadding[3]);
+        const auto kernelPadding = kernel_paddingAttr();
+        kernelPadL = checked_cast<int16_t>(kernelPadding.left().getInt());
+        kernelPadR = checked_cast<int16_t>(kernelPadding.right().getInt());
+        kernelPadT = checked_cast<int16_t>(kernelPadding.top().getInt());
+        kernelPadB = checked_cast<int16_t>(kernelPadding.bottom().getInt());
     }
 
     if (is_continuedAttr() != nullptr) {

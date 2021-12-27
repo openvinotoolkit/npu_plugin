@@ -31,7 +31,7 @@ def AssignPhysicalBarriers : PassBase<"assign-physical-barriers", "vpux::Functio
 
     let options = [
         Option<
-            "_numBarriersOpt", "num-barriers",
+            "numBarriersOpt", "num-barriers",
             "int", "",
             "Number of physical barriers, available for usage"
         >

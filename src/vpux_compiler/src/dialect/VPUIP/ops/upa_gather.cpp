@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"

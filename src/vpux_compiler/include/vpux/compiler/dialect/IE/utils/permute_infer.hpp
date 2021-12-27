@@ -21,7 +21,7 @@ using namespace vpux;
 
 void inferPermuteReturnTypeComponents(mlir::Value input, mlir::AffineMap mem_perm, mlir::AffineMap dst_order,
                                       SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes,
-                                      bool useInMemSpace);
+                                      bool strictInfer);
 
 template <typename PermOpPrev, typename PermOp>
 mlir::LogicalResult fusePermutations(PermOp permuteOp, mlir::PatternRewriter& rewriter) {

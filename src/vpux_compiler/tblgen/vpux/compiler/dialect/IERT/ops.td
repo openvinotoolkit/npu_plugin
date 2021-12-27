@@ -56,161 +56,6 @@ class IERT_LayerOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
 }
 
 //
-// RunTimeResourcesOp
-//
-
-def IERT_RunTimeResourcesOp :
-        IERT_Op<
-            "RunTimeResources",
-            [
-                IsolatedFromAbove,
-                HasParent<"mlir::ModuleOp">,
-                NoRegionArguments,
-                OpAsmOpInterface
-            ]
-            # GraphRegionNoTerminator.traits
-        > {
-    let summary = "Definition of run-time resources";
-
-    let description = [{
-        This operation defines various resources consumed at run-time:
-
-          * Available memory spaces for interal buffers.
-          * Used memory spaces for interal buffers.
-          * Executors for asynchronous calls.
-    }];
-
-    let regions = (region
-        SizedRegion<1>:$availableMemory,
-        SizedRegion<1>:$usedMemory,
-        SizedRegion<1>:$executors
-    );
-
-    let skipDefaultBuilders = 1;
-    let builders = [
-        OpBuilder<(ins)>
-    ];
-
-    let verifier = [{
-        return vpux::IERT::verifyOp(*this);
-    }];
-
-    let extraClassDeclaration = [{
-        static vpux::IERT::RunTimeResourcesOp getFromModule(mlir::ModuleOp module);
-
-        vpux::IERT::MemoryResourceOp addAvailableMemory(mlir::Attribute kind, vpux::Byte size);
-        vpux::IERT::MemoryResourceOp getAvailableMemory(mlir::Attribute kind);
-        auto getAvailableMemory() { return availableMemory().getOps<vpux::IERT::MemoryResourceOp>(); }
-
-        vpux::IERT::MemoryResourceOp setUsedMemory(mlir::Attribute kind, vpux::Byte size);
-        vpux::IERT::MemoryResourceOp getUsedMemory(mlir::Attribute kind);
-        auto getUsedMemory() { return usedMemory().getOps<vpux::IERT::MemoryResourceOp>(); }
-
-        vpux::IERT::ExecutorResourceOp addExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
-        vpux::IERT::ExecutorResourceOp getExecutor(mlir::Attribute kind);
-        auto getExecutors() { return executors().getOps<vpux::IERT::ExecutorResourceOp>(); }
-
-        static mlir::StringRef getDefaultDialect() {
-            return "IERT";
-        }
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        `availableMemory` `:` $availableMemory
-        `usedMemory` `:` $usedMemory
-        `executors` `:` $executors
-    }];
-}
-
-//
-// MemoryResourceOp
-//
-
-def IERT_MemoryResourceOp :
-        IERT_Op<
-            "MemoryResource",
-            [
-                HasParent<"vpux::IERT::RunTimeResourcesOp">
-            ]
-        > {
-    let summary = "Information about memory resource";
-
-    let description = [{
-        The memory resource is defined by the following attributes:
-
-          * Kind - optional kind of memory space.
-          * Size - size in bytes of memory space.
-    }];
-
-    let arguments = (ins
-        OptionalAttr<AnyAttr>:$kind,
-        IntAttr:$byteSize
-    );
-
-    let extraClassDeclaration = [{
-        vpux::Byte size() { return vpux::Byte(byteSize()); }
-    }];
-
-    let assemblyFormat = [{
-        $byteSize `bytes` (`of` $kind^)?
-        attr-dict
-    }];
-}
-
-//
-// ExecutorResourceOp
-//
-
-def IERT_ExecutorResourceOp :
-        IERT_Op<
-            "ExecutorResource",
-            [
-                ParentOneOf<["vpux::IERT::ExecutorResourceOp","vpux::IERT::RunTimeResourcesOp"]>,
-                NoRegionArguments,
-                OpAsmOpInterface
-            ]
-            # GraphRegionNoTerminator.traits
-        > {
-    let summary = "Information about executor resource";
-
-    let description = [{
-        The executor resource is defined by the following attributes:
-
-          * Kind - optional kind of the executor.
-          * Count - number of executor units.
-    }];
-
-    let arguments = (ins
-        AnyAttr:$kind,
-        IntAttr:$count
-    );
-
-    let regions = (region
-        VariadicRegion<SizedRegion<1>>:$subExecutors
-    );
-
-    let verifier = [{
-        return vpux::IERT::verifyOp(*this);
-    }];
-
-    let extraClassDeclaration = [{
-        vpux::IERT::ExecutorResourceOp addSubExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
-        vpux::IERT::ExecutorResourceOp getSubExecutor(mlir::Attribute kind);
-
-        static mlir::StringRef getDefaultDialect() {
-            return "IERT";
-        }
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        $count `of` $kind
-        $subExecutors
-    }];
-}
-
-//
 // StaticAllocOp
 //
 
@@ -2663,6 +2508,39 @@ def IERT_RegionYoloOp :
 }
 
 //
+// SpaceToDepthOp
+//
+
+def IERT_SpaceToDepthOp :
+        IERT_LayerOp<1,
+            "SpaceToDepth",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine Run-Time SpaceToDepth layer";
+
+    let arguments = (ins
+        MemRefOf<[F16]>:$input,
+        MemRefOf<[F16]>:$output_buff,
+
+        IntAttr:$block_size,
+        IE_SpaceToDepthMode:$mode
+    );
+
+    let results = (outs
+        MemRefOf<[F16]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // LSTMSequenceOp
 //
 
@@ -2988,6 +2866,38 @@ def IERT_EqualOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+// 
+// DepthToSpaceOp
+//
+
+def IERT_DepthToSpaceOp :
+        IERT_LayerOp<1, "DepthToSpace",
+            [
+                ViewLikeOpInterface,
+                IERT_SameDimsOrder
+            ]
+        > {
+    let summary = "InferenceEngine run-time DepthToSpace layer";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+        IntAttr:$block_size,
+        IE_DepthToSpaceMode:$mode
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];

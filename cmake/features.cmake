@@ -41,7 +41,8 @@ endif()
 # TODO: [Track number: S#46168] Investigate hddlunite build issue for ARM
 ie_dependent_option(ENABLE_CUSTOM_HDDLUNITE "Use custom build hddlunite" OFF "NOT AARCH64" OFF)
 
-ie_dependent_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON "HAVE_HDDL_UNITE_PACKAGE OR ENABLE_CUSTOM_HDDLUNITE" OFF)
+# HDDL2 is not supported for static lib case
+ie_dependent_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON "HAVE_HDDL_UNITE_PACKAGE OR ENABLE_CUSTOM_HDDLUNITE;BUILD_SHARED_LIBS" OFF)
 ie_dependent_option(ENABLE_HDDL2_TESTS "Enable Unit and Functional tests for HDDL2 Plugin" ON "ENABLE_HDDL2;ENABLE_TESTS" OFF)
 if(ENABLE_HDDL2)
     add_definitions(-DENABLE_HDDL2)
@@ -53,8 +54,10 @@ ie_dependent_option(ENABLE_VALIDATION_SET "download validation_set required for 
 ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker -export-dynamic options" OFF)
 
 ie_option(ENABLE_MCM_COMPILER_PACKAGE "Enable build of separate mcmCompiler package" OFF)
-
-ie_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend" ON "NOT AARCH64" OFF)
+# MCM compiler is not supported for static lib case
+ie_dependent_option(ENABLE_MCM_COMPILER "Enable compilation of mcmCompiler libraries" ON "BUILD_SHARED_LIBS" OFF)
+# TODO: zero backend needs to be enabled for static library case S#71301
+ie_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend" ON "NOT AARCH64;BUILD_SHARED_LIBS" OFF)
 
 ie_dependent_option(BUILD_COMPILER_FOR_DRIVER "Enable build of VPUXCompilerL0" ON "NOT BUILD_SHARED_LIBS" OFF)
 

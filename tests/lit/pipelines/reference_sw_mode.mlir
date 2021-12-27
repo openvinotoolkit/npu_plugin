@@ -3,7 +3,7 @@
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
 
-// CHECK:   IERT.RunTimeResources
+// CHECK:   IE.RunTimeResources
 // CHECK:       usedMemory
 // CHECK:           MemoryResource 2048 bytes of "DDR"
 
@@ -53,7 +53,7 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 // CHECK-LABEL: @ConstantLayer
 module @ConstantLayer {
 
-// CHECK:   IERT.RunTimeResources
+// CHECK:   IE.RunTimeResources
 // CHECK:       usedMemory
 // CHECK:           MemoryResource 128 bytes of "DDR"
 

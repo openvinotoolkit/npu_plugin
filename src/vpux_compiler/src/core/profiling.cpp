@@ -36,8 +36,8 @@ mlir::BlockArgument vpux::addNewProfilingOutput(mlir::MLIRContext* ctx, mlir::Fu
     auto outputUserResult =
             getTensorType(getShape(outputType), outputType.getElementType(), DimsOrder::fromType(outputType), nullptr);
     auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.profilingOutputsInfo().front().front());
-    userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, name),
-                                           mlir::TypeAttr::get(outputUserResult));
+    userInfoBuilder.create<IE::DataInfoOp>(mlir::NameLoc::get(mlir::Identifier::get("profilingDataOutputInfo", ctx)),
+                                           mlir::StringAttr::get(ctx, name), mlir::TypeAttr::get(outputUserResult));
 
     return netFunc.getBody().front().addArgument(outputType);
 }

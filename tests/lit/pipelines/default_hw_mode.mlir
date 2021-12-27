@@ -4,7 +4,7 @@
 
 // CHECK-LABEL: @Convolution
 module @Convolution {
-    // CHECK:   IERT.RunTimeResources
+    // CHECK:   IE.RunTimeResources
     // CHECK:       usedMemory :
     // CHECK-DAG:       MemoryResource {{[0-9]+}} bytes of "CMX_NN"
     // CHECK-DAG:       MemoryResource {{[0-9]+}} bytes of "DDR"

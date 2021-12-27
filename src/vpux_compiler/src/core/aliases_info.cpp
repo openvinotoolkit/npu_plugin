@@ -61,13 +61,21 @@ vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func): _log(Logger::global().nest("a
     traverse(func.getOps());
 }
 
-mlir::Value vpux::AliasesInfo::getSource(mlir::Value val) const {
+const AliasesInfo::ValuesSet& vpux::AliasesInfo::getSources(mlir::Value val) const {
     const auto it = _sources.find(val);
     VPUX_THROW_UNLESS(it != _sources.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
     return it->second;
 }
 
-mlir::Value vpux::AliasesInfo::getRoot(mlir::Value val) const {
+mlir::Value vpux::AliasesInfo::getSource(mlir::Value val) const {
+    const auto it = _sources.find(val);
+    VPUX_THROW_UNLESS(it != _sources.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
+    VPUX_THROW_UNLESS(it->second.size() == 1, "Value '{0}' expected to have only one source. Got {1}",
+                      getValueForLog(val), it->second.size());
+    return *it->second.begin();
+}
+
+const AliasesInfo::ValuesSet& vpux::AliasesInfo::getRoots(mlir::Value val) const {
     const auto it = _roots.find(val);
     VPUX_THROW_UNLESS(it != _roots.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
     return it->second;
@@ -82,16 +90,18 @@ const AliasesInfo::ValuesSet& vpux::AliasesInfo::getAllAliases(mlir::Value val) 
 void vpux::AliasesInfo::addAlias(mlir::Value source, mlir::Value alias) {
     _log.trace("Add an alias '{0}' for '{1}'", getValueForLog(alias), getValueForLog(source));
 
-    const auto root = source == alias ? alias : getRoot(source);
+    const auto roots = source == alias ? ValuesSet{alias} : getRoots(source);
 
-    if (alias == root) {
-        _sources.insert({alias, nullptr});
+    if (roots.find(alias) != roots.end()) {
+        _sources[alias].insert(nullptr);
     } else {
-        _sources.insert({alias, source});
+        _sources[alias].insert(source);
     }
 
-    _roots.insert({alias, root});
-    _allAliases[root].insert(alias);
+    _roots[alias].insert(roots.begin(), roots.end());
+    for (const auto& root : roots) {
+        _allAliases[root].insert(alias);
+    }
 }
 
 void vpux::AliasesInfo::traverse(OpRange ops) {
@@ -130,6 +140,25 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                             continue;
                         }
 
+                        VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(),
+                                          "AliasesInfo analysis works only with MemRef types, got '{0}'",
+                                          source.getType());
+
+                        addAlias(source, result);
+                    }
+
+                    _log = _log.unnest();
+                })
+                .Case<GroupedViewOpInterface>([&](GroupedViewOpInterface viewOp) {
+                    _log.trace("Got GroupedView Operation '{0}' at '{1}'", viewOp->getName(), viewOp->getLoc());
+                    _log = _log.nest();
+
+                    const auto result = viewOp->getResult(0);
+                    const auto sources = viewOp.getViewSources();
+
+                    VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
+                                      "AliasesInfo analysis works only with MemRef types, got '{0}'", result.getType());
+                    for (const auto source : sources) {
                         VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(),
                                           "AliasesInfo analysis works only with MemRef types, got '{0}'",
                                           source.getType());

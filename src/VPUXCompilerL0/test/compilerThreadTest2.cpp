@@ -25,7 +25,12 @@
 class CompilerTest {
 public:
     CompilerTest(): modelIR(nullptr), modelIRSize(0), numCompilationThreads(0), numGetBlobThreads(0) {
+        outputs.clear();
     }
+    CompilerTest(const CompilerTest& ct) = delete;
+    CompilerTest(CompilerTest&& ct) = delete;
+    CompilerTest& operator=(const CompilerTest& ct) = delete;
+    CompilerTest& operator=(CompilerTest&& ct) = delete;
     ~CompilerTest() {
         if (modelIR != nullptr) {
             free(modelIR);
@@ -79,6 +84,12 @@ vcl_result_t CompilerTest::init(char* netName, char* weightName) {
     modelIRSize =
             sizeof(version) + sizeof(numberOfInputData) + sizeof(xmlSize) + xmlSize + sizeof(weightsSize) + weightsSize;
     modelIR = (uint8_t*)malloc(modelIRSize);
+    if (!modelIR) {
+        std::cerr << "Failed to malloc memory for IR!" << std::endl;
+        fclose(fpW);
+        fclose(fpN);
+        return VCL_RESULT_ERROR_OUT_OF_MEMORY;
+    }
     uint64_t offset = 0;
     memcpy(modelIR, &version, sizeof(version));
     offset += sizeof(version);

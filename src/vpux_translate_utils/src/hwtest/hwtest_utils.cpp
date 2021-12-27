@@ -13,6 +13,7 @@
 
 #include "vpux/hwtest/hwtest_utils.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -65,13 +66,17 @@ mlir::Type convertToMLIRType(mlir::OpBuilder builder, nb::DType dtype) {
 }
 
 template <class StorageType>
-mlir::DenseElementsAttr generateWeights(std::ifstream& stream, mlir::RankedTensorType type, std::size_t size) {
+mlir::DenseElementsAttr generateWeights(std::ifstream& stream, mlir::RankedTensorType type, std::size_t elementsCount) {
     if (!stream) {
-        return mlir::DenseElementsAttr::get(type, llvm::makeArrayRef<StorageType>(std::vector<StorageType>(size)));
+        auto generatedElements = std::vector<StorageType>(elementsCount);
+        // have to add at least one non-zero element to make attribute non-splat. BitPack can't
+        // work with splat tensors
+        generatedElements[0] = 1;
+        return mlir::DenseElementsAttr::get(type, llvm::makeArrayRef<StorageType>(generatedElements));
     }
 
-    std::vector<StorageType> buffer(size);
-    const auto expectedBytesCountToRead = buffer.size() * sizeof(StorageType);
+    std::vector<StorageType> buffer(elementsCount);
+    const auto expectedBytesCountToRead = elementsCount * sizeof(StorageType);
     // read as bytes since FP16/BFP16 are not supported by C++ standard
     stream.read(reinterpret_cast<char*>(buffer.data()), expectedBytesCountToRead);
 
@@ -100,7 +105,6 @@ mlir::DenseElementsAttr generateWeights(std::ifstream& stream, mlir::RankedTenso
 
 mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> shape, mlir::Type type, mlir::MLIRContext* context,
                                         const char* weightsFileName) {
-    mlir::DenseElementsAttr wt_data_vals;
     auto wtData_ddr_valueType = mlir::RankedTensorType::get(shape, type);
     const auto vecSize = static_cast<std::size_t>(
             std::accumulate(shape.begin(), shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>()));
@@ -119,7 +123,40 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> shape, mlir::Typ
         std::cerr << "Warning: Unable to open weight data file " << weightsFileName << '\n';
     }
 
-    if (type.isSignedInteger(8)) {
+    if (type.isInteger(4)) {
+        std::vector<int64_t> uintWrapperShape{shape.begin(), shape.end()};
+        // in NHWC tensor two int4 neighboring elements by C axis will be united into one uint8 element. So we have to
+        // recalculate shape for uint wraper tensor
+        uintWrapperShape[Dims4D::Filter::OC.ind()] /= 2;
+
+        const auto wrapperVecSize = static_cast<std::size_t>(std::accumulate(
+                uintWrapperShape.begin(), uintWrapperShape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>()));
+
+        auto uintWrapperValueType = mlir::RankedTensorType::get(uintWrapperShape, getUInt8Type(context));
+        const auto weightsPacked = generateWeights<uint8_t>(stream, uintWrapperValueType, wrapperVecSize);
+        std::vector<std::uint8_t> weightsUnpacked;
+        weightsUnpacked.reserve(weightsPacked.size() * 2);
+        for (const auto& elemPacked : weightsPacked.getValues<uint8_t>()) {
+            const int8_t msn = (elemPacked & 0xf0) >> 4;
+            const int8_t lsn = (elemPacked & 0x0f) >> 0;
+            weightsUnpacked.push_back(lsn);
+            weightsUnpacked.push_back(msn);
+        }
+        VPUX_THROW_UNLESS(weightsUnpacked.size() == vecSize,
+                          llvm::formatv("Warning: count of elements in weights file {0} doesn't match with "
+                                        "provided weights shape {1}",
+                                        weightsUnpacked.size(), shape)
+                                  .str()
+                                  .c_str());
+
+        if (type.isSignedInteger(4)) {
+            return mlir::DenseElementsAttr::get(
+                    wtData_ddr_valueType,
+                    makeArrayRef(reinterpret_cast<const int8_t*>(weightsUnpacked.data()), weightsUnpacked.size()));
+        } else {
+            return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef(weightsUnpacked));
+        }
+    } else if (type.isSignedInteger(8)) {
         return generateWeights<std::int8_t>(stream, wtData_ddr_valueType, vecSize);
     } else if (type.isInteger(8)) {
         return generateWeights<std::uint8_t>(stream, wtData_ddr_valueType, vecSize);
@@ -138,11 +175,13 @@ std::size_t totalTensorSize(llvm::ArrayRef<int64_t> shape, mlir::Type elementTyp
     if (auto qType = elementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         elementType = qType.getStorageType();
     }
-    std::size_t numBytes = elementType.getIntOrFloatBitWidth() / 8;
+    size_t numBits = elementType.getIntOrFloatBitWidth();
 
     const auto totalSize =
-            std::accumulate(shape.begin(), shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
-    return static_cast<std::size_t>(totalSize) * numBytes;
+            std::accumulate(shape.begin(), shape.end(), static_cast<std::int64_t>(1), std::multiplies<std::int64_t>());
+    const auto totalBits = totalSize * numBits;
+    VPUX_THROW_UNLESS(totalBits % CHAR_BIT == 0, "Tensors size is not allligned to Byte");
+    return static_cast<std::size_t>(totalBits / CHAR_BIT);
 }
 
 std::vector<int64_t> convertNBPadtoNCETaskPad(const std::array<int64_t, 4>& nb_pad) {
@@ -313,10 +352,9 @@ vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder 
     std::vector<int64_t> end_vec{static_cast<int64_t>(output_shape[2] - 1), static_cast<int64_t>(output_shape[3] - 1),
                                  static_cast<int64_t>(output_shape[1] - 1)};
     auto end = getIntArrayAttr(builder, end_vec);
-    auto pad = VPUIP::PaddingAttr::get(getIntAttr(builder, padding_vec[PAD_NCETASK_LEFT]),
-                                       getIntAttr(builder, padding_vec[PAD_NCETASK_RIGHT]),
-                                       getIntAttr(builder, padding_vec[PAD_NCETASK_TOP]),
-                                       getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), builder.getContext());
+    auto pad = vpux::VPUIP::getPaddingAttr(builder.getContext(), padding_vec[PAD_NCETASK_LEFT],
+                                           padding_vec[PAD_NCETASK_RIGHT], padding_vec[PAD_NCETASK_TOP],
+                                           padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto dpuTask = variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad,
                                                            VPUIP::MPEMode::CUBOID_16x16);

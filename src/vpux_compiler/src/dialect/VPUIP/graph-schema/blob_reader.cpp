@@ -11,13 +11,13 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 
 #include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/import.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
-#include "vpux/compiler/frontend/VPUIP.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -363,7 +363,7 @@ void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {
     const auto arch = parseDeviceRevision();
     VPU::setArch(_module, arch);
 
-    auto resourcesOp = IERT::RunTimeResourcesOp::getFromModule(_module);
+    auto resourcesOp = IE::RunTimeResourcesOp::getFromModule(_module);
 
     const auto* header = _graphFile->header();
     VPUX_THROW_UNLESS(header->resources(), "Blob has no resources");
@@ -439,7 +439,9 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_GatherElementsParams, &BlobReader::parseGatherElements},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_BroadcastParams, &BlobReader::parseBroadcast},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_TileParams, &BlobReader::parseTile},
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_SpaceToDepthParams, &BlobReader::parseSpaceToDepth},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReduceParams, &BlobReader::parseReduce},
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_DepthToSpaceParams, &BlobReader::parseDepthToSpace},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReversesequenceParams, &BlobReader::parseReverseSequence}};
 
     VPUX_THROW_UNLESS(_graphFile->task_lists(), "Blob contains no task lists");

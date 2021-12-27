@@ -13,7 +13,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 
 void vpux::VPUIP::LSTMCellUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value inputData,
                                        mlir::Value initialHiddenState, mlir::Value initialCellState,

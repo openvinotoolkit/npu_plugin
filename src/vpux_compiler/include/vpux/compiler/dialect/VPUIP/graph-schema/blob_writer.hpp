@@ -18,7 +18,8 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
-#include "vpux/compiler/dialect/VPUIP/schema.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/attributes.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 
@@ -122,20 +123,13 @@ public:
     BarrierReference createBarrierReference(mlir::Operation* op);
 
 public:
-    static MVCNN::DType createDType(mlir::Type type);
-
     Vector<uint32_t> createDims(ShapeRef shape);
     Vector<uint32_t> createDims(mlir::ShapedType type);
-
-    VPUIP::BlobWriter::Vector<float> createStrides(StridesRef strides, Bit elemSize);
+    Vector<float> createStrides(StridesRef strides, Bit elemSize);
     Vector<float> createStrides(mlir::ShapedType type);
-
-    static MVCNN::MemoryLocation createMemoryLocation(VPURT::BufferSection section);
     IndirectDataReference createIndirectDataReference(int64_t dataIndex, Optional<int64_t> sparsityIndex = None,
                                                       Optional<int64_t> storageElementIndex = None,
                                                       Optional<int64_t> storageElementSize = None);
-
-    static MVCNN::order3 createOrder3(mlir::ArrayAttr attr);
 
 public:
     auto createString(StringRef str) {

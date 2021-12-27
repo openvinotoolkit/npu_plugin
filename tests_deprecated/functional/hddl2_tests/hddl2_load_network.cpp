@@ -13,7 +13,7 @@
 
 #include "hddl2_load_network.h"
 #include <vpux_private_config.hpp>
-#include "helper_remote_context.h"
+#include "hddl2_helpers/helper_remote_context.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::VPUXConfigParams;

@@ -17,18 +17,18 @@ models:
         preprocessing:
           - type: resize
             aspect_ratio_scale: fit_to_window
-            size: 513
+            size: 512
             interpolation: ANTIALIAS
             use_pillow: True
           - type: padding
             pad_value: '127.5,127.5,127.5'
-            size: 513
+            size: 512
         postprocessing:
           - type: resize_segmentation_mask
             to_dst_image_size: True
             apply_to: annotation
           - type: crop_or_pad
-            size: 513
+            size: 512
           - type: encode_segmentation_mask
             apply_to: annotation
         metrics:

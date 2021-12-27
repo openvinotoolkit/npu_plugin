@@ -15,7 +15,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPUIP/schema.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
@@ -97,8 +97,12 @@ private:
                                   const MVCNN::UPALayerTask* task);
     mlir::Operation* parseTile(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs, ArrayRef<mlir::Value> outputs,
                                const MVCNN::UPALayerTask* task);
+    mlir::Operation* parseDepthToSpace(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                       ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseReverseSequence(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                           ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
+    mlir::Operation* parseSpaceToDepth(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                       ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
 
 private:
     using TensorReferenceOffset = flatbuffers::Offset<MVCNN::TensorReference>;

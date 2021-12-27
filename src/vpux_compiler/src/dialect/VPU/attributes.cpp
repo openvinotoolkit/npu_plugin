@@ -110,7 +110,7 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
     module->setAttr(archAttrName, ArchKindAttr::get(module.getContext(), kind));
 
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
-    auto resources = builder.create<IERT::RunTimeResourcesOp>(module.getLoc());
+    auto resources = builder.create<IE::RunTimeResourcesOp>(module.getLoc());
 
     const auto addMem = [&](MemoryKind kind, Byte size, double derateFactor, uint32_t bandwidth) {
         auto mem = resources.addAvailableMemory(MemoryKindAttr::get(module.getContext(), kind), size);
@@ -129,7 +129,7 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         return numOfDPUGroupsVal;
     };
 
-    IERT::ExecutorResourceOp nceCluster;
+    IE::ExecutorResourceOp nceCluster;
 
     switch (kind) {
     case ArchKind::KMB: {

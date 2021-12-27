@@ -16,6 +16,7 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
@@ -109,7 +110,7 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
             weightscmx.getOperation()->getResult(0), mlir::Value(), nullptr,
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::ELTWISE, mlir::ArrayAttr(), mlir::ArrayAttr(),
-            mlir::ArrayAttr(), actChannelLength, /*is_continued*/ nullptr);
+            vpux::VPUIP::PaddingAttr(), actChannelLength, /*is_continued*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 
@@ -121,8 +122,7 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     std::vector<int32_t> end_vec{static_cast<int32_t>(out_shape[3] - 1), static_cast<int32_t>(out_shape[2] - 1),
                                  static_cast<int32_t>(out_shape[1] - 1)};
     auto end = getIntArrayAttr(builder, end_vec);
-    auto pad = VPUIP::PaddingAttr::get(getIntAttr(builder, 0), getIntAttr(builder, 0), getIntAttr(builder, 0),
-                                       getIntAttr(builder, 0), ctx);
+    auto pad = vpux::VPUIP::getPaddingAttr(ctx, 0, 0, 0, 0);
 
     // NB For eltwise operations, NTHW_NTK=(8, 8) is the only mode supported by
     // the hardware; this corresponds to CUBOID_8x16.

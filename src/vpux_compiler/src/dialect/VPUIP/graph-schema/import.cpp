@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,22 +11,15 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
-
-#include "vpux/utils/core/logger.hpp"
-#include "vpux_compiler.hpp"
-
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Support/Timing.h>
-
-#include <flatbuffers/flatbuffers.h>
+#include <vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp>
+#include <vpux/compiler/dialect/VPUIP/graph-schema/import.hpp>
 
 namespace vpux {
 namespace VPUIP {
 
-flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                         const std::vector<PreProcessInfo>& preprocessInfo,
-                                         Logger log = Logger::global());
+mlir::OwningModuleRef importBlob(mlir::MLIRContext* ctx, const std::vector<char>& blob, Logger log) {
+    return BlobReader(ctx, blob, log).read();
+}
 
 }  // namespace VPUIP
 }  // namespace vpux

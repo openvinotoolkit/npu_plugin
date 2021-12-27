@@ -16,6 +16,7 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -91,13 +92,20 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
-    if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
+    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
+
+    auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
+
+    if (qty != nullptr) {
+        if (qty.getStorageType().isInteger(4)) {
+            weightsAttribute = weightsAttribute.bitPack(4);
+        }
         weightsAttribute = weightsAttribute.quantCast(qty);
     }
 
     const auto weightsDDRType = getMemRef(weightsShape, weightsType, VPURT::BufferSection::Constant);
-    auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType,
-                                                                     weightsAttribute.reorder(vpux::DimsOrder::NHWC));
+    auto weightsDDR =
+            functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType, weightsAttribute);
     auto weightsCMX = getCMXTensor(weightsShape, weightsType, WEIGHTS_CMX_OFFSET);
 
     auto inputCMX = getCMXTensor(inputShape, inputType, INPUT_CMX_OFFSET);
@@ -136,7 +144,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const auto strides = getIntArrayAttr(ctx, conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
-    const auto kernelPaddings = getIntArrayAttr(ctx, paddings);
+    const auto kernelPaddings =
+            vpux::VPUIP::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
+                                        paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
 
@@ -148,10 +158,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
     const auto end =
             getIntArrayAttr(ctx, std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
-    const auto pad = VPUIP::PaddingAttr::get(vpux::getIntAttr(builder, paddings[PAD_NCETASK_LEFT]),
-                                             vpux::getIntAttr(builder, paddings[PAD_NCETASK_RIGHT]),
-                                             vpux::getIntAttr(builder, paddings[PAD_NCETASK_TOP]),
-                                             vpux::getIntAttr(builder, paddings[PAD_NCETASK_BOTTOM]), ctx);
+    const auto pad = vpux::VPUIP::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
+                                                 paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
 
     nceTask.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
 

@@ -135,7 +135,7 @@ Byte vpux::getTotalSize(mlir::Value val) {
 }
 
 Byte vpux::getCompactSize(mlir::ShapedType type) {
-    const auto typeSize = static_cast<Byte>(getElemTypeSize(type));
+    const auto typeSize = static_cast<Bit>(getElemTypeSize(type));
     if (type.getRank() == 0) {
         return typeSize;
     }
@@ -308,10 +308,10 @@ mlir::MemRefType vpux::eraseTiledInfo(mlir::MemRefType origType) {
 //
 
 mlir::RankedTensorType vpux::getTensorType(ShapeRef shape, mlir::Type elemType, DimsOrder order,
-                                           mlir::Attribute memSpace) {
+                                           mlir::Attribute memSpace, bool sparse) {
     VPUX_THROW_UNLESS(order.numDims() == shape.size(), "DimsOrder '{0}' doesn't match to shape '{1}'", order, shape);
 
-    const auto tensorDesc = IE::getTensorAttr(elemType.getContext(), order, memSpace);
+    const auto tensorDesc = IE::getTensorAttr(elemType.getContext(), order, memSpace, sparse);
     const auto newType = mlir::RankedTensorType::get(shape.raw(), elemType, tensorDesc);
 
     const auto loc = mlir::UnknownLoc::get(elemType.getContext());
@@ -321,8 +321,8 @@ mlir::RankedTensorType vpux::getTensorType(ShapeRef shape, mlir::Type elemType, 
 }
 
 mlir::RankedTensorType vpux::changeElemType(mlir::RankedTensorType origType, mlir::Type elemType) {
-    const auto newType =
-            getTensorType(getShape(origType), elemType, DimsOrder::fromType(origType), IE::getMemorySpace(origType));
+    const auto newType = getTensorType(getShape(origType), elemType, DimsOrder::fromType(origType),
+                                       IE::getMemorySpace(origType), IE::isSparse(origType));
 
     const auto loc = mlir::UnknownLoc::get(origType.getContext());
     VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
@@ -334,7 +334,8 @@ mlir::RankedTensorType vpux::changeShape(mlir::RankedTensorType origType, ShapeR
     const auto origOrder = DimsOrder::fromType(origType);
     const auto newOrder = origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder;
 
-    const auto newType = getTensorType(shape, origType.getElementType(), newOrder, IE::getMemorySpace(origType));
+    const auto newType = getTensorType(shape, origType.getElementType(), newOrder, IE::getMemorySpace(origType),
+                                       IE::isSparse(origType));
 
     const auto loc = mlir::UnknownLoc::get(origType.getContext());
     VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
@@ -343,11 +344,18 @@ mlir::RankedTensorType vpux::changeShape(mlir::RankedTensorType origType, ShapeR
 }
 
 mlir::RankedTensorType vpux::changeDimsOrder(mlir::RankedTensorType origType, DimsOrder order) {
-    return getTensorType(getShape(origType), origType.getElementType(), order, IE::getMemorySpace(origType));
+    return getTensorType(getShape(origType), origType.getElementType(), order, IE::getMemorySpace(origType),
+                         IE::isSparse(origType));
 }
 
 mlir::RankedTensorType vpux::changeMemSpace(mlir::RankedTensorType origType, mlir::Attribute memSpace) {
-    return getTensorType(getShape(origType), origType.getElementType(), DimsOrder::fromType(origType), memSpace);
+    return getTensorType(getShape(origType), origType.getElementType(), DimsOrder::fromType(origType), memSpace,
+                         IE::isSparse(origType));
+}
+
+mlir::RankedTensorType vpux::changeSparse(mlir::RankedTensorType origType, bool sparse) {
+    return getTensorType(getShape(origType), origType.getElementType(), DimsOrder::fromType(origType),
+                         IE::getMemorySpace(origType), sparse);
 }
 
 mlir::RankedTensorType vpux::getDenseTileType(mlir::RankedTensorType origType, ShapeRef tileOffsets,
@@ -357,8 +365,8 @@ mlir::RankedTensorType vpux::getDenseTileType(mlir::RankedTensorType origType, S
         elemType = tileScalesAndZP(perAxisQType, tileShape, tileOffsets);
     }
 
-    const auto newType =
-            getTensorType(tileShape, elemType, DimsOrder::fromType(origType), IE::getMemorySpace(origType));
+    const auto newType = getTensorType(tileShape, elemType, DimsOrder::fromType(origType), IE::getMemorySpace(origType),
+                                       IE::isSparse(origType));
 
     const auto loc = mlir::UnknownLoc::get(origType.getContext());
     VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
@@ -385,7 +393,8 @@ mlir::RankedTensorType vpux::getPaddedType(mlir::RankedTensorType origType, Shap
         elemType = expandScalesAndZP(perAxisQType, padBefore, padAfter);
     }
 
-    const auto newType = getTensorType(newShape, elemType, DimsOrder::fromType(origType), IE::getMemorySpace(origType));
+    const auto newType = getTensorType(newShape, elemType, DimsOrder::fromType(origType), IE::getMemorySpace(origType),
+                                       IE::isSparse(origType));
 
     const auto loc = mlir::UnknownLoc::get(origType.getContext());
     VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
@@ -443,6 +452,16 @@ mlir::ShapedType vpux::changeMemSpace(mlir::ShapedType origType, mlir::Attribute
             })
             .Case<mlir::RankedTensorType>([&](mlir::RankedTensorType tensor) {
                 return changeMemSpace(tensor, memSpace);
+            })
+            .Default([](mlir::ShapedType type) -> mlir::ShapedType {
+                VPUX_THROW("Unsupported ShapedType '{0}'", type);
+            });
+}
+
+mlir::ShapedType vpux::changeSparse(mlir::ShapedType origType, bool sparse) {
+    return llvm::TypeSwitch<mlir::ShapedType, mlir::ShapedType>(origType)
+            .Case<mlir::RankedTensorType>([&](mlir::RankedTensorType tensor) {
+                return changeSparse(tensor, sparse);
             })
             .Default([](mlir::ShapedType type) -> mlir::ShapedType {
                 VPUX_THROW("Unsupported ShapedType '{0}'", type);

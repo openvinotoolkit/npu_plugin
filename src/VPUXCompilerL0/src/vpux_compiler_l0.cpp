@@ -120,6 +120,7 @@ private:
 
 VPUXExecutableL0::VPUXExecutableL0(NetworkDescription::Ptr networkDesc, bool enableProfiling)
         : _networkDesc(networkDesc), enableProfiling(enableProfiling) {
+    _blob.clear();
 }
 
 vcl_result_t VPUXExecutableL0::serializeNetwork() {

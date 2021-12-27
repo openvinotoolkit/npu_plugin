@@ -34,8 +34,8 @@ using namespace vpux;
 
 namespace {
 
-IERT::ExecutorResourceOp getExecutor(mlir::Region& executor, mlir::Attribute kind) {
-    for (auto res : executor.getOps<IERT::ExecutorResourceOp>()) {
+IE::ExecutorResourceOp getExecutor(mlir::Region& executor, mlir::Attribute kind) {
+    for (auto res : executor.getOps<IE::ExecutorResourceOp>()) {
         if (res.kind() == kind) {
             return res;
         }
@@ -44,17 +44,17 @@ IERT::ExecutorResourceOp getExecutor(mlir::Region& executor, mlir::Attribute kin
     return nullptr;
 }
 
-IERT::ExecutorResourceOp addExecutor(mlir::Location loc, mlir::Region& executor, mlir::Attribute kind, uint32_t count,
-                                     bool withSubRegion) {
+IE::ExecutorResourceOp addExecutor(mlir::Location loc, mlir::Region& executor, mlir::Attribute kind, uint32_t count,
+                                   bool withSubRegion) {
     VPUX_THROW_UNLESS(count > 0, "Trying to set zero count of executor kind '{0}'", kind);
 
-    for (auto res : executor.getOps<IERT::ExecutorResourceOp>()) {
+    for (auto res : executor.getOps<IE::ExecutorResourceOp>()) {
         VPUX_THROW_UNLESS(kind != res.kind(), "Executor kind '{0}' was already added", kind);
     }
 
     auto countAttr = getIntAttr(loc.getContext(), count);
     auto builder = mlir::OpBuilder::atBlockEnd(&executor.front());
-    auto resOp = builder.create<IERT::ExecutorResourceOp>(loc, kind, countAttr, withSubRegion ? 1 : 0);
+    auto resOp = builder.create<IE::ExecutorResourceOp>(loc, kind, countAttr, withSubRegion ? 1 : 0);
     if (withSubRegion) {
         resOp.subExecutors().front().emplaceBlock();
     }
@@ -67,29 +67,29 @@ IERT::ExecutorResourceOp addExecutor(mlir::Location loc, mlir::Region& executor,
 // RunTimeResourcesOp
 //
 
-void vpux::IERT::RunTimeResourcesOp::build(mlir::OpBuilder&, mlir::OperationState& state) {
+void vpux::IE::RunTimeResourcesOp::build(mlir::OpBuilder&, mlir::OperationState& state) {
     state.addRegion()->emplaceBlock();
     state.addRegion()->emplaceBlock();
     state.addRegion()->emplaceBlock();
 }
 
-mlir::LogicalResult vpux::IERT::verifyOp(IERT::RunTimeResourcesOp op) {
+mlir::LogicalResult vpux::IE::verifyOp(IE::RunTimeResourcesOp op) {
     for (auto& resOp : op.availableMemory().getOps()) {
-        if (!mlir::isa<IERT::MemoryResourceOp>(&resOp)) {
+        if (!mlir::isa<IE::MemoryResourceOp>(&resOp)) {
             return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'availableMemory' region", resOp.getName(),
                            resOp.getLoc());
         }
     }
 
     for (auto& resOp : op.usedMemory().getOps()) {
-        if (!mlir::isa<IERT::MemoryResourceOp>(&resOp)) {
+        if (!mlir::isa<IE::MemoryResourceOp>(&resOp)) {
             return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'usedMemory' region", resOp.getName(),
                            resOp.getLoc());
         }
     }
 
     for (auto& resOp : op.executors().getOps()) {
-        if (!mlir::isa<IERT::ExecutorResourceOp>(&resOp)) {
+        if (!mlir::isa<IE::ExecutorResourceOp>(&resOp)) {
             return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'executors' region", resOp.getName(),
                            resOp.getLoc());
         }
@@ -98,20 +98,20 @@ mlir::LogicalResult vpux::IERT::verifyOp(IERT::RunTimeResourcesOp op) {
     return mlir::success();
 }
 
-IERT::RunTimeResourcesOp vpux::IERT::RunTimeResourcesOp::getFromModule(mlir::ModuleOp module) {
-    auto ops = to_small_vector(module.getOps<IERT::RunTimeResourcesOp>());
+IE::RunTimeResourcesOp vpux::IE::RunTimeResourcesOp::getFromModule(mlir::ModuleOp module) {
+    auto ops = to_small_vector(module.getOps<IE::RunTimeResourcesOp>());
 
     if (ops.empty()) {
         return nullptr;
     }
 
-    VPUX_THROW_UNLESS(ops.size() == 1,
-                      "Can't have more than one 'IERT::RunTimeResources' Operation in Module, got '{0}'", ops.size());
+    VPUX_THROW_UNLESS(ops.size() == 1, "Can't have more than one 'IE::RunTimeResources' Operation in Module, got '{0}'",
+                      ops.size());
 
     return ops.front();
 }
 
-IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::addAvailableMemory(mlir::Attribute kind, Byte size) {
+IE::MemoryResourceOp vpux::IE::RunTimeResourcesOp::addAvailableMemory(mlir::Attribute kind, Byte size) {
     VPUX_THROW_UNLESS(size.count() > 0, "Trying to set zero size of memory kind '{0}'", kind);
 
     for (auto res : getAvailableMemory()) {
@@ -121,10 +121,10 @@ IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::addAvailableMemory(mlir::
     auto byteSizeAttr = getIntAttr(getContext(), size.count());
 
     auto builder = mlir::OpBuilder::atBlockEnd(&availableMemory().front());
-    return builder.create<IERT::MemoryResourceOp>(getLoc(), kind, byteSizeAttr);
+    return builder.create<IE::MemoryResourceOp>(getLoc(), kind, byteSizeAttr);
 }
 
-IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::getAvailableMemory(mlir::Attribute kind) {
+IE::MemoryResourceOp vpux::IE::RunTimeResourcesOp::getAvailableMemory(mlir::Attribute kind) {
     for (auto res : getAvailableMemory()) {
         if (res.kind() == kind) {
             return res;
@@ -134,7 +134,7 @@ IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::getAvailableMemory(mlir::
     return nullptr;
 }
 
-IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::setUsedMemory(mlir::Attribute kind, Byte size) {
+IE::MemoryResourceOp vpux::IE::RunTimeResourcesOp::setUsedMemory(mlir::Attribute kind, Byte size) {
     auto available = getAvailableMemory(kind);
     VPUX_THROW_UNLESS(available != nullptr, "Memory kind '{0}' is not registered as available", kind);
     VPUX_THROW_UNLESS(size <= available.size(), "Memory kind '{0}' used size '{1}' exceeds available size '{2}'", kind,
@@ -150,10 +150,10 @@ IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::setUsedMemory(mlir::Attri
     }
 
     auto builder = mlir::OpBuilder::atBlockEnd(&usedMemory().front());
-    return builder.create<IERT::MemoryResourceOp>(getLoc(), kind, byteSizeAttr);
+    return builder.create<IE::MemoryResourceOp>(getLoc(), kind, byteSizeAttr);
 }
 
-IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::getUsedMemory(mlir::Attribute kind) {
+IE::MemoryResourceOp vpux::IE::RunTimeResourcesOp::getUsedMemory(mlir::Attribute kind) {
     for (auto res : getUsedMemory()) {
         if (res.kind() == kind) {
             return res;
@@ -163,12 +163,12 @@ IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::getUsedMemory(mlir::Attri
     return nullptr;
 }
 
-IERT::ExecutorResourceOp vpux::IERT::RunTimeResourcesOp::addExecutor(mlir::Attribute kind, uint32_t count,
-                                                                     bool withSubRegion) {
+IE::ExecutorResourceOp vpux::IE::RunTimeResourcesOp::addExecutor(mlir::Attribute kind, uint32_t count,
+                                                                 bool withSubRegion) {
     return ::addExecutor(getLoc(), executors(), kind, count, withSubRegion);
 }
 
-IERT::ExecutorResourceOp vpux::IERT::RunTimeResourcesOp::getExecutor(mlir::Attribute kind) {
+IE::ExecutorResourceOp vpux::IE::RunTimeResourcesOp::getExecutor(mlir::Attribute kind) {
     return ::getExecutor(executors(), kind);
 }
 
@@ -176,14 +176,14 @@ IERT::ExecutorResourceOp vpux::IERT::RunTimeResourcesOp::getExecutor(mlir::Attri
 // ExecutorResourceOp
 //
 
-mlir::LogicalResult vpux::IERT::verifyOp(IERT::ExecutorResourceOp op) {
+mlir::LogicalResult vpux::IE::verifyOp(IE::ExecutorResourceOp op) {
     if (!op.subExecutors().empty() && op.subExecutors().size() != 1) {
         return errorAt(op, "Can't have more than one 'subExecutors' region");
     }
 
     if (!op.subExecutors().empty()) {
         for (auto& resOp : op.subExecutors().front().getOps()) {
-            if (!mlir::isa<IERT::ExecutorResourceOp>(&resOp)) {
+            if (!mlir::isa<IE::ExecutorResourceOp>(&resOp)) {
                 return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'subExecutors' region", resOp.getName(),
                                resOp.getLoc());
             }
@@ -193,12 +193,12 @@ mlir::LogicalResult vpux::IERT::verifyOp(IERT::ExecutorResourceOp op) {
     return mlir::success();
 }
 
-IERT::ExecutorResourceOp vpux::IERT::ExecutorResourceOp::addSubExecutor(mlir::Attribute kind, uint32_t count,
-                                                                        bool withSubRegion) {
+IE::ExecutorResourceOp vpux::IE::ExecutorResourceOp::addSubExecutor(mlir::Attribute kind, uint32_t count,
+                                                                    bool withSubRegion) {
     VPUX_THROW_UNLESS(!subExecutors().empty(), "Executor '{0}' doesn't support sub executors", this->kind());
     return ::addExecutor(getLoc(), subExecutors().front(), kind, count, withSubRegion);
 }
 
-IERT::ExecutorResourceOp vpux::IERT::ExecutorResourceOp::getSubExecutor(mlir::Attribute kind) {
+IE::ExecutorResourceOp vpux::IE::ExecutorResourceOp::getSubExecutor(mlir::Attribute kind) {
     return subExecutors().empty() ? nullptr : ::getExecutor(subExecutors().front(), kind);
 }

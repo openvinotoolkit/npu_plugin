@@ -16,10 +16,10 @@
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
 
-#include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/network_description.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"

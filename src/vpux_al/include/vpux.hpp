@@ -97,6 +97,8 @@ public:
 
     /** @brief Wrap remote memory. Backend should get all required data from paramMap */
     virtual void* wrapRemoteMemory(const InferenceEngine::ParamMap& paramMap) noexcept;
+    // TODO remove these methods
+    // [Track number: E#23679]
     // TODO: need update methods to remove Kmb from parameters
     /** @deprecated These functions below should not be used */
     virtual void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept = 0;
@@ -153,7 +155,10 @@ public:
         return _actual->getPhysicalAddress(handle);
     }
 
-    ~AllocatorWrapper() = default;
+    ~AllocatorWrapper() {
+        // It's necessary to destroy _actual before _plg to avoid potential program crashes
+        _actual = nullptr;
+    };
 };
 
 //------------------------------------------------------------------------------
@@ -212,7 +217,10 @@ public:
         return _actual->getName();
     }
 
-    ~Device() = default;
+    ~Device() {
+        // It's necessary to destroy _actual before _plg to avoid potential program crashes
+        _actual = nullptr;
+    }
 };
 //------------------------------------------------------------------------------
 using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;

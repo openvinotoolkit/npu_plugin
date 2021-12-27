@@ -132,7 +132,7 @@
             "EltwiseToSWEltwise",
             "MarkEltWiseUpaInputs",
             "MarkCMCompatibleConvs",
-            "AddPermuteToNonCMConvPaths",
+            "AddPermuteToIOOps",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -245,6 +245,7 @@
             "StoreWorkloadStrategy",
             "LoadPWLQuantParams",
             "ConvertOpsToTasks",
+            "KMBQuantizeConversion",
             "SetUpPPETasks",
             "TaskMultiplePostOps",
             "ForceSerialize",
@@ -256,7 +257,6 @@
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
             "ImplicitOutputDTypeUpdate",
-            "KMBQuantizeConversion",
             "AdaptFixedPointCompute",
             "ConfigureIOPrecision",
             "EnsureDTypeCompatibility",
@@ -366,6 +366,7 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             "DMAOrdering",
+            "VerifyDMASchedulingOrder",
             "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",

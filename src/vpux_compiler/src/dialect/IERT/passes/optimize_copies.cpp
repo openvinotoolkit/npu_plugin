@@ -111,7 +111,12 @@ void fuseLastCopy(IERT::CopyOp copyOp, const AliasesInfo& aliasesInfo, Logger lo
         return;
     }
 
-    const auto sourceRoot = aliasesInfo.getRoot(copyOp.input());
+    const auto sourceRoots = aliasesInfo.getRoots(copyOp.input());
+    if (sourceRoots.size() != 1) {
+        return;
+    }
+
+    const auto sourceRoot = *sourceRoots.begin();
     if (sourceRoot == nullptr || sourceRoot.isa<mlir::BlockArgument>()) {
         // input also is block argument
         return;

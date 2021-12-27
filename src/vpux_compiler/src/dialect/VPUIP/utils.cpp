@@ -24,7 +24,7 @@ using namespace vpux;
 // Run-time info
 //
 
-double vpux::VPUIP::getMemoryDerateFactor(IERT::MemoryResourceOp mem) {
+double vpux::VPUIP::getMemoryDerateFactor(IE::MemoryResourceOp mem) {
     VPUX_THROW_UNLESS(mem.kindAttr() != nullptr, "Got empty memory resource kind");
     VPUX_THROW_UNLESS(mem.kindAttr().isa<VPU::MemoryKindAttr>(), "Unsupported memory resource kind '{0}'", mem.kind());
 
@@ -37,7 +37,7 @@ double vpux::VPUIP::getMemoryDerateFactor(IERT::MemoryResourceOp mem) {
     return attr.cast<mlir::FloatAttr>().getValueAsDouble();
 }
 
-uint32_t vpux::VPUIP::getMemoryBandwidth(IERT::MemoryResourceOp mem) {
+uint32_t vpux::VPUIP::getMemoryBandwidth(IE::MemoryResourceOp mem) {
     VPUX_THROW_UNLESS(mem.kindAttr() != nullptr, "Got empty memory resource kind");
     VPUX_THROW_UNLESS(mem.kindAttr().isa<VPU::MemoryKindAttr>(), "Unsupported memory resource kind '{0}'", mem.kind());
 
@@ -50,7 +50,7 @@ uint32_t vpux::VPUIP::getMemoryBandwidth(IERT::MemoryResourceOp mem) {
     return checked_cast<uint32_t>(attr.cast<mlir::IntegerAttr>().getInt());
 }
 
-double vpux::VPUIP::getProcessorFrequency(IERT::ExecutorResourceOp res) {
+double vpux::VPUIP::getProcessorFrequency(IE::ExecutorResourceOp res) {
     VPUX_THROW_UNLESS(res.kindAttr() != nullptr, "Got empty executor resource kind");
 
     auto attr = res->getAttr(VPU::getProcessorFrequencyAttrName());

@@ -30,103 +30,90 @@ set(VPUX_PLUGIN_OBJS_TARGET ${VPUX_PLUGIN_TARGET}_objs)
 set(VPUX_PLUGIN_STATIC_TARGET "${VPUX_PLUGIN_TARGET}_static" CACHE INTERNAL "")
 set(VPUX_PLUGIN_ENGINE_SOURCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/vpux_plugin.cpp CACHE INTERNAL "")
 
-
+addVersionDefines(${VPUX_PLUGIN_ENGINE_SOURCE_FILE} CI_BUILD_NUMBER)
 #
 # Object library
 #
+if(BUILD_SHARED_LIBS)
+    add_library(${VPUX_PLUGIN_OBJS_TARGET} OBJECT ${SOURCES})
+endif()
 
-add_library(${VPUX_PLUGIN_OBJS_TARGET} OBJECT ${SOURCES})
+#
+# Plugin library
+#
 
-enable_warnings_as_errors(${VPUX_PLUGIN_OBJS_TARGET})
-addVersionDefines(${VPUX_PLUGIN_ENGINE_SOURCE_FILE} CI_BUILD_NUMBER)
-target_compile_definitions(${VPUX_PLUGIN_OBJS_TARGET}
-    PRIVATE
-        IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+if(BUILD_SHARED_LIBS)
+    set(VPUX_PLUGIN_TARGET_SOURCES $<TARGET_OBJECTS:${VPUX_PLUGIN_OBJS_TARGET}>)
+else()
+    set(VPUX_PLUGIN_TARGET_SOURCES ${SOURCES})
+endif()
 
-target_include_directories(${VPUX_PLUGIN_OBJS_TARGET}
+ie_add_plugin(NAME ${VPUX_PLUGIN_TARGET}
+    DEVICE_NAME ${VPUX_DEVICE_NAME}
+    SOURCES
+        ${VPUX_PLUGIN_TARGET_SOURCES}
+        ${VPUX_PLUGIN_ENGINE_SOURCE_FILE}
+    VERSION_DEFINES_FOR ${VPUX_PLUGIN_ENGINE_SOURCE_FILE})
+
+if(BUILD_SHARED_LIBS)
+    set(TARGET_NAME ${VPUX_PLUGIN_OBJS_TARGET} CACHE INTERNAL "")
+    target_link_libraries(${VPUX_PLUGIN_TARGET} PUBLIC ${VPUX_PLUGIN_OBJS_TARGET})
+else()
+    set(TARGET_NAME ${VPUX_PLUGIN_TARGET} CACHE INTERNAL "")
+endif()
+
+enable_warnings_as_errors(${TARGET_NAME})
+
+target_include_directories(${TARGET_NAME}
     PUBLIC
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/preproc_gapi"
+        $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/preproc_gapi>
 )
 
-link_system_libraries(${VPUX_PLUGIN_OBJS_TARGET}
+link_system_libraries(${TARGET_NAME}
     PUBLIC
         IE::inference_engine
         IE::inference_engine_plugin_api
         IE::vpu_common_lib
 )
 
-target_link_libraries(${VPUX_PLUGIN_OBJS_TARGET}
+target_link_libraries(${TARGET_NAME}
     PUBLIC
         kmb_utils
         vpux_al
     PRIVATE
         vpux_utils
-        ${GAPI_LIB}
+        preproc_gapi
 )
 
-add_cpplint_target(${VPUX_PLUGIN_OBJS_TARGET}_cpplint FOR_TARGETS ${VPUX_PLUGIN_OBJS_TARGET})
-
 if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${VPUX_PLUGIN_TARGET} FOR_TARGETS ${VPUX_PLUGIN_OBJS_TARGET} ALL)
-    add_dependencies(${VPUX_PLUGIN_OBJS_TARGET} clang_format_${VPUX_PLUGIN_TARGET})
+    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
+    add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
 endif()
 
 #
 # Static library
 #
 
-add_library(${VPUX_PLUGIN_STATIC_TARGET} STATIC
-        $<TARGET_OBJECTS:${VPUX_PLUGIN_OBJS_TARGET}>
-        ${VPUX_PLUGIN_ENGINE_SOURCE_FILE})
+if(BUILD_SHARED_LIBS)
+    add_library(${VPUX_PLUGIN_STATIC_TARGET} STATIC
+            $<TARGET_OBJECTS:${VPUX_PLUGIN_OBJS_TARGET}>
+            ${VPUX_PLUGIN_ENGINE_SOURCE_FILE}
+    )
 
-target_compile_definitions(${VPUX_PLUGIN_STATIC_TARGET}
-    PRIVATE
-        IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-        "DEVICE_NAME=\"${VPUX_DEVICE_NAME}\"")
+    target_include_directories(${VPUX_PLUGIN_STATIC_TARGET}
+        PUBLIC
+            $<TARGET_PROPERTY:${VPUX_PLUGIN_OBJS_TARGET},INTERFACE_INCLUDE_DIRECTORIES>
+    )
 
-target_include_directories(${VPUX_PLUGIN_STATIC_TARGET}
-    PUBLIC
-        $<TARGET_PROPERTY:${VPUX_PLUGIN_OBJS_TARGET},INTERFACE_INCLUDE_DIRECTORIES>)
-
-
-link_system_libraries(${VPUX_PLUGIN_STATIC_TARGET}
-    PUBLIC
-        IE::inference_engine_plugin_api
-        IE::vpu_common_lib
-)
-
-target_link_libraries(${VPUX_PLUGIN_STATIC_TARGET}
-    PUBLIC
-        kmb_utils
-    PRIVATE
-        vpux_al
-        vpux_utils
-        ${GAPI_LIB}
-)
-
-
-#
-# Plugin library
-#
-
-set(TARGET_NAME ${VPUX_PLUGIN_TARGET})
-ie_add_plugin(NAME ${VPUX_PLUGIN_TARGET}
-    DEVICE_NAME ${VPUX_DEVICE_NAME}
-    SOURCES
-        $<TARGET_OBJECTS:${VPUX_PLUGIN_OBJS_TARGET}>
-        ${VPUX_PLUGIN_ENGINE_SOURCE_FILE}
-    VERSION_DEFINES_FOR ${VPUX_PLUGIN_ENGINE_SOURCE_FILE})
-
-target_compile_definitions(${VPUX_PLUGIN_TARGET}
-    PRIVATE
-        IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-        "DEVICE_NAME=\"${VPUX_DEVICE_NAME}\"")
-
-target_link_libraries(${VPUX_PLUGIN_TARGET}
-    PRIVATE
-        ${VPUX_PLUGIN_OBJS_TARGET})
+    target_link_libraries(${VPUX_PLUGIN_STATIC_TARGET}
+        PUBLIC
+            ${VPUX_PLUGIN_OBJS_TARGET}
+    )
+else()
+    add_library(${VPUX_PLUGIN_STATIC_TARGET} ALIAS ${VPUX_PLUGIN_TARGET})
+endif()
 
 if(AARCH64)
     install(FILES   $<TARGET_PROPERTY:NN,IMPORTED_LOCATION_NOCONFIG>
@@ -144,14 +131,15 @@ list(APPEND ALL_PLUGINS ${VPUX_PLUGIN_TARGET})
 
 ie_register_plugins(MAIN_TARGET ${VPUX_PLUGIN_TARGET} POSSIBLE_PLUGINS ${ALL_PLUGINS})
 
-
-add_custom_target(mcm_compiler_copy ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/config"
-        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/mcm_config"
-    COMMENT "[MCM Compiler] Copy config files"
-)
-add_dependencies(${VPUX_PLUGIN_TARGET} frontend_mcm mcm_compiler_copy)
+if(ENABLE_MCM_COMPILER)
+    add_custom_target(mcm_compiler_copy ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/config"
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/mcm_config"
+        COMMENT "[MCM Compiler] Copy config files"
+    )
+    add_dependencies(${VPUX_PLUGIN_TARGET} frontend_mcm mcm_compiler_copy)
+endif()
 
 if(AARCH64)
     add_custom_target(vpu_bin_copy ALL

@@ -53,13 +53,15 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
     list<string> elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     bit checkInferredDimsOrder = 0;
     bit checkInferredMemSpace = 0;
+    bit checkInferredSparsity = 0;
 
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
             return vpux::IE::isCompatibleTensorTypes(lhs, rhs,
                 }] # !interleave(elemComparisonModes, "|") # [{,
                 static_cast<bool>(}] # checkInferredDimsOrder # [{),
-                static_cast<bool>(}] # checkInferredMemSpace # [{)
+                static_cast<bool>(}] # checkInferredMemSpace # [{),
+                static_cast<bool>(}] # checkInferredSparsity # [{)
             );
         }
     }];
@@ -184,6 +186,161 @@ def IE_DataInfoOp :
 
     let verifier = [{
         return vpux::IE::verifyOp(*this);
+    }];
+}
+
+//
+// RunTimeResourcesOp
+//
+
+def IE_RunTimeResourcesOp :
+        IE_Op<
+            "RunTimeResources",
+            [
+                IsolatedFromAbove,
+                HasParent<"mlir::ModuleOp">,
+                NoRegionArguments,
+                OpAsmOpInterface
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+    let summary = "Definition of run-time resources";
+
+    let description = [{
+        This operation defines various resources consumed at run-time:
+
+          * Available memory spaces for interal buffers.
+          * Used memory spaces for interal buffers.
+          * Executors for asynchronous calls.
+    }];
+
+    let regions = (region
+        SizedRegion<1>:$availableMemory,
+        SizedRegion<1>:$usedMemory,
+        SizedRegion<1>:$executors
+    );
+
+    let skipDefaultBuilders = 1;
+    let builders = [
+        OpBuilder<(ins)>
+    ];
+
+    let verifier = [{
+        return vpux::IE::verifyOp(*this);
+    }];
+
+    let extraClassDeclaration = [{
+        static vpux::IE::RunTimeResourcesOp getFromModule(mlir::ModuleOp module);
+
+        vpux::IE::MemoryResourceOp addAvailableMemory(mlir::Attribute kind, vpux::Byte size);
+        vpux::IE::MemoryResourceOp getAvailableMemory(mlir::Attribute kind);
+        auto getAvailableMemory() { return availableMemory().getOps<vpux::IE::MemoryResourceOp>(); }
+
+        vpux::IE::MemoryResourceOp setUsedMemory(mlir::Attribute kind, vpux::Byte size);
+        vpux::IE::MemoryResourceOp getUsedMemory(mlir::Attribute kind);
+        auto getUsedMemory() { return usedMemory().getOps<vpux::IE::MemoryResourceOp>(); }
+
+        vpux::IE::ExecutorResourceOp addExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
+        vpux::IE::ExecutorResourceOp getExecutor(mlir::Attribute kind);
+        auto getExecutors() { return executors().getOps<vpux::IE::ExecutorResourceOp>(); }
+
+        static mlir::StringRef getDefaultDialect() {
+            return "IE";
+        }
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `availableMemory` `:` $availableMemory
+        `usedMemory` `:` $usedMemory
+        `executors` `:` $executors
+    }];
+}
+
+//
+// MemoryResourceOp
+//
+
+def IE_MemoryResourceOp :
+        IE_Op<
+            "MemoryResource",
+            [
+                HasParent<"vpux::IE::RunTimeResourcesOp">
+            ]
+        > {
+    let summary = "Information about memory resource";
+
+    let description = [{
+        The memory resource is defined by the following attributes:
+
+          * Kind - optional kind of memory space.
+          * Size - size in bytes of memory space.
+    }];
+
+    let arguments = (ins
+        OptionalAttr<AnyAttr>:$kind,
+        IntAttr:$byteSize
+    );
+
+    let extraClassDeclaration = [{
+        vpux::Byte size() { return vpux::Byte(byteSize()); }
+    }];
+
+    let assemblyFormat = [{
+        $byteSize `bytes` (`of` $kind^)?
+        attr-dict
+    }];
+}
+
+//
+// ExecutorResourceOp
+//
+
+def IE_ExecutorResourceOp :
+        IE_Op<
+            "ExecutorResource",
+            [
+                ParentOneOf<["vpux::IE::ExecutorResourceOp","vpux::IE::RunTimeResourcesOp"]>,
+                NoRegionArguments,
+                OpAsmOpInterface
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+    let summary = "Information about executor resource";
+
+    let description = [{
+        The executor resource is defined by the following attributes:
+
+          * Kind - optional kind of the executor.
+          * Count - number of executor units.
+    }];
+
+    let arguments = (ins
+        AnyAttr:$kind,
+        IntAttr:$count
+    );
+
+    let regions = (region
+        VariadicRegion<SizedRegion<1>>:$subExecutors
+    );
+
+    let verifier = [{
+        return vpux::IE::verifyOp(*this);
+    }];
+
+    let extraClassDeclaration = [{
+        vpux::IE::ExecutorResourceOp addSubExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
+        vpux::IE::ExecutorResourceOp getSubExecutor(mlir::Attribute kind);
+
+        static mlir::StringRef getDefaultDialect() {
+            return "IE";
+        }
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        $count `of` $kind
+        $subExecutors
     }];
 }
 
@@ -1026,6 +1183,7 @@ def IE_ReshapeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -1058,6 +1216,7 @@ def IE_SqueezeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -1091,6 +1250,7 @@ def IE_UnsqueezeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -2622,6 +2782,7 @@ def IE_PermuteCastOp :
 
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -2673,6 +2834,30 @@ def IE_EqualOp :
         RankedTensorOf<[F16, F32]>:$output
     );
 }
+//
+// SpaceToDepthOp
+//
+
+def IE_SpaceToDepthOp :
+        IE_LayerOp<
+            "SpaceToDepthOp"
+        > {
+    let summary = "InferenceEngine SpaceToDepthOp layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        DefaultValuedAttr<IntAttr, "1">:$block_size,
+        IE_SpaceToDepthMode:$mode
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+}
 
 //
 // AffineReshapeOp
@@ -2704,6 +2889,7 @@ def IE_AffineReshapeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
 }
 
 //
@@ -2749,6 +2935,30 @@ def IE_ReverseSequenceOp :
 
         IntAttr:$seq_axis,
         IntAttr:$batch_axis
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+}
+
+//
+// DepthToSpaceOp
+//
+
+def IE_DepthToSpaceOp :
+        IE_LayerOp<
+            "DepthToSpace"
+        > {
+    let summary = "InferenceEngine DepthToSpace layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        IntAttr:$block_size,
+        IE_DepthToSpaceMode:$mode
     );
 
     let results = (outs

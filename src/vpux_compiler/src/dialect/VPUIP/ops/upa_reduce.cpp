@@ -13,7 +13,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
@@ -25,8 +25,6 @@ void vpux::VPUIP::ReduceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationSt
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    MVCNN::ReduceParamsBuilder builder(writer);
-
     VPUIP::BlobWriter::String type;
 
     switch (this->type()) {
@@ -40,6 +38,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceUPAOp::serialize(VPUIP::BlobW
         VPUX_THROW("Unsupported ReduceLayerType {0}", this->type());
     }
 
+    MVCNN::ReduceParamsBuilder builder(writer);
     builder.add_keep_dims(checked_cast<bool>(keep_dims()));
     builder.add_operation(type);
 

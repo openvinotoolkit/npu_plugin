@@ -7,19 +7,19 @@
 
 module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
 
-IERT.RunTimeResources
+IE.RunTimeResources
     availableMemory : {
-        IERT.MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
-        IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
+        IE.MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
+        IE.MemoryResource 2097152 bytes of "CMX_NN" {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
     }
     usedMemory : {
     }
     executors : {
-        IERT.ExecutorResource 1 of "DMA_NN"
-        IERT.ExecutorResource 1 of  "SHAVE_NN"
-        IERT.ExecutorResource 1 of  "SHAVE_ACT"
-        IERT.ExecutorResource 1 of  "NCE" {
-            IERT.ExecutorResource 1 of "DPU"
+        IE.ExecutorResource 1 of "DMA_NN"
+        IE.ExecutorResource 1 of  "SHAVE_NN"
+        IE.ExecutorResource 1 of  "SHAVE_ACT"
+        IE.ExecutorResource 1 of  "NCE" {
+            IE.ExecutorResource 1 of "DPU"
         }
     }
 

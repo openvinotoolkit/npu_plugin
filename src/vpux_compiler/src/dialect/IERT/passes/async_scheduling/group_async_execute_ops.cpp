@@ -44,7 +44,7 @@ bool isOptimizableOp(mlir::async::ExecuteOp execOp) {
     uint32_t numUnits = 0;
     const auto executor = vpux::IERT::IERTDialect::getExecutor(execOp, numUnits);
 
-    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+    auto resOp = IE::RunTimeResourcesOp::getFromModule(module);
     auto executorInfo = resOp.getExecutor(executor);
     VPUX_THROW_UNLESS(executorInfo != nullptr, "Failed to get information about executor {0}", executor);
 

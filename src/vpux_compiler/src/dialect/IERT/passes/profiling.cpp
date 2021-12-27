@@ -216,8 +216,9 @@ void DMATaskProfilingPass::safeRunOnModule() {
                                                   (chunkId - 1) * opsInChunk, "dma"));
         }
         builder.restoreInsertionPoint(lastInsertionPoint);
-        memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx),
-                                                      (!lastChunk) ? cmxMemType : cmxMemTypeLast);
+        memOp = builder.create<mlir::memref::AllocOp>(
+                mlir::NameLoc::get(mlir::Identifier::get("dmaProfilingSubviewBuffer", ctx)),
+                (!lastChunk) ? cmxMemType : cmxMemTypeLast);
         lastInsertionPoint = builder.saveInsertionPoint();
     };
 
@@ -395,8 +396,9 @@ void DPUProfilingPass::safeRunOnModule() {
                                                (chunkId - 1) * opsInChunk, "dpu"));
         }
         builder.restoreInsertionPoint(lastInsertionPoint);
-        memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx),
-                                                      (!lastChunk) ? cmxMemType : cmxMemTypeLast);
+        memOp = builder.create<mlir::memref::AllocOp>(
+                mlir::NameLoc::get(mlir::Identifier::get("dpuProfilingSubviewBuffer", ctx)),
+                (!lastChunk) ? cmxMemType : cmxMemTypeLast);
         lastInsertionPoint = builder.saveInsertionPoint();
     };
 

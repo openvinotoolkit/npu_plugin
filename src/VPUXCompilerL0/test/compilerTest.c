@@ -121,6 +121,13 @@ vcl_result_t testCompiler(int argc, char** argv) {
     uint64_t modelIRSize =
             sizeof(version) + sizeof(numberOfInputData) + sizeof(xmlSize) + xmlSize + sizeof(weightsSize) + weightsSize;
     uint8_t* modelIR = (uint8_t*)malloc(modelIRSize);
+    if (!modelIR) {
+        printf("Failed to alloc memory for IR!\n");
+        fclose(fpW);
+        fclose(fpN);
+        vclCompilerDestroy(compiler);
+        return VCL_RESULT_ERROR_OUT_OF_MEMORY;
+    }
     uint64_t offset = 0;
     memcpy(modelIR, &version, sizeof(version));
     offset += sizeof(version);
@@ -190,6 +197,7 @@ vcl_result_t testCompiler(int argc, char** argv) {
         FILE* fpC = fopen(configFile, "rb");
         if (!fpC) {
             printf("Cannot open file %s\n", configFile);
+            free(modelIR);
             vclCompilerDestroy(compiler);
             return VCL_RESULT_ERROR_IO;
         }
@@ -197,17 +205,32 @@ vcl_result_t testCompiler(int argc, char** argv) {
         uint32_t configSize = ftell(fpC);
         fseek(fpC, 0, SEEK_SET);
         if (configSize == 0) {
+            cret = fclose(fpC);
+            if (cret) {
+                printf("Failed to close %s. Result:%d\n", configFile, cret);
+                free(modelIR);
+                vclCompilerDestroy(compiler);
+                return cret;
+            }
             char options[] = "VPUX_PLATFORM 3700 LOG_LEVEL LOG_INFO ";
             vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, inPrc,   inLayout,
                                              outPrc,  outLayout,   options, sizeof(options)};
             ret = vclExecutableCreate(compiler, exeDesc, &executable);
         } else {
             char* options = (char*)malloc(configSize);
+            if (!options) {
+                printf("Failed to alloc memory for options\n");
+                fclose(fpC);
+                free(modelIR);
+                vclCompilerDestroy(compiler);
+                return VCL_RESULT_ERROR_OUT_OF_MEMORY;
+            }
             bytesRead = fread(options, 1, configSize, fpC);
             if ((uint32_t)bytesRead != configSize) {
                 printf("Short read on config file buffer!!!\n");
                 free(options);
                 fclose(fpC);
+                free(modelIR);
                 vclCompilerDestroy(compiler);
                 return VCL_RESULT_ERROR_IO;
             }
@@ -215,6 +238,7 @@ vcl_result_t testCompiler(int argc, char** argv) {
             if (cret) {
                 printf("Failed to close %s. Result:%d\n", configFile, cret);
                 free(options);
+                free(modelIR);
                 vclCompilerDestroy(compiler);
                 return cret;
             }
@@ -240,6 +264,12 @@ vcl_result_t testCompiler(int argc, char** argv) {
         return ret;
     } else {
         uint8_t* blob = (uint8_t*)malloc(blobSize);
+        if (!blob) {
+            printf("Failed to alloc memory for blob!\n");
+            vclExecutableDestroy(executable);
+            vclCompilerDestroy(compiler);
+            return VCL_RESULT_ERROR_OUT_OF_MEMORY;
+        }
         ret = vclExecutableGetSerializableBlob(executable, blob, &blobSize);
         if (ret == VCL_RESULT_SUCCESS) {
             char* blobName = argv[3];

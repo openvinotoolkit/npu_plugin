@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,13 +13,21 @@
 
 #pragma once
 
-#include "ie_core.hpp"
+#include "vpux/utils/core/logger.hpp"
+#include "vpux/utils/core/preprocessing.hpp"
+#include "vpux_compiler.hpp"
 
-namespace IE = InferenceEngine;
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/Support/Timing.h>
 
-namespace ReferenceHelper {
-    IE::Blob::Ptr CalcCpuReferenceSingleOutput(const std::string &model_path, const IE::Blob::Ptr& input_blob,
-        const IE::PreProcessInfo* preproc_info = nullptr);
-    IE::BlobMap CalcCpuReferenceMultipleOutput(const std::string& model_path, const IE::Blob::Ptr& input_blob,
-        const IE::PreProcessInfo* preproc_info = nullptr);
-}
+#include <flatbuffers/flatbuffers.h>
+
+namespace vpux {
+namespace VPUIP {
+
+flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                                         const std::vector<PreProcessInfo>& preprocessInfo,
+                                         Logger log = Logger::global());
+
+}  // namespace VPUIP
+}  // namespace vpux

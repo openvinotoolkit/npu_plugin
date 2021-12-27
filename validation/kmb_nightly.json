@@ -381,8 +381,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2",
-                "VPUX_COMPILATION_MODE_PARAMS": "compress-weights"
+                "VPUX_EXECUTOR_STREAMS": "2"
             },
             "BenchmarkApp" : {
                 "input_folder" : "224x224"
@@ -432,7 +431,7 @@
                 "blob_name" : "resnet-50-pytorch_sparse50_BDK_fp16"
             }
         },
-        
+
         {
             "name" : "BDK_FP16-INT8_yolo-v2-tiny-ava-0001",
             "ir" : "models/clientmodels/BDK3/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
@@ -532,7 +531,7 @@
                 "blob_name" : "googlenet-v1_tf"
             }
         },
- 
+
         {
             "name" : "BDK_FP16-INT8_googlenet-v3",
             "ir" : "models/clientmodels/BDK3/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
@@ -566,7 +565,7 @@
                 "blob_name" : "googlenet-v3_tf"
             }
         },
-  
+
         {
             "name" : "BDK_FP16-INT8_squeezenet1.1",
             "ir" : "models/clientmodels/BDK3/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
@@ -600,7 +599,7 @@
                 "blob_name" : "squeezenet1-1_cf2"
             }
         },
- 
+
         {
             "name" : "BDK_FP16-INT8_openpose-pose",
             "ir" : "models/clientmodels/BDK3/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
@@ -636,7 +635,7 @@
             }
         },
 
-       
+
         {
             "name" : "por_tf_FP16_fsrcnn-x4",
             "ir" : "por/fsrcnn-x4/tf/FP16/fsrcnn-x4.xml",
@@ -1639,7 +1638,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -1665,6 +1665,43 @@
             },
             "CI-options" : {
                 "blob_name" : "MTL_ea_caffe_FP16_age-gender-recognition-retail-0013"
+            }
+        },
+
+        {
+            "name" : "MTL_scale_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
+            "ir" : "scale/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
+            "category" : "MLIR",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+             "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "U8",
+                "output_precision" : "FP16",
+                "old_api" : true
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_scale_tf_fp16-int8_mobilenet-v3-large-1.0-224_tf"
             }
         },
 
@@ -3501,7 +3538,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "input_folder" : "62x62"
@@ -3548,7 +3586,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "U8",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3597,7 +3636,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "U8",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3648,7 +3688,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3685,7 +3726,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -3766,7 +3808,8 @@
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -4163,6 +4206,38 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo_v5m"
+            }
+        },
+
+        {
+            "name" : "deeplabv3_fp16",
+            "ir" : "models/clientmodels/BDK3/deeplabv3/tf/FP16/deeplabv3_fp16.xml",
+            "category" : "MLIR",
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_TIMEOUT":"100000",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "512x512"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "deeplabv3-tf.yml",
+                "subsample_size": 50
+            },
+            "CI-options" : {
+                "blob_name" : "deeplabv3_fp16"
             }
         }
     ]

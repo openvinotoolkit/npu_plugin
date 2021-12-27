@@ -21,3 +21,12 @@
 
 #include <vpux/compiler/dialect/VPUIP/generated/attributes/enums.hpp.inc>
 #include <vpux/compiler/dialect/VPUIP/generated/attributes/structs.hpp.inc>
+
+namespace vpux {
+namespace VPUIP {
+
+PaddingAttr getPaddingAttr(mlir::MLIRContext* ctx, int64_t padLeft, int64_t padRight, int64_t padTop,
+                           int64_t padBottom);
+
+}  // namespace VPUIP
+}  // namespace vpux
