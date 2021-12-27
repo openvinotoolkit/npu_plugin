@@ -323,7 +323,7 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(vpux::VPUIP::NCET
     const auto windowSize = getWindowSize(kernelSize[Dims4D::Kernel::X], SX, actualType);
     auto bitPattern = getBitPattern(taskType, kernelSize, windowSize, IC);
 
-    // To align each activation map entry to 16 bytes to abide the hw restriction
+    // Align each activation map entry to 16 bytes to abide the hw restriction
     // MaxPool is supported only in depth wise mode.
     // Depth wise does not support weights sparsity in the real sense,
     // but it will have to have an activation window pointer,
