@@ -33,8 +33,7 @@ FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir:
           _priority(),
           _log(log),
           _ctx(ctx),
-          _func(func),
-          builder(_func.getBody()) {
+          _func(func) {
     saveOriginalDependency();
     _barrierOpUpdateWaitMap = configureBarrierOpUpdateWaitMapBackUp;
     _taskOpUpdateWaitMap = configureTaskOpUpdateWaitMapBackUp;
@@ -758,6 +757,7 @@ void FeasibleBarrierScheduler::reorderIR() {
 void FeasibleBarrierScheduler::insertBarriersinIR() {
     size_t scheduling_number = 0UL;
     size_t btask_count = 0UL;
+    mlir::OpBuilder builder(_func.getBody());
 
     for (const auto& op : _scheduledOps) {
         auto bitr = _barrierAssociationTable.find(op.barrier_index_);

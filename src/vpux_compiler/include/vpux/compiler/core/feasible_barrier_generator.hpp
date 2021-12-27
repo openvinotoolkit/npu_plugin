@@ -279,7 +279,6 @@ protected:
     Logger _log;
     mlir::MLIRContext* _ctx;
     mlir::FuncOp _func;
-    mlir::OpBuilder builder;
 
     resource_utility_map_t _resource_utility_map;
     SmallVector<IERT::LayerOpInterface> _allTaskOps;
