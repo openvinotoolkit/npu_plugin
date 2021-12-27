@@ -13,8 +13,8 @@
 
 #pragma once
 
-#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 

@@ -1,7 +1,6 @@
 // Copyright (C) Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "kmb_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
@@ -10,16 +9,31 @@
 
 namespace {
 
+struct KmbQuantizedChannelMajorConvSubGraphTestTestParams {
+    LayerTestsUtils::TargetDevice _device;
+    InferenceEngine::SizeVector _in_dims;
+    InferenceEngine::SizeVector _w_dims;
+    std::vector<uint64_t> _strides;
+    std::vector<int64_t> _pads_begin;
+    std::vector<int64_t> _pads_end;
+};
+
 class KmbQuantizedChannelMajorConvSubGraphTest :
         public LayerTestsUtils::KmbLayerTestsCommon,
-        public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
-    void SetUp() override {
+        public testing::WithParamInterface<KmbQuantizedChannelMajorConvSubGraphTestTestParams> {
+    void ConfigureNetwork() override {
+        auto test_params = GetParam();
         cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
         cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
         cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
         cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
-        const InferenceEngine::SizeVector inputShape{1, 3, 64, 64};
-        const InferenceEngine::SizeVector weightsShape{48, 3, 3, 3};
+    }
+
+    void SetUp() override {
+         auto test_params = GetParam();
+        targetDevice = test_params._device;
+        const InferenceEngine::SizeVector inputShape = test_params._in_dims;
+        const InferenceEngine::SizeVector weightsShape = test_params._w_dims;
 
         const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
         const auto paramOuts =
@@ -57,9 +71,9 @@ class KmbQuantizedChannelMajorConvSubGraphTest :
         const auto weightsFq = std::make_shared<ngraph::opset2::FakeQuantize>(
                 weightsFP32, weightsInLow, weightsInHigh, weightsOutLow, weightsOutHigh, weightsLevels);
 
-        const ngraph::Strides strides = {1, 1};
-        const ngraph::CoordinateDiff pads_begin = {0, 0};
-        const ngraph::CoordinateDiff pads_end = {0, 0};
+        const ngraph::Strides strides = test_params._strides;
+        const ngraph::CoordinateDiff pads_begin = test_params._pads_begin;
+        const ngraph::CoordinateDiff pads_end = test_params._pads_end;
         const ngraph::Strides dilations = {1, 1};
         const auto conv = std::make_shared<ngraph::opset2::Convolution>(dataFq, weightsFq, strides, pads_begin,
                                                                         pads_end, dilations);
@@ -71,7 +85,6 @@ class KmbQuantizedChannelMajorConvSubGraphTest :
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
         function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedChannelMajorConv");
 
-        targetDevice = GetParam();
         threshold = 0.1f;
     }
 };
@@ -89,6 +102,13 @@ TEST_P(KmbQuantizedChannelMajorConvSubGraphTest, CompareWithRefs_MLIR_HW) {
 }
 
 INSTANTIATE_TEST_CASE_P(channelMajorConvolutionTest, KmbQuantizedChannelMajorConvSubGraphTest,
-                        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+                        ::testing::Values(KmbQuantizedChannelMajorConvSubGraphTestTestParams{
+                                LayerTestsUtils::testPlatformTargetDevice,  // _device
+                                {1, 3, 64, 64},                             // in dims
+                                {48, 3, 3, 3},                               // weights dims
+                                {1, 1},                                     // strides
+                                {0, 0},                                     // pads_begin
+                                {0, 0},                                     // pads_end
+                        }));
 
 }  // namespace

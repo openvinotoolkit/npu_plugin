@@ -412,7 +412,7 @@ mlir::LogicalResult ChannelMajorConvRewrite::matchAndRewrite(IERT::ConvolutionOp
             /*parent_output=*/outAllocOpCMX.memref(),
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CMCONV, kernelSizeAttr, origOp.strides(),
             kernelPaddingAttr, actWindowChanLen, /*is_continued*/ nullptr);
-    
+
     const auto mpeByType = mpeMap.at(_arch);
     const auto inElemType = origOp.input().getType().cast<mlir::MemRefType>().getElementType();
     const auto outElemType = origOutType.getElementType();

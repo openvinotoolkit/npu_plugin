@@ -35,42 +35,9 @@ int64_t vpux::VPUIP::NCEInvariant::getChannelAlignment(mlir::Type elemType) {
     return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
 }
 
-// mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvDims(bool channelMajorConvolution, mlir::Location loc,
-//                                                                   mlir::ShapedType filterType, int64_t width,
-//                                                                   Logger log) {
-//     log.setName("NCEInvariant");
-
-//     if (filterType.getRank() != 4) {
-//         log.trace("[{0}] Filter has unsupported rank: {1}", loc, filterType.getRank());
-//         return mlir::failure();
-//     }
-
-//     const auto filterShape = getShape(filterType);
-//     const auto OC = filterShape[Dims4D::Filter::OC];
-//     const auto IC = filterShape[Dims4D::Filter::IC];
-
-//     if (OC % getChannelAlignment(filterType.getElementType()) != 0) {
-//         log.trace("[{0}] Convolution output channels are not aligned", loc);
-//         return mlir::failure();
-//     }
-
-//     if (!channelMajorConvolution && IC % getChannelAlignment(filterType.getElementType()) != 0) {
-//         log.trace("[{0}] Convolution input channels are not aligned", loc);
-//         return mlir::failure();
-//     }
-
-//     if (channelMajorConvolution && (width % NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT != 0)) {
-//         log.trace("[{0}] Channel Major Convolution width not aligned", loc);
-//         return mlir::failure();
-//     }
-
-//     return mlir::success();
-// }
-
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvDims(mlir::Location loc, VPU::ArchKind archKind,
                                                               vpux::DimsOrder inDimsOrder, mlir::ShapedType inputType,
-                                                              mlir::ShapedType filterType, mlir::ShapedType outputType,
-                                                              Logger log) {
+                                                              mlir::ShapedType filterType, Logger log) {
     log.setName("NCEInvariant");
 
     if (filterType.getRank() != 4) {
@@ -83,8 +50,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvDims(mlir::Location loc
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto IC = filterShape[Dims4D::Filter::IC];
     const auto IW = inputShape[Dims4D::Act::W];
-    // const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0)); //Remove when order can be retrieved from inputType
-    // const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>()); //Remove when arch can be determined
+    // const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0)); //Remove when order can be retrieved from
+    // inputType const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>()); //Remove when arch can be
+    // determined
 
     if (OC % getChannelAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Convolution output channels are not aligned", loc);
@@ -92,8 +60,10 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvDims(mlir::Location loc
     }
 
     bool channelMajorConvolution = ((archKind == VPU::ArchKind::KMB) && (inDimsOrder == DimsOrder::NCHW) &&
-            (IC == VPUIP::NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_CHANNELS_LIMIT) &&
-            (IW % VPUIP::NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT == 0)) ? true : false;
+                                    (IC == VPUIP::NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_CHANNELS_LIMIT) &&
+                                    (IW % VPUIP::NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT == 0))
+                                           ? true
+                                           : false;
 
     if (!channelMajorConvolution && IC % getChannelAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Convolution input channels are not aligned", loc);
@@ -113,8 +83,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp orig
     const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
 
     return verifyConvDims(origOp->getLoc(), arch, inDimsOrder, origOp.input().getType().cast<mlir::ShapedType>(),
-                          origOp.filter().getType().cast<mlir::ShapedType>(),
-                          origOp.output().getType().cast<mlir::ShapedType>(), log);
+                          origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp origOp, Logger log) {
@@ -122,8 +91,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp or
     const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
 
     return verifyConvDims(origOp->getLoc(), arch, inDimsOrder, origOp.input().getType().cast<mlir::ShapedType>(),
-                          origOp.filter().getType().cast<mlir::ShapedType>(),
-                          origOp.output().getType().cast<mlir::ShapedType>(), log);
+                          origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 //
