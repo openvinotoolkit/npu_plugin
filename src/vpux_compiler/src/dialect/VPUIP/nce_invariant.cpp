@@ -27,7 +27,7 @@
 using namespace vpux;
 
 //
-// verifyConvChannels
+// verifyConvDims
 //
 
 int64_t vpux::VPUIP::NCEInvariant::getChannelAlignment(mlir::Type elemType) {
@@ -35,7 +35,7 @@ int64_t vpux::VPUIP::NCEInvariant::getChannelAlignment(mlir::Type elemType) {
     return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool channelMajorConvolution, mlir::Location loc,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvDims(bool channelMajorConvolution, mlir::Location loc,
                                                                   mlir::ShapedType filterType, int64_t width,
                                                                   Logger log) {
     log.setName("NCEInvariant");
@@ -75,7 +75,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp orig
     bool isChannelMajorConvolution = VPUIP::isChannelMajorCompatibleOperation(origOp.getOperation(), inDimsOrder,
                                                                               inputChannels, inputTensorWidth, arch);
 
-    return verifyConvChannels(isChannelMajorConvolution, origOp->getLoc(),
+    return verifyConvDims(isChannelMajorConvolution, origOp->getLoc(),
                               origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
 }
 
@@ -87,7 +87,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp or
     bool isChannelMajorConvolution = VPUIP::isChannelMajorCompatibleOperation(origOp.getOperation(), inDimsOrder,
                                                                               inputChannels, inputTensorWidth, arch);
 
-    return verifyConvChannels(isChannelMajorConvolution, origOp->getLoc(),
+    return verifyConvDims(isChannelMajorConvolution, origOp->getLoc(),
                               origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
 }
 

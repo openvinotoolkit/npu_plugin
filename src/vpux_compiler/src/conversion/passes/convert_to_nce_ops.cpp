@@ -401,8 +401,8 @@ mlir::LogicalResult ChannelMajorConvRewrite::matchAndRewrite(IERT::ConvolutionOp
 
     const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
     const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
-    const auto kernelPaddingAttr =
-            getIntArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
+
+    const auto kernelPaddingAttr = vpux::IE::getPaddingAttr(getContext(), padsBegin, padsEnd);
 
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
@@ -412,12 +412,12 @@ mlir::LogicalResult ChannelMajorConvRewrite::matchAndRewrite(IERT::ConvolutionOp
             /*parent_output=*/outAllocOpCMX.memref(),
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CMCONV, kernelSizeAttr, origOp.strides(),
             kernelPaddingAttr, actWindowChanLen, /*is_continued*/ nullptr);
-
+    
     const auto mpeByType = mpeMap.at(_arch);
     const auto inElemType = origOp.input().getType().cast<mlir::MemRefType>().getElementType();
     const auto outElemType = origOutType.getElementType();
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0],
-                mpeByType(inElemType, outElemType));
+                mpeByType(inElemType, outElemType, VPUIP::NCETaskType::CMCONV));
 
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr(), origOutType, _arch);
     if (postOpParams.hasValue()) {
