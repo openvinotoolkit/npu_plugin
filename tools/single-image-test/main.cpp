@@ -14,7 +14,6 @@
 
 #include "vpux/utils/IE/blob.hpp"
 #include "yolo_helpers.hpp"
-#include "utils.hpp"
 
 #include <inference_engine.hpp>
 #include <blob_factory.hpp>
@@ -35,10 +34,6 @@
 #include <string>
 #include <vector>
 
-#ifdef ENABLE_MOVISIM
-#include "run_movisim_emulator.hpp"
-#endif
-
 namespace ie = InferenceEngine;
 
 ie::details::CaselessEq<std::string> strEq;
@@ -58,7 +53,6 @@ DEFINE_string(ol, "", "Input layout (default NCHW)");
 DEFINE_bool(img_as_bin, false, "Force binary input even if network expects an image");
 
 DEFINE_bool(run_test, false, "Run the test (compare current results with previously dumped)");
-DEFINE_bool(moviSim, false, "Use MoviSim emulator for inference");
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
@@ -386,6 +380,20 @@ ie::MemoryBlob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& fil
     }
 }
 
+ie::MemoryBlob::Ptr loadBlob(const ie::TensorDesc& desc, const std::string& filePath) {
+    const auto blob = ie::as<ie::MemoryBlob>(make_blob_with_precision(desc));
+    blob->allocate();
+
+    std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
+    IE_ASSERT(file.is_open()) << "Can't open file " << filePath << " for read";
+
+    const auto blobMem = blob->wmap();
+    const auto blobPtr = blobMem.as<char*>();
+    file.read(blobPtr, static_cast<std::streamsize>(blob->byteSize()));
+
+    return blob;
+}
+
 void dumpBlob(const ie::MemoryBlob::Ptr& blob, const std::string& filePath) {
     std::ofstream file(filePath, std::ios_base::out | std::ios_base::binary);
     IE_ASSERT(file.is_open()) << "Can't open file " << filePath << " for write";
@@ -439,29 +447,20 @@ ie::ExecutableNetwork importNetwork(const std::string& filePath) {
 }
 
 ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs, const std::vector<std::string>& dumpedInputsPaths) {
+    auto inferRequest = exeNet.CreateInferRequest();
+
+    for (const auto& p : inputs) {
+        inferRequest.SetBlob(p.first, p.second);
+    }
+
+    inferRequest.Infer();
+
     ie::BlobMap out;
 
-    if(FLAGS_moviSim) {
-#ifdef ENABLE_MOVISIM
-        out = ms::runMoviSimEmulator(exeNet, FLAGS_network, dumpedInputsPaths);
-#else
-        std::cout<< "Can't run MoviSim emulator. Please check your python installation. "
-                    "Inference on MoviSim emulator is available for Lunix platforms only"<< std::endl;
-#endif
-    } else {
-        auto inferRequest = exeNet.CreateInferRequest();
-
-        for (const auto& p : inputs) {
-            inferRequest.SetBlob(p.first, p.second);
-        }
-
-        inferRequest.Infer();
-
-
-        for (const auto& p : exeNet.GetOutputsInfo()) {
-            out.insert({p.first, inferRequest.GetBlob(p.first)});
-        }
+    for (const auto& p : exeNet.GetOutputsInfo()) {
+        out.insert({p.first, inferRequest.GetBlob(p.first)});
     }
+
     return out;
 }
 
