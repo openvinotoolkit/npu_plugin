@@ -67,9 +67,8 @@ public:
 public:
     static mlir::LogicalResult verifyDims(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyDims(IERT::ConvolutionOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyConvDims(mlir::Location loc, VPU::ArchKind archKind, vpux::DimsOrder inDimsOrder,
-                                              mlir::ShapedType inputType, mlir::ShapedType filterType,
-                                              Logger log = Logger::global());
+    static mlir::LogicalResult verifyConvDims(mlir::Location loc, VPU::ArchKind archKind, mlir::ShapedType inputType,
+                                              mlir::ShapedType filterType, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyDims(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyDims(IERT::MaxPoolOp origOp, Logger log = Logger::global());
