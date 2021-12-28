@@ -129,6 +129,10 @@ def VPURT_DeclareVirtualBarrierOp :
         > {
     let summary = "VPURT virtual Barrier declaration";
 
+    let arguments = (ins
+        IntAttr:$id
+    );
+
     let results = (outs
         VPURT_Barrier:$barrier
     );
@@ -162,7 +166,7 @@ def VPURT_ConfigureBarrierOp :
 
     let extraClassDeclaration = [{
         vpux::DotNodeColor getNodeColor() {
-            return vpux::DotNodeColor::AQUA;
+            return vpux::DotNodeColor::AQUAMARINE;
         }
 
         bool printAttributes(llvm::raw_ostream& os) {
