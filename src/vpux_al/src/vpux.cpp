@@ -14,7 +14,7 @@
 #include "vpux.hpp"
 
 #include <file_utils.h>
-#include <details/ie_so_pointer.hpp>
+#include <openvino/util/shared_object.hpp>
 
 #include <memory>
 
@@ -34,29 +34,34 @@ std::string getLibFilePath(const std::string& baseName) {
     return FileUtils::makePluginLibraryName(InferenceEngine::getIELibraryPath(), baseName + IE_BUILD_POSTFIX);
 }
 
-enum class EngineBackendType : uint8_t { VPUAL = 1, HDDL2 = 2, ZeroApi = 3, Emulator = 4 };
-
 //------------------------------------------------------------------------------
-EngineBackend::EngineBackend(std::string pathToLib): _impl(pathToLib) {
+EngineBackend::EngineBackend(const std::string& pathToLib) {
+    using CreateFuncT = void (*)(std::shared_ptr<IEngineBackend>&);
+    static constexpr auto CreateFuncName = "CreateVPUXEngineBackend";
+
+    _so = ov::util::load_shared_object(pathToLib.c_str());
+
+    const auto createFunc = reinterpret_cast<CreateFuncT>(ov::util::get_symbol(_so, CreateFuncName));
+    createFunc(_impl);
 }
 
 inline const std::shared_ptr<Device> wrapDeviceWithImpl(const std::shared_ptr<IDevice>& device,
-                                                        const IEngineBackendPtr backendPtr) {
+                                                        const std::shared_ptr<void>& so) {
     if (device == nullptr) {
         return nullptr;
     }
-    return std::make_shared<Device>(device, backendPtr);
+    return std::make_shared<Device>(device, so);
 }
 const std::shared_ptr<Device> EngineBackend::getDevice() const {
-    return wrapDeviceWithImpl(_impl->getDevice(), _impl);
+    return wrapDeviceWithImpl(_impl->getDevice(), _so);
 }
 
 const std::shared_ptr<Device> EngineBackend::getDevice(const std::string& specificDeviceName) const {
-    return wrapDeviceWithImpl(_impl->getDevice(specificDeviceName), _impl);
+    return wrapDeviceWithImpl(_impl->getDevice(specificDeviceName), _so);
 }
 
 const std::shared_ptr<Device> EngineBackend::getDevice(const InferenceEngine::ParamMap& paramMap) const {
-    return wrapDeviceWithImpl(_impl->getDevice(paramMap), _impl);
+    return wrapDeviceWithImpl(_impl->getDevice(paramMap), _so);
 }
 
 const std::shared_ptr<IDevice> IEngineBackend::getDevice() const {

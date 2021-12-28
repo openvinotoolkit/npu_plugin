@@ -20,6 +20,7 @@
 
 #include <file_reader.h>
 #include <file_utils.h>
+#include <openvino/util/shared_object.hpp>
 
 #include <fstream>
 
@@ -31,9 +32,9 @@
 #include "vpux/compiler/compiler.hpp"
 #endif
 
-vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr actual, const vpux::CompilerPluginPtr& plg)
-        : _actual(actual), _plg(plg) {
-    if (_actual == nullptr) {
+vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr impl, const std::shared_ptr<void>& so)
+        : _impl(impl), _so(so) {
+    if (_impl == nullptr) {
         IE_THROW() << "ExecutableNetwork wrapper was not initialized.";
     }
 }
@@ -71,7 +72,7 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
 #ifdef BUILD_COMPILER_FOR_DRIVER
     // Always use vpux compiler
     (void)(config);
-    vpux::ICompiler::Ptr mlir = std::make_shared<vpux::CompilerImpl>();
+    const auto mlir = std::make_shared<vpux::CompilerImpl>();
     return std::make_shared<Compiler>(mlir);
 #else
     const auto compilerType = config.get<COMPILER_TYPE>();
@@ -86,9 +87,20 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
     default:
         IE_THROW() << "Compiler type not found";
     }
-    IE_ASSERT(false);
 #endif
 }
+
+#ifndef BUILD_COMPILER_FOR_DRIVER
+vpux::Compiler::Compiler(const std::string& libpath) {
+    using CreateFuncT = void (*)(std::shared_ptr<ICompiler>&);
+    static constexpr auto CreateFuncName = "CreateVPUXCompiler";
+
+    _so = ov::util::load_shared_object(libpath.c_str());
+
+    const auto createFunc = reinterpret_cast<CreateFuncT>(ov::util::get_symbol(_so, CreateFuncName));
+    createFunc(_impl);
+}
+#endif
 
 InferenceEngine::InputsDataMap vpux::helpers::dataMapIntoInputsDataMap(const vpux::DataMap& dataMap) {
     InferenceEngine::InputsDataMap inputsDataMap = {};

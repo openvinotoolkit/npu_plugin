@@ -3,6 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
+
 set(TARGET_NAME "vpuxUnitTests")
 
 if(ENABLE_HDDL2_TESTS)
