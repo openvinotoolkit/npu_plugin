@@ -227,11 +227,18 @@ mlir::Value vpux::VPUIP::alignChannelMajorWeightsTensor(mlir::OpBuilder& builder
     return alignedWeightsOp.output();
 }
 
-bool vpux::VPUIP::isChannelMajorCompatibleOperation(mlir::Operation* origOp, DimsOrder inDimsOrder,
-                                                    int64_t inputChannels, int64_t inputTensorWidth,
-                                                    VPU::ArchKind archKind) {
+bool vpux::VPUIP::isChannelMajorCompatibleOperation(mlir::Operation* origOp, VPU::ArchKind archKind) {
+    int64_t IC = 0;
+    int64_t inputTensorWidth = 0;
+
     auto convOpIE = mlir::dyn_cast<IE::ConvolutionOp>(origOp);
     if (convOpIE != nullptr) {
+        const auto filterShape = getShape(convOpIE.filter());
+        const auto origInputType = convOpIE.input().getType().cast<mlir::MemRefType>();
+        const auto inputShape = getShape(origInputType);
+        IC = filterShape[Dims4D::Filter::IC];
+        inputTensorWidth = inputShape[Dims4D::Act::W];
+
         const auto inType = convOpIE.input().getType().cast<mlir::ShapedType>().getElementType();
         if (!inType.isa<mlir::quant::QuantizedType>()) {
             return false;
@@ -240,13 +247,19 @@ bool vpux::VPUIP::isChannelMajorCompatibleOperation(mlir::Operation* origOp, Dim
 
     auto convOpIERT = mlir::dyn_cast<IERT::ConvolutionOp>(origOp);
     if (convOpIERT != nullptr) {
+        const auto filterShape = getShape(convOpIERT.filter());
+        const auto origInputType = convOpIERT.input().getType().cast<mlir::MemRefType>();
+        const auto inputShape = getShape(origInputType);
+        IC = filterShape[Dims4D::Filter::IC];
+        inputTensorWidth = inputShape[Dims4D::Act::W];
+
         const auto inType = convOpIERT.input().getType().cast<mlir::ShapedType>().getElementType();
         if (!inType.isa<mlir::quant::QuantizedType>()) {
             return false;
         }
     }
 
-    return ((archKind == VPU::ArchKind::KMB) && (inDimsOrder == DimsOrder::NCHW) &&
-            (inputChannels == VPUIP::NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_CHANNELS_LIMIT) &&
+    return ((archKind == VPU::ArchKind::KMB) &&
+            (IC == VPUIP::NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_CHANNELS_LIMIT) &&
             (inputTensorWidth % VPUIP::NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT == 0));
 }
