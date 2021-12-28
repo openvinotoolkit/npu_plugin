@@ -290,7 +290,6 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
 
 mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity,
                                          int64_t numChannels) {
-    auto* ctx = builder.getContext();
     const auto elemType = getUInt8Type(builder.getContext());
 
     SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
@@ -301,8 +300,7 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
     const auto dataType = mlir::MemRefType::get(fakeSparsityShape, elemType);
     auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataType, Const::ContentAttr::get(dataAttr));
 
-    const auto cmxMemSpaceAttr = VPU::MemoryKindAttr::get(ctx, VPU::MemoryKind::CMX_NN);
-    const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
+    const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
 
     auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
     auto copyOp = builder.create<IERT::CopyOp>(loc, dataConstOp.output(), dataAllocOp);
@@ -383,8 +381,7 @@ mlir::LogicalResult ChannelMajorConvRewrite::matchAndRewrite(IERT::ConvolutionOp
 
     const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
     const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType),
-                                           VPU::MemoryKindAttr::get(getContext(), VPU::MemoryKind::CMX_NN));
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
