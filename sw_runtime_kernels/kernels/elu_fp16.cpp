@@ -7,11 +7,6 @@
 #endif
 #include <math.h>
 #include <param_elu.h>
-#ifdef CONFIG_TARGET_SOC_3720
-#include <dma_shave_nn.h>
-#else
-#include <dma_shave.h>
-#endif
 
 #define intrinsic_vec(intrinsic, vin, vout) \
     (vout)[0] = intrinsic((vin)[0]);        \
