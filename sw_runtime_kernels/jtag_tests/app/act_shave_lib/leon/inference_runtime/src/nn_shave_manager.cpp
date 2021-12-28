@@ -47,7 +47,7 @@ inline constexpr ShaveWindow mapWindowAddrMaskToName(uint32_t windowAddrMask) {
 } // namespace
 
 extern void const *shvNN0_nnEntry;
-extern void const *shvNN0_nnActEntry;
+//extern void const *shvNN0_nnActEntry;
 
 namespace nn {
 namespace inference_runtime {
@@ -171,7 +171,7 @@ bool ShaveManager::processConfigChanges(const uint8_t tile, const ActKernelRunti
 void ShaveManager::initActRtCodeBuffer(const uint8_t tile) {
     nnLog(MVLOG_WARN, "Non-userspace resident act-shave instructions are unsupported in std_FW_img with MMU context "
                       "isolation enabled. Act kernels will not work!");
-    actShvEntries[tile] = reinterpret_cast<actRuntimeEntry>(&shvNN0_nnActEntry);
+//    actShvEntries[tile] = reinterpret_cast<actRuntimeEntry>(&shvNN0_nnActEntry);
 }
 
 #ifdef CONFIG_VALIDATION_APP_ENABLED
