@@ -227,6 +227,7 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
         // MTL supports ODU permutation, thus only input must have NHWC layout.
         if (arch == VPU::ArchKind::MTL && DimsOrder::fromValue(op.input()) != DimsOrder::NHWC) {
             return mlir::failure();
+        }
 
         const auto inOrder = DimsOrder::fromValue(op.getInputs()[0]);
         const auto outputOrder = DimsOrder::fromValue(op.getOutputs()[0]);
