@@ -335,12 +335,8 @@ mlir::LogicalResult ChannelMajorConvRewrite::matchAndRewrite(IERT::ConvolutionOp
         return matchFailed(rewriter, origOp, "Operation {0} does not satisfy the NCE invariant", origOp);
     }
 
-    const auto inputTensorWidth = getShape(origOp.input())[Dims4D::Act::W];
-    const auto inputChannels = getShape(origOp.filter())[Dims4D::Filter::IC];
-    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
     const auto arch = VPU::getArch(origOp);
-    bool isChannelMajorConvolution = VPUIP::isChannelMajorCompatibleOperation(origOp.getOperation(), inDimsOrder,
-                                                                              inputChannels, inputTensorWidth, arch);
+    bool isChannelMajorConvolution = VPUIP::isChannelMajorCompatibleOperation(origOp.getOperation(), arch);
 
     if (!isChannelMajorConvolution) {
         return matchFailed(rewriter, origOp, "This convolution must be a Z-major convolution", origOp);
@@ -464,12 +460,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
         return matchFailed(rewriter, origOp, "Operation {0} does not satisfy the NCE invariant", origOp);
     }
 
-    const auto inputTensorWidth = getShape(origOp.input())[Dims4D::Act::W];
-    const auto inputChannels = getShape(origOp.filter())[Dims4D::Filter::IC];
-    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
     const auto arch = VPU::getArch(origOp);
-    bool isChannelMajorConvolution = VPUIP::isChannelMajorCompatibleOperation(origOp.getOperation(), inDimsOrder,
-                                                                              inputChannels, inputTensorWidth, arch);
+    bool isChannelMajorConvolution = VPUIP::isChannelMajorCompatibleOperation(origOp.getOperation(), arch);
 
     if (isChannelMajorConvolution) {
         return matchFailed(rewriter, origOp, "Converting Z-major convolution to channel major convolution", origOp);
