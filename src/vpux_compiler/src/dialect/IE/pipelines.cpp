@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/core/passes.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -45,14 +46,27 @@ void vpux::IE::buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLa
     if (options.enableUseUserLayout) {
         pm.addPass(IE::createUseUserLayout(log));
     }
+    pm.addPass(vpux::createPrintDotPass("/home/sgl/Github/openvino/bin/intel64/Release/dot/0createUseUserLayout.dot"));
     pm.addPass(IE::createAdjustLayoutsPass(log));
+    pm.addPass(
+            vpux::createPrintDotPass("/home/sgl/Github/openvino/bin/intel64/Release/dot/1createAdjustLayoutsPass.dot"));
     pm.addPass(mlir::createCanonicalizerPass(grc));
+    pm.addPass(vpux::createPrintDotPass(
+            "/home/sgl/Github/openvino/bin/intel64/Release/dot/2createAdjustLayoutsPass_createCanonicalizerPass.dot"));
     if (options.enableOptimizeReorders) {
         pm.addPass(IE::createOptimizeReordersPass(log));
+        pm.addPass(vpux::createPrintDotPass(
+                "/home/sgl/Github/openvino/bin/intel64/Release/dot/3createOptimizeReordersPass.dot"));
     }
     pm.addPass(IE::createUniquifyOpsPass(log));
+    pm.addPass(
+            vpux::createPrintDotPass("/home/sgl/Github/openvino/bin/intel64/Release/dot/4createUniquifyOpsPass.dot"));
     pm.addPass(IE::createConvertToMemPermutePass(log));
+    pm.addPass(vpux::createPrintDotPass(
+            "/home/sgl/Github/openvino/bin/intel64/Release/dot/5createConvertToMemPermutePass.dot"));
     pm.addPass(mlir::createCanonicalizerPass(grc));
+    pm.addPass(vpux::createPrintDotPass("/home/sgl/Github/openvino/bin/intel64/Release/dot/"
+                                        "6createConvertToMemPermutePass_createCanonicalizerPass.dot"));
 }
 
 //
