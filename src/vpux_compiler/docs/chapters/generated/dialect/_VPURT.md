@@ -109,6 +109,12 @@ operation ::= `VPURT.DeclareVirtualBarrier` attr-dict `->` type(results)
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`id` | mlir::IntegerAttr | Integer attribute
+
 #### Results:
 
 | Result | Description |
