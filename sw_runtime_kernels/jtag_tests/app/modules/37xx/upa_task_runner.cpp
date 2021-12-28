@@ -14,6 +14,7 @@ void * sk_nnActEntry_3010xx_text_ref = (void*)sk_nnActEntry_3010xx_text;
 #include "upa_task_runner.hpp"
 //#include "act_shave_dispatcher.h"
 #include <nn_shave_manager.h>
+#include <nn_fifo_manager.h>
 //#include <nn_cmx_memory_map.h>
 #include <nn_cache.h>
 #include <nn_time.h>
@@ -61,6 +62,19 @@ std::shared_ptr<nn::inference_runtime::shaves::ShaveManager> getShaveManager(std
     static std::shared_ptr<nn::inference_runtime::shaves::ShaveManager> holder(new (memory::cache_aligned) nn::inference_runtime::shaves::ShaveManager(*mapping), memory::cache_aligned_deleter<nn::inference_runtime::shaves::ShaveManager>());
     return holder;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 bool UPATaskRunner::enqueTask(Op * operation,
                               const std::vector<OpTensor> &inputs,
@@ -113,6 +127,8 @@ bool UPATaskRunner::enqueTask(Op * operation,
     actRtConfigs.actRtWindowBase_ = reinterpret_cast<unsigned char*>(sk_nnActEntry_3010xx_text);
 //    actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::act_runtime::actRuntimeEntry>(shvNN0_nnActEntry);
 
+    operation->parse(&layer);
+
     cache::flush(actRtConfigs);
     cache::flush(globalAreas);
     cache::flush(shaveManager);
@@ -124,11 +140,50 @@ bool UPATaskRunner::enqueTask(Op * operation,
     shaveManager->startActShavesForTile(0, actRtConfigs, true);
     printf("!!!!!!!!!! after start !!!!!!!!!!!!!\n");
     act_runtime::ActKernelRange kRange = {nn::act_runtime::ActWLType::WL_KERNEL,
-                                            reinterpret_cast<act_runtime::actKernelEntry>(customOp->ops.kernelData),
-                                            reinterpret_cast<act_runtime::actKernelTextBuffer>(customOp->ops.kernelData),
+                                            reinterpret_cast<act_runtime::actKernelEntry>(customOp->ops.kernel),
+                                            reinterpret_cast<act_runtime::actKernelTextBuffer>(customOp->ops.kernel),
                                             customOp->ops.kernelDataLen,
                                             0};
-    act_runtime::ActKernelInvocation kInvo;
+    cache::flush(kRange);
+
+    const BarrierUserConfig userBariers = {0, 0, 0, 0, 0};
+//        PhysicalBarrierMask wait_mask_;
+//        PhysicalBarrierMask post_mask_;
+//        unsigned short start_after_;
+//        unsigned short clean_after_;
+//        unsigned int virtual_dep_;
+//    };
+    cache::flush(userBariers);
+
+    const BarrierGpioConfig gpioBarriers = {0, 0};
+//    {
+//        unsigned char group_;
+//        unsigned char mask_;
+//    };
+    cache::flush(gpioBarriers);
+
+
+    act_runtime::ActKernelInvocation kInvo = {&kRange,
+            (void*)(customOp->ops.paramData),
+            reinterpret_cast<act_runtime::actKernelDataBuffer>(customOp->ops.paramData),
+            userBariers, gpioBarriers, 0
+    };
+    cache::flush(kInvo);
+//    extern "C" struct ActKernelInvocation {
+//        ActKernelRange *range_{nullptr};
+//        act_kernel_args *kernelArgs_{nullptr};
+//        actKernelDataBuffer dataWindowBase_{nullptr};
+//
+//        BarrierUserConfig barriers_{};
+//        BarrierGpioConfig barriers_gpio_{};
+//        unsigned int invo_index_{0};
+//    };
+
+
+
+    fifo::sendWorkToASs(0/*local_aki.tile_*/, &kInvo);
+
+//    sleep(10);
 
     shaveManager->stopActShavesForTiles();
     printf("!!!!!!!!!! after stop !!!!!!!!!!!!!\n");
@@ -137,8 +192,9 @@ bool UPATaskRunner::enqueTask(Op * operation,
     uint32_t * tmp = (uint32_t*)0x2e014000;
 #define N_OF_LOGS 10
     printf( "!!!!!!!!!!!!!!!!!!!!!!!! Was I there: !!!!!!!!!!!!!!!!!!!!!!!!\n");
-    cache::invalidate(tmp, N_OF_LOGS * sizeof(uint32_t));
-    for (int i = 0; i < N_OF_LOGS; i++) {
+    cache::invalidate(tmp, sizeof(uint32_t));
+    cache::invalidate(tmp, tmp[0] * sizeof(uint32_t));
+    for (int i = 0; i < tmp[0]; i++) {
         printf( "\t\t%d) %d 0x%x\n", i, tmp[i], tmp[i]);
     }
     return true;
@@ -177,18 +233,18 @@ bool UPATaskRunner::enqueTask(Op * operation,
         addrsIdx ++;
     }
 
-    operation->parse(&layer);
-
-    sl.layer_ = &layer;
-
-    nnLog(MVLOG_DEBUG, "Enqueuing SL @ %p\n", &sl);
-    nnLog(MVLOG_DEBUG, "           L @ %p\n", (void *)sl.layer_);
-    nnLog(MVLOG_DEBUG, "         ABA @ %p\n", &sl.abs_addr_);
-
-#if DEBUG_KERNELS
-    leonPipePrintFlushBuffer();
-#endif
-
+//    operation->parse(&layer);
+//
+//    sl.layer_ = &layer;
+//
+//    nnLog(MVLOG_DEBUG, "Enqueuing SL @ %p\n", &sl);
+//    nnLog(MVLOG_DEBUG, "           L @ %p\n", (void *)sl.layer_);
+//    nnLog(MVLOG_DEBUG, "         ABA @ %p\n", &sl.abs_addr_);
+//
+//#if DEBUG_KERNELS
+//    leonPipePrintFlushBuffer();
+//#endif
+//
 ////     Initialize ACT dispatcher
 //    actDisp = nn::act_shave_lib::ACTShaveDispatcher::getInstance();
 //    actDisp->initSWShaveDispatcher();

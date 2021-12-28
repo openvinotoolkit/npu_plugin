@@ -74,6 +74,8 @@ bool CustomCpp::parse(Layer * layer) {
     std::vector<uint64_t> kernelData((uint64_t*)ops.kernelData, (uint64_t*)ops.kernelData+(ops.kernelDataLen+7)/8);
 
     sw_params::BaseKernelParams * kernelParams = &(ops.baseParamData);
+
+    printf("!!!!!!!!!!!! %s:%d: ops.paramData: %p\n", __FILE__, __LINE__, ops.paramData);
     sw_params::MemRefData* inTensors =
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->inputsOffset);
     for (unsigned i = 0; i < inputVec.size(); i++) {

@@ -37,6 +37,7 @@ subdirs-shave-y += nn/common
 subdirs-shave-y += nn/shave_lib
 subdirs-shave-y += ../../kernels
 subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
+
 subdirs-lnn-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  ../../kernels
@@ -99,6 +100,7 @@ ccopt-lnn-$(CONFIG_NN_ENABLE_SCALABILITY_REPORTING) += -DNN_ENABLE_SCALABILITY_R
 
 ccopt-lrt-y += -DNN_SCALABILITY_REPORTING_PERIOD_MS=$(CONFIG_NN_SCALABILITY_REPORTING_PERIOD_MS)
 
+srcs-lrt-$(CONFIG_TARGET_SOC_3720) += $(VPUIP_2_REL_THROUGH_ROOT)/drivers/nn/src/nn_fifo.cpp
 
 $(info !!!!! subdirs-shave-y = !!!!!!!!!!! $(subdirs-shave-y))
 
