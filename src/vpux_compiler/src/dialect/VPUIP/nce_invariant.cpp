@@ -36,8 +36,8 @@ int64_t vpux::VPUIP::NCEInvariant::getChannelAlignment(mlir::Type elemType) {
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvDims(mlir::Location loc, VPU::ArchKind archKind,
-                                                              vpux::DimsOrder inDimsOrder, mlir::ShapedType inputType,
-                                                              mlir::ShapedType filterType, Logger log) {
+                                                              mlir::ShapedType inputType, mlir::ShapedType filterType,
+                                                              Logger log) {
     log.setName("NCEInvariant");
 
     if (filterType.getRank() != 4) {
@@ -50,9 +50,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvDims(mlir::Location loc
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto IC = filterShape[Dims4D::Filter::IC];
     const auto IW = inputShape[Dims4D::Act::W];
-    // const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0)); //Remove when order can be retrieved from
-    // inputType const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>()); //Remove when arch can be
-    // determined
+    const auto inDimsOrder = DimsOrder::fromType(inputType);
 
     if (OC % getChannelAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Convolution output channels are not aligned", loc);
@@ -79,18 +77,16 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvDims(mlir::Location loc
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp origOp, Logger log) {
-    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
     const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
 
-    return verifyConvDims(origOp->getLoc(), arch, inDimsOrder, origOp.input().getType().cast<mlir::ShapedType>(),
+    return verifyConvDims(origOp->getLoc(), arch, origOp.input().getType().cast<mlir::ShapedType>(),
                           origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp origOp, Logger log) {
-    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
     const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
 
-    return verifyConvDims(origOp->getLoc(), arch, inDimsOrder, origOp.input().getType().cast<mlir::ShapedType>(),
+    return verifyConvDims(origOp->getLoc(), arch, origOp.input().getType().cast<mlir::ShapedType>(),
                           origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
