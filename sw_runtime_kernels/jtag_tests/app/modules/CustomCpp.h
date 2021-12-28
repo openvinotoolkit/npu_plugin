@@ -10,7 +10,7 @@
 struct CustomCppLayerParams {
     uint32_t leonPreambleID;
 
-    const uint8_t* kernelData;
+    uint8_t* kernelData;
     size_t kernelDataLen;
 
     uint32_t* paramData;
