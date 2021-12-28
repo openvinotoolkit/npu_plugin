@@ -20,7 +20,7 @@ func @LinearGraph(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16
 
     // CHECK-DAG:   [[BUF0:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<10xf16, @DDR>
 
-    // CHECK-DAG:   [[B0:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    // CHECK-DAG:   [[B0:%.+]] = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
 
     // CHECK-NEXT:  VPURT.Task
     // CHECK-SAME:      updates([[B0]] : !VPURT.Barrier)
@@ -69,8 +69,8 @@ func @IndependentBranchesLinearSched(%arg0: memref<10xf16>, %arg1: memref<10xf16
     // CHECK-DAG:   [[BUF1:%.+]] = VPURT.DeclareBuffer "DDR" <20> -> memref<10xf16, @DDR>
     // CHECK-DAG:   [[BUF2:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<20xf16, @DDR>
 
-    // CHECK-DAG:   [[B0:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK-DAG:   [[B1:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    // CHECK-DAG:   [[B0:%.+]] = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
+    // CHECK-DAG:   [[B1:%.+]] = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
 
     // CHECK:       VPURT.Task
     // CHECK-SAME:      updates([[B0]] : !VPURT.Barrier)
@@ -127,8 +127,8 @@ func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf
     // CHECK-DAG:   [[BUF0:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<10xf16, @DDR>
     // CHECK-DAG:   [[BUF1:%.+]] = VPURT.DeclareBuffer "DDR" <20> -> memref<10xf16, @DDR>
 
-    // CHECK-DAG:   [[B0:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK-DAG:   [[B1:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    // CHECK-DAG:   [[B0:%.+]] = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
+    // CHECK-DAG:   [[B1:%.+]] = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
 
     // CHECK:       VPURT.Task
     // CHECK-SAME:      updates([[B0]] : !VPURT.Barrier)
@@ -188,9 +188,9 @@ func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16
     // CHECK-DAG:   [[BUF0:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<2xf16, @DDR>
     // CHECK-DAG:   [[BUF1:%.+]] = VPURT.DeclareBuffer "DDR" <4> -> memref<2xf16, @DDR>
 
-    // CHECK-DAG:   [[B0:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK-DAG:   [[B1:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK-DAG:  [[B2:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    // CHECK-DAG:   [[B0:%.+]] = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
+    // CHECK-DAG:   [[B1:%.+]] = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
+    // CHECK-DAG:  [[B2:%.+]] = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
 
     // CHECK:       VPURT.Task
     // CHECK-SAME:      updates([[B0]] : !VPURT.Barrier)
@@ -249,7 +249,7 @@ func @WithReshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<
     // CHECK-DAG:   [[ARG0:%.+]] = VPURT.DeclareBuffer "NetworkInput"[0] <0> -> memref<1x512x1x1xf16>
     // CHECK-DAG:   [[VAR2:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x512xf16, @DDR>
 
-    // CHECK-DAG:   [[B0:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    // CHECK-DAG:   [[B0:%.+]] = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
 
     // CHECK:       VPURT.Task
     // CHECK-SAME:      updates([[B0]] : !VPURT.Barrier)
