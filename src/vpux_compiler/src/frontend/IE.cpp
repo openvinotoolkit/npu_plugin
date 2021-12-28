@@ -104,12 +104,46 @@
 #include <transformations/op_conversions/reduce_l2_decomposition.hpp>
 #include <transformations/op_conversions/softmax_decomposition.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/utils/utils.hpp>
+
+#include <algorithm>
 
 using namespace vpux;
 
 namespace {
 
 namespace opset_latest = ngraph::opset7;
+
+//
+// Sort parameters/results
+//
+
+//
+// Inputs/outputs information in OV 1.0 is stored in DataMap, so they are sorted by the names.
+// Sort the nGraph Function parameters/results to match the order of blobs in the maps.
+//
+
+ngraph::ParameterVector sortParameters(const ngraph::ParameterVector& orig) {
+    ngraph::ParameterVector out = orig;
+    std::sort(out.begin(), out.end(), [](auto&& p1, auto&& p2) {
+        return p1->get_friendly_name() < p2->get_friendly_name();
+    });
+    return out;
+}
+
+ngraph::ResultVector sortResults(const ngraph::ResultVector& orig) {
+    ngraph::ResultVector out = orig;
+    std::sort(out.begin(), out.end(), [](auto&& r1, auto&& r2) {
+        const auto n1 = ngraph::op::util::get_ie_output_name(r1->input_value(0));
+        const auto n2 = ngraph::op::util::get_ie_output_name(r2->input_value(0));
+        return n1 < n2;
+    });
+    return out;
+}
+
+//
+// NGraphImporter
+//
 
 class NGraphImporter final {
 public:
@@ -402,15 +436,18 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
                                            mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Import nGraph function");
 
+    const auto sortedParameters = sortParameters(_netGraph->get_parameters());
+    const auto sortedResults = sortResults(_netGraph->get_results());
+
     SmallVector<mlir::Type> inputTypes;
-    inputTypes.reserve(_netGraph->get_parameters().size());
-    for (const auto& param : _netGraph->get_parameters()) {
+    inputTypes.reserve(sortedParameters.size());
+    for (const auto& param : sortedParameters) {
         inputTypes.push_back(importTensor(param->get_partial_shape(), param->get_element_type()));
     }
 
     SmallVector<mlir::Type> outputTypes;
-    outputTypes.reserve(_netGraph->get_results().size());
-    for (const auto& result : _netGraph->get_results()) {
+    outputTypes.reserve(sortedResults.size());
+    for (const auto& result : sortedResults) {
         outputTypes.push_back(importTensor(result->get_input_partial_shape(0), result->get_input_element_type(0)));
     }
 
@@ -421,7 +458,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
     OpBuilderLogger builderLog(_log.nest());
     auto builder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), &builderLog);
 
-    for (const auto& p : _netGraph->get_parameters() | indexed) {
+    for (const auto& p : sortedParameters | indexed) {
         const auto& paramNode = p.value();
         const auto paramIndex = checked_cast<uint32_t>(p.index());
 
@@ -441,9 +478,9 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
     }
 
     SmallVector<mlir::Value> funcOutputs;
-    funcOutputs.reserve(_netGraph->get_results().size());
+    funcOutputs.reserve(sortedResults.size());
 
-    for (const auto& p : _netGraph->get_results() | indexed) {
+    for (const auto& p : sortedResults | indexed) {
         const auto& resultNode = p.value();
 
         _log.trace("Convert network Result {0}", resultNode->get_friendly_name());
@@ -2365,15 +2402,6 @@ mlir::RankedTensorType importUserTensor(mlir::MLIRContext* ctx, const InferenceE
     return getTensorType(shape, precision, DimsOrder::fromIE(desc.getLayout()), nullptr);
 }
 
-std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result) {
-    const auto* resultInput = result->get_input_node_ptr(0);
-    std::string portSuffix;
-    if (resultInput->get_output_size() != 1) {
-        portSuffix = "." + std::to_string(result->get_input_source_output(0).get_index());
-    }
-    return resultInput->get_friendly_name() + portSuffix;
-}
-
 //
 // runNGraphPasses
 //
@@ -2485,6 +2513,9 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
     const auto inputsInfo = cnnNet.getInputsInfo();
     const auto outputsInfo = cnnNet.getOutputsInfo();
 
+    const auto sortedParameters = sortParameters(netGraph->get_parameters());
+    const auto sortedResults = sortResults(netGraph->get_results());
+
     auto* ctx = builder.getContext();
 
     auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(ctx), mainFuncName, enableProfiling);
@@ -2495,7 +2526,7 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
     }
 
     auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), builder.getListener());
-    for (const auto& param : netGraph->get_parameters()) {
+    for (const auto& param : sortedParameters) {
         const auto& inputName = param->get_friendly_name();
         const auto& userInput = inputsInfo.at(inputName);
         const auto& userDesc = userInput->getTensorDesc();
@@ -2507,8 +2538,8 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
     }
 
     auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.outputsInfo().front(), builder.getListener());
-    for (const auto& result : netGraph->get_results()) {
-        const auto& resultName = getValidOutputName(result);
+    for (const auto& result : sortedResults) {
+        const auto resultName = ngraph::op::util::get_ie_output_name(result->input_value(0));
         const auto& userOutput = outputsInfo.at(resultName);
         const auto& userDesc = userOutput->getTensorDesc();
 
