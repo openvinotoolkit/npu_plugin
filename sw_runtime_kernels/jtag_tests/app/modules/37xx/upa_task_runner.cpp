@@ -6,7 +6,7 @@ __attribute__((aligned(1024)))
 void * sk_nnActEntry_3010xx_text_ref = (void*)sk_nnActEntry_3010xx_text;
 #endif
 //extern void*  (shvNN0_act_shave_runtime_shaveMain);
-extern void const *shvNN0_nnActEntry;
+//extern void const *shvNN0_nnActEntry;
 
 
 #include <sw_nn_runtime_types.h>
@@ -17,6 +17,7 @@ extern void const *shvNN0_nnActEntry;
 //#include <nn_cmx_memory_map.h>
 #include <nn_cache.h>
 #include <nn_time.h>
+#include <CustomCpp.h>
 
 //volatile u32 __attribute__((section(".nncmx.data0"))) shaveErrors;
 
@@ -84,7 +85,7 @@ bool UPATaskRunner::enqueTask(Op * operation,
 
     actRtConfigs.useScheduleEmbeddedRt_ = true;
 
-
+    CustomCpp * customOp = static_cast<CustomCpp*>(operation);
 
 
 
@@ -106,8 +107,8 @@ bool UPATaskRunner::enqueTask(Op * operation,
 
 
 
-    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!! sk_nnActEntry_3010xx_text_ref %p, &sk_nnActEntry_3010xx_text_ref %p, sk_nnActEntry_3010xx_text %p, shvNN0_nnActEntry %p, &shvNN0_nnActEntry %p\n", __FILE__, __LINE__
-            , sk_nnActEntry_3010xx_text_ref, &sk_nnActEntry_3010xx_text_ref, sk_nnActEntry_3010xx_text, shvNN0_nnActEntry, &shvNN0_nnActEntry);
+    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!! sk_nnActEntry_3010xx_text_ref %p, &sk_nnActEntry_3010xx_text_ref %p, sk_nnActEntry_3010xx_text %p\n", __FILE__, __LINE__
+            , sk_nnActEntry_3010xx_text_ref, &sk_nnActEntry_3010xx_text_ref, sk_nnActEntry_3010xx_text);//, shvNN0_nnActEntry, &shvNN0_nnActEntry);
     actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::act_runtime::actRuntimeEntry>(sk_nnActEntry_3010xx_text);
     actRtConfigs.actRtWindowBase_ = reinterpret_cast<unsigned char*>(sk_nnActEntry_3010xx_text);
 //    actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::act_runtime::actRuntimeEntry>(shvNN0_nnActEntry);
@@ -122,14 +123,24 @@ bool UPATaskRunner::enqueTask(Op * operation,
     printf("!!!!!!!!!! before start !!!!!!!!!!!!!\n");
     shaveManager->startActShavesForTile(0, actRtConfigs, true);
     printf("!!!!!!!!!! after start !!!!!!!!!!!!!\n");
+    act_runtime::ActKernelRange kRange = {nn::act_runtime::ActWLType::WL_KERNEL,
+                                            reinterpret_cast<act_runtime::actKernelEntry>(customOp->ops.kernelData),
+                                            reinterpret_cast<act_runtime::actKernelTextBuffer>(customOp->ops.kernelData),
+                                            customOp->ops.kernelDataLen,
+                                            0};
+    act_runtime::ActKernelInvocation kInvo;
 
     shaveManager->stopActShavesForTiles();
     printf("!!!!!!!!!! after stop !!!!!!!!!!!!!\n");
 //    shaveManager.stopActShavesForTile(TILE_0);
 
     uint32_t * tmp = (uint32_t*)0x2e014000;
-    cache::invalidate(tmp, 2 * sizeof(uint32_t));
-    printf( "!!!!!!!!!!!!!!!!!!!!!!!! Was I there ? %d %d !!!!!!!!!!!!!!!!!!!!!!!!!\n", tmp[0], tmp[1]);
+#define N_OF_LOGS 10
+    printf( "!!!!!!!!!!!!!!!!!!!!!!!! Was I there: !!!!!!!!!!!!!!!!!!!!!!!!\n");
+    cache::invalidate(tmp, N_OF_LOGS * sizeof(uint32_t));
+    for (int i = 0; i < N_OF_LOGS; i++) {
+        printf( "\t\t%d) %d 0x%x\n", i, tmp[i], tmp[i]);
+    }
     return true;
     memset(&sl, 0, sizeof(sl));
     memset(&layer, 0, sizeof(layer));
