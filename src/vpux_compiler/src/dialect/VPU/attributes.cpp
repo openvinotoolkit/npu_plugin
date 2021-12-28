@@ -14,7 +14,7 @@
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/error.hpp"
@@ -23,7 +23,6 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Identifier.h>
-#include <mlir/IR/Types.h>
 
 #include <llvm/ADT/StringExtras.h>
 #include <llvm/ADT/TypeSwitch.h>
@@ -113,7 +112,7 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
     auto resources = builder.create<IE::RunTimeResourcesOp>(module.getLoc());
 
     const auto addMem = [&](MemoryKind kind, Byte size, double derateFactor, uint32_t bandwidth) {
-        auto mem = resources.addAvailableMemory(MemoryKindAttr::get(module.getContext(), kind), size);
+        auto mem = IE::addAvailableMemory(module, kind, size);
         mem->setAttr(derateFactorAttrName, getFPAttr(module.getContext(), derateFactor));
         mem->setAttr(bandwidthAttrName, getIntAttr(module.getContext(), bandwidth));
     };
@@ -200,22 +199,18 @@ VPU::MemoryKind vpux::VPU::getMemoryKind(mlir::RankedTensorType tensor) {
         return MemoryKind::DDR;
     }
 
-    if (memSpace.isa<MemoryKindAttr>()) {
-        return memSpace.cast<MemoryKindAttr>().getValue();
-    }
-
-    VPUX_THROW("Unsupported memory space '{0}'", memSpace);
+    return VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafReference().getValue()).getValue();
 }
 
 VPU::MemoryKind vpux::VPU::getMemoryKind(mlir::MemRefType memref) {
-    const auto memSpace = memref.getMemorySpace();
+    auto memSpace = memref.getMemorySpace();
 
     if (memSpace == nullptr) {
         return MemoryKind::DDR;
     }
 
-    if (memSpace.isa<MemoryKindAttr>()) {
-        return memSpace.cast<MemoryKindAttr>().getValue();
+    if (auto symRef = memSpace.dyn_cast<mlir::SymbolRefAttr>()) {
+        return VPU::symbolizeEnum<VPU::MemoryKind>(symRef.getLeafReference().getValue()).getValue();
     }
 
     VPUX_THROW("Unsupported memory space '{0}'", memSpace);

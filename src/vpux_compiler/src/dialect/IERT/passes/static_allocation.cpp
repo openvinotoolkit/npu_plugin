@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
 #include "vpux/compiler/core/async_deps_info.hpp"
@@ -19,7 +20,6 @@
 #include "vpux/compiler/core/mem_live_range_info.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/linear_scan.hpp"
 
@@ -94,11 +94,11 @@ public:
 private:
     void safeRunOnModule() final;
 
-    LinearScanHandler runLinearScan(mlir::FuncOp netFunc, IE::RunTimeResourcesOp resources);
+    LinearScanHandler runLinearScan(mlir::FuncOp netFunc);
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
-    mlir::Attribute _memSpace;
+    mlir::SymbolRefAttr _memSpace;
 };
 
 StaticAllocationPass::StaticAllocationPass(IERT::AttrCreateFunc memSpaceCb, Logger log)
@@ -120,11 +120,12 @@ mlir::LogicalResult StaticAllocationPass::initialize(mlir::MLIRContext* ctx) {
     return mlir::success();
 }
 
-LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc, IE::RunTimeResourcesOp resources) {
+LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
     auto& liveRangeInfo = getChildAnalysis<MemLiveRangeInfo>(netFunc);
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
 
-    auto availableMem = resources.getAvailableMemory(_memSpace);
+    auto module = netFunc->getParentOfType<mlir::ModuleOp>();
+    auto availableMem = IE::getAvailableMemory(module, _memSpace);
     VPUX_THROW_WHEN(availableMem == nullptr, "The memory space '{0}' is not available", _memSpace);
 
     const Byte maxMemSize = availableMem.size();
@@ -221,10 +222,8 @@ void StaticAllocationPass::safeRunOnModule() {
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    auto resources = IE::RunTimeResourcesOp::getFromModule(module);
-
-    const auto allocInfo = runLinearScan(netFunc, resources);
-    resources.setUsedMemory(_memSpace, allocInfo.maxAllocatedSize());
+    const auto allocInfo = runLinearScan(netFunc);
+    IE::setUsedMemory(module, _memSpace, allocInfo.maxAllocatedSize());
 
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<IERT::IERTDialect>();

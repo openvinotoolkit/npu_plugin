@@ -306,29 +306,27 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
     return wt_data_vals;
 }
 
-mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPURT::BufferSection section, ArrayRef<int64_t> shape,
-                               mlir::Type elemType, DimsOrder order) {
-    const auto memSpaceAttr = VPU::MemoryKindAttr::get(builder.getContext(), VPURT::getMemoryKind(section));
-    return vpux::getMemRefType(ShapeRef(shape), elemType, order, memSpaceAttr);
+mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> shape, mlir::Type elemType,
+                               DimsOrder order) {
+    return vpux::getMemRefType(ShapeRef(shape), elemType, order, VPURT::getMemoryKind(section));
 }
 
-mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPURT::BufferSection section, ArrayRef<int64_t> shape,
-                               mlir::Type elemType, DimsOrder order, StridesRef strides) {
-    const auto memSpaceAttr = VPU::MemoryKindAttr::get(builder.getContext(), VPURT::getMemoryKind(section));
-    return vpux::getMemRefType(ShapeRef(shape), elemType, order, strides, memSpaceAttr);
+mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> shape, mlir::Type elemType,
+                               DimsOrder order, StridesRef strides) {
+    return vpux::getMemRefType(ShapeRef(shape), elemType, order, strides, VPURT::getMemoryKind(section));
 }
 
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    int locale, size_t offset) {
-    const auto type = getMemRefType(builder, section, shape, elemType, order);
+    const auto type = getMemRefType(section, shape, elemType, order);
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
 }
 
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    StridesRef strides, int locale, size_t offset) {
-    const auto type = getMemRefType(builder, section, shape, elemType, order, strides);
+    const auto type = getMemRefType(section, shape, elemType, order, strides);
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
 }
 

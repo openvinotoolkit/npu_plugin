@@ -154,7 +154,8 @@ Byte vpux::getCompactSize(mlir::Value val) {
 // MemRefType utilities
 //
 
-mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order, mlir::Attribute memSpace) {
+mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order,
+                                     mlir::SymbolRefAttr memSpace) {
     VPUX_THROW_UNLESS(order.numDims() == shape.size(), "Shape '{0}' doesn't match order '{1}'", shape, order);
 
     mlir::MemRefType::Builder builder(shape.raw(), elemType);
@@ -164,7 +165,7 @@ mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOr
 }
 
 mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order, StridesRef strides,
-                                     mlir::Attribute memSpace) {
+                                     mlir::SymbolRefAttr memSpace) {
     VPUX_THROW_UNLESS(order.numDims() == shape.size(), "Shape '{0}' doesn't match order '{1}'", shape, order);
     VPUX_THROW_UNLESS(shape.size() == strides.size(), "Strides '{0}' doesn't match shape '{1}'", strides, shape);
 
@@ -196,7 +197,7 @@ mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOr
 mlir::MemRefType vpux::changeElemType(mlir::MemRefType origType, mlir::Type elemType) {
     const auto order = DimsOrder::fromType(origType);
     const auto shape = getShape(origType);
-    const auto memSpace = origType.getMemorySpace();
+    const auto memSpace = getMemorySpace(origType);
     const auto newType = getMemRefType(shape, elemType, order, memSpace);
 
     const auto loc = mlir::UnknownLoc::get(origType.getContext());
@@ -207,7 +208,7 @@ mlir::MemRefType vpux::changeElemType(mlir::MemRefType origType, mlir::Type elem
 
 mlir::MemRefType vpux::changeShape(mlir::MemRefType origType, ShapeRef shape) {
     const auto elemType = origType.getElementType();
-    const auto memSpace = origType.getMemorySpace();
+    const auto memSpace = getMemorySpace(origType);
 
     const auto origOrder = DimsOrder::fromType(origType);
     const auto newOrder = origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder;
@@ -223,11 +224,11 @@ mlir::MemRefType vpux::changeShape(mlir::MemRefType origType, ShapeRef shape) {
 mlir::MemRefType vpux::changeDimsOrder(mlir::MemRefType origType, DimsOrder order) {
     const auto shape = getShape(origType);
     const auto elemType = origType.getElementType();
-    const auto memSpace = origType.getMemorySpace();
+    const auto memSpace = getMemorySpace(origType);
     return getMemRefType(shape, elemType, order, memSpace);
 }
 
-mlir::MemRefType vpux::changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace) {
+mlir::MemRefType vpux::changeMemSpace(mlir::MemRefType origType, mlir::SymbolRefAttr memSpace) {
     return mlir::MemRefType::Builder(origType).setMemorySpace(memSpace);
 }
 
@@ -238,7 +239,7 @@ mlir::MemRefType vpux::getDenseTileType(mlir::MemRefType origType, ShapeRef tile
 mlir::MemRefType vpux::getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape,
                                        ShapeRef tileElemStrides) {
     const auto order = DimsOrder::fromType(origType);
-    const auto memSpace = origType.getMemorySpace();
+    const auto memSpace = getMemorySpace(origType);
 
     auto tileElemType = origType.getElementType();
     if (const auto perAxisQType = tileElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
@@ -266,7 +267,7 @@ mlir::MemRefType vpux::getViewTileType(mlir::MemRefType origType, ShapeRef tileO
 
 mlir::MemRefType vpux::getPaddedType(mlir::MemRefType origType, ShapeRef padBefore, ShapeRef padAfter) {
     const auto order = DimsOrder::fromType(origType);
-    const auto memSpace = origType.getMemorySpace();
+    const auto memSpace = getMemorySpace(origType);
 
     const auto origShape = getShape(origType);
     VPUX_THROW_UNLESS(padBefore.size() == padAfter.size(),
@@ -299,7 +300,7 @@ mlir::MemRefType vpux::eraseTiledInfo(mlir::MemRefType origType) {
     const auto shape = getShape(origType);
     const auto elemType = origType.getElementType();
     const auto order = DimsOrder::fromType(origType);
-    const auto memSpace = origType.getMemorySpace();
+    const auto memSpace = getMemorySpace(origType);
     return getMemRefType(shape, elemType, order, memSpace);
 }
 
@@ -308,7 +309,7 @@ mlir::MemRefType vpux::eraseTiledInfo(mlir::MemRefType origType) {
 //
 
 mlir::RankedTensorType vpux::getTensorType(ShapeRef shape, mlir::Type elemType, DimsOrder order,
-                                           mlir::Attribute memSpace, bool sparse) {
+                                           mlir::SymbolRefAttr memSpace, bool sparse) {
     VPUX_THROW_UNLESS(order.numDims() == shape.size(), "DimsOrder '{0}' doesn't match to shape '{1}'", order, shape);
 
     const auto tensorDesc = IE::getTensorAttr(elemType.getContext(), order, memSpace, sparse);
@@ -348,14 +349,14 @@ mlir::RankedTensorType vpux::changeDimsOrder(mlir::RankedTensorType origType, Di
                          IE::isSparse(origType));
 }
 
-mlir::RankedTensorType vpux::changeMemSpace(mlir::RankedTensorType origType, mlir::Attribute memSpace) {
-    return getTensorType(getShape(origType), origType.getElementType(), DimsOrder::fromType(origType), memSpace,
-                         IE::isSparse(origType));
-}
-
 mlir::RankedTensorType vpux::changeSparse(mlir::RankedTensorType origType, bool sparse) {
     return getTensorType(getShape(origType), origType.getElementType(), DimsOrder::fromType(origType),
                          IE::getMemorySpace(origType), sparse);
+}
+
+mlir::RankedTensorType vpux::changeMemSpace(mlir::RankedTensorType origType, mlir::SymbolRefAttr memSpace) {
+    return getTensorType(getShape(origType), origType.getElementType(), DimsOrder::fromType(origType), memSpace,
+                         IE::isSparse(origType));
 }
 
 mlir::RankedTensorType vpux::getDenseTileType(mlir::RankedTensorType origType, ShapeRef tileOffsets,
@@ -402,6 +403,18 @@ mlir::RankedTensorType vpux::getPaddedType(mlir::RankedTensorType origType, Shap
     return newType;
 }
 
+mlir::SymbolRefAttr vpux::getMemorySpace(mlir::MemRefType type) {
+    auto memSpaceAttr = type.getMemorySpace();
+    if (memSpaceAttr == nullptr) {
+        return nullptr;
+    }
+
+    auto memSpace = memSpaceAttr.dyn_cast<mlir::FlatSymbolRefAttr>();
+    VPUX_THROW_UNLESS(memSpace != nullptr, "Unsupported memory space attribute'{0}'", memSpaceAttr);
+
+    return memSpace;
+}
+
 //
 // ShapedType utilities
 //
@@ -445,7 +458,7 @@ mlir::ShapedType vpux::changeDimsOrder(mlir::ShapedType origType, DimsOrder orde
             });
 }
 
-mlir::ShapedType vpux::changeMemSpace(mlir::ShapedType origType, mlir::Attribute memSpace) {
+mlir::ShapedType vpux::changeMemSpace(mlir::ShapedType origType, mlir::SymbolRefAttr memSpace) {
     return llvm::TypeSwitch<mlir::ShapedType, mlir::ShapedType>(origType)
             .Case<mlir::MemRefType>([&](mlir::MemRefType memref) {
                 return changeMemSpace(memref, memSpace);

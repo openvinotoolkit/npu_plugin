@@ -35,7 +35,7 @@ private:
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
-    mlir::Attribute _memSpace;
+    mlir::SymbolRefAttr _memSpace;
 };
 
 SetInternalMemorySpacePass::SetInternalMemorySpacePass(IERT::AttrCreateFunc memSpaceCb, Logger log)

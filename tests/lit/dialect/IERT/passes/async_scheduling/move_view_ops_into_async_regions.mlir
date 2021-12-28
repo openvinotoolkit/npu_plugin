@@ -145,8 +145,8 @@ func @WeightsTableOp(%arg0: memref<1x1x16x64xf32>, %arg1: memref<16x1x1x4xsi32>)
 
     %buf0 = memref.alloc() : memref<1x1x16x64xf16>
     %buf1 = memref.alloc() : memref<1x16x1x64xf16, #NHWC>
-    %buf2 = memref.alloc() : memref<16x16x1x1xf16, #NHWC, "CMX_NN">
-    %buf3 = memref.alloc() : memref<1x16x1x64xf16, #NHWC, "CMX_NN">
+    %buf2 = memref.alloc() : memref<16x16x1x1xf16, #NHWC, @CMX_NN>
+    %buf3 = memref.alloc() : memref<1x16x1x64xf16, #NHWC, @CMX_NN>
 
     %t0, %f0 = async.execute -> !async.value<memref<1x1x16x64xf16>> {
         %0 = IERT.Convert inputs(%arg0 : memref<1x1x16x64xf32>) outputs(%buf0 : memref<1x1x16x64xf16>) -> memref<1x1x16x64xf16>
@@ -163,17 +163,17 @@ func @WeightsTableOp(%arg0: memref<1x1x16x64xf32>, %arg1: memref<16x1x1x4xsi32>)
     }
     %2 = async.await %f2 : !async.value<memref<1x16x1x64xf16, #NHWC>>
 
-    %t3, %f3 = async.execute -> !async.value<memref<16x16x1x1xf16, #NHWC, "CMX_NN">> {
-        %3 = IERT.Copy inputs(%cst0 : memref<16x16x1x1xf16, #NHWC>) outputs(%buf2 : memref<16x16x1x1xf16, #NHWC, "CMX_NN">)
-            -> memref<16x16x1x1xf16, #NHWC, "CMX_NN">
-        async.yield %3 : memref<16x16x1x1xf16, #NHWC, "CMX_NN">
+    %t3, %f3 = async.execute -> !async.value<memref<16x16x1x1xf16, #NHWC, @CMX_NN>> {
+        %3 = IERT.Copy inputs(%cst0 : memref<16x16x1x1xf16, #NHWC>) outputs(%buf2 : memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
+            -> memref<16x16x1x1xf16, #NHWC, @CMX_NN>
+        async.yield %3 : memref<16x16x1x1xf16, #NHWC, @CMX_NN>
     }
-    %3 = async.await %f3 : !async.value<memref<16x16x1x1xf16, #NHWC, "CMX_NN">>
+    %3 = async.await %f3 : !async.value<memref<16x16x1x1xf16, #NHWC, @CMX_NN>>
 
     %4 = VPUIP.WeightsTableOp
         op_input(%2 : memref<1x16x1x64xf16, #NHWC>)
-        op_output(%buf3 : memref<1x16x1x64xf16, #NHWC, "CMX_NN">)
-        weights(%3 : memref<16x16x1x1xf16, #NHWC, "CMX_NN">)
+        op_output(%buf3 : memref<1x16x1x64xf16, #NHWC, @CMX_NN>)
+        weights(%3 : memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
         -> memref<16x1x1x4xsi32>
 
     %t5, %f5 = async.execute -> !async.value<memref<16x1x1x4xsi32>> {
@@ -188,8 +188,8 @@ func @WeightsTableOp(%arg0: memref<1x1x16x64xf32>, %arg1: memref<16x1x1x4xsi32>)
 
     // CHECK:       [[BUF0:%.+]] = memref.alloc() : memref<1x1x16x64xf16>
     // CHECK:       [[BUF1:%.+]] = memref.alloc() : memref<1x16x1x64xf16, #NHWC>
-    // CHECK:       [[BUF2:%.+]] = memref.alloc() : memref<16x16x1x1xf16, #NHWC, "CMX_NN">
-    // CHECK:       [[BUF3:%.+]] = memref.alloc() : memref<1x16x1x64xf16, #NHWC, "CMX_NN">
+    // CHECK:       [[BUF2:%.+]] = memref.alloc() : memref<16x16x1x1xf16, #NHWC, @CMX_NN>
+    // CHECK:       [[BUF3:%.+]] = memref.alloc() : memref<1x16x1x64xf16, #NHWC, @CMX_NN>
 
     // CHECK:       [[T0:%.+]], [[F0:%.+]] = async.execute -> !async.value<memref<1x1x16x64xf16>>
     // CHECK:           [[VAR0:%.+]] = IERT.Convert
@@ -207,18 +207,18 @@ func @WeightsTableOp(%arg0: memref<1x1x16x64xf32>, %arg1: memref<16x1x1x4xsi32>)
     // CHECK:           async.yield [[VAR2]] : memref<1x16x1x64xf16, #NHWC>
     // CHECK:       [[VAR2:%.+]] = async.await [[F2]] : !async.value<memref<1x16x1x64xf16, #NHWC>>
 
-    // CHECK:       [[T3:%.+]], [[F3:%.+]] = async.execute -> !async.value<memref<16x16x1x1xf16, #NHWC, "CMX_NN">> {
+    // CHECK:       [[T3:%.+]], [[F3:%.+]] = async.execute -> !async.value<memref<16x16x1x1xf16, #NHWC, @CMX_NN>> {
     // CHECK:           [[VAR3:%.+]] = IERT.Copy
     // CHECK-SAME:          inputs([[CST0]] : memref<16x16x1x1xf16, #NHWC>)
-    // CHECK-SAME:          outputs([[BUF2]] : memref<16x16x1x1xf16, #NHWC, "CMX_NN">)
-    // CHECK:           async.yield [[VAR3]] : memref<16x16x1x1xf16, #NHWC, "CMX_NN">
-    // CHECK:       [[VAR3:%.+]] = async.await [[F3]] : !async.value<memref<16x16x1x1xf16, #NHWC, "CMX_NN">>
+    // CHECK-SAME:          outputs([[BUF2]] : memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
+    // CHECK:           async.yield [[VAR3]] : memref<16x16x1x1xf16, #NHWC, @CMX_NN>
+    // CHECK:       [[VAR3:%.+]] = async.await [[F3]] : !async.value<memref<16x16x1x1xf16, #NHWC, @CMX_NN>>
 
     // CHECK:       [[T5:%.+]], [[F5:%.+]] = async.execute -> !async.value<memref<16x1x1x4xsi32>> {
     // CHECK:           [[VAR4:%.+]] = VPUIP.WeightsTableOp
     // CHECK-SAME:          op_input([[VAR2]] : memref<1x16x1x64xf16, #NHWC>)
-    // CHECK-SAME:          op_output([[BUF3]] : memref<1x16x1x64xf16, #NHWC, "CMX_NN">)
-    // CHECK-SAME:          weights([[VAR3]] : memref<16x16x1x1xf16, #NHWC, "CMX_NN">)
+    // CHECK-SAME:          op_output([[BUF3]] : memref<1x16x1x64xf16, #NHWC, @CMX_NN>)
+    // CHECK-SAME:          weights([[VAR3]] : memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
     // CHECK-SAME:          -> memref<16x1x1x4xsi32>
     // CHECK:           [[VAR5:%.+]] = IERT.Copy
     // CHECK-SAME:          inputs([[VAR4]] : memref<16x1x1x4xsi32>)

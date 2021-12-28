@@ -22,9 +22,7 @@ namespace {
 
 mlir::memref::AllocOp createCMXTensor(mlir::Value source, mlir::PatternRewriter& rewriter) {
     auto type = source.getType().cast<mlir::MemRefType>();
-
-    const auto cmxMemSpaceAttr = VPU::MemoryKindAttr::get(rewriter.getContext(), VPU::MemoryKind::CMX_NN);
-    const auto dataTypeCMX = changeMemSpace(eraseTiledInfo(type), cmxMemSpaceAttr);
+    const auto dataTypeCMX = changeMemSpace(eraseTiledInfo(type), VPU::MemoryKind::CMX_NN);
 
     // TODO : how tile index should be used?
     return rewriter.create<mlir::memref::AllocOp>(source.getLoc(), dataTypeCMX);

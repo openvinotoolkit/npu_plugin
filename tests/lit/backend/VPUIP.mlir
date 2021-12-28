@@ -2,17 +2,16 @@
 
 module @Test attributes {VPU.arch = "KMB"} {
 
+IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
+IE.MemoryResource 4194304 bytes of @CMX_UPA {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}
+IE.MemoryResource 1048576 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
+
+module @UsedMemory {
+    IE.MemoryResource 2048 bytes of @DDR
+    IE.MemoryResource 1048576 bytes of @CMX_NN
+}
+
 IE.RunTimeResources
-    availableMemory : {
-        MemoryResource 1073741824 bytes
-        MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
-        MemoryResource 4194304 bytes of "CMX_UPA" {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}
-        MemoryResource 1048576 bytes of "CMX_NN" {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
-    }
-    usedMemory : {
-        MemoryResource 2048 bytes of "DDR"
-        MemoryResource 1048576 bytes of "CMX_NN"
-    }
     executors : {
         ExecutorResource 16 of "SHAVE_UPA"
         ExecutorResource 4 of "NCE" {

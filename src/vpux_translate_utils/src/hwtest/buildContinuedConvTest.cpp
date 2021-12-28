@@ -79,8 +79,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     const auto INPUT_CONV_1_CMX_OFFSET = INPUT_CONV_0_CMX_OFFSET + totalTensorSize(inputShape, inputType) / 2;
 
     const auto getMemRef = [&builder](ArrayRef<std::int64_t> shape, mlir::Type elemType, VPU::MemoryKind memKind) {
-        const auto memSpaceAttr = VPU::MemoryKindAttr::get(builder.getContext(), memKind);
-        return vpux::getMemRefType(ShapeRef(shape), elemType, DimsOrder::NHWC, memSpaceAttr);
+        return vpux::getMemRefType(ShapeRef(shape), elemType, DimsOrder::NHWC, memKind);
     };
 
     const auto outputParamType = getMemRef(outputShape, outputType, VPU::MemoryKind::DDR);

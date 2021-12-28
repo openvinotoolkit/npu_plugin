@@ -3,14 +3,14 @@
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 func @OptimizeCopy(
-        %arg0: memref<1x16x112x112xf16, #NHWC, "CMX_NN">,
-        %arg1: memref<1x16x112x112xf16, #NHWC, "CMX_NN">,
+        %arg0: memref<1x16x112x112xf16, #NHWC, @CMX_NN>,
+        %arg1: memref<1x16x112x112xf16, #NHWC, @CMX_NN>,
         %arg2: memref<1x32x112x112xf16, #NHWC>)
         -> memref<1x32x112x112xf16, #NHWC> {
     %0 = memref.alloc() : memref<1x32x112x112xf16, #NHWC>
     %1 = memref.alloc() : memref<1x16x112x112xf16, #NHWC>
 
-    %2 = IERT.Copy inputs(%arg0 : memref<1x16x112x112xf16, #NHWC, "CMX_NN">)
+    %2 = IERT.Copy inputs(%arg0 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
         outputs(%1 : memref<1x16x112x112xf16, #NHWC>)
         -> memref<1x16x112x112xf16, #NHWC>
 
@@ -22,7 +22,7 @@ func @OptimizeCopy(
 
     %5 = memref.alloc() : memref<1x16x112x112xf16, #NHWC>
 
-    %6 = IERT.Copy inputs(%arg1 : memref<1x16x112x112xf16, #NHWC, "CMX_NN">)
+    %6 = IERT.Copy inputs(%arg1 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
         outputs(%5 : memref<1x16x112x112xf16, #NHWC>)
         -> memref<1x16x112x112xf16, #NHWC>
 
@@ -51,13 +51,13 @@ func @OptimizeCopy(
     // CHECK-NOT:   memref.alloc() : memref<1x16x112x112xf16, #NHWC>
     // CHECK:       [[VAR0:%.*]] = IERT.SubView %arg2 [0, 0, 0, 0] [1, 16, 112, 112] :
     // CHECK-SAME:      memref<1x32x112x112xf16, #NHWC> to memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>
-    // CHECK:       [[VAR1:%.*]] = IERT.Copy inputs({{.*}} : memref<1x16x112x112xf16, #NHWC, "CMX_NN">)
+    // CHECK:       [[VAR1:%.*]] = IERT.Copy inputs({{.*}} : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
     // CHECK-SAME:      outputs([[VAR0]] : memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>)
 
     // CHECK-NOT:   memref.alloc() : memref<1x16x112x112xf16, #NHWC>
     // CHECK:       [[VAR2:%.*]] = IERT.SubView %arg2 [0, 16, 0, 0] [1, 16, 112, 112] :
     // CHECK-SAME:      memref<1x32x112x112xf16, #NHWC> to memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>
-    // CHECK:       [[VAR3:%.*]] = IERT.Copy inputs({{.*}} : memref<1x16x112x112xf16, #NHWC, "CMX_NN">)
+    // CHECK:       [[VAR3:%.*]] = IERT.Copy inputs({{.*}} : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
     // CHECK-SAME:      outputs([[VAR2]] : memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>)
 
     // CHECK:       [[VAR4:%.*]] = IERT.ConcatView inputs([[VAR1]], [[VAR3]] :
@@ -216,22 +216,22 @@ func @NoChangesInputIsBlockArgument(%arg0: memref<1x2x4x4xf16>, %arg1: memref<1x
 // -----
 
 func @NoChangesDifferentMemSpace(%arg0: memref<1x2x4x4xf16>, %arg1: memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16> {
-    %0 = memref.alloc() : memref<1x2x4x4xf16, "CMX_NN">
-    %1 = IERT.Copy inputs(%arg0 : memref<1x2x4x4xf16>) outputs(%0 : memref<1x2x4x4xf16, "CMX_NN">) -> memref<1x2x4x4xf16, "CMX_NN">
+    %0 = memref.alloc() : memref<1x2x4x4xf16, @CMX_NN>
+    %1 = IERT.Copy inputs(%arg0 : memref<1x2x4x4xf16>) outputs(%0 : memref<1x2x4x4xf16, @CMX_NN>) -> memref<1x2x4x4xf16, @CMX_NN>
 
-    %2 = memref.alloc() : memref<1x2x4x4xf16, "CMX_NN">
+    %2 = memref.alloc() : memref<1x2x4x4xf16, @CMX_NN>
     %3 = IERT.And
-            inputs(%1 : memref<1x2x4x4xf16, "CMX_NN">, %1 : memref<1x2x4x4xf16, "CMX_NN">)
-            outputs(%2 : memref<1x2x4x4xf16, "CMX_NN">)
-            -> memref<1x2x4x4xf16, "CMX_NN">
+            inputs(%1 : memref<1x2x4x4xf16, @CMX_NN>, %1 : memref<1x2x4x4xf16, @CMX_NN>)
+            outputs(%2 : memref<1x2x4x4xf16, @CMX_NN>)
+            -> memref<1x2x4x4xf16, @CMX_NN>
 
-    %4 = IERT.Copy inputs(%3 : memref<1x2x4x4xf16, "CMX_NN">) outputs(%arg1 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
+    %4 = IERT.Copy inputs(%3 : memref<1x2x4x4xf16, @CMX_NN>) outputs(%arg1 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
     return %4 : memref<1x2x4x4xf16>
 
     // CHECK: IERT.Copy
 
     // CHECK: [[VAR0:%.*]] = IERT.And
-    // CHECK: [[VAR1:%.*]] = IERT.Copy inputs([[VAR0]] : memref<1x2x4x4xf16, "CMX_NN">)
+    // CHECK: [[VAR1:%.*]] = IERT.Copy inputs([[VAR0]] : memref<1x2x4x4xf16, @CMX_NN>)
     // CHECK-SAME:                     outputs(%arg1 : memref<1x2x4x4xf16>)
 
     // CHECK: return [[VAR1]]

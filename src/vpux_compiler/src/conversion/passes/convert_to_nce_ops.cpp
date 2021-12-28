@@ -96,8 +96,6 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
                                      mlir::Value activationWindow) {
     SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
 
-    auto* ctx = builder.getContext();
-
     // link weight table to memrefs rather than the operation of weights,
     // activation, and input for easy address pointer retrieval
     mlir::Value wMemref = retrieveMemrefOfCopyOp(weights);
@@ -108,8 +106,7 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
     auto createWeightsTableOp =
             builder.create<VPUIP::WeightsTableOp>(loc, dataType, iMemref, op_output, wMemref, bias, aMemref);
 
-    const auto cmxMemSpaceAttr = VPU::MemoryKindAttr::get(ctx, VPU::MemoryKind::CMX_NN);
-    const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
+    const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
 
     auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
     auto copyOp = builder.create<IERT::CopyOp>(loc, createWeightsTableOp.output(), dataAllocOp);
@@ -120,8 +117,7 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
 mlir::Value prepareTensorForDPU(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value input) {
     // DMA DDR -> CMX
     const auto origType = input.getType().cast<mlir::MemRefType>();
-    auto typeCMX = changeMemSpace(eraseTiledInfo(origType),
-                                  VPU::MemoryKindAttr::get(builder.getContext(), VPU::MemoryKind::CMX_NN));
+    auto typeCMX = changeMemSpace(eraseTiledInfo(origType), VPU::MemoryKind::CMX_NN);
     auto dmaAllocOp = builder.create<mlir::memref::AllocOp>(loc, typeCMX);
     auto dmaOp = builder.create<IERT::CopyOp>(loc, input, dmaAllocOp.memref());
 
@@ -342,8 +338,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
     const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType),
-                                           VPU::MemoryKindAttr::get(getContext(), VPU::MemoryKind::CMX_NN));
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
@@ -416,7 +411,6 @@ private:
 
 mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity,
                                          int64_t numChannels) {
-    auto* ctx = builder.getContext();
     const auto elemType = getUInt8Type(builder.getContext());
 
     SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
@@ -427,8 +421,7 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
     const auto dataType = mlir::MemRefType::get(fakeSparsityShape, elemType);
     auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataType, Const::ContentAttr::get(dataAttr));
 
-    const auto cmxMemSpaceAttr = VPU::MemoryKindAttr::get(ctx, VPU::MemoryKind::CMX_NN);
-    const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
+    const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
 
     auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
     auto copyOp = builder.create<IERT::CopyOp>(loc, dataConstOp.output(), dataAllocOp);
@@ -476,8 +469,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
     const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
     const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType),
-                                           VPU::MemoryKindAttr::get(getContext(), VPU::MemoryKind::CMX_NN));
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
@@ -573,8 +565,7 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
 
     const auto origOutType = origOp.output().getType().template cast<mlir::MemRefType>();
     const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType),
-                                           VPU::MemoryKindAttr::get(this->getContext(), VPU::MemoryKind::CMX_NN));
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
@@ -726,8 +717,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
 
     const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
     const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType),
-                                           VPU::MemoryKindAttr::get(getContext(), VPU::MemoryKind::CMX_NN));
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 

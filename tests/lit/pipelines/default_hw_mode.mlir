@@ -4,10 +4,11 @@
 
 // CHECK-LABEL: @Convolution
 module @Convolution {
+    // CHECK:   module @UsedMemory
+    // CHECK-DAG:       IE.MemoryResource {{[0-9]+}} bytes of @CMX_NN
+    // CHECK-DAG:       IE.MemoryResource {{[0-9]+}} bytes of @DDR
+
     // CHECK:   IE.RunTimeResources
-    // CHECK:       usedMemory :
-    // CHECK-DAG:       MemoryResource {{[0-9]+}} bytes of "CMX_NN"
-    // CHECK-DAG:       MemoryResource {{[0-9]+}} bytes of "DDR"
     // CHECK:       executors :
     // CHECK-DAG:       ExecutorResource 1 of "DMA_NN"
     // CHECK-DAG:       ExecutorResource 16 of "SHAVE_UPA"
@@ -41,12 +42,12 @@ module @Convolution {
         // CHECK-SAME:      updates(%{{[0-9]+}} : !VPURT.Barrier)
         // CHECK:       VPUIP.NCEClusterTask
         // CHECK-SAME:          task_type = "CONV"
-        // CHECK-SAME:      input(%{{[0-9]+}} : memref<1x16x62x62xf16, #NHWC, "CMX_NN">)
-        // CHECK-SAME:      weights(%{{[0-9]+}} : memref<48x16x3x3xf16, #NHWC, "CMX_NN">)
-        // CHECK-SAME:      weight_table(%{{[0-9]+}} : memref<48x1x1x4xsi32, "CMX_NN">)
-        // CHECK-SAME:      parent_input(%{{[0-9]+}} : memref<1x16x62x62xf16, #NHWC, "CMX_NN">)
-        // CHECK-SAME:      parent_output(%{{[0-9]+}} : memref<1x48x60x60xf16, #NHWC, "CMX_NN">)
-        // CHECK-SAME:      outputs(%{{[0-9]+}} : memref<1x48x60x60xf16, #NHWC, "CMX_NN">)
+        // CHECK-SAME:      input(%{{[0-9]+}} : memref<1x16x62x62xf16, #NHWC, @CMX_NN>)
+        // CHECK-SAME:      weights(%{{[0-9]+}} : memref<48x16x3x3xf16, #NHWC, @CMX_NN>)
+        // CHECK-SAME:      weight_table(%{{[0-9]+}} : memref<48x1x1x4xsi32, @CMX_NN>)
+        // CHECK-SAME:      parent_input(%{{[0-9]+}} : memref<1x16x62x62xf16, #NHWC, @CMX_NN>)
+        // CHECK-SAME:      parent_output(%{{[0-9]+}} : memref<1x48x60x60xf16, #NHWC, @CMX_NN>)
+        // CHECK-SAME:      outputs(%{{[0-9]+}} : memref<1x48x60x60xf16, #NHWC, @CMX_NN>)
         // CHECK:               DPUTask
   }
 }

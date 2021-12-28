@@ -25,27 +25,29 @@ using namespace vpux;
 //
 
 double vpux::VPUIP::getMemoryDerateFactor(IE::MemoryResourceOp mem) {
-    VPUX_THROW_UNLESS(mem.kindAttr() != nullptr, "Got empty memory resource kind");
-    VPUX_THROW_UNLESS(mem.kindAttr().isa<VPU::MemoryKindAttr>(), "Unsupported memory resource kind '{0}'", mem.kind());
+    VPUX_THROW_UNLESS(mem.getKind() != nullptr, "Got empty memory resource kind");
+    VPUX_THROW_UNLESS(mem.getKind().isa<VPU::MemoryKindAttr>(), "Unsupported memory resource kind '{0}'",
+                      mem.getKind());
 
     auto attr = mem->getAttr(VPU::getMemoryDerateAttrName());
-    VPUX_THROW_UNLESS(attr != nullptr, "Memory resource '{0}' has no '{1}' attribute", mem.kind(),
+    VPUX_THROW_UNLESS(attr != nullptr, "Memory resource '{0}' has no '{1}' attribute", mem.getKind(),
                       VPU::getMemoryDerateAttrName());
     VPUX_THROW_UNLESS(attr.isa<mlir::FloatAttr>(), "Memory resource '{0}' has wrong '{1}' attribute : '{2}'",
-                      mem.kind(), VPU::getMemoryDerateAttrName(), attr);
+                      mem.getKind(), VPU::getMemoryDerateAttrName(), attr);
 
     return attr.cast<mlir::FloatAttr>().getValueAsDouble();
 }
 
 uint32_t vpux::VPUIP::getMemoryBandwidth(IE::MemoryResourceOp mem) {
-    VPUX_THROW_UNLESS(mem.kindAttr() != nullptr, "Got empty memory resource kind");
-    VPUX_THROW_UNLESS(mem.kindAttr().isa<VPU::MemoryKindAttr>(), "Unsupported memory resource kind '{0}'", mem.kind());
+    VPUX_THROW_UNLESS(mem.getKind() != nullptr, "Got empty memory resource kind");
+    VPUX_THROW_UNLESS(mem.getKind().isa<VPU::MemoryKindAttr>(), "Unsupported memory resource kind '{0}'",
+                      mem.getKind());
 
     auto attr = mem->getAttr(VPU::getMemoryBandwidthAttrName());
-    VPUX_THROW_UNLESS(attr != nullptr, "Memory resource '{0}' has no '{1}' attribute", mem.kind(),
+    VPUX_THROW_UNLESS(attr != nullptr, "Memory resource '{0}' has no '{1}' attribute", mem.getKind(),
                       VPU::getMemoryBandwidthAttrName());
     VPUX_THROW_UNLESS(attr.isa<mlir::IntegerAttr>(), "Memory resource '{0}' has wrong '{1}' attribute : '{2}'",
-                      mem.kind(), VPU::getMemoryBandwidthAttrName(), attr);
+                      mem.getKind(), VPU::getMemoryBandwidthAttrName(), attr);
 
     return checked_cast<uint32_t>(attr.cast<mlir::IntegerAttr>().getInt());
 }

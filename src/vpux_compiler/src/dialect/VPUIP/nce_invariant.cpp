@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
@@ -241,11 +242,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::GroupConvolu
 namespace {
 
 Byte getCMXSizeForTiling(mlir::ModuleOp module) {
-    auto resOp = IE::RunTimeResourcesOp::getFromModule(module);
-
-    const auto cmxAttr = VPU::MemoryKindAttr::get(module->getContext(), VPU::MemoryKind::CMX_NN);
-
-    auto cmxRes = resOp.getAvailableMemory(cmxAttr);
+    auto cmxRes = IE::getAvailableMemory(module, VPU::MemoryKind::CMX_NN);
     VPUX_THROW_UNLESS(cmxRes != nullptr, "Can't get information about {0} memory", VPU::MemoryKind::CMX_NN);
 
     // This function is used to determine the best tile size. It tries to put maximum data in CMX.

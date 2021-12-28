@@ -49,13 +49,11 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     VPUX_THROW_UNLESS((inputType == weightsType), "Eltwise expects inputs of same type");
 
     SmallVector<mlir::Type> inputTypes;
+    inputTypes.push_back(getMemRefType(VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC));
     inputTypes.push_back(
-            getMemRefType(builder, VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC));
-    inputTypes.push_back(
-            getMemRefType(builder, VPURT::BufferSection::NetworkInput, weights_shape, weightsType, DimsOrder::NHWC));
+            getMemRefType(VPURT::BufferSection::NetworkInput, weights_shape, weightsType, DimsOrder::NHWC));
 
-    auto outputParamType =
-            getMemRefType(builder, VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
+    auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
@@ -72,16 +70,15 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     auto funcoutput = func.getArgument(2);
 
     // input - output cmx tensors
-    auto inputcmx_type = getMemRefType(builder, VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
+    auto inputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
     auto inputcmx =
             createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT0_CMX_OFFSET);
 
-    auto weightscmx_type =
-            getMemRefType(builder, VPURT::BufferSection::CMX_NN, weights_shape, weightsType, DimsOrder::NHWC);
+    auto weightscmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, weights_shape, weightsType, DimsOrder::NHWC);
     auto weightscmx =
             createDeclareTensorOp(funcbuilder, weightscmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT1_CMX_OFFSET);
 
-    auto outputcmx_type = getMemRefType(builder, VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
+    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
     auto outputcmx =
             createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 

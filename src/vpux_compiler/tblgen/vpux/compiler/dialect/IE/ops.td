@@ -28,6 +28,7 @@ include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Dialect/Quant/QuantOpsBase.td"
+include "mlir/IR/SymbolInterfaces.td"
 
 //
 // Base classes
@@ -215,8 +216,6 @@ def IE_RunTimeResourcesOp :
     }];
 
     let regions = (region
-        SizedRegion<1>:$availableMemory,
-        SizedRegion<1>:$usedMemory,
         SizedRegion<1>:$executors
     );
 
@@ -232,14 +231,6 @@ def IE_RunTimeResourcesOp :
     let extraClassDeclaration = [{
         static vpux::IE::RunTimeResourcesOp getFromModule(mlir::ModuleOp module);
 
-        vpux::IE::MemoryResourceOp addAvailableMemory(mlir::Attribute kind, vpux::Byte size);
-        vpux::IE::MemoryResourceOp getAvailableMemory(mlir::Attribute kind);
-        auto getAvailableMemory() { return availableMemory().getOps<vpux::IE::MemoryResourceOp>(); }
-
-        vpux::IE::MemoryResourceOp setUsedMemory(mlir::Attribute kind, vpux::Byte size);
-        vpux::IE::MemoryResourceOp getUsedMemory(mlir::Attribute kind);
-        auto getUsedMemory() { return usedMemory().getOps<vpux::IE::MemoryResourceOp>(); }
-
         vpux::IE::ExecutorResourceOp addExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
         vpux::IE::ExecutorResourceOp getExecutor(mlir::Attribute kind);
         auto getExecutors() { return executors().getOps<vpux::IE::ExecutorResourceOp>(); }
@@ -251,8 +242,6 @@ def IE_RunTimeResourcesOp :
 
     let assemblyFormat = [{
         attr-dict
-        `availableMemory` `:` $availableMemory
-        `usedMemory` `:` $usedMemory
         `executors` `:` $executors
     }];
 }
@@ -265,7 +254,8 @@ def IE_MemoryResourceOp :
         IE_Op<
             "MemoryResource",
             [
-                HasParent<"vpux::IE::RunTimeResourcesOp">
+                IERT_ResourceOpInterface,
+                Symbol
             ]
         > {
     let summary = "Information about memory resource";
@@ -273,21 +263,25 @@ def IE_MemoryResourceOp :
     let description = [{
         The memory resource is defined by the following attributes:
 
-          * Kind - optional kind of memory space.
+          * sym_name - kind of memory space.
           * Size - size in bytes of memory space.
     }];
 
     let arguments = (ins
-        OptionalAttr<AnyAttr>:$kind,
+        SymbolNameAttr:$sym_name,
         IntAttr:$byteSize
     );
 
     let extraClassDeclaration = [{
         vpux::Byte size() { return vpux::Byte(byteSize()); }
+
+        static mlir::StringRef getDefaultDialect() {
+            return "IE";
+        }
     }];
 
     let assemblyFormat = [{
-        $byteSize `bytes` (`of` $kind^)?
+        $byteSize `bytes` `of` $sym_name
         attr-dict
     }];
 }

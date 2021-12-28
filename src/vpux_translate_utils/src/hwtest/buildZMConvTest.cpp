@@ -126,11 +126,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                       "WEIGHTSTABLE_CMX_OFFSET must be multiple of {0}, got {1}", alignment, WEIGHTSTABLE_CMX_OFFSET);
 
     const auto outputParamType = changeDimsOrder(
-            getMemRefType(builder, vpux::VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC),
+            getMemRefType(vpux::VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC),
             outputLayout);
     llvm::SmallVector<mlir::Type, 2> inputTypes;
-    inputTypes.push_back(
-            getMemRefType(builder, VPURT::BufferSection::NetworkInput, inputShape, inputType, DimsOrder::NHWC));
+    inputTypes.push_back(getMemRefType(VPURT::BufferSection::NetworkInput, inputShape, inputType, DimsOrder::NHWC));
     inputTypes.push_back(outputParamType);
 
     const auto funcType = builder.getFunctionType(llvm::makeArrayRef(inputTypes), outputParamType);
@@ -158,7 +157,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     }
 
     const auto weightsDDRType =
-            getMemRefType(builder, VPURT::BufferSection::Constant, weightsShape, weightsType, DimsOrder::NHWC);
+            getMemRefType(VPURT::BufferSection::Constant, weightsShape, weightsType, DimsOrder::NHWC);
 
     auto weightsStrides = vpux::getStrides(weightsDDRType);
     auto inputStrides = vpux::getStrides(functionInput.getType().cast<mlir::ShapedType>());
@@ -201,8 +200,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto weightsDDR =
             functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType, weightsAttribute);
 
-    auto outputCMXpadded =
-            getMemRefType(builder, VPURT::BufferSection::CMX_NN, outputCMXShape, outputType, outputLayout);
+    auto outputCMXpadded = getMemRefType(VPURT::BufferSection::CMX_NN, outputCMXShape, outputType, outputLayout);
     auto outputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
                                            outputLayout, vpux::getStrides(outputCMXpadded), 0, OUTPUT_CMX_OFFSET);
 
@@ -213,7 +211,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
             static_cast<std::int32_t>(0xFFFFFF), vpux::VPU::ArchKind::MTL, output.shape[1], weightsType);
 
     const auto weightsTableDDRMemRef =
-            getMemRefType(builder, VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
+            getMemRefType(VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
     const auto weightsTableValues =
             mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(

@@ -40,8 +40,8 @@ namespace {
 //
 
 template <VPU::MemoryKind KIND>
-mlir::Attribute getMemSpace(mlir::MLIRContext* ctx, StringRef) {
-    return VPU::MemoryKindAttr::get(ctx, KIND);
+mlir::SymbolRefAttr getMemSpace(mlir::MLIRContext* ctx, StringRef) {
+    return mlir::SymbolRefAttr::get(VPU::MemoryKindAttr::get(ctx, KIND));
 }
 
 VPU::ArchKind getArchKind(const StrOption& archKind) {

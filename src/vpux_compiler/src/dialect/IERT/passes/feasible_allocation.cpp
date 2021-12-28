@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
 #include "vpux/compiler/core/async_deps_info.hpp"
@@ -90,8 +91,8 @@ private:
 private:
     IERT::AttrCreateFunc _memSpaceCb;
     IERT::AttrCreateFunc _secondLvlMemSpaceCb;
-    mlir::Attribute _memSpace;
-    mlir::Attribute _secondLvlMemSpace;
+    mlir::SymbolRefAttr _memSpace;
+    mlir::SymbolRefAttr _secondLvlMemSpace;
 };
 
 FeasibleAllocationPass::FeasibleAllocationPass(IERT::AttrCreateFunc memSpaceCb,
@@ -190,8 +191,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     // linear scan
-    auto resources = IE::RunTimeResourcesOp::getFromModule(module);
-    auto available = resources.getAvailableMemory(_memSpace);
+    auto available = IE::getAvailableMemory(module, _memSpace);
     const auto maxSize = available.size();
     const uint64_t alignment = 64;
 
@@ -235,7 +235,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
         return;
     }
 
-    resources.setUsedMemory(_memSpace, scan.handler().maxAllocatedSize());
+    IE::setUsedMemory(module, _memSpace, scan.handler().maxAllocatedSize());
 }
 
 }  // namespace
