@@ -926,14 +926,11 @@ class AvgPool(MPE):
     def json_info(self, inputs, output):
         # NB We need to rescale the output if it's quantized, since this is how the system implements the
         # division for quantized pool outputs.
-        oinfo = output.json_info
-        if not output.is_float:
-            divisor = functools.reduce(operator.mul, self.settings.kernel_shape)
-            oinfo['quantization']['scale'] /= divisor
+
         return {
             'case_type': 'AvgPool',
             'input': inputs[0].json_info,
-            'output': oinfo,
+            'output': output.json_info,
             'pool_op': {
                 'sub_type': 'avg',
                 'kernel_shape': self.settings.kernel_shape,
@@ -1850,6 +1847,17 @@ def generate_options(args):
             output_types=[FP16()],
             pads=[[0, 0, 0, 0]]
         ),
+
+        genZMConvs(
+            input_types=[FP16(2)],
+            input_shapes=[[1, 32, 2, 15]],
+            weight_types=[FP16(2)],
+            kernel_channels=[64],
+            kernel_shapes=[[1, 1]],
+            output_types=[FP16()],
+            output_orders=[Order.NCHW],
+            pads=[[0, 0, 0, 0]]),
+
     )
 
 

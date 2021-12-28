@@ -61,6 +61,7 @@
             "high_range": 65535
         }
     },
+    "output_order": "nhwc",
     "activation": {
         "name": null
     }

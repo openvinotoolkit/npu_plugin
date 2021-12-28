@@ -16,6 +16,7 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -110,9 +111,39 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
             weightscmx.getOperation()->getResult(0), mlir::Value(), nullptr,
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::ELTWISE, mlir::ArrayAttr(), mlir::ArrayAttr(),
-            vpux::VPUIP::PaddingAttr(), actChannelLength, /*is_continued*/ nullptr);
+            vpux::VPUIP::PaddingAttr(), actChannelLength, /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
-    nceTask.addPPETask(funcbuilder);
+    int64_t clampLow = std::numeric_limits<int32_t>::min();
+    int64_t clampHigh = std::numeric_limits<int32_t>::max();
+    int64_t LreluMult = 1;
+    int64_t LreluShift = 0;
+
+    if (auto outElemQType = outputType.template dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto zps = extractScalesAndZeroPoints(outputType).second;
+
+        clampLow = outElemQType.getStorageTypeMin() - zps.front();
+        clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+    }
+
+    // Since Eltwise operation doesn't have weights table it requires final quantization scaling
+    // to be part of output tensor description. Scale vector will be placed in PPE block and
+    // later used during NCE task serialization
+    auto quantScale = VPU::calculateQuantScaleVectorForEltwise(inputcmx_type, weightscmx_type, outputcmx_type,
+                                                               VPU::ArchKind::MTL, false);
+    if (quantScale.hasValue()) {
+        const auto scale = quantScale.getValue();
+
+        const auto mult = getQuantMultFromScale(scale);
+        const auto shifts = getQuantShiftAndPostShiftFromScale(scale);
+
+        const auto shift = shifts.first;
+        const auto post_shift = shifts.second;
+
+        nceTask.addPPETask(funcbuilder, VPUIP::PPELayerType::ADD, clampLow, clampHigh, LreluMult, LreluShift,
+                           SmallVector<int32_t>{mult}, SmallVector<int32_t>{shift}, post_shift);
+    } else {
+        nceTask.addPPETask(funcbuilder, VPUIP::PPELayerType::ADD, clampLow, clampHigh, LreluMult, LreluShift);
+    }
 
     // Create DPU task for NCE task
     auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());

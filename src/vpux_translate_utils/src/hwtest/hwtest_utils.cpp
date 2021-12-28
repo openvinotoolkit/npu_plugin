@@ -362,5 +362,28 @@ vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder 
     return dpuTask;
 }
 
+vpux::DimsOrder oduPermutationToLayout(const MVCNN::Permutation oduPermutation) {
+    switch (oduPermutation) {
+    case MVCNN::Permutation::Permutation_ZXY:
+        return vpux::DimsOrder::NHWC;
+    case MVCNN::Permutation::Permutation_ZYX:
+        return vpux::DimsOrder::fromCode(0x1432);  // NWHC
+    case MVCNN::Permutation::Permutation_YZX:
+        return vpux::DimsOrder::fromCode(0x1423);  // NWCH
+    case MVCNN::Permutation::Permutation_YXZ:
+        return vpux::DimsOrder::fromCode(0x1243);  // NCWH
+    case MVCNN::Permutation::Permutation_XZY:
+        return vpux::DimsOrder::NHCW;
+    case MVCNN::Permutation::Permutation_XYZ:
+        return vpux::DimsOrder::NCHW;
+    default:
+        return vpux::DimsOrder::NHWC;
+    }
+}
+
+vpux::Dim getInnermostDim(const vpux::DimsOrder& order) {
+    return order.toDim(MemDim(order.numDims() - 1));
+}
+
 }  // namespace hwtest
 }  // namespace vpux

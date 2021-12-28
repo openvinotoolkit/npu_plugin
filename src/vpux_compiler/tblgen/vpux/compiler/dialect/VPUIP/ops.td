@@ -2244,7 +2244,8 @@ def VPUIP_NCEClusterTaskOp :
         OptionalAttr<I64ArrayAttr>:$kernel_strides,
         OptionalAttr<VPUIP_PaddingAttr>:$kernel_padding,
         OptionalAttr<IntAttr>:$activation_window_channel_length,
-        OptionalAttr<UnitAttr>:$is_continued
+        OptionalAttr<UnitAttr>:$is_continued,
+        OptionalAttr<IntAttr>:$cm_sp_pattern
     );
 
     let results = (outs
@@ -2265,7 +2266,8 @@ def VPUIP_NCEClusterTaskOp :
             "vpux::VPUIP::NCETaskType":$task_type,
             "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPUIP::PaddingAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
-            "mlir::UnitAttr":$is_continued
+            "mlir::UnitAttr":$is_continued,
+            CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern
         )>,
         OpBuilder<(ins
             "mlir::Type":$output,
@@ -2275,7 +2277,8 @@ def VPUIP_NCEClusterTaskOp :
             "vpux::VPUIP::NCETaskType":$task_type,
             "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPUIP::PaddingAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
-            "mlir::UnitAttr":$is_continued
+            "mlir::UnitAttr":$is_continued,
+            CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern
         )>
     ];
 

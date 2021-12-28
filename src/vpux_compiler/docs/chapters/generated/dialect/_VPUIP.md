@@ -1253,6 +1253,7 @@ mutually exclusive.
 `kernel_padding` | vpux::VPUIP::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 `is_continued` | ::mlir::UnitAttr | unit attribute
+`cm_sp_pattern` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 

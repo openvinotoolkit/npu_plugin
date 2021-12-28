@@ -36,10 +36,10 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
                                           mlir::ArrayAttr kernel_strides, vpux::VPUIP::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
-                                          mlir::UnitAttr is_continued) {
+                                          mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
           parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
-          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
+          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -53,10 +53,10 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
                                           mlir::ArrayAttr kernel_strides, vpux::VPUIP::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
-                                          mlir::UnitAttr is_continued) {
+                                          mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern) {
     build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
           output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
-          kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
+          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -208,8 +208,15 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
                        OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
     }
 
-    if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
-        return mlir::failure();
+    if (arch != VPU::ArchKind::MTL) {
+        if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
+            return mlir::failure();
+        }
+    } else {
+        // MTL supports ODU permutation, thus only input must have NHWC layout.
+        if (DimsOrder::fromValue(op.input()) != DimsOrder::NHWC) {
+            return mlir::failure();
+        }
     }
 
     const auto weightsLayout = DimsOrder::fromValue(op.weights());
@@ -504,6 +511,24 @@ MVCNN::DPULayerType getDPULayerType(VPUIP::NCETaskType taskType) {
     }
 }
 
+MVCNN::Permutation getODUPermutationType(DimsOrder outputDimsOrder) {
+    if (outputDimsOrder == vpux::DimsOrder::NHWC) {
+        return MVCNN::Permutation_ZXY;
+    } else if (outputDimsOrder == DimsOrder::fromCode(0x1432)) {  // NWHC
+        return MVCNN::Permutation_ZYX;
+    } else if (outputDimsOrder == DimsOrder::fromCode(0x1423)) {  // NWCH
+        return MVCNN::Permutation_YZX;
+    } else if (outputDimsOrder == DimsOrder::fromCode(0x1243)) {  // NCWH
+        return MVCNN::Permutation_YXZ;
+    } else if (outputDimsOrder == vpux::DimsOrder::NHCW) {
+        return MVCNN::Permutation_XZY;
+    } else if (outputDimsOrder == vpux::DimsOrder::NCHW) {
+        return MVCNN::Permutation_XYZ;
+    } else {
+        VPUX_THROW("Can't get ODU permutation by output dimsOrder: '{0}'", outputDimsOrder);
+    }
+}
+
 MVCNN::PPELayerType getPPELayerType(VPUIP::PPELayerType ppeType) {
     switch (ppeType) {
     case VPUIP::PPELayerType::STORE:
@@ -701,6 +726,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     int32_t out_channel_offset = 0;
     bool is_segmented = false;
     bool is_continued = false;
+    uint16_t cm_sp_pattern = 0;
 
     if (kernel_sizeAttr() != nullptr) {
         const auto kernelSize = parseIntArrayAttr<int64_t>(kernel_sizeAttr());
@@ -724,6 +750,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
 
     if (is_continuedAttr() != nullptr) {
         is_continued = true;
+    }
+
+    // Extract output permutation from output layout
+    MVCNN::Permutation oduPermutation = getODUPermutationType(DimsOrder::fromValue(output()));
+
+    if (cm_sp_patternAttr() != nullptr) {
+        cm_sp_pattern = checked_cast<uint16_t>(cm_sp_patternAttr().getValue().getSExtValue());
     }
 
     const auto inputData = writer.getTensorRef(input());
@@ -779,8 +812,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                             odu_offset,                     // odu_offset
                                             out_channel_offset,             // out_channel_offset
                                             is_segmented,                   // is_segmented
-                                            is_continued                    // is_continued
-            );
+                                            is_continued,                   // is_continued
+                                            false,                          // is_superdense
+                                            0,                              // segment_height
+                                            oduPermutation,                 // odu_permutation
+                                            cm_sp_pattern);                 // cm_sp_pattern
 
     MVCNN::NCE2TaskBuilder builder(writer);
     builder.add_variant(variant);

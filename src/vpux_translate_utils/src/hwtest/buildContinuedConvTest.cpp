@@ -223,7 +223,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             weightsPartial0CMX.buffer(), weightsTable0CMX.buffer(),
             /*activation_window=*/nullptr, inputPartial0CMX.buffer(), output0CMX.buffer(), output0CMX.buffer(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
-            /*activation_window_channel_length=*/nullptr, isContinued);
+            /*activation_window_channel_length=*/nullptr, isContinued, /*sp_pattern*/ nullptr);
 
     const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
     const auto end =
@@ -240,7 +240,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             /*activation_window=*/nullptr, inputPartial1CMX.buffer(), output1CMX.buffer(), output1CMX.buffer(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr,
-            /*is_continued*/ nullptr);
+            /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
     nceTask_1.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
 

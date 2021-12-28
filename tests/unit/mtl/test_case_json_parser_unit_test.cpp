@@ -171,6 +171,11 @@ void createCaseGeneratorConvJson(llvm::json::OStream& j) {
     j.attributeEnd();
 }
 
+void createCaseGeneratorODUPermutationJson(llvm::json::OStream& j) {
+    std::string order("nhwc");
+    j.attribute("output_order", order);
+}
+
 void createCaseGeneratorActivationJson(llvm::json::OStream& j) {
     j.attributeBegin("activation");
     {
@@ -196,6 +201,7 @@ void createAndRunConvTest() {
         createCaseGeneratorWeightsJson(j);
         createCaseGeneratorConvJson(j);
         createCaseGeneratorOutputJson(j);
+        createCaseGeneratorODUPermutationJson(j);
         createCaseGeneratorActivationJson(j);
 
         j.objectEnd();

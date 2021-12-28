@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include <llvm/Support/JSON.h>
@@ -32,7 +33,7 @@ enum class DType { U4, I4, U8, I8, I32, FP8, FP16, FP32, BF16, UNK };
 
 DType to_dtype(llvm::StringRef str);
 std::string to_string(DType dtype);
-
+MVCNN::Permutation to_odu_permutation(llvm::StringRef str);
 struct QuantParams {
     bool present = false;
     double scale = 0.;
@@ -63,6 +64,7 @@ struct ConvLayer {
     std::int64_t group = 0;
     std::int64_t dilation = 0;
     bool compress = false;
+    vpux::VPUIP::MPEMode cube_mode = vpux::VPUIP::MPEMode::CUBOID_16x16;
 };
 
 struct PoolLayer {
@@ -126,6 +128,9 @@ public:
     vpux::VPUIP::PPELayerType getPPELayerType() const {
         return ppeLayerType_;
     }
+    MVCNN::Permutation getODUPermutation() const {
+        return odu_permutation_;
+    }
 
 private:
     InputLayer loadInputLayer(llvm::json::Object* jsonObj);
@@ -148,6 +153,7 @@ private:
     std::string kernelFilename_;
     std::string caseTypeStr_;
     vpux::VPUIP::PPELayerType ppeLayerType_ = vpux::VPUIP::PPELayerType::ADD;
+    MVCNN::Permutation odu_permutation_ = MVCNN::Permutation::Permutation_ZXY;
 };
 
 }  // namespace nb

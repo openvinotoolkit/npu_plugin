@@ -27,6 +27,7 @@
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
 #include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 namespace vpux {
 namespace hwtest {
@@ -84,7 +85,10 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     const auto OUTPUT_CMX_OFFSET = 0;
     const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
-    const auto WEIGHTS_CMX_OFFSET = INPUT_CMX_OFFSET + input_totalsize;
+    const auto weightsElementTypeBitSize = static_cast<Bit>(getElemTypeSize(weightsType)).count();
+    const auto alignment = (16 * weightsElementTypeBitSize) / CHAR_BIT;
+    const auto WEIGHTS_CMX_OFFSET =
+            vpux::alignVal(INPUT_CMX_OFFSET + input_totalsize, static_cast<std::uint64_t>(alignment));
 
     SmallVector<mlir::Type> inputTypes;
 
@@ -253,13 +257,11 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
             wtTbl_cmx.getOperation()->getResult(0), actWindow_cmx.getOperation()->getResult(0),
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::DWCONV, filtersize, strides, kernel_padding,
-            actChannelLength, /*is_continued*/ nullptr);
+            actChannelLength, /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 
     // Create DPU task for NCE task
-    nceTask.variants().emplaceBlock();
-    auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
 
     std::vector<int32_t> start_vec{0, 0, 0};
     auto start = getIntArrayAttr(builder, start_vec);
@@ -269,8 +271,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     auto pad = VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
                                      padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
-    /* auto dpuTask = */ variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad,
-                                                                 VPUIP::MPEMode::CUBOID_8x16);
+    nceTask.addDPUTask(funcbuilder, start, end, pad, VPUIP::MPEMode::CUBOID_8x16);
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
                                                 loc, outputcmx.getOperation()->getResult(0), funcoutput);

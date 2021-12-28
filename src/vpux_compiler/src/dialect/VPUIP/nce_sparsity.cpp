@@ -122,6 +122,8 @@ std::vector<uint8_t> getBitPattern(ArrayRef<int64_t> kernelSize, int64_t windowS
 
 constexpr std::int32_t SPARSITY_PTR_WHEN_NO_SPARISTY = 0xFFFFFF;
 
+constexpr std::int32_t ALIGNMENT_REQUIREMENT_IN_ELEMENTS = 16;
+
 std::int32_t toHex(double realVal) {
     union f32toint32 {
         std::int32_t m_i32;
@@ -356,8 +358,16 @@ std::vector<int32_t> VPUIP::NCESparsity::getWeightsTable(mlir::Type op_inElemTyp
 
     std::vector<std::int32_t> weightsTableVals(OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
 
+    const auto weightsElementTypeBitSize =
+            weightsElemType ? static_cast<Bit>(getElemTypeSize(weightsElemType)).count() : 0;
     for (auto oc : irange(checked_cast<std::size_t>(OC))) {
         const auto wtInd = oc * static_cast<std::size_t>(VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
+
+        if (weightsElemType) {
+            const auto alignment = (ALIGNMENT_REQUIREMENT_IN_ELEMENTS * weightsElementTypeBitSize) / CHAR_BIT;
+            VPUX_THROW_UNLESS(weightPtr % alignment == 0, "weightsPtrOffset must be multiple of {0}, got {1} on oc {2}",
+                              alignment, weightPtr, oc);
+        }
 
         weightsTableVals[wtInd + 0] = weightPtr;
         weightsTableVals[wtInd + 1] = sparsityPtr;

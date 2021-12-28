@@ -101,5 +101,8 @@ mlir::OpResult getConstResult(vpux::Const::DeclareOp op);
 vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder variantbuilder,
                                        llvm::SmallVector<int64_t> output_shape, std::vector<int64_t> padding_vec);
 
+vpux::DimsOrder oduPermutationToLayout(const MVCNN::Permutation oduPermutation);
+vpux::Dim getInnermostDim(const vpux::DimsOrder& order);
+
 }  // namespace hwtest
 }  // namespace vpux
