@@ -98,6 +98,9 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp) {
                 const auto arch = VPU::getArch(origOp->getParentOfType<mlir::ModuleOp>());
+                const auto inDimsOrder = info.getInput(0);
+                Logger::global().error("inDimsOrder to convolution: {0} ", inDimsOrder);
+
                 const auto inLayout =
                         VPUIP::isChannelMajorCompatibleOperation(origOp, arch) ? DimsOrder::NCHW : DimsOrder::NHWC;
 
