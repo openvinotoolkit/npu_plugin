@@ -14,6 +14,7 @@
 // stated in the License.
 //
 
+#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/sw_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -43,10 +44,10 @@ void buildSoftmax(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     SmallVector<mlir::Type> inputTypes;
     auto inputParamType = getMemRefType(
-        builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, DimsOrder::NHWC); 
+        VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC);
     inputTypes.push_back(inputParamType);
     auto outputParamType = getMemRefType(
-        builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, DimsOrder::NHWC);
+        VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
     // Create built-in function ------------------------------------------------
@@ -76,14 +77,14 @@ void buildSoftmax(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     const auto inputcmx_offset = outputcmx_offset + totalTensorSize(out_shape, outputType);
 
     auto inputcmx_type = getMemRefType(
-        builder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, DimsOrder::NHWC);
+        VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
     vpux::VPURT::DeclareBufferOp inputcmx = createDeclareTensorOp(
-        funcbuilder, inputcmx_type, 0, inputcmx_offset);
+        funcbuilder, VPURT::BufferSection::CMX_NN, in_shape, inputcmx_type, DimsOrder::NHWC, 0, inputcmx_offset);
 
     auto outputcmx_type = getMemRefType(
-        builder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, DimsOrder::NHWC);
+        VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
     vpux::VPURT::DeclareBufferOp outputcmx = createDeclareTensorOp(
-        funcbuilder, outputcmx_type, 0, outputcmx_offset);
+        funcbuilder, VPURT::BufferSection::CMX_NN, out_shape, outputcmx_type, DimsOrder::NHWC, 0, outputcmx_offset);
 
     //  Build main function: barriers ------------------------------------------
 
@@ -92,11 +93,10 @@ void buildSoftmax(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     // Spawn Task: Load --------------------------------------------------------
 
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder,
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder,
                                                 mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
                                                 builder.getUnknownLoc(),
-                                                funcinput, inputcmx.getOperation()->getResult(0),
-                                                false);
+                                                funcinput, getTensorResult(inputcmx));
 
     // Spawn Task: Kernel ------------------------------------------------------
 
@@ -107,7 +107,7 @@ void buildSoftmax(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
             mlir::ValueRange(barrier1.barrier()));
 
         mlir::OpBuilder::InsertPoint lastInsertionPoint = funcbuilder.saveInsertionPoint();
-        auto& block = taskOp.op().emplaceBlock();
+        auto& block = taskOp.body().emplaceBlock();
         funcbuilder.setInsertionPointToStart(&block);
 
         kernelTaskBody();
@@ -119,25 +119,24 @@ void buildSoftmax(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
         const int64_t tileIndex = 0;
 
         auto swKernelOp = funcbuilder.create<VPUIP::SwKernelOp>(funcbuilder.getUnknownLoc(),
-                                                                inputcmx.memory(), outputcmx.memory(),
-                                                                builtInFunction, getIntAttr(ctx, tileIndex));
-        VPUIP::initSwKernel(swKernelOp, inputcmx.memory(), outputcmx.memory(), getIntAttr(ctx, tileIndex), log);
+                                                                         inputcmx.buffer(), outputcmx.buffer(),
+                                                                         builtInFunction, getIntAttr(ctx, tileIndex));
+        VPUIP::initSwKernel(swKernelOp, inputcmx.buffer(), outputcmx.buffer(), getIntAttr(ctx, tileIndex), log);
     });
 
     // Spawn Task: Store -------------------------------------------------------
 
-    vpux::VPURT::WrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder,
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder,
                                                 mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
                                                 builder.getUnknownLoc(),
-                                                outputcmx.getOperation()->getResult(0), funcoutput,
-                                                true);
+                                                getTensorResult(outputcmx), funcoutput);
 
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 
     //  Pass Manager -----------------------------------------------------------
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(createSetCompileParamsPass(VPUIP::ArchKind::MTL, VPUIP::CompilationMode::ReferenceSW, None, log));
+    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::ReferenceSW, None, log));
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
     //  CNN Operation ----------------------------------------------------------
