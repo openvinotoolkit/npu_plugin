@@ -530,6 +530,36 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
+### `IE.Copy` (vpux::IE::CopyOp)
+
+InferenceEngine Copy layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Copy` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`out_mem_space` | ::mlir::SymbolRefAttr | symbol reference attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Cosh` (vpux::IE::CoshOp)
 
 InferenceEngine Cosh layer

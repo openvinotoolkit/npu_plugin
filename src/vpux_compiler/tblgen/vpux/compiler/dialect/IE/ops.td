@@ -2939,4 +2939,33 @@ def IE_SoftPlusOp :
     );
 }
 
+//
+// CopyOp
+//
+
+def IE_CopyOp :
+        IE_LayerOp<
+            "Copy"
+        > {
+    let summary = "InferenceEngine Copy layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        OptionalAttr<SymbolRefAttr>:$out_mem_space
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+
+    let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
+    let checkInferredSparsity = 1;
+}
+
 #endif

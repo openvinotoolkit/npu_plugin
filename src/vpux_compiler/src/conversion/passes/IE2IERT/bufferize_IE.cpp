@@ -1053,6 +1053,11 @@ mlir::Operation* createRTLayer(IE::SpaceToDepthOp origOp, ArrayRef<mlir::Value> 
                                           origOp.mode());
 }
 
+mlir::Operation* createRTLayer(IE::CopyOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::CopyOp::Adaptor newOp(allBufs);
+    return b.create<IERT::CopyOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -1166,6 +1171,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::TopKOp)
     CASE(IE::LogicalOrOp)
     CASE(IE::LogicalXorOp)
+    CASE(IE::CopyOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });
