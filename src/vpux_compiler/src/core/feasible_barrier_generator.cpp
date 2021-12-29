@@ -33,46 +33,7 @@ FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir:
           _priority(),
           _log(log),
           _ctx(ctx),
-          _func(func) {
-    saveOriginalDependency();
-    _barrierOpUpdateWaitMap = configureBarrierOpUpdateWaitMapBackUp;
-    _taskOpUpdateWaitMap = configureTaskOpUpdateWaitMapBackUp;
-};
-
-void FeasibleBarrierScheduler::getTaskOpUpdateWaitMap(
-        std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
-                barrierOpUpdateWaitMap,
-        std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
-                taskOpUpdateWaitMap) {
-    for (auto iter = barrierOpUpdateWaitMap.begin(); iter != barrierOpUpdateWaitMap.end(); iter++) {
-        auto barrierOp = (*iter).first;
-        auto producers = (*iter).second.first;
-        auto consumers = (*iter).second.second;
-        for (auto prod = producers.begin(); prod != producers.end(); prod++) {
-            auto taskUpateItr = taskOpUpdateWaitMap.find(*prod);
-            if (taskUpateItr != taskOpUpdateWaitMap.end()) {
-                taskUpateItr->second.second.insert(barrierOp);
-            } else {
-                std::set<mlir::Operation*> newBarrierProducers{};
-                std::set<mlir::Operation*> newBarrierConsumers{barrierOp};
-                taskOpUpdateWaitMap.insert(
-                        std::make_pair(*prod, std::make_pair(newBarrierProducers, newBarrierConsumers)));
-            }
-        }
-
-        for (auto cons = consumers.begin(); cons != consumers.end(); cons++) {
-            auto taskWaitItr = taskOpUpdateWaitMap.find(*cons);
-            if (taskWaitItr != taskOpUpdateWaitMap.end()) {
-                taskWaitItr->second.first.insert(barrierOp);
-            } else {
-                std::set<mlir::Operation*> newBarrierProducers{barrierOp};
-                std::set<mlir::Operation*> newBarrierConsumers{};
-                taskOpUpdateWaitMap.insert(
-                        std::make_pair(*cons, std::make_pair(newBarrierProducers, newBarrierConsumers)));
-            }
-        }
-    }
-}
+          _func(func){};
 
 void FeasibleBarrierScheduler::getTaskOpUpdateWaitMap(
         std::map<mlir::Operation*,
@@ -112,75 +73,106 @@ void FeasibleBarrierScheduler::getTaskOpUpdateWaitMap(
 }
 
 void FeasibleBarrierScheduler::saveOriginalDependency() {
-    configureBarrierOpUpdateWaitMapBackUp.clear();
-    configureTaskOpUpdateWaitMapBackUp.clear();
-
-    auto _barrierOps = to_small_vector(_func.getOps<VPURT::DeclareVirtualBarrierOp>());
-    std::cout << "get initial barriers " << _barrierOps.size() << std::endl;
-    for (auto& barrierOp : _barrierOps) {
-        std::set<mlir::Operation*> producers{};
-        std::set<mlir::Operation*> consumers{};
-
-        for (auto* userOp : barrierOp->getUsers()) {
-            std::cout << "get Users " << std::endl;
-            auto opEffects = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(userOp);
-
-            VPUX_THROW_WHEN(opEffects == nullptr,
-                            "Barrier '{0}' is used by Operation '{1}' without MemoryEffects interface",
-                            barrierOp->getLoc(), userOp->getName());
-
-            using MemEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
-
-            SmallVector<MemEffect> valEffects;
-
-            opEffects.getEffectsOnValue(barrierOp.barrier(), valEffects);
-
-            VPUX_THROW_WHEN(
-                    valEffects.size() != 1,
-                    "Barrier '{0}' must have exactly 1 MemoryEffect per Operation, got '{1}' for Operation '{2}'",
-                    barrierOp->getLoc(), valEffects.size(), userOp->getLoc());
-
-            const auto& effect = valEffects.front();
-
-            std::cout << "detect producers and consumers " << std::endl;
-
-            if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
-                auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
-                if (task == nullptr) {
-                    exit(0);
-                }
-                // Logger::global().error("Task with scheduling number {0}", task->getAttr("SchedulingNumber"));
-                if (task.getExecutorKind() == VPU::ExecutorKind::NCE) {
-                    producers.insert(userOp);
-                } else if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
-                    producers.insert(userOp);
-                } else if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA) {
-                    producers.insert(userOp);
-                }
-            } else if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
-                auto task = mlir::dyn_cast<VPURT::TaskOp>(userOp);
-                if (task == nullptr) {
-                    exit(0);
-                }
-                // Logger::global().error("Task with scheduling number {0}", task->getAttr("SchedulingNumber"));
-                if (task.getExecutorKind() == VPU::ExecutorKind::NCE) {
-                    consumers.insert(userOp);
-                } else if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
-                    consumers.insert(userOp);
-                } else if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA) {
-                    consumers.insert(userOp);
-                }
+    std::map<mlir::Operation*, std::pair<SmallVector<mlir::Operation*>, SmallVector<mlir::Operation*>>>
+            barrierOpUpdateWaitMap;
+    const auto updateBarrierConfigs = [&](VPURT::TaskOp taskOp) {
+        for (const auto bar : taskOp.waitBarriers()) {
+            auto iter = barrierOpUpdateWaitMap.find(bar.getDefiningOp());
+            if (iter != barrierOpUpdateWaitMap.end()) {
+                barrierOpUpdateWaitMap[bar.getDefiningOp()].second.push_back(taskOp);
             } else {
-                VPUX_THROW("Barrier '{0}' has unsupported Effect in Operation '{1}'", barrierOp->getLoc(),
-                           userOp->getLoc());
+                SmallVector<mlir::Operation*> producers{};
+                SmallVector<mlir::Operation*> consumers{taskOp};
+                barrierOpUpdateWaitMap.insert(
+                        std::make_pair(bar.getDefiningOp(), std::make_pair(producers, consumers)));
             }
-
-            std::cout << "finish" << std::endl;
         }
-        configureBarrierOpUpdateWaitMapBackUp.insert(std::make_pair(barrierOp, std::make_pair(producers, consumers)));
-    }
 
-    getTaskOpUpdateWaitMap(configureBarrierOpUpdateWaitMapBackUp, configureTaskOpUpdateWaitMapBackUp);
+        for (const auto bar : taskOp.updateBarriers()) {
+            auto iter = barrierOpUpdateWaitMap.find(bar.getDefiningOp());
+            if (iter != barrierOpUpdateWaitMap.end()) {
+                barrierOpUpdateWaitMap[bar.getDefiningOp()].first.push_back(taskOp);
+            } else {
+                SmallVector<mlir::Operation*> producers{taskOp};
+                SmallVector<mlir::Operation*> consumers{};
+                barrierOpUpdateWaitMap.insert(
+                        std::make_pair(bar.getDefiningOp(), std::make_pair(producers, consumers)));
+            }
+        }
+    };
+
+    const auto updateInDegreeAndConsumers = [&](VPURT::TaskOp taskOp) {
+        size_t count = 0;
+        for (const auto bar : taskOp.waitBarriers()) {
+            auto iter = barrierOpUpdateWaitMap.find(bar.getDefiningOp());
+            if (iter != barrierOpUpdateWaitMap.end()) {
+                count += iter->second.first.size();
+            } else {
+                VPUX_THROW("barrier '{0}' not found", bar.getDefiningOp());
+            }
+        }
+        _inDegreeBackUp.insert(std::make_pair(taskOp, count));
+
+        SmallVector<mlir::Operation*> consumers;
+        for (const auto bar : taskOp.updateBarriers()) {
+            auto iter = barrierOpUpdateWaitMap.find(bar.getDefiningOp());
+            if (iter != barrierOpUpdateWaitMap.end()) {
+                consumers.insert(consumers.end(), iter->second.second.begin(), iter->second.second.end());
+            } else {
+                VPUX_THROW("barrier '{0}' not found", bar.getDefiningOp());
+            }
+        }
+        _taskConsumerMapBackUp.insert(std::make_pair(taskOp, consumers));
+
+        if (consumers.empty())
+            _outputOpsBackUp.insert(taskOp);
+    };
+
+    _func->walk([&](VPURT::TaskOp taskOp) {
+        switch (taskOp.getExecutorKind()) {
+        case VPU::ExecutorKind::DMA_NN: {
+            updateBarrierConfigs(taskOp);
+            break;
+        }
+        case VPU::ExecutorKind::NCE: {
+            updateBarrierConfigs(taskOp);
+            break;
+        }
+        case VPU::ExecutorKind::SHAVE_ACT: {
+            updateBarrierConfigs(taskOp);
+            break;
+        }
+        case VPU::ExecutorKind::SHAVE_UPA: {
+            updateBarrierConfigs(taskOp);
+            break;
+        }
+        default:
+            VPUX_THROW("Unsupported executor '{0}'", taskOp.getExecutorKind());
+        }
+    });
+
+    _func->walk([&](VPURT::TaskOp taskOp) {
+        switch (taskOp.getExecutorKind()) {
+        case VPU::ExecutorKind::DMA_NN: {
+            updateInDegreeAndConsumers(taskOp);
+            break;
+        }
+        case VPU::ExecutorKind::NCE: {
+            updateInDegreeAndConsumers(taskOp);
+            break;
+        }
+        case VPU::ExecutorKind::SHAVE_ACT: {
+            updateInDegreeAndConsumers(taskOp);
+            break;
+        }
+        case VPU::ExecutorKind::SHAVE_UPA: {
+            updateInDegreeAndConsumers(taskOp);
+            break;
+        }
+        default:
+            VPUX_THROW("Unsupported executor '{0}'", taskOp.getExecutorKind());
+        }
+    });
 
     _func->walk([](VPURT::TaskOp op) {
         op.updateBarriersMutable().clear();
@@ -392,19 +384,7 @@ void FeasibleBarrierScheduler::initResourceState(size_t numberOfBarriers, size_t
 }
 
 SmallVector<mlir::Operation*> FeasibleBarrierScheduler::getConsumerOps(mlir::Operation* op) {
-    SmallVector<mlir::Operation*> consumerOps;
-    if (auto task = mlir::dyn_cast<VPURT::TaskOp>(op)) {
-        for (auto updateBarrier : _taskOpUpdateWaitMap[task].second) {
-            // Logger::global().error("The operation has {0} consumers", barrierConsumersMap[updateBarrier].size());
-            // Logger::global().error("The operation ID  {0} has {1} consumers ", getUniqueID(op),
-            //                        barrierConsumersMap[updateBarrier].size());
-            consumerOps.insert(consumerOps.end(), _barrierOpUpdateWaitMap.find(updateBarrier)->second.second.begin(),
-                               _barrierOpUpdateWaitMap.find(updateBarrier)->second.second.end());
-        }
-    } else {
-        exit(1);
-    }
-    return consumerOps;
+    return _taskConsumerMapBackUp[op];
 }
 
 std::string FeasibleBarrierScheduler::printOpType(VPURT::TaskOp task) {
@@ -581,50 +561,10 @@ void FeasibleBarrierScheduler::assignUniqueIds() {
     });
 }
 
-void FeasibleBarrierScheduler::getBarriersProducersAndConsumers() {
-    // Get all producers and consumers of barriers (NCE,UPA, DMA) only
-
-    for (auto& barrierOpConfig : _barrierOpUpdateWaitMap) {
-        SmallVector<mlir::Operation*> producers(barrierOpConfig.second.first.begin(),
-                                                barrierOpConfig.second.first.end());
-        SmallVector<mlir::Operation*> consumers(barrierOpConfig.second.second.begin(),
-                                                barrierOpConfig.second.second.end());
-        barrierProducersMap.insert(std::make_pair(barrierOpConfig.first, producers));
-        barrierConsumersMap.insert(std::make_pair(barrierOpConfig.first, consumers));
-    }
-}
-
-void FeasibleBarrierScheduler::computeOpOutdegree(operation_out_degree_t& out_degree) {
-    out_degree.clear();
-
-    _func.walk([&](VPURT::TaskOp taskOp) {
-        size_t updateBarrierIncomingEdges = 0;
-
-        for (const auto updateBarrier : _taskOpUpdateWaitMap[taskOp].second) {
-            updateBarrierIncomingEdges += _barrierOpUpdateWaitMap[updateBarrier].second.size();
-        }
-        Logger::global().error("The outdegree for the operation {0}  is {1}", getUniqueID(taskOp.getOperation()),
-                               updateBarrierIncomingEdges);
-
-        out_degree.insert(std::make_pair(taskOp.getOperation(), updateBarrierIncomingEdges));
-    });
-    std::cout << "The size of outdegree table is " << out_degree.size() << std::endl;
-}
-
 void FeasibleBarrierScheduler::computeOpIndegree(operation_in_degree_t& in_degree) {
     in_degree.clear();
+    in_degree = _inDegreeBackUp;
 
-    _func.walk([&](VPURT::TaskOp taskOp) {
-        size_t waitBarrierIncomingEdges = 0;
-
-        for (const auto waitBarrier : _taskOpUpdateWaitMap[taskOp].first) {
-            waitBarrierIncomingEdges += _barrierOpUpdateWaitMap[waitBarrier].first.size();
-        }
-        Logger::global().error("The indegree for the operation {0}  is {1}", getUniqueID(taskOp.getOperation()),
-                               waitBarrierIncomingEdges);
-
-        in_degree.insert(std::make_pair(taskOp.getOperation(), waitBarrierIncomingEdges));
-    });
     std::cout << "The size of indegree table is " << in_degree.size() << std::endl;
 }
 
@@ -673,16 +613,11 @@ void FeasibleBarrierScheduler::init() {
     _log.trace("Feasible Barrier Scheduler initialization");
 
     assignUniqueIds();
-    getBarriersProducersAndConsumers();
+    saveOriginalDependency();
     computeOpIndegree(_in_degree);
-    computeOpOutdegree(_out_degree);
 
     // retrieve output ops (ops with no out-degree)
-    for (auto& entry : _out_degree) {
-        if (entry.second == 0) {
-            _outputOps.insert(entry.first);
-        }
-    }
+    _outputOps = _outputOpsBackUp;
 
     createOperationResourceUtilityTable();
 }
@@ -699,11 +634,7 @@ bool FeasibleBarrierScheduler::schedule(size_t numberOfBarriers, size_t maxProdu
     computeOpIndegree(_in_degree);
 
     // retrieve output ops (ops with no out-degree)
-    for (auto& entry : _out_degree) {
-        if (entry.second == 0) {
-            _outputOps.insert(entry.first);
-        }
-    }
+    _outputOps = _outputOpsBackUp;
 
     initializeBarrierAssociationTable();
 
