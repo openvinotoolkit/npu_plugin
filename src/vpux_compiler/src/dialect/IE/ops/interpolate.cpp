@@ -196,3 +196,16 @@ void vpux::IE::InterpolateOp::getCanonicalizationPatterns(mlir::OwningRewritePat
                                                           mlir::MLIRContext* context) {
     patterns.insert<ConvertInputsToAttr>(context);
 }
+
+InputTiling vpux::IE::InterpolateOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+    const auto origInputShape = getShape(input());
+    const auto origScales = getShape(scales());
+    const auto origAxes = getShape(axes());
+
+    return backInferInterpTile(outputTile, origInputShape, origScales, origAxes, attr().pads_begin(),
+                               attr().pads_end());
+}
+
+void vpux::IE::InterpolateOp::adjustAttrs(const TilingInfo& /*inputTiling*/) {
+    // IE::adjustPaddings(this, inputTiling);
+}

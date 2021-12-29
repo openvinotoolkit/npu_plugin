@@ -2073,6 +2073,7 @@ def IE_InterpolateOp :
         IE_LayerOp<
             "Interpolate",
             [
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
                 AttrSizedOperandSegments
             ]
         > {
