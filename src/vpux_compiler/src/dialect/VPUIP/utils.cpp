@@ -238,11 +238,6 @@ bool vpux::VPUIP::isChannelMajorCompatibleOperation(mlir::Operation* origOp, VPU
         const auto inputShape = getShape(origInputType);
         IC = filterShape[Dims4D::Filter::IC];
         inputTensorWidth = inputShape[Dims4D::Act::W];
-
-        const auto inType = convOpIE.input().getType().cast<mlir::ShapedType>().getElementType();
-        if (!inType.isa<mlir::quant::QuantizedType>()) {
-            return false;
-        }
     }
 
     auto convOpIERT = mlir::dyn_cast<IERT::ConvolutionOp>(origOp);
@@ -252,11 +247,6 @@ bool vpux::VPUIP::isChannelMajorCompatibleOperation(mlir::Operation* origOp, VPU
         const auto inputShape = getShape(origInputType);
         IC = filterShape[Dims4D::Filter::IC];
         inputTensorWidth = inputShape[Dims4D::Act::W];
-
-        const auto inType = convOpIERT.input().getType().cast<mlir::ShapedType>().getElementType();
-        if (!inType.isa<mlir::quant::QuantizedType>()) {
-            return false;
-        }
     }
 
     return ((archKind == VPU::ArchKind::KMB) &&
