@@ -207,13 +207,11 @@ public:
     FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log);
 
     void operator++();
-    void getBarriersProducersAndConsumers();
     void initResourceState(size_t numberOfBarriers, size_t maxProducersPerBarrier);
     bool isResourceAvailable(const resource_t& demand);
     bool scheduleOperation(mlir::Operation*& op, resource_t demand);
     bool unScheduleOperation(mlir::Operation*& op);
     void computeOpIndegree(operation_in_degree_t& in_degree);
-    void computeOpOutdegree(operation_out_degree_t& out_degree);
     void addToCandidateSet(mlir::Operation* op);
     void computeOperationPriorities();
     void createOperationResourceUtilityTable();
@@ -245,11 +243,6 @@ public:
     void removeRedundantDependencies();
     void initializeBarrierAssociationTable();
     void getTaskOpUpdateWaitMap(
-            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
-                    barrierOpUpdateWaitMap,
-            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>&
-                    taskOpUpdateWaitMap);
-    void getTaskOpUpdateWaitMap(
             std::map<mlir::Operation*,
                      std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
                                std::set<mlir::Operation*, task_operation_comparator_t>>,
@@ -268,7 +261,6 @@ protected:
     size_t _slotsPerBarrier;
     resource_state_t _resource_state;
     operation_in_degree_t _in_degree;
-    operation_out_degree_t _out_degree;
     schedule_heap_t _heap;
     schedule_time_t _current_time;
     schedulable_ops_t _candidates;
@@ -292,11 +284,6 @@ protected:
     SmallVector<ScheduledOpInfo> _scheduledOps;
     barrierAssociationTable _barrierAssociationTable;
 
-    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>
-            _barrierOpUpdateWaitMap;
-    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>
-            _taskOpUpdateWaitMap{};
-
     /*Stores every barrier's associated update and wait operations*/
     std::map<mlir::Operation*,
              std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
@@ -308,11 +295,9 @@ protected:
              task_operation_comparator_by_schedule_time_t>
             configureTaskOpUpdateWaitMap;  // update,wait
 
-    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>
-            configureTaskOpUpdateWaitMapBackUp;  // update,wait
-
-    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>>
-            configureBarrierOpUpdateWaitMapBackUp;  // update,wait
+    operation_in_degree_t _inDegreeBackUp;
+    std::map<mlir::Operation*, SmallVector<mlir::Operation*>> _taskConsumerMapBackUp;
+    std::set<mlir::Operation*> _outputOpsBackUp;
 };
 
 }  // namespace vpux
