@@ -11,10 +11,13 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 
@@ -54,8 +57,8 @@ mlir::Type tryGetQuantizedStorageType(mlir::Type elemType) {
     return elemType;
 }
 
-int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
-    VPUX_THROW_UNLESS(kernelW <= 11, "Unsupported kernel size {0}. Supported size up to 11", kernelW);
+int64_t getWindowSize(int64_t KX, int64_t SX, mlir::Type elemType) {
+    VPUX_THROW_UNLESS(KX <= 11, "Unsupported kernel size {0}. Supported size up to 11", KX);
 
     // Select the maximum window size not exceeding 32 bytes
     // by iterating through the MPE_NUM values (2, 4, 8, 16)
@@ -78,10 +81,10 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
     int mpeNum = 1;
 
     while (mpeNum <= mpeNumLimit) {
-        if (strideW <= kernelW) {
-            windowSize = kernelW + strideW * (mpeNum - 1);
+        if (SX <= KX) {
+            windowSize = KX + SX * (mpeNum - 1);
         } else {
-            windowSize = kernelW * mpeNum;
+            windowSize = KX * mpeNum;
         }
 
         if (windowSize <= maxWindowSize)
@@ -93,23 +96,22 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
     return maxMpeWindowSize;
 }
 
-std::vector<uint8_t> getBitPattern(ArrayRef<int64_t> kernelSize, int64_t windowSize) {
-    const auto kernelW = kernelSize[0];
-    const auto kernelH = kernelSize[1];
+std::vector<uint8_t> getBitPattern(ShapeRef kernelSize, int64_t windowSize) {
+    const auto KY = kernelSize[Dims4D::Kernel::Y];
+    const auto KX = kernelSize[Dims4D::Kernel::X];
 
-    VPUX_THROW_UNLESS(windowSize >= kernelW,
-                      "windowsSize must be greater than or equal to kernelW. windowsSize={0}, kernelW={1}", windowSize,
-                      kernelW);
+    VPUX_THROW_UNLESS(windowSize >= KX, "windowsSize must be greater than or equal to KX. windowsSize={0}, KX={1}",
+                      windowSize, KX);
 
-    const auto numBitsSet = kernelW;
-    const auto numBitsClear = windowSize - kernelW;
+    const auto numBitsSet = KX;
+    const auto numBitsClear = windowSize - KX;
 
     SmallVector<uint8_t> window;
     window.reserve(windowSize);
     window.insert(window.end(), numBitsSet, 1);
     window.insert(window.end(), numBitsClear, 0);
 
-    const auto numOfRepeat = kernelH;
+    const auto numOfRepeat = KY;
 
     std::vector<uint8_t> bitPattern;
     bitPattern.reserve(numOfRepeat * windowSize);
@@ -120,13 +122,13 @@ std::vector<uint8_t> getBitPattern(ArrayRef<int64_t> kernelSize, int64_t windowS
     return bitPattern;
 }
 
-constexpr std::int32_t SPARSITY_PTR_WHEN_NO_SPARISTY = 0xFFFFFF;
+constexpr int32_t SPARSITY_PTR_WHEN_NO_SPARISTY = 0xFFFFFF;
 
 constexpr std::int32_t ALIGNMENT_REQUIREMENT_IN_ELEMENTS = 16;
 
-std::int32_t toHex(double realVal) {
+int32_t toHex(double realVal) {
     union f32toint32 {
-        std::int32_t m_i32;
+        int32_t m_i32;
         float m_f32;
     };
 
@@ -144,7 +146,7 @@ void computeQuantMultShift(double scale, uint32_t& shift, uint32_t& mult) {
     mult = static_cast<std::uint32_t>((mantissa * pow(2, BITS)));
 }
 
-constexpr std::int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::Type) {
+constexpr int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::Type) {
     // FIXME: set value when PPE is LPRELU in quant mode
     int32_t PRELU_SCALE_OFFSET = 0;
     int32_t PRELU_SCALE_VALUE = 1;
@@ -163,11 +165,12 @@ constexpr std::int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::
            (ROUND_MODE_VALUE << ROUND_MODE_OFFSET) | (PPE_MULT_VALUE << PPE_MULT_OFFSET);
 }
 
-std::int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Type inputType) {
+int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Type inputType) {
     // MTL expects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
     if (inputType.isF16() || inputType.isBF16() || inputType.isF32()) {
         return toHex(rescale);
     }
+
     int32_t PRELU_SCALE_OFFSET = 0;
     int32_t PRELU_SCALE_VALUE = 0;
 
@@ -185,7 +188,7 @@ std::int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Ty
            (ROUND_MODE_VALUE << ROUND_MODE_OFFSET) | (PPE_MULT_VALUE << PPE_MULT_OFFSET);
 }
 
-llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type op_inElemType, mlir::Type op_outElemType,
+llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type inElemType, mlir::Type outElemType,
                                                    mlir::Type weightsElemType, mlir::Value bias, VPU::ArchKind arch,
                                                    size_t OC) {
     if (bias == nullptr) {
@@ -199,8 +202,8 @@ llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type op_inElemType, mli
 
     auto biasContent = biasConst.content();
 
-    if (op_inElemType.isa<mlir::quant::QuantizedType>() && op_outElemType.isa<mlir::quant::QuantizedType>()) {
-        auto inQuantScale = extractScalesAndZeroPoints(op_inElemType).first;
+    if (inElemType.isa<mlir::quant::QuantizedType>() && outElemType.isa<mlir::quant::QuantizedType>()) {
+        auto inQuantScale = extractScalesAndZeroPoints(inElemType).first;
         auto weightsQuantScales = exractWeightsScales(weightsElemType);
 
         broadcast(inQuantScale, OC);
@@ -219,35 +222,33 @@ llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type op_inElemType, mli
 
             return static_cast<int32_t>(newBiasData);
         };
-    } else if (!op_inElemType.isa<mlir::quant::QuantizedType>() && !op_outElemType.isa<mlir::quant::QuantizedType>()) {
+    } else if (!inElemType.isa<mlir::quant::QuantizedType>() && !outElemType.isa<mlir::quant::QuantizedType>()) {
         return [biasContent = std::move(biasContent), arch](int64_t oc) -> int32_t {
             const auto biasVal = biasContent.getValues<float>()[oc];
-            const auto biasConverter = VPUIP::NCESparsity::biasConvertersMap.at(arch);
+            const auto biasConverter = VPU::NCESparsity::biasConvertersMap.at(arch);
             return biasConverter(biasVal);
         };
     }
 
-    VPUX_THROW("In/Out element type of NCE op mismatch. Both types must be quantized or not quantized. Got: in "
-               "type {0}, "
-               "out type {1}",
-               op_inElemType, op_outElemType);
+    VPUX_THROW("In/Out element type of NCE op mismatch. Both types must be quantized or not quantized. Got: in type "
+               "{0}, out type {1}",
+               inElemType, outElemType);
 }
 
-llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type op_inElemType, mlir::Type op_outElemType,
+llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, mlir::Type outElemType,
                                                         mlir::Type weightsType, VPU::ArchKind arch, size_t OC) {
-    if (!op_inElemType.isa<mlir::quant::QuantizedType>() && !op_outElemType.isa<mlir::quant::QuantizedType>()) {
-        const auto ppeConverter = VPUIP::NCESparsity::ppeConvertersMap.at(arch);
-        const int32_t multShift = ppeConverter(0, 1, 1, op_inElemType);
+    if (!inElemType.isa<mlir::quant::QuantizedType>() && !outElemType.isa<mlir::quant::QuantizedType>()) {
+        const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
+        const int32_t multShift = ppeConverter(0, 1, 1, inElemType);
         return [multShift](size_t) {
             return multShift;
         };
-    } else if ((op_inElemType.isa<mlir::quant::QuantizedType>() && op_outElemType.isa<mlir::quant::QuantizedType>()) ||
+    } else if ((inElemType.isa<mlir::quant::QuantizedType>() && outElemType.isa<mlir::quant::QuantizedType>()) ||
                isMixedPrecisionSupported(arch)) {
-        auto inQuantScale = op_inElemType.isa<mlir::quant::QuantizedType>()
-                                    ? extractScalesAndZeroPoints(op_inElemType).first
-                                    : SmallVector<double>{1.0};
-        auto outQuantScale = op_outElemType.isa<mlir::quant::QuantizedType>()
-                                     ? extractScalesAndZeroPoints(op_outElemType).first
+        auto inQuantScale = inElemType.isa<mlir::quant::QuantizedType>() ? extractScalesAndZeroPoints(inElemType).first
+                                                                         : SmallVector<double>{1.0};
+        auto outQuantScale = outElemType.isa<mlir::quant::QuantizedType>()
+                                     ? extractScalesAndZeroPoints(outElemType).first
                                      : SmallVector<double>{1.0};
         auto weightsQuantScales = exractWeightsScales(weightsType);
 
@@ -260,57 +261,54 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type op_inElemType
             rescale[i] = (weightsQuantScales[i] * inQuantScale[i]) / outQuantScale[i];
         }
 
-        const auto ppeConverter = VPUIP::NCESparsity::ppeConvertersMap.at(arch);
-        return [rescale = std::move(rescale), ppeConverter, op_inElemType](size_t oc) {
+        const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
+        return [rescale = std::move(rescale), ppeConverter, inElemType](size_t oc) {
             unsigned shift = 0;
             unsigned mult = 0;
             computeQuantMultShift(rescale[oc], shift, mult);
-            return ppeConverter(shift, mult, rescale[oc], op_inElemType);
+            return ppeConverter(shift, mult, rescale[oc], inElemType);
         };
     }
 
-    VPUX_THROW("In/Out element type of NCE op mismatch. Both types must be quantized or not quantized. Got: in "
-               "type {0}, "
-               "out type {1}",
-               op_inElemType, op_outElemType);
+    VPUX_THROW("In/Out element type of NCE op mismatch. Both types must be quantized or not quantized. Got: in type "
+               "{0}, out type {1}",
+               inElemType, outElemType);
 }
 
 }  // namespace
 
-const EnumMap<VPU::ArchKind, VPUIP::NCESparsity::PPEConverterCb> VPUIP::NCESparsity::ppeConvertersMap = {
+const EnumMap<VPU::ArchKind, VPU::NCESparsity::PPEConverterCb> vpux::VPU::NCESparsity::ppeConvertersMap = {
         {VPU::ArchKind::KMB, getKMBScale},
         {VPU::ArchKind::TBH, getKMBScale},
         {VPU::ArchKind::MTL, getMTLScale},
 };
 
-const EnumMap<VPU::ArchKind, VPUIP::NCESparsity::BiasConverterCb> VPUIP::NCESparsity::biasConvertersMap = {
+const EnumMap<VPU::ArchKind, VPU::NCESparsity::BiasConverterCb> vpux::VPU::NCESparsity::biasConvertersMap = {
         {VPU::ArchKind::KMB, toFixedPoint},
         {VPU::ArchKind::TBH, toFixedPoint},
         {VPU::ArchKind::MTL, toHex},
 };
 
-int64_t VPUIP::NCESparsity::getBitPatternSize(ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType) {
+int64_t vpux::VPU::NCESparsity::getBitPatternSize(ShapeRef kernelSize, int64_t SX, mlir::Type elemType) {
     VPUX_THROW_UNLESS(kernelSize.size() == 2, "Unsupported kernel size: %d", kernelSize.size());
-
     auto actualType = tryGetQuantizedStorageType(elemType);
-    const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
-    return kernelSize[1] * windowSize;
+    const auto windowSize = getWindowSize(kernelSize[Dims4D::Kernel::X], SX, actualType);
+    return kernelSize[Dims4D::Kernel::Y] * windowSize;
 }
 
-int64_t VPUIP::NCESparsity::getActivationWindowSize(ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType,
-                                                    int64_t inputChannels) {
+int64_t vpux::VPU::NCESparsity::getActivationWindowSize(ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
+                                                        int64_t IC) {
     auto actualType = tryGetQuantizedStorageType(elemType);
-    const auto bitPatternSize = getBitPatternSize(kernelSize, strideW, actualType);
+    const auto bitPatternSize = getBitPatternSize(kernelSize, SX, actualType);
     const auto perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPatternSize / 128.0) * 16);
-    const auto activationWindowSize = inputChannels * perChannelSparsitySize;
-
+    const auto activationWindowSize = IC * perChannelSparsitySize;
     return activationWindowSize;
 }
 
-std::vector<uint8_t> VPUIP::NCESparsity::getFakeSparsity(ArrayRef<int64_t> kernelSize, int64_t strideW,
-                                                         mlir::Type elemType, int64_t inputChannels) {
+std::vector<uint8_t> vpux::VPU::NCESparsity::getFakeSparsity(ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
+                                                             int64_t IC) {
     auto actualType = tryGetQuantizedStorageType(elemType);
-    const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
+    const auto windowSize = getWindowSize(kernelSize[Dims4D::Kernel::X], SX, actualType);
     const auto bitPattern = getBitPattern(kernelSize, windowSize);
 
     // To align each activation map entry to 16 bytes to abide the hw restriction
@@ -330,38 +328,38 @@ std::vector<uint8_t> VPUIP::NCESparsity::getFakeSparsity(ArrayRef<int64_t> kerne
     }
 
     std::vector<uint8_t> fakeSparsity;
-    fakeSparsity.reserve(inputChannels * perChannelSparsitySize);
-    for (auto i = 0; i < inputChannels; i++) {
+    fakeSparsity.reserve(IC * perChannelSparsitySize);
+    for (auto i : irange(IC)) {
+        std::ignore = i;
         fakeSparsity.insert(fakeSparsity.end(), perChannelSparsity.begin(), perChannelSparsity.end());
     }
 
     return fakeSparsity;
 }
 
-std::vector<int32_t> VPUIP::NCESparsity::getWeightsTable(mlir::Type op_inElemType, mlir::Type op_outElemType,
-                                                         Optional<int32_t> weightPtrOffset, int32_t weightPtrStep,
-                                                         Optional<int32_t> sparsityPtrOffset, VPU::ArchKind arch,
-                                                         int64_t OC, mlir::Type weightsElemType, mlir::Value bias) {
-    VPUX_THROW_WHEN(op_inElemType == nullptr || op_outElemType == nullptr,
+std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemType, mlir::Type outElemType,
+                                                             Optional<int32_t> weightPtrOffset, int32_t weightPtrStep,
+                                                             Optional<int32_t> sparsityPtrOffset, ArchKind arch,
+                                                             int64_t OC, mlir::Type weightsElemType, mlir::Value bias) {
+    VPUX_THROW_WHEN(inElemType == nullptr || outElemType == nullptr,
                     "Can't create weights table without operation input/output types");
 
-    auto getMultShift =
-            getMultShiftFunc(op_inElemType, op_outElemType, weightsElemType, arch, checked_cast<size_t>(OC));
-    auto getBiasFP = getBiasFunc(op_inElemType, op_outElemType, weightsElemType, bias, arch, checked_cast<size_t>(OC));
+    auto getMultShift = getMultShiftFunc(inElemType, outElemType, weightsElemType, arch, checked_cast<size_t>(OC));
+    auto getBiasFP = getBiasFunc(inElemType, outElemType, weightsElemType, bias, arch, checked_cast<size_t>(OC));
 
     // In case of dense operation use sparsityPtr beyond CMX memory range to satisfy HW requirements
     auto sparsityPtr = sparsityPtrOffset.hasValue() ? sparsityPtrOffset.getValue() : SPARSITY_PTR_WHEN_NO_SPARISTY;
-    if (weightsElemType == nullptr && arch == VPU::ArchKind::MTL) {
+    if (weightsElemType == nullptr && arch == ArchKind::MTL) {
         sparsityPtr = SPARSITY_PTR_WHEN_NO_SPARISTY;
     }
     auto weightPtr = weightPtrOffset.hasValue() ? weightPtrOffset.getValue() : 0;
 
-    std::vector<std::int32_t> weightsTableVals(OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
+    std::vector<int32_t> weightsTableVals(OC * VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
 
     const auto weightsElementTypeBitSize =
             weightsElemType ? static_cast<Bit>(getElemTypeSize(weightsElemType)).count() : 0;
     for (auto oc : irange(checked_cast<std::size_t>(OC))) {
-        const auto wtInd = oc * static_cast<std::size_t>(VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
+        const auto wtInd = oc * static_cast<std::size_t>(VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
 
         if (weightsElemType) {
             const auto alignment = (ALIGNMENT_REQUIREMENT_IN_ELEMENTS * weightsElementTypeBitSize) / CHAR_BIT;

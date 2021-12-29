@@ -17,11 +17,11 @@
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPU/pwl_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -439,11 +439,11 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
     const auto IC = inputShape[Dims4D::Act::C];
 
-    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
-    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(origOp.kernel_size()));
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
 
-    const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
+    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[Dims4D::Strides::X],
+                                                                    origInputType.getElementType());
 
     //
     // Prepare input for DPU
@@ -455,8 +455,8 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     // Generate activation window
     //
 
-    const auto fakeSparsity =
-            VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[Dims4D::Strides::X],
+                                                                origInputType.getElementType(), IC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, IC);
 
     //
@@ -695,15 +695,14 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     //
 
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
-    // FIXME why does fake sparsity expects this order of kernel dimensions?
-    const auto kernelSize = SmallVector<int64_t>{KX, KY};
-    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
+    const auto kernelSize = Shape{KY, KX};
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
+    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[Dims4D::Strides::X],
+                                                                    origInputType.getElementType());
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
 
-    const auto fakeSparsity =
-            VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), OC);
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[Dims4D::Strides::X],
+                                                                origInputType.getElementType(), OC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
 
     //

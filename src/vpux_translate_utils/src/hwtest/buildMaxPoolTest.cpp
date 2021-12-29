@@ -20,9 +20,8 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Support/DebugStringHelper.h>
 
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
@@ -102,11 +101,11 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     // Generate activation window
 
     const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(makeArrayRef(filter_size), stride_vec[0], uderlyingInputType);
+            VPU::NCESparsity::getBitPatternSize(ShapeRef(filter_size), stride_vec[1], uderlyingInputType);
     mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
 
-    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(makeArrayRef(filter_size), stride_vec[0],
-                                                                  uderlyingInputType, in_shape[1]);
+    const auto fakeSparsity =
+            VPU::NCESparsity::getFakeSparsity(ShapeRef(filter_size), stride_vec[1], uderlyingInputType, in_shape[1]);
 
     const auto elemType = getUInt8Type(ctx);
     int64_t numChannels = in_shape[1];
@@ -138,7 +137,7 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
-    const std::vector<int32_t> wtTbl_data_values_vec = vpux::VPUIP::NCESparsity::getWeightsTable(
+    const std::vector<int32_t> wtTbl_data_values_vec = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<int32_t>(0), static_cast<int32_t>(0),
             static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), VPU::ArchKind::MTL, output.shape[1]);
 

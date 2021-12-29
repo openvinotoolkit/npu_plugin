@@ -15,9 +15,8 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -205,7 +204,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                            outputLayout, vpux::getStrides(outputCMXpadded), 0, OUTPUT_CMX_OFFSET);
 
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
-    const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(
+    const auto weightsTable = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
             static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
             static_cast<std::int32_t>(0xFFFFFF), vpux::VPU::ArchKind::MTL, output.shape[1], weightsType);

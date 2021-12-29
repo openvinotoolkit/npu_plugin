@@ -11,12 +11,12 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/VPUIP/passes.hpp"
+
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/core/layers.hpp"
-#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 
@@ -60,7 +60,7 @@ int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
         // Check that weights have expected alignment.
         // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
         const auto origFilterType = createWTableOp.weights().getType().cast<mlir::ShapedType>();
-        const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
+        const auto depthwiseConvAlignment = VPU::NCEInvariant::getAlignment(origFilterType.getElementType());
         const auto weightsElementCount = IC * KY * KX;
         VPUX_THROW_UNLESS(weightsElementCount % depthwiseConvAlignment == 0,
                           "Depthwise convolution weights size must be a multiple of {0}, got {1}",
@@ -118,9 +118,9 @@ mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTabl
     const auto op_weightsElemType =
             createWTableOp.weights() ? createWTableOp.weights().getType().cast<mlir::ShapedType>().getElementType()
                                      : nullptr;
-    const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(op_inElemType, op_outElemType, weightPtrOffset,
-                                                                        weightPtrStep, sparsityPtrOffset, _arch, OC,
-                                                                        op_weightsElemType, createWTableOp.bias());
+    const auto weightsTable =
+            VPU::NCESparsity::getWeightsTable(op_inElemType, op_outElemType, weightPtrOffset, weightPtrStep,
+                                              sparsityPtrOffset, _arch, OC, op_weightsElemType, createWTableOp.bias());
 
     const auto outType = createWTableOp.output().getType();
     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
@@ -162,12 +162,10 @@ void ConvertWeightsTableOp2Const::safeRunOnFunc() {
 
     const auto arch = VPU::getArch(module);
 
-    VPUX_THROW_UNLESS(
-            vpux::VPUIP::NCESparsity::biasConvertersMap.find(arch) != vpux::VPUIP::NCESparsity::biasConvertersMap.end(),
-            "Failed to map bias converter to target arch");
-    VPUX_THROW_UNLESS(
-            vpux::VPUIP::NCESparsity::ppeConvertersMap.find(arch) != vpux::VPUIP::NCESparsity::ppeConvertersMap.end(),
-            "Failed to map PPE converter to target arch");
+    VPUX_THROW_UNLESS(VPU::NCESparsity::biasConvertersMap.find(arch) != VPU::NCESparsity::biasConvertersMap.end(),
+                      "Failed to map bias converter to target arch");
+    VPUX_THROW_UNLESS(VPU::NCESparsity::ppeConvertersMap.find(arch) != VPU::NCESparsity::ppeConvertersMap.end(),
+                      "Failed to map PPE converter to target arch");
 
     mlir::ConversionTarget target(ctx);
     target.addIllegalOp<VPUIP::WeightsTableOp>();
