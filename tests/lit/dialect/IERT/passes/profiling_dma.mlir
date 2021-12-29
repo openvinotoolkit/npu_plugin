@@ -3,24 +3,20 @@
 // CHECK-LABEL: @DmaProfiling
 module @DmaProfiling {
 
-IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
-IE.MemoryResource 4194304 bytes of @CMX_UPA {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}
-IE.MemoryResource 1048576 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
+    IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
+    IE.MemoryResource 4194304 bytes of @CMX_UPA {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}
+    IE.MemoryResource 1048576 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
 
-module @UsedMemory {
-    IE.MemoryResource 2048 bytes of @DDR
-    IE.MemoryResource 1048576 bytes of @CMX_NN
-}
-
-IE.RunTimeResources
-    executors : {
-        ExecutorResource 16 of "SHAVE_UPA"
-        ExecutorResource 4 of "NCE" {
-            ExecutorResource 5 of "DPU"
-        }
-        ExecutorResource 1 of "DMA_UPA"
-        ExecutorResource 1 of "DMA_NN"
+    module @UsedMemory {
+        IE.MemoryResource 2048 bytes of @DDR
+        IE.MemoryResource 1048576 bytes of @CMX_NN
     }
+
+    IE.ExecutorResource 16 of @SHAVE_UPA
+    IE.ExecutorResource 4 of  @NCE {
+        IE.ExecutorResource 5 of @DPU
+    }
+    IE.ExecutorResource 1 of @DMA_NN
 
     IE.CNNNetwork entryPoint : @main inputsInfo :  {
         DataInfo "in" : tensor<1x16x62x62xf16>
@@ -30,11 +26,11 @@ IE.RunTimeResources
     }
     func @main(%arg0: memref<1x16x62x62xf16>, %arg1: memref<1x16x62x62xf16>) -> memref<1x16x62x62xf16> {
         %0 = memref.alloc() : memref<1x16x62x62xf16, @DDR>
-        %token_0, %results_0 = async.execute -> !async.value<memref<1x16x62x62xf16, @DDR>> attributes {IERT.executor = "DMA_NN", IERT.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
+        %token_0, %results_0 = async.execute -> !async.value<memref<1x16x62x62xf16, @DDR>> attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
             %1 = IERT.Copy inputs(%arg0 : memref<1x16x62x62xf16>) outputs(%0 : memref<1x16x62x62xf16, @DDR>) -> memref<1x16x62x62xf16, @DDR>
             async.yield %1 : memref<1x16x62x62xf16, @DDR>
         }
-        %token_1, %results_1 = async.execute [%token_0] (%results_0 as %arg2: !async.value<memref<1x16x62x62xf16, @DDR>>)-> !async.value<memref<1x16x62x62xf16>> attributes {IERT.executor = "DMA_NN", IERT.num_units = 1 : i64, "async-deps-index" = 1 : i64} {
+        %token_1, %results_1 = async.execute [%token_0] (%results_0 as %arg2: !async.value<memref<1x16x62x62xf16, @DDR>>)-> !async.value<memref<1x16x62x62xf16>> attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 1 : i64} {
             %1 = IERT.Copy inputs(%arg2 : memref<1x16x62x62xf16, @DDR>) outputs(%arg1 : memref<1x16x62x62xf16>) -> memref<1x16x62x62xf16>
             async.yield %1 : memref<1x16x62x62xf16>
         }

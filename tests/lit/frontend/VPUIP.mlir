@@ -425,14 +425,16 @@
 
 // CHECK:   module @Test attributes {VPU.arch = "KMB"} {
 
-// CHECK:   IE.MemoryResource 917504 bytes of @CMX_NN
-// CHECK:   IE.MemoryResource 2048 bytes of @DDR
-// CHECK:   IE.MemoryResource 917504 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
-// CHECK:   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
-// CHECK:   ExecutorResource 1 of "DMA_NN"
-// CHECK:   ExecutorResource 16 of "SHAVE_UPA"
-// CHECK:   ExecutorResource {VPU.processorFrequency = 7.000000e+02 : f64} 4 of "NCE" {
-// CHECK:   ExecutorResource 5 of "DPU"
+// CHECK-DAG:   IE.MemoryResource 917504 bytes of @CMX_NN
+// CHECK-DAG:   IE.MemoryResource 2048 bytes of @DDR
+
+// CHECK-DAG:   IE.ExecutorResource 1 of @DMA_NN
+// CHECK-DAG:   IE.ExecutorResource 16 of @SHAVE_UPA
+// CHECK-DAG:   IE.ExecutorResource {VPU.processorFrequency = 7.000000e+02 : f64} 4 of  @NCE  {
+// CHECK-DAG:   IE.ExecutorResource 5 of @DPU
+
+// CHECK-DAG:   IE.MemoryResource 917504 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
+// CHECK-DAG:   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 
 // CHECK:   DataInfo "input" : tensor<1x1000xf32>
 // CHECK:   DataInfo "softmax" : tensor<1x1000xf32>

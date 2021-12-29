@@ -94,8 +94,8 @@ void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilde
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
                                                                     IE::ExecutorResourceOp res, mlir::ModuleOp module) {
-    const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
-    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
+    const auto execKindAttr = res.getKindAs<VPU::ExecutorKindAttr>();
+    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.getKind());
 
     const auto execKind = execKindAttr.getValue();
     MVCNN::ProcessorMappingBuilder builder(writer);
@@ -108,8 +108,8 @@ flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobW
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorFreqMapping(VPUIP::BlobWriter& writer,
                                                                         IE::ExecutorResourceOp res) {
-    const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
-    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
+    const auto execKindAttr = res.getKindAs<VPU::ExecutorKindAttr>();
+    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.getKind());
 
     MVCNN::ProcessorMappingBuilder builder(writer);
     builder.add_item(createPhysicalProcessor(execKindAttr.getValue()));
@@ -164,17 +164,14 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
             VPU::ExecutorKind::DPU         //
     };
 
-    auto resources = IE::RunTimeResourcesOp::getFromModule(module);
-    VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources information");
-
     const auto usedMemory = writer.createVector(IE::getUsedMemory(module) | transformed([&](IE::MemoryResourceOp res) {
                                                     return createMemoryMapping(writer, res);
                                                 }));
 
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
-    resources.walk([&](IE::ExecutorResourceOp res) {
-        if (const auto execKind = res.kind().dyn_cast<VPU::ExecutorKindAttr>()) {
+    module.walk([&](IE::ExecutorResourceOp res) {
+        if (const auto execKind = res.getKindAs<VPU::ExecutorKindAttr>()) {
             if (supportedProcessors.count(execKind.getValue()) != 0) {
                 executorsOffsets.push_back(createProcessorMapping(writer, res, module));
                 if (res->hasAttr(VPU::getProcessorFrequencyAttrName())) {

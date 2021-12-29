@@ -114,7 +114,7 @@ def IERT_AsyncLayerOpInterface : OpInterface<"AsyncLayerOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Get Executor for the asynchronous launch",
-            "mlir::Attribute", "getExecutor", (ins "uint32_t&":$numUnits)
+            "mlir::SymbolRefAttr", "getExecutor", (ins "uint32_t&":$numUnits)
         >
     ];
 }

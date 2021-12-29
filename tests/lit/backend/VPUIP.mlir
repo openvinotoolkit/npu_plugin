@@ -11,14 +11,11 @@ module @UsedMemory {
     IE.MemoryResource 1048576 bytes of @CMX_NN
 }
 
-IE.RunTimeResources
-    executors : {
-        ExecutorResource 16 of "SHAVE_UPA"
-        ExecutorResource 4 of "NCE" {
-            ExecutorResource 5 of "DPU"
-        }
-        ExecutorResource 1 of "DMA_NN"
-    }
+IE.ExecutorResource 16 of @SHAVE_UPA
+IE.ExecutorResource 4 of  @NCE {
+    IE.ExecutorResource 5 of @DPU
+}
+IE.ExecutorResource 1 of @DMA_NN
 
 IE.CNNNetwork
     entryPoint : @main

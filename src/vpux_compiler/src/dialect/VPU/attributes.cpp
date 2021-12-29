@@ -108,17 +108,14 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
 
     module->setAttr(archAttrName, ArchKindAttr::get(module.getContext(), kind));
 
-    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
-    auto resources = builder.create<IE::RunTimeResourcesOp>(module.getLoc());
-
     const auto addMem = [&](MemoryKind kind, Byte size, double derateFactor, uint32_t bandwidth) {
         auto mem = IE::addAvailableMemory(module, kind, size);
         mem->setAttr(derateFactorAttrName, getFPAttr(module.getContext(), derateFactor));
         mem->setAttr(bandwidthAttrName, getIntAttr(module.getContext(), bandwidth));
     };
 
-    const auto addExecutor = [&](ExecutorKind kind, uint32_t count, bool withSubRegion = false) {
-        return resources.addExecutor(ExecutorKindAttr::get(module.getContext(), kind), count, withSubRegion);
+    const auto addExecutor = [&](ExecutorKind kind, uint32_t count) {
+        return IE::addAvailableExecutor(module, kind, count);
     };
 
     const auto getNumOfDPUGroupsVal = [&](int maxDpuGroups) {
@@ -137,8 +134,8 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
 
         addExecutor(ExecutorKind::DMA_NN, 1);
         addExecutor(ExecutorKind::SHAVE_UPA, 16);
-        nceCluster = addExecutor(ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS), true);
-        nceCluster.addSubExecutor(ExecutorKindAttr::get(module.getContext(), ExecutorKind::DPU), 5);
+        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS));
+        nceCluster.addSubExecutor(ExecutorKind::DPU, 5);
 
         break;
     }
@@ -149,8 +146,8 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
 
         addExecutor(ExecutorKind::DMA_NN, 2);
         addExecutor(ExecutorKind::SHAVE_UPA, 16);
-        nceCluster = addExecutor(ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS), true);
-        nceCluster.addSubExecutor(ExecutorKindAttr::get(module.getContext(), ExecutorKind::DPU), 5);
+        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS));
+        nceCluster.addSubExecutor(ExecutorKind::DPU, 5);
 
         break;
     }
@@ -164,8 +161,8 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         // TODO: move SHAVE_ACT as a sub-executor for NCE
         // TODO: use actual number of ACT SHAVES
         addExecutor(ExecutorKind::SHAVE_ACT, 1);
-        nceCluster = addExecutor(ExecutorKind::NCE, getNumOfDPUGroupsVal(MTL_MAX_DPU_GROUPS), true);
-        nceCluster.addSubExecutor(ExecutorKindAttr::get(module.getContext(), ExecutorKind::DPU), 1);
+        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(MTL_MAX_DPU_GROUPS));
+        nceCluster.addSubExecutor(ExecutorKind::DPU, 1);
 
         break;
     }

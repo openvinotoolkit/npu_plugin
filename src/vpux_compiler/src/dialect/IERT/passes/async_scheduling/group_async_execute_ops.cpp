@@ -11,10 +11,10 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
 #include "vpux/compiler/core/async_deps_info.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -44,11 +44,10 @@ bool isOptimizableOp(mlir::async::ExecuteOp execOp) {
     uint32_t numUnits = 0;
     const auto executor = vpux::IERT::IERTDialect::getExecutor(execOp, numUnits);
 
-    auto resOp = IE::RunTimeResourcesOp::getFromModule(module);
-    auto executorInfo = resOp.getExecutor(executor);
+    auto executorInfo = IE::getAvailableExecutor(module, executor);
     VPUX_THROW_UNLESS(executorInfo != nullptr, "Failed to get information about executor {0}", executor);
 
-    return numUnits == executorInfo.count() && executorInfo.subExecutors().empty();
+    return numUnits == executorInfo.count() && executorInfo.subExecutors().front().empty();
 }
 
 bool isSameExecutor(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execOp2) {

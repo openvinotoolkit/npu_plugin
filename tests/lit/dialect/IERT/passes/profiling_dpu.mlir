@@ -8,14 +8,12 @@ module @DpuProfiling attributes {VPU.arch = "KMB", VPU.compilationMode = "Defaul
 IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 IE.MemoryResource 917504 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
 
-IE.RunTimeResources
-    executors :  {
-    ExecutorResource 1 of "DMA_NN"
-    ExecutorResource 16 of "SHAVE_UPA"
-    ExecutorResource {VPU.processorFrequency = 7.000000e+02 : f64} 4 of "NCE"  {
-        ExecutorResource 5 of "DPU"
-    }
+IE.ExecutorResource 1 of @DMA_NN
+IE.ExecutorResource 16 of @SHAVE_UPA
+IE.ExecutorResource {VPU.processorFrequency = 7.000000e+02 : f64} 4 of  @NCE {
+    IE.ExecutorResource 5 of @DPU
 }
+
 IE.CNNNetwork entryPoint : @main inputsInfo :  {
     DataInfo "input" : tensor<1x3x62x62xf16, {order = #NHWC}>
 } outputsInfo :  {

@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPU/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
@@ -795,13 +796,10 @@ void ConvertToNCEOpsPass::safeRunOnFunc() {
     const auto arch = VPU::getArch(module);
     VPUX_THROW_UNLESS(mpeMap.find(arch) != mpeMap.end(), "Failed to map MPE mode to target arch");
 
-    auto resOp = IE::RunTimeResourcesOp::getFromModule(module);
-    VPUX_THROW_UNLESS(resOp != nullptr, "Missing IERT run-time resources definition");
-
-    auto nceCluster = resOp.getExecutor(VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::NCE));
+    auto nceCluster = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
     VPUX_THROW_UNLESS(nceCluster != nullptr, "Failed to get NCE_Cluster information");
 
-    auto dpuExec = nceCluster.getSubExecutor(VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::DPU));
+    auto dpuExec = nceCluster.getSubExecutor(VPU::ExecutorKind::DPU);
     VPUX_THROW_UNLESS(dpuExec != nullptr, "Failed to get DPU information");
 
     mlir::OwningRewritePatternList patterns(&ctx);

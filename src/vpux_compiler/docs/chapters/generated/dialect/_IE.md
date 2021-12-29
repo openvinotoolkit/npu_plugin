@@ -50,6 +50,13 @@ It deals with the following resource types:
 * Executor (CPU, HW module, DMA).
 
 ```MLIR
+IE.ExecutorResource 16 of @SHAVE_UPA
+IE.ExecutorResource 20 of @SHAVE_NN
+IE.ExecutorResource 1 of @SHAVE_ACT
+IE.ExecutorResource 4 of @NCE {
+    IE.ExecutorResource 5 of @DPU
+}
+IE.ExecutorResource 1 of @DMA_NN
 
 IE.MemoryResource 31457280 bytes of @DDR {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
 IE.MemoryResource 4194304 bytes of @CMX_UPA {VPUIP.bandwidth = 16 : i64, VPUIP.derateFactor = 8.500000e-01 : f64}
@@ -59,22 +66,9 @@ module @UsedMemory : {
     IE.MemoryResource 2048 bytes of @DDR
     IE.MemoryResource 1048576 bytes of @CMX_NN
 }
-
-IE.RunTimeResources
-    executors : {
-        IE.ExecutorResource 1 of "Leon_RT"
-        IE.ExecutorResource 1 of "Leon_NN"
-        IE.ExecutorResource 16 of "SHAVE_UPA"
-        IE.ExecutorResource 20 of "SHAVE_NN"
-        IE.ExecutorResource 4 of "NCE_Cluster" {
-            IE.ExecutorResource 5 of "NCE_PerClusterDPU"
-        }
-        IE.ExecutorResource 1 of "DMA_UPA"
-        IE.ExecutorResource 1 of "DMA_NN"
-    }
 ```
 
-The `IE.RunTimeResources` and `IE.MemoryResource` is filled by underlying low-level dialect to provide information about HW-specific resources.
+The `IE.ExecutorResource` and `IE.MemoryResource` are added by underlying low-level dialect to provide information about HW-specific resources.
 
 [./IE/_ops_interfaces.md]
 
@@ -842,20 +836,20 @@ Syntax:
 
 ```
 operation ::= `IE.ExecutorResource` attr-dict
-              $count `of` $kind
-              $subExecutors
+              $count `of` $sym_name
+              custom<OptionalBlockRegion>($subExecutors)
 ```
 
 The executor resource is defined by the following attributes:
 
-  * Kind - optional kind of the executor.
+  * sym_name - kind of the executor.
   * Count - number of executor units.
 
 #### Attributes:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`kind` | ::mlir::Attribute | any attribute
+`sym_name` | ::mlir::StringAttr | string attribute
 `count` | mlir::IntegerAttr | Integer attribute
 
 ### `IE.Exp` (vpux::IE::ExpOp)
@@ -2577,24 +2571,6 @@ operation ::= `IE.Round` `(` operands `)` attr-dict `:` type(operands) `->` type
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
-
-### `IE.RunTimeResources` (vpux::IE::RunTimeResourcesOp)
-
-Definition of run-time resources
-
-
-Syntax:
-
-```
-operation ::= `IE.RunTimeResources` attr-dict
-              `executors` `:` $executors
-```
-
-This operation defines various resources consumed at run-time:
-
-  * Available memory spaces for interal buffers.
-  * Used memory spaces for interal buffers.
-  * Executors for asynchronous calls.
 
 ### `IE.ScaleShift` (vpux::IE::ScaleShiftOp)
 

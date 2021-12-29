@@ -9,35 +9,35 @@ func @MergeUPAAndDMA(%arg0: memref<16xui8>, %arg1: memref<16xf16>, %arg2: memref
 
     %t0, %f0 = async.execute
             -> !async.value<memref<16xf16>>
-            attributes {IERT.executor = "SHAVE_UPA", IERT.num_units = 16} {
+            attributes {IERT.executor = @SHAVE_UPA, IERT.num_units = 16} {
         %0 = IERT.Convert inputs(%arg0 : memref<16xui8>) outputs(%buf0 : memref<16xf16>) -> memref<16xf16>
         async.yield %0 : memref<16xf16>
     }
 
     %t1, %f1 = async.execute [%t0] (%f0 as %0: !async.value<memref<16xf16>>)
             -> !async.value<memref<16xf16>>
-            attributes {IERT.executor = "SHAVE_UPA", IERT.num_units = 16} {
+            attributes {IERT.executor = @SHAVE_UPA, IERT.num_units = 16} {
         %1 = IERT.ReLU inputs(%0 : memref<16xf16>) outputs(%buf1 : memref<16xf16>) -> memref<16xf16>
         async.yield %1 : memref<16xf16>
     }
 
     %t2, %f2 = async.execute [%t0] (%f0 as %0: !async.value<memref<16xf16>>)
             -> !async.value<memref<16xf16>>
-            attributes {IERT.executor = "SHAVE_UPA", IERT.num_units = 16} {
+            attributes {IERT.executor = @SHAVE_UPA, IERT.num_units = 16} {
         %2 = IERT.ReLU inputs(%0 : memref<16xf16>) outputs(%buf2 : memref<16xf16>) -> memref<16xf16>
         async.yield %2 : memref<16xf16>
     }
 
     %t3, %f3 = async.execute [%t2] (%f2 as %2: !async.value<memref<16xf16>>)
             -> !async.value<memref<16xf16>>
-            attributes {IERT.executor = "DMA_NN", IERT.num_units = 1} {
+            attributes {IERT.executor = @DMA_NN, IERT.num_units = 1} {
         %3 = IERT.Copy inputs(%2 : memref<16xf16>) outputs(%arg1 : memref<16xf16>) -> memref<16xf16>
         async.yield %3 : memref<16xf16>
     }
 
     %t4, %f4 = async.execute [%t1] (%f1 as %1: !async.value<memref<16xf16>>)
             -> !async.value<memref<16xf16>>
-            attributes {IERT.executor = "DMA_NN", IERT.num_units = 1} {
+            attributes {IERT.executor = @DMA_NN, IERT.num_units = 1} {
       %4 = IERT.Copy inputs(%1 : memref<16xf16>) outputs(%arg2 : memref<16xf16>) -> memref<16xf16>
       async.yield %4 : memref<16xf16>
     }
@@ -84,21 +84,21 @@ func @MergeDMAs(%arg0: memref<16xui8>, %arg1: memref<16xf16>, %arg2: memref<16xf
 
     %t0, %f0 = async.execute
             -> !async.value<memref<16xf16>>
-            attributes {IERT.executor = "SHAVE_UPA", IERT.num_units = 16} {
+            attributes {IERT.executor = @SHAVE_UPA, IERT.num_units = 16} {
         %0 = IERT.Convert inputs(%arg0 : memref<16xui8>) outputs(%buf : memref<16xf16>) -> memref<16xf16>
         async.yield %0 : memref<16xf16>
     }
 
     %t1, %f1 = async.execute [%t0] (%f0 as %0: !async.value<memref<16xf16>>)
             -> !async.value<memref<16xf16>>
-            attributes {IERT.executor = "DMA_NN", IERT.num_units = 1} {
+            attributes {IERT.executor = @DMA_NN, IERT.num_units = 1} {
         %1 = IERT.Copy inputs(%0 : memref<16xf16>) outputs(%arg1 : memref<16xf16>) -> memref<16xf16>
         async.yield %1 : memref<16xf16>
     }
 
     %t2, %f2 = async.execute [%t0] (%f0 as %0: !async.value<memref<16xf16>>)
             -> !async.value<memref<16xf16>>
-            attributes {IERT.executor = "DMA_NN", IERT.num_units = 1} {
+            attributes {IERT.executor = @DMA_NN, IERT.num_units = 1} {
         %2 = IERT.Copy inputs(%0 : memref<16xf16>) outputs(%arg2 : memref<16xf16>) -> memref<16xf16>
         async.yield %2 : memref<16xf16>
     }
@@ -135,21 +135,21 @@ func @TaskWithExclusiveUsers(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2
 
     %t0, %f0 = async.execute
             -> !async.value<memref<16xf16>>
-            attributes {IERT.executor = "SHAVE_UPA", IERT.num_units = 16} {
+            attributes {IERT.executor = @SHAVE_UPA, IERT.num_units = 16} {
         %0 = IERT.ReLU inputs(%arg0 : memref<16xf16>) outputs(%buf : memref<16xf16>) -> memref<16xf16>
         async.yield %0 : memref<16xf16>
     }
 
     %t1, %f1 = async.execute
             -> !async.value<memref<16xf16>>
-            attributes {IERT.executor = "SHAVE_UPA", IERT.num_units = 16} {
+            attributes {IERT.executor = @SHAVE_UPA, IERT.num_units = 16} {
         %1 = IERT.ReLU inputs(%arg0 : memref<16xf16>) outputs(%arg1 : memref<16xf16>) -> memref<16xf16>
         async.yield %1 : memref<16xf16>
     }
 
     %t2, %f2 = async.execute [%t0] (%f0 as %0: !async.value<memref<16xf16>>)
             -> !async.value<memref<16xf16>>
-            attributes {IERT.executor = "SHAVE_UPA", IERT.num_units = 16} {
+            attributes {IERT.executor = @SHAVE_UPA, IERT.num_units = 16} {
         %2 = IERT.ReLU inputs(%0 : memref<16xf16>) outputs(%arg2 : memref<16xf16>) -> memref<16xf16>
         async.yield %2 : memref<16xf16>
     }
@@ -189,14 +189,14 @@ func @MergeInputDMAs(%arg0: memref<1x3x1x1xf16>, %arg1: memref<1x3x1x1xf16>, %ar
         -> (memref<1x3x1x1xf16>) {
     %token_0, %results_0 = async.execute
             -> !async.value<memref<1x3x1x1xf16>>
-            attributes {IERT.executor = "DMA_NN", IERT.num_units = 1 : i64} {
+            attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64} {
         %0 = IERT.Copy inputs(%arg0 : memref<1x3x1x1xf16>) outputs(%arg1 : memref<1x3x1x1xf16>) -> memref<1x3x1x1xf16>
         async.yield %0 : memref<1x3x1x1xf16>
     }
 
     %token_1, %results_1 = async.execute
             -> !async.value<memref<1x3x1x1xf16>>
-            attributes {IERT.executor = "DMA_NN", IERT.num_units = 1 : i64} {
+            attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64} {
         %1 = IERT.Copy inputs(%arg0 : memref<1x3x1x1xf16>) outputs(%arg2 : memref<1x3x1x1xf16>) -> memref<1x3x1x1xf16>
         async.yield %1 : memref<1x3x1x1xf16>
     }
@@ -204,7 +204,7 @@ func @MergeInputDMAs(%arg0: memref<1x3x1x1xf16>, %arg1: memref<1x3x1x1xf16>, %ar
     %token_2, %results_2 = async.execute [%token_0, %token_1]
             (%results_0 as %0: !async.value<memref<1x3x1x1xf16>>, %results_1 as %1: !async.value<memref<1x3x1x1xf16>>)
             -> !async.value<memref<1x3x1x1xf16>>
-            attributes {IERT.executor = "SHAVE_UPA", IERT.num_units = 16} {
+            attributes {IERT.executor = @SHAVE_UPA, IERT.num_units = 16} {
         %2 = IERT.Add inputs(%0 : memref<1x3x1x1xf16>, %1 : memref<1x3x1x1xf16>) outputs(%arg3 : memref<1x3x1x1xf16>) -> memref<1x3x1x1xf16>
         async.yield %2 : memref<1x3x1x1xf16>
     }

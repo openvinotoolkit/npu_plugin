@@ -26,15 +26,11 @@ module @dual_tile attributes {VPU.arch = "MTL", VPU.compilationMode = "DefaultHW
   IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
   IE.MemoryResource 2097152 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
 
-  IE.RunTimeResources
-    executors :  {
-      ExecutorResource 1 of "DMA_UPA"
-      ExecutorResource 1 of "SHAVE_NN"
-      ExecutorResource 1 of "NCE"  {
-        ExecutorResource 1 of "DPU"
-      }
-      ExecutorResource 2 of "DMA_NN"
-    }
+  IE.ExecutorResource 1 of @SHAVE_UPA
+  IE.ExecutorResource 1 of @NCE  {
+    IE.ExecutorResource 1 of @DPU
+  }
+  IE.ExecutorResource 2 of @DMA_NN
 
   func @main(
         %input_arg: memref<1x16x16x16x!qtype, #NHWC, @DDR>,

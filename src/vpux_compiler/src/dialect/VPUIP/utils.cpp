@@ -53,13 +53,13 @@ uint32_t vpux::VPUIP::getMemoryBandwidth(IE::MemoryResourceOp mem) {
 }
 
 double vpux::VPUIP::getProcessorFrequency(IE::ExecutorResourceOp res) {
-    VPUX_THROW_UNLESS(res.kindAttr() != nullptr, "Got empty executor resource kind");
+    VPUX_THROW_UNLESS(res.getKind() != nullptr, "Got empty executor resource kind");
 
     auto attr = res->getAttr(VPU::getProcessorFrequencyAttrName());
-    VPUX_THROW_UNLESS(attr != nullptr, "Executor resource '{0}' has no '{1}' attribute", res.kind(),
+    VPUX_THROW_UNLESS(attr != nullptr, "Executor resource '{0}' has no '{1}' attribute", res.getKind(),
                       VPU::getProcessorFrequencyAttrName());
     VPUX_THROW_UNLESS(attr.isa<mlir::FloatAttr>(), "Executor resource '{0}' has wrong '{1}' attribute : '{2}'",
-                      res.kind(), VPU::getProcessorFrequencyAttrName(), attr);
+                      res.getKind(), VPU::getProcessorFrequencyAttrName(), attr);
 
     return attr.cast<mlir::FloatAttr>().getValueAsDouble();
 }

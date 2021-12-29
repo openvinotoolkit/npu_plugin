@@ -69,6 +69,13 @@ It deals with the following resource types:
 * Executor (CPU, HW module, DMA).
 
 ```MLIR
+IE.ExecutorResource 16 of @SHAVE_UPA
+IE.ExecutorResource 20 of @SHAVE_NN
+IE.ExecutorResource 1 of @SHAVE_ACT
+IE.ExecutorResource 4 of @NCE {
+    IE.ExecutorResource 5 of @DPU
+}
+IE.ExecutorResource 1 of @DMA_NN
 
 IE.MemoryResource 31457280 bytes of @DDR {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
 IE.MemoryResource 4194304 bytes of @CMX_UPA {VPUIP.bandwidth = 16 : i64, VPUIP.derateFactor = 8.500000e-01 : f64}
@@ -78,22 +85,9 @@ module @UsedMemory : {
     IE.MemoryResource 2048 bytes of @DDR
     IE.MemoryResource 1048576 bytes of @CMX_NN
 }
-
-IE.RunTimeResources
-    executors : {
-        IE.ExecutorResource 1 of "Leon_RT"
-        IE.ExecutorResource 1 of "Leon_NN"
-        IE.ExecutorResource 16 of "SHAVE_UPA"
-        IE.ExecutorResource 20 of "SHAVE_NN"
-        IE.ExecutorResource 4 of "NCE_Cluster" {
-            IE.ExecutorResource 5 of "NCE_PerClusterDPU"
-        }
-        IE.ExecutorResource 1 of "DMA_UPA"
-        IE.ExecutorResource 1 of "DMA_NN"
-    }
 ```
 
-The `IE.RunTimeResources` and `IE.MemoryResource` is filled by underlying low-level dialect to provide information about HW-specific resources.
+The `IE.ExecutorResource` and `IE.MemoryResource` are added by underlying low-level dialect to provide information about HW-specific resources.
 
 [./IE/_ops_interfaces.md]
     }];

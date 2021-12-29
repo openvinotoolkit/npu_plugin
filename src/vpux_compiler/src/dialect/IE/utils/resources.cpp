@@ -86,3 +86,36 @@ SmallVector<IE::MemoryResourceOp> vpux::IE::getUsedMemory(mlir::ModuleOp mainMod
 
     return to_small_vector(usedMemModule.getOps<IE::MemoryResourceOp>());
 }
+
+//
+// ExecutorResourceOp
+//
+
+IE::ExecutorResourceOp vpux::IE::details::addExecutor(mlir::SymbolTable mainModule, mlir::Region& region,
+                                                      mlir::StringAttr executorAttr, uint32_t count) {
+    VPUX_THROW_UNLESS(count > 0, "Trying to set zero count of executor kind '{0}'", executorAttr);
+
+    auto* ctx = region.getContext();
+    auto res = mainModule.lookup<ExecutorResourceOp>(executorAttr);
+    VPUX_THROW_UNLESS(res == nullptr, "Available executor kind '{0}' was already added", executorAttr);
+
+    const auto countAttr = getIntAttr(ctx, count);
+    auto builder = mlir::OpBuilder::atBlockBegin(&region.front());
+    auto resOp = builder.create<IE::ExecutorResourceOp>(region.getLoc(), executorAttr, countAttr);
+
+    // Operations with a 'SymbolTable' must have exactly one block
+    resOp.getRegion().emplaceBlock();
+    return resOp;
+}
+
+IE::ExecutorResourceOp vpux::IE::getAvailableExecutor(mlir::ModuleOp mainModule, mlir::SymbolRefAttr executorAttr) {
+    return mlir::dyn_cast_or_null<IE::ExecutorResourceOp>(mlir::SymbolTable::lookupSymbolIn(mainModule, executorAttr));
+}
+
+IE::ExecutorResourceOp vpux::IE::ExecutorResourceOp::addSubExecutor(mlir::StringAttr executorAttr, uint32_t count) {
+    return details::addExecutor(getOperation(), getRegion(), executorAttr, count);
+}
+
+IE::ExecutorResourceOp vpux::IE::ExecutorResourceOp::getSubExecutor(mlir::StringAttr executorAttr) {
+    return lookupSymbol<IE::ExecutorResourceOp>(executorAttr);
+}

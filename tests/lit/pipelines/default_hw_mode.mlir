@@ -8,12 +8,10 @@ module @Convolution {
     // CHECK-DAG:       IE.MemoryResource {{[0-9]+}} bytes of @CMX_NN
     // CHECK-DAG:       IE.MemoryResource {{[0-9]+}} bytes of @DDR
 
-    // CHECK:   IE.RunTimeResources
-    // CHECK:       executors :
-    // CHECK-DAG:       ExecutorResource 1 of "DMA_NN"
-    // CHECK-DAG:       ExecutorResource 16 of "SHAVE_UPA"
-    // CHECK-DAG:       ExecutorResource {VPU.processorFrequency = 7.000000e+02 : f64} 4 of "NCE"
-    // CHECK-DAG:           ExecutorResource 5 of "DPU"
+    // CHECK-DAG:       IE.ExecutorResource 1 of @DMA_NN
+    // CHECK-DAG:       IE.ExecutorResource 16 of @SHAVE_UPA
+    // CHECK-DAG:       IE.ExecutorResource {VPU.processorFrequency = 7.000000e+02 : f64} 4 of @NCE
+    // CHECK-DAG:           IE.ExecutorResource 5 of @DPU
 
     IE.CNNNetwork entryPoint : @main
     inputsInfo : {

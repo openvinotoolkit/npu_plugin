@@ -191,62 +191,6 @@ def IE_DataInfoOp :
 }
 
 //
-// RunTimeResourcesOp
-//
-
-def IE_RunTimeResourcesOp :
-        IE_Op<
-            "RunTimeResources",
-            [
-                IsolatedFromAbove,
-                HasParent<"mlir::ModuleOp">,
-                NoRegionArguments,
-                OpAsmOpInterface
-            ]
-            # GraphRegionNoTerminator.traits
-        > {
-    let summary = "Definition of run-time resources";
-
-    let description = [{
-        This operation defines various resources consumed at run-time:
-
-          * Available memory spaces for interal buffers.
-          * Used memory spaces for interal buffers.
-          * Executors for asynchronous calls.
-    }];
-
-    let regions = (region
-        SizedRegion<1>:$executors
-    );
-
-    let skipDefaultBuilders = 1;
-    let builders = [
-        OpBuilder<(ins)>
-    ];
-
-    let verifier = [{
-        return vpux::IE::verifyOp(*this);
-    }];
-
-    let extraClassDeclaration = [{
-        static vpux::IE::RunTimeResourcesOp getFromModule(mlir::ModuleOp module);
-
-        vpux::IE::ExecutorResourceOp addExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
-        vpux::IE::ExecutorResourceOp getExecutor(mlir::Attribute kind);
-        auto getExecutors() { return executors().getOps<vpux::IE::ExecutorResourceOp>(); }
-
-        static mlir::StringRef getDefaultDialect() {
-            return "IE";
-        }
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        `executors` `:` $executors
-    }];
-}
-
-//
 // MemoryResourceOp
 //
 
@@ -294,9 +238,9 @@ def IE_ExecutorResourceOp :
         IE_Op<
             "ExecutorResource",
             [
-                ParentOneOf<["vpux::IE::ExecutorResourceOp","vpux::IE::RunTimeResourcesOp"]>,
-                NoRegionArguments,
-                OpAsmOpInterface
+                IERT_ResourceOpInterface,
+                SymbolTable,
+                Symbol
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -305,26 +249,35 @@ def IE_ExecutorResourceOp :
     let description = [{
         The executor resource is defined by the following attributes:
 
-          * Kind - optional kind of the executor.
+          * sym_name - kind of the executor.
           * Count - number of executor units.
     }];
 
     let arguments = (ins
-        AnyAttr:$kind,
+        SymbolNameAttr:$sym_name,
         IntAttr:$count
     );
 
     let regions = (region
-        VariadicRegion<SizedRegion<1>>:$subExecutors
+        SizedRegion<1>:$subExecutors
     );
 
-    let verifier = [{
-        return vpux::IE::verifyOp(*this);
-    }];
-
     let extraClassDeclaration = [{
-        vpux::IE::ExecutorResourceOp addSubExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
-        vpux::IE::ExecutorResourceOp getSubExecutor(mlir::Attribute kind);
+        vpux::IE::ExecutorResourceOp addSubExecutor(mlir::StringAttr executor, uint32_t count);
+        vpux::IE::ExecutorResourceOp getSubExecutor(mlir::StringAttr executor);
+
+        template <typename Enum, typename OutT = vpux::IE::ExecutorResourceOp>
+        using exec_resource_if = enable_t<OutT, std::is_enum<Enum>, details::HasStringifyEnum<Enum>>;
+
+        template <typename Enum>
+        exec_resource_if<Enum> addSubExecutor(Enum kind, uint32_t count) {
+            return addSubExecutor(mlir::StringAttr::get(getContext(), stringifyEnum(kind)), count);
+        }
+
+        template <typename Enum>
+        exec_resource_if<Enum> getSubExecutor(Enum kind) {
+            return getSubExecutor(mlir::StringAttr::get(getContext(), stringifyEnum(kind)));
+        }
 
         static mlir::StringRef getDefaultDialect() {
             return "IE";
@@ -333,8 +286,8 @@ def IE_ExecutorResourceOp :
 
     let assemblyFormat = [{
         attr-dict
-        $count `of` $kind
-        $subExecutors
+        $count `of` $sym_name
+        custom<OptionalBlockRegion>($subExecutors)
     }];
 }
 
