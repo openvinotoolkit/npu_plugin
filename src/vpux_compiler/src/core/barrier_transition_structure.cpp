@@ -95,16 +95,7 @@ inline void FeasibleBarrierScheduler::barrierTransitionStructure::process_curren
         auto barrierConsumersItr = feasibleBarrierScheduler_.configureBarrierOpUpdateWaitMap.find(bop_curr);
 
         if (barrierConsumersItr != feasibleBarrierScheduler_.configureBarrierOpUpdateWaitMap.end()) {
-            // auto opConsumers = FeasibleBarrierScheduler::getConsumerOps(source);
-
-            SmallVector<mlir::Operation*> opConsumers;
-            for (auto updateBarrier : feasibleBarrierScheduler_.configureTaskOpUpdateWaitMapBackUp[source].second) {
-                opConsumers.insert(opConsumers.end(),
-                                   feasibleBarrierScheduler_.configureBarrierOpUpdateWaitMapBackUp.find(updateBarrier)
-                                           ->second.second.begin(),
-                                   feasibleBarrierScheduler_.configureBarrierOpUpdateWaitMapBackUp.find(updateBarrier)
-                                           ->second.second.end());
-            }
+            auto opConsumers = feasibleBarrierScheduler_.getConsumerOps(source);
 
             for (auto consumer = opConsumers.begin(); consumer != opConsumers.end(); ++consumer) {
                 Logger::global().error("STEP-1.2 Adding consumer Op with ID {0} to barrier {1}",
