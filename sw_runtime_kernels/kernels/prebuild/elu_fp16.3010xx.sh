@@ -21,7 +21,7 @@ if [ -z "${FIRMWARE_VPU_DIR}" ]; then echo "FIRMWARE_VPU_DIR is not set"; env_is
 
 if [ $env_is_set = 0 ]; then exit 1; fi
 
-rm -f "${KERNEL_DIR}/prebuild/elu_fp16_${cpu}.o" "${KERNEL_DIR}/prebuild/elu_fp16_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.elu_fp16.${cpu}.text" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.elu_fp16.${cpu}.data"
+rm -f "${KERNEL_DIR}/prebuild/elu_fp16_${cpu}.o" "${KERNEL_DIR}/prebuild/elu_fp16_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.elu_fp16.3010xx.text" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.elu_fp16.3010xx.data"
 
 "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile" -mcpu=${cpu} ${optimization} \
  -c "${KERNEL_DIR}/elu_fp16.cpp" -o "${KERNEL_DIR}/prebuild/elu_fp16_${cpu}.o" \
@@ -64,5 +64,5 @@ if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of data segment fail
 cd -
 
 rm "${KERNEL_DIR}/prebuild/elu_fp16_${cpu}.o"
-printf "\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.elu_fp16.${cpu}.text\"\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.elu_fp16.${cpu}.data\"\nhave been created successfully\n"
+printf "\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.elu_fp16.3010xx.text\"\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.elu_fp16.3010xx.data\"\nhave been created successfully\n"
 exit $?
