@@ -61,10 +61,6 @@ class LayerWithPostOpModel final :
         public IE::LayerWithPostOpInterface::ExternalModel<LayerWithPostOpModel<MainOpType>, MainOpType> {
 public:
     bool isSupportedPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) const {
-        if (mlir::isa<IE::ScaleShiftOp>(postOp)) {
-            return true;
-        }
-
         if (VPU::getCompilationMode(postOp) == VPU::CompilationMode::ReferenceSW) {
             return false;
         }
