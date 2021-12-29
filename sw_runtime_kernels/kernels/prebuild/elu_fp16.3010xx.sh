@@ -1,9 +1,12 @@
 #! /bin/bash
 env_is_set=1
-#optimization=-O3
+optimization=-O3
 alwaye_inline=-DCONFIG_ALWAYS_INLINE
-cpunum=3010
+cpunum=3720
 cpu=${cpunum}xx
+
+if [ ${cpunum} -eq "3720" ]; then USE_3720_INTSTRUCTIONS=-DUSE_3720_INTSTRUCTIONS; fi
+echo USE_3720_INTSTRUCTIONS=${USE_3720_INTSTRUCTIONS}
 
 if [ -z ${FIRMWARE_VPU_DIR} ]; then FIRMWARE_VPU_DIR=${VPUIP_2_DIR}; fi
 if [ -z "${MV_TOOLS_DIR}" ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
@@ -27,7 +30,7 @@ rm -f "${KERNEL_DIR}/prebuild/elu_fp16_${cpu}.o" "${KERNEL_DIR}/prebuild/elu_fp1
  -I "${KERNEL_DIR}/common/inc" \
  -I "${KERNEL_DIR}/inc/3720" \
  -I "${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc" \
- -D CONFIG_TARGET_SOC_3720 -D__shave_nn__ ${alwaye_inline}
+ -D CONFIG_TARGET_SOC_3720 -D__shave_nn__ ${alwaye_inline} ${USE_3720_INTSTRUCTIONS}
 
 obj_files="${KERNEL_DIR}/prebuild/elu_fp16_${cpu}.o"
 
