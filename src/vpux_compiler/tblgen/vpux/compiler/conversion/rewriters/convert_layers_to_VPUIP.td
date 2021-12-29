@@ -566,9 +566,9 @@ class createEltwiseUPAOp<string method> :
         NativeCodeCall<[{
             $_builder.create<vpux::VPUIP::EltwiseUPAOp>(
                 $_loc, $0, $1, $2,
-                vpux::VPUIP::EltwiseLayerTypeAttr::get(
+                vpux::VPU::EltwiseTypeAttr::get(
                     $_builder.getContext(),
-                    vpux::VPUIP::EltwiseLayerType::}] # method # [{
+                    vpux::VPU::EltwiseType::}] # method # [{
                 ))
         }]>;
 

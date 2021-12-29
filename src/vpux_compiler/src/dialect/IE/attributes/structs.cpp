@@ -12,7 +12,6 @@
 //
 
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 
 #include "vpux/utils/core/error.hpp"
 
@@ -92,13 +91,4 @@ bool vpux::IE::isSparse(mlir::RankedTensorType type) {
     }
 
     return false;
-}
-
-//
-// PaddingAttr
-//
-
-VPUIP::PaddingAttr vpux::IE::getPaddingAttr(mlir::MLIRContext* ctx, ArrayRef<int64_t> padsBegin,
-                                            ArrayRef<int64_t> padsEnd) {
-    return VPUIP::getPaddingAttr(ctx, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]);
 }

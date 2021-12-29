@@ -132,8 +132,8 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     // NCE Task
     auto filtersize = getIntArrayAttr(funcbuilder, filter_size);
     auto strides = getIntArrayAttr(funcbuilder, stride_vec);
-    auto kernel_padding = VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
-                                                padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
+    auto kernel_padding = VPU::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                              padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto nceTask = vpux::VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
@@ -157,10 +157,10 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
         const auto shift = shifts.first;
         const auto post_shift = shifts.second;
 
-        nceTask.addPPETask(funcbuilder, VPUIP::PPELayerType::NOOP, clampLow, clampHigh, LreluMult, LreluShift,
+        nceTask.addPPETask(funcbuilder, VPU::PPEMode::NOOP, clampLow, clampHigh, LreluMult, LreluShift,
                            SmallVector<int32_t>{mult}, SmallVector<int32_t>{shift}, post_shift);
     } else {
-        nceTask.addPPETask(funcbuilder, VPUIP::PPELayerType::NOOP, clampLow, clampHigh, LreluMult, LreluShift);
+        nceTask.addPPETask(funcbuilder, VPU::PPEMode::NOOP, clampLow, clampHigh, LreluMult, LreluShift);
     }
 
     // Create DPU task for NCE task
@@ -171,12 +171,12 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     std::vector<int32_t> end_vec{static_cast<int32_t>(out_shape[3] - 1), static_cast<int32_t>(out_shape[2] - 1),
                                  static_cast<int32_t>(out_shape[1] - 1)};
     auto end = getIntArrayAttr(funcbuilder, end_vec);
-    auto pad = VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
-                                     padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
+    auto pad = VPU::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                   padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     // NB For pooling operations, NTHW_NTK=(16, 4) is the only mode supported by
     // the hardware; this corresponds to CUBOID_16x16.
-    variantbuilder.create<VPUIP::DPUTaskOp>(loc, start, end, pad, VPUIP::MPEMode::CUBOID_16x16);
+    variantbuilder.create<VPUIP::DPUTaskOp>(loc, start, end, pad, VPU::MPEMode::CUBOID_16x16);
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
                                                 loc, outputcmx.getOperation()->getResult(0), funcoutput);

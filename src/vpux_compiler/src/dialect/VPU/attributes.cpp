@@ -279,7 +279,37 @@ VPU::CompilationMode vpux::VPU::getCompilationMode(mlir::Operation* op) {
 }
 
 //
+// PaddingAttr
+//
+
+VPU::PaddingAttr vpux::VPU::getPaddingAttr(mlir::MLIRContext* ctx, int64_t left, int64_t right, int64_t top,
+                                           int64_t bottom) {
+    return PaddingAttr::get(getIntAttr(ctx, left), getIntAttr(ctx, right), getIntAttr(ctx, top),
+                            getIntAttr(ctx, bottom), ctx);
+}
+
+VPU::PaddingAttr vpux::VPU::getPaddingAttr(mlir::MLIRContext* ctx, ArrayRef<int64_t> padsBegin,
+                                           ArrayRef<int64_t> padsEnd) {
+    VPUX_THROW_UNLESS(padsBegin.size() == 2, "Paddings array has unsuppoted size '{0}'", padsBegin.size());
+    VPUX_THROW_UNLESS(padsEnd.size() == 2, "Paddings array has unsuppoted size '{0}'", padsEnd.size());
+    return getPaddingAttr(ctx, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]);
+}
+
+VPU::PaddingAttr vpux::VPU::getPaddingAttr(mlir::MLIRContext* ctx, const PadInfo& pad) {
+    return getPaddingAttr(ctx, pad.left, pad.right, pad.top, pad.bottom);
+}
+
+PadInfo vpux::VPU::toPadInfo(PaddingAttr attr) {
+    const auto left = attr.left().getValue().getSExtValue();
+    const auto right = attr.right().getValue().getSExtValue();
+    const auto top = attr.top().getValue().getSExtValue();
+    const auto bottom = attr.bottom().getValue().getSExtValue();
+    return PadInfo(left, right, top, bottom);
+}
+
+//
 // Generated
 //
 
 #include <vpux/compiler/dialect/VPU/generated/attributes/enums.cpp.inc>
+#include <vpux/compiler/dialect/VPU/generated/attributes/structs.cpp.inc>

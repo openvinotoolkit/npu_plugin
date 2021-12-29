@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/pwl_utils.hpp"
+#include "vpux/compiler/dialect/VPU/pwl_utils.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -41,7 +41,7 @@ private:
                                         mlir::PatternRewriter& rewriter) const final;
 
     mlir::LogicalResult ensureRequantizationRange(IE::LayerWithPostOpInterface origOp, mlir::PatternRewriter& rewriter,
-                                                  VPUIP::PwlQuantReqs quantReqs) const;
+                                                  const VPU::PwlQuantReqs& quantReqs) const;
 
     template <class PostOpType>
     mlir::LogicalResult unfusePostOp(IE::LayerWithPostOpInterface origOp, llvm::StringRef postOpName,
@@ -53,7 +53,7 @@ private:
 
 mlir::LogicalResult FusableOpRewriter::ensureRequantizationRange(IE::LayerWithPostOpInterface origOp,
                                                                  mlir::PatternRewriter& rewriter,
-                                                                 VPUIP::PwlQuantReqs quantReqs) const {
+                                                                 const VPU::PwlQuantReqs& quantReqs) const {
     _log.nest().trace("Ensure requantization range for {0}", origOp->getName());
 
     const auto origType = origOp->getResult(0).getType().cast<mlir::RankedTensorType>();
@@ -131,13 +131,13 @@ mlir::LogicalResult FusableOpRewriter::matchAndRewrite(IE::LayerWithPostOpInterf
 
     if (postOpName == IE::SigmoidOp::getOperationName()) {
         if (isQuantizedPerTensor(origOp)) {
-            return ensureRequantizationRange(origOp, rewriter, VPUIP::getPwlQuantReqs(VPUIP::PPELayerType::SIGMOID));
+            return ensureRequantizationRange(origOp, rewriter, VPU::getPwlQuantReqs(VPU::PPEMode::SIGMOID));
         } else {
             return unfusePostOp<IE::SigmoidOp>(origOp, postOpName, rewriter);
         }
     } else if (postOpName == IE::TanhOp::getOperationName()) {
         if (isQuantizedPerTensor(origOp)) {
-            return ensureRequantizationRange(origOp, rewriter, VPUIP::getPwlQuantReqs(VPUIP::PPELayerType::TANH));
+            return ensureRequantizationRange(origOp, rewriter, VPU::getPwlQuantReqs(VPU::PPEMode::TANH));
         } else {
             return unfusePostOp<IE::TanhOp>(origOp, postOpName, rewriter);
         }

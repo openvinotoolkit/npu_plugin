@@ -350,12 +350,11 @@ vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder 
     std::vector<int64_t> end_vec{static_cast<int64_t>(output_shape[2] - 1), static_cast<int64_t>(output_shape[3] - 1),
                                  static_cast<int64_t>(output_shape[1] - 1)};
     auto end = getIntArrayAttr(builder, end_vec);
-    auto pad = vpux::VPUIP::getPaddingAttr(builder.getContext(), padding_vec[PAD_NCETASK_LEFT],
-                                           padding_vec[PAD_NCETASK_RIGHT], padding_vec[PAD_NCETASK_TOP],
-                                           padding_vec[PAD_NCETASK_BOTTOM]);
+    auto pad = VPU::getPaddingAttr(builder.getContext(), padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                   padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto dpuTask = variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad,
-                                                           VPUIP::MPEMode::CUBOID_16x16);
+                                                           VPU::MPEMode::CUBOID_16x16);
 
     return dpuTask;
 }

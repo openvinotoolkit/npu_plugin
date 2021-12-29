@@ -108,7 +108,7 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
             weightscmx.getOperation()->getResult(0), mlir::Value(), nullptr,
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::ELTWISE, mlir::ArrayAttr(), mlir::ArrayAttr(),
-            vpux::VPUIP::PaddingAttr(), actChannelLength, /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
+            VPU::PaddingAttr(), actChannelLength, /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
     int64_t clampLow = std::numeric_limits<int32_t>::min();
     int64_t clampHigh = std::numeric_limits<int32_t>::max();
@@ -136,10 +136,10 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
         const auto shift = shifts.first;
         const auto post_shift = shifts.second;
 
-        nceTask.addPPETask(funcbuilder, VPUIP::PPELayerType::ADD, clampLow, clampHigh, LreluMult, LreluShift,
+        nceTask.addPPETask(funcbuilder, VPU::PPEMode::ADD, clampLow, clampHigh, LreluMult, LreluShift,
                            SmallVector<int32_t>{mult}, SmallVector<int32_t>{shift}, post_shift);
     } else {
-        nceTask.addPPETask(funcbuilder, VPUIP::PPELayerType::ADD, clampLow, clampHigh, LreluMult, LreluShift);
+        nceTask.addPPETask(funcbuilder, VPU::PPEMode::ADD, clampLow, clampHigh, LreluMult, LreluShift);
     }
 
     // Create DPU task for NCE task
@@ -150,11 +150,11 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     std::vector<int32_t> end_vec{static_cast<int32_t>(out_shape[3] - 1), static_cast<int32_t>(out_shape[2] - 1),
                                  static_cast<int32_t>(out_shape[1] - 1)};
     auto end = getIntArrayAttr(builder, end_vec);
-    auto pad = vpux::VPUIP::getPaddingAttr(ctx, 0, 0, 0, 0);
+    auto pad = VPU::getPaddingAttr(ctx, 0, 0, 0, 0);
 
     // NB For eltwise operations, NTHW_NTK=(8, 8) is the only mode supported by
     // the hardware; this corresponds to CUBOID_8x16.
-    nceTask.addDPUTask(variantbuilder, start, end, pad, VPUIP::MPEMode::CUBOID_8x16);
+    nceTask.addDPUTask(variantbuilder, start, end, pad, VPU::MPEMode::CUBOID_8x16);
 
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 

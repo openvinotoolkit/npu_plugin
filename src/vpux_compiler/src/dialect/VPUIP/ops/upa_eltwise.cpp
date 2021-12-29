@@ -20,66 +20,66 @@
 using namespace vpux;
 
 void vpux::VPUIP::EltwiseUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input1,
-                                      mlir::Value input2, mlir::Value output, VPUIP::EltwiseLayerTypeAttr type) {
+                                      mlir::Value input2, mlir::Value output, VPU::EltwiseTypeAttr type) {
     build(builder, state, input1, input2, output, type, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::BlobWriter& writer) {
     VPUIP::BlobWriter::String type;
     switch (this->type()) {
-    case VPUIP::EltwiseLayerType::ADD:
+    case VPU::EltwiseType::ADD:
         type = writer.createString("sum");
         break;
-    case VPUIP::EltwiseLayerType::MULTIPLY:
+    case VPU::EltwiseType::MULTIPLY:
         type = writer.createString("prod");
         break;
-    case VPUIP::EltwiseLayerType::DIVIDE:
+    case VPU::EltwiseType::DIVIDE:
         type = writer.createString("div");
         break;
-    case VPUIP::EltwiseLayerType::SQUARED_DIFF:
+    case VPU::EltwiseType::SQUARED_DIFF:
         type = writer.createString("sqdiff");
         break;
-    case VPUIP::EltwiseLayerType::POWER:
+    case VPU::EltwiseType::POWER:
         type = writer.createString("pow");
         break;
-    case VPUIP::EltwiseLayerType::FLOOR_MOD:
+    case VPU::EltwiseType::FLOOR_MOD:
         type = writer.createString("floormod");
         break;
-    case VPUIP::EltwiseLayerType::MIN:
+    case VPU::EltwiseType::MIN:
         type = writer.createString("min");
         break;
-    case VPUIP::EltwiseLayerType::MAX:
+    case VPU::EltwiseType::MAX:
         type = writer.createString("max");
         break;
-    case VPUIP::EltwiseLayerType::AND:
+    case VPU::EltwiseType::AND:
         type = writer.createString("logicaland");
         break;
-    case VPUIP::EltwiseLayerType::EQUAL:
+    case VPU::EltwiseType::EQUAL:
         type = writer.createString("compareeq");
         break;
-    case VPUIP::EltwiseLayerType::LESS:
+    case VPU::EltwiseType::LESS:
         type = writer.createString("comparelt");
         break;
-    case VPUIP::EltwiseLayerType::LESS_EQUAL:
+    case VPU::EltwiseType::LESS_EQUAL:
         type = writer.createString("comparele");
         break;
-    case VPUIP::EltwiseLayerType::GREATER:
+    case VPU::EltwiseType::GREATER:
         type = writer.createString("comparegt");
         break;
-    case VPUIP::EltwiseLayerType::GREATER_EQUAL:
+    case VPU::EltwiseType::GREATER_EQUAL:
         type = writer.createString("comparege");
         break;
-    case VPUIP::EltwiseLayerType::NOT_EQUAL:
+    case VPU::EltwiseType::NOT_EQUAL:
         type = writer.createString("comparene");
         break;
-    case VPUIP::EltwiseLayerType::LOGICAL_OR:
+    case VPU::EltwiseType::LOGICAL_OR:
         type = writer.createString("logicalor");
         break;
-    case VPUIP::EltwiseLayerType::LOGICAL_XOR:
+    case VPU::EltwiseType::LOGICAL_XOR:
         type = writer.createString("logicalxor");
         break;
     default:
-        VPUX_THROW("Unsupported EltwiseLayerType {0}", this->type());
+        VPUX_THROW("Unsupported EltwiseType {0}", this->type());
     }
 
     MVCNN::EltwiseParamsBuilder builder(writer);
@@ -102,45 +102,45 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseEltwise(mlir::OpBuilder& builder,
     VPUX_THROW_UNLESS(outputs.size() == 1, "UPAEltwise supports only 1 output, got {0}", outputs.size());
     const auto params = task->softLayerParams_as_EltwiseParams();
     const auto strType = params->operation()->str();
-    EltwiseLayerType type;
+    VPU::EltwiseType type;
     if (strType == "sum") {
-        type = EltwiseLayerType::ADD;
+        type = VPU::EltwiseType::ADD;
     } else if (strType == "prod") {
-        type = EltwiseLayerType::MULTIPLY;
+        type = VPU::EltwiseType::MULTIPLY;
     } else if (strType == "div") {
-        type = EltwiseLayerType::DIVIDE;
+        type = VPU::EltwiseType::DIVIDE;
     } else if (strType == "sqdiff") {
-        type = EltwiseLayerType::SQUARED_DIFF;
+        type = VPU::EltwiseType::SQUARED_DIFF;
     } else if (strType == "pow") {
-        type = EltwiseLayerType::POWER;
+        type = VPU::EltwiseType::POWER;
     } else if (strType == "floormod") {
-        type = EltwiseLayerType::FLOOR_MOD;
+        type = VPU::EltwiseType::FLOOR_MOD;
     } else if (strType == "min") {
-        type = EltwiseLayerType::MIN;
+        type = VPU::EltwiseType::MIN;
     } else if (strType == "max") {
-        type = EltwiseLayerType::MAX;
+        type = VPU::EltwiseType::MAX;
     } else if (strType == "logicaland") {
-        type = EltwiseLayerType::AND;
+        type = VPU::EltwiseType::AND;
     } else if (strType == "compareeq") {
-        type = EltwiseLayerType::EQUAL;
+        type = VPU::EltwiseType::EQUAL;
     } else if (strType == "comparelt") {
-        type = EltwiseLayerType::LESS;
+        type = VPU::EltwiseType::LESS;
     } else if (strType == "comparele") {
-        type = EltwiseLayerType::LESS_EQUAL;
+        type = VPU::EltwiseType::LESS_EQUAL;
     } else if (strType == "comparene") {
-        type = EltwiseLayerType::NOT_EQUAL;
+        type = VPU::EltwiseType::NOT_EQUAL;
     } else if (strType == "comparegt") {
-        type = EltwiseLayerType::GREATER;
+        type = VPU::EltwiseType::GREATER;
     } else if (strType == "comparege") {
-        type = EltwiseLayerType::GREATER_EQUAL;
+        type = VPU::EltwiseType::GREATER_EQUAL;
     } else if (strType == "logicalor") {
-        type = EltwiseLayerType::LOGICAL_OR;
+        type = VPU::EltwiseType::LOGICAL_OR;
     } else if (strType == "logicalxor") {
-        type = EltwiseLayerType::LOGICAL_XOR;
+        type = VPU::EltwiseType::LOGICAL_XOR;
     } else {
-        VPUX_THROW("Unsupported EltwiseLayerType {0}", strType);
+        VPUX_THROW("Unsupported EltwiseType {0}", strType);
     }
 
     return builder.create<VPUIP::EltwiseUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0],
-                                               EltwiseLayerTypeAttr::get(_ctx, type));
+                                               VPU::EltwiseTypeAttr::get(_ctx, type));
 }

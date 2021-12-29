@@ -17,8 +17,8 @@
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/const/attributes.td"
-include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
+include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 include "vpux/compiler/dialect/VPU/ops_interfaces.td"
 include "vpux/compiler/dialect/VPU/attributes.td"
@@ -1429,7 +1429,7 @@ def VPUIP_EltwiseUPAOp :
         F16MemRef:$input2,
         F16MemRef:$output_buff,
 
-        VPUIP_EltwiseLayerType:$type,
+        VPU_EltwiseType:$type,
 
         OptionalAttr<IntAttr>:$maxShaves
     );
@@ -1443,7 +1443,7 @@ def VPUIP_EltwiseUPAOp :
             (ins
                 "mlir::Value":$input1, "mlir::Value":$input2,
                 "mlir::Value":$output,
-                "vpux::VPUIP::EltwiseLayerTypeAttr":$type
+                "vpux::VPU::EltwiseTypeAttr":$type
             )
         >
     ];
@@ -2130,8 +2130,8 @@ def VPUIP_DPUTaskOp :
     let arguments = (ins
         I64ArrayAttr:$start,
         I64ArrayAttr:$end,
-        VPUIP_PaddingAttr:$pad,
-        VPUIP_MPEMode:$mpe_mode
+        VPU_PaddingAttr:$pad,
+        VPU_MPEMode:$mpe_mode
     );
 
     let assemblyFormat = [{
@@ -2157,7 +2157,7 @@ def VPUIP_PPETaskOp :
     let summary = "PPE Type for NCE Task";
 
     let arguments = (ins
-        VPUIP_PPELayerType:$ppe_layer_type,
+        VPU_PPEMode:$ppe_layer_type,
 
         OptionalAttr<IntAttr>:$clamp_low,
         OptionalAttr<IntAttr>:$clamp_high,
@@ -2170,14 +2170,14 @@ def VPUIP_PPETaskOp :
 
     let builders = [
         OpBuilder<(ins
-            CArg<"vpux::VPUIP::PPELayerType", "vpux::VPUIP::PPELayerType::NOOP">:$ppe_layer_type,
+            CArg<"vpux::VPU::PPEMode", "vpux::VPU::PPEMode::NOOP">:$ppe_layer_type,
             CArg<"int32_t", "std::numeric_limits<int32_t>::min()">:$clamp_low,
             CArg<"int32_t", "std::numeric_limits<int32_t>::max()">:$clamp_high,
             CArg<"int32_t", "1">:$lrelu_mult,
             CArg<"uint32_t", "0">:$lrelu_shift
         )>,
         OpBuilder<(ins
-            "vpux::VPUIP::PPELayerType":$ppe_layer_type,
+            "vpux::VPU::PPEMode":$ppe_layer_type,
             "int32_t":$clamp_low,
             "int32_t":$clamp_high,
             "int32_t":$lrelu_mult,
@@ -2242,7 +2242,7 @@ def VPUIP_NCEClusterTaskOp :
         VPUIP_NCETaskType:$task_type,
         OptionalAttr<I64ArrayAttr>:$kernel_size,
         OptionalAttr<I64ArrayAttr>:$kernel_strides,
-        OptionalAttr<VPUIP_PaddingAttr>:$kernel_padding,
+        OptionalAttr<VPU_PaddingAttr>:$kernel_padding,
         OptionalAttr<IntAttr>:$activation_window_channel_length,
         OptionalAttr<UnitAttr>:$is_continued,
         OptionalAttr<IntAttr>:$cm_sp_pattern
@@ -2264,7 +2264,7 @@ def VPUIP_NCEClusterTaskOp :
             "mlir::Value":$parent_input, "mlir::Value":$parent_output,
             "mlir::Value":$output_buff,
             "vpux::VPUIP::NCETaskType":$task_type,
-            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPUIP::PaddingAttr":$kernel_padding,
+            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPU::PaddingAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
             "mlir::UnitAttr":$is_continued,
             CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern
@@ -2275,7 +2275,7 @@ def VPUIP_NCEClusterTaskOp :
             "mlir::Value":$parent_input, "mlir::Value":$parent_output,
             "mlir::Value":$output_buff,
             "vpux::VPUIP::NCETaskType":$task_type,
-            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPUIP::PaddingAttr":$kernel_padding,
+            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPU::PaddingAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
             "mlir::UnitAttr":$is_continued,
             CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern
@@ -2304,7 +2304,7 @@ def VPUIP_NCEClusterTaskOp :
     let extraClassDeclaration = [{
         vpux::VPUIP::DPUTaskOp addDPUTask(mlir::OpBuilder& builder,
                                           mlir::ArrayAttr start, mlir::ArrayAttr end,
-                                          VPUIP::PaddingAttr pad, VPUIP::MPEMode mpeMode);
+                                          vpux::VPU::PaddingAttr pad, vpux::VPU::MPEMode mpeMode);
 
         template <typename... Args>
         vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder, Args&&... args);

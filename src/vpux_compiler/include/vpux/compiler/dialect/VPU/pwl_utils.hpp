@@ -13,12 +13,12 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 
 namespace vpux {
-namespace VPUIP {
+namespace VPU {
 
 struct QuantInfo {
     double rMin;
@@ -33,9 +33,9 @@ struct PwlQuantReqs {
     QuantInfo output;
 };
 
-extern const EnumMap<VPUIP::PPELayerType, PwlQuantReqs> pwlQuantReqs;
+extern const EnumMap<VPU::PPEMode, PwlQuantReqs> pwlQuantReqs;
 
-PwlQuantReqs getPwlQuantReqs(const VPUIP::PPELayerType ppeType);
+PwlQuantReqs getPwlQuantReqs(VPU::PPEMode ppeType);
 
-}  // namespace VPUIP
+}  // namespace VPU
 }  // namespace vpux

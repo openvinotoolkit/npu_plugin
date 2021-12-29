@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
@@ -64,7 +65,7 @@ struct ConvLayer {
     std::int64_t group = 0;
     std::int64_t dilation = 0;
     bool compress = false;
-    vpux::VPUIP::MPEMode cube_mode = vpux::VPUIP::MPEMode::CUBOID_16x16;
+    vpux::VPU::MPEMode cube_mode = vpux::VPU::MPEMode::CUBOID_16x16;
 };
 
 struct PoolLayer {
@@ -125,7 +126,7 @@ public:
     std::string getCaseStr() const {
         return caseTypeStr_;
     };
-    vpux::VPUIP::PPELayerType getPPELayerType() const {
+    vpux::VPU::PPEMode getPPELayerType() const {
         return ppeLayerType_;
     }
     MVCNN::Permutation getODUPermutation() const {
@@ -152,7 +153,7 @@ private:
     bool hasActivationLayer_;
     std::string kernelFilename_;
     std::string caseTypeStr_;
-    vpux::VPUIP::PPELayerType ppeLayerType_ = vpux::VPUIP::PPELayerType::ADD;
+    vpux::VPU::PPEMode ppeLayerType_ = vpux::VPU::PPEMode::ADD;
     MVCNN::Permutation odu_permutation_ = MVCNN::Permutation::Permutation_ZXY;
 };
 

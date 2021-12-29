@@ -208,9 +208,8 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     // NCE params
     const auto strides = getIntArrayAttr(ctx, conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
-    const auto kernelPaddings =
-            vpux::VPUIP::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
-                                        paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
+    const auto kernelPaddings = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
+                                                    paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
 
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
@@ -227,10 +226,10 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
     const auto end =
             getIntArrayAttr(ctx, std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
-    const auto pad = VPUIP::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
-                                           paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
+    const auto pad = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
+                                         paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
 
-    nceTask_0.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
+    nceTask_0.addDPUTask(functionBuilder, start, end, pad, VPU::MPEMode::CUBOID_16x16);
 
     // NCE Task 1
     auto nceTask_1 = VPURT::wrapIntoTaskOp<NCEClusterTaskOp>(
@@ -241,7 +240,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             /*activation_window_channel_length=*/nullptr,
             /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
-    nceTask_1.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
+    nceTask_1.addDPUTask(functionBuilder, start, end, pad, VPU::MPEMode::CUBOID_16x16);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, barriers[2], mlir::ValueRange(), builder.getUnknownLoc(),
                                           output1CMX.getOperation()->getResult(0), functionOutput);
