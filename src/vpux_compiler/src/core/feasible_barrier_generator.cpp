@@ -187,19 +187,6 @@ void FeasibleBarrierScheduler::saveOriginalDependency() {
     std::cout << "Removed all declare virtual barrier ops" << std::endl;
 }
 
-bool FeasibleBarrierScheduler::reached_end() const {
-    return _candidates.empty() && _heap.empty();
-}
-
-bool FeasibleBarrierScheduler::operator==(const FeasibleBarrierScheduler& o) const {
-    return reached_end() && o.reached_end();
-}
-
-void FeasibleBarrierScheduler::operator++() {
-    // Logger::global().error("Calling operator++ for Feasible Schedule generator");
-    // nextSchedulableOperation();
-}
-
 void FeasibleBarrierScheduler::pushToHeap(const HeapElement& elem) {
     _heap.push_back(elem);
     std::push_heap(_heap.begin(), _heap.end(), _heap_ordering);
