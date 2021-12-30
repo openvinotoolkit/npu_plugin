@@ -1,7 +1,17 @@
 // {% copyright %}
 
 #include "sw_tensor_ref.h"
+#include "nn_math.h"
+#include "nn_memory.h"
+#include "sw_shave_lib_common.h"
 #include <stdint.h>
+
+
+#ifdef CONFIG_TARGET_SOC_3720
+extern unsigned char actShaveData[];
+extern unsigned int actShaveDataReserved;
+#include <dma_shave_nn.h>
+#endif
 
 namespace {
 
@@ -271,7 +281,7 @@ int64_t TensorRef::strideBitsW(int64_t defaultValue) const {
     }
 }
 
-sw_params::MemRefData TensorRef::toMemRefData(sw_params::Location loc) const {
+sw_params::MemRefData TensorRef::toMemRefData(sw_params::Location loc, bool doCopy) const {
     sw_params::MemRefData ret = {
             reinterpret_cast<uint32_t>(this->addr), // dataAddr
             true, // isStatic
@@ -282,6 +292,26 @@ sw_params::MemRefData TensorRef::toMemRefData(sw_params::Location loc) const {
             static_cast<uint64_t>(ndOrder), //uint64_t dimsOrder;     // Packed permutation array.
             loc
     };
+#ifdef CONFIG_TARGET_SOC_3720
+    if (loc == sw_params::Location::NN_CMX || loc == sw_params::Location::UPA_CMX) {
+        unsigned int usedBytes = dims[ndims - 1] * strides[ndims - 1];
+        auto bytesToAllocate = nn::math::round_up_power_of_2(NN_CACHE_LINE_LENGTH, usedBytes);
+
+        if (bytesToAllocate <= SHAVE_LIB_DATA_SIZE - actShaveDataReserved) {
+            ret.dataAddr = reinterpret_cast<uint32_t>(actShaveData + actShaveDataReserved);
+            actShaveDataReserved += bytesToAllocate;
+            if (doCopy) {
+                DmaAlShave dmaTask;
+                dmaTask.start(reinterpret_cast<uint8_t*>(this->addr), reinterpret_cast<uint8_t*>(ret.dataAddr),
+                        usedBytes);
+                dmaTask.wait();
+            }
+        } else {
+            ret.location = sw_params::Location::DDR;
+        }
+    }
+#endif
+
     return ret;
 }
 

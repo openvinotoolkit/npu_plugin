@@ -156,7 +156,7 @@ public:
     int64_t strideBitsH(int64_t defaultValue = -1) const;
     int64_t strideBitsW(int64_t defaultValue = -1) const;
     subspace::LogDimIndex getLogicalC() const;
-    sw_params::MemRefData toMemRefData(sw_params::Location loc = sw_params::Location::DDR) const;
+    sw_params::MemRefData toMemRefData(sw_params::Location loc = sw_params::Location::DDR, bool doCopy = false) const;
 };
 
 } // namespace nn
