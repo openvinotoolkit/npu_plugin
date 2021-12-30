@@ -7,21 +7,15 @@
 
 module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
 
-IE.RunTimeResources
-    availableMemory : {
-        IE.MemoryResource 31457280 bytes of "DDR" {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
-        IE.MemoryResource 2097152 bytes of "CMX_NN" {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
-    }
-    usedMemory : {
-    }
-    executors : {
-        IE.ExecutorResource 1 of "DMA_NN"
-        IE.ExecutorResource 1 of  "SHAVE_NN"
-        IE.ExecutorResource 1 of  "SHAVE_ACT"
-        IE.ExecutorResource 1 of  "NCE" {
-            IE.ExecutorResource 1 of "DPU"
-        }
-    }
+IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
+IE.MemoryResource 2097152 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
+
+IE.ExecutorResource 1 of @DMA_NN
+IE.ExecutorResource 1 of @SHAVE_UPA
+IE.ExecutorResource 1 of @SHAVE_ACT
+IE.ExecutorResource 1 of @NCE {
+    IE.ExecutorResource 1 of @DPU
+}
 
 IE.CNNNetwork
     entryPoint : @main
@@ -62,14 +56,14 @@ module @VPU.SW {
 
 func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
-    %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "CMX_NN">
-    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "CMX_NN">
+    %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, @CMX_NN>
+    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, @CMX_NN>
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
 
     VPURT.Task updates(%b0 : !VPURT.Barrier) {
-        VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) -> memref<1x1x1x1000xf16, "CMX_NN">
+        VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, @CMX_NN>) -> memref<1x1x1x1000xf16, @CMX_NN>
     }
 
     // Genetic Kernel information for the scheduler.
@@ -77,27 +71,27 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
     %elu_krn =
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_elu            // The reference to the Kernel function.
-                    inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">)     // Inputs/outputs buffers for generic operation interface
-                    outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">)   // and their mapping to inner region.
+                    inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, @CMX_NN>)     // Inputs/outputs buffers for generic operation interface
+                    outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, @CMX_NN>)   // and their mapping to inner region.
                     on tile 0                           // The tile index to execute on.
 
-        -> memref<1x1x1x1000xf16, "CMX_NN"> {
+        -> memref<1x1x1x1000xf16, @CMX_NN> {
 
-            ^bb0(%arg0 : memref<1x1x1x1000xf16, "CMX_NN">, %arg1 : memref<1x1x1x1000xf16, "CMX_NN">):
+            ^bb0(%arg0 : memref<1x1x1x1000xf16, @CMX_NN>, %arg1 : memref<1x1x1x1000xf16, @CMX_NN>):
                 // Inner region, isolated from above, which holds the information about arguments mapping.
                 // We can use constant scalars/arrays definitions here.
                 %alpha = arith.constant 0.0e-01 : f32
 
                 // The arguments mapping, the order must match the kernel parameter structure.
                 VPUIP.SW.Kernel.run(%arg0, %arg1, %alpha)
-                    : memref<1x1x1x1000xf16, "CMX_NN">
-                    , memref<1x1x1x1000xf16, "CMX_NN">
+                    : memref<1x1x1x1000xf16, @CMX_NN>
+                    , memref<1x1x1x1000xf16, @CMX_NN>
                     , f32
         }
     }
 
     VPURT.Task waits(%b1 : !VPURT.Barrier) {
-        %0 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "CMX_NN">) outputs(%2 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+        %0 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%2 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
     return %2: memref<1x1x1x1000xf16>
 
@@ -255,7 +249,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                kernelText: {
 // CHECK:                  name: "builtin_elu",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  referenced_data_size: 1552
+// CHECK:                  referenced_data_size: 880
 // CHECK:                }
 // CHECK:              },
 // CHECK:              invocations: [
