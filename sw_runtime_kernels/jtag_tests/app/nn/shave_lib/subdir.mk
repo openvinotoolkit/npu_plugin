@@ -20,7 +20,8 @@ sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/ShaveElfMetadata/*.c*)
 
 srcs-lrt-$(CONFIG_HAS_LRT_SRCS) += $(sys-nn-shave-lib-leon-srcs)
 
-srcs-shave-y += $(wildcard src/2490/layers/pre_*.c*)
+srcs-shave-$(CONFIG_TARGET_SOC_MA2490) += src/pre_custom_cpp.cpp
+srcs-lrt-$(CONFIG_TARGET_3720) += src/pre_custom_cpp.cpp
 
 ccopt-lrt-$(CONFIG_ENABLE_CUSTOM_KERNEL_PERF_COUNTERS) += -DENABLE_CUSTOM_KERNEL_PERF_COUNTERS
 ccopt-lnn-$(CONFIG_ENABLE_CUSTOM_KERNEL_PERF_COUNTERS) += -DENABLE_CUSTOM_KERNEL_PERF_COUNTERS

@@ -28,8 +28,9 @@ using namespace nn::shave_lib;
 #include "ShaveElfMetadata/ShaveElfMetadataParser.h"
 #ifdef CONFIG_TARGET_SOC_3720
 #include <sw_nn_runtime_types_3600.h>
-extern void*  (shvNN0_preCustomLayerCpp);
-extern void*  (shvNN0_custom_cpp);
+//extern void*  (shvNN0_preCustomLayerCpp);
+//extern void*  (shvNN0_custom_cpp);
+void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr);
 #else
 #include <sw_nn_runtime_types_2490.h>
 #include "svuSLKernels_EP.h"
@@ -146,7 +147,8 @@ bool CustomCpp::parse(Layer * layer) {
                      static_cast<LayerParams *>(params));
 
 #ifdef CONFIG_TARGET_SOC_3720
-    layer->setPreamble(reinterpret_cast<preamble>(&shvNN0_preCustomLayerCpp));
+// TODO:  just call preamble here
+//    layer->setPreamble(reinterpret_cast<preamble>(&shvNN0_preCustomLayerCpp));
 //    layer->setKernelEntry(reinterpret_cast<void (*)(void*)>(&shvNN0_custom_cpp));
 #else
     layer->setPreamble(PREAMBLE_FUNC(preCustomLayerCpp));

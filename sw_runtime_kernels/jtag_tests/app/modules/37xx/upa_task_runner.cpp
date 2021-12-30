@@ -197,7 +197,12 @@ bool UPATaskRunner::enqueTask(Op * operation,
     for (int i = 0; i < tmp[0]; i++) {
         printf( "\t\t%d) %d 0x%x\n", i, tmp[i], tmp[i]);
     }
+
+
+    _enqued = true;
     return true;
+
+
     memset(&sl, 0, sizeof(sl));
     memset(&layer, 0, sizeof(layer));
 
@@ -269,7 +274,7 @@ bool UPATaskRunner::enqueTask(Op * operation,
 //
 //    perfData->elapsedTimeNs = timer.elapsedNs();
 //
-//    _enqued = true;
+    _enqued = true;
 
     return true;
 }
