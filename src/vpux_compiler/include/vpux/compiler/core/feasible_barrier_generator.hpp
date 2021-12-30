@@ -225,7 +225,6 @@ public:
     void init();
     bool doesOpRunOnNCE(mlir::Operation* op);
 
-    mlir::Operation*& operator*();
     size_t currentTime() const;
     const resource_state_t& resourceState() const;
     bool isValidOp(schedulable_ops_iterator_t itr) const;
