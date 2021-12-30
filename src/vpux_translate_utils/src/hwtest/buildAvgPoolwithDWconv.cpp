@@ -174,14 +174,14 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), loc,
                                           weight_data_ddr, wtData_cmx.getOperation()->getResult(0));
 
-    const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
+    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(
             VPUIP::NCETaskType::DWCONV, ShapeRef(filter_size), stride_vec[1],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                                         : inputType,
             in_shape[1]);
     mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
 
-    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(
             VPUIP::NCETaskType::DWCONV, ShapeRef(filter_size), stride_vec[1],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                                         : inputType,
