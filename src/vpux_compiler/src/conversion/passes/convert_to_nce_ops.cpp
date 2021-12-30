@@ -370,11 +370,13 @@ mlir::LogicalResult ChannelMajorConvRewrite::matchAndRewrite(IERT::ConvolutionOp
     const auto bitPatternSize =
             VPU::NCESparsity::getBitPatternSize(VPUIP::NCETaskType::CMCONV, kernelSize,
                                                 kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC);
-
+    Logger::global().error("bitPatternSize size: {0}", bitPatternSize);
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
+    Logger::global().error("actWindowChanLen size: {0}", actWindowChanLen);
     const auto fakeSparsity =
             VPU::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::CMCONV, kernelSize, kernelStrides[Dims4D::Strides::X],
                                               origInputType.getElementType(), IC, OC);
+    Logger::global().error("fakeSparsity size: {0}", fakeSparsity.size());
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
 
     //
