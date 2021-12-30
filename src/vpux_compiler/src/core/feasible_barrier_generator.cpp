@@ -336,15 +336,6 @@ FeasibleBarrierScheduler::schedulable_ops_iterator_t FeasibleBarrierScheduler::f
     return itr;
 }
 
-mlir::Operation*& FeasibleBarrierScheduler::operator*() {
-    Logger::global().error("Calling FeasibleBarrierScheduler::operator*()");
-    if (!_schedulable_op)
-        std::runtime_error("Feasible_Schedule_Generator: Null ptr dereference");
-
-    Logger::global().error("Returning operation {0}", getUniqueID(_schedulable_op));
-    return _schedulable_op;
-}
-
 size_t FeasibleBarrierScheduler::currentTime() const {
     return _current_time;
 }
