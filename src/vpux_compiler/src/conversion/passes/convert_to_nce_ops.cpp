@@ -459,9 +459,6 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     }
     const auto arch = VPU::getArch(origOp);
 
-    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
-    Logger::global().error("inDimsOrder to convolution: {0} ", inDimsOrder);
-
     bool isChannelMajorConvolution = VPUIP::isChannelMajorCompatibleOperation(origOp.getOperation(), arch);
 
     if (isChannelMajorConvolution) {
