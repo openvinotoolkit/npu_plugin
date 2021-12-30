@@ -1,15 +1,16 @@
 // {% copyright %}
 
-#ifdef CONFIG_TARGET_SOC_3720
+//#ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
 #include "sk.nnActEntry.3010xx.text.xdat"
 void * sk_nnActEntry_3010xx_text_ref = (void*)sk_nnActEntry_3010xx_text;
-#endif
+//#endif
 //extern void*  (shvNN0_act_shave_runtime_shaveMain);
 //extern void const *shvNN0_nnActEntry;
 
 
 #include <sw_nn_runtime_types.h>
+#include <sw_shave_lib_common.h>
 #include <HglShaveCommon.h>
 #include "upa_task_runner.hpp"
 //#include "act_shave_dispatcher.h"
@@ -23,6 +24,8 @@ void * sk_nnActEntry_3010xx_text_ref = (void*)sk_nnActEntry_3010xx_text;
 //volatile u32 __attribute__((section(".nncmx.data0"))) shaveErrors;
 
 
+unsigned char __attribute__((section(".nncmx0.shared.data"), aligned(64))) actShaveData[SHAVE_LIB_DATA_SIZE];
+unsigned int actShaveDataReserved = 0;
 
 
 namespace {
@@ -81,6 +84,8 @@ bool UPATaskRunner::enqueTask(Op * operation,
                               const std::vector<OpTensor> &outputs,
                               int /*numSHAVEs*/,
                               PerformanceData *perfData) {
+
+    actShaveDataReserved = 0;
 
 //    static std::shared_ptr<nn::act_shave_lib::ACTShaveDispatcher> actDisp;
     HglShaveAccessAllowed[1] = false;
@@ -197,7 +202,12 @@ bool UPATaskRunner::enqueTask(Op * operation,
     for (int i = 0; i < tmp[0]; i++) {
         printf( "\t\t%d) %d 0x%x\n", i, tmp[i], tmp[i]);
     }
+
+
+    _enqued = true;
     return true;
+
+
     memset(&sl, 0, sizeof(sl));
     memset(&layer, 0, sizeof(layer));
 
@@ -269,7 +279,7 @@ bool UPATaskRunner::enqueTask(Op * operation,
 //
 //    perfData->elapsedTimeNs = timer.elapsedNs();
 //
-//    _enqued = true;
+    _enqued = true;
 
     return true;
 }
