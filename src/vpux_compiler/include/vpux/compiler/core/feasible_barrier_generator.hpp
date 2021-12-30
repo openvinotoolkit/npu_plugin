@@ -131,10 +131,10 @@ public:
         producers_t producers_;
     };
 
-    typedef mlir::Operation const* operation_t;
-    typedef std::unordered_map<operation_t, barrierInfo> active_barrier_map_t;
-    typedef size_t resource_t;
-    typedef std::unordered_map<size_t, barrierTransitionStructure> barrierAssociationTable;
+    using operation_t = mlir::Operation*;
+    using active_barrier_map_t = std::unordered_map<operation_t, barrierInfo>;
+    using resource_t = size_t;
+    using barrierAssociationTable = std::unordered_map<size_t, barrierTransitionStructure>;
     using delay_t = size_t;
     using schedulable_ops_t = std::list<mlir::Operation*>;
     using schedulable_ops_iterator_t = typename schedulable_ops_t::iterator;
