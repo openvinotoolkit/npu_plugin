@@ -206,7 +206,6 @@ public:
 
     FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log);
 
-    void operator++();
     void initResourceState(size_t numberOfBarriers, size_t maxProducersPerBarrier);
     bool isResourceAvailable(const resource_t& demand);
     bool scheduleOperation(mlir::Operation*& op, resource_t demand);
@@ -221,8 +220,6 @@ public:
     HeapElement popFromHeap();
     void saveOriginalDependency();
 
-    bool operator==(const FeasibleBarrierScheduler& o) const;
-    bool reached_end() const;
     bool scheduleOperations();
     bool schedule(size_t numberOfBarriers, size_t maxProducersPerBarrier);
     void init();
