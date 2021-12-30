@@ -179,7 +179,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     spilling.insertSpillCopyOps(scheduledOps);
 
     // 5. update dependencies
-    FeasibleMemorySchedulerControlEdges controlEdges(_memSpace, depsInfo, _log);
+    FeasibleMemorySchedulerControlEdges controlEdges(_memSpace, depsInfo, aliasesInfo, _log, scan);
     // controlEdges.insertDependenciesBasic(scheduledOps); // Old method, maintained only for debug
     controlEdges.insertMemoryControlEdges(scheduledOps);
 

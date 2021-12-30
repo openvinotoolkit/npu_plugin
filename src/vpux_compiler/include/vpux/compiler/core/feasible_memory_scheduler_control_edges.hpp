@@ -30,7 +30,9 @@ namespace vpux {
 //
 class FeasibleMemorySchedulerControlEdges final {
 public:
-    explicit FeasibleMemorySchedulerControlEdges(mlir::Attribute memSpace, AsyncDepsInfo& depsInfo, Logger log);
+    explicit FeasibleMemorySchedulerControlEdges(mlir::Attribute memSpace, AsyncDepsInfo& depsInfo,
+                                                 AliasesInfo& aliasInfo, Logger log,
+                                                 LinearScan<mlir::Value, LinearScanHandler>& scan);
 
     // Based on scheduler output insert dependencies from all tasks in time t
     // to all tasks in time t+1
@@ -47,6 +49,10 @@ private:
     mlir::Attribute _memSpace;
     // dependencies of ops
     AsyncDepsInfo& _depsInfo;
+    // aliases information for buffers
+    AliasesInfo& _aliasInfo;
+    // allocator class
+    LinearScan<mlir::Value, LinearScanHandler>& _scan;
 };
 
 }  // namespace vpux

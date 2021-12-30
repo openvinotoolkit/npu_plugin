@@ -26,9 +26,10 @@ using namespace vpux;
 // Feasible Memory Scheduler Control Edges support
 //
 
-FeasibleMemorySchedulerControlEdges::FeasibleMemorySchedulerControlEdges(mlir::Attribute memSpace,
-                                                                         AsyncDepsInfo& depsInfo, Logger log)
-        : _log(log), _memSpace(memSpace), _depsInfo(depsInfo) {
+FeasibleMemorySchedulerControlEdges::FeasibleMemorySchedulerControlEdges(
+        mlir::Attribute memSpace, AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo, Logger log,
+        LinearScan<mlir::Value, LinearScanHandler>& scan)
+        : _log(log), _memSpace(memSpace), _depsInfo(depsInfo), _aliasInfo(aliasInfo), _scan(scan) {
     _log.setName("feasible-memory-scheduler-control-edges");
 }
 
@@ -94,18 +95,55 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
         VPUX_THROW_UNLESS(scheduledOp.opType_ == FeasibleMemoryScheduler::EOpType::ORIGINAL_OP,
                           "Invlid operation identified for control edge insertion");
 
-        // Since operations can have multiple outputs create separate entry for
-        // each resource for the same op
-        for (size_t resourceIdx = 0; resourceIdx < scheduledOp.numOfResources(); resourceIdx++) {
-            auto rbegin = scheduledOp.beginResource(resourceIdx);
-            auto rend = scheduledOp.endResource(resourceIdx) - 1;
-            scheduledOpsResources.push_back(ScheduledOpOneResource(scheduledOp.op_, rbegin, rend));
+        // buffers used by operation, both inputs adnd outputs
+        mlir::DenseSet<mlir::Value> operationBuffers;
+
+        // Get operation input buffers
+        auto execOp = _depsInfo.getExecuteOpAtIndex(scheduledOp.op_);
+
+        auto* bodyBlock = &execOp.body().front();
+        for (auto& innerOp : bodyBlock->getOperations()) {
+            if (!mlir::isa<IERT::LayerOpInterface>(innerOp)) {
+                continue;
+            }
+
+            for (const auto& operand : innerOp.getOperands()) {
+                const auto type = operand.getType().dyn_cast<mlir::MemRefType>();
+                if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                    continue;
+                }
+
+                auto rootBuffers = _aliasInfo.getRoots(operand);
+                VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}",
+                                  operand, rootBuffers.size());
+                auto rootBuffer = *rootBuffers.begin();
+                operationBuffers.insert(rootBuffer);
+            }
         }
+
+        // Get operation output buffers
+        for (size_t resourceIdx = 0; resourceIdx < scheduledOp.numOfResources(); resourceIdx++) {
+            operationBuffers.insert(scheduledOp.getBuffer(resourceIdx));
+        }
+
+        for (auto& buf : operationBuffers) {
+            auto addressStart = _scan.handler().getAddress(buf);
+            auto addressEnd = addressStart + _scan.handler().getSize(buf) - 1;
+            scheduledOpsResources.push_back(ScheduledOpOneResource(scheduledOp.op_, addressStart, addressEnd));
+        }
+
+        // // Since operations can have multiple outputs create separate entry for
+        // // each resource for the same op
+        // for (size_t resourceIdx = 0; resourceIdx < scheduledOp.numOfResources(); resourceIdx++) {
+        //     auto rbegin = scheduledOp.beginResource(resourceIdx);
+        //     auto rend = scheduledOp.endResource(resourceIdx) - 1;
+        //     scheduledOpsResources.push_back(ScheduledOpOneResource(scheduledOp.op_, rbegin, rend));
+        // }
     }
 
     // for (auto& scheduledOpResource : scheduledOpsResources) {
-    //     _log.trace("op - {0} time - {1} res {2} - {3}", scheduledOpResource.op_, scheduledOpResource.scheduleTime_,
-    //                scheduledOpResource.addressStart_, scheduledOpResource.addressEnd_);
+    //     _log.trace("op - {0} res {1} - {2}", scheduledOpResource._op, scheduledOpResource._addressStart,
+    //                scheduledOpResource._addressEnd);
     // }
 
     ControlEdgeSet controlEdges;
