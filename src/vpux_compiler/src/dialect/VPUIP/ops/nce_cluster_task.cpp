@@ -235,7 +235,9 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
         const auto inOrder = DimsOrder::fromValue(op.getInputs()[0]);
         const auto outputOrder = DimsOrder::fromValue(op.getOutputs()[0]);
 
-        if (inOrder != DimsOrder::NCHW || outputOrder != DimsOrder::NHWC) {
+        Logger::global().error("inOrder: {0} , outputOrder {1)", inOrder, outputOrder);
+
+        if (arch == VPU::ArchKind::KMB && (inOrder != DimsOrder::NCHW || outputOrder != DimsOrder::NHWC)) {
             return errorAt(op,
                            "For channel major convolution layout must be NCHW for input and NHWC for output, got input "
                            "{0} and output {1]",
