@@ -331,7 +331,7 @@ std::vector<uint8_t> vpux::VPU::NCESparsity::getFakeSparsity(VPUIP::NCETaskType 
         const auto windowSparsitySize = std::ceil(windowSize / 8.0);
         const auto numberOfRowsSparsityBytes =
                 std::ceil((kernelSize[Dims4D::Kernel::X] * IC * windowSparsitySize) / 16.0);
-        perChannelSparsity.resize(numberOfRowsSparsityBytes * 16);
+        perChannelSparsitySize = (numberOfRowsSparsityBytes * 16);
     } else if (taskType == VPUIP::NCETaskType::DWCONV || taskType == VPUIP::NCETaskType::AVEPOOL ||
                taskType == VPUIP::NCETaskType::MAXPOOL) {
         perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPattern.size() / 128.0) * 16);
