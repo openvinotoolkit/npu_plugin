@@ -179,6 +179,13 @@ void FeasibleAllocationPass::safeRunOnModule() {
     spilling.insertSpillCopyOps(scheduledOps);
 
     // 5. update dependencies
+    // mateusz:
+    // Recreate aliasesInfo after spill insertion to get updated information about
+    // root buffers of affected spill result users.
+    // TODO: Maybe it would be possible to update aliases just for spill result users during spill insertion
+    //       instead of recteating whole aliasesInfo object from scratch
+    //       New method in AliasesInfo class would be needed to support such update scenario
+    aliasesInfo = AliasesInfo{netFunc};
     FeasibleMemorySchedulerControlEdges controlEdges(_memSpace, depsInfo, aliasesInfo, _log, scan);
     // controlEdges.insertDependenciesBasic(scheduledOps); // Old method, maintained only for debug
     controlEdges.insertMemoryControlEdges(scheduledOps);
