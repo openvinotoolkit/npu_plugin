@@ -99,7 +99,7 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
         // buffers used by operation, both inputs adnd outputs
         mlir::DenseSet<mlir::Value> operationBuffers;
 
-        // Get operation input buffers
+        // Get operation buffers for all operands
         auto execOp = _depsInfo.getExecuteOpAtIndex(scheduledOp.op_);
 
         auto* bodyBlock = &execOp.body().front();
@@ -122,10 +122,10 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
             }
         }
 
-        // Get operation output buffers
-        for (size_t resourceIdx = 0; resourceIdx < scheduledOp.numOfResources(); resourceIdx++) {
-            operationBuffers.insert(scheduledOp.getBuffer(resourceIdx));
-        }
+        // // Get operation output buffers
+        // for (size_t resourceIdx = 0; resourceIdx < scheduledOp.numOfResources(); resourceIdx++) {
+        //     operationBuffers.insert(scheduledOp.getBuffer(resourceIdx));
+        // }
 
         for (auto& buf : operationBuffers) {
             auto addressStart = _scan.handler().getAddress(buf);
