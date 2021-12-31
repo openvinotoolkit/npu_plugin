@@ -23,8 +23,8 @@ union Hex {
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Elu)) {
     static constexpr std::initializer_list<SingleTest> elu_test_list{
-            {{2, 2, 2},
-             {2, 2, 2},
+            {{4, 4, 4},
+             {4, 4, 4},
              orderZYX,
              FPE("elu.elf"),
              {{
@@ -67,7 +67,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Elu)) {
 
         void initTestCase() override {
             m_currentTest = &m_testsLoop.value();
-            m_test_threshold = 0.0005f;
+            m_test_threshold = 0.008f;
         }
 
         void generateInputData() override {
@@ -77,15 +77,29 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Elu)) {
             m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(elu_fp16));
 #endif
 
-            const int ndims = m_inputTensor.ndims();
+            const auto il = m_inputTensor.tensorLimits();
             m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
-                int tmp = 1;
-                for (int i = 0; i < ndims; ++i)
-                    tmp *= (3 + (indices.dims[i] % 13));
-                int tmp2 = (tmp % 33) - 14;
-                fp16 val = f32Tof16((float)tmp2);
+                const TensorDims ti = m_inputTensor.toTensor(indices);
 
-                m_inputTensor.at(indices) = f32Tof16(val);
+                int index = m_inputTensor.index(indices);
+
+                int cval = ti.channels - il.channels / 2;
+                int wval = ti.width - il.width / 2;
+                int hval = ti.height - il.height / 2;
+
+		cval = cval >= 0 ? cval : -cval;
+		wval = wval >= 0 ? wval : -wval;
+		hval = hval >= 0 ? hval : -hval;
+		int c_mod = cval % 11;
+		int w_mod = wval % 13;
+		int h_mod = hval % 17;
+
+		float tmp = (float)(c_mod * w_mod * h_mod) / 100.f;
+                if (index % 3)
+                    tmp = -tmp;
+                fp16 val = f32Tof16(tmp);
+
+                m_inputTensor.at(indices) = val;
             });
             // reference output
             generateReferenceData();

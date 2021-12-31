@@ -57,7 +57,6 @@ if [ $? -ne 0 ]; then echo $'\nExtracting of sk.elu_fp16.${cpu}.data failed exit
 cd ${KERNEL_DIR}/prebuild/act_shave_bin
 if [ $? -ne 0 ]; then echo $'\nCan not cd to \"$${KERNEL_DIR}/prebuild/act_shave_bin\"\n'; exit $?; fi
 xxd -i sk.elu_fp16.3010xx.text ../sk.elu_fp16.3010xx.text.xdat
-#xxd -i sk.elu_fp16.3010xx.text sk.elu_fp16.3010xx.text.xdat
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of text segment failed $?\n'; cd -; exit $?; fi
 xxd -i sk.elu_fp16.3010xx.data ../sk.elu_fp16.3010xx.data.xdat
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of data segment failed $?\n'; cd -; exit $?; fi

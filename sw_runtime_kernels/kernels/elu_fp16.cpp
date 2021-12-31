@@ -68,7 +68,7 @@ void elu_fp16(uint32_t lParamsAddr) {
         half8 min = __builtin_shave_cmu_min_f16_rr_half8(p_act_data[i], zero);
         half8 max = __builtin_shave_cmu_max_f16_rr_half8(p_act_data[i], zero);
 
-        half8 vIn = min/* * vinv_ln2*/;
+        half8 vIn = min;
         half8 vOut;
         exp_vec(vIn, vOut);
 
