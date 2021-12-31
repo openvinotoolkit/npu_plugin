@@ -95,7 +95,7 @@ bool vpux::PrefetchEdgeGenerator::canDataOpBePrefetched(ScheduledOpInfo* dataOp)
     }
 
     // if op has no active resources
-    if (!dataOp->hasActiveResource()) {
+    if (!dataOp->hasActiveOutputResource()) {
         return false;
     }
 
@@ -147,7 +147,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
 
     while (computeOp != _scheduledOps.end()) {
         // find compute op
-        if (!computeOp->isDataOp() && computeOp->hasActiveResource() && !isEltwiseOp(computeOp)) {
+        if (!computeOp->isDataOp() && computeOp->hasActiveOutputResource() && !isEltwiseOp(computeOp)) {
             // find first possible data op to overlap with the compute
             currentComputeOpLevel = 1;
             // NOTE: data op must be after compute
@@ -160,7 +160,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
             // iterate over the following ops
             while (dataOp != _scheduledOps.end()) {
                 // 1. verify prefetching constraints met, if not move to next compute
-                if (!dataOp->isDataOp() && dataOp->hasActiveResource() && !isEltwiseOp(dataOp) &&
+                if (!dataOp->isDataOp() && dataOp->hasActiveOutputResource() && !isEltwiseOp(dataOp) &&
                     computeOp->resourceSize() > 256) {
                     ++currentComputeOpLevel;
                 }
@@ -175,7 +175,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                     // retrieve max free size to data op
                     auto temp = computeOp;
                     while (temp != dataOp && temp->time_ < dataOp->time_) {
-                        if (!temp->isDataOp() && temp->hasActiveResource()) {
+                        if (!temp->isDataOp() && temp->hasActiveOutputResource()) {
                             maxFreeSize = std::min(maxFreeSize, temp->freeCmx_);
                         }
                         ++temp;
@@ -215,7 +215,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                             // update free size for all compute ops to the prefetch op
                             auto temp = computeOp;
                             while (temp != dataOp && temp->time_ < dataOp->time_) {
-                                if (!temp->isDataOp() && temp->hasActiveResource()) {
+                                if (!temp->isDataOp() && temp->hasActiveOutputResource()) {
                                     temp->freeCmx_ -= dataOpSize;
                                 }
                                 ++temp;
