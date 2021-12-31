@@ -135,7 +135,7 @@ void FeasibleMemorySchedulerSpilling::optimizeDataOpsSpills(
 
             bool isBufferUsedAsArgument = false;
             bool isBufferUsedAsResult = false;
-            auto buffer = scheduledOps[origOrSpillReadOpIndex].getBuffer(0);
+            auto buffer = scheduledOps[origOrSpillReadOpIndex].getOutputBuffer(0);
             for (size_t schedOpIdx = origOrSpillReadOpIndex + 1; schedOpIdx < nextSpillWriteOpIndex; schedOpIdx++) {
                 // TODO: Maybe it would make sense to create a geenric utility function
                 // to check if a given buffer is used as a operation input or output
@@ -239,7 +239,7 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
             for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
                  spillWriteIndexIt++) {
                 if (scheduledOps[*spillWriteIndexIt].op_ == op.op_ &&
-                    scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
+                    scheduledOps[*spillWriteIndexIt].getInputBuffer(0) == op.getInputBuffer(0)) {
                     // If op and buffer match then duplicate was detected
                     duplicateSpillWriteIndexes.push_back(index);
                     _log.nest().trace(
@@ -657,7 +657,7 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::Value buff
 void FeasibleMemorySchedulerSpilling::createSpillWrite(
         SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
     auto& schedOp = scheduledOps[schedOpIndex];
-    auto schedOpBuffer = schedOp.getBuffer(0);
+    auto schedOpBuffer = schedOp.getInputBuffer(0);
     _log = _log.nest();
     _log.trace("Create Spill Write for buffer - '{0}'", schedOpBuffer);
 
@@ -684,8 +684,8 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
         _log.trace("Actual buffer for Spill Write - '{0}'", spillBuffer);
     }
 
-    auto spillWriteExecOp =
-            insertSpillWriteCopyOp(opThatWasSpilled, spillWriteInsertionPoint, spillBuffer, schedOp.beginResource(0));
+    auto spillWriteExecOp = insertSpillWriteCopyOp(opThatWasSpilled, spillWriteInsertionPoint, spillBuffer,
+                                                   schedOp.beginInputResource(0));
     _opIdAndSpillWritePairs.push_back({schedOpBuffer, spillWriteExecOp});
 
     size_t spillWriteIndex = _depsInfo.getIndex(spillWriteExecOp);
@@ -695,7 +695,6 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
     // scheduled ops structure
     schedOp.opType_ = FeasibleMemoryScheduler::EOpType::ORIGINAL_OP;
     schedOp.op_ = spillWriteIndex;
-    schedOp.resourceInfo_[0].invalidate();
     _log = _log.unnest();
 }
 
@@ -703,7 +702,7 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
 void FeasibleMemorySchedulerSpilling::createSpillRead(
         SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
     auto& schedOp = scheduledOps[schedOpIndex];
-    auto schedOpBuffer = schedOp.getBuffer(0);
+    auto schedOpBuffer = schedOp.getOutputBuffer(0);
     _log = _log.nest();
     _log.trace("Create Spill Read for buffer - '{0}'", schedOpBuffer);
     // Get spillWrite operation for the given spillRead to properly
@@ -740,7 +739,7 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
         _log.trace("Actual buffer for Spill Read - '{0}'", spillBuffer);
     }
     auto spillReadExecOp = insertSpillReadCopyOp(opThatWasSpilled, spillBuffer, spillWriteExecOp,
-                                                 spillReadInsertionPoint, schedOp.beginResource(0));
+                                                 spillReadInsertionPoint, schedOp.beginOutputResource(0));
 
     // After both SpillWrite and SpillRead are inserted update connections
     updateSpillWriteReadUsers(spillBuffer, spillWriteExecOp, spillReadExecOp);
@@ -752,8 +751,9 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
     // update them to refer to new spillRead operation
     for (size_t i = schedOpIndex + 1; i < scheduledOps.size(); i++) {
         auto& otherSchedOp = scheduledOps[i];
-        if (otherSchedOp.op_ == schedOp.op_ && (otherSchedOp.isSpillWrite() || otherSchedOp.isSpillRead()) &&
-            otherSchedOp.getBuffer(0) == schedOpBuffer) {
+        if (otherSchedOp.op_ == schedOp.op_ &&
+            ((otherSchedOp.isSpillWrite() && otherSchedOp.getInputBuffer(0) == schedOpBuffer) ||
+             (otherSchedOp.isSpillRead() && otherSchedOp.getOutputBuffer(0) == schedOpBuffer))) {
             otherSchedOp.op_ = spillReadIndex;
         }
     }
