@@ -46,9 +46,9 @@ void FeasibleMemorySchedulerControlEdges::insertDependenciesBasic(
             continue;
         }
 
-        if (!opIt->hasActiveResource()) {
-            continue;
-        }
+        // if (!opIt->hasActiveResource()) {
+        //     continue;
+        // }
 
         size_t nextTimeDiff = 0;
         for (auto nextTimeOpIt = opIt; nextTimeOpIt != scheduledOps.end(); nextTimeOpIt++) {
@@ -64,6 +64,7 @@ void FeasibleMemorySchedulerControlEdges::insertDependenciesBasic(
                     // time t+1
                     auto srcAsyncOp = _depsInfo.getExecuteOpAtIndex(opIt->op_);
                     auto dstAsyncOp = _depsInfo.getExecuteOpAtIndex(nextTimeOpIt->op_);
+                    _log.trace("Dep: {0} -> {1}", opIt->op_, nextTimeOpIt->op_);
                     VPUX_THROW_UNLESS((srcAsyncOp != nullptr) && (dstAsyncOp != nullptr),
                                       "srcAsyncOp/dstAsyncOp not located based on index");
                     _depsInfo.addDependency(srcAsyncOp, dstAsyncOp);
@@ -88,9 +89,9 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
     // operations with their resource and time as needed by control edge
     // generation algorithm
     for (auto& scheduledOp : scheduledOps) {
-        if (!scheduledOp.hasActiveResource()) {
-            continue;
-        }
+        // if (!scheduledOp.hasActiveResource()) {
+        //     continue;
+        // }
 
         VPUX_THROW_UNLESS(scheduledOp.opType_ == FeasibleMemoryScheduler::EOpType::ORIGINAL_OP,
                           "Invlid operation identified for control edge insertion");
