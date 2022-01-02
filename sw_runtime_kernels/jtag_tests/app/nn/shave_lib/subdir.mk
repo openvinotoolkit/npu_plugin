@@ -10,8 +10,8 @@ kmb_or_tbh = y
 endif
 
 ifdef kmb_or_tbh
-include-dirs-lrt-$(CONFIG_HAS_LRT_SRCS) += inc
-include-dirs-lrt-$(CONFIG_HAS_LRT_SRCS) += inc/layers
+include-dirs-lrt-y += inc ../inc
+include-dirs-lrt-y += inc/layers ../inc/layers
 
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/*.c*)
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/layers/parser_*.c*)
