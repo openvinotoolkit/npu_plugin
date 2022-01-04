@@ -26,7 +26,7 @@ namespace vpux {
 namespace VPURT {
 
 struct opResourceState;
-class FeasibleBarrierScheduler {
+class FeasibleBarrierScheduler final {
 public:
     struct task_operation_comparator_by_schedule_time_t {
         bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
