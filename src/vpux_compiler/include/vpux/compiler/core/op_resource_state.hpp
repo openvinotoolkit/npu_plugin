@@ -107,20 +107,6 @@ struct op_resource_state_t {
 typedef op_resource_state_t resource_state_t;
 
 typedef size_t schedule_time_t;
-struct schedule_info_t {
-    schedule_time_t schedule_time_;
-    operation_t op_;
-    size_t barrier_index_;
-    size_t slot_count_;
-}; /*struct schedule_info_t*/
-
-struct barrier_scheduler_traits {
-    // typedef op_resource_state_t resource_state_t;
-
-    static void initialize_resource_state(const resource_state_t& start_state, resource_state_t& state) {
-        state.init(start_state);
-    }
-};
 
 }  // namespace VPURT
 }  // namespace vpux
