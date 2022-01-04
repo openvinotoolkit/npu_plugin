@@ -13,7 +13,7 @@
 
 #include "vpux/compiler/core/feasible_barrier_generator.hpp"
 
-using namespace vpux;
+using namespace vpux::VPURT;
 
 FeasibleBarrierScheduler::barrierTransitionStructure::barrierTransitionStructure(
         mlir::FuncOp func, FeasibleBarrierScheduler& feasibleBarrierScheduler, schedule_time_t time)
