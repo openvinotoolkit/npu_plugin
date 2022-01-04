@@ -283,8 +283,8 @@ public:
 
             // mlir::OpBuilder builder(_func.getBody());
             // builder.setInsertionPointAfter(Operation *op);
-            auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc(),
-                                                                             barrier_task_id);  // Neds to be virtual.
+            auto newBarrier =
+                    builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc());  // Neds to be virtual.
 
             std::set<mlir::Operation*, task_operation_comparator_t> newBarrierProducers{};
             std::set<mlir::Operation*, task_operation_comparator_t> newBarrierConsumers{};
