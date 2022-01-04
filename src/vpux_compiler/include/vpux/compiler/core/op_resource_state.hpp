@@ -19,6 +19,8 @@
 
 namespace vpux {
 
+namespace VPURT {
+
 static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
 
 typedef mlir::Operation const* operation_t;
@@ -119,4 +121,5 @@ struct barrier_scheduler_traits {
     }
 };
 
+}  // namespace VPURT
 }  // namespace vpux
