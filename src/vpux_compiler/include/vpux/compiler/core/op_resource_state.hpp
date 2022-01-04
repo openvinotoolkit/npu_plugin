@@ -24,18 +24,17 @@ namespace VPURT {
 static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
 static constexpr StringLiteral virtualIdAttrName = "VPURT.virtualId";
 
-typedef mlir::Operation const* operation_t;
-
 struct barrier_info_t {
     barrier_info_t(size_t bindex = 0UL, size_t slot_count = 0UL): bindex_(bindex), slot_count_(slot_count) {
     }
     size_t bindex_;
     size_t slot_count_;
-}; /*struct barrier_info_t*/
+};
 
-typedef std::unordered_map<operation_t, barrier_info_t> active_barrier_map_t;
-// typedef active_barrier_map_t::iterator barrier_map_iterator_t;
-typedef size_t resource_t;
+using operation_t = mlir::Operation*;
+using operation_t = mlir::Operation*;
+using active_barrier_map_t = std::unordered_map<operation_t, barrier_info_t>;
+using resource_t = size_t;
 
 struct op_resource_state_t {
     op_resource_state_t(size_t n = 0UL, size_t m = 0UL)
@@ -61,12 +60,8 @@ struct op_resource_state_t {
         Logger::global().error("Scheduling an operation");
         assert(is_resource_available(demand));
         if (barrier_map_.find(op) != barrier_map_.end()) {
-            // Logger::global().error("Could not find operation  {0} in the barrier map" ,
-            // getUniqueID(const_cast<mlir::Operation*>(op)), demand);
             return false;
         }
-        // Logger::global().error("Inserting operation  {0}, in barrier_map_ with demand {1}" ,
-        // getUniqueID(const_cast<mlir::Operation*>(op)), demand);
         size_t bid = state_.assign_slots(demand);
         barrier_map_.insert(std::make_pair(op, barrier_info_t(bid, demand)));
         return true;
@@ -91,7 +86,6 @@ struct op_resource_state_t {
     }
 
     const barrier_info_t& get_barrier_info(const operation_t& op) const {
-        // Logger::global().error("Looking for operation {0}, in barrier_map_", getUniqueID(op));
         auto itr = barrier_map_.find(op);
 
         assert(itr != barrier_map_.end());
@@ -104,9 +98,9 @@ struct op_resource_state_t {
     size_t slots_per_barrier_;
 }; /*struct op_resource_state_t*/
 
-typedef op_resource_state_t resource_state_t;
+using resource_state_t = op_resource_state_t;
 
-typedef size_t schedule_time_t;
+using schedule_time_t = size_t;
 
 }  // namespace VPURT
 }  // namespace vpux
