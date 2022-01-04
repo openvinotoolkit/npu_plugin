@@ -39,7 +39,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
-    FeasibleBarrierScheduler barrierScheduler(&ctx, func, _log);
+    VPURT::FeasibleBarrierScheduler barrierScheduler(&ctx, func, _log);
     barrierScheduler.init();
 
     bool success = false;
