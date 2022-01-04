@@ -7,6 +7,6 @@ This pass replaces virtual barriers with physical barriers and assign IDs to the
 -num-barriers : Number of physical barriers, available for usage
 ```
 ### `-assign-virtual-barriers`: Schedules virtual barriers
-This pass inserts virtual barriers such that the number of active barriers and the number of producers to a barrier does not exceed the hardware limit.
+This pass schedules virtual barriers such that the number of active barrier does not exceed the hardware limit.
 ### `-barrier-simulation`: Simulate barriers
 Simulates the physical barrier execution and stops compilation on fail.
