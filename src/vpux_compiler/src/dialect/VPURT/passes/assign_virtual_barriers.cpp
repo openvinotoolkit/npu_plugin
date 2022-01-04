@@ -12,7 +12,6 @@
 //
 
 #include "vpux/compiler/core/feasible_barrier_generator.hpp"
-#include "vpux/compiler/core/token_barrier_scheduler.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
@@ -53,10 +52,6 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     if (!success) {
         VPUX_THROW("Barrier scheduling and/or runtime simulation was not suceessful");
     }
-
-    // Old way
-    // TokenBasedBarrierScheduler barrierScheduler(&ctx, func, _log, 4, 256);
-    // barrierScheduler.schedule();
 }
 
 }  // namespace
