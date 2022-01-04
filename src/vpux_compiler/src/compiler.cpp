@@ -421,8 +421,7 @@ std::shared_ptr<vpux::INetworkDescription> vpux::CompilerImpl::parse(const std::
 //
 
 #ifndef OPENVINO_STATIC_LIBRARY
-INFERENCE_PLUGIN_API(void)
-CreateVPUXCompiler(std::shared_ptr<ICompiler>& compiler) {
-    compiler = std::make_shared<CompilerImpl>();
+INFERENCE_PLUGIN_API(void) CreateVPUXCompiler(std::shared_ptr<ICompiler>& obj) {
+    obj = std::make_shared<CompilerImpl>();
 }
 #endif

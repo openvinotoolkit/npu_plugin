@@ -43,38 +43,32 @@ IE.CNNNetwork
     }
 ```
 
-The **IE Dialect** provides separate Operation to describe the available and used run-time resources.
+The **IE Dialect** provides separate operations to describe the available and used run-time resources.
 It deals with the following resource types:
 
 * Memory space.
 * Executor (CPU, HW module, DMA).
 
 ```MLIR
-IE.RunTimeResources
-    availableMemory : {
-        IE.MemoryResource 1073741824 bytes
-        IE.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
-        IE.MemoryResource 4194304 bytes of "CMX_UPA" {VPUIP.bandwidth = 16 : i64, VPUIP.derateFactor = 8.500000e-01 : f64}
-        IE.MemoryResource 1048576 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
-    }
-    usedMemory : {
-        IE.MemoryResource 2048 bytes of "DDR"
-        IE.MemoryResource 1048576 bytes of "CMX_NN"
-    }
-    executors : {
-        IE.ExecutorResource 1 of "Leon_RT"
-        IE.ExecutorResource 1 of "Leon_NN"
-        IE.ExecutorResource 16 of "SHAVE_UPA"
-        IE.ExecutorResource 20 of "SHAVE_NN"
-        IE.ExecutorResource 4 of "NCE_Cluster" {
-            IE.ExecutorResource 5 of "NCE_PerClusterDPU"
-        }
-        IE.ExecutorResource 1 of "DMA_UPA"
-        IE.ExecutorResource 1 of "DMA_NN"
-    }
+IE.ExecutorResource 16 of @SHAVE_UPA
+IE.ExecutorResource 20 of @SHAVE_NN
+IE.ExecutorResource 1 of @SHAVE_ACT
+IE.ExecutorResource 4 of @NCE {
+    IE.ExecutorResource 5 of @DPU
+}
+IE.ExecutorResource 1 of @DMA_NN
+
+IE.MemoryResource 31457280 bytes of @DDR {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
+IE.MemoryResource 4194304 bytes of @CMX_UPA {VPUIP.bandwidth = 16 : i64, VPUIP.derateFactor = 8.500000e-01 : f64}
+IE.MemoryResource 1048576 bytes of @CMX_NN {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+
+module @UsedMemory : {
+    IE.MemoryResource 2048 bytes of @DDR
+    IE.MemoryResource 1048576 bytes of @CMX_NN
+}
 ```
 
-The `IE.RunTimeResources` is filled by underlying low-level dialect to provide information about HW-specific resources.
+The `IE.ExecutorResource` and `IE.MemoryResource` are added by underlying low-level dialect to provide information about HW-specific resources.
 
 [./IE/_ops_interfaces.md]
 
@@ -536,6 +530,36 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
+### `IE.Copy` (vpux::IE::CopyOp)
+
+InferenceEngine Copy layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Copy` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`out_mem_space` | ::mlir::SymbolRefAttr | symbol reference attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Cosh` (vpux::IE::CoshOp)
 
 InferenceEngine Cosh layer
@@ -842,20 +866,20 @@ Syntax:
 
 ```
 operation ::= `IE.ExecutorResource` attr-dict
-              $count `of` $kind
-              $subExecutors
+              $count `of` $sym_name
+              custom<OptionalBlockRegion>($subExecutors)
 ```
 
 The executor resource is defined by the following attributes:
 
-  * Kind - optional kind of the executor.
+  * sym_name - kind of the executor.
   * Count - number of executor units.
 
 #### Attributes:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`kind` | ::mlir::Attribute | any attribute
+`sym_name` | ::mlir::StringAttr | string attribute
 `count` | mlir::IntegerAttr | Integer attribute
 
 ### `IE.Exp` (vpux::IE::ExpOp)
@@ -1795,20 +1819,20 @@ Information about memory resource
 Syntax:
 
 ```
-operation ::= `IE.MemoryResource` $byteSize `bytes` (`of` $kind^)?
+operation ::= `IE.MemoryResource` $byteSize `bytes` `of` $sym_name
               attr-dict
 ```
 
 The memory resource is defined by the following attributes:
 
-  * Kind - optional kind of memory space.
+  * sym_name - kind of memory space.
   * Size - size in bytes of memory space.
 
 #### Attributes:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`kind` | ::mlir::Attribute | any attribute
+`sym_name` | ::mlir::StringAttr | string attribute
 `byteSize` | mlir::IntegerAttr | Integer attribute
 
 ### `IE.Minimum` (vpux::IE::MinimumOp)
@@ -2577,26 +2601,6 @@ operation ::= `IE.Round` `(` operands `)` attr-dict `:` type(operands) `->` type
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
-
-### `IE.RunTimeResources` (vpux::IE::RunTimeResourcesOp)
-
-Definition of run-time resources
-
-
-Syntax:
-
-```
-operation ::= `IE.RunTimeResources` attr-dict
-              `availableMemory` `:` $availableMemory
-              `usedMemory` `:` $usedMemory
-              `executors` `:` $executors
-```
-
-This operation defines various resources consumed at run-time:
-
-  * Available memory spaces for interal buffers.
-  * Used memory spaces for interal buffers.
-  * Executors for asynchronous calls.
 
 ### `IE.ScaleShift` (vpux::IE::ScaleShiftOp)
 

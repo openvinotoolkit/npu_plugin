@@ -61,10 +61,6 @@ class LayerWithPostOpModel final :
         public IE::LayerWithPostOpInterface::ExternalModel<LayerWithPostOpModel<MainOpType>, MainOpType> {
 public:
     bool isSupportedPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) const {
-        if (mlir::isa<IE::ScaleShiftOp>(postOp)) {
-            return true;
-        }
-
         if (VPU::getCompilationMode(postOp) == VPU::CompilationMode::ReferenceSW) {
             return false;
         }
@@ -349,11 +345,11 @@ private:
 // AsyncLayerOpModel
 //
 
-mlir::Attribute getExecutorForSW(mlir::Operation* origOp, uint32_t& numUnits) {
+mlir::SymbolRefAttr getExecutorForSW(mlir::Operation* origOp, uint32_t& numUnits) {
     return VPUIP::getExecutorAttr(numUnits, origOp, VPU::ExecutorKind::SHAVE_UPA);
 }
 
-mlir::Attribute getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits) {
+mlir::SymbolRefAttr getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits) {
     if (VPU::getCompilationMode(origOp) == VPU::CompilationMode::ReferenceSW) {
         return getExecutorForSW(origOp, numUnits);
     }
@@ -367,21 +363,21 @@ mlir::Attribute getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits) {
 
 class AsyncLayerOpModelForHW final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForHW> {
 public:
-    mlir::Attribute getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
+    mlir::SymbolRefAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
         return getExecutorForHW(origOp, numUnits);
     }
 };
 
 class AsyncLayerOpModelForDMA final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForDMA> {
 public:
-    mlir::Attribute getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
+    mlir::SymbolRefAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
         return VPUIP::getExecutorAttr(numUnits, origOp, VPU::ExecutorKind::DMA_NN);
     }
 };
 
 class AsyncLayerOpModelForSW final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForSW> {
 public:
-    mlir::Attribute getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
+    mlir::SymbolRefAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
         return getExecutorForSW(origOp, numUnits);
     }
 };

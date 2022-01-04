@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/utils/core/enums.hpp"
@@ -139,10 +140,7 @@ int64_t getNumAvailableBarriers(mlir::Operation* parentOp) {
     const auto arch = VPU::getArch(parentOp);
 
     auto module = parentOp->getParentOfType<mlir::ModuleOp>();
-    auto resOp = IE::RunTimeResourcesOp::getFromModule(module);
-
-    const auto nceAttr = VPU::ExecutorKindAttr::get(parentOp->getContext(), VPU::ExecutorKind::NCE);
-    auto nceResOp = resOp.getExecutor(nceAttr);
+    auto nceResOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
     VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE Executor information");
 
     const auto numClusters = nceResOp.count();

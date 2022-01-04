@@ -61,7 +61,6 @@ std::shared_ptr<INetworkDescription> MCMCompiler::parse(const std::vector<char>&
     return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, config, graphName);
 }
 
-INFERENCE_PLUGIN_API(void)
-CreateVPUXCompiler(std::shared_ptr<ICompiler>& compiler) {
-    compiler = std::make_shared<MCMCompiler>();
+INFERENCE_PLUGIN_API(void) CreateVPUXCompiler(std::shared_ptr<ICompiler>& obj) {
+    obj = std::make_shared<MCMCompiler>();
 }

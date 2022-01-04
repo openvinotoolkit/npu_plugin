@@ -306,29 +306,27 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
     return wt_data_vals;
 }
 
-mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPURT::BufferSection section, ArrayRef<int64_t> shape,
-                               mlir::Type elemType, DimsOrder order) {
-    const auto memSpaceAttr = VPU::MemoryKindAttr::get(builder.getContext(), VPURT::getMemoryKind(section));
-    return vpux::getMemRefType(ShapeRef(shape), elemType, order, memSpaceAttr);
+mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> shape, mlir::Type elemType,
+                               DimsOrder order) {
+    return vpux::getMemRefType(ShapeRef(shape), elemType, order, VPURT::getMemoryKind(section));
 }
 
-mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPURT::BufferSection section, ArrayRef<int64_t> shape,
-                               mlir::Type elemType, DimsOrder order, StridesRef strides) {
-    const auto memSpaceAttr = VPU::MemoryKindAttr::get(builder.getContext(), VPURT::getMemoryKind(section));
-    return vpux::getMemRefType(ShapeRef(shape), elemType, order, strides, memSpaceAttr);
+mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> shape, mlir::Type elemType,
+                               DimsOrder order, StridesRef strides) {
+    return vpux::getMemRefType(ShapeRef(shape), elemType, order, strides, VPURT::getMemoryKind(section));
 }
 
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    int locale, size_t offset) {
-    const auto type = getMemRefType(builder, section, shape, elemType, order);
+    const auto type = getMemRefType(section, shape, elemType, order);
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
 }
 
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    StridesRef strides, int locale, size_t offset) {
-    const auto type = getMemRefType(builder, section, shape, elemType, order, strides);
+    const auto type = getMemRefType(section, shape, elemType, order, strides);
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
 }
 
@@ -352,14 +350,36 @@ vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder 
     std::vector<int64_t> end_vec{static_cast<int64_t>(output_shape[2] - 1), static_cast<int64_t>(output_shape[3] - 1),
                                  static_cast<int64_t>(output_shape[1] - 1)};
     auto end = getIntArrayAttr(builder, end_vec);
-    auto pad = vpux::VPUIP::getPaddingAttr(builder.getContext(), padding_vec[PAD_NCETASK_LEFT],
-                                           padding_vec[PAD_NCETASK_RIGHT], padding_vec[PAD_NCETASK_TOP],
-                                           padding_vec[PAD_NCETASK_BOTTOM]);
+    auto pad = VPU::getPaddingAttr(builder.getContext(), padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                   padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto dpuTask = variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad,
-                                                           VPUIP::MPEMode::CUBOID_16x16);
+                                                           VPU::MPEMode::CUBOID_16x16);
 
     return dpuTask;
+}
+
+vpux::DimsOrder oduPermutationToLayout(const MVCNN::Permutation oduPermutation) {
+    switch (oduPermutation) {
+    case MVCNN::Permutation::Permutation_ZXY:
+        return vpux::DimsOrder::NHWC;
+    case MVCNN::Permutation::Permutation_ZYX:
+        return vpux::DimsOrder::fromCode(0x1432);  // NWHC
+    case MVCNN::Permutation::Permutation_YZX:
+        return vpux::DimsOrder::fromCode(0x1423);  // NWCH
+    case MVCNN::Permutation::Permutation_YXZ:
+        return vpux::DimsOrder::fromCode(0x1243);  // NCWH
+    case MVCNN::Permutation::Permutation_XZY:
+        return vpux::DimsOrder::NHCW;
+    case MVCNN::Permutation::Permutation_XYZ:
+        return vpux::DimsOrder::NCHW;
+    default:
+        return vpux::DimsOrder::NHWC;
+    }
+}
+
+vpux::Dim getInnermostDim(const vpux::DimsOrder& order) {
+    return order.toDim(MemDim(order.numDims() - 1));
 }
 
 }  // namespace hwtest

@@ -34,7 +34,7 @@ namespace IERT {
 // Passes
 //
 
-using AttrCreateFunc = std::function<mlir::Attribute(mlir::MLIRContext*, StringRef)>;
+using AttrCreateFunc = std::function<mlir::SymbolRefAttr(mlir::MLIRContext*, StringRef)>;
 
 std::unique_ptr<mlir::Pass> createOptimizeCopiesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCopyOpHoistingPass(Logger log = Logger::global());

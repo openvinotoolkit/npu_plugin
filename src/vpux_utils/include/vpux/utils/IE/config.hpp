@@ -19,10 +19,10 @@
 #include "vpux/utils/core/hash.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/optional.hpp"
+#include "vpux/utils/core/small_vector.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 #include "vpux/utils/core/string_utils.hpp"
 
-#include <ie/details/ie_so_loader.h>
 #include <ie_parameter.hpp>
 
 #include <llvm/ADT/FunctionExtras.h>
@@ -230,14 +230,22 @@ OptionConcept makeOptionModel() {
 
 class OptionsDesc final {
 public:
+    OptionsDesc() = default;
+
+    // Destructor preserves unload order of implementation object and reference to library.
+    // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
+    // And use destructor to remove implementation object before reference to library explicitly.
+    ~OptionsDesc() {
+        _impl.clear();
+    }
+
+public:
     template <class Opt>
     void add();
 
-    IE_SUPPRESS_DEPRECATED_START
-    void addSharedObject(const InferenceEngine::details::SharedObjectLoader& so) {
-        _soObjs.push_back(so);
+    void addSharedObject(const std::shared_ptr<void>& so) {
+        _so.push_back(so);
     }
-    IE_SUPPRESS_DEPRECATED_END
 
 public:
     std::vector<std::string> getSupported(bool includePrivate = false) const;
@@ -250,9 +258,8 @@ private:
     std::unordered_map<StringRef, details::OptionConcept> _impl;
     std::unordered_map<StringRef, StringRef> _deprecated;
 
-    IE_SUPPRESS_DEPRECATED_START
-    std::vector<InferenceEngine::details::SharedObjectLoader> _soObjs;
-    IE_SUPPRESS_DEPRECATED_END
+    // Keep pointer to `_so` to avoid shared library unloading prior destruction of the `_impl` object.
+    SmallVector<std::shared_ptr<void>> _so;
 };
 
 template <class Opt>

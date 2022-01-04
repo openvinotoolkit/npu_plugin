@@ -78,6 +78,24 @@ std::string nb::to_string(nb::DType dtype) {
     }
 }
 
+MVCNN::Permutation nb::to_odu_permutation(llvm::StringRef str) {
+    if (isEqual(str, "NHWC"))
+        return MVCNN::Permutation::Permutation_ZXY;
+    if (isEqual(str, "NWHC"))
+        return MVCNN::Permutation::Permutation_ZYX;
+    if (isEqual(str, "NWCH"))
+        return MVCNN::Permutation::Permutation_YZX;
+    if (isEqual(str, "NCWH"))
+        return MVCNN::Permutation::Permutation_YXZ;
+    if (isEqual(str, "NHCW"))
+        return MVCNN::Permutation::Permutation_XZY;
+    if (isEqual(str, "NCHW"))
+        return MVCNN::Permutation::Permutation_XYZ;
+    throw std::runtime_error("ODUPermutation value not supported: " + str.str());
+
+    return MVCNN::Permutation::Permutation_MIN;
+}
+
 nb::ActivationType nb::to_activation_type(llvm::StringRef str) {
     if (!str.size() || isEqual(str, "None")) {
         return nb::ActivationType::None;
@@ -290,6 +308,16 @@ nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* json
         result.compress = false;
     }
 
+    auto mpe_cub = op->getString("mpe_cub");
+    if (mpe_cub.hasValue()) {
+        if (mpe_cub.getValue() == "CUBOID_8x16") {
+            result.cube_mode = vpux::VPU::MPEMode::CUBOID_8x16;
+        } else if (mpe_cub.getValue() == "CUBOID_4x16") {
+            result.cube_mode = vpux::VPU::MPEMode::CUBOID_4x16;
+        }
+        // TODO: Check for the default (CUBOID_16x16) and log if it's something else.
+    }
+
     return result;
 }
 
@@ -418,6 +446,10 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
     if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv) {
         wtLayer_ = loadWeightLayer(json_obj);
         convLayer_ = loadConvLayer(json_obj);
+
+        if (caseType_ == CaseType::ZMajorConvolution) {
+            odu_permutation_ = to_odu_permutation(json_obj->getString("output_order").getValue());
+        }
         return;
     }
 

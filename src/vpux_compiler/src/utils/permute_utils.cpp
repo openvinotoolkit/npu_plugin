@@ -53,7 +53,7 @@ bool vpux::isTrivialPermute(MemShapeRef inShape, mlir::AffineMap memPerm) {
     }
 
     for (auto ind : irange<size_t>(1, nonTrivialPerm.size())) {
-        if (nonTrivialPerm[ind] != nonTrivialPerm[ind - 1] + 1) {
+        if (nonTrivialPerm[ind] < nonTrivialPerm[ind - 1]) {
             return false;
         }
     }

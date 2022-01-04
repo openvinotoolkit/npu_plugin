@@ -47,7 +47,7 @@ private:
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
-    mlir::Attribute _memSpace;
+    mlir::SymbolRefAttr _memSpace;
 };
 
 //
@@ -66,7 +66,7 @@ private:
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
-    mlir::Attribute _memSpace;
+    mlir::SymbolRefAttr _memSpace;
 };
 
 mlir::Value AddCMX2DDRExecuteOp(mlir::OpBuilder& builder, mlir::MLIRContext* ctx, mlir::BlockArgument& profilingResult,
@@ -417,7 +417,7 @@ void DPUProfilingPass::safeRunOnModule() {
         auto newCluster = builder.create<VPUIP::NCEClusterTaskOp>(loc, newResultTypes, cluster->getOperands(),
                                                                   cluster->getAttrs());
 
-        for (const auto region : llvm::enumerate(cluster.getRegions())) {
+        for (const auto& region : llvm::enumerate(cluster.getRegions())) {
             newCluster.getRegion(static_cast<unsigned>(region.index())).takeBody(*region.value());
         }
         newCluster.profiling_dataMutable().assign(sub);

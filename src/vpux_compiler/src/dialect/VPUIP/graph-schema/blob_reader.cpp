@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/import.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -228,7 +229,7 @@ mlir::MemRefType vpux::VPUIP::BlobReader::parseTensorRef(const MVCNN::TensorRefe
     const auto order = DimsOrder::fromCode(tensorRef->order());
     const auto memKind = convertMemoryLocation(tensorRef->locale());
 
-    return getMemRefType(ShapeRef(shape), elemType, order, strides, VPU::MemoryKindAttr::get(_ctx, memKind));
+    return getMemRefType(ShapeRef(shape), elemType, order, strides, memKind);
 }
 
 mlir::ArrayAttr vpux::VPUIP::BlobReader::parseOrder3(const MVCNN::order3* order, int32_t ndims) {
@@ -363,8 +364,6 @@ void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {
     const auto arch = parseDeviceRevision();
     VPU::setArch(_module, arch);
 
-    auto resourcesOp = IE::RunTimeResourcesOp::getFromModule(_module);
-
     const auto* header = _graphFile->header();
     VPUX_THROW_UNLESS(header->resources(), "Blob has no resources");
     VPUX_THROW_UNLESS(header->resources()->memory_sizes(), "Blob resources has no memory sizes");
@@ -374,12 +373,10 @@ void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {
             const auto* entry = memSizes->Get(i);
             switch (entry->item()) {
             case MVCNN::PhysicalMem_NN_CMX:
-                resourcesOp.setUsedMemory(VPU::MemoryKindAttr::get(_ctx, VPU::MemoryKind::CMX_NN),
-                                          Byte(static_cast<int64_t>(entry->number())));
+                IE::setUsedMemory(_module, VPU::MemoryKind::CMX_NN, Byte(static_cast<int64_t>(entry->number())));
                 break;
             case MVCNN::PhysicalMem_DDR:
-                resourcesOp.setUsedMemory(VPU::MemoryKindAttr::get(_ctx, VPU::MemoryKind::DDR),
-                                          Byte(static_cast<int64_t>(entry->number())));
+                IE::setUsedMemory(_module, VPU::MemoryKind::DDR, Byte(static_cast<int64_t>(entry->number())));
                 break;
             default:
                 VPUX_THROW("Unknown ExecutionFlag option {0}", MVCNN::ExecutionFlag_DynamicBarriers);

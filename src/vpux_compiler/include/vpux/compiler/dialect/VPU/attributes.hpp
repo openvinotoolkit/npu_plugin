@@ -13,6 +13,9 @@
 
 #pragma once
 
+#include "vpux/compiler/core/tiling.hpp"
+
+#include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
@@ -29,6 +32,7 @@
 //
 
 #include <vpux/compiler/dialect/VPU/generated/attributes/enums.hpp.inc>
+#include <vpux/compiler/dialect/VPU/generated/attributes/structs.hpp.inc>
 
 namespace vpux {
 namespace VPU {
@@ -85,6 +89,16 @@ mlir::SideEffects::Resource* getMemoryResource(mlir::MemRefType memref);
 
 void setCompilationMode(mlir::ModuleOp module, CompilationMode compilationMode);
 CompilationMode getCompilationMode(mlir::Operation* op);
+
+//
+// PaddingAttr
+//
+
+PaddingAttr getPaddingAttr(mlir::MLIRContext* ctx, int64_t left, int64_t right, int64_t top, int64_t bottom);
+PaddingAttr getPaddingAttr(mlir::MLIRContext* ctx, ArrayRef<int64_t> padsBegin, ArrayRef<int64_t> padsEnd);
+PaddingAttr getPaddingAttr(mlir::MLIRContext* ctx, const PadInfo& pad);
+
+PadInfo toPadInfo(PaddingAttr attr);
 
 }  // namespace VPU
 }  // namespace vpux

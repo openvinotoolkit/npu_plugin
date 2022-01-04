@@ -1,15 +1,15 @@
-// RUN: vpux-translate --mlir-elide-elementsattrs-if-larger=16 --import-HWTEST %s | FileCheck %s
+// RUN: vpux-translate --import-HWTEST %s
 
 {
     "case_type": "ZMajorConvolution",
     "input": {
         "shape": [
             1,
-            16384,
-            1,
-            1
+            32,
+            16,
+            16
         ],
-        "dtype": "fp16",
+        "dtype": "int4",
         "quantization": {
             "scale": 1.0,
             "zeropoint": 0,
@@ -19,17 +19,32 @@
     },
     "weight": {
         "shape": [
-            16,
-            16384,
+            64,
+            32,
             1,
             1
         ],
-        "dtype": "fp16",
+        "dtype": "int4",
         "quantization": {
             "scale": 1.0,
             "zeropoint": 0,
-            "low_range": -0.125,
-            "high_range": -0.875
+            "low_range": -8,
+            "high_range": 7
+        }
+    },
+    "output": {
+        "shape": [
+            1,
+            64,
+            16,
+            16
+        ],
+        "dtype": "int4",
+        "quantization": {
+            "scale": 64,
+            "zeropoint": 0,
+            "low_range": -8,
+            "high_range": 7
         }
     },
     "conv_op": {
@@ -44,26 +59,12 @@
             0
         ],
         "group": 1,
-        "dilation": 1
+        "dilation": 1,
+        "compress": false,
+        "mpe_cub": "CUBOID_16x16"
     },
-    "output": {
-        "shape": [
-            1,
-            16,
-            1,
-            1
-        ],
-        "dtype": "fp16",
-        "quantization": {
-            "scale": 1.0,
-            "zeropoint": 0,
-            "low_range": -65536,
-            "high_range": 65535
-        }
-    },
+    "output_order": "nhwc",
     "activation": {
         "name": null
     }
 }
-
-// CHECK-LABEL: module @mainModule

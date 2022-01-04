@@ -66,12 +66,12 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
     %buf9 = VPURT.DeclareBuffer "DDR" <57344> -> memref<1x16x8x32xf16, #NHWC>
 
     // CMX buffers (double-buffers)
-    %buf10 = VPURT.DeclareBuffer "CMX_NN" <0> -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
-    %buf11 = VPURT.DeclareBuffer "CMX_NN" <8192> -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
-    %buf12 = VPURT.DeclareBuffer "CMX_NN" <16384> -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
-    %buf13 = VPURT.DeclareBuffer "CMX_NN" <24576> -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
-    %buf14 = VPURT.DeclareBuffer "CMX_NN" <32768> -> memref<16x16x1x1xf16, #NHWC, "CMX_NN">
-    %buf15 = VPURT.DeclareBuffer "CMX_NN" <33280> -> memref<16x1x1x4xsi32, "CMX_NN">
+    %buf10 = VPURT.DeclareBuffer "CMX_NN" <0> -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+    %buf11 = VPURT.DeclareBuffer "CMX_NN" <8192> -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+    %buf12 = VPURT.DeclareBuffer "CMX_NN" <16384> -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+    %buf13 = VPURT.DeclareBuffer "CMX_NN" <24576> -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+    %buf14 = VPURT.DeclareBuffer "CMX_NN" <32768> -> memref<16x16x1x1xf16, #NHWC, @CMX_NN>
+    %buf15 = VPURT.DeclareBuffer "CMX_NN" <33280> -> memref<16x1x1x4xsi32, @CMX_NN>
 
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
@@ -100,15 +100,15 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
     VPURT.Task {
          VPUIP.NNDMA
             inputs(%cst0: memref<16x16x1x1xf16, #NHWC>)
-            outputs(%buf14: memref<16x16x1x1xf16, #NHWC, "CMX_NN">)
-            -> memref<16x16x1x1xf16, #NHWC, "CMX_NN">
+            outputs(%buf14: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
+            -> memref<16x16x1x1xf16, #NHWC, @CMX_NN>
     }
 
     VPURT.Task {
          VPUIP.NNDMA
             inputs(%cst1: memref<16x1x1x4xsi32>)
-            outputs(%buf15: memref<16x1x1x4xsi32, "CMX_NN">)
-            -> memref<16x1x1x4xsi32, "CMX_NN">
+            outputs(%buf15: memref<16x1x1x4xsi32, @CMX_NN>)
+            -> memref<16x1x1x4xsi32, @CMX_NN>
     }
 
     // Reorder input
@@ -125,8 +125,8 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
     VPURT.Task waits(%bar0: !VPURT.Barrier) updates(%bar1: !VPURT.Barrier) {
          VPUIP.NNDMA
             inputs(%buf1: memref<1x16x8x32xf16, #NHWC>)
-            outputs(%buf10: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
+            outputs(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
     }
 
     // 1st tile
@@ -138,13 +138,13 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
                 kernel_strides = [1, 1],
                 task_type = "CONV"
             }
-            input(%buf10: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            weights(%buf14: memref<16x16x1x1xf16, #NHWC, "CMX_NN">)
-            weight_table(%buf15: memref<16x1x1x4xsi32, "CMX_NN">)
-            parent_input(%buf10: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            parent_output(%buf11: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            outputs(%buf11: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
+            input(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            weights(%buf14: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
+            weight_table(%buf15: memref<16x1x1x4xsi32, @CMX_NN>)
+            parent_input(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            parent_output(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            outputs(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
             variants : {
                 DPUTask {
                     start = [0, 0, 0],
@@ -161,15 +161,15 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
     VPURT.Task updates(%bar3: !VPURT.Barrier) {
          VPUIP.NNDMA
             inputs(%buf2: memref<1x16x8x32xf16, #NHWC>)
-            outputs(%buf12: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
+            outputs(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
     }
 
     // Copyback 1st result tile
 
     VPURT.Task waits(%bar2: !VPURT.Barrier) updates(%bar4: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf11: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
+            inputs(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
             outputs(%buf6: memref<1x16x8x32xf16, #NHWC>)
             -> memref<1x16x8x32xf16, #NHWC>
     }
@@ -183,13 +183,13 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
                 kernel_strides = [1, 1],
                 task_type = "CONV"
             }
-            input(%buf12: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            weights(%buf14: memref<16x16x1x1xf16, #NHWC, "CMX_NN">)
-            weight_table(%buf15: memref<16x1x1x4xsi32, "CMX_NN">)
-            parent_input(%buf12: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            parent_output(%buf13: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            outputs(%buf13: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
+            input(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            weights(%buf14: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
+            weight_table(%buf15: memref<16x1x1x4xsi32, @CMX_NN>)
+            parent_input(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            parent_output(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            outputs(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
             variants : {
                 DPUTask {
                     start = [0, 0, 0],
@@ -206,15 +206,15 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
     VPURT.Task updates(%bar6: !VPURT.Barrier) {
          VPUIP.NNDMA
             inputs(%buf3: memref<1x16x8x32xf16, #NHWC>)
-            outputs(%buf10: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
+            outputs(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
     }
 
     // Copyback 2nd result tile
 
     VPURT.Task waits(%bar5: !VPURT.Barrier) updates(%bar4: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf13: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
+            inputs(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
             outputs(%buf7: memref<1x16x8x32xf16, #NHWC>)
             -> memref<1x16x8x32xf16, #NHWC>
     }
@@ -228,13 +228,13 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
                 kernel_strides = [1, 1],
                 task_type = "CONV"
             }
-            input(%buf10: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            weights(%buf14: memref<16x16x1x1xf16, #NHWC, "CMX_NN">)
-            weight_table(%buf15: memref<16x1x1x4xsi32, "CMX_NN">)
-            parent_input(%buf10: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            parent_output(%buf11: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            outputs(%buf11: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
+            input(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            weights(%buf14: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
+            weight_table(%buf15: memref<16x1x1x4xsi32, @CMX_NN>)
+            parent_input(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            parent_output(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            outputs(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
             variants : {
                 DPUTask {
                     start = [0, 0, 0],
@@ -251,15 +251,15 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
     VPURT.Task updates(%bar8: !VPURT.Barrier) {
          VPUIP.NNDMA
             inputs(%buf4: memref<1x16x8x32xf16, #NHWC>)
-            outputs(%buf12: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
+            outputs(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
     }
 
     // Copyback 3rd result tile
 
     VPURT.Task waits(%bar7: !VPURT.Barrier) updates(%bar4: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf11: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
+            inputs(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
             outputs(%buf8: memref<1x16x8x32xf16, #NHWC>)
             -> memref<1x16x8x32xf16, #NHWC>
     }
@@ -273,13 +273,13 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
                 kernel_strides = [1, 1],
                 task_type = "CONV"
             }
-            input(%buf12: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            weights(%buf14: memref<16x16x1x1xf16, #NHWC, "CMX_NN">)
-            weight_table(%buf15: memref<16x1x1x4xsi32, "CMX_NN">)
-            parent_input(%buf12: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            parent_output(%buf13: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            outputs(%buf13: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
-            -> memref<1x16x8x32xf16, #NHWC, "CMX_NN">
+            input(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            weights(%buf14: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
+            weight_table(%buf15: memref<16x1x1x4xsi32, @CMX_NN>)
+            parent_input(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            parent_output(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            outputs(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
+            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
             variants : {
                 DPUTask {
                     start = [0, 0, 0],
@@ -295,7 +295,7 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
 
     VPURT.Task waits(%bar9: !VPURT.Barrier) updates(%bar4: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf13: memref<1x16x8x32xf16, #NHWC, "CMX_NN">)
+            inputs(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
             outputs(%buf9: memref<1x16x8x32xf16, #NHWC>)
             -> memref<1x16x8x32xf16, #NHWC>
     }

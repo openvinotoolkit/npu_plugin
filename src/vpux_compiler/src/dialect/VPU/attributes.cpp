@@ -14,7 +14,7 @@
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/error.hpp"
@@ -23,7 +23,6 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Identifier.h>
-#include <mlir/IR/Types.h>
 
 #include <llvm/ADT/StringExtras.h>
 #include <llvm/ADT/TypeSwitch.h>
@@ -109,17 +108,14 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
 
     module->setAttr(archAttrName, ArchKindAttr::get(module.getContext(), kind));
 
-    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
-    auto resources = builder.create<IE::RunTimeResourcesOp>(module.getLoc());
-
     const auto addMem = [&](MemoryKind kind, Byte size, double derateFactor, uint32_t bandwidth) {
-        auto mem = resources.addAvailableMemory(MemoryKindAttr::get(module.getContext(), kind), size);
+        auto mem = IE::addAvailableMemory(module, kind, size);
         mem->setAttr(derateFactorAttrName, getFPAttr(module.getContext(), derateFactor));
         mem->setAttr(bandwidthAttrName, getIntAttr(module.getContext(), bandwidth));
     };
 
-    const auto addExecutor = [&](ExecutorKind kind, uint32_t count, bool withSubRegion = false) {
-        return resources.addExecutor(ExecutorKindAttr::get(module.getContext(), kind), count, withSubRegion);
+    const auto addExecutor = [&](ExecutorKind kind, uint32_t count) {
+        return IE::addAvailableExecutor(module, kind, count);
     };
 
     const auto getNumOfDPUGroupsVal = [&](int maxDpuGroups) {
@@ -138,8 +134,8 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
 
         addExecutor(ExecutorKind::DMA_NN, 1);
         addExecutor(ExecutorKind::SHAVE_UPA, 16);
-        nceCluster = addExecutor(ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS), true);
-        nceCluster.addSubExecutor(ExecutorKindAttr::get(module.getContext(), ExecutorKind::DPU), 5);
+        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS));
+        nceCluster.addSubExecutor(ExecutorKind::DPU, 5);
 
         break;
     }
@@ -150,8 +146,8 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
 
         addExecutor(ExecutorKind::DMA_NN, 2);
         addExecutor(ExecutorKind::SHAVE_UPA, 16);
-        nceCluster = addExecutor(ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS), true);
-        nceCluster.addSubExecutor(ExecutorKindAttr::get(module.getContext(), ExecutorKind::DPU), 5);
+        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS));
+        nceCluster.addSubExecutor(ExecutorKind::DPU, 5);
 
         break;
     }
@@ -165,8 +161,8 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         // TODO: move SHAVE_ACT as a sub-executor for NCE
         // TODO: use actual number of ACT SHAVES
         addExecutor(ExecutorKind::SHAVE_ACT, 1);
-        nceCluster = addExecutor(ExecutorKind::NCE, getNumOfDPUGroupsVal(MTL_MAX_DPU_GROUPS), true);
-        nceCluster.addSubExecutor(ExecutorKindAttr::get(module.getContext(), ExecutorKind::DPU), 1);
+        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(MTL_MAX_DPU_GROUPS));
+        nceCluster.addSubExecutor(ExecutorKind::DPU, 1);
 
         break;
     }
@@ -200,22 +196,18 @@ VPU::MemoryKind vpux::VPU::getMemoryKind(mlir::RankedTensorType tensor) {
         return MemoryKind::DDR;
     }
 
-    if (memSpace.isa<MemoryKindAttr>()) {
-        return memSpace.cast<MemoryKindAttr>().getValue();
-    }
-
-    VPUX_THROW("Unsupported memory space '{0}'", memSpace);
+    return VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafReference().getValue()).getValue();
 }
 
 VPU::MemoryKind vpux::VPU::getMemoryKind(mlir::MemRefType memref) {
-    const auto memSpace = memref.getMemorySpace();
+    auto memSpace = memref.getMemorySpace();
 
     if (memSpace == nullptr) {
         return MemoryKind::DDR;
     }
 
-    if (memSpace.isa<MemoryKindAttr>()) {
-        return memSpace.cast<MemoryKindAttr>().getValue();
+    if (auto symRef = memSpace.dyn_cast<mlir::SymbolRefAttr>()) {
+        return VPU::symbolizeEnum<VPU::MemoryKind>(symRef.getLeafReference().getValue()).getValue();
     }
 
     VPUX_THROW("Unsupported memory space '{0}'", memSpace);
@@ -287,7 +279,37 @@ VPU::CompilationMode vpux::VPU::getCompilationMode(mlir::Operation* op) {
 }
 
 //
+// PaddingAttr
+//
+
+VPU::PaddingAttr vpux::VPU::getPaddingAttr(mlir::MLIRContext* ctx, int64_t left, int64_t right, int64_t top,
+                                           int64_t bottom) {
+    return PaddingAttr::get(getIntAttr(ctx, left), getIntAttr(ctx, right), getIntAttr(ctx, top),
+                            getIntAttr(ctx, bottom), ctx);
+}
+
+VPU::PaddingAttr vpux::VPU::getPaddingAttr(mlir::MLIRContext* ctx, ArrayRef<int64_t> padsBegin,
+                                           ArrayRef<int64_t> padsEnd) {
+    VPUX_THROW_UNLESS(padsBegin.size() == 2, "Paddings array has unsuppoted size '{0}'", padsBegin.size());
+    VPUX_THROW_UNLESS(padsEnd.size() == 2, "Paddings array has unsuppoted size '{0}'", padsEnd.size());
+    return getPaddingAttr(ctx, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]);
+}
+
+VPU::PaddingAttr vpux::VPU::getPaddingAttr(mlir::MLIRContext* ctx, const PadInfo& pad) {
+    return getPaddingAttr(ctx, pad.left, pad.right, pad.top, pad.bottom);
+}
+
+PadInfo vpux::VPU::toPadInfo(PaddingAttr attr) {
+    const auto left = attr.left().getValue().getSExtValue();
+    const auto right = attr.right().getValue().getSExtValue();
+    const auto top = attr.top().getValue().getSExtValue();
+    const auto bottom = attr.bottom().getValue().getSExtValue();
+    return PadInfo(left, right, top, bottom);
+}
+
+//
 // Generated
 //
 
 #include <vpux/compiler/dialect/VPU/generated/attributes/enums.cpp.inc>
+#include <vpux/compiler/dialect/VPU/generated/attributes/structs.cpp.inc>

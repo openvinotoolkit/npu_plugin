@@ -221,6 +221,41 @@ def IE_TilingInfoOpInterface : OpInterface<"TilingInfoOpInterface"> {
 }
 
 //
+// ResourceOpBase
+//
+
+def IERT_ResourceOpInterface : OpInterface<"ResourceOpInterface"> {
+    let description = "Base interface for for a meta-like operation containing information about a runtime resource";
+
+    let cppNamespace = "vpux::IERT";
+
+    let methods = [
+        InterfaceMethod<
+            "Get all layer input memory buffers",
+            "mlir::StringAttr", "getKind", (ins),
+            [{}],
+            [{
+                return $_op.sym_nameAttr();
+            }]
+        >,
+    ];
+
+    let extraTraitClassDeclaration = [{
+         template<class ConcreteAttr>
+         ConcreteAttr getKindAs() {
+             VPUX_THROW_UNLESS(getKind().template isa<ConcreteAttr>(), "Resource type is not {0}", typeid(ConcreteAttr).name());
+             return getKind().template cast<ConcreteAttr>();
+         }
+
+         template<class ConcreteAttr>
+         typename ConcreteAttr::ValueType getKindValue() {
+             VPUX_THROW_UNLESS(getKind().template isa<ConcreteAttr>(), "Resource type is not {0}", typeid(ConcreteAttr).name());
+             return getKind().template cast<ConcreteAttr>().getValue();
+         }
+    }];
+}
+
+//
 // EltwiseOp
 //
 

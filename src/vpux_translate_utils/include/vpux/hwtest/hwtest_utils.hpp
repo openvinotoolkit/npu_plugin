@@ -80,10 +80,10 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
                                               mlir::Type dtype, T elementType, mlir::MLIRContext* ctx, size_t start_C,
                                               size_t end_C);
 
-mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPURT::BufferSection section, ArrayRef<int64_t> shape,
-                               mlir::Type elemType, DimsOrder order);
-mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPURT::BufferSection section, ArrayRef<int64_t> shape,
-                               mlir::Type elemType, DimsOrder order, StridesRef strides);
+mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> shape, mlir::Type elemType,
+                               DimsOrder order);
+mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> shape, mlir::Type elemType,
+                               DimsOrder order, StridesRef strides);
 
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
@@ -100,6 +100,9 @@ mlir::OpResult getConstResult(vpux::Const::DeclareOp op);
 
 vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder variantbuilder,
                                        llvm::SmallVector<int64_t> output_shape, std::vector<int64_t> padding_vec);
+
+vpux::DimsOrder oduPermutationToLayout(const MVCNN::Permutation oduPermutation);
+vpux::Dim getInnermostDim(const vpux::DimsOrder& order);
 
 }  // namespace hwtest
 }  // namespace vpux

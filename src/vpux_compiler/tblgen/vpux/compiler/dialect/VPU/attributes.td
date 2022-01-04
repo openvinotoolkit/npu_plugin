@@ -114,4 +114,122 @@ def VPU_SparsitySupport :
     let genSpecializedAttr = 1;
 }
 
+//
+// EltwiseType
+//
+
+def VPU_EltwiseType :
+        StrEnumAttr<
+            "EltwiseType",
+            "Type of Eltwise operation",
+            [
+                StrEnumAttrCase<"ADD">,
+                StrEnumAttrCase<"MULTIPLY">,
+                StrEnumAttrCase<"DIVIDE">,
+                StrEnumAttrCase<"SQUARED_DIFF">,
+                StrEnumAttrCase<"POWER">,
+                StrEnumAttrCase<"FLOOR_MOD">,
+                StrEnumAttrCase<"MIN">,
+                StrEnumAttrCase<"MAX">,
+                StrEnumAttrCase<"AND">,
+                StrEnumAttrCase<"EQUAL">,
+                StrEnumAttrCase<"LESS">,
+                StrEnumAttrCase<"LESS_EQUAL">,
+                StrEnumAttrCase<"NOT_EQUAL">,
+                StrEnumAttrCase<"GREATER">,
+                StrEnumAttrCase<"GREATER_EQUAL">,
+                StrEnumAttrCase<"LOGICAL_OR">,
+                StrEnumAttrCase<"LOGICAL_XOR">,
+            ]
+        > {
+    let cppNamespace = "vpux::VPU";
+    let genSpecializedAttr = 1;
+}
+
+//
+// PaddingAttr
+//
+
+def VPU_PaddingAttr :
+        StructAttr<
+            "PaddingAttr",
+            VPU_Dialect,
+            [
+                StructFieldAttr<"left",   IntAttr>,
+                StructFieldAttr<"right",  IntAttr>,
+                StructFieldAttr<"top",    IntAttr>,
+                StructFieldAttr<"bottom", IntAttr>,
+            ]
+        >;
+
+//
+// MPEMode
+//
+
+def VPU_MPEMode :
+        StrEnumAttr<
+            "MPEMode",
+            "MPE Mode",
+            [
+                StrEnumAttrCase<"VECTOR">,
+                StrEnumAttrCase<"MATRIX">,
+                StrEnumAttrCase<"VECTOR_FP16">,
+                StrEnumAttrCase<"CUBOID_16x16">,
+                StrEnumAttrCase<"CUBOID_8x16">,
+                StrEnumAttrCase<"CUBOID_4x16">,
+                StrEnumAttrCase<"NOP">
+            ]
+        > {
+    let cppNamespace = "vpux::VPU";
+    let genSpecializedAttr = 1;
+}
+
+//
+// PPEMode
+//
+
+def VPU_PPEMode :
+        StrEnumAttr<
+            "PPEMode",
+            "Post Processing Element Type",
+            [
+                // Low-level instructions
+                StrEnumAttrCase<"STORE">,
+                StrEnumAttrCase<"LOAD">,
+                StrEnumAttrCase<"CLEAR">,
+                StrEnumAttrCase<"NOOP">,
+                StrEnumAttrCase<"HALT">,
+
+                // Element-Wise Operations
+                StrEnumAttrCase<"ADD">,
+                StrEnumAttrCase<"SUB">,
+                StrEnumAttrCase<"MULT">,
+                StrEnumAttrCase<"MAXIMUM">,
+                StrEnumAttrCase<"MINIMUM">,
+                StrEnumAttrCase<"AND">,
+                StrEnumAttrCase<"OR">,
+                StrEnumAttrCase<"XOR">,
+
+                // Activations
+                StrEnumAttrCase<"LRELU">,
+                StrEnumAttrCase<"LRELUX">,
+                StrEnumAttrCase<"LPRELU">,
+                StrEnumAttrCase<"CEIL">,
+                StrEnumAttrCase<"FLOOR">,
+                StrEnumAttrCase<"POW">,
+                StrEnumAttrCase<"EXP">,
+                StrEnumAttrCase<"SIGMOID">,
+                StrEnumAttrCase<"TANH">,
+                StrEnumAttrCase<"SQRT">,
+                StrEnumAttrCase<"RSQRT">,
+                StrEnumAttrCase<"FLEXARB">,
+                StrEnumAttrCase<"NOT">,
+                StrEnumAttrCase<"ABS">,
+                StrEnumAttrCase<"NEG">
+            ]
+        > {
+    let cppNamespace = "vpux::VPU";
+    let genSpecializedAttr = 1;
+}
+
 #endif

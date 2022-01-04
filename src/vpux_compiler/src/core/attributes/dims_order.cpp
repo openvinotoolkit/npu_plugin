@@ -42,6 +42,7 @@ const DimsOrder vpux::DimsOrder::HCW = DimsOrder(0x213);
 const DimsOrder vpux::DimsOrder::NCHW = DimsOrder(0x1234);
 const DimsOrder vpux::DimsOrder::NHWC = DimsOrder(0x1342);
 const DimsOrder vpux::DimsOrder::NHCW = DimsOrder(0x1324);
+
 const DimsOrder vpux::DimsOrder::NCDHW = DimsOrder(0x12345);
 const DimsOrder vpux::DimsOrder::NDHWC = DimsOrder(0x13452);
 

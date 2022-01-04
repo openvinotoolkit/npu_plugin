@@ -113,9 +113,8 @@ bool HDDL2Backend::isServiceRunning() {
     return HddlUnite::isServiceRunning();
 }
 
-INFERENCE_PLUGIN_API(void)
-CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& backend) {
-    backend = std::make_shared<HDDL2Backend>();
+INFERENCE_PLUGIN_API(void) CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj) {
+    obj = std::make_shared<HDDL2Backend>();
 }
 
 }  // namespace hddl2

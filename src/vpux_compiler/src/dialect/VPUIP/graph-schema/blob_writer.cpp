@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
@@ -326,11 +327,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     if (maxShaves.hasValue()) {
         builder.add_maxShaves(checked_cast<uint8_t>(maxShaves.getValue()));
     } else {
-        auto resources = IE::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
-        VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources definition");
-
-        auto available =
-                resources.getExecutor(VPU::ExecutorKindAttr::get(op->getContext(), VPU::ExecutorKind::SHAVE_UPA));
+        auto available = IE::getAvailableExecutor(op->getParentOfType<mlir::ModuleOp>(), VPU::ExecutorKind::SHAVE_UPA);
         VPUX_THROW_UNLESS(available != nullptr, "SHAVE_UPA executor is not avaialble in run-time");
 
         builder.add_maxShaves(checked_cast<uint8_t>(available.count()));
@@ -394,9 +391,9 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(Stri
         zeroPoints.push_back(checked_cast<uint8_t>(qType.getZeroPoint()));
         mult.push_back(getQuantMultFromScale(qType.getScale()));
         shift.push_back(getQuantShiftFromScale(qType.getScale()));
-    } else if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-        auto qtype_quant_zp = qType.getZeroPoints();
-        auto qtype_quant_scale = qType.getScales();
+    } else if (const auto qPerAxisType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        auto qtype_quant_zp = qPerAxisType.getZeroPoints();
+        auto qtype_quant_scale = qPerAxisType.getScales();
         zeroPoints.resize(qtype_quant_zp.size());
         mult.resize(qtype_quant_scale.size());
         shift.resize(qtype_quant_scale.size());

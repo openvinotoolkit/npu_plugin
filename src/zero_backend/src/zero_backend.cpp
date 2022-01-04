@@ -130,7 +130,6 @@ const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
     return devicesNames;
 }
 
-INFERENCE_PLUGIN_API(void)
-CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& backend) {
-    backend = std::make_shared<vpux::ZeroEngineBackend>();
+INFERENCE_PLUGIN_API(void) CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj) {
+    obj = std::make_shared<vpux::ZeroEngineBackend>();
 }

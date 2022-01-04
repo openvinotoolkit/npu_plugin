@@ -12,10 +12,9 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -45,24 +44,23 @@ void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffe
     }
 }
 
-mlir::Attribute vpux::VPUIP::getExecutorAttr(uint32_t& numUnits, mlir::Operation* op, VPU::ExecutorKind kind,
-                                             Optional<int64_t> opNumUnits) {
+mlir::SymbolRefAttr vpux::VPUIP::getExecutorAttr(uint32_t& numUnits, mlir::Operation* op, VPU::ExecutorKind kind,
+                                                 Optional<int64_t> opNumUnits) {
     const auto kindAttr = VPU::ExecutorKindAttr::get(op->getContext(), kind);
 
     if (opNumUnits.hasValue()) {
         numUnits = checked_cast<uint32_t>(opNumUnits.getValue());
     } else {
         auto module = op->getParentOfType<mlir::ModuleOp>();
-        auto resources = IE::RunTimeResourcesOp::getFromModule(module);
-        auto available = resources.getExecutor(kindAttr);
+        auto available = IE::getAvailableExecutor(module, kind);
         VPUX_THROW_UNLESS(available != nullptr, "Executor for '{0}' is not available", kind);
         numUnits = checked_cast<uint32_t>(available.count());
     }
 
-    return kindAttr;
+    return mlir::SymbolRefAttr::get(kindAttr);
 }
 
-mlir::Attribute vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits) {
+mlir::SymbolRefAttr vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits) {
     auto task = mlir::cast<VPUIP::TaskOpInterface>(op);
     const auto executor = task.getExecutorKind();
 
@@ -123,13 +121,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
     }
 
     if (upaTask.maxShaves().hasValue()) {
-        auto resources = IE::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
-        if (resources == nullptr) {
-            return errorAt(op, "Missing IERT run-time resources definition");
-        }
-
-        auto available =
-                resources.getExecutor(VPU::ExecutorKindAttr::get(op->getContext(), VPU::ExecutorKind::SHAVE_UPA));
+        auto available = IE::getAvailableExecutor(op->getParentOfType<mlir::ModuleOp>(), VPU::ExecutorKind::SHAVE_UPA);
         if (available == nullptr) {
             return errorAt(op, "SHAVE_UPA executor is not avaialble in run-time");
         }

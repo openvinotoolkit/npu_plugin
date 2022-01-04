@@ -16,6 +16,7 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -48,13 +49,11 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     VPUX_THROW_UNLESS((inputType == weightsType), "Eltwise expects inputs of same type");
 
     SmallVector<mlir::Type> inputTypes;
+    inputTypes.push_back(getMemRefType(VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC));
     inputTypes.push_back(
-            getMemRefType(builder, VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC));
-    inputTypes.push_back(
-            getMemRefType(builder, VPURT::BufferSection::NetworkInput, weights_shape, weightsType, DimsOrder::NHWC));
+            getMemRefType(VPURT::BufferSection::NetworkInput, weights_shape, weightsType, DimsOrder::NHWC));
 
-    auto outputParamType =
-            getMemRefType(builder, VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
+    auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
@@ -71,16 +70,15 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     auto funcoutput = func.getArgument(2);
 
     // input - output cmx tensors
-    auto inputcmx_type = getMemRefType(builder, VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
+    auto inputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
     auto inputcmx =
             createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT0_CMX_OFFSET);
 
-    auto weightscmx_type =
-            getMemRefType(builder, VPURT::BufferSection::CMX_NN, weights_shape, weightsType, DimsOrder::NHWC);
+    auto weightscmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, weights_shape, weightsType, DimsOrder::NHWC);
     auto weightscmx =
             createDeclareTensorOp(funcbuilder, weightscmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT1_CMX_OFFSET);
 
-    auto outputcmx_type = getMemRefType(builder, VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
+    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
     auto outputcmx =
             createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
@@ -110,9 +108,39 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
             weightscmx.getOperation()->getResult(0), mlir::Value(), nullptr,
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::ELTWISE, mlir::ArrayAttr(), mlir::ArrayAttr(),
-            vpux::VPUIP::PaddingAttr(), actChannelLength, /*is_continued*/ nullptr);
+            VPU::PaddingAttr(), actChannelLength, /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
-    nceTask.addPPETask(funcbuilder);
+    int64_t clampLow = std::numeric_limits<int32_t>::min();
+    int64_t clampHigh = std::numeric_limits<int32_t>::max();
+    int64_t LreluMult = 1;
+    int64_t LreluShift = 0;
+
+    if (auto outElemQType = outputType.template dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto zps = extractScalesAndZeroPoints(outputType).second;
+
+        clampLow = outElemQType.getStorageTypeMin() - zps.front();
+        clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+    }
+
+    // Since Eltwise operation doesn't have weights table it requires final quantization scaling
+    // to be part of output tensor description. Scale vector will be placed in PPE block and
+    // later used during NCE task serialization
+    auto quantScale = VPU::calculateQuantScaleVectorForEltwise(inputcmx_type, weightscmx_type, outputcmx_type,
+                                                               VPU::ArchKind::MTL, false);
+    if (quantScale.hasValue()) {
+        const auto scale = quantScale.getValue();
+
+        const auto mult = getQuantMultFromScale(scale);
+        const auto shifts = getQuantShiftAndPostShiftFromScale(scale);
+
+        const auto shift = shifts.first;
+        const auto post_shift = shifts.second;
+
+        nceTask.addPPETask(funcbuilder, VPU::PPEMode::ADD, clampLow, clampHigh, LreluMult, LreluShift,
+                           SmallVector<int32_t>{mult}, SmallVector<int32_t>{shift}, post_shift);
+    } else {
+        nceTask.addPPETask(funcbuilder, VPU::PPEMode::ADD, clampLow, clampHigh, LreluMult, LreluShift);
+    }
 
     // Create DPU task for NCE task
     auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
@@ -122,11 +150,11 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     std::vector<int32_t> end_vec{static_cast<int32_t>(out_shape[3] - 1), static_cast<int32_t>(out_shape[2] - 1),
                                  static_cast<int32_t>(out_shape[1] - 1)};
     auto end = getIntArrayAttr(builder, end_vec);
-    auto pad = vpux::VPUIP::getPaddingAttr(ctx, 0, 0, 0, 0);
+    auto pad = VPU::getPaddingAttr(ctx, 0, 0, 0, 0);
 
     // NB For eltwise operations, NTHW_NTK=(8, 8) is the only mode supported by
     // the hardware; this corresponds to CUBOID_8x16.
-    nceTask.addDPUTask(variantbuilder, start, end, pad, VPUIP::MPEMode::CUBOID_8x16);
+    nceTask.addDPUTask(variantbuilder, start, end, pad, VPU::MPEMode::CUBOID_8x16);
 
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 

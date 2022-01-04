@@ -438,8 +438,8 @@ operation ::= `VPUIP.DPUTask` attr-dict
 | :-------: | :-------: | ----------- |
 `start` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `end` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`pad` | vpux::VPUIP::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
-`mpe_mode` | vpux::VPUIP::MPEModeAttr | MPE Mode
+`pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
+`mpe_mode` | vpux::VPU::MPEModeAttr | MPE Mode
 
 ### `VPUIP.DepthToSpaceUPA` (vpux::VPUIP::DepthToSpaceUPAOp)
 
@@ -535,7 +535,7 @@ operation ::= `VPUIP.EltwiseUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`type` | vpux::VPUIP::EltwiseLayerTypeAttr | Type of Eltwise layer
+`type` | vpux::VPU::EltwiseTypeAttr | Type of Eltwise operation
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
@@ -1250,9 +1250,10 @@ mutually exclusive.
 `task_type` | vpux::VPUIP::NCETaskTypeAttr | NCE task type
 `kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `kernel_strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`kernel_padding` | vpux::VPUIP::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
+`kernel_padding` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 `is_continued` | ::mlir::UnitAttr | unit attribute
+`cm_sp_pattern` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1437,7 +1438,7 @@ operation ::= `VPUIP.PPETask` $ppe_layer_type attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`ppe_layer_type` | vpux::VPUIP::PPELayerTypeAttr | Post Processing Element Type
+`ppe_layer_type` | vpux::VPU::PPEModeAttr | Post Processing Element Type
 `clamp_low` | mlir::IntegerAttr | Integer attribute
 `clamp_high` | mlir::IntegerAttr | Integer attribute
 `lrelu_mult` | mlir::IntegerAttr | Integer attribute

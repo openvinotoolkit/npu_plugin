@@ -16,9 +16,7 @@
 #include <cstddef>
 #include <set>
 
-#include <details/ie_so_loader.h>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <details/ie_so_pointer.hpp>
 #include <ie_icnn_network.hpp>
 #include <ie_input_info.hpp>
 #include <ie_remote_context.hpp>
@@ -30,17 +28,6 @@
 namespace vpux {
 
 class ICompiler;
-// FIXME: use OPENVINO_STATIC_LIBRARY instead of
-// BUILD_COMPILER_FOR_DRIVER once the compiler can be used in
-// purely static build
-// #ifdef OPENVINO_STATIC_LIBRARY
-#ifdef BUILD_COMPILER_FOR_DRIVER
-using CompilerPluginPtr = std::shared_ptr<ICompiler>;
-#else
-IE_SUPPRESS_DEPRECATED_START
-using CompilerPluginPtr = InferenceEngine::details::SOPointer<ICompiler>;
-IE_SUPPRESS_DEPRECATED_END
-#endif
 
 /**
  * @brief A helper map to represent descriptions for inputs and outputs
@@ -159,48 +146,51 @@ public:
     using Ptr = std::shared_ptr<NetworkDescription>;
     using CPtr = std::shared_ptr<const NetworkDescription>;
 
-    NetworkDescription(INetworkDescription::Ptr actual, const CompilerPluginPtr& plg = {});
+    NetworkDescription(INetworkDescription::Ptr impl, const std::shared_ptr<void>& so = {});
+
+    // Destructor preserves unload order of implementation object and reference to library.
+    // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
+    // And use destructor to remove implementation object before reference to library explicitly.
+    ~NetworkDescription() {
+        _impl = {};
+    }
 
     const std::string& getName() const {
-        return _actual->getName();
+        return _impl->getName();
     }
     const DataMap& getInputsInfo() const {
-        return _actual->getInputsInfo();
+        return _impl->getInputsInfo();
     }
     const DataMap& getOutputsInfo() const {
-        return _actual->getOutputsInfo();
+        return _impl->getOutputsInfo();
     }
     const DataMap& getDeviceInputsInfo() const {
-        return _actual->getDeviceInputsInfo();
+        return _impl->getDeviceInputsInfo();
     }
     const DataMap& getDeviceOutputsInfo() const {
-        return _actual->getDeviceOutputsInfo();
+        return _impl->getDeviceOutputsInfo();
     }
     const DataMap& getDeviceProfilingOutputsInfo() const {
-        return _actual->getDeviceProfilingOutputsInfo();
+        return _impl->getDeviceProfilingOutputsInfo();
     }
     const vpux::QuantizationParamMap& getQuantParamsInfo() const {
-        return _actual->getQuantParamsInfo();
+        return _impl->getQuantParamsInfo();
     }
     const std::vector<char>& getCompiledNetwork() const {
-        return _actual->getCompiledNetwork();
+        return _impl->getCompiledNetwork();
     }
     const void* getNetworkModel() const {
-        return _actual->getNetworkModel();
+        return _impl->getNetworkModel();
     }
     std::size_t getNetworkModelSize() const {
-        return _actual->getNetworkModelSize();
-    }
-
-    ~NetworkDescription() {
-        // It's necessary to destroy _actual before _plg to avoid potential program crashes
-        _actual = nullptr;
+        return _impl->getNetworkModelSize();
     }
 
 private:
-    INetworkDescription::Ptr _actual;
+    INetworkDescription::Ptr _impl;
 
-    CompilerPluginPtr _plg;
+    // Keep pointer to `_so` to avoid shared library unloading prior destruction of the `_impl` object.
+    std::shared_ptr<void> _so;
 };
 
 /**
@@ -276,39 +266,49 @@ public:
 // purely static build
 // #ifdef OPENVINO_STATIC_LIBRARY
 #ifdef BUILD_COMPILER_FOR_DRIVER
-    Compiler(ICompiler::Ptr com): _actual(com){};
+    Compiler(const std::shared_ptr<ICompiler>& com): _impl(com){};
 #else
-    Compiler(std::string libpath): _actual(std::move(libpath)){};
+    Compiler(const std::string& libpath);
 #endif
+
+    // Destructor preserves unload order of implementation object and reference to library.
+    // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
+    // And use destructor to remove implementation object before reference to library explicitly.
+    ~Compiler() {
+        _impl = {};
+    }
 
     std::shared_ptr<vpux::NetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
                                                       const std::string& netName,
                                                       const InferenceEngine::InputsDataMap& inputsInfo,
                                                       const InferenceEngine::OutputsDataMap& outputsInfo,
                                                       const Config& config) {
-        return std::make_shared<NetworkDescription>(_actual->compile(func, netName, inputsInfo, outputsInfo, config),
-                                                    _actual);
+        return std::make_shared<NetworkDescription>(_impl->compile(func, netName, inputsInfo, outputsInfo, config),
+                                                    _impl);
     }
 
     InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network, const Config& config) {
-        return _actual->query(network, config);
+        return _impl->query(network, config);
     }
 
     std::shared_ptr<vpux::NetworkDescription> parse(const std::vector<char>& network, const Config& config) {
-        return std::make_shared<NetworkDescription>(_actual->parse(network, config, ""), _actual);
+        return std::make_shared<NetworkDescription>(_impl->parse(network, config, ""), _impl);
     }
 
     std::shared_ptr<vpux::NetworkDescription> parse(const std::string& filename, const Config& config) {
-        return std::make_shared<NetworkDescription>(_actual->parse(filename, config), _actual);
+        return std::make_shared<NetworkDescription>(_impl->parse(filename, config), _impl);
     }
 
     std::shared_ptr<vpux::NetworkDescription> parse(std::istream& stream, const Config& config,
                                                     const std::string& graphName) {
-        return std::make_shared<NetworkDescription>(_actual->parse(stream, config, graphName), _actual);
+        return std::make_shared<NetworkDescription>(_impl->parse(stream, config, graphName), _impl);
     }
 
 private:
-    CompilerPluginPtr _actual;
+    std::shared_ptr<ICompiler> _impl;
+
+    // Keep pointer to `_so` to avoid shared library unloading prior destruction of the `_impl` object.
+    std::shared_ptr<void> _so;
 };
 
 namespace helpers {
@@ -317,13 +317,3 @@ InferenceEngine::OutputsDataMap dataMapIntoOutputsDataMap(const vpux::DataMap& d
 }  // namespace helpers
 
 }  // namespace vpux
-
-namespace InferenceEngine {
-namespace details {
-template <>
-class SOCreatorTrait<vpux::ICompiler> {
-public:
-    static constexpr auto name = "CreateVPUXCompiler";
-};
-}  // namespace details
-}  // namespace InferenceEngine

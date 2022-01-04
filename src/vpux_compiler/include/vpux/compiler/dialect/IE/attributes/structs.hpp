@@ -15,9 +15,6 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
-
-#include "vpux/utils/core/array_ref.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -35,21 +32,15 @@ namespace IE {
 // TensorAttr
 //
 
-IE::TensorAttr getTensorAttr(mlir::AffineMapAttr order, mlir::Attribute memSpace, bool sparse);
-IE::TensorAttr getTensorAttr(mlir::AffineMap order, mlir::Attribute memSpace, bool sparse);
-IE::TensorAttr getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::Attribute memSpace, bool sparse);
+IE::TensorAttr getTensorAttr(mlir::AffineMapAttr order, mlir::SymbolRefAttr memSpace, bool sparse);
+IE::TensorAttr getTensorAttr(mlir::AffineMap order, mlir::SymbolRefAttr memSpace, bool sparse);
+IE::TensorAttr getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::SymbolRefAttr memSpace, bool sparse);
 
 IE::TensorAttr getTensorAttr(mlir::RankedTensorType type);
 
 mlir::AffineMap getOrder(mlir::RankedTensorType type);
-mlir::Attribute getMemorySpace(mlir::RankedTensorType type);
+mlir::SymbolRefAttr getMemorySpace(mlir::RankedTensorType type);
 bool isSparse(mlir::RankedTensorType type);
-
-//
-// PaddingAttr
-//
-
-VPUIP::PaddingAttr getPaddingAttr(mlir::MLIRContext* ctx, ArrayRef<int64_t> padsBegin, ArrayRef<int64_t> padsEnd);
 
 }  // namespace IE
 }  // namespace vpux

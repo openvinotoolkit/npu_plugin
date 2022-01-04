@@ -16,9 +16,8 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -159,12 +158,9 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     SmallVector<mlir::Type> inputTypes;
     inputTypes.reserve(num_func_args);
-    auto inputParamType =
-            getMemRefType(builder, VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC);
-    auto weightsParamType =
-            getMemRefType(builder, VPURT::BufferSection::Constant, weights_shape, weightsType, DimsOrder::NHWC);
-    auto outputParamType =
-            getMemRefType(builder, VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
+    auto inputParamType = getMemRefType(VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC);
+    auto weightsParamType = getMemRefType(VPURT::BufferSection::Constant, weights_shape, weightsType, DimsOrder::NHWC);
+    auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(inputParamType);
     inputTypes.push_back(weightsParamType);
     inputTypes.push_back(outputParamType);
@@ -188,7 +184,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
                                            DimsOrder::NHWC, 0, INPUT0_CMX_OFFSET);
 
     auto padded_weights_type =
-            getMemRefType(builder, VPURT::BufferSection::CMX_NN, weights_pad_shape, weightsType, DimsOrder::NHWC);
+            getMemRefType(VPURT::BufferSection::CMX_NN, weights_pad_shape, weightsType, DimsOrder::NHWC);
     auto padded_weights_strides = vpux::getStrides(padded_weights_type);
     // Tensors - concat input/output
     auto weights_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, weights_shape, weightsType,
@@ -224,8 +220,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
         wt_data_attr = wt_data_attr.quantCast(qty);
     }
-    auto zero_pad_type =
-            getMemRefType(builder, VPURT::BufferSection::Constant, zero_pad_shape, weightsType, DimsOrder::NHWC);
+    auto zero_pad_type = getMemRefType(VPURT::BufferSection::Constant, zero_pad_shape, weightsType, DimsOrder::NHWC);
     auto zero_pad_data = funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), zero_pad_type,
                                                               wt_data_attr.reorder(DimsOrder::NHWC));
 
@@ -238,14 +233,14 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
                                           funcweights, getTensorResult(weights_cmx));
 
     // Activation Window
-    const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
-            makeArrayRef(filter_size), stride_vec[0],
+    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(
+            ShapeRef(filter_size), stride_vec[1],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                                         : inputType);
     mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
 
-    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
-            makeArrayRef(filter_size), stride_vec[0],
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(
+            ShapeRef(filter_size), stride_vec[1],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                                         : inputType,
             input_nce_shape[1]);
@@ -258,7 +253,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
 
     auto act_window_ddr_memreftype =
-            getMemRefType(funcbuilder, VPURT::BufferSection::Constant, sparsity_shape, sparsity_type, DimsOrder::NHWC);
+            getMemRefType(VPURT::BufferSection::Constant, sparsity_shape, sparsity_type, DimsOrder::NHWC);
 
     auto act_window_totalsize = totalTensorSize(sparsity_shape, sparsity_type);
     auto act_window_totalsize_bytes = act_window_totalsize * sparsity_type.getIntOrFloatBitWidth() / CHAR_BIT;
@@ -274,16 +269,15 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     // weights table ddr
     SmallVector<int64_t> weightstable_data_shape{sparsity_shape[0], 1, 1, 4};
-    auto weightstable_ddr_memreftype =
-            getMemRefType(funcbuilder, VPURT::BufferSection::Constant, weightstable_data_shape,
-                          builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC);
+    auto weightstable_ddr_memreftype = getMemRefType(VPURT::BufferSection::Constant, weightstable_data_shape,
+                                                     builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC);
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(weightstable_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
-    auto weights_cmx_memreftype = getMemRefType(funcbuilder, VPURT::BufferSection::CMX_NN, weights_nce_shape,
-                                                weightsType, DimsOrder::NHWC, padded_weights_strides);
+    auto weights_cmx_memreftype = getMemRefType(VPURT::BufferSection::CMX_NN, weights_nce_shape, weightsType,
+                                                DimsOrder::NHWC, padded_weights_strides);
     auto output_cmx_memreftype =
-            getMemRefType(funcbuilder, VPURT::BufferSection::CMX_NN, output_nce_shape, outputType, DimsOrder::NHWC);
+            getMemRefType(VPURT::BufferSection::CMX_NN, output_nce_shape, outputType, DimsOrder::NHWC);
 
     auto weights_set_size = weights_cmx_memreftype.getShape()[1] * weights_cmx_memreftype.getShape()[2] *
                             weights_cmx_memreftype.getShape()[3];
@@ -296,7 +290,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     }
     auto weights_set_nbytes = weights_set_size * elementsize_bytes;
 
-    const std::vector<int32_t> weightstable_data_values_vec = VPUIP::NCESparsity::getWeightsTable(
+    const std::vector<int32_t> weightstable_data_values_vec = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<int32_t>(WEIGHTS_PAD_CMX_OFFSET),
             static_cast<int32_t>(weights_set_nbytes), static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET),
             VPU::ArchKind::MTL, output_nce_shape[1], weightsType);
@@ -321,15 +315,15 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
     auto strides = getIntArrayAttr(builder, stride_vec);
-    auto kernel_padding = VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
-                                                padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
+    auto kernel_padding = VPU::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                              padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, BARRIER_0, BARRIER_1, builder.getUnknownLoc(), output_cmx_memreftype,
             getTensorResult(input_nce_cmx), getTensorResult(weights_nce_cmx), getTensorResult(weightstable_cmx),
             getTensorResult(act_window_cmx), getTensorResult(parent_input_nce_cmx),
             getTensorResult(parent_output_nce_cmx), getTensorResult(output_nce_cmx), NCETaskType::DWCONV, filtersize,
-            strides, kernel_padding, actChannelLength, /*is_continued*/ nullptr);
+            strides, kernel_padding, actChannelLength, /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 

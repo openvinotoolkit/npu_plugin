@@ -12,7 +12,6 @@
 //
 
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 
 #include "vpux/utils/core/error.hpp"
 
@@ -33,7 +32,7 @@ using namespace vpux;
 // TensorAttr
 //
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMapAttr order, mlir::Attribute memSpace, bool sparse) {
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMapAttr order, mlir::SymbolRefAttr memSpace, bool sparse) {
     // Initially, tensors do not have an encoding attribute, which is equivalent to an empty TensorAttr.
     // But in fact, such tensors have a different type: `tensor<1x8x4x2xf16> != tensor<1x8x4x2xf16, {}>`.
     // So let's not use empty attributes to avoid ambiguous representation of the same type.
@@ -47,11 +46,12 @@ IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMapAttr order, mlir::Attribut
     return IE::TensorAttr::get(order, memSpace, sparseAttr, ctx);
 }
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMap order, mlir::Attribute memSpace, bool sparse) {
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMap order, mlir::SymbolRefAttr memSpace, bool sparse) {
     return IE::getTensorAttr(mlir::AffineMapAttr::get(order), memSpace, sparse);
 }
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::Attribute memSpace, bool sparse) {
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::SymbolRefAttr memSpace,
+                                       bool sparse) {
     return IE::getTensorAttr(order.toAffineMap(ctx), memSpace, sparse);
 }
 
@@ -77,7 +77,7 @@ mlir::AffineMap vpux::IE::getOrder(mlir::RankedTensorType type) {
     return mlir::AffineMap::getMinorIdentityMap(numDims, numDims, type.getContext());
 }
 
-mlir::Attribute vpux::IE::getMemorySpace(mlir::RankedTensorType type) {
+mlir::SymbolRefAttr vpux::IE::getMemorySpace(mlir::RankedTensorType type) {
     if (const auto desc = IE::getTensorAttr(type)) {
         return desc.mem_space();
     }
@@ -91,13 +91,4 @@ bool vpux::IE::isSparse(mlir::RankedTensorType type) {
     }
 
     return false;
-}
-
-//
-// PaddingAttr
-//
-
-VPUIP::PaddingAttr vpux::IE::getPaddingAttr(mlir::MLIRContext* ctx, ArrayRef<int64_t> padsBegin,
-                                            ArrayRef<int64_t> padsEnd) {
-    return VPUIP::getPaddingAttr(ctx, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]);
 }

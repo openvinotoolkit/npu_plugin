@@ -53,12 +53,6 @@ const std::vector<std::string> EmulatorBackend::getDeviceNames() const {
 
 }  // namespace vpux
 
-INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
-CreateVPUXEngineBackend(vpux::IEngineBackend*& backend, InferenceEngine::ResponseDesc* resp) noexcept {
-    try {
-        backend = new vpux::EmulatorBackend();
-        return ie::StatusCode::OK;
-    } catch (std::exception& ex) {
-        return ie::DescriptionBuffer(ie::StatusCode::GENERAL_ERROR, resp) << ex.what();
-    }
+INFERENCE_PLUGIN_API(void) CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj) {
+    obj = std::make_shared<vpux::EmulatorBackend>();
 }

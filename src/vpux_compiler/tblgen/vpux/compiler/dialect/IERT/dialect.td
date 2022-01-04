@@ -54,16 +54,16 @@ The **IERT Dialect** uses the following scheme to represent scheduling informati
 * Concurrent execution is defined as asynchronous regions (**Async Dialect**).
 
 ```MLIR
-%11_t, %11_f = async.execute { IERT.executor = "NCE_Cluster" }
+%11_t, %11_f = async.execute { IERT.executor = @NCE }
     [%7_t, %8_9_t](%8_9_f#0 as %8, %8_9_f#1 as %9)
 {
-    %11_0_t, %11_0_f = async.execute { IERT.executor = "DPU" }
+    %11_0_t, %11_0_f = async.execute { IERT.executor = @DPU }
     {
         %11_0 = IERT.Convolution(%7, %8, %9) to %10_0 { strides = [1, 1], pads_begin = [1, 1], pads_end = [1, 1] }
         async.yield %11_0
     }
 
-    %11_1_t, %11_1_f = async.execute { IERT.executor = "DPU" }
+    %11_1_t, %11_1_f = async.execute { IERT.executor = @DPU }
     {
         %11_1 = IERT.Convolution(%7, %8, %9) to %10_1 { strides = [1, 1], pads_begin = [1, 1], pads_end = [1, 1] }
         async.yield %11_1
@@ -94,9 +94,9 @@ The **IERT Dialect** uses the following scheme to represent scheduling informati
     let hasConstantMaterializer = 1;
 
     let extraClassDeclaration = [{
-        static void setExecutor(mlir::async::ExecuteOp execOp, mlir::Attribute executor, uint32_t numUnits);
+        static void setExecutor(mlir::async::ExecuteOp execOp, mlir::SymbolRefAttr executor, uint32_t numUnits);
         static llvm::StringLiteral getExecutorAttrName();
-        static mlir::Attribute getExecutor(mlir::async::ExecuteOp execOp, uint32_t& numUnits);
+        static mlir::SymbolRefAttr getExecutor(mlir::async::ExecuteOp execOp, uint32_t& numUnits);
         static void setupExtraInterfaces(mlir::DialectRegistry& registry);
     }];
 }

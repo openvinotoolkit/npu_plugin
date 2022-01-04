@@ -33,13 +33,13 @@ using namespace vpux;
 void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                           mlir::Value weights, mlir::Value weight_table, mlir::Value activation_window,
                                           mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
-                                          vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
-                                          mlir::ArrayAttr kernel_strides, vpux::VPUIP::PaddingAttr kernel_padding,
+                                          VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
+                                          mlir::ArrayAttr kernel_strides, VPU::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
-                                          mlir::UnitAttr is_continued) {
+                                          mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
           parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
-          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
+          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -50,13 +50,13 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::Value input, mlir::Value weights, mlir::Value weight_table,
                                           mlir::Value activation_window, mlir::Value parent_input,
                                           mlir::Value parent_output, mlir::Value output_buff,
-                                          vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
-                                          mlir::ArrayAttr kernel_strides, vpux::VPUIP::PaddingAttr kernel_padding,
+                                          VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
+                                          mlir::ArrayAttr kernel_strides, VPU::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
-                                          mlir::UnitAttr is_continued) {
+                                          mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern) {
     build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
           output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
-          kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
+          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -68,8 +68,8 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
 //
 
 VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start,
-                                                           mlir::ArrayAttr end, VPUIP::PaddingAttr pad,
-                                                           VPUIP::MPEMode mpeMode) {
+                                                           mlir::ArrayAttr end, VPU::PaddingAttr pad,
+                                                           VPU::MPEMode mpeMode) {
     if (variants().empty()) {
         variants().emplaceBlock();
     }
@@ -208,8 +208,15 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
                        OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
     }
 
-    if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
-        return mlir::failure();
+    if (arch != VPU::ArchKind::MTL) {
+        if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
+            return mlir::failure();
+        }
+    } else {
+        // MTL supports ODU permutation, thus only input must have NHWC layout.
+        if (DimsOrder::fromValue(op.input()) != DimsOrder::NHWC) {
+            return mlir::failure();
+        }
     }
 
     const auto weightsLayout = DimsOrder::fromValue(op.weights());
@@ -460,21 +467,21 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
 
 namespace {
 
-MVCNN::MPE_Mode getMPEMode(VPUIP::MPEMode mpeMode) {
+MVCNN::MPE_Mode getMPEMode(VPU::MPEMode mpeMode) {
     switch (mpeMode) {
-    case VPUIP::MPEMode::VECTOR:
+    case VPU::MPEMode::VECTOR:
         return MVCNN::MPE_Mode_VECTOR;
-    case VPUIP::MPEMode::MATRIX:
+    case VPU::MPEMode::MATRIX:
         return MVCNN::MPE_Mode_MATRIX;
-    case VPUIP::MPEMode::VECTOR_FP16:
+    case VPU::MPEMode::VECTOR_FP16:
         return MVCNN::MPE_Mode_VECTOR_FP16;
-    case VPUIP::MPEMode::CUBOID_16x16:
+    case VPU::MPEMode::CUBOID_16x16:
         return MVCNN::MPE_Mode_CUBOID_16x16;
-    case VPUIP::MPEMode::CUBOID_8x16:
+    case VPU::MPEMode::CUBOID_8x16:
         return MVCNN::MPE_Mode_CUBOID_8x16;
-    case VPUIP::MPEMode::CUBOID_4x16:
+    case VPU::MPEMode::CUBOID_4x16:
         return MVCNN::MPE_Mode_CUBOID_4x16;
-    case VPUIP::MPEMode::NOP:
+    case VPU::MPEMode::NOP:
         return MVCNN::MPE_Mode_NOP;
     default:
         VPUX_THROW("Unsupported MPE mode type: '{0}'", mpeMode);
@@ -504,69 +511,87 @@ MVCNN::DPULayerType getDPULayerType(VPUIP::NCETaskType taskType) {
     }
 }
 
-MVCNN::PPELayerType getPPELayerType(VPUIP::PPELayerType ppeType) {
+MVCNN::Permutation getODUPermutationType(DimsOrder outputDimsOrder) {
+    if (outputDimsOrder == vpux::DimsOrder::NHWC) {
+        return MVCNN::Permutation_ZXY;
+    } else if (outputDimsOrder == DimsOrder::fromCode(0x1432)) {  // NWHC
+        return MVCNN::Permutation_ZYX;
+    } else if (outputDimsOrder == DimsOrder::fromCode(0x1423)) {  // NWCH
+        return MVCNN::Permutation_YZX;
+    } else if (outputDimsOrder == DimsOrder::fromCode(0x1243)) {  // NCWH
+        return MVCNN::Permutation_YXZ;
+    } else if (outputDimsOrder == vpux::DimsOrder::NHCW) {
+        return MVCNN::Permutation_XZY;
+    } else if (outputDimsOrder == vpux::DimsOrder::NCHW) {
+        return MVCNN::Permutation_XYZ;
+    } else {
+        VPUX_THROW("Can't get ODU permutation by output dimsOrder: '{0}'", outputDimsOrder);
+    }
+}
+
+MVCNN::PPELayerType getPPELayerType(VPU::PPEMode ppeType) {
     switch (ppeType) {
-    case VPUIP::PPELayerType::STORE:
+    case VPU::PPEMode::STORE:
         return MVCNN::PPELayerType_STORE;
-    case VPUIP::PPELayerType::LOAD:
+    case VPU::PPEMode::LOAD:
         return MVCNN::PPELayerType_LOAD;
-    case VPUIP::PPELayerType::CLEAR:
+    case VPU::PPEMode::CLEAR:
         return MVCNN::PPELayerType_CLEAR;
-    case VPUIP::PPELayerType::NOOP:
+    case VPU::PPEMode::NOOP:
         return MVCNN::PPELayerType_NOOP;
-    case VPUIP::PPELayerType::HALT:
+    case VPU::PPEMode::HALT:
         return MVCNN::PPELayerType_HALT;
-    case VPUIP::PPELayerType::ADD:
+    case VPU::PPEMode::ADD:
         return MVCNN::PPELayerType_ADD;
-    case VPUIP::PPELayerType::SUB:
+    case VPU::PPEMode::SUB:
         return MVCNN::PPELayerType_SUB;
-    case VPUIP::PPELayerType::MULT:
+    case VPU::PPEMode::MULT:
         return MVCNN::PPELayerType_MULT;
-    case VPUIP::PPELayerType::MAXIMUM:
+    case VPU::PPEMode::MAXIMUM:
         return MVCNN::PPELayerType_MAXIMUM;
-    case VPUIP::PPELayerType::MINIMUM:
+    case VPU::PPEMode::MINIMUM:
         return MVCNN::PPELayerType_MINIMUM;
-    case VPUIP::PPELayerType::AND:
+    case VPU::PPEMode::AND:
         return MVCNN::PPELayerType_AND;
-    case VPUIP::PPELayerType::OR:
+    case VPU::PPEMode::OR:
         return MVCNN::PPELayerType_OR;
-    case VPUIP::PPELayerType::XOR:
+    case VPU::PPEMode::XOR:
         return MVCNN::PPELayerType_XOR;
-    case VPUIP::PPELayerType::LRELU:
+    case VPU::PPEMode::LRELU:
         return MVCNN::PPELayerType_LRELU;
-    case VPUIP::PPELayerType::LRELUX:
+    case VPU::PPEMode::LRELUX:
         return MVCNN::PPELayerType_LRELUX;
-    case VPUIP::PPELayerType::LPRELU:
+    case VPU::PPEMode::LPRELU:
         return MVCNN::PPELayerType_LPRELU;
-    case VPUIP::PPELayerType::CEIL:
+    case VPU::PPEMode::CEIL:
         return MVCNN::PPELayerType_CEIL;
-    case VPUIP::PPELayerType::FLOOR:
+    case VPU::PPEMode::FLOOR:
         return MVCNN::PPELayerType_FLOOR;
-    case VPUIP::PPELayerType::EXP:
+    case VPU::PPEMode::EXP:
         return MVCNN::PPELayerType_EXP;
-    case VPUIP::PPELayerType::SIGMOID:
+    case VPU::PPEMode::SIGMOID:
         return MVCNN::PPELayerType_SIGMOID;
-    case VPUIP::PPELayerType::TANH:
+    case VPU::PPEMode::TANH:
         return MVCNN::PPELayerType_TANH;
-    case VPUIP::PPELayerType::SQRT:
+    case VPU::PPEMode::SQRT:
         return MVCNN::PPELayerType_SQRT;
-    case VPUIP::PPELayerType::RSQRT:
+    case VPU::PPEMode::RSQRT:
         return MVCNN::PPELayerType_RSQRT;
-    case VPUIP::PPELayerType::FLEXARB:
+    case VPU::PPEMode::FLEXARB:
         return MVCNN::PPELayerType_FLEXARB;
-    case VPUIP::PPELayerType::NOT:
+    case VPU::PPEMode::NOT:
         return MVCNN::PPELayerType_NOT;
-    case VPUIP::PPELayerType::ABS:
+    case VPU::PPEMode::ABS:
         return MVCNN::PPELayerType_ABS;
-    case VPUIP::PPELayerType::NEG:
+    case VPU::PPEMode::NEG:
         return MVCNN::PPELayerType_NEG;
     default:
         VPUX_THROW("Unsupported PPE Layer type: '{0}'", ppeType);
     }
 }
 
-VPUIP::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
-    std::unordered_map<VPUIP::MPEMode, size_t> umap;
+VPU::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
+    std::unordered_map<VPU::MPEMode, size_t> umap;
     for (auto dpuTaskOp : dpuTaskOps.getOps<VPUIP::DPUTaskOp>()) {
         ++umap[dpuTaskOp.mpe_mode()];
         if (umap.size() > 1) {
@@ -701,6 +726,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     int32_t out_channel_offset = 0;
     bool is_segmented = false;
     bool is_continued = false;
+    uint16_t cm_sp_pattern = 0;
 
     if (kernel_sizeAttr() != nullptr) {
         const auto kernelSize = parseIntArrayAttr<int64_t>(kernel_sizeAttr());
@@ -724,6 +750,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
 
     if (is_continuedAttr() != nullptr) {
         is_continued = true;
+    }
+
+    // Extract output permutation from output layout
+    MVCNN::Permutation oduPermutation = getODUPermutationType(DimsOrder::fromValue(output()));
+
+    if (cm_sp_patternAttr() != nullptr) {
+        cm_sp_pattern = checked_cast<uint16_t>(cm_sp_patternAttr().getValue().getSExtValue());
     }
 
     const auto inputData = writer.getTensorRef(input());
@@ -779,8 +812,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                             odu_offset,                     // odu_offset
                                             out_channel_offset,             // out_channel_offset
                                             is_segmented,                   // is_segmented
-                                            is_continued                    // is_continued
-            );
+                                            is_continued,                   // is_continued
+                                            false,                          // is_superdense
+                                            0,                              // segment_height
+                                            oduPermutation,                 // odu_permutation
+                                            cm_sp_pattern);                 // cm_sp_pattern
 
     MVCNN::NCE2TaskBuilder builder(writer);
     builder.add_variant(variant);

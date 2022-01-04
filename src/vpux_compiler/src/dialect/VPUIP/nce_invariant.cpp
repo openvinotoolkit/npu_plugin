@@ -12,10 +12,11 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -241,11 +242,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::GroupConvolu
 namespace {
 
 Byte getCMXSizeForTiling(mlir::ModuleOp module) {
-    auto resOp = IE::RunTimeResourcesOp::getFromModule(module);
-
-    const auto cmxAttr = VPU::MemoryKindAttr::get(module->getContext(), VPU::MemoryKind::CMX_NN);
-
-    auto cmxRes = resOp.getAvailableMemory(cmxAttr);
+    auto cmxRes = IE::getAvailableMemory(module, VPU::MemoryKind::CMX_NN);
     VPUX_THROW_UNLESS(cmxRes != nullptr, "Can't get information about {0} memory", VPU::MemoryKind::CMX_NN);
 
     // This function is used to determine the best tile size. It tries to put maximum data in CMX.
@@ -322,11 +319,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
     const auto inputShape = getShape(inputType);
     const auto IC = inputShape[Dims4D::Act::C];
 
-    const auto kernelSizeVals = parseIntArrayAttr<int64_t>(kernelSize);
-    const auto kernelStridesVals = parseIntArrayAttr<int64_t>(kernelStrides);
+    const auto kernelSizeVals = Shape(parseIntArrayAttr<int64_t>(kernelSize));
+    const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(kernelStrides));
 
-    const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(kernelSizeVals, kernelStridesVals[0],
-                                                                                  inputType.getElementType(), IC);
+    const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
+            kernelSizeVals, kernelStridesVals[Dims4D::Strides::X], inputType.getElementType(), IC);
 
     const auto requiredCMX = getRequiredCMXForTiling({inputType, outputType}, IC) + activationWindowSize * 1_Byte;
 
@@ -461,12 +458,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
         return mlir::failure();
     }
 
-    // FIXME why does fake sparsity expects this order of kernel dimensions?
-    const auto kernelSizeVals = SmallVector<int64_t>{KX, KY};
-    const auto kernelStridesVals = parseIntArrayAttr<int64_t>(kernelStrides);
+    const Shape kernelSizeVals{KY, KX};
+    const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(kernelStrides));
 
-    const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(kernelSizeVals, kernelStridesVals[0],
-                                                                                  inputType.getElementType(), OC);
+    const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
+            kernelSizeVals, kernelStridesVals[Dims4D::Strides::X], inputType.getElementType(), OC);
 
     // consider alignment when calculating required CMX
     const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());

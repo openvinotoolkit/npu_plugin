@@ -21,7 +21,6 @@
 #include <map>
 #include <set>
 
-#include <details/ie_so_pointer.hpp>
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_remote_context.hpp>
@@ -61,13 +60,18 @@ protected:
     ~IEngineBackend() = default;
 };
 
-// [track: C#71607]
-IE_SUPPRESS_DEPRECATED_START
-using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
-IE_SUPPRESS_DEPRECATED_END
-
 class EngineBackend final {
 public:
+    EngineBackend() = default;
+    EngineBackend(const std::string& pathToLib);
+
+    // Destructor preserves unload order of implementation object and reference to library.
+    // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
+    // And use destructor to remove implementation object before reference to library explicitly.
+    ~EngineBackend() {
+        _impl = {};
+    }
+
     const std::shared_ptr<Device> getDevice() const;
     const std::shared_ptr<Device> getDevice(const std::string& specificDeviceName) const;
     const std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
@@ -79,14 +83,14 @@ public:
     }
     void registerOptions(OptionsDesc& options) const {
         _impl->registerOptions(options);
-        options.addSharedObject(_impl);
+        options.addSharedObject(_so);
     }
 
-    EngineBackend(std::string pathToLib);
-    EngineBackend() = default;
-
 private:
-    IEngineBackendPtr _impl = {};
+    std::shared_ptr<IEngineBackend> _impl;
+
+    // Keep pointer to `_so` to avoid shared library unloading prior destruction of the `_impl` object.
+    std::shared_ptr<void> _so;
 };
 
 //------------------------------------------------------------------------------
@@ -111,54 +115,50 @@ public:
 
 //------------------------------------------------------------------------------
 class AllocatorWrapper : public Allocator {
-private:
-    // AllocatorWrapper has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
-    // an instance of Allocator
-    std::shared_ptr<Allocator> _actual;
-
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::details::SharedObjectLoader _plg;
-    IE_SUPPRESS_DEPRECATED_END
-
 public:
-    IE_SUPPRESS_DEPRECATED_START
-    AllocatorWrapper(const std::shared_ptr<Allocator> actual, const InferenceEngine::details::SharedObjectLoader& plg)
-            : _actual(actual), _plg(plg) {
+    AllocatorWrapper(const std::shared_ptr<Allocator>& impl, const std::shared_ptr<void>& so): _impl(impl), _so(so) {
     }
-    IE_SUPPRESS_DEPRECATED_END
+
+    // Destructor preserves unload order of implementation object and reference to library.
+    // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
+    // And use destructor to remove implementation object before reference to library explicitly.
+    ~AllocatorWrapper() {
+        _impl = {};
+    }
 
     virtual void* lock(void* handle, InferenceEngine::LockOp op = InferenceEngine::LOCK_FOR_WRITE) noexcept override {
-        return _actual->lock(handle, op);
+        return _impl->lock(handle, op);
     }
     virtual void unlock(void* handle) noexcept override {
-        return _actual->unlock(handle);
+        return _impl->unlock(handle);
     }
     virtual void* alloc(size_t size) noexcept override {
-        return _actual->alloc(size);
+        return _impl->alloc(size);
     }
     virtual bool free(void* handle) noexcept override {
-        return _actual->free(handle);
+        return _impl->free(handle);
     }
 
     virtual void* wrapRemoteMemory(const InferenceEngine::ParamMap& paramMap) noexcept override {
-        return _actual->wrapRemoteMemory(paramMap);
+        return _impl->wrapRemoteMemory(paramMap);
     }
     virtual void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size,
                                          void* memHandle) noexcept override {
-        return _actual->wrapRemoteMemoryHandle(remoteMemoryFd, size, memHandle);
+        return _impl->wrapRemoteMemoryHandle(remoteMemoryFd, size, memHandle);
     }
     virtual void* wrapRemoteMemoryOffset(const int& remoteMemoryFd, const size_t size,
                                          const size_t& memOffset) noexcept override {
-        return _actual->wrapRemoteMemoryOffset(remoteMemoryFd, size, memOffset);
+        return _impl->wrapRemoteMemoryOffset(remoteMemoryFd, size, memOffset);
     }
     virtual unsigned long getPhysicalAddress(void* handle) noexcept override {
-        return _actual->getPhysicalAddress(handle);
+        return _impl->getPhysicalAddress(handle);
     }
 
-    ~AllocatorWrapper() {
-        // It's necessary to destroy _actual before _plg to avoid potential program crashes
-        _actual = nullptr;
-    };
+private:
+    std::shared_ptr<Allocator> _impl;
+
+    // Keep pointer to `_so` to avoid shared library unloading prior destruction of the `_impl` object.
+    std::shared_ptr<void> _so;
 };
 
 //------------------------------------------------------------------------------
@@ -181,47 +181,47 @@ protected:
 };
 
 class Device final {
-private:
-    // Device stores instances of classes inherited from IDevice. The instances come from _plg library.
-    // Device has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
-    // an instance of IDevice
-    std::shared_ptr<IDevice> _actual;
-    IEngineBackendPtr _plg;
-    std::shared_ptr<AllocatorWrapper> _allocatorWrapper;
-
 public:
     using Ptr = std::shared_ptr<Device>;
     using CPtr = std::shared_ptr<const Device>;
 
-    IE_SUPPRESS_DEPRECATED_START
-    Device(const std::shared_ptr<IDevice> device, const InferenceEngine::details::SharedObjectLoader& plg)
-            : _actual(device), _plg(plg) {
-        if (_actual->getAllocator()) {
-            _allocatorWrapper = std::make_shared<AllocatorWrapper>(_actual->getAllocator(), _plg);
+    Device(const std::shared_ptr<IDevice>& device, const std::shared_ptr<void>& so): _impl(device), _so(so) {
+        if (_impl->getAllocator()) {
+            _allocatorWrapper = std::make_shared<AllocatorWrapper>(_impl->getAllocator(), _so);
         }
     }
-    IE_SUPPRESS_DEPRECATED_END
+
+    // Destructor preserves unload order of implementation object and reference to library.
+    // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
+    // And use destructor to remove implementation object before reference to library explicitly.
+    ~Device() {
+        _impl = {};
+        _allocatorWrapper = {};
+    }
 
     std::shared_ptr<Allocator> getAllocator() const {
         return _allocatorWrapper;
     }
     std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) {
-        return std::make_shared<AllocatorWrapper>(_actual->getAllocator(paramMap), _plg);
+        return std::make_shared<AllocatorWrapper>(_impl->getAllocator(paramMap), _so);
     }
 
     std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription, const Config& config) {
-        return _actual->createExecutor(networkDescription, config);
+        return _impl->createExecutor(networkDescription, config);
     }
 
     std::string getName() const {
-        return _actual->getName();
+        return _impl->getName();
     }
 
-    ~Device() {
-        // It's necessary to destroy _actual before _plg to avoid potential program crashes
-        _actual = nullptr;
-    }
+private:
+    std::shared_ptr<IDevice> _impl;
+    std::shared_ptr<AllocatorWrapper> _allocatorWrapper;
+
+    // Keep pointer to `_so` to avoid shared library unloading prior destruction of the `_impl` object.
+    std::shared_ptr<void> _so;
 };
+
 //------------------------------------------------------------------------------
 using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;
 class Executor {
@@ -247,13 +247,3 @@ public:
 };
 
 }  // namespace vpux
-
-namespace InferenceEngine {
-namespace details {
-template <>
-class SOCreatorTrait<vpux::IEngineBackend> {
-public:
-    static constexpr auto name = "CreateVPUXEngineBackend";
-};
-}  // namespace details
-}  // namespace InferenceEngine

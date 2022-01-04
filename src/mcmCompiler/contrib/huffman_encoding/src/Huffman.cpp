@@ -384,7 +384,8 @@ vector<Symbol> Huffman::getSymFreqs(const void *data, int length, int bits)
 
 HuffmanCoded_t Huffman::getSymbolCode(char sym)
 {
-    return getSymbolCode(string() + sym);
+    const string str(1, sym);
+    return getSymbolCode(str);
 }
 
 HuffmanCoded_t Huffman::getSymbolCode(const string &sym)
@@ -561,8 +562,13 @@ int Huffman::writeEncodedData( const void *data,
                         int origNumofBits[4];
                         // Get original code lengths for the next 3 symbols.
                         for(int lpidx=0;lpidx<4;lpidx++) {
-                            HuffmanCoded_t code  = getSymbolCode(byte[byte_count+lpidx]);
-                            origNumofBits[lpidx] = 1 + (code.nrOfBits ? code.nrOfBits : SIZE_OF_SYMBOL);
+                            const int byteOffset = byte_count + lpidx;
+                            int symbolSize = SIZE_OF_SYMBOL;
+                            if (byteOffset < length) {
+                                const auto code = getSymbolCode(byte[byteOffset]);
+                                symbolSize = code.nrOfBits ? code.nrOfBits : SIZE_OF_SYMBOL;
+                            }
+                            origNumofBits[lpidx] = symbolSize + 1;
                         }
                         // Each of teh 3 loops below track the flipped status of the symbols[0],[1][2]
                         // flipped means un-encoded irrespective of if it was already un-encoded or not
@@ -925,8 +931,13 @@ buffer_dist_loop_end: ;
                     int origNumofBits[4];
                     // Get original code lengths for the next 3 symbols.
                     for(int lpidx=0;lpidx<4;lpidx++) {
-                        HuffmanCoded_t coded  = getSymbolCode(Bytes[byte_o+lpidx]);
-                        origNumofBits[lpidx] = 1 + (coded.nrOfBits ? coded.nrOfBits : SIZE_OF_SYMBOL);
+                        const int byteOffset = byte_o + lpidx;
+                        int symbolSize = SIZE_OF_SYMBOL;
+                        if (byteOffset < length) {
+                            const auto coded  = getSymbolCode(Bytes[byteOffset]);
+                            symbolSize = coded.nrOfBits ? coded.nrOfBits : SIZE_OF_SYMBOL;
+                        }
+                        origNumofBits[lpidx] = symbolSize + 1;
                     }
                     // Each of teh 3 loops below track the flipped status of the symbols[0],[1][2]
                     // flipped means un-encoded irrespective of if it was already un-encoded or not

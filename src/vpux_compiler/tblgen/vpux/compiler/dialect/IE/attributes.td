@@ -52,7 +52,7 @@ def IE_TensorAttr :
             IE_Dialect,
             [
                 StructFieldAttr<"order", OptionalAttr<AffineMapAttr>>,
-                StructFieldAttr<"mem_space", OptionalAttr<AnyAttr>>,
+                StructFieldAttr<"mem_space", OptionalAttr<SymbolRefAttr>>,
                 StructFieldAttr<"sparse", OptionalAttr<UnitAttr>>,
             ]
         >;

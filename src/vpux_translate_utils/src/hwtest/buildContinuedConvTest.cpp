@@ -15,9 +15,8 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
@@ -79,8 +78,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     const auto INPUT_CONV_1_CMX_OFFSET = INPUT_CONV_0_CMX_OFFSET + totalTensorSize(inputShape, inputType) / 2;
 
     const auto getMemRef = [&builder](ArrayRef<std::int64_t> shape, mlir::Type elemType, VPU::MemoryKind memKind) {
-        const auto memSpaceAttr = VPU::MemoryKindAttr::get(builder.getContext(), memKind);
-        return vpux::getMemRefType(ShapeRef(shape), elemType, DimsOrder::NHWC, memSpaceAttr);
+        return vpux::getMemRefType(ShapeRef(shape), elemType, DimsOrder::NHWC, memKind);
     };
 
     const auto outputParamType = getMemRef(outputShape, outputType, VPU::MemoryKind::DDR);
@@ -154,7 +152,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     // weights table 0
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
-    const auto weightsTable0 = vpux::VPUIP::NCESparsity::getWeightsTable(
+    const auto weightsTable0 = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_PARTIAL_0_CMX_OFFSET),
             static_cast<std::int32_t>(weightsPartialShape[1] * weightsPartialShape[2] * weightsPartialShape[3] *
                                       getElemTypeSize(weightsType).count() / 8),
@@ -169,7 +167,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     auto weightsTable0CMX = getCMXTensor(weightsTableShape, int32, WEIGHTSTABLE_0_CMX_OFFSET);
 
     // weights table 1
-    const auto weightsTable1 = vpux::VPUIP::NCESparsity::getWeightsTable(
+    const auto weightsTable1 = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_PARTIAL_1_CMX_OFFSET),
             static_cast<std::int32_t>(weightsPartialShape[1] * weightsPartialShape[2] * weightsPartialShape[3] *
                                       getElemTypeSize(weightsType).count() / 8),
@@ -209,9 +207,8 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     // NCE params
     const auto strides = getIntArrayAttr(ctx, conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
-    const auto kernelPaddings =
-            vpux::VPUIP::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
-                                        paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
+    const auto kernelPaddings = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
+                                                    paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
 
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
@@ -223,15 +220,15 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             weightsPartial0CMX.buffer(), weightsTable0CMX.buffer(),
             /*activation_window=*/nullptr, inputPartial0CMX.buffer(), output0CMX.buffer(), output0CMX.buffer(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
-            /*activation_window_channel_length=*/nullptr, isContinued);
+            /*activation_window_channel_length=*/nullptr, isContinued, /*sp_pattern*/ nullptr);
 
     const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
     const auto end =
             getIntArrayAttr(ctx, std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
-    const auto pad = VPUIP::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
-                                           paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
+    const auto pad = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
+                                         paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
 
-    nceTask_0.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
+    nceTask_0.addDPUTask(functionBuilder, start, end, pad, VPU::MPEMode::CUBOID_16x16);
 
     // NCE Task 1
     auto nceTask_1 = VPURT::wrapIntoTaskOp<NCEClusterTaskOp>(
@@ -240,9 +237,9 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             /*activation_window=*/nullptr, inputPartial1CMX.buffer(), output1CMX.buffer(), output1CMX.buffer(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr,
-            /*is_continued*/ nullptr);
+            /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
-    nceTask_1.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
+    nceTask_1.addDPUTask(functionBuilder, start, end, pad, VPU::MPEMode::CUBOID_16x16);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, barriers[2], mlir::ValueRange(), builder.getUnknownLoc(),
                                           output1CMX.getOperation()->getResult(0), functionOutput);

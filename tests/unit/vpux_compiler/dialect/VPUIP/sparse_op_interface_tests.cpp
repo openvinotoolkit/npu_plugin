@@ -33,17 +33,17 @@ TEST(MLIR_VPUIP_Sparsity, SparseOpInterface) {
         #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
         module @test {
-            func @main(%arg0: memref<1x8x20x20xf16, #NHWC, "CMX_NN">, %arg1: memref<1x16x19x19xf16, #NHWC, "CMX_NN">) -> memref<1x16x19x19xf16, #NHWC, "CMX_NN"> {
-                %0 = const.Declare memref<1x16x1x1xf16, "CMX_NN"> = #const.Content<dense<2.0> : tensor<1x16x1x1xf16>>
-                %1 = const.Declare memref<16x8x2x2xf16, #NHWC, "CMX_NN"> = #const.Content<dense<2.0> : tensor<16x8x2x2xf16>, [#const.Reorder<#NHWC>]>
+            func @main(%arg0: memref<1x8x20x20xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x19x19xf16, #NHWC, @CMX_NN>) -> memref<1x16x19x19xf16, #NHWC, @CMX_NN> {
+                %0 = const.Declare memref<1x16x1x1xf16, @CMX_NN> = #const.Content<dense<2.0> : tensor<1x16x1x1xf16>>
+                %1 = const.Declare memref<16x8x2x2xf16, #NHWC, @CMX_NN> = #const.Content<dense<2.0> : tensor<16x8x2x2xf16>, [#const.Reorder<#NHWC>]>
 
-                %2 = VPUIP.WeightsTableOp op_input(%arg0 : memref<1x8x20x20xf16, #NHWC, "CMX_NN">) op_output(%arg1 : memref<1x16x19x19xf16, #NHWC, "CMX_NN">)
-                    weights(%1 : memref<16x8x2x2xf16, #NHWC, "CMX_NN">) bias(%0 : memref<1x16x1x1xf16, "CMX_NN">) -> memref<16x1x1x4xsi32, "CMX_NN">
+                %2 = VPUIP.WeightsTableOp op_input(%arg0 : memref<1x8x20x20xf16, #NHWC, @CMX_NN>) op_output(%arg1 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>)
+                    weights(%1 : memref<16x8x2x2xf16, #NHWC, @CMX_NN>) bias(%0 : memref<1x16x1x1xf16, @CMX_NN>) -> memref<16x1x1x4xsi32, @CMX_NN>
 
                 %3 = VPUIP.NCEClusterTask { kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [2, 2], kernel_strides = [1, 1], task_type = "CONV" }
-                    input(%arg0 : memref<1x8x20x20xf16, #NHWC, "CMX_NN">) weights(%1 : memref<16x8x2x2xf16, #NHWC, "CMX_NN">) weight_table(%2 : memref<16x1x1x4xsi32, "CMX_NN">)
-                    parent_input(%arg0 : memref<1x8x20x20xf16, #NHWC, "CMX_NN">) parent_output(%arg1 : memref<1x16x19x19xf16, #NHWC, "CMX_NN">)
-                    outputs(%arg1 : memref<1x16x19x19xf16, #NHWC, "CMX_NN">) -> memref<1x16x19x19xf16, #NHWC, "CMX_NN">
+                    input(%arg0 : memref<1x8x20x20xf16, #NHWC, @CMX_NN>) weights(%1 : memref<16x8x2x2xf16, #NHWC, @CMX_NN>) weight_table(%2 : memref<16x1x1x4xsi32, @CMX_NN>)
+                    parent_input(%arg0 : memref<1x8x20x20xf16, #NHWC, @CMX_NN>) parent_output(%arg1 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>)
+                    outputs(%arg1 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>) -> memref<1x16x19x19xf16, #NHWC, @CMX_NN>
                     variants : { DPUTask { end = [18, 2, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 0, 0] }
                         DPUTask { end = [18, 5, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 3, 0] }
                         DPUTask { end = [18, 8, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 6, 0] }
@@ -52,7 +52,7 @@ TEST(MLIR_VPUIP_Sparsity, SparseOpInterface) {
                     } PPE : {
                     }
 
-                return %3 : memref<1x16x19x19xf16, #NHWC, "CMX_NN">
+                return %3 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>
             }
         }
     )";

@@ -23,6 +23,26 @@
 
 #include <gtest/gtest.h>
 
+namespace {
+
+void checkExecutorKind(mlir::Operation* op, vpux::VPU::ExecutorKind expectedKind) {
+    auto iface = mlir::dyn_cast<vpux::IERT::AsyncLayerOpInterface>(op);
+    ASSERT_NE(iface, nullptr);
+
+    uint32_t numUnits = 0;
+    auto kindAttr = iface.getExecutor(numUnits);
+
+    ASSERT_TRUE(kindAttr != nullptr);
+    ASSERT_TRUE(kindAttr.isa<mlir::SymbolRefAttr>());
+
+    auto kind = vpux::VPU::symbolizeEnum<vpux::VPU::ExecutorKind>(kindAttr.getLeafReference().getValue());
+    EXPECT_EQ(kind.getValue(), expectedKind);
+    EXPECT_GE(numUnits, 1u);
+}
+
+}
+
+
 TEST(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
     mlir::DialectRegistry registry;
     vpux::registerDialects(registry);
@@ -55,27 +75,9 @@ TEST(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
 
     for (auto& op : func.getOps()) {
         if (mlir::isa<vpux::IERT::SoftMaxOp>(op)) {
-            auto iface = mlir::dyn_cast<vpux::IERT::AsyncLayerOpInterface>(op);
-            ASSERT_NE(iface, nullptr);
-
-            uint32_t numUnits = 0;
-            auto kind = iface.getExecutor(numUnits);
-
-            ASSERT_TRUE(kind != nullptr);
-            ASSERT_TRUE(kind.isa<vpux::VPU::ExecutorKindAttr>());
-            EXPECT_EQ(kind.cast<vpux::VPU::ExecutorKindAttr>().getValue(), vpux::VPU::ExecutorKind::SHAVE_UPA);
-            EXPECT_GE(numUnits, 1u);
+            ::checkExecutorKind(&op, vpux::VPU::ExecutorKind::SHAVE_UPA);
         } else if (mlir::isa<vpux::IERT::CopyOp>(op)) {
-            auto iface = mlir::dyn_cast<vpux::IERT::AsyncLayerOpInterface>(op);
-            ASSERT_NE(iface, nullptr);
-
-            uint32_t numUnits = 0;
-            auto kind = iface.getExecutor(numUnits);
-
-            ASSERT_TRUE(kind != nullptr);
-            ASSERT_TRUE(kind.isa<vpux::VPU::ExecutorKindAttr>());
-            EXPECT_EQ(kind.cast<vpux::VPU::ExecutorKindAttr>().getValue(), vpux::VPU::ExecutorKind::DMA_NN);
-            EXPECT_EQ(numUnits, 1u);
+            ::checkExecutorKind(&op, vpux::VPU::ExecutorKind::DMA_NN);
         }
     }
 }

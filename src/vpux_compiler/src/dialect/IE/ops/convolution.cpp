@@ -84,14 +84,6 @@ mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, ml
         return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
 
-    auto mainOp = mlir::dyn_cast<IE::LayerWithPostOpInterface>(convOp);
-    if (mainOp == nullptr) {
-        return matchFailed(rewriter, biasOp, "Convolution implementation doesn't support PostOp fusing");
-    }
-    if (!mainOp.isSupportedPostOp(biasOp)) {
-        return matchFailed(rewriter, biasOp, "Convolution implementation doesn't support Bias fusing");
-    }
-
     auto* newConv = rewriter.clone(*convOp);
     newConv->insertOperands(newConv->getNumOperands(), biasOp.biases());
 

@@ -15,13 +15,14 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/ppe_utils.hpp"
+#include "vpux/compiler/dialect/VPU/pwl_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/pwl_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -44,41 +45,40 @@ namespace {
 // Utilities
 //
 
-static VPUIP::MPEMode getMpeForKmb(const mlir::Type inElemType, const mlir::Type outElemType,
-                                   const vpux::VPUIP::NCETaskType) {
+VPU::MPEMode getMpeForKmb(mlir::Type inElemType, mlir::Type outElemType, VPUIP::NCETaskType) {
     if (inElemType.dyn_cast<mlir::quant::QuantizedType>() != nullptr ||
         outElemType.dyn_cast<mlir::quant::QuantizedType>() != nullptr) {
-        return VPUIP::MPEMode::MATRIX;
+        return VPU::MPEMode::MATRIX;
     }
 
     if (inElemType.isF16() || inElemType.isBF16() || outElemType.isF16() || outElemType.isBF16()) {
-        return VPUIP::MPEMode::VECTOR_FP16;
+        return VPU::MPEMode::VECTOR_FP16;
     }
 
     // Let's fall back to vector (might be a bad idea though).
-    return VPUIP::MPEMode::VECTOR;
+    return VPU::MPEMode::VECTOR;
 }
 
-static VPUIP::MPEMode getMpeForMtl(const mlir::Type, const mlir::Type, const VPUIP::NCETaskType taskType) {
+VPU::MPEMode getMpeForMtl(mlir::Type, mlir::Type, VPUIP::NCETaskType taskType) {
     switch (taskType) {
     case VPUIP::NCETaskType::CONV:
-        return VPUIP::MPEMode::CUBOID_16x16;
+        return VPU::MPEMode::CUBOID_16x16;
     case VPUIP::NCETaskType::DWCONV:
-        return VPUIP::MPEMode::CUBOID_4x16;
+        return VPU::MPEMode::CUBOID_4x16;
     case VPUIP::NCETaskType::MAXPOOL:
-        return VPUIP::MPEMode::CUBOID_4x16;
+        return VPU::MPEMode::CUBOID_4x16;
     case VPUIP::NCETaskType::ELTWISE:
-        return VPUIP::MPEMode::CUBOID_8x16;
+        return VPU::MPEMode::CUBOID_8x16;
     default:
-        return VPUIP::MPEMode::CUBOID_16x16;
+        return VPU::MPEMode::CUBOID_16x16;
     }
 }
 
-const EnumMap<VPU::ArchKind, VPUIP::MPEMode (*)(const mlir::Type, const mlir::Type, const vpux::VPUIP::NCETaskType)>
-        mpeMap = {
-                {VPU::ArchKind::KMB, getMpeForKmb},  //
-                {VPU::ArchKind::TBH, getMpeForKmb},  //
-                {VPU::ArchKind::MTL, getMpeForMtl},  //
+using MpeModeCb = VPU::MPEMode (*)(mlir::Type, mlir::Type, VPUIP::NCETaskType);
+const EnumMap<VPU::ArchKind, MpeModeCb> mpeMap = {
+        {VPU::ArchKind::KMB, getMpeForKmb},  //
+        {VPU::ArchKind::TBH, getMpeForKmb},  //
+        {VPU::ArchKind::MTL, getMpeForMtl},  //
 };
 
 mlir::Value retrieveMemrefOfCopyOp(mlir::Value val) {
@@ -95,8 +95,6 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
                                      mlir::Value activationWindow) {
     SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
 
-    auto* ctx = builder.getContext();
-
     // link weight table to memrefs rather than the operation of weights,
     // activation, and input for easy address pointer retrieval
     mlir::Value wMemref = retrieveMemrefOfCopyOp(weights);
@@ -107,8 +105,7 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
     auto createWeightsTableOp =
             builder.create<VPUIP::WeightsTableOp>(loc, dataType, iMemref, op_output, wMemref, bias, aMemref);
 
-    const auto cmxMemSpaceAttr = VPU::MemoryKindAttr::get(ctx, VPU::MemoryKind::CMX_NN);
-    const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
+    const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
 
     auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
     auto copyOp = builder.create<IERT::CopyOp>(loc, createWeightsTableOp.output(), dataAllocOp);
@@ -119,8 +116,7 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
 mlir::Value prepareTensorForDPU(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value input) {
     // DMA DDR -> CMX
     const auto origType = input.getType().cast<mlir::MemRefType>();
-    auto typeCMX = changeMemSpace(eraseTiledInfo(origType),
-                                  VPU::MemoryKindAttr::get(builder.getContext(), VPU::MemoryKind::CMX_NN));
+    auto typeCMX = changeMemSpace(eraseTiledInfo(origType), VPU::MemoryKind::CMX_NN);
     auto dmaAllocOp = builder.create<mlir::memref::AllocOp>(loc, typeCMX);
     auto dmaOp = builder.create<IERT::CopyOp>(loc, input, dmaAllocOp.memref());
 
@@ -128,7 +124,7 @@ mlir::Value prepareTensorForDPU(mlir::OpBuilder& builder, mlir::Location loc, ml
 }
 
 void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, int64_t numDPU, int64_t opPadLeft,
-                 int64_t opPadRight, int64_t opPadTop, int64_t opPadBottom, VPUIP::MPEMode mpeMode) {
+                 int64_t opPadRight, int64_t opPadTop, int64_t opPadBottom, VPU::MPEMode mpeMode) {
     auto* ctx = nceOp.getContext();
 
     const auto outputShape = getShape(nceOp.output());
@@ -138,8 +134,7 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
         const auto startAttr = getIntArrayAttr(ctx, makeArrayRef(dpuTile.start));
         const auto endAttr = getIntArrayAttr(ctx, makeArrayRef(dpuTile.end));
 
-        const auto pad =
-                VPUIP::getPaddingAttr(ctx, dpuTile.padLeft, dpuTile.padRight, dpuTile.padTop, dpuTile.padBottom);
+        const auto pad = VPU::getPaddingAttr(ctx, dpuTile.padLeft, dpuTile.padRight, dpuTile.padTop, dpuTile.padBottom);
 
         nceOp.addDPUTask(rewriter, startAttr, endAttr, pad, mpeMode);
     }
@@ -152,15 +147,14 @@ struct QuantizationParams {
 };
 
 struct PostOpParams {
-    VPUIP::PPELayerType layerType;
+    VPU::PPEMode layerType;
     int64_t clampLow;
     int64_t clampHigh;
     int64_t LreluMult;
     int64_t LreluShift;
     Optional<QuantizationParams> quantParams;
 
-    PostOpParams(VPUIP::PPELayerType layerType, int64_t clampLow, int64_t clampHigh, int64_t LreluMult,
-                 int64_t LreluShift)
+    PostOpParams(VPU::PPEMode layerType, int64_t clampLow, int64_t clampHigh, int64_t LreluMult, int64_t LreluShift)
             : layerType(layerType),
               clampLow(clampLow),
               clampHigh(clampHigh),
@@ -168,8 +162,8 @@ struct PostOpParams {
               LreluShift(LreluShift) {
     }
 
-    PostOpParams(VPUIP::PPELayerType layerType, int64_t clampLow, int64_t clampHigh, int64_t LreluMult,
-                 int64_t LreluShift, const QuantizationParams& quantParams)
+    PostOpParams(VPU::PPEMode layerType, int64_t clampLow, int64_t clampHigh, int64_t LreluMult, int64_t LreluShift,
+                 const QuantizationParams& quantParams)
             : layerType(layerType),
               clampLow(clampLow),
               clampHigh(clampHigh),
@@ -179,7 +173,7 @@ struct PostOpParams {
     }
 };
 
-int64_t getPwlClamp(VPUIP::NCEClusterTaskOp nceOp, const VPUIP::PPELayerType ppeType, const bool getMin) {
+int64_t getPwlClamp(VPUIP::NCEClusterTaskOp nceOp, const VPU::PPEMode ppeType, const bool getMin) {
     constexpr int64_t CLAMP_MIN = -4096;
     constexpr int64_t CLAMP_MAX = 4095;
 
@@ -189,7 +183,7 @@ int64_t getPwlClamp(VPUIP::NCEClusterTaskOp nceOp, const VPUIP::PPELayerType ppe
         return getMin ? CLAMP_MIN : CLAMP_MAX;
     }
 
-    const auto quantReqs = VPUIP::getPwlQuantReqs(ppeType);
+    const auto quantReqs = VPU::getPwlQuantReqs(ppeType);
     const auto rMin = quantReqs.input.rMin;
     const auto rMax = quantReqs.input.rMax;
 
@@ -203,12 +197,12 @@ int64_t getPwlClamp(VPUIP::NCEClusterTaskOp nceOp, const VPUIP::PPELayerType ppe
     VPUX_THROW("Unexpected output element type: {0}", outElemType);
 }
 
-int64_t getPwlPostShift(const VPUIP::PPELayerType ppeType) {
-    const auto quantReqs = VPUIP::getPwlQuantReqs(ppeType);
+int64_t getPwlPostShift(const VPU::PPEMode ppeType) {
+    const auto quantReqs = VPU::getPwlQuantReqs(ppeType);
     return quantReqs.input.postShift;
 }
 
-PostOpParams getPwlPostOpParams(VPUIP::NCEClusterTaskOp nceOp, VPUIP::PPELayerType ppeType) {
+PostOpParams getPwlPostOpParams(VPUIP::NCEClusterTaskOp nceOp, VPU::PPEMode ppeType) {
     const int64_t clampLow = getPwlClamp(nceOp, ppeType, true);
     const int64_t clampHigh = getPwlClamp(nceOp, ppeType, false);
     const int64_t LreluMult = 1;
@@ -254,7 +248,7 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
 
-        return PostOpParams{VPUIP::PPELayerType::LRELU, clampLow, clampHigh, LreluMult, LreluShift};
+        return PostOpParams{VPU::PPEMode::LRELU, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::ClampOp::getOperationName()) {
         IE::ClampOp::Adaptor clamp(None, postOp.attrs());
         VPUX_THROW_UNLESS(clamp.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
@@ -267,7 +261,7 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
 
-        return PostOpParams{VPUIP::PPELayerType::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
+        return PostOpParams{VPU::PPEMode::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
         IE::LeakyReluOp::Adaptor leakyRelu(None, postOp.attrs());
         VPUX_THROW_UNLESS(leakyRelu.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
@@ -284,11 +278,11 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
 
-        return PostOpParams{VPUIP::PPELayerType::LPRELU, clampLow, clampHigh, LreluMult, LreluShift};
+        return PostOpParams{VPU::PPEMode::LPRELU, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
-        return getPwlPostOpParams(nceOp, VPUIP::PPELayerType::SIGMOID);
+        return getPwlPostOpParams(nceOp, VPU::PPEMode::SIGMOID);
     } else if (postOp.name().getValue() == IE::TanhOp::getOperationName()) {
-        return getPwlPostOpParams(nceOp, VPUIP::PPELayerType::TANH);
+        return getPwlPostOpParams(nceOp, VPU::PPEMode::TANH);
     }
 
     VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
@@ -341,8 +335,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
     const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType),
-                                           VPU::MemoryKindAttr::get(getContext(), VPU::MemoryKind::CMX_NN));
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
@@ -355,8 +348,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
     const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
-
-    const auto kernelPaddingAttr = vpux::IE::getPaddingAttr(getContext(), padsBegin, padsEnd);
+    const auto kernelPaddingAttr = VPU::getPaddingAttr(getContext(), padsBegin, padsEnd);
 
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
@@ -415,7 +407,6 @@ private:
 
 mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity,
                                          int64_t numChannels) {
-    auto* ctx = builder.getContext();
     const auto elemType = getUInt8Type(builder.getContext());
 
     SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
@@ -426,8 +417,7 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
     const auto dataType = mlir::MemRefType::get(fakeSparsityShape, elemType);
     auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataType, Const::ContentAttr::get(dataAttr));
 
-    const auto cmxMemSpaceAttr = VPU::MemoryKindAttr::get(ctx, VPU::MemoryKind::CMX_NN);
-    const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
+    const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
 
     auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
     auto copyOp = builder.create<IERT::CopyOp>(loc, dataConstOp.output(), dataAllocOp);
@@ -449,11 +439,11 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
     const auto IC = inputShape[Dims4D::Act::C];
 
-    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
-    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(origOp.kernel_size()));
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
 
-    const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
+    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[Dims4D::Strides::X],
+                                                                    origInputType.getElementType());
 
     //
     // Prepare input for DPU
@@ -465,8 +455,8 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     // Generate activation window
     //
 
-    const auto fakeSparsity =
-            VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[Dims4D::Strides::X],
+                                                                origInputType.getElementType(), IC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, IC);
 
     //
@@ -475,8 +465,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
     const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
     const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType),
-                                           VPU::MemoryKindAttr::get(getContext(), VPU::MemoryKind::CMX_NN));
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
@@ -489,8 +478,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
     const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
     const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
-
-    const auto kernelPaddingAttr = vpux::IE::getPaddingAttr(getContext(), padsBegin, padsEnd);
+    const auto kernelPaddingAttr = VPU::getPaddingAttr(getContext(), padsBegin, padsEnd);
 
     const auto activation_window_channel_length = getIntAttr(getContext(), static_cast<uint32_t>(bitPatternSize));
 
@@ -536,7 +524,7 @@ template <class ConcreteOp>
 class GenericEltwiseConverter final : public mlir::OpRewritePattern<ConcreteOp> {
 public:
     GenericEltwiseConverter<ConcreteOp>(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch,
-                                        VPUIP::PPELayerType ppeType, Logger log)
+                                        VPU::PPEMode ppeType, Logger log)
             : mlir::OpRewritePattern<ConcreteOp>(ctx), _numDPU(numDPU), _arch(arch), _ppeType(ppeType), _log(log) {
     }
 
@@ -544,76 +532,11 @@ public:
     mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    llvm::Optional<double> calculateQuantScaleVectorForEltwise(IERT::LayerOpInterface layerOp) const;
-
-private:
     const int64_t _numDPU;
     VPU::ArchKind _arch;
-    VPUIP::PPELayerType _ppeType;
+    VPU::PPEMode _ppeType;
     Logger _log;
 };
-
-// This operation based on input and output of Eltwise op will prepare final quantization scale value
-template <class ConcreteOp>
-llvm::Optional<double> GenericEltwiseConverter<ConcreteOp>::calculateQuantScaleVectorForEltwise(
-        IERT::LayerOpInterface layerOp) const {
-    if (layerOp == nullptr || layerOp.getInputs().size() < 2) {
-        return ::llvm::None;
-    }
-
-    const auto input1 = layerOp.getInputs()[0];
-    const auto input2 = layerOp.getInputs()[1];
-    const auto output = layerOp.getOutputs()[0];
-
-    const auto input1ElementType = input1.getType().cast<mlir::ShapedType>().getElementType();
-    const auto input2ElementType = input2.getType().cast<mlir::ShapedType>().getElementType();
-    const auto outputElementType = output.getType().cast<mlir::ShapedType>().getElementType();
-
-    // In case of fully not quantized operation return
-    if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>() &&
-        !outputElementType.isa<mlir::quant::QuantizedType>()) {
-        return ::llvm::None;
-    }
-
-    VPUX_THROW_WHEN(input1ElementType.isa<mlir::quant::UniformQuantizedPerAxisType>() ||
-                            input2ElementType.isa<mlir::quant::UniformQuantizedPerAxisType>() ||
-                            outputElementType.isa<mlir::quant::UniformQuantizedPerAxisType>(),
-                    "Only per-tensor quantization is supported");
-
-    double scaleInput1 = 0;
-    double scaleOutput = 0;
-
-    // floats in the compute pipeline are represented as S16.16 values
-    // In order to convert from I32 to S16.16 and back, we need to multiply/divide by 1<<16
-    // Depends on target hardware
-    const double fp16_scale = (VPU::ArchKind::MTL == _arch) ? (1.0) : (1.0 / 65536);
-
-    if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>()) {
-        scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
-        scaleInput1 = fp16_scale;
-    } else if (!outputElementType.isa<mlir::quant::QuantizedType>()) {
-        scaleInput1 = extractScalesAndZeroPoints(input1ElementType).first.front();
-        scaleOutput = fp16_scale;
-    } else {
-        scaleInput1 = extractScalesAndZeroPoints(input1ElementType).first.front();
-        scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
-    }
-
-    VPUX_THROW_UNLESS(scaleInput1 != 0, "Invalid input scale value '0'");
-    VPUX_THROW_UNLESS(scaleOutput != 0, "Invalid output scale value '0'");
-
-    double ppeScale = 1.0;
-
-    if (mlir::isa<IERT::MultiplyOp>(layerOp)) {
-        const auto scaleInput2 = extractScalesAndZeroPoints(input2ElementType).first.front();
-        VPUX_THROW_UNLESS(scaleInput2 != 0, "Invalid input scale value '0'");
-        ppeScale = scaleInput1 * scaleInput2 / scaleOutput;
-    } else {  // Add, Subtract, And
-        ppeScale = scaleInput1 / scaleOutput;
-    }
-
-    return {ppeScale};
-}
 
 template <class ConcreteOp>
 mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
@@ -637,8 +560,7 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
 
     const auto origOutType = origOp.output().getType().template cast<mlir::MemRefType>();
     const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType),
-                                           VPU::MemoryKindAttr::get(this->getContext(), VPU::MemoryKind::CMX_NN));
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
@@ -684,7 +606,11 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     // Since Eltwise operation doesn't have weights table it requires final quantization scaling
     // to be part of output tensor description. Scale vector will be placed in PPE block and
     // later used during NCE task serialization
-    auto quantScale = calculateQuantScaleVectorForEltwise(origOp);
+
+    auto quantScale =
+            VPU::calculateQuantScaleVectorForEltwise(origOp.input1().getType().template cast<mlir::ShapedType>(),
+                                                     origOp.input2().getType().template cast<mlir::ShapedType>(),
+                                                     origOutType, _arch, mlir::isa<IERT::MultiplyOp>(origOp));
     if (quantScale.hasValue()) {
         const auto scale = quantScale.getValue();
 
@@ -769,15 +695,14 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     //
 
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
-    // FIXME why does fake sparsity expects this order of kernel dimensions?
-    const auto kernelSize = SmallVector<int64_t>{KX, KY};
-    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
+    const auto kernelSize = Shape{KY, KX};
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
+    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[Dims4D::Strides::X],
+                                                                    origInputType.getElementType());
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
 
-    const auto fakeSparsity =
-            VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), OC);
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[Dims4D::Strides::X],
+                                                                origInputType.getElementType(), OC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
 
     //
@@ -786,8 +711,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
 
     const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
     const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType),
-                                           VPU::MemoryKindAttr::get(getContext(), VPU::MemoryKind::CMX_NN));
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
@@ -800,8 +724,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
 
     const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
     const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
-
-    const auto kernelPaddingAttr = vpux::IE::getPaddingAttr(getContext(), padsBegin, padsEnd);
+    const auto kernelPaddingAttr = VPU::getPaddingAttr(getContext(), padsBegin, padsEnd);
 
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
@@ -865,24 +788,19 @@ void ConvertToNCEOpsPass::safeRunOnFunc() {
     const auto arch = VPU::getArch(module);
     VPUX_THROW_UNLESS(mpeMap.find(arch) != mpeMap.end(), "Failed to map MPE mode to target arch");
 
-    auto resOp = IE::RunTimeResourcesOp::getFromModule(module);
-    VPUX_THROW_UNLESS(resOp != nullptr, "Missing IERT run-time resources definition");
-
-    auto nceCluster = resOp.getExecutor(VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::NCE));
+    auto nceCluster = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
     VPUX_THROW_UNLESS(nceCluster != nullptr, "Failed to get NCE_Cluster information");
 
-    auto dpuExec = nceCluster.getSubExecutor(VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::DPU));
+    auto dpuExec = nceCluster.getSubExecutor(VPU::ExecutorKind::DPU);
     VPUX_THROW_UNLESS(dpuExec != nullptr, "Failed to get DPU information");
 
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.insert<ConvRewrite>(&ctx, dpuExec.count(), arch, _log);
     patterns.insert<MaxPoolRewrite>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<GenericEltwiseConverter<IERT::AddOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::ADD, _log);
-    patterns.insert<GenericEltwiseConverter<IERT::MultiplyOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::MULT,
-                                                               _log);
-    patterns.insert<GenericEltwiseConverter<IERT::SubtractOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::SUB,
-                                                               _log);
-    patterns.insert<GenericEltwiseConverter<IERT::AndOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::AND, _log);
+    patterns.insert<GenericEltwiseConverter<IERT::AddOp>>(&ctx, dpuExec.count(), arch, VPU::PPEMode::ADD, _log);
+    patterns.insert<GenericEltwiseConverter<IERT::MultiplyOp>>(&ctx, dpuExec.count(), arch, VPU::PPEMode::MULT, _log);
+    patterns.insert<GenericEltwiseConverter<IERT::SubtractOp>>(&ctx, dpuExec.count(), arch, VPU::PPEMode::SUB, _log);
+    patterns.insert<GenericEltwiseConverter<IERT::AndOp>>(&ctx, dpuExec.count(), arch, VPU::PPEMode::AND, _log);
     patterns.insert<DepthwiseConvRewrite>(&ctx, dpuExec.count(), arch, _log);
 
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

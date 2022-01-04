@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/generated/schema/gf_version.h"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
@@ -93,8 +94,8 @@ void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilde
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
                                                                     IE::ExecutorResourceOp res, mlir::ModuleOp module) {
-    const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
-    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
+    const auto execKindAttr = res.getKindAs<VPU::ExecutorKindAttr>();
+    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.getKind());
 
     const auto execKind = execKindAttr.getValue();
     MVCNN::ProcessorMappingBuilder builder(writer);
@@ -107,8 +108,8 @@ flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobW
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorFreqMapping(VPUIP::BlobWriter& writer,
                                                                         IE::ExecutorResourceOp res) {
-    const auto execKindAttr = res.kind().dyn_cast_or_null<VPU::ExecutorKindAttr>();
-    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.kind());
+    const auto execKindAttr = res.getKindAs<VPU::ExecutorKindAttr>();
+    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.getKind());
 
     MVCNN::ProcessorMappingBuilder builder(writer);
     builder.add_item(createPhysicalProcessor(execKindAttr.getValue()));
@@ -133,8 +134,7 @@ MVCNN::PhysicalMem createPhysicalMem(VPU::MemoryKind mem) {
 }
 
 flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer, IE::MemoryResourceOp res) {
-    const auto memKindAttr = res.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
-    VPUX_THROW_UNLESS(memKindAttr != nullptr, "Got unknown memory space kind '{0}'", res.kindAttr());
+    const auto memKindAttr = res.getKindAs<VPU::MemoryKindAttr>();
 
     MVCNN::MemoryMappingBuilder builder(writer);
     builder.add_item(createPhysicalMem(memKindAttr.getValue()));
@@ -147,10 +147,9 @@ flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createBandwidthMapping(VPU
                                                                              IE::MemoryResourceOp dst,
                                                                              double bandwidth) {
     MVCNN::MemoryRelationshipMappingBuilder builder(writer);
-    const auto srcKind = src.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
-    VPUX_THROW_UNLESS(srcKind != nullptr, "Got unknown memory space kind '{0}'", src.kindAttr());
-    const auto dstKind = dst.kindAttr().dyn_cast_or_null<VPU::MemoryKindAttr>();
-    VPUX_THROW_UNLESS(dstKind != nullptr, "Got unknown memory space kind '{0}'", dst.kindAttr());
+    const auto srcKind = src.getKindAs<VPU::MemoryKindAttr>();
+    const auto dstKind = dst.getKindAs<VPU::MemoryKindAttr>();
+
     builder.add_from_item(createPhysicalMem(srcKind.getValue()));
     builder.add_to_item(createPhysicalMem(dstKind.getValue()));
     builder.add_number(bandwidth);
@@ -165,17 +164,14 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
             VPU::ExecutorKind::DPU         //
     };
 
-    auto resources = IE::RunTimeResourcesOp::getFromModule(module);
-    VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources information");
-
-    const auto usedMemory = writer.createVector(resources.getUsedMemory() | transformed([&](IE::MemoryResourceOp res) {
+    const auto usedMemory = writer.createVector(IE::getUsedMemory(module) | transformed([&](IE::MemoryResourceOp res) {
                                                     return createMemoryMapping(writer, res);
                                                 }));
 
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
-    resources.walk([&](IE::ExecutorResourceOp res) {
-        if (const auto execKind = res.kind().dyn_cast<VPU::ExecutorKindAttr>()) {
+    module.walk([&](IE::ExecutorResourceOp res) {
+        if (const auto execKind = res.getKindAs<VPU::ExecutorKindAttr>()) {
             if (supportedProcessors.count(execKind.getValue()) != 0) {
                 executorsOffsets.push_back(createProcessorMapping(writer, res, module));
                 if (res->hasAttr(VPU::getProcessorFrequencyAttrName())) {
@@ -189,11 +185,11 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
 
     SmallVector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>> memoryVec;
     SmallVector<IE::MemoryResourceOp> memoryTypes;
-    resources.walk([&](IE::MemoryResourceOp src) {
+    for (auto src : module.getOps<IE::MemoryResourceOp>()) {
         if (src->hasAttr(VPU::getMemoryBandwidthAttrName())) {
             memoryTypes.push_back(src);
         }
-    });
+    }
 
     double DMA_BANDWIDTH = 20.0;
     for (auto src : memoryTypes) {

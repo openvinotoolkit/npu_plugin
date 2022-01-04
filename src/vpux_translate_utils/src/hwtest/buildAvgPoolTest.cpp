@@ -15,7 +15,9 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include <functional>
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -57,6 +59,18 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     mlir::Type weightsType = inputType;
 
+    int64_t clampLow = std::numeric_limits<int32_t>::min();
+    int64_t clampHigh = std::numeric_limits<int32_t>::max();
+    int64_t LreluMult = 1;
+    int64_t LreluShift = 0;
+
+    if (auto outElemQType = outputType.template dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto zps = extractScalesAndZeroPoints(outputType).second;
+
+        clampLow = outElemQType.getStorageTypeMin() - zps.front();
+        clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+    }
+
     if (auto qtype = inputType.dyn_cast<mlir::quant::QuantizedType>()) {
         auto inputStorageType = mlir::quant::QuantizedType::castToStorageType(qtype);
         int64_t zeroPoint = 0;
@@ -77,10 +91,8 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
 
     SmallVector<mlir::Type> inputTypes;
-    inputTypes.push_back(
-            getMemRefType(builder, VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC));
-    auto outputParamType =
-            getMemRefType(builder, VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
+    inputTypes.push_back(getMemRefType(VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC));
+    auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
@@ -96,12 +108,11 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     // input - output cmx tensors
 
-    auto inputcmx_type = getMemRefType(funcbuilder, VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
+    auto inputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
     auto inputcmx =
             createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT_CMX_OFFSET);
 
-    auto outputcmx_type =
-            getMemRefType(funcbuilder, VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
+    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
     auto outputcmx =
             createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
@@ -121,17 +132,36 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     // NCE Task
     auto filtersize = getIntArrayAttr(funcbuilder, filter_size);
     auto strides = getIntArrayAttr(funcbuilder, stride_vec);
-    auto kernel_padding = VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
-                                                padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
+    auto kernel_padding = VPU::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                              padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto nceTask = vpux::VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
             outputcmx_type, inputcmx.getOperation()->getResult(0), mlir::Value(), mlir::Value(), mlir::Value(),
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::AVEPOOL, filtersize, strides, kernel_padding,
-            /*actChannelLength*/ nullptr, /*is_continued*/ nullptr);
+            /*actChannelLength*/ nullptr, /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
-    nceTask.addPPETask(funcbuilder);
+    // Since AvgPool operation doesn't have weights table it requires final quantization scaling
+    // to be part of output tensor description. Scale vector will be placed in PPE block and
+    // later used during NCE task serialization
+    auto quantScale =
+            VPU::calculateQuantScaleVectorForAvgPool(inputcmx_type, outputcmx_type, filter_size, VPU::ArchKind::MTL);
+
+    if (quantScale.hasValue()) {
+        const auto scale = quantScale.getValue();
+
+        const auto mult = getQuantMultFromScale(scale);
+        const auto shifts = getQuantShiftAndPostShiftFromScale(scale);
+
+        const auto shift = shifts.first;
+        const auto post_shift = shifts.second;
+
+        nceTask.addPPETask(funcbuilder, VPU::PPEMode::NOOP, clampLow, clampHigh, LreluMult, LreluShift,
+                           SmallVector<int32_t>{mult}, SmallVector<int32_t>{shift}, post_shift);
+    } else {
+        nceTask.addPPETask(funcbuilder, VPU::PPEMode::NOOP, clampLow, clampHigh, LreluMult, LreluShift);
+    }
 
     // Create DPU task for NCE task
     auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), funcbuilder.getListener());
@@ -141,12 +171,12 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     std::vector<int32_t> end_vec{static_cast<int32_t>(out_shape[3] - 1), static_cast<int32_t>(out_shape[2] - 1),
                                  static_cast<int32_t>(out_shape[1] - 1)};
     auto end = getIntArrayAttr(funcbuilder, end_vec);
-    auto pad = VPUIP::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
-                                     padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
+    auto pad = VPU::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
+                                   padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     // NB For pooling operations, NTHW_NTK=(16, 4) is the only mode supported by
     // the hardware; this corresponds to CUBOID_16x16.
-    variantbuilder.create<VPUIP::DPUTaskOp>(loc, start, end, pad, VPUIP::MPEMode::CUBOID_16x16);
+    variantbuilder.create<VPUIP::DPUTaskOp>(loc, start, end, pad, VPU::MPEMode::CUBOID_16x16);
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
                                                 loc, outputcmx.getOperation()->getResult(0), funcoutput);
