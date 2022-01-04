@@ -59,8 +59,7 @@ mlir::LogicalResult InlineAsyncRegion::matchAndRewrite(mlir::async::ExecuteOp ex
     auto yieldOp = mlir::dyn_cast_or_null<mlir::async::YieldOp>(execOp.getBody()->getTerminator());
     VPUX_THROW_UNLESS(yieldOp != nullptr, "'async.execute' body doesn't have corresponding terminator");
 
-    const int64_t barrierID = 0;
-    auto barrierOp = rewriter.create<VPURT::DeclareVirtualBarrierOp>(execOp.getLoc(), barrierID);
+    auto barrierOp = rewriter.create<VPURT::DeclareVirtualBarrierOp>(execOp.getLoc());
 
     _log.nest(1).trace("Traverse 'async.execute' body");
 
