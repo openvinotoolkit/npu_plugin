@@ -12,9 +12,9 @@ module @GroupProfilingBuffers {
         DataInfo "upa" : tensor<24xui32>
     }
     func @main(%arg0: memref<1x48x30x30xf16>, %arg1: memref<1x48x30x30xf32>, %arg2: memref<4xui64>, %arg3: memref<14xui32>, %arg4: memref<24xui32>) -> (memref<1x48x30x30xf32>, memref<4xui64>, memref<14xui32>, memref<24xui32>) {
-        %0 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
-        %1 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
-        %2 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
+        %0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+        %1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+        %2 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
         %3 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<4xui64, "CMX_NN">
         %4 = VPURT.DeclareBuffer "CMX_NN" [0] <24> -> memref<14xui32, "CMX_NN">
         %5 = VPURT.DeclareBuffer "DDR" [0] <0> -> memref<1x48x30x30xf32, "DDR">
