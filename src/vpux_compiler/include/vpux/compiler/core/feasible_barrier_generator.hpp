@@ -23,6 +23,8 @@
 
 namespace vpux {
 
+namespace VPURT {
+
 struct opResourceState;
 class FeasibleBarrierScheduler {
 public:
@@ -252,7 +254,7 @@ public:
     bool performRuntimeSimulation();
     void cleanUpVirtualBarriers();
 
-protected:
+    // protected:
     size_t _barrierCount;
     size_t _slotsPerBarrier;
     resource_state_t _resource_state;
@@ -296,4 +298,5 @@ protected:
     std::set<mlir::Operation*> _outputOpsBackUp;
 };
 
+}  // namespace VPURT
 }  // namespace vpux

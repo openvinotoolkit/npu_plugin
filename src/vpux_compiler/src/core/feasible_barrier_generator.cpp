@@ -13,11 +13,11 @@
 
 #include "vpux/compiler/core/feasible_barrier_generator.hpp"
 
-using namespace vpux;
+using namespace vpux::VPURT;
 
-static constexpr StringLiteral schedulingNumberAttrName = "SchedulingNumber";
-std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleBarrierScheduler::barrierProducersMap{};
-std::map<mlir::Operation*, SmallVector<mlir::Operation*>> FeasibleBarrierScheduler::barrierConsumersMap{};
+constexpr llvm::StringLiteral schedulingNumberAttrName = "SchedulingNumber";
+std::map<mlir::Operation*, llvm::SmallVector<mlir::Operation*>> FeasibleBarrierScheduler::barrierProducersMap{};
+std::map<mlir::Operation*, llvm::SmallVector<mlir::Operation*>> FeasibleBarrierScheduler::barrierConsumersMap{};
 
 FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log)
         : _barrierCount(),
@@ -361,7 +361,7 @@ void FeasibleBarrierScheduler::initResourceState(size_t numberOfBarriers, size_t
     _resource_state.init(resource);
 }
 
-SmallVector<mlir::Operation*> FeasibleBarrierScheduler::getConsumerOps(mlir::Operation* op) {
+llvm::SmallVector<mlir::Operation*> FeasibleBarrierScheduler::getConsumerOps(mlir::Operation* op) {
     return _taskConsumerMapBackUp[op];
 }
 
