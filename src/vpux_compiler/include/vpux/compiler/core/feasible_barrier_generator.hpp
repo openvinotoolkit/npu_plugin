@@ -25,7 +25,6 @@ namespace vpux {
 
 namespace VPURT {
 
-struct opResourceState;
 class FeasibleBarrierScheduler final {
 public:
     struct task_operation_comparator_by_schedule_time_t {
@@ -149,28 +148,31 @@ public:
     using schedule_time_t = size_t;
 
     struct opResourceState {
-        opResourceState(size_t n = 0UL, size_t m = 0UL)
-                : barrier_map_(), state_(), barrier_count_(n), slots_per_barrier_(m) {
-            Logger::global().error(
-                    "Initializing op_resource_state in Barrier_Schedule_Generator with barrier count {0} "
-                    "slots_per_barrie {1}",
-                    barrier_count_, slots_per_barrier_);
+        opResourceState(Logger log, size_t numberOfBarriers = 0UL, size_t producerSlotsPerBarrier = 0UL)
+                : _log(log),
+                  barrier_map_(),
+                  state_(),
+                  _barrierCount(numberOfBarriers),
+                  slots_per_barrier_(producerSlotsPerBarrier) {
+            _log.trace("Initializing op_resource_state in Barrier_Schedule_Generator with barrier count {0} "
+                       "slots_per_barrie {1}",
+                       _barrierCount, slots_per_barrier_);
         }
 
         void init(const opResourceState& other) {
             barrier_map_.clear();
-            barrier_count_ = other.barrier_count_;
+            _barrierCount = other._barrierCount;
             slots_per_barrier_ = other.slots_per_barrier_;
-            state_.init(barrier_count_, slots_per_barrier_);
+            state_.init(_barrierCount, slots_per_barrier_);
         }
 
         bool is_resource_available(const resource_t& demand) const {
-            Logger::global().error("Looking for a barrier with free slots");
+            _log.trace("Looking for a barrier with free slots");
             return state_.has_barrier_with_slots(demand);
         }
 
         bool schedule_operation(const operation_t& op, resource_t& demand) {
-            Logger::global().error("Scheduling an operation");
+            _log.trace("Scheduling an operation");
             assert(is_resource_available(demand));
             if (barrier_map_.find(op) != barrier_map_.end()) {
                 return false;
@@ -200,12 +202,14 @@ public:
             return itr->second;
         }
 
+        Logger _log;
         active_barrier_map_t barrier_map_;
         BarrierResourceState state_;
-        size_t barrier_count_;
+        size_t _barrierCount;
         size_t slots_per_barrier_;
     }; /*struct opResourceState*/
 
+    // typedef op_resource_state_t opResourceState;
     FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log);
 
     void initResourceState(size_t numberOfBarriers, size_t maxProducersPerBarrier);
@@ -215,7 +219,7 @@ public:
     void computeOpIndegree(operation_in_degree_t& in_degree);
     void addToCandidateSet(mlir::Operation* op);
     void computeOperationPriorities();
-    void createOperationResourceUtilityTable();
+    void createTaskBarrierResourceUtilityTable();
     void addOutGoingOperationsToCandidateList(mlir::Operation* op);
     void assignUniqueIds();
     void pushToHeap(const HeapElement& elem);
@@ -254,7 +258,7 @@ public:
     bool performRuntimeSimulation();
     void cleanUpVirtualBarriers();
 
-    // protected:
+protected:
     size_t _barrierCount;
     size_t _slotsPerBarrier;
     resource_state_t _resource_state;
