@@ -19,6 +19,8 @@
 
 namespace vpux {
 
+namespace VPURT {
+
 static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
 static constexpr StringLiteral virtualIdAttrName = "VPURT.virtualId";
 
@@ -120,4 +122,5 @@ struct barrier_scheduler_traits {
     }
 };
 
+}  // namespace VPURT
 }  // namespace vpux
