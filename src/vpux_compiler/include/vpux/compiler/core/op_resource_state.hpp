@@ -20,6 +20,7 @@
 namespace vpux {
 
 static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
+static constexpr StringLiteral virtualIdAttrName = "VPURT.virtualId";
 
 typedef mlir::Operation const* operation_t;
 

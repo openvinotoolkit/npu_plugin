@@ -39,11 +39,11 @@ public:
     struct operation_comparator_t {
         bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
             int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op1)
-                                                              ->getAttr("id")
+                                                              ->getAttr(virtualIdAttrName)
                                                               .cast<mlir::IntegerAttr>()
                                                               .getInt());
             int64_t uniqueId2 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op2)
-                                                              ->getAttr("id")
+                                                              ->getAttr(virtualIdAttrName)
                                                               .cast<mlir::IntegerAttr>()
                                                               .getInt());
 

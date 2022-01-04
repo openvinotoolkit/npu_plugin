@@ -180,7 +180,8 @@ mlir::Operation* FeasibleBarrierScheduler::barrierTransitionStructure::create_ne
 
     static size_t barrier_task_id = 1UL;
 
-    auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc(), barrier_task_id);
+    auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc());
+    newBarrier->setAttr(virtualIdAttrName, getIntAttr(newBarrier->getContext(), barrier_task_id));
 
     std::set<mlir::Operation*, task_operation_comparator_t> newBarrierProducers{};
     std::set<mlir::Operation*, task_operation_comparator_t> newBarrierConsumers{};
