@@ -4,7 +4,7 @@
 func @LinearDMA(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
     // CHECK-NOT: VPURT.DeclareVirtualBarrier
     // CHECK: VPURT.ConfigureBarrier<0>
-    %bar0 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
+    %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<10xf16>
     VPURT.Task updates(%bar0 : !VPURT.Barrier) {
         %0 = VPUIP.NNDMA
@@ -16,7 +16,7 @@ func @LinearDMA(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> 
     }
     // CHECK-NOT: VPURT.DeclareVirtualBarrier
     // CHECK: VPURT.ConfigureBarrier<1>
-    %bar1 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
+    %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %buf1 = VPURT.DeclareBuffer "DDR" <2048> -> memref<10xf16>
     VPURT.Task waits(%bar0 : !VPURT.Barrier) updates(%bar1 : !VPURT.Barrier) {
         %1 = VPUIP.NNDMA
@@ -28,7 +28,7 @@ func @LinearDMA(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> 
     }
     // CHECK-NOT: VPURT.DeclareVirtualBarrier
     // CHECK: VPURT.ConfigureBarrier<2>
-    %bar2 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
+    %bar2 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     VPURT.Task waits(%bar1 : !VPURT.Barrier) updates(%bar2 : !VPURT.Barrier) {
         %2 = VPUIP.NNDMA
             inputs(
@@ -73,16 +73,16 @@ func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32x
     %buf14 = VPURT.DeclareBuffer "CMX_NN" <32768> -> memref<16x16x1x1xf16, #NHWC, @CMX_NN>
     %buf15 = VPURT.DeclareBuffer "CMX_NN" <33280> -> memref<16x1x1x4xsi32, @CMX_NN>
 
-    %bar0 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
-    %bar1 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
-    %bar2 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
-    %bar3 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
-    %bar4 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
-    %bar5 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
-    %bar6 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
-    %bar7 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
-    %bar8 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
-    %bar9 = VPURT.DeclareVirtualBarrier {id = 0 : i64} -> !VPURT.Barrier
+    %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %bar2 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %bar3 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %bar4 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %bar5 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %bar6 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %bar7 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %bar8 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %bar9 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // CHECK: VPURT.ConfigureBarrier<0>
     // CHECK: VPURT.ConfigureBarrier<1>
