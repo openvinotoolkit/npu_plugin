@@ -47,8 +47,8 @@ public:
     BarrierResourceState();
     BarrierResourceState(size_t barrier_count, size_t slot_count);
 
-    typedef size_t slots_t;
-    typedef size_t barrier_t;
+    using slots_t = size_t;
+    using barrier_t = size_t;
 
     struct available_slot_key_t {
         available_slot_key_t(slots_t slots = slots_t(0UL), barrier_t barrier = barrier_t(0UL))
@@ -69,10 +69,10 @@ public:
         barrier_t barrier_;
     };  // struct available_slot_key_t //
 
-    typedef std::set<available_slot_key_t> available_slots_t;
-    typedef typename available_slots_t::const_iterator const_available_slots_iterator_t;
-    typedef typename available_slots_t::iterator available_slots_iterator_t;
-    typedef std::vector<available_slots_iterator_t> barrier_reference_t;
+    using available_slots_t = std::set<available_slot_key_t>; 
+    using const_available_slots_iterator_t = typename available_slots_t::const_iterator;
+    using available_slots_iterator_t = typename available_slots_t::iterator;
+    using barrier_reference_t = std::vector<available_slots_iterator_t>;
 
     void init(size_t bcount, slots_t slot_count);
     bool has_barrier_with_slots(slots_t slot_demand) const;
