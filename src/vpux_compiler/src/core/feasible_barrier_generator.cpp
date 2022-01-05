@@ -96,6 +96,7 @@ void FeasibleBarrierScheduler::saveOriginalIRDependency() {
         }
     };
 
+    // Compute in-degree and consumers of tasks
     const auto updateInDegreeAndConsumers = [&](VPURT::TaskOp taskOp) {
         size_t count = 0;
         for (const auto bar : taskOp.waitBarriers()) {
@@ -169,15 +170,7 @@ void FeasibleBarrierScheduler::saveOriginalIRDependency() {
         }
     });
 
-    _func->walk([](VPURT::TaskOp op) {
-        op.updateBarriersMutable().clear();
-        op.waitBarriersMutable().clear();
-    });
-
-    _func->walk([&](VPURT::DeclareVirtualBarrierOp op) {
-        op->dropAllUses();
-        op.erase();
-    });
+    cleanUpVirtualBarriers();
 
     _log.trace("Removed all the original declare virtual barrier ops");
 }
@@ -378,9 +371,7 @@ mlir::IntegerAttr FeasibleBarrierScheduler::getUniqueID(mlir::Operation* op) {
 }
 
 void FeasibleBarrierScheduler::computeTaskPriorities() {
-    operation_in_degree_t inDegree;
-
-    computeOpIndegree(inDegree);
+    operation_in_degree_t inDegree = _inDegreeBackUp;
 
     // Assign topological sort level as priority
     std::list<mlir::Operation*> zeroInDegreeNodes[2];
@@ -512,11 +503,6 @@ void FeasibleBarrierScheduler::assignTaskUniqueIds() {
     });
 }
 
-void FeasibleBarrierScheduler::computeOpIndegree(operation_in_degree_t& in_degree) {
-    in_degree.clear();
-    in_degree = _inDegreeBackUp;
-}
-
 bool FeasibleBarrierScheduler::doesOpRunOnNCE(mlir::Operation* op) {
     if ((mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::NCE) ||
         (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::DMA_NN))
@@ -565,9 +551,6 @@ void FeasibleBarrierScheduler::init() {
     // Save the original IR dependency, it may need to be restored
     saveOriginalIRDependency();
 
-    // Compute in-degree of tasks
-    computeOpIndegree(_inDegree);
-
     // Retrieve output ops (ops with no out-degree)
     _outputOps = _outputOpsBackUp;
 
@@ -583,8 +566,7 @@ bool FeasibleBarrierScheduler::schedule(size_t numberOfBarriers, size_t maxProdu
     _barrierAssociationTable.clear();
     _barrierCount = numberOfBarriers;
     _slotsPerBarrier = maxProducersPerBarrier;
-
-    computeOpIndegree(_inDegree);
+    _inDegree = _inDegreeBackUp;
 
     // retrieve output ops (ops with no out-degree)
     _outputOps = _outputOpsBackUp;
@@ -789,7 +771,6 @@ void FeasibleBarrierScheduler::removeRedundantBarrier() {
                 _log.trace("found barrier {0} and {1} have same consumers", (*iter).first->getAttr("id"),
                            (*iter1).first->getAttr("id"));
                 auto producers = (*iter1).second.first;
-                // auto mergedProducers = (*iter).second.first
                 for (auto& task : producers) {
                     (*iter).second.first.insert(task);
                 }
@@ -816,12 +797,10 @@ void FeasibleBarrierScheduler::removeRedundantDependency() {
                     auto removedIter = prod1;
                     prod1++;
                     producers.erase(removedIter);
-                    // configureTaskOpUpdateWaitMap[*prod1].second.erase((*iter).first);
                 } else if (isPathExist(*prod, *prod1)) {
                     auto removedIter = prod;
                     prod++;
                     producers.erase(removedIter);
-                    // configureTaskOpUpdateWaitMap[*prod].second.erase((*iter).first);
                     break;
                 } else
                     prod1++;
@@ -841,12 +820,10 @@ void FeasibleBarrierScheduler::removeRedundantDependency() {
                     auto removedIter = cons1;
                     cons1++;
                     consumers.erase(removedIter);
-                    // configureTaskOpUpdateWaitMap[*cons1].first.erase((*iter).first);
                 } else if (isPathExist(*cons1, *cons)) {
                     auto removedIter = cons;
                     cons++;
                     consumers.erase(removedIter);
-                    // configureTaskOpUpdateWaitMap[*cons].first.erase((*iter).first);
                     break;
                 } else
                     cons1++;
