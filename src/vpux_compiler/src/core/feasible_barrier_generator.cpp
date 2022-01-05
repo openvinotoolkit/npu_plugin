@@ -574,14 +574,14 @@ bool FeasibleBarrierScheduler::schedule(size_t numberOfBarriers, size_t maxProdu
     // Create a barrier transition structure per barrier
     initializeBarrierAssociationTable();
 
-    _log.trace("Initializing the resource upper state");
+    _log.trace("Initializing the barrier resource upper state");
     initializeBarrierResourceState(numberOfBarriers, maxProducersPerBarrier);
 
     operation_in_degree_t::iterator itr = _inDegree.begin();
     while (itr != _inDegree.end()) {
         auto op = itr->first;
         if (_inDegree.find(op)->second == 0) {
-            _log.trace("Adding op: {0} to candidate set", getUniqueID(op));
+            _log.trace("Adding task: {0} to candidate set", getUniqueID(op));
             addTaskToCandidateSet(op);
         }
         ++itr;
@@ -593,8 +593,10 @@ bool FeasibleBarrierScheduler::schedule(size_t numberOfBarriers, size_t maxProdu
     // Scheduling loop, loop until all output tasks are scheduled
     scheduleOperations();
 
-    // Insert barriers in the IR based on the output of the schedule
+    // Insert barriers in the IR based on the output of the list schedule
     insertBarriersinIR();
+
+    //TODO John - this should not always be true
     return true;
 }
 
@@ -631,14 +633,14 @@ void FeasibleBarrierScheduler::insertBarriersinIR() {
         barrierTransitionStructure& bstructure = bitr->second;
 
         // Set scheduling number
-        _log.trace("Assigning scheduling number {0} to the Operation {1} ", scheduling_number,
+        _log.trace("Assigning scheduling number {0} to the task {1} ", scheduling_number,
                    FeasibleBarrierScheduler::getUniqueID(op.op_));
         op.op_->setAttr(schedulingNumberAttrName, getIntAttr(_ctx, scheduling_number));
 
         scheduling_number++;
 
         // STEP-2: update barrier structure invariant //
-        bool new_barrier_task_created = bstructure.process_next_scheduled_op(op, builder);
+        bool new_barrier_task_created = bstructure.processNextScheduledTask(op, builder);
 
         if (new_barrier_task_created) {
             ++btask_count;
@@ -649,7 +651,7 @@ void FeasibleBarrierScheduler::insertBarriersinIR() {
     {
         for (auto bitr = _barrierAssociationTable.begin(); bitr != _barrierAssociationTable.end(); ++bitr) {
             barrierTransitionStructure& bstruct = bitr->second;
-            bstruct.close_barrier_producer_list();
+            bstruct.closeBarrierProducerList();
         }
     }
 
@@ -840,7 +842,7 @@ void FeasibleBarrierScheduler::initializeBarrierAssociationTable() {
     _log.trace("STEP-0: Initialize the association table");
     for (size_t barrierId = 1; barrierId <= _barrierCount; barrierId++) {
         auto bitr =
-                _barrierAssociationTable.insert(std::make_pair(barrierId, barrierTransitionStructure(_func, *this)));
+                _barrierAssociationTable.insert(std::make_pair(barrierId, barrierTransitionStructure(*this)));
         barrierTransitionStructure& bstructure = (bitr.first)->second;
         bstructure.init();
     }
