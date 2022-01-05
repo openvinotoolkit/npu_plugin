@@ -61,6 +61,20 @@ def OptimizeParallelCopies : PassBase<"optimize-parallel-copies", "vpux::Functio
 }
 
 //
+// CMXConcat
+//
+
+def CMXConcat : PassBase<"cmx-concat", "vpux::FunctionPass"> {
+    let summary = "Tries to CMX a concat";
+
+    let description = [{
+        This pass checks a concat can be in CMX and removes all the spills to DDR and creates a shared memref buffer
+    }];
+
+    let constructor = "vpux::IERT::createCMXConcatPass()";
+}
+
+//
 // SetInternalMemorySpace
 //
 
