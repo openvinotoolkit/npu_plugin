@@ -17,7 +17,7 @@
 
 #include "vpux/utils/core/range.hpp"
 
-using namespace vpux;
+using namespace vpux::VPURT;
 
 //
 // Constructor
