@@ -52,16 +52,6 @@ public:
             return uniqueId1 < uniqueId2;
         }
     };
-    struct task_operation_comparator_t {
-        bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
-            int64_t uniqueId1 = checked_cast<int64_t>(
-                    mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
-            int64_t uniqueId2 = checked_cast<int64_t>(
-                    mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
-
-            return uniqueId1 < uniqueId2;
-        }
-    };
 
     struct HeapElement {
         HeapElement(mlir::Operation* op = NULL, schedule_time_t t = 0UL): op_(op), time_(t) {
@@ -133,9 +123,9 @@ public:
     using schedulable_ops_iterator_t = typename schedulable_ops_t::iterator;
     using processed_ops_t = std::set<mlir::Operation*>;
     using schedule_heap_t = std::vector<HeapElement>;
-    using operation_in_degree_t = std::map<mlir::Operation*, size_t, task_operation_comparator_t>;
-    using operation_out_degree_t = std::map<mlir::Operation*, size_t, task_operation_comparator_t>;
-    using priority_map_t = std::map<mlir::Operation*, size_t, task_operation_comparator_t>;
+    using operation_in_degree_t = std::map<mlir::Operation*, size_t>;
+    using operation_out_degree_t = std::map<mlir::Operation*, size_t>;
+    using priority_map_t = std::map<mlir::Operation*, size_t>;
     using resource_utility_map_t = std::unordered_map<mlir::Operation*, unsigned>;
     using schedule_time_t = size_t;
 
@@ -172,9 +162,7 @@ public:
     void removeRedundantDependencies();
     void initializeBarrierAssociationTable();
     void getTaskOpUpdateWaitMap(
-            std::map<mlir::Operation*,
-                     std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
-                               std::set<mlir::Operation*, task_operation_comparator_t>>,
+            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
                      operation_comparator_t>& barrierOpUpdateWaitMap,
             std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
                      task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap);
@@ -220,9 +208,7 @@ private:
     mlir::FuncOp _func;
 
     /*Stores every barrier's associated update and wait operations*/
-    std::map<mlir::Operation*,
-             std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
-                       std::set<mlir::Operation*, task_operation_comparator_t>>,
+    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
              operation_comparator_t>
             configureBarrierOpUpdateWaitMap;  // update,wait
 

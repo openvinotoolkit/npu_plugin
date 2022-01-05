@@ -183,8 +183,8 @@ mlir::Operation* FeasibleBarrierScheduler::barrierTransitionStructure::create_ne
     auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc());
     newBarrier->setAttr(virtualIdAttrName, getIntAttr(newBarrier->getContext(), barrier_task_id));
 
-    std::set<mlir::Operation*, task_operation_comparator_t> newBarrierProducers{};
-    std::set<mlir::Operation*, task_operation_comparator_t> newBarrierConsumers{};
+    std::set<mlir::Operation*> newBarrierProducers{};
+    std::set<mlir::Operation*> newBarrierConsumers{};
     feasibleBarrierScheduler_.configureBarrierOpUpdateWaitMap.insert(
             std::make_pair(newBarrier, std::make_pair(newBarrierProducers, newBarrierConsumers)));
 
