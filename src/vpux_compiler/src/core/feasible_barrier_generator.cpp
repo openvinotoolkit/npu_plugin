@@ -676,17 +676,6 @@ void FeasibleBarrierScheduler::insertBarriersinIR() {
     removeRedundantDependency();
     removeRedundantBarrier();
 
-    for (auto itr = configureBarrierOpUpdateWaitMap.begin(); itr != configureBarrierOpUpdateWaitMap.end();) {
-        if (itr->second.second.empty()) {
-            _log.trace("Earsing virtual Barrier ID {0} as it has no producers", itr->first->getAttr("id"));
-            (*itr).first->dropAllUses();
-            (*itr).first->erase();
-            itr = configureBarrierOpUpdateWaitMap.erase(itr);
-        } else {
-            ++itr;
-        }
-    }
-
     for (const auto& p : configureBarrierOpUpdateWaitMap) {
         auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
         _log.trace("Virtual Barrier ID {0} has {1} consumers", barrierOp->getAttr("id"), p.second.second.size());
@@ -758,6 +747,8 @@ bool FeasibleBarrierScheduler::performRuntimeSimulation() {
     return success;
 }
 
+// If two barriers have same consumers, they can be merged
+// If a barrier has no producers, it can be removed
 void FeasibleBarrierScheduler::removeRedundantBarrier() {
     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
         auto consumers = (*iter).second.second;
@@ -781,8 +772,21 @@ void FeasibleBarrierScheduler::removeRedundantBarrier() {
                 iter1++;
         }
     }
+
+    for (auto itr = configureBarrierOpUpdateWaitMap.begin(); itr != configureBarrierOpUpdateWaitMap.end();) {
+        if (itr->second.first.empty() || itr->second.second.empty()) {
+            _log.trace("Earsing virtual Barrier ID {0} as it has no producers", itr->first->getAttr("id"));
+            (*itr).first->dropAllUses();
+            (*itr).first->erase();
+            itr = configureBarrierOpUpdateWaitMap.erase(itr);
+        } else {
+            ++itr;
+        }
+    }
 }
 
+// For two producers {a, b} of a barrier, if a depends on b then b isn't a necessary producer for this barrier
+// For two consumers {a, b} of a barrier, if a depends on b then a isn't a necessary consumer for this barrier
 void FeasibleBarrierScheduler::removeRedundantDependency() {
     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
         // producers
@@ -843,6 +847,7 @@ void FeasibleBarrierScheduler::initializeBarrierAssociationTable() {
     }
 }
 
+// detect if op b depends on a
 bool FeasibleBarrierScheduler::isPathExist(mlir::Operation* a, mlir::Operation* b) {
     auto numa = a->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
     auto numb = b->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
