@@ -5,6 +5,10 @@ because all VPUIP dialect tasks will be inside body of the TaskOp and it is impo
 ### `-convert-scalar-to-tensor`: Convert the second scalar input to tensor for Gather
 Gather doesn't support scalar inputs (input is scalar if `rank == 0`). But the second Gather input (indices) could be scalar.
 This pass convert indices to tensor with `rank == 1` and the same content.
+This pass breaks data flow in the graph. It is required for the VPURT dialect for correct task creation 
+because all VPUIP dialect tasks will be inside body of the TaskOp and it is impossible to use operation results inside another body of TaskOp. 
+### `-cmx-concat`: Tries to CMX a concat
+This pass checks a concat can be in CMX and removes all the spills to DDR and creates a shared memref buffer
 ### `-copy-op-hoisting`: Update location of CopyOps in the block
 This pass checks all CopyOps and updates their position in the parent block to be close to source op
 that generates the copy op source buffer

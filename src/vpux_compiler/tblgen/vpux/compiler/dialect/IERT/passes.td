@@ -57,6 +57,17 @@ def CopyOpLegalization : PassBase<"legalize-copies", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IERT::createCopyOpLegalizationPass()";
+// CMXConcat
+//
+
+def CMXConcat : PassBase<"cmx-concat", "vpux::FunctionPass"> {
+    let summary = "Tries to CMX a concat";
+
+    let description = [{
+        This pass checks a concat can be in CMX and removes all the spills to DDR and creates a shared memref buffer
+    }];
+
+    let constructor = "vpux::IERT::createCMXConcatPass()";
 }
 
 //
