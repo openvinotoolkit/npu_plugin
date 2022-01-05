@@ -655,20 +655,20 @@ void FeasibleBarrierScheduler::insertBarriersinIR() {
         }
     }
 
-    // update,wait
-    for (auto& barrier : configureBarrierOpUpdateWaitMap) {
-        _log.trace("Barrier ID {0} has the following producers", barrier.first->getAttr("id"));
-        for (auto op : barrier.second.first)
-            _log.trace("producer Op with ID {0} to barrier {1}", FeasibleBarrierScheduler::getUniqueID(op),
-                       barrier.first->getAttr("id"));
-    }
+    // TODO Remove this logging when ready for review
+    // for (auto& barrier : configureBarrierOpUpdateWaitMap) {
+    //     _log.trace("Barrier ID {0} has the following producers", barrier.first->getAttr("id"));
+    //     for (auto op : barrier.second.first)
+    //         _log.trace("producer Op with ID {0} to barrier {1}", FeasibleBarrierScheduler::getUniqueID(op),
+    //                    barrier.first->getAttr("id"));
+    // }
 
-    for (auto& barrier : configureBarrierOpUpdateWaitMap) {
-        _log.trace("Barrier ID {0} has the following consumers", barrier.first->getAttr("id"));
-        for (auto op : barrier.second.second)
-            _log.trace("consumer Op with ID {0} to barrier {1}", FeasibleBarrierScheduler::getUniqueID(op),
-                       barrier.first->getAttr("id"));
-    }
+    // for (auto& barrier : configureBarrierOpUpdateWaitMap) {
+    //     _log.trace("Barrier ID {0} has the following consumers", barrier.first->getAttr("id"));
+    //     for (auto op : barrier.second.second)
+    //         _log.trace("consumer Op with ID {0} to barrier {1}", FeasibleBarrierScheduler::getUniqueID(op),
+    //                    barrier.first->getAttr("id"));
+    // }
 
     _log.trace("Barrier scheduling complete");
 
