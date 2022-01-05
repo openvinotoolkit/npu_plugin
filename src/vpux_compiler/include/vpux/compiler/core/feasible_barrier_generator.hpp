@@ -144,7 +144,6 @@ public:
     bool isResourceAvailable(const resource_t& demand);
     bool scheduleOperation(mlir::Operation*& op, resource_t demand);
     bool unScheduleOperation(mlir::Operation*& op);
-    void computeOpIndegree(operation_in_degree_t& in_degree);
     void addTaskToCandidateSet(mlir::Operation* op);
     void computeTaskPriorities();
     void createTaskBarrierResourceUtilityTable();
