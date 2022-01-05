@@ -299,7 +299,7 @@ FeasibleBarrierScheduler::schedulable_ops_iterator_t FeasibleBarrierScheduler::f
     _log.trace("There are {0} candiates and for each candiate", _scheduleableCandidates.size());
 
     for (itr = _scheduleableCandidates.begin(); itr != _scheduleableCandidates.end(); ++itr) {
-        _log.trace("The demand for operation {0} is {1}", getUniqueID(*itr), _resourceUtilityMap[*itr]);
+        _log.trace("The producerSlotRequirement for operation {0} is {1}", getUniqueID(*itr), _resourceUtilityMap[*itr]);
 
         if (isResourceAvailable(_resourceUtilityMap[*itr])) {
             _log.trace("Adding operation {0} to the ready list", getUniqueID(*itr));
@@ -334,12 +334,12 @@ bool FeasibleBarrierScheduler::unScheduleOperation(mlir::Operation*& op) {
     return _resourceState.unschedule_operation(op);
 }
 
-bool FeasibleBarrierScheduler::scheduleOperation(mlir::Operation*& op, resource_t demand) {
-    return _resourceState.schedule_operation(op, demand);
+bool FeasibleBarrierScheduler::scheduleOperation(mlir::Operation*& op, resource_t producerSlotRequirement) {
+    return _resourceState.schedule_operation(op, producerSlotRequirement);
 }
 
-bool FeasibleBarrierScheduler::isResourceAvailable(const resource_t& demand) {
-    return _resourceState.is_resource_available(demand);
+bool FeasibleBarrierScheduler::isResourceAvailable(const resource_t& producerSlotRequirement) {
+    return _resourceState.is_resource_available(producerSlotRequirement);
 }
 
 // TODO John improve this
