@@ -211,13 +211,15 @@ private:
     std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
              operation_comparator_t>
             configureBarrierOpUpdateWaitMap;  // update,wait
-
+    // Stores every task's associated update and wait barriers
     std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
              task_operation_comparator_by_schedule_time_t>
-            configureTaskOpUpdateWaitMap;  // update,wait
-
+            configureTaskOpUpdateWaitMap;
+    // The in-degree per task from original dependency
     operation_in_degree_t _inDegreeBackUp;
+    // The consumer tasks per task from original dependency
     std::map<mlir::Operation*, SmallVector<mlir::Operation*>> _taskConsumerMapBackUp;
+    // The backup of output tasks in the IR
     std::set<mlir::Operation*> _outputOpsBackUp;
 };
 
