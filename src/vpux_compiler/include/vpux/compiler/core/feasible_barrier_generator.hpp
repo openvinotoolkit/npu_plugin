@@ -108,7 +108,7 @@ public:
 
         
         // Outer class
-        FeasibleBarrierScheduler& feasibleBarrierScheduler_;
+        FeasibleBarrierScheduler& _feasibleBarrierScheduler;
         schedule_time_t time_;
         mlir::Operation* curr_barrier_task_;
         mlir::Operation* prev_barrier_task_;
