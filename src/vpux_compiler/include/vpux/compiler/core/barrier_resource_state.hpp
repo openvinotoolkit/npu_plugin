@@ -42,6 +42,8 @@
 
 namespace vpux {
 
+namespace VPURT {
+
 class BarrierResourceState {
 public:
     BarrierResourceState();
@@ -88,4 +90,5 @@ private:
     available_slots_t available_slots_;
 };
 
+} //namespace vpux
 }  // namespace vpux
