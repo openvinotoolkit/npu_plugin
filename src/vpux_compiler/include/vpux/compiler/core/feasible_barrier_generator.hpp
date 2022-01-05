@@ -75,12 +75,12 @@ public:
     };
     class barrierTransitionStructure {
     public:
-        barrierTransitionStructure(mlir::FuncOp func, FeasibleBarrierScheduler& feasibleBarrierScheduler,
+        barrierTransitionStructure(FeasibleBarrierScheduler& feasibleBarrierScheduler,
                                    schedule_time_t time = std::numeric_limits<schedule_time_t>::max());
 
         void init();
-        bool process_next_scheduled_op(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
-        void close_barrier_producer_list();
+        bool processNextScheduledTask(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
+        void closeBarrierProducerList();
         struct operation_comparator_t {
             bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
                 int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op1)
@@ -100,13 +100,13 @@ public:
         using producer_iterator_t = typename producers_t::const_iterator;
 
     private:
-        void maintain_invariant_temporal_change(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
-        inline void process_current_barrier_producer_list_close_event(mlir::Operation* bop_curr,
+        void maintainInvariantTemporalChange(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
+        inline void processCurrentBarrierProducerListCloseEvent(mlir::Operation* bop_curr,
                                                                       mlir::Operation* bop_prev);
-        void add_scheduled_op_to_producer_list(const ScheduledOpInfo& sinfo);
-        mlir::Operation* create_new_barrier_task(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
+        void addScheduledOpToProducerList(const ScheduledOpInfo& sinfo);
+        mlir::Operation* createNewBarrierTask(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
 
-        mlir::FuncOp _func;
+        
         // Outer class
         FeasibleBarrierScheduler& feasibleBarrierScheduler_;
         schedule_time_t time_;

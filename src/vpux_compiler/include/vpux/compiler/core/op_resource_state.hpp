@@ -32,51 +32,50 @@ struct barrier_info_t {
 };
 
 using operation_t = mlir::Operation*;
-using operation_t = mlir::Operation*;
 using active_barrier_map_t = std::unordered_map<operation_t, barrier_info_t>;
 using resource_t = size_t;
 
 struct op_resource_state_t {
-    op_resource_state_t(size_t n = 0UL, size_t m = 0UL)
-            : barrier_map_(), state_(), barrier_count_(n), slots_per_barrier_(m) {
+    op_resource_state_t(size_t barrierCount = 0UL, size_t slotsPerBarrier = 0UL)
+            : _barrierMap(), _state(), _barrierCount(barrierCount), _slotsPerBarrier(slotsPerBarrier) {
         Logger::global().error("Initializing op_resource_state in Barrier_Schedule_Generator with barrier count {0} "
                                "slots_per_barrie {1}",
-                               barrier_count_, slots_per_barrier_);
+                               _barrierCount, _slotsPerBarrier);
     }
 
     void init(const op_resource_state_t& other) {
-        barrier_map_.clear();
-        barrier_count_ = other.barrier_count_;
-        slots_per_barrier_ = other.slots_per_barrier_;
-        state_.init(barrier_count_, slots_per_barrier_);
+        _barrierMap.clear();
+        _barrierCount = other._barrierCount;
+        _slotsPerBarrier = other._slotsPerBarrier;
+        _state.init(_barrierCount, _slotsPerBarrier);
     }
 
     bool is_resource_available(const resource_t& demand) const {
         Logger::global().error("Looking for a barrier with free slots");
-        return state_.has_barrier_with_slots(demand);
+        return _state.has_barrier_with_slots(demand);
     }
 
     bool schedule_operation(const operation_t& op, resource_t& demand) {
         Logger::global().error("Scheduling an operation");
         assert(is_resource_available(demand));
-        if (barrier_map_.find(op) != barrier_map_.end()) {
+        if (_barrierMap.find(op) != _barrierMap.end()) {
             return false;
         }
-        size_t bid = state_.assign_slots(demand);
-        barrier_map_.insert(std::make_pair(op, barrier_info_t(bid, demand)));
+        size_t bid = _state.assign_slots(demand);
+        _barrierMap.insert(std::make_pair(op, barrier_info_t(bid, demand)));
         return true;
     }
 
     bool unschedule_operation(const operation_t& op) {
-        auto itr = barrier_map_.find(op);
-        if (itr == barrier_map_.end()) {
+        auto itr = _barrierMap.find(op);
+        if (itr == _barrierMap.end()) {
             return false;
         }
         const barrier_info_t& binfo = itr->second;
-        bool ret = state_.unassign_slots(binfo.bindex_, binfo.slot_count_);
+        bool ret = _state.unassign_slots(binfo.bindex_, binfo.slot_count_);
         assert(ret);
         (void)ret;
-        barrier_map_.erase(itr);
+        _barrierMap.erase(itr);
         return true;
     }
 
@@ -86,16 +85,16 @@ struct op_resource_state_t {
     }
 
     const barrier_info_t& get_barrier_info(const operation_t& op) const {
-        auto itr = barrier_map_.find(op);
+        auto itr = _barrierMap.find(op);
 
-        assert(itr != barrier_map_.end());
+        assert(itr != _barrierMap.end());
         return itr->second;
     }
 
-    active_barrier_map_t barrier_map_;
-    BarrierResourceState state_;
-    size_t barrier_count_;
-    size_t slots_per_barrier_;
+    active_barrier_map_t _barrierMap;
+    BarrierResourceState _state;
+    size_t _barrierCount;
+    size_t _slotsPerBarrier;
 }; /*struct op_resource_state_t*/
 
 using resource_state_t = op_resource_state_t;

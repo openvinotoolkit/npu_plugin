@@ -16,8 +16,8 @@
 using namespace vpux::VPURT;
 
 FeasibleBarrierScheduler::barrierTransitionStructure::barrierTransitionStructure(
-        mlir::FuncOp func, FeasibleBarrierScheduler& feasibleBarrierScheduler, schedule_time_t time)
-        : _func(func), feasibleBarrierScheduler_(feasibleBarrierScheduler), time_(time), producers_() {
+        FeasibleBarrierScheduler& feasibleBarrierScheduler, schedule_time_t time)
+        : feasibleBarrierScheduler_(feasibleBarrierScheduler), time_(time), producers_() {
     Logger::global().error("Initialising a new barrier_transition_structure");
 }
 
@@ -28,7 +28,7 @@ void FeasibleBarrierScheduler::barrierTransitionStructure::init() {
     producers_.clear();
 }
 
-bool FeasibleBarrierScheduler::barrierTransitionStructure::process_next_scheduled_op(const ScheduledOpInfo& sinfo,
+bool FeasibleBarrierScheduler::barrierTransitionStructure::processNextScheduledTask(const ScheduledOpInfo& sinfo,
                                                                                      mlir::OpBuilder& builder) {
     schedule_time_t curr_time = sinfo.schedule_time_;
     bool created_new_barrier_task = false;
@@ -42,27 +42,27 @@ bool FeasibleBarrierScheduler::barrierTransitionStructure::process_next_schedule
 
     if (time_ != curr_time) {
         Logger::global().error("CASE-1: temporal transition happened, create a new barrier task -  "
-                               "maintain_invariant_temporal_change");
+                               "maintainInvariantTemporalChange");
         // CASE-1: temporal transition happened //
         created_new_barrier_task = true;
-        maintain_invariant_temporal_change(sinfo, builder);
+        maintainInvariantTemporalChange(sinfo, builder);
         time_ = curr_time;
     } else {
         // CASE-2: trival case //
-        Logger::global().error("CASE-2: trival case - add_scheduled_op_to_producer_list");
-        add_scheduled_op_to_producer_list(sinfo);
+        Logger::global().error("CASE-2: trival case - addScheduledOpToProducerList");
+        addScheduledOpToProducerList(sinfo);
     }
     return created_new_barrier_task;
 }
 
-void FeasibleBarrierScheduler::barrierTransitionStructure::close_barrier_producer_list() {
+void FeasibleBarrierScheduler::barrierTransitionStructure::closeBarrierProducerList() {
     if (curr_barrier_task_ == NULL) {
         return;
     }
-    process_current_barrier_producer_list_close_event(curr_barrier_task_, prev_barrier_task_);
+    processCurrentBarrierProducerListCloseEvent(curr_barrier_task_, prev_barrier_task_);
 }
 
-inline void FeasibleBarrierScheduler::barrierTransitionStructure::process_current_barrier_producer_list_close_event(
+inline void FeasibleBarrierScheduler::barrierTransitionStructure::processCurrentBarrierProducerListCloseEvent(
         mlir::Operation* bop_curr, mlir::Operation* bop_prev) {
     Logger::global().error("Process current barrier producer list close event");
 
@@ -118,9 +118,9 @@ inline void FeasibleBarrierScheduler::barrierTransitionStructure::process_curren
     }  // foreach producer //
 }
 
-void FeasibleBarrierScheduler::barrierTransitionStructure::maintain_invariant_temporal_change(
+void FeasibleBarrierScheduler::barrierTransitionStructure::maintainInvariantTemporalChange(
         const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder) {
-    Logger::global().error("Calling maintain_invariant_temporal_change()");
+    Logger::global().error("Calling maintainInvariantTemporalChange()");
     Logger::global().error("The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
                            sinfo.schedule_time_, FeasibleBarrierScheduler::getUniqueID(sinfo.op_), sinfo.barrier_index_,
                            sinfo.slot_count_);
@@ -147,7 +147,7 @@ void FeasibleBarrierScheduler::barrierTransitionStructure::maintain_invariant_te
     mlir::Operation* bop_end = NULL;
     mlir::Operation* bop_curr_new = bop_end;
 
-    bop_curr_new = create_new_barrier_task(sinfo, builder);
+    bop_curr_new = createNewBarrierTask(sinfo, builder);
 
     assert(bop_curr_new != bop_end);
     // assert(is_barrier_task(bop_curr_new));
@@ -155,17 +155,17 @@ void FeasibleBarrierScheduler::barrierTransitionStructure::maintain_invariant_te
     // STEP-1 //
     if (bop_curr != bop_end) {
         Logger::global().error("The ID of barrier bop_curr is {0}", bop_curr->getAttr("id"));
-        process_current_barrier_producer_list_close_event(bop_curr, bop_prev);
+        processCurrentBarrierProducerListCloseEvent(bop_curr, bop_prev);
     }
 
     // STEP-2 //
     prev_barrier_task_ = curr_barrier_task_;
     curr_barrier_task_ = bop_curr_new;
     producers_.clear();
-    add_scheduled_op_to_producer_list(sinfo);
+    addScheduledOpToProducerList(sinfo);
 }
 
-void FeasibleBarrierScheduler::barrierTransitionStructure::add_scheduled_op_to_producer_list(
+void FeasibleBarrierScheduler::barrierTransitionStructure::addScheduledOpToProducerList(
         const ScheduledOpInfo& sinfo) {
     auto scheduled_op = sinfo.op_;
 
@@ -174,7 +174,7 @@ void FeasibleBarrierScheduler::barrierTransitionStructure::add_scheduled_op_to_p
     producers_.insert(scheduled_op);
 }
 
-mlir::Operation* FeasibleBarrierScheduler::barrierTransitionStructure::create_new_barrier_task(
+mlir::Operation* FeasibleBarrierScheduler::barrierTransitionStructure::createNewBarrierTask(
         const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder) {
     Logger::global().error("CREATING A NEW BARRIER TASK");
 
