@@ -351,9 +351,16 @@ size_t FeasibleBarrierScheduler::currentTime() const {
 //     _resourceState.init(resource);
 // }
 
-// const resource_state_t& FeasibleBarrierScheduler::resourceState() const {
-//     return _resourceState;
-// }
+const BarrierResourceState& FeasibleBarrierScheduler::barrierResourceState() const {
+    return _barrierResourceState;
+}
+
+const FeasibleBarrierScheduler::barrier_info_t& FeasibleBarrierScheduler::get_barrier_info(const operation_t& op) const {
+        auto itr = _barrierMap.find(op);
+
+        assert(itr != _barrierMap.end());
+        return itr->second;
+    }
 
 bool FeasibleBarrierScheduler::unScheduleOperation(mlir::Operation*& op) {
     // return _resourceState.unschedule_operation(op);
@@ -918,11 +925,11 @@ void FeasibleBarrierScheduler::populateScheduledOps(mlir::Operation* scheduledOp
     scheduled.op_ = scheduledOp;
     scheduled.schedule_time_ = _currentTime;
 
-    //const resource_state_t& rstate = resourceState();
-    //const barrier_info_t& binfo = rstate.get_barrier_info(scheduledOp);
+    //const BarrierResourceState& bstate = barrierResourceState();
+    const barrier_info_t& binfo = get_barrier_info(scheduledOp);
 
-    //scheduled.barrier_index_ = binfo.bindex_;
-    //scheduled.slot_count_ = binfo.slot_count_;
+    scheduled.barrier_index_ = binfo.bindex_;
+    scheduled.slot_count_ = binfo.slot_count_;
 
     // _log.trace("Get barrier info for operation {0}", FeasibleBarrierScheduler::getUniqueID(scheduledOp));
 

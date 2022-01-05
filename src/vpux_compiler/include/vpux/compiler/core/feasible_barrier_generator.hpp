@@ -160,7 +160,7 @@ public:
     bool doesOpRunOnNCE(mlir::Operation* op);
 
     size_t currentTime() const;
-    //const resource_state_t& resourceState() const;
+    const BarrierResourceState& barrierResourceState() const;
     bool isValidOp(schedulable_ops_iterator_t itr) const;
     schedulable_ops_iterator_t findSchedulableOp();
     unsigned countProducerConsumerTasks(mlir::Operation* op);
@@ -183,6 +183,7 @@ public:
     void reorderIR();
     bool performRuntimeSimulation();
     void cleanUpVirtualBarriers();
+    const barrier_info_t& get_barrier_info(const operation_t& op) const;
 
 private:
     // The number of available barriers
