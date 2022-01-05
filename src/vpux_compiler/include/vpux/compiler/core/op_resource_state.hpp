@@ -50,19 +50,19 @@ struct op_resource_state_t {
         _state.init(_barrierCount, _slotsPerBarrier);
     }
 
-    bool is_resource_available(const resource_t& demand) const {
+    bool is_resource_available(const resource_t& producerSlotRequirement) const {
         Logger::global().error("Looking for a barrier with free slots");
-        return _state.has_barrier_with_slots(demand);
+        return _state.has_barrier_with_slots(producerSlotRequirement);
     }
 
-    bool schedule_operation(const operation_t& op, resource_t& demand) {
+    bool schedule_operation(const operation_t& op, resource_t& producerSlotRequirement) {
         Logger::global().error("Scheduling an operation");
-        assert(is_resource_available(demand));
+        assert(is_resource_available(producerSlotRequirement));
         if (_barrierMap.find(op) != _barrierMap.end()) {
             return false;
         }
-        size_t bid = _state.assign_slots(demand);
-        _barrierMap.insert(std::make_pair(op, barrier_info_t(bid, demand)));
+        size_t bid = _state.assign_slots(producerSlotRequirement);
+        _barrierMap.insert(std::make_pair(op, barrier_info_t(bid, producerSlotRequirement)));
         return true;
     }
 
