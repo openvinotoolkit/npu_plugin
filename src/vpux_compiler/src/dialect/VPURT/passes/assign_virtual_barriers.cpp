@@ -47,7 +47,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
         barrierScheduler.schedule(barrier_bound, 256);
         success = barrierScheduler.performRuntimeSimulation();
     }
-    barrierScheduler.reorderIR();
+    // barrierScheduler.reorderIR();
 
     if (!success) {
         VPUX_THROW("Barrier scheduling and/or runtime simulation was not suceessful");
