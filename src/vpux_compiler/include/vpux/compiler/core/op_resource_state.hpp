@@ -10,16 +10,16 @@
 // to the "third-party-programs.txt" or other similarly-named text file
 // included with the Software Package for additional details.
 //
-#include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/core/barrier_resource_state.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+// #include "vpux/compiler/core/attributes/shape.hpp"
+// #include "vpux/compiler/core/barrier_resource_state.hpp"
+// #include "vpux/compiler/dialect/IERT/ops.hpp"
+// #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#pragma once
+// #pragma once
 
-namespace vpux {
+// namespace vpux {
 
-namespace VPURT {
+// namespace VPURT {
 
 // static constexpr StringLiteral uniqueIdAttrName = "uniqueId";
 // static constexpr StringLiteral virtualIdAttrName = "VPURT.virtualId";
@@ -101,5 +101,5 @@ namespace VPURT {
 
 // using schedule_time_t = size_t;
 
-}  // namespace VPURT
-}  // namespace vpux
+//}  // namespace VPURT
+//}  // namespace vpux
