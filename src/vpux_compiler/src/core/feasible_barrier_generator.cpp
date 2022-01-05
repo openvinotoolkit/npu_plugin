@@ -31,9 +31,7 @@ FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir:
           _func(func){};
 
 void FeasibleBarrierScheduler::getTaskOpUpdateWaitMap(
-        std::map<mlir::Operation*,
-                 std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
-                           std::set<mlir::Operation*, task_operation_comparator_t>>,
+        std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
                  operation_comparator_t>& barrierOpUpdateWaitMap,
         std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
                  task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap) {
