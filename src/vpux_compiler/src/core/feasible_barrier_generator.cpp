@@ -526,7 +526,7 @@ unsigned FeasibleBarrierScheduler::countProducerConsumerTasks(mlir::Operation* o
 }
 
 void FeasibleBarrierScheduler::createTaskBarrierResourceUtilityTable() {
-    for (auto& op : _inDegree) {
+    for (auto& op : _inDegreeBackUp) {
         if (doesOpRunOnNCE(op.first)) {
             auto resource_utility = countProducerConsumerTasks(op.first);
             _log.trace("Operation {0} is a DPU or DMA task and requires {1} barrier slots", getUniqueID(op.first),
