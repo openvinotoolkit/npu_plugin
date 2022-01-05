@@ -224,6 +224,14 @@ vpux::AddressType FeasibleMemoryScheduler::calculateOpSize(operationIdxType opId
                 }
                 opSize += _scan.handler().getSize(output);
             }
+            auto inputs = mlir::dyn_cast<IERT::LayerOpInterface>(op).getInputs();
+            for (const auto& input : inputs) {
+                const auto type = input.getType().dyn_cast<mlir::MemRefType>();
+                if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                    continue;
+                }
+                opSize += _scan.handler().getSize(input);
+            }
         }
     }
     return opSize;
@@ -691,18 +699,20 @@ IERT::LayerOpInterface FeasibleMemoryScheduler::retrieveBufferWriter(mlir::Value
 }
 
 size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
-    // TODO: EISW-21937 add other conditions such as:
-    // cmx concatable, pipelined, multiple outdegree (prefetch)
+    // TODO: EISW-21936 add other conditions such as:
+    // pipelined, multiple outdegree (prefetch)
 
     // Eviction priority (highest evicted first):
-    // (0) - timestamp op buffers
-    // (1) - buffers which are result of computeOp
-    // (2) - buffers which are result of dataOp
-    // (3) - buffers which are not going to be used by any active/ready compute ops
+    // (0) - buffers which are CMX Concatable
+    // (1) - timestamp op buffers
+    // (2) - buffers which are result of computeOp
+    // (3) - buffers which are result of dataOp
+    // (4) - buffers which are not going to be used by any active/ready compute ops
 
     auto writerOp = retrieveBufferWriter(buffer);
     auto executeOp = writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>();
     bool isBufferUsedByReadyOp = false;
+    bool cmxConcatable = false;
 
     for (auto& active : _activeComputeOps) {
         auto op = _depsInfo.getExecuteOpAtIndex(active.first).getOperation();
@@ -724,14 +734,22 @@ size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
         }
     }
 
-    if (mlir::isa<IERT::TimestampOp>(writerOp)) {
+    for (auto bufferUser : buffer.getUsers()) {
+        if (bufferUser->hasAttr("CMXConcat")) {
+            cmxConcatable = true;
+        }
+    }
+
+    if (cmxConcatable) {
         return 0;
-    } else if (!isBufferUsedByReadyOp) {
-        return 3;
-    } else if (isDataOp(_depsInfo.getIndex(executeOp))) {
-        return 2;
-    } else {
+    } else if (mlir::isa<IERT::TimestampOp>(writerOp)) {
         return 1;
+    } else if (!isBufferUsedByReadyOp) {
+        return 4;
+    } else if (isDataOp(_depsInfo.getIndex(executeOp))) {
+        return 3;
+    } else {
+        return 2;
     }
 }
 
@@ -800,6 +818,13 @@ void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
     // select a candidate op to be spilled
     auto evictionCandidate = chooseCandidateForEviction(aliveBuffers);
     _log.nest().trace("Candidate selected for eviction {0}", evictionCandidate.bufferWriterIdx_);
+
+    // TEMP LOG
+    for (auto bufferUser : evictionCandidate.buffer_.getUsers()) {
+        if (bufferUser->hasAttr("CMXConcat")) {
+            std::cout << "spilling CMX-ed Concat: " << evictionCandidate.bufferWriterIdx_ << std::endl;
+        }
+    }
 
     // free the memory space by freeing the op output buffer
     evictActiveOp(evictionCandidate);
@@ -991,6 +1016,8 @@ SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::g
                 }
             }
         }
+        // std::cout << "op = " << op.op_ << "\t type = " << op.opTypeName().data() << "\t time = " << op.time_ << "\t "
+        //           << resourceInfo << std::endl;
         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
     }
     _log = _log.unnest();
