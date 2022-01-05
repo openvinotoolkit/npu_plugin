@@ -14,6 +14,9 @@
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
+#include "vpux/compiler/core/control_edge_generator.hpp"
+#include "vpux/compiler/core/feasible_scheduler_utils.hpp"
+
 #include "vpux/compiler/core/async_deps_info.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/core/linear_scan_handler.hpp"
@@ -189,6 +192,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
     };
 
     mlir::async::ExecuteOp prevExecOp;
+    std::list<ScheduledOpOneResource> scheduledOpsResources;
     for (auto curExecOp : netFunc.getOps<mlir::async::ExecuteOp>()) {
         _log.trace("Process next task at '{0}'", curExecOp->getLoc());
         _log = _log.nest();
@@ -196,12 +200,45 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
         const auto usedBufs = liveRangeInfo.getUsedBuffers(curExecOp);
 
         allocNewBuffers(usedBufs);
+
+        auto opIndex = depsInfo.getIndex(curExecOp);
+        // Gather information about buffers for a given operation to later
+        // generate control edges for overlapping resources
+        for (auto& buf : usedBufs) {
+            if (buf.getType().cast<mlir::MemRefType>().getMemorySpace() != _memSpace) {
+                continue;
+            }
+            auto addressStart = scan.handler().getAddress(buf);
+            auto addressEnd = addressStart + scan.handler().getSize(buf) - 1;
+            scheduledOpsResources.push_back(ScheduledOpOneResource(opIndex, addressStart, addressEnd));
+        }
+
         freeDeadBuffers(usedBufs, curExecOp);
 
         prevExecOp = curExecOp;
 
         _log = _log.unnest();
     }
+
+    ControlEdgeSet controlEdges;
+    ControlEdgeGenerator<ScheduledOpOneResource> controlEdgeGenerator;
+    // Generate control edges for overlapping memory regions
+    controlEdgeGenerator.generateControlEdges(scheduledOpsResources.begin(), scheduledOpsResources.end(), controlEdges);
+
+    // Apply dependencies from controlEdges set in depsInfo and
+    // later transfer this to token based dependencies between AsyncExecuteOp
+    _log.trace("Insert control edges for overlapping memory resources");
+    _log = _log.nest();
+    for (auto itr = controlEdges.begin(); itr != controlEdges.end(); ++itr) {
+        if (itr->_source == itr->_sink) {
+            continue;
+        }
+        _log.trace("Dep: {0} -> {1}", itr->_source, itr->_sink);
+        auto sourceOp = depsInfo.getExecuteOpAtIndex(itr->_source);
+        auto sinkOp = depsInfo.getExecuteOpAtIndex(itr->_sink);
+        depsInfo.addDependency(sourceOp, sinkOp);
+    }
+    _log = _log.unnest();
 
     depsInfo.updateTokenDependencies();
 
