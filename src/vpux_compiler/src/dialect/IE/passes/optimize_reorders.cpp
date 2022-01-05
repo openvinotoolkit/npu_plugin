@@ -66,6 +66,45 @@ mlir::LogicalResult ReorderWithSubView::matchAndRewrite(IE::SliceOp origSubViewO
 }
 
 //
+// ReorderWithReshape
+//
+
+class ReorderWithReshape final : public mlir::OpRewritePattern<IE::ReshapeOp> {
+public:
+    ReorderWithReshape(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ReshapeOp>(ctx), _log(log) {
+        setDebugName("ReorderWithReshape");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ReshapeOp origReshape, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ReorderWithReshape::matchAndRewrite(IE::ReshapeOp origReshapeOp,
+                                                        mlir::PatternRewriter& rewriter) const {
+    auto origReorderOp = origReshapeOp.input().getDefiningOp<IE::ReorderOp>();
+    if (origReorderOp == nullptr) {
+        return mlir::failure();
+    }
+
+    _log.trace("Got reorder at '{0}' -> reshapeOp at '{1}' pair", origReorderOp->getLoc(), origReshapeOp->getLoc());
+
+    if (!origReorderOp.getResult().hasOneUse()) {
+        return matchFailed(_log.nest(), rewriter, origReorderOp, "Reorder has more then one user");
+    }
+
+    const auto outShape = origReshapeOp.getType().getShape();
+    const auto outShapeAttr = getIntArrayAttr(getContext(), outShape);
+    auto newReshapeOp = rewriter.create<IE::ReshapeOp>(origReshapeOp->getLoc(), origReorderOp.input(), nullptr, false,
+                                                       outShapeAttr);
+
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origReorderOp, newReshapeOp.output(), origReorderOp.dstOrderAttr());
+    return mlir::success();
+}
+
+//
 // ReorderWithExpand
 //
 
@@ -421,6 +460,7 @@ void OptimizeReordersPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ReorderWithSubView>(&ctx, _log);
+    patterns.add<ReorderWithReshape>(&ctx, _log);
     patterns.add<ReorderWithExpand>(&ctx, _log);
     patterns.add<ReorderWithSplit>(&ctx, _log);
     patterns.add<ReorderWithConcat>(&ctx, _log);

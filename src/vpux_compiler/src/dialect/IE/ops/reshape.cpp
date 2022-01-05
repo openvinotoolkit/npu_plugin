@@ -128,7 +128,7 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
 
     const auto inType = reshape.input().getType().cast<mlir::RankedTensorType>();
 
-    const auto outDesc = IE::getTensorAttr(ctx, DimsOrder::fromNumDims(outShape->size()), IE::getMemorySpace(inType),
+    const auto outDesc = IE::getTensorAttr(ctx, DimsOrder::fromValue(reshape.input()), IE::getMemorySpace(inType),
                                            IE::isSparse(inType));
 
     inferredReturnShapes.emplace_back(outShape.getValue(), inType.getElementType(), outDesc);
