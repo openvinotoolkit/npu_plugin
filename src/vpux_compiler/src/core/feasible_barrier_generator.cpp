@@ -18,7 +18,8 @@ using namespace vpux::VPURT;
 FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log)
         : _barrierCount(),
           _slotsPerBarrier(),
-          _resourceState(),
+          _barrierResourceState(),
+          //_resourceState(),
           _inDegree(),
           _heap(),
           _currentTime(0),
@@ -299,9 +300,10 @@ FeasibleBarrierScheduler::schedulable_ops_iterator_t FeasibleBarrierScheduler::f
     _log.trace("There are {0} candiates and for each candiate", _scheduleableCandidates.size());
 
     for (itr = _scheduleableCandidates.begin(); itr != _scheduleableCandidates.end(); ++itr) {
-        _log.trace("The producerSlotRequirement for operation {0} is {1}", getUniqueID(*itr), _resourceUtilityMap[*itr]);
+        _log.trace("The producerSlotRequirement for operation {0} is {1}", getUniqueID(*itr),
+                   _resourceUtilityMap[*itr]);
 
-        if (isResourceAvailable(_resourceUtilityMap[*itr])) {
+        if (isBarrierResourceAvailable(_resourceUtilityMap[*itr])) {
             _log.trace("Adding operation {0} to the ready list", getUniqueID(*itr));
             ready_list.push_back(itr);
         }
@@ -326,41 +328,76 @@ size_t FeasibleBarrierScheduler::currentTime() const {
     return _currentTime;
 }
 
-const resource_state_t& FeasibleBarrierScheduler::resourceState() const {
-    return _resourceState;
-}
+// const resource_state_t& FeasibleBarrierScheduler::resourceState() const {
+//     return _resourceState;
+// }
+
+// bool FeasibleBarrierScheduler::unScheduleOperation(mlir::Operation*& op) {
+//     return _resourceState.unschedule_operation(op);
+// }
+
+// bool FeasibleBarrierScheduler::scheduleOperation(mlir::Operation*& op, resource_t producerSlotRequirement) {
+//     return _resourceState.schedule_operation(op, producerSlotRequirement);
+// }
+
+// bool FeasibleBarrierScheduler::isBarrierResourceAvailable(const resource_t& producerSlotRequirement) {
+//     return _resourceState.is_resource_available(producerSlotRequirement);
+// }
+
+// // TODO John improve this
+// void FeasibleBarrierScheduler::initializeBarrierResourceState(size_t numberOfBarriers, size_t maxProducersPerBarrier)
+// {
+//     op_resource_state_t resource(numberOfBarriers, maxProducersPerBarrier);
+//     _resourceState.init(resource);
+// }
+
+// const resource_state_t& FeasibleBarrierScheduler::resourceState() const {
+//     return _resourceState;
+// }
 
 bool FeasibleBarrierScheduler::unScheduleOperation(mlir::Operation*& op) {
-    return _resourceState.unschedule_operation(op);
+    // return _resourceState.unschedule_operation(op);
+
+     auto itr = _barrierMap.find(op);
+        if (itr == _barrierMap.end()) {
+            return false;
+        }
+        const barrier_info_t& binfo = itr->second;
+        bool ret = _barrierResourceState.unassign_slots(binfo.bindex_, binfo.slot_count_);
+        assert(ret);
+        (void)ret;
+        _barrierMap.erase(itr);
+        return true;
 }
 
 bool FeasibleBarrierScheduler::scheduleOperation(mlir::Operation*& op, resource_t producerSlotRequirement) {
-    return _resourceState.schedule_operation(op, producerSlotRequirement);
+    // return _resourceState.schedule_operation(op, producerSlotRequirement);
+
+    _log.trace("Scheduling a task");
+    assert(isBarrierResourceAvailable(producerSlotRequirement));
+    if (_barrierMap.find(op) != _barrierMap.end()) {
+        return false;
+    }
+    size_t bid = _barrierResourceState.assign_slots(producerSlotRequirement);
+    _barrierMap.insert(std::make_pair(op, barrier_info_t(bid, producerSlotRequirement)));
+    return true;
+
 }
 
-bool FeasibleBarrierScheduler::isResourceAvailable(const resource_t& producerSlotRequirement) {
-    return _resourceState.is_resource_available(producerSlotRequirement);
+bool FeasibleBarrierScheduler::isBarrierResourceAvailable(const resource_t& producerSlotRequirement) {
+    // return _resourceState.is_resource_available(producerSlotRequirement);
+    return _barrierResourceState.has_barrier_with_slots(producerSlotRequirement);
+    // return true;
 }
 
 // TODO John improve this
 void FeasibleBarrierScheduler::initializeBarrierResourceState(size_t numberOfBarriers, size_t maxProducersPerBarrier) {
-    op_resource_state_t resource(numberOfBarriers, maxProducersPerBarrier);
-    _resourceState.init(resource);
+    // op_resource_state_t resource(numberOfBarriers, maxProducersPerBarrier);
+    _barrierResourceState.init(numberOfBarriers, maxProducersPerBarrier);
 }
 
 llvm::SmallVector<mlir::Operation*> FeasibleBarrierScheduler::getConsumerOps(mlir::Operation* op) {
     return _taskConsumerMapBackUp[op];
-}
-
-std::string FeasibleBarrierScheduler::printOpType(VPURT::TaskOp task) {
-    if (task.getExecutorKind() == VPU::ExecutorKind::NCE)
-        return "NCE task";
-    if (task.getExecutorKind() == VPU::ExecutorKind::DMA_NN)
-        return "DMA task ";
-    if (task.getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA)
-        return "Upa task ";
-
-    return "task";
 }
 
 mlir::IntegerAttr FeasibleBarrierScheduler::getUniqueID(mlir::Operation* op) {
@@ -526,7 +563,7 @@ unsigned FeasibleBarrierScheduler::countProducerConsumerTasks(mlir::Operation* o
 }
 
 void FeasibleBarrierScheduler::createTaskBarrierResourceUtilityTable() {
-    for (auto& op : _inDegree) {
+    for (auto& op : _inDegreeBackUp) {
         if (doesOpRunOnNCE(op.first)) {
             auto resource_utility = countProducerConsumerTasks(op.first);
             _log.trace("Operation {0} is a DPU or DMA task and requires {1} barrier slots", getUniqueID(op.first),
@@ -548,6 +585,7 @@ void FeasibleBarrierScheduler::init() {
 
     // Save the original IR dependency, it may need to be restored
     saveOriginalIRDependency();
+
 
     // Retrieve output ops (ops with no out-degree)
     _outputOps = _outputOpsBackUp;
@@ -596,7 +634,7 @@ bool FeasibleBarrierScheduler::schedule(size_t numberOfBarriers, size_t maxProdu
     // Insert barriers in the IR based on the output of the list schedule
     insertBarriersinIR();
 
-    //TODO John - this should not always be true
+    // TODO John - this should not always be true
     return true;
 }
 
@@ -841,8 +879,7 @@ void FeasibleBarrierScheduler::removeRedundantDependency() {
 void FeasibleBarrierScheduler::initializeBarrierAssociationTable() {
     _log.trace("STEP-0: Initialize the association table");
     for (size_t barrierId = 1; barrierId <= _barrierCount; barrierId++) {
-        auto bitr =
-                _barrierAssociationTable.insert(std::make_pair(barrierId, barrierTransitionStructure(*this)));
+        auto bitr = _barrierAssociationTable.insert(std::make_pair(barrierId, barrierTransitionStructure(*this)));
         barrierTransitionStructure& bstructure = (bitr.first)->second;
         bstructure.init();
     }
@@ -881,11 +918,11 @@ void FeasibleBarrierScheduler::populateScheduledOps(mlir::Operation* scheduledOp
     scheduled.op_ = scheduledOp;
     scheduled.schedule_time_ = _currentTime;
 
-    const resource_state_t& rstate = resourceState();
-    const barrier_info_t& binfo = rstate.get_barrier_info(scheduledOp);
+    //const resource_state_t& rstate = resourceState();
+    //const barrier_info_t& binfo = rstate.get_barrier_info(scheduledOp);
 
-    scheduled.barrier_index_ = binfo.bindex_;
-    scheduled.slot_count_ = binfo.slot_count_;
+    //scheduled.barrier_index_ = binfo.bindex_;
+    //scheduled.slot_count_ = binfo.slot_count_;
 
     // _log.trace("Get barrier info for operation {0}", FeasibleBarrierScheduler::getUniqueID(scheduledOp));
 
