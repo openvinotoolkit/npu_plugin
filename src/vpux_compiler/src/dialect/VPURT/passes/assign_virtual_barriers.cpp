@@ -44,7 +44,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     static constexpr int64_t MAX_SLOT_COUNT = 256;
     auto numSlotsPerBarrierToUse = numSlotsPerBarrier.hasValue() ? numSlotsPerBarrier.getValue() : MAX_SLOT_COUNT;
 
-    VPURT::FeasibleBarrierScheduler barrierScheduler(&ctx, func, _log);
+    VPURT::FeasibleBarrierScheduler barrierScheduler(func, _log);
     barrierScheduler.init();
 
     bool success = false;
