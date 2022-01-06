@@ -38,7 +38,6 @@ private:
 };
 
 void AssignVirtualBarriersPass::safeRunOnFunc() {
-    auto& ctx = getContext();
     auto func = getFunction();
 
     auto numBarriersToUse = numBarriers.hasValue() ? numBarriers.getValue() : VPUIP::getNumAvailableBarriers(func);
@@ -50,7 +49,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
 
     bool success = false;
     for (size_t barrier_bound = (numBarriersToUse / 2); !success && (barrier_bound >= 1UL); --barrier_bound) {
-        barrierScheduler.schedule(barrier_bound, numSlotsPerBarrierToUse);
+        barrierScheduler.generateScheduleWithBarriers(barrier_bound, numSlotsPerBarrierToUse);
         success = barrierScheduler.performRuntimeSimulation();
     }
     barrierScheduler.clearUniqueID();
