@@ -29,11 +29,8 @@ FeasibleBarrierScheduler::FeasibleBarrierScheduler(mlir::FuncOp func, Logger log
           _log(log),
           _func(func){};
 
-void FeasibleBarrierScheduler::getTaskOpUpdateWaitMap(
-        std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-                 operation_comparator_t>& barrierOpUpdateWaitMap,
-        std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-                 task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap) {
+void FeasibleBarrierScheduler::populateTasksUpdateWaitBarrierMap(barrierUpdateWaitMapType& barrierOpUpdateWaitMap,
+                                                                 taskOpUpdateWaitMapType& taskOpUpdateWaitMap) {
     for (auto iter = barrierOpUpdateWaitMap.begin(); iter != barrierOpUpdateWaitMap.end(); iter++) {
         auto barrierOp = (*iter).first;
         auto producers = (*iter).second.first;
@@ -167,6 +164,7 @@ void FeasibleBarrierScheduler::saveOriginalIRDependency() {
         }
     });
 
+    // Remove the original virtual barriers, optimal barriers are inserted based on the generated schedule
     removeVirtualBarriers();
 
     _log.trace("Removed all the original declare virtual barrier ops");
@@ -186,8 +184,9 @@ FeasibleBarrierScheduler::HeapElement FeasibleBarrierScheduler::popFromHeap() {
 
 void FeasibleBarrierScheduler::addTaskToCandidateSet(mlir::Operation* op) {
     if (_processedTasks.find(op) != _processedTasks.end()) {
-        return;
+        VPUX_THROW("Attempt to add a task to the schedulable candidates list that has been previously scheduled");
     }
+
     _log.trace("Adding operation  to candidates list {0} to candidates list", getUniqueID(op));
     _schedulableCandidates.push_back(op);
     _processedTasks.insert(op);
@@ -216,7 +215,6 @@ void FeasibleBarrierScheduler::addOutGoingOperationsToCandidateList(mlir::Operat
         typename operationInDegreeType::iterator deg_itr = _inDegree.find(op);
 
         VPUX_THROW_UNLESS((deg_itr != _inDegree.end()) && (deg_itr->second > 0), "Invalid indegree");
-        assert((deg_itr != _inDegree.end()) && (deg_itr->second > 0));
 
         if (deg_itr->second == 1) {
             _log.trace("Adding operation {0} to candidate_list", getUniqueID(*itr));
@@ -274,7 +272,9 @@ bool FeasibleBarrierScheduler::performSchedulingTaskLoop() {
             // since operation is now complete update the schedule
 
             _log.trace("Unscheduling task ID {0}", getUniqueID(topElem._op));
-            unScheduleTask(topElem._op);
+            auto unScheduleSucess = unScheduleTask(topElem._op);
+
+            VPUX_THROW_UNLESS(unScheduleSucess == true, "Failed to unschedule task ID {0}", getUniqueID(*taskItr));
 
             // since op has completed add all out-going ops to candidates
             _log.trace("Adding children tasks for task ID {0} to be candidates to schedule", getUniqueID(topElem._op));
@@ -337,8 +337,7 @@ const BarrierResourceState& FeasibleBarrierScheduler::barrierResourceState() con
 
 const FeasibleBarrierScheduler::barrierInfo& FeasibleBarrierScheduler::getBarrierInfo(mlir::Operation* op) const {
     auto itr = _barrierMap.find(op);
-
-    assert(itr != _barrierMap.end());
+    VPUX_THROW_UNLESS(itr != _barrierMap.end(), "Could not find the operation in the active barrier map");
     return itr->second;
 }
 
@@ -348,16 +347,18 @@ bool FeasibleBarrierScheduler::unScheduleTask(mlir::Operation* op) {
         return false;
     }
     const barrierInfo& binfo = itr->second;
-    bool ret = _barrierResourceState.unassign_slots(binfo._bindex, binfo._producerSlotCount);
-    assert(ret);
-    (void)ret;
+    auto unassignSlots = _barrierResourceState.unassignSlots(binfo._bindex, binfo._producerSlotCount);
+
+    VPUX_THROW_UNLESS(unassignSlots == true, "Failed to dealocate slots in the barrier index {0}", binfo._bindex);
     _barrierMap.erase(itr);
     return true;
 }
 
 bool FeasibleBarrierScheduler::scheduleTask(mlir::Operation* op, const size_t producerSlotRequirement) {
     _log.trace("Scheduling a task");
-    assert(isBarrierResourceAvailable(producerSlotRequirement));
+
+    VPUX_THROW_UNLESS(isBarrierResourceAvailable(producerSlotRequirement) == true, "Attempt to schedule task failed, failed to allocate barrier resource for task {0}}", getUniqueID(op));
+
     if (_barrierMap.find(op) != _barrierMap.end()) {
         return false;
     }
@@ -418,7 +419,6 @@ void FeasibleBarrierScheduler::assignTaskPriorities() {
 
                 VPUX_THROW_UNLESS((deg_itr != inDegree.end()) && (deg_itr->second > 0), "Invalid indegree");
 
-                assert((deg_itr != inDegree.end()) && (deg_itr->second > 0));
                 (deg_itr->second)--;
 
                 if (!(deg_itr->second)) {
@@ -651,7 +651,9 @@ void FeasibleBarrierScheduler::insertBarriersinIR() {
 
     for (const auto& op : _scheduledTasks) {
         auto bitr = _barrierAssociationTable.find(op._barrierIndex);
-        assert(bitr != _barrierAssociationTable.end());
+
+        VPUX_THROW_UNLESS(bitr != _barrierAssociationTable.end(), "Unable to find barrier index {0} in the barrier association table");
+
         barrierTransitionStructure& bstructure = bitr->second;
 
         // Set scheduling number
@@ -678,7 +680,7 @@ void FeasibleBarrierScheduler::insertBarriersinIR() {
 
     _log.trace("Barrier scheduling complete");
 
-    getTaskOpUpdateWaitMap(configureBarrierOpUpdateWaitMap, configureTaskOpUpdateWaitMap);
+    populateTasksUpdateWaitBarrierMap(configureBarrierOpUpdateWaitMap, configureTaskOpUpdateWaitMap);
 
     removeRedundantDependencies();
     removeRedundantBarriers();
@@ -697,8 +699,9 @@ void FeasibleBarrierScheduler::insertBarriersinIR() {
         auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
         for (auto* user : p.second.first) {
             auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
-            assert(taskOp != NULL);
-            assert(barrierOp.barrier() != NULL);
+
+            VPUX_THROW_UNLESS(taskOp != NULL, "Invalid task");
+            VPUX_THROW_UNLESS(barrierOp.barrier() != NULL, "Invalid barrier");
             _log.trace("Adding Barrier ID {0} as an update barrier for operation {1}", barrierOp->getAttr("id"),
                        getUniqueID(user));
             taskOp.updateBarriersMutable().append(barrierOp.barrier());
@@ -709,8 +712,9 @@ void FeasibleBarrierScheduler::insertBarriersinIR() {
         auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
         for (auto* user : p.second.second) {
             auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
-            assert(taskOp != NULL);
-            assert(barrierOp.barrier() != NULL);
+            
+            VPUX_THROW_UNLESS(taskOp != NULL, "Invalid task");
+            VPUX_THROW_UNLESS(barrierOp.barrier() != NULL, "Invalid barrier");
             _log.trace("Adding Barrier ID {0} as an wait barrier for operation {1}", barrierOp->getAttr("id"),
                        getUniqueID(user));
             taskOp.waitBarriersMutable().append(barrierOp.barrier());
@@ -730,7 +734,7 @@ void FeasibleBarrierScheduler::removeVirtualBarriers() {
     });
 }
 
-void FeasibleBarrierScheduler::clearUniqueID() {
+void FeasibleBarrierScheduler::clearUniqueIDAttribute() {
     _func->walk([](VPURT::TaskOp op) {
         op->removeAttr(uniqueIdAttrName);
     });
