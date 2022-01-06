@@ -299,7 +299,8 @@ FeasibleBarrierScheduler::schedulable_ops_iterator_t FeasibleBarrierScheduler::f
     _log.trace("There are {0} candiates and for each candiate", _scheduleableCandidates.size());
 
     for (itr = _scheduleableCandidates.begin(); itr != _scheduleableCandidates.end(); ++itr) {
-        _log.trace("The producerSlotRequirement for operation {0} is {1}", getUniqueID(*itr), _resourceUtilityMap[*itr]);
+        _log.trace("The producerSlotRequirement for operation {0} is {1}", getUniqueID(*itr),
+                   _resourceUtilityMap[*itr]);
 
         if (isResourceAvailable(_resourceUtilityMap[*itr])) {
             _log.trace("Adding operation {0} to the ready list", getUniqueID(*itr));
@@ -596,7 +597,7 @@ bool FeasibleBarrierScheduler::schedule(size_t numberOfBarriers, size_t maxProdu
     // Insert barriers in the IR based on the output of the list schedule
     insertBarriersinIR();
 
-    //TODO John - this should not always be true
+    // TODO John - this should not always be true
     return true;
 }
 
@@ -841,8 +842,7 @@ void FeasibleBarrierScheduler::removeRedundantDependency() {
 void FeasibleBarrierScheduler::initializeBarrierAssociationTable() {
     _log.trace("STEP-0: Initialize the association table");
     for (size_t barrierId = 1; barrierId <= _barrierCount; barrierId++) {
-        auto bitr =
-                _barrierAssociationTable.insert(std::make_pair(barrierId, barrierTransitionStructure(*this)));
+        auto bitr = _barrierAssociationTable.insert(std::make_pair(barrierId, barrierTransitionStructure(*this)));
         barrierTransitionStructure& bstructure = (bitr.first)->second;
         bstructure.init();
     }

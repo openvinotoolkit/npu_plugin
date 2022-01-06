@@ -69,7 +69,7 @@ public:
         barrier_t barrier_;
     };  // struct available_slot_key_t //
 
-    using available_slots_t = std::set<available_slot_key_t>; 
+    using available_slots_t = std::set<available_slot_key_t>;
     using const_available_slots_iterator_t = typename available_slots_t::const_iterator;
     using available_slots_iterator_t = typename available_slots_t::iterator;
     using barrier_reference_t = std::vector<available_slots_iterator_t>;

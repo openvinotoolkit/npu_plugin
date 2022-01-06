@@ -101,12 +101,10 @@ public:
 
     private:
         void maintainInvariantTemporalChange(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
-        inline void processCurrentBarrierProducerListCloseEvent(mlir::Operation* bop_curr,
-                                                                      mlir::Operation* bop_prev);
+        inline void processCurrentBarrierProducerListCloseEvent(mlir::Operation* bop_curr, mlir::Operation* bop_prev);
         void addScheduledOpToProducerList(const ScheduledOpInfo& sinfo);
         mlir::Operation* createNewBarrierTask(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
 
-        
         // Outer class
         FeasibleBarrierScheduler& _feasibleBarrierScheduler;
         schedule_time_t time_;
