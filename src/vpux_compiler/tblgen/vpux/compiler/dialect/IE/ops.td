@@ -1511,7 +1511,7 @@ def IE_QuantizeCastOp :
     );
 
     let results = (outs
-        RankedTensorOf<[quant_QuantizedType]>:$output
+        RankedTensorOf<[SI8, UI8, quant_QuantizedType]>:$output
     );
 
     let hasFolder = 1;

@@ -43,6 +43,19 @@ private:
     Logger _log;
 };
 
+class LayerRewriterDequantize final : public mlir::OpRewritePattern<IE::ConvertOp> {
+public:
+    LayerRewriterDequantize(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ConvertOp>(ctx), _log(log) {
+        setDebugName("LayerRewriterDequantize");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ConvertOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
 mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const {
     auto convertOp = quantizeOp.input().getDefiningOp<IE::ConvertOp>();
     if (convertOp == nullptr) {
@@ -79,6 +92,21 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::QuantizeOp quantizeOp, ml
     return mlir::success();
 }
 
+mlir::LogicalResult LayerRewriterDequantize::matchAndRewrite(IE::ConvertOp convertOp, mlir::PatternRewriter& rewriter) const {
+    auto dequantizeOp = convertOp.input().getDefiningOp<IE::DequantizeOp>();
+    if (dequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    auto quantizeOp = dequantizeOp.input().getDefiningOp<IE::QuantizeOp>();
+    if (quantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(dequantizeOp, quantizeOp.output(), convertOp.output().getType().cast<mlir::ShapedType>().getElementType());
+    return mlir::success();
+}
+
 //
 // FuseConvertWithQuantizePass
 //
@@ -98,6 +126,7 @@ void FuseConvertWithQuantizePass::safeRunOnFunc() {
 
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.add<LayerRewriter>(&ctx, _log);
+    patterns.add<LayerRewriterDequantize>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

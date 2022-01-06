@@ -2098,7 +2098,7 @@ operation ::= `IERT.QuantizeCast` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of QuantizedType values
+`output` | memref of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values
 
 ### `IERT.Quantize` (vpux::IERT::QuantizeOp)
 

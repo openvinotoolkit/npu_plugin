@@ -2224,7 +2224,7 @@ operation ::= `IE.QuantizeCast` `(` operands `)` attr-dict `:` type(operands) `-
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of QuantizedType values
+`output` | ranked tensor of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values
 
 ### `IE.Quantize` (vpux::IE::QuantizeOp)
 

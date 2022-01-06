@@ -1217,7 +1217,7 @@ def IERT_QuantizeCastOp :
     );
 
     let results = (outs
-        MemRefOf<[quant_QuantizedType]>:$output
+        MemRefOf<[SI8, UI8, quant_QuantizedType]>:$output
     );
 
     let assemblyFormat = [{

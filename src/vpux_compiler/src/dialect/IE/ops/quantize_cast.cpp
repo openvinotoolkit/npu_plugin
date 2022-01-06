@@ -32,11 +32,10 @@ mlir::LogicalResult vpux::IE::QuantizeCastOp::inferReturnTypeComponents(
     const auto outDesc = IE::getTensorAttr(inType);
 
     auto quantizedOutput = dstElemType.dyn_cast<mlir::quant::QuantizedType>();
-    if (!quantizedOutput) {
-        return errorAt(loc, "Destination type is not quantized: '{0}'", dstElemType);
-    }
+    const auto outputWidth = (quantizedOutput)
+        ? quantizedOutput.getStorageTypeIntegralWidth()
+        : quantizeCast.dstElemType().getValue().getIntOrFloatBitWidth();
 
-    const auto outputWidth = quantizedOutput.getStorageTypeIntegralWidth();
     if (auto integerInput = inType.getElementType().dyn_cast<mlir::IntegerType>()) {
         const auto inputWidth = integerInput.getWidth();
         if (inputWidth != outputWidth) {
