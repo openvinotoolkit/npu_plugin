@@ -19,7 +19,6 @@
 #include <mlir/Transforms/DialectConversion.h>
 
 #include "vpux/compiler/core/barrier_resource_state.hpp"
-#include "vpux/compiler/core/op_resource_state.hpp"
 
 namespace vpux {
 
