@@ -36,15 +36,14 @@ private:
 };
 
 void AssignVirtualBarriersPass::safeRunOnFunc() {
-    auto& ctx = getContext();
     auto func = getFunction();
 
-    VPURT::FeasibleBarrierScheduler barrierScheduler(&ctx, func, _log);
+    VPURT::FeasibleBarrierScheduler barrierScheduler(func, _log);
     barrierScheduler.init();
 
     bool success = false;
     for (size_t barrier_bound = 4; !success && (barrier_bound >= 1UL); --barrier_bound) {
-        barrierScheduler.schedule(barrier_bound, 256);
+        barrierScheduler.generateScheduleWithBarriers(barrier_bound, 256);
         success = barrierScheduler.performRuntimeSimulation();
     }
     // barrierScheduler.reorderIR();
