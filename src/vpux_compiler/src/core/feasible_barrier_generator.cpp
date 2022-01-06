@@ -769,6 +769,12 @@ void FeasibleBarrierScheduler::cleanUpVirtualBarriers() {
     });
 }
 
+void FeasibleBarrierScheduler::clearUniqueID() {
+    _func->walk([](VPURT::TaskOp op) {
+        op->removeAttr(uniqueIdAttrName);
+    });
+}
+
 bool FeasibleBarrierScheduler::performRuntimeSimulation() {
     bool success = true;
     reorderIR();
