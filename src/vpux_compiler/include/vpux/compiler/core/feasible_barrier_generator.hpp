@@ -128,6 +128,12 @@ public:
     using operationInDegreeType = std::map<mlir::Operation*, size_t>;
     using priorityMapType = std::map<mlir::Operation*, size_t>;
     using barrierResourceUtilityMapType = std::unordered_map<mlir::Operation*, size_t>;
+    using barrierUpdateWaitMapType =
+            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
+                     operation_comparator_t>;
+    using taskOpUpdateWaitMapType =
+            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
+                     task_operation_comparator_by_schedule_time_t>;
 
     FeasibleBarrierScheduler(mlir::FuncOp func, Logger log);
     void init();
@@ -143,16 +149,12 @@ public:
     void insertBarriersinIR();
     void populateScheduledTasks(mlir::Operation* scheduledOp);
     void removeRedundantWaitBarriers();
-    void getTaskOpUpdateWaitMap(
-            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-                     operation_comparator_t>& barrierOpUpdateWaitMap,
-            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-                     task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap);
+    void populateTasksUpdateWaitBarrierMap(barrierUpdateWaitMapType& barrierOpUpdateWaitMap,
+                                           taskOpUpdateWaitMapType& taskOpUpdateWaitMap);
     void removeRedundantDependencies();
     void removeRedundantBarriers();
     void reorderIR();
     void removeVirtualBarriers();
-    
 
     bool performSchedulingTaskLoop();
     bool isBarrierResourceAvailable(const size_t demand);
@@ -164,7 +166,7 @@ public:
     bool doesPathExist(mlir::Operation* a, mlir::Operation* b);
     bool performRuntimeSimulation();
     void cleanUpVirtualBarriers();
-    void clearUniqueID();
+    void clearUniqueIDAttribute();
 
     HeapElement popFromHeap();
     size_t currentTime() const;

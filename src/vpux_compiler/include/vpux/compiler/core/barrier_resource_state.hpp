@@ -80,7 +80,7 @@ public:
     bool has_barrier_with_slots(slots_t slot_demand) const;
     barrier_t assign_slots(slots_t slot_demand);
     bool assign_slots(barrier_t bid, slots_t slot_demand);
-    bool unassign_slots(barrier_t bid, slots_t slot_demand);
+    bool unassignSlots(barrier_t bid, slots_t slot_demand);
     static barrier_t invalid_barrier();
     void update(barrier_t bid, slots_t new_slots_value);
     available_slots_iterator_t update(available_slots_iterator_t itr, slots_t new_slots_value);

@@ -52,7 +52,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
         barrierScheduler.generateScheduleWithBarriers(barrier_bound, numSlotsPerBarrierToUse);
         success = barrierScheduler.performRuntimeSimulation();
     }
-    barrierScheduler.clearUniqueID();
+    barrierScheduler.clearUniqueIDAttribute();
 
     if (!success) {
         VPUX_THROW("Barrier scheduling and/or runtime simulation was not suceessful");
