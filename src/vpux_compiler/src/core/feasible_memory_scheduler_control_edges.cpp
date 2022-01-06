@@ -143,7 +143,7 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
         //     continue;
         // }
 
-        VPUX_THROW_UNLESS(scheduledOp.opType_ == FeasibleMemoryScheduler::EOpType::ORIGINAL_OP,
+        VPUX_THROW_UNLESS(scheduledOp.opType_ == FeasibleMemoryScheduler::EOpType::ORIGINAL_OP || scheduledOp.opType_ == FeasibleMemoryScheduler::EOpType::PREFETCHED_OP,
                           "Invlid operation identified for control edge insertion");
 
         // buffers used by operation, both inputs adnd outputs
