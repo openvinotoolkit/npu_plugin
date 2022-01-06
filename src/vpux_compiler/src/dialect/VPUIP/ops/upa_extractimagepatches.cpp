@@ -22,8 +22,6 @@
 
 using namespace vpux;
 
-//TODO
-
 //namespace {
 //MVCNN::ExtractImagePatchesAutoPadType ExtractImagePatchesAutoPadType2MVCNN(IE::ExtractImagePatchesAutoPadType padding) {
 //    MVCNN::ExtractImagePatchesAutoPadType mvcnn_padding;
@@ -44,25 +42,31 @@ using namespace vpux;
 //}
 //}  // namespace
 
-//TODO
-
 //void vpux::VPUIP::ExtractImagePatchesUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
 //                                       mlir::Value data, mlir::Value output,
-//                                       mlir::ArrayAttr sizes, mlir::ArrayAttr strides, mlir::ArrayAttr rates
+//                                       mlir::ArrayAttr sizes, mlir::ArrayAttr strides, mlir::ArrayAttr rates,
 //                                       IE::ExtractImagePatchesAutoPadTypeAttr paddingType) {
 //    build(odsBuilder, odsState, data, output, mlir::ValueRange{}, mlir::ValueRange{}, sizes, strides, rates, paddingType, nullptr, nullptr);
 //}
 
 //VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExtractImagePatchesUPAOp::serialize(VPUIP::BlobWriter& writer) {
+//
+//      auto attrToVector = [&](mlir::ArrayAttr attr) {
+//          auto values = parseIntArrayAttr(attr) | transformed([](auto value) {
+//                          return checked_cast<uint32_t>(value);  //uint32_t only??? uint_64 not ???
+//                      });
+//          return to_std_vector(values);
+//      };
+//
 //      MVCNN::ExtractImagePatchesParamsBuilder builder(writer);
 //      builder.add_padding(ExtractImagePatchesAutoPadType2MVCNN(paddingType()));
-//      builder.add_sizes(checked_cast<uint64_t>(sizes()));
-//      builder.add_strides(checked_cast<uint64_t>(strides()));
-//      builder.add_rates(checked_cast<uint64_t>(rates()));
+//      builder.add_sizes(builder.fbb_.CreateVector(attrToVector(sizes().getValue())));
+//      builder.add_strides(builder.fbb_.CreateVector(attrToVector(strides().getValue())));
+//      builder.add_rates(builder.fbb_.CreateVector(attrToVector(rates().getValue())));
 //
 //      const auto paramsOff = builder.Finish();
 
-//    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ExtractImagePatchesParams});
+//      return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ExtractImagePatchesParams});
 //}
 
 //IE::ExtractImagePatchesAutoPadType softLayerParam2IEType(size_t padding) {
@@ -88,10 +92,15 @@ using namespace vpux;
 //                                                        const MVCNN::UPALayerTask* task) {
 //    VPUX_THROW_UNLESS(inputs.size() == 1, "UPAExtractImagePatches supports only 1 input, got {0}", inputs.size());
 //    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAExtractImagePatches supports only 1 output, got {0}", outputs.size());
+//
 //    const auto params = task->softLayerParams_as_ExtractImagePatchesParams();
-//    //
+//    /* ??? ArrayAttr !
+//    const auto sizes = getIntAttr(_ctx, params->sizes());
+//    const auto strides = getIntAttr(_ctx, params->strides());
+//    const auto rates = getIntAttr(_ctx, params->rates());
+//    */
 //    IE::ExtractImagePatchesAutoPadType padding = softLayerParam2IEType(params->padding());
-
+//
 //    return builder.create<VPUIP::ExtractImagePatchesUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0],
 //                                                outputs[0], sizes, strides, rates,
 //                                                IE::ExtractImagePatchesAutoPadTypeAttr::get(_ctx, padding));

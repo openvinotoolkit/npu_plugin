@@ -43,14 +43,12 @@ using namespace vpux;
 //        return mlir::failure();
 //    }
 
-//    // sizes, strides, rates, paddingType
+//    // sizes, strides, rates, paddingType ??
 
 //    const auto <attribute_names> = extractImagePatches.<attribute_names>.get.. ;
 
 //    //data the 4-D tensor of type T with shape [batch, depth, in_rows, in_cols].
-
-//    const auto inShapeFeatureMap = inTypeFeatureMap.getShape();
-//    const auto inType = extractImagePatches.input().getType().cast<mlir::ShapedType>();
+//    const auto inType = regionYolo.input().getType().cast<mlir::ShapedType>();
 
 //    if (inShapeFeatureMap.size() != 4) {
 //        return errorAt(loc, "Dimension of the tensor with shapes - input should be 4. Got {0} D tensor",

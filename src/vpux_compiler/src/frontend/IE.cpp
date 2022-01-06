@@ -2330,7 +2330,7 @@ IE::ROIAlignMethodAttr NGraphImporter::importROIAlignMethod(const ngraph::op::v3
 IE::ExtractImagePatchesAutoPadTypeAttr NGraphImporter::importExtractImagePatchesAutoPadType(const ngraph::op::v3::ExtractImagePatches::paddingType& padding) {
     IE::ExtractImagePatchesAutoPadTypeAttr attr;
     if (padding == ngraph::op::v3::ExtractImagePatches::paddingType::SAME_UPPER) {
-        attr = IE::ExtractImagePatchesAutoPadTypeAttr::get(_ctx, IE::ExtractImagePatchesAutoPadType::same_uper);
+        attr = IE::ExtractImagePatchesAutoPadTypeAttr::get(_ctx, IE::ExtractImagePatchesAutoPadType::same_upper);
     } else if (padding == ngraph::op::v3::ExtractImagePatches::paddingType::SAME_LOWER) {
         attr = IE::ExtractImagePatchesAutoPadTypeAttr::get(_ctx, IE::ExtractImagePatchesAutoPadType::same_lower);
     } else if (padding == ngraph::op::v3::ExtractImagePatches::paddingType::VALID) {
