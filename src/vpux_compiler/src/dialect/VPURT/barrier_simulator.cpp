@@ -13,8 +13,8 @@
 
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
 
-#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -127,42 +127,8 @@ void vpux::VPURT::VirtualDependencyTracker::print(Logger log) const {
 // BarrierSimulator
 //
 
-namespace {
-
-const EnumMap<VPU::ArchKind, int64_t> MAX_BARRIERS_PER_INFERENCE = {
-        {VPU::ArchKind::KMB, 64 / 2},  // half barries are used (runtime limitation)
-        {VPU::ArchKind::TBH, 64 / 2},  // half barries are used (runtime limitation)
-        {VPU::ArchKind::MTL, 64},      //
-        {VPU::ArchKind::LNL, 64},      //
-};
-
-int64_t getNumAvailableBarriers(mlir::Operation* parentOp) {
-    const auto arch = VPU::getArch(parentOp);
-
-    auto module = parentOp->getParentOfType<mlir::ModuleOp>();
-    auto nceResOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
-    VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE Executor information");
-
-    const auto numClusters = nceResOp.count();
-
-    const auto maxNumClustersForArch = VPU::getMaxDPUClusterNum(module);
-    VPUX_THROW_UNLESS(maxNumClustersForArch != 0, "Failed to get maxNumClustersForArch");
-
-    const auto barIt = MAX_BARRIERS_PER_INFERENCE.find(arch);
-    VPUX_THROW_WHEN(barIt == MAX_BARRIERS_PER_INFERENCE.end(), "Unsupported VPU architecture '{0}'", arch);
-
-    const auto maxBarriersPerInference = barIt->second;
-
-    const auto barriersPerCluster = maxBarriersPerInference / maxNumClustersForArch;
-    const auto maxNumBarriers = std::min(maxBarriersPerInference, barriersPerCluster * numClusters);
-
-    return maxNumBarriers;
-}
-
-}  // namespace
-
 vpux::VPURT::BarrierSimulator::BarrierSimulator(mlir::Operation* parentOp) {
-    _availableBarriers = getNumAvailableBarriers(parentOp);
+    _availableBarriers = VPUIP::getNumAvailableBarriers(parentOp);
 
     assignVirtualIds(parentOp);
     parseBarriers(parentOp);
