@@ -33,6 +33,9 @@ The pass tries to remove extra explicit `!async.token` based dependencies,
 if they are represented implicitly (as a result of transitive dependencies).
 ### `-optimize-copies`: Removes Copy Ops which are unnecessary
 This pass checks if Copy Op can be optimized out to reduce the amount of unnecessary DMAs and intermediate buffers.
+### `-optimize-parallel-copies`: Copy the data only once for all the tiles that share the same data
+This pass checks all the CopyOps consumed by tiles of one tiling subgraph.
+If the CopyOps operate on the same weight or activation, merge the parallel copies into one.
 ### `-set-internal-memory-space`: Set specific memory space for all internal memory buffers
 This pass updates all Types for internal memory buffers and sets the specified memory space for them.
 
