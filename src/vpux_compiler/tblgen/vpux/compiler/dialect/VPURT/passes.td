@@ -50,6 +50,19 @@ def AssignVirtualBarriers : PassBase<"assign-virtual-barriers", "vpux::FunctionP
     }];
 
     let constructor = "vpux::VPURT::createAssignVirtualBarriersPass()";
+
+    let options = [
+        Option<
+            "numBarriers", "num-barriers",
+            "int", "",
+            "Number of physical barriers, available for usage"
+        >,
+        Option<
+            "numSlotsPerBarrier", "num-slots-per-barrier",
+            "int", "",
+            "Number of slots per barriers, available for usage"
+        >
+    ];
 }
 
 //
