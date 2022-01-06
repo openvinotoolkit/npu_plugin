@@ -170,6 +170,7 @@ public:
     void reorderIR();
     bool performRuntimeSimulation();
     void cleanUpVirtualBarriers();
+    void clearUniqueID();
 
 private:
     // The number of available barriers
