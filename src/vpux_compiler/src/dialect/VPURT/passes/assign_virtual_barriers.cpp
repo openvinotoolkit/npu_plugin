@@ -12,11 +12,8 @@
 //
 
 #include "vpux/compiler/core/feasible_barrier_generator.hpp"
-<<<<<<< HEAD
-=======
 
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
->>>>>>> 1814e96d00... move getNumAvailableBarriers to VPUIP utils.cpp file
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
