@@ -19,12 +19,15 @@
 #include <mlir/Transforms/DialectConversion.h>
 
 #include "vpux/compiler/core/barrier_resource_state.hpp"
-#include "vpux/compiler/core/op_resource_state.hpp"
 
 namespace vpux {
 
-struct opResourceState;
-class FeasibleBarrierScheduler {
+namespace VPURT {
+
+constexpr llvm::StringLiteral schedulingNumberAttrName = "SchedulingNumber";
+constexpr llvm::StringLiteral uniqueIdAttrName = "uniqueId";
+constexpr llvm::StringLiteral virtualIdAttrName = "VPURT.virtualId";
+class FeasibleBarrierScheduler final {
 public:
     struct task_operation_comparator_by_schedule_time_t {
         bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
@@ -50,17 +53,8 @@ public:
             return uniqueId1 < uniqueId2;
         }
     };
-    struct task_operation_comparator_t {
-        bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
-            int64_t uniqueId1 = checked_cast<int64_t>(
-                    mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
-            int64_t uniqueId2 = checked_cast<int64_t>(
-                    mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
 
-            return uniqueId1 < uniqueId2;
-        }
-    };
-
+    using schedule_time_t = size_t;
     struct HeapElement {
         HeapElement(mlir::Operation* op = NULL, schedule_time_t t = 0UL): op_(op), time_(t) {
         }
@@ -82,21 +76,20 @@ public:
         size_t slot_count_;
     };
 
-    struct barrierInfo {
-        barrierInfo(size_t bindex = 0UL, size_t slot_count = 0UL): bindex_(bindex), slot_count_(slot_count) {
-        }
-        size_t bindex_;
-        size_t slot_count_;
-    }; /*struct barrierInfo*/
-
+    struct barrier_info_t {
+    barrier_info_t(size_t bindex = 0UL, size_t slot_count = 0UL): bindex_(bindex), slot_count_(slot_count) {
+    }
+    size_t bindex_;
+    size_t slot_count_;
+};
     class barrierTransitionStructure {
     public:
-        barrierTransitionStructure(mlir::FuncOp func, FeasibleBarrierScheduler& feasibleBarrierScheduler,
+        barrierTransitionStructure(FeasibleBarrierScheduler& feasibleBarrierScheduler,
                                    schedule_time_t time = std::numeric_limits<schedule_time_t>::max());
 
         void init();
-        bool process_next_scheduled_op(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
-        void close_barrier_producer_list();
+        bool processNextScheduledTask(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
+        void closeBarrierProducerList();
         struct operation_comparator_t {
             bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
                 int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::TaskOp>(op1)
@@ -116,15 +109,13 @@ public:
         using producer_iterator_t = typename producers_t::const_iterator;
 
     private:
-        void maintain_invariant_temporal_change(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
-        inline void process_current_barrier_producer_list_close_event(mlir::Operation* bop_curr,
-                                                                      mlir::Operation* bop_prev);
-        void add_scheduled_op_to_producer_list(const ScheduledOpInfo& sinfo);
-        mlir::Operation* create_new_barrier_task(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
+        void maintainInvariantTemporalChange(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
+        inline void processCurrentBarrierProducerListCloseEvent(mlir::Operation* bop_curr, mlir::Operation* bop_prev);
+        void addScheduledOpToProducerList(const ScheduledOpInfo& sinfo);
+        mlir::Operation* createNewBarrierTask(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
 
-        mlir::FuncOp _func;
         // Outer class
-        FeasibleBarrierScheduler& feasibleBarrierScheduler_;
+        FeasibleBarrierScheduler& _feasibleBarrierScheduler;
         schedule_time_t time_;
         mlir::Operation* curr_barrier_task_;
         mlir::Operation* prev_barrier_task_;
@@ -132,93 +123,33 @@ public:
     };
 
     using operation_t = mlir::Operation*;
-    using active_barrier_map_t = std::unordered_map<operation_t, barrierInfo>;
     using resource_t = size_t;
+    using active_barrier_map_t = std::unordered_map<operation_t, barrier_info_t>;
     using barrierAssociationTable = std::unordered_map<size_t, barrierTransitionStructure>;
     using delay_t = size_t;
     using schedulable_ops_t = std::list<mlir::Operation*>;
     using schedulable_ops_iterator_t = typename schedulable_ops_t::iterator;
     using processed_ops_t = std::set<mlir::Operation*>;
     using schedule_heap_t = std::vector<HeapElement>;
-    using operation_in_degree_t = std::map<mlir::Operation*, size_t, task_operation_comparator_t>;
-    using operation_out_degree_t = std::map<mlir::Operation*, size_t, task_operation_comparator_t>;
-    using priority_map_t = std::map<mlir::Operation*, size_t, task_operation_comparator_t>;
+    using operation_in_degree_t = std::map<mlir::Operation*, size_t>;
+    using operation_out_degree_t = std::map<mlir::Operation*, size_t>;
+    using priority_map_t = std::map<mlir::Operation*, size_t>;
     using resource_utility_map_t = std::unordered_map<mlir::Operation*, unsigned>;
-    using schedule_time_t = size_t;
-
-    struct opResourceState {
-        opResourceState(size_t n = 0UL, size_t m = 0UL)
-                : barrier_map_(), state_(), barrier_count_(n), slots_per_barrier_(m) {
-            Logger::global().error(
-                    "Initializing op_resource_state in Barrier_Schedule_Generator with barrier count {0} "
-                    "slots_per_barrie {1}",
-                    barrier_count_, slots_per_barrier_);
-        }
-
-        void init(const opResourceState& other) {
-            barrier_map_.clear();
-            barrier_count_ = other.barrier_count_;
-            slots_per_barrier_ = other.slots_per_barrier_;
-            state_.init(barrier_count_, slots_per_barrier_);
-        }
-
-        bool is_resource_available(const resource_t& demand) const {
-            Logger::global().error("Looking for a barrier with free slots");
-            return state_.has_barrier_with_slots(demand);
-        }
-
-        bool schedule_operation(const operation_t& op, resource_t& demand) {
-            Logger::global().error("Scheduling an operation");
-            assert(is_resource_available(demand));
-            if (barrier_map_.find(op) != barrier_map_.end()) {
-                return false;
-            }
-            size_t bid = state_.assign_slots(demand);
-            barrier_map_.insert(std::make_pair(op, barrierInfo(bid, demand)));
-            return true;
-        }
-
-        bool unschedule_operation(const operation_t& op) {
-            auto itr = barrier_map_.find(op);
-            if (itr == barrier_map_.end()) {
-                return false;
-            }
-            const barrierInfo& binfo = itr->second;
-            bool ret = state_.unassign_slots(binfo.bindex_, binfo.slot_count_);
-            assert(ret);
-            (void)ret;
-            barrier_map_.erase(itr);
-            return true;
-        }
-
-        const barrierInfo& get_barrier_info(const operation_t& op) const {
-            auto itr = barrier_map_.find(op);
-
-            assert(itr != barrier_map_.end());
-            return itr->second;
-        }
-
-        active_barrier_map_t barrier_map_;
-        BarrierResourceState state_;
-        size_t barrier_count_;
-        size_t slots_per_barrier_;
-    }; /*struct opResourceState*/
+    
 
     FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log);
-
-    void initResourceState(size_t numberOfBarriers, size_t maxProducersPerBarrier);
-    bool isResourceAvailable(const resource_t& demand);
+    void initializeBarrierResourceState(size_t numberOfBarriers, size_t maxProducersPerBarrier);
+    bool isBarrierResourceAvailable(const resource_t& demand);
     bool scheduleOperation(mlir::Operation*& op, resource_t demand);
     bool unScheduleOperation(mlir::Operation*& op);
-    void computeOpIndegree(operation_in_degree_t& in_degree);
-    void addToCandidateSet(mlir::Operation* op);
-    void computeOperationPriorities();
-    void createOperationResourceUtilityTable();
+    void addTaskToCandidateSet(mlir::Operation* op);
+    void computeTaskPriorities();
+    void createTaskBarrierResourceUtilityTable();
     void addOutGoingOperationsToCandidateList(mlir::Operation* op);
-    void assignUniqueIds();
+    void assignTaskUniqueIds();
     void pushToHeap(const HeapElement& elem);
     HeapElement popFromHeap();
-    void saveOriginalDependency();
+    void saveOriginalIRDependency();
 
     bool scheduleOperations();
     bool schedule(size_t numberOfBarriers, size_t maxProducersPerBarrier);
@@ -226,7 +157,7 @@ public:
     bool doesOpRunOnNCE(mlir::Operation* op);
 
     size_t currentTime() const;
-    const resource_state_t& resourceState() const;
+    const BarrierResourceState& barrierResourceState() const;
     bool isValidOp(schedulable_ops_iterator_t itr) const;
     schedulable_ops_iterator_t findSchedulableOp();
     unsigned countProducerConsumerTasks(mlir::Operation* op);
@@ -239,9 +170,7 @@ public:
     void removeRedundantDependencies();
     void initializeBarrierAssociationTable();
     void getTaskOpUpdateWaitMap(
-            std::map<mlir::Operation*,
-                     std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
-                               std::set<mlir::Operation*, task_operation_comparator_t>>,
+            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
                      operation_comparator_t>& barrierOpUpdateWaitMap,
             std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
                      task_operation_comparator_by_schedule_time_t>& taskOpUpdateWaitMap);
@@ -251,49 +180,61 @@ public:
     void reorderIR();
     bool performRuntimeSimulation();
     void cleanUpVirtualBarriers();
+    const barrier_info_t& get_barrier_info(const operation_t& op) const;
+    void clearUniqueID();
 
-protected:
+private:
+    // The number of available barriers
     size_t _barrierCount;
+    // The number of available producers slots per barrier
     size_t _slotsPerBarrier;
-    resource_state_t _resource_state;
-    operation_in_degree_t _in_degree;
+    // The current barrier resource utilization by the schedule i.e active barriers and the number of producers per
+    // barrier
+    //resource_state_t _resourceState;
+    BarrierResourceState _barrierResourceState;
+    // The in-degree per task
+    operation_in_degree_t _inDegree;
+    // Heap with operation end time
     schedule_heap_t _heap;
-    schedule_time_t _current_time;
-    schedulable_ops_t _candidates;
-    MinHeapOrdering _heap_ordering;
-    mlir::Operation* _schedulable_op;
-    processed_ops_t _processed_ops;
+    // The current time of the list schedule
+    schedule_time_t _currentTime;
+    // Tasks that can be scheduled i.e. task with in-degree zero
+    schedulable_ops_t _scheduleableCandidates;
+    // Current task that is being scheduled
+    mlir::Operation* _schedulableTask;
+    // Tasks that have been scheduled
+    processed_ops_t _processedTasks;
+    // The scheduling priority of tasks
     priority_map_t _priority;
+    // container for the schedule output
+    SmallVector<ScheduledOpInfo> _scheduledTasks;
+    // A map of physical barriers and their transition structure
+    barrierAssociationTable _barrierAssociationTable;
+    // The number of producer slots in a barrier that a task requires
+    resource_utility_map_t _resourceUtilityMap;
+    // The output tasks in the IR
+    std::set<mlir::Operation*> _outputOps;
+
+    active_barrier_map_t _barrierMap;
     Logger _log;
     mlir::MLIRContext* _ctx;
     mlir::FuncOp _func;
 
-    resource_utility_map_t _resource_utility_map;
-    SmallVector<IERT::LayerOpInterface> _allTaskOps;
-    SmallVector<VPURT::DeclareVirtualBarrierOp> _allBarrierOps;
-    static std::map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierProducersMap;
-    static std::map<mlir::Operation*, SmallVector<mlir::Operation*>> barrierConsumersMap;
-    std::set<mlir::Operation*> _outputOps;
-
-    const resource_state_t _startState;
-    // container for the schedule output
-    SmallVector<ScheduledOpInfo> _scheduledOps;
-    barrierAssociationTable _barrierAssociationTable;
-
     /*Stores every barrier's associated update and wait operations*/
-    std::map<mlir::Operation*,
-             std::pair<std::set<mlir::Operation*, task_operation_comparator_t>,
-                       std::set<mlir::Operation*, task_operation_comparator_t>>,
+    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
              operation_comparator_t>
             configureBarrierOpUpdateWaitMap;  // update,wait
-
+    // Stores every task's associated update and wait barriers
     std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
              task_operation_comparator_by_schedule_time_t>
-            configureTaskOpUpdateWaitMap;  // update,wait
-
+            configureTaskOpUpdateWaitMap;
+    // The in-degree per task from original dependency
     operation_in_degree_t _inDegreeBackUp;
+    // The consumer tasks per task from original dependency
     std::map<mlir::Operation*, SmallVector<mlir::Operation*>> _taskConsumerMapBackUp;
+    // The backup of output tasks in the IR
     std::set<mlir::Operation*> _outputOpsBackUp;
 };
 
+}  // namespace VPURT
 }  // namespace vpux

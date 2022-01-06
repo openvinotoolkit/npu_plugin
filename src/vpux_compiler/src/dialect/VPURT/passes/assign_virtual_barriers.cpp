@@ -12,7 +12,8 @@
 //
 
 #include "vpux/compiler/core/feasible_barrier_generator.hpp"
-#include "vpux/compiler/core/token_barrier_scheduler.hpp"
+
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
@@ -40,23 +41,23 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
-    FeasibleBarrierScheduler barrierScheduler(&ctx, func, _log);
+    auto numBarriersToUse = numBarriers.hasValue() ? numBarriers.getValue() : VPUIP::getNumAvailableBarriers(func);
+    static constexpr int64_t MAX_SLOT_COUNT = 256;
+    auto numSlotsPerBarrierToUse = numSlotsPerBarrier.hasValue() ? numSlotsPerBarrier.getValue() : MAX_SLOT_COUNT;
+
+    VPURT::FeasibleBarrierScheduler barrierScheduler(&ctx, func, _log);
     barrierScheduler.init();
 
     bool success = false;
-    for (size_t barrier_bound = 4; !success && (barrier_bound >= 1UL); --barrier_bound) {
-        barrierScheduler.schedule(barrier_bound, 256);
+    for (size_t barrier_bound = (numBarriersToUse / 2); !success && (barrier_bound >= 1UL); --barrier_bound) {
+        barrierScheduler.schedule(barrier_bound, numSlotsPerBarrierToUse);
         success = barrierScheduler.performRuntimeSimulation();
     }
-    barrierScheduler.reorderIR();
+    barrierScheduler.clearUniqueID();
 
     if (!success) {
         VPUX_THROW("Barrier scheduling and/or runtime simulation was not suceessful");
     }
-
-    // Old way
-    // TokenBasedBarrierScheduler barrierScheduler(&ctx, func, _log, 4, 256);
-    // barrierScheduler.schedule();
 }
 
 }  // namespace

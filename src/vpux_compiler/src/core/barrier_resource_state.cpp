@@ -17,13 +17,14 @@
 
 #include "vpux/utils/core/range.hpp"
 
-using namespace vpux;
+using namespace vpux::VPURT;
 
 //
 // Constructor
 //
 
 BarrierResourceState::BarrierResourceState(): barrier_reference_(), available_slots_() {
+    std::cout << "Intializing BarrierResourceState" << std::endl;
 }
 
 BarrierResourceState::BarrierResourceState(size_t barrier_count, size_t slot_count)
