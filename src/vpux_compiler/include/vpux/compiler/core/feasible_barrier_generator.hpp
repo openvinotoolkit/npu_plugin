@@ -183,6 +183,7 @@ public:
     bool performRuntimeSimulation();
     void cleanUpVirtualBarriers();
     const barrier_info_t& get_barrier_info(const operation_t& op) const;
+    void clearUniqueID();
 
 private:
     // The number of available barriers
