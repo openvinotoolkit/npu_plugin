@@ -15,6 +15,12 @@ namespace LayerTestsDefinitions {
             }
         }
     };
+    
+    class KmbTopKLayerTest_MTL : public TopKLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        void SkipBeforeInfer() override {
+            throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+        }
+    };
 
     TEST_P(KmbTopKLayerTest, CompareWithRefs) {
         Run();
@@ -25,7 +31,7 @@ namespace LayerTestsDefinitions {
         Run();
     }
     
-    TEST_P(KmbTopKLayerTest, CompareWithRefs_MLIR_MTL) {
+    TEST_P(KmbTopKLayerTest_MTL, CompareWithRefs_MLIR){
         useCompilerMLIR();
         setPlatformMTL();
         setDefaultHardwareModeMLIR();
@@ -62,6 +68,20 @@ namespace {
 
 // [Track number: S#41824]
     INSTANTIATE_TEST_SUITE_P(smoke_TopK, KmbTopKLayerTest,
+                             ::testing::Combine(
+                                     ::testing::ValuesIn(k),
+                                     ::testing::ValuesIn(axes),
+                                     ::testing::ValuesIn(modes),
+                                     ::testing::ValuesIn(sortTypes),
+                                     ::testing::ValuesIn(netPrecisions),
+                                     ::testing::Values(InferenceEngine::Precision::FP16),
+                                     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                     ::testing::Values(InferenceEngine::Layout::ANY),
+                                     ::testing::Values(std::vector<size_t>({10, 10, 10})),
+                                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                             TopKLayerTest::getTestCaseName);
+    
+    INSTANTIATE_TEST_SUITE_P(smoke_TopK, KmbTopKLayerTest_MTL,
                              ::testing::Combine(
                                      ::testing::ValuesIn(k),
                                      ::testing::ValuesIn(axes),
