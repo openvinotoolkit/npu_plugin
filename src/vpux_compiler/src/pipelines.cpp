@@ -333,6 +333,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     if (options.enableOptimizeCopies) {
         pm.addPass(IERT::createOptimizeCopiesPass(log));
         pm.addPass(IERT::createCopyOpHoistingPass(log));
+        pm.addPass(IERT::createOptimizeParallelCopiesPass(log));
     }
 
     pm.addPass(IERT::createCopyOpLegalizationPass(log));
