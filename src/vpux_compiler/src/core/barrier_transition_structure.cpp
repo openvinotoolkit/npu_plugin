@@ -16,27 +16,26 @@
 using namespace vpux::VPURT;
 
 FeasibleBarrierScheduler::barrierTransitionStructure::barrierTransitionStructure(
-        FeasibleBarrierScheduler& feasibleBarrierScheduler, schedule_time_t time)
+        FeasibleBarrierScheduler& feasibleBarrierScheduler, size_t time)
         : _feasibleBarrierScheduler(feasibleBarrierScheduler), time_(time), producers_() {
     _feasibleBarrierScheduler._log.trace("Initialising a new barrier_transition_structure");
 }
 
 void FeasibleBarrierScheduler::barrierTransitionStructure::init() {
-    time_ = std::numeric_limits<schedule_time_t>::max();
+    time_ = std::numeric_limits<size_t>::max();
     prev_barrier_task_ = NULL;
     curr_barrier_task_ = NULL;
     producers_.clear();
 }
 
 bool FeasibleBarrierScheduler::barrierTransitionStructure::processNextScheduledTask(const ScheduledOpInfo& sinfo,
-                                                                                    mlir::OpBuilder& builder) {
-    schedule_time_t curr_time = sinfo.schedule_time_;
+                                                                                     mlir::OpBuilder& builder) {
+    size_t curr_time = sinfo._scheduleTime;
     bool created_new_barrier_task = false;
 
-    _feasibleBarrierScheduler._log.trace(
-            "The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
-            sinfo.schedule_time_, FeasibleBarrierScheduler::getUniqueID(sinfo.op_), sinfo.barrier_index_,
-            sinfo.slot_count_);
+    _feasibleBarrierScheduler._log.trace("The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
+                           sinfo._scheduleTime, FeasibleBarrierScheduler::getUniqueID(sinfo._op), sinfo._barrierIndex,
+                           sinfo._producerSlotCount);
 
     _feasibleBarrierScheduler._log.trace("The global time is {0}", time_);
     _feasibleBarrierScheduler._log.trace("The current time is {0}", curr_time);
@@ -125,10 +124,9 @@ inline void FeasibleBarrierScheduler::barrierTransitionStructure::processCurrent
 void FeasibleBarrierScheduler::barrierTransitionStructure::maintainInvariantTemporalChange(const ScheduledOpInfo& sinfo,
                                                                                            mlir::OpBuilder& builder) {
     _feasibleBarrierScheduler._log.trace("Calling maintainInvariantTemporalChange()");
-    _feasibleBarrierScheduler._log.trace(
-            "The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
-            sinfo.schedule_time_, FeasibleBarrierScheduler::getUniqueID(sinfo.op_), sinfo.barrier_index_,
-            sinfo.slot_count_);
+    _feasibleBarrierScheduler._log.trace("The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
+                           sinfo._scheduleTime, FeasibleBarrierScheduler::getUniqueID(sinfo._op), sinfo._barrierIndex,
+                           sinfo._producerSlotCount);
     //              B_prev
     // curr_state : Prod_list={p_0, p_1, ... p_n}-->B_curr
     // event: Prod_list={q_0}->B_curr_new
@@ -170,8 +168,9 @@ void FeasibleBarrierScheduler::barrierTransitionStructure::maintainInvariantTemp
     addScheduledOpToProducerList(sinfo);
 }
 
-void FeasibleBarrierScheduler::barrierTransitionStructure::addScheduledOpToProducerList(const ScheduledOpInfo& sinfo) {
-    auto scheduled_op = sinfo.op_;
+void FeasibleBarrierScheduler::barrierTransitionStructure::addScheduledOpToProducerList(
+        const ScheduledOpInfo& sinfo) {
+    auto scheduled_op = sinfo._op;
 
     _feasibleBarrierScheduler._log.trace("Adding op {0} to the producer list of the barrier transition structure",
                                          curr_barrier_task_->getAttr("id"));
@@ -184,7 +183,7 @@ mlir::Operation* FeasibleBarrierScheduler::barrierTransitionStructure::createNew
 
     static size_t barrier_task_id = 1UL;
 
-    auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo.op_->getLoc());
+    auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo._op->getLoc());
     newBarrier->setAttr(virtualIdAttrName, getIntAttr(newBarrier->getContext(), barrier_task_id));
 
     std::set<mlir::Operation*> newBarrierProducers{};
@@ -192,8 +191,8 @@ mlir::Operation* FeasibleBarrierScheduler::barrierTransitionStructure::createNew
     _feasibleBarrierScheduler.configureBarrierOpUpdateWaitMap.insert(
             std::make_pair(newBarrier, std::make_pair(newBarrierProducers, newBarrierConsumers)));
 
-    _feasibleBarrierScheduler._log.trace("Created a new barrier task with barrier ID {0} after OP id is {1}",
-                                         barrier_task_id, FeasibleBarrierScheduler::getUniqueID(sinfo.op_));
+    _feasibleBarrierScheduler._log.trace("Created a new barrier task with barrier ID {0} after OP id is {1}", barrier_task_id,
+                           FeasibleBarrierScheduler::getUniqueID(sinfo._op));
     barrier_task_id++;
     return newBarrier;
 }
