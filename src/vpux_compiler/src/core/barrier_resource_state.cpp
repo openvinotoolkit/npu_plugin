@@ -24,7 +24,6 @@ using namespace vpux::VPURT;
 //
 
 BarrierResourceState::BarrierResourceState(): barrier_reference_(), available_slots_() {
-    std::cout << "Intializing BarrierResourceState" << std::endl;
 }
 
 BarrierResourceState::BarrierResourceState(size_t barrier_count, size_t slot_count)
@@ -97,7 +96,7 @@ bool BarrierResourceState::assign_slots(barrier_t bid, slots_t slot_demand) {
     return (itr != available_slots_.end());
 }
 
-bool BarrierResourceState::unassign_slots(barrier_t bid, slots_t slot_demand) {
+bool BarrierResourceState::unassignSlots(barrier_t bid, slots_t slot_demand) {
     assert((bid <= barrier_reference_.size()) && (bid >= 1UL));
     available_slots_iterator_t itr = barrier_reference_[bid - 1UL];
     slots_t new_slot_demand = (itr->available_slots_) + slot_demand;
