@@ -12,6 +12,11 @@
 //
 
 #include "vpux/compiler/core/feasible_barrier_generator.hpp"
+<<<<<<< HEAD
+=======
+
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
+>>>>>>> 1814e96d00... move getNumAvailableBarriers to VPUIP utils.cpp file
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
@@ -38,6 +43,10 @@ private:
 void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
+
+    auto numBarriersToUse = numBarriers.hasValue() ? numBarriers.getValue() : VPUIP::getNumAvailableBarriers(func);
+    static constexpr int64_t MAX_SLOT_COUNT = 256;
+    auto numSlotsPerBarrierToUse = numSlotsPerBarrier.hasValue() ? numSlotsPerBarrier.getValue() : MAX_SLOT_COUNT;
 
     VPURT::FeasibleBarrierScheduler barrierScheduler(&ctx, func, _log);
     barrierScheduler.init();
