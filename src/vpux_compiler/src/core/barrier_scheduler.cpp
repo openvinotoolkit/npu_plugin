@@ -15,6 +15,27 @@
 
 using namespace vpux::VPURT;
 
+//
+// Barrier Scheduler
+//
+// Barriers are physical synchronization primitives in VPU hardware. Every task 
+// requires a barrier resource to indicate its completion to its adjacent tasks. 
+// Thus every scheduled operation with at least one outgoing edge needs an update barrier.
+//
+// In the feasible memory scheduler, a feasible schedule is generated. However, VPU hardware 
+// only has a finite number of barriers, 8 per cluster. The Barrier scheduler class ensures 
+// that in all possible schedules of the number of active barriers does not exceed the available
+// physical barriers for the target platform. To achieve this the scheduler may need to insert 
+// some additional control dependencies among the tasks. 
+
+// The hardware allows a finite producer count of 256 for each of the update barriers.
+// This means that multiple tasks can update the same active barrier. This is incorporated into the
+// barrier resource model by using the term barrier slots.
+// In addition to the upper bound of available barriers it is assumed that each of these barriers has 
+// a maximum of 256 slots. The barrier demand is expressed as the number of slots required. 
+// In the context of VPU hardware the number of slots for a DPU tasks are the DPU worklaods 
+// and for a DMA tasks it is 1. 
+
 BarrierScheduler::BarrierScheduler(mlir::FuncOp func, Logger log)
         : _barrierCount(),
           _slotsPerBarrier(),
@@ -348,9 +369,9 @@ bool BarrierScheduler::unScheduleTask(mlir::Operation* op) {
         return false;
     }
     const barrierInfo& binfo = itr->second;
-    auto unassignBarrierSlots = _barrierResourceState.unassignBarrierSlots(binfo._bindex, binfo._producerSlotCount);
+    auto unassignBarrierSlots = _barrierResourceState.unassignBarrierSlots(binfo._barrierIndex, binfo._producerSlotCount);
 
-    VPUX_THROW_UNLESS(unassignBarrierSlots == true, "Failed to dealocate slots in the barrier index {0}", binfo._bindex);
+    VPUX_THROW_UNLESS(unassignBarrierSlots == true, "Failed to dealocate slots in the barrier index {0}", binfo._barrierIndex);
     _barrierMap.erase(itr);
     return true;
 }
@@ -569,7 +590,10 @@ void BarrierScheduler::init() {
     _log.trace("Assigning unique IDs to tasks");
     assignTaskUniqueIds();
 
-    // Save the original IR dependency, it may need to be restored
+    // Save the original IR dependency. The IR may need to be restored
+    // if barrier simulation fails after the barrier scheduler has run.
+    // If barrier simulation does fail, the IR is restored and another schedule
+    // is generated
     _log.trace("Saving the original IR dependency");
     saveOriginalIRDependency();
 
@@ -577,7 +601,7 @@ void BarrierScheduler::init() {
     _log.trace("Assiging task scheduling priorities");
     assignTaskPriorities();
 
-    // Store per-task barrier producer utilization
+    // Store per-task barrier producer utilization, i.e. the number of workloads
     _log.trace("Collating per task, the barrier resource requirements");
     createTaskBarrierResourceUtilityTable();
 }
@@ -618,7 +642,7 @@ bool BarrierScheduler::generateScheduleWithBarriers(size_t numberOfBarriers, siz
     scheduleSuccess = performSchedulingTaskLoop();
     VPUX_THROW_UNLESS(scheduleSuccess == true, "Failed to generate a valid schedule");
 
-    // Insert barriers in the IR based on the output of the list schedule
+    // Insert barriers in the IR based on the output of the list scheduler
     _log.trace("Inserting barriers in the IR");
     insertBarriersinIR();
 
@@ -738,7 +762,7 @@ void BarrierScheduler::removeVirtualBarriers() {
     });
 }
 
-void BarrierScheduler::clearTemporaryAttribute() {
+void BarrierScheduler::clearTemporaryAttributes() {
     _func->walk([](VPURT::TaskOp op) {
         op->removeAttr(uniqueIdAttrName);
         op->removeAttr(virtualIdAttrName);
@@ -900,7 +924,7 @@ void BarrierScheduler::populateScheduledTasks(mlir::Operation* task) {
     _log.trace("Get barrier info for task{0}", getUniqueID(task));
     const barrierInfo& binfo = getBarrierInfo(task);
 
-    scheduledTask._barrierIndex = binfo._bindex;
+    scheduledTask._barrierIndex = binfo._barrierIndex;
     scheduledTask._producerSlotCount = binfo._producerSlotCount;
 
     _log.trace("Task {0} is scheduled in time  {1}", getUniqueID(task), scheduledTask._scheduleTime);
