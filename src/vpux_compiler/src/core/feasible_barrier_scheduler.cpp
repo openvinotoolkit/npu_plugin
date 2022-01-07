@@ -348,9 +348,9 @@ bool FeasibleBarrierScheduler::unScheduleTask(mlir::Operation* op) {
         return false;
     }
     const barrierInfo& binfo = itr->second;
-    auto unassignSlots = _barrierResourceState.unassignSlots(binfo._bindex, binfo._producerSlotCount);
+    auto unassignBarrierSlots = _barrierResourceState.unassignBarrierSlots(binfo._bindex, binfo._producerSlotCount);
 
-    VPUX_THROW_UNLESS(unassignSlots == true, "Failed to dealocate slots in the barrier index {0}", binfo._bindex);
+    VPUX_THROW_UNLESS(unassignBarrierSlots == true, "Failed to dealocate slots in the barrier index {0}", binfo._bindex);
     _barrierMap.erase(itr);
     return true;
 }
@@ -365,13 +365,13 @@ bool FeasibleBarrierScheduler::scheduleTask(mlir::Operation* op, const size_t pr
     if (_barrierMap.find(op) != _barrierMap.end()) {
         return false;
     }
-    size_t bid = _barrierResourceState.assign_slots(producerSlotRequirement);
-    _barrierMap.insert(std::make_pair(op, barrierInfo(bid, producerSlotRequirement)));
+    size_t barrierID = _barrierResourceState.assignBarrierSlots(producerSlotRequirement);
+    _barrierMap.insert(std::make_pair(op, barrierInfo(barrierID, producerSlotRequirement)));
     return true;
 }
 
 bool FeasibleBarrierScheduler::isBarrierResourceAvailable(const size_t producerSlotRequirement) {
-    return _barrierResourceState.has_barrier_with_slots(producerSlotRequirement);
+    return _barrierResourceState.hasBarrierWithSlots(producerSlotRequirement);
 }
 
 void FeasibleBarrierScheduler::initializeBarrierResourceState(const size_t numberOfBarriers,
