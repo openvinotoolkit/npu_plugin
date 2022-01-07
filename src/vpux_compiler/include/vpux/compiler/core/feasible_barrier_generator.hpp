@@ -166,7 +166,7 @@ public:
     bool doesPathExist(mlir::Operation* a, mlir::Operation* b);
     bool performRuntimeSimulation();
     void cleanUpVirtualBarriers();
-    void clearUniqueIDAttribute();
+    void clearTemporaryAttribute();
 
     HeapElement popFromHeap();
     size_t currentTime() const;
@@ -213,14 +213,10 @@ private:
     Logger _log;
     mlir::FuncOp _func;
 
-    /*Stores every barrier's associated update and wait operations*/
-    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-             operation_comparator_t>
-            configureBarrierOpUpdateWaitMap;  // update,wait
+    // Stores every barrier's associated update and wait operations
+    barrierUpdateWaitMapType configureBarrierOpUpdateWaitMap;
     // Stores every task's associated update and wait barriers
-    std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-             task_operation_comparator_by_schedule_time_t>
-            configureTaskOpUpdateWaitMap;
+    taskOpUpdateWaitMapType configureTaskOpUpdateWaitMap;
     // The consumer tasks per task from original dependency
     std::map<mlir::Operation*, SmallVector<mlir::Operation*>> _taskConsumerMapBackUp;
 };
