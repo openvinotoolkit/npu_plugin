@@ -178,18 +178,17 @@ private:
     // The output tasks in the IR
     std::set<mlir::Operation*> _outputTasks;
     // The backup of output tasks in the IR
-    std::set<mlir::Operation*> _origninalOutputOps;
+    std::set<mlir::Operation*> _originalOutputOps;
     // The barrier information for each task
     activeBarrierMapType _barrierMap;
+    // Stores every barrier's associated update and wait operations
+    barrierUpdateWaitMapType _configureBarrierOpUpdateWaitMap;
+    // Stores every task's associated update and wait barriers
+    taskOpUpdateWaitMapType _configureTaskOpUpdateWaitMap;
+    // The consumer tasks per task from original dependency
+    std::map<mlir::Operation*, SmallVector<mlir::Operation*>> _taskConsumerMapOriginal;
     Logger _log;
     mlir::FuncOp _func;
-
-    // Stores every barrier's associated update and wait operations
-    barrierUpdateWaitMapType configureBarrierOpUpdateWaitMap;
-    // Stores every task's associated update and wait barriers
-    taskOpUpdateWaitMapType configureTaskOpUpdateWaitMap;
-    // The consumer tasks per task from original dependency
-    std::map<mlir::Operation*, SmallVector<mlir::Operation*>> _taskConsumerMapBackUp;
 };
 
 }  // namespace VPURT
