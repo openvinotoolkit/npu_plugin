@@ -92,12 +92,6 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
         void initTestCase() override {
             m_currentTest = &m_testsLoop.value();
             m_test_threshold = 0.0005f;
-
-            //    const StorageOrder& storageOrder = m_currentTest->storageOrder;
-            //    const auto& dimIn = m_currentTest->inDim;
-            //    const TensorDims dims3In(dimIn.width, dimIn.height, dimIn.channels, 1);
-            //    m_inputTensor.init(storageOrder, dims3In);
-            //    allocBuffer(m_inputTensor);
         }
 
         void generateInputData() override {

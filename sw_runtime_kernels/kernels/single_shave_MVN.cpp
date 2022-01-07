@@ -6,19 +6,11 @@
 #define nnLog(level, ...)
 #endif
 #include <mvSubspaces.h>
-#include <param_softmax.h>
-#define INFINITY (1.0f / 0.0f)
 #include <moviVectorConvert.h>
-
-#ifdef CONFIG_TARGET_SOC_3720
-#include <dma_shave_nn.h>
-#else
-#include <dma_shave.h>
-#endif
 
 #include <math.h>
 #include <moviVectorTypes.h>
-#include "param_mvn.h"
+#include <param_mvn.h>
 
 using namespace sw_params;
 using namespace subspace;
@@ -28,7 +20,7 @@ namespace {
 #define WORK_BUFFER_SIZE (((p->availableCmxBytes) / 4))
 
 #define MAX_CHANNEL_SIZE 64
-#define MAX_JOBS 1
+#define MAX_JOBS_NUM 1
 
 struct t_MvMVNParamNClasses {
     half* input;
@@ -47,8 +39,6 @@ struct t_MvMVNParamNClasses {
     s32 width;
     s32 stride;
 
-    s32 start;
-    s32 toProcess;
     bool inputInCmx;
     bool outputInCmx;
 
@@ -56,7 +46,7 @@ struct t_MvMVNParamNClasses {
     uint32_t normalize;
     float eps;
 
-    float intermedia_mean[MAX_CHANNEL_SIZE * MAX_JOBS * 2];
+    float intermedia_mean[MAX_CHANNEL_SIZE * MAX_JOBS_NUM * 2];
 };
 
 static void calc_mean_NHWC_fp16(const half* line, int W, int C, int stride, float* intermedia_mean) {
@@ -253,7 +243,7 @@ void singleShaveMVN(uint32_t lParams) {
 
     uint8_t* cmxData = nullptr;  // TODO: Restore the possibility of working with DDR tensors
     int32_t availableCmxBytes = 0;
-    // Special DMA to copy layer params from physical DDR
+
     half* p_act_data = (half*)(layerParams->input.dataAddr);  // 0x1F000000
     half* p_act_out = (half*)(layerParams->output.dataAddr);  // 0x1F004000
     t_MvMVNParamNClasses mvnParamsCMX;
@@ -276,7 +266,6 @@ void singleShaveMVN(uint32_t lParams) {
     }
 
     sp->storageOrder = layerParams->input.dimsOrder;
-
     s32 ndims = layerParams->input.numDims;
     bool success;
     NDDims indices = orderNDToIndices(layerParams->input.dimsOrder, success);
@@ -285,45 +274,27 @@ void singleShaveMVN(uint32_t lParams) {
     sp->width = pDims[indices[ndims - 1]];
     sp->stride = iPStrides[1] / (CHAR_BIT * sizeof(half));
 
-    int to_process = getTotal(pDims, ndims);
     unsigned int shaves_no = 1;
     int32_t firstShave = 0;
     int32_t jobNum = 0;
     int32_t lastShave = firstShave + static_cast<int>(shaves_no) - 1;
     nnLog(MVLOG_DEBUG, "singleShaveMVN: run on %d SHAVEs\n", shaves_no);
-
     nnLog(MVLOG_DEBUG, "MVNParamNClasses %d\n", __LINE__);
 
-    int step_size = to_process / shaves_no;
-    int step_size_rem = to_process % shaves_no;
-
-    int i = firstShave;
-    int processed = 0;
-
     t_MvMVNParamNClasses* mvnParamNClasses = &mvnParamsCMX;
-    int to_process_on_shave = step_size + ((step_size_rem-- > 0) ? 1 : 0);
-    nnLog(MVLOG_DEBUG, "i %d, to_process_on_shave %d lines, started from %d\n", i, to_process_on_shave, processed);
-
     mvnParamNClasses->input = reinterpret_cast<half*>(p_act_data);
     mvnParamNClasses->inLocation = sw_params::Location::NN_CMX;  // layerParams->input.location;
     mvnParamNClasses->inputInCmx = true;                         // layerParams->input.location;
     mvnParamNClasses->output = reinterpret_cast<half*>(p_act_out);
     mvnParamNClasses->outLocation = sw_params::Location::NN_CMX;  // layerParams->output.location;
     mvnParamNClasses->outputInCmx = true;                         // layerParams->input.location;
-
     mvnParamNClasses->cmxslice = cmxData;
     mvnParamNClasses->availableCmxBytes = availableCmxBytes;
-
-    mvnParamNClasses->start = processed;
-    mvnParamNClasses->toProcess = to_process_on_shave;
-
     mvnParamNClasses->nShaves = shaves_no;
     mvnParamNClasses->jobNum = jobNum;
 
     mvMVN_1(mvnParamNClasses);
     mvMVN_23(mvnParamNClasses);
-
-    processed += to_process_on_shave;
 }
 }
 
