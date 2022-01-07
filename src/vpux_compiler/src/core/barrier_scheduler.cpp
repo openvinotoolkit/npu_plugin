@@ -766,6 +766,7 @@ void BarrierScheduler::clearTemporaryAttributes() {
     _func->walk([](VPURT::TaskOp op) {
         op->removeAttr(uniqueIdAttrName);
         op->removeAttr(virtualIdAttrName);
+        op->removeAttr(schedulingNumberAttrName);
     });
 }
 
