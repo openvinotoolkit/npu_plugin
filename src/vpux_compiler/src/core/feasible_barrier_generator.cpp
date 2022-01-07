@@ -234,29 +234,30 @@ bool FeasibleBarrierScheduler::performSchedulingTaskLoop() {
 
         if (isTasKInSchedulableCandidates(taskItr)) {
             // Found a schedulable task
-            _log.trace("Found a schedulable task ID {0}", getUniqueID(*taskItr));
+            mlir::Operation* task = (*taskItr);
+            _log.trace("Found a schedulable task ID {0}", getUniqueID(task));
 
             const size_t opDelay = 1;
-            size_t taskBarrierResourceRequirement = _barrierResourceUtilizationMap[*taskItr];
+            size_t taskBarrierResourceRequirement = _barrierResourceUtilizationMap[task];
             size_t taskEndTime = _currentTime + opDelay;
 
-            _log.trace("Task ID {0} end time is {1}, pushing to heap", getUniqueID(*taskItr), taskEndTime);
-            pushToHeap(HeapElement(*taskItr, taskEndTime));
+            _log.trace("Task ID {0} end time is {1}, pushing to heap", getUniqueID(task), taskEndTime);
+            pushToHeap(HeapElement(task, taskEndTime));
 
             _log.trace("Erasing Task ID {0} from the schedulable candidates");
             _schedulableCandidates.erase(taskItr);
 
             // schedule task
-            auto scheduleSuccess = scheduleTask(*taskItr, taskBarrierResourceRequirement);
-            VPUX_THROW_UNLESS(scheduleSuccess == true, "Failed to schedule task ID {0}", getUniqueID(*taskItr));
+            auto scheduleSuccess = scheduleTask(task, taskBarrierResourceRequirement);
+            VPUX_THROW_UNLESS(scheduleSuccess == true, "Failed to schedule task ID {0}", getUniqueID(task));
 
             _log.trace("Populating the scheduled tasks list with the relevant scheduling information for task ID",
-                       getUniqueID(*taskItr));
-            populateScheduledTasks(*taskItr);
+                       getUniqueID(task));
+            populateScheduledTasks(task);
 
             // decrease outputs tasks if output task is scheduled
-            if (_outputTasks.find(*taskItr) != _outputTasks.end()) {
-                _outputTasks.erase(*taskItr);
+            if (_outputTasks.find(task) != _outputTasks.end()) {
+                _outputTasks.erase(task);
             }
 
         } else if (!_heap.empty()) {
@@ -357,7 +358,9 @@ bool FeasibleBarrierScheduler::unScheduleTask(mlir::Operation* op) {
 bool FeasibleBarrierScheduler::scheduleTask(mlir::Operation* op, const size_t producerSlotRequirement) {
     _log.trace("Scheduling a task");
 
-    VPUX_THROW_UNLESS(isBarrierResourceAvailable(producerSlotRequirement) == true, "Attempt to schedule task failed, failed to allocate barrier resource for task {0}}", getUniqueID(op));
+    VPUX_THROW_UNLESS(isBarrierResourceAvailable(producerSlotRequirement) == true,
+                      "Attempt to schedule task failed, failed to allocate barrier resource for task {0}}",
+                      getUniqueID(op));
 
     if (_barrierMap.find(op) != _barrierMap.end()) {
         return false;
@@ -652,7 +655,8 @@ void FeasibleBarrierScheduler::insertBarriersinIR() {
     for (const auto& op : _scheduledTasks) {
         auto bitr = _barrierAssociationTable.find(op._barrierIndex);
 
-        VPUX_THROW_UNLESS(bitr != _barrierAssociationTable.end(), "Unable to find barrier index {0} in the barrier association table");
+        VPUX_THROW_UNLESS(bitr != _barrierAssociationTable.end(),
+                          "Unable to find barrier index {0} in the barrier association table");
 
         barrierTransitionStructure& bstructure = bitr->second;
 
@@ -712,7 +716,7 @@ void FeasibleBarrierScheduler::insertBarriersinIR() {
         auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
         for (auto* user : p.second.second) {
             auto taskOp = mlir::dyn_cast_or_null<VPURT::TaskOp>(user);
-            
+
             VPUX_THROW_UNLESS(taskOp != NULL, "Invalid task");
             VPUX_THROW_UNLESS(barrierOp.barrier() != NULL, "Invalid barrier");
             _log.trace("Adding Barrier ID {0} as an wait barrier for operation {1}", barrierOp->getAttr("id"),
