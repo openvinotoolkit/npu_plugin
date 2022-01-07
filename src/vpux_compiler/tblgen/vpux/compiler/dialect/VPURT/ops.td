@@ -162,7 +162,7 @@ def VPURT_ConfigureBarrierOp :
 
     let extraClassDeclaration = [{
         vpux::DotNodeColor getNodeColor() {
-            return vpux::DotNodeColor::AQUAMARINE;
+            return vpux::DotNodeColor::AQUA;
         }
 
         bool printAttributes(llvm::raw_ostream& os) {
