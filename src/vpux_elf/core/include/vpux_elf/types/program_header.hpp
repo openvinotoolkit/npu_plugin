@@ -54,6 +54,18 @@ struct Elf64_Phdr {
     Elf_Xword  p_align;
 };
 
+struct Elf32_Phdr {
+    Elf_Word   p_type;
+    Elf32_Off  p_offset;
+    Elf32_Addr p_vaddr;
+    Elf32_Addr p_paddr;
+    Elf_Word   p_filesz;
+    Elf_Word   p_memsz;
+    Elf_Word   p_flags;
+    Elf_Word   p_align;
+};
+
 using ProgramHeader = Elf64_Phdr;
+using ProgramHeader32 = Elf32_Phdr;
 
 } // namespace elf

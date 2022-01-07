@@ -29,8 +29,27 @@ void vpux::VPUIPRegMapped::MappedInferenceOp::serialize(elf::writer::BinaryDataS
     mi.dmaTasks[0].count = dmaCount();
     mi.invariants.count = invariantCount();
     mi.variants.count = variantCount();
-    mi.actKInvocations.count = actInvocationsCount();
+    mi.actKRanges.count = actKernelRangesCount();
+    mi.actKInvocations.count = actKernelInvocationsCount();
     mi.barrierConfigs.count = barrierCount();
+
+    if (mi.actKInvocations.count) {
+        // host_parsing::ActKernelRuntimeConfigs rtCfg;
+
+        mi.actRtConfigs.stackFrames_[0] = 0x2E000800;
+        mi.actRtConfigs.stackFrames_[1] = 0x2E000C00;
+        mi.actRtConfigs.stackFrames_[2] = 0x2E200800;
+        mi.actRtConfigs.stackFrames_[3] = 0x2E200C00;
+
+        mi.actRtConfigs.stackSize_ = 16384; // 16 kB
+
+        mi.actRtConfigs.useScheduleEmbeddedRt_ = false;
+
+        mi.actRtConfigs.actRtWindowBase_ = 0; // reloc here a empty 1MB section?
+
+        mi.actRtConfigs.codeWindowBufferSize_ = 1048576; // 1 MB
+
+    }
 
     uint8_t* ptrCharTmp = reinterpret_cast<uint8_t*>(&mi);
     binDataSection.appendData(ptrCharTmp, getBinarySize());

@@ -22,7 +22,7 @@
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
-#include "host_parsed_inference.h"
+#include <host_parsed_inference.h>
 
 using namespace vpux;
 
@@ -488,7 +488,8 @@ void Convert2VPUIPRegMappedAndELFPass::safeRunOnModule() {
     mlir::Value dmaList;
     mlir::Value invariantList;
     mlir::Value variantList;
-    mlir::Value actInvocations;
+    mlir::Value actKernelInvocations;
+    mlir::Value actKernelRanges;
     mlir::Value barrierList;
     //
     VPUIPRegMapped::MappedInferenceOp mappedInferenceOp =
@@ -496,12 +497,14 @@ void Convert2VPUIPRegMappedAndELFPass::safeRunOnModule() {
                                                                   dmaList,         // mlir::Value dmaList
                                                                   invariantList,   // mlir::Value invariantList
                                                                   variantList,     // mlir::Value variantList
-                                                                  actInvocations,  // mlir::Value actInvocations
+                                                                  actKernelRanges,
+                                                                  actKernelInvocations,  // mlir::Value actInvocations
                                                                   barrierList,     // mlir::Value barrierList
                                                                   numNndmaOps,     // uint32_t dmaCount
                                                                   0,               // uint32_t invariantCount
                                                                   0,               // uint32_t variantCount
-                                                                  0,               // uint32_t actInvocationsCount
+                                                                  0,               // uint32_t actKernelRanges
+                                                                  0,               // uint32_t actKernelInvocations
                                                                   barrierCount     // uint32_t barrierCount
             );
     VPUX_UNUSED(mappedInferenceOp);

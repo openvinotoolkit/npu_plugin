@@ -26,6 +26,8 @@ void vpux::VPUIPRegMapped::VPUIPRegMappedDialect::initialize() {
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/VPUIPRegMapped/generated/ops.cpp.inc>
             >();
+    
+    registerTypes();
 }
 
 //

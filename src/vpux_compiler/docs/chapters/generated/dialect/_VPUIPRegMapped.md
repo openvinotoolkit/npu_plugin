@@ -22,7 +22,83 @@ Again, it represents also the register mapped configuration of the hardware regi
 
 [TOC]
 
+## Type constraint definition
+
+### VPUIPRegMapped Index type
+An index type containing the value as a parameter
+
 ## Operation definition
+
+### `VPUIPRegMapped.ActKernelInvocation` (vpux::VPUIPRegMapped::ActKernelInvocationOp)
+
+Activation Kernel Invocation
+
+
+Syntax:
+
+```
+operation ::= `VPUIPRegMapped.ActKernelInvocation` attr-dict
+              `range_index` `(` $range_index `:` type($range_index) `)`
+              `waits` `(` $waitBarriers `:` type($waitBarriers) `)`
+              `updates` `(` $updateBarriers `:` type($updateBarriers) `)`
+              `tile` `(` $tile `)`
+              `start_after` `(` $start_after `)`
+              `clean_after` `(` $clean_after `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`tile` | ::mlir::IntegerAttr | 64-bit unsigned integer attribute
+`start_after` | ::mlir::IntegerAttr | 64-bit unsigned integer attribute
+`clean_after` | ::mlir::IntegerAttr | 64-bit unsigned integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`waitBarriers` | VPUIPRegMapped Index type
+`updateBarriers` | VPUIPRegMapped Index type
+`range_index` | VPUIPRegMapped Index type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`index` | VPUIPRegMapped Index type
+
+### `VPUIPRegMapped.ActKernelRange` (vpux::VPUIPRegMapped::ActKernelRangeOp)
+
+Activation Kernel Range
+
+
+Syntax:
+
+```
+operation ::= `VPUIPRegMapped.ActKernelRange` attr-dict
+              `kernel_text_index` `(` $kernel_text_index `:` type($kernel_text_index) `)`
+              `kernel_args_index` `(` $kernel_args_index `:` type($kernel_args_index) `)`
+              `kernel_entry_index` `(` $kernel_entry_index `:` type($kernel_entry_index) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`kernel_text_index` | VPUIPRegMapped Index type
+`kernel_args_index` | VPUIPRegMapped Index type
+`kernel_entry_index` | VPUIPRegMapped Index type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`index` | VPUIPRegMapped Index type
 
 ### `VPUIPRegMapped.ConfigureBarrier` (vpux::VPUIPRegMapped::ConfigureBarrierOp)
 
@@ -53,14 +129,123 @@ operation ::= `VPUIPRegMapped.ConfigureBarrier` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`waitBarriers` | VPUIP Barrier Type
-`updateBarriers` | VPUIP Barrier Type
+`waitBarriers` | VPUIPRegMapped Index type
+`updateBarriers` | VPUIPRegMapped Index type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`barrier` | VPUIP Barrier Type
+`barrier` | VPUIPRegMapped Index type
+
+### `VPUIPRegMapped.DeclareKernelArgs` (vpux::VPUIPRegMapped::DeclareKernelArgsOp)
+
+Declaration of Software Kernel .args
+
+
+Syntax:
+
+```
+operation ::= `VPUIPRegMapped.DeclareKernelArgs` attr-dict `kernel_path` `(` $kernel_path `)` `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`kernel_path` | ::mlir::StringAttr | string attribute
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`index` | VPUIPRegMapped Index type
+
+### `VPUIPRegMapped.DeclareKernelEntry` (vpux::VPUIPRegMapped::DeclareKernelEntryOp)
+
+Declaration of Kernel Entry
+
+
+Syntax:
+
+```
+operation ::= `VPUIPRegMapped.DeclareKernelEntry` attr-dict `kernel_path` `(` $kernel_path `)` `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`kernel_path` | ::mlir::StringAttr | string attribute
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`index` | VPUIPRegMapped Index type
+
+### `VPUIPRegMapped.DeclareKernelText` (vpux::VPUIPRegMapped::DeclareKernelTextOp)
+
+Declaration of Software Kernel .text 
+
+
+Syntax:
+
+```
+operation ::= `VPUIPRegMapped.DeclareKernelText` attr-dict `kernel_path` `(` $kernel_path `)` `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`kernel_path` | ::mlir::StringAttr | string attribute
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`index` | VPUIPRegMapped Index type
+
+### `VPUIPRegMapped.KernelParams` (vpux::VPUIPRegMapped::KernelParamsOp)
+
+Kernel Params
+
+
+Syntax:
+
+```
+operation ::= `VPUIPRegMapped.KernelParams` attr-dict
+              `input` `(` $input `:` type($input) `)`
+              `output` `(` $output `:` type($output) `)`
+              `kernel_type` `(` $kernel_type `)`
+              `kernel_params` `(` $kernel_params `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`kernel_type` | ::mlir::StringAttr | string attribute
+`kernel_params` | ::mlir::ElementsAttr | constant vector/tensor attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`index` | VPUIPRegMapped Index type
 
 ### `VPUIPRegMapped.MappedInference` (vpux::VPUIPRegMapped::MappedInferenceOp)
 
@@ -74,12 +259,14 @@ operation ::= `VPUIPRegMapped.MappedInference` attr-dict
               (`dmas` `(` $dmaList^ `:` type($dmaList) `)`)?
               (`invariants` `(` $invariantList^ `:` type($invariantList) `)`)?
               (`variants` `(` $variantList^ `:` type($variantList) `)`)?
-              (`actInvocations` `(` $actInvocations^ `:` type($actInvocations) `)`)?
+              (`actKernelRanges` `(` $actKernelRanges^ `:` type($actKernelRanges) `)`)?
+              (`actKernelInvocations` `(` $actKernelInvocations^ `:` type($actKernelInvocations) `)`)?
               (`barriers` `(` $barrierList^ `:` type($barrierList) `)` )?
               `dmaCount` `(` $dmaCount `)`
               `invariantCount` `(` $invariantCount `)`
               `variantCount` `(` $variantCount `)`
-              `actInvocationsCount` `(` $actInvocationsCount `)`
+              `actKernelRangesCount` `(` $actKernelRangesCount `)`
+              `actKernelInvocationsCount` `(` $actKernelInvocationsCount `)`
               `barrierCount` `(` $barrierCount `)`
 ```
 
@@ -91,18 +278,20 @@ operation ::= `VPUIPRegMapped.MappedInference` attr-dict
 `dmaCount` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
 `invariantCount` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
 `variantCount` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
-`actInvocationsCount` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
+`actKernelRangesCount` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
+`actKernelInvocationsCount` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
 `barrierCount` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-`dmaList` | memref of any type values
-`invariantList` | memref of any type values
-`variantList` | memref of any type values
-`actInvocations` | memref of any type values
-`barrierList` | VPUIP Barrier Type
+`dmaList` | VPUIPRegMapped Index type
+`invariantList` | VPUIPRegMapped Index type
+`variantList` | VPUIPRegMapped Index type
+`actKernelRanges` | VPUIPRegMapped Index type
+`actKernelInvocations` | VPUIPRegMapped Index type
+`barrierList` | VPUIPRegMapped Index type
 
 #### Results:
 
@@ -142,12 +331,26 @@ operation ::= `VPUIPRegMapped.NNDMA` attr-dict
 | :-----: | ----------- |
 `input` | memref of any type values
 `output_buff` | memref of any type values
-`waitBarriers` | VPUIP Barrier Type
-`updateBarriers` | VPUIP Barrier Type
+`waitBarriers` | VPUIPRegMapped Index type
+`updateBarriers` | VPUIPRegMapped Index type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`index` | VPUIPRegMapped Index type
+
+## Type definition
+
+### IndexType
+
+VPUIPRegMapped Index type
+
+An index type containing the value as a parameter
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `uint32_t` |  |
 

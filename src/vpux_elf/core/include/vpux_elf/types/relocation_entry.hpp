@@ -33,8 +33,21 @@ struct Elf64_Rela {
     Elf_Sxword r_addend;
 };
 
+struct Elf32_Rel {
+    Elf32_Addr r_offset;
+    Elf_Word   r_info;
+};
+
+struct Elf32_Rela {
+    Elf32_Addr r_offset;
+    Elf_Word   r_info;
+    Elf_Sword  r_addend;
+};
+
 using RelocationEntry = Elf64_Rel;
 using RelocationAEntry = Elf64_Rela;
+using RelocationEntry32 = Elf32_Rel;
+using RelocationAEntry32 = Elf32_Rela;
 
 //! Extract symbol index from info
 Elf_Word elf64RSym(Elf_Xword info);

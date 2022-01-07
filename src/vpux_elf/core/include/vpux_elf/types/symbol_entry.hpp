@@ -42,7 +42,6 @@ constexpr uint8_t STT_TLS            = 6;
 constexpr uint8_t STT_LOOS           = 10;
 constexpr uint8_t STT_HIOS           = 12;
 constexpr uint8_t STT_LOPROC         = 13;
-constexpr uint8_t STT_SPARC_REGISTER = 13;
 constexpr uint8_t STT_HIPROC         = 15;
 
 //! Symbol visibility
@@ -61,6 +60,15 @@ struct Elf64_Sym {
     Elf_Half      st_shndx;
     Elf64_Addr    st_value;
     Elf_Xword     st_size;
+};
+
+struct Elf32_Sym {
+    Elf_Word      st_name;
+    Elf32_Addr    st_value;
+    Elf_Word      st_size;
+    unsigned char st_info;
+    unsigned char st_other;
+    Elf_Half      st_shndx;
 };
 
 using SymbolEntry = Elf64_Sym;

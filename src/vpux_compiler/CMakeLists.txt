@@ -295,6 +295,8 @@ add_dialect("VPUIPRegMapped")
 add_op_interfaces("dialect/VPUIPRegMapped")
 add_enum_attrs("VPUIPRegMapped")
 add_struct_attrs("VPUIPRegMapped")
+add_types("VPUIPRegMapped")
+# add_passes("dialect/VPUIPRegMapped" "VPUIPRegMapped")
 
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")

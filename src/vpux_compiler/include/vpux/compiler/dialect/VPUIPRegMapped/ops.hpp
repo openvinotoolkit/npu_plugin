@@ -22,6 +22,7 @@
 #include "vpux/compiler/dialect/VPUIPRegMapped/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIPRegMapped/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIPRegMapped/types.hpp"
 #include "vpux/compiler/dialect/VPURT/types.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 

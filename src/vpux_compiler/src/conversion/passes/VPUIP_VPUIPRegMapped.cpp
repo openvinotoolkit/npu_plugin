@@ -21,6 +21,8 @@
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
+#include <iostream>
+
 using namespace vpux;
 
 namespace {
@@ -40,7 +42,7 @@ private:
 
     Logger _log;
 
-    void replaceVPURTTaskOpWithNNDMAOp(mlir::FuncOp& funcOp, Logger _log) {
+    void replaceVPURTTaskOpWithNNDMAOp(mlir::MLIRContext* ctx, mlir::FuncOp& funcOp, Logger _log) {
         _log.info("Entered replaceVPURTTaskOpWithNNDMAOp().");
 
         for (;;) {
@@ -70,6 +72,21 @@ private:
 
                     mlir::OpBuilder builderBlk(taskOp);
 
+                    auto indexType = VPUIPRegMapped::IndexType::get(ctx, 1);
+
+                    auto wait_bars = taskOp.waitBarriers();
+                    auto update_bars = taskOp.updateBarriers();
+
+                    for (auto val : wait_bars){
+                        val.setType(indexType);
+                    }
+
+                    for (auto val : update_bars){
+                        val.setType(indexType);
+                    }
+
+                    std::cout<<"OMGGGGG ----- "<<indexType.getValue()<<"\n\n";
+
                     // Using this builder:
                     // void NNDMAOp::build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState,
                     //   ::mlir::Type output, ::mlir::Value input, ::mlir::Value output_buff,
@@ -77,9 +94,10 @@ private:
                     //   bool compression, int64_t port, uint64_t start_after)
                     builderBlk.create<VPUIPRegMapped::NNDMAOp>(
                             builderBlk.getUnknownLoc(),                 // op->getLoc(),
-                            op.getOperation()->getResult(0).getType(),  // op.output(),
-                            op.input(), op.output_buff(), mlir::ValueRange(taskOp.waitBarriers()),
-                            mlir::ValueRange(taskOp.updateBarriers()),
+                            indexType,  // op.output(),
+                            op.input(), op.output_buff(), 
+                            mlir::ValueRange(wait_bars),
+                            mlir::ValueRange(update_bars),
                             false,  // compression // TODO: I guess, unless compression is a RegMapped
                                     // value (see huf_en in HglCmxDmaConfigBits in
                                     // src/dialect/VPUIPRegMapped/ops/dma.cpp), I should take out compression
@@ -114,14 +132,16 @@ public:
 
         mlir::ValueRange waitBarriers, updateBarriers;  // TODO: put right values
 
-        vpux::VPURT::BarrierType bType = vpux::VPURT::BarrierType::get(getContext());
+        auto ctx = ConvertVPURTConfigureBarrierOp::getContext();
+
+        auto indexType = VPUIPRegMapped::IndexType::get(ctx, 1);
 
         mlir::IntegerAttr producer_count;  // TODO: init with special value
         mlir::IntegerAttr consumer_count;  // TODO: init with special value
 
         rewriter.replaceOpWithNewOp<VPUIPRegMapped::ConfigureBarrierOp>(
                 origOp,
-                bType,  // origOp.getOperation()->getResult(0).getType(),
+                indexType,  // origOp.getOperation()->getResult(0).getType(),
                 origOp.id(),
                 // TODO: put also a virtualId attribute in ConfigureBarrierOp, as it is found in
                 //              VPURT::ConfigureBarrierOp
@@ -157,17 +177,17 @@ void ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc() {
     //   mlir::RewriterBase::replaceOpWithResultsOfAnotherOp(mlir::Operation*, mlir::Operation*): Assertion
     //   `op->getNumResults() == newOp->getNumResults() && "replacement op doesn't match results of original op"'
     //   failed.>>
-    replaceVPURTTaskOpWithNNDMAOp(funcOp, _log);
 
     _log.info("ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc(): After replaceVPURTTaskOpWithNNDMAOp(): funcOp = {0}",
               funcOp);
 
     // Default is operations are illegal.
 
+
     mlir::ConversionTarget target(*ctx);
     target.addLegalDialect<VPUIPRegMapped::VPUIPRegMappedDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
-    target.addLegalOp<VPURT::DeclareBufferOp>();
+    target.addLegalOp<VPURT::DeclareBufferOp, VPUIP::NNDMAOp, VPURT::TaskOp>();
 
     mlir::RewritePatternSet patterns(ctx);
 
@@ -176,6 +196,8 @@ void ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc() {
     if (mlir::failed(mlir::applyFullConversion(funcOp, target, std::move(patterns)))) {
         signalPassFailure();
     }
+
+    replaceVPURTTaskOpWithNNDMAOp(ctx, funcOp, _log);
 
     _log.info("End ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc(): funcOp = {0}", funcOp);
 }

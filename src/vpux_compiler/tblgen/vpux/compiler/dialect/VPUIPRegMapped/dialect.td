@@ -53,6 +53,7 @@ Again, it represents also the register mapped configuration of the hardware regi
     ];
 
     let extraClassDeclaration = [{
+        void registerTypes();
         static void setupExtraInterfaces(mlir::DialectRegistry& registry);
     }];
 }
