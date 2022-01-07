@@ -23,7 +23,7 @@ constexpr llvm::StringLiteral schedulingNumberAttrName = "SchedulingNumber";
 constexpr llvm::StringLiteral uniqueIdAttrName = "uniqueId";
 constexpr llvm::StringLiteral virtualIdAttrName = "VPURT.virtualId";
 
-class FeasibleBarrierScheduler final {
+class BarrierScheduler final {
 public:
     struct task_operation_comparator_by_schedule_time_t {
         bool operator()(mlir::Operation* op1, mlir::Operation* op2) const {
@@ -77,7 +77,7 @@ public:
     };
     class barrierTransitionStructure {
     public:
-        barrierTransitionStructure(FeasibleBarrierScheduler& feasibleBarrierScheduler,
+        barrierTransitionStructure(BarrierScheduler& feasibleBarrierScheduler,
                                    size_t time = std::numeric_limits<size_t>::max());
 
         void init();
@@ -108,7 +108,7 @@ public:
         mlir::Operation* createNewBarrierTask(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
 
         // Outer class
-        FeasibleBarrierScheduler& _feasibleBarrierScheduler;
+        BarrierScheduler& _feasibleBarrierScheduler;
         size_t time_;
         mlir::Operation* curr_barrier_task_;
         mlir::Operation* prev_barrier_task_;
@@ -131,7 +131,7 @@ public:
             std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
                      task_operation_comparator_by_schedule_time_t>;
 
-    FeasibleBarrierScheduler(mlir::FuncOp func, Logger log);
+    BarrierScheduler(mlir::FuncOp func, Logger log);
     void init();
     void assignTaskUniqueIds();
     void saveOriginalIRDependency();
