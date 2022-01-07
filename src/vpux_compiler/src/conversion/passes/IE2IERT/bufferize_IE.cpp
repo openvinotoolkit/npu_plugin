@@ -658,6 +658,12 @@ mlir::Operation* createRTLayer(IE::ScatterNDUpdateOp origOp, ArrayRef<mlir::Valu
                                              newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::ScatterUpdateOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ScatterUpdateOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ScatterUpdateOp>(origOp.getLoc(), newOp.input(), newOp.indices(), newOp.updates(),
+                                           newOp.axis(), newOp.output_buff());
+}
+
 mlir::Operation* createRTLayer(IE::AddOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::AddOp::Adaptor newOp(allBufs);
     return b.create<IERT::AddOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff(),
@@ -1060,6 +1066,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::GatherOp)
     CASE(IE::GatherElementsOp)
     CASE(IE::ScatterNDUpdateOp)
+    CASE(IE::ScatterUpdateOp)
     CASE(IE::LeakyReluOp)
     CASE(IE::AddOp)
     CASE(IE::MultiplyOp)
