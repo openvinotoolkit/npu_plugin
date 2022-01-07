@@ -13,11 +13,6 @@
 #pragma once
 
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
-#include "vpux/compiler/dialect/VPURT/ops.hpp"
-#include "vpux/compiler/dialect/VPURT/passes.hpp"
-
-#include <mlir/Transforms/DialectConversion.h>
-
 #include "vpux/compiler/core/barrier_resource_state.hpp"
 
 namespace vpux {
@@ -27,6 +22,7 @@ namespace VPURT {
 constexpr llvm::StringLiteral schedulingNumberAttrName = "SchedulingNumber";
 constexpr llvm::StringLiteral uniqueIdAttrName = "uniqueId";
 constexpr llvm::StringLiteral virtualIdAttrName = "VPURT.virtualId";
+
 class FeasibleBarrierScheduler final {
 public:
     struct task_operation_comparator_by_schedule_time_t {
