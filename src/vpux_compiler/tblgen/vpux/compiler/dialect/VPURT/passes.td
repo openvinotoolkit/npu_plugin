@@ -33,7 +33,7 @@ def AssignPhysicalBarriers : PassBase<"assign-physical-barriers", "vpux::Functio
         Option<
             "numBarriersOpt", "num-barriers",
             "int", "",
-            "Number of physical barriers, available for usage"
+            "Number of physical barriers, available for use"
         >
     ];
 }
@@ -46,7 +46,9 @@ def AssignVirtualBarriers : PassBase<"assign-virtual-barriers", "vpux::FunctionP
     let summary = "Schedules virtual barriers";
 
     let description = [{
-        This pass schedules virtual barriers such that the number of active barrier does not exceed the hardware limit.
+        This pass inserts virtual barriers in the IR such that the number of active barriers at any time
+        does not exceed the physical number of available barriers 
+        and that the number of producers to a barrier is less than 256.
     }];
 
     let constructor = "vpux::VPURT::createAssignVirtualBarriersPass()";
@@ -55,12 +57,12 @@ def AssignVirtualBarriers : PassBase<"assign-virtual-barriers", "vpux::FunctionP
         Option<
             "numBarriers", "num-barriers",
             "int", "",
-            "Number of physical barriers, available for usage"
+            "Number of physical barriers, available for use"
         >,
         Option<
             "numSlotsPerBarrier", "num-slots-per-barrier",
             "int", "",
-            "Number of slots per barriers, available for usage"
+            "Number of producer slots per barrier, available for use"
         >
     ];
 }

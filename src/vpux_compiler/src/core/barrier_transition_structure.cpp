@@ -11,31 +11,31 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/core/feasible_barrier_scheduler.hpp"
+#include "vpux/compiler/core/barrier_scheduler.hpp"
 
 using namespace vpux::VPURT;
 
-FeasibleBarrierScheduler::barrierTransitionStructure::barrierTransitionStructure(
-        FeasibleBarrierScheduler& feasibleBarrierScheduler, size_t time)
+BarrierScheduler::barrierTransitionStructure::barrierTransitionStructure(
+        BarrierScheduler& feasibleBarrierScheduler, size_t time)
         : _feasibleBarrierScheduler(feasibleBarrierScheduler), time_(time), producers_() {
     _feasibleBarrierScheduler._log.trace("Initialising a new barrier_transition_structure");
 }
 
-void FeasibleBarrierScheduler::barrierTransitionStructure::init() {
+void BarrierScheduler::barrierTransitionStructure::init() {
     time_ = std::numeric_limits<size_t>::max();
     prev_barrier_task_ = NULL;
     curr_barrier_task_ = NULL;
     producers_.clear();
 }
 
-bool FeasibleBarrierScheduler::barrierTransitionStructure::processNextScheduledTask(const ScheduledOpInfo& sinfo,
+bool BarrierScheduler::barrierTransitionStructure::processNextScheduledTask(const ScheduledOpInfo& sinfo,
                                                                                     mlir::OpBuilder& builder) {
     size_t curr_time = sinfo._scheduleTime;
     bool created_new_barrier_task = false;
 
     _feasibleBarrierScheduler._log.trace(
             "The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
-            sinfo._scheduleTime, FeasibleBarrierScheduler::getUniqueID(sinfo._op), sinfo._barrierIndex,
+            sinfo._scheduleTime, BarrierScheduler::getUniqueID(sinfo._op), sinfo._barrierIndex,
             sinfo._producerSlotCount);
 
     _feasibleBarrierScheduler._log.trace("The global time is {0}", time_);
@@ -56,14 +56,14 @@ bool FeasibleBarrierScheduler::barrierTransitionStructure::processNextScheduledT
     return created_new_barrier_task;
 }
 
-void FeasibleBarrierScheduler::barrierTransitionStructure::closeBarrierProducerList() {
+void BarrierScheduler::barrierTransitionStructure::closeBarrierProducerList() {
     if (curr_barrier_task_ == NULL) {
         return;
     }
     processCurrentBarrierProducerListCloseEvent(curr_barrier_task_, prev_barrier_task_);
 }
 
-inline void FeasibleBarrierScheduler::barrierTransitionStructure::processCurrentBarrierProducerListCloseEvent(
+inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierProducerListCloseEvent(
         mlir::Operation* bop_curr, mlir::Operation* bop_prev) {
     _feasibleBarrierScheduler._log.trace("Process current barrier producer list close event");
 
@@ -87,7 +87,7 @@ inline void FeasibleBarrierScheduler::barrierTransitionStructure::processCurrent
 
         if (barrierProducersItr != _feasibleBarrierScheduler.configureBarrierOpUpdateWaitMap.end()) {
             _feasibleBarrierScheduler._log.trace("Adding producer Op with ID {0} to barrier {1}",
-                                                 FeasibleBarrierScheduler::getUniqueID(source),
+                                                 BarrierScheduler::getUniqueID(source),
                                                  bop_curr->getAttr("id"));
             barrierProducersItr->second.first.insert(source);
         } else
@@ -101,7 +101,7 @@ inline void FeasibleBarrierScheduler::barrierTransitionStructure::processCurrent
 
             for (auto consumer = opConsumers.begin(); consumer != opConsumers.end(); ++consumer) {
                 _feasibleBarrierScheduler._log.trace("STEP-1.2 Adding consumer Op with ID {0} to barrier {1}",
-                                                     FeasibleBarrierScheduler::getUniqueID(*consumer),
+                                                     BarrierScheduler::getUniqueID(*consumer),
                                                      bop_curr->getAttr("id"));
                 barrierConsumersItr->second.second.insert(*consumer);
             }
@@ -113,7 +113,7 @@ inline void FeasibleBarrierScheduler::barrierTransitionStructure::processCurrent
             auto barrierConsumersItr = _feasibleBarrierScheduler.configureBarrierOpUpdateWaitMap.find(b_prev);
             if (barrierConsumersItr != _feasibleBarrierScheduler.configureBarrierOpUpdateWaitMap.end()) {
                 _feasibleBarrierScheduler._log.trace("STEP-1.3 Adding consumer Op with ID {0} to barrier {1}",
-                                                     FeasibleBarrierScheduler::getUniqueID(source),
+                                                     BarrierScheduler::getUniqueID(source),
                                                      b_prev->getAttr("id"));
                 barrierConsumersItr->second.second.insert(source);
             } else
@@ -122,12 +122,12 @@ inline void FeasibleBarrierScheduler::barrierTransitionStructure::processCurrent
     }  // foreach producer //
 }
 
-void FeasibleBarrierScheduler::barrierTransitionStructure::maintainInvariantTemporalChange(const ScheduledOpInfo& sinfo,
+void BarrierScheduler::barrierTransitionStructure::maintainInvariantTemporalChange(const ScheduledOpInfo& sinfo,
                                                                                            mlir::OpBuilder& builder) {
     _feasibleBarrierScheduler._log.trace("Calling maintainInvariantTemporalChange()");
     _feasibleBarrierScheduler._log.trace(
             "The scheduled time is {0}, the op is {1} the barrier index is {2}  the slot cout is {3}",
-            sinfo._scheduleTime, FeasibleBarrierScheduler::getUniqueID(sinfo._op), sinfo._barrierIndex,
+            sinfo._scheduleTime, BarrierScheduler::getUniqueID(sinfo._op), sinfo._barrierIndex,
             sinfo._producerSlotCount);
     //              B_prev
     // curr_state : Prod_list={p_0, p_1, ... p_n}-->B_curr
@@ -170,7 +170,7 @@ void FeasibleBarrierScheduler::barrierTransitionStructure::maintainInvariantTemp
     addScheduledOpToProducerList(sinfo);
 }
 
-void FeasibleBarrierScheduler::barrierTransitionStructure::addScheduledOpToProducerList(const ScheduledOpInfo& sinfo) {
+void BarrierScheduler::barrierTransitionStructure::addScheduledOpToProducerList(const ScheduledOpInfo& sinfo) {
     auto scheduled_op = sinfo._op;
 
     _feasibleBarrierScheduler._log.trace("Adding op {0} to the producer list of the barrier transition structure",
@@ -178,7 +178,7 @@ void FeasibleBarrierScheduler::barrierTransitionStructure::addScheduledOpToProdu
     producers_.insert(scheduled_op);
 }
 
-mlir::Operation* FeasibleBarrierScheduler::barrierTransitionStructure::createNewBarrierTask(
+mlir::Operation* BarrierScheduler::barrierTransitionStructure::createNewBarrierTask(
         const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder) {
     _feasibleBarrierScheduler._log.trace("CREATING A NEW BARRIER TASK");
 
@@ -193,7 +193,7 @@ mlir::Operation* FeasibleBarrierScheduler::barrierTransitionStructure::createNew
             std::make_pair(newBarrier, std::make_pair(newBarrierProducers, newBarrierConsumers)));
 
     _feasibleBarrierScheduler._log.trace("Created a new barrier task with barrier ID {0} after OP id is {1}",
-                                         barrier_task_id, FeasibleBarrierScheduler::getUniqueID(sinfo._op));
+                                         barrier_task_id, BarrierScheduler::getUniqueID(sinfo._op));
     barrier_task_id++;
     return newBarrier;
 }
