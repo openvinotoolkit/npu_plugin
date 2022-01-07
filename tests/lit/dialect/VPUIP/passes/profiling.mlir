@@ -10,7 +10,7 @@ module @UpaProfiling {
     } profilingOutputsInfo :  {
     }
     func @main(%arg0: memref<1x48x30x30xf16>, %arg1: memref<1x48x30x30xf32>) -> memref<1x48x30x30xf32> {
-        %2 = VPURT.DeclareBuffer "DDR" [0] <0> -> memref<1x48x30x30xf16, "DDR">
+        %2 = VPURT.DeclareBuffer "DDR" [0] <0> -> memref<1x48x30x30xf16, @DDR>
         %3 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
         %4 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
         %5 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
