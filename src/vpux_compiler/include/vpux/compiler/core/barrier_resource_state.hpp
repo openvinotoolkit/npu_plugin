@@ -90,5 +90,5 @@ private:
     available_slots_t available_slots_;
 };
 
-} //namespace vpux
+}  // namespace VPURT
 }  // namespace vpux
