@@ -944,6 +944,22 @@ def RewriteScatterNDUpdate :
         >;
 
 //
+// IERT.ScatterUpdate -> VPUIP.ScatterUpdate
+//
+
+def createScatterUpdateUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ScatterUpdateUPAOp>(
+                $_loc, $0, $1, $2, $3, $4)
+        }]>;
+
+def RewriteScatterUpdate :
+        Pat<
+            (IERT_ScatterUpdateOp $input, $indices, $updates, $axis, $output),
+            (createScatterUpdateUPAOp $input, $indices, $updates, $axis, $output)
+        >;
+
+//
 // IERT.MemPermute -> VPUIP.Permute
 //
 
