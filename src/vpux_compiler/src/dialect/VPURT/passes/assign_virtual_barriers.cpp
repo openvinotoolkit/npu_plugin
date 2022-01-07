@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/core/feasible_barrier_scheduler.hpp"
+#include "vpux/compiler/core/barrier_scheduler.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
@@ -44,7 +44,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     static constexpr int64_t MAX_SLOT_COUNT = 256;
     auto numSlotsPerBarrierToUse = numSlotsPerBarrier.hasValue() ? numSlotsPerBarrier.getValue() : MAX_SLOT_COUNT;
 
-    VPURT::FeasibleBarrierScheduler barrierScheduler(func, _log);
+    VPURT::BarrierScheduler barrierScheduler(func, _log);
     barrierScheduler.init();
 
     bool success = false;
