@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/core/feasible_barrier_generator.hpp"
+#include "vpux/compiler/core/feasible_barrier_scheduler.hpp"
 
 using namespace vpux::VPURT;
 
