@@ -123,27 +123,6 @@ bool FeasibleMemoryScheduler::isDataOp(operationIdxType opIdx) {
     return false;
 }
 
-bool FeasibleMemoryScheduler::isCopyOutOp(operationIdxType opIdx) {
-    if (isDataOp(opIdx)) {
-        return false;
-    }
-
-    auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
-    auto* bodyBlock = &op.body().front();
-    for (auto& innerOp : bodyBlock->getOperations()) {
-        if (mlir::isa<IERT::CopyOp>(innerOp)) {
-            if (auto copyOp = mlir::dyn_cast<IERT::CopyOp>(innerOp)) {
-                // DMA from NN_CMX to DDR
-                auto srcMemSpace = copyOp.input().getType().dyn_cast<mlir::MemRefType>().getMemorySpace();
-                auto dstMemSpace = copyOp.output().getType().dyn_cast<mlir::MemRefType>().getMemorySpace();
-                return (_memSpace != dstMemSpace && _memSpace == srcMemSpace);
-            }
-        }
-    }
-
-    return false;
-}
-
 FeasibleMemoryScheduler::HeapElement const* FeasibleMemoryScheduler::topElementGen(ArrayRef<HeapElement> heap) const {
     return heap.empty() ? nullptr : &(heap.front());
 }
@@ -446,8 +425,9 @@ bool FeasibleMemoryScheduler::isReadyComputeOperationSchedulable(operationIdxTyp
 void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType inputIdx, size_t delay) {
     // schedule the dependency - Data op
     _log.nest().trace("Scheduling input for compute op:'{0}'", inputIdx);
+    EOpType opType = EOpType::ORIGINAL_OP;
     _opOutputTable.insert(std::make_pair(inputIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[inputIdx])));
-    pushToStartTimeHeap(HeapElement(inputIdx, _currentTime + delay, EOpType::ORIGINAL_OP));
+    pushToStartTimeHeap(HeapElement(inputIdx, _currentTime + delay, opType));
 }
 
 void FeasibleMemoryScheduler::scheduleSpilledOpBuffer(operationIdxType inputIdx, mlir::Value* buffer) {
@@ -459,9 +439,10 @@ void FeasibleMemoryScheduler::scheduleSpilledOpBuffer(operationIdxType inputIdx,
     }
 
     (_opOutput->second).changeStateToActive();
+    EOpType opType = EOpType::IMPLICIT_OP_READ;
     // also store the buffer spilled
     auto spilledReadBuffer = *buffer;
-    pushToStartTimeHeap(HeapElement(inputIdx, _currentTime, EOpType::IMPLICIT_OP_READ, spilledReadBuffer));
+    pushToStartTimeHeap(HeapElement(inputIdx, _currentTime, opType, spilledReadBuffer));
 }
 
 size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opIdx) {
@@ -490,7 +471,7 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
     for (auto inputIdx : demandList) {
         for (auto val : getNonAliveBuffersUsedByOperation(inputIdx)) {
             buffersNeedingAllocation.insert(val);
-            _log.nest().trace("Mark input op buffer as alive, '{0}'", val);
+            _log.nest().trace("Mark buffer as alive, '{0}'", val);
             _scan.handler().markAsAlive(val);
             // check if non-alive input buffer was spilled
             if (_opWritingToBuffer.find(val) != _opWritingToBuffer.end()) {
@@ -535,7 +516,7 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
     return maxInputDelay;
 }
 
-size_t FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
+void FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
     // Step 1: add to output result table
     _opOutputTable.insert(std::make_pair(opIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[opIdx])));
 
@@ -547,62 +528,26 @@ size_t FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
     // Step 3: schedule the compute op
     size_t opStartTime = _currentTime + maxInputDelay;
     pushToStartTimeHeap(HeapElement(opIdx, opStartTime, EOpType::ORIGINAL_OP));
-
-    return opStartTime;
 }
 
-size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
+void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
+        std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort>& readyList) {
     SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledOps;
-    auto computeOpStartTime = _currentTime;
     _log.trace("Scheduling all possible ready ops");
     _log = _log.nest();
-
-    // TODO: heuristic for choosing next schedulable op
-    // TODO: struct for active and ready ops with sort by priority
-
-    bool trueComputeScheduled = false;
-    // schedule active op that fit in CMX
-    for (auto& readyOp : _activeComputeOps) {
+    // schedule ops that fit in CMX
+    for (auto& readyOp : readyList) {
         if (isReadyComputeOperationSchedulable(readyOp.first)) {
-            if (isCopyOutOp(readyOp.first)) {
-                _log.trace("Scheduling active copy-out op: '{0}'", readyOp.first);
-                computeOpStartTime = scheduleComputeOp(readyOp.first);
-                scheduledOps.push_back(readyOp);
-            } else if (!trueComputeScheduled) {
-                _log.trace("Scheduling active compute op: '{0}'", readyOp.first);
-                computeOpStartTime = scheduleComputeOp(readyOp.first);
-                scheduledOps.push_back(readyOp);
-                trueComputeScheduled = true;
-            }
+            _log.trace("Scheduling ready op: '{0}'", readyOp.first);
+            scheduleComputeOp(readyOp.first);
+            scheduledOps.push_back(readyOp);
         }
     }
-    // update ready lists by removing scheduled ops
-    for (auto scheduledOp : scheduledOps) {
-        _activeComputeOps.erase(scheduledOp);
-    }
-
-    // schedule ready compute op
-    for (auto& readyOp : _readyComputeOps) {
-        if (isReadyComputeOperationSchedulable(readyOp.first)) {
-            if (isCopyOutOp(readyOp.first)) {
-                _log.trace("Scheduling ready copy-out op: '{0}'", readyOp.first);
-                computeOpStartTime = scheduleComputeOp(readyOp.first);
-                scheduledOps.push_back(readyOp);
-            } else if (!trueComputeScheduled) {
-                _log.trace("Scheduling ready compute op: '{0}'", readyOp.first);
-                computeOpStartTime = scheduleComputeOp(readyOp.first);
-                scheduledOps.push_back(readyOp);
-                trueComputeScheduled = true;
-            }
-        }
-    }
-    // update ready lists by removing scheduled ops
-    for (auto scheduledOp : scheduledOps) {
-        _readyComputeOps.erase(scheduledOp);
-    }
-
     _log = _log.unnest();
-    return computeOpStartTime;
+    // update ready lists by removing scheduled ops
+    for (auto scheduledOp : scheduledOps) {
+        readyList.erase(scheduledOp);
+    }
 }
 
 void FeasibleMemoryScheduler::evictActiveOp(EvictionCandidate evictionCandidate) {
@@ -863,7 +808,7 @@ bool FeasibleMemoryScheduler::init() {
     // TODO: check if input is dag
     getReadyDataList();
     getReadyComputeList();
-    scheduleAllPossibleReadyOpsAndUpdate();
+    scheduleAllPossibleReadyOpsAndUpdate(_readyComputeOps);
     nextSchedulableOp();
 
     return true;
@@ -889,7 +834,7 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
             // add to output table
             populateScheduledOps(firstOp);
             // move to completion time heap
-            pushToCompletionTimeHeap(HeapElement(firstOp.op_, _currentTime + 1, firstOp.opType_));
+            pushToCompletionTimeHeap(HeapElement(firstOp.op_, firstOp.time_ + 1, firstOp.opType_));
             _log.trace("Scheduled op: '{0}'", firstOp.op_);
             // decrease outputs ops if output op scheduled
             if (_outputOps.find(firstOp.op_) != _outputOps.end()) {
@@ -901,7 +846,8 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
                 // unschedule operations, and propagate through the graph by creating new ready ops
                 unscheduleAllCompletingOpsAtNextEarliestTime();
                 // with new ready ops created try to schedule new ops
-                scheduleAllPossibleReadyOpsAndUpdate();
+                scheduleAllPossibleReadyOpsAndUpdate(_activeComputeOps);
+                scheduleAllPossibleReadyOpsAndUpdate(_readyComputeOps);
             } while (!_completionTimeHeap.empty() && _startTimeHeap.empty());
 
             if (_startTimeHeap.empty()) {

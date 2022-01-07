@@ -257,15 +257,15 @@ private:
     void scheduleInputOpForComputeOp(operationIdxType inputIdx, size_t delay);
     void scheduleSpilledOpBuffer(operationIdxType inputIdx, mlir::Value* buffer);
     size_t allocateBuffersAndInputOps(operationIdxType opIdx);
-    size_t scheduleComputeOp(operationIdxType opIdx);
-    size_t scheduleAllPossibleReadyOpsAndUpdate();
+    void scheduleComputeOp(operationIdxType opIdx);
+    void scheduleAllPossibleReadyOpsAndUpdate(
+            std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort>& readyList);
     void pushToStartTimeHeap(const HeapElement& elem);
     void pushToCompletionTimeHeap(const HeapElement& elem);
     HeapElement popFromStartTimeHeap();
     HeapElement popFromCompletionTimeHeap();
     HeapElement const* topElementGen(ArrayRef<HeapElement> heap) const;
     bool isDataOp(operationIdxType opIdx);
-    bool isCopyOutOp(operationIdxType opIdx);
     void unscheduleOp(const HeapElement& helement);
     bool isComputeOpWithSomeActiveInputs(operationIdxType opIdx);
     void distributeReadyOps(llvm::ArrayRef<operationIdxType> readyOps);
