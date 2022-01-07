@@ -23,10 +23,6 @@
 using namespace vpux;
 
 namespace {
-
-// Same value for all architectures for now
-constexpr int64_t MAX_BARRIERS_FOR_ARCH = 64;
-
 class AssignVirtualBarriersPass final : public VPURT::AssignVirtualBarriersBase<AssignVirtualBarriersPass> {
 public:
     explicit AssignVirtualBarriersPass(Logger log) {
@@ -41,8 +37,8 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     auto func = getFunction();
 
     auto numBarriersToUse = numBarriers.hasValue() ? numBarriers.getValue() : VPUIP::getNumAvailableBarriers(func);
-    static constexpr int64_t MAX_SLOT_COUNT = 256;
-    auto numSlotsPerBarrierToUse = numSlotsPerBarrier.hasValue() ? numSlotsPerBarrier.getValue() : MAX_SLOT_COUNT;
+    static constexpr int64_t MAX_PRODUCER_SLOT_COUNT = 256;
+    auto numSlotsPerBarrierToUse = numSlotsPerBarrier.hasValue() ? numSlotsPerBarrier.getValue() : MAX_PRODUCER_SLOT_COUNT;
 
     VPURT::BarrierScheduler barrierScheduler(func, _log);
     barrierScheduler.init();
@@ -52,7 +48,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
         barrierScheduler.generateScheduleWithBarriers(barrier_bound, numSlotsPerBarrierToUse);
         success = barrierScheduler.performRuntimeSimulation();
     }
-    barrierScheduler.clearTemporaryAttribute();
+    barrierScheduler.clearTemporaryAttributes();
 
     if (!success) {
         VPUX_THROW("Barrier scheduling and/or runtime simulation was not suceessful");
