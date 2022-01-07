@@ -20,6 +20,18 @@ namespace LayerTestsDefinitions {
         void SkipBeforeInfer() override {
             throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
         }
+        
+        void SkipBeforeLoad() override {
+            if(isPlatformMTL()) {
+                if (std::getenv("OV_BUILD_DIR") == nullptr) {
+                    throw LayerTestsUtils::KmbSkipTestException("OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
+                }
+    
+#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
+                throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
+#endif
+            }
+        }
     };
 
     TEST_P(KmbTopKLayerTest, CompareWithRefs) {
