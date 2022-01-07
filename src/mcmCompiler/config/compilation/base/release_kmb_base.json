@@ -145,11 +145,6 @@
               "remove_barriers_in_upa_tail" : true,
               "remove_redundant_wait_barriers" : true
             },
-            {
-                "name" : "AddDPUTasksProfilingDMA",
-                "enable_cmx" : false,
-                "use_profiling_buffer" : true
-            },
             "LayoutDMA"
         ]
     },
