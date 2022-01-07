@@ -770,24 +770,22 @@ bool FeasibleBarrierScheduler::performRuntimeSimulation() {
 void FeasibleBarrierScheduler::removeRedundantBarriers() {
     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
         auto consumers = (*iter).second.second;
-        auto iter1 = iter;
-        iter1++;
-        for (; iter1 != configureBarrierOpUpdateWaitMap.end();) {
-            auto consumers1 = (*iter1).second.second;
-            if (consumers1 == consumers) {
-                _log.trace("found barrier {0} and {1} have same consumers", (*iter).first->getAttr("id"),
-                           (*iter1).first->getAttr("id"));
-                auto producers = (*iter1).second.first;
-                for (auto& task : producers) {
-                    (*iter).second.first.insert(task);
+        if (!consumers.empty()) {
+            auto iter1 = iter;
+            iter1++;
+            for (; iter1 != configureBarrierOpUpdateWaitMap.end(); iter1++) {
+                auto& consumers1 = (*iter1).second.second;
+                if (consumers1 == consumers) {
+                    _log.trace("found barrier {0} and {1} have same consumers", (*iter).first->getAttr("id"),
+                               (*iter1).first->getAttr("id"));
+                    auto& producers = (*iter1).second.first;
+                    for (auto task : producers) {
+                        (*iter).second.first.insert(task);
+                    }
+                    producers.clear();
+                    consumers1.clear();
                 }
-                auto removedIter = iter1;
-                iter1++;
-                (*removedIter).first->dropAllUses();
-                (*removedIter).first->erase();
-                configureBarrierOpUpdateWaitMap.erase(removedIter);
-            } else
-                iter1++;
+            }
         }
     }
 
@@ -808,50 +806,50 @@ void FeasibleBarrierScheduler::removeRedundantBarriers() {
 void FeasibleBarrierScheduler::removeRedundantDependencies() {
     for (auto iter = configureBarrierOpUpdateWaitMap.begin(); iter != configureBarrierOpUpdateWaitMap.end(); iter++) {
         // producers
-        auto producers = (*iter).second.first;
-        for (auto prod = producers.begin(); prod != producers.end();) {
+        auto& producersSet = (*iter).second.first;
+        SmallVector<mlir::Operation*> producers(producersSet.begin(), producersSet.end());
+        SmallVector<mlir::Operation*> producersToRemove;
+        for (auto prod = producers.begin(); prod != producers.end(); prod++) {
             auto prod1 = prod;
             prod1++;
-            for (; prod1 != producers.end();) {
+            for (; prod1 != producers.end(); prod1++) {
                 if (doesPathExist(*prod1, *prod)) {
-                    auto removedIter = prod1;
-                    prod1++;
-                    producers.erase(removedIter);
+                    producersToRemove.push_back(*prod1);
+                    *prod1 = NULL;
                 } else if (doesPathExist(*prod, *prod1)) {
-                    auto removedIter = prod;
-                    prod++;
-                    producers.erase(removedIter);
+                    producersToRemove.push_back(*prod);
+                    *prod = NULL;
                     break;
-                } else
-                    prod1++;
+                }
             }
-            if (prod1 == producers.end())
-                prod++;
         }
-        (*iter).second.first = producers;
+
+        for (auto& producer : producersToRemove) {
+            producersSet.erase(producer);
+        }
 
         // consumers
-        auto consumers = (*iter).second.second;
-        for (auto cons = consumers.begin(); cons != consumers.end();) {
+        auto& consumersSet = (*iter).second.second;
+        SmallVector<mlir::Operation*> consumers(consumersSet.begin(), consumersSet.end());
+        SmallVector<mlir::Operation*> consumersToRemove;
+        for (auto cons = consumers.begin(); cons != consumers.end(); cons++) {
             auto cons1 = cons;
             cons1++;
-            for (; cons1 != consumers.end();) {
+            for (; cons1 != consumers.end(); cons1++) {
                 if (doesPathExist(*cons, *cons1)) {
-                    auto removedIter = cons1;
-                    cons1++;
-                    consumers.erase(removedIter);
+                    consumersToRemove.push_back(*cons1);
+                    *cons1 = NULL;
                 } else if (doesPathExist(*cons1, *cons)) {
-                    auto removedIter = cons;
-                    cons++;
-                    consumers.erase(removedIter);
+                    consumersToRemove.push_back(*cons);
+                    *cons = NULL;
                     break;
-                } else
-                    cons1++;
+                }
             }
-            if (cons1 == consumers.end())
-                cons++;
         }
-        (*iter).second.second = consumers;
+
+        for (auto& consumer : consumersToRemove) {
+            consumersSet.erase(consumer);
+        }
     }
 }
 
@@ -866,6 +864,8 @@ void FeasibleBarrierScheduler::initializeBarrierAssociationTable() {
 
 // detect if op b depends on a
 bool FeasibleBarrierScheduler::doesPathExist(mlir::Operation* a, mlir::Operation* b) {
+    if (a == NULL || b == NULL)
+        return false;
     auto numa = a->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
     auto numb = b->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
     if (numa >= numb)
