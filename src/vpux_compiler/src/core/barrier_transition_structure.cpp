@@ -79,9 +79,9 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
         mlir::Operation* source = *producer;
 
         // Step-1.2 (a): producers
-        auto barrierProducersItr = _feasibleBarrierScheduler.configureBarrierOpUpdateWaitMap.find(currentBarrier);
+        auto barrierProducersItr = _feasibleBarrierScheduler._configureBarrierOpUpdateWaitMap.find(currentBarrier);
 
-        if (barrierProducersItr != _feasibleBarrierScheduler.configureBarrierOpUpdateWaitMap.end()) {
+        if (barrierProducersItr != _feasibleBarrierScheduler._configureBarrierOpUpdateWaitMap.end()) {
             _feasibleBarrierScheduler._log.trace("Adding producer task with ID {0} to barrier ID {1}",
                                                  BarrierScheduler::getUniqueID(source), currentBarrier->getAttr("id"));
 
@@ -91,9 +91,9 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
         }
 
         // Step-1.2 (b): consumers
-        auto barrierConsumersItr = _feasibleBarrierScheduler.configureBarrierOpUpdateWaitMap.find(currentBarrier);
+        auto barrierConsumersItr = _feasibleBarrierScheduler._configureBarrierOpUpdateWaitMap.find(currentBarrier);
 
-        if (barrierConsumersItr != _feasibleBarrierScheduler.configureBarrierOpUpdateWaitMap.end()) {
+        if (barrierConsumersItr != _feasibleBarrierScheduler._configureBarrierOpUpdateWaitMap.end()) {
             auto opConsumers = _feasibleBarrierScheduler.getConsumerOps(source);
 
             for (auto consumer = opConsumers.begin(); consumer != opConsumers.end(); ++consumer) {
@@ -109,9 +109,9 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
 
         // Step-1.3
         if (barrierPrevious) {
-            auto barrierConsumersItr = _feasibleBarrierScheduler.configureBarrierOpUpdateWaitMap.find(barrierPrevious);
+            auto barrierConsumersItr = _feasibleBarrierScheduler._configureBarrierOpUpdateWaitMap.find(barrierPrevious);
 
-            if (barrierConsumersItr != _feasibleBarrierScheduler.configureBarrierOpUpdateWaitMap.end()) {
+            if (barrierConsumersItr != _feasibleBarrierScheduler._configureBarrierOpUpdateWaitMap.end()) {
                 _feasibleBarrierScheduler._log.trace("Step-1.3 Adding consumer task ID {0} to barrier ID {1}",
                                                      BarrierScheduler::getUniqueID(source), barrierPrevious->getAttr("id"));
 
@@ -189,7 +189,7 @@ mlir::Operation* BarrierScheduler::barrierTransitionStructure::createNewBarrierT
     std::set<mlir::Operation*> newBarrierProducers{};
     std::set<mlir::Operation*> newBarrierConsumers{};
 
-    _feasibleBarrierScheduler.configureBarrierOpUpdateWaitMap.insert(
+    _feasibleBarrierScheduler._configureBarrierOpUpdateWaitMap.insert(
             std::make_pair(newBarrier, std::make_pair(newBarrierProducers, newBarrierConsumers)));
 
     _feasibleBarrierScheduler._log.trace("Created a new barrier task with barrier ID {0} after task id {1}",
