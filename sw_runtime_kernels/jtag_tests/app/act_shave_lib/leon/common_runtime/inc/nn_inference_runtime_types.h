@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <Dma.h>
 
+#ifdef CONFIG_TARGET_SOC_3720
 namespace nn {
 namespace common_runtime {
 namespace frontend {
@@ -69,7 +70,7 @@ struct ActKernelInvocationWrapper {
 
 struct ActKernelRuntimeConfigsWrapper {
     act_runtime::ActKernelRuntimeConfigs asRtCfg_{};
-    RelativeAddress stacks_[4/*AS_TOTAL*/]{};
+    RelativeAddress stacks_[AS_TOTAL]{};
     RelativeAddress kernelDataBuffer_{};
 };
 
@@ -280,106 +281,107 @@ struct alignas(64) WorkRequest {
         , from_(from)
         , to_(to){};
 };
-struct LoggedInferenceRequest {
-    // Ticks measured using global clock @ 37.5 MHz
-    // See https://docs.intel.com/documents/MovidiusInternal/vpu27/common/HW/VPU_HAS.html#meteor-lake-mtl-10
-    // Used as a key for the hash map
-    const uint64_t created_ticks_;
-
-    // This will be replaced with harcoded params
-    // (i.e. compiled scalability, compiled inference time)
-    // so that the mapped inference won't need to be de-referenced
-    // which could cause a problem if the MI is relocated (due to pre-emption or otherwise)
-    MappedInference *mapped_;
-    InferenceRequest::Code state_;
-
-    LoggedInferenceRequest()
-        : created_ticks_(0)
-        , mapped_(nullptr)
-        , state_(InferenceRequest::Code::IDLE){};
-
-    LoggedInferenceRequest(const uint64_t created_ticks)
-        : created_ticks_(created_ticks)
-        , mapped_(nullptr)
-        , state_(InferenceRequest::Code::IDLE){};
-
-    LoggedInferenceRequest(const uint64_t created_ticks, InferenceRequest::Code state)
-        : created_ticks_(created_ticks)
-        , mapped_(nullptr)
-        , state_(state){};
-
-    LoggedInferenceRequest(const uint64_t created_ticks, MappedInference *mapped)
-        : created_ticks_(created_ticks)
-        , mapped_(mapped)
-        , state_(InferenceRequest::Code::IDLE){};
-
-    LoggedInferenceRequest(const uint64_t created_ticks, MappedInference *mapped, InferenceRequest::Code state)
-        : created_ticks_(created_ticks)
-        , mapped_(mapped)
-        , state_(state){};
-};
-
-// Used by the Inference Runtime to update the InferenceRequestLogger of an inference
-struct InferenceRequestLoggerUpdate {
-    // Ticks measured using global clock @ 37.5 MHz
-    // See https://docs.intel.com/documents/MovidiusInternal/vpu27/common/HW/VPU_HAS.html#meteor-lake-mtl-10
-    // Used as a key for the hash map
-    const uint64_t created_ticks_;
-    InferenceRequest::Code state_;
-    uint64_t updated_ticks_;
-
-    InferenceRequestLoggerUpdate()
-        : created_ticks_(0)
-        , state_(InferenceRequest::Code::IDLE)
-        , updated_ticks_(0){};
-
-    InferenceRequestLoggerUpdate(uint64_t created_ticks, InferenceRequest::Code state, uint64_t updated_ticks)
-        : created_ticks_(created_ticks)
-        , state_(state)
-        , updated_ticks_(updated_ticks){};
-};
-
-struct InferenceRequestLog : public LoggedInferenceRequest {
-    uint64_t started_ticks_;
-    uint64_t completed_ticks_;
-
-    InferenceRequestLog()
-        : LoggedInferenceRequest()
-        , started_ticks_(0)
-        , completed_ticks_(0){};
-
-    InferenceRequestLog(LoggedInferenceRequest request, InferenceRequest::Code state, uint64_t started_ticks,
-                        uint64_t completed_ticks)
-        : LoggedInferenceRequest(request.created_ticks_, request.mapped_, state)
-        , started_ticks_(started_ticks)
-        , completed_ticks_(completed_ticks){};
-
-    InferenceRequestLog(LoggedInferenceRequest request)
-        : LoggedInferenceRequest(request.created_ticks_, request.mapped_, request.state_)
-        , started_ticks_(0)
-        , completed_ticks_(0){};
-
-    InferenceRequestLog(InferenceRequestLoggerUpdate update)
-        : LoggedInferenceRequest(update.created_ticks_, update.state_)
-        , started_ticks_(0)
-        , completed_ticks_(0) {
-        switch (state_) {
-            case InferenceRequest::RUNNING:
-                started_ticks_ = update.updated_ticks_;
-                break;
-            case InferenceRequest::COMPLETE:
-            case InferenceRequest::OUT_OF_MEMORY:
-            case InferenceRequest::OUT_OF_RESOURCES:
-            case InferenceRequest::CONTEXT_VIOLATION:
-            case InferenceRequest::CONTEXT_VIOLATION_IR_HALTED:
-            case InferenceRequest::INTERNAL_ERROR:
-            case InferenceRequest::UNDEFINED:
-                completed_ticks_ = update.updated_ticks_;
-                break;
-            default:
-                break;
-        }
-    };
-};
+//struct LoggedInferenceRequest {
+//    // Ticks measured using global clock @ 37.5 MHz
+//    // See https://docs.intel.com/documents/MovidiusInternal/vpu27/common/HW/VPU_HAS.html#meteor-lake-mtl-10
+//    // Used as a key for the hash map
+//    const uint64_t created_ticks_;
+//
+//    // This will be replaced with harcoded params
+//    // (i.e. compiled scalability, compiled inference time)
+//    // so that the mapped inference won't need to be de-referenced
+//    // which could cause a problem if the MI is relocated (due to pre-emption or otherwise)
+//    MappedInference *mapped_;
+//    InferenceRequest::Code state_;
+//
+//    LoggedInferenceRequest()
+//        : created_ticks_(0)
+//        , mapped_(nullptr)
+//        , state_(InferenceRequest::Code::IDLE){};
+//
+//    LoggedInferenceRequest(const uint64_t created_ticks)
+//        : created_ticks_(created_ticks)
+//        , mapped_(nullptr)
+//        , state_(InferenceRequest::Code::IDLE){};
+//
+//    LoggedInferenceRequest(const uint64_t created_ticks, InferenceRequest::Code state)
+//        : created_ticks_(created_ticks)
+//        , mapped_(nullptr)
+//        , state_(state){};
+//
+//    LoggedInferenceRequest(const uint64_t created_ticks, MappedInference *mapped)
+//        : created_ticks_(created_ticks)
+//        , mapped_(mapped)
+//        , state_(InferenceRequest::Code::IDLE){};
+//
+//    LoggedInferenceRequest(const uint64_t created_ticks, MappedInference *mapped, InferenceRequest::Code state)
+//        : created_ticks_(created_ticks)
+//        , mapped_(mapped)
+//        , state_(state){};
+//};
+//
+//// Used by the Inference Runtime to update the InferenceRequestLogger of an inference
+//struct InferenceRequestLoggerUpdate {
+//    // Ticks measured using global clock @ 37.5 MHz
+//    // See https://docs.intel.com/documents/MovidiusInternal/vpu27/common/HW/VPU_HAS.html#meteor-lake-mtl-10
+//    // Used as a key for the hash map
+//    const uint64_t created_ticks_;
+//    InferenceRequest::Code state_;
+//    uint64_t updated_ticks_;
+//
+//    InferenceRequestLoggerUpdate()
+//        : created_ticks_(0)
+//        , state_(InferenceRequest::Code::IDLE)
+//        , updated_ticks_(0){};
+//
+//    InferenceRequestLoggerUpdate(uint64_t created_ticks, InferenceRequest::Code state, uint64_t updated_ticks)
+//        : created_ticks_(created_ticks)
+//        , state_(state)
+//        , updated_ticks_(updated_ticks){};
+//};
+//
+//struct InferenceRequestLog : public LoggedInferenceRequest {
+//    uint64_t started_ticks_;
+//    uint64_t completed_ticks_;
+//
+//    InferenceRequestLog()
+//        : LoggedInferenceRequest()
+//        , started_ticks_(0)
+//        , completed_ticks_(0){};
+//
+//    InferenceRequestLog(LoggedInferenceRequest request, InferenceRequest::Code state, uint64_t started_ticks,
+//                        uint64_t completed_ticks)
+//        : LoggedInferenceRequest(request.created_ticks_, request.mapped_, state)
+//        , started_ticks_(started_ticks)
+//        , completed_ticks_(completed_ticks){};
+//
+//    InferenceRequestLog(LoggedInferenceRequest request)
+//        : LoggedInferenceRequest(request.created_ticks_, request.mapped_, request.state_)
+//        , started_ticks_(0)
+//        , completed_ticks_(0){};
+//
+//    InferenceRequestLog(InferenceRequestLoggerUpdate update)
+//        : LoggedInferenceRequest(update.created_ticks_, update.state_)
+//        , started_ticks_(0)
+//        , completed_ticks_(0) {
+//        switch (state_) {
+//            case InferenceRequest::RUNNING:
+//                started_ticks_ = update.updated_ticks_;
+//                break;
+//            case InferenceRequest::COMPLETE:
+//            case InferenceRequest::OUT_OF_MEMORY:
+//            case InferenceRequest::OUT_OF_RESOURCES:
+//            case InferenceRequest::CONTEXT_VIOLATION:
+//            case InferenceRequest::CONTEXT_VIOLATION_IR_HALTED:
+//            case InferenceRequest::INTERNAL_ERROR:
+//            case InferenceRequest::UNDEFINED:
+//                completed_ticks_ = update.updated_ticks_;
+//                break;
+//            default:
+//                break;
+//        }
+//    };
+//};
 } // namespace common_runtime
 } // namespace nn
+#endif

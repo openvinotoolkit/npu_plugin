@@ -1,14 +1,32 @@
 /*
- * {% copyright %}
- */
-#ifndef NN_RUNTIME_TYPES_H_
-#define NN_RUNTIME_TYPES_H_
+* {% copyright %}
+*/
+#ifndef NN_RUNTIME_TYPES_H__
+#define NN_RUNTIME_TYPES_H__
+
+#if defined(CONFIG_TARGET_SOC_MA2490) || defined(CONFIG_TARGET_SOC_MA2490_B0) || defined(CONFIG_TARGET_SOC_3100)
+#   include "nn_runtime_types_2490.h"
+#endif // CONFIG_TARGET_SOC_MA2490 || CONFIG_TARGET_SOC_MA2490_B0 || CONFIG_TARGET_SOC_3100
+
+#if (defined(CONFIG_TARGET_SOC_3600) || defined(CONFIG_TARGET_SOC_3710) || defined(CONFIG_TARGET_SOC_3720))
+//#   include "nn_runtime_types_3600.h"
+
+
+
+
+
+
+
 
 #include <stdint.h>
 #include <assert.h>
 #include <nn_relocation.h>
+#ifdef CONFIG_TARGET_SOC_3720
 #include <nn_hw_resources.h>
 #include <nn_runtime_configs.h>
+#else
+#include <nn_resources.h>
+#endif
 #include <nn_log.h>
 
 namespace nn {
@@ -656,10 +674,19 @@ extern "C" struct ActKernelRuntimeConfigs {
     unsigned int codeWindowBufferSize_{0};
 };
 } // namespace act_runtime
-
 namespace util {
 class TaskContext;
 }
 } // namespace nn
 
-#endif // NN_RUNTIME_TYPES_H_
+
+
+
+
+
+
+
+#endif // CONFIG_TARGET_SOC_3600 || CONFIG_TARGET_SOC_3710 || CONFIG_TARGET_SOC_3720
+
+#endif //NN_RUNTIME_TYPES_H__
+
