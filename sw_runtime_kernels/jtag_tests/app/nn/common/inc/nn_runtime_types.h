@@ -7,8 +7,10 @@
 #include <stdint.h>
 #include <assert.h>
 #include <nn_relocation.h>
+#ifdef CONFIG_TARGET_SOC_3720
 #include <nn_hw_resources.h>
 #include <nn_runtime_configs.h>
+#endif
 #include <nn_log.h>
 
 namespace nn {

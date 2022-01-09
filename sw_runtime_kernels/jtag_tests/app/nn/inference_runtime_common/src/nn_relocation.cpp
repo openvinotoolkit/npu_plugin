@@ -4,7 +4,9 @@
 #if defined(__leon__) || defined(__leon_nn__)
 
 #include "nn_relocation.h"
+#ifdef CONFIG_TARGET_SOC_3720
 #include "nn_hw_resources.h"
+#endif
 #include <nn_log.h>
 #include <assert.h>
 #include <limits.h>
