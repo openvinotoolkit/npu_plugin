@@ -24,7 +24,7 @@ bool BarrierScheduler::scheduleNumberTaskComparator::operator()(mlir::Operation*
     return schedulingNumber1 < schedulingNumber2;
 }
 
-bool BarrierScheduler::uniqueIDTaskComparator::operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+bool BarrierScheduler::uniqueBarrierIDTaskComparator::operator()(mlir::Operation* op1, mlir::Operation* op2) const {
     int64_t uniqueId1 = checked_cast<int64_t>(mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op1)
                                                       ->getAttr(virtualIdAttrName)
                                                       .cast<mlir::IntegerAttr>()
@@ -33,6 +33,14 @@ bool BarrierScheduler::uniqueIDTaskComparator::operator()(mlir::Operation* op1, 
                                                       ->getAttr(virtualIdAttrName)
                                                       .cast<mlir::IntegerAttr>()
                                                       .getInt());
+    return uniqueId1 < uniqueId2;
+}
+
+bool BarrierScheduler::uniqueTaskIDTaskComparator::operator()(mlir::Operation* op1, mlir::Operation* op2) const {
+    int64_t uniqueId1 = checked_cast<int64_t>(
+            mlir::dyn_cast<VPURT::TaskOp>(op1)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
+    int64_t uniqueId2 = checked_cast<int64_t>(
+            mlir::dyn_cast<VPURT::TaskOp>(op2)->getAttr(uniqueIdAttrName).cast<mlir::IntegerAttr>().getInt());
     return uniqueId1 < uniqueId2;
 }
 
