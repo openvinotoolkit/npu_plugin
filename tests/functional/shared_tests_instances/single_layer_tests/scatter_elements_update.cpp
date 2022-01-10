@@ -29,7 +29,7 @@ const std::vector<std::vector<size_t>> idxValue = {
 };
 
 //inShape, updateShape, axis
-const std::vector<axisShapeInShape> params {
+const std::vector<axisShapeInShape> params = {
     {{10,12,15}, {1,2,4}, 0},
 };
 

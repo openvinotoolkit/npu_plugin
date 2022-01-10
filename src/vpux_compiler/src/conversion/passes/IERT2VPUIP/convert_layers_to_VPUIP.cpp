@@ -335,6 +335,41 @@ mlir::LogicalResult ScatterUpdateRewrite::matchAndRewrite(IERT::ScatterUpdateOp 
 }
 
 //
+// ScatterElementsUpdateRewrite
+//
+
+class ScatterElementsUpdateRewrite final : public mlir::OpRewritePattern<IERT::ScatterElementsUpdateOp> {
+public:
+    ScatterElementsUpdateRewrite(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IERT::ScatterElementsUpdateOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::ScatterElementsUpdateOp origOp,
+                                        mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ScatterElementsUpdateRewrite::matchAndRewrite(IERT::ScatterElementsUpdateOp origOp,
+                                                                  mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found ScatterElementsUpdate Operation '{0}'", origOp->getLoc());
+
+    // Change 'axis' shape from SCALAR to 1D_tensor_with_1_element
+    auto axisType = origOp.axis().getType().cast<mlir::MemRefType>();
+    const std::array<int64_t, 1> newAxisShape{1};
+    ShapeRef newShape(newAxisShape);
+    auto newShapedAxisType = changeShape(axisType, newShape);
+    auto axis1DTensor = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newShapedAxisType, origOp.axis());
+
+    rewriter.replaceOpWithNewOp<VPUIP::ScatterElementsUpdateUPAOp>(
+            origOp, origOp.input(), origOp.indices(), origOp.updates(), axis1DTensor, origOp.output_buff());
+
+    return mlir::success();
+}
+
+//
 // Generated
 //
 
@@ -383,6 +418,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     patterns.insert<TimestampRewrite>(&ctx, _log);
     patterns.insert<TopKRewrite>(&ctx, _log);
     patterns.insert<ScatterUpdateRewrite>(&ctx, _log);
+    patterns.insert<ScatterElementsUpdateRewrite>(&ctx, _log);
     populateWithGenerated(patterns);
 
     auto func = getFunction();
