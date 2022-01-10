@@ -3030,6 +3030,53 @@ def VPUIP_ScatterUpdateUPAOp :
     }];
 }
 
+//
+// ScatterElementsUpdateUPAOp
+//
+
+def VPUIP_ScatterElementsUpdateUPAOp :
+        VPUIP_UPATaskOp<1, "ScatterElementsUpdateUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_AnyDimsOrder
+            ]
+        > {
+    let summary = "ScatterElementsUpdate UPA SHAVE kernel";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI32]>:$indices,
+        AnyMemRef:$updates,
+        AnyMemRef:$axis,
+        AnyMemRef:$output_buff,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$indices,
+                "mlir::Value":$updates,
+                "mlir::Value":$axis,
+                "mlir::Value":$output
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `,` $updates `:` type($updates) `,` $axis `:` type($axis) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 
 //
 // CeilingUPAOp
