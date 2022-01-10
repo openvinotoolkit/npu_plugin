@@ -87,16 +87,17 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Elu)) {
                 int wval = ti.width - il.width / 2;
                 int hval = ti.height - il.height / 2;
 
-		cval = cval >= 0 ? cval : -cval;
-		wval = wval >= 0 ? wval : -wval;
-		hval = hval >= 0 ? hval : -hval;
 		int c_mod = cval % 11;
 		int w_mod = wval % 13;
 		int h_mod = hval % 17;
 
 		float tmp = (float)(c_mod * w_mod * h_mod) / 100.f;
+		printf("c_mod * w_mod * h_mod = %ld\n", c_mod * w_mod * h_mod);
+		printf("float c_mod * w_mod * h_mod = %f\n", (float)(c_mod * w_mod * h_mod));
+		printf("float -8 = %f\n", (float)(-8));
                 if (index % 3)
                     tmp = -tmp;
+		printf("tmp = %f\n", tmp);
                 fp16 val = f32Tof16(tmp);
 
                 m_inputTensor.at(indices) = val;
