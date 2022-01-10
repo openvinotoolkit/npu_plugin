@@ -148,7 +148,7 @@ private:
     bool unScheduleTask(mlir::Operation* op);
     bool doesOpRunOnNCE(mlir::Operation* op);
     bool isTasKInSchedulableCandidates(schedulableTasksIteratorType itr) const;
-    bool doesPathExist(mlir::Operation* a, mlir::Operation* b);
+    bool doesPathExist(int64_t a, int64_t b);
 
     HeapElement popFromHeap();
     size_t currentTime() const;

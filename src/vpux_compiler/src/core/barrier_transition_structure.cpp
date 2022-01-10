@@ -75,6 +75,7 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
 
     _feasibleBarrierScheduler._log.trace("The ID of barrier b_curr is {0}", currentBarrier->getAttr("id"));
     size_t currentBarrierID = getBarrierUniqueID(currentBarrier);
+    std::cout << "getBarrierUniqueID" << std::endl;
 
     for (producerIteratorType producer = _producers.begin(); producer != _producers.end(); ++producer) {
         mlir::Operation* source = *producer;
@@ -89,6 +90,7 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
 
             // barrierProducersItr->second.first.insert(source);
             _feasibleBarrierScheduler._configureBarrierOpWaitMap[currentBarrierID].set(sourceID);
+            std::cout << "set barrier waits" << std::endl;
         } else {
             VPUX_THROW("Error unable to find the update tasks for barrier ID {0}", currentBarrier->getAttr("id"));
         }
@@ -105,8 +107,9 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
                                                      currentBarrier->getAttr("id"));
 
                 // barrierConsumersItr->second.second.insert(*consumer);
-                size_t consumerID = getBarrierUniqueID(*consumer);
+                size_t consumerID = getTaskUniqueID(*consumer);
                 _feasibleBarrierScheduler._configureBarrierOpUpdateMap[currentBarrierID].set(consumerID);
+                std::cout << "set barrier update" << std::endl;
             }
         } else {
             VPUX_THROW("Error unable to find the wait tasks for barrier ID {0}", currentBarrier->getAttr("id"));
@@ -195,6 +198,7 @@ mlir::Operation* BarrierScheduler::barrierTransitionStructure::createNewBarrierT
     auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(sinfo._op->getLoc());
     newBarrier->setAttr(virtualIdAttrName, getIntAttr(newBarrier->getContext(), barrierTaskId));
     _feasibleBarrierScheduler._orderedBarrier.push_back(newBarrier);
+    std::cout << "push_back newBarrier" << std::endl;
 
     // std::set<mlir::Operation*> newBarrierProducers{};
     // std::set<mlir::Operation*> newBarrierConsumers{};
@@ -205,6 +209,7 @@ mlir::Operation* BarrierScheduler::barrierTransitionStructure::createNewBarrierT
 
     _feasibleBarrierScheduler._configureBarrierOpWaitMap.push_back(newBarrierProducers);
     _feasibleBarrierScheduler._configureBarrierOpUpdateMap.push_back(newBarrierConsumers);
+    std::cout << "push BitVector" << std::endl;
 
     _feasibleBarrierScheduler._log.trace("Created a new barrier task with barrier ID {0} after task id {1}",
                                          barrierTaskId, BarrierScheduler::getUniqueID(sinfo._op));
