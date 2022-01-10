@@ -15,6 +15,8 @@
 #include "vpux/compiler/core/barrier_resource_state.hpp"
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
 
+#include <llvm/ADT/BitVector.h>
+
 namespace vpux {
 
 namespace VPURT {
@@ -67,7 +69,7 @@ public:
 
     class barrierTransitionStructure {
     public:
-        barrierTransitionStructure(BarrierScheduler& feasibleBarrierScheduler,
+        barrierTransitionStructure(BarrierScheduler& feasibleBarrierScheduler, size_t taskCount,
                                    size_t time = std::numeric_limits<size_t>::max());
 
         void init();
@@ -86,8 +88,11 @@ public:
                                                                 mlir::Operation* previousBarrier);
         void addScheduledTaskToProducerList(const ScheduledOpInfo& sinfo);
         mlir::Operation* createNewBarrierTask(const ScheduledOpInfo& sinfo, mlir::OpBuilder& builder);
+        size_t getTaskUniqueID(mlir::Operation* task);
+        size_t getBarrierUniqueID(mlir::Operation* barrier);
 
         BarrierScheduler& _feasibleBarrierScheduler;
+        size_t _taskCount;
         size_t _time;
         mlir::Operation* _currentBarrierTask;
         mlir::Operation* _previousBarrierTask;
@@ -103,12 +108,10 @@ public:
     using operationInDegreeType = std::map<mlir::Operation*, size_t, uniqueTaskIDTaskComparator>;
     using priorityMapType = std::map<mlir::Operation*, size_t>;
     using barrierResourceUtilityMapType = std::unordered_map<mlir::Operation*, size_t>;
-    using barrierUpdateWaitMapType =
-            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-                     uniqueBarrierIDTaskComparator>;
-    using taskOpUpdateWaitMapType =
-            std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-                     scheduleNumberTaskComparator>;
+    using barrierWaitMapType = SmallVector<llvm::BitVector>;
+    using barrierUpdateMapType = SmallVector<llvm::BitVector>;
+    using taskOpWaitMapType = SmallVector<llvm::BitVector>;
+    using taskOpUpdateMapType = SmallVector<llvm::BitVector>;
 
     BarrierScheduler(mlir::FuncOp func, Logger log);
     void init();
@@ -129,8 +132,9 @@ private:
     void insertBarriersinIR();
     void populateScheduledTasks(mlir::Operation* scheduledOp);
     void removeRedundantWaitBarriers();
-    void populateTasksUpdateWaitBarrierMap(barrierUpdateWaitMapType& barrierOpUpdateWaitMap,
-                                           taskOpUpdateWaitMapType& taskOpUpdateWaitMap);
+    void populateTasksUpdateWaitBarrierMap(barrierWaitMapType& barrierOpWaitMap,
+                                           barrierUpdateMapType& barrierOpUpdateMap, taskOpWaitMapType& taskOpWaitMap,
+                                           taskOpUpdateMapType& taskOpUpdateMap);
     void removeRedundantDependencies();
     void removeRedundantBarriers();
     void reorderIR();
@@ -142,7 +146,7 @@ private:
     bool unScheduleTask(mlir::Operation* op);
     bool doesOpRunOnNCE(mlir::Operation* op);
     bool isTasKInSchedulableCandidates(schedulableTasksIteratorType itr) const;
-    bool doesPathExist(mlir::Operation* a, mlir::Operation* b);
+    bool doesPathExist(int64_t a, int64_t b);
 
     HeapElement popFromHeap();
     size_t currentTime() const;
@@ -186,13 +190,23 @@ private:
     // The barrier information for each task
     activeBarrierMapType _barrierMap;
     // Stores every barrier's associated update and wait operations
-    barrierUpdateWaitMapType _configureBarrierOpUpdateWaitMap;
+    barrierWaitMapType _configureBarrierOpWaitMap;
+    barrierUpdateMapType _configureBarrierOpUpdateMap;
     // Stores every task's associated update and wait barriers
-    taskOpUpdateWaitMapType _configureTaskOpUpdateWaitMap;
+    taskOpWaitMapType _configureTaskOpWaitMap;
+    taskOpUpdateMapType _configureTaskOpUpdateMap;
     // The consumer tasks per task from original dependency
     std::map<mlir::Operation*, SmallVector<mlir::Operation*>> _taskConsumerMapOriginal;
     Logger _log;
     mlir::FuncOp _func;
+    // The number of execute tasks
+    size_t _taskCount;
+    // The vector of ordered barriers
+    SmallVector<VPURT::DeclareVirtualBarrierOp> _orderedBarrier;
+    // The vector of ordered execute tasks
+    SmallVector<VPURT::TaskOp> _orderedTask;
+    // The vector of ordered execute tasks
+    SmallVector<size_t> _schedulingOrder;
 };
 
 }  // namespace VPURT
