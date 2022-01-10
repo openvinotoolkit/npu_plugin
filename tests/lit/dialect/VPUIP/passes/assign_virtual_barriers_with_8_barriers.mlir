@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --assign-virtual-barriers="num-barriers=2 num-slots-per-barrier=1" %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --assign-virtual-barriers="num-barriers=8 num-slots-per-barrier=1" %s | FileCheck %s
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
@@ -46,9 +46,6 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
     %bar12 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar13 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
-    // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
@@ -279,35 +276,35 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
     return %arg1 : memref<1x16x32x32xf16>
 
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       updates(%0 : !VPURT.Barrier) attributes {SchedulingNumber = 0 : i64}
+    // CHECK-SAME:       updates(%0 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%0 : !VPURT.Barrier) updates(%1 : !VPURT.Barrier) attributes {SchedulingNumber = 1 : i64}
+    // CHECK-SAME:       updates(%1 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%1 : !VPURT.Barrier) updates(%2 : !VPURT.Barrier) attributes {SchedulingNumber = 2 : i64}
+    // CHECK-SAME:       updates(%2 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%2 : !VPURT.Barrier) updates(%3 : !VPURT.Barrier) attributes {SchedulingNumber = 3 : i64}
+    // CHECK-SAME:       waits(%0, %2 : !VPURT.Barrier, !VPURT.Barrier) updates(%3 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%3 : !VPURT.Barrier) updates(%4 : !VPURT.Barrier) attributes {SchedulingNumber = 4 : i64}
+    // CHECK-SAME:       waits(%1, %2 : !VPURT.Barrier, !VPURT.Barrier) updates(%4 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%4 : !VPURT.Barrier) updates(%5 : !VPURT.Barrier) attributes {SchedulingNumber = 5 : i64}
+    // CHECK-SAME:       waits(%2 : !VPURT.Barrier) updates(%5 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%5 : !VPURT.Barrier) updates(%6 : !VPURT.Barrier) attributes {SchedulingNumber = 6 : i64}
+    // CHECK-SAME:       waits(%2 : !VPURT.Barrier) updates(%6 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%6 : !VPURT.Barrier) updates(%7 : !VPURT.Barrier) attributes {SchedulingNumber = 7 : i64}
+    // CHECK-SAME:       waits(%1, %3 : !VPURT.Barrier, !VPURT.Barrier) updates(%7 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%7 : !VPURT.Barrier) updates(%8 : !VPURT.Barrier) attributes {SchedulingNumber = 8 : i64}
+    // CHECK-SAME:       waits(%0, %1, %5 : !VPURT.Barrier, !VPURT.Barrier, !VPURT.Barrier) updates(%8 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%8 : !VPURT.Barrier) updates(%9 : !VPURT.Barrier) attributes {SchedulingNumber = 9 : i64}
+    // CHECK-SAME:       waits(%0, %1, %6 : !VPURT.Barrier, !VPURT.Barrier, !VPURT.Barrier) updates(%9 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%9 : !VPURT.Barrier) updates(%10 : !VPURT.Barrier) attributes {SchedulingNumber = 10 : i64}
+    // CHECK-SAME:       waits(%0, %4 : !VPURT.Barrier, !VPURT.Barrier) updates(%10 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%10 : !VPURT.Barrier) updates(%11 : !VPURT.Barrier) attributes {SchedulingNumber = 11 : i64}
+    // CHECK-SAME:       waits(%7 : !VPURT.Barrier) updates(%11 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%11 : !VPURT.Barrier) updates(%12 : !VPURT.Barrier) attributes {SchedulingNumber = 12 : i64}
+    // CHECK-SAME:       waits(%9 : !VPURT.Barrier) updates(%11 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%12 : !VPURT.Barrier) updates(%13 : !VPURT.Barrier) attributes {SchedulingNumber = 13 : i64}
+    // CHECK-SAME:       waits(%10 : !VPURT.Barrier) updates(%11 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%13 : !VPURT.Barrier) updates(%14 : !VPURT.Barrier) attributes {SchedulingNumber = 14 : i64}
+    // CHECK-SAME:       waits(%8 : !VPURT.Barrier) updates(%11 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%14 : !VPURT.Barrier) attributes {SchedulingNumber = 15 : i64}
+    // CHECK-SAME:       waits(%11 : !VPURT.Barrier)
 }
