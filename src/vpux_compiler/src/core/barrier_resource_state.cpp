@@ -78,11 +78,11 @@ BarrierResourceState::barrierType BarrierResourceState::assignBarrierSlots(produ
 }
 
 bool BarrierResourceState::assignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand) {
-
     VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()) && (barrierId >= 1UL), "Invalid barrierId supplied");
     availableSlotsIteratorType itr = _barrierReference[barrierId - 1UL];
 
-    VPUX_THROW_UNLESS((itr->_availableProducerSlots) >= slotDemand, "Error _availableProducerSlots {0} >=slotDemand {1}", itr->_availableProducerSlots, slotDemand);
+    VPUX_THROW_UNLESS((itr->_availableProducerSlots) >= slotDemand,
+                      "Error _availableProducerSlots {0} >=slotDemand {1}", itr->_availableProducerSlots, slotDemand);
     producerSlotsType newSlotDemand = (itr->_availableProducerSlots) - slotDemand;
 
     itr = update(itr, newSlotDemand);

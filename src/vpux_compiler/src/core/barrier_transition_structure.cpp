@@ -66,7 +66,7 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
     mlir::Operation* barrierEnd = NULL;
     VPUX_THROW_UNLESS(currentBarrier != barrierEnd, "Eror the current barrier is Null");
 
-    // Get the barrier object for the three barrier tasks 
+    // Get the barrier object for the three barrier tasks
     mlir::Operation* barrierPrevious = NULL;
 
     if (previousBarrier != barrierEnd) {
@@ -113,7 +113,8 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
 
             if (barrierConsumersItr != _feasibleBarrierScheduler._configureBarrierOpUpdateWaitMap.end()) {
                 _feasibleBarrierScheduler._log.trace("Step-1.3 Adding consumer task ID {0} to barrier ID {1}",
-                                                     BarrierScheduler::getUniqueID(source), barrierPrevious->getAttr("id"));
+                                                     BarrierScheduler::getUniqueID(source),
+                                                     barrierPrevious->getAttr("id"));
 
                 barrierConsumersItr->second.second.insert(source);
             } else {
@@ -156,13 +157,13 @@ void BarrierScheduler::barrierTransitionStructure::maintainInvariantTemporalChan
     newCurrentBarrier = createNewBarrierTask(sinfo, builder);
     VPUX_THROW_UNLESS(newCurrentBarrier != barrierEnd, "Error newly created barrier is Null");
 
-    // STEP-1 
+    // STEP-1
     if (currentBarrier != barrierEnd) {
         _feasibleBarrierScheduler._log.trace("The ID of barrier currentBarrier is {0}", currentBarrier->getAttr("id"));
         processCurrentBarrierProducerListCloseEvent(currentBarrier, previousBarrier);
     }
 
-    // STEP-2 
+    // STEP-2
     _previousBarrierTask = _currentBarrierTask;
     _currentBarrierTask = newCurrentBarrier;
     _producers.clear();
