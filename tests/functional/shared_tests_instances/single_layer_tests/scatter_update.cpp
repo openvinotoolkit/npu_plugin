@@ -28,20 +28,20 @@ const std::vector<std::vector<int64_t>> idxValue = {
 };
 
 //inShape, indicesShape, updateShape, axis
-const std::vector<axisUpdateShapeInShape> toyParam {
-   {{10, 9, 10, 9, 10}, {8},     {8, 9, 10, 9, 10},  0}, //OK
-   {{10, 16, 12, 15},   {2,4},   {2, 4, 16, 12, 15}, 0}, //OK
-   {{10, 16, 12, 15},   {8},     {8, 16, 12, 15},    0}, //OK
-   {{10, 16, 12},       {2,2,2}, {2, 2, 2, 16, 12},  0}, //OK
-   {{10, 9, 10, 9},     {4,2},   {4, 2, 9, 10, 9},   0}, //OK
+const std::vector<axisUpdateShapeInShape> params {
+   {{10, 9, 10, 9, 10}, {8},     {8, 9, 10, 9, 10},  0},
+   {{10, 16, 12, 15},   {2,4},   {2, 4, 16, 12, 15}, 0},
+   {{10, 16, 12, 15},   {8},     {8, 16, 12, 15},    0},
+   {{10, 16, 12},       {2,2,2}, {2, 2, 2, 16, 12},  0},
+   {{10, 9, 10, 9},     {4,2},   {4, 2, 9, 10, 9},   0},
 };
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_ScatterUpdateToy,
         KmbScatterUpdateLayerTest,
         testing::Combine(
-           testing::ValuesIn(toyParam),
-           testing::ValuesIn(idxValue),                       //indices values
+           testing::ValuesIn(params),
+           testing::ValuesIn(idxValue),                       // indices values
            testing::Values(InferenceEngine::Precision::FP16), // input prec
            testing::Values(InferenceEngine::Precision::I32),  // indices prec
            testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
