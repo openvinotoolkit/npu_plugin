@@ -48,7 +48,7 @@ const std::vector<axisUpdateShapeInShape> params {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_ScatterUpdateToy,
+        smoke_ScatterUpdate,
         KmbScatterUpdateLayerTest,
         testing::Combine(
            testing::ValuesIn(params),
