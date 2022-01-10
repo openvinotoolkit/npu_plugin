@@ -773,6 +773,22 @@ def RewriteNegative :
         >;
 
 //
+// IERT.Sign -> VPUIP.SignUPA
+//
+
+def createSignUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SignUPAOp>(
+                $_loc, $0, $1)
+        }]>;
+
+def RewriteSign :
+        Pat<
+            (IERT_SignOp $input, $output),
+            (createSignUPAOp $input, $output)
+        >;
+
+//
 // IERT.Proposal -> VPUIP.ProposalUPA
 //
 def createProposalUPAOp :

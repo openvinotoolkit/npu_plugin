@@ -2069,6 +2069,40 @@ operation ::= `VPUIP.SigmoidUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.SignUPA` (vpux::VPUIP::SignUPAOp)
+
+Sign UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SignUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.SinhUPA` (vpux::VPUIP::SinhUPAOp)
 
 Sinh UPA SHAVE kernel

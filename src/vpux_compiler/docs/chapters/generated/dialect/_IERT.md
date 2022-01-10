@@ -2502,6 +2502,34 @@ operation ::= `IERT.Sigmoid` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Sign` (vpux::IERT::SignOp)
+
+InferenceEngine run-time Sign layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Sign` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Sinh` (vpux::IERT::SinhOp)
 
 InferenceEngine run-time Sinh layer

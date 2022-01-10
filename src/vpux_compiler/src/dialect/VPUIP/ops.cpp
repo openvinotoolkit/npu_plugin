@@ -505,6 +505,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::AvgPoolOp, OpModelForSW>();
     registry.addOpInterface<IERT::ReLUOp, OpModelForSW>();
     registry.addOpInterface<IERT::SigmoidOp, OpModelForSW>();
+    registry.addOpInterface<IERT::SignOp, OpModelForSW>();
     registry.addOpInterface<IERT::ClampOp, OpModelForSW>();
     registry.addOpInterface<IERT::EluOp, OpModelForSW>();
     registry.addOpInterface<IERT::HSwishOp, OpModelForSW>();

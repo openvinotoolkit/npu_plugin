@@ -432,6 +432,26 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SigmoidUPAOp::serialize(VPUIP::Blob
 }
 
 //
+// SignUPAOp
+//
+
+void vpux::VPUIP::SignUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                   mlir::Value output) {
+    build(builder, state, input, output, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SignUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto Sign = MVCNN::CreateSignParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_SignParams);
+    builder.add_nested_params(Sign.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
 // PRelu
 //
 
@@ -653,6 +673,9 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
         break;
     case MVCNN::PostOpsNestedParams_SigmoidParams:
         op = builder.create<VPUIP::SigmoidUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_SignParams:
+        op = builder.create<VPUIP::SignUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
     case MVCNN::PostOpsNestedParams_PReluParams:
         op = builder.create<VPUIP::PReluUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0]);

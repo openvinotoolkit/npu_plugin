@@ -2406,6 +2406,28 @@ def IE_NegativeOp :
 }
 
 //
+// SignOp
+//
+
+def IE_SignOp :
+        IE_LayerOp<
+            "Sign",
+            [
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Sign layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // FullyConnected
 //
 

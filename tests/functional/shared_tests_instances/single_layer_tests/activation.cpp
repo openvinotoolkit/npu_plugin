@@ -35,6 +35,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMCM {
 std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Relu,
     ngraph::helpers::Sigmoid,
+    ngraph::helpers::Sign,
     ngraph::helpers::Clamp,
     ngraph::helpers::SoftPlus,
     ngraph::helpers::Elu,
@@ -139,6 +140,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
     {Sigmoid,  {{1.0f}}},
+    {Sign,     {{1.0f}}},
     {Tanh,     {{1.0f}}},
     {Relu,     {{1.0f}}},
     {Elu,      {{1.0f}}},

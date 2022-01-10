@@ -617,6 +617,11 @@ mlir::Operation* createRTLayer(IE::SigmoidOp origOp, ArrayRef<mlir::Value> allBu
     return b.create<IERT::SigmoidOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::SignOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::SignOp::Adaptor newOp(allBufs);
+    return b.create<IERT::SignOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 mlir::Operation* createRTLayer(IE::HSwishOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::HSwishOp::Adaptor newOp(allBufs);
     return b.create<IERT::HSwishOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
@@ -1103,6 +1108,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::GroupConvolutionOp)
     CASE(IE::ReLUOp)
     CASE(IE::SigmoidOp)
+    CASE(IE::SignOp)
     CASE(IE::ClampOp)
     CASE(IE::EluOp)
     CASE(IE::HSwishOp)
