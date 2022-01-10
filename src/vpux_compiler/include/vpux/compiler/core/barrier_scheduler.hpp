@@ -60,7 +60,7 @@ public:
         size_t _barrierIndex;
         size_t _producerSlotCount;
     };
-    
+
     class barrierTransitionStructure {
     public:
         barrierTransitionStructure(BarrierScheduler& feasibleBarrierScheduler,
