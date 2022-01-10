@@ -1,15 +1,15 @@
 // {% copyright %}
 
 #include "sw_tensor_ref.h"
-#include "nn_math.h"
-#include "nn_memory.h"
-#include "sw_shave_lib_common.h"
 #include <stdint.h>
 
 
 #ifdef CONFIG_TARGET_SOC_3720
 extern unsigned char actShaveData[];
 extern unsigned int actShaveDataReserved;
+#include "nn_math.h"
+#include "nn_memory.h"
+#include "sw_shave_lib_common.h"
 #include <dma_shave_nn.h>
 #endif
 

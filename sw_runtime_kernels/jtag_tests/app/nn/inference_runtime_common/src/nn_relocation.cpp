@@ -6,6 +6,8 @@
 #include "nn_relocation.h"
 #ifdef CONFIG_TARGET_SOC_3720
 #include "nn_hw_resources.h"
+#else
+#include "nn_resources.h"
 #endif
 #include <nn_log.h>
 #include <assert.h>
