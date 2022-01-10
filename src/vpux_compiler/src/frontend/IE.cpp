@@ -62,6 +62,7 @@
 #include "legacy/ngraph_ops/normalize_ie.hpp"
 #include "vpux/passes/convert_MVN6_to_MVN1.hpp"
 
+#include <fstream>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
@@ -535,6 +536,18 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     }
 
     auto op = builder.create<Const::DeclareOp>(createLocation(origNode), tensorType, Const::ContentAttr::get(value));
+
+    // if (op != nullptr) {
+    //     const auto opContent = op.content();
+    //     const auto outputShapeVals = opContent.getValues<float>();
+    //     std::string put = origNode->get_friendly_name();
+    //     std::replace(put.begin(), put.end(), '/', '_');
+    //     vpux::Logger::global().error(put);
+    //     std::fstream file("/home/ybulina/code/movidius/tests_results/w/" + put + ".bin", ios::out);
+    //     for (auto value : outputShapeVals) {
+    //         file << value << " ";
+    //     }
+    // }
     addOutputs(origNode, op);
 }
 

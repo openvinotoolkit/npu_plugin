@@ -101,6 +101,8 @@ private:
 };
 
 mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const {
+    std::cout << "1\n";
+
     _log.trace("[{0}] Got FakeQuantize Operation '{1}'", getDebugName(), origOp->getLoc());
     auto innerLog = _log.nest();
 
@@ -198,6 +200,7 @@ mlir::FailureOr<float> getCommonRatio(const Const::Content& content1, const Cons
 }
 
 mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const {
+    std::cout << "2\n";
     _log.trace("[{0}] Got FakeQuantize Operation '{1}'", getDebugName(), origOp->getLoc());
     auto innerLog = _log.nest();
 
@@ -242,6 +245,113 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
                 return matchFailed(innerLog, rewriter, origOp, "Unsupported case, ratioHigh={0} != ratioLow={1}",
                                    ratioHigh, ratioLow);
             }
+            const auto extractAxis = [](mlir::Value input) -> Optional<int64_t> {
+                const auto greaterThanOne = [](auto dim) {
+                    return dim > 1;
+                };
+
+                const auto shape = getShape(input);
+
+                const auto axisCount = llvm::count_if(shape, greaterThanOne);
+                VPUX_THROW_UNLESS(axisCount <= 1, "FakeQuantize constant input has incorrect shape");
+
+                auto axis = llvm::find_if(shape, greaterThanOne);
+                if (axis != shape.end()) {
+                    return std::distance(shape.begin(), axis);
+                }
+
+                return None;
+            };
+
+            const auto axis = extractAxis(origOp.input_low());
+
+            VPUX_THROW_UNLESS(axis.hasValue(), "Axis is not defined");
+
+            // Use clamp function (x <= min(input_low, input_high) or x > max(input_low, input_high)
+
+            // const auto clampedConstAttr = inConst.contentAttr().clamp(axis.getValue(),
+            // inLowContent.getValues<float>(),
+            // inHighContent.getValues<float>());
+
+            // Explicit quantization
+
+            // const auto inContent = inConst.content();
+            // const auto inVals = inContent.getValues<float>();
+            // const auto shape = inContent.getShape();
+
+            // auto quantizeType = origOp.input().getType().cast<mlir::ShapedType>();
+
+            // auto inType = mlir::RankedTensorType::get(makeArrayRef(shape.raw()),
+            //                                           mlir::Float32Type::get(quantizeType.getContext()));
+
+            // auto output = Const::Content::allocTempBuffer(inContent.getType(), mlir::Float32Type::get(getContext()),
+            //                                               inContent.isSplat());
+            // auto qVals = output.getTempBuf<float>();
+
+            // SmallVector<float> outVals(qVals.size(), 0);
+
+            // const auto N = shape[Dims4D::Act::N];
+            // const auto C = shape[Dims4D::Act::C];
+            // const auto H = shape[Dims4D::Act::H];
+            // const auto W = shape[Dims4D::Act::W];
+
+            // const auto inL = inLowContent.getValues<float>();
+            // const auto inH = inHighContent.getValues<float>();
+            // const auto outL = outLowContent.getValues<float>();
+            // const auto outH = outHighContent.getValues<float>();
+
+            // const auto levels = origOp.levels();
+
+            // for (int i = 0; i < qVals.size(); i++) {
+            //     auto ind = i;
+            //     auto n = ind / (C * H * W);
+            //     ind %= (C * H * W);
+            //     auto c = ind / (H * W);
+            //     ind %= (H * W);
+            //     auto h = ind / W;
+            //     ind %= W;
+            //     auto w = ind;
+
+            //     size_t quantInd;
+
+            //     switch (axis.getValue()) {
+            //     case 0:
+            //         quantInd = n;
+            //         break;
+            //     case 1:
+            //         quantInd = c;
+            //         break;
+            //     case 2:
+            //         quantInd = h;
+            //         break;
+            //     case 3:
+            //         quantInd = w;
+            //         break;
+            //     default:
+            //         VPUX_THROW("Axis has unexpected value {0}", axis);
+            //     }
+
+            //     if (inVals[i] <= std::min(inL[quantInd], inH[quantInd]))
+            //         outVals[i] = outL[quantInd];
+            //     if (inVals[i] > std::max(inL[quantInd], inH[quantInd]))
+            //         outVals[i] = outH[quantInd];
+            //     else
+            //         outVals[i] =
+            //                 std::round((inVals[i] - inL[quantInd]) / (inH[quantInd] - inL[quantInd]) * (levels - 1)) /
+            //                         (levels - 1) * (outH[quantInd] - outL[quantInd]) +
+            //                 outL[quantInd];
+            // }
+
+            // // std::cout << "inH[0] = " << inH[0] << "\n";
+            // // std::cout << "outVals[544329] = " << outVals[544329] << "\n";
+
+            // auto outAttr = mlir::DenseElementsAttr::get(inType, makeArrayRef(outVals));
+
+            // auto newOp = rewriter.create<Const::DeclareOp>(origOp.getLoc(), inType, Const::ContentAttr::get(outAttr));
+            // rewriter.replaceOpWithNewOp<Const::DeclareOp>(
+            //         origOp, origOp.getType(),
+            //         newOp.contentAttr().convertElemType(mlir::Float16Type::get(getContext())));
+
 
             if (ratioHigh.getValue() == 1.0f) {
                 // FQ input and output ranges are equal, only remove FQ

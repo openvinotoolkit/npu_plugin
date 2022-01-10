@@ -91,12 +91,12 @@ std::vector<ov::test::ElementType> netPrecisions = {
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        // ngraph::helpers::InputLayerType::CONSTANT,
 };
 
 std::vector<CommonTestUtils::OpType> opTypes = {
         CommonTestUtils::OpType::VECTOR,
-        CommonTestUtils::OpType::SCALAR,
+        // CommonTestUtils::OpType::SCALAR,
 };
 
 //
@@ -170,15 +170,15 @@ const auto multiply_params_mlir = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Multiply, VPUXEltwiseLayerTest_MLIR, multiply_params_mlir,
                          VPUXEltwiseLayerTest::getTestCaseName);
 
-const auto eltwise_add_params_mlir = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inSpecificShapes)),
-        ::testing::Values(ngraph::helpers::EltwiseTypes::ADD), ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes), ::testing::Values(ov::element::f16), ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined), ::testing::Values(testPlatformTargetDevice),
-        ::testing::Values(ov::test::Config{}));
+// const auto eltwise_add_params_mlir = ::testing::Combine(
+//         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inSpecificShapes)),
+//         ::testing::Values(ngraph::helpers::EltwiseTypes::ADD), ::testing::ValuesIn(secondaryInputTypes),
+//         ::testing::ValuesIn(opTypes), ::testing::Values(ov::element::f16), ::testing::Values(ov::element::undefined),
+//         ::testing::Values(ov::element::undefined), ::testing::Values(testPlatformTargetDevice),
+//         ::testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Add, VPUXEltwiseLayerTest_MLIR, eltwise_add_params_mlir,
-                        VPUXEltwiseLayerTest::getTestCaseName);
+// INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Add, VPUXEltwiseLayerTest_MLIR, eltwise_add_params_mlir,
+//                         VPUXEltwiseLayerTest::getTestCaseName);
 
 // Specific subtract case
 
@@ -196,5 +196,24 @@ const auto subtract_params_mlir = ::testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Specific_subtract, VPUXEltwiseLayerTest_MLIR, subtract_params_mlir,
                         VPUXEltwiseLayerTest::getTestCaseName);
+
+std::vector<std::vector<ov::Shape>> AddShapes = {{{1, 64, 90, 160}}};
+
+const auto eltwise_add_params_mlir =
+        ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(AddShapes)),  // shapes
+                           ::testing::Values(ngraph::helpers::EltwiseTypes::ADD),  // eltwise type
+                           ::testing::ValuesIn(secondaryInputTypes),               // secondary input type 
+                           ::testing::ValuesIn(opTypes),                           // op type 
+                           ::testing::Values(ov::element::f16),                    // NetType
+                           ::testing::Values(ov::element::f32),                    // InType
+                           ::testing::Values(ov::element::f32),                    // OutType
+                           ::testing::Values(testPlatformTargetDevice),            // trgDev
+                           ::testing::Values(ov::test::Config{}));                 // config
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Add, VPUXEltwiseLayerTest_MLIR, eltwise_add_params_mlir,
+                        VPUXEltwiseLayerTest::getTestCaseName);
+
+// Specific subtract case
+
 
 }  // namespace

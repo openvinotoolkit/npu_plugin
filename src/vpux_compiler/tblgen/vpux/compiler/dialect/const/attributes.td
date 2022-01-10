@@ -104,6 +104,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr subview(vpux::ShapeRef offset, vpux::ShapeRef shape) const;
         vpux::Const::ContentAttr bitPack(int64_t width) const;
         vpux::Const::ContentAttr transpose(vpux::DimsOrder newOrder) const;
+        vpux::Const::ContentAttr clamp(int32_t axis, vpux::Const::details::ContentRange<float> min, vpux::Const::details::ContentRange<float> max) const;
     }];
 
     let storageType = "vpux::Const::ContentAttr";
@@ -191,6 +192,33 @@ def Const_RescaleAttr : Const_Attr<"Rescale",
         >
     ];
 
+    let storageNamespace = "details";
+    let skipDefaultBuilders = 1;
+}
+
+//
+// ClampAttr
+//
+
+def Const_ClampAttr : Const_Attr<"Clamp",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+    let summary = "Clamp constant content";
+
+    let parameters = (ins
+        "mlir::IntegerAttr":$axis,
+        "mlir::ArrayAttr":$min,
+        "mlir::ArrayAttr":$max
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::IntegerAttr":$axis, "mlir::ArrayAttr":$min, "mlir::ArrayAttr":$max), [{
+                return $_get(min.getContext(), axis, min, max);
+            }]
+        >
+    ];
+
+    let genVerifyDecl = 1;
     let storageNamespace = "details";
     let skipDefaultBuilders = 1;
 }
