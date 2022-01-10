@@ -524,26 +524,26 @@ void BarrierScheduler::assignTaskPriorities() {
 
 void BarrierScheduler::assignTaskUniqueIds() {
     int64_t uniqueId = 0;
-    auto assignUniqueIDs = [&](VPURT::TaskOp taskOp) {
+    auto assignUniqueID = [&](VPURT::TaskOp taskOp) {
         taskOp->setAttr(uniqueIdAttrName, getIntAttr(taskOp->getContext(), uniqueId++));
     };
 
     _func.walk([&](VPURT::TaskOp taskOp) {
         switch (taskOp.getExecutorKind()) {
         case VPU::ExecutorKind::DMA_NN: {
-            assignUniqueIDs(taskOp);
+            assignUniqueID(taskOp);
             break;
         }
         case VPU::ExecutorKind::NCE: {
-            assignUniqueIDs(taskOp);
+            assignUniqueID(taskOp);
             break;
         }
         case VPU::ExecutorKind::SHAVE_UPA: {
-            assignUniqueIDs(taskOp);
+            assignUniqueID(taskOp);
             break;
         }
         case VPU::ExecutorKind::SHAVE_ACT: {
-            assignUniqueIDs(taskOp);
+            assignUniqueID(taskOp);
             break;
         }
         default:
