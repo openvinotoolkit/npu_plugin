@@ -51,10 +51,10 @@ INSTANTIATE_TEST_SUITE_P(
 */
 //==============================================================================
 const axisUpdateShapeInShape toyParam {
-  {10, 32, 10, 15},   //in shape
-     { 4, 2 },        //indices shape
-  {10, 4, 2, 10, 15}, //update shape
-  1                   //axis
+    {10, 9, 10, 9, 10}, //in shape
+    { 8},               //indices shape
+    { 8, 9, 10, 9, 10}, //update shape
+     0                  //axis
 };
 
 INSTANTIATE_TEST_SUITE_P(
