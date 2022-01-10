@@ -36,12 +36,33 @@ const std::vector<std::vector<int64_t>> idxValue = {
         {0, 2, 4, 6, 1, 3, 5, 7}
 };
 
+/*
 INSTANTIATE_TEST_SUITE_P(
         smoke_ScatterUpdate,
         KmbScatterUpdateLayerTest,
         testing::Combine(
            testing::ValuesIn(ScatterUpdateLayerTest::combineShapes(axesShapeInShape)),
            testing::ValuesIn(idxValue),
+           testing::Values(InferenceEngine::Precision::FP16), // input prec
+           testing::Values(InferenceEngine::Precision::I32),  // indices prec
+           testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+        KmbScatterUpdateLayerTest::getTestCaseName
+);
+*/
+//==============================================================================
+const axisUpdateShapeInShape toyParam {
+  {10, 32, 10, 15},   //in shape
+     { 4, 2 },        //indices shape
+  {10, 4, 2, 10, 15}, //update shape
+  1                   //axis
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_ScatterUpdateToy,
+        KmbScatterUpdateLayerTest,
+        testing::Combine(
+           testing::Values(toyParam),
+           testing::Values(std::vector<int64_t>{0, 2, 4, 6, 1, 3, 5, 7}), //indices values
            testing::Values(InferenceEngine::Precision::FP16), // input prec
            testing::Values(InferenceEngine::Precision::I32),  // indices prec
            testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
