@@ -82,13 +82,11 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
         size_t sourceID = getTaskUniqueID(source);
 
         // Step-1.2 (a): producers
-        // auto barrierProducersItr = _feasibleBarrierScheduler._configureBarrierOpUpdateWaitMap.find(currentBarrierID);
 
         if (currentBarrierID < _feasibleBarrierScheduler._configureBarrierOpWaitMap.size()) {
             _feasibleBarrierScheduler._log.trace("Adding producer task with ID {0} to barrier ID {1}",
                                                  BarrierScheduler::getUniqueID(source), currentBarrierID);
 
-            // barrierProducersItr->second.first.insert(source);
             _feasibleBarrierScheduler._configureBarrierOpWaitMap[currentBarrierID].set(sourceID);
             std::cout << "set barrier waits" << std::endl;
         } else {
@@ -96,7 +94,6 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
         }
 
         // Step-1.2 (b): consumers
-        // auto barrierConsumersItr = _feasibleBarrierScheduler._configureBarrierOpUpdateWaitMap.find(currentBarrier);
 
         if (currentBarrierID < _feasibleBarrierScheduler._configureBarrierOpUpdateMap.size()) {
             auto opConsumers = _feasibleBarrierScheduler.getConsumerOps(source);
@@ -106,7 +103,6 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
                                                      BarrierScheduler::getUniqueID(*consumer),
                                                      currentBarrier->getAttr("id"));
 
-                // barrierConsumersItr->second.second.insert(*consumer);
                 size_t consumerID = getTaskUniqueID(*consumer);
                 _feasibleBarrierScheduler._configureBarrierOpUpdateMap[currentBarrierID].set(consumerID);
                 std::cout << "set barrier update" << std::endl;
@@ -117,8 +113,6 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
 
         // Step-1.3
         if (barrierPrevious) {
-            // auto barrierConsumersItr =
-            // _feasibleBarrierScheduler._configureBarrierOpUpdateWaitMap.find(barrierPrevious);
             size_t barrierPreviousID = getBarrierUniqueID(barrierPrevious);
 
             if (barrierPreviousID < _feasibleBarrierScheduler._configureBarrierOpUpdateMap.size()) {
@@ -126,7 +120,6 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
                                                      BarrierScheduler::getUniqueID(source),
                                                      barrierPrevious->getAttr("id"));
 
-                // barrierConsumersItr->second.second.insert(source);
                 _feasibleBarrierScheduler._configureBarrierOpUpdateMap[barrierPreviousID].set(sourceID);
             } else {
                 VPUX_THROW("Not found");
@@ -200,8 +193,6 @@ mlir::Operation* BarrierScheduler::barrierTransitionStructure::createNewBarrierT
     _feasibleBarrierScheduler._orderedBarrier.push_back(newBarrier);
     std::cout << "push_back newBarrier" << std::endl;
 
-    // std::set<mlir::Operation*> newBarrierProducers{};
-    // std::set<mlir::Operation*> newBarrierConsumers{};
     llvm::BitVector newBarrierProducers;
     newBarrierProducers.resize(_taskCount);
     llvm::BitVector newBarrierConsumers;

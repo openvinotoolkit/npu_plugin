@@ -66,35 +66,6 @@ void BarrierScheduler::populateTasksUpdateWaitBarrierMap(barrierWaitMapType& bar
                                                          barrierUpdateMapType& barrierOpUpdateMap,
                                                          taskOpWaitMapType& taskOpWaitMap,
                                                          taskOpUpdateMapType& taskOpUpdateMap) {
-    // for (auto iter = barrierOpUpdateWaitMap.begin(); iter != barrierOpUpdateWaitMap.end(); iter++) {
-    //     auto barrierOp = (*iter).first;
-    //     auto producers = (*iter).second.first;
-    //     auto consumers = (*iter).second.second;
-    //     for (auto prod = producers.begin(); prod != producers.end(); prod++) {
-    //         auto taskUpateItr = taskOpUpdateWaitMap.find(*prod);
-    //         if (taskUpateItr != taskOpUpdateWaitMap.end()) {
-    //             taskUpateItr->second.second.insert(barrierOp);
-    //         } else {
-    //             std::set<mlir::Operation*> newBarrierProducers{};
-    //             std::set<mlir::Operation*> newBarrierConsumers{barrierOp};
-    //             taskOpUpdateWaitMap.insert(
-    //                     std::make_pair(*prod, std::make_pair(newBarrierProducers, newBarrierConsumers)));
-    //         }
-    //     }
-
-    //     for (auto cons = consumers.begin(); cons != consumers.end(); cons++) {
-    //         auto taskWaitItr = taskOpUpdateWaitMap.find(*cons);
-    //         if (taskWaitItr != taskOpUpdateWaitMap.end()) {
-    //             taskWaitItr->second.first.insert(barrierOp);
-    //         } else {
-    //             std::set<mlir::Operation*> newBarrierProducers{barrierOp};
-    //             std::set<mlir::Operation*> newBarrierConsumers{};
-    //             taskOpUpdateWaitMap.insert(
-    //                     std::make_pair(*cons, std::make_pair(newBarrierProducers, newBarrierConsumers)));
-    //         }
-    //     }
-    // }
-
     size_t virtualBarrierCount = barrierOpWaitMap.size();
     taskOpWaitMap.resize(_taskCount);
     for (auto& wait : taskOpWaitMap) {
@@ -770,15 +741,13 @@ void BarrierScheduler::insertBarriersinIR() {
     removeRedundantDependencies();
     removeRedundantBarriers();
 
-    // for (const auto& p : _configureBarrierOpUpdateWaitMap) {
-    //     auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
-    //     _log.trace("Virtual Barrier ID {0} has {1} consumers", barrierOp->getAttr("id"), p.second.second.size());
-    // }
+    for (size_t ind = 0; ind < _configureBarrierOpUpdateMap.size(); ind++) {
+        _log.trace("Virtual Barrier ID {0} has {1} consumers", ind, _configureBarrierOpUpdateMap[ind].count());
+    }
 
-    // for (const auto& p : _configureBarrierOpUpdateWaitMap) {
-    //     auto barrierOp = mlir::dyn_cast_or_null<VPURT::DeclareVirtualBarrierOp>(p.first);
-    //     _log.trace("Virtual Barrier ID {0} has {1} producers", barrierOp->getAttr("id"), p.second.first.size());
-    // }
+    for (size_t ind = 0; ind < _configureBarrierOpWaitMap.size(); ind++) {
+        _log.trace("Virtual Barrier ID {0} has {1} producers", ind, _configureBarrierOpWaitMap[ind].count());
+    }
 
     for (size_t ind = 0; ind < _configureBarrierOpWaitMap.size(); ind++) {
         auto& barrierOp = _orderedBarrier[ind];
@@ -886,7 +855,6 @@ void BarrierScheduler::removeRedundantDependencies() {
     for (size_t ind = 0; ind < _configureBarrierOpWaitMap.size(); ind++) {
         // producers
         auto& producers = _configureBarrierOpWaitMap[ind];
-        // SmallVector<mlir::Operation*> producers(producersSet.begin(), producersSet.end());
         SmallVector<size_t> producersToRemove;
         for (auto prod = producers.set_bits_begin(); prod != producers.set_bits_end(); prod++) {
             auto prod1 = prod;
@@ -894,10 +862,8 @@ void BarrierScheduler::removeRedundantDependencies() {
             for (; prod1 != producers.set_bits_end(); prod1++) {
                 if (doesPathExist(*prod1, *prod)) {
                     producersToRemove.push_back(*prod1);
-                    // *prod1 = -1;
                 } else if (doesPathExist(*prod, *prod1)) {
                     producersToRemove.push_back(*prod);
-                    // *prod = -1;
                     break;
                 }
             }
@@ -909,7 +875,6 @@ void BarrierScheduler::removeRedundantDependencies() {
 
         // consumers
         auto& consumers = _configureBarrierOpUpdateMap[ind];
-        // SmallVector<mlir::Operation*> consumers(consumersSet.begin(), consumersSet.end());
         SmallVector<size_t> consumersToRemove;
         for (auto cons = consumers.set_bits_begin(); cons != consumers.set_bits_end(); cons++) {
             auto cons1 = cons;
@@ -917,10 +882,8 @@ void BarrierScheduler::removeRedundantDependencies() {
             for (; cons1 != consumers.set_bits_end(); cons1++) {
                 if (doesPathExist(*cons, *cons1)) {
                     consumersToRemove.push_back(*cons1);
-                    // *cons1 = NULL;
                 } else if (doesPathExist(*cons1, *cons)) {
                     consumersToRemove.push_back(*cons);
-                    // *cons = NULL;
                     break;
                 }
             }
@@ -930,55 +893,6 @@ void BarrierScheduler::removeRedundantDependencies() {
             consumers.reset(consumer);
         }
     }
-
-    // for (auto iter = _configureBarrierOpUpdateWaitMap.begin(); iter != _configureBarrierOpUpdateWaitMap.end();
-    // iter++) {
-    //     // producers
-    //     auto& producersSet = (*iter).second.first;
-    //     SmallVector<mlir::Operation*> producers(producersSet.begin(), producersSet.end());
-    //     SmallVector<mlir::Operation*> producersToRemove;
-    //     for (auto prod = producers.begin(); prod != producers.end(); prod++) {
-    //         auto prod1 = prod;
-    //         prod1++;
-    //         for (; prod1 != producers.end(); prod1++) {
-    //             if (doesPathExist(*prod1, *prod)) {
-    //                 producersToRemove.push_back(*prod1);
-    //                 *prod1 = NULL;
-    //             } else if (doesPathExist(*prod, *prod1)) {
-    //                 producersToRemove.push_back(*prod);
-    //                 *prod = NULL;
-    //                 break;
-    //             }
-    //         }
-    //     }
-
-    //     for (auto& producer : producersToRemove) {
-    //         producersSet.erase(producer);
-    //     }
-
-    //     // consumers
-    //     auto& consumersSet = (*iter).second.second;
-    //     SmallVector<mlir::Operation*> consumers(consumersSet.begin(), consumersSet.end());
-    //     SmallVector<mlir::Operation*> consumersToRemove;
-    //     for (auto cons = consumers.begin(); cons != consumers.end(); cons++) {
-    //         auto cons1 = cons;
-    //         cons1++;
-    //         for (; cons1 != consumers.end(); cons1++) {
-    //             if (doesPathExist(*cons, *cons1)) {
-    //                 consumersToRemove.push_back(*cons1);
-    //                 *cons1 = NULL;
-    //             } else if (doesPathExist(*cons1, *cons)) {
-    //                 consumersToRemove.push_back(*cons);
-    //                 *cons = NULL;
-    //                 break;
-    //             }
-    //         }
-    //     }
-
-    //     for (auto& consumer : consumersToRemove) {
-    //         consumersSet.erase(consumer);
-    //     }
-    // }
 }
 
 void BarrierScheduler::initializeBarrierAssociationTable() {
@@ -993,15 +907,12 @@ void BarrierScheduler::initializeBarrierAssociationTable() {
 
 // detect if op b depends on a
 bool BarrierScheduler::doesPathExist(int64_t a, int64_t b) {
-    // if (a < 0 || b < 0)
-    //     return false;
     auto numa = _orderedTask[a]->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
     auto numb = _orderedTask[b]->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
     if (numa >= numb)
         return false;
     else {
         auto updateBarriers = _configureTaskOpUpdateMap[a];
-        // std::set<mlir::Operation*> consumers;
         for (auto updateBarrier : updateBarriers.set_bits()) {
             auto barrierConsumers = _configureBarrierOpUpdateMap[updateBarrier];
             for (auto consumer : barrierConsumers.set_bits()) {
@@ -1010,17 +921,7 @@ bool BarrierScheduler::doesPathExist(int64_t a, int64_t b) {
                 if (doesPathExist(consumer, b))
                     return true;
             }
-            // consumers.insert(barrierConsumers.begin(), barrierConsumers.end());
         }
-
-        // if (std::find(consumers.begin(), consumers.end(), b) != consumers.end())
-        //     return true;
-        // else {
-        //     for (auto consumer = consumers.begin(); consumer != consumers.end(); consumer++) {
-        //         if (doesPathExist(*consumer, b))
-        //             return true;
-        //     }
-        // }
         return false;
     }
 }

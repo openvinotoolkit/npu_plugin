@@ -104,14 +104,8 @@ public:
     using operationInDegreeType = std::map<mlir::Operation*, size_t>;
     using priorityMapType = std::map<mlir::Operation*, size_t>;
     using barrierResourceUtilityMapType = std::unordered_map<mlir::Operation*, size_t>;
-    // using barrierUpdateWaitMapType =
-    //         std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-    //                  uniqueIDTaskComparator>;
     using barrierWaitMapType = SmallVector<llvm::BitVector>;
     using barrierUpdateMapType = SmallVector<llvm::BitVector>;
-    // using taskOpUpdateWaitMapType =
-    //         std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-    //                  scheduleNumberTaskComparator>;
     using taskOpWaitMapType = SmallVector<llvm::BitVector>;
     using taskOpUpdateMapType = SmallVector<llvm::BitVector>;
 
