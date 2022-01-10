@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/Value.h>
 
@@ -29,5 +30,11 @@ mlir::Operation* getFirstUser(mlir::Value output);
 //
 
 bool isBufAllocOp(mlir::Operation* op);
+
+//
+// getTopLevelModule
+//
+
+mlir::ModuleOp getTopLevelModule(mlir::Operation* op);
 
 }  // namespace vpux

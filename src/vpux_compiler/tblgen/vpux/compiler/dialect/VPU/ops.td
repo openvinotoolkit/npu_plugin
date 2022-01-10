@@ -17,13 +17,18 @@
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/const/attributes.td"
+include "vpux/compiler/dialect/const/attributes.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IE/ops_interfaces.td"
+include "vpux/compiler/dialect/VPU/attributes.td"
 include "vpux/compiler/dialect/VPU/dialect.td"
+include "vpux/compiler/dialect/VPU/ops_interfaces.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/OpAsmInterface.td"
+include "mlir/IR/RegionKindInterface.td"
 
 //
 // Base classes
@@ -51,7 +56,7 @@ class VPU_LayerOp<string mnemonic, list<OpTrait> traits = []> :
     bit checkInferredMemSpace = 0;
     bit checkInferredSparsity = 0;
 
-    let extraClassDeclaration = [{
+    code baseExtraClassDeclaration = [{
         static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
             return vpux::IE::isCompatibleTensorTypes(lhs, rhs,
                 }] # !interleave(elemComparisonModes, "|") # [{,
@@ -61,10 +66,290 @@ class VPU_LayerOp<string mnemonic, list<OpTrait> traits = []> :
             );
         }
     }];
+    let extraClassDeclaration = baseExtraClassDeclaration;
+}
+
+//
+// DPU.Workload
+//
+
+def VPU_DPUWorkloadOp :
+        VPU_Op<
+            "DPU.Workload",
+            [
+                ParentOneOf<[
+                    "vpux::VPU::NCEConvolutionOp",
+                    "vpux::VPU::NCEDepthConvolutionOp",
+                    "vpux::VPU::NCEMaxPoolOp",
+                    "vpux::VPU::NCEEltwiseOp"
+                ]>
+            ]
+        > {
+    let summary = "Workload for a single DPU tile";
+
+    let arguments = (ins
+        Confined<I64ArrayAttr, [ArrayCount<4>]>:$offsets,
+        Confined<I64ArrayAttr, [ArrayCount<4>]>:$sizes,
+        VPU_PaddingAttr:$pad,
+        VPU_MPEMode:$mpe_mode
+    );
 
     let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+        $offsets $sizes $pad $mpe_mode attr-dict-with-keyword
     }];
+}
+
+//
+// NCE.Convolution
+//
+
+def VPU_NCEConvolutionOp :
+        VPU_LayerOp<
+            "NCE.Convolution",
+            [
+                NoRegionArguments,
+                NoTerminator,
+                SingleBlock,
+                OpAsmOpInterface,
+                IE_LayerWithPostOpInterface,
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+            ]
+        > {
+    let summary = "NCE version of Convolution layer";
+
+    let arguments = (ins
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input,
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$filter,
+
+        OptionalAttr<Const_ContentAttr>:$bias,
+
+        Confined<I64ArrayAttr, [ArrayCount<2>]>:$strides,
+        VPU_PaddingAttr:$pad,
+
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<VPU_PPETaskAttr>:$ppe
+    );
+
+    let results = (outs
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$output
+    );
+
+    let regions = (region
+        AnyRegion:$workloads
+    );
+
+    let assemblyFormat = [{
+        `(` $input `,` $filter `)`
+        (`(` `bias` `:` $bias^ `)`)?
+        attr-dict
+        custom<OptionalTypes>(type($input), type($filter)) ``
+        `->` type(results)
+        custom<OptionalRegion>($workloads)
+    }];
+
+    let verifier = [{
+        return vpux::VPU::verifyOp(*this);
+    }];
+
+    let extraClassDeclaration = [{
+        static mlir::StringRef getDefaultDialect() {
+            return "VPU";
+        }
+
+        static bool fitIntoCMX(mlir::Operation* op,
+                               mlir::ShapedType input, mlir::ShapedType filter,
+                               mlir::ShapedType output);
+    }] # baseExtraClassDeclaration;
+
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
+}
+
+//
+// NCE.DepthConvolution
+//
+
+def VPU_NCEDepthConvolutionOp :
+        VPU_LayerOp<
+            "NCE.DepthConvolution",
+            [
+                NoRegionArguments,
+                NoTerminator,
+                SingleBlock,
+                OpAsmOpInterface,
+                IE_LayerWithPostOpInterface,
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+            ]
+        > {
+    let summary = "NCE version of Depthwise Convolution layer";
+
+    let arguments = (ins
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input,
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$filter,
+
+        OptionalAttr<Const_ContentAttr>:$bias,
+
+        Confined<I64ArrayAttr, [ArrayCount<2>]>:$strides,
+        VPU_PaddingAttr:$pad,
+
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<VPU_PPETaskAttr>:$ppe
+    );
+
+    let results = (outs
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$output
+    );
+
+    let regions = (region
+        AnyRegion:$workloads
+    );
+
+    let assemblyFormat = [{
+        `(` $input `,` $filter `)`
+        (`(` `bias` `:` $bias^ `)`)?
+        attr-dict
+        custom<OptionalTypes>(type($input), type($filter)) ``
+        `->` type(results)
+        custom<OptionalRegion>($workloads)
+    }];
+
+    let verifier = [{
+        return vpux::VPU::verifyOp(*this);
+    }];
+
+    let extraClassDeclaration = [{
+        static mlir::StringRef getDefaultDialect() {
+            return "VPU";
+        }
+
+        static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
+                               mlir::ShapedType input, mlir::ShapedType filter,
+                               mlir::ShapedType output);
+    }] # baseExtraClassDeclaration;
+
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
+}
+
+//
+// NCE.MaxPool
+//
+
+def VPU_NCEMaxPoolOp :
+        VPU_LayerOp<
+            "NCE.MaxPool",
+            [
+                NoRegionArguments,
+                NoTerminator,
+                SingleBlock,
+                OpAsmOpInterface,
+                IE_LayerWithPostOpInterface,
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+            ]
+        > {
+    let summary = "NCE version of MaxPool layer";
+
+    let arguments = (ins
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input,
+
+        Confined<I64ArrayAttr, [ArrayCount<2>]>:$kernel_size,
+        Confined<I64ArrayAttr, [ArrayCount<2>]>:$strides,
+        VPU_PaddingAttr:$pad,
+
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<VPU_PPETaskAttr>:$ppe
+    );
+
+    let results = (outs
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$output
+    );
+
+    let regions = (region
+        AnyRegion:$workloads
+    );
+
+    let assemblyFormat = [{
+        `(` $input `)`
+        attr-dict
+        custom<OptionalTypes>(type($input)) ``
+        `->` type(results)
+        custom<OptionalRegion>($workloads)
+    }];
+
+    let verifier = [{
+        return vpux::VPU::verifyOp(*this);
+    }];
+
+    let extraClassDeclaration = [{
+        static mlir::StringRef getDefaultDialect() {
+            return "VPU";
+        }
+
+        static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernel_size, mlir::ArrayAttr strides,
+                               mlir::ShapedType input, mlir::ShapedType output);
+    }] # baseExtraClassDeclaration;
+
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
+}
+
+//
+// NCE.Eltwise
+//
+
+def VPU_NCEEltwiseOp :
+        VPU_LayerOp<
+            "NCE.Eltwise",
+            [
+                NoRegionArguments,
+                NoTerminator,
+                SingleBlock,
+                OpAsmOpInterface,
+                IE_EltwiseOp,
+                IE_LayerWithPostOpInterface,
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+            ]
+        > {
+    let summary = "NCE version of Eltwise layer";
+
+    let arguments = (ins
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input1,
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input2,
+
+        VPU_EltwiseType:$op_type,
+
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<VPU_PPETaskAttr>:$ppe
+    );
+
+    let results = (outs
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$output
+    );
+
+    let regions = (region
+        AnyRegion:$workloads
+    );
+
+    let assemblyFormat = [{
+        `(` $input1 `,` $input2 `)`
+        attr-dict
+        custom<OptionalTypes>(type($input1), type($input2)) ``
+        `->` type(results)
+        custom<OptionalRegion>($workloads)
+    }];
+
+    let extraClassDeclaration = [{
+        static mlir::StringRef getDefaultDialect() {
+            return "VPU";
+        }
+
+        static bool fitIntoCMX(mlir::Operation* op,
+                               mlir::ShapedType input1, mlir::ShapedType input2,
+                               mlir::ShapedType output);
+    }] # baseExtraClassDeclaration;
+
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION];
 }
 
 #endif

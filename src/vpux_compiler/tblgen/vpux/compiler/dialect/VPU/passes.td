@@ -54,4 +54,18 @@ def InitCompiler : PassBase<"init-compiler", "vpux::ModulePass"> {
     ];
 }
 
+//
+// SplitNCEOpsOntoWorkloads
+//
+
+def SplitNCEOpsOntoWorkloads : PassBase<"split-NCE-ops-onto-workloads", "vpux::FunctionPass"> {
+    let summary = "Split VPU NCE operation onto workloads";
+
+    let constructor = "vpux::VPU::createSplitNCEOpsOntoWorkloadsPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
 #endif

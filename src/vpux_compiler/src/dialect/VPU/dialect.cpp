@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
 
+#include "vpux/compiler/dialect/VPU/ops.hpp"
+
 using namespace vpux;
 
 //

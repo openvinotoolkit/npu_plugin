@@ -2709,15 +2709,15 @@ operation ::= `IE.Sigmoid` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
-### `IE.Sinh` (vpux::IE::SinhOp)
+### `IE.Sign` (vpux::IE::SignOp)
 
-InferenceEngine Sinh layer
+InferenceEngine Sign layer
 
 
 Syntax:
 
 ```
-operation ::= `IE.Sinh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+operation ::= `IE.Sign` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
 ```
 
 
@@ -2733,15 +2733,15 @@ operation ::= `IE.Sinh` `(` operands `)` attr-dict `:` type(operands) `->` type(
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
-### `IE.Sign` (vpux::IE::SignOp)
+### `IE.Sinh` (vpux::IE::SinhOp)
 
-InferenceEngine Sign layer
+InferenceEngine Sinh layer
 
 
 Syntax:
 
 ```
-operation ::= `IE.Sign` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+operation ::= `IE.Sinh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
 ```
 
 

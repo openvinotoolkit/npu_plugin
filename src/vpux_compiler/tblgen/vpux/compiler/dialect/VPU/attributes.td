@@ -232,4 +232,24 @@ def VPU_PPEMode :
     let genSpecializedAttr = 1;
 }
 
+//
+// PPETaskAttr
+//
+
+def VPU_PPETaskAttr :
+        StructAttr<
+            "PPETaskAttr",
+            VPU_Dialect,
+            [
+                StructFieldAttr<"mode",             VPU_PPEMode>,
+                StructFieldAttr<"clamp_low",        OptionalAttr<IntAttr>>,
+                StructFieldAttr<"clamp_high",       OptionalAttr<IntAttr>>,
+                StructFieldAttr<"lrelu_mult",       OptionalAttr<IntAttr>>,
+                StructFieldAttr<"lrelu_shift",      OptionalAttr<IntAttr>>,
+                StructFieldAttr<"quant_mult",       OptionalAttr<I64ArrayAttr>>,
+                StructFieldAttr<"quant_shift",      OptionalAttr<I64ArrayAttr>>,
+                StructFieldAttr<"quant_post_shift", OptionalAttr<IntAttr>>,
+            ]
+        >;
+
 #endif

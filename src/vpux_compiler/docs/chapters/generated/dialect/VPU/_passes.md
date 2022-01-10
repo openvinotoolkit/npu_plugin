@@ -9,3 +9,4 @@ initializes **IERT Dialect** run-time resources information.
 -compilation-mode  : Set compilation mode as `ReferenceSW`, `ReferenceHW` or `DefaultHW`
 -num-of-dpu-groups : [Optional] Number of available DPU groups
 ```
+### `-split-NCE-ops-onto-workloads`: Split VPU NCE operation onto workloads

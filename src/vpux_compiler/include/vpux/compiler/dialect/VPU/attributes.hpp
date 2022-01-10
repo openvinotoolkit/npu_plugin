@@ -17,6 +17,7 @@
 
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
@@ -46,6 +47,8 @@ StringLiteral getMemoryBandwidthAttrName();
 StringLiteral getProcessorFrequencyAttrName();
 
 uint32_t getMaxDPUClusterNum(mlir::Operation* op);
+
+Byte getTotalCMXSize(mlir::Operation* op);
 
 //
 // ArchKind
@@ -99,6 +102,19 @@ PaddingAttr getPaddingAttr(mlir::MLIRContext* ctx, ArrayRef<int64_t> padsBegin, 
 PaddingAttr getPaddingAttr(mlir::MLIRContext* ctx, const PadInfo& pad);
 
 PadInfo toPadInfo(PaddingAttr attr);
+
+//
+// PPETaskAttr
+//
+
+PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode);
+
+PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow, int64_t clampHigh,
+                           int64_t lreluMult, int64_t lreluShift);
+
+PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow, int64_t clampHigh,
+                           int64_t lreluMult, int64_t lreluShift, ArrayRef<int64_t> quantMult,
+                           ArrayRef<int64_t> quantShift, int64_t quantPostShift);
 
 }  // namespace VPU
 }  // namespace vpux

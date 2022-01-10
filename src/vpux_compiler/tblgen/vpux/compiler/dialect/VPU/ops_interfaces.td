@@ -33,4 +33,71 @@ def VPU_SparseOpInterface : OpInterface<"SparseOpInterface"> {
     ];
 }
 
+//
+// NCEOpInterface
+//
+
+def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
+    let description = "Base interface for VPU NCE Operations";
+
+    let cppNamespace = "vpux::VPU";
+
+    let methods = [
+        InterfaceMethod<
+            "Add workload",
+            "mlir::Operation*", "addWorkload",
+            (ins "mlir::OpBuilder&":$builder, "mlir::Location":$loc,
+                 "ShapeRef":$offsets, "ShapeRef":$sizes,
+                 "vpux::VPU::PaddingAttr":$pad, "MPEMode":$mpeMode),
+            [{}],
+            [{
+                return vpux::VPU::details::addWorkload($_op.workloads(), builder, loc, offsets, sizes, pad, mpeMode);
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get all workloads",
+            "mlir::Region&", "workloads", (ins),
+            [{
+                return $_op.workloads();
+            }]
+        >
+    ];
+
+    let extraTraitClassDeclaration = [{
+        bool isSupportedPostOp(mlir::Operation* postOp) {
+            return vpux::VPU::NCEInvariant::isPostOpSupported(postOp);
+        }
+
+        mlir::LogicalResult verifyChannels() {
+            return mlir::success(
+                vpux::VPU::NCEInvariant::isActTypeSupported(
+                    $_op->getOperand(0).getType().template cast<mlir::ShapedType>()) &&
+                vpux::VPU::NCEInvariant::isActTypeSupported(
+                    $_op->getResult(0).getType().template cast<mlir::ShapedType>()));
+        }
+
+        int64_t getChannelAlignment() {
+            return vpux::VPU::NCEInvariant::getAlignment(
+                    $_op->getOperand(0).getType().template cast<mlir::ShapedType>().getElementType());
+        }
+    }];
+
+    let verify = [{
+        if (vpux::VPU::details::validatePrecisionForNCE($_op).failed()) {
+            return mlir::failure();
+        }
+
+        if (vpux::VPU::details::validateWorkloadsRegion($_op->getLoc(), mlir::cast<ConcreteOp>($_op).workloads()).failed()) {
+            return mlir::failure();
+        }
+
+        if (mlir::cast<ConcreteOp>($_op).post_opAttr() != nullptr && mlir::cast<ConcreteOp>($_op).ppeAttr() != nullptr) {
+            return vpux::errorAt($_op, "Can't have both 'post_op' and 'ppe' attributes at the same time");
+        }
+
+        return mlir::success();
+    }];
+}
+
 #endif

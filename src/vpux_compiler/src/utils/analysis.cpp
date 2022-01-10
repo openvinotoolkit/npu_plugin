@@ -56,3 +56,15 @@ bool vpux::isBufAllocOp(mlir::Operation* op) {
 
     return false;
 }
+
+//
+// getTopLevelModule
+//
+
+mlir::ModuleOp vpux::getTopLevelModule(mlir::Operation* op) {
+    auto module =
+            op->getParentOp() == nullptr ? mlir::dyn_cast<mlir::ModuleOp>(op) : op->getParentOfType<mlir::ModuleOp>();
+    VPUX_THROW_UNLESS(module != nullptr, "Can't get parent Module from Operation '{0}' at '{1}'", op->getName(),
+                      op->getLoc());
+    return module;
+}

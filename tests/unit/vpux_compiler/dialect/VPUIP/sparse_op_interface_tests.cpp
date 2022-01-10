@@ -71,12 +71,9 @@ TEST(MLIR_VPUIP_Sparsity, SparseOpInterface) {
 
     for (auto& op : func.getOps()) {
         if (mlir::isa<vpux::VPUIP::NCEClusterTaskOp>(op)) {
-            auto iface = mlir::dyn_cast<vpux::VPU::SparseOpInterface>(op);
-            ASSERT_NE(iface, nullptr);
-
-            ASSERT_TRUE(vpux::VPU::supportsSparseInputs(iface));
-            ASSERT_TRUE(vpux::VPU::supportsSparseOutputs(iface));
-            ASSERT_TRUE(vpux::VPU::supportsSparseData(iface));
+            ASSERT_TRUE(vpux::VPU::supportsSparseInputs(&op));
+            ASSERT_TRUE(vpux::VPU::supportsSparseOutputs(&op));
+            ASSERT_TRUE(vpux::VPU::supportsSparseData(&op));
         }
     }
 }

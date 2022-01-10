@@ -13,7 +13,14 @@
 
 #pragma once
 
+#include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
+#include "vpux/compiler/dialect/VPU/ops_interfaces.hpp"
+
+#include "vpux/utils/core/error.hpp"
+
+#include <mlir/IR/BuiltinTypes.h>
 
 //
 // Generated
@@ -21,3 +28,19 @@
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/VPU/generated/ops.hpp.inc>
+
+//
+// Operation verifiers
+//
+
+namespace vpux {
+namespace VPU {
+
+mlir::LogicalResult verifyConv(mlir::Location loc, ArchKind arch, NCEConvolutionOpAdaptor op, mlir::Value output);
+
+mlir::LogicalResult verifyOp(NCEConvolutionOp op);
+mlir::LogicalResult verifyOp(NCEDepthConvolutionOp op);
+mlir::LogicalResult verifyOp(NCEMaxPoolOp op);
+
+}  // namespace VPU
+}  // namespace vpux

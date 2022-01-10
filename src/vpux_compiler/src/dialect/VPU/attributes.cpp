@@ -14,7 +14,9 @@
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
+#include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/error.hpp"
@@ -58,14 +60,6 @@ namespace {
 constexpr int KMB_MAX_DPU_GROUPS = 4;
 constexpr int MTL_MAX_DPU_GROUPS = 2;
 
-mlir::ModuleOp getTopLevelModule(mlir::Operation* op) {
-    auto module =
-            op->getParentOp() == nullptr ? mlir::dyn_cast<mlir::ModuleOp>(op) : op->getParentOfType<mlir::ModuleOp>();
-    VPUX_THROW_UNLESS(module != nullptr, "Can't get parent Module from Operation '{0}' at '{1}'", op->getName(),
-                      op->getLoc());
-    return module;
-}
-
 }  // namespace
 
 uint32_t vpux::VPU::getMaxDPUClusterNum(mlir::Operation* op) {
@@ -81,6 +75,15 @@ uint32_t vpux::VPU::getMaxDPUClusterNum(mlir::Operation* op) {
     default:
         VPUX_THROW("Unsupported architecture '{0}'", kind);
     }
+}
+
+Byte vpux::VPU::getTotalCMXSize(mlir::Operation* op) {
+    auto module = getTopLevelModule(op);
+
+    auto cmxRes = IE::getAvailableMemory(module, VPU::MemoryKind::CMX_NN);
+    VPUX_THROW_UNLESS(cmxRes != nullptr, "Can't get information about {0} memory", VPU::MemoryKind::CMX_NN);
+
+    return cmxRes.size();
 }
 
 //
@@ -305,6 +308,31 @@ PadInfo vpux::VPU::toPadInfo(PaddingAttr attr) {
     const auto top = attr.top().getValue().getSExtValue();
     const auto bottom = attr.bottom().getValue().getSExtValue();
     return PadInfo(left, right, top, bottom);
+}
+
+//
+// PPETaskAttr
+//
+
+VPU::PPETaskAttr vpux::VPU::getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode) {
+    return VPU::PPETaskAttr::get(VPU::PPEModeAttr::get(ctx, mode), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                                 nullptr, ctx);
+}
+
+VPU::PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow, int64_t clampHigh,
+                                int64_t lreluMult, int64_t lreluShift) {
+    return VPU::PPETaskAttr::get(VPU::PPEModeAttr::get(ctx, mode), getIntAttr(ctx, clampLow),
+                                 getIntAttr(ctx, clampHigh), getIntAttr(ctx, lreluMult), getIntAttr(ctx, lreluShift),
+                                 nullptr, nullptr, nullptr, ctx);
+}
+
+VPU::PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow, int64_t clampHigh,
+                                int64_t lreluMult, int64_t lreluShift, ArrayRef<int64_t> quantMult,
+                                ArrayRef<int64_t> quantShift, int64_t quantPostShift) {
+    return VPU::PPETaskAttr::get(VPU::PPEModeAttr::get(ctx, mode), getIntAttr(ctx, clampLow),
+                                 getIntAttr(ctx, clampHigh), getIntAttr(ctx, lreluMult), getIntAttr(ctx, lreluShift),
+                                 getIntArrayAttr(ctx, quantMult), getIntArrayAttr(ctx, quantShift),
+                                 getIntAttr(ctx, quantPostShift), ctx);
 }
 
 //

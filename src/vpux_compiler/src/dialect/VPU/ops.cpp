@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 
+#include "vpux/compiler/utils/asm.hpp"
+
 using namespace vpux;
 
 //
