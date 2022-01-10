@@ -29,7 +29,11 @@ public:
         bool operator()(mlir::Operation* op1, mlir::Operation* op2) const;
     };
 
-    struct uniqueIDTaskComparator {
+    struct uniqueBarrierIDTaskComparator {
+        bool operator()(mlir::Operation* op1, mlir::Operation* op2) const;
+    };
+
+    struct uniqueTaskIDTaskComparator {
         bool operator()(mlir::Operation* op1, mlir::Operation* op2) const;
     };
 
@@ -96,12 +100,12 @@ public:
     using barrierAssociationTableType = std::unordered_map<size_t, barrierTransitionStructure>;
     using processedOpsType = std::set<mlir::Operation*>;
     using scheduleHeapType = std::vector<HeapElement>;
-    using operationInDegreeType = std::map<mlir::Operation*, size_t>;
+    using operationInDegreeType = std::map<mlir::Operation*, size_t, uniqueTaskIDTaskComparator>;
     using priorityMapType = std::map<mlir::Operation*, size_t>;
     using barrierResourceUtilityMapType = std::unordered_map<mlir::Operation*, size_t>;
     using barrierUpdateWaitMapType =
             std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
-                     uniqueIDTaskComparator>;
+                     uniqueBarrierIDTaskComparator>;
     using taskOpUpdateWaitMapType =
             std::map<mlir::Operation*, std::pair<std::set<mlir::Operation*>, std::set<mlir::Operation*>>,
                      scheduleNumberTaskComparator>;
