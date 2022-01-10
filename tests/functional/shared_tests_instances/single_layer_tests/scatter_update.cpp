@@ -9,6 +9,13 @@
 namespace LayerTestsDefinitions {
 
 class KmbScatterUpdateLayerTest: public ScatterUpdateLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeLoad() override {
+        const auto &params = std::get<0>(GetParam());
+        const auto  axis   = std::get<3>(params);
+        if (axis != 0) {
+            throw LayerTestsUtils::KmbSkipTestException("Runtime only supports axis=0 config, actual=" + std::to_string(axis));
+        }
+    }
 };
 
 TEST_P(KmbScatterUpdateLayerTest, CompareWithRefs_MLIR) {
