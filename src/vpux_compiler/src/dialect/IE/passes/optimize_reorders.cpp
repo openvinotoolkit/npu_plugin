@@ -53,8 +53,13 @@ mlir::LogicalResult ReorderWithSubView::matchAndRewrite(IE::SliceOp origSubViewO
 
     _log.trace("Got reorder at '{0}' -> subview at '{1}' pair", origReorderOp->getLoc(), origSubViewOp->getLoc());
 
-    if (!origReorderOp.getResult().hasOneUse()) {
-        return matchFailed(_log.nest(), rewriter, origSubViewOp, "Reorder has more then one user");
+    const auto isSubView = [](mlir::Operation* reorderUser) -> bool {
+        return mlir::isa<IE::SliceOp>(reorderUser);
+    };
+
+    if (!llvm::all_of(origReorderOp->getUsers(), isSubView)) {
+        return matchFailed(_log.nest(), rewriter, origSubViewOp,
+                           "Reorder has more than one user and they are heterogeneous");
     }
 
     auto newSubViewOp =

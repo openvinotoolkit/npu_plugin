@@ -25,6 +25,32 @@ func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x4x4x2xf16> {
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
+// CHECK-LABEL: @ReorderWithTwoUsersSubView
+module @ReorderWithTwoUsersSubView attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+
+// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16, {order = #NHWC}>)
+func @main(%arg0: tensor<1x8x4x2xf16, {order = #NHWC}>) -> (tensor<1x4x4x2xf16, {order = #NHWC}>, tensor<1x5x4x2xf16, {order = #NHWC}>) {
+    %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x8x4x2xf16, {order = #NHWC}> -> tensor<1x8x4x2xf16>
+    %1 = IE.Slice %0 [0, 2, 0, 0] [1, 4, 4, 2] : tensor<1x8x4x2xf16> to tensor<1x4x4x2xf16>
+    %2 = IE.Slice %0 [0, 2, 0, 0] [1, 5, 4, 2] : tensor<1x8x4x2xf16> to tensor<1x5x4x2xf16>
+    %3 = IE.Reorder(%1) {dstOrder = #NHWC} : tensor<1x4x4x2xf16> -> tensor<1x4x4x2xf16, {order = #NHWC}>
+    %4 = IE.Reorder(%2) {dstOrder = #NHWC} : tensor<1x5x4x2xf16> -> tensor<1x5x4x2xf16, {order = #NHWC}>
+    return %3, %4 : tensor<1x4x4x2xf16, {order = #NHWC}>, tensor<1x5x4x2xf16, {order = #NHWC}>
+
+    // CHECK:       [[VAR0:%.+]] = IE.Slice [[ARG0]]
+    // CHECK-SAME:      tensor<1x8x4x2xf16, {order = #NHWC}> to tensor<1x4x4x2xf16, {order = #NHWC}>
+    // CHECK:       [[VAR1:%.+]] = IE.Slice [[ARG0]]
+    // CHECK-SAME:      tensor<1x8x4x2xf16, {order = #NHWC}> to tensor<1x5x4x2xf16, {order = #NHWC}>
+    // CHECK:       return [[VAR0]], [[VAR1]] : tensor<1x4x4x2xf16, {order = #NHWC}>, tensor<1x5x4x2xf16, {order = #NHWC}>
+}
+
+}
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
 // CHECK-LABEL: @ReorderWithExpand
 module @ReorderWithExpand attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
 
