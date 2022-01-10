@@ -137,6 +137,19 @@ Broadcast axis by value of constant content
 | axis | `mlir::IntegerAttr` |  |
 | value | `mlir::IntegerAttr` |  |
 
+### ClampAttr
+
+Clamp constant content
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| axis | `mlir::IntegerAttr` |  |
+| min | `mlir::ArrayAttr` |  |
+| max | `mlir::ArrayAttr` |  |
+
 ### ContentAttr
 
 Lazy folded constant content

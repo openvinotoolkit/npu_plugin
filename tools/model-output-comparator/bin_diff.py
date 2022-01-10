@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 plt.style.use('dark_background')
 
-kmb_filename = "InferenceManagerDemo/output-0.bin"
-cpu_filename = "InferenceManagerDemo/cpu-output-0.bin"
+kmb_filename = "/home/ybulina/code/openvinotoolkit/openvino/bin/aarch64/Release/_2020_1_INT8_Deblur_AccuracyAwareQuantization_cut_g_net_enc1_1_Conv2D_kmb_out_0_case_0.blob"
+cpu_filename = "/home/ybulina/code/openvinotoolkit/openvino/bin/aarch64/Release/_2020_1_INT8_Deblur_AccuracyAwareQuantization_cut_g_net_enc1_1_Conv2D_ref_out_0_case_0.blob"
 if len(sys.argv) == 3:
     cpu_filename = sys.argv[1]
     kmb_filename = sys.argv[2]
@@ -15,7 +15,7 @@ if len(sys.argv) == 6:
     H = int(sys.argv[4])
     C = int(sys.argv[5])
 else:
-    WHC_file = "InferenceManagerDemo/WHC.txt"
+    WHC_file = "/home/ybulina/code/openvinotoolkit/openvino/bin/aarch64/Release/WHC.txt"
     if len(sys.argv) == 4:
         WHC_file = sys.argv[3]
     with open (WHC_file, "r") as myfile:

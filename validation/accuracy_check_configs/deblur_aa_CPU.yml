@@ -1,0 +1,34 @@
+models:
+  - name: deblur_aa
+
+    launchers:
+      - framework: dlsdk
+        model: /home/ybulina/code/movidius/icv_externalN/Deblur/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml
+        #model: /home/root/Ywork/Models/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml
+        adapter:
+          type: super_resolution
+
+    datasets:
+      - name: deblur
+        reader: pillow_imread
+        data_source: /home/ybulina/icv_externalN/omz-validation-datasets/deblur/mixed/
+        #data_source: /home/root/Ywork/omz-validation-datasets/
+        annotation_conversion:
+          converter: super_resolution
+          data_dir: /home/ybulina/icv_externalN/omz-validation-datasets/deblur/mixed/
+          #data_dir: /home/root/Ywork/omz-validation-datasets/
+          lr_suffix: _b.png
+          hr_suffix: _s.png
+
+        preprocessing:
+          - type: normalization
+            std: 255
+          - type: resize
+            dst_height: 720
+            dst_width: 1280
+
+        metrics:
+          - type: psnr
+            scale_border: 4
+            presenter: print_vector
+            

@@ -11,26 +11,25 @@
 // included with the Software Package for additional details.
 //
 
-
+#include "utils.hpp"
 #include "vpux/utils/IE/blob.hpp"
 #include "yolo_helpers.hpp"
-#include "utils.hpp"
 
-#include <inference_engine.hpp>
-#include <blob_factory.hpp>
-#include <caseless.hpp>
 #include <file_utils.h>
 #include <precision_utils.h>
+#include <blob_factory.hpp>
+#include <caseless.hpp>
+#include <inference_engine.hpp>
 
 #include <opencv2/core.hpp>
-#include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <gflags/gflags.h>
 
-#include <iostream>
-#include <iomanip>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -159,9 +158,7 @@ std::vector<cv::Mat> ieToCv(const ie::MemoryBlob::Ptr& blob, size_t batchInd = 0
 
     IE_ASSERT(layout == ie::Layout::NCHW || layout == ie::Layout::NCDHW);
 
-    IE_ASSERT(precision == ie::Precision::U8   ||
-              precision == ie::Precision::FP32 ||
-              precision == ie::Precision::FP16);
+    IE_ASSERT(precision == ie::Precision::U8 || precision == ie::Precision::FP32 || precision == ie::Precision::FP16);
 
     int cvType = 0;
     size_t elemSize = 0;
@@ -189,7 +186,7 @@ std::vector<cv::Mat> ieToCv(const ie::MemoryBlob::Ptr& blob, size_t batchInd = 0
         IE_ASSERT(C == 3 || C == 4);
 
         const auto blobMem = blob->wmap();
-        const auto blobPtr = blobMem.as<uint8_t *>();
+        const auto blobPtr = blobMem.as<uint8_t*>();
 
         out.resize(C);
         for (size_t c = 0; c < C; ++c) {
@@ -212,11 +209,12 @@ std::vector<cv::Mat> ieToCv(const ie::MemoryBlob::Ptr& blob, size_t batchInd = 0
         IE_ASSERT(C == 3 || C == 4);
 
         const auto blobMem = blob->wmap();
-        const auto blobPtr = blobMem.as<uint8_t *>();
+        const auto blobPtr = blobMem.as<uint8_t*>();
 
         out.resize(C);
         for (size_t c = 0; c < C; ++c) {
-            out[c] = cv::Mat(H, W, cvType, blobPtr + (strideN * batchInd + strideC * c + strideD * depthInd) * elemSize);
+            out[c] =
+                    cv::Mat(H, W, cvType, blobPtr + (strideN * batchInd + strideC * c + strideD * depthInd) * elemSize);
         }
     }
 
@@ -247,9 +245,9 @@ void cvToIe(const cv::Mat& cvImg, const ie::MemoryBlob::Ptr& ieBlob, const std::
     } else if (precision == ie::Precision::FP16) {
         cvType = CV_16SC(C);
     } else {
-        IE_ASSERT(precision == ie::Precision::U8   ||
-                  precision == ie::Precision::FP32 ||
-                  precision == ie::Precision::FP16) << "Unsupported precision " << precision;
+        IE_ASSERT(precision == ie::Precision::U8 || precision == ie::Precision::FP32 ||
+                  precision == ie::Precision::FP16)
+                << "Unsupported precision " << precision;
     }
 
     cv::Mat in;
@@ -268,7 +266,6 @@ void cvToIe(const cv::Mat& cvImg, const ie::MemoryBlob::Ptr& ieBlob, const std::
         }
     }
 
-
     if (precision != ie::Precision::U8) {
         in.convertTo(in, CV_32F);
     }
@@ -283,7 +280,7 @@ void cvToIe(const cv::Mat& cvImg, const ie::MemoryBlob::Ptr& ieBlob, const std::
 
     if (layout == ie::Layout::NHWC) {
         const auto blobMem = ieBlob->wmap();
-        const auto blobPtr = blobMem.as<uint8_t *>();
+        const auto blobPtr = blobMem.as<uint8_t*>();
 
         cv::Mat out(H, W, cvType, blobPtr);
 
@@ -292,7 +289,7 @@ void cvToIe(const cv::Mat& cvImg, const ie::MemoryBlob::Ptr& ieBlob, const std::
         } else {
             const auto inPtr = in.ptr<float>();
             const auto outPtr = out.ptr<ie::ie_fp16>();
-            ie::PrecisionUtils::f32tof16Arrays(outPtr, inPtr, out.size().area()*C);
+            ie::PrecisionUtils::f32tof16Arrays(outPtr, inPtr, out.size().area() * C);
         }
 
         for (size_t n = 1; n < N; ++n) {
@@ -335,11 +332,11 @@ void cvToIe(const cv::Mat& cvImg, const ie::MemoryBlob::Ptr& ieBlob, const std::
 
 std::string cleanName(std::string name) {
     std::replace_if(
-        name.begin(), name.end(),
-        [](char c) {
-            return !std::isalnum(c);
-        },
-        '_');
+            name.begin(), name.end(),
+            [](char c) {
+                return !std::isalnum(c);
+            },
+            '_');
     return name;
 }
 
@@ -366,13 +363,14 @@ ie::MemoryBlob::Ptr loadBinary(const ie::TensorDesc& desc, const std::string& fi
     const int fileSize = binaryFile.tellg();
     binaryFile.seekg(0, std::ios_base::beg);
     const int expectedSize = static_cast<int>(blob->byteSize());
-    IE_ASSERT(fileSize == expectedSize) << "File contains " << fileSize << " bytes, but " << expectedSize << " expected";
+    IE_ASSERT(fileSize == expectedSize) << "File contains " << fileSize << " bytes, but " << expectedSize
+                                        << " expected";
 
     IE_ASSERT(binaryFile.good()) << "While reading a file an error is encountered";
 
     blob->allocate();
     const auto blobMem = blob->wmap();
-    const auto blobPtr = blobMem.as<char *>();
+    const auto blobPtr = blobMem.as<char*>();
     binaryFile.read(blobPtr, static_cast<std::streamsize>(expectedSize));
 
     return blob;
@@ -423,7 +421,6 @@ void setupInferenceEngine() {
             if (key.empty() || key[0] == '#') {
                 continue;
             }
-
             ieCoreShared->SetConfig({{key, value}}, flagDevice);
         }
     }
@@ -438,15 +435,17 @@ ie::ExecutableNetwork importNetwork(const std::string& filePath) {
     THROW_IE_EXCEPTION << "ieCore object expired";
 }
 
-ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs, const std::vector<std::string>& dumpedInputsPaths) {
+ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs,
+                     const std::vector<std::string>& dumpedInputsPaths) {
     ie::BlobMap out;
 
-    if(FLAGS_moviSim) {
+    if (FLAGS_moviSim) {
 #ifdef ENABLE_MOVISIM
         out = ms::runMoviSimEmulator(exeNet, FLAGS_network, dumpedInputsPaths);
 #else
-        std::cout<< "Can't run MoviSim emulator. Please check your python installation. "
-                    "Inference on MoviSim emulator is available for Lunix platforms only"<< std::endl;
+        std::cout << "Can't run MoviSim emulator. Please check your python installation. "
+                     "Inference on MoviSim emulator is available for Lunix platforms only"
+                  << std::endl;
 #endif
     } else {
         auto inferRequest = exeNet.CreateInferRequest();
@@ -456,7 +455,6 @@ ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs, c
         }
 
         inferRequest.Infer();
-
 
         for (const auto& p : exeNet.GetOutputsInfo()) {
             out.insert({p.first, inferRequest.GetBlob(p.first)});
@@ -492,33 +490,21 @@ static std::vector<utils::BoundingBox> SSDBoxExtractor(float threshold, std::vec
     return boxes_result;
 }
 
-bool checkBBoxOutputs(std::vector<utils::BoundingBox> &actualOutput,
-                                               std::vector<utils::BoundingBox> &refOutput,
-                                               const size_t imgWidth,
-                                               const size_t imgHeight,
-                                               const float boxTolerance,
-                                               const float probTolerance) {
+bool checkBBoxOutputs(std::vector<utils::BoundingBox>& actualOutput, std::vector<utils::BoundingBox>& refOutput,
+                      const size_t imgWidth, const size_t imgHeight, const float boxTolerance,
+                      const float probTolerance) {
     std::cout << "Ref Top:" << std::endl;
     for (size_t i = 0; i < refOutput.size(); ++i) {
         const auto& bb = refOutput[i];
-        std::cout << i << " : " << bb.idx
-                  << " : [("
-                  << bb.left << " " << bb.top << "), ("
-                  << bb.right << " " << bb.bottom
-                  << ")] : "
-                  << bb.prob * 100 << "%"
-                  << std::endl;
+        std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right << " "
+                  << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
     }
 
     std::cout << "Actual top:" << std::endl;
     for (size_t i = 0; i < actualOutput.size(); ++i) {
         const auto& bb = actualOutput[i];
-        std::cout << i << " : " << bb.idx
-                  << " : [("
-                  << bb.left << " " << bb.top << "), ("
-                  << bb.right << " " << bb.bottom
-                  << ")] : "
-                  << bb.prob * 100 << "%" << std::endl;
+        std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right << " "
+                  << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
     }
 
     for (const auto& refBB : refOutput) {
@@ -532,18 +518,11 @@ bool checkBBoxOutputs(std::vector<utils::BoundingBox> &actualOutput,
                 continue;
             }
 
-            const utils::Box actualBox {
-                    actualBB.left / imgWidth,
-                    actualBB.top / imgHeight,
-                    (actualBB.right - actualBB.left) / imgWidth,
-                    (actualBB.bottom - actualBB.top) / imgHeight
-            };
-            const utils::Box refBox {
-                    refBB.left / imgWidth,
-                    refBB.top / imgHeight,
-                    (refBB.right - refBB.left) / imgWidth,
-                    (refBB.bottom - refBB.top) / imgHeight
-            };
+            const utils::Box actualBox{actualBB.left / imgWidth, actualBB.top / imgHeight,
+                                       (actualBB.right - actualBB.left) / imgWidth,
+                                       (actualBB.bottom - actualBB.top) / imgHeight};
+            const utils::Box refBox{refBB.left / imgWidth, refBB.top / imgHeight, (refBB.right - refBB.left) / imgWidth,
+                                    (refBB.bottom - refBB.top) / imgHeight};
 
             const auto boxIntersection = boxIntersectionOverUnion(actualBox, refBox);
             const auto boxError = 1.0f - boxIntersection;
@@ -564,14 +543,16 @@ bool checkBBoxOutputs(std::vector<utils::BoundingBox> &actualOutput,
             break;
         }
         if (!found) {
-            std::cout << "maxBoxError=" << maxBoxError << " " << "maxProbError=" << maxProbError << std::endl;
+            std::cout << "maxBoxError=" << maxBoxError << " "
+                      << "maxProbError=" << maxProbError << std::endl;
             return false;
         }
     }
     return true;
 }
 
-bool testSSDDetection(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs, const ie::ConstInputsDataMap& inputsDesc) {
+bool testSSDDetection(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs,
+                      const ie::ConstInputsDataMap& inputsDesc) {
     IE_ASSERT(outputs.size() == 1 && refOutputs.size() == 1);
     const auto& outBlob = outputs.begin()->second;
     const auto& refOutBlob = refOutputs.begin()->second;
@@ -650,11 +631,9 @@ bool testClassification(const ie::BlobMap& outputs, const ie::BlobMap& refOutput
     }
 
     for (const auto& refElem : refProbs) {
-        const auto actualIt = std::find_if(
-            probs.cbegin(), probs.cend(),
-            [&refElem](const std::pair<int, float>& arg) {
-                return refElem.first == arg.first;
-            });
+        const auto actualIt = std::find_if(probs.cbegin(), probs.cend(), [&refElem](const std::pair<int, float>& arg) {
+            return refElem.first == arg.first;
+        });
         if (actualIt == probs.end()) {
             std::cout << "Ref result " << refElem.first << " was not found in actual results" << std::endl;
             return false;
@@ -665,7 +644,8 @@ bool testClassification(const ie::BlobMap& outputs, const ie::BlobMap& refOutput
         if (refElem.second > actualElem.second) {
             const auto probDiff = std::fabs(refElem.second - actualElem.second);
             if (probDiff > FLAGS_prob_tolerance) {
-                std::cout << "Probability value mismatch for " << refElem.first << " : " << refElem.second << " vs " << actualElem.second;
+                std::cout << "Probability value mismatch for " << refElem.first << " : " << refElem.second << " vs "
+                          << actualElem.second;
                 return false;
             }
         }
@@ -678,9 +658,7 @@ bool testClassification(const ie::BlobMap& outputs, const ie::BlobMap& refOutput
 // RAW mode
 //
 
-bool compareBlobs(
-        const ie::MemoryBlob::Ptr& actualOutput,
-        const ie::MemoryBlob::Ptr& refOutput) {
+bool compareBlobs(const ie::MemoryBlob::Ptr& actualOutput, const ie::MemoryBlob::Ptr& refOutput) {
     const auto& actualDesc = actualOutput->getTensorDesc();
     const auto& refDesc = refOutput->getTensorDesc();
 
@@ -701,6 +679,11 @@ bool compareBlobs(
     const auto totalCount = refOutput->size();
     const auto printCount = std::min<size_t>(totalCount, 10);
 
+    auto first_abs_diff = 0.f;
+    auto max_abs_diff = 0.f;
+    auto gavnuk = 0;
+    auto printed = false;
+
     for (size_t i = 0; i < totalCount; ++i) {
         const auto refVal = refPtr[i];
         const auto actualVal = actualPtr[i];
@@ -709,21 +692,30 @@ bool compareBlobs(
 
         if (i < printCount) {
             std::cout << "        " << i << " :"
-                      << " ref : " << std::setw(10) << refVal
-                      << " actual : " << std::setw(10) << actualVal
-                      << " absdiff : " << std::setw(10) << absDiff
-                      << std::endl;
+                      << " ref : " << std::setw(10) << refVal << " actual : " << std::setw(10) << actualVal
+                      << " absdiff : " << std::setw(10) << absDiff << std::endl;
         }
 
-        if (absDiff > FLAGS_raw_tolerance) {
-            std::cout
-                    << "Absolute difference between actual value " << actualVal
-                    << " and reference value " << refVal
-                    << " at index " << i
-                    << " larger then tolerance" << std::endl;
-            return false;
+        if (!printed && absDiff > FLAGS_raw_tolerance) {
+            first_abs_diff = absDiff;
+            std::cout << "Absolute difference between actual value " << actualVal << " and reference value " << refVal
+                      << " at index " << i << " larger then tolerance, diff = " << first_abs_diff << std::endl;
+            // return false;
+            printed = true;
+        }
+
+        if (absDiff > FLAGS_raw_tolerance && absDiff > max_abs_diff) {
+            max_abs_diff = absDiff;
+            gavnuk = i;
         }
     }
+    std::cout << "Max absolute difference between actual value " << actualPtr[gavnuk] << " and reference value "
+              << refPtr[gavnuk] << " at index " << gavnuk << " larger then tolerance, max_diff = " << max_abs_diff
+              << std::endl;
+
+    std::cout << "Difference between actual value " << actualPtr[544329] << " and reference value "
+              << refPtr[544329] << " at index 544329 larger then tolerance, diff = " << std::fabs(refPtr[544329] - actualPtr[544329])
+              << std::endl;
 
     return true;
 }
@@ -750,14 +742,11 @@ bool testRAW(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs) {
 //
 // Yolo V2 mode
 //
-bool testYoloV2 (const ie::BlobMap& actualBlobs,
-                 const ie::BlobMap& refBlobs,
-                 const ie::ConstInputsDataMap& inputsDesc) {
-
+bool testYoloV2(const ie::BlobMap& actualBlobs, const ie::BlobMap& refBlobs, const ie::ConstInputsDataMap& inputsDesc) {
     IE_ASSERT(inputsDesc.size() == 1);
     IE_ASSERT(actualBlobs.size() == 1u && actualBlobs.size() == refBlobs.size());
     auto actualBlob = actualBlobs.begin()->second;
-    auto refBlob    = refBlobs.begin()->second;
+    auto refBlob = refBlobs.begin()->second;
 
     const auto& inputDesc = inputsDesc.begin()->second->getTensorDesc();
 
@@ -768,8 +757,9 @@ bool testYoloV2 (const ie::BlobMap& actualBlobs,
     double boxTolerance = FLAGS_box_tolerance;
     bool isTiny = FLAGS_is_tiny_yolo;
 
-    auto actualOutput = utils::parseYoloOutput(vpux::toFP32(InferenceEngine::as<InferenceEngine::MemoryBlob>(actualBlob)),
-                                               imgWidth, imgHeight, confThresh, isTiny);
+    auto actualOutput =
+            utils::parseYoloOutput(vpux::toFP32(InferenceEngine::as<InferenceEngine::MemoryBlob>(actualBlob)), imgWidth,
+                                   imgHeight, confThresh, isTiny);
     auto refOutput = utils::parseYoloOutput(vpux::toFP32(InferenceEngine::as<InferenceEngine::MemoryBlob>(refBlob)),
                                             imgWidth, imgHeight, confThresh, isTiny);
 
@@ -780,9 +770,7 @@ bool testYoloV2 (const ie::BlobMap& actualBlobs,
 //
 // Yolo V3 mode
 //
-bool testYoloV3(const ie::BlobMap& actBlobs,
-                const ie::BlobMap& refBlobs,
-                const ie::ConstInputsDataMap& inputsDesc) {
+bool testYoloV3(const ie::BlobMap& actBlobs, const ie::BlobMap& refBlobs, const ie::ConstInputsDataMap& inputsDesc) {
     IE_ASSERT(inputsDesc.size() == 1);
     IE_ASSERT(actBlobs.size() == 3);
     IE_ASSERT(actBlobs.size() == refBlobs.size());
@@ -797,13 +785,13 @@ bool testYoloV3(const ie::BlobMap& actBlobs,
     int classes = FLAGS_classes;
     int coords = FLAGS_coords;
     int num = FLAGS_num;
-    std::vector<float> anchors = {10.0, 13.0, 16.0, 30.0, 33.0, 23.0, 30.0, 61.0, 62.0,
+    std::vector<float> anchors = {10.0, 13.0, 16.0,  30.0,  33.0, 23.0,  30.0,  61.0,  62.0,
                                   45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
 
-    auto actOutput = utils::parseYoloV3Output(actBlobs, imgWidth, imgHeight, classes, coords, num, anchors,
-                                            confThresh, InferenceEngine::NCHW);
-    auto refOutput = utils::parseYoloV3Output(refBlobs, imgWidth, imgHeight, classes, coords, num, anchors,
-                                            confThresh, refBlobs.begin()->second->getTensorDesc().getLayout());
+    auto actOutput = utils::parseYoloV3Output(actBlobs, imgWidth, imgHeight, classes, coords, num, anchors, confThresh,
+                                              InferenceEngine::NCHW);
+    auto refOutput = utils::parseYoloV3Output(refBlobs, imgWidth, imgHeight, classes, coords, num, anchors, confThresh,
+                                              refBlobs.begin()->second->getTensorDesc().getLayout());
 
     bool result = checkBBoxOutputs(actOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
     return result;
@@ -823,13 +811,13 @@ int main(int argc, char* argv[]) {
         const std::unordered_set<std::string> allowedPrecision = {"U8", "FP16", "FP32"};
         if (!FLAGS_ip.empty()) {
             // input precision is U8, FP16 or FP32 only
-            std::transform(FLAGS_ip.begin(),FLAGS_ip.end(),FLAGS_ip.begin(), ::toupper);
+            std::transform(FLAGS_ip.begin(), FLAGS_ip.end(), FLAGS_ip.begin(), ::toupper);
             if (allowedPrecision.count(FLAGS_ip) == 0)
                 throw std::logic_error("Parameter -ip " + FLAGS_ip + " is not supported");
         }
         if (!FLAGS_op.empty()) {
             // output precision is U8, FP16 or FP32 only
-            std::transform(FLAGS_op.begin(),FLAGS_op.end(),FLAGS_op.begin(), ::toupper);
+            std::transform(FLAGS_op.begin(), FLAGS_op.end(), FLAGS_op.begin(), ::toupper);
             if (allowedPrecision.count(FLAGS_op) == 0)
                 throw std::logic_error("Parameter -op " + FLAGS_op + " is not supported");
         }
@@ -866,14 +854,14 @@ int main(int argc, char* argv[]) {
                 else
                     prc_in = ie::Precision::U8;
 
-                for (auto inputInfoIt=inputInfo.begin(); inputInfoIt!=inputInfo.end(); ++inputInfoIt){
+                for (auto inputInfoIt = inputInfo.begin(); inputInfoIt != inputInfo.end(); ++inputInfoIt) {
                     inputInfoIt->second->setPrecision(prc_in);
                 }
             }
             // Input layout
             if (!FLAGS_il.empty()) {
                 const ie::Layout layout = FLAGS_il == "NCHW" ? ie::Layout::NCHW : ie::Layout::NHWC;
-                for (auto & info: inputInfo) {
+                for (auto& info : inputInfo) {
                     if (info.second->getLayout() == InferenceEngine::C)
                         continue;
                     else
@@ -892,20 +880,19 @@ int main(int argc, char* argv[]) {
                     prc_out = ie::Precision::U8;
 
                 // possibly multiple outputs
-                for (auto outputInfoIt=outputInfo.begin(); outputInfoIt!=outputInfo.end(); ++outputInfoIt){
+                for (auto outputInfoIt = outputInfo.begin(); outputInfoIt != outputInfo.end(); ++outputInfoIt) {
                     outputInfoIt->second->setPrecision(prc_out);
                 }
             }
             // Output layout
             if (!FLAGS_ol.empty()) {
-                for (auto outputInfoIt=outputInfo.begin(); outputInfoIt!=outputInfo.end(); ++outputInfoIt){
+                for (auto outputInfoIt = outputInfo.begin(); outputInfoIt != outputInfo.end(); ++outputInfoIt) {
                     if (outputInfoIt->second->getDims().size() == 2) {
-                            outputInfoIt->second->setLayout(ie::Layout::NC);
+                        outputInfoIt->second->setLayout(ie::Layout::NC);
                     } else {
-                        if (FLAGS_ol == "NCHW"){
+                        if (FLAGS_ol == "NCHW") {
                             outputInfoIt->second->setLayout(ie::Layout::NCHW);
-                        }
-                        else{
+                        } else {
                             outputInfoIt->second->setLayout(ie::Layout::NHWC);
                         }
                     }
@@ -943,14 +930,15 @@ int main(int argc, char* argv[]) {
             const auto outputsInfo = exeNet.GetOutputsInfo();
             std::vector<std::string> inputFiles = inputFilesForOneInfer[numberOfTestCase];
             IE_ASSERT(inputFiles.size() == inputsInfo.size())
-                        << "Number of input files " << inputFiles.size()
-                        << " doesn't match network configuration " << inputsInfo.size();
+                    << "Number of input files " << inputFiles.size() << " doesn't match network configuration "
+                    << inputsInfo.size();
 
             ie::BlobMap inputs;
             size_t inputInd = 0;
             std::vector<std::string> dumpedInputsPaths;
-            for (const auto &p : inputsInfo) {
-                std::cout << "Load input #" << inputInd << " from " << inputFiles[inputInd] << " as " << p.second->getTensorDesc().getPrecision() << std::endl;
+            for (const auto& p : inputsInfo) {
+                std::cout << "Load input #" << inputInd << " from " << inputFiles[inputInd] << " as "
+                          << p.second->getTensorDesc().getPrecision() << std::endl;
                 const auto blob = loadInput(p.second->getTensorDesc(), inputFiles[inputInd], FLAGS_color_format);
                 inputs.emplace(p.first, blob);
 
@@ -958,7 +946,8 @@ int main(int argc, char* argv[]) {
                 ostr << netFileName << "_input_" << inputInd << "_case_" << numberOfTestCase << ".blob";
                 const auto blobFileName = ostr.str();
 
-                std::cout << "Dump input #" << inputInd << "_case_" << numberOfTestCase << " to " << blobFileName << std::endl;
+                std::cout << "Dump input #" << inputInd << "_case_" << numberOfTestCase << " to " << blobFileName
+                          << std::endl;
                 dumpBlob(blob, blobFileName);
 
                 ++inputInd;
@@ -972,7 +961,7 @@ int main(int argc, char* argv[]) {
             if (FLAGS_run_test) {
                 ie::BlobMap refOutputs;
                 size_t outputInd = 0;
-                for (const auto &p : outputsInfo) {
+                for (const auto& p : outputsInfo) {
                     std::ostringstream ostr;
                     ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
@@ -980,7 +969,8 @@ int main(int argc, char* argv[]) {
                     auto refTensorDesc = p.second->getTensorDesc();
                     refTensorDesc.setPrecision(ie::Precision::FP32);
 
-                    std::cout << "Load reference output #" << outputInd << " from " << blobFileName << " as " << refTensorDesc.getPrecision() << std::endl;
+                    std::cout << "Load reference output #" << outputInd << " from " << blobFileName << " as "
+                              << refTensorDesc.getPrecision() << std::endl;
 
                     const auto blob = loadBlob(refTensorDesc, blobFileName);
                     refOutputs.emplace(p.first, blob);
@@ -989,12 +979,13 @@ int main(int argc, char* argv[]) {
                 }
 
                 outputInd = 0;
-                for (const auto &p : outputs) {
+                for (const auto& p : outputs) {
                     std::ostringstream ostr;
                     ostr << netFileName << "_kmb_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
-                    std::cout << "Dump device output #" << outputInd << "_case_" << numberOfTestCase << " to " << blobFileName << std::endl;
+                    std::cout << "Dump device output #" << outputInd << "_case_" << numberOfTestCase << " to "
+                              << blobFileName << std::endl;
                     dumpBlob(ie::as<ie::MemoryBlob>(p.second), blobFileName);
 
                     ++outputInd;
@@ -1041,7 +1032,7 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 size_t outputInd = 0;
-                for (const auto &p : outputs) {
+                for (const auto& p : outputs) {
                     std::ostringstream ostr;
                     ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
@@ -1053,8 +1044,8 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-    } // try
-    catch (const std::exception &ex) {
+    }  // try
+    catch (const std::exception& ex) {
         std::cerr << "exception: " << ex.what() << std::endl;
         return EXIT_FAILURE;
     }
