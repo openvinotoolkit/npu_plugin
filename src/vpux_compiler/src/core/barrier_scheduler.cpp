@@ -18,23 +18,23 @@ using namespace vpux::VPURT;
 //
 // Barrier Scheduler
 //
-// Barriers are physical synchronization primitives in VPU hardware. Every task 
-// requires a barrier resource to indicate its completion to its adjacent tasks. 
+// Barriers are physical synchronization primitives in VPU hardware. Every task
+// requires a barrier resource to indicate its completion to its adjacent tasks.
 // Thus every scheduled operation with at least one outgoing edge needs an update barrier.
 //
-// In the feasible memory scheduler, a feasible schedule is generated. However, VPU hardware 
-// only has a finite number of barriers, 8 per cluster. The Barrier scheduler class ensures 
+// In the feasible memory scheduler, a feasible schedule is generated. However, VPU hardware
+// only has a finite number of barriers, 8 per cluster. The Barrier scheduler class ensures
 // that in all possible schedules of the number of active barriers does not exceed the available
-// physical barriers for the target platform. To achieve this the scheduler may need to insert 
-// some additional control dependencies among the tasks. 
+// physical barriers for the target platform. To achieve this the scheduler may need to insert
+// some additional control dependencies among the tasks.
 
 // The hardware allows a finite producer count of 256 for each of the update barriers.
 // This means that multiple tasks can update the same active barrier. This is incorporated into the
 // barrier resource model by using the term barrier slots.
-// In addition to the upper bound of available barriers it is assumed that each of these barriers has 
-// a maximum of 256 slots. The barrier demand is expressed as the number of slots required. 
-// In the context of VPU hardware the number of slots for a DPU tasks are the DPU worklaods 
-// and for a DMA tasks it is 1. 
+// In addition to the upper bound of available barriers it is assumed that each of these barriers has
+// a maximum of 256 slots. The barrier demand is expressed as the number of slots required.
+// In the context of VPU hardware the number of slots for a DPU tasks are the DPU worklaods
+// and for a DMA tasks it is 1.
 
 BarrierScheduler::BarrierScheduler(mlir::FuncOp func, Logger log)
         : _barrierCount(),
@@ -60,7 +60,7 @@ BarrierScheduler::BarrierScheduler(mlir::FuncOp func, Logger log)
           _func(func){};
 
 void BarrierScheduler::populateTasksUpdateWaitBarrierMap(barrierUpdateWaitMapType& barrierOpUpdateWaitMap,
-                                                                 taskOpUpdateWaitMapType& taskOpUpdateWaitMap) {
+                                                         taskOpUpdateWaitMapType& taskOpUpdateWaitMap) {
     for (auto iter = barrierOpUpdateWaitMap.begin(); iter != barrierOpUpdateWaitMap.end(); iter++) {
         auto barrierOp = (*iter).first;
         auto producers = (*iter).second.first;
@@ -378,9 +378,11 @@ bool BarrierScheduler::unScheduleTask(mlir::Operation* op) {
         return false;
     }
     const barrierInfo& binfo = itr->second;
-    auto unassignBarrierSlots = _barrierResourceState.unassignBarrierSlots(binfo._barrierIndex, binfo._producerSlotCount);
+    auto unassignBarrierSlots =
+            _barrierResourceState.unassignBarrierSlots(binfo._barrierIndex, binfo._producerSlotCount);
 
-    VPUX_THROW_UNLESS(unassignBarrierSlots == true, "Failed to dealocate slots in the barrier index {0}", binfo._barrierIndex);
+    VPUX_THROW_UNLESS(unassignBarrierSlots == true, "Failed to dealocate slots in the barrier index {0}",
+                      binfo._barrierIndex);
     _barrierMap.erase(itr);
     return true;
 }
@@ -405,7 +407,7 @@ bool BarrierScheduler::isBarrierResourceAvailable(const size_t producerSlotRequi
 }
 
 void BarrierScheduler::initializeBarrierResourceState(const size_t numberOfBarriers,
-                                                              const size_t maxProducersPerBarrier) {
+                                                      const size_t maxProducersPerBarrier) {
     _barrierResourceState.init(numberOfBarriers, maxProducersPerBarrier);
 }
 
@@ -813,11 +815,24 @@ void BarrierScheduler::removeRedundantBarriers() {
                     _log.trace("found barrier {0} and {1} have same consumers", (*iter).first->getAttr("id"),
                                (*iter1).first->getAttr("id"));
                     auto& producers = (*iter1).second.first;
-                    for (auto task : producers) {
-                        (*iter).second.first.insert(task);
+                    size_t variantsCount = 0;
+                    size_t invariantsCount = 0;
+                    for (auto& oldProducer : (*iter).second.first) {
+                        variantsCount += countProducerConsumerTasks(oldProducer);
+                        invariantsCount++;
                     }
-                    producers.clear();
-                    consumers1.clear();
+                    for (auto& newProducer : producers) {
+                        variantsCount += countProducerConsumerTasks(newProducer);
+                        invariantsCount++;
+                    }
+
+                    if ((variantsCount <= _slotsPerBarrier) && (invariantsCount <= 32)) {
+                        for (auto task : producers) {
+                            (*iter).second.first.insert(task);
+                        }
+                        producers.clear();
+                        consumers1.clear();
+                    }
                 }
             }
         }
