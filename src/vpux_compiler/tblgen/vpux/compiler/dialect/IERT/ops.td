@@ -2555,6 +2555,38 @@ def IERT_ScatterUpdateOp :
 }
 
 //
+// ScatterElementsUpdateOp
+//
+
+def IERT_ScatterElementsUpdateOp :
+        IERT_LayerOp<1, "ScatterElementsUpdate",
+            [
+                ViewLikeOpInterface,
+            ]
+        > {
+    let summary = "InferenceEngine run-time ScatterElementsUpdate layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI32]>:$indices,
+        AnyMemRef:$updates,
+        AnyMemRef:$axis,
+        AnyMemRef:$output_buff
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `,` $updates `:` type($updates) `,` $axis `:` type($axis) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // LSTMCellOp
 //
 
