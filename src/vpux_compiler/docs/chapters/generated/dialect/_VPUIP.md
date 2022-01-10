@@ -1961,6 +1961,43 @@ operation ::= `VPUIP.ScatterNDUpdateUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
+### `VPUIP.ScatterUpdateUPA` (vpux::VPUIP::ScatterUpdateUPAOp)
+
+ScatterUpdate UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ScatterUpdateUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `,` $updates `:` type($updates) `,` $axis `:` type($axis) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`indices` | memref of 32-bit signed integer values
+`updates` | memref of any type values
+`axis` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `VPUIP.SigmoidUPA` (vpux::VPUIP::SigmoidUPAOp)
 
 Sigmoid UPA SHAVE kernel

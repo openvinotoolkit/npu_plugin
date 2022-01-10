@@ -2510,6 +2510,37 @@ operation ::= `IERT.ScatterNDUpdate` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
+### `IERT.ScatterUpdate` (vpux::IERT::ScatterUpdateOp)
+
+InferenceEngine run-time ScatterUpdate layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ScatterUpdate` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `,` $updates `:` type($updates) `,` $axis `:` type($axis) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`indices` | memref of 32-bit signed integer values
+`updates` | memref of any type values
+`axis` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.Sigmoid` (vpux::IERT::SigmoidOp)
 
 InferenceEngine run-time Sigmoid layer

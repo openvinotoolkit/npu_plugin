@@ -2460,6 +2460,33 @@ operation ::= `IE.ScatterNDUpdate` `(` operands `)` attr-dict `:` type(operands)
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.ScatterUpdate` (vpux::IE::ScatterUpdateOp)
+
+InferenceEngine ScatterUpdate layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ScatterUpdate` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`indices` | ranked tensor of integer values
+`updates` | ranked tensor of any type values
+`axis` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Sigmoid` (vpux::IE::SigmoidOp)
 
 InferenceEngine Sigmoid layer
