@@ -778,6 +778,7 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     scheduled.opType_ = scheduledOp.opType_;
     scheduled.time_ = scheduledOp.time_;
     scheduled.resourceInfo_ = intervals;
+    scheduled.isDataOp_ = isDataOp(scheduledOp.op_);
     _scheduledOps.push_back(scheduled);
 }
 

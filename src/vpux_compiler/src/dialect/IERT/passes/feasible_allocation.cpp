@@ -130,7 +130,7 @@ void FeasibleAllocationPass::updateAsyncExecuteOpPosition(
     // Update placement of AsyncExecuteOps
     mlir::Operation* prevAsyncOp = nullptr;
     for (auto& schedOp : scheduledOps) {
-        if (schedOp.opType_ != FeasibleMemoryScheduler::EOpType::ORIGINAL_OP) {
+        if (!schedOp.isOriginalOp()) {
             continue;
         }
         mlir::Operation* asyncOp = depsInfo.getExecuteOpAtIndex(schedOp.op_);
@@ -153,12 +153,12 @@ void FeasibleAllocationPass::updateAsyncExecuteOpDependencies(
     // Go through all the tasks and add token dependencies between
     // all tasks with start time t to all tasks with time t+1
     for (auto opIt = scheduledOps.begin(); opIt != scheduledOps.end(); opIt++) {
-        if (opIt->opType_ != FeasibleMemoryScheduler::EOpType::ORIGINAL_OP) {
+        if (!opIt->isOriginalOp()) {
             continue;
         }
         size_t nextTimeDiff = 0;
         for (auto nextTimeOpIt = opIt; nextTimeOpIt != scheduledOps.end(); nextTimeOpIt++) {
-            if (nextTimeOpIt->opType_ != FeasibleMemoryScheduler::EOpType::ORIGINAL_OP) {
+            if (!nextTimeOpIt->isOriginalOp()) {
                 continue;
             } else if (nextTimeDiff == 0 && nextTimeOpIt->time_ > opIt->time_) {
                 nextTimeDiff = nextTimeOpIt->time_ - opIt->time_;
@@ -205,12 +205,13 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // 1. initial schedule
     auto scheduledOps = scheduler.generateSchedule();
 
-    // 2. re-order the IR
-    updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
-
-    // 3. optimize spills
+    // 2. optimize spills
     FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
+    spilling.optimizeDataOpsSpills(scheduledOps);
     spilling.removeRedundantSpillWrites(scheduledOps);
+
+    // 3. re-order the IR
+    updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
 
     // 4. insert spill dmas
     spilling.insertSpillCopyOps(scheduledOps);

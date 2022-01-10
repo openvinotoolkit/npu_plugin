@@ -132,9 +132,10 @@ public:
     };
     // Struct used to output the scheduled op info
     struct ScheduledOpInfo {
-        ScheduledOpInfo(operationIdxType op, EOpType type, size_t time): op_(op), opType_(type), time_(time) {
+        ScheduledOpInfo(operationIdxType op, EOpType type, size_t time, bool isDataOp)
+                : op_(op), opType_(type), time_(time), isDataOp_(isDataOp) {
         }
-        ScheduledOpInfo(): op_(), opType_(), time_() {
+        ScheduledOpInfo(): op_(), opType_(), time_(), isDataOp_() {
         }
         bool operator==(const ScheduledOpInfo& other) const {
             return (other.op_ == op_) && (other.opType_ == opType_);
@@ -143,6 +144,15 @@ public:
             op_ = helement.op_;
             opType_ = helement.opType_;
             return *this;
+        }
+        bool isOriginalOp() const {
+            return (opType_ == EOpType::ORIGINAL_OP);
+        }
+        bool isSpillWrite() const {
+            return (opType_ == EOpType::IMPLICIT_OP_WRITE);
+        }
+        bool isSpillRead() const {
+            return (opType_ == EOpType::IMPLICIT_OP_READ);
         }
         StringLiteral opTypeName() const {
             if (opType_ == EOpType::ORIGINAL_OP) {
@@ -168,6 +178,9 @@ public:
         bool isActiveResource(size_t idx) const {
             return (resourceInfo_[idx].begin_ <= resourceInfo_[idx].end_);
         }
+        bool isDataOp() const {
+            return isDataOp_;
+        }
         size_t beginResource(size_t idx) const {
             return resourceInfo_[idx].begin_;
         }
@@ -180,6 +193,7 @@ public:
         operationIdxType op_;
         EOpType opType_;
         size_t time_;
+        bool isDataOp_;
         SmallVector<IntervalInfo> resourceInfo_;
     };
     // Struct storing eviction policy info for buffers
