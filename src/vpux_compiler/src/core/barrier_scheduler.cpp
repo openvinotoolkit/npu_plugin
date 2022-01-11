@@ -579,7 +579,7 @@ size_t BarrierScheduler::countProducerConsumerTasks(mlir::Operation* op) {
 }
 
 void BarrierScheduler::createTaskBarrierResourceUtilityTable() {
-    const size_t upaTaskbarrierResouceUtilization = 0;
+    const size_t upaTaskbarrierResouceUtilization = 1;
     for (auto& task : _originalInDegree) {
         if (doesOpRunOnNCE(task.first)) {
             auto barrierResouceUtilization = countProducerConsumerTasks(task.first);
