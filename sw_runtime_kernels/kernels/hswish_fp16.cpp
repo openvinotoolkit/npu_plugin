@@ -12,7 +12,10 @@
 #include <dma_shave.h>
 #endif
 
-#define UNROLL_SIZE 8  // Changes to this should be reflected in the code as well.
+#define VECTOR_SIZE 8  // Changes to this should be reflected in the code as well.
+
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 using namespace sw_params;
 
@@ -26,10 +29,9 @@ void hswish_fp16(uint32_t lParamsAddr) {
 
     half8* __restrict__ p_act_data = reinterpret_cast<half8*>(lParams->input.dataAddr);  // 0x1F000000
     half8* __restrict__ p_act_out = reinterpret_cast<half8*>(lParams->output.dataAddr);  // 0x1F004000
-
     int32_t* pDims = (int32_t*)(lParams->input.dimsAddr);
 
-    const half8 add_val3 = 3.0f;
+    const half8 add_val_3 = 3.0f;
     const half8 max_val_6 = 6.0f;
 
     int32_t nElements = 1;
@@ -39,19 +41,15 @@ void hswish_fp16(uint32_t lParamsAddr) {
         nElements *= pDims[i];
     }
 
-    for (i = 0; i < ((nElements / UNROLL_SIZE) * UNROLL_SIZE); i += UNROLL_SIZE) {
-        p_act_out[i + 0] =  __builtin_shave_cmu_clamp0_f16_rr_half8(p_act_data[i + 0] + add_val3, max_val_6) * p_act_data[i + 0] / max_val_6;
-        p_act_out[i + 1] =  __builtin_shave_cmu_clamp0_f16_rr_half8(p_act_data[i + 1] + add_val3, max_val_6) * p_act_data[i + 1] / max_val_6;
-        p_act_out[i + 2] =  __builtin_shave_cmu_clamp0_f16_rr_half8(p_act_data[i + 2] + add_val3, max_val_6) * p_act_data[i + 2] / max_val_6;
-        p_act_out[i + 3] =  __builtin_shave_cmu_clamp0_f16_rr_half8(p_act_data[i + 3] + add_val3, max_val_6) * p_act_data[i + 3] / max_val_6;
-        p_act_out[i + 4] =  __builtin_shave_cmu_clamp0_f16_rr_half8(p_act_data[i + 4] + add_val3, max_val_6) * p_act_data[i + 4] / max_val_6;
-        p_act_out[i + 5] =  __builtin_shave_cmu_clamp0_f16_rr_half8(p_act_data[i + 5] + add_val3, max_val_6) * p_act_data[i + 5] / max_val_6;
-        p_act_out[i + 6] =  __builtin_shave_cmu_clamp0_f16_rr_half8(p_act_data[i + 6] + add_val3, max_val_6) * p_act_data[i + 6] / max_val_6;
-        p_act_out[i + 7] =  __builtin_shave_cmu_clamp0_f16_rr_half8(p_act_data[i + 7] + add_val3, max_val_6) * p_act_data[i + 7] / max_val_6;
+    const int numVectors = nElements / VECTOR_SIZE;
+    const int remElements = nElements % VECTOR_SIZE;
+
+    for(i = 0; i < numVectors; ++i){
+        p_act_out[i] =  __builtin_shave_cmu_clamp0_f16_rr_half8(p_act_data[i] + add_val_3, max_val_6) * p_act_data[i] / max_val_6;
     }
 
-    for(; i < nElements; ++i){
-        p_act_out[i] =  __builtin_shave_cmu_clamp0_f16_rr_half8(p_act_data[i] + add_val3, max_val_6) * p_act_data[i] / max_val_6;
+    for(int j = 0; j < remElements; j++){
+        p_act_out[numVectors][j] = p_act_data[numVectors][j] * MIN(6.f, MAX(0.f, p_act_data[numVectors][j] + 3.f)) * 0.16666f;
     }
 }
 

@@ -26,6 +26,14 @@ IE.CNNNetwork
         IE.DataInfo "hswish" : tensor<1x1000xf16>
     }
 
+VPURT.SW.Runtime
+    entryPoint: @VPU.SW::@runtime
+    stack_configuration: [
+        4096, // Size in bytes for the SHAVEs in the first tile.
+        4096  // Size in bytes for the SHAVEs in the second tile.
+    ]
+
+
 // Sub-module, which holds SW kernel declarations and optional implementations.
 // Used to group those declarations for faster access.
 module @VPU.SW {
@@ -36,7 +44,15 @@ module @VPU.SW {
             VPU.kernel_code = "hswish_fp16.cpp",
             VPU.kernel_entry = "hswish_fp16"
         }
+
+    // management kernel definition
+    func private @runtime()
+        attributes {
+            VPU.kernel_code = "nnActEntry"
+        }
 }
+
+
 
 func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
@@ -52,7 +68,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
     // Genetic Kernel information for the scheduler.
     VPURT.Task waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) {
-    %sigmoid_krn =
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_hswish            // The reference to the Kernel function.
                     inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, @CMX_NN>)     // Inputs/outputs buffers for generic operation interface
@@ -190,24 +205,20 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:            name: "actSHAVE1_stack",
 // CHECK:            locale: "GFEmbeddedKernel",
 // CHECK:            referenced_data_size: 4096
-// CHECK:          },
-// CHECK:          {
-// CHECK:            name: "actSHAVE2_stack",
-// CHECK:            locale: "GFEmbeddedKernel",
-// CHECK:            referenced_data_size: 4096
-// CHECK:          },
-// CHECK:          {
-// CHECK:            name: "actSHAVE3_stack",
-// CHECK:            locale: "GFEmbeddedKernel",
-// CHECK:            referenced_data_size: 4096
 // CHECK:          }
-// CHECK:        ],
-// CHECK:        codeScratchBuffer: {
-// CHECK:          name: "scratch_buffer",
+// CHECK:        ]
+// CHECK:      kernel: {
+// CHECK:        kernelText: {
+// CHECK:          name: "nnActEntry",
 // CHECK:          locale: "GFEmbeddedKernel",
-// CHECK:          referenced_data_size: 65536
+// CHECK:          referenced_data_size: 832
+// CHECK:        },
+// CHECK:        globalArgs: {
+// CHECK:          name: "nnActEntry.data",
+// CHECK:          locale: "GFEmbeddedKernel",
 // CHECK:        }
-// CHECK:     }
+// CHECK:      }
+// CHECK:    }
 
 // CHECK:   task_lists: [
 // CHECK:      {
@@ -235,7 +246,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                kernelText: {
 // CHECK:                  name: "builtin_hswish",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  referenced_data_size: 1760
+// CHECK:                  referenced_data_size: 800
 // CHECK:                }
 // CHECK:              },
 // CHECK:              invocations: [
