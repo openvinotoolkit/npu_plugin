@@ -478,7 +478,8 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     auto scopeTiming = rootTiming.nest("Serialize task lists");
 
     using TaskList = SmallVector<VPUIP::BlobWriter::Task>;
-    using TaskListMap = EnumMap<VPU::ExecutorKind, TaskList>;
+    // using TaskListMap = EnumMap<VPU::ExecutorKind, TaskList>;
+    using TaskListMap = std::map<VPU::ExecutorKind, TaskList>;
 
     TaskList barriersList;
     netFunc.walk([&](VPURT::ConfigureBarrierOp barrierOp) {
