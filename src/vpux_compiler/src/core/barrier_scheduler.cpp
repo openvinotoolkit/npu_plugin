@@ -230,7 +230,7 @@ bool BarrierScheduler::performSchedulingTaskLoop() {
     while (!_outputTasks.empty()) {
         schedulableTasksIteratorType taskItr = findSchedulableTask();
 
-        if (isTasKInSchedulableCandidates(taskItr)) {
+        if (isTaskInSchedulableCandidates(taskItr)) {
             // Found a schedulable task
             mlir::Operation* task = (*taskItr);
             _log.trace("Found a schedulable task ID {0}", getUniqueID(task));
@@ -289,7 +289,7 @@ bool BarrierScheduler::performSchedulingTaskLoop() {
     return true;
 }
 
-bool BarrierScheduler::isTasKInSchedulableCandidates(schedulableTasksIteratorType itr) const {
+bool BarrierScheduler::isTaskInSchedulableCandidates(schedulableTasksIteratorType itr) const {
     return !(itr == _schedulableCandidates.end());
 }
 

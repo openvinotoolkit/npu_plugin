@@ -144,7 +144,7 @@ private:
     bool isBarrierResourceAvailable(const size_t demand);
     bool scheduleTask(mlir::Operation* op, const size_t demand);
     bool unScheduleTask(mlir::Operation* op);
-    bool isTasKInSchedulableCandidates(schedulableTasksIteratorType itr) const;
+    bool isTaskInSchedulableCandidates(schedulableTasksIteratorType itr) const;
     bool doesPathExist(int64_t a, int64_t b);
 
     HeapElement popFromHeap();
