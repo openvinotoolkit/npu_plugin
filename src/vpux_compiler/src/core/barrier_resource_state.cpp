@@ -37,6 +37,7 @@ void BarrierResourceState::init(size_t bcount, slots_t slot_count) {
     assert(bcount && slot_count);
     available_slots_.clear();
     barrier_reference_.clear();
+    _barrierUser.clear();
 
     // amortized O(1) insert cost //
     available_slots_iterator_t hint = available_slots_.end();
@@ -44,6 +45,7 @@ void BarrierResourceState::init(size_t bcount, slots_t slot_count) {
         hint = available_slots_.insert(hint, available_slot_key_t(slot_count, barrier_t(bid)));
         barrier_reference_.push_back(hint);
     }
+    _barrierUser.resize(bcount);
 }
 
 bool BarrierResourceState::has_barrier_with_slots(slots_t slot_demand) const {
@@ -65,12 +67,27 @@ bool BarrierResourceState::has_barrier_with_slots(slots_t slot_demand) const {
 }
 
 // Precondition: has_barrier_with_slots(slot_demand) is true //
-BarrierResourceState::barrier_t BarrierResourceState::assign_slots(slots_t slot_demand) {
+BarrierResourceState::barrier_t BarrierResourceState::assign_slots(
+        slots_t slot_demand, mlir::Operation* op,
+        std::map<mlir::Operation*, SmallVector<mlir::Operation*>>& taskConsumerMap) {
     available_slot_key_t key(slot_demand);
     available_slots_iterator_t itr = available_slots_.lower_bound(key);
     {
         available_slots_iterator_t ret_itr = itr;
+        for (; itr != available_slots_.end(); ++itr) {
+            if (itr->barrier_in_use()) {
+                barrier_t currentBid = itr->barrier_;
+                auto users = _barrierUser[currentBid - 1UL];
+                for (auto& user : users) {
+                    if (taskConsumerMap[user] == taskConsumerMap[op]) {
+                        if (assign_slots(currentBid, slot_demand))
+                            return currentBid;
+                    }
+                }
+            }
+        }
 
+        itr = ret_itr;
         for (; (itr != available_slots_.end()) && (itr->barrier_in_use()); ++itr) {
         }
         if (itr != available_slots_.end()) {
@@ -97,12 +114,13 @@ bool BarrierResourceState::assign_slots(barrier_t bid, slots_t slot_demand) {
     return (itr != available_slots_.end());
 }
 
-bool BarrierResourceState::unassign_slots(barrier_t bid, slots_t slot_demand) {
+bool BarrierResourceState::unassign_slots(barrier_t bid, slots_t slot_demand, mlir::Operation* op) {
     assert((bid <= barrier_reference_.size()) && (bid >= 1UL));
     available_slots_iterator_t itr = barrier_reference_[bid - 1UL];
     slots_t new_slot_demand = (itr->available_slots_) + slot_demand;
 
     itr = update(itr, new_slot_demand);
+    _barrierUser[bid - 1UL].erase(op);
     return (itr != available_slots_.end());
 }
 
@@ -129,4 +147,8 @@ BarrierResourceState::available_slots_iterator_t BarrierResourceState::update(av
     assert(itr != available_slots_.end());
     barrier_reference_[(itr->barrier_) - 1UL] = itr;
     return itr;
+}
+
+void BarrierResourceState::updateBarrierUsers(mlir::Operation* op, size_t bid) {
+    _barrierUser[bid - 1UL].insert(op);
 }

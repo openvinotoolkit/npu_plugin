@@ -77,11 +77,11 @@ public:
     };
 
     struct barrier_info_t {
-    barrier_info_t(size_t bindex = 0UL, size_t slot_count = 0UL): bindex_(bindex), slot_count_(slot_count) {
-    }
-    size_t bindex_;
-    size_t slot_count_;
-};
+        barrier_info_t(size_t bindex = 0UL, size_t slot_count = 0UL): bindex_(bindex), slot_count_(slot_count) {
+        }
+        size_t bindex_;
+        size_t slot_count_;
+    };
     class barrierTransitionStructure {
     public:
         barrierTransitionStructure(FeasibleBarrierScheduler& feasibleBarrierScheduler,
@@ -135,7 +135,6 @@ public:
     using operation_out_degree_t = std::map<mlir::Operation*, size_t>;
     using priority_map_t = std::map<mlir::Operation*, size_t>;
     using resource_utility_map_t = std::unordered_map<mlir::Operation*, unsigned>;
-    
 
     FeasibleBarrierScheduler(mlir::MLIRContext* ctx, mlir::FuncOp func, Logger log);
     void initializeBarrierResourceState(size_t numberOfBarriers, size_t maxProducersPerBarrier);
@@ -190,7 +189,7 @@ private:
     size_t _slotsPerBarrier;
     // The current barrier resource utilization by the schedule i.e active barriers and the number of producers per
     // barrier
-    //resource_state_t _resourceState;
+    // resource_state_t _resourceState;
     BarrierResourceState _barrierResourceState;
     // The in-degree per task
     operation_in_degree_t _inDegree;

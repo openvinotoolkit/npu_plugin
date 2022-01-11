@@ -78,17 +78,20 @@ public:
 
     void init(size_t bcount, slots_t slot_count);
     bool has_barrier_with_slots(slots_t slot_demand) const;
-    barrier_t assign_slots(slots_t slot_demand);
+    barrier_t assign_slots(slots_t slot_demand, mlir::Operation* op,
+                           std::map<mlir::Operation*, SmallVector<mlir::Operation*>>& taskConsumerMap);
     bool assign_slots(barrier_t bid, slots_t slot_demand);
-    bool unassign_slots(barrier_t bid, slots_t slot_demand);
+    bool unassign_slots(barrier_t bid, slots_t slot_demand, mlir::Operation* op);
     static barrier_t invalid_barrier();
     void update(barrier_t bid, slots_t new_slots_value);
     available_slots_iterator_t update(available_slots_iterator_t itr, slots_t new_slots_value);
+    void updateBarrierUsers(mlir::Operation* op, size_t bid);
 
 private:
     barrier_reference_t barrier_reference_;
     available_slots_t available_slots_;
+    std::vector<std::set<mlir::Operation*>> _barrierUser;
 };
 
-} //namespace vpux
+}  // namespace VPURT
 }  // namespace vpux

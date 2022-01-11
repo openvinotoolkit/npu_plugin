@@ -355,26 +355,27 @@ const BarrierResourceState& FeasibleBarrierScheduler::barrierResourceState() con
     return _barrierResourceState;
 }
 
-const FeasibleBarrierScheduler::barrier_info_t& FeasibleBarrierScheduler::get_barrier_info(const operation_t& op) const {
-        auto itr = _barrierMap.find(op);
+const FeasibleBarrierScheduler::barrier_info_t& FeasibleBarrierScheduler::get_barrier_info(
+        const operation_t& op) const {
+    auto itr = _barrierMap.find(op);
 
-        assert(itr != _barrierMap.end());
-        return itr->second;
-    }
+    assert(itr != _barrierMap.end());
+    return itr->second;
+}
 
 bool FeasibleBarrierScheduler::unScheduleOperation(mlir::Operation*& op) {
     // return _resourceState.unschedule_operation(op);
 
-     auto itr = _barrierMap.find(op);
-        if (itr == _barrierMap.end()) {
-            return false;
-        }
-        const barrier_info_t& binfo = itr->second;
-        bool ret = _barrierResourceState.unassign_slots(binfo.bindex_, binfo.slot_count_);
-        assert(ret);
-        (void)ret;
-        _barrierMap.erase(itr);
-        return true;
+    auto itr = _barrierMap.find(op);
+    if (itr == _barrierMap.end()) {
+        return false;
+    }
+    const barrier_info_t& binfo = itr->second;
+    bool ret = _barrierResourceState.unassign_slots(binfo.bindex_, binfo.slot_count_, op);
+    assert(ret);
+    (void)ret;
+    _barrierMap.erase(itr);
+    return true;
 }
 
 bool FeasibleBarrierScheduler::scheduleOperation(mlir::Operation*& op, resource_t producerSlotRequirement) {
@@ -385,10 +386,10 @@ bool FeasibleBarrierScheduler::scheduleOperation(mlir::Operation*& op, resource_
     if (_barrierMap.find(op) != _barrierMap.end()) {
         return false;
     }
-    size_t bid = _barrierResourceState.assign_slots(producerSlotRequirement);
+    size_t bid = _barrierResourceState.assign_slots(producerSlotRequirement, op, _taskConsumerMapBackUp);
+    _barrierResourceState.updateBarrierUsers(op, bid);
     _barrierMap.insert(std::make_pair(op, barrier_info_t(bid, producerSlotRequirement)));
     return true;
-
 }
 
 bool FeasibleBarrierScheduler::isBarrierResourceAvailable(const resource_t& producerSlotRequirement) {
@@ -592,7 +593,6 @@ void FeasibleBarrierScheduler::init() {
 
     // Save the original IR dependency, it may need to be restored
     saveOriginalIRDependency();
-
 
     // Retrieve output ops (ops with no out-degree)
     _outputOps = _outputOpsBackUp;
@@ -931,7 +931,7 @@ void FeasibleBarrierScheduler::populateScheduledOps(mlir::Operation* scheduledOp
     scheduled.op_ = scheduledOp;
     scheduled.schedule_time_ = _currentTime;
 
-    //const BarrierResourceState& bstate = barrierResourceState();
+    // const BarrierResourceState& bstate = barrierResourceState();
     const barrier_info_t& binfo = get_barrier_info(scheduledOp);
 
     scheduled.barrier_index_ = binfo.bindex_;
