@@ -60,6 +60,65 @@ bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr ke
 }
 
 //
+// isSupported
+//
+
+bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, NCEInvariant::LogCb logCb) {
+    if (op.getType().getRank() != 4) {
+        logCb(llvm::formatv("Only 4D tensors are supported"));
+        return false;
+    }
+
+    if (op.rounding_type() != IE::RoundingType::FLOOR) {
+        logCb(llvm::formatv("Unsupported rounding mode '{0}'", op.rounding_type()));
+        return false;
+    }
+
+    const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(op.kernel_size()));
+    const auto KY = kernelSize[Dims4D::Kernel::Y];
+    const auto KX = kernelSize[Dims4D::Kernel::X];
+
+    if (KY != KX) {
+        logCb(llvm::formatv("Assymetric kernel is not supported"));
+        return false;
+    }
+
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(op.strides()));
+    const auto SY = kernelStrides[Dims4D::Strides::Y];
+    const auto SX = kernelStrides[Dims4D::Strides::X];
+
+    const auto pads = PadInfo(op.pads_begin(), op.pads_end());
+
+    if (!NCEInvariant::isAttrsSupported(VPU::getArch(op), KY, KX, SY, SX, pads.top, pads.bottom, pads.left, pads.right,
+                                        logCb)) {
+        return false;
+    }
+
+    const auto inputType = op.input().getType().cast<mlir::ShapedType>();
+    const auto outputType = op.output().getType().cast<mlir::ShapedType>();
+
+    if (!NCEInvariant::isActTypeSupported(inputType) || !NCEInvariant::isActTypeSupported(outputType)) {
+        logCb(llvm::formatv("Misaligned tensor shape"));
+        return false;
+    }
+
+    const auto inputOrder = DimsOrder::fromType(inputType);
+    const auto outputOrder = DimsOrder::fromType(outputType);
+
+    if (inputOrder != DimsOrder::NHWC || outputOrder != DimsOrder::NHWC) {
+        logCb(llvm::formatv("Unsupported layout"));
+        return false;
+    }
+
+    if (!fitIntoCMX(op, op.kernel_size(), op.strides(), inputType, outputType)) {
+        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
+        return false;
+    }
+
+    return true;
+}
+
+//
 // verifyOp
 //
 

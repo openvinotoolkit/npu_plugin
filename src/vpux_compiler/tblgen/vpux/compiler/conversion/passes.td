@@ -17,6 +17,24 @@
 include "mlir/Pass/PassBase.td"
 
 //=================================================================================
+// LowerIE2VPU
+//=================================================================================
+
+//
+// ConvertIEToVPUNCE
+//
+
+def ConvertIEToVPUNCE : PassBase<"convert-IE-to-VPU-NCE", "vpux::FunctionPass"> {
+    let summary = "Convert supported IE layers to VPU NCE operations";
+
+    let constructor = "vpux::createConvertIEToVPUNCEPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//=================================================================================
 // LowerIE2IERT
 //=================================================================================
 

@@ -160,6 +160,8 @@ def VPU_NCEConvolutionOp :
         static bool fitIntoCMX(mlir::Operation* op,
                                mlir::ShapedType input, mlir::ShapedType filter,
                                mlir::ShapedType output);
+
+        static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
@@ -226,6 +228,8 @@ def VPU_NCEDepthConvolutionOp :
         static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
                                mlir::ShapedType input, mlir::ShapedType filter,
                                mlir::ShapedType output);
+
+        static bool isSupported(vpux::IE::GroupConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
@@ -288,6 +292,8 @@ def VPU_NCEMaxPoolOp :
 
         static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernel_size, mlir::ArrayAttr strides,
                                mlir::ShapedType input, mlir::ShapedType output);
+
+        static bool isSupported(vpux::IE::MaxPoolOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
@@ -347,6 +353,9 @@ def VPU_NCEEltwiseOp :
         static bool fitIntoCMX(mlir::Operation* op,
                                mlir::ShapedType input1, mlir::ShapedType input2,
                                mlir::ShapedType output);
+
+        static bool isSupported(mlir::Operation* op, bool allowDifferentScales, bool allowDifferentZp,
+                                vpux::VPU::NCEInvariant::LogCb logCb);
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION];

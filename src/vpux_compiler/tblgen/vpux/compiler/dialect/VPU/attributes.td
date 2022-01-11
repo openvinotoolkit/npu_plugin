@@ -124,6 +124,7 @@ def VPU_EltwiseType :
             "Type of Eltwise operation",
             [
                 StrEnumAttrCase<"ADD">,
+                StrEnumAttrCase<"SUBTRACT">,
                 StrEnumAttrCase<"MULTIPLY">,
                 StrEnumAttrCase<"DIVIDE">,
                 StrEnumAttrCase<"SQUARED_DIFF">,

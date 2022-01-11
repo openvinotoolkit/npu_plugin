@@ -39,6 +39,83 @@ bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(mlir::Operation* op, mlir::ShapedType i
 }
 
 //
+// isSupported
+//
+
+bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDifferentScales, bool allowDifferentZp,
+                                          NCEInvariant::LogCb logCb) {
+    const auto input1 = op->getOperand(0).getType().cast<mlir::ShapedType>();
+    const auto input2 = op->getOperand(1).getType().cast<mlir::ShapedType>();
+    const auto output = op->getResult(0).getType().cast<mlir::ShapedType>();
+
+    if (input1.getRank() != 4 || input2.getRank() != 4 || output.getRank() != 4) {
+        logCb(llvm::formatv("Only 4D tensors are supported"));
+        return false;
+    }
+
+    if (input1.getShape() != input2.getShape()) {
+        logCb(llvm::formatv("Broadcasting is not supported"));
+        return false;
+    }
+
+    // Output type can differ from input type. In case of quantization this can be different quant scale value.
+    // Input types can also differ when both of them are quantized. E.g. scale value for Eltwise Multiply
+    const auto input1ElemType = input1.getElementType();
+    const auto input2ElemType = input2.getElementType();
+
+    if (!input1ElemType.isa<mlir::quant::QuantizedType>() && !input2ElemType.isa<mlir::quant::QuantizedType>()) {
+        if (input1ElemType != input2ElemType) {
+            return false;
+        }
+    } else if (input1ElemType.isa<mlir::quant::UniformQuantizedType>() &&
+               input2ElemType.isa<mlir::quant::UniformQuantizedType>()) {
+        auto qInput1 = input1ElemType.cast<mlir::quant::UniformQuantizedType>();
+        auto qInput2 = input2ElemType.cast<mlir::quant::UniformQuantizedType>();
+
+        if (qInput1.getExpressedType() != qInput2.getExpressedType() ||
+            qInput1.getStorageType() != qInput2.getStorageType() || qInput1.isSigned() != qInput2.isSigned()) {
+            logCb(llvm::formatv("Mismatch in inputs quantization parameters"));
+            return false;
+        }
+
+        if (!allowDifferentZp && qInput1.getZeroPoint() != qInput2.getZeroPoint()) {
+            logCb(llvm::formatv("Mismatch in inputs zero points"));
+            return false;
+        }
+
+        if (!allowDifferentScales && qInput1.getScale() != qInput2.getScale()) {
+            logCb(llvm::formatv("Mismatch in inputs quantization scales"));
+            return false;
+        }
+    } else {
+        logCb(llvm::formatv("Unsupported inputs element types"));
+        return false;
+    }
+
+    if (!NCEInvariant::isActTypeSupported(input1) || !NCEInvariant::isActTypeSupported(input2) ||
+        !NCEInvariant::isActTypeSupported(output)) {
+        logCb(llvm::formatv("Misaligned tensor shape"));
+        return false;
+    }
+
+    const auto inputOrder1 = DimsOrder::fromType(input1);
+    const auto inputOrder2 = DimsOrder::fromType(input2);
+    const auto outputOrder = DimsOrder::fromType(output);
+
+    if (inputOrder1 != DimsOrder::NHWC || inputOrder2 != DimsOrder::NHWC || outputOrder != DimsOrder::NHWC) {
+        logCb(llvm::formatv("Unsupported layout"));
+        return false;
+    }
+
+    if (!fitIntoCMX(op, input1, input2, output)) {
+        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
+        return false;
+    }
+
+    return true;
+}
+
+//
 // InferShapedTypeOpInterface
 //
 

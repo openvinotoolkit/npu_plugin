@@ -32,6 +32,16 @@
 namespace vpux {
 
 //
+// LowerIE2VPU
+//
+
+std::unique_ptr<mlir::Pass> createConvertIEToVPUNCEPass(Logger log = Logger::global());
+
+//
+// LowerIE2IERT
+//
+
+//
 // Performs full lowering from the IE Dialect to IERT Dialect.
 //
 // This pipeline performs full IR lowering from IE Dialect to IERT Dialect,
@@ -51,6 +61,10 @@ std::unique_ptr<mlir::Pass> createAddBuffersForNetResults(Logger log = Logger::g
 //
 
 std::unique_ptr<mlir::Pass> createConvertToNCEOpsPass(Logger log = Logger::global());
+
+//
+// LowerIERT2VPUIP
+//
 
 //
 // Performs full lowering from the IERT Dialect to VPUIP Dialect.
@@ -82,7 +96,7 @@ std::unique_ptr<mlir::Pass> createConvertViewOps2VPUIPPass(Logger log = Logger::
 std::unique_ptr<mlir::Pass> createConvertAsyncOps2VPUIPPass(Logger log = Logger::global());
 
 //
-// Registration
+// registerConversionPipelines
 //
 
 void registerConversionPipelines();

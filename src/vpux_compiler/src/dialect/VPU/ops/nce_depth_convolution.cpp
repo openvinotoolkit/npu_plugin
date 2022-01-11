@@ -67,6 +67,89 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::Arr
 }
 
 //
+// isSupported
+//
+
+bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, NCEInvariant::LogCb logCb) {
+    if (op.getType().getRank() != 4) {
+        logCb(llvm::formatv("Only 4D tensors are supported"));
+        return false;
+    }
+    if (getShape(op.filter()).size() != 4) {
+        logCb(llvm::formatv("Only 4D tensors are supported"));
+        return false;
+    }
+
+    const auto dilations = parseIntArrayAttr<int64_t>(op.dilations());
+    if (dilations[0] != 1 || dilations[1] != 1) {
+        logCb(llvm::formatv("Dilated convolution is not supported"));
+        return false;
+    }
+
+    const auto inputShape = getShape(op.input());
+    const auto IC = inputShape[Dims4D::Act::C];
+
+    const auto filterShape = getShape(op.filter());
+    const auto fIC = filterShape[Dims4D::Filter::IC];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    if (!op.groups().hasValue()) {
+        logCb(llvm::formatv("Grouped convolution does not have groups attribute"));
+        return false;
+    }
+    if (op.groups().getValue() != OC) {
+        logCb(llvm::formatv("Unsupported group size: '{0}' expected '{1}'", op.groups(), OC));
+        return false;
+    }
+    if (fIC != 1) {
+        logCb(llvm::formatv("Group Convolution with more than one filter per input channel is not supported"));
+        return false;
+    }
+    if (OC != IC) {
+        logCb(llvm::formatv("Group Convolution has '{0}' groups, expected '{1}'", OC, IC));
+        return false;
+    }
+
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(op.strides()));
+    const auto SY = kernelStrides[Dims4D::Strides::Y];
+    const auto SX = kernelStrides[Dims4D::Strides::X];
+
+    const auto pads = PadInfo(op.pads_begin(), op.pads_end());
+
+    if (!NCEInvariant::isAttrsSupported(VPU::getArch(op), KY, KX, SY, SX, pads.top, pads.bottom, pads.left, pads.right,
+                                        logCb)) {
+        return false;
+    }
+
+    const auto inputType = op.input().getType().cast<mlir::ShapedType>();
+    const auto filterType = op.filter().getType().cast<mlir::ShapedType>();
+    const auto outputType = op.output().getType().cast<mlir::ShapedType>();
+
+    if (!NCEInvariant::isActTypeSupported(inputType) || !NCEInvariant::isActTypeSupported(outputType)) {
+        logCb(llvm::formatv("Misaligned tensor shape"));
+        return false;
+    }
+
+    const auto inputOrder = DimsOrder::fromType(inputType);
+    const auto filterOrder = DimsOrder::fromType(filterType);
+    const auto outputOrder = DimsOrder::fromType(outputType);
+
+    if (inputOrder != DimsOrder::NHWC || filterOrder != DimsOrder::OYXI || outputOrder != DimsOrder::NHWC) {
+        logCb(llvm::formatv("Unsupported layout"));
+        return false;
+    }
+
+    if (!fitIntoCMX(op, op.strides(), inputType, filterType, outputType)) {
+        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
+        return false;
+    }
+
+    return true;
+}
+
+//
 // verifyOp
 //
 

@@ -45,6 +45,63 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ShapedTy
 }
 
 //
+// isSupported
+//
+
+bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, NCEInvariant::LogCb logCb) {
+    if (op.getType().getRank() != 4) {
+        logCb(llvm::formatv("Only 4D tensors are supported"));
+        return false;
+    }
+
+    const auto dilations = parseIntArrayAttr<int64_t>(op.dilations());
+    if (dilations[0] != 1 || dilations[1] != 1) {
+        logCb(llvm::formatv("Dilated convolution is not supported"));
+        return false;
+    }
+
+    const auto filterShape = getShape(op.filter());
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(op.strides()));
+    const auto SY = kernelStrides[Dims4D::Strides::Y];
+    const auto SX = kernelStrides[Dims4D::Strides::X];
+
+    const auto pads = PadInfo(op.pads_begin(), op.pads_end());
+
+    if (!NCEInvariant::isAttrsSupported(VPU::getArch(op), KY, KX, SY, SX, pads.top, pads.bottom, pads.left, pads.right,
+                                        logCb)) {
+        return false;
+    }
+
+    const auto inputType = op.input().getType().cast<mlir::ShapedType>();
+    const auto filterType = op.filter().getType().cast<mlir::ShapedType>();
+    const auto outputType = op.output().getType().cast<mlir::ShapedType>();
+
+    if (!NCEInvariant::isActTypeSupported(inputType) || !NCEInvariant::isActTypeSupported(outputType)) {
+        logCb(llvm::formatv("Misaligned tensor shape"));
+        return false;
+    }
+
+    const auto inputOrder = DimsOrder::fromType(inputType);
+    const auto filterOrder = DimsOrder::fromType(filterType);
+    const auto outputOrder = DimsOrder::fromType(outputType);
+
+    if (inputOrder != DimsOrder::NHWC || filterOrder != DimsOrder::OYXI || outputOrder != DimsOrder::NHWC) {
+        logCb(llvm::formatv("Unsupported layout"));
+        return false;
+    }
+
+    if (!fitIntoCMX(op, inputType, filterType, outputType)) {
+        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
+        return false;
+    }
+
+    return true;
+}
+
+//
 // verifyOp
 //
 
