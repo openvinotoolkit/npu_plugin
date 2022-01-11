@@ -574,7 +574,6 @@ bool BarrierScheduler::doesOpRunOnNCE(mlir::Operation* op) {
 }
 
 size_t BarrierScheduler::countProducerConsumerTasks(mlir::Operation* op) {
-    const size_t dmaBarrierProducerUtilization = 1;
     if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::NCE) {
         auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op);
         auto& block = taskOp.body().getBlocks().front();
@@ -584,7 +583,7 @@ size_t BarrierScheduler::countProducerConsumerTasks(mlir::Operation* op) {
         return nceOp.getNumVariants();
     }
     if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
-        return dmaBarrierProducerUtilization;
+        return 1;
     } else {
         VPUX_THROW("This operation does not run on hardware");
     }
