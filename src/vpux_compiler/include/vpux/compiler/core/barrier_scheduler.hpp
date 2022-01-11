@@ -128,7 +128,7 @@ private:
     void initializeBarrierResourceState(const size_t numberOfBarriers, const size_t maxProducersPerBarrier);
     void addTaskToCandidateSet(mlir::Operation* op);
     void addOutGoingOperationsToCandidateList(mlir::Operation* op);
-    void pushToHeap(const HeapElement& elem);
+    void pushToScheduleTimeHeap(const HeapElement& elem);
     void insertBarriersinIR();
     void populateScheduledTasks(mlir::Operation* scheduledOp);
     void removeRedundantWaitBarriers();
