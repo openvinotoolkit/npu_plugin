@@ -2074,6 +2074,7 @@ def IE_InterpolateOp :
             "Interpolate",
             [
                 DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
+                DeclareOpInterfaceMethods<IE_TilingInfoOpInterface>,
                 AttrSizedOperandSegments
             ]
         > {

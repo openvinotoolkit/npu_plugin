@@ -209,3 +209,7 @@ InputTiling vpux::IE::InterpolateOp::backInferTileInfo(const vpux::TileInfo& out
 void vpux::IE::InterpolateOp::adjustAttrs(const TilingInfo& /*inputTiling*/) {
     // IE::adjustPaddings(this, inputTiling);
 }
+
+bool vpux::IE::InterpolateOp::isSupportedTiling(const vpux::OutputTiling& /*tiles*/, vpux::Logger /*log*/) {
+    return true;
+}
