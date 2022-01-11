@@ -58,6 +58,9 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
     // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    // CHECK: VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // Upload weights and weights table
 
@@ -300,11 +303,11 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
     // CHECK:       VPURT.Task
     // CHECK-SAME:       waits(%7 : !VPURT.Barrier) updates(%11 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%9 : !VPURT.Barrier) updates(%11 : !VPURT.Barrier)
+    // CHECK-SAME:       waits(%9 : !VPURT.Barrier) updates(%12 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%10 : !VPURT.Barrier) updates(%11 : !VPURT.Barrier)
+    // CHECK-SAME:       waits(%10 : !VPURT.Barrier) updates(%13 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%8 : !VPURT.Barrier) updates(%11 : !VPURT.Barrier)
+    // CHECK-SAME:       waits(%8 : !VPURT.Barrier) updates(%14 : !VPURT.Barrier)
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits(%11 : !VPURT.Barrier)
+    // CHECK-SAME:       waits(%11, %12, %13, %14 : !VPURT.Barrier, !VPURT.Barrier, !VPURT.Barrier, !VPURT.Barrier)
 }
