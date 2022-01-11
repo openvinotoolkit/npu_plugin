@@ -53,6 +53,13 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
     if (parentOp == nullptr) {
         return false;
     }
+
+    // Temporally disable the optimization for constant nodes, like weights, activation_windows, etc.
+    // Ticket: EISW-28833
+    if (mlir::isa<Const::DeclareOp>(parentOp)) {
+        return false;
+    }
+
     bool hasSiblingCopy = false;
     for (auto siblingOp : parentOp->getResult(0).getUsers()) {
         if (!mlir::isa<IERT::CopyOp>(*siblingOp)) {
@@ -121,11 +128,6 @@ mlir::LogicalResult fuseParallelCopyOp(IERT::CopyOp copyOp, Logger log) {
         siblingCopy->erase();
     }
 
-    // DEBUG LOG
-    for (auto t : copyOp->getResult(0).getUsers()) {
-        std::cout << llvm::formatv("\t\t~~~~ now the children: {0}, {1}", t->getLoc(), t->getName()).str() << std::endl;
-    }
-
     return mlir::success();
 }
 
@@ -135,14 +137,8 @@ void OptimizeParallelCopiesPass::safeRunOnFunc() {
     getFunction()->walk([&](IERT::CopyOp copyOp) {
         if (isCopyFusable(copyOp)) {
             _log.nest(1).trace("Fuse parallel copy op '{0}' at '{1}'", copyOp->getName(), copyOp->getLoc());
-            std::cout
-                    << llvm::formatv("Fuse parallel copy op '{0}' at '{1}'", copyOp->getName(), copyOp->getLoc()).str()
-                    << std::endl;
             if (mlir::failed(fuseParallelCopyOp(copyOp, _log))) {
                 _log.nest(1).trace("Failed copy fusion of {0} at {1}", copyOp->getName(), copyOp->getLoc());
-                std::cout
-                        << llvm::formatv("Failed copy fusion of {0} at {1}", copyOp->getName(), copyOp->getLoc()).str()
-                        << std::endl;
             }
         }
     });
