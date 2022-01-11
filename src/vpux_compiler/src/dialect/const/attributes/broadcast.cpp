@@ -87,7 +87,7 @@ mlir::ShapedType vpux::Const::BroadcastAttr::inferOutputType(mlir::ShapedType in
     const Shape padBefore(inShape.size(), 0);
 
     Shape padAfter(inShape.size(), 0);
-    padAfter[axis] = value;
+    padAfter[axis] = value - inShape[axis];
 
     return getPaddedType(input, padBefore, padAfter);
 }

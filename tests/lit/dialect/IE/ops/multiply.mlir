@@ -14,3 +14,18 @@ func @ConstFold() -> tensor<1x8x4x4xf32> {
     // CHECK-NOT:   IE.Multiply
     // CHECK:       return %[[VAL0]]
 }
+
+// -----
+
+// CHECK-LABEL: @ConvertMultiplyToScale
+func @ConvertMultiplyToScale(%arg0: tensor<1x8x4x4xf32>) -> tensor<1x8x4x4xf32> {
+    %0 = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<2.0> : tensor<1x1x1x1xf32>>
+    %1 = IE.Multiply(%arg0, %0)
+        { auto_broadcast = "NUMPY" } :
+        tensor<1x8x4x4xf32>, tensor<1x1x1x1xf32> -> tensor<1x8x4x4xf32>
+    return %1 : tensor<1x8x4x4xf32>
+
+    // CHECK:       %[[VAL0:.*]] = IE.ScaleShift(%arg0, %cst) {operand_segment_sizes = dense<[1, 1, 0]> : vector<3xi32>} : tensor<1x8x4x4xf32>, tensor<1x8x1x1xf32> -> tensor<1x8x4x4xf32>
+    // CHECK-NOT:   IE.Multiply
+    // CHECK:       return %[[VAL0]]
+}
