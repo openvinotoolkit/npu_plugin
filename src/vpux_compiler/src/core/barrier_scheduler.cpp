@@ -28,9 +28,9 @@ using namespace vpux::VPURT;
 // physical barriers for the target platform. To achieve this the scheduler may need to insert
 // some additional control dependencies among the tasks.
 
-// The barrier scheduler, similar to the feasible memory scheduler, is list scheduler with access to a 
+// The barrier scheduler, similar to the feasible memory scheduler, is list scheduler with access to a
 // global resource state. In the feasible memory scheduler, the resource state (the resource being managed)
-// is memory. In the barrier scheduler, the resource being managed in the number of available barriers and 
+// is memory. In the barrier scheduler, the resource being managed in the number of available barriers and
 // the number of producers to a barrier.
 
 // The hardware allows a finite producer count of 256 for each of the update barriers.
@@ -155,49 +155,11 @@ void BarrierScheduler::saveOriginalIRDependency() {
     };
 
     _func->walk([&](VPURT::TaskOp taskOp) {
-        switch (taskOp.getExecutorKind()) {
-        case VPU::ExecutorKind::DMA_NN: {
-            updateBarrierConfigs(taskOp);
-            break;
-        }
-        case VPU::ExecutorKind::NCE: {
-            updateBarrierConfigs(taskOp);
-            break;
-        }
-        case VPU::ExecutorKind::SHAVE_ACT: {
-            updateBarrierConfigs(taskOp);
-            break;
-        }
-        case VPU::ExecutorKind::SHAVE_UPA: {
-            updateBarrierConfigs(taskOp);
-            break;
-        }
-        default:
-            VPUX_THROW("Unsupported executor '{0}'", taskOp.getExecutorKind());
-        }
+        updateBarrierConfigs(taskOp);
     });
 
     _func->walk([&](VPURT::TaskOp taskOp) {
-        switch (taskOp.getExecutorKind()) {
-        case VPU::ExecutorKind::DMA_NN: {
-            updateInDegreeAndConsumers(taskOp);
-            break;
-        }
-        case VPU::ExecutorKind::NCE: {
-            updateInDegreeAndConsumers(taskOp);
-            break;
-        }
-        case VPU::ExecutorKind::SHAVE_ACT: {
-            updateInDegreeAndConsumers(taskOp);
-            break;
-        }
-        case VPU::ExecutorKind::SHAVE_UPA: {
-            updateInDegreeAndConsumers(taskOp);
-            break;
-        }
-        default:
-            VPUX_THROW("Unsupported executor '{0}'", taskOp.getExecutorKind());
-        }
+        updateInDegreeAndConsumers(taskOp);
     });
 
     // Remove the original virtual barriers, optimal barriers are inserted based on the generated schedule
@@ -529,37 +491,15 @@ void BarrierScheduler::assignTaskPriorities() {
 }
 
 void BarrierScheduler::assignTaskUniqueIds() {
-    _orderedTask.clear();
+    _orderedTasks.clear();
     int64_t uniqueId = 0;
     auto assignUniqueID = [&](VPURT::TaskOp taskOp) {
         taskOp->setAttr(uniqueIdAttrName, getIntAttr(taskOp->getContext(), uniqueId++));
     };
 
     _func.walk([&](VPURT::TaskOp taskOp) {
-        switch (taskOp.getExecutorKind()) {
-        case VPU::ExecutorKind::DMA_NN: {
-            assignUniqueID(taskOp);
-            _orderedTask.push_back(taskOp);
-            break;
-        }
-        case VPU::ExecutorKind::NCE: {
-            assignUniqueID(taskOp);
-            _orderedTask.push_back(taskOp);
-            break;
-        }
-        case VPU::ExecutorKind::SHAVE_UPA: {
-            assignUniqueID(taskOp);
-            _orderedTask.push_back(taskOp);
-            break;
-        }
-        case VPU::ExecutorKind::SHAVE_ACT: {
-            assignUniqueID(taskOp);
-            _orderedTask.push_back(taskOp);
-            break;
-        }
-        default:
-            VPUX_THROW("Unsupported task type '{0}'", taskOp.getExecutorKind());
-        }
+        assignUniqueID(taskOp);
+        _orderedTasks.push_back(taskOp);
     });
     _taskCount = uniqueId;
 }
@@ -684,7 +624,7 @@ void BarrierScheduler::reorderIR() {
     // reorder task by scheduling number
     VPURT::TaskOp preTask = nullptr;
     for (auto& ind : _schedulingOrder) {
-        auto curTask = _orderedTask[ind];
+        auto curTask = _orderedTasks[ind];
         if (preTask) {
             curTask->moveAfter(preTask);
         }
@@ -754,7 +694,7 @@ void BarrierScheduler::insertBarriersinIR() {
             barrierOp = nullptr;
         } else {
             for (const auto& user : waitMap) {
-                auto taskOp = _orderedTask[user];
+                auto taskOp = _orderedTasks[user];
 
                 VPUX_THROW_UNLESS(taskOp != NULL, "Invalid task");
                 VPUX_THROW_UNLESS(barrierOp.barrier() != NULL, "Invalid barrier");
@@ -764,7 +704,7 @@ void BarrierScheduler::insertBarriersinIR() {
             }
 
             for (const auto& user : updateMap) {
-                auto taskOp = _orderedTask[user];
+                auto taskOp = _orderedTasks[user];
                 VPUX_THROW_UNLESS(taskOp != NULL, "Invalid task");
                 VPUX_THROW_UNLESS(barrierOp.barrier() != NULL, "Invalid barrier");
                 _log.trace("Adding Barrier ID {0} as an wait barrier for operation {1}", barrierOp->getAttr("id"),
@@ -902,8 +842,8 @@ void BarrierScheduler::initializeBarrierAssociationTable() {
 
 // detect if op b depends on a
 bool BarrierScheduler::doesPathExist(int64_t a, int64_t b) {
-    auto numa = _orderedTask[a]->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
-    auto numb = _orderedTask[b]->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
+    auto numa = _orderedTasks[a]->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
+    auto numb = _orderedTasks[b]->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
     if (numa >= numb)
         return false;
     else {
