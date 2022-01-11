@@ -9,8 +9,7 @@ add_executable(prof_parser
 
 target_include_directories(prof_parser
     PRIVATE
-        ${MCMROOT_DIR_PATH}
-        ${META_DIR_PATH}/include
+        $<TARGET_PROPERTY:vpux_utils,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
-target_link_libraries(prof_parser flatbuffers gflags mcmCompiler)
+target_link_libraries(prof_parser flatbuffers gflags vpux_utils)

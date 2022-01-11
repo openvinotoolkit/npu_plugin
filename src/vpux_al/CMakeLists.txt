@@ -58,9 +58,15 @@ addVersionDefines(${VPUX_VERSION_FILE} CI_BUILD_NUMBER)
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
-        IE::inference_engine
         IE::vpu_common_lib
 )
+
+if(BUILD_SHARED_LIBS)
+    link_system_libraries(${TARGET_NAME}
+        PRIVATE
+            IE::inference_engine
+    )
+endif()
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC

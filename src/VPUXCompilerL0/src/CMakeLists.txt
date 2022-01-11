@@ -22,9 +22,7 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
   PRIVATE
-  IE::inference_engine
   vpux_al
-  kmb_utils
 )
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})

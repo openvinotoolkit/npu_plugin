@@ -37,12 +37,18 @@ target_include_directories(${TARGET_NAME}
 link_system_libraries(${TARGET_NAME}
     PRIVATE
         ${VPUMGR_LIBRARY}
-        IE::inference_engine
         kmb_utils
         ${GAPI_SIPP_LIBRARY}
         ${GAPI_M2I_LIBRARY}
         vpux_al
 )
+
+if(BUILD_SHARED_LIBS)
+    link_system_libraries(${TARGET_NAME}
+        PRIVATE
+            IE::inference_engine
+    )
+endif()
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME}
