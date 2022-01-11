@@ -61,7 +61,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     // and the memory scheduler guarantees that the maximum number of active barrier (parallel tasks) will not exceed the limit.
     // Such a feature will significantly simply barrier allocation and would be a prerequisite for moving 'barrier safety'
     // from the runtime to the compiler. The definition of barrier safety is that it can be guaranteed the barriers will be
-    // reprogrammed by the LeonNN during inference.
+    // reprogrammed by the LeonNN during inference at the correct time during an inference.
 
     bool success = false;
     for (size_t barrier_bound = (numBarriersToUse / 2); !success && (barrier_bound >= 1UL); --barrier_bound) {
