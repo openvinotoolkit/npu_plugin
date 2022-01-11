@@ -3,10 +3,10 @@
 */
 #pragma once
 
-//#include <nn_relocation.h>
 #include <nn_inference_runtime_types.h>
 #include <nn_memory.h>
 #include <nn_message_queue.h>
+#include <nn_relocation.h>
 
 #include "sw_layer.h"
 #include "upa_layer_runner.h"
