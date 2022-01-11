@@ -16,29 +16,52 @@
 using namespace vpux::VPURT;
 
 //
+// BarrierResourceState
+//
+// This class provided a mechanism to maintain/assign/unassign barrier resources
+// to the main barrier list scheduler.
+//
+// The barrier scheduler can only schedule tasks if there are available barrier resources
+// and these rescources need to be assign/unassign when tasks are scheduled/unscheduled.
+//
+// VPU hardware only has a finite number of barriers, 8 per cluster. The Barrier scheduler class 
+// ensures that the number of active barriers does not exceed the available
+// physical barriers for the target platform.
+//
+// The hardware allows a finite producer count of 256 for each of the update barriers.
+// This means that multiple tasks can update the same active barrier. This is incorporated into the
+// barrier resource model by using the term "barrier slots".
+// In addition to the upper bound of available barriers it is assumed that each of these barriers has
+// a maximum of 256 slots. The barrier demand is expressed as the number of slots required.
+// In the context of VPU hardware the number of slots for a DPU tasks are the DPU worklaods
+// and for a DMA/UPA tasks it is 1.
+
+//
 // Constructor
 //
 
 BarrierResourceState::BarrierResourceState(): _barrierReference(), _availableProducerSlots() {
 }
 
-BarrierResourceState::BarrierResourceState(size_t barrierCount, size_t producerSlotCount)
+BarrierResourceState::BarrierResourceState(size_t barrierCount, size_t maximumProducerSlotCount)
         : _barrierReference(), _availableProducerSlots() {
-    init(barrierCount, producerSlotCount);
+    init(barrierCount, maximumProducerSlotCount);
 }
 
-void BarrierResourceState::init(const size_t barrierCount, const producerSlotsType producerSlotCount) {
-    VPUX_THROW_UNLESS((barrierCount && producerSlotCount), "Error number of barrier and/or producer slot count is 0");
+// Initialises the barrier resource state with the number of available barrier and the maximum allowable producers per barrier 
+void BarrierResourceState::init(const size_t barrierCount, const producerSlotsType maximumProducerSlotCount) {
+    VPUX_THROW_UNLESS((barrierCount && maximumProducerSlotCount), "Error number of barrier and/or producer slot count is 0");
     _availableProducerSlots.clear();
     _barrierReference.clear();
 
     availableSlotsIteratorType hint = _availableProducerSlots.end();
     for (size_t barrierId = 1UL; barrierId <= barrierCount; barrierId++) {
-        hint = _availableProducerSlots.insert(hint, availableSlotKey(producerSlotCount, barrierType(barrierId)));
+        hint = _availableProducerSlots.insert(hint, availableSlotKey(maximumProducerSlotCount, barrierType(barrierId)));
         _barrierReference.push_back(hint);
     }
 }
 
+// Returns true if there is a barrier with available producer slots
 bool BarrierResourceState::hasBarrierWithSlots(producerSlotsType slotDemand) const {
     availableSlotKey key(slotDemand);
     constAvailableslotsIteratorType itr = _availableProducerSlots.lower_bound(key);
@@ -54,7 +77,8 @@ bool BarrierResourceState::hasBarrierWithSlots(producerSlotsType slotDemand) con
     return retItr != _availableProducerSlots.end();
 }
 
-// Precondition: hasBarrierWithSlots(slotDemand) is true //
+// Precondition: hasBarrierWithSlots(slotDemand) is true
+// Assigns the requested producers slots (resource) from a barrier ID when a task is scheduled by the main list scheduler
 BarrierResourceState::barrierType BarrierResourceState::assignBarrierSlots(producerSlotsType slotDemand) {
     availableSlotKey key(slotDemand);
     availableSlotsIteratorType itr = _availableProducerSlots.lower_bound(key);
@@ -77,6 +101,7 @@ BarrierResourceState::barrierType BarrierResourceState::assignBarrierSlots(produ
     return assignBarrierSlots(barrierId, slotDemand) ? barrierId : invalidBarrier();
 }
 
+// Assigns the requested producers slots (resource) from a barrier ID when a task is scheduled by the main list scheduler
 bool BarrierResourceState::assignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand) {
     VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()) && (barrierId >= 1UL), "Invalid barrierId supplied");
     availableSlotsIteratorType itr = _barrierReference[barrierId - 1UL];
@@ -89,6 +114,7 @@ bool BarrierResourceState::assignBarrierSlots(barrierType barrierId, producerSlo
     return (itr != _availableProducerSlots.end());
 }
 
+// Releases the producers slots (resource) from a barrier ID when a task is unscheduled by the main list scheduler
 bool BarrierResourceState::unassignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand) {
     VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()) && (barrierId >= 1UL), "Invalid barrierId supplied");
     availableSlotsIteratorType itr = _barrierReference[barrierId - 1UL];
@@ -102,13 +128,15 @@ BarrierResourceState::barrierType BarrierResourceState::invalidBarrier() {
     return std::numeric_limits<barrierType>::max();
 }
 
-// NOTE: will also update _barrierReference //
+// NOTE: will also update _barrierReference
 void BarrierResourceState::update(barrierType barrierId, producerSlotsType newSlotsValue) {
     VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()) && (barrierId >= 1UL), "Invalid barrierId supplied");
     availableSlotsIteratorType itr = _barrierReference[barrierId - 1UL];
     update(itr, newSlotsValue);
 }
 
+// Updates the state of a barrier with current available producers slots
+// This should be called whenever a task is scheduled/unscheduled by the main list scheduler 
 BarrierResourceState::availableSlotsIteratorType BarrierResourceState::update(availableSlotsIteratorType itr,
                                                                               producerSlotsType newSlotsValue) {
     VPUX_THROW_UNLESS(itr != _availableProducerSlots.end(), "Invalid _availableProducerSlots iterator");
