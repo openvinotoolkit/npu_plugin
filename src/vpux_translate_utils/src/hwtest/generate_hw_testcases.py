@@ -556,7 +556,7 @@ class BF16(TType):
 def idu(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
     """Models the hardware IDU"""
     if input.is_float or weights.is_float:
-        return input.data.astype(np.float32), weights.data.astype(np.float32)
+        return input.data.astype(np.float16), weights.data.astype(np.float16)
 
     def to_qint32(value: Value) -> Union[np.ndarray, NBQuantized]:
         return NBQuantized(value=value.data.astype(np.int32), scale=value.scale, zero_point=value.zero,
@@ -1004,28 +1004,28 @@ class AvgPool(MPE):
     def result_bitwidth(self, values: List[Value]) -> int:
         return values[0].bitwidth
 
-class SMax(MPE):
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
+class SoftMax(MPE):
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'axis']
 
     def __init__(self, settings):
         self.settings = settings
 
     @property
     def ident(self) -> str:
-        return f'softmax_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}'
+        return f'softmax_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}axis-{str(self.settings.axis)}'
 
     @property
     def orderer(self) -> Orderer:
-        return OrderNHWC
+        return OrderNCHW
 
     @property
     def output_orderer(self) -> Orderer:
-        return OrderNHWC
+        return OrderNCHW
 
     @property
     def data(self) -> dict:
         return {
-            'MPE Mode': 'SMax',
+            'MPE Mode': 'SoftMax',
             'Input Type': self.settings.input_ttype.stype,
             'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
             'Output Type': self.settings.output_ttype.stype
@@ -1045,18 +1045,16 @@ class SMax(MPE):
         assert(output.is_float)
 
         return {
-            'case_type': 'SMax',
+            'case_type': 'SoftMax',
             'input': inputs[0].json_info,
             'output': output.json_info,
-            'pool_op': {
-                'sub_type': 'softmax'
+            'softmax_op': {
+                'axis': self.settings.axis
             }
         }
 
     def apply(self, values: List[Value]) -> np.ndarray:
-        lhs, rhs = idu(values[0], values[0])
-        softmax = Softmax()
-        return softmax.inference(lhs)
+        return Softmax(axis=self.settings.axis).inference(values[0].data.astype(np.float32))
 
     def result_bitwidth(self, values: List[Value]) -> int:
         return values[0].bitwidth
@@ -1084,7 +1082,6 @@ def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuan
             value.scale = (1 << bitshift)
         else:
             value.scale = (1 << bitshift)
-
     return value
 
 
@@ -1155,7 +1152,6 @@ class DPUPipeline:
                 'name': None
             }
         }
-
 
 class Pad:
     # The padding order is top|left|bottom|right
@@ -1378,23 +1374,25 @@ def genDepthWiseConvs(input_types=[FP16(2)],
 
 def genSoftmax(input_types,
                input_shapes,
-               output_types):
-    for (input_type, input_shape, output_type) in itertools.product(input_types, input_shapes, output_types):
-        yield DPUPipeline(SMax.PARAMS, (SMax, input_type, input_shape, output_type))
+               output_types,
+               axes):
+    for (input_type, input_shape, output_type, axis) in itertools.product(input_types, input_shapes, output_types, axes):
+        yield DPUPipeline(SoftMax.PARAMS, (SoftMax, input_type, input_shape, output_type, axis))
 
 def generate_options(args):
     return itertools.chain(
         # Softmax
         genSoftmax(
             input_types=[FP16(6)],
-            input_shapes=[[1, 1, 1, 1000]],
-            output_types=[FP16()]),
+            input_shapes=[[1, 3, 10, 20]],
+            output_types=[FP16()],
+            axes=[0,1,2,3]),
 
         # Z-Major Convolution
-        #
+        
         # NB MoviSim seems to require uint8 activations when using uint8
         #    weights, and vice-versa.
-        #
+        
         # NB NumericsBench requires that if we're using quantized (integer)
         #    activations, the weights must also be quantized.  It also complains
         #    about mixing signed/unsigned values, or integer activations with

@@ -16,16 +16,17 @@
 // #include "vpux/compiler/core/attributes/shape.hpp"
 // #include "vpux/compiler/core/layers.hpp"
 // #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
-#include "vpux/compiler/utils/logging.hpp"
+
 #include "vpux/compiler/dialect/VPUIP/sw_utils.hpp"
+
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 
 namespace vpux {
 namespace VPUIP {
+namespace {
 
-mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module,
-                                          StringRef builtInFunctionName, ArrayRef<mlir::Type> inputTypes,
-                                          StringRef kernelEntryName, StringRef  kernelSourceFileName,
-                                          const Logger& log) {
+mlir::ModuleOp getVPUSWModule(mlir::ModuleOp module, const Logger& log) {
     auto* ctx = module.getContext();
     OpBuilderLogger builderLog(log);
     static constexpr StringLiteral vpuSwModuleName{"VPU.SW"};
@@ -36,12 +37,24 @@ mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module,
         auto mainModuleBuilder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
         innerModule = mainModuleBuilder.create<mlir::ModuleOp>(mlir::UnknownLoc::get(ctx), vpuSwModuleName);
     }
+    return innerModule;
+}
+
+}  // namespace
+
+mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, StringRef builtInFunctionName,
+                                          const SmallVector<mlir::Type>& inputTypes, StringRef kernelEntryName,
+                                          StringRef kernelSourceFileName, const Logger& log) {
+    auto* ctx = module.getContext();
+    OpBuilderLogger builderLog(log);
+
+    auto vpuswModule = getVPUSWModule(module, log);
 
     auto builtInFlatFunction = mlir::SymbolRefAttr::get(ctx, builtInFunctionName);
-    auto builtInFunction = mlir::SymbolRefAttr::get(ctx, innerModule.getName().getValue(), {builtInFlatFunction});
+    auto builtInFunction = mlir::SymbolRefAttr::get(ctx, vpuswModule.getName().getValue(), {builtInFlatFunction});
 
     // check if this builtInFunction already created - consider names are unique - e.g. no overloads
-    auto prebuiltFunction = innerModule.lookupSymbol<mlir::FuncOp>(builtInFunctionName);
+    auto prebuiltFunction = vpuswModule.lookupSymbol<mlir::FuncOp>(builtInFunctionName);
     if (prebuiltFunction) {
         log.trace("Found builtin function: {0}", builtInFunctionName);
         return builtInFunction;
@@ -49,7 +62,7 @@ mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module,
 
     const auto funcType = mlir::FunctionType::get(ctx, inputTypes, {});
 
-    auto innerModuleBuilder = mlir::OpBuilder::atBlockBegin(innerModule.getBody(), &builderLog);
+    auto innerModuleBuilder = mlir::OpBuilder::atBlockBegin(vpuswModule.getBody(), &builderLog);
     auto buildInOp = innerModuleBuilder.create<mlir::FuncOp>(mlir::UnknownLoc::get(ctx), builtInFunctionName, funcType);
 
     // modifying attributes
@@ -64,28 +77,23 @@ mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module,
 
 mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, IERT::LayerOpInterface origOp,
                                           const IERT::KernelInfo& kernelInfo, const Logger& log) {
-    // Function name
+    OpBuilderLogger builderLog(log);
+
     SmallString builtInFunctionName{"builtin_"};
     auto nonNamespaceOpName = origOp->getName().getStringRef().slice(origOp->getName().getDialectNamespace().size() + 1,
                                                                      mlir::StringRef::npos);
     builtInFunctionName.append(nonNamespaceOpName);
 
-    // Original Operation in/out
-    auto opInputs = origOp.getInputs();
-    auto opResults = origOp->getResults();
-
-    // Kernel Info attributes
-    auto& args = kernelInfo.args;
-    auto kernelEntryName = kernelInfo.entryName;
-    auto kernelSourceFileName = kernelInfo.sourceFileName;
-
-    // Input Types
     const auto convertToUnrankedType = [](mlir::Value operand) -> mlir::Type {
         auto type = operand.getType().dyn_cast_or_null<mlir::MemRefType>();
         VPUX_THROW_UNLESS(type != nullptr, "Only MemRef type is supported");
 
         return mlir::UnrankedMemRefType::get(type.getElementType(), type.getMemorySpace());
     };
+
+    auto& args = kernelInfo.args;
+    auto opInputs = origOp.getInputs();
+    auto opResults = origOp->getResults();
 
     SmallVector<mlir::Type> inputTypes;
     std::transform(opInputs.begin(), opInputs.end(), std::back_inserter(inputTypes), convertToUnrankedType);
@@ -94,7 +102,50 @@ mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, IERT::LayerOpIn
         return arg.getType();
     });
 
-    return createBuiltInFunction(module, builtInFunctionName, inputTypes, kernelEntryName, kernelSourceFileName, log);
+    return createBuiltInFunction(module, builtInFunctionName, inputTypes, kernelInfo.entryName,
+                                 kernelInfo.sourceFileName, log);
+}
+
+void createRuntimeKernelDefinition(mlir::ModuleOp module, const Logger& log) {
+    auto vpuswModule = getVPUSWModule(module, log);
+
+    static const SmallString runtimeKernelName{"runtime"};
+    static const SmallString runtimeKernelEntryName{"nnActEntry"};
+
+    // check if runtimeKernel already created
+    auto runtimeKernelFunction = vpuswModule.lookupSymbol<mlir::FuncOp>(runtimeKernelName);
+    if (runtimeKernelFunction) {
+        log.trace("Found builtin function: {0}", runtimeKernelName);
+        return;
+    }
+
+    auto* ctx = module.getContext();
+    OpBuilderLogger builderLog(log);
+
+    // creating runtime kernel function
+    const auto funcType = mlir::FunctionType::get(ctx, {}, {});
+    auto innerModuleBuilder = mlir::OpBuilder::atBlockBegin(vpuswModule.getBody(), &builderLog);
+    auto runtimeFunctionOp =
+            innerModuleBuilder.create<mlir::FuncOp>(mlir::UnknownLoc::get(ctx), runtimeKernelName, funcType);
+
+    // modifying attributes
+    runtimeFunctionOp.sym_visibilityAttr(mlir::StringAttr::get(ctx, "private"));
+
+    runtimeFunctionOp->setAttr("VPU.kernel_code", mlir::StringAttr::get(ctx, runtimeKernelEntryName));
+
+    log.trace("Added runtime kernel function: {0}", runtimeKernelEntryName);
+
+    // creating name symbol
+    auto runtimeFlatSym = mlir::SymbolRefAttr::get(ctx, runtimeKernelName);
+    auto runtimeSym = mlir::SymbolRefAttr::get(ctx, vpuswModule.getName().getValue(), {runtimeFlatSym});
+
+    static constexpr int64_t defaultStackSize = 4096;
+
+    SmallVector<int64_t> stacksArray(4, defaultStackSize);
+
+    //  adding runtime kernel configuration - stacks, etc
+    auto moduleBuilder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
+    moduleBuilder.create<VPURT::SWRunTimeOp>(mlir::UnknownLoc::get(ctx), runtimeSym, getIntArrayAttr(ctx, stacksArray));
 }
 
 void initSwKernel(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange inputs, mlir::ValueRange outputBuffs,

@@ -25,7 +25,7 @@
 #include <string>
 
 namespace nb {
-enum class CaseType { ZMajorConvolution, DepthWiseConv, EltwiseAdd, EltwiseMult, MaxPool, AvgPool, Softmax, Unknown };
+enum class CaseType { ZMajorConvolution, DepthWiseConv, EltwiseAdd, EltwiseMult, MaxPool, AvgPool, SoftMax, Unknown };
 
 std::string to_string(CaseType case_);
 CaseType to_case(llvm::StringRef str);
@@ -95,6 +95,10 @@ struct ActivationLayer {
     // TODO: add support for activation functions that take parameters
 };
 
+struct SoftMaxLayer {
+    size_t axis = 0;
+};
+
 class TestCaseJsonDescriptor {
 public:
     TestCaseJsonDescriptor(llvm::StringRef jsonString = "");
@@ -116,6 +120,9 @@ public:
     }
     ActivationLayer getActivationLayer() const {
         return activationLayer_;
+    }
+    SoftMaxLayer getSoftMaxLayer() const {
+        return softMaxLayer_;
     }
     CaseType getCaseType() const {
         return caseType_;
@@ -140,6 +147,7 @@ private:
     ConvLayer loadConvLayer(llvm::json::Object* jsonObj);
     PoolLayer loadPoolLayer(llvm::json::Object* jsonObj);
     ActivationLayer loadActivationLayer(llvm::json::Object* jsonObj);
+    SoftMaxLayer loadSoftMaxLayer(llvm::json::Object* jsonObj);
     CaseType loadCaseType(llvm::json::Object* jsonObj);
     QuantParams loadQuantizationParams(llvm::json::Object* obj);
 
@@ -150,6 +158,7 @@ private:
     WeightLayer wtLayer_;
     OutputLayer outLayer_;
     ActivationLayer activationLayer_;
+    SoftMaxLayer softMaxLayer_;
     bool hasActivationLayer_;
     std::string kernelFilename_;
     std::string caseTypeStr_;

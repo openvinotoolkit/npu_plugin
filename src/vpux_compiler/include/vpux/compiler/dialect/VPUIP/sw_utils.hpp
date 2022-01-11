@@ -20,13 +20,14 @@
 namespace vpux {
 namespace VPUIP {
 
-mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module,
-                                          mlir::StringRef builtInFunctionName, mlir::ArrayRef<mlir::Type> inputTypes,
-                                          mlir::StringRef kernelEntryName, mlir::StringRef  kernelSourceFileName,
-                                          const vpux::Logger& log);
+mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, mlir::StringRef builtInFunctionName,
+                                          const SmallVector<mlir::Type>& inputTypes, mlir::StringRef kernelEntryName,
+                                          mlir::StringRef kernelSourceFileName, const vpux::Logger& log);
 
 mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, IERT::LayerOpInterface origOp,
                                           const IERT::KernelInfo& kernelInfo, const Logger& log);
+
+void createRuntimeKernelDefinition(mlir::ModuleOp module, const Logger& log);
 
 void initSwKernel(vpux::VPUIP::SwKernelOp swKernelOp, mlir::ValueRange inputs, mlir::ValueRange outputBuffs,
                   mlir::ArrayRef<mlir::Attribute> args, const vpux::Logger& log);

@@ -147,7 +147,7 @@ std::string nb::to_string(CaseType case_) {
         return "MaxPool";
     case CaseType::AvgPool:
         return "AvgPool";
-    case CaseType::Softmax:
+    case CaseType::SoftMax:
         return "Softmax";
     default:
         return "unknown";
@@ -167,8 +167,9 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::MaxPool;
     if (isEqual(str, "AvgPool"))
         return CaseType::AvgPool;
-    if (isEqual(str, "Softmax"))
-        return CaseType::Softmax;
+    if (isEqual(str, "SoftMax")) {
+        return CaseType::SoftMax;
+    }
     return CaseType::Unknown;
 };
 
@@ -398,6 +399,22 @@ nb::ActivationLayer nb::TestCaseJsonDescriptor::loadActivationLayer(llvm::json::
     return result;
 }
 
+nb::SoftMaxLayer nb::TestCaseJsonDescriptor::loadSoftMaxLayer(llvm::json::Object* jsonObj) {
+    std::string layerType = "softmax_op";
+
+    nb::SoftMaxLayer result;
+
+    auto* op = jsonObj->getObject("softmax_op");
+    if (!op) {
+        // TODO: add exception/error log
+        return result;
+    }
+
+    result.axis = op->getInteger("axis").getValue();
+
+    return result;
+}
+
 nb::TestCaseJsonDescriptor::TestCaseJsonDescriptor(llvm::StringRef jsonString) {
     if (!jsonString.empty()) {
         parse(jsonString);
@@ -467,11 +484,12 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
         return;
     }
 
-    if (caseType_ == CaseType::Softmax) {
+    if (caseType_ == CaseType::SoftMax) {
+        softMaxLayer_ = loadSoftMaxLayer(json_obj);
         return;
     }
 
-    throw std::runtime_error{llvm::formatv("Unsupported case type: {0}", caseTypeStr_).str()};
+    throw std::runtime_error{llvm::formatv("Unsupported case type: {0} 1", caseTypeStr_).str()};
 }
 
 nb::CaseType nb::TestCaseJsonDescriptor::loadCaseType(llvm::json::Object* jsonObj) {
