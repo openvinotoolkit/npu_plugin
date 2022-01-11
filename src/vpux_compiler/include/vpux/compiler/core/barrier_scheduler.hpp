@@ -152,7 +152,7 @@ private:
     size_t currentTime() const;
     const BarrierResourceState& barrierResourceState() const;
     schedulableTasksIteratorType findSchedulableTask();
-    size_t countProducerConsumerTasks(mlir::Operation* op);
+    size_t countProducerTasksToBarrier(mlir::Operation* op);
     SmallVector<mlir::Operation*> getConsumerOps(mlir::Operation* op);
     static mlir::IntegerAttr getUniqueID(mlir::Operation* op);
     const barrierInfo& getBarrierInfo(mlir::Operation* op) const;
