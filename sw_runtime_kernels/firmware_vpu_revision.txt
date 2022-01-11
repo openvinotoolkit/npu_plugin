@@ -1,2 +1,2 @@
-firmware.vpu.iot branch: kskvorts/mtl_patch 6d9e6b2a7a9665b6692d3fdd518ee1fadc87d0a9
+firmware.vpu.iot branch: kskvorts/act_shaves_leon_rt 4168907b65a7d7b384eab93499618bedf67e6a63
 mv_tools_version:	21.12.2-internal
