@@ -112,7 +112,7 @@ def Linearization : PassBase<"linearization", "vpux::ModulePass"> {
     let summary = "Perform linearization of the IR";
 
     let description = [{
-        Perform linearization of the IR.
+        Perform linearization of the IR with fully sequential execution.
     }];
 
     let constructor = "vpux::IERT::createLinearizationPass()";
