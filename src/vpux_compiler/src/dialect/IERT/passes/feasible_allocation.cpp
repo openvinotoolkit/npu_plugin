@@ -190,7 +190,10 @@ void FeasibleAllocationPass::safeRunOnModule() {
     FeasibleMemorySchedulerControlEdges controlEdges(_memSpace, depsInfo, aliasesInfo, _log, scan);
     // controlEdges.insertDependenciesBasic(scheduledOps); // Old method, maintained only for debug
     controlEdges.insertMemoryControlEdges(scheduledOps);
-    // controlEdges.insertDependenciesBasicForNonCmxResources(scheduledOps);
+    // Insert dependencies aligned with schedule order to properly serialize
+    // operations on a given executor. This is needed for operations which might not have
+    // any input data flow
+    controlEdges.insertScheduleOrderDepsForExecutor(scheduledOps, VPU::ExecutorKind::DMA_NN);
 
     // 6. convert to allocated ops
     mlir::ConversionTarget target(ctx);
