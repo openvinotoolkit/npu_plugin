@@ -185,13 +185,13 @@ void BarrierScheduler::addTaskToCandidateSet(mlir::Operation* op) {
         VPUX_THROW("Attempt to add a task to the schedulable candidates list that has been previously scheduled");
     }
 
-    _log.trace("Adding operation  to candidates list {0} to candidates list", getUniqueID(op));
     _schedulableCandidates.push_back(op);
     _processedTasks.insert(op);
 }
 
 void BarrierScheduler::addOutGoingOperationsToCandidateList(mlir::Operation* op) {
     _log.trace("Add outgoing operations to candidate list");
+    _log = _log.nest();
 
     // Reduce indegree (number of incoming edges) for consumers of ready data ops
     // decrement the in-degree of &(*itr) and only add to candidate set
@@ -223,9 +223,14 @@ void BarrierScheduler::addOutGoingOperationsToCandidateList(mlir::Operation* op)
             --(deg_itr->second);
         }
     }
+    _log.trace("Finsihed adding outgoing operations to candidate list");
+    _log = _log.unnest();
 }
 
 bool BarrierScheduler::performSchedulingTaskLoop() {
+    _log.trace("Performing main scheduling task loop");
+    _log = _log.nest();
+
     // Scheduling loop, loop until all output tasks are scheduled
     while (!_outputTasks.empty()) {
         schedulableTasksIteratorType taskItr = findSchedulableTask();
@@ -285,6 +290,8 @@ bool BarrierScheduler::performSchedulingTaskLoop() {
             return false;
         }
     }
+    _log.trace("Finished performing main scheduling task loop");
+    _log = _log.unnest();
 
     return true;
 }
@@ -294,7 +301,8 @@ bool BarrierScheduler::isTaskInSchedulableCandidates(schedulableTasksIteratorTyp
 }
 
 BarrierScheduler::schedulableTasksIteratorType BarrierScheduler::findSchedulableTask() {
-    _log.trace("Looking for a a scheduleable task");
+    _log.trace("Looking for a scheduleable task");
+    _log = _log.nest();
 
     schedulableTasksIteratorType itr = _schedulableCandidates.end();
     std::list<schedulableTasksIteratorType> readyList;
@@ -311,6 +319,7 @@ BarrierScheduler::schedulableTasksIteratorType BarrierScheduler::findSchedulable
         }
     }
 
+    _log = _log.unnest();
     _log.trace("Finding the task with lowest priority in ready list");
     // find the one with lowest priority //
     if (!readyList.empty()) {
@@ -323,6 +332,7 @@ BarrierScheduler::schedulableTasksIteratorType BarrierScheduler::findSchedulable
             }
         }
     }
+
     return itr;
 }
 
@@ -356,7 +366,7 @@ bool BarrierScheduler::unScheduleTask(mlir::Operation* op) {
 }
 
 bool BarrierScheduler::scheduleTask(mlir::Operation* op, const size_t producerSlotRequirement) {
-    _log.trace("Scheduling a task");
+    _log.trace("Scheduling task ID {0}", getUniqueID(op));
 
     VPUX_THROW_UNLESS(isBarrierResourceAvailable(producerSlotRequirement) == true,
                       "Attempt to schedule task failed, failed to allocate barrier resource for task {0}}",
@@ -367,6 +377,8 @@ bool BarrierScheduler::scheduleTask(mlir::Operation* op, const size_t producerSl
     }
     size_t barrierID = _barrierResourceState.assignBarrierSlots(producerSlotRequirement);
     _barrierMap.insert(std::make_pair(op, barrierInfo(barrierID, producerSlotRequirement)));
+
+    _log.trace("Finished scheduling task {0}", getUniqueID(op));
     return true;
 }
 
@@ -389,6 +401,9 @@ mlir::IntegerAttr BarrierScheduler::getUniqueID(mlir::Operation* op) {
 }
 
 void BarrierScheduler::assignTaskPriorities() {
+    _log.trace("Assigning task priorities");
+    _log = _log.nest();
+
     operationInDegreeType inDegree = _originalInDegree;
 
     // Assign topological sort level as priority
@@ -488,6 +503,8 @@ void BarrierScheduler::assignTaskPriorities() {
     for (auto const& pair : s) {
         _priority[pair.second] = newPriority++;
     }
+
+    _log = _log.unnest();
 }
 
 void BarrierScheduler::assignTaskUniqueIds() {
@@ -530,15 +547,18 @@ size_t BarrierScheduler::countProducerTasksToBarrier(mlir::Operation* op) {
 
 // This function creates a table storing the number of producers to a barrier that a task requires.
 void BarrierScheduler::createTaskBarrierResourceUtilityTable() {
+    _log = _log.nest();
     for (auto& task : _originalInDegree) {
         auto barrierResouceUtilization = countProducerTasksToBarrier(task.first);
         _log.trace("Task {0} requires {1} barrier producer slots", getUniqueID(task.first), barrierResouceUtilization);
         _barrierResourceUtilizationMap.insert(std::make_pair(task.first, barrierResouceUtilization));
     }
+    _log = _log.unnest();
 }
 
 void BarrierScheduler::init() {
     _log.trace("Feasible barrier scheduler initialization");
+    _log = _log.nest();
 
     // Assing unique IDs to tasks
     _log.trace("Assigning unique IDs to tasks");
@@ -558,6 +578,7 @@ void BarrierScheduler::init() {
     // Store per-task barrier producer utilization, i.e. the number of workloads
     _log.trace("Collating per task, the barrier resource requirements");
     createTaskBarrierResourceUtilityTable();
+    _log = _log.unnest();
 }
 
 bool BarrierScheduler::generateScheduleWithBarriers(size_t numberOfBarriers, size_t maxProducersPerBarrier) {
@@ -569,6 +590,9 @@ bool BarrierScheduler::generateScheduleWithBarriers(size_t numberOfBarriers, siz
     _barrierCount = numberOfBarriers;
     _slotsPerBarrier = maxProducersPerBarrier;
     _inDegree = _originalInDegree;
+
+    _log.trace("Starting to generate a schedule with {0} barriers", numberOfBarriers);
+    _log = _log.nest();
 
     // retrieve output ops (ops with zero out-degree)
     _outputTasks = _originalOutputOps;
@@ -583,7 +607,7 @@ bool BarrierScheduler::generateScheduleWithBarriers(size_t numberOfBarriers, siz
     while (itr != _inDegree.end()) {
         auto op = itr->first;
         if (_inDegree.find(op)->second == 0) {
-            _log.trace("Adding task: {0} to candidate set", getUniqueID(op));
+            _log.nest().trace("Adding task: {0} to candidate set", getUniqueID(op));
             addTaskToCandidateSet(op);
         }
         ++itr;
@@ -599,6 +623,10 @@ bool BarrierScheduler::generateScheduleWithBarriers(size_t numberOfBarriers, siz
     // Insert barriers in the IR based on the output of the list scheduler
     _log.trace("Inserting barriers in the IR");
     insertBarriersinIR();
+
+    _log = _log.unnest();
+
+    _log.trace("Finished generating a schedule with barriers");
 
     return scheduleSuccess;
 }
@@ -629,6 +657,8 @@ void BarrierScheduler::insertBarriersinIR() {
     size_t barrierCount = 0UL;
     mlir::OpBuilder builder(_func.getBody());
 
+    _log = _log.nest();
+    _log.trace("Processing the scheduled tasks");
     for (const auto& op : _scheduledTasks) {
         auto bitr = _barrierAssociationTable.find(op._barrierIndex);
 
@@ -665,7 +695,10 @@ void BarrierScheduler::insertBarriersinIR() {
     populateTasksUpdateWaitBarrierMap(_configureBarrierOpWaitMap, _configureBarrierOpUpdateMap, _configureTaskOpWaitMap,
                                       _configureTaskOpUpdateMap);
 
+    _log.trace("Removing redundant dependencies");
     removeRedundantDependencies();
+
+    _log.trace("Removing redundant barriers");
     removeRedundantBarriers();
 
     for (size_t ind = 0; ind < _configureBarrierOpUpdateMap.size(); ind++) {
@@ -676,6 +709,7 @@ void BarrierScheduler::insertBarriersinIR() {
         _log.trace("Virtual Barrier ID {0} has {1} producers", ind, _configureBarrierOpWaitMap[ind].count());
     }
 
+    _log.trace("Starting to add barriers into the IR");
     for (size_t ind = 0; ind < _configureBarrierOpWaitMap.size(); ind++) {
         auto& barrierOp = _orderedBarrier[ind];
         auto waitMap = _configureBarrierOpWaitMap[ind].set_bits();
@@ -690,8 +724,8 @@ void BarrierScheduler::insertBarriersinIR() {
 
                 VPUX_THROW_UNLESS(taskOp != NULL, "Invalid task");
                 VPUX_THROW_UNLESS(barrierOp.barrier() != NULL, "Invalid barrier");
-                _log.trace("Adding Barrier ID {0} as an update barrier for operation {1}", barrierOp->getAttr("id"),
-                           getUniqueID(taskOp));
+                _log.trace("Adding Barrier ID {0} as an update barrier for operation {1}",
+                           barrierOp->getAttr(virtualIdAttrName), getUniqueID(taskOp));
                 taskOp.updateBarriersMutable().append(barrierOp.barrier());
             }
 
@@ -699,17 +733,20 @@ void BarrierScheduler::insertBarriersinIR() {
                 auto taskOp = _orderedTasks[user];
                 VPUX_THROW_UNLESS(taskOp != NULL, "Invalid task");
                 VPUX_THROW_UNLESS(barrierOp.barrier() != NULL, "Invalid barrier");
-                _log.trace("Adding Barrier ID {0} as an wait barrier for operation {1}", barrierOp->getAttr("id"),
-                           getUniqueID(taskOp));
+                _log.trace("Adding Barrier ID {0} as an wait barrier for operation {1}",
+                           barrierOp->getAttr(virtualIdAttrName), getUniqueID(taskOp));
                 taskOp.waitBarriersMutable().append(barrierOp.barrier());
             }
         }
     }
+    _log.trace("Finished adding barriers into the IR");
+    _log = _log.unnest();
 
     _orderedBarrier.erase(std::remove(_orderedBarrier.begin(), _orderedBarrier.end(), nullptr), _orderedBarrier.end());
 }
 
 void BarrierScheduler::removeVirtualBarriers() {
+    _log.trace("Removing the original declare virtual barrier ops");
     _func->walk([](VPURT::TaskOp op) {
         op.updateBarriersMutable().clear();
         op.waitBarriersMutable().clear();
@@ -731,6 +768,8 @@ void BarrierScheduler::clearTemporaryAttributes() {
 
 bool BarrierScheduler::performRuntimeSimulation() {
     bool success = true;
+
+    _log.trace("Starting runtime simulation");
     reorderIR();
     if (_orderedBarrier.size()) {
         // run simulation
@@ -740,6 +779,7 @@ bool BarrierScheduler::performRuntimeSimulation() {
     }
 
     if (!success) {
+        _log.trace("Barrier simualtion was not successfull removing the barriers that were inserted");
         removeVirtualBarriers();
         _configureBarrierOpWaitMap.clear();
         _configureBarrierOpUpdateMap.clear();
@@ -763,7 +803,7 @@ void BarrierScheduler::removeRedundantBarriers() {
             for (; ind1 < _configureBarrierOpUpdateMap.size(); ind1++) {
                 auto& consumers1 = _configureBarrierOpUpdateMap[ind1];
                 if (consumers1 == consumers) {
-                    _log.trace("found barrier {0} and {1} have same consumers", ind, ind1);
+                    _log.trace("Found barrier {0} and {1} have same consumers", ind, ind1);
                     auto& producers = _configureBarrierOpWaitMap[ind1];
                     for (auto task : producers.set_bits()) {
                         _configureBarrierOpWaitMap[ind].set(task);
@@ -823,7 +863,7 @@ void BarrierScheduler::removeRedundantDependencies() {
 }
 
 void BarrierScheduler::initializeBarrierAssociationTable() {
-    _log.trace("STEP-0: Initialize the association table");
+    _log.trace("Step-0: Initialize the barrier association table");
     for (size_t barrierId = 1; barrierId <= _barrierCount; barrierId++) {
         auto bitr = _barrierAssociationTable.insert(
                 std::make_pair(barrierId, barrierTransitionStructure(*this, _taskCount)));
@@ -855,6 +895,7 @@ bool BarrierScheduler::doesPathExist(int64_t a, int64_t b) {
 
 void BarrierScheduler::populateScheduledTasks(mlir::Operation* task) {
     _log.trace("Populating the scheduling info for the scheduled task {0}", getUniqueID(task));
+    _log = _log.nest();
     ScheduledOpInfo scheduledTask;
 
     scheduledTask._op = task;
@@ -871,4 +912,5 @@ void BarrierScheduler::populateScheduledTasks(mlir::Operation* task) {
                scheduledTask._producerSlotCount);
 
     _scheduledTasks.push_back(scheduledTask);
+    _log = _log.unnest();
 }
