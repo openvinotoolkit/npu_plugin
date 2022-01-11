@@ -20,7 +20,7 @@ using namespace vpux::VPURT;
 //
 // Barriers are physical synchronization primitives in VPU hardware. Every task
 // requires a barrier resource to indicate its completion to its adjacent tasks.
-// Thus every scheduled operation with at least one outgoing edge needs an update barrier.
+// Thus every scheduled operation with at least one outgoing edge requires an update barrier.
 //
 // In the feasible memory scheduler, a feasible schedule is generated. However, VPU hardware
 // only has a finite number of barriers, 8 per cluster. The Barrier scheduler class ensures
@@ -28,13 +28,18 @@ using namespace vpux::VPURT;
 // physical barriers for the target platform. To achieve this the scheduler may need to insert
 // some additional control dependencies among the tasks.
 
+// The barrier scheduler, similar to the feasible memory scheduler, is list scheduler with access to a 
+// global resource state. In the feasible memory scheduler, the resource state (the resource being managed)
+// is memory. In the barrier scheduler, the resource being managed in the number of available barriers and 
+// the number of producers to a barrier.
+
 // The hardware allows a finite producer count of 256 for each of the update barriers.
 // This means that multiple tasks can update the same active barrier. This is incorporated into the
-// barrier resource model by using the term barrier slots.
+// barrier resource model by using the term "barrier slots".
 // In addition to the upper bound of available barriers it is assumed that each of these barriers has
 // a maximum of 256 slots. The barrier demand is expressed as the number of slots required.
 // In the context of VPU hardware the number of slots for a DPU tasks are the DPU worklaods
-// and for a DMA tasks it is 1.
+// and for a DMA/UPA tasks it is 1.
 
 BarrierScheduler::BarrierScheduler(mlir::FuncOp func, Logger log)
         : _barrierCount(),
