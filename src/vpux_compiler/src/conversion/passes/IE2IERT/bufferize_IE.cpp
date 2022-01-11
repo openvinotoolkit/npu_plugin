@@ -703,6 +703,13 @@ mlir::Operation* createRTLayer(IE::GatherOp origOp, ArrayRef<mlir::Value> allBuf
                                     origOp.axis_valueAttr(), origOp.batch_dimsAttr());
 }
 
+mlir::Operation* createRTLayer(IE::YuvToRgbOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    const auto newInp2 = origOp.input2() != nullptr ? allBufs[2 - 1] : nullptr;
+    const auto newInp3 = origOp.input3() != nullptr ? allBufs[3 - 1] : nullptr;
+    return b.create<IERT::YuvToRgbOp>(origOp.getLoc(), allBufs[0], newInp2, newInp3, allBufs.back(), origOp.inFmtAttr(),
+                                      origOp.outFmtAttr());
+}
+
 mlir::Operation* createRTLayer(IE::GatherElementsOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::GatherElementsOp::Adaptor newOp(allBufs);
     return b.create<IERT::GatherElementsOp>(origOp.getLoc(), newOp.input(), newOp.indices(), newOp.output_buff(),
@@ -1130,6 +1137,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::FakeQuantizeOp)
     CASE(IE::PReluOp)
     CASE(IE::GatherOp)
+    CASE(IE::YuvToRgbOp)
     CASE(IE::GatherElementsOp)
     CASE(IE::ScatterNDUpdateOp)
     CASE(IE::LeakyReluOp)

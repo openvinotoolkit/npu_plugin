@@ -464,6 +464,24 @@ def IE_SpaceToDepthMode :
         > {
     let cppNamespace = "vpux::IE";
     let genSpecializedAttr = 1;
-}
+    }
+
+// Color Formats
+//
+
+def IE_ColorFmt :
+        StrEnumAttr<
+            "ColorFmt",
+            "YUV, RGB color formats",
+            [
+                StrEnumAttrCase<"NV12">,
+                StrEnumAttrCase<"I420">,
+                StrEnumAttrCase<"RGB">,
+                StrEnumAttrCase<"BGR">
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+    }
 
 #endif

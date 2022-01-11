@@ -55,6 +55,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -149,6 +150,10 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::MaxPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ShuffleChannels>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Gather>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::NV12toRGB>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::NV12toBGR>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::I420toRGB>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::I420toBGR>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GatherElements>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ScatterNDUpdate>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Clamp>& origNode);
@@ -285,6 +290,10 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::MaxPool),
             MAP_ENTRY(opset_latest::ShuffleChannels),
             MAP_ENTRY(opset_latest::Gather),
+            MAP_ENTRY(ngraph::opset8::NV12toRGB),
+            MAP_ENTRY(ngraph::opset8::NV12toBGR),
+            MAP_ENTRY(ngraph::opset8::I420toRGB),
+            MAP_ENTRY(ngraph::opset8::I420toBGR),
             MAP_ENTRY(opset_latest::GatherElements),
             MAP_ENTRY(opset_latest::ScatterNDUpdate),
             MAP_ENTRY(opset_latest::Clamp),
@@ -803,6 +812,72 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     auto op = builder.create<IE::GatherOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], nullptr,
                                            normBatchDims);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::NV12toRGB>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::opset8::NV12toRGB>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() <= 2 && !inputs.empty(),
+                      "nGraph NV12toRGB node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto secondInput = inputs.size() == 1 ? nullptr : inputs[1];
+    auto op = builder.create<IE::YuvToRgbOp>(createLocation(origNode), inputs[0], secondInput, nullptr,
+                                             IE::ColorFmt::NV12, IE::ColorFmt::RGB);
+
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::NV12toBGR>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::opset8::NV12toBGR>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() <= 2 && !inputs.empty(),
+                      "nGraph NV12toBGR node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto secondInput = inputs.size() == 1 ? nullptr : inputs[1];
+    auto op = builder.create<IE::YuvToRgbOp>(createLocation(origNode), inputs[0], secondInput, nullptr,
+                                             IE::ColorFmt::NV12, IE::ColorFmt::BGR);
+
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::I420toRGB>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::opset8::I420toRGB>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS((inputs.size() == 1) || (inputs.size() == 3),
+                      "nGraph I420toRGB node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto secondInput = inputs.size() == 1 ? nullptr : inputs[1];
+    auto thirdInput = inputs.size() == 1 ? nullptr : inputs[2];
+    IE::YuvToRgbOp op = builder.create<IE::YuvToRgbOp>(createLocation(origNode), inputs[0], secondInput, thirdInput,
+                                                       IE::ColorFmt::I420, IE::ColorFmt::RGB);
+
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::I420toBGR>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::opset8::I420toBGR>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS((inputs.size() == 1) || (inputs.size() == 3),
+                      "nGraph I420toBGR node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto secondInput = inputs.size() == 1 ? nullptr : inputs[1];
+    auto thirdInput = inputs.size() == 1 ? nullptr : inputs[2];
+    IE::YuvToRgbOp op = builder.create<IE::YuvToRgbOp>(createLocation(origNode), inputs[0], secondInput, thirdInput,
+                                                       IE::ColorFmt::I420, IE::ColorFmt::BGR);
+
     addOutputs(origNode, op);
 }
 
@@ -2363,8 +2438,8 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     manager.register_pass<ngraph::pass::StridesOptimization>();
 }
 
-void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, std::vector<vpux::PreProcessInfo>& preProcInfo,
-                     mlir::TimingScope& rootTiming) {
+void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph,
+                     std::vector<vpux::PreProcessInfo>& /*preProcInfo*/, mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Common nGraph passes");
 
     ngraph::pass::Manager manager;
@@ -2394,8 +2469,6 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, std::vec
     manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
     manager.register_pass<vpux::passes::ConvertVariadicSplitToStridedSliceOp>();
     manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
-    manager.register_pass<vpux::pass::RemoveNV12Conversion<ov::op::v8::NV12toBGR>>(preProcInfo);
-    manager.register_pass<vpux::pass::RemoveNV12Conversion<ov::op::v8::NV12toRGB>>(preProcInfo);
 
     manager.run_passes(netGraph);
 }

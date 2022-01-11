@@ -439,7 +439,9 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_SpaceToDepthParams, &BlobReader::parseSpaceToDepth},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReduceParams, &BlobReader::parseReduce},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_DepthToSpaceParams, &BlobReader::parseDepthToSpace},
-            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReversesequenceParams, &BlobReader::parseReverseSequence}};
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReversesequenceParams, &BlobReader::parseReverseSequence},
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ConvertColorNV12ToRGBParams, &BlobReader::parseYuvToRgb},
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ConvertColorI420ToRGBParams, &BlobReader::parseYuvToRgb}};
 
     VPUX_THROW_UNLESS(_graphFile->task_lists(), "Blob contains no task lists");
     TaskIterator taskIterator(_graphFile->task_lists());
