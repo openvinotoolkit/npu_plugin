@@ -118,6 +118,9 @@ void getProfilingMeta(std::string& taskName, unsigned size, std::string* profili
 static void parseDMATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>>* dma_taskList,
                                   const void* output, size_t output_len, double frc_speed_mhz,
                                   std::vector<ProfilingTaskInfo>& profInfo) {
+    if (dma_taskList == nullptr) {
+        return;
+    }
     auto output_bin = reinterpret_cast<const uint32_t*>(output);
 
     unsigned currentPos = 0;
@@ -171,6 +174,9 @@ static void parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
         uint32_t active_cycles;
     };
 
+    if (upa_taskList == nullptr) {
+        return;
+    }
     auto output_upa = reinterpret_cast<const upa_data_t*>(output);
 
     for (auto task : *upa_taskList) {
@@ -223,6 +229,9 @@ static void parseDPUTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
         uint64_t end;
     };
 
+    if (dpu_taskList == nullptr) {
+        return;
+    }
     auto output_dpu = reinterpret_cast<const dpu_data_t*>(output);
 
     for (auto task : *dpu_taskList) {
@@ -385,24 +394,21 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
         }
     }
 
-    std::map<uint32_t, uint16_t> diffs;
+    // Lets find the minimal offset between timers as we know for sure that DPU/SW task are started after the end of DMA
+    // task because they connected via same barrier
+    int64_t dma_task_timer_diff = std::numeric_limits<int64_t>::max();
     for (auto& times : layerInfoTimes) {
         if (times.second.dma_end_ns != 0 && times.second.task_start_ns != std::numeric_limits<uint64_t>::max()) {
-            const unsigned int diff = (int32_t)((int64_t)times.second.dma_end_ns - times.second.task_start_ns) / 1000;
-            diffs[diff] = (diffs.find(diff) == diffs.end()) ? 1 : diffs[diff] + 1;
+            int64_t diff = (int64_t)times.second.dma_end_ns - times.second.task_start_ns;
+            if (diff < dma_task_timer_diff) {
+                dma_task_timer_diff = diff;
+            }
         }
     }
 
-    if (diffs.empty())  // Cound not calculate offset between timers -> skip begin time aligment
+    if (dma_task_timer_diff == std::numeric_limits<int64_t>::max()) {
+        // Could not calculate offset between timers -> skip begin time aligment
         return;
-
-    int64_t dma_task_timer_diff = 0;
-    uint16_t max_entries = 0;
-    for (auto diff : diffs) {
-        if (diff.second > max_entries) {
-            dma_task_timer_diff = diff.first;
-            max_entries = diff.second;
-        }
     }
 
     for (auto& task : taskInfo) {
@@ -410,7 +416,7 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
         if (task.exec_type == ProfilingTaskInfo::exec_type_t::DMA) {
             start_time_ns -= min_dma_start_ns;
         } else {
-            start_time_ns += dma_task_timer_diff * 1000 - min_dma_start_ns;
+            start_time_ns += dma_task_timer_diff - min_dma_start_ns;
         }
         task.start_time_ns = (start_time_ns > 0) ? start_time_ns : 0;
     }
@@ -427,6 +433,10 @@ void vpux::getLayerProfilingInfo(const void* data, size_t data_len, const void* 
         auto name = task.name;
         auto ptr = strstr(name, "/output tile");
         if (ptr != nullptr) {
+            *ptr = '\0';
+        }
+        ptr = strstr(name, "/input");
+        if (ptr != nullptr && strstr(name, "tile [") != nullptr) {
             *ptr = '\0';
         }
 
