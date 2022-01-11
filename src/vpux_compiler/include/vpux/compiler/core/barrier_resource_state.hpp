@@ -79,7 +79,7 @@ public:
     void init(size_t bcount, slots_t slot_count);
     bool has_barrier_with_slots(slots_t slot_demand) const;
     barrier_t assign_slots(slots_t slot_demand, mlir::Operation* op,
-                           std::map<mlir::Operation*, SmallVector<mlir::Operation*>>& taskConsumerMap);
+                           std::map<mlir::Operation*, std::set<mlir::Operation*>>& taskConsumerMap);
     bool assign_slots(barrier_t bid, slots_t slot_demand);
     bool unassign_slots(barrier_t bid, slots_t slot_demand, mlir::Operation* op);
     static barrier_t invalid_barrier();

@@ -108,11 +108,14 @@ void FeasibleBarrierScheduler::saveOriginalIRDependency() {
         }
         _inDegreeBackUp.insert(std::make_pair(taskOp, count));
 
-        SmallVector<mlir::Operation*> consumers;
+        std::set<mlir::Operation*> consumers;
         for (const auto bar : taskOp.updateBarriers()) {
             auto iter = barrierOpUpdateWaitMap.find(bar.getDefiningOp());
             if (iter != barrierOpUpdateWaitMap.end()) {
-                consumers.insert(consumers.end(), iter->second.second.begin(), iter->second.second.end());
+                // consumers.insert(consumers.end(), iter->second.second.begin(), iter->second.second.end());
+                for (auto& consumer : iter->second.second) {
+                    consumers.insert(consumer);
+                }
             } else {
                 VPUX_THROW("barrier '{0}' not found", bar.getDefiningOp());
             }
@@ -204,8 +207,8 @@ void FeasibleBarrierScheduler::addOutGoingOperationsToCandidateList(mlir::Operat
 
     auto opConsumers = getConsumerOps(op);
 
-    SmallVector<mlir::Operation*>::iterator itr = opConsumers.begin();
-    SmallVector<mlir::Operation*>::iterator itr_end = opConsumers.end();
+    std::set<mlir::Operation*>::iterator itr = opConsumers.begin();
+    std::set<mlir::Operation*>::iterator itr_end = opConsumers.end();
 
     for (; itr != itr_end; ++itr) {
         // decrement the in-degree of &(*itr) and only add to candidate set
@@ -404,7 +407,7 @@ void FeasibleBarrierScheduler::initializeBarrierResourceState(size_t numberOfBar
     _barrierResourceState.init(numberOfBarriers, maxProducersPerBarrier);
 }
 
-llvm::SmallVector<mlir::Operation*> FeasibleBarrierScheduler::getConsumerOps(mlir::Operation* op) {
+std::set<mlir::Operation*> FeasibleBarrierScheduler::getConsumerOps(mlir::Operation* op) {
     return _taskConsumerMapBackUp[op];
 }
 
@@ -440,7 +443,7 @@ void FeasibleBarrierScheduler::computeTaskPriorities() {
              op != zeroInDegreeNodes[currentPriority % 2].end(); ++op) {
             auto opConsumers = getConsumerOps(*op);
 
-            SmallVector<mlir::Operation*>::iterator jtr = opConsumers.begin();
+            std::set<mlir::Operation*>::iterator jtr = opConsumers.begin();
             while (jtr != opConsumers.end()) {
                 _log.trace("Looking up task {0} in the inDegree table ", getUniqueID(*jtr));
                 typename operation_in_degree_t::iterator deg_itr = inDegree.find(*jtr);
@@ -475,7 +478,7 @@ void FeasibleBarrierScheduler::computeTaskPriorities() {
         auto opConsumers = getConsumerOps((pitr->first));
 
         // set priority to max of all out going priorities //
-        SmallVector<mlir::Operation*>::iterator jtr = opConsumers.begin();
+        std::set<mlir::Operation*>::iterator jtr = opConsumers.begin();
 
         if (!(pitr->second)) {
             size_t max = pitr->second;

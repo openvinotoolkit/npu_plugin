@@ -336,7 +336,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
         pm.addPass(createMoveDeclarationsToTopPass(log));
     }
 
+    pm.addPass(createPrintDotPass("before.dot", {}, {}, false, true));
     pm.addPass(VPURT::createAssignVirtualBarriersPass(log));
+    pm.addPass(createPrintDotPass("after.dot", {}, {}, false, true));
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));

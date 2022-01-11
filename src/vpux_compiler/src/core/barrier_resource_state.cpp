@@ -69,7 +69,7 @@ bool BarrierResourceState::has_barrier_with_slots(slots_t slot_demand) const {
 // Precondition: has_barrier_with_slots(slot_demand) is true //
 BarrierResourceState::barrier_t BarrierResourceState::assign_slots(
         slots_t slot_demand, mlir::Operation* op,
-        std::map<mlir::Operation*, SmallVector<mlir::Operation*>>& taskConsumerMap) {
+        std::map<mlir::Operation*, std::set<mlir::Operation*>>& taskConsumerMap) {
     available_slot_key_t key(slot_demand);
     available_slots_iterator_t itr = available_slots_.lower_bound(key);
     {
@@ -78,7 +78,22 @@ BarrierResourceState::barrier_t BarrierResourceState::assign_slots(
             if (itr->barrier_in_use()) {
                 barrier_t currentBid = itr->barrier_;
                 auto users = _barrierUser[currentBid - 1UL];
+                auto uniqueId = checked_cast<int64_t>((op)->getAttr("uniqueId").cast<mlir::IntegerAttr>().getInt());
+                std::cout << "assign_slots for task " << uniqueId << std::endl;
                 for (auto& user : users) {
+                    auto userId = checked_cast<int64_t>((user)->getAttr("uniqueId").cast<mlir::IntegerAttr>().getInt());
+                    std::cout << "found user " << userId << std::endl;
+
+                    for (auto t : taskConsumerMap[user]) {
+                        auto id = checked_cast<int64_t>((t)->getAttr("uniqueId").cast<mlir::IntegerAttr>().getInt());
+                        std::cout << "found user consumer " << id << std::endl;
+                    }
+
+                    for (auto t : taskConsumerMap[op]) {
+                        auto id = checked_cast<int64_t>((t)->getAttr("uniqueId").cast<mlir::IntegerAttr>().getInt());
+                        std::cout << "found op consumer " << id << std::endl;
+                    }
+
                     if (taskConsumerMap[user] == taskConsumerMap[op]) {
                         if (assign_slots(currentBid, slot_demand))
                             return currentBid;

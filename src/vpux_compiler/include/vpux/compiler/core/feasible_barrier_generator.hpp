@@ -160,7 +160,7 @@ public:
     bool isValidOp(schedulable_ops_iterator_t itr) const;
     schedulable_ops_iterator_t findSchedulableOp();
     unsigned countProducerConsumerTasks(mlir::Operation* op);
-    SmallVector<mlir::Operation*> getConsumerOps(mlir::Operation* op);
+    std::set<mlir::Operation*> getConsumerOps(mlir::Operation* op);
     static std::string printOpType(VPURT::TaskOp taskOp);
     static mlir::IntegerAttr getUniqueID(mlir::Operation* op);
     void insertBarriersinIR();
@@ -230,7 +230,7 @@ private:
     // The in-degree per task from original dependency
     operation_in_degree_t _inDegreeBackUp;
     // The consumer tasks per task from original dependency
-    std::map<mlir::Operation*, SmallVector<mlir::Operation*>> _taskConsumerMapBackUp;
+    std::map<mlir::Operation*, std::set<mlir::Operation*>> _taskConsumerMapBackUp;
     // The backup of output tasks in the IR
     std::set<mlir::Operation*> _outputOpsBackUp;
 };
