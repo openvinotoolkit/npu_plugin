@@ -44,6 +44,25 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     VPURT::BarrierScheduler barrierScheduler(func, _log);
     barrierScheduler.init();
 
+    // The reason for this loop is explained on EISW-28923
+    // A task can only start on the runtime when the following conditions are true.
+    // (1) All the task’s wait barriers have zero producers.
+    // (2) All the task’s update barriers are ready (the physical barrier register has been programmed by the LeonNN as
+    // new virtual barrier).
+
+    // A barrier will only be reset (configured to be another virtual barrier) when its consumer count is zero.
+    // The barrier scheduler in its current form does not model the consumers count of a barrier. It is for this reason, 
+    // when runtime simulation is performed to assign physical barrier ID's to the virtual barriers, it may fail to perform 
+    // a valid assignment due to the fact that the barrier scheduler may have overallocated active barriers during scheduling.
+
+    // The current solution to this is to reduce the number of barrier available to the scheduler and re-preform the scheduling.
+    // It should be possible to schedule any graph with a minimum of two barriers
+    // This condition can be removed when the compiler transitions to using a defined task execution order earlier in compilation
+    // and the memory scheduler guarantees that the maximum number of active barrier (parallel tasks) will not exceed the limit.
+    // Such a feature will significantly simply barrier allocation and would be a prerequisite for moving 'barrier safety'
+    // from the runtime to the compiler. The definition of barrier safety is that it can be guaranteed the barriers will be
+    // reprogrammed by the LeonNN during inference.
+
     bool success = false;
     for (size_t barrier_bound = (numBarriersToUse / 2); !success && (barrier_bound >= 1UL); --barrier_bound) {
         barrierScheduler.generateScheduleWithBarriers(barrier_bound, numSlotsPerBarrierToUse);
