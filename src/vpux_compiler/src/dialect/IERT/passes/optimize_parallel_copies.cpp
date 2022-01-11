@@ -83,11 +83,8 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
             hasSiblingCopy = true;
         }
     }
-    if (!hasSiblingCopy) {
-        return false;
-    }
 
-    return true;
+    return hasSiblingCopy;
 }
 
 mlir::LogicalResult fuseParallelCopyOp(IERT::CopyOp copyOp, Logger log) {
