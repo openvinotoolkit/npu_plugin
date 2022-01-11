@@ -119,7 +119,6 @@ def Linearization : PassBase<"linearization", "vpux::ModulePass"> {
 }
 
 //
-// TimestampProfiling
 // BreakDataFlow
 //
 
