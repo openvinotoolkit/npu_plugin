@@ -136,7 +136,8 @@ def ConvertSWLayers2VPUIP : PassBase<"convert-sw-layers-to-VPUIP", "vpux::Module
 
     let dependentDialects = [
         "vpux::VPUIP::VPUIPDialect",
-        "mlir::arith::ArithmeticDialect"
+        "mlir::arith::ArithmeticDialect",
+        "vpux::VPURT::VPURTDialect"
     ];
 
 }

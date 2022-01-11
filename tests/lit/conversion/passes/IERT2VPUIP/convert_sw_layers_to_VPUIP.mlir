@@ -4,9 +4,13 @@
 
 module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
 
+// CHECK: VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
+
+
 // CHECK: module @VPU.SW {
-// CHECK:   func private @builtin_SoftMax(memref<*xf16>, memref<*xf16>, i64) attributes {VPU.kernel_code = "single_shave_softmax.cpp", VPU.kernel_entry = "singleShaveSoftmax"}
-// CHECK: }
+// CHECK-NEXT:   func private @builtin_SoftMax(memref<*xf16>, memref<*xf16>, i64) attributes {VPU.kernel_code = "single_shave_softmax.cpp", VPU.kernel_entry = "singleShaveSoftmax"}
+// CHECK-NEXT:   func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+// CHECK-NEXT: }
 
 func @SingleSWLayer(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
     %0 = IERT.SoftMax {axisInd = 3} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
@@ -34,11 +38,12 @@ func @SingleSWLayer(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
 module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
-
+// CHECK: VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
 // CHECK: module @VPU.SW  {
-// CHECK:     func private @builtin_Sigmoid(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "sigmoid_fp16.c", VPU.kernel_entry = "sigmoid_fp16"}
-// CHECK:     func private @builtin_SoftMax(memref<*xf16>, memref<*xf16>, i64) attributes {VPU.kernel_code = "single_shave_softmax.cpp", VPU.kernel_entry = "singleShaveSoftmax"}
-// CHECK:   }
+// CHECK-NEXT: func private @builtin_Sigmoid(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "sigmoid_fp16.c", VPU.kernel_entry = "sigmoid_fp16"}
+// CHECK-NEXT: func private @builtin_SoftMax(memref<*xf16>, memref<*xf16>, i64) attributes {VPU.kernel_code = "single_shave_softmax.cpp", VPU.kernel_entry = "singleShaveSoftmax"}
+// CHECK-NEXT: func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+// CHECK-NEXT: }
 
 // CHECK: func @ThreeSWLayers(%arg0: memref<1x1x1x2000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 func @ThreeSWLayers(%arg0: memref<1x1x1x2000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
