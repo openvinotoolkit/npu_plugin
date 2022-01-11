@@ -513,7 +513,14 @@ bool BarrierScheduler::doesOpRunOnNCE(mlir::Operation* op) {
     }
 }
 
-size_t BarrierScheduler::countProducerConsumerTasks(mlir::Operation* op) {
+// This function returns the number of producers to a barrier.
+// On VPU H/W, a NCE task is executed across mutiple DPUs via workloads descriptors (known as variants).
+// Each variant must update the barrier to signal that is is complete.
+// An NCE task may have up 50 workloads descriptors (which are generated in the NCE DPU workloads pass).
+// Therefore, the number of variants must be retrieved here as they will all update a barrier and
+// contribute to the 256 producer limit that a barrier has.
+// A DMA does not have variants, therefore it is always just requires 1 producer slot to a barrier 
+size_t BarrierScheduler::countProducerTasksToBarrier(mlir::Operation* op) {
     if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::NCE) {
         auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op);
         auto& block = taskOp.body().getBlocks().front();
@@ -533,7 +540,7 @@ void BarrierScheduler::createTaskBarrierResourceUtilityTable() {
     const size_t upaTaskbarrierResouceUtilization = 1;
     for (auto& task : _originalInDegree) {
         if (doesOpRunOnNCE(task.first)) {
-            auto barrierResouceUtilization = countProducerConsumerTasks(task.first);
+            auto barrierResouceUtilization = countProducerTasksToBarrier(task.first);
             _log.trace("Task {0} is a DPU or DMA task and requires {1} barrier producer slots", getUniqueID(task.first),
                        barrierResouceUtilization);
             _barrierResourceUtilizationMap.insert(std::make_pair(task.first, barrierResouceUtilization));
