@@ -46,6 +46,13 @@ struct ScheduledOpOneResource {
         return (_op == o._op) && (_addressStart == o._addressStart) && (_addressEnd == o._addressEnd);
     }
 
+    bool operator<(const ScheduledOpOneResource& o) const {
+        if (_addressStart == o._addressStart && _addressEnd == o._addressEnd) {
+            return _op < o._op;
+        }
+        return (_addressStart != o._addressStart) ? (_addressStart < o._addressStart) : (_addressEnd < o._addressEnd);
+    }
+
     OperationType _op;
     size_t _addressStart;
     size_t _addressEnd;
