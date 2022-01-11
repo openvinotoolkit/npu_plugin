@@ -122,7 +122,9 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
     const auto inElemType = origOp.input().getType().template cast<mlir::RankedTensorType>().getElementType();
     const auto outElemType = origOp.output().getType().template cast<mlir::RankedTensorType>().getElementType();
 
-    addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch);
+    rewriter.updateRootInPlace(origOp, [&]() {
+        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch);
+    });
 
     return mlir::success();
 }
@@ -157,7 +159,9 @@ mlir::LogicalResult EltwiseNCERewrite::matchAndRewrite(VPU::NCEEltwiseOp origOp,
     const auto inElemType = origOp.input1().getType().cast<mlir::RankedTensorType>().getElementType();
     const auto outElemType = origOp.output().getType().cast<mlir::RankedTensorType>().getElementType();
 
-    addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch);
+    rewriter.updateRootInPlace(origOp, [&]() {
+        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch);
+    });
 
     return mlir::success();
 }
