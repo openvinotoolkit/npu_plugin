@@ -43,6 +43,7 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
     const auto srcMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
     const auto dstMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
     if (srcMemory == dstMemory || srcMemory == VPU::MemoryKind::CMX_NN) {
+        //        std::cout << "\tfail at 1" << std::endl;
         return false;
     }
 
@@ -53,9 +54,19 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
     if (parentOp == nullptr) {
         return false;
     }
+    if (mlir::isa<Const::DeclareOp>(parentOp)) {
+        //        std::cout<<llvm::formatv("FORBIDDEN WEIGHTS SHARING {0}, {1}", parentOp->getLoc(),
+        //        parentOp->getName()).str()<<std::endl;
+        return false;
+    }
     bool hasSiblingCopy = false;
+    //    std::cout << llvm::formatv("\tparent op is {0}, {1}", parentOp->getLoc(), parentOp->getName()).str() <<
+    //    std::endl;
     for (auto siblingOp : parentOp->getResult(0).getUsers()) {
         if (!mlir::isa<IERT::CopyOp>(*siblingOp)) {
+            //            std::cout << llvm::formatv("\tfail at 2-1 at {0}, {1}", siblingOp->getLoc(),
+            //            siblingOp->getName()).str()
+            //                      << std::endl;
             return false;
         }
 
@@ -69,14 +80,19 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
                     VPU::MemoryKind::CMX_NN ||
             VPU::getMemoryKind(childCopyOfSiblingOp.output().getType().cast<mlir::MemRefType>()) !=
                     VPU::MemoryKind::DDR) {
+            //            std::cout << "\tfail at 3-1" << std::endl;
             return false;
         }
 
         if (siblingOp != copyOp) {
+            //            std::cout << llvm::formatv("\tsibling op found {0}, {1}", siblingOp->getLoc(),
+            //            siblingOp->getName()).str()
+            //                      << std::endl;
             hasSiblingCopy = true;
         }
     }
     if (!hasSiblingCopy) {
+        //        std::cout << "\tfail at 2-2" << std::endl;
         return false;
     }
 
@@ -99,25 +115,26 @@ mlir::LogicalResult fuseParallelCopyOp(IERT::CopyOp copyOp, Logger log) {
     };
     auto siblingCopies = getSiblingCopies();
     for (auto siblingCopy : siblingCopies) {
+        //        std::cout << llvm::formatv("\t~~~~ merge {0}, {1}", siblingCopy->getLoc(),
+        //        siblingCopy->getName()).str()
+        //                  << std::endl;
+
         log.trace("Fuse copy op {0} to {1}", copyOp->getLoc(), siblingCopy->getLoc());
+
         SmallVector<mlir::Operation*> wtUsingOutBuf;
         for (auto use : siblingCopy.output_buff().getUsers()) {
+            //            std::cout<<llvm::formatv("!!!!! check users: {0} {1}", use->getLoc(),
+            //            use->getName()).str()<<std::endl;
             if (mlir::isa<VPUIP::WeightsTableOp>(*use)) {
                 wtUsingOutBuf.push_back(use);
             }
         }
         for (auto wt : wtUsingOutBuf) {
-            size_t index = 0;
-            for (const auto operand : wt->getOperands()) {
-                if (operand == siblingCopy.output_buff()) {
-                    break;
-                }
-                index++;
-            }
-            wt->setOperand(index, copyOp.output_buff());
+            wt->setOperand(0, copyOp.output_buff());
         }
 
         siblingCopy.getOperation()->replaceAllUsesWith(copyOp.getOperation());
+        siblingCopy.output_buff().replaceAllUsesWith(copyOp.input());
         siblingCopy->erase();
     }
 
