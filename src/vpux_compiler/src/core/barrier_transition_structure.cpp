@@ -73,7 +73,7 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
         barrierPrevious = previousBarrier;
     }
 
-    _feasibleBarrierScheduler._log.trace("The ID of barrier b_curr is {0}", currentBarrier->getAttr("id"));
+    _feasibleBarrierScheduler._log.trace("The ID of barrier b_curr is {0}", currentBarrier->getAttr(virtualIdAttrName));
     size_t currentBarrierID = getBarrierUniqueID(currentBarrier);
 
     for (producerIteratorType producer = _producers.begin(); producer != _producers.end(); ++producer) {
@@ -88,7 +88,8 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
 
             _feasibleBarrierScheduler._configureBarrierOpWaitMap[currentBarrierID].set(sourceID);
         } else {
-            VPUX_THROW("Error unable to find the update tasks for barrier ID {0}", currentBarrier->getAttr("id"));
+            VPUX_THROW("Error unable to find the update tasks for barrier ID {0}",
+                       currentBarrier->getAttr(virtualIdAttrName));
         }
 
         // Step-1.2 (b): consumers
@@ -99,13 +100,14 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
             for (auto consumer = opConsumers.begin(); consumer != opConsumers.end(); ++consumer) {
                 _feasibleBarrierScheduler._log.trace("Step-1.2 Adding consumer task ID {0} to barrier ID {1}",
                                                      BarrierScheduler::getUniqueID(*consumer),
-                                                     currentBarrier->getAttr("id"));
+                                                     currentBarrier->getAttr(virtualIdAttrName));
 
                 size_t consumerID = getTaskUniqueID(*consumer);
                 _feasibleBarrierScheduler._configureBarrierOpUpdateMap[currentBarrierID].set(consumerID);
             }
         } else {
-            VPUX_THROW("Error unable to find the wait tasks for barrier ID {0}", currentBarrier->getAttr("id"));
+            VPUX_THROW("Error unable to find the wait tasks for barrier ID {0}",
+                       currentBarrier->getAttr(virtualIdAttrName));
         }
 
         // Step-1.3
@@ -115,7 +117,7 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
             if (barrierPreviousID < _feasibleBarrierScheduler._configureBarrierOpUpdateMap.size()) {
                 _feasibleBarrierScheduler._log.trace("Step-1.3 Adding consumer task ID {0} to barrier ID {1}",
                                                      BarrierScheduler::getUniqueID(source),
-                                                     barrierPrevious->getAttr("id"));
+                                                     barrierPrevious->getAttr(virtualIdAttrName));
 
                 _feasibleBarrierScheduler._configureBarrierOpUpdateMap[barrierPreviousID].set(sourceID);
             } else {
@@ -160,7 +162,8 @@ void BarrierScheduler::barrierTransitionStructure::maintainInvariantTemporalChan
 
     // STEP-1
     if (currentBarrier != barrierEnd) {
-        _feasibleBarrierScheduler._log.trace("The ID of barrier currentBarrier is {0}", currentBarrier->getAttr("id"));
+        _feasibleBarrierScheduler._log.trace("The ID of barrier currentBarrier is {0}",
+                                             currentBarrier->getAttr(virtualIdAttrName));
         processCurrentBarrierProducerListCloseEvent(currentBarrier, previousBarrier);
     }
 
@@ -174,8 +177,8 @@ void BarrierScheduler::barrierTransitionStructure::maintainInvariantTemporalChan
 void BarrierScheduler::barrierTransitionStructure::addScheduledTaskToProducerList(const ScheduledOpInfo& sinfo) {
     auto scheduled_op = sinfo._op;
 
-    _feasibleBarrierScheduler._log.trace("Adding task {0} to the producer list of the barrier transition structure",
-                                         _currentBarrierTask->getAttr("id"));
+    _feasibleBarrierScheduler._log.trace("Adding task {0} to the producer list",
+                                         BarrierScheduler::getUniqueID(sinfo._op));
     _producers.insert(scheduled_op);
 }
 
