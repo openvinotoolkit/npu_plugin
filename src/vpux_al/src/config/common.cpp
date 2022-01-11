@@ -50,14 +50,14 @@ PerformanceHint vpux::PERFORMANCE_HINT::parse(StringRef val) {
         return PerformanceHint::Throughput;
     }
 
-    VPUX_THROW("Value '{0}' is not a valid PERFORMANCE_HINT option");
+    VPUX_THROW("Value '{0}' is not a valid PERFORMANCE_HINT option", val);
 }
 
 //
 // PLATFORM
 //
 
-StringLiteral vpux::stringifyEnum(VPUXPlatform val) {
+StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(VPUXPlatform val) {
     switch (val) {
     case VPUXPlatform::AUTO:
         return "AUTO";
@@ -102,5 +102,5 @@ VPUXPlatform vpux::PLATFORM::parse(StringRef val) {
         return VPUXPlatform::EMULATOR;
     }
 
-    VPUX_THROW("Value '{0}' is not a valid PLATFORM option");
+    VPUX_THROW("Value '{0}' is not a valid PLATFORM option", val);
 }

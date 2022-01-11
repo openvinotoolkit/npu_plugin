@@ -85,8 +85,6 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, LogLevel> {
 // PLATFORM
 //
 
-StringLiteral stringifyEnum(InferenceEngine::VPUXConfigParams::VPUXPlatform val);
-
 struct PLATFORM final : OptionBase<PLATFORM, InferenceEngine::VPUXConfigParams::VPUXPlatform> {
     static StringRef key() {
         return VPUX_CONFIG_KEY(PLATFORM);
@@ -118,3 +116,11 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
 };
 
 }  // namespace vpux
+
+namespace InferenceEngine {
+namespace VPUXConfigParams {
+
+vpux::StringLiteral stringifyEnum(VPUXPlatform val);
+
+}  // namespace VPUXConfigParams
+}  // namespace InferenceEngine

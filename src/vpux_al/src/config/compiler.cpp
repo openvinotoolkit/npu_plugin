@@ -50,5 +50,5 @@ CompilerType vpux::COMPILER_TYPE::parse(StringRef val) {
         return CompilerType::MLIR;
     }
 
-    VPUX_THROW("Value '{0}' is not a valid COMPILER_TYPE option");
+    VPUX_THROW("Value '{0}' is not a valid COMPILER_TYPE option", val);
 }

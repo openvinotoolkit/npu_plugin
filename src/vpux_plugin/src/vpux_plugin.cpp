@@ -82,6 +82,9 @@ static const std::vector<std::string> backendRegistry = {
 #if defined(ENABLE_EMULATOR)
         "emulator_backend",
 #endif
+#if defined(ENABLE_IMD_BACKEND)
+        "vpux_imd_backend",
+#endif
 };
 
 Engine::Engine()
@@ -99,10 +102,8 @@ Engine::Engine()
 
     _backends->registerOptions(*_options);
 
-#ifdef VPUX_DEVELOPER_BUILD
     _globalConfig.parseEnvVars();
     Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
-#endif
 }
 
 //------------------------------------------------------------------------------

@@ -149,7 +149,6 @@ vpux::Config::Config(const std::shared_ptr<const OptionsDesc>& desc): _desc(desc
     VPUX_THROW_WHEN(_desc == nullptr, "Got NULL OptionsDesc");
 }
 
-#ifdef VPUX_DEVELOPER_BUILD
 void vpux::Config::parseEnvVars() {
     auto log = Logger::global().nest("Config", 0);
 
@@ -164,7 +163,6 @@ void vpux::Config::parseEnvVars() {
         }
     });
 }
-#endif
 
 void vpux::Config::update(const ConfigMap& options, OptionMode mode) {
     auto log = Logger::global().nest("Config", 0);

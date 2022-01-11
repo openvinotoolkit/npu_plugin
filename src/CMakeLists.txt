@@ -58,3 +58,7 @@ endif()
 add_subdirectory(vpux_utils)
 add_subdirectory(vpux_compiler)
 add_subdirectory(vpux_translate_utils)
+
+if(ENABLE_IMD_BACKEND)
+    add_subdirectory(vpux_imd_backend)
+endif()

@@ -72,6 +72,11 @@ if(ENABLE_EMULATOR)
     add_definitions(-DENABLE_EMULATOR)
 endif()
 
+ie_dependent_option(ENABLE_IMD_BACKEND "Enable InferenceManagerDemo based VPUX AL backend" OFF "NOT WIN32;NOT CMAKE_CROSSCOMPILING" OFF)
+if(ENABLE_IMD_BACKEND)
+    add_definitions(-DENABLE_IMD_BACKEND)
+endif()
+
 ie_option(ENABLE_VPUX_DOCS "Documentation for VPUX plugin" OFF)
 
 if(ENABLE_VPUX_DOCS)

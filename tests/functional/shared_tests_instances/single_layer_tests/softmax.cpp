@@ -34,7 +34,7 @@ class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTe
             }
         }
 
-        if(isPlatformMTL()) {
+        if (isPlatformMTL()) {
             if (std::getenv("OV_BUILD_DIR") == nullptr) {
                 return {"OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels."};
             }
@@ -48,9 +48,11 @@ class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTe
     }
 
     SkipMessage SkipBeforeInfer() override {
-        if(isPlatformMTL()) {
+#ifndef ENABLE_IMD_BACKEND
+        if (isPlatformMTL()) {
             return {"Runtime issue."};
         }
+#endif
 
         return vpux::None;
     }

@@ -29,30 +29,45 @@ namespace IE = InferenceEngine;
 VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry): _logger("VPUXBackends", LogLevel::Error) {
     std::vector<std::shared_ptr<EngineBackend>> registeredBackends;
     for (const auto& name : backendRegistry) {
+        _logger.debug("Try '{0}' backend", name);
+
         const auto path = getLibFilePath(name);
-        const auto exists = std::ifstream(path.c_str()).good();
-        if (exists) {
-            try {
-                const auto backend = std::make_shared<EngineBackend>(path);
-                if (backend->getDeviceNames().size() != 0) {
-                    _logger.debug("Register {0}", name);
-                    registeredBackends.emplace_back(backend);
-                }
-            } catch (const IE::Exception& e) {
-                _logger.warning("Exception '{0}' while searching for a device by {1}", e.what(), name);
-            } catch (...) {
-                _logger.warning("Unknown exception while searching for a device by {0}", name);
+
+        const auto exists = std::ifstream(path).good();
+        if (!exists) {
+            _logger.nest().debug("Backend '{0}' at '{1}' doesn't exist", name, path);
+            continue;
+        }
+
+        try {
+            const auto backend = std::make_shared<EngineBackend>(path);
+            const auto backendDevices = backend->getDeviceNames();
+
+            if (!backendDevices.empty()) {
+                _logger.nest().debug("Register '{0}' with devices '{1}'", name, backendDevices);
+                registeredBackends.emplace_back(backend);
             }
+        } catch (const std::exception& ex) {
+            _logger.warning("Got an error during backend '{0}' loading : {1}", name, ex.what());
+        } catch (...) {
+            _logger.warning("Got an unknown error during backend '{0}' loading : {1}", name);
         }
     }
+
     if (registeredBackends.empty()) {
-        _logger.warning("Cannot find backend for inference. Make sure if device is available.");
         registeredBackends.emplace_back(nullptr);
     }
+
     // TODO: implementation of getDevice methods needs to be updated to go over all
     // registered backends to search a device.
     // A single backend is chosen for now to keep existing behavior
     _backend = *registeredBackends.begin();
+
+    if (_backend != nullptr) {
+        _logger.info("Use '{0}' backend for inference", _backend->getName());
+    } else {
+        _logger.warning("Cannot find backend for inference. Make sure if device is available.");
+    }
 }
 
 std::string VPUXBackends::getBackendName() const {

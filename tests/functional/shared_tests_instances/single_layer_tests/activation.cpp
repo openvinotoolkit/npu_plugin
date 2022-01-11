@@ -102,8 +102,11 @@ class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
         throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
 #endif
     }
+
     void SkipBeforeInfer() override {
+#ifndef ENABLE_IMD_BACKEND
         throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+#endif
     }
 };
 
@@ -117,7 +120,7 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
 }
 
 // [Track number: EISW-26724]
-TEST_P(KmbActivationLayerTest_MTL, CompareWithRefs_MLIR) {
+TEST_P(KmbActivationLayerTest_MTL, MLIR_MTL) {
     useCompilerMLIR();
     setPlatformMTL();
     setDefaultHardwareModeMLIR();

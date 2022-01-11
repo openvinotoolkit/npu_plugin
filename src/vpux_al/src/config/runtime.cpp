@@ -48,5 +48,5 @@ InferenceEngine::ColorFormat vpux::GRAPH_COLOR_FORMAT::parse(StringRef val) {
         return InferenceEngine::ColorFormat::RGB;
     }
 
-    VPUX_THROW("Value '{0}' is not a valid GRAPH_COLOR_FORMAT option");
+    VPUX_THROW("Value '{0}' is not a valid GRAPH_COLOR_FORMAT option", val);
 }

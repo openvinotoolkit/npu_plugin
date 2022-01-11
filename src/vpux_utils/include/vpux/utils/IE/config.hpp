@@ -108,12 +108,10 @@ struct OptionBase {
     // `ActualOpt` must implement the following method:
     // static StringRef key()
 
-#ifdef VPUX_DEVELOPER_BUILD
     // Overload this to provide environment variable support.
     static StringRef envVar() {
         return {};
     }
-#endif
 
     // Overload this to provide deprecated keys names.
     static SmallVector<StringRef> deprecatedKeys() {
@@ -188,9 +186,7 @@ namespace details {
 
 struct OptionConcept final {
     StringRef (*key)() = nullptr;
-#ifdef VPUX_DEVELOPER_BUILD
     StringRef (*envVar)() = nullptr;
-#endif
     OptionMode (*mode)() = nullptr;
     bool (*isPublic)() = nullptr;
     std::shared_ptr<OptionValue> (*validateAndParse)(StringRef val) = nullptr;
@@ -211,15 +207,7 @@ std::shared_ptr<OptionValue> validateAndParse(StringRef val) {
 
 template <class Opt>
 OptionConcept makeOptionModel() {
-    return {
-            &Opt::key,
-#ifdef VPUX_DEVELOPER_BUILD
-            &Opt::envVar,
-#endif
-            &Opt::mode,              //
-            &Opt::isPublic,          //
-            &validateAndParse<Opt>,  //
-    };
+    return {&Opt::key, &Opt::envVar, &Opt::mode, &Opt::isPublic, &validateAndParse<Opt>};
 }
 
 }  // namespace details
@@ -288,9 +276,7 @@ public:
 public:
     void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
 
-#ifdef VPUX_DEVELOPER_BUILD
     void parseEnvVars();
-#endif
 
 public:
     template <class Opt>
