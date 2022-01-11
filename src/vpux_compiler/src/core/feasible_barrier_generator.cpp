@@ -579,7 +579,7 @@ void FeasibleBarrierScheduler::createTaskBarrierResourceUtilityTable() {
         } else  // UPA tasks
         {
             _log.trace("Operation: {0} is a UPA tasks and requires 0 slots", getUniqueID(op.first));
-            _resourceUtilityMap.insert(std::make_pair(op.first, 0));
+            _resourceUtilityMap.insert(std::make_pair(op.first, 1));
         }
     }
 }

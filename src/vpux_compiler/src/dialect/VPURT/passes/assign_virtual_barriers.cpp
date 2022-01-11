@@ -49,7 +49,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     barrierScheduler.init();
 
     bool success = false;
-    for (size_t barrier_bound = (numBarriersToUse / 2); !success && (barrier_bound >= 1UL); --barrier_bound) {
+    for (size_t barrier_bound = (numBarriersToUse); !success && (barrier_bound >= 1UL); --barrier_bound) {
         barrierScheduler.schedule(barrier_bound, numSlotsPerBarrierToUse);
         success = barrierScheduler.performRuntimeSimulation();
     }
