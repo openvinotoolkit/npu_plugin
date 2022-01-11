@@ -600,7 +600,7 @@ void BarrierScheduler::createTaskBarrierResourceUtilityTable() {
             _barrierResourceUtilizationMap.insert(std::make_pair(task.first, barrierResouceUtilization));
         } else  // UPA tasks
         {
-            _log.trace("Task: {0} is a UPA tasks and requires 0 barrier producer slots", getUniqueID(task.first));
+            _log.trace("Task: {0} is a UPA task and requires 1 barrier producer slot", getUniqueID(task.first));
             _barrierResourceUtilizationMap.insert(std::make_pair(task.first, upaTaskbarrierResouceUtilization));
         }
     }
