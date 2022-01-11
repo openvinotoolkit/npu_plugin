@@ -21,7 +21,7 @@ namespace VPURT {
 class BarrierResourceState final {
 public:
     BarrierResourceState();
-    BarrierResourceState(size_t barrierCount, size_t producerSlotCount);
+    BarrierResourceState(size_t barrierCount, size_t maximumProducerSlotCount);
 
     using producerSlotsType = size_t;
     using barrierType = size_t;
@@ -51,7 +51,7 @@ public:
     using availableSlotsIteratorType = typename availableProducerSlotsType::iterator;
     using barrierReferenceType = std::vector<availableSlotsIteratorType>;
 
-    void init(const size_t barrierCount, const producerSlotsType producerSlotCount);
+    void init(const size_t barrierCount, const producerSlotsType maximumProducerSlotCount);
     bool hasBarrierWithSlots(producerSlotsType slotDemand) const;
     barrierType assignBarrierSlots(producerSlotsType slotDemand);
     bool assignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand);
