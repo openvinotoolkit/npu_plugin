@@ -168,7 +168,7 @@ void BarrierScheduler::saveOriginalIRDependency() {
     _log.trace("Removed all the original declare virtual barrier ops");
 }
 
-void BarrierScheduler::pushToHeap(const HeapElement& elem) {
+void BarrierScheduler::pushToScheduleTimeHeap(const HeapElement& elem) {
     _heap.push_back(elem);
     std::push_heap(_heap.begin(), _heap.end(), MinHeapOrdering());
 }
@@ -240,7 +240,7 @@ bool BarrierScheduler::performSchedulingTaskLoop() {
             size_t taskEndTime = _currentTime + opDelay;
 
             _log.trace("Task ID {0} end time is {1}, pushing to heap", getUniqueID(task), taskEndTime);
-            pushToHeap(HeapElement(task, taskEndTime));
+            pushToScheduleTimeHeap(HeapElement(task, taskEndTime));
 
             _log.trace("Erasing Task ID {0} from the schedulable candidates");
             _schedulableCandidates.erase(taskItr);
