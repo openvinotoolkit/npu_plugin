@@ -11,7 +11,7 @@
 
 #define ALIGN_POINTER(XX, YY) ((uint32_t *)(((intptr_t)(XX) + YY - 1) & (~(YY - 1))))
 
-static void shaveCtrlParamAddU32(ShHandle *handle, uint32_t value32) {
+static void shCtrlParamAddU32(ShHandle *handle, uint32_t value32) {
     SHAVE_FUNC("%p, %" PRId32"", handle, value32);
     // Parameters and conditions for failing are already checked in ShaveCtrlStart
     // This function cannot fail.
@@ -28,7 +28,7 @@ static void shaveCtrlParamAddU32(ShHandle *handle, uint32_t value32) {
     }
 }
 
-static void shaveCtrlParamAddU64(ShHandle *handle, uint64_t value64) {
+static void shCtrlParamAddU64(ShHandle *handle, uint64_t value64) {
     SHAVE_FUNC("%p, %" PRId64"", handle, value64);
     // Parameters and conditions for failing are already checked in ShaveCtrlStart
     // This function cannot fail.
@@ -52,7 +52,7 @@ static void shaveCtrlParamAddU64(ShHandle *handle, uint64_t value64) {
     }
 }
 
-static void shaveCtrlParamAddV64(ShHandle *handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3) {
+static void shCtrlParamAddV64(ShHandle *handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3) {
     SHAVE_FUNC("%p, %" PRId32", %" PRId32", %" PRId32", %" PRId32"", handle, v0, v1, v2, v3);
     // do we have one free VRF register?
     if (handle->availableVrf > SHAVE_PARAMS_LAST_VRF) {
@@ -73,7 +73,7 @@ static void shaveCtrlParamAddV64(ShHandle *handle, uint32_t v0, uint32_t v1, uin
 // This function will count the bytes needed for the shave stack to hold the parameters
 // It will also take into account that there are the IRF and VRF registers so no stack
 // will be used for that. It does this by iterating over the parameter list in lst argument.
-static HglShaveCtrlError shaveGetNeededStackForParams(const char *lst, uint32_t *stackSize) {
+static HglShaveCtrlError shGetNeededStackForParams(const char *lst, uint32_t *stackSize) {
     SHAVE_FUNC("%p, %p", lst, stackSize);
     *stackSize = 0;
     uint32_t availableIRF = SHAVE_PARAMS_IRF_COUNT;
@@ -116,7 +116,7 @@ static HglShaveCtrlError shaveGetNeededStackForParams(const char *lst, uint32_t 
     SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SUCCESS);
 }
 
-static HglShaveCtrlError prepareAndStart(ShHandle *handle, void *entry) {
+static HglShaveCtrlError shPrepareAndStart(ShHandle *handle, void *entry) {
     SHAVE_FUNC("%p, %p", handle, entry);
     rtems_status_code sc = rtems_semaphore_obtain(handle->waitSema, RTEMS_NO_WAIT, 0);
     if (RTEMS_SUCCESSFUL != sc) {
@@ -133,13 +133,13 @@ static HglShaveCtrlError prepareAndStart(ShHandle *handle, void *entry) {
     SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SUCCESS);
 }
 
-static HglShaveCtrlError processParamsAndStart(ShHandle *handle, void *entry, const char *fmt, va_list list) {
+static HglShaveCtrlError shProcessParamsAndStart(ShHandle *handle, void *entry, const char *fmt, va_list list) {
     SHAVE_FUNC("%p, %p, %s, ...", handle, entry, fmt);
     const char *type = fmt;
     for (;; type++) {
         switch (*type) {
             case '\0':
-                SHAVE_RETURN_ERR(prepareAndStart(handle, entry));
+                SHAVE_RETURN_ERR(shPrepareAndStart(handle, entry));
             case ' ':
                 continue;
             case 'i':
@@ -149,12 +149,12 @@ static HglShaveCtrlError processParamsAndStart(ShHandle *handle, void *entry, co
             case 'p':;
                 // pointer (same as 32 bits)
                 uint32_t value32 = va_arg(list, uint32_t);
-                shaveCtrlParamAddU32(handle, value32);
+                shCtrlParamAddU32(handle, value32);
                 break;
             case 'w':;
                 // "wide" integer aka 64 bits
                 uint64_t value64 = va_arg(list, uint64_t);
-                shaveCtrlParamAddU64(handle, value64);
+                shCtrlParamAddU64(handle, value64);
                 break;
             case 'v':;
                 // for now it is the responsability of the user to check if the shave requested
@@ -165,13 +165,13 @@ static HglShaveCtrlError processParamsAndStart(ShHandle *handle, void *entry, co
                 uint32_t v2 = va_arg(list, uint32_t);
                 uint32_t v3 = va_arg(list, uint32_t);
                 // do we have one free VRF register?
-                shaveCtrlParamAddV64(handle, v0, v1, v2, v3);
+                shCtrlParamAddV64(handle, v0, v1, v2, v3);
                 break;
         }
     }
 }
 
-static HglShaveCtrlError ShaveCtrlRawAddressWinToAbs(ShHandle *handle, uint32_t address, uint32_t *absAddr, bool passthrough) {
+static HglShaveCtrlError ShCtrlRawAddressWinToAbs(ShHandle *handle, uint32_t address, uint32_t *absAddr, bool passthrough) {
     SHAVE_FUNC("%p, 0x%" PRIX32", %p, %s", handle, address, absAddr, passthrough ? "true" : "false");
     uint32_t win = address >> 24;
     uint32_t winNo = win - 0x1C; // underflow intentional
@@ -218,13 +218,13 @@ HglShaveCtrlError ShCtrlStart(ShHandle *handle, void *entry_point, const char *f
     // we directly use the internal raw function since we already checked the params
     // we also dont check the return error since it can only return SUCCESS with passthrough = true
     // which means stack will be an absolute leon visible address
-    ShaveCtrlRawAddressWinToAbs(handle, stack, &stack, true);
+    ShCtrlRawAddressWinToAbs(handle, stack, &stack, true);
     uint32_t stackSize = HglShaveGetStackSize((HglShaveHandle *)handle);
 
     va_list list;
 
     uint32_t requiredStackSize; // needed stack size
-    HglShaveCtrlError paramErr = shaveGetNeededStackForParams(fmt, &requiredStackSize);
+    HglShaveCtrlError paramErr = shGetNeededStackForParams(fmt, &requiredStackSize);
     if (paramErr != HGL_SHAVE_CTRL_SUCCESS) {
         SHAVE_LOG(" - Failed due to shaveGetNeededStackForParams failing");
         SHAVE_RETURN_ERR(paramErr);
@@ -253,7 +253,7 @@ HglShaveCtrlError ShCtrlStart(ShHandle *handle, void *entry_point, const char *f
     handle->availableVrf = SHAVE_PARAMS_VRF_COUNT;
 
     va_start(list, fmt);
-    SHAVE_RETURN_ERR(processParamsAndStart(handle, entry_point, fmt, list));
+    SHAVE_RETURN_ERR(shProcessParamsAndStart(handle, entry_point, fmt, list));
 }
 
 /// @}

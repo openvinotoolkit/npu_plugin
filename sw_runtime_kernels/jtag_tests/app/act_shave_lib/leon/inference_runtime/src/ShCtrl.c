@@ -217,7 +217,7 @@ static void ResetShHandle(ShHandle *handle) {
 
 // ShaveCtrlInit.cpp
 //#if LOCAL_SHAVE_COUNT > 0
-static void shaveSemaCleanup(void) {
+static void shSemaCleanup(void) {
 //    SHAVE_FUNC("");
     for (uint32_t s = 0; s < LOCAL_SH_COUNT; s++) {
         ShHandle *h = &ShConfig[s];
@@ -227,7 +227,7 @@ static void shaveSemaCleanup(void) {
     }
 }
 
-static bool shaveHandleCreate(HglShaveType type) {
+static bool shHandleCreate(HglShaveType type) {
 //    SHAVE_FUNC("%" PRId32"", type);
     rtems_status_code rs;
     static uint32_t semaId = 0;
@@ -244,7 +244,7 @@ static bool shaveHandleCreate(HglShaveType type) {
 //            SHAVE_LOG(" - !!! Creating sema failed with status %" PRId32"", rs);
             semaId = 0;
 //            SHAVE_LOG(" - !!! Starting cleanup");
-            shaveSemaCleanup();
+            shSemaCleanup();
 //            SHAVE_LOG(" - Failed due to rtems_semaphore_create with return code: %" PRId32"", rs);
 
             SHAVE_RETURN(true, "ERROR"); // true means error
@@ -268,7 +268,7 @@ HglShaveCtrlError ShCtrlInit(void) {
         for (uint32_t type = 0; type < HGL_SHAVE_TYPE_NB; type++) {
             if (HglShaveAccessAllowed[type]) {
                 SHAVE_LOG(" - Creating shave semaphores for %s", typeCharptr[type]);
-                if (shaveHandleCreate((HglShaveType)type)) {
+                if (shHandleCreate((HglShaveType)type)) {
                     SHAVE_LOG(" - Failed to create semaphores");
                     SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SEMA_FAILURE);
                 }
