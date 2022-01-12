@@ -43,7 +43,7 @@ void AssignVirtualBarriersPass::safeRunOnFunc() {
     VPURT::BarrierScheduler barrierScheduler(func, _log);
     barrierScheduler.init();
 
-    // The reason for this loop is explained on EISW-28923
+    // The reason for this loop is explained on E#28923
     // A task can only start on the runtime when the following conditions are true.
     // (1) All the task’s wait barriers have zero producers.
     // (2) All the task’s update barriers are ready (the physical barrier register has been programmed by the LeonNN as
