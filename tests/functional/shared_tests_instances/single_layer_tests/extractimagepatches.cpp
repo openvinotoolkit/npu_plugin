@@ -38,18 +38,18 @@ const std::vector<InferenceEngine::SizeVector> inputShapes = {
     InferenceEngine::SizeVector { 64, 3, 10, 10 },
 };
 
-//const std::vector<std::vector<size_t>> inputShape = {
+//const std::vector<size_t> inputShape = {
 //        { 2, 18, 20, 20 },
 //        { 2, 4, 20, 20 },
 //        { 2, 4, 20, 40 },
 //        { 10, 1, 20, 20 }
 //};
 
-//const std::vector<std::vector<size_t>> sizes = {{3, 3}};
+//const std::vector<size_t> sizes = {{3, 3}}; // int64_t
 
-//const std::vector<std::vector<size_t>> strides = {{5, 5}};
+//const std::vector<size_t> strides = {{5, 5}}; // int64_t
 
-//const std::vector<std::vector<size_t>> rates = {{1, 1}};
+//const std::vector<size_t> rates = {{1, 1}}; // int64_t
 
 const std::vector<std::string> paddingType = {
             "same_upper",

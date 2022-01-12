@@ -51,14 +51,15 @@ using namespace vpux;
 
 //VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExtractImagePatchesUPAOp::serialize(VPUIP::BlobWriter& writer) {
 //
+//      MVCNN::ExtractImagePatchesParamsBuilder builder(writer);
+//
 //      auto attrToVector = [&](mlir::ArrayAttr attr) {
-//          auto values = parseIntArrayAttr(attr) | transformed([](auto value) {
-//                          return checked_cast<uint32_t>(value);  //uint32_t only??? uint_64 not ???
+//      auto values = parseIntArrayAttr(attr) | transformed([](auto value) {
+//                    return checked_cast<uint32_t>(value);  //uint32_t only??? uint_64 not ???
 //                      });
-//          return to_std_vector(values);
+//      return to_std_vector(values);
 //      };
 //
-//      MVCNN::ExtractImagePatchesParamsBuilder builder(writer);
 //      builder.add_padding(ExtractImagePatchesAutoPadType2MVCNN(paddingType()));
 //      builder.add_sizes(builder.fbb_.CreateVector(attrToVector(sizes().getValue())));
 //      builder.add_strides(builder.fbb_.CreateVector(attrToVector(strides().getValue())));
