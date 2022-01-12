@@ -98,12 +98,22 @@ mlir::LogicalResult LayerRewriterDequantize::matchAndRewrite(IE::ConvertOp conve
         return mlir::failure();
     }
 
+    // Next op is either IE.Quantize (identity qp) or IE.QuantizeCast (non-identity qp)
+    auto quantizeCastOp = dequantizeOp.input().getDefiningOp<IE::QuantizeCastOp>();
     auto quantizeOp = dequantizeOp.input().getDefiningOp<IE::QuantizeOp>();
-    if (quantizeOp == nullptr) {
+    if (quantizeCastOp == nullptr && quantizeOp == nullptr) {
         return mlir::failure();
+    } else if (quantizeOp) {
+        rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(dequantizeOp, quantizeOp.output(), convertOp.output().getType().cast<mlir::ShapedType>().getElementType());
+    } else if (quantizeCastOp) {
+        quantizeOp = quantizeCastOp.input().getDefiningOp<IE::QuantizeOp>();
+        if (quantizeOp == nullptr) {
+            return mlir::failure();
+        } else {
+            rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(dequantizeOp, quantizeOp.output(), convertOp.output().getType().cast<mlir::ShapedType>().getElementType());
+        }
     }
 
-    rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(dequantizeOp, quantizeOp.output(), convertOp.output().getType().cast<mlir::ShapedType>().getElementType());
     return mlir::success();
 }
 
