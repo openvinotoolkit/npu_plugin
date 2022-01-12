@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/core/barrier_resource_state.hpp"
+#include "vpux/compiler/dialect/VPURT/barrier_resource_state.hpp"
 
 using namespace vpux::VPURT;
 
