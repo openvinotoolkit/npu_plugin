@@ -40,7 +40,7 @@ public:
     };
 
     struct HeapElement {
-        HeapElement(mlir::Operation* op = NULL, size_t t = 0UL): _op(op), _time(t) {
+        HeapElement(mlir::Operation* op = nullptr, size_t t = 0UL): _op(op), _time(t) {
         }
         mlir::Operation* _op;
         size_t _time;
