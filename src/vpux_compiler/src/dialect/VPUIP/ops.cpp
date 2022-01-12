@@ -75,6 +75,53 @@ public:
 };
 
 //
+// LayoutInfoOpModel
+//
+
+template <class ImplOpType>
+class LayoutInfoOpModelForSW final :
+        public IE::LayoutInfoOpInterface::FallbackModel<LayoutInfoOpModelForSW<ImplOpType>> {
+public:
+    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) const {
+        ImplOpType::inferLayoutInfo(origOp, info);
+    }
+
+    IE::LayerLayoutInfo getLayoutInfo(mlir::Operation* origOp) const {
+        return IE::getLayoutInfo(origOp);
+    }
+};
+
+template <class OrigOpType, class FallbackImplOpType>
+class LayoutInfoOpModelForHW final :
+        public IE::LayoutInfoOpInterface::ExternalModel<LayoutInfoOpModelForHW<OrigOpType, FallbackImplOpType>,
+                                                        OrigOpType> {
+public:
+    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) const {
+        if (!canBeExecutedOnNCE(origOp)) {
+            FallbackImplOpType::inferLayoutInfo(origOp, info);
+            return;
+        }
+
+        VPUIP::NCEClusterTaskOp::inferLayoutInfo(origOp, info);
+    }
+
+private:
+    static bool canBeExecutedOnNCE(mlir::Operation* op) {
+        if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
+            // We are in reference SW compilation mode
+            return false;
+        }
+
+        if (VPUIP::NCEInvariant::verifyKernel(mlir::cast<OrigOpType>(op)).failed()) {
+            // Basic NCE invariants check failed, the operation will fallback to SW mode
+            return false;
+        }
+
+        return true;
+    }
+};
+
+//
 // AlignedChannelsOpModel
 //
 
@@ -296,57 +343,6 @@ private:
 
         return VPUIP::NCEInvariant::verifyKernel(op, log).succeeded() &&
                VPUIP::NCEInvariant::verifyChannels(op, log).succeeded();
-    }
-};
-
-//
-// LayoutInfoOpModel
-//
-
-template <class ImplOpType>
-class LayoutInfoOpModelForSW final :
-        public IE::LayoutInfoOpInterface::FallbackModel<LayoutInfoOpModelForSW<ImplOpType>> {
-public:
-    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) const {
-        ImplOpType::inferLayoutInfo(origOp, info);
-    }
-
-    IE::LayerLayoutInfo getLayoutInfo(mlir::Operation* origOp) const {
-        return IE::getLayoutInfo(origOp);
-    }
-};
-
-template <class OrigOpType, class FallbackImplOpType>
-class LayoutInfoOpModelForHW final :
-        public IE::LayoutInfoOpInterface::ExternalModel<LayoutInfoOpModelForHW<OrigOpType, FallbackImplOpType>,
-                                                        OrigOpType> {
-public:
-    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) const {
-        if (!canBeExecutedOnNCE(origOp)) {
-            FallbackImplOpType::inferLayoutInfo(origOp, info);
-            return;
-        }
-
-        VPUIP::NCEClusterTaskOp::inferLayoutInfo(origOp, info);
-    }
-
-private:
-    static bool canBeExecutedOnNCE(mlir::Operation* op) {
-        if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
-            // We are in reference SW compilation mode
-            return false;
-        }
-
-        if (VPUIP::NCEInvariant::verifyKernel(mlir::cast<OrigOpType>(op)).failed()) {
-            // Basic NCE invariants check failed, the operation will fallback to SW mode
-            return false;
-        }
-        if (VPUIP::NCEInvariant::verifyChannels(mlir::cast<OrigOpType>(op)).failed()) {
-            // Basic NCE invariants check failed, the operation will fallback to SW mode
-            return false;
-        }
-
-        return true;
     }
 };
 

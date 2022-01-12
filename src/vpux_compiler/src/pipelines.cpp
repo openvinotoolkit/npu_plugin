@@ -85,6 +85,9 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
 
+    pm.addPass(IE::createConvertToMemPermutePass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
     // Lowering
 
     buildLowerIE2IERTPipeline(pm, log);
@@ -165,12 +168,20 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     }
     pm.addPass(IE::createResolvePWLPostOpsPass(log));
 
+    IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
+
     if (options.enableExpandActivationChannels) {
         pm.addPass(IE::createExpandActivationChannelsPass(log));
         pm.addPass(mlir::createCanonicalizerPass(grc));
+
+        if (options.enableOptimizeReorders) {
+            pm.addPass(IE::createOptimizeReordersPass(log));
+            pm.addPass(IE::createUniquifyOpsPass(log));
+        }
     }
 
-    IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
+    pm.addPass(IE::createConvertToMemPermutePass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 
     pm.addPass(IE::createIsolatedTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
@@ -269,12 +280,20 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
         pm.addPass(IE::createUpstreamSlicePass(log));
     }
 
+    IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
+
     if (options.enableExpandActivationChannels) {
         pm.addPass(IE::createExpandActivationChannelsPass(log));
         pm.addPass(mlir::createCanonicalizerPass(grc));
+
+        if (options.enableOptimizeReorders) {
+            pm.addPass(IE::createOptimizeReordersPass(log));
+            pm.addPass(IE::createUniquifyOpsPass(log));
+        }
     }
 
-    IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
+    pm.addPass(IE::createConvertToMemPermutePass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 
     pm.addPass(IE::createIsolatedTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));

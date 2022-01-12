@@ -45,14 +45,14 @@ void vpux::IE::buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLa
     if (options.enableUseUserLayout) {
         pm.addPass(IE::createUseUserLayout(log));
     }
+
     pm.addPass(IE::createAdjustLayoutsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
+
     if (options.enableOptimizeReorders) {
         pm.addPass(IE::createOptimizeReordersPass(log));
+        pm.addPass(IE::createUniquifyOpsPass(log));
     }
-    pm.addPass(IE::createUniquifyOpsPass(log));
-    pm.addPass(IE::createConvertToMemPermutePass(log));
-    pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 
 //
