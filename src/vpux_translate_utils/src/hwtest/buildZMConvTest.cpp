@@ -267,9 +267,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             functionBuilder, barrier0.barrier(), barrier1.barrier(), builder.getUnknownLoc(), paddedInputCMX.buffer(),
-            paddedWeightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, nullptr, paddedInputCMX.buffer(),
-            outputCMX.buffer(), outputCMX.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
-            nullptr, nullptr, vpux::getIntAttr(builder.getContext(), sparsityPattern));
+            paddedWeightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, /*instruction_table_list*/ nullptr,
+            paddedInputCMX.buffer(), outputCMX.buffer(), outputCMX.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize,
+            strides, kernelPaddings, nullptr, nullptr, vpux::getIntAttr(builder.getContext(), sparsityPattern));
 
     const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
     const auto end =

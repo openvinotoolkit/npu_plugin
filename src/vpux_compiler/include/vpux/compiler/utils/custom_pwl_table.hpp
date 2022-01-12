@@ -3,7 +3,7 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <string>
 #include <unordered_map>
-#include <vector>
+#include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 namespace vpux {
@@ -14,9 +14,9 @@ struct PWLTableType {
 };
 
 struct PWLTableEntry {
-    std::vector<int> range;
-    std::vector<int> shift;
-    std::vector<int> bias;
+    SmallVector<int> range;
+    SmallVector<int> shift;
+    SmallVector<int> bias;
     std::pair<double, double> floatRange;
     int postShift;
 };
@@ -36,7 +36,8 @@ struct PWLTableEq {
     }
 };
 
-typedef std::unordered_map<PWLTableType, std::vector<PWLTableEntry>, PWLTableHash, PWLTableEq> PWLTableMap;
+typedef std::unordered_map<PWLTableType, SmallVector<PWLTableEntry>, PWLTableHash, PWLTableEq> PWLTableMap;
 
-PWLTableMap* customPWLTable_leakyRelu();
+vpux::PWLTableEntry customPWLTable_leakyRelu(mlir::Type outElemType);
+Optional<vpux::PWLTableEntry> findCustomPWLTable(const std::string activationName, mlir::Type outElemType);
 }  // namespace vpux

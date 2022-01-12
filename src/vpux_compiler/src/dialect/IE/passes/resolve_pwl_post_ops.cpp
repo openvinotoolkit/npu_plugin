@@ -93,10 +93,8 @@ mlir::LogicalResult FusableOpRewriter::ensureRequantizationRange(IE::LayerWithPo
         _log.nest().trace("Insert Dequantize op '{0}' -> '{1}'", pwlInElemType, realElemType);
         auto dequantizeOp = rewriter.create<IE::DequantizeOp>(origOp.getLoc(), clone->getResult(0), realElemType);
 
-        auto result = dequantizeOp.getResult();
-
         _log.nest().trace("Insert Quantize op '{0}' -> '{1}'", realElemType, pwlOutElemType);
-        rewriter.replaceOpWithNewOp<IE::QuantizeOp>(origOp, result, pwlOutElemType);
+        rewriter.replaceOpWithNewOp<IE::QuantizeOp>(origOp, dequantizeOp.getResult(), pwlOutElemType);
     }
     return mlir::success();
 }
@@ -160,7 +158,7 @@ mlir::LogicalResult FusableOpRewriter::matchAndRewrite(IE::LayerWithPostOpInterf
                 return matchFailed(_log.nest(), rewriter, origOp, "QuantizeCast or Requantize is not needed");
             }
 
-            return ensureRequantizationRange(origOp, rewriter, requantCustomPWL[0], false);
+            return ensureRequantizationRange(origOp, rewriter, *requantCustomPWL, false);
         } else {
             return unfusePostOp<IE::LeakyReluOp>(origOp, postOpName, rewriter);
         }

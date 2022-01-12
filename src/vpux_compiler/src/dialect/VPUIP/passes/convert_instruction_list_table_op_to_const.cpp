@@ -25,72 +25,76 @@ using namespace vpux;
 
 namespace {
 
-// NOTE: The whole idea of the pwl is that we are going to use a linear function that represents leaky Relu.
+// NOTE: The whole idea of the pwl is that we are going to use a linear function that represents the activation.
 // This comes through the equation and idea of Alessandro
-// https://colab.research.google.com/drive/1xTQyJtZiPtMw-r1jUGks-aspbrpuEdKR#scrollTo=biQruEJ7olzD. Idea: We use the
-// equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always satisfies the
-// leaky relu. After we generate the instruction list table and we save the values of the registers inside.
-// The map of the bits per instruction are described here:
-// https://docs.google.com/spreadsheets/d/1RcD1FYGiKCTCRTDsU-J4r_FaQyAQbzMLyRu7WkeNoOY/edit#gid=0.
+// https://github.com/intel-innersource/frameworks.ai.vpu.presilicon.fathom/blob/main/notebooks/VPU2.0%20LeakyReLU%20performancs%20vs%20accuracy.ipynb.
+// Idea: We use the equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always
+// satisfies the activation. After we generate the instruction list table and we save the values of the registers
+// inside.
 
-std::vector<int32_t> getInstructionListTable(const llvm::SmallVector<int> rangeVector,
-                                             const llvm::SmallVector<int> shiftVector,
-                                             const llvm::SmallVector<int> biasVector, mlir::ShapedType shape) {
+SmallVector<int32_t> getInstructionListTable(const mlir::ArrayAttr argRange, const mlir::ArrayAttr argShift,
+                                             const mlir::ArrayAttr argBias, const mlir::ShapedType shape) {
     // NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
     // 27 of course will be aligned to 32 and will contain NOPS inside
-    std::vector<int32_t> template_table(shape.getDimSize(0), 0);
+    const auto range = parseIntArrayAttr<int>(argRange);
+    const auto shift = parseIntArrayAttr<int>(argShift);
+    const auto bias = parseIntArrayAttr<int>(argBias);
+    SmallVector<int32_t> templateTable(shape.getDimSize(0), 0);
 
     // NOTE: first 2 are hardware reserved areas
-    std::size_t ADDR_OF_RESERVED = 6;
-    std::size_t ADDR_OF_ADDR_FLEX = 11;
-    std::size_t ADDR_OF_FIRST2_BITS = 9;
-    std::size_t ADDR_OF_REST_BITS = 16;
-    std::size_t ADDR_OF_VALUE = 19;
-    std::size_t MASK_FIRST2_BITS = 3;
-    std::size_t ALU_HALT_OPCODE = 6;
-    std::size_t ALU_LOAD = 2;
-    std::size_t first2Bits, first3Bits;
+    int32_t ADDR_OF_RESERVED = 6;
+    int32_t ADDR_OF_ADDR_FLEX = 11;
+    int32_t ADDR_OF_FIRST2_BITS = 9;
+    int32_t ADDR_OF_REST_BITS = 16;
+    int32_t ADDR_OF_VALUE = 19;
+    int32_t MASK_FIRST2_BITS = 3;
+    int32_t ALU_HALT_OPCODE = 6;
+    int32_t ALU_LOAD = 2;
+    int32_t first2Bits, first3Bits;
+    int32_t sizeRange = static_cast<int32_t>(range.size());
+    int32_t sizeShift = static_cast<int32_t>(shift.size());
+    int32_t sizeBias = static_cast<int32_t>(bias.size());
 
     // Populate the instruction list from the table
-    std::size_t k = 0;
-    for (std::size_t j = 0; j < 32; j++) {
+    int32_t k = 0;
+    for (int32_t j = 0; j < 32; j++) {
         first2Bits = j & MASK_FIRST2_BITS;
         first3Bits = j >> 2;
 
         if (j == 15)
-            template_table[j] = (ALU_HALT_OPCODE);
+            templateTable[j] = (ALU_HALT_OPCODE);
         else if (j > 25)
-            template_table[j] = (ALU_HALT_OPCODE);
+            templateTable[j] = (ALU_HALT_OPCODE);
         else {
-            if (j < rangeVector.size()) {
-                template_table[j] = ((rangeVector[j] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) |
-                                     (8 << ADDR_OF_ADDR_FLEX) | (first2Bits << ADDR_OF_FIRST2_BITS) |
-                                     (0 << ADDR_OF_RESERVED) | ALU_LOAD);
-            } else if (j < rangeVector.size() + shiftVector.size() + 1) {
+            if (j < sizeRange) {
+                templateTable[j] =
+                        ((range[j] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                         (first2Bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+            } else if (j < sizeRange + sizeShift + 1) {
                 if (j < 16)
-                    template_table[j] = ((shiftVector[j - rangeVector.size()] << ADDR_OF_VALUE) |
-                                         (first3Bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
-                                         (first2Bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                    templateTable[j] = ((shift[j - sizeRange] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) |
+                                        (8 << ADDR_OF_ADDR_FLEX) | (first2Bits << ADDR_OF_FIRST2_BITS) |
+                                        (0 << ADDR_OF_RESERVED) | ALU_LOAD);
                 else {
                     k = j - 1;
                     first2Bits = k & MASK_FIRST2_BITS;
                     first3Bits = k >> 2;
-                    template_table[j] = ((shiftVector[k - rangeVector.size()] << ADDR_OF_VALUE) |
-                                         (first3Bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
-                                         (first2Bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                    templateTable[j] = ((shift[k - sizeRange] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) |
+                                        (8 << ADDR_OF_ADDR_FLEX) | (first2Bits << ADDR_OF_FIRST2_BITS) |
+                                        (0 << ADDR_OF_RESERVED) | ALU_LOAD);
                 }
-            } else if (j < rangeVector.size() + shiftVector.size() + biasVector.size() + 1) {
+            } else if (j < sizeRange + sizeShift + sizeBias + 1) {
                 k = j - 1;
                 first2Bits = k & MASK_FIRST2_BITS;
                 first3Bits = k >> 2;
-                template_table[j] = ((biasVector[k - rangeVector.size() - shiftVector.size()] << ADDR_OF_VALUE) |
-                                     (first3Bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
-                                     (first2Bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                templateTable[j] = ((bias[k - sizeRange - sizeShift] << ADDR_OF_VALUE) |
+                                    (first3Bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                                    (first2Bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
             }
         }
     }
 
-    return template_table;
+    return templateTable;
 }
 
 //
@@ -99,12 +103,8 @@ std::vector<int32_t> getInstructionListTable(const llvm::SmallVector<int> rangeV
 
 class CreateITableOpsConverter final : public mlir::OpRewritePattern<VPUIP::InstructionListTableOp> {
 public:
-    CreateITableOpsConverter(mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch, const AliasesInfo* aliasInfo)
-            : mlir::OpRewritePattern<VPUIP::InstructionListTableOp>(ctx),
-              _log(log),
-              _arch(arch),
-              _aliasInfo(aliasInfo) {
-        VPUX_THROW_UNLESS(_aliasInfo != nullptr, "Got NULL pointer for AliasesInfo in ViewLikeRewrite");
+    CreateITableOpsConverter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<VPUIP::InstructionListTableOp>(ctx), _log(log) {
     }
 
 public:
@@ -113,20 +113,15 @@ public:
 
 private:
     Logger _log;
-    VPU::ArchKind _arch;
-    const AliasesInfo* _aliasInfo = nullptr;
 };
 
 mlir::LogicalResult CreateITableOpsConverter::matchAndRewrite(VPUIP::InstructionListTableOp createITableOp,
                                                               mlir::PatternRewriter& rewriter) const {
-    const auto range = parseIntArrayAttr<int>(createITableOp.range());
-    const auto shift = parseIntArrayAttr<int>(createITableOp.shift());
-    const auto bias = parseIntArrayAttr<int>(createITableOp.bias());
-
     const auto outType = createITableOp.output().getType();
     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
 
-    const auto instructionListTable = getInstructionListTable(range, shift, bias, shapedType);
+    const auto instructionListTable =
+            getInstructionListTable(createITableOp.range(), createITableOp.shift(), createITableOp.bias(), shapedType);
 
     const auto dataStorageType =
             mlir::RankedTensorType::get(shapedType.getShape(), getSInt32Type(rewriter.getContext()));
@@ -160,18 +155,13 @@ ConvertInstructionListTableOp2Const::ConvertInstructionListTableOp2Const(Logger 
 void ConvertInstructionListTableOp2Const::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
-    auto& aliasInfo = getAnalysis<AliasesInfo>();
-
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-
-    const auto arch = VPU::getArch(module);
 
     mlir::ConversionTarget target(ctx);
     target.addIllegalOp<VPUIP::InstructionListTableOp>();
     target.addLegalOp<Const::DeclareOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<CreateITableOpsConverter>(&ctx, _log, arch, &aliasInfo);
+    patterns.insert<CreateITableOpsConverter>(&ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();

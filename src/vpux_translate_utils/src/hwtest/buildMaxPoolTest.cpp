@@ -173,10 +173,11 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()),
             builder.getUnknownLoc(), outputcmx_type, input0cmx.getOperation()->getResult(0), mlir::Value(),
-            wtTbl_cmx.getOperation()->getResult(0), mlir::Value(), actWindow_cmx.getOperation()->getResult(0),
-            parent_input0cmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
-            outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::MAXPOOL, filtersize, strides, kernel_padding,
-            actChannelLength, nullptr, /*sp_pattern*/ nullptr);
+            wtTbl_cmx.getOperation()->getResult(0), /*instruction_table_list*/ nullptr,
+            actWindow_cmx.getOperation()->getResult(0), parent_input0cmx.getOperation()->getResult(0),
+            parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
+            VPUIP::NCETaskType::MAXPOOL, filtersize, strides, kernel_padding, actChannelLength, nullptr,
+            /*sp_pattern*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 

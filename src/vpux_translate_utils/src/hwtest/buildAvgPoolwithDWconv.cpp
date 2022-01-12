@@ -268,10 +268,11 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
             outputcmx_type, inputcmx.getOperation()->getResult(0), wtData_cmx.getOperation()->getResult(0),
-            wtTbl_cmx.getOperation()->getResult(0), mlir::Value(), actWindow_cmx.getOperation()->getResult(0),
-            parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
-            outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::DWCONV, filtersize, strides, kernel_padding,
-            actChannelLength, nullptr, /*sp_pattern*/ nullptr);
+            wtTbl_cmx.getOperation()->getResult(0), /*instruction_table_list*/ nullptr,
+            actWindow_cmx.getOperation()->getResult(0), parent_inputcmx.getOperation()->getResult(0),
+            parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
+            VPUIP::NCETaskType::DWCONV, filtersize, strides, kernel_padding, actChannelLength, nullptr,
+            /*sp_pattern*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 
