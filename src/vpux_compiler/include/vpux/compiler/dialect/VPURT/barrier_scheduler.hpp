@@ -148,7 +148,6 @@ private:
     bool doesPathExist(int64_t a, int64_t b);
 
     HeapElement popFromHeap();
-    size_t currentTime() const;
     const BarrierResourceState& barrierResourceState() const;
     schedulableTasksIteratorType findSchedulableTask();
     size_t countProducerTasksToBarrier(mlir::Operation* op);
