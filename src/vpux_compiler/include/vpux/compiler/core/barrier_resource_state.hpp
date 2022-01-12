@@ -30,6 +30,7 @@ public:
     struct availableSlotKey {
         availableSlotKey(size_t slots = size_t(0UL), size_t barrier = size_t(0UL))
                 : _availableProducerSlots(slots), _totalProducerSlots(slots), _barrier(barrier) {
+                    std::cout << "here" << std::endl;
         }
 
         bool operator<(const availableSlotKey& o) const {
@@ -39,6 +40,8 @@ public:
         }
 
         bool isBarrierInUse() const {
+            bool barrierInUse = _totalProducerSlots > _availableProducerSlots;
+            std::cout << "barrierInUse " << barrierInUse << std::endl;
             return _totalProducerSlots > _availableProducerSlots;
         }
 
@@ -53,7 +56,8 @@ public:
     using barrierReferenceType = std::vector<availableSlotsIteratorType>;
 
     void init(const size_t barrierCount, const size_t maximumProducerSlotCount);
-    bool hasBarrierWithAvailableSlots(size_t slotDemand) const;
+    bool hasBarrierWithAvailableSlots(size_t slotDemand);
+    constAvailableslotsIteratorType findBarrierWithAvailableSlots(size_t slotDemand);
     size_t assignBarrierSlots(size_t slotDemand);
     bool assignBarrierSlots(size_t barrierId, size_t slotDemand);
     bool unassignBarrierSlots(size_t barrierId, size_t slotDemand);
