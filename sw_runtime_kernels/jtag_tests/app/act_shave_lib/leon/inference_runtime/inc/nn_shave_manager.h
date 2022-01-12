@@ -13,7 +13,7 @@
 //#define HGL_SHAVE_NB (HGL_NCE_ACT_SHAVE_NB)
 //#endif
 
-#include <ShaveCtrl.h>
+#include <ShCtrl.h>
 
 using namespace nn::common_runtime;
 
@@ -56,8 +56,8 @@ private:
 
     const StaticMapping &cmxMapping;
 
-    ShaveHandle *actShvHnd[AS_TOTAL];
-    ShaveHandle *nnShvHnd[SNN_TOTAL];
+    ShHandle *actShvHnd[AS_TOTAL];
+    ShHandle *nnShvHnd[SNN_TOTAL];
 
     uint32_t actShvStacks[AS_TOTAL]{0};
 
