@@ -65,7 +65,7 @@ void BarrierResourceState::init(const size_t barrierCount, const size_t maximumP
 }
 
 // Returns true if there is a barrier with available producer slots
-bool BarrierResourceState::hasBarrierWithSlots(size_t slotDemand) const {
+bool BarrierResourceState::hasBarrierWithAvailableSlots(size_t slotDemand) const {
     availableSlotKey key(slotDemand);
     constAvailableslotsIteratorType itr = _globalAvailableProducerSlots.lower_bound(key);
     constAvailableslotsIteratorType retItr = itr;
@@ -80,7 +80,7 @@ bool BarrierResourceState::hasBarrierWithSlots(size_t slotDemand) const {
     return retItr != _globalAvailableProducerSlots.end();
 }
 
-// Precondition: hasBarrierWithSlots(slotDemand) is true
+// Precondition: hasBarrierWithAvailableSlots(slotDemand) is true
 // Assigns the requested producers slots (resource) from a barrier ID when a task is scheduled by the main list
 // scheduler
 size_t BarrierResourceState::assignBarrierSlots(size_t slotDemand) {
