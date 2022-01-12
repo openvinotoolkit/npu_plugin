@@ -86,22 +86,39 @@ bool BarrierResourceState::hasBarrierWithSlots(producerSlotsType slotDemand) con
 // scheduler
 BarrierResourceState::barrierType BarrierResourceState::assignBarrierSlots(
         producerSlotsType slotDemand, mlir::Operation* op,
-        std::map<mlir::Operation*, std::set<mlir::Operation*>>& taskConsumerMap) {
+        std::map<mlir::Operation*, SmallVector<mlir::Operation*>>& taskConsumerMap) {
     availableSlotKey key(slotDemand);
     availableSlotsIteratorType itr = _availableProducerSlots.lower_bound(key);
+
+    const auto isSameConsumerVectors = [&](SmallVector<mlir::Operation*> a, SmallVector<mlir::Operation*> b) {
+        for (const auto& task : a) {
+            if (std::find(b.begin(), b.end(), task) == b.end())
+                return false;
+        }
+
+        for (const auto& task : b) {
+            if (std::find(a.begin(), a.end(), task) == a.end())
+                return false;
+        }
+
+        return true;
+    };
+
     {
         availableSlotsIteratorType retItr = itr;
+        VPUX_UNUSED(taskConsumerMap);
         for (; itr != _availableProducerSlots.end(); ++itr) {
             if (itr->isBarrierInUse()) {
                 barrierType currentBid = itr->_barrier;
                 auto users = _barrierUsers[currentBid - 1UL];
                 VPUX_THROW_UNLESS(!users.empty(), "Barrier is not used");
                 for (auto& user : users) {
-                    if (taskConsumerMap[user] == taskConsumerMap[op]) {
+                    if (isSameConsumerVectors(taskConsumerMap[user], taskConsumerMap[op])) {
                         if (assignBarrierSlots(currentBid, slotDemand)) {
                             _barrierUsers[currentBid - 1UL].insert(op);
                             return currentBid;
-                        }
+                        } else
+                            break;
                     }
                 }
             }

@@ -56,7 +56,7 @@ public:
     void init(const size_t barrierCount, const producerSlotsType maximumProducerSlotCount);
     bool hasBarrierWithSlots(producerSlotsType slotDemand) const;
     barrierType assignBarrierSlots(producerSlotsType slotDemand, mlir::Operation* op,
-                                   std::map<mlir::Operation*, std::set<mlir::Operation*>>& taskConsumerMap);
+                                   std::map<mlir::Operation*, SmallVector<mlir::Operation*>>& taskConsumerMap);
     bool assignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand);
     bool unassignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand, mlir::Operation* op);
     static barrierType invalidBarrier();
