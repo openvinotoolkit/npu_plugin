@@ -538,7 +538,8 @@ size_t BarrierScheduler::countProducerTasksToBarrier(mlir::Operation* op) {
         return nceOp.getNumVariants();
     }
     if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::DMA_NN ||
-        mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA) {
+        mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA ||
+        mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::SHAVE_ACT) {
         return 1;
     } else {
         VPUX_THROW("This operation does not run on hardware");
