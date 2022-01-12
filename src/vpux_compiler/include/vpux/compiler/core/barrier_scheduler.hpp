@@ -202,9 +202,9 @@ private:
     size_t _taskCount;
     // The vector of ordered barriers
     SmallVector<VPURT::DeclareVirtualBarrierOp> _orderedBarrier;
-    // The vector of ordered execute tasks
+    // The vector of ordered execute tasks by uniqueID
     SmallVector<VPURT::TaskOp> _orderedTasks;
-    // The vector of ordered execute tasks
+    // The vector of ordered execute tasks by scheduling number
     SmallVector<size_t> _schedulingOrder;
 };
 
