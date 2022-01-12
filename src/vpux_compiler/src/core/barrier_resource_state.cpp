@@ -95,6 +95,7 @@ BarrierResourceState::barrierType BarrierResourceState::assignBarrierSlots(
             if (itr->isBarrierInUse()) {
                 barrierType currentBid = itr->_barrier;
                 auto users = _barrierUsers[currentBid - 1UL];
+                VPUX_THROW_UNLESS(!users.empty(), "Barrier is not used");
                 for (auto& user : users) {
                     if (taskConsumerMap[user] == taskConsumerMap[op]) {
                         if (assignBarrierSlots(currentBid, slotDemand)) {
@@ -120,7 +121,12 @@ BarrierResourceState::barrierType BarrierResourceState::assignBarrierSlots(
     }
 
     barrierType barrierId = itr->_barrier;
-    return assignBarrierSlots(barrierId, slotDemand) ? barrierId : invalidBarrier();
+    if (assignBarrierSlots(barrierId, slotDemand)) {
+        _barrierUsers[barrierId - 1UL].insert(op);
+        return barrierId;
+    } else {
+        return invalidBarrier();
+    }
 }
 
 // Assigns the requested producers slots (resource) from a barrier ID when a task is scheduled by the main list
