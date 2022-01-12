@@ -50,7 +50,7 @@ BarrierResourceState::BarrierResourceState(size_t barrierCount, size_t maximumPr
 
 // Initialises the barrier resource state with the number of available barrier and the maximum allowable producers per
 // barrier
-void BarrierResourceState::init(const size_t barrierCount, const producerSlotsType maximumProducerSlotCount) {
+void BarrierResourceState::init(const size_t barrierCount, const size_t maximumProducerSlotCount) {
     VPUX_THROW_UNLESS((barrierCount && maximumProducerSlotCount),
                       "Error number of barrier and/or producer slot count is 0");
     _globalAvailableProducerSlots.clear();
@@ -58,13 +58,14 @@ void BarrierResourceState::init(const size_t barrierCount, const producerSlotsTy
 
     availableSlotsIteratorType hint = _globalAvailableProducerSlots.end();
     for (size_t barrierId = 1UL; barrierId <= barrierCount; barrierId++) {
-        hint = _globalAvailableProducerSlots.insert(hint, availableSlotKey(maximumProducerSlotCount, barrierType(barrierId)));
+        hint = _globalAvailableProducerSlots.insert(hint,
+                                                    availableSlotKey(maximumProducerSlotCount, size_t(barrierId)));
         _barrierReference.push_back(hint);
     }
 }
 
 // Returns true if there is a barrier with available producer slots
-bool BarrierResourceState::hasBarrierWithSlots(producerSlotsType slotDemand) const {
+bool BarrierResourceState::hasBarrierWithSlots(size_t slotDemand) const {
     availableSlotKey key(slotDemand);
     constAvailableslotsIteratorType itr = _globalAvailableProducerSlots.lower_bound(key);
     constAvailableslotsIteratorType retItr = itr;
@@ -82,7 +83,7 @@ bool BarrierResourceState::hasBarrierWithSlots(producerSlotsType slotDemand) con
 // Precondition: hasBarrierWithSlots(slotDemand) is true
 // Assigns the requested producers slots (resource) from a barrier ID when a task is scheduled by the main list
 // scheduler
-BarrierResourceState::barrierType BarrierResourceState::assignBarrierSlots(producerSlotsType slotDemand) {
+size_t BarrierResourceState::assignBarrierSlots(size_t slotDemand) {
     availableSlotKey key(slotDemand);
     availableSlotsIteratorType itr = _globalAvailableProducerSlots.lower_bound(key);
     {
@@ -100,53 +101,56 @@ BarrierResourceState::barrierType BarrierResourceState::assignBarrierSlots(produ
         return invalidBarrier();
     }
 
-    barrierType barrierId = itr->_barrier;
+    size_t barrierId = itr->_barrier;
     return assignBarrierSlots(barrierId, slotDemand) ? barrierId : invalidBarrier();
 }
 
 // Assigns the requested producers slots (resource) from a barrier ID when a task is scheduled by the main list
 // scheduler
-bool BarrierResourceState::assignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand) {
+bool BarrierResourceState::assignBarrierSlots(size_t barrierId, size_t slotDemand) {
     VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()) && (barrierId >= 1UL), "Invalid barrierId supplied");
     availableSlotsIteratorType itr = _barrierReference[barrierId - 1UL];
 
     VPUX_THROW_UNLESS((itr->_availableProducerSlots) >= slotDemand,
-                      "Error _availableProducerSlots {0} >=slotDemand {1}", itr->_availableProducerSlots, slotDemand);
-    producerSlotsType newSlotDemand = (itr->_availableProducerSlots) - slotDemand;
+                      "Error the available producer slots for barrier ID {0} is {1}, which is less than the requested "
+                      "slots demand {2}",
+                      barrierId, itr->_availableProducerSlots, slotDemand);
 
-    itr = update(itr, newSlotDemand);
+    size_t remainingSlots = (itr->_availableProducerSlots) - slotDemand;
+
+    itr = update(itr, remainingSlots);
     return (itr != _globalAvailableProducerSlots.end());
 }
 
 // Releases the producers slots (resource) from a barrier ID when a task is unscheduled by the main list scheduler
-bool BarrierResourceState::unassignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand) {
+bool BarrierResourceState::unassignBarrierSlots(size_t barrierId, size_t slotDemand) {
     VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()) && (barrierId >= 1UL), "Invalid barrierId supplied");
     availableSlotsIteratorType itr = _barrierReference[barrierId - 1UL];
-    producerSlotsType newSlotDemand = (itr->_availableProducerSlots) + slotDemand;
+    size_t newSlotDemand = (itr->_availableProducerSlots) + slotDemand;
 
     itr = update(itr, newSlotDemand);
     return (itr != _globalAvailableProducerSlots.end());
 }
 
-BarrierResourceState::barrierType BarrierResourceState::invalidBarrier() {
-    return std::numeric_limits<barrierType>::max();
+size_t BarrierResourceState::invalidBarrier() {
+    return std::numeric_limits<size_t>::max();
 }
 
 // NOTE: will also update _barrierReference
-void BarrierResourceState::update(barrierType barrierId, producerSlotsType newSlotsValue) {
+void BarrierResourceState::update(size_t barrierId, size_t updatedAvailableProducerSlots) {
     VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()) && (barrierId >= 1UL), "Invalid barrierId supplied");
     availableSlotsIteratorType itr = _barrierReference[barrierId - 1UL];
-    update(itr, newSlotsValue);
+    update(itr, updatedAvailableProducerSlots);
 }
 
 // Updates the state of a barrier with current available producers slots
 // This should be called whenever a task is scheduled/unscheduled by the main list scheduler
 BarrierResourceState::availableSlotsIteratorType BarrierResourceState::update(availableSlotsIteratorType itr,
-                                                                              producerSlotsType newSlotsValue) {
+                                                                              size_t updatedAvailableProducerSlots) {
     VPUX_THROW_UNLESS(itr != _globalAvailableProducerSlots.end(), "Invalid _globalAvailableProducerSlots iterator");
 
     availableSlotKey key = *itr;
-    key._availableProducerSlots = newSlotsValue;
+    key._availableProducerSlots = updatedAvailableProducerSlots;
     _globalAvailableProducerSlots.erase(itr);
 
     itr = (_globalAvailableProducerSlots.insert(key)).first;
