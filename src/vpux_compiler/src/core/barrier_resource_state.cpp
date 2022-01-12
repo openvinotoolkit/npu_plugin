@@ -57,7 +57,7 @@ void BarrierResourceState::init(const size_t barrierCount, const size_t maximumP
     _barrierReference.clear();
 
     availableSlotsIteratorType hint = _globalAvailableProducerSlots.end();
-    for (size_t barrierId = 1UL; barrierId <= barrierCount; barrierId++) {
+    for (size_t barrierId = 0UL; barrierId < barrierCount; barrierId++) {
         hint = _globalAvailableProducerSlots.insert(hint,
                                                     availableSlotKey(maximumProducerSlotCount, size_t(barrierId)));
         _barrierReference.push_back(hint);
@@ -108,8 +108,8 @@ size_t BarrierResourceState::assignBarrierSlots(size_t slotDemand) {
 // Assigns the requested producers slots (resource) from a barrier ID when a task is scheduled by the main list
 // scheduler
 bool BarrierResourceState::assignBarrierSlots(size_t barrierId, size_t slotDemand) {
-    VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()) && (barrierId >= 1UL), "Invalid barrierId supplied");
-    availableSlotsIteratorType itr = _barrierReference[barrierId - 1UL];
+    VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()), "Invalid barrierId {0} supplied, it must be from 0 to {1}", barrierId, _barrierReference.size() -1);
+    availableSlotsIteratorType itr = _barrierReference[barrierId];
 
     VPUX_THROW_UNLESS((itr->_availableProducerSlots) >= slotDemand,
                       "Error the available producer slots for barrier ID {0} is {1}, which is less than the requested "
@@ -124,8 +124,8 @@ bool BarrierResourceState::assignBarrierSlots(size_t barrierId, size_t slotDeman
 
 // Releases the producers slots (resource) from a barrier ID when a task is unscheduled by the main list scheduler
 bool BarrierResourceState::unassignBarrierSlots(size_t barrierId, size_t slotDemand) {
-    VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()) && (barrierId >= 1UL), "Invalid barrierId supplied");
-    availableSlotsIteratorType itr = _barrierReference[barrierId - 1UL];
+    VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()), "Invalid barrierId {0} supplied, it must be from from 0 to {1}", _barrierReference.size() -1);
+    availableSlotsIteratorType itr = _barrierReference[barrierId];
     size_t newSlotDemand = (itr->_availableProducerSlots) + slotDemand;
 
     itr = update(itr, newSlotDemand);
@@ -138,8 +138,8 @@ size_t BarrierResourceState::invalidBarrier() {
 
 // NOTE: will also update _barrierReference
 void BarrierResourceState::update(size_t barrierId, size_t updatedAvailableProducerSlots) {
-    VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()) && (barrierId >= 1UL), "Invalid barrierId supplied");
-    availableSlotsIteratorType itr = _barrierReference[barrierId - 1UL];
+    VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()), "Invalid barrierId {0} supplied, it must be from 0 to {1}", _barrierReference.size() -1);
+    availableSlotsIteratorType itr = _barrierReference[barrierId];
     update(itr, updatedAvailableProducerSlots);
 }
 
@@ -156,6 +156,6 @@ BarrierResourceState::availableSlotsIteratorType BarrierResourceState::update(av
     itr = (_globalAvailableProducerSlots.insert(key)).first;
     VPUX_THROW_UNLESS(itr != _globalAvailableProducerSlots.end(), "Invalid _globalAvailableProducerSlots iterator");
 
-    _barrierReference[(itr->_barrier) - 1UL] = itr;
+    _barrierReference[(itr->_barrier)] = itr;
     return itr;
 }
