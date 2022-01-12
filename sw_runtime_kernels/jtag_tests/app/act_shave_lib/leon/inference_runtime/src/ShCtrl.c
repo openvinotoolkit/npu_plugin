@@ -61,7 +61,7 @@ static void ShCtrlResetShaveHw(ShHandle *handle) {
     SHAVE_LOG(" - Shave HW reset done");
 }
 
-static uint32_t ShCtrlGetCurrentProcessor(void) {
+uint32_t ShCtrlGetCurrentProcessor(void) {
 #if defined(SHAVE_PLATFORM_37xx)
     return rtems_get_current_processor();
 #elif defined(SHAVE_PLATFORM_40xx)
@@ -130,7 +130,7 @@ static void ShCtrlIrqHandler(void *arg) {
     rtems_interrupt_lock_release(&shv_lock, &context);
 }
 
-static HglShaveCtrlError ShCtrlIsrPrepare(ShHandle *handle) {
+HglShaveCtrlError ShCtrlIsrPrepare(ShHandle *handle) {
     SHAVE_FUNC("%p", handle);
     const uint32_t irq = ShCtrlGetIrqLine(handle->type, handle->id);
     const uint32_t proc = ShCtrlGetCurrentProcessor();

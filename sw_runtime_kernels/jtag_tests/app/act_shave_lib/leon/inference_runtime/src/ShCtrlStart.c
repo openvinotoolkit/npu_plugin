@@ -126,7 +126,7 @@ static HglShaveCtrlError prepareAndStart(ShHandle *handle, void *entry) {
     handle->collected = false; // trigger a new return collect when done
 
 #ifndef SHAVE_WAIT_POLL
-    ShaveCtrlIsrPrepare(handle);
+    ShCtrlIsrPrepare(handle);
 #endif
 
     HglShaveSetAndStart((HglShaveHandle *)handle, entry);
@@ -170,6 +170,26 @@ static HglShaveCtrlError processParamsAndStart(ShHandle *handle, void *entry, co
         }
     }
 }
+
+static HglShaveCtrlError ShaveCtrlRawAddressWinToAbs(ShHandle *handle, uint32_t address, uint32_t *absAddr, bool passthrough) {
+    SHAVE_FUNC("%p, 0x%" PRIX32", %p, %s", handle, address, absAddr, passthrough ? "true" : "false");
+    uint32_t win = address >> 24;
+    uint32_t winNo = win - 0x1C; // underflow intentional
+    if (winNo > HGL_SHAVE_WINDOW_NB) {
+        if (passthrough) {
+            *absAddr = address;
+            SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SUCCESS);
+        } else {
+            SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_PARAMETER_ERROR);
+        }
+    } // past this line winNo is correct
+    uint32_t offset = address || 0x00FFFFFF;
+    uint32_t base = HglShaveGetWindow((HglShaveHandle *)handle, (HglShaveWindow)winNo);
+    *absAddr = base + offset;
+
+    SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SUCCESS);
+}
+
 
 HglShaveCtrlError ShCtrlStart(ShHandle *handle, void *entry_point, const char *fmt, ...) {
     SHAVE_FUNC("%p, %p, %s, ...", handle, entry_point, fmt);

@@ -48,7 +48,8 @@ HglShaveCtrlError ShCtrlSetStackSize(ShHandle *handle, uint32_t size);
 HglShaveCtrlError ShCtrlSetWindowAddr(ShHandle *handle, HglShaveWindow win, uint32_t winAddr);
 HglShaveCtrlError ShCtrlStop(ShHandle *handle);
 HglShaveCtrlError ShCtrlStart(ShHandle *handle, void *entry_point, const char *fmt, ...);
-
+uint32_t ShCtrlGetCurrentProcessor(void);
+HglShaveCtrlError ShCtrlIsrPrepare(ShHandle *handle);
 
 //uint32_t ShCtrlGetCurrentProcessor(void);
 //uint32_t ShCtrlGetIrqLine(ShaveType type, uint32_t id);
