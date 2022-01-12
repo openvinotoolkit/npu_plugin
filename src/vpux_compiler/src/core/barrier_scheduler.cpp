@@ -806,11 +806,27 @@ void BarrierScheduler::removeRedundantBarriers() {
                 if (consumers1 == consumers) {
                     _log.trace("Found barrier {0} and {1} have same consumers", ind, ind1);
                     auto& producers = _configureBarrierOpWaitMap[ind1];
-                    for (auto task : producers.set_bits()) {
-                        _configureBarrierOpWaitMap[ind].set(task);
+                    size_t variantsCount = 0;
+                    size_t invariantsCount = 0;
+                    for (auto oldProducer : _configureBarrierOpWaitMap[ind].set_bits()) {
+                        variantsCount += countProducerTasksToBarrier(_orderedTasks[oldProducer]);
+                        invariantsCount++;
                     }
-                    producers.reset();
-                    consumers1.reset();
+                    for (auto newProducer : producers.set_bits()) {
+                        variantsCount += countProducerTasksToBarrier(_orderedTasks[newProducer]);
+                        invariantsCount++;
+                    }
+
+                    // consider the limitation of invariants number and variants number on single cluster:
+                    // 32 + 1 invariants
+                    // 256 + 1 variants
+                    if ((variantsCount <= _slotsPerBarrier) && (invariantsCount <= 32)) {
+                        for (auto task : producers.set_bits()) {
+                            _configureBarrierOpWaitMap[ind].set(task);
+                        }
+                        producers.reset();
+                        consumers1.reset();
+                    }
                 }
             }
         }
