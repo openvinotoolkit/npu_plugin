@@ -139,11 +139,13 @@ void BarrierScheduler::saveOriginalIRDependency() {
         }
         _originalInDegree.insert(std::make_pair(taskOp, count));
 
-        SmallVector<mlir::Operation*> consumers;
+        std::set<mlir::Operation*> consumers;
         for (const auto bar : taskOp.updateBarriers()) {
             auto iter = barrierOpUpdateWaitMap.find(bar.getDefiningOp());
             if (iter != barrierOpUpdateWaitMap.end()) {
-                consumers.insert(consumers.end(), iter->second.second.begin(), iter->second.second.end());
+                for (auto& consumer : iter->second.second) {
+                    consumers.insert(consumer);
+                }
             } else {
                 VPUX_THROW("barrier '{0}' not found", bar.getDefiningOp());
             }
@@ -199,8 +201,8 @@ void BarrierScheduler::addOutGoingOperationsToCandidateList(mlir::Operation* op)
 
     auto opConsumers = getConsumerOps(op);
 
-    SmallVector<mlir::Operation*>::iterator itr = opConsumers.begin();
-    SmallVector<mlir::Operation*>::iterator itr_end = opConsumers.end();
+    std::set<mlir::Operation*>::iterator itr = opConsumers.begin();
+    std::set<mlir::Operation*>::iterator itr_end = opConsumers.end();
 
     for (; itr != itr_end; ++itr) {
         // decrement the in-degree of &(*itr) and only add to candidate set
@@ -357,7 +359,7 @@ bool BarrierScheduler::unScheduleTask(mlir::Operation* op) {
     }
     const barrierInfo& binfo = itr->second;
     auto unassignBarrierSlots =
-            _barrierResourceState.unassignBarrierSlots(binfo._barrierIndex, binfo._producerSlotCount);
+            _barrierResourceState.unassignBarrierSlots(binfo._barrierIndex, binfo._producerSlotCount, op);
 
     VPUX_THROW_UNLESS(unassignBarrierSlots == true, "Failed to dealocate slots in the barrier index {0}",
                       binfo._barrierIndex);
@@ -375,7 +377,7 @@ bool BarrierScheduler::scheduleTask(mlir::Operation* op, const size_t producerSl
     if (_barrierMap.find(op) != _barrierMap.end()) {
         return false;
     }
-    size_t barrierID = _barrierResourceState.assignBarrierSlots(producerSlotRequirement);
+    size_t barrierID = _barrierResourceState.assignBarrierSlots(producerSlotRequirement, op, _taskConsumerMapOriginal);
     _barrierMap.insert(std::make_pair(op, barrierInfo(barrierID, producerSlotRequirement)));
 
     _log.trace("Finished scheduling task {0}", getUniqueID(op));
@@ -391,7 +393,7 @@ void BarrierScheduler::initializeBarrierResourceState(const size_t numberOfBarri
     _barrierResourceState.init(numberOfBarriers, maxProducersPerBarrier);
 }
 
-llvm::SmallVector<mlir::Operation*> BarrierScheduler::getConsumerOps(mlir::Operation* op) {
+std::set<mlir::Operation*> BarrierScheduler::getConsumerOps(mlir::Operation* op) {
     return _taskConsumerMapOriginal[op];
 }
 
@@ -430,7 +432,7 @@ void BarrierScheduler::assignTaskPriorities() {
              op != zeroInDegreeNodes[currentPriority % 2].end(); ++op) {
             auto opConsumers = getConsumerOps(*op);
 
-            SmallVector<mlir::Operation*>::iterator jtr = opConsumers.begin();
+            std::set<mlir::Operation*>::iterator jtr = opConsumers.begin();
             while (jtr != opConsumers.end()) {
                 _log.trace("Looking up task {0} in the inDegree table ", getUniqueID(*jtr));
                 typename operationInDegreeType::iterator deg_itr = inDegree.find(*jtr);
@@ -464,7 +466,7 @@ void BarrierScheduler::assignTaskPriorities() {
         auto opConsumers = getConsumerOps((pitr->first));
 
         // set priority to max of all out going priorities //
-        SmallVector<mlir::Operation*>::iterator jtr = opConsumers.begin();
+        std::set<mlir::Operation*>::iterator jtr = opConsumers.begin();
 
         if (!(pitr->second)) {
             size_t max = pitr->second;

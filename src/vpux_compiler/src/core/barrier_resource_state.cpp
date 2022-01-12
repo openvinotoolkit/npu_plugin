@@ -55,12 +55,14 @@ void BarrierResourceState::init(const size_t barrierCount, const producerSlotsTy
                       "Error number of barrier and/or producer slot count is 0");
     _availableProducerSlots.clear();
     _barrierReference.clear();
+    _barrierUsers.clear();
 
     availableSlotsIteratorType hint = _availableProducerSlots.end();
     for (size_t barrierId = 1UL; barrierId <= barrierCount; barrierId++) {
         hint = _availableProducerSlots.insert(hint, availableSlotKey(maximumProducerSlotCount, barrierType(barrierId)));
         _barrierReference.push_back(hint);
     }
+    _barrierUsers.resize(barrierCount);
 }
 
 // Returns true if there is a barrier with available producer slots
@@ -82,12 +84,29 @@ bool BarrierResourceState::hasBarrierWithSlots(producerSlotsType slotDemand) con
 // Precondition: hasBarrierWithSlots(slotDemand) is true
 // Assigns the requested producers slots (resource) from a barrier ID when a task is scheduled by the main list
 // scheduler
-BarrierResourceState::barrierType BarrierResourceState::assignBarrierSlots(producerSlotsType slotDemand) {
+BarrierResourceState::barrierType BarrierResourceState::assignBarrierSlots(
+        producerSlotsType slotDemand, mlir::Operation* op,
+        std::map<mlir::Operation*, std::set<mlir::Operation*>>& taskConsumerMap) {
     availableSlotKey key(slotDemand);
     availableSlotsIteratorType itr = _availableProducerSlots.lower_bound(key);
     {
         availableSlotsIteratorType retItr = itr;
+        for (; itr != _availableProducerSlots.end(); ++itr) {
+            if (itr->isBarrierInUse()) {
+                barrierType currentBid = itr->_barrier;
+                auto users = _barrierUsers[currentBid - 1UL];
+                for (auto& user : users) {
+                    if (taskConsumerMap[user] == taskConsumerMap[op]) {
+                        if (assignBarrierSlots(currentBid, slotDemand)) {
+                            _barrierUsers[currentBid - 1UL].insert(op);
+                            return currentBid;
+                        }
+                    }
+                }
+            }
+        }
 
+        itr = retItr;
         for (; (itr != _availableProducerSlots.end()) && (itr->isBarrierInUse()); ++itr) {
         }
         if (itr != _availableProducerSlots.end()) {
@@ -119,12 +138,14 @@ bool BarrierResourceState::assignBarrierSlots(barrierType barrierId, producerSlo
 }
 
 // Releases the producers slots (resource) from a barrier ID when a task is unscheduled by the main list scheduler
-bool BarrierResourceState::unassignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand) {
+bool BarrierResourceState::unassignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand,
+                                                mlir::Operation* op) {
     VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()) && (barrierId >= 1UL), "Invalid barrierId supplied");
     availableSlotsIteratorType itr = _barrierReference[barrierId - 1UL];
     producerSlotsType newSlotDemand = (itr->_availableProducerSlots) + slotDemand;
 
     itr = update(itr, newSlotDemand);
+    _barrierUsers[barrierId - 1UL].erase(op);
     return (itr != _availableProducerSlots.end());
 }
 

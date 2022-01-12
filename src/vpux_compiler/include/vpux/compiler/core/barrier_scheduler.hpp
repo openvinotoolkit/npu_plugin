@@ -152,7 +152,7 @@ private:
     const BarrierResourceState& barrierResourceState() const;
     schedulableTasksIteratorType findSchedulableTask();
     size_t countProducerTasksToBarrier(mlir::Operation* op);
-    SmallVector<mlir::Operation*> getConsumerOps(mlir::Operation* op);
+    std::set<mlir::Operation*> getConsumerOps(mlir::Operation* op);
     static mlir::IntegerAttr getUniqueID(mlir::Operation* op);
     const barrierInfo& getBarrierInfo(mlir::Operation* op) const;
 
@@ -195,7 +195,7 @@ private:
     taskOpWaitMapType _configureTaskOpWaitMap;
     taskOpUpdateMapType _configureTaskOpUpdateMap;
     // The consumer tasks per task from original dependency
-    std::map<mlir::Operation*, SmallVector<mlir::Operation*>> _taskConsumerMapOriginal;
+    std::map<mlir::Operation*, std::set<mlir::Operation*>> _taskConsumerMapOriginal;
     Logger _log;
     mlir::FuncOp _func;
     // The number of execute tasks

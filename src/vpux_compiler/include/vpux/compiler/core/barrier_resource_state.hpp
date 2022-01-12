@@ -13,7 +13,9 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/utils/core/error.hpp"
+
 namespace vpux {
 
 namespace VPURT {
@@ -53,9 +55,10 @@ public:
 
     void init(const size_t barrierCount, const producerSlotsType maximumProducerSlotCount);
     bool hasBarrierWithSlots(producerSlotsType slotDemand) const;
-    barrierType assignBarrierSlots(producerSlotsType slotDemand);
+    barrierType assignBarrierSlots(producerSlotsType slotDemand, mlir::Operation* op,
+                                   std::map<mlir::Operation*, std::set<mlir::Operation*>>& taskConsumerMap);
     bool assignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand);
-    bool unassignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand);
+    bool unassignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand, mlir::Operation* op);
     static barrierType invalidBarrier();
     void update(barrierType barrierId, producerSlotsType newSlotsValue);
     availableSlotsIteratorType update(availableSlotsIteratorType itr, producerSlotsType newSlotsValue);
@@ -63,6 +66,7 @@ public:
 private:
     barrierReferenceType _barrierReference;
     availableProducerSlotsType _availableProducerSlots;
+    std::vector<std::set<mlir::Operation*>> _barrierUsers;
 };
 
 }  // namespace VPURT
