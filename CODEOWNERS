@@ -1,6 +1,6 @@
 # These owners will be the default reviewers for pull/merge requests in the repo.
 #
-# MLIR Compiler - Vinogradov, Vladislav (@vinograd47) / Kudriavtsev, Nikita (@nikita-kud)
+# MLIR Compiler - Vinogradov, Vladislav (@vinograd47) / Kudriavtsev, Nikita (@nikita-kud) / Losev, Sergey (@briangrifiin)
 # Quantization / Mixed Datatypes - Shokin, Alexander (@shokinal) / Rotuna, Harald Razvan (@hrotuna) / Zomborat, Zoran (@ZoranZomborat)
 # Strategy Generation - DeFlumere, Ashley (@adeflume)
 # Binaries (RT, vpualHost), Backends - Skrebkov, Artemy (@ArtemySkrebkov-intel) / Znamenskiy, Mikhail (@mznamens)
@@ -47,8 +47,8 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /src/utils @briangrifiin @mznamens
 /src/vpual_backend @briangrifiin @ArtemySkrebkov-intel @alpkn
 /src/vpux_al @ArtemySkrebkov-intel @mznamens @sshumihi
-/src/vpux_compiler @vinograd47 @nikita-kud @sshumihi @andrejsokolov
-/src/vpux_elf @gladilov-gleb @AndrewBakalinIntel 
+/src/vpux_compiler @vinograd47 @nikita-kud @briangrifiin @sshumihi @andrejsokolov
+/src/vpux_elf @gladilov-gleb @AndrewBakalinIntel
 /src/vpux_ngraph_transformations @shokinal @maxim-kurin
 /src/vpux_plugin @ArtemySkrebkov-intel @mznamens
 /src/vpux_translate_utils @gladilov-gleb @MikhailPedus
@@ -74,15 +74,15 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /tests/functional/subgraph_tests @maxim-kurin @vinograd47 @alpkn
 #
 /tests/libs @alpkn @alexeytarakanov
-/tests/lit @vinograd47 @nikita-kud
+/tests/lit @vinograd47 @nikita-kud @briangrifiin
 #
 /tests/unit/frontend_mcm @ArtemySkrebkov-intel @mmineeva
 /tests/unit/hddl2_tests @ArtemySkrebkov-intel @mznamens
 /tests/unit/kmb @ArtemySkrebkov-intel @mznamens
 /tests/unit/mcmCompiler @syao-2015 @mmineeva
 /tests/unit/mtl @gladilov-gleb @MikhailPedus @briangrifiin
-/tests/unit/vpux_compiler @vinograd47 @nikita-kud
-/tests/unit/vpux_elf @gladilov-gleb @AndrewBakalinIntel 
+/tests/unit/vpux_compiler @vinograd47 @nikita-kud @briangrifiin
+/tests/unit/vpux_elf @gladilov-gleb @AndrewBakalinIntel
 /tests/unit/vpux_utils @vinograd47 @nikita-kud
 /tests/unit/CMakeLists.txt @alpkn
 #
