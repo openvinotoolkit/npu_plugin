@@ -16,6 +16,7 @@
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
@@ -90,17 +91,26 @@ public:
         return VPUIP::NCEInvariant::verifyChannels(mlir::cast<MainOpType>(op));
     }
 
-    int64_t getChannelAlignment(mlir::Operation* op) const {
+    int64_t getInputChannelAlignment(mlir::Operation* op) const {
         if (!canBeExecutedOnNCE(op)) {
             // SW version of the operation has no specific requirements
             return 1;
         }
 
         const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
-        return VPUIP::NCEInvariant::getChannelAlignment(inputType.getElementType());
+        return VPU::NCEInvariant::getAlignment(inputType.getElementType());
+    }
+    int64_t getOutputChannelAlignment(mlir::Operation* op) const {
+        if (!canBeExecutedOnNCE(op)) {
+            // SW version of the operation has no specific requirements
+            return 1;
+        }
+
+        const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
+        return VPU::NCEInvariant::getAlignment(outputType.getElementType());
     }
 
-    bool checkChannelRestrictions(mlir::Operation* op, const int64_t channels) const {
+    bool checkChannelRestrictions(mlir::Operation* op, int64_t channels) const {
         if (!canBeExecutedOnNCE(op)) {
             // there are no such restrictions in SW mode
             return true;
@@ -111,9 +121,8 @@ public:
 
         if (arch == VPU::ArchKind::MTL && (mlir::isa<IE::MaxPoolOp>(op) || mlir::isa<IE::GroupConvolutionOp>(op))) {
             // HW restrictions for channel number
-            static const SmallVector<int64_t> availiableChannels = {16, 32, 64};
-            return std::find(availiableChannels.begin(), availiableChannels.end(), channels) !=
-                   availiableChannels.end();
+            static const SmallVector<int64_t> availableChannels = {16, 32, 64};
+            return std::find(availableChannels.begin(), availableChannels.end(), channels) != availableChannels.end();
         }
 
         return true;

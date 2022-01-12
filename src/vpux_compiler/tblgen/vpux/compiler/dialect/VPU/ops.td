@@ -230,6 +230,8 @@ def VPU_NCEDepthConvolutionOp :
                                mlir::ShapedType output);
 
         static bool isSupported(vpux::IE::GroupConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
+
+        bool checkChannelRestrictions(int64_t channels);
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
@@ -294,6 +296,8 @@ def VPU_NCEMaxPoolOp :
                                mlir::ShapedType input, mlir::ShapedType output);
 
         static bool isSupported(vpux::IE::MaxPoolOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
+
+        bool checkChannelRestrictions(int64_t channels);
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];

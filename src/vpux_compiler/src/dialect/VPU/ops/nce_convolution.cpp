@@ -79,7 +79,8 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, NCEInvariant
     const auto filterType = op.filter().getType().cast<mlir::ShapedType>();
     const auto outputType = op.output().getType().cast<mlir::ShapedType>();
 
-    if (!NCEInvariant::isActTypeSupported(inputType) || !NCEInvariant::isActTypeSupported(outputType)) {
+    if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignment(inputType)) ||
+        !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignment(outputType))) {
         logCb(llvm::formatv("Misaligned tensor shape"));
         return false;
     }

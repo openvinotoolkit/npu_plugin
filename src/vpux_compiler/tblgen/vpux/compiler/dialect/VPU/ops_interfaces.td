@@ -72,14 +72,31 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
         mlir::LogicalResult verifyChannels() {
             return mlir::success(
                 vpux::VPU::NCEInvariant::isActTypeSupported(
-                    $_op->getOperand(0).getType().template cast<mlir::ShapedType>()) &&
+                    $_op->getOperand(0).getType().template cast<mlir::ShapedType>(),
+                    mlir::cast<ConcreteOp>($_op).getInputChannelAlignment()) &&
                 vpux::VPU::NCEInvariant::isActTypeSupported(
-                    $_op->getResult(0).getType().template cast<mlir::ShapedType>()));
+                    $_op->getResult(0).getType().template cast<mlir::ShapedType>(),
+                    mlir::cast<ConcreteOp>($_op).getOutputChannelAlignment()));
         }
 
-        int64_t getChannelAlignment() {
-            return vpux::VPU::NCEInvariant::getAlignment(
-                    $_op->getOperand(0).getType().template cast<mlir::ShapedType>().getElementType());
+        static int64_t getInputChannelAlignment(mlir::ShapedType inputType) {
+            return vpux::VPU::NCEInvariant::getAlignment(inputType.getElementType());
+        }
+        static int64_t getOutputChannelAlignment(mlir::ShapedType outputType) {
+            return vpux::VPU::NCEInvariant::getAlignment(outputType.getElementType());
+        }
+
+        int64_t getInputChannelAlignment() {
+            const auto inputType = $_op->getOperand(0).getType().template cast<mlir::ShapedType>();
+            return ConcreteOp::getInputChannelAlignment(inputType);
+        }
+        int64_t getOutputChannelAlignment() {
+            const auto outputType = $_op->getResult(0).getType().template cast<mlir::ShapedType>();
+            return ConcreteOp::getOutputChannelAlignment(outputType);
+        }
+
+        bool checkChannelRestrictions(int64_t /*channels*/) {
+            return true;
         }
     }];
 

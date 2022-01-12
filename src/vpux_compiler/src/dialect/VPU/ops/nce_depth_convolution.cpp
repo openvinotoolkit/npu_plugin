@@ -23,6 +23,8 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include <unordered_set>
+
 using namespace vpux;
 
 //
@@ -43,15 +45,14 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::Arr
 
     const auto activationWindowSize = NCESparsity::getActivationWindowSize(kernelSize, SX, input.getElementType(), OC);
 
-    // consider alignment when calculating required CMX
-    const auto depthwiseConvAlignment = NCEInvariant::getAlignment(output.getElementType());
+    const auto alignment = NCEInvariant::getAlignment(output.getElementType());
 
-    const int64_t remainder = (KY * KX) % depthwiseConvAlignment;
+    const int64_t remainder = (KY * KX) % alignment;
     VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
 
-    const int64_t alignment = (remainder > 0) ? (depthwiseConvAlignment - remainder) : 0;
+    const int64_t padding = (remainder > 0) ? (alignment - remainder) : 0;
 
-    const std::array<int64_t, 4> alignedFilterShape{OC, 1, 1, KY * KX + alignment};
+    const std::array<int64_t, 4> alignedFilterShape{OC, 1, 1, KY * KX + padding};
     const mlir::ShapedType alignedFilter = mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType());
 
     Byte requiredCMX(0);
@@ -127,7 +128,8 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, NC
     const auto filterType = op.filter().getType().cast<mlir::ShapedType>();
     const auto outputType = op.output().getType().cast<mlir::ShapedType>();
 
-    if (!NCEInvariant::isActTypeSupported(inputType) || !NCEInvariant::isActTypeSupported(outputType)) {
+    if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignment(inputType)) ||
+        !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignment(outputType))) {
         logCb(llvm::formatv("Misaligned tensor shape"));
         return false;
     }
@@ -220,4 +222,20 @@ void vpux::VPU::NCEDepthConvolutionOp::inferLayoutInfo(IE::LayerLayoutInfo& info
     info.setInput(0, DimsOrder::NHWC);
     info.setInput(1, DimsOrder::OYXI);
     info.setOutput(0, DimsOrder::NHWC);
+}
+
+//
+// AlignedChannelsOpInterface
+//
+
+bool vpux::VPU::NCEDepthConvolutionOp::checkChannelRestrictions(int64_t channels) {
+    const auto arch = getArch(*this);
+
+    if (arch == VPU::ArchKind::MTL) {
+        // HW restrictions for channel number
+        static const std::unordered_set<int64_t> availableChannels{16, 32, 64};
+        return availableChannels.count(channels) != 0;
+    }
+
+    return true;
 }

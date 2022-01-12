@@ -21,21 +21,29 @@ Interface for operations that require channel alignment
 ```c++
 mlir::LogicalResult verifyChannels();
 ```
-Verify channel alignement
+Verify channel alignment
 NOTE: This method *must* be implemented by the user.
 
-#### `getChannelAlignment`
+#### `getInputChannelAlignment`
 
 ```c++
-int64_t getChannelAlignment();
+int64_t getInputChannelAlignment();
 ```
-Get channel alignement factor in elements
+Get input channels alignment factor in elements
+NOTE: This method *must* be implemented by the user.
+
+#### `getOutputChannelAlignment`
+
+```c++
+int64_t getOutputChannelAlignment();
+```
+Get output channels alignment factor in elements
 NOTE: This method *must* be implemented by the user.
 
 #### `checkChannelRestrictions`
 
 ```c++
-bool checkChannelRestrictions(const int64_t channels);
+bool checkChannelRestrictions(int64_t channels);
 ```
 Check HW channel number restrictions
 NOTE: This method *must* be implemented by the user.

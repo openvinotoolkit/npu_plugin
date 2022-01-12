@@ -92,8 +92,6 @@ public:
     static mlir::LogicalResult verifyGroupConvChannels(mlir::Location loc, mlir::ShapedType inputType,
                                                        mlir::ShapedType filterType, Logger log = Logger::global());
 
-    static int64_t getChannelAlignment(mlir::Type elemType);
-
 public:
     static mlir::LogicalResult verifyKernel(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IERT::ConvolutionOp origOp, Logger log = Logger::global());

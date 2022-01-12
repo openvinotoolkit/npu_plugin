@@ -270,7 +270,7 @@ SmallVector<int64_t> vpux::IE::getMaxNumTiles(mlir::Operation* op) {
 
     int64_t minChannelSize = 1;
     if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
-        minChannelSize = channelsInfo.getChannelAlignment();
+        minChannelSize = channelsInfo.getOutputChannelAlignment();
     }
 
     const auto maxChannelTiles = outputShape[Dims4D::Act::C] / minChannelSize;

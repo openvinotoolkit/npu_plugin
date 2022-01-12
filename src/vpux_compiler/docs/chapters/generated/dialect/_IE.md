@@ -3241,3 +3241,36 @@ operation ::= `IE.Unsqueeze` `(` operands `)` attr-dict `:` type(operands) `->` 
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.YuvToRgb` (vpux::IE::YuvToRgbOp)
+
+InferenceEngine NV12/I420 to RGB/BGR layer
+
+
+Syntax:
+
+```
+operation ::= `IE.YuvToRgb` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`inFmt` | vpux::IE::ColorFmtAttr | YUV, RGB color formats
+`outFmt` | vpux::IE::ColorFmtAttr | YUV, RGB color formats
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
+`input2` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
+`input3` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
+

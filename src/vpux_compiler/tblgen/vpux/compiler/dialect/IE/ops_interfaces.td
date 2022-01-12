@@ -122,18 +122,22 @@ def IE_AlignedChannelsOpInterface : OpInterface<"AlignedChannelsOpInterface"> {
 
     let methods = [
         InterfaceMethod<
-            "Verify channel alignement",
+            "Verify channel alignment",
             "mlir::LogicalResult", "verifyChannels", (ins)
         >,
 
         InterfaceMethod<
-            "Get channel alignement factor in elements",
-            "int64_t", "getChannelAlignment", (ins)
+            "Get input channels alignment factor in elements",
+            "int64_t", "getInputChannelAlignment", (ins)
+        >,
+        InterfaceMethod<
+            "Get output channels alignment factor in elements",
+            "int64_t", "getOutputChannelAlignment", (ins)
         >,
 
         InterfaceMethod<
             "Check HW channel number restrictions",
-            "bool", "checkChannelRestrictions", (ins "const int64_t":$channels)
+            "bool", "checkChannelRestrictions", (ins "int64_t":$channels)
         >
     ];
 }

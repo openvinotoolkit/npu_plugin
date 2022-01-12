@@ -92,8 +92,9 @@ bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDiffere
         return false;
     }
 
-    if (!NCEInvariant::isActTypeSupported(input1) || !NCEInvariant::isActTypeSupported(input2) ||
-        !NCEInvariant::isActTypeSupported(output)) {
+    if (!NCEInvariant::isActTypeSupported(input1, getInputChannelAlignment(input1)) ||
+        !NCEInvariant::isActTypeSupported(input2, getInputChannelAlignment(input2)) ||
+        !NCEInvariant::isActTypeSupported(output, getOutputChannelAlignment(output))) {
         logCb(llvm::formatv("Misaligned tensor shape"));
         return false;
     }

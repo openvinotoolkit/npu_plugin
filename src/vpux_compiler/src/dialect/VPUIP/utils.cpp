@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 using namespace vpux;
@@ -71,17 +72,17 @@ double vpux::VPUIP::getProcessorFrequency(IE::ExecutorResourceOp res) {
 namespace {
 
 mlir::Value getAlignedConstWeights(mlir::OpBuilder& builder, mlir::Location loc, Const::DeclareOp weightsConst,
-                                   Shape flatWeightShape, int64_t alignment) {
+                                   Shape flatWeightShape, int64_t padding) {
     auto weightsContentAttr = weightsConst.contentAttr();
     auto nchwWeightsContentAttr = weightsContentAttr.reorder(DimsOrder::NCHW);
 
     auto flatWeightsContentAttr = nchwWeightsContentAttr.reshape(flatWeightShape);
-    auto alignedWeightsContentAttr = flatWeightsContentAttr.padWithZero({0, 0, 0, 0}, {0, alignment, 0, 0});
+    auto alignedWeightsContentAttr = flatWeightsContentAttr.padWithZero({0, 0, 0, 0}, {0, padding, 0, 0});
     auto nhwcWeightsContentAttr = alignedWeightsContentAttr.reorder(DimsOrder::NHWC);
 
     const auto OC = flatWeightShape[Dims4D::Filter::OC];
     const auto flatWeightChannelsCount = flatWeightShape[Dims4D::Filter::IC];
-    const auto alignedWeightShape = SmallVector<int64_t>{OC, flatWeightChannelsCount + alignment, 1, 1};
+    const auto alignedWeightShape = SmallVector<int64_t>{OC, flatWeightChannelsCount + padding, 1, 1};
     const auto origFilterType = weightsConst.output().getType().cast<mlir::ShapedType>();
     const auto outAllocType = mlir::MemRefType::get(alignedWeightShape, origFilterType.getElementType());
     const auto outAllocTypeNHWC = changeDimsOrder(outAllocType, DimsOrder::NHWC);
@@ -91,7 +92,7 @@ mlir::Value getAlignedConstWeights(mlir::OpBuilder& builder, mlir::Location loc,
 }
 
 mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter,
-                                      Shape flatWeightShape, int64_t alignment) {
+                                      Shape flatWeightShape, int64_t padding) {
     auto ctx = builder.getContext();
     // Step 1: Flatten input to OCxICx1x1, where IC = filters * KY * KX.
     const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
@@ -110,12 +111,12 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
     // Step 3: Create padding for flat NCHW input. IC must be a multiple of 16.
     const auto OC = flatWeightShape[Dims4D::Filter::OC];
     const auto flatWeightChannelsCount = flatWeightShape[Dims4D::Filter::IC];
-    const auto alignedWeightShape = SmallVector<int64_t>{OC, flatWeightChannelsCount + alignment, 1, 1};
+    const auto alignedWeightShape = SmallVector<int64_t>{OC, flatWeightChannelsCount + padding, 1, 1};
     const auto outAllocType = changeDimsOrder(
             mlir::MemRefType::get(alignedWeightShape, origFilterType.getElementType()), DimsOrder::NCHW);
 
-    const auto padShape = SmallVector<int64_t>{OC, alignment, 1, 1};
-    const auto padValues = std::vector<ngraph::float16>(OC * alignment, 0.f);
+    const auto padShape = SmallVector<int64_t>{OC, padding, 1, 1};
+    const auto padValues = std::vector<ngraph::float16>(OC * padding, 0.f);
     const auto padType =
             changeDimsOrder(mlir::RankedTensorType::get(padShape, origFilterType.getElementType()), DimsOrder::NCHW);
     const auto padAttr = mlir::DenseElementsAttr::get(padType, makeArrayRef(padValues));
@@ -165,22 +166,23 @@ mlir::Value vpux::VPUIP::alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, m
     const auto KX = filterShape[Dims4D::Filter::KX];
 
     const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
-    const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
-    const int64_t remainder = (filtersPerInChan * KY * KX) % depthwiseConvAlignment;
+    const auto alignment = VPU::NCEInvariant::getAlignment(origFilterType.getElementType());
+
+    const auto remainder = (filtersPerInChan * KY * KX) % alignment;
     VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
+
     if (remainder == 0) {
-        // nothing to align
         return origFilter;
     }
 
-    const int64_t alignment = depthwiseConvAlignment - remainder;
+    const auto padding = alignment - remainder;
+
     const auto flatWeightChannelsCount = filtersPerInChan * KY * KX;
     const auto flatWeightShape = Shape{OC, flatWeightChannelsCount, 1, 1};
-    mlir::Value alignedFilter;
+
     if (auto weightsConst = origFilter.getDefiningOp<Const::DeclareOp>()) {
-        alignedFilter = getAlignedConstWeights(builder, loc, weightsConst, flatWeightShape, alignment);
+        return getAlignedConstWeights(builder, loc, weightsConst, flatWeightShape, padding);
     } else {
-        alignedFilter = getAlignedNonConstWeights(builder, loc, origFilter, flatWeightShape, alignment);
+        return getAlignedNonConstWeights(builder, loc, origFilter, flatWeightShape, padding);
     }
-    return alignedFilter;
 }

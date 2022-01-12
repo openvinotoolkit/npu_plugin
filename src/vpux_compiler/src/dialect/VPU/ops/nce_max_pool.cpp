@@ -23,6 +23,8 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include <unordered_set>
+
 using namespace vpux;
 
 //
@@ -97,7 +99,8 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, NCEInvariant::LogCb 
     const auto inputType = op.input().getType().cast<mlir::ShapedType>();
     const auto outputType = op.output().getType().cast<mlir::ShapedType>();
 
-    if (!NCEInvariant::isActTypeSupported(inputType) || !NCEInvariant::isActTypeSupported(outputType)) {
+    if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignment(inputType)) ||
+        !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignment(outputType))) {
         logCb(llvm::formatv("Misaligned tensor shape"));
         return false;
     }
@@ -199,4 +202,20 @@ mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::inferReturnTypeComponents(
 
 void vpux::VPU::NCEMaxPoolOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
     info.fill(DimsOrder::NHWC);
+}
+
+//
+// AlignedChannelsOpInterface
+//
+
+bool vpux::VPU::NCEMaxPoolOp::checkChannelRestrictions(int64_t channels) {
+    const auto arch = getArch(*this);
+
+    if (arch == VPU::ArchKind::MTL) {
+        // HW restrictions for channel number
+        static const std::unordered_set<int64_t> availableChannels{16, 32, 64};
+        return availableChannels.count(channels) != 0;
+    }
+
+    return true;
 }

@@ -68,7 +68,7 @@ mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::ExpandOp::fold(ArrayRef<mlir::Attribute>) {
+mlir::OpFoldResult vpux::IE::ExpandOp::fold(ArrayRef<mlir::Attribute> operands) {
     if (input().getType() == output().getType()) {
         return input();
     }
@@ -79,6 +79,12 @@ mlir::OpFoldResult vpux::IE::ExpandOp::fold(ArrayRef<mlir::Attribute>) {
         if (sliceOp.source().getType() == output().getType()) {
             return sliceOp.source();
         }
+    }
+
+    if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
+        const auto padsBefore = Shape(parseIntArrayAttr<int64_t>(pads_begin()));
+        const auto padsAfter = Shape(parseIntArrayAttr<int64_t>(pads_end()));
+        return attr.padWithZero(padsBefore, padsAfter);
     }
 
     return nullptr;

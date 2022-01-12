@@ -111,7 +111,7 @@ int64_t vpux::VPU::NCEInvariant::getAlignment(mlir::Type elemType) {
     return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
 }
 
-bool vpux::VPU::NCEInvariant::isActTypeSupported(mlir::ShapedType type, LogCb logCb) {
+bool vpux::VPU::NCEInvariant::isActTypeSupported(mlir::ShapedType type, int64_t alignment, LogCb logCb) {
     if (type.getRank() != 4) {
         logCb(llvm::formatv("Activation has unsupported rank: {0}", type.getRank()));
         return false;
@@ -122,10 +122,8 @@ bool vpux::VPU::NCEInvariant::isActTypeSupported(mlir::ShapedType type, LogCb lo
     const auto memShape = order.toMemoryOrder(shape);
 
     const auto innerDim = memShape.back();
-    const auto alignement = getAlignment(type.getElementType());
-
-    if (innerDim % alignement != 0) {
-        logCb(llvm::formatv("Activation inner dimension '{0}' is not aligned to '{1}'", innerDim, alignement));
+    if (innerDim % alignment != 0) {
+        logCb(llvm::formatv("Activation inner dimension '{0}' is not aligned to '{1}'", innerDim, alignment));
         return false;
     }
 
