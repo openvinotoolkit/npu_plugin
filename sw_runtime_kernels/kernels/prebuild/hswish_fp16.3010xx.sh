@@ -1,7 +1,6 @@
 #! /bin/bash
 env_is_set=1
 optimization=-O3
-alwaye_inline=-DCONFIG_ALWAYS_INLINE
 cpunum=3010
 cpu=${cpunum}xx
 

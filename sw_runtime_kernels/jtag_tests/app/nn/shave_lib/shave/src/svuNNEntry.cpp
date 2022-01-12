@@ -31,7 +31,7 @@ extern "C"  __attribute__((dllexport)) void svuNNEntry(svuNNRtInit *init)
     {
         // Initialize the CMX FIFO local to the SHAVE for monitoring.
         auto rc = CmxFifoInitialize();
-        if (rc != CMXFIFO_SUCCESSFUL)
+        if (rc != MV_RET_SUCCESS)
             nnLog(MVLOG_ERROR, "Error initializing CMX FIFO (%d)\n", rc);
     }
 

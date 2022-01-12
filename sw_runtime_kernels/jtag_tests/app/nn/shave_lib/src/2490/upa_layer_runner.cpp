@@ -350,8 +350,8 @@ void UPALayerRunner::allocateResources() {
     // Initalize the CMX FIFO so that UPA Shaves know
     // what fifo they should monitor. See CmxFifo.h for
     // more information
-    CmxFifoStatus cmx_status = CmxFifoInitialize();
-    if (cmx_status != CMXFIFO_SUCCESSFUL && cmx_status != CMXFIFO_ALREADY_INITIALIZED) {
+    mvReturn cmx_status = CmxFifoInitialize();
+    if (cmx_status != MV_RET_SUCCESS && cmx_status != MV_RET_ALREADY_INITIALIZED) {
         nnLog(MVLOG_ERROR, "CmxFifoInitialize=%d", cmx_status);
         // the cmx fifo has not been initalized and so shaves do not know
         // what fifos to monitor

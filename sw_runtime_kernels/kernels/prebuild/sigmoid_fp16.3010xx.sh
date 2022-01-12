@@ -7,7 +7,7 @@ cpu=${cpunum}xx
 
 if [ -z "${MV_TOOLS_DIR}" ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
 if [ -z "${MV_TOOLS_VERSION}" ]; then 
-mv_tools_version_str=`grep "mv_tools_version" ../../vpuip_2_revision.txt`
+mv_tools_version_str=`grep "mv_tools_version" ../../firmware_vpu_revision.txt`
 mv_tools_version_arr=($mv_tools_version_str)
 MV_TOOLS_VERSION=${mv_tools_version_arr[1]}
 if [ -z "${MV_TOOLS_VERSION}" ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
