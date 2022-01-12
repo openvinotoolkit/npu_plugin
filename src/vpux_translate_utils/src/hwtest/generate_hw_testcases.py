@@ -55,7 +55,7 @@ if numericBenchPath == None:
 else:
     sys.path.append(numericBenchPath)
 
-from operators.op_utils.bfloat16 import bfloat16
+from operators.compute_core import bfloat16
 from operators.vpu26 import Add, Mult, Conv2d, MaxPool, AveragePool
 from operators.platform.quantize_info import QuantizationInfo
 from operators.platform.quantized_tensor import NBQuantized
@@ -554,7 +554,13 @@ class BF16(TType):
 def idu(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
     """Models the hardware IDU"""
     if input.is_float or weights.is_float:
-        return input.data.astype(np.float32), weights.data.astype(np.float32)
+        if(input.data.dtype == weights.data.dtype) :
+            return input.data, weights.data
+        if(not input.is_float) :
+           return input.data.astype(weights.data.dtype), weights.data
+        if(not weights.is_float) :
+           return input.data, weights.data.astype(input.data.dtype)
+        return input.data.astype(np.float16), weights.data.astype(np.float16)
 
     def to_qint32(value: Value) -> Union[np.ndarray, NBQuantized]:
         return NBQuantized(value=value.data.astype(np.int32), scale=value.scale, zero_point=value.zero,
