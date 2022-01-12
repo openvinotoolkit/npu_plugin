@@ -881,7 +881,7 @@ void BarrierScheduler::removeRedundantDependencies() {
 
 void BarrierScheduler::initializeBarrierAssociationTable() {
     _log.trace("Step-0: Initialize the barrier association table");
-    for (size_t barrierId = 1; barrierId <= _barrierCount; barrierId++) {
+    for (size_t barrierId = 0; barrierId < _barrierCount; barrierId++) {
         auto bitr = _barrierAssociationTable.insert(
                 std::make_pair(barrierId, barrierTransitionStructure(*this, _taskCount)));
         barrierTransitionStructure& bstructure = (bitr.first)->second;
