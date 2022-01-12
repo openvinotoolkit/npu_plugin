@@ -336,10 +336,6 @@ BarrierScheduler::schedulableTasksIteratorType BarrierScheduler::findSchedulable
     return itr;
 }
 
-size_t BarrierScheduler::currentTime() const {
-    return _currentTime;
-}
-
 const BarrierResourceState& BarrierScheduler::barrierResourceState() const {
     return _barrierResourceState;
 }

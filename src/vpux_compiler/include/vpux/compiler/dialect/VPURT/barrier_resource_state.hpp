@@ -25,7 +25,7 @@ public:
 
     // Container that describes for each barrier ID
     // (1) The barriers total allowable producer number i.e. 256
-    // (2) The current available producer slots i.e (256 - used slots) 
+    // (2) The current available producer slots i.e (256 - used slots)
     // (3) If the barrier is currently in use i.e its total slots != current available slots
     struct availableSlotKey {
         availableSlotKey(size_t slots = size_t(0UL), size_t barrier = size_t(0UL))
@@ -45,7 +45,7 @@ public:
         size_t _availableProducerSlots;
         const size_t _totalProducerSlots;
         size_t _barrier;
-    };  // struct availableSlotKey 
+    };  // struct availableSlotKey
 
     using availableProducerSlotsType = std::set<availableSlotKey>;
     using constAvailableslotsIteratorType = typename availableProducerSlotsType::const_iterator;
