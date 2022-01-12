@@ -18,9 +18,7 @@ using namespace subspace;
 namespace {
 
 #define WORK_BUFFER_SIZE (((p->availableCmxBytes) / 4))
-
 #define MAX_CHANNEL_SIZE 64
-#define MAX_JOBS_NUM 1
 
 struct t_MvMVNParamNClasses {
     half* input;
@@ -29,9 +27,7 @@ struct t_MvMVNParamNClasses {
     Location outLocation;
     u8* cmxslice;
     int32_t availableCmxBytes;
-
     s32 nShaves;
-    s32 jobNum;
 
     NDOrder storageOrder;
     s32 channels;
@@ -46,7 +42,7 @@ struct t_MvMVNParamNClasses {
     uint32_t normalize;
     float eps;
 
-    float intermedia_mean[MAX_CHANNEL_SIZE * MAX_JOBS_NUM * 2];
+    float intermedia_mean[MAX_CHANNEL_SIZE * 2];
 };
 
 static void calc_mean_NHWC_fp16(const half* line, int W, int C, int stride, float* intermedia_mean) {
@@ -137,15 +133,14 @@ void mvMVN_1(t_MvMVNParamNClasses* p) {
 
     uint32_t normalize_variance = p->normalize;
     int nShaves = p->nShaves;  // Use only one shave for now
-    int idy = p->jobNum;
     int buf_size = nShaves * C;
 
     half* input = (p->inputInCmx) ? p->input : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
     float* intermedia_mean = p->intermedia_mean;
 
     for (int c = 0; c < C; ++c) {
-        intermedia_mean[c * nShaves + idy] = 0;
-        intermedia_mean[buf_size + c * nShaves + idy] = 0;
+        intermedia_mean[c * nShaves] = 0;
+        intermedia_mean[buf_size + c * nShaves] = 0;
     }
 
     if (order == ND_HWC || order == ND_NHWC) {
@@ -160,7 +155,7 @@ void mvMVN_1(t_MvMVNParamNClasses* p) {
         }
     } else {
         for (int c = 0; c < C; c++) {
-            int index = c * nShaves + idy;
+            int index = c * nShaves;
 
             for (int h = 0; h < H; h++) {
                 half* line = input + c * H * stride + h * stride;
@@ -276,7 +271,6 @@ void singleShaveMVN(uint32_t lParams) {
 
     unsigned int shaves_no = 1;
     int32_t firstShave = 0;
-    int32_t jobNum = 0;
     int32_t lastShave = firstShave + static_cast<int>(shaves_no) - 1;
     nnLog(MVLOG_DEBUG, "singleShaveMVN: run on %d SHAVEs\n", shaves_no);
     nnLog(MVLOG_DEBUG, "MVNParamNClasses %d\n", __LINE__);
@@ -291,7 +285,6 @@ void singleShaveMVN(uint32_t lParams) {
     mvnParamNClasses->cmxslice = cmxData;
     mvnParamNClasses->availableCmxBytes = availableCmxBytes;
     mvnParamNClasses->nShaves = shaves_no;
-    mvnParamNClasses->jobNum = jobNum;
 
     mvMVN_1(mvnParamNClasses);
     mvMVN_23(mvnParamNClasses);
