@@ -383,7 +383,7 @@ bool BarrierScheduler::scheduleTask(mlir::Operation* op, const size_t producerSl
 }
 
 bool BarrierScheduler::isBarrierResourceAvailable(const size_t producerSlotRequirement) {
-    return _barrierResourceState.hasBarrierWithSlots(producerSlotRequirement);
+    return _barrierResourceState.hasBarrierWithAvailableSlots(producerSlotRequirement);
 }
 
 void BarrierScheduler::initializeBarrierResourceState(const size_t numberOfBarriers,
