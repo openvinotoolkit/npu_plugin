@@ -16,6 +16,13 @@
 #include <OsDrvBootShave.h>
 #include <ShaveL2Cache.h>
 
+#include <ShCtrl.h>
+
+
+
+
+
+
 namespace {
 #define MAX_SUPPORTED_NN_SHV_PER_TILE 2
 #define SUPPORTED_ACT_SHV_PER_TILE_NB 2
@@ -63,7 +70,7 @@ ShaveManager::ShaveManager(const StaticMapping &sMapping)
     const uint32_t nnShaveId[] = {0, 2};
 
     // One-time init (semaphores, handles, ...)
-    auto rc = ShaveCtrlInit();
+    auto rc = ShCtrlInit();
     if (rc != SHAVE_CTRL_SUCCESS) {
         nnLog(MVLOG_ERROR, "ShaveCtrlInit: rc = %x", (int)rc);
     }
@@ -72,7 +79,7 @@ ShaveManager::ShaveManager(const StaticMapping &sMapping)
     for (unsigned int shave = 0; shave < AS_TOTAL; ++shave) {
 //    for (unsigned int shave = 0; shave < 1/*AS_TOTAL*/; ++shave) {
         nnLog(MVLOG_DEBUG, "ShaveCtrlOpen: ACTSHV %d", shave);
-        auto rc = ShaveCtrlOpen(SHAVE_ACT, shave, &actShvHnd[shave]);
+        auto rc = ShCtrlOpen(SHAVE_ACT, shave, &actShvHnd[shave]);
         if (rc != SHAVE_CTRL_SUCCESS) {
             nnLog(MVLOG_ERROR, "ShaveCtrlOpen: rc = %x", (int)rc);
         }
@@ -106,7 +113,7 @@ ShaveManager::~ShaveManager(void) {
     // ACTSHV handle de-init
     for (unsigned int shave = 0; shave < AS_TOTAL; ++shave) {
 //    for (unsigned int shave = 0; shave < 1/*AS_TOTAL*/; ++shave) {
-        auto rc = ShaveCtrlClose(&actShvHnd[shave]);
+        auto rc = ShCtrlClose(&actShvHnd[shave]);
         if (rc != SHAVE_CTRL_SUCCESS) {
             nnLog(MVLOG_WARN, "ShaveCtrlClose: rc = %x", (int)rc);
         }
