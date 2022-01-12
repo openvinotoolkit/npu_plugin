@@ -23,15 +23,12 @@ public:
     BarrierResourceState();
     BarrierResourceState(size_t barrierCount, size_t maximumProducerSlotCount);
 
-    using producerSlotsType = size_t;
-    using barrierType = size_t;
-
     // Container that describes for each barrier ID
     // (1) The barriers total allowable producer number i.e. 256
     // (2) The current available producer slots i.e (256 - used slots) 
     // (3) If the barrier is currently in use i.e its total slots != current available slots
     struct availableSlotKey {
-        availableSlotKey(producerSlotsType slots = producerSlotsType(0UL), barrierType barrier = barrierType(0UL))
+        availableSlotKey(size_t slots = size_t(0UL), size_t barrier = size_t(0UL))
                 : _availableProducerSlots(slots), _totalProducerSlots(slots), _barrier(barrier) {
         }
 
@@ -45,9 +42,9 @@ public:
             return _totalProducerSlots > _availableProducerSlots;
         }
 
-        producerSlotsType _availableProducerSlots;
-        const producerSlotsType _totalProducerSlots;
-        barrierType _barrier;
+        size_t _availableProducerSlots;
+        const size_t _totalProducerSlots;
+        size_t _barrier;
     };  // struct availableSlotKey 
 
     using availableProducerSlotsType = std::set<availableSlotKey>;
@@ -55,14 +52,14 @@ public:
     using availableSlotsIteratorType = typename availableProducerSlotsType::iterator;
     using barrierReferenceType = std::vector<availableSlotsIteratorType>;
 
-    void init(const size_t barrierCount, const producerSlotsType maximumProducerSlotCount);
-    bool hasBarrierWithSlots(producerSlotsType slotDemand) const;
-    barrierType assignBarrierSlots(producerSlotsType slotDemand);
-    bool assignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand);
-    bool unassignBarrierSlots(barrierType barrierId, producerSlotsType slotDemand);
-    static barrierType invalidBarrier();
-    void update(barrierType barrierId, producerSlotsType newSlotsValue);
-    availableSlotsIteratorType update(availableSlotsIteratorType itr, producerSlotsType newSlotsValue);
+    void init(const size_t barrierCount, const size_t maximumProducerSlotCount);
+    bool hasBarrierWithSlots(size_t slotDemand) const;
+    size_t assignBarrierSlots(size_t slotDemand);
+    bool assignBarrierSlots(size_t barrierId, size_t slotDemand);
+    bool unassignBarrierSlots(size_t barrierId, size_t slotDemand);
+    static size_t invalidBarrier();
+    void update(size_t barrierId, size_t updatedAvailableProducerSlots);
+    availableSlotsIteratorType update(availableSlotsIteratorType itr, size_t updatedAvailableProducerSlots);
 
 private:
     // A vector of iterators to each entry in the _availableProducerSlots container
