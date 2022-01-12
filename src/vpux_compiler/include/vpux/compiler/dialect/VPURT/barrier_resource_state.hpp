@@ -30,7 +30,6 @@ public:
     struct availableSlotKey {
         availableSlotKey(size_t slots = size_t(0UL), size_t barrier = size_t(0UL))
                 : _availableProducerSlots(slots), _totalProducerSlots(slots), _barrier(barrier) {
-                    std::cout << "here" << std::endl;
         }
 
         bool operator<(const availableSlotKey& o) const {
@@ -40,8 +39,6 @@ public:
         }
 
         bool isBarrierInUse() const {
-            bool barrierInUse = _totalProducerSlots > _availableProducerSlots;
-            std::cout << "barrierInUse " << barrierInUse << std::endl;
             return _totalProducerSlots > _availableProducerSlots;
         }
 
