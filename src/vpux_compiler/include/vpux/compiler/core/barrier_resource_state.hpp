@@ -26,6 +26,10 @@ public:
     using producerSlotsType = size_t;
     using barrierType = size_t;
 
+    // Container that describes for each barrier ID
+    // (1) The barriers total allowable producer number i.e. 256
+    // (2) The current available producer slots i.e (256 - used slots) 
+    // (3) If the barrier is currently in use i.e its total slots != current available slots
     struct availableSlotKey {
         availableSlotKey(producerSlotsType slots = producerSlotsType(0UL), barrierType barrier = barrierType(0UL))
                 : _availableProducerSlots(slots), _totalProducerSlots(slots), _barrier(barrier) {
@@ -44,7 +48,7 @@ public:
         producerSlotsType _availableProducerSlots;
         const producerSlotsType _totalProducerSlots;
         barrierType _barrier;
-    };  // struct availableSlotKey //
+    };  // struct availableSlotKey 
 
     using availableProducerSlotsType = std::set<availableSlotKey>;
     using constAvailableslotsIteratorType = typename availableProducerSlotsType::const_iterator;
@@ -61,8 +65,11 @@ public:
     availableSlotsIteratorType update(availableSlotsIteratorType itr, producerSlotsType newSlotsValue);
 
 private:
+    // A vector of iterators to each entry in the _availableProducerSlots container
     barrierReferenceType _barrierReference;
-    availableProducerSlotsType _availableProducerSlots;
+    // Stores an availableSlotKey struct for each barrier.
+    // i.e. Information for each barrier, its total available slots (256) and the current free slots
+    availableProducerSlotsType _globalAvailableProducerSlots;
 };
 
 }  // namespace VPURT
