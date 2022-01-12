@@ -53,7 +53,7 @@ public:
     using barrierReferenceType = std::vector<availableSlotsIteratorType>;
 
     void init(const size_t barrierCount, const size_t maximumProducerSlotCount);
-    bool hasBarrierWithSlots(size_t slotDemand) const;
+    bool hasBarrierWithAvailableSlots(size_t slotDemand) const;
     size_t assignBarrierSlots(size_t slotDemand);
     bool assignBarrierSlots(size_t barrierId, size_t slotDemand);
     bool unassignBarrierSlots(size_t barrierId, size_t slotDemand);
