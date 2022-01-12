@@ -64,18 +64,30 @@ void BarrierResourceState::init(const size_t barrierCount, const size_t maximumP
     }
 }
 
-// Returns true if there is a barrier with available producer slots
-bool BarrierResourceState::hasBarrierWithAvailableSlots(size_t slotDemand) const {
+BarrierResourceState::constAvailableslotsIteratorType BarrierResourceState::findBarrierWithAvailableSlots(size_t slotDemand)
+{
     availableSlotKey key(slotDemand);
+
+    // Return an iterator to the first barrier ID that is found which has the available requested slots  
     constAvailableslotsIteratorType itr = _globalAvailableProducerSlots.lower_bound(key);
     constAvailableslotsIteratorType retItr = itr;
 
-    // prefer a unused barrier to satisfy this slot demand //
+    // The start condition is the first barrier ID that is found which has the available requested slots
+    // Then iterate from this point to find a barrier that is currently unused
     for (; (itr != _globalAvailableProducerSlots.end()) && (itr->isBarrierInUse()); ++itr) {
     }
     if (itr != _globalAvailableProducerSlots.end()) {
         retItr = itr;
     };
+
+    return retItr;
+
+}
+// Returns true if there is a barrier with available producer slots
+bool BarrierResourceState::hasBarrierWithAvailableSlots(size_t slotDemand) {
+    availableSlotKey key(slotDemand);
+
+    auto retItr = findBarrierWithAvailableSlots(slotDemand);
 
     return retItr != _globalAvailableProducerSlots.end();
 }
@@ -85,17 +97,8 @@ bool BarrierResourceState::hasBarrierWithAvailableSlots(size_t slotDemand) const
 // scheduler
 size_t BarrierResourceState::assignBarrierSlots(size_t slotDemand) {
     availableSlotKey key(slotDemand);
-    availableSlotsIteratorType itr = _globalAvailableProducerSlots.lower_bound(key);
-    {
-        availableSlotsIteratorType retItr = itr;
-
-        for (; (itr != _globalAvailableProducerSlots.end()) && (itr->isBarrierInUse()); ++itr) {
-        }
-        if (itr != _globalAvailableProducerSlots.end()) {
-            retItr = itr;
-        };
-        itr = retItr;
-    }
+   
+    auto itr = findBarrierWithAvailableSlots(slotDemand);
 
     if ((itr == _globalAvailableProducerSlots.end()) || (itr->_availableProducerSlots < slotDemand)) {
         return invalidBarrier();
