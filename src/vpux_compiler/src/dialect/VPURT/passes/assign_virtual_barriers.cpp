@@ -11,8 +11,8 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPURT/barrier_scheduler.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
+#include "vpux/compiler/dialect/VPURT/barrier_scheduler.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
