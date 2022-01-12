@@ -39,6 +39,10 @@ class KmbConversionLayerTest: public ConversionLayerTest, virtual public LayerTe
             isCompilerMCM()) {
             throw LayerTestsUtils::KmbSkipTestException("FP <-> U8 issue for MCM (bug: E#9602");
         }
+        if (inPrc == InferenceEngine::Precision::FP32 && outPrc == InferenceEngine::Precision::FP16 &&
+            isCompilerMCM()) {
+            throw LayerTestsUtils::KmbSkipTestException("FP <-> FP16 issue for MCM (bug: E#28335");
+        }
     }
 };
 

@@ -27,7 +27,8 @@ namespace {
 
     const std::vector<size_t> numSplits = {64, 48, 32};
 
-    INSTANTIATE_TEST_CASE_P(smoke_VariadicSplit, KmbVariadicSplitLayerTest,
+    // [Track number: E#28335]
+    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_VariadicSplit, KmbVariadicSplitLayerTest,
                         ::testing::Combine(::testing::Values(numSplits),                                    //numSplits
                                            ::testing::Values(1),                                            //axis
                                            ::testing::Values(netPrecisions),                                //netPrecision
