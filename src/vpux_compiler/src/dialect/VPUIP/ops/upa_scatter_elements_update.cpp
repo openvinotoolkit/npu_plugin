@@ -32,3 +32,14 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ScatterElementsUpdateUPAOp::seriali
     return writer.createUPALayerTask(*this,
                                      {paramsOff.Union(), MVCNN::SoftwareLayerParams_ScatterElementsUpdateParams});
 }
+
+mlir::Operation* vpux::VPUIP::BlobReader::parseScatterElementsUpdate(mlir::OpBuilder& builder,
+                                                                     ArrayRef<mlir::Value> inputs,
+                                                                     ArrayRef<mlir::Value> outputs,
+                                                                     const MVCNN::UPALayerTask* /*task*/) {
+    VPUX_THROW_UNLESS(inputs.size() == 4, "ScatterElementsUpdateUPA supports only 4 inputs", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "ScatteElementsrUpdateUPA supports only 1 output", outputs.size());
+
+    return builder.create<VPUIP::ScatterElementsUpdateUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1],
+                                                             inputs[2], inputs[3], outputs[0]);
+}

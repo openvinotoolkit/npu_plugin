@@ -65,6 +65,12 @@ private:
                                  const MVCNN::UPALayerTask* task);
     mlir::Operation* parseGatherElements(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                          ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
+    mlir::Operation* parseScatterUpdate(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                        ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
+    mlir::Operation* parseScatterElementsUpdate(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
+    mlir::Operation* parseReorgYolo(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                    ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseGRN(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs, ArrayRef<mlir::Value> outputs,
                               const MVCNN::UPALayerTask* task);
     mlir::Operation* parseNorm(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs, ArrayRef<mlir::Value> outputs,
