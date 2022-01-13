@@ -1,5 +1,5 @@
 #
-# Copyright Intel Corporation.
+# Copyright 2020 Intel Corporation.
 #
 # LEGAL NOTICE: Your use of this software and any required dependent software
 # (the "Software Package") is subject to the terms and conditions of
@@ -11,5 +11,21 @@
 # included with the Software Package for additional details.
 #
 
-add_subdirectory(vpux-loader)
-add_subdirectory(vpux-jit)
+set(TARGET_NAME "vpux-jit")
+
+file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
+
+add_executable(${TARGET_NAME} ${SOURCES})
+set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tools")
+
+enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
+vpux_enable_clang_format(${TARGET_NAME})
+
+target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        vpux_elf
+        vpux_utils
+        vpux_compiler_static
+        vpux_translate_utils_static
+)
