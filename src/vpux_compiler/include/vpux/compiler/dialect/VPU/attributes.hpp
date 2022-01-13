@@ -116,5 +116,7 @@ PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t cl
                            int64_t lreluMult, int64_t lreluShift, ArrayRef<int64_t> quantMult,
                            ArrayRef<int64_t> quantShift, int64_t quantPostShift);
 
+VPU::PPEMode getPPEMode(VPU::EltwiseType type);
+
 }  // namespace VPU
 }  // namespace vpux

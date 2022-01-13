@@ -319,20 +319,40 @@ VPU::PPETaskAttr vpux::VPU::getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode 
                                  nullptr, ctx);
 }
 
-VPU::PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow, int64_t clampHigh,
-                                int64_t lreluMult, int64_t lreluShift) {
+VPU::PPETaskAttr vpux::VPU::getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow,
+                                           int64_t clampHigh, int64_t lreluMult, int64_t lreluShift) {
     return VPU::PPETaskAttr::get(VPU::PPEModeAttr::get(ctx, mode), getIntAttr(ctx, clampLow),
                                  getIntAttr(ctx, clampHigh), getIntAttr(ctx, lreluMult), getIntAttr(ctx, lreluShift),
                                  nullptr, nullptr, nullptr, ctx);
 }
 
-VPU::PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow, int64_t clampHigh,
-                                int64_t lreluMult, int64_t lreluShift, ArrayRef<int64_t> quantMult,
-                                ArrayRef<int64_t> quantShift, int64_t quantPostShift) {
+VPU::PPETaskAttr vpux::VPU::getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow,
+                                           int64_t clampHigh, int64_t lreluMult, int64_t lreluShift,
+                                           ArrayRef<int64_t> quantMult, ArrayRef<int64_t> quantShift,
+                                           int64_t quantPostShift) {
     return VPU::PPETaskAttr::get(VPU::PPEModeAttr::get(ctx, mode), getIntAttr(ctx, clampLow),
                                  getIntAttr(ctx, clampHigh), getIntAttr(ctx, lreluMult), getIntAttr(ctx, lreluShift),
                                  getIntArrayAttr(ctx, quantMult), getIntArrayAttr(ctx, quantShift),
                                  getIntAttr(ctx, quantPostShift), ctx);
+}
+
+VPU::PPEMode vpux::VPU::getPPEMode(VPU::EltwiseType type) {
+    switch (type) {
+    case VPU::EltwiseType::ADD:
+        return vpux::VPU::PPEMode::ADD;
+    case VPU::EltwiseType::AND:
+        return vpux::VPU::PPEMode::AND;
+    case VPU::EltwiseType::MULTIPLY:
+        return vpux::VPU::PPEMode::MULT;
+    case VPU::EltwiseType::SUBTRACT:
+        return vpux::VPU::PPEMode::SUB;
+    case VPU::EltwiseType::MIN:
+        return vpux::VPU::PPEMode::MINIMUM;
+    case VPU::EltwiseType::MAX:
+        return vpux::VPU::PPEMode::MAXIMUM;
+    default:
+        VPUX_THROW("Unsupported EltwiseType '{0}' for PPEMode", type);
+    }
 }
 
 //
