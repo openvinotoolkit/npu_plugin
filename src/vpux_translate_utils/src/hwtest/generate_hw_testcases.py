@@ -56,7 +56,7 @@ else:
     sys.path.append(numericBenchPath)
 
 from operators.compute_core import bfloat16
-from operators.vpu26 import Add, Mult, Conv2d, MaxPool, AveragePool
+from operators.vpu26 import Add, Mult, MTLConv2D, MaxPool, AveragePool
 from operators.platform.quantize_info import QuantizationInfo
 from operators.platform.quantized_tensor import NBQuantized
 from operators.platform.vpu26 import PlatformVPU26
@@ -677,9 +677,9 @@ class ZMajorConvolution(MPE):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = idu(values[0], values[1])
-        c2d = Conv2d(kernel_shape=self.settings.kernel_shape,
-                     pads = self.settings.kernel_pads,
-                     strides = self.settings.kernel_strides)
+        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+                        pads = self.settings.kernel_pads,
+                        strides = self.settings.kernel_strides)
         result = c2d.inference(lhs, rhs)
         return result
 
@@ -743,10 +743,10 @@ class DepthWiseConv(MPE):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = idu(values[0], values[1])
-        c2d = Conv2d(kernel_shape=self.settings.kernel_shape,
-                     pads = self.settings.kernel_pads,
-                     strides = self.settings.kernel_strides,
-                     group = self.settings.weight_shape[0])
+        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+                        pads = self.settings.kernel_pads,
+                        strides = self.settings.kernel_strides,
+                        group = self.settings.weight_shape[0])
         return c2d.inference(lhs, rhs)
 
 
