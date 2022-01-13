@@ -30,8 +30,9 @@ ccopt-lnn-y += -DCONFIG_USE_COMPONENT_NN
 ccopt-shave-y += -DCONFIG_USE_COMPONENT_NN
 ccopt-shave_nn-y += -DCONFIG_USE_COMPONENT_NN
 
-#subdirs-lrt-$(CONFIG_TARGET_SOC_MA2490) += nn/common nn/nce_lib nn/shave_lib nn/inference_runtime_common ../../kernels
-subdirs-lrt-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/blob nn/nce_lib nn/shave_lib nn/inference_runtime_common ../../kernels
+subdirs-lrt-y += nn/common nn/shave_lib nn/inference_runtime_common ../../kernels
+subdirs-lrt-$(CONFIG_TARGET_SOC_MA2490) += $(VSYSTEM)/nn/platform_abstraction
+
 subdirs-lnn-y += nn/common nn/inference_runtime_common
 subdirs-shave-y += nn/common
 subdirs-shave-y += nn/shave_lib
@@ -45,8 +46,6 @@ subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  ../../kernels
 
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += nn/common nn/inference_runtime_common
 
-srcs-lrt-$(CONFIG_TARGET_SOC_3720) += nn/shave_lib/src/pre_custom_cpp.cpp
-#srcs-shave_nn-$(CONFIG_TARGET_SOC_3720) += nn/shave_lib/shave/src/pre_custom_cpp.cpp
 include-dirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += nn/shave_lib/inc nn/shave_lib/inc/layers
 
 ccopt-lrt-$(CONFIG_NN_PROFILING) += -DNN_PROFILING

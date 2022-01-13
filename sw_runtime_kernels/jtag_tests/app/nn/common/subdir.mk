@@ -12,13 +12,11 @@ sys-nn-common-components-srcs-$(target-soc-37xx) += $(wildcard src/3600/*.c*)
 srcs-lrt-$(CONFIG_HAS_LRT_SRCS) += $(sys-nn-common-components-srcs-y) $(sys-nn-common-components-lrt-srcs-y)
 srcs-lnn-$(CONFIG_HAS_LNN_SRCS) += $(sys-nn-common-components-srcs-y)
 srcs-shave-$(CONFIG_HAS_SHAVE_SRCS) += $(sys-nn-common-components-srcs-y)
-#srcs-shave_nn-$(CONFIG_HAS_SHAVE_NN_SRCS) += $(sys-nn-common-components-srcs-y)
 
 include-dirs-lrt-$(CONFIG_HAS_LRT_SRCS) += $(sys-nn-common-components-inc)
 include-dirs-lnn-$(CONFIG_HAS_LNN_SRCS) += $(sys-nn-common-components-inc)
 include-dirs-shave-$(CONFIG_HAS_SHAVE_SRCS) += $(sys-nn-common-components-inc)
 include-dirs-shave_nn-$(CONFIG_HAS_SHAVE_NN_SRCS) += $(sys-nn-common-components-inc)
-#include-dirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += $(sys-nn-common-components-inc)
 
 ccopt-lrt-$(CONFIG_NN_LOG_VERBOSITY_LRT_NONE)  += -DNN_LOG_VERBOSITY=0
 ccopt-lrt-$(CONFIG_NN_LOG_VERBOSITY_LRT_FATAL) += -DNN_LOG_VERBOSITY=1
@@ -46,12 +44,3 @@ ccopt-shave-$(CONFIG_NN_LOG_VERBOSITY_SVU_PERF)  += -DNN_LOG_VERBOSITY=4
 ccopt-shave-$(CONFIG_NN_LOG_VERBOSITY_SVU_INFO)  += -DNN_LOG_VERBOSITY=5
 ccopt-shave-$(CONFIG_NN_LOG_VERBOSITY_SVU_DEBUG) += -DNN_LOG_VERBOSITY=6
 ccopt-shave-$(CONFIG_NN_LOG_VERBOSITY_SVU_ALL)   += -DNN_LOG_VERBOSITY=7
-
-#ccopt-shave_nn-$(CONFIG_NN_LOG_VERBOSITY_SNN_NONE)  += -DNN_LOG_VERBOSITY=0
-#ccopt-shave_nn-$(CONFIG_NN_LOG_VERBOSITY_SNN_FATAL) += -DNN_LOG_VERBOSITY=1
-#ccopt-shave_nn-$(CONFIG_NN_LOG_VERBOSITY_SNN_ERROR) += -DNN_LOG_VERBOSITY=2
-#ccopt-shave_nn-$(CONFIG_NN_LOG_VERBOSITY_SNN_WARN)  += -DNN_LOG_VERBOSITY=3
-#ccopt-shave_nn-$(CONFIG_NN_LOG_VERBOSITY_SNN_PERF)  += -DNN_LOG_VERBOSITY=4
-#ccopt-shave_nn-$(CONFIG_NN_LOG_VERBOSITY_SNN_INFO)  += -DNN_LOG_VERBOSITY=5
-#ccopt-shave_nn-$(CONFIG_NN_LOG_VERBOSITY_SNN_DEBUG) += -DNN_LOG_VERBOSITY=6
-#ccopt-shave_nn-$(CONFIG_NN_LOG_VERBOSITY_SNN_ALL)   += -DNN_LOG_VERBOSITY=7

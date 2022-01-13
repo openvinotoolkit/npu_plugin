@@ -48,32 +48,6 @@ namespace {
     }
 }  // namespace
 
-
-
-//namespace {
-//void set_window_address(uint32_t window_number, uint32_t win_addr) {
-//    switch (window_number) {
-//        case 0:
-//            asm volatile("lsu0.sta.32 %[addr], SHAVE_LOCAL, 0x10" ::[addr] "r"(win_addr));
-//            asm volatile("nop 5");
-//            break;
-//        case 1:
-//            asm volatile("lsu0.sta.32 %[addr], SHAVE_LOCAL, 0x14" ::[addr] "r"(win_addr));
-//            asm volatile("nop 5");
-//            break;
-//        case 2:
-//            asm volatile("lsu0.sta.32 %[addr], SHAVE_LOCAL, 0x18" ::[addr] "r"(win_addr));
-//            asm volatile("nop 5");
-//            break;
-//        case 3:
-//            asm volatile("lsu0.sta.32 %[addr], SHAVE_LOCAL, 0x1c" ::[addr] "r"(win_addr));
-//            asm volatile("nop 5");
-//            break;
-//    }
-//}
-//
-//}
-
 extern "C" {
 
 void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) {
@@ -170,8 +144,6 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
 #else
         if (cfg->kernel) {
 #ifdef CONFIG_TARGET_SOC_3720
-//            set_window_address(1, cfg->kernel);
-//#else
 #endif
             Kernel k = reinterpret_cast<Kernel>(cfg->kernel);
             (*k)(reinterpret_cast<uint32_t>(cmxParams->argBuffer));
