@@ -97,8 +97,8 @@ std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Lo
 std::unique_ptr<mlir::Pass> createConvertShuffleChannelsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createSupportBatchForPadPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFusePadOpsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertPadToConcatPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapMaxPoolWithActivation(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertDeconv2DToConv2DPass(Logger log = Logger::global());
 
