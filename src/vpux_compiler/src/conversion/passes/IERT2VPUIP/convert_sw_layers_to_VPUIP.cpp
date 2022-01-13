@@ -89,9 +89,66 @@ mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, IERT::LayerOpIn
     return builtInFunction;
 }
 
-void initSwKernel(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange inputs, mlir::ValueRange outputBuffs,
-                  ArrayRef<mlir::Attribute> args, const Logger& log) {
+void convertTopKAttr(mlir::OpBuilder builder, mlir::MLIRContext* ctx, ArrayRef<mlir::Attribute> args,
+                     SmallVector<mlir::arith::ConstantOp>& constantArgs) {
+    for (auto&& arg : args) {
+        if (arg.isa<mlir::IntegerAttr, mlir::FloatAttr>()) {
+            constantArgs.push_back(builder.create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(ctx), arg));
+        } else if (auto mode = arg.dyn_cast_or_null<IE::TopKModeAttr>()) {
+            mlir::IntegerAttr intAttr;
+            switch (mode.getValue()) {
+            case IE::TopKMode::MAX:
+                intAttr = getIntAttr(ctx, 0);
+                break;
+            case IE::TopKMode::MIN:
+                intAttr = getIntAttr(ctx, 1);
+                break;
+            default:
+                VPUX_THROW("Unknown TopKMode");
+            }
+            constantArgs.push_back(builder.create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(ctx), intAttr));
+        } else if (auto sort = arg.dyn_cast_or_null<IE::TopKSortTypeAttr>()) {
+            mlir::IntegerAttr intAttr;
+            switch (sort.getValue()) {
+            case IE::TopKSortType::NONE:
+                intAttr = getIntAttr(ctx, 0);
+                break;
+            case IE::TopKSortType::SORT_INDICES:
+                intAttr = getIntAttr(ctx, 1);
+                break;
+            case IE::TopKSortType::SORT_VALUES:
+                intAttr = getIntAttr(ctx, 2);
+                break;
+            default:
+                VPUX_THROW("Unknown TopKSortType");
+            }
+            constantArgs.push_back(builder.create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(ctx), intAttr));
+        } else if (auto type = arg.dyn_cast_or_null<mlir::TypeAttr>()) {
+            // TODO: Check actual type i32/i64.
+            mlir::IntegerAttr intAttr;
+            intAttr = getIntAttr(ctx, 0);
+            constantArgs.push_back(builder.create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(ctx), intAttr));
+        } else {
+            VPUX_THROW("Unknown TopK Attribute");
+        }
+    }
+}
+
+void convertAttr(mlir::OpBuilder builder, mlir::MLIRContext* ctx, IERT::LayerOpInterface origOp,
+                 ArrayRef<mlir::Attribute> args, SmallVector<mlir::arith::ConstantOp>& constantArgs) {
+    if (mlir::isa<IERT::TopKOp>(origOp)) {
+        convertTopKAttr(builder, ctx, args, constantArgs);
+    } else {
+        for (auto&& arg : args) {
+            constantArgs.push_back(builder.create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(ctx), arg));
+        }
+    }
+}
+
+void initSwKernel(IERT::LayerOpInterface origOp, VPUIP::SwKernelOp swKernelOp, mlir::ValueRange inputs,
+                  mlir::ValueRange outputBuffs, ArrayRef<mlir::Attribute> args, const Logger& log) {
     OpBuilderLogger builderLog(log);
+
     auto* ctx = swKernelOp.getContext();
     auto& bodyRegion = swKernelOp.body();
     auto& swKernelBlock = bodyRegion.emplaceBlock();
@@ -110,9 +167,7 @@ void initSwKernel(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange inputs, mlir::V
 
     // embedding args of IERT operation as constants
     SmallVector<mlir::arith::ConstantOp> constantArgs;
-    for (auto&& arg : args) {
-        constantArgs.push_back(swKernelBlockBuilder.create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(ctx), arg));
-    }
+    convertAttr(swKernelBlockBuilder, ctx, origOp, args, constantArgs);
 
     // pack input/outputs and constants into single call to sw_kernel_run
     SmallVector<mlir::Value> operands;
@@ -184,7 +239,7 @@ mlir::LogicalResult SoftwareLayerRewriter::matchAndRewrite(IERT::SoftwareLayerOp
                                                          builtInFunction, getIntAttr(ctx, tileIndex));
 
     _log.trace("Added kernel operation: {0}", swKernelOp);
-    initSwKernel(swKernelOp, inputCMXTensors, outputCMXTensors, origOp.getKernelInfo().args, _log.nest());
+    initSwKernel(layerOp, swKernelOp, inputCMXTensors, outputCMXTensors, origOp.getKernelInfo().args, _log.nest());
 
     SmallVector<mlir::Value> outputDmaResults;
     auto opOutputs = layerOp.getOutputs();
