@@ -14,7 +14,7 @@ VPUIP_2_REL_THROUGH_ROOT := $(REL_TO_ROOT)$(VPUIP_2_ABS_DIR)
 #include-dirs-shave_nn-y += leon/inc
 #include-dirs-lrt-$(CONFIG_HAS_LRT_SRCS) += $(VPUIP_2_REL_THROUGH_ROOT)/system/nn/blob/2490/inc
 
-subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  leon/common leon/inference_runtime leon/common_runtime leon/act_runtime
+subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  leon/common leon/inference_runtime leon/common_runtime
 subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  leon
 
 #subdirs-lrt-$(CONFIG_TARGET_SOC_3720) += $(VPUIP_2_REL_THROUGH_ROOT)/system/shave
