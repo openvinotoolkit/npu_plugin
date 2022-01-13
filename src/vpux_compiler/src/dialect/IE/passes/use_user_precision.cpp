@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -41,6 +42,19 @@ private:
 
 void UseUserPrecisionPass::safeRunOnModule() {
     auto module = getOperation();
+
+    // UseUserPrecisionPass adds an IE.Convert in IR, which is not supported in MTL.
+    const auto arch = VPU::getArch(module);
+    if (arch == VPU::ArchKind::MTL) {
+        bool isTopK = false;
+        module.walk([&](IE::TopKOp op) {
+            op.emitRemark() << "Disable MTL TopK for UseUserPrecisionPass";
+            isTopK = true;
+        });
+        if (isTopK) {
+            return;
+        }
+    }
 
     IE::CNNNetworkOp netInfo;
     mlir::FuncOp netFunc;
