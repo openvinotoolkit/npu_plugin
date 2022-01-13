@@ -11,8 +11,8 @@ namespace sw_params {
 struct __attribute__((packed)) MvnParams {
     struct MemRefData input;
     struct MemRefData output;
-    uint32_t acrossChannels;
-    uint32_t normalize;
+    uint64_t acrossChannels;
+    uint64_t normalize;
     float eps;
 };
 

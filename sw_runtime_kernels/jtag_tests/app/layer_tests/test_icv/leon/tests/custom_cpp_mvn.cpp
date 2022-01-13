@@ -78,8 +78,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
             uint32_t normalize = test->customLayerParams.layerParams[1];
             float eps = *(float*)(&test->customLayerParams.layerParams[2]);
 
-            m_mvnParams->acrossChannels = acrossChannels;
-            m_mvnParams->normalize = normalize;
+            m_mvnParams->acrossChannels = (uint64_t)acrossChannels;
+            m_mvnParams->normalize = (uint64_t)normalize;
             m_mvnParams->eps = eps;
 
 #ifdef CONFIG_TARGET_SOC_3720

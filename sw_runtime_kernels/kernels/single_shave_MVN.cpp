@@ -251,8 +251,8 @@ void singleShaveMVN(uint32_t lParams) {
     int64_t* iPStrides = (int64_t*)(layerParams->input.stridesAddr);
     int64_t* oPStrides = (int64_t*)(layerParams->output.stridesAddr);
 
-    sp->acrossChannels = layerParams->acrossChannels;
-    sp->normalize = layerParams->normalize;
+    sp->acrossChannels = (uint32_t)layerParams->acrossChannels;
+    sp->normalize = (uint32_t)layerParams->normalize;
     sp->eps = layerParams->eps;
 
     if (layerParams->acrossChannels != false) {
