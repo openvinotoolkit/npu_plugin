@@ -123,3 +123,21 @@ InferenceEngine::OutputsDataMap vpux::helpers::dataMapIntoOutputsDataMap(const v
 
     return outputsDataMap;
 }
+
+vpux::OVNodes vpux::helpers::ovRawNodesIntoOVNodes(const std::vector<vpux::OVRawNode>& rawNodes, const bool isResult) {
+    vpux::OVNodes nodes;
+    for (const auto& rawNode : rawNodes) {
+        std::shared_ptr<ov::Node> parameter;
+        parameter = std::make_shared<ov::op::v0::Parameter>(rawNode.type, rawNode.shape);
+        if (isResult) {
+            const auto fakeParameter = parameter;
+            parameter = std::make_shared<ov::op::v0::Result>(parameter);
+            fakeParameter->set_friendly_name(rawNode.inputName);
+            parameter = parameter->copy_with_new_inputs({fakeParameter});
+        }
+        parameter->set_friendly_name(rawNode.friendlyName);
+        parameter->output(0).get_tensor().set_names(rawNode.tensorNames);
+        nodes.push_back(parameter);
+    }
+    return nodes;
+}

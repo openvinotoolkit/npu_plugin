@@ -28,7 +28,9 @@ EmulatorNetworkDescription::EmulatorNetworkDescription(const std::vector<char>& 
           _logger("EmulatorNetworkDescription", config.get<LOG_LEVEL>()),
           _dataMapPlaceholder{},
           _compiledNetwork{compiledNetwork},
-          _quantParams{} {
+          _quantParams{},
+          _ovParameters{},
+          _ovResults{} {
     IE_ASSERT(!_compiledNetwork.empty());
 }
 
@@ -55,6 +57,16 @@ const DataMap& EmulatorNetworkDescription::getDeviceOutputsInfo() const {
 const DataMap& EmulatorNetworkDescription::getDeviceProfilingOutputsInfo() const {
     _logger.info("EmulatorNetworkDescription::getDeviceProfilingsInfo()");
     return _dataMapPlaceholder;
+}
+
+const std::vector<OVRawNode>& EmulatorNetworkDescription::getOVParameters() const {
+    _logger.info("EmulatorNetworkDescription::getOVParameters()");
+    return _ovParameters;
+}
+
+const std::vector<OVRawNode>& EmulatorNetworkDescription::getOVResults() const {
+    _logger.info("EmulatorNetworkDescription::getOVResults()");
+    return _ovResults;
 }
 
 const QuantizationParamMap& EmulatorNetworkDescription::getQuantParamsInfo() const {

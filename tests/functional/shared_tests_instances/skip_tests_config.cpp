@@ -183,7 +183,10 @@ std::vector<std::string> disabledTestPatterns() {
             ".*KmbConversionLayerTest.*ConvertLike.*",
 
             // TensorIterator layer is not supported
-            ".*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*"
+            ".*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*",
+
+            // TODO: to implement SetConfig for ExecutableNetwork
+            ".*CanSetConfigToExecNet.*"
             }
         );
 
@@ -199,6 +202,7 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*InferRequest.*",
                 ".*OVInferRequest.*",
                 ".*ExecutableNetworkBaseTest.*",
+                ".*OVExecutableNetworkBaseTest.*",
                 ".*ExecNetSetPrecision.*",
                 ".*SetBlobTest.*",
                 ".*InferRequestCallbackTests.*",
@@ -206,7 +210,10 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*PreprocessingPrecisionConvertTest.*",
                 ".*SetPreProcessToInputInfo.*",
                 ".*InferRequestPreprocess.*",
-                ".*HoldersTestOnImportedNetwork.*"
+                ".*HoldersTestOnImportedNetwork.*",
+
+                // Cannot compile network without explicit specifying of the platform in case of no devices
+                ".*OVExecGraphImportExportTest.*",
             }
         );
 

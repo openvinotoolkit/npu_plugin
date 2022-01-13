@@ -35,6 +35,25 @@ class ICompiler;
  */
 using DataMap = std::map<std::string, InferenceEngine::DataPtr>;
 
+/**
+ * @brief A helper type to keep OV 2.0 node raw data
+ *
+ */
+struct OVRawNode {
+    const std::string friendlyName;
+    const ov::element::Type_t type;
+    const ov::Shape shape;
+    const std::unordered_set<std::string> tensorNames;
+    const std::string inputName;
+    const bool isResult;
+};
+
+/**
+ * @brief A helper type to represent vectors of OV 2.0 nodes
+ *
+ */
+using OVNodes = std::vector<std::shared_ptr<const ov::Node>>;
+
 ///////////////////////////////////// INetworkDescription /////////////////////////////////////////
 /**
  * @interface INetworkDescription
@@ -95,6 +114,9 @@ public:
      * @return Constant reference to an internally held DataMap object
      */
     virtual const DataMap& getDeviceProfilingOutputsInfo() const = 0;
+
+    virtual const std::vector<vpux::OVRawNode>& getOVParameters() const = 0;
+    virtual const std::vector<vpux::OVRawNode>& getOVResults() const = 0;
 
     /**
      * @brief Returns a map with information about quantization parameters
@@ -172,6 +194,12 @@ public:
     }
     const DataMap& getDeviceProfilingOutputsInfo() const {
         return _impl->getDeviceProfilingOutputsInfo();
+    }
+    const std::vector<OVRawNode>& getOVParameters() const {
+        return _impl->getOVParameters();
+    }
+    const std::vector<OVRawNode>& getOVResults() const {
+        return _impl->getOVResults();
     }
     const vpux::QuantizationParamMap& getQuantParamsInfo() const {
         return _impl->getQuantParamsInfo();
@@ -314,6 +342,7 @@ private:
 namespace helpers {
 InferenceEngine::InputsDataMap dataMapIntoInputsDataMap(const vpux::DataMap& dataMap);
 InferenceEngine::OutputsDataMap dataMapIntoOutputsDataMap(const vpux::DataMap& dataMap);
+vpux::OVNodes ovRawNodesIntoOVNodes(const std::vector<vpux::OVRawNode>& rawNodes, const bool isResult);
 }  // namespace helpers
 
 }  // namespace vpux

@@ -22,6 +22,8 @@
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/preprocessing.hpp"
 
+#include <openvino/core/type/element_type.hpp>
+
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -42,6 +44,7 @@ MVCNN::DType createDType(mlir::Type type);
 MVCNN::MemoryLocation createMemoryLocation(VPURT::BufferSection section);
 MVCNN::order3 createOrder3(mlir::ArrayAttr attr);
 
+extern const EnumMap<ov::element::Type_t, MVCNN::OVNodeType> mapElementType;
 extern const EnumMap<vpux::PreProcessColorSpace, MVCNN::PreProcessColorSpace> mapPreProcessColorFormat;
 extern const EnumMap<vpux::PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm> mapPreProcessResizeAlgorithm;
 

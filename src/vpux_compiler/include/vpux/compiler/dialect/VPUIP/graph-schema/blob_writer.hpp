@@ -72,6 +72,10 @@ public:
 
     using PreprocessingInfo = flatbuffers::Offset<MVCNN::preprocessingInfo>;
 
+    using OVParameters = flatbuffers::Offset<MVCNN::OVNode>;
+    using OVResults = flatbuffers::Offset<MVCNN::OVNode>;
+    using OVNodes = flatbuffers::Offset<MVCNN::OVNode>;
+
     using String = flatbuffers::Offset<flatbuffers::String>;
 
     template <typename T>

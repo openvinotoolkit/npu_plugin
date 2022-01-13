@@ -38,6 +38,10 @@ public:
 
     const vpux::DataMap& getDeviceProfilingOutputsInfo() const final;
 
+    const std::vector<vpux::OVRawNode>& getOVParameters() const final;
+
+    const std::vector<vpux::OVRawNode>& getOVResults() const final;
+
     const vpux::QuantizationParamMap& getQuantParamsInfo() const final;
 
     const std::vector<char>& getCompiledNetwork() const final;
@@ -54,6 +58,8 @@ private:
     vpux::DataMap _dataMapPlaceholder;
     std::vector<char> _compiledNetwork;
     vpux::QuantizationParamMap _quantParams;
+    const std::vector<vpux::OVRawNode> _ovParameters;
+    const std::vector<vpux::OVRawNode> _ovResults;
 };
 
 }  // namespace MCMAdapter

@@ -34,6 +34,10 @@ public:
 
     const vpux::DataMap& getDeviceProfilingOutputsInfo() const override;
 
+    const std::vector<vpux::OVRawNode>& getOVParameters() const override;
+
+    const std::vector<vpux::OVRawNode>& getOVResults() const override;
+
     const vpux::QuantizationParamMap& getQuantParamsInfo() const override;
 
     const std::vector<char>& getCompiledNetwork() const override;
@@ -54,6 +58,9 @@ private:
 
     vpux::DataMap _networkInputs;
     vpux::DataMap _networkOutputs;
+
+    std::vector<vpux::OVRawNode> _ovResults;
+    std::vector<vpux::OVRawNode> _ovParameters;
 
     vpux::QuantizationParamMap _quantParams;
 

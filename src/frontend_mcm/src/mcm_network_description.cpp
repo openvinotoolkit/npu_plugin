@@ -136,6 +136,14 @@ const DataMap& MCMNetworkDescription::getDeviceProfilingOutputsInfo() const {
     return _deviceProfilingOutputs;
 }
 
+const std::vector<OVRawNode>& MCMNetworkDescription::getOVParameters() const {
+    return _ovParameters;
+}
+
+const std::vector<OVRawNode>& MCMNetworkDescription::getOVResults() const {
+    return _ovResults;
+}
+
 const QuantizationParamMap& MCMNetworkDescription::getQuantParamsInfo() const {
     return _quantParams;
 }

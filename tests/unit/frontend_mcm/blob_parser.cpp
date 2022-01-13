@@ -30,12 +30,12 @@ public:
     MVCNN::SummaryHeader* graphHeader = nullptr;
     MCMAdapter::graphTensors* graphInputs = nullptr;
     MCMAdapter::graphTensors* graphOutputs = nullptr;
-    std::stringstream _blobStream;
     InferenceEngine::SizeVector _dims;
     std::string _inputName;
     std::string _outputName;
     std::string _outputDevName;
     std::string _deviceId;
+    std::string _compiledModel;
 
 protected:
     void SetUp() override;
@@ -49,9 +49,11 @@ void BlobParser_Tests::SetUp() {
     _outputName = "output_0";
     _outputDevName = "output_dev0";
 
-    utils::simpleGraph::getExeNetwork(_deviceId, _dims, _inputName, _outputName, _outputDevName)->Export(_blobStream);
+    std::stringstream blobStream(std::ios_base::binary | std::ios_base::in | std::ios_base::out);
+    utils::simpleGraph::getExeNetwork(_deviceId, _dims, _inputName, _outputName, _outputDevName)->Export(blobStream);
 
-    const auto graphFilePtr = MVCNN::GetGraphFile(_blobStream.str().data());
+    _compiledModel = blobStream.str();
+    const auto graphFilePtr = MVCNN::GetGraphFile(_compiledModel.data());
     ASSERT_NE(graphFilePtr, nullptr);
     graphHeader = const_cast<MVCNN::SummaryHeader*>(graphFilePtr->header());
     ASSERT_NE(graphHeader, nullptr);

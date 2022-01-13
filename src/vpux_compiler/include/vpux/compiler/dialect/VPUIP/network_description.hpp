@@ -60,6 +60,14 @@ public:
         return _deviceProfilingOutputs;
     }
 
+    const std::vector<OVRawNode>& getOVParameters() const final {
+        return _ovParameters;
+    }
+
+    const std::vector<OVRawNode>& getOVResults() const final {
+        return _ovResults;
+    }
+
 private:
     std::vector<char> _compiledNetwork;
 
@@ -72,6 +80,9 @@ private:
     DataMap _deviceOutputs;
     DataMap _deviceProfilingOutputs;
     QuantizationParamMap _quantParams;
+
+    std::vector<OVRawNode> _ovResults;
+    std::vector<OVRawNode> _ovParameters;
 };
 
 }  // namespace VPUIP

@@ -132,8 +132,10 @@ mlir::OwningModuleRef importVPUIP(llvm::SourceMgr& sourceMgr, mlir::MLIRContext*
 mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
     mlir::DefaultTimingManager tm;
     auto rootTiming = tm.getRootScope();
+    const std::vector<std::shared_ptr<const ov::Node>> params;
+    const std::vector<std::shared_ptr<const ov::Node>> results;
     std::vector<vpux::PreProcessInfo> preProcInfo;
-    const auto buf = VPUIP::exportToBlob(module, rootTiming, preProcInfo);
+    const auto buf = VPUIP::exportToBlob(module, rootTiming, preProcInfo, params, results);
     output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
     return mlir::success();
 }

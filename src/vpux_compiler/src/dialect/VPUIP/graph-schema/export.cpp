@@ -38,6 +38,7 @@
 #include <mlir/IR/BuiltinTypes.h>
 
 #include <precision_utils.h>
+#include <transformations/utils/utils.hpp>
 #include <version.hpp>
 
 #include <unordered_map>
@@ -283,11 +284,12 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     return builder.Finish();
 }
 
-flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
-                                                              IE::CNNNetworkOp netOp, mlir::FuncOp netFunc,
-                                                              bool withDynamicBarriers, mlir::TimingScope& rootTiming,
-                                                              const std::vector<vpux::PreProcessInfo>& preprocessInfo,
-                                                              Logger log) {
+flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
+        VPUIP::BlobWriter& writer, mlir::ModuleOp module, IE::CNNNetworkOp netOp, mlir::FuncOp netFunc,
+        bool withDynamicBarriers, mlir::TimingScope& rootTiming,
+        const std::vector<vpux::PreProcessInfo>& preprocessInfo,
+        const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+        const std::vector<std::shared_ptr<const ov::Node>>& results, Logger log) {
     auto scopeTiming = rootTiming.nest("Create summary header");
 
     const auto allTasks = netFunc.getOps<VPURT::TaskOp>();
@@ -348,6 +350,34 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
                 writer.createTensorRef(val, p.value().name(), VPURT::BufferSection::ProfilingOutput, ind, 0));
     }
 
+    auto createOVNodes = [&](const std::vector<std::shared_ptr<const ov::Node>>& nodes, const bool isResult) {
+        SmallVector<VPUIP::BlobWriter::OVNodes> ovNodes;
+        ovNodes.reserve(nodes.size());
+
+        for (const auto& node : nodes) {
+            VPUX_THROW_WHEN(node == nullptr, "Null OV node");
+            const auto nodeFriendlyName = writer.createString(node->get_friendly_name());
+            const auto nodeElementType = VPUIP::mapElementType.at(node->get_element_type());
+            const auto nodeShape = writer.createVector(node->get_output_partial_shape(0).get_shape());
+            const auto tmpTensorNames = node->get_output_tensor(0).get_names();
+            SmallVector<VPUIP::BlobWriter::String> auxTensorNames;
+            for (const auto tensorName : tmpTensorNames) {
+                auxTensorNames.push_back(writer.createString(tensorName));
+            }
+            const auto nodeTensorNames = writer.createVector(auxTensorNames);
+            const auto tmpInputName =
+                    isResult ? ngraph::op::util::create_ie_output_name(node->input_value(0)) : std::string("");
+            const auto nodeInputName = writer.createString(tmpInputName);
+            ovNodes.push_back(MVCNN::CreateOVNode(writer, nodeFriendlyName, nodeElementType, nodeShape, nodeTensorNames,
+                                                  nodeInputName));
+        }
+
+        return ovNodes;
+    };
+
+    const auto ovParam = createOVNodes(parameters, false);
+    const auto ovRes = createOVNodes(results, true);
+
     SmallVector<VPUIP::BlobWriter::PreprocessingInfo> preprocInfo;
     preprocInfo.reserve(preprocessInfo.size());
 
@@ -372,6 +402,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     const auto serializedGraphProfilingOutputs = writer.createVector(graphProfilingOutputs);
     const auto serializedUserOutputs = writer.createVector(userOutputs);
     const auto serializedResources = createResources(writer, module);
+    const auto serializedParameters = writer.createVector(ovParam);
+    const auto serializedResults = writer.createVector(ovRes);
     const auto serializedPreProcInfo = writer.createVector(preprocInfo);
     const auto serializedActKernelsRuntime = createActKernelRuntime(writer, module, netFunc, log);
 
@@ -386,6 +418,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     builder.add_resources(serializedResources);
     builder.add_in_tensor_desc(serializedUserInputs);
     builder.add_out_tensor_desc(serializedUserOutputs);
+    builder.add_ov_parameters(serializedParameters);
+    builder.add_ov_results(serializedResults);
     builder.add_pre_process_info(serializedPreProcInfo);
     builder.add_device(VPUIP::mapTargetDevice(VPU::getArch(module)));
     builder.add_device_revision(VPUIP::mapTargetDeviceRevision(VPU::getArch(module)));
@@ -542,6 +576,8 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
 
 flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
                                                       const std::vector<vpux::PreProcessInfo>& preprocessInfo,
+                                                      const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                                                      const std::vector<std::shared_ptr<const ov::Node>>& results,
                                                       Logger log) {
     log.setName("VPUIP::BackEnd");
 
@@ -554,8 +590,8 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     const auto withDynamicBarriers = !netFunc.getOps<VPURT::DeclareVirtualBarrierOp>().empty();
 
-    const auto header =
-            createSummaryHeader(writer, module, netOp, netFunc, withDynamicBarriers, rootTiming, preprocessInfo, log);
+    const auto header = createSummaryHeader(writer, module, netOp, netFunc, withDynamicBarriers, rootTiming,
+                                            preprocessInfo, parameters, results, log);
 
     serializeTensorDecls(writer, netFunc, rootTiming);
     const auto binaryData = serializeBinaryData(writer, netFunc, rootTiming, log);

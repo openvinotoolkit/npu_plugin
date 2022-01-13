@@ -122,6 +122,8 @@ ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::P
         _executorPtr = createExecutor(_networkPtr, _config, device);
         _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
         _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
+        setInputs(helpers::ovRawNodesIntoOVNodes(_networkPtr->getOVParameters(), false));
+        setOutputs(helpers::ovRawNodesIntoOVNodes(_networkPtr->getOVResults(), true));
         ConfigureStreamsExecutor(networkName);
     } catch (const std::exception& ex) {
         IE_THROW() << ex.what();
@@ -174,7 +176,7 @@ IE::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const I
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
     return std::make_shared<InferRequest>(networkInputs, networkOutputs, inferExecutor, _config, _networkName,
-                                          allocator);
+                                          _parameters, _results, allocator);
 }
 
 InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequest() {
@@ -185,7 +187,7 @@ InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferReques
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
     auto syncRequestImpl = std::make_shared<InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config,
-                                                          _networkName, allocator);
+                                                          _networkName, _parameters, _results, allocator);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
     return std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, getNextTaskExecutor(),
                                                _callbackExecutor);

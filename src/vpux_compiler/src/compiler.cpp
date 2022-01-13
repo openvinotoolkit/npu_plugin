@@ -43,6 +43,8 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <description_buffer.hpp>
+#include <ie_ngraph_utils.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include <algorithm>
 
@@ -364,9 +366,76 @@ void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingSc
 }
 
 auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                  const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log) {
+                  const std::vector<vpux::PreProcessInfo>& preprocessInfo,
+                  const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                  const std::vector<std::shared_ptr<const ov::Node>>& results, Logger log) {
     auto exportTiming = rootTiming.nest("Export to blob");
-    return VPUIP::exportToBlob(module, exportTiming, preprocessInfo, log);
+    return VPUIP::exportToBlob(module, exportTiming, preprocessInfo, parameters, results, log);
+}
+
+bool isIR10(const ov::Model& model) {
+    const auto& rtInfo = model.get_rt_info();
+    const auto it = rtInfo.find("version");
+    if (it != rtInfo.end()) {
+        const int64_t irVersion = it->second.as<int64_t>();
+        return irVersion == 10;
+    }
+    return false;
+}
+
+std::vector<std::shared_ptr<const ov::Node>> buildOVParams(const std::shared_ptr<ov::Model>& model,
+                                                           const InputsDataMap& inputsInfo) {
+    std::vector<std::shared_ptr<const ov::Node>> constParams;
+    VPUX_THROW_WHEN(model == nullptr, "Null OV model");
+
+    // Here we decide whether we need to add operation_names as tensor names for
+    // getInputs / getOutputs. Since these functions are designed to be used in new API only
+    // always need to add operation names for IR v10
+    const auto addOpNames = isIR10(*model);
+
+    for (const auto& param : model->get_parameters()) {
+        auto newParam = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
+        newParam->set_friendly_name(param->get_friendly_name());
+        if (addOpNames)
+            newParam->output(0).get_tensor().add_names({newParam->get_friendly_name()});
+        // WA: use CNNNetwork's precisions since plugins sometimes override their precisions
+        // after transformation pipeline is run
+        newParam->set_element_type(InferenceEngine::details::convertPrecision(
+                inputsInfo.at(newParam->get_friendly_name())->getPrecision()));
+        newParam->validate_and_infer_types();
+        constParams.emplace_back(newParam);
+    }
+
+    return constParams;
+}
+
+std::vector<std::shared_ptr<const ov::Node>> buildOVResults(const std::shared_ptr<ov::Model>& model,
+                                                            const OutputsDataMap& outputsInfo) {
+    std::vector<std::shared_ptr<const ov::Node>> constResults;
+    VPUX_THROW_WHEN(model == nullptr, "Null OV model");
+
+    // Here we decide whether we need to add operation_names as tensor names for
+    // getInputs / getOutputs. Since these functions are designed to be used in new API only
+    // always need to add operation names for IR v10
+    const auto addOpNames = isIR10(*model);
+
+    for (const auto& result : model->get_results()) {
+        auto fakeParam = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
+                                                                 result->get_output_partial_shape(0));
+        const std::string paramName = ngraph::op::util::create_ie_output_name(result->input_value(0));
+        fakeParam->set_friendly_name(paramName);
+        fakeParam->set_element_type(
+                InferenceEngine::details::convertPrecision(outputsInfo.at(paramName)->getPrecision()));
+        fakeParam->validate_and_infer_types();
+        auto newResult = result->copy_with_new_inputs({fakeParam});
+        newResult->set_friendly_name(result->get_friendly_name());
+        if (addOpNames) {
+            newResult->output(0).get_tensor().add_names({fakeParam->get_friendly_name()});
+        }
+        constResults.emplace_back(newResult);
+    }
+
+    return constResults;
 }
 
 }  // namespace
@@ -399,7 +468,8 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     std::vector<vpux::PreProcessInfo> preProcInfo;
     const auto module = importNetwork(&ctx, cnnNet, devConf, preProcInfo, rootTiming, config.get<PERF_COUNT>(), log);
     compileNetwork(module.get(), pm, rootTiming);
-    const auto blob = exportToBlob(module.get(), rootTiming, preProcInfo, log);
+    const auto blob = exportToBlob(module.get(), rootTiming, preProcInfo, buildOVParams(func, inputsInfo),
+                                   buildOVResults(func, outputsInfo), log);
 
     auto finalTiming = rootTiming.nest("Wrap into NetworkDescription");
     std::vector<char> compiledNetwork(blob.size());

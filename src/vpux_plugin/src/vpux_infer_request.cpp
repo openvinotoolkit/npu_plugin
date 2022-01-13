@@ -73,6 +73,8 @@ static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc,
 //------------------------------------------------------------------------------
 InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
                            const Executor::Ptr& executor, const Config& config, const std::string& netName,
+                           const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                           const std::vector<std::shared_ptr<const ov::Node>>& results,
                            const std::shared_ptr<InferenceEngine::IAllocator>& allocator)
         : IInferRequestInternal(networkInputs, networkOutputs),
           _executorPtr(executor),
@@ -87,6 +89,8 @@ InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::Out
     if (_networkOutputs.empty() || _networkInputs.empty()) {
         IE_THROW() << "No information about network's output/input.";
     }
+    _parameters = parameters;
+    _results = results;
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;

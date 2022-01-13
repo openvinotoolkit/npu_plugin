@@ -21,6 +21,27 @@ using namespace vpux;
 
 // Serialization utils
 
+const EnumMap<ov::element::Type_t, MVCNN::OVNodeType> VPUIP::mapElementType = {
+        {ov::element::Type_t::undefined, MVCNN::OVNodeType::OVNodeType_UNDEFINED},
+        {ov::element::Type_t::dynamic, MVCNN::OVNodeType::OVNodeType_DYNAMIC},
+        {ov::element::Type_t::boolean, MVCNN::OVNodeType::OVNodeType_BOOLEAN},
+        {ov::element::Type_t::bf16, MVCNN::OVNodeType::OVNodeType_BF16},
+        {ov::element::Type_t::f16, MVCNN::OVNodeType::OVNodeType_F16},
+        {ov::element::Type_t::f32, MVCNN::OVNodeType::OVNodeType_F32},
+        {ov::element::Type_t::f64, MVCNN::OVNodeType::OVNodeType_F64},
+        {ov::element::Type_t::i4, MVCNN::OVNodeType::OVNodeType_I4},
+        {ov::element::Type_t::i8, MVCNN::OVNodeType::OVNodeType_I8},
+        {ov::element::Type_t::i16, MVCNN::OVNodeType::OVNodeType_I16},
+        {ov::element::Type_t::i32, MVCNN::OVNodeType::OVNodeType_I32},
+        {ov::element::Type_t::i64, MVCNN::OVNodeType::OVNodeType_I64},
+        {ov::element::Type_t::u1, MVCNN::OVNodeType::OVNodeType_U1},
+        {ov::element::Type_t::u4, MVCNN::OVNodeType::OVNodeType_U4},
+        {ov::element::Type_t::u8, MVCNN::OVNodeType::OVNodeType_U8},
+        {ov::element::Type_t::u16, MVCNN::OVNodeType::OVNodeType_U16},
+        {ov::element::Type_t::u32, MVCNN::OVNodeType::OVNodeType_U32},
+        {ov::element::Type_t::u64, MVCNN::OVNodeType::OVNodeType_U64},
+};
+
 const EnumMap<vpux::PreProcessColorSpace, MVCNN::PreProcessColorSpace> vpux::VPUIP::mapPreProcessColorFormat = {
         {vpux::PreProcessColorSpace::BGR, MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR},
         {vpux::PreProcessColorSpace::RGB, MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB},
