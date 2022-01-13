@@ -21,11 +21,6 @@
 
 using namespace mv::tensor;
 
-//#ifdef CONFIG_TARGET_SOC_3720
-//extern unsigned char actShaveData[];
-//extern unsigned int actShaveDataReserved;
-//#endif
-
 CustomCpp::~CustomCpp() = default;
 using namespace nn;
 using namespace nn::shave_lib;
@@ -33,8 +28,6 @@ using namespace nn::shave_lib;
 #include "ShaveElfMetadata/ShaveElfMetadataParser.h"
 #ifdef CONFIG_TARGET_SOC_3720
 #include <sw_nn_runtime_types_3600.h>
-//extern void*  (shvNN0_preCustomLayerCpp);
-//extern void*  (shvNN0_custom_cpp);
 #include <dma_shave_nn.h>
 void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr);
 #else
@@ -87,13 +80,11 @@ bool CustomCpp::parse(Layer * layer) {
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->inputsOffset);
     for (unsigned i = 0; i < inputVec.size(); i++) {
         inTensors[i] = inputVec[i].toMemRefData(inputLocations[i], true);
-//        inTensors[i].location = inputLocations[i];
     }
     sw_params::MemRefData* outTensors =
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->outputsOffset);
     for (unsigned i = 0; i < outputVec.size(); i++) {
         outTensors[i] = outputVec[i].toMemRefData(outputLocations[i], false);
-//        outTensors[i].location = outputLocations[i];
     }
 
     const uint8_t *elf = reinterpret_cast<const uint8_t *>(kernelData.data());
@@ -152,18 +143,10 @@ bool CustomCpp::parse(Layer * layer) {
     layer->setParams(id,
                      static_cast<LayerParams *>(params));
 
-#ifdef CONFIG_TARGET_SOC_3720
-// TODO:  just call preamble here
-//    layer->setPreamble(reinterpret_cast<preamble>(&shvNN0_preCustomLayerCpp));
-//    layer->setKernelEntry(reinterpret_cast<void (*)(void*)>(&shvNN0_custom_cpp));
-#else
+#ifdef CONFIG_TARGET_SOC_MA2490
     layer->setPreamble(PREAMBLE_FUNC(preCustomLayerCpp));
 //    layer->setKernelEntry(KERNEL_FUNC(custom_cpp));
 #endif
-//        convParams->layerRequiresCacheFlushOnCompletion = true;
-//        layer->requireCacheFlushOnCompletion();
-//    layer->setExecCleanup(PREAMBLE_FUNC(execCleanupCustomLayerCpp));
-//    layer->setLayerCleanup(&layerCleanupCustomCppLayer);
 
     return true;
 }
@@ -198,7 +181,7 @@ void CustomCpp::run(mv::tensor::Processor& ,
     for (unsigned i = 0; i < outputVec.size(); i++) {
         if (outTensors[i].location == sw_params::Location::NN_CMX || outTensors[i].location == sw_params::Location::UPA_CMX) {
             DmaAlShave dmaTask;
-            auto totalBytes = outputVec[i].dims[outputVec[i].ndims - 1] * outputVec[i].strides[outputVec[i].ndims - 1];
+            auto totalBytes = (outputVec[i].ndims > 0) ? outputVec[i].dims[outputVec[i].ndims - 1] * outputVec[i].strides[outputVec[i].ndims - 1] : 0;
             dmaTask.start(reinterpret_cast<uint8_t*>(outTensors[i].dataAddr), reinterpret_cast<uint8_t*>(outputVec[i].addr),
                     totalBytes);
             dmaTask.wait();

@@ -27,8 +27,6 @@ StaticMapping::StaticMapping(NNCmxMemoryMap *cmx)
 
 RuntimeMapping::RuntimeMapping()
     : dma_()
-//    , inv_()
-//    , var_()
     , akr_()
     , aki_()
     , config_(0)
@@ -36,8 +34,6 @@ RuntimeMapping::RuntimeMapping()
 
 RuntimeMapping::RuntimeMapping(const StaticMapping &global, ClusterMapper::Config config)
     : dma_()
-//    , inv_()
-//    , var_()
     , akr_()
     , aki_()
     , config_(config)
@@ -58,8 +54,6 @@ RuntimeMapping::RuntimeMapping(const StaticMapping &global, ClusterMapper::Confi
         // FIXME: Why is storage allocation so lopsided in the 2 tile case? i.e. vars_size >> inv_size
 
         if (second > 0) {
-//            inv_ = InvariantLocator(global.metadataStorage_[static_cast<unsigned int>(first)].addr32(),
-//                                    INVARIANT_COUNT * sizeof(backend::DPUInvariantWrapper));
             akr_ = AKRangeLocator(global.metadataStorage_[static_cast<unsigned int>(first)].addr32(),
                                   KERNAL_RANGE_COUNT * sizeof(backend::ActKernelRangeWrapper));
 
@@ -69,8 +63,6 @@ RuntimeMapping::RuntimeMapping(const StaticMapping &global, ClusterMapper::Confi
                 nnLog(MVLOG_ERROR, "Metadata storage exceeded for first tile");
             }
 
-//            var_ = VariantLocator(global.metadataStorage_[static_cast<unsigned int>(second)].addr32(),
-//                                  VARIANT_COUNT * sizeof(backend::DPUVariantWrapper));
             aki_ = AKInvocationLocator(global.metadataStorage_[static_cast<unsigned int>(second)].addr32(),
                                        KERNAL_INVO_COUNT * sizeof(backend::ActKernelInvocationWrapper));
 
@@ -81,12 +73,9 @@ RuntimeMapping::RuntimeMapping(const StaticMapping &global, ClusterMapper::Confi
             }
 
         } else {
-//            inv_ = InvariantLocator(global.metadataStorage_[static_cast<unsigned int>(first)].addr32(),
-//                                    INVARIANT_COUNT * sizeof(backend::DPUInvariantWrapper));
             akr_ = AKRangeLocator(global.metadataStorage_[static_cast<unsigned int>(first)].addr32(),
                                   KERNAL_RANGE_COUNT * sizeof(backend::ActKernelRangeWrapper));
 
-//            var_ = VariantLocator(akr_.tasks() + akr_.count(), VARIANT_COUNT * sizeof(backend::DPUVariantWrapper));
             aki_ = AKInvocationLocator(akr_.tasks() + akr_.count(),
                                        KERNAL_INVO_COUNT * sizeof(backend::ActKernelInvocationWrapper));
 

@@ -14,8 +14,6 @@
 
 #include <nn_perf_measurement.h>
 
-//typedef nn::TensorRefNDData BufferData;
-
 using namespace nn::shave_lib;
 
 struct MvNCIExecutor;

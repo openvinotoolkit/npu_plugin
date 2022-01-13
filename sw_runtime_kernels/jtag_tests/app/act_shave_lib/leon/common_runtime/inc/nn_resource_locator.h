@@ -5,7 +5,7 @@
 
 #include <nn_inference_runtime_types.h>
 #include <nn_cmx_memory_map.h>
-#include <nn_relocation.h>
+#include <nn_relocation_3720.h>
 #include <nn_hw_resources.h>
 #include <nn_math.h>
 #include <array>
@@ -47,8 +47,6 @@ private:
 };
 
 typedef TaskLocator<backend::DMATask> DMALocator;
-//typedef TaskLocator<backend::DPUInvariantWrapper> InvariantLocator;
-//typedef TaskLocator<backend::DPUVariantWrapper> VariantLocator;
 typedef TaskLocator<backend::ActKernelRangeWrapper> AKRangeLocator;
 typedef TaskLocator<backend::ActKernelInvocationWrapper> AKInvocationLocator;
 
@@ -69,8 +67,6 @@ struct RuntimeMapping {
     RuntimeMapping(const StaticMapping &global, ClusterMapper::Config config);
 
     std::array<DMALocator, MAX_DMA_ENGINES> dma_;
-//    InvariantLocator inv_;
-//    VariantLocator var_;
     AKRangeLocator akr_;
     AKInvocationLocator aki_;
 

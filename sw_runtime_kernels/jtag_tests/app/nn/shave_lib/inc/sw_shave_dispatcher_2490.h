@@ -11,8 +11,6 @@
 #include "sw_layer.h"
 #include "upa_layer_runner.h"
 
-#include <nn_ipc.h>
-#include <nn_ipc_config.h>
 #include <nn_message_queue.h>
 #include <nn_semaphore.h>
 #include <nn_thread.h>
