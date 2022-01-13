@@ -67,7 +67,7 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
             //            std::cout << llvm::formatv("\tfail at 2-1 at {0}, {1}", siblingOp->getLoc(),
             //            siblingOp->getName()).str()
             //                      << std::endl;
-            return false;
+            continue;
         }
 
         // Check 3: current op's consumer is copied to DDR immediately after execution
