@@ -42,6 +42,7 @@ from pathlib import Path
 import re
 import sys
 import traceback
+import warnings
 from typing import Callable, List, Optional, Sequence, Union
 
 
@@ -554,13 +555,7 @@ class BF16(TType):
 def idu(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
     """Models the hardware IDU"""
     if input.is_float or weights.is_float:
-        if(input.data.dtype == weights.data.dtype) :
-            return input.data, weights.data
-        if(not input.is_float) :
-           return input.data.astype(weights.data.dtype), weights.data
-        if(not weights.is_float) :
-           return input.data, weights.data.astype(input.data.dtype)
-        return input.data.astype(np.float16), weights.data.astype(np.float16)
+        return input.data.astype(np.float32), weights.data.astype(np.float32)
 
     def to_qint32(value: Value) -> Union[np.ndarray, NBQuantized]:
         return NBQuantized(value=value.data.astype(np.int32), scale=value.scale, zero_point=value.zero,
@@ -568,6 +563,29 @@ def idu(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
 
     return to_qint32(input), to_qint32(weights)
 
+def iduConvCustom(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
+    """Custom Model the hardware IDU that feet the NumericBench requirements for convolution operation"""
+    if (input.data.dtype == np.float32) or (weights.data.dtype == np.float32) :
+        raise Error(f'NumericBench\'s convolution operation doesn\'t support float32 datatype for inputs/weights')
+
+    def to_qint32(value: Value) -> Union[np.ndarray, NBQuantized]:
+        return NBQuantized(value=value.data.astype(np.int32), scale=value.scale, zero_point=value.zero,
+                           platform=PlatformVPU26(), quantization_info=QuantizationInfo(value.ttype.qtype))
+    if not input.is_float and not weights.is_float :
+        return to_qint32(input), to_qint32(weights)
+
+    if input.data.dtype == weights.data.dtype :
+        return input.data, weights.data
+
+    # NumericBench requires activations and weights types are equal meanwhile MTL hardware supports different data types
+    if (input.data.dtype == bfloat16) or (weights.data.dtype == bfloat16) :
+        raise Error(f'bfloat16 activations compatible with bfloat16 weights only')
+    # Possible accuracy loss with conversion from int16/int32 -> fp16
+    if not input.is_float and input.bitsize >= 16 :
+        warnings.warn(f'Possible accuracy loss during conversion from {input.data.dtype} -> {np.float16}')
+    if not weights.is_float and weights.bitsize >= 16 :
+        warnings.warn(f'Possible accuracy loss during conversion from {weights.data.dtype} -> {np.float16}')
+    return input.data.astype(np.float16), weights.data.astype(np.float16)
 
 class MPE(ABC):
     """Abstract base class for MPE operations."""
@@ -676,7 +694,7 @@ class ZMajorConvolution(MPE):
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
-        lhs, rhs = idu(values[0], values[1])
+        lhs, rhs = iduConvCustom(values[0], values[1])
         c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides)
@@ -742,7 +760,7 @@ class DepthWiseConv(MPE):
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
-        lhs, rhs = idu(values[0], values[1])
+        lhs, rhs = iduConvCustom(values[0], values[1])
         c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides,
