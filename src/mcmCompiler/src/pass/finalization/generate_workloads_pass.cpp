@@ -552,4 +552,3 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
 }
-

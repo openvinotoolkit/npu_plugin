@@ -241,7 +241,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.get<MCM_REMOVE_PERMUTE_NOOP>());
 
         /* Enable channel major conv by default, may be overridden in compilation descriptor (ie for MTL platform) */
-        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv", true);
+        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv", false);
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "DeviceRevision",
                                std::string(MVCNN::EnumNameTargetDeviceRevision(getDeviceRevision(config.get<PLATFORM>()))));
