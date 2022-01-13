@@ -3,7 +3,7 @@
  */
 #if defined(__leon__) || defined(__leon_nn__)
 
-#include "nn_relocation.h"
+#include "nn_relocation_3720.h"
 #include "nn_hw_resources.h"
 #include <nn_log.h>
 #include <assert.h>

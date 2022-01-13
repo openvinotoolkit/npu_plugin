@@ -20,8 +20,8 @@
 
 #include <stdint.h>
 #include <assert.h>
-#include <nn_relocation.h>
 #ifdef CONFIG_TARGET_SOC_3720
+#include <nn_relocation_3720.h>
 #include <nn_hw_resources.h>
 #include <nn_runtime_configs.h>
 #else

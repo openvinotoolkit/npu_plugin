@@ -5,7 +5,7 @@
 
 #include <nn_inference_runtime_types.h>
 #include <nn_cmx_memory_map.h>
-#include <nn_relocation.h>
+#include <nn_relocation_3720.h>
 #include <nn_hw_resources.h>
 #include <nn_math.h>
 #include <array>

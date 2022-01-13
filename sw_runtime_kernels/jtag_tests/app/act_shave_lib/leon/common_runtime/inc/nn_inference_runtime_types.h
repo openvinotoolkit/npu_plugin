@@ -4,7 +4,7 @@
 
 #include <nn_runtime_types.h>
 #include <nn_runtime_configs.h>
-#include <nn_relocation.h>
+#include <nn_relocation_3720.h>
 #include <nn_memory.h>
 #include <nn_memory_alloc.h>
 #include <array>

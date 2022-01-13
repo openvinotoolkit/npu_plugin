@@ -8,7 +8,7 @@ void * sk_nnActEntry_3010xx_text_ref = (void*)sk_nnActEntry_3010xx_text;
 //extern void*  (shvNN0_act_shave_runtime_shaveMain);
 //extern void const *shvNN0_nnActEntry;
 
-
+//#include <nn_relocation_3720.h>
 #include <sw_nn_runtime_types.h>
 #include <sw_shave_lib_common.h>
 #include <HglShaveCommon.h>
