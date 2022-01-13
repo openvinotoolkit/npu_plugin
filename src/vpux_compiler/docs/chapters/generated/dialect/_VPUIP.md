@@ -1834,7 +1834,7 @@ operation ::= `VPUIP.ReduceUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`keep_dims` | ::mlir::BoolAttr | bool attribute
+`keep_dims` | ::mlir::UnitAttr | unit attribute
 `type` | vpux::VPUIP::ReduceLayerTypeAttr | Type of Reduce layer
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 
@@ -1842,15 +1842,15 @@ operation ::= `VPUIP.ReduceUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float values
+`input` | memref of 16-bit float or 32-bit signed integer values
 `axes` | memref of 32-bit signed integer values
-`output_buff` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float values
+`output` | memref of 16-bit float or 32-bit signed integer values
 
 ### `VPUIP.RegionYoloUPA` (vpux::VPUIP::RegionYoloUPAOp)
 

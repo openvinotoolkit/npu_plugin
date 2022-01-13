@@ -1310,7 +1310,29 @@ def IE_ReduceMaxOp :
         AnyRankedTensor:$input,
         1DTensorOf<[AnyInteger]>:$axes,
 
-        BoolAttr:$keep_dims
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ReduceMeanOp
+//
+
+def IE_ReduceMeanOp :
+        IE_LayerOp<
+            "ReduceMean"
+        > {
+    let summary = "InferenceEngine ReduceMean Layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$axes,
+
+        UnitAttr:$keep_dims
     );
 
     let results = (outs
@@ -1332,7 +1354,7 @@ def IE_ReduceSumOp :
         AnyRankedTensor:$input,
         1DTensorOf<[AnyInteger]>:$axes,
 
-        BoolAttr:$keep_dims
+        UnitAttr:$keep_dims
     );
 
     let results = (outs

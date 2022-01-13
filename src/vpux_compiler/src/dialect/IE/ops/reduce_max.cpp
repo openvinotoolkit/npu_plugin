@@ -13,8 +13,8 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -33,28 +33,9 @@ mlir::LogicalResult vpux::IE::ReduceMaxOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = reduceMax.input().getType().cast<mlir::ShapedType>();
-    const auto inShape = reduceMax.input().getType().cast<mlir::ShapedType>().getShape();
-    const auto keep_dims = reduceMax.keep_dims().getValue();
+    const auto input = reduceMax.input();
+    const auto keepDims = reduceMax.keep_dims() != nullptr;
     auto axes = IE::constInputToData(loc, reduceMax.axes()).getValue();
-    SmallVector<int64_t> outShape;
 
-    std::sort(axes.begin(), axes.end());
-    bool isAllUnique = std::unique(axes.begin(), axes.end()) == axes.end();
-    if (!isAllUnique) {
-        return errorAt(loc, "Axes values should be unique");
-    }
-
-    // Add to outShape the values with indices not found in axes_set.
-    for (size_t i = 0; i < inShape.size(); i++) {
-        if (std::find(axes.begin(), axes.end(), i) == axes.end()) {
-            outShape.push_back(inShape[i]);
-        } else if (keep_dims) {
-            outShape.push_back(1);
-        }
-    }
-
-    inferredReturnShapes.emplace_back(outShape, inType.getElementType());
-
-    return mlir::success();
+    return IE::inferReduceReturnTypeComponents(loc, input, keepDims, axes, inferredReturnShapes);
 }

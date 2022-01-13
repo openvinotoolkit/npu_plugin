@@ -15,15 +15,14 @@ namespace LayerTestsDefinitions {
         void SkipBeforeLoad() override {
             const auto testName =
                     std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
-            const auto skipMCM = testName.find("smoke_Reduce_from_networks_SKIP_MCM") != std::string::npos;
-            if(skipMCM && isCompilerMCM()) {
+            const auto skipMCM = testName.find("SKIP_MCM") != std::string::npos;
+            if (isCompilerMCM() && skipMCM) {
                 throw LayerTestsUtils::KmbSkipTestException("Skip load for MCM");
             }
         }
         void SkipBeforeValidate() override {
             const auto testName =
                     std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
-
             const auto skipMCM = testName.find("SKIP_MCM") != std::string::npos;
             if (isCompilerMCM() && skipMCM) {
                 throw LayerTestsUtils::KmbSkipTestException("Skip validate for MCM");
@@ -113,7 +112,6 @@ namespace {
             {0, 1, 3},
             {0, 2, 3},
             {1, 2, 3},
-            {0, 1, 2, 3},
             {1, -1}
     };
 
@@ -132,12 +130,22 @@ namespace {
             ngraph::helpers::ReductionType::LogicalAnd,
     };
 
+    const std::vector<InferenceEngine::Layout> layouts3D = {
+			InferenceEngine::Layout::CHW,
+			InferenceEngine::Layout::HWC,
+    };
+
+    const std::vector<InferenceEngine::Layout> layouts4D = {
+			InferenceEngine::Layout::NCHW,
+			InferenceEngine::Layout::NHWC,
+    };
+
     // [Track number: S#43428]
     INSTANTIATE_TEST_SUITE_P(
             DISABLED_smoke_ReduceOneAxis,
             KmbReduceOpsLayerTest,
             testing::Combine(
-                testing::Values(std::vector<int>{0}),
+                testing::ValuesIn(decltype(axes) {{0}}),
                 testing::ValuesIn(opTypes),
                 testing::Values(true, false),
                 testing::ValuesIn(reductionTypes),
@@ -151,14 +159,12 @@ namespace {
             KmbReduceOpsLayerTest::getTestCaseName
     );
 
-    // [Track number: S#43428]
-    // ReduceSum is not supported, replacement pass does not match.
     INSTANTIATE_TEST_SUITE_P(
-            DISABLED_smoke_Reduce_Precisions,
+            smoke_Reduce_Precisions_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
-                testing::Values(std::vector<int>{1, 3}),
-                testing::Values(opTypes[1]),
+                testing::ValuesIn(decltype(axes) {{1, 3}}),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::ValuesIn(keepDims),
                 testing::Values(ngraph::helpers::ReductionType::Sum),
                 testing::ValuesIn(netPrecisions),
@@ -171,12 +177,12 @@ namespace {
     );
 
     INSTANTIATE_TEST_SUITE_P(
-        smoke_ReduceSum,
-        KmbReduceOpsLayerWithSpecificInputTest,
-        testing::Combine(
+            smoke_ReduceSum,
+            KmbReduceOpsLayerWithSpecificInputTest,
+            testing::Combine(
                 testing::ValuesIn(decltype(axes) {{0}}),
-                testing::Values(opTypes[1]),
-                testing::Values(true),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(true, false),
                 testing::Values(ngraph::helpers::ReductionType::Sum),
                 testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -184,7 +190,7 @@ namespace {
                 testing::Values(InferenceEngine::Layout::ANY),
                 testing::Values(std::vector<size_t> {1, 512, 7, 7}),
                 testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-        KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
+            KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
     );
 
     INSTANTIATE_TEST_CASE_P(
@@ -192,7 +198,7 @@ namespace {
         KmbReduceOpsLayerWithSpecificInputTest,
         testing::Combine(
                 testing::ValuesIn(decltype(axes) {{0}}),
-                testing::Values(opTypes[1]),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::Values(true, false),
                 testing::Values(ngraph::helpers::ReductionType::Max),
                 testing::ValuesIn(netPrecisions),
@@ -204,23 +210,78 @@ namespace {
         KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
     );
 
+    // [Track number: E#22733]
+    INSTANTIATE_TEST_SUITE_P(
+            DISABLED_smoke_ReduceMean3D,
+            KmbReduceOpsLayerWithSpecificInputTest,
+            testing::Combine(
+                testing::ValuesIn(decltype(axes) {{0}}),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(true),
+                testing::Values(ngraph::helpers::ReductionType::Mean),
+                testing::ValuesIn(netPrecisions),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::ValuesIn(layouts3D),
+                testing::Values(std::vector<size_t> {512, 7, 7}),
+                testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+            KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
+    );
+
+    INSTANTIATE_TEST_SUITE_P(
+            smoke_ReduceMean4D,
+            KmbReduceOpsLayerWithSpecificInputTest,
+            testing::Combine(
+                testing::ValuesIn(decltype(axes) {{0}}),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(true),
+                testing::Values(ngraph::helpers::ReductionType::Mean),
+                testing::ValuesIn(netPrecisions),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::ValuesIn(layouts4D),
+                testing::Values(std::vector<size_t> {1, 512, 7, 7}),
+                testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+            KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
+    );
+
     // Test hangs on x86 when executes test-case
     // smoke_Reduce_Axes/KmbReduceOpsLayerTest.CompareWithRefs/IS=(10.20.30.40)_axes=(1)_opType=VECTOR_
     // type=Mean_KeepDims_netPRC=FP32_inPRC=UNSPECIFIED_outPRC=UNSPECIFIED_inL=ANY_trgDev=KMB
     // [Track number: S#43428]
     INSTANTIATE_TEST_SUITE_P(
-            DISABLED_smoke_Reduce_Axes,
+            smoke_Reduce_Axes_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
                 testing::ValuesIn(axes),
-                testing::Values(opTypes[1]),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::ValuesIn(keepDims),
                 testing::Values(ngraph::helpers::ReductionType::Mean),
                 testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
-                testing::ValuesIn(inputShapes),
+                testing::Values(std::vector<size_t>{2, 2, 2, 2}),
+                testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+            ),
+            KmbReduceOpsLayerTest::getTestCaseName
+    );
+
+    // [Track number: E#22737]
+    // Full Reduce currently only works with keepDims=true, since SCALAR output is not supported
+    INSTANTIATE_TEST_SUITE_P(
+            smoke_Reduce_Axes_Full_SKIP_MCM,
+            KmbReduceOpsLayerTest,
+            testing::Combine(
+                testing::ValuesIn(decltype(axes) {{0, 1, 2, 3}}),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(true),
+                testing::Values(ngraph::helpers::ReductionType::Mean),
+                testing::ValuesIn(netPrecisions),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Layout::ANY),
+                testing::Values(std::vector<size_t>{2, 2, 2, 2}),
                 testing::Values(LayerTestsUtils::testPlatformTargetDevice)
             ),
             KmbReduceOpsLayerTest::getTestCaseName
@@ -233,7 +294,7 @@ namespace {
             KmbReduceOpsLayerTest,
             testing::Combine(
                 testing::ValuesIn(decltype(axes) {{0}, {1}}),
-                testing::Values(opTypes[1]),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::Values(true, false),
                 testing::Values(ngraph::helpers::ReductionType::Mean,
                                 ngraph::helpers::ReductionType::Max),
@@ -253,9 +314,10 @@ namespace {
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::ValuesIn(decltype(axes) { {2, 3} }),
-                    testing::Values(opTypes[1]),
+                    testing::Values(CommonTestUtils::OpType::VECTOR),
                     testing::Values(true, false),
-                    testing::Values(ngraph::helpers::ReductionType::Mean),
+                    testing::Values(ngraph::helpers::ReductionType::Mean,
+                                    ngraph::helpers::ReductionType::Max),
                     testing::ValuesIn(netPrecisions),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -271,11 +333,33 @@ namespace {
     );
 
     INSTANTIATE_TEST_SUITE_P(
-            DISABLED_smoke_Reduce_from_networks,
+            smoke_Reduce_Sum_from_networks_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::ValuesIn(decltype(axes) { {2, 3} }),
-                    testing::Values(opTypes[1]),
+                    testing::Values(CommonTestUtils::OpType::VECTOR),
+                    testing::Values(true, false),
+                    testing::Values(ngraph::helpers::ReductionType::Sum),
+                    testing::ValuesIn(netPrecisions),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Layout::ANY),
+                    testing::Values(
+                        std::vector<size_t> {1, 512, 7, 7},     // resnet_18
+                        std::vector<size_t> {1, 2048, 7, 7},    // resnet_50
+                        std::vector<size_t> {1, 1280, 7, 7},    // mobilenet_v2
+                        std::vector<size_t> {1, 1664, 7, 7}     // densenet
+                    ),
+                    testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+            KmbReduceOpsLayerTest::getTestCaseName
+    );
+
+    INSTANTIATE_TEST_SUITE_P(
+            smoke_Reduce_from_networks_SKIP_MCM,
+            KmbReduceOpsLayerTest,
+            testing::Combine(
+                    testing::ValuesIn(decltype(axes) { {2, 3} }),
+                    testing::Values(CommonTestUtils::OpType::VECTOR),
                     testing::Values(true, false),
                     testing::Values(ngraph::helpers::ReductionType::Mean),
                     testing::ValuesIn(netPrecisions),

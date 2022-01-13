@@ -19,7 +19,7 @@
 using namespace vpux;
 
 void vpux::VPUIP::ReduceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                     mlir::Value axes, mlir::Value output, mlir::BoolAttr keep_dims,
+                                     mlir::Value axes, mlir::Value output, mlir::UnitAttr keep_dims,
                                      VPUIP::ReduceLayerTypeAttr type) {
     build(builder, state, input, axes, output, keep_dims, type, nullptr);
 }
@@ -30,6 +30,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceUPAOp::serialize(VPUIP::BlobW
     switch (this->type()) {
     case VPUIP::ReduceLayerType::MAX:
         type = writer.createString("max");
+        break;
+    case VPUIP::ReduceLayerType::MEAN:
+        type = writer.createString("mean");
         break;
     case VPUIP::ReduceLayerType::SUM:
         type = writer.createString("sum");
@@ -57,13 +60,15 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseReduce(mlir::OpBuilder& builder, 
     VPUIP::ReduceLayerType type;
     if (typeStr == std::string("max")) {
         type = VPUIP::ReduceLayerType::MAX;
+    } else if (typeStr == std::string("mean")) {
+        type = VPUIP::ReduceLayerType::MEAN;
     } else if (typeStr == std::string("sum")) {
         type = VPUIP::ReduceLayerType::SUM;
     } else {
         VPUX_THROW("Unsupported ReduceLayerType {0}", typeStr);
     }
 
-    const auto keep_dims = mlir::BoolAttr::get(_ctx, params->keep_dims());
+    const auto keep_dims = params->keep_dims() ? mlir::UnitAttr::get(_ctx) : nullptr;
 
     return builder.create<VPUIP::ReduceUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0], keep_dims,
                                               VPUIP::ReduceLayerTypeAttr::get(_ctx, type));

@@ -11,49 +11,35 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
 
-#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
-
-using namespace vpux;
-
-mlir::LogicalResult vpux::IE::ReduceSumOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+mlir::LogicalResult vpux::IE::inferReduceReturnTypeComponents(
+        mlir::Location loc, mlir::Value input, bool keepDims, SmallVector<int64_t>& axes,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto inType = input.getType().cast<mlir::ShapedType>();
+    const auto inShape = inType.getShape();
+    const auto inRank = inType.getRank();
 
-    IE::ReduceSumOpAdaptor reduceSum(operands, attrs);
-    if (mlir::failed(reduceSum.verify(loc))) {
-        return mlir::failure();
+    for (auto& axis : axes) {
+        if (axis < 0) {
+            axis += inRank;
+        }
     }
 
-    const auto inType = reduceSum.input().getType().cast<mlir::ShapedType>();
-    const auto inShape = reduceSum.input().getType().cast<mlir::ShapedType>().getShape();
-    const auto keep_dims = reduceSum.keep_dims().getValue();
-    auto axes = IE::constInputToData(loc, reduceSum.axes()).getValue();
-    SmallVector<int64_t> outShape;
-
-    std::sort(axes.begin(), axes.end());
     bool isAllUnique = std::unique(axes.begin(), axes.end()) == axes.end();
     if (!isAllUnique) {
         return errorAt(loc, "Axes values should be unique");
     }
 
     // Add to outShape the values with indices not found in axes_set.
+    SmallVector<int64_t> outShape;
     for (size_t i = 0; i < inShape.size(); i++) {
         if (std::find(axes.begin(), axes.end(), i) == axes.end()) {
             outShape.push_back(inShape[i]);
-        } else if (keep_dims) {
+        } else if (keepDims) {
             outShape.push_back(1);
         }
     }
-
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
 
     return mlir::success();

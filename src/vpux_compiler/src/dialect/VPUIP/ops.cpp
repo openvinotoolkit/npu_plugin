@@ -451,6 +451,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::GRNOp, OpModelForSW<VPUIP::GRNUPAOp>>();
     registry.addOpInterface<IE::LRN_IEOp, OpModelForSW<VPUIP::NormUPAOp>>();
     registry.addOpInterface<IE::ReduceMaxOp, OpModelForSW<VPUIP::ReduceUPAOp>>();
+    registry.addOpInterface<IE::ReduceMeanOp, OpModelForSW<VPUIP::ReduceUPAOp>>();
     registry.addOpInterface<IE::ReduceSumOp, OpModelForSW<VPUIP::ReduceUPAOp>>();
     registry.addOpInterface<IE::TileOp, OpModelForSW<VPUIP::PerAxisTileUPAOp>>();
     registry.addOpInterface<IE::PerAxisTileOp, OpModelForSW<VPUIP::PerAxisTileUPAOp>>();
@@ -547,6 +548,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::GRNOp, OpModelForSW>();
     registry.addOpInterface<IERT::LRN_IEOp, OpModelForSW>();
     registry.addOpInterface<IERT::ReduceMaxOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ReduceMeanOp, OpModelForSW>();
     registry.addOpInterface<IERT::ReduceSumOp, OpModelForSW>();
     registry.addOpInterface<IERT::TileOp, OpModelForSW>();
     registry.addOpInterface<IERT::PerAxisTileOp, OpModelForSW>();

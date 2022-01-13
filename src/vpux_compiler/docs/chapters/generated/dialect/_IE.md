@@ -2365,7 +2365,38 @@ operation ::= `IE.ReduceMax` `(` operands `)` attr-dict `:` type(operands) `->` 
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`keep_dims` | ::mlir::BoolAttr | bool attribute
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `IE.ReduceMean` (vpux::IE::ReduceMeanOp)
+
+InferenceEngine ReduceMean Layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReduceMean` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
 
@@ -2396,7 +2427,7 @@ operation ::= `IE.ReduceSum` `(` operands `)` attr-dict `:` type(operands) `->` 
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`keep_dims` | ::mlir::BoolAttr | bool attribute
+`keep_dims` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
 

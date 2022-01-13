@@ -1610,26 +1610,25 @@ def VPUIP_ReduceUPAOp :
     let summary = "Reduce UPA SHAVE kernel";
 
     let arguments = (ins
-        F16MemRef:$input,
+        MemRefOf<[F16, SI32]>:$input,
         MemRefOf<[SI32]>:$axes,
+        MemRefOf<[F16, SI32]>:$output_buff,
 
-        F16MemRef:$output_buff,
-
-        BoolAttr:$keep_dims,
+        UnitAttr:$keep_dims,
         VPUIP_ReduceLayerType:$type,
 
         OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
-        F16MemRef:$output
+        MemRefOf<[F16, SI32]>:$output
     );
 
     let builders = [
         OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$axes,
-                "mlir::Value":$output, "mlir::BoolAttr":$keep_dims,
+                "mlir::Value":$output, "mlir::UnitAttr":$keep_dims,
                 "VPUIP::ReduceLayerTypeAttr":$type
             )
         >
