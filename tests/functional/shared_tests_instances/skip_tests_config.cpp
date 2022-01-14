@@ -152,6 +152,9 @@ std::vector<std::string> disabledTestPatterns() {
             ".*IEClassLoadNetworkTest.LoadNetworkWithBigDeviceIDThrows.*",
             ".*IEClassLoadNetworkTest.LoadNetworkWithInvalidDeviceIDThrows.*",
 
+            // [Track number: E#28335]
+            ".*smoke_LoadNetworkToDefaultDeviceNoThrow.*",
+
             // double free detected
             // [Track number: S#27343]
             ".*InferConfigInTests\\.CanInferWithConfig.*",

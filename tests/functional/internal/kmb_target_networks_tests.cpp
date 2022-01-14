@@ -34,10 +34,8 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
 }
 #endif  // KMB_HAS_CUSTOM_OCL_KERNELS
 
-// MTL target compilation test
-// [Track number: E#28335]
-
 #ifdef KMB_HAS_CUSTOM_OCL_KERNELS
+// [Track number: E#28335]
 TEST_F(KmbYoloV2NetworkTest, DISABLED_precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     SKIP_INFER_ON("EMULATOR", "Wrong results");
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
