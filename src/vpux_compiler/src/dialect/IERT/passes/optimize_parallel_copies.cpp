@@ -59,15 +59,48 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
         //        parentOp->getName()).str()<<std::endl;
         return false;
     }
+    bool hasSubView = false;
+    auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(copyOp.input().getDefiningOp());
+    if (mlir::isa<IERT::SubViewOp>(parentOp)) {
+        hasSubView = true;
+        std::cout << llvm::formatv("\t!!parentOp is subView {0}, {1}", parentOp->getLoc(), parentOp->getName()).str()
+                  << std::endl;
+        parentOp = mlir::dyn_cast<IERT::SubViewOp>(parentOp).source().getDefiningOp();
+    }
     bool hasSiblingCopy = false;
     //    std::cout << llvm::formatv("\tparent op is {0}, {1}", parentOp->getLoc(), parentOp->getName()).str() <<
     //    std::endl;
     for (auto siblingOp : parentOp->getResult(0).getUsers()) {
         if (!mlir::isa<IERT::CopyOp>(*siblingOp)) {
-            //            std::cout << llvm::formatv("\tfail at 2-1 at {0}, {1}", siblingOp->getLoc(),
-            //            siblingOp->getName()).str()
-            //                      << std::endl;
-            continue;
+            std::cout << llvm::formatv("\tparentOp at {0}, {1}", parentOp->getLoc(), parentOp->getName()).str()
+                      << std::endl;
+            std::cout
+                    << llvm::formatv("\tsibling not copy at {0}, {1}", siblingOp->getLoc(), siblingOp->getName()).str()
+                    << std::endl;
+            if (!mlir::isa<IERT::SubViewOp>(*siblingOp)) {
+                continue;
+            } else {
+                auto childOfSiblingOp = *siblingOp->getResult(0).getUsers().begin();
+                std::cout << llvm::formatv("\tfound subview, check its child at {0}, {1}", childOfSiblingOp->getLoc(),
+                                           childOfSiblingOp->getName())
+                                     .str()
+                          << std::endl;
+                if (!mlir::isa<IERT::CopyOp>(childOfSiblingOp)) {
+                    continue;
+                }
+                // match SubView->Copy
+                if (!hasSubView) {
+                    continue;
+                }
+                auto siblingSubViewOp = mlir::dyn_cast<IERT::SubViewOp>(siblingOp);
+                if (parseIntArrayAttr<int64_t>(subViewOp.static_offsets()) !=
+                            parseIntArrayAttr<int64_t>(siblingSubViewOp.static_offsets()) ||
+                    parseIntArrayAttr<int64_t>(subViewOp.static_sizes()) !=
+                            parseIntArrayAttr<int64_t>(siblingSubViewOp.static_sizes())) {
+                    continue;
+                }
+                siblingOp = childOfSiblingOp;
+            }
         }
 
         // Check 3: current op's consumer is copied to DDR immediately after execution
@@ -104,6 +137,52 @@ mlir::LogicalResult fuseParallelCopyOp(IERT::CopyOp copyOp, Logger log) {
     if (parentOp == nullptr) {
         return mlir::failure();
     }
+
+    if (mlir::isa<IERT::SubViewOp>(parentOp)) {
+        std::cout << "<<<<>>>> is SubView!" << std::endl;
+        auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(parentOp);
+        parentOp = subViewOp.source().getDefiningOp();
+        auto getSiblingSubViews = [&]() -> SmallVector<IERT::SubViewOp> {
+            SmallVector<IERT::SubViewOp> res;
+            for (auto siblingOp : parentOp->getResult(0).getUsers()) {
+                if (mlir::isa<IERT::SubViewOp>(*siblingOp) && siblingOp != subViewOp) {
+                    auto siblingSubViewOp = mlir::dyn_cast<IERT::SubViewOp>(*siblingOp);
+                    if (siblingSubViewOp.static_offsets() == subViewOp.static_offsets() &&
+                        siblingSubViewOp.static_sizes() == subViewOp.static_sizes()) {
+                        std::cout << llvm::formatv("<<<<>>>> push back {0} {1}", siblingSubViewOp->getLoc(),
+                                                   siblingSubViewOp->getName())
+                                             .str()
+                                  << std::endl;
+                        res.push_back(mlir::dyn_cast<IERT::SubViewOp>(*siblingOp));
+                    }
+                }
+            }
+            return res;
+        };
+        auto siblingSubViews = getSiblingSubViews();
+        for (auto siblingSubView : siblingSubViews) {
+            std::cout << llvm::formatv("\t<<<<>>>> merge {0}, {1}", siblingSubView->getLoc(), siblingSubView->getName())
+                                 .str()
+                      << std::endl;
+
+            log.trace("Fuse SubView op {0} to {1}", subViewOp->getLoc(), siblingSubView->getLoc());
+            auto siblingCopy = mlir::dyn_cast<IERT::CopyOp>(*siblingSubView.result().getUsers().begin());
+
+            siblingSubView.getOperation()->replaceAllUsesWith(subViewOp.getOperation());
+            siblingCopy.getOperation()->replaceAllUsesWith(copyOp);
+            siblingCopy->erase();
+            siblingSubView->erase();
+        }
+
+        // DEBUG LOG
+        for (auto t : copyOp->getResult(0).getUsers()) {
+            std::cout << llvm::formatv("\t\t~~~~ now the children: {0}, {1}", t->getLoc(), t->getName()).str()
+                      << std::endl;
+        }
+
+        return mlir::success();
+    }
+
     auto getSiblingCopies = [&]() -> SmallVector<IERT::CopyOp> {
         SmallVector<IERT::CopyOp> res;
         for (auto siblingOp : parentOp->getResult(0).getUsers()) {
@@ -134,7 +213,6 @@ mlir::LogicalResult fuseParallelCopyOp(IERT::CopyOp copyOp, Logger log) {
         }
 
         siblingCopy.getOperation()->replaceAllUsesWith(copyOp.getOperation());
-        siblingCopy.output_buff().replaceAllUsesWith(copyOp.input());
         siblingCopy->erase();
     }
 
