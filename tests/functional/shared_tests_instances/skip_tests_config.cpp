@@ -166,10 +166,12 @@ std::vector<std::string> disabledTestPatterns() {
 
             // TODO: GetMetric function is not fully implemented for ExecutableNetwork interface (implemented only for vpux plugin)
             ".*ExecutableNetworkBaseTest.checkGetMetric.*",
+            ".*OVHoldersTest.*LoadedAny.*",
 
             // TODO: SetConfig function is not implemented for ExecutableNetwork interface (implemented only for vpux plugin)
             ".*ExecutableNetworkBaseTest.canSetConfigToExecNet.*",
             ".*ExecutableNetworkBaseTest.canSetConfigToExecNetAndCheckConfigAndCheck.*",
+            ".*CanSetConfigToExecNet.*",
 
             // Async tests failed on dKMB
             // TODO: [Track number: S#14836]
@@ -184,9 +186,6 @@ std::vector<std::string> disabledTestPatterns() {
 
             // TensorIterator layer is not supported
             ".*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*",
-
-            // TODO: to implement SetConfig for ExecutableNetwork
-            ".*CanSetConfigToExecNet.*"
             }
         );
 
@@ -214,6 +213,7 @@ std::vector<std::string> disabledTestPatterns() {
 
                 // Cannot compile network without explicit specifying of the platform in case of no devices
                 ".*OVExecGraphImportExportTest.*",
+                ".*OVHoldersTest.*",
             }
         );
 
