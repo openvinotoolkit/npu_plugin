@@ -215,8 +215,6 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
 
         freeDeadBuffers(usedBufs, curExecOp);
 
-        prevExecOp = curExecOp;
-
         _log = _log.unnest();
     }
 
