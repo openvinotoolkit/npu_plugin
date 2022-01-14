@@ -105,6 +105,8 @@ private:
                                        ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseYuvToRgb(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                    ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
+    mlir::Operation* parseUpsampling(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                     ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
 
 private:
     using TensorReferenceOffset = flatbuffers::Offset<MVCNN::TensorReference>;

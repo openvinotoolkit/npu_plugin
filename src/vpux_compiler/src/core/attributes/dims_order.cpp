@@ -50,6 +50,8 @@ const DimsOrder vpux::DimsOrder::OIYX = DimsOrder(0x1234);
 const DimsOrder vpux::DimsOrder::OYXI = DimsOrder(0x1342);
 const DimsOrder vpux::DimsOrder::YXOI = DimsOrder(0x3412);
 
+const DimsOrder vpux::DimsOrder::IOYX = DimsOrder(0x2134);
+
 namespace {
 
 const DimsOrder::StorageType INDEX_MASK = 0xF;

@@ -17,6 +17,16 @@ namespace LayerTestsDefinitions {
     TEST_P(KmbConvolutionBackpropDataLayerTest, CompareWithRefs) {
         Run();
     }
+
+    class KmbConvolutionBackpropDataLayerTest_MLIR: public ConvolutionBackpropDataLayerTest,
+                                               virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    };
+
+    TEST_P(KmbConvolutionBackpropDataLayerTest_MLIR, CompareWithRefs) {
+        useCompilerMLIR();
+        Run();
+    }
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -27,7 +37,7 @@ namespace {
             InferenceEngine::Precision::FP16
     };
     
-    /// Current Deconv impelmentation Only support 16x channels
+    /// Current Deconv impelmentation Only support 16x channels (MCM)
     /// The other channel which needs alignment and crop will cause concat issue 
     const std::vector<size_t> numOutChannels = {16};
     const std::vector<std::vector<size_t >> emptyOutputShape = {{}};
@@ -35,7 +45,8 @@ namespace {
 
 /* ============= 2D ConvolutionBackpropData ============= */
     const std::vector<std::vector<size_t >> inputShapes2D = {{1, 3, 30, 30}};
-    /// Need Kernel_size == Stride_size
+    const std::vector<std::vector<size_t >> inputShapes2D_MLIR = {{1, 3, 30, 30}, {1, 32, 23, 30}, {1, 32, 46, 60}, {1, 32, 92, 120}, {1, 32, 184, 240}};
+    /// Need Kernel_size == Stride_size (MCM)
     /// Refer: src/mcmCompiler/src/pass/adaptation/conv_dilation_pass.cpp:366
     const std::vector<std::vector<size_t >> kernels2D = {{2, 2}};
     const std::vector<std::vector<size_t >> strides2D = {{2, 2}};
@@ -43,7 +54,7 @@ namespace {
     const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}};
     const std::vector<std::vector<size_t >> dilations2D = {{1, 1}};
 
-    /// Not support SAME_UPPER padding mode
+    /// Not support SAME_UPPER padding mode (MCM)
     /// Refer: src/mcmCompiler/src/pass/adaptation/conv_dilation_pass.cpp:61
     const auto conv2DParams_ExplicitPadding = ::testing::Combine(
             ::testing::ValuesIn(kernels2D),
@@ -88,6 +99,19 @@ namespace {
                                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                             KmbConvolutionBackpropDataLayerTest::getTestCaseName);
 
+    INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, KmbConvolutionBackpropDataLayerTest_MLIR,
+                            ::testing::Combine(
+                                    conv2DParams_ExplicitPadding,
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                    ::testing::Values(InferenceEngine::Layout::ANY),
+                                    ::testing::Values(InferenceEngine::Layout::ANY),
+                                    ::testing::ValuesIn(inputShapes2D_MLIR),
+                                    ::testing::ValuesIn(emptyOutputShape),
+                                    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                            KmbConvolutionBackpropDataLayerTest_MLIR::getTestCaseName);
+
     // Test-case fails at stage "Run MCM Compiler" with error:
     // vpuxFuncTests: kmb-plugin/src/mcmCompiler/src/scheduler/feasible_scheduler.hpp:2198:
     // void mv::lp_scheduler::Feasible_Memory_Schedule_Generator<T, SchedulerTraits, Allocator>::
@@ -109,6 +133,19 @@ namespace {
                                     ::testing::ValuesIn(emptyOutputShape),
                                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                             KmbConvolutionBackpropDataLayerTest::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, KmbConvolutionBackpropDataLayerTest_MLIR,
+                            ::testing::Combine(
+                                    conv2DParams_AutoPadValid,
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                    ::testing::Values(InferenceEngine::Layout::ANY),
+                                    ::testing::Values(InferenceEngine::Layout::ANY),
+                                    ::testing::ValuesIn(inputShapes2D_MLIR),
+                                    ::testing::ValuesIn(emptyOutputShape),
+                                    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                            KmbConvolutionBackpropDataLayerTest_MLIR::getTestCaseName);
 
 /* ============= 3D ConvolutionBackpropData ============= */
     const std::vector<std::vector<size_t >> inputShapes3D = {{1, 3, 10, 10, 10},

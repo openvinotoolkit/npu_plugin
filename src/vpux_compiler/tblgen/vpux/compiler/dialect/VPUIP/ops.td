@@ -1797,6 +1797,51 @@ def VPUIP_ScaleShiftUPAOp :
     }];
 }
 
+def VPUIP_UpsamplingUPAOp :
+        VPUIP_UPATaskOp<1, "UpsamplingUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+            ]
+        > {
+    let summary = "Upsampling UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        I64ArrayAttr:$upsampling_factor,
+        I64ArrayAttr:$pad_l,
+        I64ArrayAttr:$pad_r,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins 
+                "mlir::Value":$input,
+                "mlir::Value":$output,
+                "mlir::ArrayAttr":$upsampling_factor,
+                "mlir::ArrayAttr":$pad_l,
+                "mlir::ArrayAttr":$pad_r
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 //
 // PerAxisTileUPAOp
 //

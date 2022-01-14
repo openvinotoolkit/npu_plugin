@@ -67,6 +67,9 @@ public:
     static const DimsOrder OYXI;
     static const DimsOrder YXOI;
 
+    // Order for 2D ConvolutionBackpropData weights
+    static const DimsOrder IOYX;
+
 public:
     static void validateCode(StorageType code);
     static void validateNumDims(size_t numDims);
