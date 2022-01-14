@@ -5,13 +5,6 @@
 
 #include <mv_types.h>
 #include <nn_resource_locator.h>
-//#include <nn_inference_runtime_types.h>
-
-//#if
-//#include <HglResourcesVpu3720.h>
-//#undef HGL_SHAVE_NB
-//#define HGL_SHAVE_NB (HGL_NCE_ACT_SHAVE_NB)
-//#endif
 
 #include <ShCtrl.h>
 

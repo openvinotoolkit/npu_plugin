@@ -61,16 +61,10 @@ bool UPATaskRunner::enqueTask(Op * operation,
     HglShaveAccessAllowed[1] = false;
     HglShaveAccessAllowed[2] = true;
     cache::flush(HglShaveAccessAllowed, sizeof(bool) * HGL_SHAVE_TYPE_NB);
-//    printf("!!!!!!!!!! before UPATaskRunner::enqueTask !!!!!!!!!!!!!\n");
-//    nn::common_runtime::NNCmxMemoryMap *nnCmx = util::MemoryMap::project<NNCmxMemoryMap>(NN_CMX_BASE);
-//    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!!\n", __FILE__, __LINE__);
     auto globalAreas = getStaticMapping(nnCmx);
-//    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!!\n", __FILE__, __LINE__);
     auto shaveManager = getShaveManager(globalAreas);
-//    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!!\n", __FILE__, __LINE__);
 
     nn::act_runtime::ActKernelRuntimeConfigs actRtConfigs;  // Initialize properly
-//    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!!\n", __FILE__, __LINE__);
 
     actRtConfigs.useScheduleEmbeddedRt_ = true;
 
@@ -89,7 +83,6 @@ bool UPATaskRunner::enqueTask(Op * operation,
     cache::flush(*globalAreas);
     cache::flush(*shaveManager);
     printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!!\n", __FILE__, __LINE__);
-//    return true;
     printf("!!!!!!!!!! before start !!!!!!!!!!!!!\n");
     shaveManager->startActShavesForTile(0, actRtConfigs, true);
     printf("!!!!!!!!!! after start !!!!!!!!!!!!!\n");

@@ -16,8 +16,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <rtems.h>
-//#include <ShaveCtrl.h>
-//#include <ShaveCtrlErrors.h>
 
 typedef struct ShHandle {
     HglShaveType type;
