@@ -1,4 +1,15 @@
-// {% copyright %}
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
 
 __attribute__((aligned(1024)))
 #include "sk.nnActEntry.3010xx.text.xdat"
@@ -6,7 +17,7 @@ void * sk_nnActEntry_3010xx_text_ref = (void*)sk_nnActEntry_3010xx_text;
 #include <sw_nn_runtime_types.h>
 #include <sw_shave_lib_common.h>
 #include <HglShaveCommon.h>
-#include "upa_task_runner.hpp"
+#include "shave_task_runner.hpp"
 #include <nn_shave_manager.h>
 #include <nn_fifo_manager.h>
 #include <nn_cache.h>
@@ -50,7 +61,7 @@ std::shared_ptr<nn::inference_runtime::shaves::ShaveManager> getShaveManager(std
     return holder;
 }
 
-bool UPATaskRunner::enqueTask(Op * operation,
+bool ShaveTaskRunner::enqueTask(Op * operation,
                               const std::vector<OpTensor> &inputs,
                               const std::vector<OpTensor> &outputs,
                               int /*numSHAVEs*/,
@@ -174,6 +185,6 @@ bool UPATaskRunner::enqueTask(Op * operation,
     return true;
 }
 
-bool UPATaskRunner::dequeResult() {
+bool ShaveTaskRunner::dequeResult() {
     return _enqued;
 }
