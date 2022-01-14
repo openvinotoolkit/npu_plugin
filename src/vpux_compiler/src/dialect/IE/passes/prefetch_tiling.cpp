@@ -47,10 +47,10 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
         // return general tiling when getting nested tiles.
         return fillDividedTiles(nTilesOnDim, outputShape);
     }
-    if (nTilesOnDim[Dims4D::Act::C] <= 1) {
-        // Only enable weights prefetch for now.
-        return fillDividedTiles(nTilesOnDim, outputShape);
-    }
+    //    if (nTilesOnDim[Dims4D::Act::C] <= 1) {
+    //        // Only enable weights prefetch for now.
+    //        return fillDividedTiles(nTilesOnDim, outputShape);
+    //    }
 
     // step 2: increase the general tile strategy to satisfy prefetching
     const auto targetDim = dimsToTile[0];
@@ -61,6 +61,16 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
         // The purpose is to avoid excessive tiling.
         prefetchableTilesOnDim[targetDim]++;
     }
+
+    if (tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log) && prefetchableTilesOnDim != nTilesOnDim)
+        std::cout << llvm::formatv("{1}~~~{2}~~~prefetch~~~{0}~~~tiles:", prefetchableTilesOnDim, op->getLoc(),
+                                   op->getName())
+                             .str()
+                  << std::endl;
+    else
+        std::cout
+                << llvm::formatv("{1}~~~{2}~~~original~~~{0}~~~tiles:", nTilesOnDim, op->getLoc(), op->getName()).str()
+                << std::endl;
 
     return tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)
                    ? fillDividedTiles(prefetchableTilesOnDim, outputShape)

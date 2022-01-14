@@ -200,6 +200,25 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // 4. insert spill dmas
     spilling.insertSpillCopyOps(scheduledOps);
 
+    // TEMP PRINT
+    for (const auto& op : scheduledOps) {
+        std::string resourceInfo = "<none>";
+        if (op.hasActiveResource()) {
+            resourceInfo = "";
+            for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
+                if (op.isActiveResource(resourceIdx)) {
+                    resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
+                                    std::to_string(op.endResource(resourceIdx)) + "] size = " +
+                                    std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
+                                    ", ";
+                }
+            }
+        }
+        auto opT = depsInfo.getExecuteOpAtIndex(op.op_);
+        std::cout << llvm::formatv("op = {0}", opT.getLoc()).str() << "\t type = " << op.opTypeName().data()
+                  << "\t time = " << op.time_ << " \t " << resourceInfo << std::endl;
+    }
+
     // 5. update dependencies
     // Recreate aliasesInfo after spill insertion to get updated information about
     // root buffers of affected spill result users.
