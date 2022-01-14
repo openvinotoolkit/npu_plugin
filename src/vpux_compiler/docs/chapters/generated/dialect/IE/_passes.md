@@ -155,6 +155,8 @@ The pass is a part of `LowPrecision` pipeline.
 
 It merges pair `quant.qcast -> quant.dcast` into single `IE.FakeQuantize`.
 The pass is used as a fallback to FP16 computations for the cases, where quantized types where not used by layers.
+### `-multi-cluster-stragegy-assignment`: Determines which multi-cluster strategy is the most optimal for a given layer
+Determines which multi-cluster strategy is the most optimal for a given layer
 ### `-optimize-reorders`: Optimize extra Reorder operations
 The pass is a part of `IECommon` pipeline.
 
