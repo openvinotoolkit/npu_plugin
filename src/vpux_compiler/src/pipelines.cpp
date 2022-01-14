@@ -199,6 +199,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     pm.addPass(createConvertIEToVPUNCEPass(log));
 
+    pm.addPass(IE::createMultiClusterStrategyAssignmentPass(log));
     pm.addPass(IE::createIsolatedTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
