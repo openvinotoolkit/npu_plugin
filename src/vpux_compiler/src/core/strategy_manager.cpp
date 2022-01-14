@@ -19,5 +19,8 @@
 
 using namespace vpux::IE;
 
-StrategyManager::StrategyManager() {
+StrategyManager::StrategyManager(mlir::FuncOp func, Logger log): _log(log), _func(func) {
+}
+
+void StrategyManager::computeOptimalMultiClusterStrategy() {
 }

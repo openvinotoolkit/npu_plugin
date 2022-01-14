@@ -32,10 +32,14 @@ namespace IE {
 
 class StrategyManager final {
 public:
-    explicit StrategyManager();
+    explicit StrategyManager(mlir::FuncOp func, Logger log);
 
 public:
+    void computeOptimalMultiClusterStrategy();
+
 private:
+    Logger _log;
+    mlir::FuncOp _func;
 };
 
 }  // namespace IE
