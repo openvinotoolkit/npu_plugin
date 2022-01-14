@@ -128,7 +128,7 @@ private:
     void createTaskBarrierResourceUtilityTable();
     void initializeBarrierAssociationTable();
     void initializeBarrierResourceState(const size_t numberOfBarriers, const size_t maxProducersPerBarrier);
-    void addTaskToCandidateSet(mlir::Operation* op);
+    bool addTaskToCandidateSet(mlir::Operation* op);
     void addOutGoingOperationsToCandidateList(mlir::Operation* op);
     void pushToScheduleTimeHeap(const HeapElement& elem);
     void insertBarriersinIR();

@@ -180,13 +180,20 @@ BarrierScheduler::HeapElement BarrierScheduler::popFromHeap() {
     return elem;
 }
 
-void BarrierScheduler::addTaskToCandidateSet(mlir::Operation* op) {
+bool BarrierScheduler::addTaskToCandidateSet(mlir::Operation* op) {
     if (_processedTasks.find(op) != _processedTasks.end()) {
         VPUX_THROW("Attempt to add a task to the schedulable candidates list that has been previously scheduled");
     }
 
+    for (const auto& task : _schedulableCandidates) {
+        if (mlir::dyn_cast<VPURT::TaskOp>(task).getExecutorKind() ==
+            mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind())
+            return false;
+    }
+
     _schedulableCandidates.push_back(op);
     _processedTasks.insert(op);
+    return true;
 }
 
 void BarrierScheduler::addOutGoingOperationsToCandidateList(mlir::Operation* op) {
@@ -215,10 +222,12 @@ void BarrierScheduler::addOutGoingOperationsToCandidateList(mlir::Operation* op)
         VPUX_THROW_UNLESS((deg_itr != _inDegree.end()) && (deg_itr->second > 0), "Invalid indegree");
 
         if (deg_itr->second == 1) {
-            _log.trace("Adding operation {0} to candidate_list", getUniqueID(*itr));
-            addTaskToCandidateSet(op);
-            _log.trace("Erasing operation {0} from the in_degree table", getUniqueID(*itr));
-            _inDegree.erase(deg_itr);
+            --(deg_itr->second);
+            if (addTaskToCandidateSet(op)) {
+                _log.trace("Adding operation {0} to candidate_list", getUniqueID(*itr));
+                _log.trace("Erasing operation {0} from the in_degree table", getUniqueID(*itr));
+                _inDegree.erase(deg_itr);
+            }
         } else {
             --(deg_itr->second);
         }
@@ -283,6 +292,18 @@ bool BarrierScheduler::performSchedulingTaskLoop() {
             // since op has completed add all out-going ops to candidates
             _log.trace("Adding children tasks for task ID {0} to be candidates to schedule", getUniqueID(topElem._op));
             addOutGoingOperationsToCandidateList(topElem._op);
+            operationInDegreeType::iterator itr = _inDegree.begin();
+            while (itr != _inDegree.end()) {
+                auto op = itr->first;
+                if (_inDegree.find(op)->second == 0) {
+                    if (addTaskToCandidateSet(op)) {
+                        _log.nest().trace("Adding task: {0} to candidate set", getUniqueID(op));
+                        itr = _inDegree.erase(itr);
+                    } else
+                        ++itr;
+                } else
+                    ++itr;
+            }
         } else {
             // schedule is not feasible
             _log.trace("The schedule is not feasible, exiting...");
@@ -609,12 +630,14 @@ bool BarrierScheduler::generateScheduleWithBarriers(size_t numberOfBarriers, siz
     auto itr = _inDegree.begin();
     while (itr != _inDegree.end()) {
         auto op = itr->first;
-        auto opDegreeIt = _inDegree.find(op);
-        if (opDegreeIt != _inDegree.end() && opDegreeIt->second == 0) {
-            _log.nest().trace("Adding task: {0} to candidate set", getUniqueID(op));
-            addTaskToCandidateSet(op);
-        }
-        ++itr;
+        if (_inDegree.find(op)->second == 0) {
+            if (addTaskToCandidateSet(op)) {
+                _log.nest().trace("Adding task: {0} to candidate set", getUniqueID(op));
+                itr = _inDegree.erase(itr);
+            } else
+                ++itr;
+        } else
+            ++itr;
     }
 
     VPUX_THROW_UNLESS(!_schedulableCandidates.empty(),
@@ -714,6 +737,7 @@ void BarrierScheduler::insertBarriersinIR() {
     }
 
     _log.trace("Starting to add barriers into the IR");
+    size_t count = 0;
     for (size_t ind = 0; ind < _configureBarrierOpWaitMap.size(); ind++) {
         auto& barrierOp = _orderedBarrier[ind];
         auto waitMap = _configureBarrierOpWaitMap[ind].set_bits();
@@ -741,8 +765,10 @@ void BarrierScheduler::insertBarriersinIR() {
                            barrierOp->getAttr(virtualIdAttrName), getUniqueID(taskOp));
                 taskOp.waitBarriersMutable().append(barrierOp.barrier());
             }
+            count++;
         }
     }
+    std::cout << "real barrier number is " << count << std::endl;
     _log.trace("Finished adding barriers into the IR");
     _log = _log.unnest();
 
@@ -854,6 +880,37 @@ void BarrierScheduler::removeRedundantBarriers() {
                         consumers1.reset();
                     }
                 }
+            }
+        }
+    }
+
+    for (size_t ind = 0; ind < _configureBarrierOpWaitMap.size(); ind++) {
+        auto& producers = _configureBarrierOpWaitMap[ind];
+        auto& consumers = _configureBarrierOpUpdateMap[ind];
+        if (!(producers.set_bits().empty() || consumers.set_bits().empty())) {
+            auto prod = producers.set_bits_begin();
+            // auto prodType = _orderedTasks[*prod].getExecutorKind();
+            bool prodSameType = true;
+            for (; prod != producers.set_bits_end(); prod++) {
+                if (_orderedTasks[*prod].getExecutorKind() != VPU::ExecutorKind::DMA_NN) {
+                    prodSameType = false;
+                    break;
+                }
+            }
+
+            auto cons = consumers.set_bits_begin();
+            // auto consType = _orderedTasks[*cons].getExecutorKind();
+            bool consSameType = true;
+            for (; cons != consumers.set_bits_end(); cons++) {
+                if (_orderedTasks[*cons].getExecutorKind() != VPU::ExecutorKind::DMA_NN) {
+                    consSameType = false;
+                    break;
+                }
+            }
+
+            if (prodSameType && consSameType) {
+                producers.reset();
+                consumers.reset();
             }
         }
     }

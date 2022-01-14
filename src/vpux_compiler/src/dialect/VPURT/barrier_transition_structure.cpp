@@ -73,6 +73,8 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
     if (previousBarrier != barrierEnd) {
         barrierPrevious = previousBarrier;
     }
+    VPUX_UNUSED(previousBarrier);
+    VPUX_UNUSED(barrierPrevious);
 
     _feasibleBarrierScheduler._log.trace("The ID of barrier b_curr is {0}", currentBarrier->getAttr(virtualIdAttrName));
     size_t currentBarrierID = getBarrierUniqueID(currentBarrier);
@@ -113,19 +115,19 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
         }
 
         // Step-1.3
-        if (barrierPrevious) {
-            size_t barrierPreviousID = getBarrierUniqueID(barrierPrevious);
+        // if (barrierPrevious) {
+        //     size_t barrierPreviousID = getBarrierUniqueID(barrierPrevious);
 
-            if (barrierPreviousID < _feasibleBarrierScheduler._configureBarrierOpUpdateMap.size()) {
-                _feasibleBarrierScheduler._log.trace("Step-1.3 Adding consumer task ID {0} to barrier ID {1}",
-                                                     BarrierScheduler::getUniqueID(source),
-                                                     barrierPrevious->getAttr(virtualIdAttrName));
+        //     if (barrierPreviousID < _feasibleBarrierScheduler._configureBarrierOpUpdateMap.size()) {
+        //         _feasibleBarrierScheduler._log.trace("Step-1.3 Adding consumer task ID {0} to barrier ID {1}",
+        //                                              BarrierScheduler::getUniqueID(source),
+        //                                              barrierPrevious->getAttr(virtualIdAttrName));
 
-                _feasibleBarrierScheduler._configureBarrierOpUpdateMap[barrierPreviousID].set((unsigned)sourceID);
-            } else {
-                VPUX_THROW("Not found");
-            }
-        }
+        //         _feasibleBarrierScheduler._configureBarrierOpUpdateMap[barrierPreviousID].set(sourceID);
+        //     } else {
+        //         VPUX_THROW("Not found");
+        //     }
+        // }
     }  // foreach producer
     _feasibleBarrierScheduler._log = _feasibleBarrierScheduler._log.unnest();
 }
