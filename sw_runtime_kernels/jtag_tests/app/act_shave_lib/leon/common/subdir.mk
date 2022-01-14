@@ -11,7 +11,6 @@
 # included with the Software Package for additional details.
 #
 
-
 sys-nn-common-components-inc += inc
 sys-nn-common-components-srcs-y += $(wildcard src/*.c*)
 
