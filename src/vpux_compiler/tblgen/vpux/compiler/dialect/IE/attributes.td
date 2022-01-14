@@ -486,13 +486,13 @@ def IE_ColorFmt :
 
 
 //
-// ExtractImagePatchesAutoPadType
+// ExtractImagePatchesPadMode
 //
 
-def IE_ExtractImagePatchesAutoPadType :
+def IE_ExtractImagePatchesPadMode :
         StrEnumAttr<
-            "ExtractImagePatchesAutoPadType",
-            "ExtractImagePatchesAutoPadType that the InferenceEngine supports",
+            "ExtractImagePatchesPadMode",
+            "ExtractImagePatchesPadMode that the InferenceEngine supports",
             [
                 StrEnumAttrCase<"same_upper">,
                 StrEnumAttrCase<"same_lower">,

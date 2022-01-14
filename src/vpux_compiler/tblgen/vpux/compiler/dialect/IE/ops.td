@@ -3077,10 +3077,10 @@ def IE_ExtractImagePatchesOp :
     let arguments = (ins
         4DTensorOf<[AnyType]>:$data,
 
-        I64ArrayAttr:$strides,
-        I64ArrayAttr:$sizes,
-        I64ArrayAttr:$rates,
-        IE_ExtractImagePatchesAutoPadType:$paddingType
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$sizes,
+        I32ArrayAttr:$rates,
+        IE_ExtractImagePatchesPadMode:$paddingType
     );
 
     let results = (outs

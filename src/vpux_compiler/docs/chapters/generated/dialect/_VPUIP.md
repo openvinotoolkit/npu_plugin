@@ -2416,10 +2416,10 @@ operation ::= `VPUIP.ExtractImagePatchesUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`paddingType` | vpux::IE::ExtractImagePatchesAutoPadTypeAttr | ExtractImagePatchesAutoPadType that the InferenceEngine supports
+`sizes` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`rates` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`paddingType` | vpux::IE::ExtractImagePatchesPadModeAttr | ExtractImagePatchesPadMode that the InferenceEngine supports
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:

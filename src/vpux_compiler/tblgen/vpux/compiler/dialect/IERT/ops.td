@@ -3174,10 +3174,10 @@ def IERT_ExtractImagePatchesOp :
         AnyMemRef:$data,
         AnyMemRef:$output_buff,
 
-        I64ArrayAttr:$strides,
-        I64ArrayAttr:$sizes,
-        I64ArrayAttr:$rates,
-        IE_ExtractImagePatchesAutoPadType:$paddingType
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$sizes,
+        I32ArrayAttr:$rates,
+        IE_ExtractImagePatchesPadMode:$paddingType
     );
 
     let results = (outs
