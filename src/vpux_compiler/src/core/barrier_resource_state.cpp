@@ -131,9 +131,9 @@ bool BarrierResourceState::unassignBarrierSlots(size_t barrierId, size_t slotDem
     VPUX_THROW_UNLESS((barrierId <= _barrierReference.size()),
                       "Invalid barrierId {0} supplied, it must be from from 0 to {1}", _barrierReference.size() - 1);
     availableSlotsIteratorType itr = _barrierReference[barrierId];
-    size_t newSlotDemand = (itr->_availableProducerSlots) + slotDemand;
+    size_t freeSlots = (itr->_availableProducerSlots) + slotDemand;
 
-    itr = update(itr, newSlotDemand);
+    itr = update(itr, freeSlots);
     return (itr != _globalAvailableProducerSlots.end());
 }
 
