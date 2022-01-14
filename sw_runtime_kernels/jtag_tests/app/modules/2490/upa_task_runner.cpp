@@ -1,6 +1,6 @@
 // {% copyright %}
 
-#include "upa_task_runner.hpp"
+#include "shave_task_runner.hpp"
 #include "sw_shave_dispatcher.h"
 #include "mvTensorUtil.h"
 #include <nn_cache.h>
@@ -15,7 +15,7 @@ using namespace nn::memory;
 static SoftLayerExec __attribute__((section(".cmx_direct.data"))) sl;
 static Layer __attribute__((section(".cmx_direct.data"))) layer;
 
-bool UPATaskRunner::enqueTask(Op * operation,
+bool ShaveTaskRunner::enqueTask(Op * operation,
                               const std::vector<OpTensor> &inputs,
                               const std::vector<OpTensor> &outputs,
                               int numSHAVEs,
@@ -99,6 +99,6 @@ bool UPATaskRunner::enqueTask(Op * operation,
     return true;
 }
 
-bool UPATaskRunner::dequeResult() {
+bool ShaveTaskRunner::dequeResult() {
     return _enqued;
 }

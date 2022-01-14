@@ -170,7 +170,7 @@ void CustomCpp::run(mv::tensor::Processor& ,
     nnLog(MVLOG_DEBUG, "KernelData %p with length %ld.\n", ops.kernelData, ops.kernelDataLen);
     nnLog(MVLOG_DEBUG, "ParamData  %p with length %ld.\n", ops.paramData,  ops.paramDataLen);
 
-    UPATaskRunner runner;
+    ShaveTaskRunner runner;
     mvTensorAssert(runner.enqueTask(this, std::move(inputVec), std::move(outputVec), myriadRes.lastShave - myriadRes.firstShave + 1, &perfData), "custom OpenCPP layer run failed");
     mvTensorAssert(runner.dequeResult(), "custom Cpp layer run failed");
 

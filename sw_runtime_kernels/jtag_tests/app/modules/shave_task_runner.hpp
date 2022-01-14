@@ -11,7 +11,7 @@
 /**
  * @brief wrapper over UPA runner, svu runtime, etc
  */
-class UPATaskRunner {
+class ShaveTaskRunner {
     bool _enqued = false;
  public:
     /**
