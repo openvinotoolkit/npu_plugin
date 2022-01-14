@@ -135,6 +135,12 @@ std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logg
 std::unique_ptr<mlir::Pass> createHandleLargeKernelsPass(Logger log = Logger::global());
 
 //
+// Multi-cluster strategy assignment
+//
+
+std::unique_ptr<mlir::Pass> createMultiClusterStrategyAssignmentPass(Logger log = Logger::global());
+
+//
 // Tiling
 //
 
