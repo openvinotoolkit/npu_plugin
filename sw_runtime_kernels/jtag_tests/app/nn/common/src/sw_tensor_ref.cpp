@@ -3,7 +3,6 @@
 #include "sw_tensor_ref.h"
 #include <stdint.h>
 
-
 #ifdef CONFIG_TARGET_SOC_3720
 extern unsigned char actShaveData[];
 extern unsigned int actShaveDataReserved;
@@ -93,7 +92,7 @@ unsigned int TensorRef::getDataSize() const {
     return this->getNumElements() * bytesPerElem;
 }
 unsigned int TensorRef::getFullDataSize() const {
-    return strides[ndims - 1] * dims[ndims - 1];
+    return (ndims > 0) ? strides[ndims - 1] * dims[ndims - 1] : 0;
 }
 
 unsigned int TensorRef::getNumElements() const {
@@ -294,7 +293,7 @@ sw_params::MemRefData TensorRef::toMemRefData(sw_params::Location loc, bool doCo
     };
 #ifdef CONFIG_TARGET_SOC_3720
     if (loc == sw_params::Location::NN_CMX || loc == sw_params::Location::UPA_CMX) {
-        unsigned int usedBytes = dims[ndims - 1] * strides[ndims - 1];
+        unsigned int usedBytes = (ndims > 0) ? dims[ndims - 1] * strides[ndims - 1] : 0;
         auto bytesToAllocate = nn::math::round_up_power_of_2(NN_CACHE_LINE_LENGTH, usedBytes);
 
         if (bytesToAllocate <= SHAVE_LIB_DATA_SIZE - actShaveDataReserved) {
