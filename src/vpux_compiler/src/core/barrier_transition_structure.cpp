@@ -36,7 +36,7 @@ bool BarrierScheduler::barrierTransitionStructure::processNextScheduledTask(cons
                                          "barrier index is {3} and the slot cout is {4}",
                                          sinfo._scheduleTime, _time, BarrierScheduler::getUniqueID(sinfo._op),
                                          sinfo._barrierIndex, sinfo._producerSlotCount);
-
+    _feasibleBarrierScheduler._log = _feasibleBarrierScheduler._log.nest();
     if (_time != currentTime) {
         _feasibleBarrierScheduler._log.trace("Case 1: temporal transition happened, create a new barrier task");
 
@@ -49,6 +49,7 @@ bool BarrierScheduler::barrierTransitionStructure::processNextScheduledTask(cons
         _feasibleBarrierScheduler._log.trace("Case-2: trival case - adding the scheduled task to the producer list");
         addScheduledTaskToProducerList(sinfo);
     }
+    _feasibleBarrierScheduler._log = _feasibleBarrierScheduler._log.unnest();
     return createdNewBarrierTask;
 }
 
@@ -75,6 +76,7 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
 
     _feasibleBarrierScheduler._log.trace("The ID of barrier b_curr is {0}", currentBarrier->getAttr(virtualIdAttrName));
     size_t currentBarrierID = getBarrierUniqueID(currentBarrier);
+    _feasibleBarrierScheduler._log = _feasibleBarrierScheduler._log.nest();
 
     for (producerIteratorType producer = _producers.begin(); producer != _producers.end(); ++producer) {
         mlir::Operation* source = *producer;
@@ -125,10 +127,12 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
             }
         }
     }  // foreach producer
+    _feasibleBarrierScheduler._log = _feasibleBarrierScheduler._log.unnest();
 }
 
 void BarrierScheduler::barrierTransitionStructure::maintainInvariantTemporalChange(const ScheduledOpInfo& sinfo,
                                                                                    mlir::OpBuilder& builder) {
+    _feasibleBarrierScheduler._log = _feasibleBarrierScheduler._log.nest();
     _feasibleBarrierScheduler._log.trace("Maintain an invariant temporal change, the scheduled time is {0}, task ID is "
                                          "{1} the barrier index is {2} and the slot cout is {3}",
                                          sinfo._scheduleTime, BarrierScheduler::getUniqueID(sinfo._op),
@@ -172,6 +176,7 @@ void BarrierScheduler::barrierTransitionStructure::maintainInvariantTemporalChan
     _currentBarrierTask = newCurrentBarrier;
     _producers.clear();
     addScheduledTaskToProducerList(sinfo);
+    _feasibleBarrierScheduler._log = _feasibleBarrierScheduler._log.unnest();
 }
 
 void BarrierScheduler::barrierTransitionStructure::addScheduledTaskToProducerList(const ScheduledOpInfo& sinfo) {
