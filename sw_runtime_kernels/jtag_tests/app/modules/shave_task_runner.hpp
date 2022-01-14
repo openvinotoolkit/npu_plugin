@@ -13,7 +13,26 @@
 
 #pragma once
 
-#if defined(CONFIG_TARGET_SOC_MA2490) || defined(CONFIG_TARGET_SOC_MA2490_B0) || defined(CONFIG_TARGET_SOC_3100)
-#   include "sw_shave_dispatcher_2490.h"
-#endif // CONFIG_TARGET_SOC_MA2490 || CONFIG_TARGET_SOC_MA2490_B0 || CONFIG_TARGET_SOC_3100
+#include <memory>
+#include "mvTensor.h"
+#include <Op.h>
 
+#include <nn_perf_measurement.h>
+
+/**
+ * @brief wrapper over UPA runner, svu runtime, etc
+ */
+class ShaveTaskRunner {
+    bool _enqued = false;
+ public:
+    /**
+     * @breif enque certain task with giver inputs and outputs buffers
+     * @return true if succeeded
+     */
+    bool enqueTask(Op * operation,
+                   const std::vector<OpTensor> &inputs,
+                   const std::vector<OpTensor> &outputs,
+                   int numSHAVEs,
+                   PerformanceData *perfData);
+    bool dequeResult();
+};

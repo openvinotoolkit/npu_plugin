@@ -1,10 +1,21 @@
-// {% copyright %}
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
 
 #include "CustomCpp.h"
 #include <mv_types.h>
 #include <nn_log.h>
 
-#include "upa_task_runner.hpp"
+#include "shave_task_runner.hpp"
 
 #include "layers/param_custom_cpp.h"
 #include "layers/pre_custom_cpp.h"
@@ -170,7 +181,7 @@ void CustomCpp::run(mv::tensor::Processor& ,
     nnLog(MVLOG_DEBUG, "KernelData %p with length %ld.\n", ops.kernelData, ops.kernelDataLen);
     nnLog(MVLOG_DEBUG, "ParamData  %p with length %ld.\n", ops.paramData,  ops.paramDataLen);
 
-    UPATaskRunner runner;
+    ShaveTaskRunner runner;
     mvTensorAssert(runner.enqueTask(this, std::move(inputVec), std::move(outputVec), myriadRes.lastShave - myriadRes.firstShave + 1, &perfData), "custom OpenCPP layer run failed");
     mvTensorAssert(runner.dequeResult(), "custom Cpp layer run failed");
 

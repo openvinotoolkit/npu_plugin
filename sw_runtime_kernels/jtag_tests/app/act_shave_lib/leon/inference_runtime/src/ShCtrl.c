@@ -1,28 +1,22 @@
-/*
- * {% copyright %}
- */
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
 
 #define CONFIG_NN_LOG_VERBOSITY_LRT_INFO
-//extern void * sk_nnActEntry_3010xx_text_ref;
-
-//#include "nn_shave_manager.h"
 #include <mv_types.h>
-//#include <nn_log.h>
-//#include <nn_fifo.h>
-//#include <nn_fifo_configs.h>
-//#include <nn_hw_resources.h>
-//#include <nn_runtime_configs.h>
-//#include <nn_fifo_manager.h>
 #include <OsDrvBootShave.h>
 #include <ShaveL2Cache.h>
 #include <ShCtrl.h>
 
-
-
-
-//#include <HglShaveCommon.h>
-//#include <HglShaveCtrlCfg.h>
-// #include <ShaveCtrlImports.h>
 #if __has_include(<bsp/irq.h>)
 #include <bsp/irq.h>
 #endif
@@ -30,15 +24,9 @@
 #include <bsp.h>
 #endif
 
-
-
-
 #define LOCAL_SH_COUNT (HGL_NCE_ACT_SHAVE_NB + HGL_NCE_DPU_NB)
 
 ShHandle ShConfig[LOCAL_SH_COUNT];
-
-
-// ShaveCtrlHwDependent.cpp
 
 // This file has potentially HW dependent functions
 // No other file should be changed depending on VPU version
@@ -68,18 +56,9 @@ uint32_t ShCtrlGetCurrentProcessor(void) {
     return rtems_scheduler_get_processor();
 #endif
 }
-// end ShaveCtrlHwDependent.cpp
-
-
-
-
-
-
 
 #if defined(SHAVE_PROCESSOR_MAIN)
 #if defined(SHAVE_PLATFORM_37xx)
-
-// #include <ShaveCtrlImports.h>
 
 static uint32_t ShCtrlGetIrqLine(HglShaveType type, uint32_t id) {
     SHAVE_FUNC("%" PRId32", %" PRId32"", type, id);
@@ -105,13 +84,6 @@ static uint32_t ShCtrlGetHandleIndex(HglShaveType type, uint32_t id) {
 
 #endif
 #endif
-
-// end ShaveCtrlInternal37xx.cpp
-
-
-
-// ShaveCtrlIsr.c
-
 
 #if defined(SHAVE_PROCESSOR_MAIN)
 
@@ -166,27 +138,6 @@ static HglShaveCtrlError ShCtrlRemoveISR(ShHandle *handle) {
 
 #endif
 
-
-// end ShaveCtrlIsr.c
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ShaveCtrlHamdle/c
-
-//#if LOCAL_SH_COUNT > 0
-
 static void SetShHandle(HglShaveType type, uint32_t id, ShHandle *handle) {
     SHAVE_FUNC("%" PRId32", %" PRId32", %p", type, id, handle);
     memset(handle, 0, sizeof(HglShaveType));
@@ -200,25 +151,8 @@ static void ResetShHandle(ShHandle *handle) {
     memset(&handle->resetBegin, 0, resetSize);
 }
 
-//#endif
-
-// end ShaveCtrlHamdle/c
-
-
-
-
-
-
-
-// ShaveCtrlInternal37xx.cpp
-
-
-
-
-// ShaveCtrlInit.cpp
-//#if LOCAL_SHAVE_COUNT > 0
 static void shSemaCleanup(void) {
-//    SHAVE_FUNC("");
+    SHAVE_FUNC("");
     for (uint32_t s = 0; s < LOCAL_SH_COUNT; s++) {
         ShHandle *h = &ShConfig[s];
         // ignoring return value as we just try to clean as much
@@ -228,12 +162,12 @@ static void shSemaCleanup(void) {
 }
 
 static bool shHandleCreate(HglShaveType type) {
-//    SHAVE_FUNC("%" PRId32"", type);
+    SHAVE_FUNC("%" PRId32"", type);
     rtems_status_code rs;
     static uint32_t semaId = 0;
     uint32_t count = HglShaveMaxId[type];
     for (uint32_t id = 0; id < count; id++) {
-//        SHAVE_LOG(" - Creating sema %" PRId32"", id);
+        SHAVE_LOG(" - Creating sema %" PRId32"", id);
         uint32_t idx = ShCtrlGetHandleIndex(type, id);
         ShHandle *h = &ShConfig[idx];
         SetShHandle(type, id, h);
@@ -241,18 +175,15 @@ static bool shHandleCreate(HglShaveType type) {
                                     0, &h->waitSema);
 
         if (RTEMS_SUCCESSFUL != rs) {
-//            SHAVE_LOG(" - !!! Creating sema failed with status %" PRId32"", rs);
             semaId = 0;
-//            SHAVE_LOG(" - !!! Starting cleanup");
+            SHAVE_LOG(" - !!! Starting cleanup");
             shSemaCleanup();
-//            SHAVE_LOG(" - Failed due to rtems_semaphore_create with return code: %" PRId32"", rs);
 
             SHAVE_RETURN(true, "ERROR"); // true means error
         }
     }
     SHAVE_RETURN(false, "SUCCESS"); // false means success
 }
-//#endif
 
 HglShaveCtrlError ShCtrlInit(void) {
     SHAVE_FUNC("");
@@ -283,22 +214,6 @@ HglShaveCtrlError ShCtrlInit(void) {
     }
     SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SUCCESS);
 }
-
-/// @}
-// end ShaveCtrlInit.cpp
-
-
-
-
-
-
-
-
-
-
-
-
-// ShaveCtrlOpenClose.cpp
 
 static inline HglShaveCtrlError protect(ShHandle *handle) {
     SHAVE_FUNC("%p", handle);
@@ -408,24 +323,6 @@ HglShaveCtrlError ShCtrlClose(ShHandle **handle) {
     SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SUCCESS);
 }
 
-// end ShaveCtrlOpenClose.cpp
-
-
-
-
-
-
-
-
-// ShaveCtrlConfig.c
-
-//#if defined(SHAVE_HAS_SLICE_USER_CONTEXT)
-//void ShaveSetSliceUserContextID(uint32_t s, uint32_t ctx) {
-//    SHAVE_FUNC("%" PRId32", %" PRId32"", s, ctx);
-//    HglShaveSetSliceUserContextID(s, ctx);
-//}
-//#endif
-
 HglShaveCtrlError ShCtrlSetStackAddr(ShHandle *handle, uint32_t stack) {
     SHAVE_FUNC("%p, 0x%" PRIX32"", handle, stack);
     if (handle == NULL) {
@@ -462,10 +359,6 @@ HglShaveCtrlError ShCtrlSetStackSize(ShHandle *handle, uint32_t size) {
     SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SUCCESS);
 }
 
-// end ShaveCtrlConfig.c
-
-
-// ShaveCtrlWindows.c
 HglShaveCtrlError ShCtrlSetWindowAddr(ShHandle *handle, HglShaveWindow win, uint32_t winAddr) {
     SHAVE_FUNC("%p, %" PRId32", %p", handle, win, winAddr);
     if (handle == NULL) {
@@ -483,10 +376,7 @@ HglShaveCtrlError ShCtrlSetWindowAddr(ShHandle *handle, HglShaveWindow win, uint
     HglShaveSetWindow((HglShaveHandle *)handle, win, winAddr);
     SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SUCCESS);
 }
-// end ShaveCtrlWindows.c
 
-
-// ShaveCtrlStop.c
 HglShaveCtrlError ShCtrlStop(ShHandle *handle) {
     SHAVE_FUNC("%p", handle);
     if (handle == NULL) {
@@ -507,5 +397,3 @@ HglShaveCtrlError ShCtrlStop(ShHandle *handle) {
 
     SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SUCCESS);
 }
-// end ShaveCtrlStop.c
-
