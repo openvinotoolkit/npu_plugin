@@ -200,7 +200,7 @@ func @main(%in: memref<1x120000xf16>, %out: memref<1x120000xf16>) -> memref<1x12
     // CHECK-NEXT:       IERT.Copy inputs([[BUF0]] : memref<1x120000xf16, @CMX_NN>) outputs([[BUF_SPILL_WRITE]] : memref<1x120000xf16, @DDR>)
 
     // CHECK:       [[T22:%.+]], [[R22:%.+]] = async.execute
-    // CHECK-NEXT:       IERT.Add
+    // CHECK:       IERT.Add
 
     // CHECK:       [[T4:%.+]], [[R4:%.+]] = async.execute
     // CHECK-SAME:      ([[R3]] as [[ARG1:%.*]]: !async.value<memref<1x120000xf16, @DDR>>
@@ -421,10 +421,10 @@ func @main(%in: memref<100000xf16>, %out: memref<100000xf16>) -> memref<100000xf
     // CHECK-SAME:      [0] [100000] : memref<200000xf16, @CMX_NN> to memref<100000xf16, @CMX_NN>
     // CHECK:       IERT.ReLU
 
-    // CHECK:       [[T4:%.+]], [[R4:%.+]] = async.execute
+    // CHECK:       [[T3:%.+]], [[R3:%.+]] = async.execute
     // CHECK:       IERT.ReLU
 
-    // CHECK:       [[T3:%.+]], [[R3:%.+]] = async.execute
+    // CHECK:       [[T4:%.+]], [[R4:%.+]] = async.execute
     // CHECK:       IERT.Copy
 
     // CHECK:       [[T5:%.+]], [[R5:%.+]] = async.execute
@@ -682,6 +682,112 @@ func @main(%in: memref<200000xf16>, %out0: memref<200000xf16>, %out1: memref<200
     // CHECK:       [[T4:%.+]], [[R4:%.+]] = async.execute
     // CHECK-SAME:      [[T3]]
     // CHECK-NEXT:      IERT.Copy
+}
+
+}
+
+// -----
+
+// CHECK-LABEL: @Prefetching
+module @Prefetching {
+
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        DataInfo "data" : tensor<1x64000xf16>
+    }
+    outputsInfo : {
+        DataInfo "prob" : tensor<1x64000xf16>
+    }
+
+func @main(%in: memref<1x64000xf16>, %out: memref<1x64000xf16>) -> memref<1x64000xf16> {
+    %cst0 = const.Declare memref<1x64000xf16> = #const.Content<dense<2.0> : tensor<1x64000xf16>>
+    %cst1 = const.Declare memref<1x64000xf16> = #const.Content<dense<2.0> : tensor<1x64000xf16>>
+    %cst2 = const.Declare memref<1x64000xf16> = #const.Content<dense<2.0> : tensor<1x64000xf16>>
+
+    %buf_in = memref.alloc() : memref<1x64000xf16, @CMX_NN>
+
+    %buf0 = memref.alloc() : memref<1x64000xf16, @CMX_NN>
+    %buf1 = memref.alloc() : memref<1x64000xf16, @CMX_NN>
+    %buf2 = memref.alloc() : memref<1x64000xf16, @CMX_NN>
+    %buf3 = memref.alloc() : memref<1x64000xf16, @CMX_NN>
+    %buf4 = memref.alloc() : memref<1x64000xf16, @CMX_NN>
+    %buf5 = memref.alloc() : memref<1x64000xf16, @CMX_NN>
+
+    %t_in, %r_in = async.execute -> !async.value<memref<1x64000xf16, @CMX_NN>> attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
+        %0 = IERT.Copy inputs(%in : memref<1x64000xf16>) outputs(%buf_in : memref<1x64000xf16, @CMX_NN>) -> memref<1x64000xf16, @CMX_NN>
+        async.yield %0 : memref<1x64000xf16, @CMX_NN>
+    }
+
+    %t0, %r0 = async.execute -> !async.value<memref<1x64000xf16, @CMX_NN>> attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 1 : i64} {
+        %0 = IERT.Copy inputs(%cst0 : memref<1x64000xf16>) outputs(%buf0 : memref<1x64000xf16, @CMX_NN>) -> memref<1x64000xf16, @CMX_NN>
+        async.yield %0 : memref<1x64000xf16, @CMX_NN>
+    }
+
+    %t1, %r1 = async.execute -> !async.value<memref<1x64000xf16, @CMX_NN>> attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 2 : i64} {
+        %0 = IERT.Copy inputs(%cst1 : memref<1x64000xf16>) outputs(%buf1 : memref<1x64000xf16, @CMX_NN>) -> memref<1x64000xf16, @CMX_NN>
+        async.yield %0 : memref<1x64000xf16, @CMX_NN>
+    }
+
+    %t2, %r2 = async.execute -> !async.value<memref<1x64000xf16, @CMX_NN>> attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 3 : i64} {
+        %0 = IERT.Copy inputs(%cst2 : memref<1x64000xf16>) outputs(%buf2 : memref<1x64000xf16, @CMX_NN>) -> memref<1x64000xf16, @CMX_NN>
+        async.yield %0 : memref<1x64000xf16, @CMX_NN>
+    }
+
+    %t3, %r3 = async.execute [%t_in, %t0] (%r_in as %0 : !async.value<memref<1x64000xf16, @CMX_NN>>, %r0 as %1 : !async.value<memref<1x64000xf16, @CMX_NN>>)
+            -> !async.value<memref<1x64000xf16, @CMX_NN>> attributes {IERT.executor = @NCE, IERT.num_units = 1 : i64, "async-deps-index" = 4 : i64} {
+        %2 = IERT.Add inputs(%0: memref<1x64000xf16, @CMX_NN>, %1: memref<1x64000xf16, @CMX_NN>) outputs(%buf3 : memref<1x64000xf16, @CMX_NN>) -> memref<1x64000xf16, @CMX_NN>
+        async.yield %2 : memref<1x64000xf16, @CMX_NN>
+    }
+
+    %t4, %r4 = async.execute [%t3, %t1] (%r3 as %0 : !async.value<memref<1x64000xf16, @CMX_NN>>, %r1 as %1 : !async.value<memref<1x64000xf16, @CMX_NN>>)
+            -> !async.value<memref<1x64000xf16, @CMX_NN>> attributes {IERT.executor = @NCE, IERT.num_units = 1 : i64, "async-deps-index" = 5 : i64} {
+        %2 = IERT.Add inputs(%0: memref<1x64000xf16, @CMX_NN>, %1: memref<1x64000xf16, @CMX_NN>) outputs(%buf4 : memref<1x64000xf16, @CMX_NN>) -> memref<1x64000xf16, @CMX_NN>
+        async.yield %2 : memref<1x64000xf16, @CMX_NN>
+    }
+
+    %t5, %r5 = async.execute [%t4, %t2] (%r4 as %0 : !async.value<memref<1x64000xf16, @CMX_NN>>, %r2 as %1 : !async.value<memref<1x64000xf16, @CMX_NN>>)
+            -> !async.value<memref<1x64000xf16, @CMX_NN>> attributes {IERT.executor = @NCE, IERT.num_units = 1 : i64, "async-deps-index" = 6 : i64} {
+        %2 = IERT.Add inputs(%0: memref<1x64000xf16, @CMX_NN>, %1: memref<1x64000xf16, @CMX_NN>) outputs(%buf5 : memref<1x64000xf16, @CMX_NN>) -> memref<1x64000xf16, @CMX_NN>
+        async.yield %2 : memref<1x64000xf16, @CMX_NN>
+    }
+
+    %t6, %r6 = async.execute [%t5] (%r5 as %0 : !async.value<memref<1x64000xf16, @CMX_NN>>)
+            -> !async.value<memref<1x64000xf16>> attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 7 : i64} {
+        %1 = IERT.Copy inputs(%0 : memref<1x64000xf16, @CMX_NN>) outputs(%out : memref<1x64000xf16>) -> memref<1x64000xf16>
+        async.yield %1 : memref<1x64000xf16>
+    }
+
+    %6 = async.await %r6 : !async.value<memref<1x64000xf16>>
+    return %6 : memref<1x64000xf16>
+
+    // CHECK:       [[T0:%.+]], [[R0:%.+]] = async.execute ->
+    // CHECK-NEXT:       IERT.Copy inputs(%arg0 : memref<1x64000xf16>) outputs([[BUF0:%.*]] :
+
+    // CHECK:       [[T1:%.+]], [[R1:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Copy
+
+    // CHECK:       [[T2:%.+]], [[R2:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Add
+
+    // Prefetched Copy ops below
+
+    // CHECK:       [[T3:%.+]], [[R3:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Copy
+
+    // CHECK:       [[T4:%.+]], [[R4:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Copy
+
+    // CHECK:       [[T5:%.+]], [[R5:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Add
+
+    // No stall between NCE Tasks
+
+    // CHECK:       [[T6:%.+]], [[R6:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Add
+
+    // CHECK:       [[T7:%.+]], [[R7:%.+]] = async.execute
+    // CHECK-NEXT:       IERT.Copy
 }
 
 }
