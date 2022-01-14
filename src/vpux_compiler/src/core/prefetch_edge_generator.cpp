@@ -30,26 +30,24 @@ vpux::PrefetchEdgeGenerator::PrefetchEdgeGenerator(scheduledOps& initialSchedule
     // sort by time -> out-degree -> size -> opIdx
 }
 
-bool vpux::PrefetchEdgeGenerator::prefetchConstraintsSatisifed(ScheduledOpInfo* dataOp, ScheduledOpInfo* computeOp) {
+bool vpux::PrefetchEdgeGenerator::prefetchConstraintsSatisifed(ScheduledOpInfo* dataOp, ScheduledOpInfo* computeOp,
+                                                               size_t currentComputeOpLevel) {
     // constraints for prefetching limiting the prefetch so that operations are not prefetched
     // too early, this includes levels of compute operations where level 0 is the previous compute
     // operation scheduled, level 1 is the compute before level 0, etc. as well as arbitrarty time
     // constraint where operations can only be prefetched a certain time before
 
-    // if a compute op, increase levels
-    if (!dataOp->isDataOp() && dataOp->hasActiveResource()) {
-        ++CURRENT_COMPUTE_OP_LEVEL;
-    } else if (dataOp->isDataOp()) {
+    if (dataOp->isDataOp()) {
         // if a data op, check level and time constraints
         if (_depsInfo.getOpDeps(dataOp->op_).empty()) {
             // const prefetching, operation has no dependencies
-            if (CURRENT_COMPUTE_OP_LEVEL > PREFETCH_LEVEL_LIMIT_CONST) {
+            if (currentComputeOpLevel > PREFETCH_LEVEL_LIMIT_CONST) {
                 // const level difference constraint
                 return false;
             }
         } else {
             // activation prefetching, operation contains dependencies
-            if (CURRENT_COMPUTE_OP_LEVEL > PREFETCH_LEVEL_LIMIT_ACT) {
+            if (currentComputeOpLevel > PREFETCH_LEVEL_LIMIT_ACT) {
                 // activation level difference constraint
                 return false;
             }
@@ -113,6 +111,8 @@ bool vpux::PrefetchEdgeGenerator::canDataOpBePrefetched(ScheduledOpInfo* dataOp)
 vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePrefetchEdges() {
     _log.trace("Creating pipelining chains");
 
+    // track the level of the current compute op
+    size_t currentComputeOpLevel;
     auto computeOp = _scheduledOps.begin();
     // skip input op, mark input as executed
     _executedOps.insert(computeOp->op_);
@@ -123,7 +123,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
         // find compute op
         if (!computeOp->isDataOp() && computeOp->hasActiveResource()) {
             // find first possible data op to overlap with the compute
-            CURRENT_COMPUTE_OP_LEVEL = 1;
+            currentComputeOpLevel = 1;
             // NOTE: data op must be after compute
             dataOp = computeOp;
             // advance to next op
@@ -134,7 +134,10 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
             // iterate over the following ops
             while (dataOp != _scheduledOps.end()) {
                 // 1. verify prefetching constraints met, if not move to next compute
-                if (!prefetchConstraintsSatisifed(dataOp, computeOp)) {
+                if (!dataOp->isDataOp() && dataOp->hasActiveResource()) {
+                    ++currentComputeOpLevel;
+                }
+                if (!prefetchConstraintsSatisifed(dataOp, computeOp, currentComputeOpLevel)) {
                     break;
                 }
 
@@ -156,7 +159,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                         _log.trace("data op = '{0}' will fit during compute = '{1}' with time dif = '{2}' and level "
                                    "dif '{3}'",
                                    dataOp->op_, computeOp->op_, (dataOp->time_ - computeOp->time_),
-                                   CURRENT_COMPUTE_OP_LEVEL);
+                                   currentComputeOpLevel);
                         // store the prefetch edge
                         _prefetchEdges[computeOp->op_].insert(std::make_pair(dataOp->op_, dataOp->time_));
                         _prefetchedDataOps.insert(dataOp->op_);

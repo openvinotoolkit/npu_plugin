@@ -80,6 +80,7 @@ public:
                 return op1.first < op2.first;
             }
 
+            // if time is the same sort by operationIdx which reflects IR order
             return op1.second < op2.second;
         }
     };
@@ -275,7 +276,7 @@ public:
                             AliasesInfo& aliasInfo, Logger log, LinearScan<mlir::Value, LinearScanHandler>& scan);
 
 public:
-    llvm::SmallVector<ScheduledOpInfo> generateSchedule(prefetchMap prefetchMap = {});
+    SmallVector<ScheduledOpInfo> generateSchedule(prefetchMap prefetchMap = {});
 
 private:
     bool init();

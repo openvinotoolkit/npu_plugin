@@ -41,7 +41,8 @@ public:
     prefetchMap generatePrefetchEdges();
 
 private:
-    bool prefetchConstraintsSatisifed(ScheduledOpInfo* dataOp, ScheduledOpInfo* computeOp);
+    bool prefetchConstraintsSatisifed(ScheduledOpInfo* dataOp, ScheduledOpInfo* computeOp,
+                                      size_t currentComputeOpLevel);
     bool allDataOpDependenciesExecuted(operationIdxType dataIdx);
     bool canDataOpBePrefetched(ScheduledOpInfo* dataOp);
 
@@ -55,7 +56,6 @@ private:
     std::unordered_set<operationIdxType> _prefetchedDataOps;
     std::unordered_set<operationIdxType> _executedOps;
     // prefetching constraints
-    size_t CURRENT_COMPUTE_OP_LEVEL;
     size_t PREFETCH_LEVEL_LIMIT_CONST = 2;
     size_t PREFETCH_LEVEL_LIMIT_ACT = 1;
     size_t PREFETCH_TIME_LIMIT = 50;

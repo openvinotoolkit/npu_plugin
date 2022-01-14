@@ -642,7 +642,8 @@ void FeasibleMemoryScheduler::schedulePrefetchedDataOps(size_t computeOpStartTim
 
                 // Step 3: schedule the prefetched data op
                 _log.nest().trace("Scheduling prefetched data op:'{0}'", prefetchDataOpIdx);
-                pushToStartTimeHeap(HeapElement(prefetchDataOpIdx, computeOpStartTime, EOpType::ORIGINAL_PREFETCHED_OP));
+                pushToStartTimeHeap(
+                        HeapElement(prefetchDataOpIdx, computeOpStartTime, EOpType::ORIGINAL_PREFETCHED_OP));
             }
         }
     }
