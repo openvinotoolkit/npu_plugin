@@ -11,6 +11,24 @@
 # included with the Software Package for additional details.
 #
 
+# if(DEFINED MV_TOOLS_DIR)
+#     message("MV_TOOLS_DIR = ${MV_TOOLS_DIR}")
+# else()
+#     message(WARNING "MV_TOOLS_DIR is not defined. The vpux-jit will not be built.")
+#     return()
+# endif()
+
+# if(NOT DEFINED MV_TOOLS_VERSION)
+#     set(MV_TOOLS_VERSION "21.09.5-internal")
+# endif()
+# message("MV_TOOLS_VERSION = ${MV_TOOLS_VERSION}")
+
+# set(MV_TOOLS_PATH "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}")
+
+if(NOT ENABLE_EMULATOR)
+    message(WARNING "Emulator not enabled. VPUX-JIT will not be built")
+endif()
+
 set(TARGET_NAME "vpux-jit")
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
@@ -19,8 +37,16 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 add_executable(${TARGET_NAME} ${SOURCES})
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tools")
 
-enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
-vpux_enable_clang_format(${TARGET_NAME})
+#FIXME: we will currently link with emulator, and some extra hack-includes to be able to use the movisim binding
+#utilities. TODO [JIRA_TASK] to move the movisim bindings into core kmb-plugin utilities
+set(EMU_ROOT_DIR ${PROJECT_SOURCE_DIR}/src/vpux_emulator)
+target_include_directories(
+    ${TARGET_NAME}
+    PUBLIC
+    ${EMU_ROOT_DIR}/include/emu
+    ${EMU_ROOT_DIR}/src
+    ${MV_TOOLS_PATH}/common/moviSim/includes
+)
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
@@ -28,4 +54,13 @@ target_link_libraries(${TARGET_NAME}
         vpux_utils
         vpux_compiler_static
         vpux_translate_utils_static
+        vpux_emulator
 )
+
+# add_library(${TARGET_NAME}
+#     MODULE
+
+#     )
+
+enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
+vpux_enable_clang_format(${TARGET_NAME})

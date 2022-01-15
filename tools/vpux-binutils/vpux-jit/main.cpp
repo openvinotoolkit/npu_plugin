@@ -21,7 +21,9 @@
 #include "mlir/IR/Dialect.h"
 
 #include <vpux/compiler/init.hpp>
-#include "vpux/utils/core/logger.hpp"
+#include <vpux/utils/core/logger.hpp>
+
+#include <src/runner/movisim/simulator.hpp>
 
 namespace {
 
@@ -51,6 +53,14 @@ vpux::Logger logger("VPUX-JIT", vpux::LogLevel::Warning);
 
 }  // namespace
 
+class IMDemoSimulator{
+    void run(mlir::ModuleOp& module,
+                llvm::ArrayRef<llvm::ArrayRef<uint8_t>> inputs,
+                llvm::ArrayRef<llvm::ArrayRef<uint8_t>> outputs) {
+
+
+    }
+};
 
 int main(int argc, char* argv[]) {
     llvm::cl::ParseCommandLineOptions(argc, argv);
@@ -71,6 +81,5 @@ int main(int argc, char* argv[]) {
 
     auto module = mlir::OwningModuleRef(mlir::parseSourceFile(sourceMgr, &context));
 
-
-
+    // call the translation, generate the elf yadayada
 }
