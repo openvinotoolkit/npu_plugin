@@ -12,6 +12,7 @@
 #include <algorithm>
 
 #include <inference_engine.hpp>
+#include "openvino/runtime/tensor.hpp"
 
 #include <format_reader_ptr.h>
 

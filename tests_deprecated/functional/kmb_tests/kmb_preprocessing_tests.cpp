@@ -687,7 +687,7 @@ class VpuPreprocessingConfigAndInferTestsSipp : public VpuPreprocessingConfigAnd
 public:
     VpuPreprocessingConfigAndInferTestsSipp() {
         // All Sipp-related config options require Sipp to be enabled
-        _config["VPUX_USE_SIPP"] = "YES";
+        _config["VPUX_PREPROCESSING_TYPE"] = VPUX_CONFIG_VALUE(GAPI_VPU_SIPP);
     }
 };
 TEST_P(VpuPreprocessingConfigAndInferTestsSipp, DISABLED_setConfigAndInfer) { setConfigAndInfer(); }
@@ -834,7 +834,11 @@ INSTANTIATE_TEST_SUITE_P(precommit_preprocessing_lpi, VpuPreprocessingConfigAndI
 // [Track number: H#18013271822]
 INSTANTIATE_TEST_SUITE_P(
     DISABLED_precommit, VpuPreprocessingConfigAndInferTests,
-    Combine(Values("VPUX_USE_M2I", "VPUX_USE_SHAVE_ONLY_M2I"), Values("YES", "NO")));
+        Values(std::make_tuple("VPUX_PREPROCESSING_TYPE", "VPUX_GAPI_VPU_M2I"),
+        std::make_tuple("VPUX_PREPROCESSING_TYPE", "VPUX_GAPI_VPU_SIPP"),
+        std::make_tuple("VPUX_PREPROCESSING_TYPE", "VPUX_GAPI_CPU"),
+        std::make_tuple("VPUX_USE_SHAVE_ONLY_M2I", "YES"),
+        std::make_tuple("VPUX_USE_SHAVE_ONLY_M2I", "NO")));
 
 INSTANTIATE_TEST_SUITE_P(precommit, VpuPreprocessingConfigTests,
     Values(std::make_tuple("VPUX_PREPROCESSING_SHAVES", "8", true),
@@ -842,7 +846,8 @@ INSTANTIATE_TEST_SUITE_P(precommit, VpuPreprocessingConfigTests,
         std::make_tuple("VPUX_PREPROCESSING_LPI", "16", true),
         std::make_tuple("VPUX_PREPROCESSING_LPI", "3", false),
         std::make_tuple("VPUX_PREPROCESSING_LPI", "seventeen", false),
-        std::make_tuple("VPUX_USE_M2I", "YES", true), std::make_tuple("VPUX_USE_M2I", "USE", false),
+        std::make_tuple("VPUX_PREPROCESSING_TYPE", "VPUX_GAPI_VPU_M2I", true),
+        std::make_tuple("VPUX_PREPROCESSING_TYPE", "VPUX_GAPI_VPU_SIPP", false),
         std::make_tuple("VPUX_USE_SHAVE_ONLY_M2I", "YES", true), std::make_tuple("VPUX_USE_SHAVE_ONLY_M2I", "USE", false)));
 
 #endif

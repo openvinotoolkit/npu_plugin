@@ -141,7 +141,7 @@ public:
      * @brief Returns a map with information about preprocess inputs.
      * @return Constant reference to an internally held map containing information about preprocess for inputs
      */
-    const std::unordered_map<std::string, InferenceEngine::PreProcessInfo>& getPreprocessInfo() const {
+    const std::unordered_map<std::string, VPUXPreProcessInfo::Ptr>& getPreprocessInfo() const {
         return _iePreprocessInfo;
     }
 
@@ -153,7 +153,7 @@ public:
     virtual ~INetworkDescription() = default;
 
 protected:
-    std::unordered_map<std::string, InferenceEngine::PreProcessInfo> _iePreprocessInfo;
+    std::unordered_map<std::string, VPUXPreProcessInfo::Ptr> _iePreprocessInfo;
 };
 
 /**
@@ -212,6 +212,9 @@ public:
     }
     std::size_t getNetworkModelSize() const {
         return _impl->getNetworkModelSize();
+    }
+    const std::unordered_map<std::string, VPUXPreProcessInfo::Ptr>& getPreprocessInfo() const {
+        return _impl->getPreprocessInfo();
     }
 
 private:

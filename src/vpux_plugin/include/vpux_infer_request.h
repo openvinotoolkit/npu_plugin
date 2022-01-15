@@ -20,6 +20,7 @@
 // Plugin
 #include "vpux.hpp"
 #include "vpux/utils/core/logger.hpp"
+#include "vpux/vpux_plugin_config.hpp"
 
 namespace vpux {
 
@@ -31,7 +32,8 @@ public:
                           const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor,
                           const Config& config, const std::string& netName,
                           const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                          const std::vector<std::shared_ptr<const ov::Node>>& results,
+                          const std::vector<std::shared_ptr<const ov::Node>>& results, const std::string& backendName,
+                          const std::unordered_map<std::string, VPUXPreProcessInfo::Ptr>& prePrecess,
                           const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
 
     void Infer() override;
@@ -68,9 +70,11 @@ protected:
     void updateRemoteBlobs(InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap);
     void updateRemoteBlobColorFormat(InferenceEngine::Blob::Ptr& blob, const InferenceEngine::ColorFormat colorFormat);
 
+    InferenceEngine::VPUXConfigParams::PreProcessType getPreProcessingType() const;
+
     // TODO Preprocessing should be moved into backend [Track number: S#43193]
-#ifdef __aarch64__
     void execPreprocessing(InferenceEngine::BlobMap& inputs);
+#ifdef __aarch64__
     void relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
                                                InferenceEngine::InputsDataMap& networkInputs,
                                                InferenceEngine::ColorFormat out_format, unsigned int numShaves,
@@ -89,6 +93,8 @@ protected:
     std::shared_ptr<InferenceEngine::IAllocator> _allocator;
     const int _deviceId;
     const std::string _netUniqueId;
+    const std::string _backendName;
+    const std::unordered_map<std::string, VPUXPreProcessInfo::Ptr>& _prePrecessInputsInfo;
 
     // TODO Specific details for KMB-standalone preprocessing [Track number: S#43193]
     // the buffer is used when non-shareable memory passed for preprocessing

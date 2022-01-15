@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright 2022 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,26 +13,77 @@
 
 #pragma once
 
+#include <ie_preprocess.hpp>
+#include <utility>
+
 namespace vpux {
-
-enum class PreProcessColorSpace : uint32_t { NONE, BGR, RGB, NV12, I420 };
-enum class PreProcessResizeAlgorithm : uint32_t { NO_RESIZE, RESIZE_BILINEAR, RESIZE_AREA };
-
 /**
- * @brief A helper structure describing preprocess info for inputs
+ * @brief A helper class describing preprocess info for inputs
  */
-struct PreProcessInfo {
-    explicit PreProcessInfo(std::string inputName = "", PreProcessColorSpace inputFormat = PreProcessColorSpace::NONE,
-                            PreProcessColorSpace outputFormat = PreProcessColorSpace::NONE,
-                            PreProcessResizeAlgorithm algorithm = PreProcessResizeAlgorithm::NO_RESIZE)
-            : _inputName(std::move(inputName)),
-              _inputFormat(inputFormat),
-              _outputFormat(outputFormat),
-              _algorithm(algorithm){};
-    const std::string _inputName;
-    const PreProcessColorSpace _inputFormat;
-    const PreProcessColorSpace _outputFormat;
-    const PreProcessResizeAlgorithm _algorithm;
+
+class VPUXPreProcessInfo final : public InferenceEngine::PreProcessInfo {
+public:
+    using Ptr = std::shared_ptr<VPUXPreProcessInfo>;
+    using CPtr = std::shared_ptr<const VPUXPreProcessInfo>;
+
+    VPUXPreProcessInfo() = default;
+    explicit VPUXPreProcessInfo(std::string inputName, InferenceEngine::ColorFormat inputFormat,
+                                InferenceEngine::ColorFormat outputFormat, InferenceEngine::ResizeAlgorithm algorithm,
+                                InferenceEngine::TensorDesc tensorDesc = {})
+            : _inputName(std::move(inputName)), _outputFormat(outputFormat), _originTensorDesc(std::move(tensorDesc)) {
+        setColorFormat(inputFormat);
+        setResizeAlgorithm(algorithm);
+    };
+
+    auto getInputName() const {
+        return _inputName;
+    }
+
+    auto getInputColorFormat() const {
+        return getColorFormat();
+    }
+
+    auto getOutputColorFormat() const {
+        return _outputFormat;
+    }
+
+    void setInputColorFormat(const InferenceEngine::ColorFormat inputFormat) {
+        setColorFormat(inputFormat);
+    }
+
+    void setOutputColorFormat(const InferenceEngine::ColorFormat outputFormat) {
+        _outputFormat = outputFormat;
+    }
+
+    InferenceEngine::TensorDesc getOriginTensorDesc() const {
+        return _originTensorDesc;
+    }
+
+    void setOriginTensorDesc(InferenceEngine::TensorDesc originTensorDesc) {
+        _originTensorDesc = originTensorDesc;
+    }
+
+    VPUXPreProcessInfo(const VPUXPreProcessInfo& p)
+            : _inputName(p.getInputName()),
+              _outputFormat(p.getOutputColorFormat()),
+              _originTensorDesc(p.getOriginTensorDesc()) {
+        setColorFormat(p.getColorFormat());
+        setResizeAlgorithm(p.getResizeAlgorithm());
+    };
+
+    VPUXPreProcessInfo& operator=(const VPUXPreProcessInfo& p) {
+        _inputName = p.getInputName();
+        setColorFormat(p.getColorFormat());
+        setOutputColorFormat(p.getOutputColorFormat());
+        setResizeAlgorithm(p.getResizeAlgorithm());
+        setOriginTensorDesc(p.getOriginTensorDesc());
+        return *this;
+    }
+
+protected:
+    std::string _inputName;
+    InferenceEngine::ColorFormat _outputFormat = InferenceEngine::ColorFormat::RAW;
+    InferenceEngine::TensorDesc _originTensorDesc;
 };
 
 }  // namespace vpux

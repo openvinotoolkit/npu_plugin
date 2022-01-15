@@ -16,6 +16,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 #include "common/functions.h"
+#include "vpux/utils/core/preprocessing.hpp"
 
 using namespace LayerTestsUtils;
 

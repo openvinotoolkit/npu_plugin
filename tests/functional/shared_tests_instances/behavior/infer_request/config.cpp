@@ -24,15 +24,12 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
     {{VPUX_CONFIG_KEY(CSRAM_SIZE), "2097152"}},
+    {{VPUX_CONFIG_KEY(PREPROCESSING_TYPE), VPUX_CONFIG_VALUE(GAPI_CPU)}},
 
     // Private options
     {{"VPUX_GRAPH_COLOR_FORMAT", "RGB"}},
-    {{"VPUX_USE_M2I", CONFIG_VALUE(YES)}},
-    {{"VPU_KMB_USE_M2I", CONFIG_VALUE(NO)}},
     {{"VPUX_USE_SHAVE_ONLY_M2I", CONFIG_VALUE(YES)}},
     {{"VPU_KMB_USE_SHAVE_ONLY_M2I", CONFIG_VALUE(NO)}},
-    {{"VPUX_USE_SIPP", CONFIG_VALUE(YES)}},
-    {{"VPU_KMB_USE_SIPP", CONFIG_VALUE(NO)}},
     {{"VPUX_PREPROCESSING_SHAVES", "4"}},
     {{"VPUX_PREPROCESSING_LPI", "8"}},
 #if defined(__arm__) || defined(__aarch64__)
@@ -51,15 +48,12 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
     {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
     {{VPUX_CONFIG_KEY(CSRAM_SIZE), "-3"}},
+    {{VPUX_CONFIG_KEY(PREPROCESSING_TYPE), VPUX_CONFIG_VALUE(GAPI_CPU)}},
 
     // Private options
     {{"VPUX_GRAPH_COLOR_FORMAT", "NV12"}},
-    {{"VPUX_USE_M2I", "YEP"}},
-    {{"VPU_KMB_USE_M2I", "NOP"}},
     {{"VPUX_USE_SHAVE_ONLY_M2I", "YEP"}},
     {{"VPU_KMB_USE_SHAVE_ONLY_M2I", "NOP"}},
-    {{"VPUX_USE_SIPP", "NOP"}},
-    {{"VPU_KMB_USE_SIPP", "NOP"}},
     {{"VPUX_PREPROCESSING_SHAVES", "FOUR"}},
     {{"VPUX_PREPROCESSING_LPI", "EIGHT"}},
 #if defined(__arm__) || defined(__aarch64__)

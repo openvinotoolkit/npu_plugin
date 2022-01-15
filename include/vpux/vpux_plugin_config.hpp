@@ -82,5 +82,28 @@ DECLARE_VPUX_CONFIG_KEY(INFERENCE_SHAVES);
  */
 DECLARE_VPUX_CONFIG_KEY(CSRAM_SIZE);
 
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: string. The default values are defined for the following backends as:
+ * - VPUAL: GAPI_VPU_M2I;
+ * - HDDL2: GAPI_VPU_M2I;
+ * - LEVEL0: GAPI_CPU;
+ * - EMULATOR: GAPI_CPU;
+ */
+
+enum class PreProcessType : int  {
+    NOT_SPECIFIC = 0,
+    GAPI_VPU_SIPP = 1,
+    GAPI_VPU_M2I = 2,
+    GAPI_CPU = 3,
+    COMPILER = 4
+};
+
+DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_TYPE);
+DECLARE_VPUX_CONFIG_VALUE(GAPI_VPU_SIPP);
+DECLARE_VPUX_CONFIG_VALUE(GAPI_VPU_M2I);
+DECLARE_VPUX_CONFIG_VALUE(GAPI_CPU);
+DECLARE_VPUX_CONFIG_VALUE(COMPILER);
+
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

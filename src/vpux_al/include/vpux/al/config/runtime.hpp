@@ -225,32 +225,6 @@ struct PREPROCESSING_PIPES final : OptionBase<PREPROCESSING_PIPES, int64_t> {
 };
 
 //
-// USE_M2I
-//
-
-struct USE_M2I final : OptionBase<USE_M2I, bool> {
-    static StringRef key() {
-        return VPUX_CONFIG_KEY(USE_M2I);
-    }
-
-    static SmallVector<StringRef> deprecatedKeys() {
-        return {VPU_KMB_CONFIG_KEY(USE_M2I)};
-    }
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static bool isPublic() {
-        return false;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-};
-
-//
 // USE_SHAVE_ONLY_M2I
 //
 
@@ -265,32 +239,6 @@ struct USE_SHAVE_ONLY_M2I final : OptionBase<USE_SHAVE_ONLY_M2I, bool> {
 
     static bool defaultValue() {
         return false;
-    }
-
-    static bool isPublic() {
-        return false;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-};
-
-//
-// USE_SIPP
-//
-
-struct USE_SIPP final : OptionBase<USE_SIPP, bool> {
-    static StringRef key() {
-        return VPUX_CONFIG_KEY(USE_SIPP);
-    }
-
-    static SmallVector<StringRef> deprecatedKeys() {
-        return {VPU_KMB_CONFIG_KEY(USE_SIPP)};
-    }
-
-    static bool defaultValue() {
-        return true;
     }
 
     static bool isPublic() {

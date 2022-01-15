@@ -42,21 +42,21 @@ const EnumMap<ov::element::Type_t, MVCNN::OVNodeType> VPUIP::mapElementType = {
         {ov::element::Type_t::u64, MVCNN::OVNodeType::OVNodeType_U64},
 };
 
-const EnumMap<vpux::PreProcessColorSpace, MVCNN::PreProcessColorSpace> vpux::VPUIP::mapPreProcessColorFormat = {
-        {vpux::PreProcessColorSpace::BGR, MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR},
-        {vpux::PreProcessColorSpace::RGB, MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB},
-        {vpux::PreProcessColorSpace::NV12, MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12},
-        {vpux::PreProcessColorSpace::I420, MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420},
-        {vpux::PreProcessColorSpace::NONE, MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT},
+const EnumMap<InferenceEngine::ColorFormat, MVCNN::PreProcessColorSpace> vpux::VPUIP::mapPreProcessColorFormat = {
+        {InferenceEngine::ColorFormat::BGR, MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR},
+        {InferenceEngine::ColorFormat::RGB, MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB},
+        {InferenceEngine::ColorFormat::NV12, MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12},
+        {InferenceEngine::ColorFormat::I420, MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420},
+        {InferenceEngine::ColorFormat::RAW, MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT},
 };
 
-const EnumMap<vpux::PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm>
+const EnumMap<InferenceEngine::ResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm>
         vpux::VPUIP::mapPreProcessResizeAlgorithm = {
-                {vpux::PreProcessResizeAlgorithm::RESIZE_BILINEAR,
+                {InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR,
                  MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR},
-                {vpux::PreProcessResizeAlgorithm::RESIZE_AREA,
+                {InferenceEngine::ResizeAlgorithm::RESIZE_AREA,
                  MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA},
-                {vpux::PreProcessResizeAlgorithm::NO_RESIZE,
+                {InferenceEngine::ResizeAlgorithm::NO_RESIZE,
                  MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE},
 };
 

@@ -29,9 +29,7 @@ void vpux::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<PREPROCESSING_SHAVES>();
     desc.add<PREPROCESSING_LPI>();
     desc.add<PREPROCESSING_PIPES>();
-    desc.add<USE_M2I>();
     desc.add<USE_SHAVE_ONLY_M2I>();
-    desc.add<USE_SIPP>();
     desc.add<EXECUTOR_STREAMS>();
     desc.add<INFERENCE_TIMEOUT_MS>();
     desc.add<PRINT_PROFILING>();

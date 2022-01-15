@@ -61,6 +61,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/element_type.hpp>
 #include "legacy/ngraph_ops/normalize_ie.hpp"
+#include "vpux/al/config/common.hpp"
 #include "vpux/passes/convert_MVN6_to_MVN1.hpp"
 
 #include <legacy/transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp>
@@ -2483,7 +2484,8 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
 }
 
 void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph,
-                     std::vector<vpux::PreProcessInfo>& /*preProcInfo*/, mlir::TimingScope& rootTiming) {
+                     std::vector<VPUXPreProcessInfo::Ptr>& preProcInfo, mlir::TimingScope& rootTiming,
+                     const Config& config) {
     auto scopeTiming = rootTiming.nest("Common nGraph passes");
 
     ngraph::pass::Manager manager;
@@ -2513,8 +2515,18 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph,
     manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
     manager.register_pass<vpux::passes::ConvertVariadicSplitToStridedSliceOp>();
     manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
+    if (config.get<PREPROCESSING_TYPE>() == InferenceEngine::VPUXConfigParams::PreProcessType::COMPILER) {
+        //        std::cout << "*** Config: ENABLE COMPILER PREPROCESSING =  " << preProcInfo.size() << std::endl;
+        //        manager.register_pass<vpux::pass::RemoveNV12Conversion<ov::op::v8::NV12toBGR>>(preProcInfo);
+        //        manager.register_pass<vpux::pass::RemoveNV12Conversion<ov::op::v8::NV12toRGB>>(preProcInfo);
+    }
+    std::cout << "*** Config: ENABLE COMPILER PREPROCESSING =  " << preProcInfo.size() << std::endl;
+    manager.register_pass<vpux::pass::RemoveNV12Conversion<ov::op::v8::NV12toBGR>>(preProcInfo);
+    manager.register_pass<vpux::pass::RemoveNV12Conversion<ov::op::v8::NV12toRGB>>(preProcInfo);
 
     manager.run_passes(netGraph);
+    std::cout << "*****************************************************************  " << std::endl;
+    std::cout << "*** run_passes preProcInfo size =  " << preProcInfo.size() << std::endl;
 }
 
 //
@@ -2545,7 +2557,11 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
     for (const auto& param : sortedParameters) {
         const auto& inputName = param->get_friendly_name();
         const auto& userInput = inputsInfo.at(inputName);
-        const auto& userDesc = userInput->getTensorDesc();
+        auto userDesc = userInput->getTensorDesc();
+        if (!std::equal(userInput->getTensorDesc().getDims().begin(), userInput->getTensorDesc().getDims().end(),
+                        param->get_partial_shape().get_shape().begin()))
+            userDesc = InferenceEngine::TensorDesc(userDesc.getPrecision(), param->get_partial_shape().get_shape(),
+                                                   userDesc.getLayout());
 
         const auto nameAttr = mlir::StringAttr::get(ctx, inputName);
         const auto userTypeAttr = mlir::TypeAttr::get(importUserTensor(ctx, userDesc));
@@ -2573,8 +2589,9 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
 //
 
 std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CNNNetwork& cnnNet,
-                                                       std::vector<PreProcessInfo>& preProcInfo,
-                                                       mlir::TimingScope& rootTiming, Logger log) {
+                                                       std::vector<VPUXPreProcessInfo::Ptr>& preProcInfo,
+                                                       mlir::TimingScope& rootTiming, const Config& config,
+                                                       Logger log) {
     log.setName("IE::FrontEnd");
     log.trace("Run queryNetwork");
 
@@ -2582,7 +2599,7 @@ std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CN
     VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
 
     log.trace("Run common nGraph passes");
-    runNGraphPasses(netGraph, preProcInfo, rootTiming);
+    runNGraphPasses(netGraph, preProcInfo, rootTiming, config);
 
     log.trace("Get supported operations list");
     return NGraphImporter::getSupportedOps(netGraph);
@@ -2593,8 +2610,9 @@ std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CN
 //
 
 mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet,
-                                              std::vector<PreProcessInfo>& preProcInfo, bool sharedConstants,
-                                              mlir::TimingScope& rootTiming, bool enableProfiling, Logger log) {
+                                              vector<VPUXPreProcessInfo::Ptr>& preProcInfo, bool sharedConstants,
+                                              mlir::TimingScope& rootTiming, bool enableProfiling, const Config& config,
+                                              Logger log) {
     log.setName("IE::FrontEnd");
 
     log.trace("Load IE::FrontEnd dependent Dialects");
@@ -2604,7 +2622,7 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
     VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
 
     log.trace("Run common nGraph passes");
-    runNGraphPasses(netGraph, preProcInfo, rootTiming);
+    runNGraphPasses(netGraph, preProcInfo, rootTiming, config);
 
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef(cnnNet.getName()));
     const auto mainFuncName = mlir::FlatSymbolRefAttr::get(ctx, "main");

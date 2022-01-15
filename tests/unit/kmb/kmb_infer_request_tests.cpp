@@ -402,7 +402,7 @@ class kmbInferRequestSIPPPreprocessing :
 
 TEST_F(kmbInferRequestSIPPPreprocessing, DISABLED_canDisableSIPP) {
     vpux::VpualConfig config;
-    config.update({{"VPUX_USE_SIPP", CONFIG_VALUE(NO)}});
+    config.update({{VPUX_CONFIG_KEY(PREPROCESSING_TYPE), VPUX_CONFIG_VALUE(GAPI_VPU_SIPP)}});
 
     auto allocator = std::make_shared<MockAllocator>();
     _inferRequest = std::make_shared<TestableKmbInferRequest>(

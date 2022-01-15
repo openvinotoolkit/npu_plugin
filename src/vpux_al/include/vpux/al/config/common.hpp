@@ -115,6 +115,49 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     }
 };
 
+//
+// PREPROCESSING_TYPE
+//
+StringLiteral stringifyEnum(InferenceEngine::VPUXConfigParams::PreProcessType val);
+
+InferenceEngine::VPUXConfigParams::PreProcessType getDefaultPreProcessingType(
+        InferenceEngine::VPUXConfigParams::VPUXPlatform platform);
+
+const std::unordered_map<std::string, InferenceEngine::VPUXConfigParams::PreProcessType> mapDefaultPreProcessingType = {
+        {"VPUAL", InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_VPU_M2I},
+        {"HDDL2", InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_VPU_M2I},
+        {"LEVEL0", InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_CPU},
+        {"EMULATOR", InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_CPU}};
+
+const std::unordered_map<std::string, std::vector<InferenceEngine::VPUXConfigParams::PreProcessType>>
+        mapSupportPreProcessingTypeByBackendName = {{"VPUAL",
+                                                     {InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_VPU_M2I,
+                                                      InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_VPU_SIPP,
+                                                      InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_CPU,
+                                                      InferenceEngine::VPUXConfigParams::PreProcessType::COMPILER}},
+                                                    {"HDDL2",
+                                                     {InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_VPU_M2I,
+                                                      InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_VPU_SIPP,
+                                                      InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_CPU,
+                                                      InferenceEngine::VPUXConfigParams::PreProcessType::COMPILER}},
+                                                    {"LEVEL0",
+                                                     {InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_CPU,
+                                                      InferenceEngine::VPUXConfigParams::PreProcessType::COMPILER}},
+                                                    {"EMULATOR",
+                                                     {InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_CPU,
+                                                      InferenceEngine::VPUXConfigParams::PreProcessType::COMPILER}}};
+
+struct PREPROCESSING_TYPE final : OptionBase<PREPROCESSING_TYPE, InferenceEngine::VPUXConfigParams::PreProcessType> {
+    static StringRef key() {
+        return VPUX_CONFIG_KEY(PREPROCESSING_TYPE);
+    }
+
+    static InferenceEngine::VPUXConfigParams::PreProcessType defaultValue() {
+        return InferenceEngine::VPUXConfigParams::PreProcessType::NOT_SPECIFIC;
+    }
+    static InferenceEngine::VPUXConfigParams::PreProcessType parse(StringRef val);
+};
+
 }  // namespace vpux
 
 namespace InferenceEngine {

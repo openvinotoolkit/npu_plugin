@@ -114,7 +114,9 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork&
                                                            const Config& networkConfig) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "LoadExeNetwork");
     try {
-        return std::make_shared<ExecutableNetwork>(network, device, networkConfig);
+        const auto executableNetwork = std::make_shared<ExecutableNetwork>(network, device, networkConfig);
+        executableNetwork->SetPointerToPlugin(shared_from_this());
+        return executableNetwork;
     } catch (const std::exception&) {
         throw;
     } catch (...) {
@@ -254,6 +256,10 @@ IE::Parameter Engine::GetConfig(const std::string& name,
         return IE::Parameter(checked_cast<int>(_globalConfig.get<INFERENCE_SHAVES>()));
     } else if (name == VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS)) {
         return IE::Parameter(_globalConfig.get<COMPILATION_MODE_PARAMS>());
+    } else if (name == VPUX_CONFIG_KEY(PREPROCESSING_TYPE)) {
+        return IE::Parameter(_globalConfig.has<PREPROCESSING_TYPE>()
+                ? stringifyEnum(_globalConfig.get<PREPROCESSING_TYPE>()).str()
+                : "NOT_SPECIFIC");
     } else {
         IE_THROW(NotImplemented);
     }

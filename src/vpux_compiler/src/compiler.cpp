@@ -287,8 +287,8 @@ InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEng
     devConf.setup(tm);
     auto rootTiming = tm.getRootScope();
 
-    std::vector<vpux::PreProcessInfo> preProcInfo;
-    auto supportedLayers = IE::queryNetwork(network, preProcInfo, rootTiming, log);
+    std::vector<VPUXPreProcessInfo::Ptr> preProcInfo;
+    auto supportedLayers = IE::queryNetwork(network, preProcInfo, rootTiming, config, log);
 
     for (auto&& layerName : supportedLayers) {
         result.supportedLayersMap.emplace(layerName, plugin_name);
@@ -352,11 +352,11 @@ CNNNetwork prepareNetwork(const std::shared_ptr<ngraph::Function>& func, const I
 }
 
 auto importNetwork(mlir::MLIRContext* ctx, CNNNetwork cnnNet, const DeveloperConfig& devConf,
-                   std::vector<vpux::PreProcessInfo>& preProcInfo, mlir::TimingScope& rootTiming, bool enableProfiling,
-                   Logger log) {
+                   std::vector<VPUXPreProcessInfo::Ptr>& preProcInfo, mlir::TimingScope& rootTiming,
+                   bool enableProfiling, Logger log, const Config& config) {
     auto importTiming = rootTiming.nest("Import network");
     return IE::importNetwork(ctx, cnnNet, preProcInfo, devConf.useSharedConstants(), importTiming, enableProfiling,
-                             log.nest());
+                             config, log.nest());
 }
 
 void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingScope& rootTiming) {
@@ -366,7 +366,7 @@ void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingSc
 }
 
 auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                  const std::vector<vpux::PreProcessInfo>& preprocessInfo,
+                  const std::vector<VPUXPreProcessInfo::Ptr>& preprocessInfo,
                   const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                   const std::vector<std::shared_ptr<const ov::Node>>& results, Logger log) {
     auto exportTiming = rootTiming.nest("Export to blob");
@@ -465,8 +465,10 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     buildPipeline(pm, config, rootTiming, log);
 
     const auto cnnNet = prepareNetwork(func, inputsInfo, outputsInfo, rootTiming);
-    std::vector<vpux::PreProcessInfo> preProcInfo;
-    const auto module = importNetwork(&ctx, cnnNet, devConf, preProcInfo, rootTiming, config.get<PERF_COUNT>(), log);
+    std::vector<VPUXPreProcessInfo::Ptr> preProcInfo;
+
+    const auto module =
+            importNetwork(&ctx, cnnNet, devConf, preProcInfo, rootTiming, config.get<PERF_COUNT>(), log, config);
     compileNetwork(module.get(), pm, rootTiming);
     const auto blob = exportToBlob(module.get(), rootTiming, preProcInfo, buildOVParams(func, inputsInfo),
                                    buildOVResults(func, outputsInfo), log);

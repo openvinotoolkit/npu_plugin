@@ -287,7 +287,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
         VPUIP::BlobWriter& writer, mlir::ModuleOp module, IE::CNNNetworkOp netOp, mlir::FuncOp netFunc,
         bool withDynamicBarriers, mlir::TimingScope& rootTiming,
-        const std::vector<vpux::PreProcessInfo>& preprocessInfo,
+        const std::vector<VPUXPreProcessInfo::Ptr>& preprocessInfo,
         const std::vector<std::shared_ptr<const ov::Node>>& parameters,
         const std::vector<std::shared_ptr<const ov::Node>>& results, Logger log) {
     auto scopeTiming = rootTiming.nest("Create summary header");
@@ -382,10 +382,11 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     preprocInfo.reserve(preprocessInfo.size());
 
     for (const auto& pr : preprocessInfo) {
-        preprocInfo.push_back(MVCNN::CreatepreprocessingInfo(writer, writer.createString(pr._inputName),
-                                                             VPUIP::mapPreProcessColorFormat.at(pr._inputFormat),
-                                                             VPUIP::mapPreProcessColorFormat.at(pr._outputFormat),
-                                                             VPUIP::mapPreProcessResizeAlgorithm.at(pr._algorithm)));
+        preprocInfo.push_back(
+                MVCNN::CreatepreprocessingInfo(writer, writer.createString(pr->getInputName()),
+                                               VPUIP::mapPreProcessColorFormat.at(pr->getInputColorFormat()),
+                                               VPUIP::mapPreProcessColorFormat.at(pr->getOutputColorFormat()),
+                                               VPUIP::mapPreProcessResizeAlgorithm.at(pr->getResizeAlgorithm())));
     }
 
     SmallVector<int8_t> options;
@@ -575,7 +576,7 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
 }  // namespace
 
 flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                                      const std::vector<vpux::PreProcessInfo>& preprocessInfo,
+                                                      const std::vector<VPUXPreProcessInfo::Ptr>& preprocessInfo,
                                                       const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                                                       const std::vector<std::shared_ptr<const ov::Node>>& results,
                                                       Logger log) {

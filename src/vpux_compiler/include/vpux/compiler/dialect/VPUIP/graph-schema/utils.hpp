@@ -45,8 +45,8 @@ MVCNN::MemoryLocation createMemoryLocation(VPURT::BufferSection section);
 MVCNN::order3 createOrder3(mlir::ArrayAttr attr);
 
 extern const EnumMap<ov::element::Type_t, MVCNN::OVNodeType> mapElementType;
-extern const EnumMap<vpux::PreProcessColorSpace, MVCNN::PreProcessColorSpace> mapPreProcessColorFormat;
-extern const EnumMap<vpux::PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm> mapPreProcessResizeAlgorithm;
+extern const EnumMap<InferenceEngine::ColorFormat, MVCNN::PreProcessColorSpace> mapPreProcessColorFormat;
+extern const EnumMap<InferenceEngine::ResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm> mapPreProcessResizeAlgorithm;
 
 }  // namespace VPUIP
 }  // namespace vpux

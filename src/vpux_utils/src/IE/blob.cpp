@@ -152,6 +152,129 @@ MemoryBlob::Ptr vpux::makeBlob(const TensorDesc& desc, const std::shared_ptr<IAl
     return out;
 }
 
+/// Source image format: h = 480, w = 640 {1, 480, 640, 3}
+/// Shape for single place NV12 NHWC input = {N,720,640,1}
+/// yShape = {N, 480, 640, 1} (NHWC)
+/// uvShape = {N, 240, 320, 2} (NHWC)
+Blob::Ptr vpux::createNV12BlobBySinglePlaceDesc(const InferenceEngine::TensorDesc& td,
+                                                const InferenceEngine::Blob::Ptr& originBlob) {
+    //    auto legacy_input_y = std::vector<uint8_t>(ov20_input_yuv.begin(),
+    //                                               ov20_input_yuv.begin() + ov20_input_yuv.size() * 2 / 3);
+    //    auto legacy_input_uv = std::vector<uint8_t>(ov20_input_yuv.begin() + ov20_input_yuv.size() * 2 / 3,
+    //                                                ov20_input_yuv.end());
+    //    const InferenceEngine::TensorDesc y_plane_desc(InferenceEngine::Precision::U8,
+    //                                                   {1, 1, height, width},
+    //                                                   InferenceEngine::Layout::NHWC);
+    //    const InferenceEngine::TensorDesc uv_plane_desc(InferenceEngine::Precision::U8,
+    //                                                    {1, 2, height / 2, width / 2},
+    //                                                    InferenceEngine::Layout::NHWC);
+    //
+    //    auto y_blob = InferenceEngine::make_shared_blob<uint8_t>(y_plane_desc, legacy_input_y.data());
+    //    auto uv_blob = InferenceEngine::make_shared_blob<uint8_t>(uv_plane_desc, legacy_input_uv.data());
+    //    legacy_input_blobs["input1"] = InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(y_blob, uv_blob);
+
+    //    if (td.getLayout() == InferenceEngine::Layout::NCHW) {
+    //        yShape = InferenceEngine::SizeVector({dims[0], 1, dims[2], dims[3]});
+    //        uvShape = InferenceEngine::SizeVector({dims[0], 2, dims[2] / 2, dims[3] / 2});
+    //    } else {
+    //        yShape = InferenceEngine::SizeVector({dims[0], 1, dims[3], dims[2]});
+    //        uvShape = InferenceEngine::SizeVector({dims[0], 2, dims[1] / 2, dims[2] / 2});
+    //    }
+
+    InferenceEngine::SizeVector dims = td.getDims();
+    InferenceEngine::SizeVector yShape, uvShape;
+
+    yShape = InferenceEngine::SizeVector({dims[0], 1, dims[1], dims[2]});
+    uvShape = InferenceEngine::SizeVector({dims[0], 2, dims[1] / 2, dims[2] / 2});
+
+    InferenceEngine::TensorDesc y_td(InferenceEngine::Precision::U8, yShape, InferenceEngine::Layout::NHWC);
+    InferenceEngine::Blob::Ptr yBlob = make_blob_with_precision(y_td);
+    yBlob->allocate();
+    InferenceEngine::TensorDesc uv_td =
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, uvShape, InferenceEngine::Layout::NHWC);
+    InferenceEngine::Blob::Ptr uvBlob = make_blob_with_precision(uv_td);
+    uvBlob->allocate();
+    auto memoryBlobY = InferenceEngine::as<InferenceEngine::MemoryBlob>(originBlob);
+    const auto data = memoryBlobY->rmap();
+
+    ie_memcpy(yBlob.get(), yBlob->size(), data.as<uint8_t*>(), originBlob->size() * 2 / 3);
+    ie_memcpy(uvBlob.get(), uvBlob->size(), data.as<uint8_t*>() + originBlob->size() * 2 / 3,
+              originBlob->size() - originBlob->size() * 2 / 3);
+    //    auto legacy_input_y = std::vector<uint8_t>(data.begin(),
+    //                                               data.begin() + data.size() * 2 / 3);
+    //    auto legacy_input_uv = std::vector<uint8_t>(ov20_input_yuv.begin() + ov20_input_yuv.size() * 2 / 3,
+    //                                                ov20_input_yuv.end());
+    return InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(yBlob, uvBlob);
+}
+
+/// img h = 480, w = 640 {1, 480, 640, 3}
+/// yShape = {1, 480, 640, 1} (NHWC)
+/// uvShape = {1, 240, 320, 2} (NHWC)
+Blob::Ptr vpux::createNV12BlobByTensorDesc(const InferenceEngine::TensorDesc& td) {
+    InferenceEngine::SizeVector dims = td.getDims();
+    InferenceEngine::SizeVector yShape, uvShape;
+    if (td.getLayout() == InferenceEngine::Layout::NCHW) {
+        yShape = InferenceEngine::SizeVector({dims[0], dims[2], dims[3], 1});
+        uvShape = InferenceEngine::SizeVector({dims[0], dims[2] / 2, dims[3] / 2, 2});
+    } else {
+        yShape = InferenceEngine::SizeVector({dims[0], dims[1], dims[2], 1});
+        uvShape = InferenceEngine::SizeVector({dims[0], dims[1] / 2, dims[2] / 2, 2});
+    }
+
+    InferenceEngine::TensorDesc y_td(InferenceEngine::Precision::U8, yShape, InferenceEngine::Layout::NHWC);
+    InferenceEngine::Blob::Ptr yBlob = make_blob_with_precision(y_td);
+    yBlob->allocate();
+    InferenceEngine::TensorDesc uv_td =
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, uvShape, InferenceEngine::Layout::NHWC);
+    InferenceEngine::Blob::Ptr uvBlob = make_blob_with_precision(uv_td);
+    uvBlob->allocate();
+    return InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(yBlob, uvBlob);
+}
+
+inline void descriptorsFromFrameSize(const size_t width, const size_t height, InferenceEngine::TensorDesc& uvDesc,
+                                     InferenceEngine::TensorDesc& yDesc) {
+    uvDesc = {InferenceEngine::Precision::U8, {1, 2, height / 2, width / 2}, InferenceEngine::Layout::NHWC};
+    yDesc = {InferenceEngine::Precision::U8, {1, 1, height, width}, InferenceEngine::Layout::NHWC};
+}
+
+Blob::Ptr vpux::createNV12BlobBySize(const std::size_t width, const std::size_t height, uint8_t* data) {
+    InferenceEngine::TensorDesc uvDesc;
+    InferenceEngine::TensorDesc yDesc;
+    descriptorsFromFrameSize(width, height, uvDesc, yDesc);
+    if (data == nullptr) {
+        // Create 2 different blobs
+        auto yPlane = InferenceEngine::make_shared_blob<uint8_t>(yDesc);
+        yPlane->allocate();
+
+        auto uvPlane = InferenceEngine::make_shared_blob<uint8_t>(uvDesc);
+        uvPlane->allocate();
+
+        return InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(yPlane, uvPlane);
+    } else {
+        // Use pre-allocated single memory area with offsets
+        auto yPlane = InferenceEngine::make_shared_blob<uint8_t>(yDesc, data);
+        auto uvPlane = InferenceEngine::make_shared_blob<uint8_t>(uvDesc, data + height * width);
+
+        return InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(yPlane, uvPlane);
+    }
+}
+
+Blob::Ptr vpux::createI420BlobByTensorDesc(const InferenceEngine::TensorDesc& td) {
+    InferenceEngine::SizeVector dims = td.getDims();
+    dims[1] = 1;
+    InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+    InferenceEngine::Blob::Ptr y_blob = make_blob_with_precision(td1);
+    y_blob->allocate();
+    dims[2] /= 2;
+    dims[3] /= 2;
+    td1 = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+    InferenceEngine::Blob::Ptr u_blob = make_blob_with_precision(td1);
+    u_blob->allocate();
+    InferenceEngine::Blob::Ptr v_blob = make_blob_with_precision(td1);
+    v_blob->allocate();
+    return InferenceEngine::make_shared_blob<InferenceEngine::I420Blob>(y_blob, u_blob, v_blob);
+}
+
 //
 // copyBlob
 //
@@ -167,7 +290,9 @@ bool isCompact(const MemoryBlob::Ptr& blob) {
 }  // namespace
 
 void vpux::copyBlob(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
+    std::cout << "*** copyBlob : 1" << std::endl;
     VPUX_THROW_UNLESS(in != nullptr && out != nullptr, "Got NULL pointer");
+    std::cout << "*** copyBlob : 1" << std::endl;
     VPUX_THROW_UNLESS(in->getTensorDesc() == out->getTensorDesc(), "Mismatch in TensorDesc");
     VPUX_THROW_UNLESS(isCompact(in) && isCompact(out), "Got non-compact blobs");
 
@@ -184,7 +309,9 @@ void vpux::copyBlob(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
 }
 
 MemoryBlob::Ptr vpux::copyBlob(const MemoryBlob::Ptr& in, const std::shared_ptr<IAllocator>& allocator) {
+    std::cout << "*** copyBlob : 2" << std::endl;
     VPUX_THROW_UNLESS(in != nullptr && allocator != nullptr, "Got NULL pointer");
+    std::cout << "*** copyBlob : 2" << std::endl;
     const auto out = as<MemoryBlob>(make_blob_with_precision(in->getTensorDesc(), allocator));
     out->allocate();
     copyBlob(in, out);
@@ -192,7 +319,9 @@ MemoryBlob::Ptr vpux::copyBlob(const MemoryBlob::Ptr& in, const std::shared_ptr<
 }
 
 MemoryBlob::Ptr vpux::copyBlob(const MemoryBlob::Ptr& in, void* ptr) {
+    std::cout << "*** copyBlob : 3" << std::endl;
     VPUX_THROW_UNLESS(in != nullptr && ptr != nullptr, "Got NULL pointer");
+    std::cout << "*** copyBlob : 3" << std::endl;
     const auto out = as<MemoryBlob>(make_blob_with_precision(in->getTensorDesc(), ptr));
     out->allocate();
     copyBlob(in, out);
@@ -252,7 +381,9 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
 
 void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
                             const vpux::Optional<vpux::QuantizationParam>& outQuantParams) {
+    std::cout << "*** copyBlob : 4" << std::endl;
     VPUX_THROW_UNLESS(in != nullptr && out != nullptr, "Got NULL pointer");
+    std::cout << "*** copyBlob : 4" << std::endl;
     VPUX_THROW_UNLESS(isCompact(in) && isCompact(out), "Got non-compact blobs");
 
     const auto& inDesc = in->getTensorDesc();
@@ -631,7 +762,9 @@ void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& ou
 MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& precision,
                                   const vpux::Optional<vpux::QuantizationParam>& outQuantParams,
                                   const std::shared_ptr<IAllocator>& allocator, void* ptr) {
+    std::cout << "*** copyBlob : 5" << std::endl;
     VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
+    std::cout << "*** copyBlob : 5" << std::endl;
 
     const auto& inDesc = in->getTensorDesc();
 
@@ -649,7 +782,9 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
 
 MemoryBlob::Ptr vpux::toDefPrecision(const MemoryBlob::Ptr& in, const std::shared_ptr<IAllocator>& allocator,
                                      void* ptr) {
+    std::cout << "*** copyBlob : 6" << std::endl;
     VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
+    std::cout << "*** copyBlob : 6" << std::endl;
 
     const auto inPrec = in->getTensorDesc().getPrecision();
 
@@ -669,7 +804,9 @@ MemoryBlob::Ptr vpux::toDefPrecision(const MemoryBlob::Ptr& in, const std::share
 //
 
 void vpux::cvtBlobLayout(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
+    std::cout << "*** copyBlob : 7" << std::endl;
     VPUX_THROW_UNLESS(in != nullptr && out != nullptr, "Got NULL pointer");
+    std::cout << "*** copyBlob : 7" << std::endl;
 
     const auto& inDesc = in->getTensorDesc();
     const auto& outDesc = out->getTensorDesc();
@@ -689,7 +826,9 @@ void vpux::cvtBlobLayout(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) 
 
 MemoryBlob::Ptr vpux::toLayout(const MemoryBlob::Ptr& in, Layout layout, const std::shared_ptr<IAllocator>& allocator,
                                void* ptr) {
+    std::cout << "*** copyBlob : 8" << std::endl;
     VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
+    std::cout << "*** copyBlob : 8" << std::endl;
 
     const auto& inDesc = in->getTensorDesc();
 
@@ -706,7 +845,9 @@ MemoryBlob::Ptr vpux::toLayout(const MemoryBlob::Ptr& in, Layout layout, const s
 }
 
 MemoryBlob::Ptr vpux::toDefLayout(const MemoryBlob::Ptr& in, const std::shared_ptr<IAllocator>& allocator, void* ptr) {
+    std::cout << "*** copyBlob : 9" << std::endl;
     VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
+    std::cout << "*** copyBlob : 9" << std::endl;
     const auto& inDesc = in->getTensorDesc();
     const auto defLayout = TensorDesc::getLayoutByDims(inDesc.getDims());
     return toLayout(in, defLayout, allocator, ptr);

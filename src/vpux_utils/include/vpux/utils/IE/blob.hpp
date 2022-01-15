@@ -47,6 +47,32 @@ InferenceEngine::MemoryBlob::Ptr makeBlob(const InferenceEngine::TensorDesc& des
                                           void* ptr = nullptr);
 
 //
+// createNV12BlobBySinglePlaceDesc
+//
+
+InferenceEngine::Blob::Ptr createNV12BlobBySinglePlaceDesc(const InferenceEngine::TensorDesc& td,
+                                                           const InferenceEngine::Blob::Ptr& blob);
+
+//
+// createNV12BlobByTensorDesc
+//
+
+InferenceEngine::Blob::Ptr createNV12BlobByTensorDesc(const InferenceEngine::TensorDesc& td);
+
+//
+// createNV12BlobBySize
+//
+
+InferenceEngine::Blob::Ptr createNV12BlobBySize(const std::size_t width, const std::size_t height,
+                                                uint8_t* data = nullptr);
+
+//
+// createI420BlobByTensorDesc
+//
+
+InferenceEngine::Blob::Ptr createI420BlobByTensorDesc(const InferenceEngine::TensorDesc& td);
+
+//
 // copyBlob
 //
 

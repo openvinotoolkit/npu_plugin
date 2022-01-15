@@ -164,7 +164,7 @@ const EnumMap<MVCNN::PreProcessResizeAlgorithm, InferenceEngine::ResizeAlgorithm
 
 void deserializePreprocessInfo(
         const flatbuffers::Vector<flatbuffers::Offset<MVCNN::preprocessingInfo>>* mvcnnPreprocessInfo,
-        std::unordered_map<std::string, InferenceEngine::PreProcessInfo>& preProcInfo) {
+        std::unordered_map<std::string, VPUXPreProcessInfo::Ptr>& preProcInfo, const DataMap& inputsInfo) {
     // Check for the existence of a field in a blob. In older versions of the blob, this field may not exist
     if (mvcnnPreprocessInfo == nullptr)
         return;
@@ -172,11 +172,14 @@ void deserializePreprocessInfo(
     preProcInfo.clear();
     for (uint32_t i = 0; i < mvcnnPreprocessInfo->size(); i++) {
         if (const auto* pr = mvcnnPreprocessInfo->Get(i)) {
-            auto preprocess = InferenceEngine::PreProcessInfo();
-
-            preprocess.setColorFormat(mapPreProcessColorFormatIE.at(pr->input_format()));
-            preprocess.setResizeAlgorithm(mapPreProcessResizeAlgorithmIE.at(pr->algorithm()));
-            preProcInfo[pr->input_name()->str()] = preprocess;
+            if (inputsInfo.count(pr->input_name()->str())) {
+                const auto td = inputsInfo.at(pr->input_name()->str())->getTensorDesc();
+                preProcInfo[pr->input_name()->str()] = std::make_shared<VPUXPreProcessInfo>(
+                        pr->input_name()->str(), mapPreProcessColorFormatIE.at(pr->input_format()),
+                        mapPreProcessColorFormatIE.at(pr->output_format()),
+                        mapPreProcessResizeAlgorithmIE.at(pr->algorithm()),
+                        TensorDesc(td.getPrecision(), td.getDims(), td.getLayout()));
+            }
         }
     }
 }
@@ -265,7 +268,7 @@ vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
 
     const auto preProcTable = header->pre_process_info();
     if (preProcTable != nullptr)
-        deserializePreprocessInfo(preProcTable, _iePreprocessInfo);
+        deserializePreprocessInfo(preProcTable, _iePreprocessInfo, _networkInputs);
 
     const auto ovParams = header->ov_parameters();
     if (ovParams != nullptr) {

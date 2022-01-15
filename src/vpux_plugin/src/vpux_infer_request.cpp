@@ -74,7 +74,8 @@ static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc,
 InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
                            const Executor::Ptr& executor, const Config& config, const std::string& netName,
                            const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                           const std::vector<std::shared_ptr<const ov::Node>>& results,
+                           const std::vector<std::shared_ptr<const ov::Node>>& results, const std::string& backendName,
+                           const std::unordered_map<std::string, VPUXPreProcessInfo::Ptr>& prePrecessInputsInfo,
                            const std::shared_ptr<InferenceEngine::IAllocator>& allocator)
         : IInferRequestInternal(networkInputs, networkOutputs),
           _executorPtr(executor),
@@ -83,6 +84,8 @@ InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::Out
           _allocator(allocator),
           _deviceId(utils::getSliceIdByDeviceName(config.get<DEVICE_ID>())),
           _netUniqueId(netName),
+          _backendName(backendName),
+          _prePrecessInputsInfo(prePrecessInputsInfo),
           _preprocBuffer(nullptr, [this](uint8_t* buffer) {
               _allocator->free(buffer);
           }) {
@@ -94,11 +97,16 @@ InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::Out
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
-        const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
+        IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
+
+        if (prePrecessInputsInfo.count(inputName)) {
+            // inputTensorDesc = prePrecessInputsInfo.at(inputName)->getOriginTensorDesc();
+            inputTensorDesc =
+                    IE::TensorDesc(InferenceEngine::Precision::FP32, {1, 192, 128, 1}, InferenceEngine::Layout::NHWC);
+        }
 
         _inputs[inputName] = allocateLocalBlob(inputTensorDesc, _allocator);
     }
-
     for (auto& networkOutput : _networkOutputs) {
         const std::string outputName = networkOutput.first;
         const IE::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
@@ -152,10 +160,13 @@ void InferRequest::moveBlobsForPreprocessingToInputs(
 }
 
 // TODO [Track number: S#43193]
-#ifdef __aarch64__
 void InferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "execPreprocessing");
-    if ((_config.get<USE_SIPP>() || _config.get<USE_M2I>() || _config.get<USE_SHAVE_ONLY_M2I>()) &&
+#ifdef __aarch64__
+    const auto preProcessType = getPreProcessingType();
+    if ((preProcessType == InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_VPU_SIPP ||
+         preProcessType == InferenceEngine::VPUXConfigParams::PreProcessType::GAPI_VPU_M2I ||
+         _config.get<USE_SHAVE_ONLY_M2I>()) &&
         IE::KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecKmbDataPreprocessing(inputs, _networkInputs, _config.get<GRAPH_COLOR_FORMAT>(),
                                               checked_cast<unsigned int>(_config.get<PREPROCESSING_SHAVES>()),
@@ -165,9 +176,15 @@ void InferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
         _logger.warning("SIPP/M2I is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
     }
+
+#else
+    _logger.info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
+    execDataPreprocessing(inputs);
+#endif
 }
 
 // TODO: SIPP preprocessing usage can be merged to common preprocessing pipeline
+#ifdef __aarch64__
 void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
                                                          InferenceEngine::InputsDataMap& networkInputs,
                                                          InferenceEngine::ColorFormat out_format,
@@ -240,9 +257,9 @@ void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
                                             InferenceEngine::ColorFormat out_format, unsigned int numShaves,
                                             unsigned int lpi, unsigned int numPipes) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "execKmbDataPreprocessing");
-    IE_ASSERT(_config.get<USE_SIPP>() || _config.get<USE_M2I>() || _config.get<USE_SHAVE_ONLY_M2I>());
+    const auto preProcessType = getPreProcessingType();
     IE::KmbPreproc::Path ppPath;
-    if (_config.get<USE_M2I>()) {
+    if (preProcessType == IE::VPUXConfigParams::PreProcessType::GAPI_VPU_M2I) {
         ppPath = IE::KmbPreproc::Path::M2I;
     } else if (_config.get<USE_SHAVE_ONLY_M2I>()) {
         ppPath = IE::KmbPreproc::Path::SHAVE_ONLY_M2I;
@@ -264,13 +281,7 @@ void InferRequest::InferAsync() {
         updateRemoteBlobs(_inputs, preProcMap);
         _executorPtr->push(_inputs, preProcMap);
     } else {
-        // TODO [Track number: S#43193] KMB preprocessing should be moved from plugin level to backend.
-#ifdef __aarch64__
         execPreprocessing(_inputs);
-#else
-        _logger.info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
-        execDataPreprocessing(_inputs);
-#endif
         updateRemoteBlobs(_inputs, preProcMap);
         _executorPtr->push(_inputs);
     }
@@ -362,9 +373,15 @@ void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
 }
 
 void InferRequest::checkBlobs() {
-    for (const auto& input : _inputs) {
+    for (auto& input : _inputs) {
         if (!input.second->is<VPUXRemoteBlob>())
             checkBlob(input.second, input.first, true);
+        if (_prePrecessInputsInfo.count(input.first)) {
+            auto inputTensorDesc = _prePrecessInputsInfo.at(input.first)->getOriginTensorDesc();
+
+            input.second = vpux::createNV12BlobBySinglePlaceDesc(inputTensorDesc, input.second);
+            _networkInputs[input.first]->getPreProcess() = *_prePrecessInputsInfo.at(input.first);
+        }
     }
     for (const auto& output : _outputs) {
         if (!output.second->is<VPUXRemoteBlob>())
@@ -414,6 +431,30 @@ void InferRequest::updateRemoteBlobColorFormat(InferenceEngine::Blob::Ptr& blob,
         }
         remoteBlob->updateColorFormat(colorFormat);
     }
+}
+
+InferenceEngine::VPUXConfigParams::PreProcessType InferRequest::getPreProcessingType() const {
+    InferenceEngine::VPUXConfigParams::PreProcessType preProcessingType =
+            InferenceEngine::VPUXConfigParams::PreProcessType::NOT_SPECIFIC;
+
+    if (_config.has<PREPROCESSING_TYPE>()) {
+        if (vpux::mapSupportPreProcessingTypeByBackendName.count(_backendName)) {
+            const auto supportedPreProcessTypes = vpux::mapSupportPreProcessingTypeByBackendName.at(_backendName);
+            const auto preProcessTypeIt = std::find(supportedPreProcessTypes.begin(), supportedPreProcessTypes.end(),
+                                                    _config.get<PREPROCESSING_TYPE>());
+            if (preProcessTypeIt != supportedPreProcessTypes.end()) {
+                preProcessingType = *preProcessTypeIt;
+            } else {
+                preProcessingType = vpux::mapDefaultPreProcessingType.at(_backendName);
+            }
+        } else {
+            IE_THROW() << "Unsupported preprocessing type: " << stringifyEnum(_config.get<PREPROCESSING_TYPE>()).str()
+                       << "for backend: " << _backendName << "\'";
+        }
+    } else {
+        preProcessingType = vpux::mapDefaultPreProcessingType.at(_backendName);
+    }
+    return preProcessingType;
 }
 
 }  // namespace vpux

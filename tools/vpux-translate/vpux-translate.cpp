@@ -17,6 +17,8 @@
 #include "vpux/compiler/init.hpp"
 #include "vpux/hwtest/hwtest.hpp"
 
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/runtime.hpp"
 #include "vpux/utils/core/format.hpp"
 
 #include <mlir/IR/Dialect.h>
@@ -78,8 +80,12 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ct
     try {
         mlir::DefaultTimingManager tm;
         auto rootTiming = tm.getRootScope();
-        std::vector<vpux::PreProcessInfo> preProcInfo;
-        module = IE::importNetwork(ctx, cnnNet, preProcInfo, false, rootTiming, vpuxProfiling);
+        std::vector<VPUXPreProcessInfo::Ptr> preProcInfo;
+        auto options = std::make_shared<vpux::OptionsDesc>();
+        vpux::registerCommonOptions(*options);
+        vpux::registerRunTimeOptions(*options);
+        vpux::Config config(options);
+        module = IE::importNetwork(ctx, cnnNet, preProcInfo, false, rootTiming, vpuxProfiling, config);
     } catch (const std::exception& ex) {
         printTo(llvm::errs(), "Failed to translate IE IR {0} to MLIR : {1}", netFileName, ex.what());
         return nullptr;
@@ -134,7 +140,7 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
     auto rootTiming = tm.getRootScope();
     const std::vector<std::shared_ptr<const ov::Node>> params;
     const std::vector<std::shared_ptr<const ov::Node>> results;
-    std::vector<vpux::PreProcessInfo> preProcInfo;
+    std::vector<VPUXPreProcessInfo::Ptr> preProcInfo;
     const auto buf = VPUIP::exportToBlob(module, rootTiming, preProcInfo, params, results);
     output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
     return mlir::success();

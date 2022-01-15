@@ -216,18 +216,7 @@ const std::vector<PrivateConfigTestParams> privateConfigParams {
         .privateConfig({{"VPUX_GRAPH_COLOR_FORMAT", "RGB"}})
         .inputWidth(228)
         .inputHeight(228)
-        .nClasses(4),
-    PrivateConfigTestParams()
-        .testDescription("USE_SIPP")
-        .modelPath(ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob")
-        .inputPath(ModelsPath() + "/KMB_models/BLOBS/resnet-50/input-228x228-nv12.bin")
-        .referencePath(ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-cat-1080x1080-nv12.bin")
-        .preProc(true)
-        .checkSIPP(false)
-        .privateConfig({{"VPUX_USE_SIPP", CONFIG_VALUE(YES)}})
-        .inputWidth(228)
-        .inputHeight(228)
-        .nClasses(1)};
+        .nClasses(4)};
 
 const std::vector<PrivateConfigTestParams> privateConfigParamsBrokenTests {
     PrivateConfigTestParams()

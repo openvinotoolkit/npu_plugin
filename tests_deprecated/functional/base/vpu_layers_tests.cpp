@@ -756,14 +756,14 @@ void compareTopClasses(
 }
 
 std::map<std::string, std::string> getCommonConfig() {
-    std::map<std::string, std::string> config {std::make_pair("USE_SIPP", CONFIG_VALUE(YES))};
+    std::map<std::string, std::string> config {std::make_pair(VPUX_CONFIG_KEY(PREPROCESSING_TYPE), VPUX_CONFIG_VALUE(GAPI_VPU_SIPP))};
 
     return config;
 }
 
 #if defined(__arm__) || defined(__aarch64__)
 bool useSIPP() {
-    std::map<std::string, std::string> config {std::make_pair("USE_SIPP", CONFIG_VALUE(YES))};
+    std::map<std::string, std::string> config {std::make_pair(VPUX_CONFIG_KEY(PREPROCESSING_TYPE), VPUX_CONFIG_VALUE(GAPI_VPU_SIPP))};
     return (config == getCommonConfig());
 }
 #endif

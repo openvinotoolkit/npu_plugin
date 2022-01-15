@@ -26,6 +26,7 @@ void vpux::registerCommonOptions(OptionsDesc& desc) {
     desc.add<LOG_LEVEL>();
     desc.add<PLATFORM>();
     desc.add<DEVICE_ID>();
+    desc.add<PREPROCESSING_TYPE>();
 }
 
 //
@@ -103,4 +104,38 @@ VPUXPlatform vpux::PLATFORM::parse(StringRef val) {
     }
 
     VPUX_THROW("Value '{0}' is not a valid PLATFORM option", val);
+}
+
+//
+// PLATFORM
+//
+StringLiteral vpux::stringifyEnum(PreProcessType val) {
+    switch (val) {
+    case PreProcessType::GAPI_VPU_M2I:
+        return "GAPI_VPU_M2I";
+    case PreProcessType::GAPI_VPU_SIPP:
+        return "GAPI_VPU_SIPP";
+    case PreProcessType::GAPI_CPU:
+        return "GAPI_CPU";
+    case PreProcessType::COMPILER:
+        return "COMPILER";
+    default:
+        return "NOT_SPECIFIC";
+    }
+}
+
+PreProcessType vpux::PREPROCESSING_TYPE::parse(StringRef val) {
+    if (val == "GAPI_VPU_M2I") {
+        return PreProcessType::GAPI_VPU_M2I;
+    } else if (val == "GAPI_VPU_SIPP") {
+        return PreProcessType::GAPI_VPU_SIPP;
+    } else if (val == "GAPI_CPU") {
+        return PreProcessType::GAPI_CPU;
+    } else if (val == "COMPILER") {
+        return PreProcessType::COMPILER;
+    } else if (val == "NOT_SPECIFIC") {
+        return PreProcessType::NOT_SPECIFIC;
+    }
+
+    VPUX_THROW("Value '{0}' is not a valid PREPROCESSING_TYPE option");
 }
