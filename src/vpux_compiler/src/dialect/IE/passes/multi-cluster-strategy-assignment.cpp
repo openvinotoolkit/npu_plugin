@@ -43,7 +43,7 @@ private:
 
 void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     auto func = getFunction();
-    IE::StrategyManager strategyManager(func, _log);
+    // StrategyManager strategyManager(func, _log);
 }
 
 }  // namespace

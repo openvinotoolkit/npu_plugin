@@ -14,17 +14,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
-#include "vpux/utils/core/array_ref.hpp"
-#include "vpux/utils/core/logger.hpp"
-
-#include <array>
-#include <cassert>
-#include <cstdint>
-#include <unordered_set>
-
 namespace vpux {
-namespace IE {
 
 //
 // StrategyManager
@@ -38,9 +28,18 @@ public:
     void computeOptimalMultiClusterStrategy();
 
 private:
+    template <class ConcreteOp>
+    bool isOperationSplitOverHeightCompatible(ConcreteOp op);
+    size_t calculateSplitOverHeightEfficency(mlir::Operation* op);
     Logger _log;
     mlir::FuncOp _func;
 };
 
-}  // namespace IE
+template <class ConcreteOp>
+bool StrategyManager::isOperationSplitOverHeightCompatible(ConcreteOp op) {
+    const auto inputShape = getShape(op.input());
+    const auto IH = inputShape[Dims4D::Act::H];
+    return IH >= 20;
+}
+
 }  // namespace vpux
