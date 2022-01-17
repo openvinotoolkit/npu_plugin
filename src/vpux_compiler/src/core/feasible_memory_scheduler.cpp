@@ -160,25 +160,31 @@ void FeasibleMemoryScheduler::unscheduleOp(const HeapElement& hElemet) {
     auto op = _depsInfo.getExecuteOpAtIndex(hElemet.op_);
     // free possible buffers, where this is the last user of the buffer
     const auto usedBufs = _liveRangeInfo.getUsedBuffers(op);
-    for (auto val : usedBufs) {
-        if (_liveRangeInfo.eraseUser(val, op) == 0) {
-            _log.nest().trace("Mark buffer as dead, '{0}'", val);
-            _scan.handler().markAsDead(val);
+    for (auto buffer : usedBufs) {
+        auto rootBuffers = _aliasInfo.getRoots(buffer);
+        VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", buffer,
+                          rootBuffers.size());
+        const auto rootBuffer = *rootBuffers.begin();
+        if (_liveRangeInfo.eraseUser(rootBuffer, op) == 0) {
+            _log.nest().trace("Mark buffer as dead, '{0}'", rootBuffer);
+            _scan.handler().markAsDead(rootBuffer);
         }
     }
     _log.nest().trace("Free non alive buffers");
     _scan.freeNonAlive();
 
     // update consumers of op dependencies (consumed by this op)
-    for (auto dep : _depsInfo.getOpDeps(hElemet.op_)) {
-        auto depOutput = _opOutputTable.find(dep);
-        if (depOutput->second.active()) {
-            depOutput->second.decrementConsumers();
+    if (!hElemet.isImplicitWriteOp()) {
+        for (auto dep : _depsInfo.getOpDeps(hElemet.op_)) {
+            auto depOutput = _opOutputTable.find(dep);
+            if (depOutput->second.active()) {
+                depOutput->second.decrementConsumers();
+            }
         }
-    }
-    auto opOutput = _opOutputTable.find(hElemet.op_);
-    if (opOutput->second.consumed()) {
-        opOutput->second.changeStateToConsumed();
+        auto opOutput = _opOutputTable.find(hElemet.op_);
+        if (opOutput->second.consumed()) {
+            opOutput->second.changeStateToConsumed();
+        }
     }
 }
 
@@ -384,6 +390,12 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::getNonAliveBuffersUsedByOperat
                 if (mlir::isa_and_nonnull<VPUIP::WeightsTableOp>(user)) {
                     weightTableOpBuffer = true;
                     break;
+                } else if (mlir::isa_and_nonnull<IERT::SubViewOp>(user)) {
+                    // if a subview check the user of the result
+                    if (mlir::isa_and_nonnull<VPUIP::WeightsTableOp>(*(user->getResult(0).getUsers().begin()))) {
+                        weightTableOpBuffer = true;
+                        break;
+                    }
                 }
             }
         }
