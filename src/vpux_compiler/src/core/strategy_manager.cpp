@@ -27,12 +27,12 @@ size_t StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                 const auto OC = outputShape[Dims4D::Act::C];
                 const auto OH = outputShape[Dims4D::Act::H];
                 const auto OW = outputShape[Dims4D::Act::W];
-
-                auto efficency = 0.183594 *
-                                 std::max((OC * OH * OW) / (16 * std::ceil(OH / 16) * 20 * std::ceil(OW / 20) * 16 *
-                                                            std::ceil(OC / 16)),
-                                          (64 * std::ceil(OH / 64) * 5 * std::ceil(OW / 5) * 16 * std::ceil(OC / 16)));
-                return 1;
+                const double efficency =
+                        0.183594 * std::max((OC * OH * OW) / (16.0 * std::ceil(OH / 16.0) * 20.0 *
+                                                              std::ceil(OW / 20.0) * 16.0 * std::ceil(OC / 16.0)),
+                                            (OC * OH * OW) / (64.0 * std::ceil(OH / 64.0) * 5.0 * std::ceil(OW / 5.0) *
+                                                              16.0 * std::ceil(OC / 16.0)));
+                return efficency;
             })
             .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp origOp) {
                 return 1;
@@ -50,7 +50,43 @@ size_t StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                 return 1;
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp origOp) {
-                return 1;
+                const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
+                const auto outputShape = getShape(outputType);
+                const auto OC = outputShape[Dims4D::Act::C];
+                const auto OH = outputShape[Dims4D::Act::H];
+                const auto OW = outputShape[Dims4D::Act::W];
+
+                double efficency = 0;
+                if (OH < 20) {
+                    efficency = 0.483 *
+                                std::max((1.0 / 4.0) *
+                                                 ((4 * std::ceil(OH / 4.0) * 4 * std::ceil(OW / 4.0) * 16.0 *
+                                                   std::ceil(OC / 16.0)) /
+                                                  (4.0 * 4.0 * 16.0)) /
+                                                 (5.0 * std::ceil(((4.0 * std::ceil(OH / 4.0) * 4 *
+                                                                    std::ceil(OW / 4.0) * 16 * std::ceil(OC / 16.0)) /
+                                                                   (4.0 * 4.0 * 16.0)) /
+                                                                  5.0)),
+                                         (1.0 / 4.0) *
+                                                 (((16.0 * std::ceil(OH / 16.0) * 1 * std::ceil(OW / 1.0) * 16.0 *
+                                                    std::ceil(OC / 16.0)) /
+                                                   (16.0 * 1.0 * 16.0)) /
+                                                  (5 * std::ceil(((16.0 * std::ceil(OH / 16.0) * 1.0 *
+                                                                   std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
+                                                                  (16.0 * 1.0 * 16.0)) /
+                                                                 5.0))));
+                } else {
+                    efficency = std::max(
+                            ((OH / 4.0 * OW * OC) / (5.0 * std::ceil((4.0 * std::ceil(std::ceil(OH / 4.0) / .04) * 4 *
+                                                                      std::ceil(OW / 4.0) * 16.0 * std::ceil(OC / 16)) /
+                                                                     5))),
+                            ((OH / 4.0 * OW * OC) /
+                             (5.0 * std::ceil((16.0 * std::ceil(std::ceil(OH / 4.0) / 16.0) * 1.0 *
+                                               std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
+                                              5.0))));
+                }
+
+                return efficency;
             })
             .Default([](mlir::Operation* unknownOp) {
                 VPUX_THROW("Operation is not supported by the NCE");
@@ -67,9 +103,14 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                 .Case<IE::AvgPoolOp>([&](IE::AvgPoolOp op) {})
                 .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
                     if (isOperationSplitOverHeightCompatible<IE::ConvolutionOp>(op)) {
+                        auto eff = calculateSplitOverHeightEfficency(op);
                     }
                 })
-                .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {});
+                .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
+                    if (isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op)) {
+                        auto eff = calculateSplitOverHeightEfficency(op);
+                    }
+                });
     };
 
     _func.walk(callback);
