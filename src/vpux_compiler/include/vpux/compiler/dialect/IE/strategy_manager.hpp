@@ -14,6 +14,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/utils/core/checked_cast.hpp"
 namespace vpux {
 
 //
@@ -37,9 +38,9 @@ private:
 
 template <class ConcreteOp>
 bool StrategyManager::isOperationSplitOverHeightCompatible(ConcreteOp op) {
-    const auto inputShape = getShape(op.input());
-    const auto IH = inputShape[Dims4D::Act::H];
-    return IH >= 20;
+    const auto outputShape = getShape(op.output());
+    const auto OH = outputShape[Dims4D::Act::H];
+    return OH >= 20;
 }
 
 }  // namespace vpux
