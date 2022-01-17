@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include "vpux/compiler/core/attributes/indexed_symbol_attr.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
@@ -350,11 +351,11 @@ private:
 // AsyncLayerOpModel
 //
 
-mlir::SymbolRefAttr getExecutorForSW(mlir::Operation* origOp, uint32_t& numUnits) {
+IndexedSymbolAttr getExecutorForSW(mlir::Operation* origOp, uint32_t& numUnits) {
     return VPUIP::getExecutorAttr(numUnits, origOp, VPU::ExecutorKind::SHAVE_UPA);
 }
 
-mlir::SymbolRefAttr getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits) {
+IndexedSymbolAttr getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits) {
     if (VPU::getCompilationMode(origOp) == VPU::CompilationMode::ReferenceSW) {
         return getExecutorForSW(origOp, numUnits);
     }
@@ -368,21 +369,21 @@ mlir::SymbolRefAttr getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits
 
 class AsyncLayerOpModelForHW final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForHW> {
 public:
-    mlir::SymbolRefAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
+    IndexedSymbolAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
         return getExecutorForHW(origOp, numUnits);
     }
 };
 
 class AsyncLayerOpModelForDMA final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForDMA> {
 public:
-    mlir::SymbolRefAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
+    IndexedSymbolAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
         return VPUIP::getExecutorAttr(numUnits, origOp, VPU::ExecutorKind::DMA_NN);
     }
 };
 
 class AsyncLayerOpModelForSW final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForSW> {
 public:
-    mlir::SymbolRefAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
+    IndexedSymbolAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
         return getExecutorForSW(origOp, numUnits);
     }
 };

@@ -35,7 +35,7 @@ void checkExecutorKind(mlir::Operation* op, vpux::VPU::ExecutorKind expectedKind
     ASSERT_TRUE(kindAttr != nullptr);
     ASSERT_TRUE(kindAttr.isa<mlir::SymbolRefAttr>());
 
-    auto kind = vpux::VPU::symbolizeEnum<vpux::VPU::ExecutorKind>(kindAttr.getLeafReference().getValue());
+    auto kind = vpux::VPU::symbolizeEnum<vpux::VPU::ExecutorKind>(kindAttr.getName());
     EXPECT_EQ(kind.getValue(), expectedKind);
     EXPECT_GE(numUnits, 1u);
 }

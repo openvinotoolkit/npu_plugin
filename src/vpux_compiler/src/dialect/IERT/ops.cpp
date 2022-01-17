@@ -136,7 +136,7 @@ constexpr StringLiteral numUnitsAttrName = "IERT.num_units";
 
 }  // namespace
 
-void vpux::IERT::IERTDialect::setExecutor(mlir::async::ExecuteOp execOp, mlir::SymbolRefAttr executor,
+void vpux::IERT::IERTDialect::setExecutor(mlir::async::ExecuteOp execOp, IndexedSymbolAttr executor,
                                           uint32_t numUnits) {
     VPUX_THROW_UNLESS(executor != nullptr, "Got an empty executor");
 
@@ -148,11 +148,11 @@ llvm::StringLiteral vpux::IERT::IERTDialect::getExecutorAttrName() {
     return executorAttrName;
 }
 
-mlir::SymbolRefAttr vpux::IERT::IERTDialect::getExecutor(mlir::async::ExecuteOp execOp, uint32_t& numUnits) {
+IndexedSymbolAttr vpux::IERT::IERTDialect::getExecutor(mlir::async::ExecuteOp execOp, uint32_t& numUnits) {
     const auto executor = execOp->getAttr(executorAttrName);
     VPUX_THROW_UNLESS(executor != nullptr, "Can't find Executor attributes for Operation at '{0}'", execOp->getLoc());
 
-    const auto executorSymbol = executor.dyn_cast<mlir::SymbolRefAttr>();
+    const auto executorSymbol = executor.dyn_cast<IndexedSymbolAttr>();
     VPUX_THROW_UNLESS(executorSymbol != nullptr, "Unsupported Executor attribute '{0}'", executorSymbol);
 
     const auto numUnitsAttr = execOp->getAttr(numUnitsAttrName).dyn_cast_or_null<mlir::IntegerAttr>();

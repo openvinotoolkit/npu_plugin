@@ -46,7 +46,7 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
             vpux::VPUIP::getTaskEffects($_op, effects);
         }
 
-        mlir::SymbolRefAttr getExecutor(uint32_t& numUnits) {
+        vpux::IndexedSymbolAttr getExecutor(uint32_t& numUnits) {
             return vpux::VPUIP::getTaskOpExecutor($_op, numUnits);
         }
     }];

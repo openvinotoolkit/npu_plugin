@@ -44,8 +44,8 @@ void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffe
     }
 }
 
-mlir::SymbolRefAttr vpux::VPUIP::getExecutorAttr(uint32_t& numUnits, mlir::Operation* op, VPU::ExecutorKind kind,
-                                                 Optional<int64_t> opNumUnits) {
+IndexedSymbolAttr vpux::VPUIP::getExecutorAttr(uint32_t& numUnits, mlir::Operation* op, VPU::ExecutorKind kind,
+                                               Optional<int64_t> opNumUnits) {
     const auto kindAttr = VPU::ExecutorKindAttr::get(op->getContext(), kind);
 
     if (opNumUnits.hasValue()) {
@@ -57,10 +57,10 @@ mlir::SymbolRefAttr vpux::VPUIP::getExecutorAttr(uint32_t& numUnits, mlir::Opera
         numUnits = checked_cast<uint32_t>(available.count());
     }
 
-    return mlir::SymbolRefAttr::get(kindAttr);
+    return IndexedSymbolAttr::get(kindAttr);
 }
 
-mlir::SymbolRefAttr vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits) {
+IndexedSymbolAttr vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits) {
     auto task = mlir::cast<VPUIP::TaskOpInterface>(op);
     const auto executor = task.getExecutorKind();
 

@@ -94,9 +94,9 @@ The **IERT Dialect** uses the following scheme to represent scheduling informati
     let hasConstantMaterializer = 1;
 
     let extraClassDeclaration = [{
-        static void setExecutor(mlir::async::ExecuteOp execOp, mlir::SymbolRefAttr executor, uint32_t numUnits);
+        static void setExecutor(mlir::async::ExecuteOp execOp, vpux::IndexedSymbolAttr executor, uint32_t numUnits);
         static llvm::StringLiteral getExecutorAttrName();
-        static mlir::SymbolRefAttr getExecutor(mlir::async::ExecuteOp execOp, uint32_t& numUnits);
+        static vpux::IndexedSymbolAttr getExecutor(mlir::async::ExecuteOp execOp, uint32_t& numUnits);
         static void setupExtraInterfaces(mlir::DialectRegistry& registry);
     }];
 }
