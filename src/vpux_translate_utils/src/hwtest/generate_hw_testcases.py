@@ -42,6 +42,7 @@ from pathlib import Path
 import re
 import sys
 import traceback
+import warnings
 from typing import Callable, List, Optional, Sequence, Union
 
 
@@ -55,8 +56,8 @@ if numericBenchPath == None:
 else:
     sys.path.append(numericBenchPath)
 
-from operators.op_utils.bfloat16 import bfloat16
-from operators.vpu26 import Add, Mult, Conv2d, MaxPool, AveragePool
+from operators.compute_core import bfloat16
+from operators.vpu26 import Add, Mult, MTLConv2D, MaxPool, AveragePool
 from operators.platform.quantize_info import QuantizationInfo
 from operators.platform.quantized_tensor import NBQuantized
 from operators.platform.vpu26 import PlatformVPU26
@@ -562,6 +563,33 @@ def idu(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
 
     return to_qint32(input), to_qint32(weights)
 
+def iduConvCustom(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
+    """Custom Model the hardware IDU that feet the NumericBench requirements for convolution operation"""
+    if (input.data.dtype == np.float32) or (weights.data.dtype == np.float32) :
+        # Issue link: https://gitlab.devtools.intel.com/iotgai/NumericsBench/-/issues/247
+        raise Error(f'NumericBench\'s convolution operation doesn\'t support float32 datatype for inputs/weights')
+
+    def to_qint32(value: Value) -> Union[np.ndarray, NBQuantized]:
+        return NBQuantized(value=value.data.astype(np.int32), scale=value.scale, zero_point=value.zero,
+                           platform=PlatformVPU26(), quantization_info=QuantizationInfo(value.ttype.qtype))
+    if not input.is_float and not weights.is_float :
+        return to_qint32(input), to_qint32(weights)
+
+    if input.data.dtype == weights.data.dtype :
+        return input.data, weights.data
+
+    # NumericBench requires activations and weights types are equal meanwhile MTL hardware supports different data types
+
+    if (input.data.dtype == bfloat16) or (weights.data.dtype == bfloat16) :
+        # docs link https://docs.intel.com/documents/MovidiusInternal/vpu27/common/SW/HLD/internal/02_04_NN_LayerMappingHLD.html#input-data-type-support
+        raise Error(f'bfloat16 activations compatible with bfloat16 weights only')
+    # NumericBench's convolution operation doesn't support float32 datatype for inputs/weights so we have to convert types to float16 dtype
+    # but there's accuracy loss with conversion from int16/int32 -> fp16 is possible
+    if not input.is_float and input.bitsize >= 16 :
+        warnings.warn(f'Possible accuracy loss during conversion from {input.data.dtype} -> {np.float16}')
+    if not weights.is_float and weights.bitsize >= 16 :
+        warnings.warn(f'Possible accuracy loss during conversion from {weights.data.dtype} -> {np.float16}')
+    return input.data.astype(np.float16), weights.data.astype(np.float16)
 
 class MPE(ABC):
     """Abstract base class for MPE operations."""
@@ -670,10 +698,10 @@ class ZMajorConvolution(MPE):
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
-        lhs, rhs = idu(values[0], values[1])
-        c2d = Conv2d(kernel_shape=self.settings.kernel_shape,
-                     pads = self.settings.kernel_pads,
-                     strides = self.settings.kernel_strides)
+        lhs, rhs = iduConvCustom(values[0], values[1])
+        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+                        pads = self.settings.kernel_pads,
+                        strides = self.settings.kernel_strides)
         result = c2d.inference(lhs, rhs)
         return result
 
@@ -736,11 +764,11 @@ class DepthWiseConv(MPE):
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
-        lhs, rhs = idu(values[0], values[1])
-        c2d = Conv2d(kernel_shape=self.settings.kernel_shape,
-                     pads = self.settings.kernel_pads,
-                     strides = self.settings.kernel_strides,
-                     group = self.settings.weight_shape[0])
+        lhs, rhs = iduConvCustom(values[0], values[1])
+        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+                        pads = self.settings.kernel_pads,
+                        strides = self.settings.kernel_strides,
+                        group = self.settings.weight_shape[0])
         return c2d.inference(lhs, rhs)
 
 
@@ -1017,18 +1045,8 @@ class DPUPipeline:
         self.issues = set()
         for name, value in zip(option_names, option_values):
             setattr(settings, name, value)
-            if value.__class__ in [Int4, UInt4]:
-                self.issues.add('EISW-13321')  # Int4 / UInt4 not supported
-        if isinstance(settings.output_ttype, Int32):
-            self.issues.add('EISW-21225')  # Int32 not supported
 
         self.mpe_op = settings.mpe_op_class(settings)
-
-        if settings.mpe_op_class is EltwiseAdd and settings.input_ttype.__class__ in [FP16, BF16]:
-            self.issues.add('EISW-6666')  # Double expected outputs for eltwise add with fp16 or bfloat16 inputs
-
-        if settings.mpe_op_class is Maxpool and settings.input_ttype.__class__ in [FP16, BF16]:
-            self.issues.add('EISW-15074')  # MaxPool produces zeros with fp16 and bf16 inputs
 
     def compute_values(self):
         try:
