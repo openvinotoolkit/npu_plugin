@@ -4,6 +4,7 @@
 #include <cmath>
 #include "layers/param_custom_cpp.h"
 #include "mvSubspaces.h"
+#include <nn_cache.h>
 
 #ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
@@ -16,7 +17,9 @@ __attribute__((aligned(1024)))
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
     static constexpr std::initializer_list<SingleTest> sigmoid_test_list{
-            {{1, 1, 20}, {1, 1, 20}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::NN_CMX}},
+//            {{1, 1, 20}, {1, 1, 20}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::NN_CMX}},
+            {{100, 1, 1}, {100, 1, 1}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::NN_CMX}},
+            {{1, 111, 1}, {1, 111, 1}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::NN_CMX}},
 //            {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::NN_CMX}}
     };
 
@@ -49,6 +52,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
             m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[0]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_sigmoidParams);
+            nn::cache::flush(paramContainer.data(), paramContainer.size() * sizeof(uint64_t));
+            nn::cache::flush(m_params.baseParamData);
         }
 
         void initTestCase() override {

@@ -4,6 +4,7 @@ optimization=-O3
 cpunum=3010
 cpu=${cpunum}xx
 
+if [ -z ${KERNEL_DIR} ]; then KERNEL_DIR=..; fi
 if [ -z ${FIRMWARE_VPU_DIR} ]; then FIRMWARE_VPU_DIR=${VPUIP_2_DIR}; fi
 if [ -z "${MV_TOOLS_DIR}" ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
 if [ -z "${KERNEL_DIR}" ]; then echo "KERNEL_DIR is not set"; env_is_set=0; fi

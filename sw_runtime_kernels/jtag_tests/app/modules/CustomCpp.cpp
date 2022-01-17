@@ -91,11 +91,23 @@ bool CustomCpp::parse(Layer * layer) {
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->inputsOffset);
     for (unsigned i = 0; i < inputVec.size(); i++) {
         inTensors[i] = inputVec[i].toMemRefData(inputLocations[i], true);
+        nn::cache::flush(inTensors[i]);
+        uint32_t * dims = reinterpret_cast<uint32_t*>(inTensors[i].dimsAddr);
+        nn::cache::flush(dims, inTensors[i].numDims * sizeof(uint32_t));
+        printf("!!!!!!!!!!!!!!!!!!!   inTensor[%d]: (numDims: %d, dims(%x): (%d %d %d %d)\n)", i, inTensors[i].numDims, inTensors[i].dimsAddr,
+                dims[0], dims[1], dims[2], dims[3]);
+//        nn::cache::flush(this->dims, this->ndims * sizeof(uint32_t));
+//        nn::cache::flush(this->stridesBits, this->ndims * sizeof(uint64_t));
     }
     sw_params::MemRefData* outTensors =
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->outputsOffset);
     for (unsigned i = 0; i < outputVec.size(); i++) {
         outTensors[i] = outputVec[i].toMemRefData(outputLocations[i], false);
+        nn::cache::flush(outTensors[i]);
+        uint32_t * dims = reinterpret_cast<uint32_t*>(outTensors[i].dimsAddr);
+        nn::cache::flush(dims, outTensors[i].numDims * sizeof(uint32_t));
+        printf("!!!!!!!!!!!!!!!!!!!   outTensor[%d]: (numDims: %d, dims(%x): (%d %d %d %d)\n)", i, outTensors[i].numDims, outTensors[i].dimsAddr,
+                dims[0], dims[1], dims[2], dims[3]);
     }
 
     const uint8_t *elf = reinterpret_cast<const uint8_t *>(kernelData.data());

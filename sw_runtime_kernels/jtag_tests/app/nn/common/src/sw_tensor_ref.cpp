@@ -21,6 +21,7 @@ extern unsigned int actShaveDataReserved;
 #include "nn_memory.h"
 #include "sw_shave_lib_common.h"
 #include <dma_shave_nn.h>
+#include <nn_cache.h>
 #endif
 
 namespace {
@@ -321,7 +322,9 @@ sw_params::MemRefData TensorRef::toMemRefData(sw_params::Location loc, bool doCo
         }
     }
 #endif
-
+    nn::cache::flush(ret);
+    nn::cache::flush(this->dims, this->ndims * sizeof(uint32_t));
+    nn::cache::flush(this->stridesBits, this->ndims * sizeof(uint64_t));
     return ret;
 }
 

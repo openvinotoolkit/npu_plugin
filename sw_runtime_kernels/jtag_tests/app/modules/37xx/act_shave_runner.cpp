@@ -17,12 +17,14 @@ void * sk_nnActEntry_3010xx_text_ref = (void*)sk_nnActEntry_3010xx_text;
 #include <sw_nn_runtime_types.h>
 #include <sw_shave_lib_common.h>
 #include <HglShaveCommon.h>
+#include <HglShaveL1Cache.h>
 #include "shave_task_runner.hpp"
 #include <nn_shave_manager.h>
 #include <nn_fifo_manager.h>
 #include <nn_cache.h>
 #include <nn_time.h>
 #include <CustomCpp.h>
+#include <leonUtils.h>
 
 unsigned char __attribute__((section(".nncmx0.shared.data"), aligned(64))) actShaveData[SHAVE_LIB_DATA_SIZE];
 unsigned int actShaveDataReserved = 0;
@@ -126,7 +128,44 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
             userBariers, gpioBarriers, 0
     };
     cache::flush(kInvo);
-
+    leonDataCacheFlush();
+//    ShaveL1Error ShaveDL1CacheAction(ShaveType type, uint32_t shaveId, ShaveDL1Action action) {
+    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 0, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 1, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 2, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 3, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 4, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 5, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 6, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 7, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 8, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 9, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 10, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+    int q;
+    for (int i = 0; i < 10000; i++) {
+        q = i % 7;
+    }
+    printf("%d\n", q);
+//    sleep(1);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 5, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 6, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 7, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 8, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 9, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 10, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 11, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 12, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 13, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 14, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 15, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 16, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 17, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 18, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 19, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 20, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 21, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 22, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    ShaveDL1CacheAction(HGL_SHAVE_ACT, 0, SHAVE_DL1_CACHE_INVALIDATE_ALL);
     fifo::sendWorkToASs(0/*local_aki.tile_*/, &kInvo);
 
 //    sleep(10);
