@@ -584,9 +584,12 @@ bool BarrierScheduler::generateScheduleWithBarriers(size_t numberOfBarriers, siz
     _schedulableCandidates.clear();
     _scheduledTasks.clear();
     _barrierAssociationTable.clear();
+    _heap.clear();
+    _barrierMap.clear();
     _barrierCount = numberOfBarriers;
     _slotsPerBarrier = maxProducersPerBarrier;
     _inDegree = _originalInDegree;
+    _currentTime = 0;
 
     _log.trace("Starting to generate a schedule with {0} barriers", numberOfBarriers);
     _log = _log.nest();
