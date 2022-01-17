@@ -115,6 +115,9 @@ nb::ActivationType nb::to_activation_type(llvm::StringRef str) {
     if (isEqual(str, "HSwish")) {
         return nb::ActivationType::HSwish;
     }
+    if (isEqual(str, "Sigmoid")) {
+        return nb::ActivationType::Sigmoid;
+    }
 
     return nb::ActivationType::Unknown;
 }
@@ -133,6 +136,8 @@ std::string nb::to_string(nb::ActivationType activationType) {
         return "Mish";
     case ActivationType::HSwish:
         return "HSwish";
+    case ActivationType::Sigmoid:
+        return "Sigmoid";
     default:
         return "Unknown";
     }
