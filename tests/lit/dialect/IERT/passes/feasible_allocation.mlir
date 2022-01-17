@@ -471,7 +471,6 @@ IE.CNNNetwork
 
 func @main(%in: memref<1x120000xf16>, %out: memref<1x120000xf16>) -> memref<1x120000xf16> {
     %cst0 = const.Declare memref<1x120000xf16> = #const.Content<dense<2.0> : tensor<1x120000xf16>>
-//    %cst1 = const.Declare memref<1x120000xf16> = #const.Content<dense<3.0> : tensor<1x120000xf16>>
 
     %buf_in = memref.alloc() : memref<1x120000xf16, @CMX_NN>
 
@@ -588,6 +587,101 @@ func @main(%in: memref<1x120000xf16>, %out: memref<1x120000xf16>) -> memref<1x12
 
     // CHECK:       [[T11:%.+]], [[R11:%.+]] = async.execute
     // CHECK-NEXT:       IERT.Copy
+}
+
+}
+
+// -----
+
+// CHECK-LABEL: @ControlEdgeOverlapMemory
+module @ControlEdgeOverlapMemory {
+
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        DataInfo "data" : tensor<200000xf16>
+    }
+    outputsInfo : {
+        DataInfo "prob0" : tensor<200000xf16>
+        DataInfo "prob1" : tensor<200000xf16>
+    }
+func @main(%in: memref<200000xf16>, %out0: memref<200000xf16>, %out1: memref<200000xf16>) -> (memref<200000xf16>, memref<200000xf16>) {
+    %buf0 = memref.alloc() : memref<200000xf16, @CMX_NN>
+    %buf1 = memref.alloc() : memref<200000xf16, @CMX_NN>
+    %buf2 = memref.alloc() : memref<200000xf16, @CMX_NN>
+
+    // Task 0
+    %t0, %f0 = async.execute -> !async.value<memref<200000xf16, @CMX_NN>> {
+        %0 = IERT.Copy inputs(%in : memref<200000xf16>) outputs(%buf0 : memref<200000xf16, @CMX_NN>) -> memref<200000xf16, @CMX_NN>
+        async.yield %0 : memref<200000xf16, @CMX_NN>
+    }
+
+    // Task 1
+    %t1, %f1 = async.execute (%f0 as %arg0 : !async.value<memref<200000xf16, @CMX_NN>>)
+            -> !async.value<memref<200000xf16, @CMX_NN>> {
+        %0 = IERT.ReLU inputs(%arg0: memref<200000xf16, @CMX_NN>) outputs(%buf1 : memref<200000xf16, @CMX_NN>) -> memref<200000xf16, @CMX_NN>
+        async.yield %0 : memref<200000xf16, @CMX_NN>
+    }
+
+    // Task 2
+    %t2, %f2 = async.execute (%f1 as %arg0 : !async.value<memref<200000xf16, @CMX_NN>>)
+            -> !async.value<memref<200000xf16>> {
+        %0 = IERT.Copy inputs(%arg0 : memref<200000xf16, @CMX_NN>) outputs(%out0 : memref<200000xf16>) -> memref<200000xf16>
+        async.yield %0 : memref<200000xf16>
+    }
+
+    // Task 3
+    %t3, %f3 = async.execute (%f0 as %arg0 : !async.value<memref<200000xf16, @CMX_NN>>)
+            -> !async.value<memref<200000xf16, @CMX_NN>> {
+        %0 = IERT.ReLU inputs(%arg0: memref<200000xf16, @CMX_NN>) outputs(%buf2 : memref<200000xf16, @CMX_NN>) -> memref<200000xf16, @CMX_NN>
+        async.yield %0 : memref<200000xf16, @CMX_NN>
+    }
+
+    // Task 4
+    %t4, %f4 = async.execute (%f3 as %arg0 : !async.value<memref<200000xf16, @CMX_NN>>)
+            -> !async.value<memref<200000xf16>> {
+        %0 = IERT.Copy inputs(%arg0 : memref<200000xf16, @CMX_NN>) outputs(%out1 : memref<200000xf16>) -> memref<200000xf16>
+        async.yield %0 : memref<200000xf16>
+    }
+
+    %r0 = async.await %f2 : !async.value<memref<200000xf16>>
+    %r1 = async.await %f4 : !async.value<memref<200000xf16>>
+    return %r0, %r1 : memref<200000xf16>, memref<200000xf16>
+
+    // Token dependencies will match data flow by default:
+    //  Task0 -> Task1 -> Task2
+    //  Task0 -> Task3 -> Task4
+    // besides that due to overlapping memory ranges of Task3 and Task1
+    // additional control edge will be inserted:
+    //  Task1 -> Task3
+    // Optimization of token dependencies (transitive reduction) is beyond
+    // this pass and done as a separate step
+
+    // CHECK:       [[BUF0:%.*]] = IERT.StaticAlloc<0>
+    // CHECK:       [[BUF1:%.*]] = IERT.StaticAlloc<400000>
+    // CHECK:       [[BUF2:%.*]] = IERT.StaticAlloc<400000>
+
+    // CHECK:       [[T0:%.+]], [[R0:%.+]] = async.execute ->
+    // CHECK-NEXT:      IERT.Copy
+    // CHECK-SAME:      outputs([[BUF0]]
+
+    // CHECK:       [[T1:%.+]], [[R1:%.+]] = async.execute
+    // CHECK-SAME:      [[T0]]
+    // CHECK-NEXT:      IERT.ReLU
+    // CHECK-SAME:      outputs([[BUF1]]
+
+    // CHECK:       [[T2:%.+]], [[R2:%.+]] = async.execute
+    // CHECK-SAME:      [[T1]]
+    // CHECK-NEXT:      IERT.Copy
+
+    // CHECK:       [[T3:%.+]], [[R3:%.+]] = async.execute
+    // CHECK-SAME:      [[T0]], [[T1]]
+    // CHECK-NEXT:      IERT.ReLU
+    // CHECK-SAME:      outputs([[BUF2]]
+
+    // CHECK:       [[T4:%.+]], [[R4:%.+]] = async.execute
+    // CHECK-SAME:      [[T3]]
+    // CHECK-NEXT:      IERT.Copy
 }
 
 }
