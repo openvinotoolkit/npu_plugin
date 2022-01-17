@@ -113,7 +113,6 @@ nb::ActivationType nb::to_activation_type(llvm::StringRef str) {
         return nb::ActivationType::Mish;
     }
     if (isEqual(str, "HSwish")) {
-        std::cout << "Parse HSwish" << std::endl;
         return nb::ActivationType::HSwish;
     }
 
@@ -480,7 +479,6 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
     }
 
     if (caseType_ == CaseType::ActShave) {
-        std::cout << "********" << std::endl;
         activationLayer_ = loadActivationLayer(json_obj);
         return;
     }

@@ -59,7 +59,7 @@ else:
 
 from operators.compute_core import bfloat16
 from operators.vpu26 import Add, Mult, MTLConv2D, MaxPool, AveragePool
-from operators.vpu26 import HSwish
+from operators.vpu26 import HSwish, Sigmoid
 from operators.platform.quantize_info import QuantizationInfo
 from operators.platform.quantized_tensor import NBQuantized
 from operators.platform.vpu26 import PlatformVPU26
@@ -1061,10 +1061,13 @@ class ActKernel(MPE):
         
     def apply(self, values: List[Value]) -> np.ndarray:
         print("input:", values[0].data.astype(np.float32))
-        if(self.settings.activation_type == ActivationType.HSwish) :
+        if self.settings.activation_type == ActivationType.HSwish :
             result = HSwish().inference(values[0].data.astype(np.float32))
-        else :
-             raise Error(f'Unsopported Act-shave sub-type: {self.settings.kernel_type.name}')
+        else : 
+            if self.settings.activation_type == ActivationType.Sigmoid :
+                result = Sigmoid().inference(values[0].data.astype(np.float32))
+            else :
+                raise Error(f'Unsopported Act-shave sub-type: {self.settings.activation_type.name}')
         
         result = ma.getdata(result)
 
@@ -1398,7 +1401,7 @@ def generate_options(args):
             input_types=[FP16(0)],
             input_shapes=[[1, 10, 2, 3]],
             output_types=[FP16()],
-            act_shave_subtypes=[ActivationType.HSwish]),
+            act_shave_subtypes=[ActivationType.HSwish, ActivationType.Sigmoid]),
 
         # Z-Major Convolution
         
