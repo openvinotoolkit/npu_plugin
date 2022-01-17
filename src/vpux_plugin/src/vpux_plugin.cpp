@@ -66,33 +66,9 @@ static Config mergeConfigs(const Config& globalConfig, const std::map<std::strin
 }
 
 //------------------------------------------------------------------------------
-// TODO: generation of available backends list can be done during execution of CMake scripts
-//
-
-static const std::vector<std::string> backendRegistry = {
-#if defined(_WIN32) || defined(_WIN64) || (defined(__linux__) && defined(__x86_64__))
-        "zero_backend",
-#endif
-#if defined(__arm__) || defined(__aarch64__)
-        "vpual_backend",
-#endif
-#if defined(ENABLE_HDDL2)
-        "hddl2_backend",
-#endif
-#if defined(ENABLE_EMULATOR)
-        "emulator_backend",
-#endif
-#if defined(ENABLE_IMD_BACKEND)
-        "vpux_imd_backend",
-#endif
-};
 
 Engine::Engine()
-        : _options(std::make_shared<OptionsDesc>()),
-          _globalConfig(_options),
-          _backends(std::make_shared<VPUXBackends>(backendRegistry)),
-          _metrics(_backends),
-          _logger("VPUXEngine", LogLevel::Error) {
+        : _options(std::make_shared<OptionsDesc>()), _globalConfig(_options), _logger("VPUXEngine", LogLevel::Error) {
     _pluginName = "VPUX";
 
     registerCommonOptions(*_options);
@@ -100,7 +76,33 @@ Engine::Engine()
     registerMcmCompilerOptions(*_options);
     registerRunTimeOptions(*_options);
 
+    // TODO: generation of available backends list can be done during execution of CMake scripts
+    std::vector<std::string> backendRegistry;
+
+#if defined(ENABLE_IMD_BACKEND)
+    if (const auto* envVar = std::getenv("IE_VPUX_USE_IMD_BACKEND")) {
+        if (envVarStrToBool("IE_VPUX_USE_IMD_BACKEND", envVar)) {
+            backendRegistry.push_back("vpux_imd_backend");
+        }
+    }
+#endif
+#if defined(_WIN32) || defined(_WIN64) || (defined(__linux__) && defined(__x86_64__))
+    backendRegistry.push_back("zero_backend");
+#endif
+#if defined(__arm__) || defined(__aarch64__)
+    backendRegistry.push_back("vpual_backend");
+#endif
+#if defined(ENABLE_HDDL2)
+    backendRegistry.push_back("hddl2_backend");
+#endif
+#if defined(ENABLE_EMULATOR)
+    backendRegistry.push_back("emulator_backend");
+#endif
+
+    _backends = std::make_shared<VPUXBackends>(backendRegistry);
     _backends->registerOptions(*_options);
+
+    _metrics = std::make_unique<Metrics>(_backends);
 
     _globalConfig.parseEnvVars();
     Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
@@ -261,19 +263,19 @@ IE::Parameter Engine::GetConfig(const std::string& name,
 
 IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, IE::Parameter>& options) const {
     if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics.GetAvailableDevicesNames());
+        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics->GetAvailableDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics.SupportedMetrics());
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics->SupportedMetrics());
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _metrics.GetFullDevicesNames());
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _metrics->GetFullDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _metrics.GetSupportedConfigKeys());
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _metrics->GetSupportedConfigKeys());
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
-        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, _metrics.GetOptimizationCapabilities());
+        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, _metrics->GetOptimizationCapabilities());
     } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
-        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics.GetRangeForAsyncInferRequest());
+        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics->GetRangeForAsyncInferRequest());
     } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
-        IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics.GetRangeForStreams());
+        IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics->GetRangeForStreams());
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == METRIC_KEY(DEVICE_ARCHITECTURE)) {
@@ -281,9 +283,9 @@ IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::str
         if (options.count(CONFIG_KEY(DEVICE_ID)) && options.at(CONFIG_KEY(DEVICE_ID)).is<std::string>()) {
             specifiedDeviceName = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
         }
-        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics.GetDeviceArchitecture(specifiedDeviceName));
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics->GetDeviceArchitecture(specifiedDeviceName));
     } else if (name == VPUX_METRIC_KEY(BACKEND_NAME)) {
-        IE_SET_METRIC_RETURN(VPUX_BACKEND_NAME, _metrics.GetBackendName());
+        IE_SET_METRIC_RETURN(VPUX_BACKEND_NAME, _metrics->GetBackendName());
     }
     IE_THROW(NotImplemented);
 }

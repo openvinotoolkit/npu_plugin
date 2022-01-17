@@ -15,6 +15,7 @@
 
 // System
 #include <map>
+#include <memory>
 #include <string>
 
 // IE
@@ -84,7 +85,7 @@ private:
     std::shared_ptr<OptionsDesc> _options;
     Config _globalConfig;
     VPUXBackends::Ptr _backends;
-    Metrics _metrics;
+    std::unique_ptr<Metrics> _metrics;
     Logger _logger;
 #if defined(__arm__) || defined(__aarch64__)
     Encryption _encryptionModel;
