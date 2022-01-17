@@ -32,7 +32,7 @@ using namespace vpux;
 // TensorAttr
 //
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMapAttr order, mlir::SymbolRefAttr memSpace, bool sparse) {
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMapAttr order, IndexedSymbolAttr memSpace, bool sparse) {
     // Initially, tensors do not have an encoding attribute, which is equivalent to an empty TensorAttr.
     // But in fact, such tensors have a different type: `tensor<1x8x4x2xf16> != tensor<1x8x4x2xf16, {}>`.
     // So let's not use empty attributes to avoid ambiguous representation of the same type.
@@ -46,11 +46,11 @@ IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMapAttr order, mlir::SymbolRe
     return IE::TensorAttr::get(order, memSpace, sparseAttr, ctx);
 }
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMap order, mlir::SymbolRefAttr memSpace, bool sparse) {
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMap order, IndexedSymbolAttr memSpace, bool sparse) {
     return IE::getTensorAttr(mlir::AffineMapAttr::get(order), memSpace, sparse);
 }
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::SymbolRefAttr memSpace,
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, IndexedSymbolAttr memSpace,
                                        bool sparse) {
     return IE::getTensorAttr(order.toAffineMap(ctx), memSpace, sparse);
 }
@@ -77,7 +77,7 @@ mlir::AffineMap vpux::IE::getOrder(mlir::RankedTensorType type) {
     return mlir::AffineMap::getMinorIdentityMap(numDims, numDims, type.getContext());
 }
 
-mlir::SymbolRefAttr vpux::IE::getMemorySpace(mlir::RankedTensorType type) {
+IndexedSymbolAttr vpux::IE::getMemorySpace(mlir::RankedTensorType type) {
     if (const auto desc = IE::getTensorAttr(type)) {
         return desc.mem_space();
     }

@@ -47,7 +47,7 @@ private:
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
-    mlir::SymbolRefAttr _memSpace;
+    IndexedSymbolAttr _memSpace;
 };
 
 //
@@ -66,7 +66,7 @@ private:
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
-    mlir::SymbolRefAttr _memSpace;
+    IndexedSymbolAttr _memSpace;
 };
 
 mlir::Value AddCMX2DDRExecuteOp(mlir::OpBuilder& builder, mlir::MLIRContext* ctx, mlir::BlockArgument& profilingResult,

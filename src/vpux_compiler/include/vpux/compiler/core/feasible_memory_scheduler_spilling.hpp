@@ -32,8 +32,8 @@ namespace vpux {
 //
 class FeasibleMemorySchedulerSpilling final {
 public:
-    explicit FeasibleMemorySchedulerSpilling(mlir::FuncOp netFunc, mlir::SymbolRefAttr memSpace,
-                                             mlir::SymbolRefAttr secondLvlMemSpace, AsyncDepsInfo& depsInfo,
+    explicit FeasibleMemorySchedulerSpilling(mlir::FuncOp netFunc, IndexedSymbolAttr memSpace,
+                                             IndexedSymbolAttr secondLvlMemSpace, AsyncDepsInfo& depsInfo,
                                              AliasesInfo& aliasInfo, Logger log,
                                              LinearScan<mlir::Value, LinearScanHandler>& scan);
 
@@ -86,9 +86,9 @@ private:
 private:
     Logger _log;
     // first level mem space
-    mlir::SymbolRefAttr _memSpace;
+    IndexedSymbolAttr _memSpace;
     // second level mem space which is used for spilling
-    mlir::SymbolRefAttr _secondLvlMemSpace;
+    IndexedSymbolAttr _secondLvlMemSpace;
     // dependencies of ops
     AsyncDepsInfo& _depsInfo;
     // aliases information for buffers

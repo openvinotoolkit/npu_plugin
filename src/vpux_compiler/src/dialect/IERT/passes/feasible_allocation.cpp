@@ -91,8 +91,8 @@ private:
 private:
     IERT::AttrCreateFunc _memSpaceCb;
     IERT::AttrCreateFunc _secondLvlMemSpaceCb;
-    mlir::SymbolRefAttr _memSpace;
-    mlir::SymbolRefAttr _secondLvlMemSpace;
+    IndexedSymbolAttr _memSpace;
+    IndexedSymbolAttr _secondLvlMemSpace;
 };
 
 FeasibleAllocationPass::FeasibleAllocationPass(IERT::AttrCreateFunc memSpaceCb,
@@ -191,7 +191,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     // linear scan
-    auto available = IE::getAvailableMemory(module, _memSpace);
+    auto available = IE::getAvailableMemory(module, _memSpace.getNameAttr());
     const auto maxSize = available.size();
     const uint64_t alignment = 64;
 
@@ -236,7 +236,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
         return;
     }
 
-    IE::setUsedMemory(module, _memSpace, scan.handler().maxAllocatedSize());
+    IE::setUsedMemory(module, _memSpace.getNameAttr(), scan.handler().maxAllocatedSize());
 }
 
 }  // namespace

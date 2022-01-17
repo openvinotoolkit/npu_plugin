@@ -154,8 +154,7 @@ Byte vpux::getCompactSize(mlir::Value val) {
 // MemRefType utilities
 //
 
-mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order,
-                                     mlir::SymbolRefAttr memSpace) {
+mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order, IndexedSymbolAttr memSpace) {
     VPUX_THROW_UNLESS(order.numDims() == shape.size(), "Shape '{0}' doesn't match order '{1}'", shape, order);
 
     mlir::MemRefType::Builder builder(shape.raw(), elemType);
@@ -165,7 +164,7 @@ mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOr
 }
 
 mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order, StridesRef strides,
-                                     mlir::SymbolRefAttr memSpace) {
+                                     IndexedSymbolAttr memSpace) {
     VPUX_THROW_UNLESS(order.numDims() == shape.size(), "Shape '{0}' doesn't match order '{1}'", shape, order);
     VPUX_THROW_UNLESS(shape.size() == strides.size(), "Strides '{0}' doesn't match shape '{1}'", strides, shape);
 
@@ -228,7 +227,7 @@ mlir::MemRefType vpux::changeDimsOrder(mlir::MemRefType origType, DimsOrder orde
     return getMemRefType(shape, elemType, order, memSpace);
 }
 
-mlir::MemRefType vpux::changeMemSpace(mlir::MemRefType origType, mlir::SymbolRefAttr memSpace) {
+mlir::MemRefType vpux::changeMemSpace(mlir::MemRefType origType, IndexedSymbolAttr memSpace) {
     return mlir::MemRefType::Builder(origType).setMemorySpace(memSpace);
 }
 
@@ -309,7 +308,7 @@ mlir::MemRefType vpux::eraseTiledInfo(mlir::MemRefType origType) {
 //
 
 mlir::RankedTensorType vpux::getTensorType(ShapeRef shape, mlir::Type elemType, DimsOrder order,
-                                           mlir::SymbolRefAttr memSpace, bool sparse) {
+                                           IndexedSymbolAttr memSpace, bool sparse) {
     VPUX_THROW_UNLESS(order.numDims() == shape.size(), "DimsOrder '{0}' doesn't match to shape '{1}'", order, shape);
 
     const auto tensorDesc = IE::getTensorAttr(elemType.getContext(), order, memSpace, sparse);
@@ -354,7 +353,7 @@ mlir::RankedTensorType vpux::changeSparse(mlir::RankedTensorType origType, bool 
                          IE::getMemorySpace(origType), sparse);
 }
 
-mlir::RankedTensorType vpux::changeMemSpace(mlir::RankedTensorType origType, mlir::SymbolRefAttr memSpace) {
+mlir::RankedTensorType vpux::changeMemSpace(mlir::RankedTensorType origType, IndexedSymbolAttr memSpace) {
     return getTensorType(getShape(origType), origType.getElementType(), DimsOrder::fromType(origType), memSpace,
                          IE::isSparse(origType));
 }
@@ -403,13 +402,13 @@ mlir::RankedTensorType vpux::getPaddedType(mlir::RankedTensorType origType, Shap
     return newType;
 }
 
-mlir::SymbolRefAttr vpux::getMemorySpace(mlir::MemRefType type) {
+IndexedSymbolAttr vpux::getMemorySpace(mlir::MemRefType type) {
     auto memSpaceAttr = type.getMemorySpace();
     if (memSpaceAttr == nullptr) {
         return nullptr;
     }
 
-    auto memSpace = memSpaceAttr.dyn_cast<mlir::FlatSymbolRefAttr>();
+    auto memSpace = memSpaceAttr.dyn_cast<IndexedSymbolAttr>();
     VPUX_THROW_UNLESS(memSpace != nullptr, "Unsupported memory space attribute'{0}'", memSpaceAttr);
 
     return memSpace;
@@ -458,7 +457,7 @@ mlir::ShapedType vpux::changeDimsOrder(mlir::ShapedType origType, DimsOrder orde
             });
 }
 
-mlir::ShapedType vpux::changeMemSpace(mlir::ShapedType origType, mlir::SymbolRefAttr memSpace) {
+mlir::ShapedType vpux::changeMemSpace(mlir::ShapedType origType, IndexedSymbolAttr memSpace) {
     return llvm::TypeSwitch<mlir::ShapedType, mlir::ShapedType>(origType)
             .Case<mlir::MemRefType>([&](mlir::MemRefType memref) {
                 return changeMemSpace(memref, memSpace);

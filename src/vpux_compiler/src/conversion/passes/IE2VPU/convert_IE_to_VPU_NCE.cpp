@@ -27,7 +27,7 @@ using namespace vpux;
 namespace {
 
 mlir::Value copyToCMX(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value val) {
-    const auto memSpace = mlir::SymbolRefAttr::get(builder.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
+    const auto memSpace = IndexedSymbolAttr::get(builder.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
     return builder.createOrFold<IE::CopyOp>(loc, val, memSpace);
 }
 
@@ -234,7 +234,7 @@ mlir::LogicalResult EltwiseToNCE<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
                                    ? inputCMX1
                                    : copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input2-CMX"), origOp.input2());
 
-    const auto memSpace = mlir::SymbolRefAttr::get(this->getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
+    const auto memSpace = IndexedSymbolAttr::get(this->getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
     const auto newOutType = changeMemSpace(origOp.getType(), memSpace);
 
     auto nceOp = rewriter.create<VPU::NCEEltwiseOp>(origOp->getLoc(), newOutType, inputCMX1, inputCMX2,

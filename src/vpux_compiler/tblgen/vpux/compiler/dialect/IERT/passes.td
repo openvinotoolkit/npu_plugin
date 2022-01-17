@@ -59,7 +59,7 @@ def SetInternalMemorySpace : PassBase<"set-internal-memory-space", "vpux::Functi
     let constructor = [{
         vpux::IERT::createSetInternalMemorySpacePass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) {
             VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
-            return mlir::SymbolRefAttr::get(ctx, memSpaceName);
+            return vpux::IndexedSymbolAttr::get(ctx, memSpaceName);
         })
     }];
 
@@ -87,7 +87,7 @@ def StaticAllocation : PassBase<"static-allocation", "vpux::ModulePass"> {
     let constructor = [{
         vpux::IERT::createStaticAllocationPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) {
             VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
-            return mlir::SymbolRefAttr::get(ctx, memSpaceName);
+            return vpux::IndexedSymbolAttr::get(ctx, memSpaceName);
         })
     }];
 
@@ -133,10 +133,10 @@ def DMATaskProfiling : PassBase<"dma-task-profiling", "vpux::ModulePass"> {
     let constructor = [{
         vpux::IERT::createDMATaskProfilingPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) {
             if (memSpaceName.empty()) {
-                return mlir::SymbolRefAttr::get(ctx, "CMX_NN");
+                return vpux::IndexedSymbolAttr::get(ctx, "CMX_NN");
             }
             VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
-            return mlir::SymbolRefAttr::get(ctx, memSpaceName);
+            return vpux::IndexedSymbolAttr::get(ctx, memSpaceName);
         })
     }];
 }
@@ -155,10 +155,10 @@ def DPUProfiling : PassBase<"dpu-profiling", "vpux::ModulePass"> {
     let constructor = [{
         vpux::IERT::createDPUProfilingPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) {
             if (memSpaceName.empty()) {
-                return mlir::SymbolRefAttr::get(ctx, "CMX_NN");
+                return vpux::IndexedSymbolAttr::get(ctx, "CMX_NN");
             }
             VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
-            return mlir::SymbolRefAttr::get(ctx, memSpaceName);
+            return vpux::IndexedSymbolAttr::get(ctx, memSpaceName);
         })
     }];
 }
@@ -249,10 +249,10 @@ def FeasibleAllocation : PassBase<"feasible-allocation", "vpux::ModulePass"> {
         vpux::IERT::createFeasibleAllocationPass(
         [](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) {
             VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
-            return mlir::SymbolRefAttr::get(ctx, memSpaceName);
+            return vpux::IndexedSymbolAttr::get(ctx, memSpaceName);
         },
         [](mlir::MLIRContext* ctx, vpux::StringRef secondLvlMemSpaceName) {
-            return mlir::SymbolRefAttr::get(ctx, secondLvlMemSpaceName);
+            return vpux::IndexedSymbolAttr::get(ctx, secondLvlMemSpaceName);
         }
         )
     }];

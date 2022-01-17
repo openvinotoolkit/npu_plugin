@@ -14,6 +14,7 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/indexed_symbol_attr.hpp"
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
@@ -32,14 +33,14 @@ namespace IE {
 // TensorAttr
 //
 
-IE::TensorAttr getTensorAttr(mlir::AffineMapAttr order, mlir::SymbolRefAttr memSpace, bool sparse);
-IE::TensorAttr getTensorAttr(mlir::AffineMap order, mlir::SymbolRefAttr memSpace, bool sparse);
-IE::TensorAttr getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::SymbolRefAttr memSpace, bool sparse);
+IE::TensorAttr getTensorAttr(mlir::AffineMapAttr order, IndexedSymbolAttr memSpace, bool sparse);
+IE::TensorAttr getTensorAttr(mlir::AffineMap order, IndexedSymbolAttr memSpace, bool sparse);
+IE::TensorAttr getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, IndexedSymbolAttr memSpace, bool sparse);
 
 IE::TensorAttr getTensorAttr(mlir::RankedTensorType type);
 
 mlir::AffineMap getOrder(mlir::RankedTensorType type);
-mlir::SymbolRefAttr getMemorySpace(mlir::RankedTensorType type);
+IndexedSymbolAttr getMemorySpace(mlir::RankedTensorType type);
 bool isSparse(mlir::RankedTensorType type);
 
 }  // namespace IE

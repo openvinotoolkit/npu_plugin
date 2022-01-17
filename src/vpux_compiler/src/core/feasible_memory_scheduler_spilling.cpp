@@ -21,8 +21,8 @@ using namespace vpux;
 // Feasible Memory Scheduler Spilling support
 //
 
-FeasibleMemorySchedulerSpilling::FeasibleMemorySchedulerSpilling(mlir::FuncOp netFunc, mlir::SymbolRefAttr memSpace,
-                                                                 mlir::SymbolRefAttr secondLvlMemSpace,
+FeasibleMemorySchedulerSpilling::FeasibleMemorySchedulerSpilling(mlir::FuncOp netFunc, IndexedSymbolAttr memSpace,
+                                                                 IndexedSymbolAttr secondLvlMemSpace,
                                                                  AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo,
                                                                  Logger log,
                                                                  LinearScan<mlir::Value, LinearScanHandler>& scan)

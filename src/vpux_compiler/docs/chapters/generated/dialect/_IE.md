@@ -546,7 +546,7 @@ operation ::= `IE.Copy` `(` operands `)` attr-dict `:` type(operands) `->` type(
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`out_mem_space` | ::mlir::SymbolRefAttr | symbol reference attribute
+`out_mem_space` | vpux::IndexedSymbolAttr | Symbol name with optional index
 
 #### Operands:
 

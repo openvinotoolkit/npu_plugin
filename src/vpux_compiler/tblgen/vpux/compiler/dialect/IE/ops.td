@@ -3019,7 +3019,7 @@ def IE_CopyOp :
     let arguments = (ins
         AnyRankedTensor:$input,
 
-        OptionalAttr<SymbolRefAttr>:$out_mem_space
+        OptionalAttr<IndexedSymbolAttr>:$out_mem_space
     );
 
     let results = (outs

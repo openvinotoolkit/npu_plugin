@@ -26,4 +26,14 @@ def IntAttr : Attr<CPred<"$_self.isa<mlir::IntegerAttr>()">, "Integer attribute"
 
 def I64ArrayOfArraysAttr : TypedArrayAttrBase<I64ArrayAttr, "array of 64-bit integer arrays">;
 
+def IndexedSymbolAttr :
+        Attr<
+            CPred<"$_self.isa<vpux::IndexedSymbolAttr>()">,
+            "Symbol name with optional index"
+        > {
+
+    let storageType = [{ vpux::IndexedSymbolAttr }];
+    let returnType = [{ mlir::Attribute }];
+}
+
 #endif

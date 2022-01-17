@@ -14,6 +14,7 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/indexed_symbol_attr.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 
 #include "vpux/utils/core/mem_size.hpp"
@@ -81,29 +82,29 @@ Byte getCompactSize(mlir::Value val);
 // MemRefType utilities
 //
 
-mlir::MemRefType getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order, mlir::SymbolRefAttr memSpace);
+mlir::MemRefType getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order, IndexedSymbolAttr memSpace);
 template <typename Enum>
 memref_type_if<Enum> getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order, Enum kind) {
-    return getMemRefType(shape, elemType, order, mlir::SymbolRefAttr::get(elemType.getContext(), stringifyEnum(kind)));
+    return getMemRefType(shape, elemType, order, IndexedSymbolAttr::get(elemType.getContext(), stringifyEnum(kind)));
 }
 
 mlir::MemRefType getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order, StridesRef strides,
-                               mlir::SymbolRefAttr memSpace);
+                               IndexedSymbolAttr memSpace);
 template <typename Enum>
 memref_type_if<Enum> getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order, StridesRef strides,
                                    Enum kind) {
     return getMemRefType(shape, elemType, order, strides,
-                         mlir::SymbolRefAttr::get(elemType.getContext(), stringifyEnum(kind)));
+                         IndexedSymbolAttr::get(elemType.getContext(), stringifyEnum(kind)));
 }
 
 mlir::MemRefType changeElemType(mlir::MemRefType origType, mlir::Type elemType);
 mlir::MemRefType changeShape(mlir::MemRefType origType, ShapeRef shape);
 mlir::MemRefType changeDimsOrder(mlir::MemRefType origType, DimsOrder order);
-mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::SymbolRefAttr memSpace);
+mlir::MemRefType changeMemSpace(mlir::MemRefType origType, IndexedSymbolAttr memSpace);
 
 template <typename Enum>
 memref_type_if<Enum> changeMemSpace(mlir::MemRefType origType, Enum kind) {
-    return changeMemSpace(origType, mlir::SymbolRefAttr::get(origType.getContext(), stringifyEnum(kind)));
+    return changeMemSpace(origType, IndexedSymbolAttr::get(origType.getContext(), stringifyEnum(kind)));
 }
 
 mlir::MemRefType getDenseTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape);
@@ -113,13 +114,13 @@ mlir::MemRefType getPaddedType(mlir::MemRefType origType, ShapeRef padBefore, Sh
 
 mlir::MemRefType eraseTiledInfo(mlir::MemRefType origType);
 
-mlir::SymbolRefAttr getMemorySpace(mlir::MemRefType type);
+IndexedSymbolAttr getMemorySpace(mlir::MemRefType type);
 
 //
 // RankedTensorType utilities
 //
 
-mlir::RankedTensorType getTensorType(ShapeRef shape, mlir::Type elemType, DimsOrder order, mlir::SymbolRefAttr memSpace,
+mlir::RankedTensorType getTensorType(ShapeRef shape, mlir::Type elemType, DimsOrder order, IndexedSymbolAttr memSpace,
                                      bool sparse = false);
 
 mlir::RankedTensorType changeElemType(mlir::RankedTensorType origType, mlir::Type elemType);
@@ -127,11 +128,10 @@ mlir::RankedTensorType changeShape(mlir::RankedTensorType origType, ShapeRef sha
 mlir::RankedTensorType changeDimsOrder(mlir::RankedTensorType origType, DimsOrder order);
 mlir::RankedTensorType changeSparse(mlir::RankedTensorType origType, bool sparse);
 
-mlir::RankedTensorType changeMemSpace(mlir::RankedTensorType origType, mlir::SymbolRefAttr memSpace);
-
+mlir::RankedTensorType changeMemSpace(mlir::RankedTensorType origType, IndexedSymbolAttr memSpace);
 template <typename Enum>
 ranked_tensor_type_if<Enum> changeMemSpace(mlir::RankedTensorType origType, Enum kind) {
-    return changeMemSpace(origType, mlir::SymbolRefAttr::get(origType.getContext(), stringifyEnum(kind)));
+    return changeMemSpace(origType, IndexedSymbolAttr::get(origType.getContext(), stringifyEnum(kind)));
 }
 
 mlir::RankedTensorType getDenseTileType(mlir::RankedTensorType origType, ShapeRef tileOffsets, ShapeRef tileShape);
@@ -144,7 +144,7 @@ mlir::RankedTensorType getPaddedType(mlir::RankedTensorType origType, ShapeRef p
 mlir::ShapedType changeElemType(mlir::ShapedType origType, mlir::Type elemType);
 mlir::ShapedType changeShape(mlir::ShapedType origType, ShapeRef shape);
 mlir::ShapedType changeDimsOrder(mlir::ShapedType origType, DimsOrder order);
-mlir::ShapedType changeMemSpace(mlir::ShapedType origType, mlir::SymbolRefAttr memSpace);
+mlir::ShapedType changeMemSpace(mlir::ShapedType origType, IndexedSymbolAttr memSpace);
 mlir::ShapedType changeSparse(mlir::ShapedType origType, bool sparse);
 
 mlir::ShapedType getDenseTileType(mlir::ShapedType origType, ShapeRef tileOffsets, ShapeRef tileShape);

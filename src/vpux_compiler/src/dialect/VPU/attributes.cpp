@@ -199,7 +199,7 @@ VPU::MemoryKind vpux::VPU::getMemoryKind(mlir::RankedTensorType tensor) {
         return MemoryKind::DDR;
     }
 
-    return VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafReference().getValue()).getValue();
+    return VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getName()).getValue();
 }
 
 VPU::MemoryKind vpux::VPU::getMemoryKind(mlir::MemRefType memref) {
@@ -209,8 +209,8 @@ VPU::MemoryKind vpux::VPU::getMemoryKind(mlir::MemRefType memref) {
         return MemoryKind::DDR;
     }
 
-    if (auto symRef = memSpace.dyn_cast<mlir::SymbolRefAttr>()) {
-        return VPU::symbolizeEnum<VPU::MemoryKind>(symRef.getLeafReference().getValue()).getValue();
+    if (auto symRef = memSpace.dyn_cast<IndexedSymbolAttr>()) {
+        return VPU::symbolizeEnum<VPU::MemoryKind>(symRef.getName()).getValue();
     }
 
     VPUX_THROW("Unsupported memory space '{0}'", memSpace);
