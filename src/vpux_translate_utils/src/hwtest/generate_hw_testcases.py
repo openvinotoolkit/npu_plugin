@@ -557,7 +557,7 @@ class BF16(TType):
 def idu(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
     """Models the hardware IDU"""
     if input.is_float or weights.is_float:
-        return input.data.astype(np.float16), weights.data.astype(np.float16)
+        return input.data.astype(np.float32), weights.data.astype(np.float32)
 
     def to_qint32(value: Value) -> Union[np.ndarray, NBQuantized]:
         return NBQuantized(value=value.data.astype(np.int32), scale=value.scale, zero_point=value.zero,
@@ -1002,14 +1002,12 @@ class AvgPool(MPE):
         avgpool = AveragePool(kernel_shape=self.settings.kernel_shape, strides=self.settings.kernel_strides, pads=[0, 0, 0, 0])
         return avgpool.inference(lhs)
 
-    def result_bitwidth(self, values: List[Value]) -> int:
-        return values[0].bitwidth
 
 class ActivationType(Enum):
     HSwish = auto()
     Sigmoid = auto()
     Softmax = auto()
-    
+
 class ActKernel(MPE):
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'activation_type']
 
@@ -1064,14 +1062,11 @@ class ActKernel(MPE):
             if self.settings.activation_type == ActivationType.Sigmoid :
                 result = Sigmoid().inference(values[0].data.astype(np.float32))
             else :
-                raise Error(f'Unsopported Act-shave sub-type: {self.settings.activation_type.name}')
+                raise Error(f'Unsupported Act-shave sub-type: {self.settings.activation_type.name}')
         
         result = ma.getdata(result)
 
         return result
-
-    def result_bitwidth(self, values: List[Value]) -> int:
-        return values[0].bitwidth
 
 def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], bitshift: int) -> Value:
     """Models the hardware PPE"""
@@ -1096,6 +1091,7 @@ def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuan
             value.scale = (1 << bitshift)
         else:
             value.scale = (1 << bitshift)
+
     return value
 
 
@@ -1163,6 +1159,7 @@ class DPUPipeline:
         return {
             **self.mpe_op.json_info(self.inputs, self.o),
         }
+
 
 class Pad:
     # The padding order is top|left|bottom|right
@@ -1402,10 +1399,10 @@ def generate_options(args):
             ]),
 
         # Z-Major Convolution
-        
+        #
         # NB MoviSim seems to require uint8 activations when using uint8
         #    weights, and vice-versa.
-        
+        #
         # NB NumericsBench requires that if we're using quantized (integer)
         #    activations, the weights must also be quantized.  It also complains
         #    about mixing signed/unsigned values, or integer activations with
