@@ -11,8 +11,10 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/compiler/utils/stl_extras.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/IR/PatternMatch.h>
@@ -62,29 +64,78 @@ size_t getSize(mlir::Value val) {
     return checked_cast<size_t>(totalSize.count());
 }
 
-bool canConcatFitInCMX(IERT::ConcatViewOp concat, SmallVector<VPUIP::NCEClusterTaskOp> nceTiles, size_t cmxSize) {
+bool isThisAComplexConcat(SmallVector<VPUIP::NCEClusterTaskOp> nceTiles, SmallVector<IERT::CopyOp> copyInOps) {
+    // avoid concats which are complex, where the inputs to the concat are used
+    // by other operations
+
+    for (size_t idx = 0; idx < nceTiles.size(); idx++) {
+        for (auto user : nceTiles[idx].output().getUsers()) {
+            if (user != copyInOps[idx].getOperation()) {
+                // the NCE contains a different user
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool concatOperationDoesNotFitInCMX(IERT::ConcatViewOp concat, SmallVector<VPUIP::NCEClusterTaskOp> nceTiles,
+                                    size_t cmxSize) {
     auto output = concat.getResult();
     size_t concatSize = getSize(output);
-    // std::cout << "output size: " << getSize(output) << std::endl;
-    // std::cout << "number of users: " << nceTiles.size() << std::endl;
     size_t maxUserSize = 0;
+    size_t currUserSize = 0;
+    ValueOrderedSet inputs;
+
     // from all users find the one with the biggest size
-    // TODO: a better way to find size
     for (auto user : nceTiles) {
-        size_t currUserSize = 0;
-        currUserSize += getSize(user.input());
-        currUserSize += getSize(user.weights());
-        currUserSize += getSize(user.weight_table());
-        currUserSize += getSize(user.activation_window());
+        currUserSize = 0;
+        inputs.clear();
+        // add all inputs
+        for (auto input : user.getInputs()) {
+            if (inputs.find(input) == inputs.end()) {
+                currUserSize += getSize(input);
+                inputs.insert(input);
+            }
+        }
+        // subtract output as reference in inputs
+        for (auto output : user.getOutputs()) {
+            currUserSize -= getSize(output);
+        }
+        // choose max user size
         if (maxUserSize < currUserSize) {
             maxUserSize = currUserSize;
         }
     }
-    // std::cout << "max input size: " << maxUserSize << std::endl;
-    concatSize += maxUserSize;
-    // std::cout << "total concat size: " << concatSize << std::endl;
+
     // return concat size smaller than CMX size
-    return concatSize < cmxSize;
+    return (concatSize + maxUserSize) > cmxSize;
+}
+
+bool childOperationsDoNotFitInCMX(IERT::ConcatViewOp concat, SmallVector<IERT::CopyOp> copyOutOps, size_t cmxSize) {
+    auto output = concat.getResult();
+    size_t concatSize = getSize(output);
+    size_t maxConsumerSize = 0;
+
+    // from all users find the one with the biggest size
+    for (auto& copyOut : copyOutOps) {
+        for (auto user : copyOut.output().getUsers()) {
+            size_t currentConsumerSize = 0;
+            auto userOp = mlir::dyn_cast<IERT::LayerOpInterface>(user);
+            for (auto input : userOp.getInputs()) {
+                if (input.getDefiningOp() == copyOut.getOperation()) {
+                    continue;
+                }
+                currentConsumerSize += getSize(input);
+            }
+            // input has reference to output, no need to loop through outputs
+            maxConsumerSize = std::max<size_t>(maxConsumerSize, currentConsumerSize);
+        }
+    }
+
+    // return concat size greater than CMX size
+    return (maxConsumerSize + concatSize) > cmxSize;
 }
 
 mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, mlir::PatternRewriter& rewriter) const {
@@ -183,7 +234,20 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
     }
 
     // assert that the concat will fit in CMX
-    if (!canConcatFitInCMX(concat, nceTiles, _cmxSize)) {
+    if (concatOperationDoesNotFitInCMX(concat, nceTiles, _cmxSize)) {
+        return mlir::failure();
+    }
+
+    // verify the following operation can fit in CMX
+    if (childOperationsDoNotFitInCMX(concat, copyOutOpsWithSubView, _cmxSize) ||
+        childOperationsDoNotFitInCMX(concat, copyOutOps, _cmxSize)) {
+        return mlir::failure();
+    }
+
+    if (isThisAComplexConcat(nceTiles, copyInOps)) {
+        // TODO implement complex concat
+        // where part of the concatinated buffer is also used by another operation
+        // visible in yolo-v4-tiny concatinate 4
         return mlir::failure();
     }
 
@@ -192,13 +256,20 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
     auto masterBufferOutputMemRefType = masterBufferOutput.getType().cast<mlir::MemRefType>();
 
     // retrieve attributes of the DDR memref
-    const auto cmxMemSpaceAttr = VPU::MemoryKindAttr::get(rewriter.getContext(), VPU::MemoryKind::CMX_NN);
+    const auto cmxMemSpaceAttr = VPU::MemoryKind::CMX_NN;
     const auto shape = ShapeRef(masterBufferOutputMemRefType.getShape());
     const auto elemType = masterBufferOutputMemRefType.getElementType();
     const auto order = DimsOrder::fromType(masterBufferOutputMemRefType);
 
-    // create new in CMX
-    rewriter.setInsertionPointAfter(nceTiles[0].input().getDefiningOp());
+    // find IR location that is dominated by all NCE Tiles
+    auto firstNce = nceTiles.front();
+    for (auto& nceTile : nceTiles) {
+        if (nceTile->isBeforeInBlock(firstNce.getOperation())) {
+            firstNce = nceTile;
+        }
+    }
+    // create new memref in CMX
+    rewriter.setInsertionPointAfter(firstNce.input().getDefiningOp());
     auto newBufferMemType = getMemRefType(shape, elemType, order, cmxMemSpaceAttr);
     auto newBuffer = rewriter.create<mlir::memref::AllocOp>(masterBufferOutput.getLoc(), newBufferMemType);
 
@@ -237,8 +308,8 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
     }
     for (size_t idx = 0; idx < copyOutOps.size(); idx++) {
         // Case 2. Without child streaming
-        copyOutOps[idx].output().replaceAllUsesWith(newConcat);
-        copyOutOps[idx].output_buff().replaceAllUsesWith(newBuffer);
+        copyOutOps[idx].output().replaceAllUsesWith(newConcat.output());
+        copyOutOps[idx].output_buff().replaceAllUsesWith(newConcat.output_buff());
     }
 
     std::cout << "concat CMX-ed" << std::endl;
@@ -268,10 +339,8 @@ void CMXConcatPass::safeRunOnFunc() {
     auto func = getFunction();
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
-    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
-    const auto cmxAttr = VPU::MemoryKindAttr::get(module->getContext(), VPU::MemoryKind::CMX_NN);
-    auto cmxRes = resOp.getAvailableMemory(cmxAttr);
-    const auto cmxSize = checked_cast<size_t>(cmxRes.size().count());
+    auto availableMem = IE::getAvailableMemory(module, VPU::MemoryKind::CMX_NN);
+    const auto cmxSize = checked_cast<size_t>(availableMem.size().count());
 
     // This pass will do the following:
     // 1. Locate concat subgraphs
