@@ -80,8 +80,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, KmbConversionLayerTest,
                             ::testing::Values(inShape),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::NHWC),
+                            ::testing::Values(InferenceEngine::Layout::NHWC),
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConversionLayerTest::getTestCaseName);
 
