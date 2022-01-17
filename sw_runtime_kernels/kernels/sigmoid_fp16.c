@@ -8,9 +8,16 @@ void sigmoid_fp16(const struct SigmoidParams *lParams) {
 //    uint32_t * tmp = (uint32_t *)0x2e014000;
 //    uint32_t * debInd = tmp;
 //    uint32_t * dims = (uint32_t*)(lParams->input.dimsAddr);
-
-
-//    tmp[(*(debInd))++] = 555555;
+//
+//    *debInd = 1;
+//
+//    if (tmp[*debInd] == 555555) {
+//        (*debInd)++;
+//        tmp[(*debInd)++]++;
+//    } else {
+//        tmp[(*debInd)++] = 555555;
+//        tmp[(*debInd)++] = 0;
+//    }
 //    tmp[(*(debInd))++] = (uint32_t)(lParams->input.dimsAddr);
 //    tmp[(*(debInd))++] = (uint32_t)(dims[0]);
 //    tmp[(*(debInd))++] = (uint32_t)(dims[1]);

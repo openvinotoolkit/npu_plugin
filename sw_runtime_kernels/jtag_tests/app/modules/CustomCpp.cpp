@@ -47,6 +47,10 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr);
 #endif
 
 namespace {
+//  FIXME: Temporarily are located on CMX due to problem of ACT_SHAVE cache invalidation
+OpTensor cmxInputs[shave_lib::MAX_INPUT_TENSORS] __attribute__((section(".nncmx0.shared.data")));
+OpTensor cmxOutputs[shave_lib::MAX_OUTPUT_TENSORS] __attribute__((section(".nncmx0.shared.data")));
+
 static bool parseCustomElf(const uint8_t* ElfBuffer, KernelCppDescriptor& descriptor/*, uint32_t argsNum*/)
 {
     descriptor.kernelEntry = 0x1e000000; // default entry point
@@ -86,16 +90,26 @@ bool CustomCpp::parse(Layer * layer) {
 
     sw_params::BaseKernelParams * kernelParams = &(ops.baseParamData);
 
-    printf("!!!!!!!!!!!! %s:%d: ops.paramData: %p\n", __FILE__, __LINE__, ops.paramData);
+
     sw_params::MemRefData* inTensors =
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->inputsOffset);
     for (unsigned i = 0; i < inputVec.size(); i++) {
-        inTensors[i] = inputVec[i].toMemRefData(inputLocations[i], true);
+        cmxInputs[i] = inputVec[i];
+        inTensors[i] = cmxInputs[i].toMemRefData(inputLocations[i], true);
+        nn::cache::flush(inTensors[i]);
+        uint32_t * dims = reinterpret_cast<uint32_t*>(inTensors[i].dimsAddr);
+        nn::cache::flush(dims, inTensors[i].numDims * sizeof(uint32_t));
+        nn::cache::flush(cmxInputs, shave_lib::MAX_INPUT_TENSORS * sizeof(OpTensor));
     }
     sw_params::MemRefData* outTensors =
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->outputsOffset);
     for (unsigned i = 0; i < outputVec.size(); i++) {
-        outTensors[i] = outputVec[i].toMemRefData(outputLocations[i], false);
+        cmxOutputs[i] = outputVec[i];
+        outTensors[i] = cmxOutputs[i].toMemRefData(outputLocations[i], false);
+        nn::cache::flush(outTensors[i]);
+        uint32_t * dims = reinterpret_cast<uint32_t*>(outTensors[i].dimsAddr);
+        nn::cache::flush(dims, outTensors[i].numDims * sizeof(uint32_t));
+        nn::cache::flush(cmxOutputs, shave_lib::MAX_OUTPUT_TENSORS * sizeof(OpTensor));
     }
 
     const uint8_t *elf = reinterpret_cast<const uint8_t *>(kernelData.data());

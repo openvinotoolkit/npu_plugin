@@ -17,6 +17,8 @@
 
 using namespace icv_tests;
 
+extern uint64_t cmxParamContainer[];
+
 namespace
 {
 
@@ -130,6 +132,8 @@ protected:
     Tensor<fp16> m_referenceOutputTensor;
     sw_params::Location m_requiredTensorLocation = sw_params::Location::DDR;
 
+    //  FIXME: Temporarily is located on CMX due to problem of ACT_SHAVE cache invalidation
+    uint64_t * paramContainer = cmxParamContainer;
     float m_test_threshold = 0.0f;
 
     // Debug-specific
