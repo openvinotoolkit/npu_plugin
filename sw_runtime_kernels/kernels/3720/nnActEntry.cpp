@@ -40,9 +40,9 @@ using namespace nn::util;
 using namespace nn::common_runtime::fifo;
 
 extern "C" void nnActEntry(void *config) {
-    uint32_t * tmp = (uint32_t *)0x2e014000;
-    uint32_t& debInd = *tmp;
-    debInd = 1;
+//    uint32_t * tmp = (uint32_t *)0x2e014000;
+//    uint32_t& debInd = *tmp;
+//    debInd = 1;
     const SHVFifoConfig fifoCfg = unpackSHVConfig(reinterpret_cast<uint32_t>(config));
     const uint32_t wlFifoAddr = computeFifoRecieveAddress(fifoCfg.work.fifo, fifoCfg.work.index);
     const uint32_t ctFifoAddr = computeFifoRecieveAddress(fifoCfg.ctrx.fifo, fifoCfg.ctrx.index);
@@ -55,13 +55,13 @@ extern "C" void nnActEntry(void *config) {
 
     ActKernelInvocation *ki{nullptr};
     ActKernelRange *kr{nullptr};
-    tmp[debInd++] = 32;
-    tmp[debInd++] = __LINE__;
-    tmp[debInd++] = (uint32_t)config;
-    tmp[debInd++] = (uint32_t)wlFifoAddr;
-    tmp[debInd++] = (uint32_t)ctFifoAddr;
-    tmp[debInd++] = (uint32_t)prFifoAddr;
-    tmp[debInd++] = 999999;
+//    tmp[debInd++] = 32;
+//    tmp[debInd++] = __LINE__;
+//    tmp[debInd++] = (uint32_t)config;
+//    tmp[debInd++] = (uint32_t)wlFifoAddr;
+//    tmp[debInd++] = (uint32_t)ctFifoAddr;
+//    tmp[debInd++] = (uint32_t)prFifoAddr;
+//    tmp[debInd++] = 999999;
 
 //    ActPerfReport pr;
 //    char packedPr[sizeof(ActPerfReport)];
@@ -101,9 +101,9 @@ extern "C" void nnActEntry(void *config) {
          */
         kr = ki->range_;
 
-        tmp[debInd++] = 222222;
-        tmp[debInd++] = __LINE__;
-        tmp[debInd++] = (uint32_t)(kr->textWindowBase_);
+//        tmp[debInd++] = 222222;
+//        tmp[debInd++] = __LINE__;
+//        tmp[debInd++] = (uint32_t)(kr->textWindowBase_);
 
         setShaveWindow(1, kr->textWindowBase_);
 
@@ -156,9 +156,9 @@ extern "C" void nnActEntry(void *config) {
         const auto &barriers = ki->barriers_;
         const auto &barriers_gpio = ki->barriersGpio_;
 
-        tmp[debInd++] = 333333;
-        tmp[debInd++] = __LINE__;
-        tmp[debInd++] = (uint32_t)(ki->dataWindowBase_);
+//        tmp[debInd++] = 333333;
+//        tmp[debInd++] = __LINE__;
+//        tmp[debInd++] = (uint32_t)(ki->dataWindowBase_);
         setShaveWindow(2, ki->dataWindowBase_);
 
         waitBarrier(barriers, barriers_gpio, shaveIndex);
@@ -180,10 +180,10 @@ extern "C" void nnActEntry(void *config) {
 //            }
 //        } else
         {
-            tmp[debInd++] = __LINE__;
-            tmp[debInd++] = (uint32_t)(kr->kernelEntry_);
-            tmp[debInd++] = (uint32_t)(ki->kernelArgs_);
-            tmp[debInd++] = __LINE__;
+//            tmp[debInd++] = __LINE__;
+//            tmp[debInd++] = (uint32_t)(kr->kernelEntry_);
+//            tmp[debInd++] = (uint32_t)(ki->kernelArgs_);
+//            tmp[debInd++] = __LINE__;
             (kr->kernelEntry_)(ki->kernelArgs_);
         }
 

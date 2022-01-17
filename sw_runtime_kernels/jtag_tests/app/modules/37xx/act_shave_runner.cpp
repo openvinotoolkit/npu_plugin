@@ -17,12 +17,14 @@ void * sk_nnActEntry_3010xx_text_ref = (void*)sk_nnActEntry_3010xx_text;
 #include <sw_nn_runtime_types.h>
 #include <sw_shave_lib_common.h>
 #include <HglShaveCommon.h>
+#include <HglShaveL1Cache.h>
 #include "shave_task_runner.hpp"
 #include <nn_shave_manager.h>
 #include <nn_fifo_manager.h>
 #include <nn_cache.h>
 #include <nn_time.h>
 #include <CustomCpp.h>
+#include <leonUtils.h>
 
 unsigned char __attribute__((section(".nncmx0.shared.data"), aligned(64))) actShaveData[SHAVE_LIB_DATA_SIZE];
 unsigned int actShaveDataReserved = 0;
@@ -48,6 +50,11 @@ static SoftLayerExec __attribute__((section(".nncmx0.shared.data"))) sl;
 static Layer __attribute__((section(".nncmx0.shared.data"))) layer;
 using namespace nn;
 extern bool HglShaveAccessAllowed[HGL_SHAVE_TYPE_NB];
+
+//  FIXME: Temporarily are located on CMX due to problem of ACT_SHAVE cache invalidation
+nn::act_runtime::ActKernelRuntimeConfigs actRtConfigs __attribute__((section(".nncmx0.shared.data")));   // Initialize properly
+act_runtime::ActKernelRange kRange __attribute__((section(".nncmx0.shared.data")));
+act_runtime::ActKernelInvocation kInvo __attribute__((section(".nncmx0.shared.data")));
 
 nn::common_runtime::NNCmxMemoryMap *nnCmx = util::MemoryMap::project<NNCmxMemoryMap>(NN_CMX_BASE);
 
@@ -75,33 +82,27 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     auto globalAreas = getStaticMapping(nnCmx);
     auto shaveManager = getShaveManager(globalAreas);
 
-    nn::act_runtime::ActKernelRuntimeConfigs actRtConfigs;  // Initialize properly
-
     actRtConfigs.useScheduleEmbeddedRt_ = true;
 
     CustomCpp * customOp = static_cast<CustomCpp*>(operation);
 
-    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!! sk_nnActEntry_3010xx_text_ref %p, &sk_nnActEntry_3010xx_text_ref %p, sk_nnActEntry_3010xx_text %p\n", __FILE__, __LINE__
-            , sk_nnActEntry_3010xx_text_ref, &sk_nnActEntry_3010xx_text_ref, sk_nnActEntry_3010xx_text);//, shvNN0_nnActEntry, &shvNN0_nnActEntry);
     actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::act_runtime::actRuntimeEntry>(sk_nnActEntry_3010xx_text);
     actRtConfigs.actRtWindowBase_ = reinterpret_cast<unsigned char*>(sk_nnActEntry_3010xx_text);
 
-    operation->parse(&layer);
+    int qq = operation->parse(&layer);
 
     cache::flush(actRtConfigs);
     cache::flush(globalAreas);
     cache::flush(shaveManager);
     cache::flush(*globalAreas);
     cache::flush(*shaveManager);
-    printf("!!!!!!!!!! %s:%d !!!!!!!!!!!!!\n", __FILE__, __LINE__);
-    printf("!!!!!!!!!! before start !!!!!!!!!!!!!\n");
     shaveManager->startActShavesForTile(0, actRtConfigs, true);
-    printf("!!!!!!!!!! after start !!!!!!!!!!!!!\n");
-    act_runtime::ActKernelRange kRange = {nn::act_runtime::ActWLType::WL_KERNEL,
+    act_runtime::ActKernelRange kRng = {nn::act_runtime::ActWLType::WL_KERNEL,
                                             reinterpret_cast<act_runtime::actKernelEntry>(customOp->ops.kernel),
                                             reinterpret_cast<act_runtime::actKernelTextBuffer>(customOp->ops.kernel),
                                             customOp->ops.kernelDataLen,
                                             0};
+    kRange = kRng;
     cache::flush(kRange);
 
     const BarrierUserConfig userBariers = {0, 0, 0, 0, 0};
@@ -120,28 +121,42 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
 //    };
     cache::flush(gpioBarriers);
 
-    act_runtime::ActKernelInvocation kInvo = {&kRange,
+    act_runtime::ActKernelInvocation kInv = {&kRange,
             (void*)(customOp->ops.paramData),
             reinterpret_cast<act_runtime::actKernelDataBuffer>(customOp->ops.paramData),
             userBariers, gpioBarriers, 0
     };
+    kInvo = kInv;
     cache::flush(kInvo);
-
+    leonDataCacheFlush();
+//    ShaveL1Error ShaveDL1CacheAction(ShaveType type, uint32_t shaveId, ShaveDL1Action action) {
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 0, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 1, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 2, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 3, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 4, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 5, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 6, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 7, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 8, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 9, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
+//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 10, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
     fifo::sendWorkToASs(0/*local_aki.tile_*/, &kInvo);
 
 //    sleep(10);
+
+    for (int i = 0; i < 1000000; i++) {
+        qq++;
+    }
+    printf("!!!!!!!!!! after send %d!!!!!!!!!!!!!\n", qq);
 
     shaveManager->stopActShavesForTiles();
     printf("!!!!!!!!!! after stop !!!!!!!!!!!!!\n");
 
     uint32_t * tmp = (uint32_t*)0x2e014000;
 #define N_OF_LOGS 10
-    printf( "!!!!!!!!!!!!!!!!!!!!!!!! Was I there: !!!!!!!!!!!!!!!!!!!!!!!!\n");
     cache::invalidate(tmp, sizeof(uint32_t));
     cache::invalidate(tmp, tmp[0] * sizeof(uint32_t));
-    for (int i = 0; i < tmp[0]; i++) {
-        printf( "\t\t%d) %d 0x%x\n", i, tmp[i], tmp[i]);
-    }
 
     _enqued = true;
     return true;

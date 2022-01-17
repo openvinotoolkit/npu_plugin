@@ -41,15 +41,14 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, HSwish)) {
         void initData() override {
             m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
 
-            paramContainer.resize(((int)sizeof(sw_params::HSwishParams) + 7) / 8);
             CustomCppTests<fp16>::initData();
             const SingleTest* test = m_currentTest;
             int32_t ind[subspace::MAX_DIMS] = {0};
             subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
-            m_hswishParams = reinterpret_cast<sw_params::HSwishParams*>(paramContainer.data());
+            m_hswishParams = reinterpret_cast<sw_params::HSwishParams*>(paramContainer/*.data()*/);
             *m_hswishParams = sw_params::HSwishParams();
-            m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
-            m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
+            m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
+            m_params.paramDataLen = sizeof(sw_params::HSwishParams);
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[0]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_hswishParams);
 
@@ -145,7 +144,6 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, HSwish)) {
     private:
         ListIterator<SingleTest> m_testsLoop;
 
-        std::vector<uint64_t> paramContainer;
         sw_params::HSwishParams* m_hswishParams;
     };
 
