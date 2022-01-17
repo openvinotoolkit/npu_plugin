@@ -189,6 +189,14 @@ std::vector<std::string> disabledTestPatterns() {
 
             // TensorIterator layer is not supported
             ".*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*",
+            ".*OVInferRequestDynamicTests.*",
+            ".*OVInferenceChaining.*",
+
+            // TODO: EISW-25458
+            ".*OVInferRequestPerfCountersTest.*",
+
+            // TODO: EISW-29542
+            ".*smoke_Auto_BehaviorTests.*",
             }
         );
 
@@ -203,6 +211,7 @@ std::vector<std::string> disabledTestPatterns() {
                 // Cannot run InferRequest tests without a device to infer to
                 ".*InferRequest.*",
                 ".*OVInferRequest.*",
+                ".*OVInferenceChaining.*",
                 ".*ExecutableNetworkBaseTest.*",
                 ".*OVExecutableNetworkBaseTest.*",
                 ".*ExecNetSetPrecision.*",
@@ -233,8 +242,6 @@ std::vector<std::string> disabledTestPatterns() {
             "TensorIterator layer is not supported by MTL/dKMB platform",
             {
                 ".*SetBlobTest.*",
-                ".*OVInferRequestWaitTests.*",
-                ".*OVInferRequestMultithreadingTests.*"
             }
         );
 
