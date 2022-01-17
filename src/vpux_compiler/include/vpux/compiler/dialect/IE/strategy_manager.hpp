@@ -14,6 +14,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 namespace vpux {
 
@@ -23,7 +24,7 @@ namespace vpux {
 
 class StrategyManager final {
 public:
-    explicit StrategyManager(mlir::FuncOp func, Logger log);
+    explicit StrategyManager(mlir::FuncOp func, size_t numClusters, Logger log);
 
 public:
     void computeOptimalMultiClusterStrategy();
@@ -31,7 +32,16 @@ public:
 private:
     template <class ConcreteOp>
     bool isOperationSplitOverHeightCompatible(ConcreteOp op);
+    template <class ConcreteOp>
+    bool isOperationSplitOverKernelCompatible(ConcreteOp op);
     size_t calculateSplitOverHeightEfficency(mlir::Operation* op);
+    size_t calculateSplitOverKernelEfficency(mlir::Operation* op);
+
+    const size_t _minimumHeightForSOH = 20;
+    const size_t _minimumOutputChannelsPerCluster = 16;
+    llvm::DenseMap<mlir::Operation*, size_t> _splitOverHeightEfficencies;
+    llvm::DenseMap<mlir::Operation*, size_t> _splitOverKernelEfficencies;
+    size_t _numClusters;
     Logger _log;
     mlir::FuncOp _func;
 };
@@ -40,7 +50,14 @@ template <class ConcreteOp>
 bool StrategyManager::isOperationSplitOverHeightCompatible(ConcreteOp op) {
     const auto outputShape = getShape(op.output());
     const auto OH = outputShape[Dims4D::Act::H];
-    return OH >= 20;
+    return OH >= _minimumHeightForSOH;
+}
+
+template <class ConcreteOp>
+bool StrategyManager::isOperationSplitOverKernelCompatible(ConcreteOp op) {
+    const auto outputShape = getShape(op.output());
+    const auto OC = outputShape[Dims4D::Act::C];
+    return OC >= _minimumOutputChannelsPerCluster * _numClusters;
 }
 
 }  // namespace vpux

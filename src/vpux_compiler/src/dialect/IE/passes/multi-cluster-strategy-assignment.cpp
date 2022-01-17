@@ -43,7 +43,7 @@ private:
 
 void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     auto func = getFunction();
-    StrategyManager strategyManager(func, _log);
+    StrategyManager strategyManager(func, 4, _log);
     strategyManager.computeOptimalMultiClusterStrategy();
 }
 
