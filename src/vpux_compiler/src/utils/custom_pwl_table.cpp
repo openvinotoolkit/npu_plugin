@@ -16,7 +16,7 @@ vpux::PWLTableEntry customPWLTable_leakyRelu(mlir::Type outElemType) {
     return PWLTableEntry{range, shift, bias, std::make_pair(rangeMin, rangeMax), postShift};
 }
 
-Optional<vpux::PWLTableEntry> findCustomPWLTable(const std::string activationName, mlir::Type outElemType) {
+Optional<vpux::PWLTableEntry> findCustomPWLTable(const std::string& activationName, mlir::Type outElemType) {
     // create map
     // this create map is a temporary solution, it will be change in a future MR when we will decide if we will add
     // custom tables and compilation train tables to MLIR or an analysis. See:

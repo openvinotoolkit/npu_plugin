@@ -771,8 +771,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     // TODO: Lrelu_Mult, Lrelu_Shift
     auto ppeFixedFunction =
             MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes, clampLow, clampHigh, LreluMult, LreluShift);
-    // TODO: scale_data, rounding, instruction_list_data
-    auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction);
+    // TODO: scale_data, rounding
+    const auto instructionListTable =
+            instruction_list_table() != nullptr ? writer.getTensorRef(instruction_list_table()) : 0;
+    auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction, MVCNN::PPERoundingMode_RNE, instructionListTable);
 
     int16_t kernelSizeH = 1, kernelSizeW = 1;
     int16_t kernelStridesH = 1, kernelStridesW = 1;

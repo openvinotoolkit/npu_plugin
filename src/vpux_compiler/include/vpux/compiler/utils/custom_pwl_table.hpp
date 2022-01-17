@@ -39,5 +39,5 @@ struct PWLTableEq {
 typedef std::unordered_map<PWLTableType, SmallVector<PWLTableEntry>, PWLTableHash, PWLTableEq> PWLTableMap;
 
 vpux::PWLTableEntry customPWLTable_leakyRelu(mlir::Type outElemType);
-Optional<vpux::PWLTableEntry> findCustomPWLTable(const std::string activationName, mlir::Type outElemType);
+Optional<vpux::PWLTableEntry> findCustomPWLTable(const std::string& activationName, mlir::Type outElemType);
 }  // namespace vpux

@@ -108,26 +108,27 @@ public:
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(VPUIP::InstructionListTableOp createITableOp,
+    mlir::LogicalResult matchAndRewrite(VPUIP::InstructionListTableOp instrTableOp,
                                         mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult CreateITableOpsConverter::matchAndRewrite(VPUIP::InstructionListTableOp createITableOp,
+mlir::LogicalResult CreateITableOpsConverter::matchAndRewrite(VPUIP::InstructionListTableOp instrTableOp,
                                                               mlir::PatternRewriter& rewriter) const {
-    const auto outType = createITableOp.output().getType();
+    _log.trace("Found VPUIP::InstructionListTableOp Operation '{0}'", instrTableOp->getLoc());
+    const auto outType = instrTableOp.output().getType();
     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
 
     const auto instructionListTable =
-            getInstructionListTable(createITableOp.range(), createITableOp.shift(), createITableOp.bias(), shapedType);
+            getInstructionListTable(instrTableOp.range(), instrTableOp.shift(), instrTableOp.bias(), shapedType);
 
     const auto dataStorageType =
             mlir::RankedTensorType::get(shapedType.getShape(), getSInt32Type(rewriter.getContext()));
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(instructionListTable));
 
-    rewriter.replaceOpWithNewOp<Const::DeclareOp>(createITableOp, outType, Const::ContentAttr::get(dataAttr));
+    rewriter.replaceOpWithNewOp<Const::DeclareOp>(instrTableOp, outType, Const::ContentAttr::get(dataAttr));
 
     return mlir::success();
 }
