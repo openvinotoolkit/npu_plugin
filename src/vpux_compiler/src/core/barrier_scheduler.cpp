@@ -187,8 +187,17 @@ bool BarrierScheduler::addTaskToCandidateSet(mlir::Operation* op) {
 
     for (const auto& task : _schedulableCandidates) {
         if (mlir::dyn_cast<VPURT::TaskOp>(task).getExecutorKind() ==
-            mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind())
-            return false;
+            mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind()) {
+            if (_priority[op] < _priority[task]) {
+                _schedulableCandidates.erase(
+                        std::find(_schedulableCandidates.begin(), _schedulableCandidates.end(), task));
+                _processedTasks.erase(task);
+                _schedulableCandidates.push_back(op);
+                _processedTasks.insert(op);
+                return true;
+            } else
+                return false;
+        }
     }
 
     _schedulableCandidates.push_back(op);
@@ -605,9 +614,12 @@ bool BarrierScheduler::generateScheduleWithBarriers(size_t numberOfBarriers, siz
     _schedulableCandidates.clear();
     _scheduledTasks.clear();
     _barrierAssociationTable.clear();
+    _heap.clear();
+    _barrierMap.clear();
     _barrierCount = numberOfBarriers;
     _slotsPerBarrier = maxProducersPerBarrier;
     _inDegree = _originalInDegree;
+    _currentTime = 0;
 
     _log.trace("Starting to generate a schedule with {0} barriers", numberOfBarriers);
     _log = _log.nest();
@@ -813,7 +825,8 @@ bool BarrierScheduler::performRuntimeSimulation() {
         _schedulingOrder.clear();
     }
 
-    _log.trace("Barrier simualtion result is {0} with upperbound {1}", success, _barrierCount);
+    // _log.trace("Barrier simualtion result is {0} with upperbound {1}", success, _barrierCount);
+    std::cout << "Barrier simualtion result is " << success << "with upperbound " << _barrierCount << std::endl;
     return success;
 }
 
@@ -950,6 +963,10 @@ bool BarrierScheduler::doesPathExist(int64_t a, int64_t b) {
     if (numa >= numb)
         return false;
     else {
+        if ((_orderedTasks[a].getExecutorKind() == VPU::ExecutorKind::DMA_NN) &&
+            (_orderedTasks[b].getExecutorKind() == VPU::ExecutorKind::DMA_NN))
+            return true;
+
         auto updateBarriers = _configureTaskOpUpdateMap[a];
         for (auto updateBarrier : updateBarriers.set_bits()) {
             auto barrierConsumers = _configureBarrierOpUpdateMap[updateBarrier];
