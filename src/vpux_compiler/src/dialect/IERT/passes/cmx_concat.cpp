@@ -129,6 +129,9 @@ bool childOperationsDoNotFitInCMX(IERT::ConcatViewOp concat, SmallVector<IERT::C
                 }
                 currentConsumerSize += getSize(input);
             }
+            for (auto output : userOp.getOutputs()) {
+                currentConsumerSize += getSize(output);
+            }
             // input has reference to output, no need to loop through outputs
             maxConsumerSize = std::max<size_t>(maxConsumerSize, currentConsumerSize);
         }
