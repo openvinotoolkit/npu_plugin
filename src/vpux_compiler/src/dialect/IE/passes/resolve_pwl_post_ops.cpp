@@ -74,6 +74,8 @@ mlir::LogicalResult FusableOpRewriter::ensureRequantizationRange(IE::LayerWithPo
     const auto alreadyRequantized = [&](mlir::Operation* user) {
         if (auto quantizeCastOp = mlir::dyn_cast<IE::QuantizeCastOp>(user)) {
             return quantizeCastOp.input().getType() == pwlInType && quantizeCastOp.output().getType() == pwlOutType;
+        } else if (auto dequantizeOp = mlir::dyn_cast<IE::DequantizeOp>(user)) {
+            return dequantizeOp.input().getType() == pwlInType;
         }
         return false;
     };
@@ -81,11 +83,10 @@ mlir::LogicalResult FusableOpRewriter::ensureRequantizationRange(IE::LayerWithPo
         return matchFailed(_log.nest(), rewriter, origOp, "Operation is already requantized");
     }
 
-    _log.nest().trace("Adding QuantizeCast output operation");
-
     auto clone = rewriter.clone(*origOp.getOperation());
     clone->getResult(0).setType(pwlInType);
     if (quantType) {
+        _log.nest().trace("Adding QuantizeCast output operation");
         rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(origOp, pwlOutType, clone->getResult(0), pwlOutElemType);
     } else {
         auto realElemType = mlir::FloatType::getF16(getContext());

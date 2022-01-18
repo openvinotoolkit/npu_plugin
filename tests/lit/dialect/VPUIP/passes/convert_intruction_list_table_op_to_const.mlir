@@ -13,13 +13,13 @@ func @Conv2dTest(%arg0: memref<1x8x20x20xf16, #NHWC, @CMX_NN>, %arg1: memref<1x1
         range = [-128, -109, -90, -72, -54, -36, -18, 0, 128], 
         shift = [1, -1, 0, 0, 0, -1, -1, -4]
         } 
-        -> memref<32x1x1x1xsi32>
+        -> memref<1x1x1x32xsi32>
 
-    %4 = IERT.StaticAlloc<16640> -> memref<32x1x1x1xsi32, @CMX_NN>
+    %4 = IERT.StaticAlloc<16640> -> memref<1x1x1x32xsi32, @CMX_NN>
 
-    %5 = IERT.Copy inputs(%3 : memref<32x1x1x1xsi32>)
-        outputs(%4 : memref<32x1x1x1xsi32, @CMX_NN>)
-        -> memref<32x1x1x1xsi32, @CMX_NN>
+    %5 = IERT.Copy inputs(%3 : memref<1x1x1x32xsi32>)
+        outputs(%4 : memref<1x1x1x32xsi32, @CMX_NN>)
+        -> memref<1x1x1x32xsi32, @CMX_NN>
 
     %6 = VPUIP.NCEClusterTask {
             kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
@@ -30,7 +30,7 @@ func @Conv2dTest(%arg0: memref<1x8x20x20xf16, #NHWC, @CMX_NN>, %arg1: memref<1x1
         input(%arg0 : memref<1x8x20x20xf16, #NHWC, @CMX_NN>)
         weights(%1 : memref<16x8x2x2xf16, #NHWC, @CMX_NN>)
         weight_table(%2 : memref<16x1x1x4xsi32, @CMX_NN>)
-        instruction_list_table (%5 : memref<32x1x1x1xsi32, @CMX_NN>)
+        instruction_list_table (%5 : memref<1x1x1x32xsi32, @CMX_NN>)
         parent_input(%arg0 : memref<1x8x20x20xf16, #NHWC, @CMX_NN>)
         parent_output(%arg1 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>)
         outputs(%arg1 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>)
@@ -72,14 +72,14 @@ func @Conv2dTest(%arg0: memref<1x8x20x20xf16, #NHWC, @CMX_NN>, %arg1: memref<1x1
     return %6 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>
 }
 
-// CHECK:       [[INSTRUCTION_LIST_TABLE:%.+]] = const.Declare memref<32x1x1x1xsi32> =
-// CHECK-SAME:      #const.Content<dense<{{.*}}> : tensor<32x1x1x1xsi32>>
+// CHECK:       [[INSTRUCTION_LIST_TABLE:%.+]] = const.Declare memref<1x1x1x32xsi32> =
+// CHECK-SAME:      #const.Content<dense<{{.*}}> : tensor<1x1x1x32xsi32>>
 
-// CHECK:       [[INSTRUCTION_LIST_TABLE_CMX_BUF:%.+]] = IERT.StaticAlloc<16640> -> memref<32x1x1x1xsi32, @CMX_NN>
-// CHECK:       [[INSTRUCTION_LIST_TABLE_CMX:%.+]] = IERT.Copy inputs([[INSTRUCTION_LIST_TABLE]] : memref<32x1x1x1xsi32>)
-// CHECK-SAME:      outputs([[INSTRUCTION_LIST_TABLE_CMX_BUF]] : memref<32x1x1x1xsi32, @CMX_NN>)
+// CHECK:       [[INSTRUCTION_LIST_TABLE_CMX_BUF:%.+]] = IERT.StaticAlloc<16640> -> memref<1x1x1x32xsi32, @CMX_NN>
+// CHECK:       [[INSTRUCTION_LIST_TABLE_CMX:%.+]] = IERT.Copy inputs([[INSTRUCTION_LIST_TABLE]] : memref<1x1x1x32xsi32>)
+// CHECK-SAME:      outputs([[INSTRUCTION_LIST_TABLE_CMX_BUF]] : memref<1x1x1x32xsi32, @CMX_NN>)
 
 // CHECK:       VPUIP.NCEClusterTask
-// CHECK-SAME:      instruction_list_table([[INSTRUCTION_LIST_TABLE_CMX]] : memref<32x1x1x1xsi32, @CMX_NN>)
+// CHECK-SAME:      instruction_list_table([[INSTRUCTION_LIST_TABLE_CMX]] : memref<1x1x1x32xsi32, @CMX_NN>)
 
 // -----

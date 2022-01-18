@@ -39,7 +39,7 @@ SmallVector<int32_t> getInstructionListTable(const mlir::ArrayAttr argRange, con
     const auto range = parseIntArrayAttr<int>(argRange);
     const auto shift = parseIntArrayAttr<int>(argShift);
     const auto bias = parseIntArrayAttr<int>(argBias);
-    SmallVector<int32_t> templateTable(shape.getDimSize(0), 0);
+    SmallVector<int32_t> templateTable(shape.getDimSize(3), 0);
 
     // NOTE: first 2 are hardware reserved areas
     int32_t ADDR_OF_RESERVED = 6;
