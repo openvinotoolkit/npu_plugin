@@ -25,12 +25,6 @@ namespace zeroCompilerAdapter {
 namespace ngraphTransformations {
 
 /**
- * @brief Perform lowering if it's required.
- * @warning If conversion is not possible, this function will just skip this step
- */
-void applyLoweringPasses(const std::shared_ptr<ngraph::Function>& netGraph, size_t opsetVersion);
-
-/**
  * @brief Check, can we compile and run ngraph function, if only specific opset version supported
  * @param opsetVersion Version of opset, which is supported
  */
@@ -40,15 +34,6 @@ bool isFunctionSupported(const std::shared_ptr<const ngraph::Function>& netGraph
  * @brief Serialize ngraph function to IR
  */
 IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph);
-
-//------------------------------------------------------------------------------
-//      Lowering passes
-//------------------------------------------------------------------------------
-// TODO Only MVN6 operation included right now
-/**
- * @brief Apply ops lowering from opset6, where it's possible
- */
-void lowerFromOpset6(const std::shared_ptr<ngraph::Function>& netGraph);
 
 }  // namespace ngraphTransformations
 }  // namespace zeroCompilerAdapter

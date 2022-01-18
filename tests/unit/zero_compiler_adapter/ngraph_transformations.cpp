@@ -78,17 +78,3 @@ TEST_F(NgraphTransformations_isFuncSupported, opset6ParameterAndConstant_Support
 
     EXPECT_TRUE(isSupported);
 }
-
-//------------------------------------------------------------------------------
-using NgraphTransformations_opsetLowering = NgraphTransformations_UnitTests;
-
-TEST_F(NgraphTransformations_opsetLowering, opset6Function_forOpset4Compiler_SupportedAfterLowering) {
-    const size_t opset = 4;
-    const bool isSupported = ngraphTransformations::isFunctionSupported(opset6mvn, opset);
-
-    ngraphTransformations::lowerFromOpset6(opset6mvn);
-    const bool isSupportedAfterTransformation = ngraphTransformations::isFunctionSupported(opset6mvn, opset);
-
-    EXPECT_FALSE(isSupported);
-    EXPECT_TRUE(isSupportedAfterTransformation);
-}

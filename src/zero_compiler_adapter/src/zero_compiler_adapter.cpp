@@ -36,23 +36,7 @@ std::shared_ptr<INetworkDescription> LevelZeroCompilerAdapter::compile(
         const std::shared_ptr<ngraph::Function>& ngraphFunc, const std::string& netName,
         const InferenceEngine::InputsDataMap& /*inputsInfo*/, const InferenceEngine::OutputsDataMap& /*outputsInfo*/,
         const vpux::Config& /*config*/) {
-    //------------------------------------------------------------------------------
-    _logger.debug("Get information about opset versions from compiler");
-    //------------------------------------------------------------------------------
-    const auto opset = apiAdapter->getSupportedOpset();
-    //------------------------------------------------------------------------------
-    _logger.debug("Modify network (ngraph) according to supported opset");
-    //------------------------------------------------------------------------------
-    ngraphTransformations::applyLoweringPasses(ngraphFunc, opset);
-
-    if (!ngraphTransformations::isFunctionSupported(ngraphFunc, opset)) {
-        THROW_IE_EXCEPTION << "Specified version of opset is not supported by the driver. Please update the driver.";
-    }
-    //------------------------------------------------------------------------------
-    _logger.debug("Use compiler in driver for IR compilation");
-    //------------------------------------------------------------------------------
     auto IR = ngraphTransformations::serializeToIR(ngraphFunc);
-
     return apiAdapter->compileIR(netName, IR.xml, IR.weights);
 }
 
