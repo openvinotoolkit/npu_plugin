@@ -10,7 +10,11 @@ if(COMMAND get_linux_name)
     get_linux_name(LINUX_OS_NAME)
 endif()
 
-set_temp_directory(TEMP "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}")
+if(NOT BUILD_SHARED_LIBS)
+    set(TEMP "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/temp")
+else()
+    set_temp_directory(TEMP "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}")
+endif()
 
 # FIXME: Create empty file to avoid errors on CI
 file(TOUCH "${CMAKE_BINARY_DIR}/ld_library_rpath_64.txt")
