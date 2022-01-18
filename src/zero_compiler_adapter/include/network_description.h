@@ -96,6 +96,13 @@ public:
         return _profilingOutputs;
     }
 
+    const std::vector<vpux::OVRawNode>& getOVParameters() const override {
+        return _ovParameters;
+    }
+    const std::vector<vpux::OVRawNode>& getOVResults() const override {
+        return _ovResults;
+    }
+
 private:
     void* _handle;
     std::vector<char> _compiledNetwork;
@@ -113,6 +120,10 @@ private:
 
     // TODO Not implemented
     vpux::QuantizationParamMap _quantParams{};
+
+    // TODO Not implemented
+    const std::vector<vpux::OVRawNode> _ovParameters;
+    const std::vector<vpux::OVRawNode> _ovResults;
 };
 
 }  // namespace zeroCompilerAdapter
