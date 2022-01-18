@@ -115,8 +115,16 @@ mlir::FailureOr<Shape> inferOutShapeWithAxis(IE::ConcatOpAdaptor concat, mlir::L
     const auto offset = concat.per_axis().offset() ? concat.per_axis().offset().getValue().getSExtValue() : 0;
     const auto stride = concat.per_axis().stride() ? concat.per_axis().stride().getValue().getSExtValue() : 1;
 
-    if (offset > outShape[axis] || offset + stride > outShape[axis]) {
-        return errorAt(loc, "Concat offset '{0}' and stride '{1}' are larger than output dimension '{2}'", offset,
+    int64_t maxLatestIdx = -1;
+    for (const auto idx : irange(concat.inputs().size())) {
+        const auto curShape = getShape(concat.inputs()[idx]);
+        const int64_t sizeByAxis = curShape[axis];
+        const int64_t latestElemIdx = offset * idx + (sizeByAxis > 0 ? stride * (sizeByAxis - 1) : 0);
+        maxLatestIdx = std::max(maxLatestIdx, latestElemIdx);
+    }
+
+    if (maxLatestIdx >= outShape[axis]) {
+        return errorAt(loc, "Concat with offset '{0}' and stride '{1}' doesn't fit to output dimension '{2}'", offset,
                        stride, outShape[axis]);
     }
 
