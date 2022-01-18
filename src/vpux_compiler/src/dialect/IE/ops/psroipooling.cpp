@@ -40,13 +40,11 @@ mlir::LogicalResult vpux::IE::PSROIPoolingOp::inferReturnTypeComponents(
     }
 
     const auto output_dim = psroiPooling.output_dim().getInt();
-    const auto spatial_scale = psroiPooling.spatial_scale().getFP();
     const auto group_size = psroiPooling.group_size().getInt();
     const auto spatial_bins_x = psroiPooling.spatial_bins_x().getInt();
     const auto spatial_bins_y = psroiPooling.spatial_bins_y().getInt();
     const auto inTypeFeatureMap = psroiPooling.input().getType().cast<mlir::ShapedType>();
     const auto inShapeFeatureMap = inTypeFeatureMap.getShape();
-
     const auto inTypeCoord = psroiPooling.coords().getType().cast<mlir::ShapedType>();
     const auto inShapeCoord = inTypeCoord.getShape();
 
@@ -66,10 +64,6 @@ mlir::LogicalResult vpux::IE::PSROIPoolingOp::inferReturnTypeComponents(
 
     if (group_size <= 0) {
         return errorAt(loc, "Group size attribute group_size should be positive.");
-    }
-
-    if (spatial_scale <= 0) {
-        return errorAt(loc, "Spatial scale factor attribute spatial_scale should be positive.");
     }
 
     if (spatial_bins_x <= 0) {

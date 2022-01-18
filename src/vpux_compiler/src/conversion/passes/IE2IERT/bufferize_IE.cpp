@@ -869,7 +869,7 @@ mlir::Operation* createRTLayer(IE::PSROIPoolingOp origOp, ArrayRef<mlir::Value> 
     IERT::PSROIPoolingOp::Adaptor newOp(allBufs);
     return b.create<IERT::PSROIPoolingOp>(origOp.getLoc(), newOp.input(), newOp.coords(), newOp.output_buff(),
                                         origOp.output_dimAttr(), origOp.spatial_scaleAttr(), origOp.group_sizeAttr(),
-                                        origOp.spatial_bins_x(), origOp.spatial_bins_yAttr(), origOp.modeAttr());
+                                        origOp.spatial_bins_xAttr(), origOp.spatial_bins_yAttr(), origOp.modeAttr());
 }
 
 mlir::Operation* createRTLayer(IE::ROIAlignOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {

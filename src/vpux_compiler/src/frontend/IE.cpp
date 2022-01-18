@@ -2012,8 +2012,6 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto spatial_bins_y = getIntAttr(_ctx, origNode->get_spatial_bins_y());
     const auto mode = importPSROIPoolingMode(origNode->get_mode());
 
-    // const auto normalize_varianceAttr = mlir::BoolAttr::get(_ctx, origNode->get_normalize_variance());
-
     auto op = builder.create<IE::PSROIPoolingOp>(createLocation(origNode), inputs[0], inputs[1], output_dim,
                                                spatial_scale, group_size, spatial_bins_x, spatial_bins_y, mode);
     addOutputs(origNode, op);
