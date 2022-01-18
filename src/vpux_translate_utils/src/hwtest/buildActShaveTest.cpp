@@ -30,6 +30,36 @@ using namespace vpux;
 namespace vpux {
 namespace hwtest {
 
+size_t getPosByDim(size_t dim, vpux::DimsOrder order) {
+    // DimsOrder represent defferent orders like HexNumber:
+    // for example:
+    // NCHW represented as DimsOrder(0x1234)
+    // NHWC represented as DimsOrder(0x1342);
+    // 1 means N
+    // 2 means C
+    // 3 means H
+    // 4 means W
+    // in the code bellow we are trying to find what the index number of provided dim in given order HEX code
+    uint64_t mask = 0xF;
+    size_t dimBitMaskWidth = 4;
+    for (size_t pos = 0; pos < order.numDims(); ++pos) {
+        if ((order.code() & mask) == dim)
+            return pos;
+        dim <<= dimBitMaskWidth;
+        mask <<= dimBitMaskWidth;
+    }
+    VPUX_THROW("Can't find ");
+}
+size_t axis2ActShaveFormat(size_t srcAxisPos, vpux::DimsOrder srcOrder, vpux::DimsOrder dstOrder) {
+    // covert axis numeration like it stored in DimsOrder HEX code
+    auto reversedAxis = srcOrder.numDims() - srcAxisPos - 1;
+    // find what the Dim it exactly mean in src DimsOrder HEX code: 1-N, 2-C, 3-H, 4-W
+    auto dim = (srcOrder.code() & (0xFu << (4 * reversedAxis))) >> 4 * reversedAxis;
+    // find what place this dim occupate in dst DimsOrder HEX code
+    auto dstAxisPos = getPosByDim(dim, dstOrder);
+    return dstAxisPos;
+}
+
 IERT::KernelInfo getKernelInfo(nb::ActivationLayer activation, mlir::MLIRContext* ctx) {
     switch (activation.activationType) {
     case nb::ActivationType::HSwish:
@@ -37,9 +67,15 @@ IERT::KernelInfo getKernelInfo(nb::ActivationLayer activation, mlir::MLIRContext
     case nb::ActivationType::Sigmoid:
         return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"sigmoid_fp16"}, {"sigmoid_fp16.c"}};
     case nb::ActivationType::Softmax:
-        return IERT::KernelInfo{SmallVector<mlir::Attribute>{getIntAttr(ctx, activation.axis)},
-                                {"singleShaveSoftmax"},
-                                {"single_shave_softmax.cpp"}};
+
+        return IERT::KernelInfo{
+                SmallVector<mlir::Attribute>{getIntAttr(
+                        ctx, axis2ActShaveFormat(activation.axis,
+                                                 DimsOrder::NCHW,  // axis provided in config.json has NCHW notation
+                                                 DimsOrder::NHWC   // it should be configurable parameter NHWC/NCHW
+                                                 ))},
+                {"singleShaveSoftmax"},
+                {"single_shave_softmax.cpp"}};
     default:
         VPUX_THROW("Only HSwish, Sigmoid or Softmax activations is supported for ActShave tests");
     }

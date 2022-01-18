@@ -1023,7 +1023,6 @@ class AvgPool(MPE):
     def filter_issues(self, args) -> bool:
         return True
 
-
 class ActivationType(Enum):
     HSwish = auto()
     Sigmoid = auto()
@@ -1109,12 +1108,12 @@ class ActKernel(MPE):
         return result
 
     def filter_issues(self, args) -> bool:
-        if 'EISW-29771' in self.issues:
-            # Filter not bit-exact comparision issues
-            return False
-        if 'EISW-29786' in self.issues:
-            # Filter incorrect tensor serialization issues
-            return False
+        # if 'EISW-29771' in self.issues:
+        #     # Filter not bit-exact comparision issues
+        #     return False
+        # if 'EISW-29786' in self.issues:
+        #     # Filter incorrect tensor serialization issues
+        #     return False
         return True
 
 
@@ -1447,9 +1446,36 @@ def generate_options(args):
             act_shave_subtypes=[
                 [ActivationType.HSwish],
                 [ActivationType.Sigmoid], # - Sigmoid testcase fails on. Inference result is close enough to NumericBench reference, but not bit-exact
+            ]),
+        genActShave(
+            input_types=[FP16(0)],
+            input_shapes=[[1, 10, 20, 30], [1, 3, 5, 15]],
+            output_types=[FP16()],
+            act_shave_subtypes=[
                 [ActivationType.Softmax, 1],  # axis C
                 [ActivationType.Softmax, 2],  # axis H
                 [ActivationType.Softmax, 3],  # axis W
+            ]),
+        genActShave(
+            input_types=[FP16(0)],
+            input_shapes=[[1, 1000, 1, 1]],
+            output_types=[FP16()],
+            act_shave_subtypes=[
+                [ActivationType.Softmax, 1],  # axis C
+            ]),
+        genActShave(
+            input_types=[FP16(0)],
+            input_shapes=[[1, 1, 1000, 1]],
+            output_types=[FP16()],
+            act_shave_subtypes=[
+                [ActivationType.Softmax, 2],  # axis C
+            ]),
+        genActShave(
+            input_types=[FP16(0)],
+            input_shapes=[[1, 1, 1, 1000]],
+            output_types=[FP16()],
+            act_shave_subtypes=[
+                [ActivationType.Softmax, 3],  # axis C
             ]),
 
         # Z-Major Convolution
