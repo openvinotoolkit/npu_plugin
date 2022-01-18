@@ -37,7 +37,7 @@ static void SplitBarrierFcn(
   if (!(enableSplitBarriers && isStatic && isA0))
   {
     mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier", "No SplitBarrier WA");
-    return;
+    // return;
   }
 
   mv::ControlModel cmodel(model);
@@ -49,7 +49,89 @@ static void SplitBarrierFcn(
   mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier", "Static barriers assignment with SplitBarrier WA for A0");
 
   // NN_REMOVE_REDUNDANT_BARRIERS_1808882661 workaround
+  std::cout << "RemoveRedundantBarriersForDMA" << std::endl;
   RemoveRedundantBarriersForDMA(model);
+
+  for (auto& opIt : bOps) {
+    mv::Barrier &barrier = opIt->get<mv::Barrier>("Barrier");
+    auto producers = barrier.getProducers();
+    auto consumers = barrier.getConsumers();
+
+    bool isDMA = true;
+    for(auto& prod : producers) {
+      if(om.getOp(prod)->getOpType() != "DMATask") {
+        isDMA = false;
+        break;
+      }
+    }
+
+    for(auto& cons : consumers) {
+      if(om.getOp(cons)->getOpType() != "DMATask") {
+        isDMA = false;
+        break;
+      }
+    }
+
+    if(isDMA) {
+      auto barrierId = barrier.getIndex();
+      for(auto& prod : producers) {
+        auto taskOp = om.getOp(prod);
+        mv::BarrierDependencies& deps = taskOp->get<mv::BarrierDependencies>("BarrierDeps");
+        deps.removeUpdateBarrier(barrierId);
+      }
+
+      for(auto& cons : consumers) {
+        auto taskOp = om.getOp(cons);
+        mv::BarrierDependencies& deps = taskOp->get<mv::BarrierDependencies>("BarrierDeps");
+        deps.removeWaitBarrier(barrierId);
+      }
+
+      om.removeOp(opIt);
+    }
+  }
+
+  auto newBOps = om.getOps("BarrierTask");
+  std::sort(
+        newBOps.begin(),
+        newBOps.end(),
+        [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool { return a->get<mv::Barrier>("Barrier").getIndex() < b->get<mv::Barrier>("Barrier").getIndex(); }
+        );
+
+  auto allTask = om.getOps();
+  for(auto& opIt : allTask) {
+    if(opIt->hasAttr("BarrierDeps")) {
+      mv::BarrierDependencies& deps = opIt->get<mv::BarrierDependencies>("BarrierDeps");
+      deps.clear();
+    }
+  }
+
+  size_t count = 0;
+  for (auto& opIt : newBOps) {
+    mv::Barrier &barrier = opIt->get<mv::Barrier>("Barrier");
+    // auto barrierId = barrier.getIndex();
+    auto producers = barrier.getProducers();
+    auto consumers = barrier.getConsumers();
+
+    for(auto& prod : producers) {
+        auto taskOp = om.getOp(prod);
+        mv::BarrierDependencies& deps = taskOp->get<mv::BarrierDependencies>("BarrierDeps");
+        // deps.removeUpdateBarrier(barrierId);
+        deps.addUpdateBarrier(count);
+    }
+
+    for(auto& cons : consumers) {
+        auto taskOp = om.getOp(cons);
+        mv::BarrierDependencies& deps = taskOp->get<mv::BarrierDependencies>("BarrierDeps");
+        // deps.removeWaitBarrier(barrierId);
+        deps.addWaitBarrier(count);
+    }
+
+    barrier.setID(count);
+    barrier.setIndex(count);
+    count++;
+  }
+
+  return;
   
   for (auto& opIt : dmaOps)
   {
@@ -287,7 +369,7 @@ static void RemoveRedundantBarriersForDMA(mv::ComputationModel& model)
 {
   mv::OpModel om(model);
   mv::ControlModel cm(model);
-  auto bOps = om.getOps("BarrierTask");
+  auto bOps = cm.getOps("BarrierTask");
   auto dmaOps = cm.schedulingSortDMA();
   std::sort(bOps.begin(), bOps.end(),
         [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool {
@@ -315,6 +397,20 @@ static void RemoveRedundantBarriersForDMA(mv::ComputationModel& model)
               barrier.removeConsumer(dmaOps[j]->getName());
 
               barrierDeps_j.removeWaitBarrier(jwb);
+ 
+              std::vector<mv::Control::FlowSiblingIterator> flowsToRemove;
+
+              auto sourceFlowStart = cm.switchContext(bOps[jwb]).leftmostOutput();
+
+              for (mv::Control::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != cm.flowEnd(); ++sinkFlow)
+              {
+                  if(sinkFlow.sink()->getName() == dmaOps[j]->getName()) {
+                    flowsToRemove.push_back(sinkFlow);
+                  }
+              }
+
+              for(size_t flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+                cm.undefineFlow(flowsToRemove[flowIdx]);
 
               jbi--;
               removed_waits++;
@@ -346,6 +442,20 @@ static void RemoveRedundantBarriersForDMA(mv::ComputationModel& model)
 
               barrierDeps_j.removeUpdateBarrier(jub);
 
+              std::vector<mv::Control::FlowSiblingIterator> flowsToRemove;
+
+              auto sourceFlowStart = dmaOps[dmaOpIdxJ].leftmostOutput();
+
+              for (mv::Control::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != cm.flowEnd(); ++sinkFlow)
+              {
+                  if(sinkFlow.sink()->getName() == bOps[jub]->getName()) {
+                    flowsToRemove.push_back(sinkFlow);
+                  }
+              }
+
+              for(size_t flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+                cm.undefineFlow(flowsToRemove[flowIdx]);
+
               jbi--;
               removed_updates++;
             }
@@ -353,7 +463,7 @@ static void RemoveRedundantBarriersForDMA(mv::ComputationModel& model)
         }
       }
   }
-  mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier",
+  mv::Logger::log(mv::Logger::MessageType::Error, "SplitBarrier",
     "Removed " + std::to_string(removed_waits) + " wait and " + std::to_string(removed_updates) + " update barrier counts for DMA tasks");
 }
 
