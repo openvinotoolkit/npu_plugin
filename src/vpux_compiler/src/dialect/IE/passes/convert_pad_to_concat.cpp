@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/pad_extract.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -47,20 +48,6 @@ private:
     Logger _log;
 };
 
-mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::ArrayAttr padValue) {
-    if (padValue == nullptr) {
-        return mlir::failure();
-    }
-
-    const auto valueVector = parseIntArrayAttr<int64_t>(padValue);
-
-    if (valueVector.size() != 4) {
-        return mlir::failure();
-    }
-
-    return valueVector;
-}
-
 static mlir::DenseElementsAttr buildWeightData(const mlir::RankedTensorType dataStorageType, const float value) {
     const auto elemType = dataStorageType.getElementType();
     if (elemType.isF32()) {
@@ -83,12 +70,12 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
         return mlir::failure();
     }
 
-    auto padsBegin = extractPads(origPadOp.pads_begin_attrAttr());
+    auto padsBegin = vpux::IE::extractPads(origPadOp.pads_begin_attrAttr(), _log);
     if (mlir::failed(padsBegin)) {
         return mlir::failure();
     }
 
-    auto padsEnd = extractPads(origPadOp.pads_end_attrAttr());
+    auto padsEnd = vpux::IE::extractPads(origPadOp.pads_end_attrAttr(), _log);
     if (mlir::failed(padsEnd)) {
         return mlir::failure();
     }
@@ -99,15 +86,18 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
 
     const auto inputShape = origPadOp.input().getType().cast<mlir::ShapedType>().getShape();
     const auto outputShape = origPadOp.output().getType().cast<mlir::ShapedType>().getShape();
+    if (inputShape.size() != 4 || outputShape.size() != 4) {
+        return mlir::failure();
+    }
 
-    const auto createConstOp = [&](SmallVector<mlir::Value>& values, const size_t ind,
-                                   const SmallVector<int64_t>& padSize, const float padValue) {
-        if (padSize[ind] != 0) {
-            auto constShape = padSize;
-            for (const auto seg : irange(inputShape.size())) {
-                constShape[seg] = seg < ind ? inputShape[seg] : outputShape[seg];
+    const auto createConstOp = [&](SmallVector<mlir::Value>& values, const size_t axis, ArrayRef<int64_t> padSize,
+                                   const float padValue) {
+        if (padSize[axis] != 0) {
+            auto constShape = SmallVector<int64_t>(4, 0);
+            for (const auto& ind : irange(inputShape.size())) {
+                constShape[ind] = ind < axis ? inputShape[ind] : outputShape[ind];
             }
-            constShape[ind] = padSize[ind];
+            constShape[axis] = padSize[axis];
 
             const auto elemType = origPadOp.input().getType().cast<mlir::ShapedType>().getElementType();
             const auto dataStorageType = mlir::RankedTensorType::get(constShape, elemType);
@@ -125,27 +115,34 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
     };
 
     mlir::Value midInput = origPadOp.input();
-    for (const auto ind : irange(inputShape.size())) {
-        if (padsBegin.getValue()[3 - ind] == 0 && padsEnd.getValue()[3 - ind] == 0) {
+    for (const auto axis : irange(inputShape.size())) {
+        const auto padsBeginValue = padsBegin.getValue();
+        const auto padsEndValue = padsEnd.getValue();
+        const auto reversedAxis = inputShape.size() - axis - 1;
+
+        if (padsBeginValue[reversedAxis] == 0 && padsEndValue[reversedAxis] == 0) {
             continue;
         }
 
         SmallVector<mlir::Value> valueRange;
 
-        _log.nest().trace("Insert ConstOp convert from padsBegin index: {0}", (3 - ind));
-        createConstOp(valueRange, (3 - ind), padsBegin.getValue(), padsValue);
+        _log.nest().trace("Insert ConstOp convert from padsBegin index: {0}", reversedAxis);
+        createConstOp(valueRange, reversedAxis, padsBeginValue, padsValue);
 
         valueRange.push_back(midInput);
 
-        _log.nest().trace("Insert ConstOp convert from padsEnd index: {0}", (3 - ind));
-        createConstOp(valueRange, (3 - ind), padsEnd.getValue(), padsValue);
+        _log.nest().trace("Insert ConstOp convert from padsEnd index: {0}", reversedAxis);
+        createConstOp(valueRange, reversedAxis, padsEndValue, padsValue);
 
-        auto concat = rewriter.create<IE::ConcatOp>(midInput.getLoc(), valueRange, (3 - ind));
+        auto concat = rewriter.create<IE::ConcatOp>(midInput.getLoc(), valueRange, reversedAxis);
         _log.nest().trace("Insert ConcatOp {0}", concat.getLoc());
         midInput = concat.output();
     }
-    const auto userOp = *origPadOp.output().getUsers().begin();
-    userOp->setOperand(0, midInput);
+
+    if (!origPadOp.output().getUsers().empty()) {
+        const auto userOp = *origPadOp.output().getUsers().begin();
+        userOp->setOperand(0, midInput);
+    }
     rewriter.eraseOp(origPadOp);
 
     return mlir::success();
