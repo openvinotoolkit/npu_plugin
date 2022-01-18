@@ -92,33 +92,33 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
 
     const auto createConstOp = [&](SmallVector<mlir::Value>& values, const size_t axis, ArrayRef<int64_t> padSize,
                                    const float padValue) {
-        if (padSize[axis] != 0) {
-            auto constShape = SmallVector<int64_t>(4, 0);
-            for (const auto& ind : irange(inputShape.size())) {
-                constShape[ind] = ind < axis ? inputShape[ind] : outputShape[ind];
-            }
-            constShape[axis] = padSize[axis];
-
-            const auto elemType = origPadOp.input().getType().cast<mlir::ShapedType>().getElementType();
-            const auto dataStorageType = mlir::RankedTensorType::get(constShape, elemType);
-            const auto dataAttr = buildWeightData(dataStorageType, padValue);
-            VPUX_THROW_UNLESS(
-                    dataAttr != nullptr,
-                    "`IE::PadOp` has incompatible data type {0}. Only uint8 or float16 or float32 are supported",
-                    elemType);
-
-            auto constant = rewriter.create<Const::DeclareOp>(origPadOp->getLoc(), dataStorageType,
-                                                              Const::ContentAttr::get(dataAttr));
-
-            values.push_back(constant);
+        if (padSize[axis] == 0) {
+            return;
         }
+
+        auto constShape = SmallVector<int64_t>(4, 0);
+        for (const auto& ind : irange(inputShape.size())) {
+            constShape[ind] = ind < axis ? inputShape[ind] : outputShape[ind];
+        }
+        constShape[axis] = padSize[axis];
+
+        const auto elemType = origPadOp.input().getType().cast<mlir::ShapedType>().getElementType();
+        const auto dataStorageType = mlir::RankedTensorType::get(constShape, elemType);
+        const auto dataAttr = buildWeightData(dataStorageType, padValue);
+        VPUX_THROW_UNLESS(dataAttr != nullptr,
+                          "`IE::PadOp` has incompatible data type {0}. Only uint8 or float16 or float32 are supported",
+                          elemType);
+
+        auto constant = rewriter.create<Const::DeclareOp>(origPadOp->getLoc(), dataStorageType,
+                                                          Const::ContentAttr::get(dataAttr));
+
+        values.push_back(constant);
     };
 
-    mlir::Value midInput = origPadOp.input();
-    for (const auto axis : irange(inputShape.size())) {
+    auto midInput = origPadOp.input();
+    for (const auto reversedAxis : irange(inputShape.size()) | reversed) {
         const auto padsBeginValue = padsBegin.getValue();
         const auto padsEndValue = padsEnd.getValue();
-        const auto reversedAxis = inputShape.size() - axis - 1;
 
         if (padsBeginValue[reversedAxis] == 0 && padsEndValue[reversedAxis] == 0) {
             continue;
@@ -139,10 +139,7 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
         midInput = concat.output();
     }
 
-    if (!origPadOp.output().getUsers().empty()) {
-        const auto userOp = *origPadOp.output().getUsers().begin();
-        userOp->setOperand(0, midInput);
-    }
+    origPadOp.replaceAllUsesWith(midInput);
     rewriter.eraseOp(origPadOp);
 
     return mlir::success();
