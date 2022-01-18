@@ -47,7 +47,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, InferenceEngine::VPUXConf
 #endif
 
     static InferenceEngine::VPUXConfigParams::CompilerType defaultValue() {
-        return InferenceEngine::VPUXConfigParams::CompilerType::MLIR;
+        // FIXME REMOVE BEFORE MERGE 
+        return InferenceEngine::VPUXConfigParams::CompilerType::ZERO_ADAPTER;
     }
 
     static InferenceEngine::VPUXConfigParams::CompilerType parse(StringRef val);
