@@ -122,9 +122,11 @@ static void parseDMATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
         return;
     }
     auto output_bin = reinterpret_cast<const uint32_t*>(output);
+    uint64_t overflow_shift = 0;
+    uint32_t last_time = 0;
 
-    unsigned currentPos = 0;
-    for (auto task : *dma_taskList) {
+    for (unsigned dma_taskListId = 0; dma_taskListId < (*dma_taskList).size(); dma_taskListId++) {
+        auto task = (*dma_taskList)[dma_taskListId];
         if ((task->task_as_NNDMATask()->src()->name()->str() == "profilingInput:0") ||
             (task->task_as_NNDMATask()->src()->locale() == MVCNN::MemoryLocation_AbsoluteAddr)) {
             auto taskName = task->name()->str();
@@ -147,20 +149,25 @@ static void parseDMATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
                 }
                 // Use unsigned 32-bit arithmetic to automatically avoid overflow
                 uint32_t diff = output_bin[currentDMAid] - output_bin[lastDMAid];
+                // Catch otherflow and increase otherflow shift for absolute start time
+                if (last_time > 0x7F000000 && output_bin[lastDMAid] < 0x7F000000) {
+                    overflow_shift += 0x100000000;
+                }
+                last_time = output_bin[lastDMAid];
 
                 taskName = taskName.substr(0, taskName.find("_PROF"));
                 auto typeLen = sizeof(profInfoItem.name) / sizeof(profInfoItem.name[0]);
                 auto length = taskName.copy(profInfoItem.name, typeLen, 0);
                 profInfoItem.name[length] = '\0';
                 // Convert to us //
-                profInfoItem.start_time_ns = (uint64_t)((uint64_t)output_bin[lastDMAid] * 1000 / frc_speed_mhz);
+                profInfoItem.start_time_ns =
+                        (uint64_t)(((uint64_t)output_bin[lastDMAid] + overflow_shift) * 1000 / frc_speed_mhz);
                 profInfoItem.duration_ns = (uint64_t)((uint64_t)diff * 1000 / frc_speed_mhz);
-                profInfoItem.task_id = currentPos;
+                profInfoItem.task_id = dma_taskListId;
 
                 profInfo.push_back(profInfoItem);
             }
         }
-        currentPos++;
     }
 }
 
@@ -179,7 +186,8 @@ static void parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
     }
     auto output_upa = reinterpret_cast<const upa_data_t*>(output);
 
-    for (auto task : *upa_taskList) {
+    for (unsigned upa_taskListId = 0; upa_taskListId < (*upa_taskList).size(); upa_taskListId++) {
+        auto task = (*upa_taskList)[upa_taskListId];
         auto taskName = task->name()->str();
         std::string profiling_meta[2];
         getProfilingMeta(taskName, 2, profiling_meta);
@@ -211,7 +219,7 @@ static void parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
             profInfoItem.duration_ns = (uint64_t)(diff * 1000 / frc_speed_mhz);
             profInfoItem.active_cycles = output_upa[currentPos].active_cycles;
             profInfoItem.stall_cycles = output_upa[currentPos].stall_cycles;
-            profInfoItem.task_id = currentPos;
+            profInfoItem.task_id = upa_taskListId;
 
             auto typeLen = sizeof(profInfoItem.name) / sizeof(profInfoItem.name[0]);
             auto length = taskName.copy(profInfoItem.name, typeLen, 0);
@@ -234,7 +242,8 @@ static void parseDPUTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
     }
     auto output_dpu = reinterpret_cast<const dpu_data_t*>(output);
 
-    for (auto task : *dpu_taskList) {
+    for (unsigned dpu_taskListId = 0; dpu_taskListId < (*dpu_taskList).size(); dpu_taskListId++) {
+        auto task = (*dpu_taskList)[dpu_taskListId];
         auto taskName = task->name()->str();
         std::string profiling_meta[2];
         getProfilingMeta(taskName, 2, profiling_meta);
@@ -259,7 +268,7 @@ static void parseDPUTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
             profInfoItem.duration_ns = (uint64_t)(diff * 1000 / frc_speed_mhz);
             profInfoItem.active_cycles = 0;
             profInfoItem.stall_cycles = 0;
-            profInfoItem.task_id = currentPos;
+            profInfoItem.task_id = dpu_taskListId;
 
             auto typeLen = sizeof(profInfoItem.name) / sizeof(profInfoItem.name[0]);
             auto length = taskName.copy(profInfoItem.name, typeLen, 0);
@@ -362,15 +371,23 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
     }
 
     uint64_t min_dma_start_ns = std::numeric_limits<uint64_t>::max();
+    uint64_t min_dpu_sw_start_ns = std::numeric_limits<uint64_t>::max();
     for (auto& task : taskInfo) {
         if (task.exec_type != ProfilingTaskInfo::exec_type_t::DMA) {
+            // Finding minimum start time for the DPU or SW task
+            if (task.start_time_ns < min_dpu_sw_start_ns) {
+                min_dpu_sw_start_ns = task.start_time_ns;
+            }
             continue;
         }
 
+        // Finding minimum start time for the DMA task
         if (task.start_time_ns < min_dma_start_ns) {
             min_dma_start_ns = task.start_time_ns;
         }
 
+        // Finding DMA to DPU/SW timers synchronisation points.
+        // DMA task should update and DPU task should wait for the same barrier within one layer
         auto task_end_ns = task.start_time_ns + task.duration_ns;
         LayerTimes* layer;
         auto name = std::string(task.name);
@@ -396,19 +413,24 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
 
     // Lets find the minimal offset between timers as we know for sure that DPU/SW task are started after the end of DMA
     // task because they connected via same barrier
-    int64_t dma_task_timer_diff = std::numeric_limits<int64_t>::max();
+    int64_t dma_task_timer_diff = 0;
     for (auto& times : layerInfoTimes) {
         if (times.second.dma_end_ns != 0 && times.second.task_start_ns != std::numeric_limits<uint64_t>::max()) {
             int64_t diff = (int64_t)times.second.dma_end_ns - times.second.task_start_ns;
-            if (diff < dma_task_timer_diff) {
+            if (diff > dma_task_timer_diff) {
                 dma_task_timer_diff = diff;
             }
         }
     }
 
-    if (dma_task_timer_diff == std::numeric_limits<int64_t>::max()) {
-        // Could not calculate offset between timers -> skip begin time aligment
-        return;
+    if (!dma_task_timer_diff) {
+        // Could not calculate offset between timers(Most likely DMA profiling is disabled)
+        // -> set offset based on begin time
+        if (min_dma_start_ns != std::numeric_limits<uint64_t>::max()) {
+            dma_task_timer_diff = min_dma_start_ns - min_dpu_sw_start_ns;
+        } else {
+            dma_task_timer_diff = -min_dpu_sw_start_ns;
+        }
     }
 
     for (auto& task : taskInfo) {
