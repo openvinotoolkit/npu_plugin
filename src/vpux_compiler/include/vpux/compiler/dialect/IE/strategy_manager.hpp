@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <map>
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
