@@ -137,6 +137,20 @@ mlir::LogicalResult vpux::IERT::inferLayerReturnTypes(mlir::ValueRange operands,
     return mlir::success();
 }
 
+void vpux::IERT::getLayerEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects) {
+    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+    VPUX_THROW_WHEN(layer == nullptr, "Got non layer operation '{0}' at '{1}' in getLayerEffects", op->getName(),
+                    op->getLoc());
+
+    for (const auto input : layer.getInputs()) {
+        effects.emplace_back(mlir::MemoryEffects::Read::get(), input);
+    }
+
+    for (const auto output : layer.getOutputs()) {
+        effects.emplace_back(mlir::MemoryEffects::Write::get(), output);
+    }
+}
+
 //
 // SameShape
 //

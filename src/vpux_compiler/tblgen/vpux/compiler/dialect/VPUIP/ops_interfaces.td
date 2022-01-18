@@ -42,10 +42,6 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
     ];
 
     let extraTraitClassDeclaration = [{
-        void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
-            vpux::VPUIP::getTaskEffects($_op, effects);
-        }
-
         vpux::IndexedSymbolAttr getExecutor(uint32_t& numUnits) {
             return vpux::VPUIP::getTaskOpExecutor($_op, numUnits);
         }

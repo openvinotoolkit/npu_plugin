@@ -43,6 +43,9 @@ mlir::Value getLayerViewSource(mlir::Operation* op, ptrdiff_t resultInd);
 mlir::LogicalResult inferLayerReturnTypes(mlir::ValueRange operands, size_t numResults,
                                           SmallVectorImpl<mlir::Type>& inferredReturnTypes);
 
+using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
+void getLayerEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
+
 //
 // SameShape
 //

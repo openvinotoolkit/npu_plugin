@@ -77,6 +77,10 @@ def IERT_LayerOpInterface : OpInterface<"LayerOpInterface"> {
         mlir::Value getViewSource(ptrdiff_t resultInd = 0) {
             return vpux::IERT::getLayerViewSource($_op, resultInd);
         }
+
+        void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
+            vpux::IERT::getLayerEffects($_op, effects);
+        }
     }];
 
     let verify = [{

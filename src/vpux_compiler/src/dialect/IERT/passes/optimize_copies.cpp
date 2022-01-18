@@ -87,6 +87,11 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
 
     rewriter.replaceOpWithNewOp<IERT::CopyOp>(copyOp, parentCopyOp.input(), copyOp.output_buff());
 
+    // CopyOp can have MemoryEffect so "hanging" unused parentCopyOp might not be erased by MLIR automatically
+    if (parentCopyOp->use_empty()) {
+        rewriter.eraseOp(parentCopyOp);
+    }
+
     return mlir::success();
 }
 

@@ -28,22 +28,6 @@ using namespace vpux;
 // TaskOpInterface
 //
 
-void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects) {
-    if (auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op)) {
-        for (const auto input : layer.getInputs()) {
-            auto inputType = input.getType().cast<mlir::MemRefType>();
-            auto* resource = VPU::getMemoryResource(inputType);
-            effects.emplace_back(mlir::MemoryEffects::Read::get(), input, resource);
-        }
-
-        for (const auto output : layer.getOutputs()) {
-            auto outputType = output.getType().cast<mlir::MemRefType>();
-            auto* resource = VPU::getMemoryResource(outputType);
-            effects.emplace_back(mlir::MemoryEffects::Write::get(), output, resource);
-        }
-    }
-}
-
 IndexedSymbolAttr vpux::VPUIP::getExecutorAttr(uint32_t& numUnits, mlir::Operation* op, VPU::ExecutorKind kind,
                                                Optional<int64_t> opNumUnits) {
     const auto kindAttr = VPU::ExecutorKindAttr::get(op->getContext(), kind);

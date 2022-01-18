@@ -229,27 +229,6 @@ VPU::MemoryKind vpux::VPU::getMemoryKind(mlir::ShapedType type) {
             });
 }
 
-mlir::SideEffects::Resource* vpux::VPU::getMemoryResource(MemoryKind mem) {
-    switch (mem) {
-    case MemoryKind::DDR:
-        return MemoryResource<MemoryKind::DDR>::get();
-    case MemoryKind::CSRAM:
-        return MemoryResource<MemoryKind::CSRAM>::get();
-    case MemoryKind::CMX_UPA:
-        return MemoryResource<MemoryKind::CMX_UPA>::get();
-    case MemoryKind::CMX_NN:
-        return MemoryResource<MemoryKind::CMX_NN>::get();
-    case MemoryKind::Register:
-        return MemoryResource<MemoryKind::Register>::get();
-    default:
-        VPUX_THROW("Unsupported MemoryKind '{0}' for MemoryResource", mem);
-    }
-}
-
-mlir::SideEffects::Resource* vpux::VPU::getMemoryResource(mlir::MemRefType memref) {
-    return getMemoryResource(getMemoryKind(memref));
-}
-
 //
 // CompilationMode
 //

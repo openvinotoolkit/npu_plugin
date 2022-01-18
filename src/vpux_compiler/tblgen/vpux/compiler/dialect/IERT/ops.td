@@ -46,9 +46,9 @@ class IERT_LayerOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
             !listconcat(
                 traits,
                 [
-                    NoSideEffect,
                     InferTypeOpInterface,
-                    DeclareOpInterfaceMethods<IERT_LayerOpInterface>
+                    DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
+                    MemoryEffectsOpInterface
                 ]
             )
         > {

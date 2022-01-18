@@ -65,27 +65,6 @@ MemoryKind getMemoryKind(mlir::RankedTensorType tensor);
 MemoryKind getMemoryKind(mlir::MemRefType memref);
 MemoryKind getMemoryKind(mlir::ShapedType type);
 
-template <MemoryKind mem>
-class MemoryResource final : public mlir::SideEffects::Resource::Base<MemoryResource<mem>> {
-public:
-    StringRef getName() final {
-        return _name;
-    }
-
-private:
-    friend typename MemoryResource::BaseT;
-
-    MemoryResource() {
-        _name = llvm::formatv("VPU.{0}", mem);
-    }
-
-private:
-    std::string _name;
-};
-
-mlir::SideEffects::Resource* getMemoryResource(MemoryKind mem);
-mlir::SideEffects::Resource* getMemoryResource(mlir::MemRefType memref);
-
 //
 // CompilationMode
 //
