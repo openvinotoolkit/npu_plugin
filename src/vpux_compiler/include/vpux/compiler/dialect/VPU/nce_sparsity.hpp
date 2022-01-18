@@ -34,11 +34,14 @@ using PPEConverterCb = int32_t (*)(unsigned, unsigned, double, mlir::Type);
 extern const EnumMap<ArchKind, PPEConverterCb> ppeConvertersMap;
 extern const EnumMap<ArchKind, BiasConverterCb> biasConvertersMap;
 
-int64_t getBitPatternSize(ShapeRef kernelSize, int64_t SX, mlir::Type elemType);
+enum class Mode { CM_CONV, DW_CONV, POOL };
 
-int64_t getActivationWindowSize(ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);
+int64_t getBitPatternSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);
 
-std::vector<uint8_t> getFakeSparsity(ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);
+int64_t getActivationWindowSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);
+
+std::vector<uint8_t> getFakeSparsity(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC,
+                                     int64_t OC);
 
 std::vector<int32_t> getWeightsTable(mlir::Type inElemType, mlir::Type outElemType, Optional<int32_t> weightPtrOffset,
                                      int32_t weightPtrStep, Optional<int32_t> sparsityPtrOffset, ArchKind arch,

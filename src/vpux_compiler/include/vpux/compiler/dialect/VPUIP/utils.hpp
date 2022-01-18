@@ -55,5 +55,11 @@ double getProcessorFrequency(IE::ExecutorResourceOp res);
 
 mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter);
 
+//
+// CM Convolution utility
+//
+
+mlir::Value alignChannelMajorWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter);
+
 }  // namespace VPUIP
 }  // namespace vpux

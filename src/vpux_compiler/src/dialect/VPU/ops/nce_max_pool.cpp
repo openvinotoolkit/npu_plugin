@@ -51,8 +51,8 @@ bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr ke
         const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides));
         const auto SX = kernelStrides[Dims4D::Strides::X];
 
-        const auto activationWindowSize =
-                NCESparsity::getActivationWindowSize(kernelSize, SX, input.getElementType(), OC);
+        const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::POOL, kernelSize, SX,
+                                                                               input.getElementType(), OC);
 
         requiredCMX += NCEInvariant::getWeightsTableSize(OC);
         requiredCMX += activationWindowSize * 1_Byte;

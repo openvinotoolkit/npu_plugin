@@ -2347,7 +2347,7 @@ def VPUIP_NCEClusterTaskOp :
             "vpux::VPUIP::NCETaskType":$task_type,
             "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPU::PaddingAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
-            "mlir::UnitAttr":$is_continued,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_continued,
             CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern
         )>,
         OpBuilder<(ins
@@ -2358,7 +2358,7 @@ def VPUIP_NCEClusterTaskOp :
             "vpux::VPUIP::NCETaskType":$task_type,
             "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPU::PaddingAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
-            "mlir::UnitAttr":$is_continued,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_continued,
             CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern
         )>
     ];

@@ -12,13 +12,14 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -94,9 +95,20 @@ int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
 
 void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
-            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp) {
-                info.setInput(0, DimsOrder::NHWC);
+            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp convOp) {
+                const auto arch = VPU::getArch(convOp);
+
+                const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(
+                        arch, convOp.input().getType().cast<mlir::ShapedType>());
+
+                if (info.getInput(0) == DimsOrder::NCHW && canUseCMajor) {
+                    info.setInput(0, DimsOrder::NCHW);
+                } else {
+                    info.setInput(0, DimsOrder::NHWC);
+                }
+
                 info.setInput(1, DimsOrder::OYXI);
+
                 info.setOutput(0, DimsOrder::NHWC);
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp) {
@@ -158,14 +170,20 @@ mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::inferReturnTypes(
 namespace {
 
 mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch) {
-    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::CONV, "Expected task type '{0}', but got '{1}'",
-                      VPUIP::NCETaskType::CONV, op.task_type());
+    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::CONV || op.task_type() == VPUIP::NCETaskType::CMCONV,
+                      "Expected task type '{0}' or '{1}', but got '{2}'", VPUIP::NCETaskType::CONV,
+                      VPUIP::NCETaskType::CMCONV, op.task_type());
 
     if (op.weights() == nullptr) {
         return errorAt(op, "weights is required for NCETaskType : '{0}'", op.task_type());
     }
     if (op.weight_table() == nullptr) {
         return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.task_type() == VPUIP::NCETaskType::CMCONV) {
+        if (op.activation_window() == nullptr) {
+            return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
+        }
     }
 
     if (op.kernel_sizeAttr() == nullptr) {
@@ -208,20 +226,21 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
                        OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
     }
 
-    if (arch != VPU::ArchKind::MTL) {
-        if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
-            return mlir::failure();
-        }
-    } else {
-        // MTL supports ODU permutation, thus only input must have NHWC layout.
-        if (DimsOrder::fromValue(op.input()) != DimsOrder::NHWC) {
-            return mlir::failure();
-        }
-    }
+    const auto inOrder = DimsOrder::fromValue(op.input());
+    const auto weightsOrder = DimsOrder::fromValue(op.weights());
+    const auto outOrder = DimsOrder::fromValue(op.output_buff());
 
-    const auto weightsLayout = DimsOrder::fromValue(op.weights());
-    if (weightsLayout != DimsOrder::NHWC) {
-        return errorAt(op, "weights layout must be NHWC, got {0}", weightsLayout);
+    if (op.task_type() == VPUIP::NCETaskType::CONV && inOrder != DimsOrder::NHWC) {
+        return errorAt(op, "For NCE z-major convolution input must have NHWC layout, got '{0}'", inOrder);
+    }
+    if (op.task_type() == VPUIP::NCETaskType::CMCONV && inOrder != DimsOrder::NCHW) {
+        return errorAt(op, "For NCE c-major convolution input must have NCHW layout, got '{0}'", inOrder);
+    }
+    if (weightsOrder != DimsOrder::OYXI) {
+        return errorAt(op, "For NCE convolution weights must have OYXI layout, got '{0}'", weightsOrder);
+    }
+    if (arch != VPU::ArchKind::MTL && outOrder != DimsOrder::NHWC) {
+        return errorAt(op, "For NCE convolution output must have NHWC layout, got '{0}'", outOrder);
     }
 
     return mlir::success();
@@ -398,7 +417,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
         }
     }
 
-    if (op.task_type() == VPUIP::NCETaskType::CONV) {
+    if (op.task_type() == VPUIP::NCETaskType::CONV || op.task_type() == VPUIP::NCETaskType::CMCONV) {
         if (mlir::failed(verifyNCEConv(op, arch))) {
             return mlir::failure();
         }

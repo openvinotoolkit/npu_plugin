@@ -59,8 +59,8 @@ func @ExpandQuantMaxPoolChannels(%input: tensor<1x3x30x30x!qElemType0, {order = 
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-// CHECK-LABEL: @ExpandConvolutionChannels
-func @ExpandConvolutionChannels(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x5x28x28xf16, {order = #NHWC}> {
+// CHECK-LABEL: @ExpandZMajorConvChannels
+func @ExpandZMajorConvChannels(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x5x28x28xf16, {order = #NHWC}> {
     %0 = const.Declare tensor<5x3x3x3xf16, {order = #NHWC}> =
         #const.Content<dense<1.0> : tensor<5x3x3x3xf16>, [#const.Reorder<#NHWC>]>
 
@@ -80,6 +80,32 @@ func @ExpandConvolutionChannels(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -
 // CHECK-SAME:      -> tensor<1x16x28x28xf16, {order = #NHWC}>
 
 // CHECK:       [[REDUNDRANT_SUBTENSOR:%.*]] = IE.Slice [[EXTENDED_CONV]] [0, 0, 0, 0] [1, 5, 28, 28]
+// CHECK        return [[REDUNDRANT_SUBTENSOR]]
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @ExpandCMajorConvChannels
+func @ExpandCMajorConvChannels(%arg0: tensor<1x3x32x32xf16>) -> tensor<1x5x32x32xf16, {order = #NHWC}> {
+    %0 = const.Declare tensor<5x3x1x1xf16, {order = #NHWC}> =
+        #const.Content<dense<1.0> : tensor<5x3x1x1xf16>, [#const.Reorder<#NHWC>]>
+
+    %1 = IE.Convolution(%arg0, %0) {
+        dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]
+    } : tensor<1x3x32x32xf16>, tensor<5x3x1x1xf16, {order = #NHWC}> -> tensor<1x5x32x32xf16, {order = #NHWC}>
+
+    return %1 : tensor<1x5x32x32xf16, {order = #NHWC}>
+}
+
+// CHECK:       [[EXTENDED_FILTER:%.*]] = const.Declare tensor<16x3x1x1xf16, {order = #NHWC}> =
+// CHECK-SAME:      #const.Content<dense<1.000000e+00> : tensor<5x3x1x1xf16>,
+// CHECK-SAME:      [#const.Reorder<#NHWC>, #const.PadWithZero<[0, 0, 0, 0], [11, 0, 0, 0]>]>
+
+// CHECK:       [[EXTENDED_CONV:%.*]] = IE.Convolution(%arg0, [[EXTENDED_FILTER]])
+// CHECK-SAME:      -> tensor<1x16x32x32xf16, {order = #NHWC}>
+
+// CHECK:       [[REDUNDRANT_SUBTENSOR:%.*]] = IE.Slice [[EXTENDED_CONV]] [0, 0, 0, 0] [1, 5, 32, 32]
 // CHECK        return [[REDUNDRANT_SUBTENSOR]]
 
 // -----

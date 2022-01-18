@@ -35,7 +35,7 @@ public:
     static mlir::LogicalResult verifyCMX(IERT::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyConvCMX(mlir::Location loc, mlir::ModuleOp module, mlir::ShapedType inputType,
                                              mlir::ShapedType filterType, mlir::ShapedType outputType,
-                                             Logger log = Logger::global());
+                                             mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyCMX(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyCMX(IERT::MaxPoolOp origOp, Logger log = Logger::global());
@@ -64,8 +64,8 @@ public:
 public:
     static mlir::LogicalResult verifyChannels(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::ConvolutionOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyConvChannels(mlir::Location loc, mlir::ShapedType filterType,
-                                                  Logger log = Logger::global());
+    static mlir::LogicalResult verifyConvChannels(mlir::Location loc, mlir::ShapedType inputType,
+                                                  mlir::ShapedType filterType, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyChannels(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::MaxPoolOp origOp, Logger log = Logger::global());

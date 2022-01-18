@@ -186,3 +186,45 @@ mlir::Value vpux::VPUIP::alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, m
         return getAlignedNonConstWeights(builder, loc, origFilter, flatWeightShape, padding);
     }
 }
+
+//
+// CM Convolution utility
+//
+
+mlir::Value vpux::VPUIP::alignChannelMajorWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc,
+                                                        mlir::Value origFilter) {
+    const auto filterShape = getShape(origFilter);
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto IC = filterShape[Dims4D::Filter::IC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
+    const auto alignment = VPU::NCEInvariant::getAlignment(origFilterType.getElementType());
+
+    const auto remainder = (IC * KY * KX) % alignment;
+    VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
+
+    if (remainder == 0) {
+        return origFilter;
+    }
+
+    const auto padding = alignment - remainder;
+
+    auto weightsConst = origFilter.getDefiningOp<Const::DeclareOp>();
+    VPUX_THROW_UNLESS(weightsConst != nullptr, "Channel Major convolution does not provide constant weights");
+
+    const auto weightsContentAttr = weightsConst.contentAttr();
+
+    const auto flatWeightShape = Shape{OC, 1, 1, IC * KY * KX};
+    const auto flatWeightsContentAttr = weightsContentAttr.reorder(DimsOrder::NCHW).reshape(flatWeightShape);
+    const auto alignedWeightsContentAttr = flatWeightsContentAttr.padWithZero({0, 0, 0, 0}, {0, 0, 0, padding});
+    const auto nhwcWeightsContentAttr = alignedWeightsContentAttr.reorder(DimsOrder::NHWC);
+
+    const auto alignedWeightShape = SmallVector<int64_t>{OC, 1, 1, IC * KY * KX + padding};
+    const auto outAllocType = mlir::MemRefType::get(alignedWeightShape, origFilterType.getElementType());
+    const auto outAllocTypeNHWC = changeDimsOrder(outAllocType, DimsOrder::NHWC);
+
+    auto alignedWeightsOp = builder.create<Const::DeclareOp>(loc, outAllocTypeNHWC, nhwcWeightsContentAttr);
+    return alignedWeightsOp.output();
+}

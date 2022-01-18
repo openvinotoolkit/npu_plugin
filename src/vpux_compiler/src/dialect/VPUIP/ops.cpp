@@ -146,6 +146,15 @@ public:
         }
 
         const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
+
+        if (mlir::isa<IE::ConvolutionOp>(op)) {
+            const auto inOrder = DimsOrder::fromType(inputType);
+            if (inOrder == DimsOrder::NCHW) {
+                // C-major convolution has no specific requirements
+                return 1;
+            }
+        }
+
         return VPU::NCEInvariant::getAlignment(inputType.getElementType());
     }
     int64_t getOutputChannelAlignment(mlir::Operation* op) const {
@@ -219,9 +228,9 @@ bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logg
         const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
         const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
-        return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(origOp->getLoc(),
-                                                                  origOp->getParentOfType<mlir::ModuleOp>(),
-                                                                  inputTileType, filterTileType, outputTileType, log));
+        return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(
+                origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(), inputTileType, filterTileType,
+                outputTileType, origOp.strides(), log));
     });
 }
 

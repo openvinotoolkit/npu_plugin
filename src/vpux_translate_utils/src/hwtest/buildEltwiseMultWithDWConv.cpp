@@ -234,16 +234,17 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     // Activation Window
     const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(
-            ShapeRef(filter_size), stride_vec[1],
-            inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
-                                                        : inputType);
-    mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
-
-    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(
-            ShapeRef(filter_size), stride_vec[1],
+            VPU::NCESparsity::Mode::DW_CONV, ShapeRef(filter_size), stride_vec[1],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                                         : inputType,
             input_nce_shape[1]);
+    mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
+
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(
+            VPU::NCESparsity::Mode::DW_CONV, ShapeRef(filter_size), stride_vec[1],
+            inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
+                                                        : inputType,
+            input_nce_shape[1], output_nce_shape[1]);
 
     const auto sparsity_type = getUInt8Type(ctx);
     int64_t numChannels = input_nce_shape[1];

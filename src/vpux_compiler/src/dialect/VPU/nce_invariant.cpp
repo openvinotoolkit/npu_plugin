@@ -158,3 +158,19 @@ bool vpux::VPU::NCEInvariant::isPostOpSupported(mlir::Operation* postOp) {
 Byte vpux::VPU::NCEInvariant::getWeightsTableSize(int64_t OC) {
     return OC * WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;
 }
+
+//
+// Channel major Convolution
+//
+
+bool vpux::VPU::NCEInvariant::isChannelMajorCompatible(ArchKind arch, mlir::ShapedType inputType) {
+    if (arch != ArchKind::KMB) {
+        return false;
+    }
+
+    const auto inputShape = getShape(inputType);
+    const auto IC = inputShape[Dims4D::Act::C];
+    const auto IW = inputShape[Dims4D::Act::W];
+
+    return (IC == NCEInvariant::KMB_CMCONV_CHANNELS_LIMIT) && (IW % NCEInvariant::KMB_CMCONV_WIDTH_ALIGNMENT == 0);
+}

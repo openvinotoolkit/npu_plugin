@@ -49,7 +49,7 @@ Scales exractWeightsScales(mlir::Type weightsElemType) {
     return extractScalesAndZeroPoints(weightsElemType).first;
 }
 
-mlir::Type tryGetQuantizedStorageType(mlir::Type elemType) {
+mlir::Type getBaseStorageType(mlir::Type elemType) {
     if (auto quant = elemType.dyn_cast_or_null<mlir::quant::QuantizedType>()) {
         return quant.getStorageType();
     }
@@ -63,7 +63,7 @@ int64_t getWindowSize(int64_t KX, int64_t SX, mlir::Type elemType) {
     // Select the maximum window size not exceeding 32 bytes
     // by iterating through the MPE_NUM values (2, 4, 8, 16)
 
-    auto actualType = tryGetQuantizedStorageType(elemType);
+    auto actualType = getBaseStorageType(elemType);
     VPUX_THROW_UNLESS(actualType.isInteger(CHAR_BIT) || actualType.isF16() || actualType.isBF16(),
                       "Supported only U8/I8 and FP16/BF16 types {0}", actualType);
 
@@ -96,7 +96,7 @@ int64_t getWindowSize(int64_t KX, int64_t SX, mlir::Type elemType) {
     return maxMpeWindowSize;
 }
 
-std::vector<uint8_t> getBitPattern(ShapeRef kernelSize, int64_t windowSize) {
+std::vector<uint8_t> getBitPattern(VPU::NCESparsity::Mode mode, ShapeRef kernelSize, int64_t windowSize, int64_t IC) {
     const auto KY = kernelSize[Dims4D::Kernel::Y];
     const auto KX = kernelSize[Dims4D::Kernel::X];
 
@@ -111,7 +111,7 @@ std::vector<uint8_t> getBitPattern(ShapeRef kernelSize, int64_t windowSize) {
     window.insert(window.end(), numBitsSet, 1);
     window.insert(window.end(), numBitsClear, 0);
 
-    const auto numOfRepeat = KY;
+    const auto numOfRepeat = mode == VPU::NCESparsity::Mode::CM_CONV ? KY * IC : KY;
 
     std::vector<uint8_t> bitPattern;
     bitPattern.reserve(numOfRepeat * windowSize);
@@ -289,47 +289,66 @@ const EnumMap<VPU::ArchKind, VPU::NCESparsity::BiasConverterCb> vpux::VPU::NCESp
         {VPU::ArchKind::MTL, toHex},
 };
 
-int64_t vpux::VPU::NCESparsity::getBitPatternSize(ShapeRef kernelSize, int64_t SX, mlir::Type elemType) {
+int64_t vpux::VPU::NCESparsity::getBitPatternSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
+                                                  int64_t IC) {
     VPUX_THROW_UNLESS(kernelSize.size() == 2, "Unsupported kernel size: %d", kernelSize.size());
-    auto actualType = tryGetQuantizedStorageType(elemType);
+
+    const auto actualType = getBaseStorageType(elemType);
     const auto windowSize = getWindowSize(kernelSize[Dims4D::Kernel::X], SX, actualType);
-    return kernelSize[Dims4D::Kernel::Y] * windowSize;
+
+    if (mode == Mode::CM_CONV) {
+        return kernelSize[Dims4D::Kernel::Y] * windowSize * IC;
+    } else if (mode == Mode::DW_CONV || mode == Mode::POOL) {
+        return kernelSize[Dims4D::Kernel::Y] * windowSize;
+    } else {
+        VPUX_THROW("Unsupported FakeSparsity mode");
+    }
 }
 
-int64_t vpux::VPU::NCESparsity::getActivationWindowSize(ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
+int64_t vpux::VPU::NCESparsity::getActivationWindowSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
                                                         int64_t IC) {
-    auto actualType = tryGetQuantizedStorageType(elemType);
-    const auto bitPatternSize = getBitPatternSize(kernelSize, SX, actualType);
-    const auto perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPatternSize / 128.0) * 16);
+    const auto actualType = getBaseStorageType(elemType);
+    const auto bitPatternSize = getBitPatternSize(mode, kernelSize, SX, actualType, IC);
+    const auto perChannelSparsitySize = static_cast<size_t>(std::ceil(bitPatternSize / 128.0) * 16);
     const auto activationWindowSize = IC * perChannelSparsitySize;
     return activationWindowSize;
 }
 
-std::vector<uint8_t> vpux::VPU::NCESparsity::getFakeSparsity(ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
-                                                             int64_t IC) {
-    auto actualType = tryGetQuantizedStorageType(elemType);
+std::vector<uint8_t> vpux::VPU::NCESparsity::getFakeSparsity(Mode mode, ShapeRef kernelSize, int64_t SX,
+                                                             mlir::Type elemType, int64_t IC, int64_t OC) {
+    const auto actualType = getBaseStorageType(elemType);
     const auto windowSize = getWindowSize(kernelSize[Dims4D::Kernel::X], SX, actualType);
-    const auto bitPattern = getBitPattern(kernelSize, windowSize);
+    const auto bitPattern = getBitPattern(mode, kernelSize, windowSize, IC);
 
-    // To align each activation map entry to 16 bytes to abide the hw restriction
-    const auto perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPattern.size() / 128.0) * 16);
-
+    // Align each activation map entry to 16 bytes to abide the hw restriction.
     // MaxPool is supported only in depth wise mode.
-    // Depth wise does not support weights sparsity in the real sense,
-    // but it will have to have an activation window pointer,
-    // which is regarded as "fake sparsity"
-    SmallVector<uint8_t> perChannelSparsity;
-    perChannelSparsity.resize(perChannelSparsitySize);
+    // Depth wise does not support weights sparsity in the real sense, but it will have to have an activation window
+    // pointer, which is regarded as "fake sparsity".
+    size_t perChannelSparsitySize = 0;
+    if (mode == Mode::CM_CONV) {
+        const auto windowSparsitySize = std::ceil(windowSize / 8.0);
+        const auto numberOfRowsSparsityBytes =
+                std::ceil((kernelSize[Dims4D::Kernel::X] * IC * windowSparsitySize) / 16.0);
+        perChannelSparsitySize = static_cast<size_t>(numberOfRowsSparsityBytes * 16.0);
+    } else if (mode == Mode::DW_CONV || mode == Mode::POOL) {
+        perChannelSparsitySize = static_cast<size_t>(std::ceil(bitPattern.size() / 128.0) * 16.0);
+    } else {
+        VPUX_THROW("Unsupported FakeSparsity mode");
+    }
 
-    // Repackaging each byte from bitPattern to a bit from fakeSparsity
-    // The rest of the bits remain zero
-    for (size_t i = 0; i < bitPattern.size(); i++) {
-        perChannelSparsity[(i / 128) * 16 + (i % 128) / 8] |= bitPattern[i] << (i % 8);
+    // Repackaging each byte from bitPattern to a bit from fakeSparsity, the rest of the bits remain zero.
+    SmallVector<uint8_t> perChannelSparsity(perChannelSparsitySize, 0);
+    for (auto i : irange(bitPattern.size())) {
+        const auto dstInd = (i / 128) * 16 + (i % 128) / 8;
+        VPUX_THROW_UNLESS(dstInd < perChannelSparsity.size(),
+                          "Attempt to access index '{0}' of perChannelSparsity, which is out of range '{1}'", dstInd,
+                          perChannelSparsity.size());
+        perChannelSparsity[dstInd] |= bitPattern[i] << (i % 8);
     }
 
     std::vector<uint8_t> fakeSparsity;
-    fakeSparsity.reserve(IC * perChannelSparsitySize);
-    for (auto i : irange(IC)) {
+    fakeSparsity.reserve(OC * perChannelSparsitySize);
+    for (auto i : irange(OC)) {
         std::ignore = i;
         fakeSparsity.insert(fakeSparsity.end(), perChannelSparsity.begin(), perChannelSparsity.end());
     }
@@ -358,8 +377,8 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
 
     const auto weightsElementTypeBitSize =
             weightsElemType ? static_cast<Bit>(getElemTypeSize(weightsElemType)).count() : 0;
-    for (auto oc : irange(checked_cast<std::size_t>(OC))) {
-        const auto wtInd = oc * static_cast<std::size_t>(VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
+    for (auto oc : irange(checked_cast<size_t>(OC))) {
+        const auto wtInd = oc * static_cast<size_t>(VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
 
         if (weightsElemType) {
             const auto alignment = (ALIGNMENT_REQUIREMENT_IN_ELEMENTS * weightsElementTypeBitSize) / CHAR_BIT;

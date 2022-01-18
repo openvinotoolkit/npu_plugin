@@ -415,19 +415,48 @@ func @main(%arg0: tensor<1x48x14x14x!qElemType0, {order = #NHWC}>) -> (tensor<1x
    return %5, %6 : tensor<1x48x14x14x!qElemType2, {order = #NHWC}>, tensor<1x14x14x40x!qElemType1>
 
     // CHECK-NOT:  IE.Reorder
-    // CHECK:      [[SLICE:%.+]] = IE.Slice %arg0 
+    // CHECK:      [[SLICE:%.+]] = IE.Slice %arg0
     // CHECK-SAME:  tensor<1x48x14x14x!qElemType0, {order = #NHWC}> to tensor<1x40x14x14x!qElemType0, {order = #NHWC}>
-    // CHECK:      [[QCAST0:%.+]] = IE.QuantizeCast([[SLICE]]) {dstElemType = !qElemType2} 
+    // CHECK:      [[QCAST0:%.+]] = IE.QuantizeCast([[SLICE]]) {dstElemType = !qElemType2}
     // CHECK-SAME: tensor<1x40x14x14x!qElemType0, {order = #NHWC}> -> tensor<1x40x14x14x!qElemType2, {order = #NHWC}>
-    // CHECK:      [[REORDER:%.+]] = IE.Reorder([[QCAST0]]) {dstOrder = #NCHW} 
+    // CHECK:      [[REORDER:%.+]] = IE.Reorder([[QCAST0]]) {dstOrder = #NCHW}
     // CHECK-SAME: tensor<1x40x14x14x!qElemType2, {order = #NHWC}> -> tensor<1x40x14x14x!qElemType2>
-    // CHECK:      [[QCAST1:%.+]] = IE.QuantizeCast([[QCAST0]]) {dstElemType = !qElemType1} 
+    // CHECK:      [[QCAST1:%.+]] = IE.QuantizeCast([[QCAST0]]) {dstElemType = !qElemType1}
     // CHECK-SAME: tensor<1x40x14x14x!qElemType2, {order = #NHWC}> -> tensor<1x40x14x14x!qElemType1, {order = #NHWC}>
-    // CHECK:      [[RESULT0:%.+]] = IE.Expand([[QCAST1]]) 
+    // CHECK:      [[RESULT0:%.+]] = IE.Expand([[QCAST1]])
     // CHECK-SAME: tensor<1x40x14x14x!qElemType1, {order = #NHWC}> -> tensor<1x48x14x14x!qElemType1, {order = #NHWC}>
-    // CHECK:      [[RESULT1:%.+]] = IE.Reshape([[REORDER]]) 
+    // CHECK:      [[RESULT1:%.+]] = IE.Reshape([[REORDER]])
     // CHECK-SAME: tensor<1x40x14x14x!qElemType2> -> tensor<1x14x14x40x!qElemType2>
     // CHECK:      return [[RESULT0]], [[RESULT1]] : tensor<1x48x14x14x!qElemType1, {order = #NHWC}>, tensor<1x14x14x40x!qElemType2>
+}
 
 }
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @CMajorToZMajorConv
+module @CMajorToZMajorConv attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+
+// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x32x32xf16, {order = #NHWC}>) -> tensor<1x16x32x32xf16, {order = #NHWC}> {
+func @main(%arg0: tensor<1x3x32x32xf16, {order = #NHWC}>) -> tensor<1x16x32x32xf16, {order = #NHWC}> {
+    %cst = const.Declare tensor<16x3x1x1xf16, {order = #NHWC}> =
+        #const.Content<dense<1.0> : tensor<16x3x1x1xf16>, [#const.Reorder<#NHWC>]>
+
+    %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x3x32x32xf16, {order = #NHWC}> -> tensor<1x3x32x32xf16>
+
+    %1 = IE.Convolution(%0, %cst) {
+        dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]
+    } : tensor<1x3x32x32xf16>, tensor<16x3x1x1xf16, {order = #NHWC}> -> tensor<1x16x32x32xf16, {order = #NHWC}>
+
+    return %1 : tensor<1x16x32x32xf16, {order = #NHWC}>
+
+    // CHECK:       [[CST:%.+]] = const.Declare tensor<16x3x1x1xf16, {order = #NHWC}>
+    // CHECK:       [[VAR0:%.+]] = IE.Convolution([[ARG0]], [[CST]])
+    // CHECK-SAME:       -> tensor<1x16x32x32xf16, {order = #NHWC}>
+    // CHECK:       return [[VAR0]] : tensor<1x16x32x32xf16, {order = #NHWC}>
+}
+
 }

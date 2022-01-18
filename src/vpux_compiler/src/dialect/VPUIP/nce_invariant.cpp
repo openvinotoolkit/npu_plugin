@@ -31,8 +31,8 @@ using namespace vpux;
 // verifyConvChannels
 //
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location loc, mlir::ShapedType filterType,
-                                                                  Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location loc, mlir::ShapedType inputType,
+                                                                  mlir::ShapedType filterType, Logger log) {
     log.setName("NCEInvariant");
 
     if (filterType.getRank() != 4) {
@@ -41,27 +41,32 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location
     }
 
     const auto filterShape = getShape(filterType);
-    const auto OC = filterShape[Dims4D::Filter::OC];
-    const auto IC = filterShape[Dims4D::Filter::IC];
 
+    const auto OC = filterShape[Dims4D::Filter::OC];
     if (OC % VPU::NCEInvariant::getAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Convolution output channels are not aligned", loc);
         return mlir::failure();
     }
-    if (IC % VPU::NCEInvariant::getAlignment(filterType.getElementType()) != 0) {
-        log.trace("[{0}] Convolution input channels are not aligned", loc);
-        return mlir::failure();
+
+    if (DimsOrder::fromType(inputType) == DimsOrder::NHWC) {
+        const auto IC = filterShape[Dims4D::Filter::IC];
+        if (IC % VPU::NCEInvariant::getAlignment(filterType.getElementType()) != 0) {
+            log.trace("[{0}] ZMajor Convolution input channels are not aligned", loc);
+            return mlir::failure();
+        }
     }
 
     return mlir::success();
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::ConvolutionOp origOp, Logger log) {
-    return verifyConvChannels(origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
+    return verifyConvChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(),
+                              origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::ConvolutionOp origOp, Logger log) {
-    return verifyConvChannels(origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
+    return verifyConvChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(),
+                              origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 //
@@ -267,13 +272,50 @@ Byte getRequiredCMXForTiling(ArrayRef<mlir::ShapedType> operands, int64_t numCha
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc, mlir::ModuleOp module,
                                                              mlir::ShapedType inputType, mlir::ShapedType filterType,
-                                                             mlir::ShapedType outputType, Logger log) {
+                                                             mlir::ShapedType outputType, mlir::ArrayAttr kernelStrides,
+                                                             Logger log) {
     log.setName("NCEInvariant");
 
     const auto filterShape = getShape(filterType);
-    // consider alignment when calculating required CMX
     const auto OC = filterShape[Dims4D::Filter::OC];
-    const auto requiredCMX = getRequiredCMXForTiling({inputType, filterType, outputType}, OC);
+    const auto IC = filterShape[Dims4D::Filter::IC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto alignment = VPU::NCEInvariant::getAlignment(outputType.getElementType());
+    if (OC % alignment != 0) {
+        log.debug("[{0}] Output channels count of depthwise convolution must be a multiple of {1}, got {2}", loc,
+                  alignment, OC);
+        return mlir::failure();
+    }
+
+    const auto inOrder = DimsOrder::fromType(inputType);
+
+    Byte requiredCMX;
+    if (inOrder == DimsOrder::NHWC) {
+        requiredCMX = getRequiredCMXForTiling({inputType, filterType, outputType}, OC);
+    } else if (inOrder == DimsOrder::NCHW) {
+        const auto remainder = (IC * KY * KX) % alignment;
+        VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
+
+        const auto padding = (remainder > 0) ? (alignment - remainder) : 0;
+
+        const auto alignedWeightShape = SmallVector<int64_t>{OC, 1, 1, IC * KY * KX + padding};
+        const auto alignedFilterType = mlir::RankedTensorType::get(alignedWeightShape, filterType.getElementType());
+
+        const auto kernelSize = Shape{KY, KX};
+        const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(kernelStrides));
+
+        const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
+                VPU::NCESparsity::Mode::CM_CONV, kernelSize, kernelStridesVals[Dims4D::Strides::X],
+                inputType.getElementType(), IC);
+
+        requiredCMX =
+                getRequiredCMXForTiling({inputType, alignedFilterType, outputType}, OC) + activationWindowSize * 1_Byte;
+    } else {
+        log.debug("[{0}] Unsupported input layout '{1}'", loc, inOrder);
+        return mlir::failure();
+    }
 
     const auto cmxSize = getCMXSizeForTiling(module);
     if (requiredCMX > cmxSize) {
@@ -289,14 +331,14 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IE::ConvolutionOp origO
     return verifyConvCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
                          origOp.input().getType().cast<mlir::ShapedType>(),
                          origOp.filter().getType().cast<mlir::ShapedType>(),
-                         origOp.output().getType().cast<mlir::ShapedType>(), log);
+                         origOp.output().getType().cast<mlir::ShapedType>(), origOp.strides(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::ConvolutionOp origOp, Logger log) {
     return verifyConvCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
                          origOp.input().getType().cast<mlir::ShapedType>(),
                          origOp.filter().getType().cast<mlir::ShapedType>(),
-                         origOp.output().getType().cast<mlir::ShapedType>(), log);
+                         origOp.output().getType().cast<mlir::ShapedType>(), origOp.strides(), log);
 }
 
 //
@@ -319,7 +361,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
     const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(kernelStrides));
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
-            kernelSizeVals, kernelStridesVals[Dims4D::Strides::X], inputType.getElementType(), IC);
+            VPU::NCESparsity::Mode::POOL, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
+            inputType.getElementType(), IC);
 
     const auto requiredCMX = getRequiredCMXForTiling({inputType, outputType}, IC) + activationWindowSize * 1_Byte;
 
@@ -462,7 +505,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(kernelStrides));
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
-            kernelSizeVals, kernelStridesVals[Dims4D::Strides::X], inputType.getElementType(), OC);
+            VPU::NCESparsity::Mode::DW_CONV, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
+            inputType.getElementType(), OC);
 
     const auto requiredCMX =
             getRequiredCMXForTiling({inputType, alignedFilterType, outputType}, OC) + activationWindowSize * 1_Byte;

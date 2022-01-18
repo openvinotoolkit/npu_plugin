@@ -31,6 +31,9 @@ namespace NCEInvariant {
 
 constexpr int64_t WEIGHT_TABLE_NUM_ELEMENTS_PER_OC = 4;
 
+constexpr int64_t KMB_CMCONV_WIDTH_ALIGNMENT = 16;
+constexpr int64_t KMB_CMCONV_CHANNELS_LIMIT = 3;
+
 //
 // Logging callback
 //
@@ -70,6 +73,12 @@ bool isPostOpSupported(mlir::Operation* postOp);
 //
 
 Byte getWeightsTableSize(int64_t OC);
+
+//
+// Channel major Convolution
+//
+
+bool isChannelMajorCompatible(ArchKind arch, mlir::ShapedType inputType);
 
 }  // namespace NCEInvariant
 

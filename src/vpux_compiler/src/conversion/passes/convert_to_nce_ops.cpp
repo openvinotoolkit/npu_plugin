@@ -288,6 +288,28 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
     VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
 }
 
+mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity,
+                                         int64_t numChannels) {
+    const auto elemType = getUInt8Type(builder.getContext());
+
+    SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
+
+    const auto dataStorageType = mlir::RankedTensorType::get(fakeSparsityShape, elemType);
+    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, fakeSparsity);
+
+    const auto dataType = mlir::MemRefType::get(fakeSparsityShape, elemType);
+    auto dataConstOp = builder.create<Const::DeclareOp>(appendLoc(loc, "fake-sparsity"), dataType,
+                                                        Const::ContentAttr::get(dataAttr));
+
+    const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
+
+    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(appendLoc(loc, "fake-sparsity-CMX-buffer"), dataTypeCMX);
+    auto copyOp = builder.create<IERT::CopyOp>(appendLoc(loc, "move-fake-sparsity-to-CMX"), dataConstOp.output(),
+                                               dataAllocOp);
+
+    return copyOp.output();
+}
+
 //
 // ConvRewrite
 //
@@ -296,6 +318,7 @@ class ConvRewrite final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
 public:
     ConvRewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, Logger log)
             : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
+        setDebugName("ConvRewrite");
     }
 
 public:
@@ -309,8 +332,18 @@ private:
 
 mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const {
     if (VPUIP::NCEInvariant::verifyOp(origOp, _log).failed()) {
-        return matchFailed(rewriter, origOp, "Operation {0} does not satisfy the NCE invariant", origOp);
+        return matchFailed(_log, rewriter, origOp, "Operation at '{0}' does not satisfy the NCE invariant",
+                           origOp->getLoc());
     }
+
+    const auto inOrder = DimsOrder::fromValue(origOp.input());
+    if (inOrder != DimsOrder::NCHW && inOrder != DimsOrder::NHWC) {
+        return matchFailed(_log, rewriter, origOp, "Operation at '{0}' has unsupported input layout '{1}'",
+                           origOp->getLoc(), inOrder);
+    }
+
+    const auto isCMajor = inOrder == DimsOrder::NCHW;
+    const auto isZMajor = inOrder == DimsOrder::NHWC;
 
     //
     // Get dimensions
@@ -318,6 +351,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto filterShape = getShape(origOp.filter());
 
+    const auto IC = filterShape[Dims4D::Filter::IC];
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
@@ -326,21 +360,53 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     // Prepare input for DPU
     //
 
-    auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
-    auto filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.filter());
+    const auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
+
+    mlir::Value filterDPU;
+
+    if (isZMajor) {
+        filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.filter());
+    } else {
+        const auto alignedFilter = VPUIP::alignChannelMajorWeightsTensor(rewriter, origOp->getLoc(), origOp.filter());
+        filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), alignedFilter);
+    }
+
+    //
+    // Generate activation window
+    //
+
+    mlir::IntegerAttr actWindowChanLen;
+    mlir::Value activationWindow;
+
+    if (isCMajor) {
+        const auto origInputType = origOp.input().getType().cast<mlir::ShapedType>();
+
+        const auto kernelSize = Shape{KY, KX};
+        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
+
+        const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::CM_CONV, kernelSize,
+                                                                        kernelStrides[Dims4D::Strides::X],
+                                                                        origInputType.getElementType(), IC);
+
+        const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::CM_CONV, kernelSize,
+                                                                    kernelStrides[Dims4D::Strides::X],
+                                                                    origInputType.getElementType(), IC, OC);
+
+        actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
+        activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
+    }
 
     //
     // Prepare output buffer for DPU
     //
 
     const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
-    const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(origOutType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
-                                                 filterDPU, origOp.bias(), nullptr);
+    const auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
+                                                       filterDPU, origOp.bias(), activationWindow);
 
     //
     // Create NCE per-cluster Operation
@@ -352,18 +418,21 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
+    const auto taskType = isCMajor ? VPUIP::NCETaskType::CMCONV : VPUIP::NCETaskType::CONV;
+
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-            origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
+            origOp->getLoc(), inputDPU, filterDPU, weightsTable, activationWindow,
             /*parent_input=*/inputDPU,
             /*parent_output=*/outAllocOpCMX.memref(),
-            /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
-            kernelPaddingAttr, /*activation_window_channel_length=*/nullptr, /*is_continued*/ nullptr);
+            /*output_buff=*/outAllocOpCMX.memref(), taskType, kernelSizeAttr, origOp.strides(), kernelPaddingAttr,
+            actWindowChanLen);
 
     const auto mpeByType = mpeMap.at(_arch);
     const auto inElemType = origOp.input().getType().cast<mlir::MemRefType>().getElementType();
     const auto outElemType = origOutType.getElementType();
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0],
-                mpeByType(inElemType, outElemType, VPUIP::NCETaskType::CONV));
+                mpeByType(inElemType, outElemType, taskType));
+
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr(), origOutType, _arch);
     if (postOpParams.hasValue()) {
         if (postOpParams->quantParams.hasValue()) {
@@ -405,26 +474,6 @@ private:
     Logger _log;
 };
 
-mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity,
-                                         int64_t numChannels) {
-    const auto elemType = getUInt8Type(builder.getContext());
-
-    SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
-
-    const auto dataStorageType = mlir::RankedTensorType::get(fakeSparsityShape, elemType);
-    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, fakeSparsity);
-
-    const auto dataType = mlir::MemRefType::get(fakeSparsityShape, elemType);
-    auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataType, Const::ContentAttr::get(dataAttr));
-
-    const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
-
-    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
-    auto copyOp = builder.create<IERT::CopyOp>(loc, dataConstOp.output(), dataAllocOp);
-
-    return copyOp.output();
-}
-
 mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const {
     if (VPUIP::NCEInvariant::verifyOp(origOp, _log).failed()) {
         return matchFailed(rewriter, origOp, "Operation {0} does not satisfy the NCE invariant", origOp);
@@ -442,8 +491,9 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(origOp.kernel_size()));
     const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
 
-    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[Dims4D::Strides::X],
-                                                                    origInputType.getElementType());
+    const auto bitPatternSize =
+            VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::POOL, kernelSize,
+                                                kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC);
 
     //
     // Prepare input for DPU
@@ -455,8 +505,9 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     // Generate activation window
     //
 
-    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[Dims4D::Strides::X],
-                                                                origInputType.getElementType(), IC);
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, kernelSize,
+                                                                kernelStrides[Dims4D::Strides::X],
+                                                                origInputType.getElementType(), IC, IC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, IC);
 
     //
@@ -464,8 +515,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     //
 
     const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
-    const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(origOutType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
@@ -487,7 +537,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
             /*parent_input=*/inputDPU,
             /*parent_output=*/outAllocOpCMX.memref(),
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),
-            kernelPaddingAttr, activation_window_channel_length, /*is_continued*/ nullptr);
+            kernelPaddingAttr, activation_window_channel_length);
 
     const auto mpeByType = mpeMap.at(_arch);
     const auto inElemType = origOp.input().getType().cast<mlir::MemRefType>().getElementType();
@@ -559,8 +609,7 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     //
 
     const auto origOutType = origOp.output().getType().template cast<mlir::MemRefType>();
-    const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(origOutType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
@@ -579,8 +628,7 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
                                                           VPUIP::NCETaskType::ELTWISE,
                                                           /*kernel_size=*/nullptr,
                                                           /*kernel_strides=*/nullptr,
-                                                          /*kernel_padding=*/nullptr, activation_window_channel_length,
-                                                          /*is_continued*/ nullptr);
+                                                          /*kernel_padding=*/nullptr, activation_window_channel_length);
 
     int64_t clampLow = std::numeric_limits<int32_t>::min();
     int64_t clampHigh = std::numeric_limits<int32_t>::max();
@@ -695,14 +743,21 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     //
 
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
+
+    const auto origInputShape = getShape(origInputType);
+    const auto IC = origInputShape[Dims4D::Act::C];
+
     const auto kernelSize = Shape{KY, KX};
     const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
-    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[Dims4D::Strides::X],
-                                                                    origInputType.getElementType());
+
+    const auto bitPatternSize =
+            VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::DW_CONV, kernelSize,
+                                                kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC);
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
 
-    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[Dims4D::Strides::X],
-                                                                origInputType.getElementType(), OC);
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::DW_CONV, kernelSize,
+                                                                kernelStrides[Dims4D::Strides::X],
+                                                                origInputType.getElementType(), IC, OC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
 
     //
@@ -710,8 +765,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     //
 
     const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
-    const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(outReorderType), VPU::MemoryKind::CMX_NN);
+    const auto outTypeCMX = changeMemSpace(eraseTiledInfo(origOutType), VPU::MemoryKind::CMX_NN);
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
@@ -733,7 +787,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
             /*parent_input=*/inputDPU,
             /*parent_output=*/outAllocOpCMX.memref(),
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::DWCONV, kernelSizeAttr, origOp.strides(),
-            kernelPaddingAttr, actWindowChanLen, /*is_continued*/ nullptr);
+            kernelPaddingAttr, actWindowChanLen);
 
     const auto mpeByType = mpeMap.at(_arch);
     const auto inElemType = origOp.input().getType().cast<mlir::MemRefType>().getElementType();

@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -28,18 +29,49 @@ using namespace vpux;
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ShapedType input, mlir::ShapedType filter,
-                                             mlir::ShapedType output) {
-    const auto outputShape = getShape(output);
-    const auto OC = outputShape[Dims4D::Act::C];
+bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides, mlir::ShapedType input,
+                                             mlir::ShapedType filter, mlir::ShapedType output) {
+    const auto filterShape = getShape(filter);
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto IC = filterShape[Dims4D::Filter::IC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto inOrder = DimsOrder::fromType(input);
 
     Byte requiredCMX(0);
 
-    for (const auto& type : {input, filter, output}) {
-        requiredCMX += getTotalSize(type);
-    }
+    requiredCMX += getTotalSize(input);
+    requiredCMX += getTotalSize(output);
 
     requiredCMX += NCEInvariant::getWeightsTableSize(OC);
+
+    if (inOrder == DimsOrder::NHWC) {
+        requiredCMX += getTotalSize(filter);
+    } else if (inOrder == DimsOrder::NCHW) {
+        const auto alignment = NCEInvariant::getAlignment(output.getElementType());
+
+        const auto remainder = (IC * KY * KX) % alignment;
+        VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
+
+        const auto padding = (remainder > 0) ? (alignment - remainder) : 0;
+
+        const auto alignedFilterShape = SmallVector<int64_t>{OC, 1, 1, IC * KY * KX + padding};
+        const auto alignedFilter = mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType());
+
+        const auto kernelSize = Shape{KY, KX};
+
+        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides));
+        const auto SX = kernelStrides[Dims4D::Strides::X];
+
+        const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::CM_CONV, kernelSize,
+                                                                               SX, input.getElementType(), IC);
+
+        requiredCMX += getTotalSize(alignedFilter);
+        requiredCMX += activationWindowSize * 1_Byte;
+    } else {
+        VPUX_THROW("[{0}] Unsupported input layout '{1}'", op->getLoc(), inOrder);
+    }
 
     return requiredCMX <= getTotalCMXSize(op);
 }
@@ -85,16 +117,26 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, NCEInvariant
         return false;
     }
 
+    const auto arch = getArch(op);
+
     const auto inputOrder = DimsOrder::fromType(inputType);
     const auto filterOrder = DimsOrder::fromType(filterType);
     const auto outputOrder = DimsOrder::fromType(outputType);
 
-    if (inputOrder != DimsOrder::NHWC || filterOrder != DimsOrder::OYXI || outputOrder != DimsOrder::NHWC) {
-        logCb(llvm::formatv("Unsupported layout"));
+    if (inputOrder != DimsOrder::NHWC && inputOrder != DimsOrder::NCHW) {
+        logCb(llvm::formatv("Unsupported input layout '{0}'", inputOrder));
+        return false;
+    }
+    if (filterOrder != DimsOrder::OYXI) {
+        logCb(llvm::formatv("Unsupported filter layout '{0}'", filterOrder));
+        return false;
+    }
+    if (arch != VPU::ArchKind::MTL && outputOrder != DimsOrder::NHWC) {
+        logCb(llvm::formatv("Unsupported output layout '{0}'", outputOrder));
         return false;
     }
 
-    if (!fitIntoCMX(op, inputType, filterType, outputType)) {
+    if (!fitIntoCMX(op, op.strides(), inputType, filterType, outputType)) {
         logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
         return false;
     }
@@ -224,7 +266,35 @@ mlir::LogicalResult vpux::VPU::NCEConvolutionOp::inferReturnTypeComponents(
 //
 
 void vpux::VPU::NCEConvolutionOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
-    info.setInput(0, DimsOrder::NHWC);
+    const auto arch = VPU::getArch(*this);
+
+    const auto canUseCMajor = NCEInvariant::isChannelMajorCompatible(arch, input().getType().cast<mlir::ShapedType>());
+
+    if (info.getInput(0) == DimsOrder::NCHW && canUseCMajor) {
+        info.setInput(0, DimsOrder::NCHW);
+    } else {
+        info.setInput(0, DimsOrder::NHWC);
+    }
+
     info.setInput(1, DimsOrder::OYXI);
+
+    // FIXME: MTL ODU supports reordering of the output tensor, so we could use any layout here. But right now current
+    // behavior of AdjustLayouts and OptimizeReorder passes might introduce extra Reorders in that case. We need to
+    // update the passes to properly handle various Reorder propagation and fusing cases prior enabling ODU permutation
+    // feature in MTL.
     info.setOutput(0, DimsOrder::NHWC);
+}
+
+//
+// AlignedChannelsOpInterface
+//
+
+int64_t vpux::VPU::NCEConvolutionOp::getInputChannelAlignment(mlir::ShapedType inputType) {
+    const auto inOrder = DimsOrder::fromType(inputType);
+    if (inOrder == DimsOrder::NCHW) {
+        // C-major convolution has no specific requirements
+        return 1;
+    }
+
+    return NCEInvariant::getAlignment(inputType.getElementType());
 }

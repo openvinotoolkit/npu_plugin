@@ -157,11 +157,13 @@ def VPU_NCEConvolutionOp :
             return "VPU";
         }
 
-        static bool fitIntoCMX(mlir::Operation* op,
+        static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
                                mlir::ShapedType input, mlir::ShapedType filter,
                                mlir::ShapedType output);
 
         static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
+
+        static int64_t getInputChannelAlignment(mlir::ShapedType inputType);
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];

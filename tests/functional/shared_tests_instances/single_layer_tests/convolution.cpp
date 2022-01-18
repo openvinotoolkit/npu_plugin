@@ -85,6 +85,29 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid, KmbConvolutionLayerTes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         ConvolutionLayerTest::getTestCaseName);
 
+/* ============= 2D Convolution / CMajorCompatible ============= */
+
+const auto conv2DParams_CMajorCompatible =
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{3, 3}}),              // kernels
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // strides
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padBegins
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padEnds
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // dilations
+                           ::testing::Values(8, 16),                               // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::VALID)           // padType
+        );
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_CMajorCompatible, KmbConvolutionLayerTest,
+                        ::testing::Combine(conv2DParams_CMajorCompatible,                      //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),          // inPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),          // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 3, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
+
 /* ============= 2D Convolution / ExplicitPadding ============= */
 
 const auto conv2DParams_ExplicitPadding =
