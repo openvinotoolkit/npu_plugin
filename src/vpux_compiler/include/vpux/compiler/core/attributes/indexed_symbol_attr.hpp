@@ -44,3 +44,28 @@ public:
 };
 
 }  // namespace vpux
+
+namespace llvm {  // Traits specialization for DenseMap
+
+template <>
+struct DenseMapInfo<vpux::IndexedSymbolAttr> {
+    static vpux::IndexedSymbolAttr getEmptyKey() {
+        auto pointer = llvm::DenseMapInfo<void*>::getEmptyKey();
+        return {static_cast<vpux::IndexedSymbolAttr::ImplType*>(pointer)};
+    }
+
+    static vpux::IndexedSymbolAttr getTombstoneKey() {
+        auto pointer = llvm::DenseMapInfo<void*>::getTombstoneKey();
+        return {static_cast<vpux::IndexedSymbolAttr::ImplType*>(pointer)};
+    }
+
+    static unsigned getHashValue(vpux::IndexedSymbolAttr val) {
+        return mlir::hash_value(val);
+    }
+
+    static bool isEqual(vpux::IndexedSymbolAttr LHS, vpux::IndexedSymbolAttr RHS) {
+        return LHS == RHS;
+    }
+};
+
+}  // end namespace llvm
