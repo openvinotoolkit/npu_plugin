@@ -104,6 +104,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
+    pm.addPass(IERT::createConvertScalarToTensorPass(log));
 
     // Lowering
 
@@ -213,6 +214,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
+    pm.addPass(IERT::createConvertScalarToTensorPass(log));
 
     // Lowering
 
@@ -336,6 +338,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
+    pm.addPass(IERT::createConvertScalarToTensorPass(log));
 
     // Lowering
 

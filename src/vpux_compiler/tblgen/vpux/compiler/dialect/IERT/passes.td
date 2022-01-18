@@ -112,8 +112,8 @@ def BreakDataFlow : PassBase<"break-data-flow", "vpux::FunctionPass"> {
     let summary = "Breaks data flow in the graph";
 
     let description = [{
-        This pass breaks data flow in the graph. It is required for the VPURT dialect for correct task creation 
-        because all VPUIP dialect tasks will be inside body of the TaskOp and it is impossible to use operation results inside another body of TaskOp. 
+        This pass breaks data flow in the graph. It is required for the VPURT dialect for correct task creation
+        because all VPUIP dialect tasks will be inside body of the TaskOp and it is impossible to use operation results inside another body of TaskOp.
     }];
 
     let constructor = "vpux::IERT::createBreakDataFlowPass()";
@@ -273,6 +273,21 @@ def FeasibleAllocation : PassBase<"feasible-allocation", "vpux::ModulePass"> {
     let dependentDialects = [
         "vpux::IERT::IERTDialect"
     ];
+}
+
+//
+// ConvertScalarToTensor
+//
+
+def ConvertScalarToTensor : PassBase<"convert-scalar-to-tensor", "vpux::FunctionPass"> {
+    let summary = "Convert the second scalar input to tensor for Gather";
+
+    let description = [{
+        Gather doesn't support scalar inputs (input is scalar if `rank == 0`). But the second Gather input (indices) could be scalar.
+        This pass convert indices to tensor with `rank == 1` and the same content.
+    }];
+
+    let constructor = "vpux::IERT::createConvertScalarToTensorPass()";
 }
 
 #endif

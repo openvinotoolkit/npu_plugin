@@ -46,6 +46,7 @@ std::unique_ptr<mlir::Pass> createFeasibleAllocationPass(AttrCreateFunc memSpace
 std::unique_ptr<mlir::Pass> createBreakDataFlowPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDMATaskProfilingPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDPUProfilingPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertScalarToTensorPass(Logger log = Logger::global());
 //
 // Asynchronous Scheduling pipeline
 //
