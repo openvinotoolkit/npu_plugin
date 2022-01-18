@@ -118,6 +118,9 @@ nb::ActivationType nb::to_activation_type(llvm::StringRef str) {
     if (isEqual(str, "Sigmoid")) {
         return nb::ActivationType::Sigmoid;
     }
+    if (isEqual(str, "Softmax")) {
+        return nb::ActivationType::Softmax;
+    }
 
     return nb::ActivationType::Unknown;
 }
@@ -138,6 +141,8 @@ std::string nb::to_string(nb::ActivationType activationType) {
         return "HSwish";
     case ActivationType::Sigmoid:
         return "Sigmoid";
+    case ActivationType::Softmax:
+        return "Softmax";
     default:
         return "Unknown";
     }
