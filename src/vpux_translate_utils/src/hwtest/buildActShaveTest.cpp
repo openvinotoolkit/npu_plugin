@@ -30,14 +30,14 @@ using namespace vpux;
 namespace vpux {
 namespace hwtest {
 
-IERT::KernelInfo getKernelInfo(nb::ActivationLayer activation) {
+IERT::KernelInfo getKernelInfo(nb::ActivationLayer activation, mlir::MLIRContext* ctx) {
     switch (activation.activationType) {
     case nb::ActivationType::HSwish:
         return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"hswish_fp16"}, {"hswish_fp16.cpp"}};
     case nb::ActivationType::Sigmoid:
         return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"sigmoid_fp16"}, {"sigmoid_fp16.c"}};
     case nb::ActivationType::Softmax:
-        return IERT::KernelInfo{SmallVector<mlir::Attribute>{activation.axis},
+        return IERT::KernelInfo{SmallVector<mlir::Attribute>{getIntAttr(ctx, activation.axis)},
                                 {"singleShaveSoftmax"},
                                 {"single_shave_softmax.cpp"}};
     default:
@@ -64,7 +64,7 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
     auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, outShape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
-    auto kernelInfo = getKernelInfo(activation);
+    auto kernelInfo = getKernelInfo(activation, ctx);
 
     const auto convertToUnrankedType = [ctx](mlir::Type srcType) -> mlir::Type {
         auto type = srcType.dyn_cast_or_null<mlir::MemRefType>();
@@ -85,7 +85,7 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
 
     // Create built-in function ------------------------------------------------
 
-    SmallString builtInFunctionName{"builtin_hswish"};
+    SmallString builtInFunctionName{"builtin_actshave"};
 
     auto builtInFunction = VPUIP::createBuiltInFunction(module, builtInFunctionName, inputTypesUnranked,
                                                         kernelInfo.entryName, kernelInfo.sourceFileName, log);
@@ -95,7 +95,7 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
     auto func = builder.create<mlir::FuncOp>(builder.getUnknownLoc(),
-                                             llvm::formatv("hswih_{0}_{1}", inputType, outputType).str(), funcType,
+                                             llvm::formatv("actshave_{0}_{1}", inputType, outputType).str(), funcType,
                                              builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
