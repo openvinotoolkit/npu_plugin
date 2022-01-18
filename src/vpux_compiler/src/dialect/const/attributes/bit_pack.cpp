@@ -29,7 +29,7 @@
 using namespace vpux;
 
 //
-// ReorderAttr::walkImmediateSubElements
+// BitPackAttr::walkImmediateSubElements
 //
 
 void vpux::Const::BitPackAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
@@ -38,7 +38,7 @@ void vpux::Const::BitPackAttr::walkImmediateSubElements(llvm::function_ref<void(
 }
 
 //
-// ReorderAttr::verify
+// BitPackAttr::verify
 //
 
 mlir::LogicalResult vpux::Const::BitPackAttr::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,

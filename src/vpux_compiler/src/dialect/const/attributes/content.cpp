@@ -120,9 +120,19 @@ mlir::LogicalResult vpux::Const::ContentAttr::verify(FuncRef<mlir::InFlightDiagn
     }
 
     if (transformations != nullptr) {
+        const auto transormationList = transformations.getValue();
+        const auto findBitPack = [](const mlir::Attribute& attr) -> bool {
+            return attr.dyn_cast_or_null<Const::BitPackAttr>() != nullptr;
+        };
+        const auto bitPackIter = std::find_if(transormationList.rbegin(), transormationList.rend(), findBitPack);
+        // If bitPack is inside the transformation list, it must be the last.
+        if (bitPackIter != transormationList.rend() && bitPackIter != transormationList.rbegin()) {
+            return printTo(emitError(), "BitPack must be the last transformation in the list: '{0}'",
+                           transormationList);
+        }
         auto inferedFinalType = baseContent.getType();
 
-        for (const auto attr : transformations.getValue()) {
+        for (const auto attr : transormationList) {
             const auto trAttr = attr.dyn_cast<Const::TransformAttrInterface>();
             if (trAttr == nullptr) {
                 return printTo(emitError(), "Got non transformation attribute : '{0}'", attr);

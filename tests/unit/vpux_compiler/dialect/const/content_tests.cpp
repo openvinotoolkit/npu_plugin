@@ -773,3 +773,30 @@ TEST_F(MLIR_ConstContentAttrTest, Transpose) {
         }
     }
 }
+
+TEST_F(MLIR_ConstContentAttrTest, BitPackIsLast) {
+    const int64_t IN = 1;
+    const int64_t IC = 1;
+    const int64_t IH = 2;
+    const int64_t IW = 3;
+    const auto baseType = mlir::RankedTensorType::get({IN, IC, IH, IW}, getSInt8Type(&ctx));
+
+    const auto vals = std::vector<int8_t>{1, 2, 3, 4, 5, 6};
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto bitWidth = 4;
+    const auto contentAttr = baseContentAttr.bitPack(bitWidth);
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto dstOrder = DimsOrder::NHWC.toAffineMap(&ctx);
+    const auto dstReorderAttr = Const::ReorderAttr::get(mlir::AffineMapAttr::get(dstOrder));
+    const auto dstTransformAttr = dstReorderAttr.cast<Const::TransformAttrInterface>();
+    const auto unknownLocation = mlir::UnknownLoc::get(&ctx);
+    const auto errorEmitter = [unknownLocation]() { return mlir::emitError(unknownLocation); };
+    const auto reorderedContentAttr = contentAttr.getChecked(errorEmitter, contentAttr, dstTransformAttr);
+    ASSERT_EQ(reorderedContentAttr, nullptr);
+}
