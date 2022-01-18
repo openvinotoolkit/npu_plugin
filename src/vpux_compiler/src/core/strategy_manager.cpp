@@ -24,16 +24,26 @@ size_t StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
     return llvm::TypeSwitch<mlir::Operation*, size_t>(op)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
                 const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
+                const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
+                const auto inputShape = getShape(inputType);
+                const auto IC = inputShape[Dims4D::Act::C];
                 const auto OC = outputShape[Dims4D::Act::C];
                 const auto OH = outputShape[Dims4D::Act::H];
                 const auto OW = outputShape[Dims4D::Act::W];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-                const double efficency =
-                        0.183594 * std::max((OC * OH * OW) / (16.0 * std::ceil(OH / 16.0) * 20.0 *
-                                                              std::ceil(OW / 20.0) * 16.0 * std::ceil(OC / 16.0)),
-                                            (OC * OH * OW) / (64.0 * std::ceil(OH / 64.0) * 5.0 * std::ceil(OW / 5.0) *
-                                                              16.0 * std::ceil(OC / 16.0)));
+                const double outputTensorVolume = OC * OH * OW;
+                double efficency = 0;
+
+                // Different efficency formula required for CM Conv and ZM Conv
+                if (IC == 3) {
+                    efficency = 0.183594 *
+                                std::max(outputTensorVolume / (16.0 * std::ceil(OH / 16.0) * 20.0 *
+                                                               std::ceil(OW / 20.0) * 16.0 * std::ceil(OC / 16.0)),
+                                         outputTensorVolume / (64.0 * std::ceil(OH / 64.0) * 5.0 * std::ceil(OW / 5.0) *
+                                                               16.0 * std::ceil(OC / 16.0)));
+                } else {
+                }
                 return efficency;
             })
             .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp origOp) {
@@ -84,12 +94,13 @@ size_t StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 const auto OC = outputShape[Dims4D::Act::C];
                 const auto OH = outputShape[Dims4D::Act::H];
                 const auto OW = outputShape[Dims4D::Act::W];
+                const double outputTensorVolume = OC * OH * OW;
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
                 const double efficency =
-                        0.183594 * std::max((OC * OH * OW) / (16.0 * std::ceil(OH / 16.0) * 20.0 *
-                                                              std::ceil(OW / 20.0) * 16.0 * std::ceil(OC / 16.0)),
-                                            (OC * OH * OW) / (64.0 * std::ceil(OH / 64.0) * 5.0 * std::ceil(OW / 5.0) *
-                                                              16.0 * std::ceil(OC / 16.0)));
+                        0.183594 * std::max(outputTensorVolume / (16.0 * std::ceil(OH / 16.0) * 20.0 *
+                                                                  std::ceil(OW / 20.0) * 16.0 * std::ceil(OC / 16.0)),
+                                            outputTensorVolume / (64.0 * std::ceil(OH / 64.0) * 5.0 *
+                                                                  std::ceil(OW / 5.0) * 16.0 * std::ceil(OC / 16.0)));
                 return efficency;
             })
             .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp origOp) {
