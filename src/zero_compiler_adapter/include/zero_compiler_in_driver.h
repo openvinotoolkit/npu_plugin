@@ -43,6 +43,8 @@ private:
     std::tuple<const NetworkInputs, const NetworkOutputs, const DeviceInputs, const DeviceOutputs> getNetworkMeta(
             ze_graph_handle_t graph_handle);
 
+    std::vector<uint8_t> serializeIR(const std::vector<char>& xml, const std::vector<char>& weights);
+
 private:
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;

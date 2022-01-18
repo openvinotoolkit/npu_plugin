@@ -23,14 +23,6 @@ namespace vpux {
 namespace zeroCompilerAdapter {
 namespace ngraphTransformations {
 
-void applyLoweringPasses(const std::shared_ptr<ngraph::Function>& netGraph, size_t opsetVersion) {
-    //    _logger->info("Opset version: {}", opsetVersion.version);
-    if (opsetVersion < 6) {
-        lowerFromOpset6(netGraph);
-        //        _logger->debug("lowerFromOpset6 called");
-    }
-}
-
 bool isFunctionSupported(const std::shared_ptr<const ngraph::Function>& netGraph, size_t opsetVersion) {
     size_t highestVersion = 0;
     for (const auto& op : netGraph->get_ops()) {
@@ -65,15 +57,6 @@ IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph) {
     //    _logger->info("|| Timer ||;ngraphTransformations::serializeToIR (ms);\t{}",
     //                  std::chrono::duration_cast<ms>(finish - start).count());
     return {xmlBlob, weightsBlob};
-}
-
-void lowerFromOpset6(const std::shared_ptr<ngraph::Function>& netGraph) {
-    const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
-    ngraph::pass::Manager manager(passConfig);
-
-    manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
-
-    manager.run_passes(netGraph);
 }
 
 }  // namespace ngraphTransformations

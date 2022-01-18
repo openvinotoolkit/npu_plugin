@@ -23,56 +23,6 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-namespace {
-using SerializedIR = std::vector<uint8_t>;
-/**
- * @brief Place xml + weights in sequential memory
- * @details Format of the memory:
- *  1. Number of data element (now only xml + weights = 2)
- *  2. Size of data 1 (xml)
- *  3. Data 1
- *  4. Size of data 2 (weights)
- *  5. Data 2
- */
-
-const uint32_t maxNumberOfElements = 10;
-const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
-const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
-
-SerializedIR serializeIR(const std::vector<char>& xml, const std::vector<char>& weights) {
-    const uint32_t numberOfInputData = 2;
-    const uint64_t xmlSize = static_cast<uint64_t>(xml.size());
-    const uint64_t weightsSize = static_cast<uint64_t>(weights.size());
-
-    // TODO Refactor checks for correct size
-    IE_ASSERT(numberOfInputData < maxNumberOfElements);
-    IE_ASSERT(xmlSize < maxSizeOfXML);
-    IE_ASSERT(weightsSize < maxSizeOfWeights);
-
-    const size_t sizeOfSerializedIR =
-            sizeof(numberOfInputData) + sizeof(xmlSize) + xml.size() + sizeof(weightsSize) + weights.size();
-
-    std::vector<uint8_t> serializedIR;
-    serializedIR.resize(sizeOfSerializedIR);
-
-    uint64_t offset = 0;
-    ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &numberOfInputData, sizeof(numberOfInputData));
-    offset += sizeof(numberOfInputData);
-    ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
-    offset += sizeof(xmlSize);
-    ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, xml.data(), xmlSize);
-    offset += xmlSize;
-    ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
-    offset += sizeof(weightsSize);
-    ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, weights.data(), weightsSize);
-    offset += weightsSize;
-
-    IE_ASSERT(offset == sizeOfSerializedIR);
-
-    return serializedIR;
-}
-}  // namespace
-
 // TODO Not all Precision from IE listed in ze_graph_ext
 IE::Precision toIEPrecision(const ze_graph_argument_precision_t ze_precision) {
     switch (ze_precision) {
@@ -166,7 +116,7 @@ size_t getDimCount(const IE::Layout layout) {
 // TODO Copy-paste form adapter for most case
 LevelZeroCompilerInDriver::LevelZeroCompilerInDriver(): _logger("LevelZeroCompilerInDriver", LogLevel::Debug) {
     _logger.debug("LevelZeroCompilerInDriver::LevelZeroCompilerInDriver");
-    auto result = zeInit(0);
+    auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
     if (ZE_RESULT_SUCCESS != result) {
         std::cerr << "ZeroDevicesSingleton zeInit failed 0x" << std::hex << uint64_t(result) << std::dec << std::endl;
         return;
@@ -228,6 +178,77 @@ LevelZeroCompilerInDriver::~LevelZeroCompilerInDriver() {
     _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
 
+using SerializedIR = std::vector<uint8_t>;
+/**
+ * @brief Place xml + weights in sequential memory
+ * @details Format of the memory:
+ *  1. Number of data element (now only xml + weights = 2)
+ *  2. Size of data 1 (xml)
+ *  3. Data 1
+ *  4. Size of data 2 (weights)
+ *  5. Data 2
+ */
+SerializedIR LevelZeroCompilerInDriver::serializeIR(const std::vector<char>& xml, const std::vector<char>& weights) {
+    const uint32_t maxNumberOfElements = 10;
+    const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
+    const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
+
+    ze_device_graph_properties_t device_graph_properties{};
+    auto result = _graph_ddi_table_ext->pfnDeviceGetGraphProperties(_device_handle, &device_graph_properties);
+    
+    if (ZE_RESULT_SUCCESS != result) {
+        IE_THROW() << "Failed to get graph properties from compiler";
+    }
+
+    const auto compilerVersion = device_graph_properties.compilerVersion;
+
+    const uint32_t numberOfInputData = 2;
+    const uint64_t xmlSize = static_cast<uint64_t>(xml.size());
+    const uint64_t weightsSize = static_cast<uint64_t>(weights.size());
+
+    // TODO Refactor checks for correct size
+    IE_ASSERT(numberOfInputData < maxNumberOfElements);
+    IE_ASSERT(xmlSize < maxSizeOfXML);
+    IE_ASSERT(weightsSize < maxSizeOfWeights);
+
+    const uint64_t sizeOfSerializedIR =
+            sizeof(compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) + xml.size() + sizeof(weightsSize) + weights.size();
+
+    std::vector<uint8_t> serializedIR;
+    serializedIR.resize(sizeOfSerializedIR);
+
+    uint64_t offset = 0;
+    ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &compilerVersion, sizeof(compilerVersion));
+    offset += sizeof(compilerVersion );
+
+    ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &numberOfInputData, sizeof(numberOfInputData));
+    offset += sizeof(numberOfInputData);
+    ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
+    offset += sizeof(xmlSize);
+    ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, xml.data(), xmlSize);
+    offset += xmlSize;
+    ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
+    offset += sizeof(weightsSize);
+    ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, weights.data(), weightsSize);
+    offset += weightsSize;
+
+    IE_ASSERT(offset == sizeOfSerializedIR);
+
+    return serializedIR;
+}
+
+// FIXME REMOVE THIS BEFORE MERGE
+std::string toStr(const ze_result_t resultCode) {
+    switch (resultCode)
+    {
+    case ZE_RESULT_ERROR_INVALID_ARGUMENT:
+        return "ZE_RESULT_ERROR_INVALID_ARGUMENT"; 
+        break;
+    default:
+        return std::to_string(resultCode);
+        break;
+    }
+}
 INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(const std::string& graphName,
                                                               const std::vector<char>& xml,
                                                               const std::vector<char>& weights) {
@@ -244,7 +265,7 @@ INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(const std::string&
     ze_graph_handle_t graph_handle;
     auto result = _graph_ddi_table_ext->pfnCreate(_device_handle, &desc, &graph_handle);
     if (ZE_RESULT_SUCCESS != result) {
-        IE_THROW() << "Failed to compile graph with zero API";
+        IE_THROW() << "Failed to compile graph with zero API with error: " << toStr(result);
     }
 
     // Get blob size first
