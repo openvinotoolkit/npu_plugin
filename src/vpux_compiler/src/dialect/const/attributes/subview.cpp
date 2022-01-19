@@ -121,6 +121,10 @@ mlir::Attribute vpux::Const::SubViewAttr::parse(mlir::DialectAsmParser& parser, 
 //
 
 mlir::ShapedType vpux::Const::SubViewAttr::inferOutputType(mlir::ShapedType input) const {
+    const Bit typeSizeInBits = getElemTypeSize(input);
+    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in SubViewAttr",
+                      input.getElementType());
+
     const auto shape = parseIntArrayAttr<int64_t>(getShape());
     const auto offset = parseIntArrayAttr<int64_t>(getOffset());
 

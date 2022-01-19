@@ -67,6 +67,10 @@ mlir::Attribute vpux::Const::AddAttr::parse(mlir::DialectAsmParser& parser, mlir
 //
 
 mlir::ShapedType vpux::Const::AddAttr::inferOutputType(mlir::ShapedType input) const {
+    const Bit typeSizeInBits = getElemTypeSize(input);
+    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in AddAttr",
+                      input.getElementType());
+
     return input;
 }
 

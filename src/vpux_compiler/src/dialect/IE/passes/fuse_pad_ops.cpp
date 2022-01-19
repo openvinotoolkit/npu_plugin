@@ -73,8 +73,8 @@ mlir::LogicalResult generalFusion(mlir::Operation* origOp, mlir::ArrayAttr kerne
 
     VPUX_THROW_UNLESS(origPadOp.pad_value_attr().hasValue(), "IE::PadOp has pad_value_attr() == nullptr {0}",
                       origPadOp->getLoc());
-    auto padsValue = origPadOp.pad_value_attr().getValue().convertToFloat();
-    if (!isFloatEqual(padsValue, 0.f)) {
+    const double padsValue = origPadOp.pad_value_attr().getValue().convertToDouble();
+    if (!isDoubleEqual(padsValue, 0.f)) {
         return mlir::failure();
     }
 

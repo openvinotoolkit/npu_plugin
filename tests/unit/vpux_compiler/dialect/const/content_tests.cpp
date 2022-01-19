@@ -775,6 +775,7 @@ TEST_F(MLIR_ConstContentAttrTest, Transpose) {
 }
 
 TEST_F(MLIR_ConstContentAttrTest, BitPackIsLast) {
+    ctx.loadDialect<mlir::quant::QuantizationDialect>();
     const int64_t IN = 1;
     const int64_t IC = 1;
     const int64_t IH = 2;
@@ -791,12 +792,20 @@ TEST_F(MLIR_ConstContentAttrTest, BitPackIsLast) {
     const auto bitWidth = 4;
     const auto contentAttr = baseContentAttr.bitPack(bitWidth);
     ASSERT_NE(contentAttr, nullptr);
+    ASSERT_ANY_THROW(contentAttr.add(17.f));
+    ASSERT_ANY_THROW(contentAttr.broadcast(Dim(1), 42));
+    ASSERT_ANY_THROW(contentAttr.convertElemType(getSInt32Type(&ctx)));
+    ASSERT_ANY_THROW(contentAttr.dequantize());
+    ASSERT_ANY_THROW(contentAttr.padWithZero({0, 1, 2, 3}, {0, 3, 2, 1}));
+    ASSERT_ANY_THROW(contentAttr.reorder(DimsOrder::NHWC));
+    ASSERT_ANY_THROW(contentAttr.rescale(19.f));
+    ASSERT_ANY_THROW(contentAttr.reshape(Shape({IN * IC, IH, IW})));
+    ASSERT_ANY_THROW(contentAttr.subview({0, 0, 0, 0}, {IN, IC, IH, IW}));
+    ASSERT_ANY_THROW(contentAttr.transpose(DimsOrder::NHWC));
 
-    const auto dstOrder = DimsOrder::NHWC.toAffineMap(&ctx);
-    const auto dstReorderAttr = Const::ReorderAttr::get(mlir::AffineMapAttr::get(dstOrder));
-    const auto dstTransformAttr = dstReorderAttr.cast<Const::TransformAttrInterface>();
-    const auto unknownLocation = mlir::UnknownLoc::get(&ctx);
-    const auto errorEmitter = [unknownLocation]() { return mlir::emitError(unknownLocation); };
-    const auto reorderedContentAttr = contentAttr.getChecked(errorEmitter, contentAttr, dstTransformAttr);
-    ASSERT_EQ(reorderedContentAttr, nullptr);
+    const auto quantType = mlir::quant::UniformQuantizedType::get(mlir::quant::QuantizationFlags::Signed,
+                                                                  getSInt4Type(&ctx), mlir::Float32Type::get(&ctx),
+                                                                  0.078431372549019607, 0, -4, 3);
+    const auto quantContentAttr = contentAttr.quantCast(quantType);
+    ASSERT_NE(quantContentAttr, nullptr);
 }

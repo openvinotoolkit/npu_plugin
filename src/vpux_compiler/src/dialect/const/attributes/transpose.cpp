@@ -82,6 +82,10 @@ mlir::Attribute vpux::Const::TransposeAttr::parse(mlir::DialectAsmParser& parser
 //
 
 mlir::ShapedType vpux::Const::TransposeAttr::inferOutputType(mlir::ShapedType input) const {
+    const Bit typeSizeInBits = getElemTypeSize(input);
+    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in TransposeAttr",
+                      input.getElementType());
+
     const auto order = DimsOrder::fromAffineMap(getOrder().getValue());
     VPUX_THROW_UNLESS(order.numDims() == checked_cast<size_t>(input.getRank()),
                       "DimsOrder '{0}' doesn't match type '{1}'", order, input);

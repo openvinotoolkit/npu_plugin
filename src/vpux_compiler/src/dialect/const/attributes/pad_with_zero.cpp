@@ -170,6 +170,10 @@ mlir::Attribute vpux::Const::PadWithZeroAttr::parse(mlir::DialectAsmParser& pars
 //
 
 mlir::ShapedType vpux::Const::PadWithZeroAttr::inferOutputType(mlir::ShapedType input) const {
+    const Bit typeSizeInBits = getElemTypeSize(input);
+    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in PadWithZeroAttr",
+                      input.getElementType());
+
     const auto padBefore = parseIntArrayAttr<int64_t>(getPadBefore());
     const auto padAfter = parseIntArrayAttr<int64_t>(getPadAfter());
     return getPaddedType(input, ShapeRef(padBefore), ShapeRef(padAfter));

@@ -37,6 +37,10 @@ void vpux::Const::DequantizeAttr::walkImmediateSubElements(llvm::function_ref<vo
 //
 
 mlir::ShapedType vpux::Const::DequantizeAttr::inferOutputType(mlir::ShapedType input) const {
+    const Bit typeSizeInBits = getElemTypeSize(input);
+    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in DequantizeAttr",
+                      input.getElementType());
+
     const auto qElemType = input.getElementType().dyn_cast<mlir::quant::QuantizedType>();
     VPUX_THROW_UNLESS(qElemType != nullptr, "Got non quantized type '{0}' in 'DequantizeAttr'");
 
