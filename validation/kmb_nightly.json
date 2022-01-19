@@ -1669,6 +1669,43 @@
         },
 
         {
+            "name" : "MTL_scale_tf_FP16_mobilenet-v3-large-1.0-224",
+            "ir" : "scale/mobilenet-v3-large-1.0-224/tf/FP16/mobilenet-v3-large-1.0-224.xml",
+            "category" : "MLIR",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+             "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16",
+                "old_api" : true
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "MTL_scale_tf_fp16_mobilenet-v3-large-1.0-224_tf"
+            }
+        },
+
+        {
             "name" : "MTL_scale_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
             "ir" : "scale/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
             "category" : "MLIR",
