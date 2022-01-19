@@ -74,7 +74,8 @@ private:
     bool isOperationSplitOverKernelCompatible(ConcreteOp op);
     size_t calculateSplitOverHeightEfficency(mlir::Operation* op);
     size_t calculateSplitOverKernelEfficency(mlir::Operation* op);
-    std::map<double, std::map<int64_t,int64_t>> channelMajorEfficiencyTable();
+    std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable();
+    std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable();
 
     const size_t _minimumHeightForSOH = 20;
     const size_t _minimumOutputChannelsPerCluster = 16;
