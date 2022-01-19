@@ -56,6 +56,9 @@ public:
     struct MinHeapOrdering {
         bool operator()(const HeapElement& a, const HeapElement& b) {
             if (a.time_ == b.time_) {
+                if (a.isPrefetched() && b.isPrefetched()) {
+                    return a.op_ > b.op_;
+                }
                 return a.isPrefetched();
             }
             return a.time_ > b.time_;
@@ -151,10 +154,16 @@ public:
     };
     // Struct used to output the scheduled op info
     struct ScheduledOpInfo {
-        ScheduledOpInfo(operationIdxType op, EOpType type, size_t time, vpux::AddressType freeCmx, bool isDataOp)
-                : op_(op), opType_(type), time_(time), freeCmx_(freeCmx), isDataOp_(isDataOp) {
+        ScheduledOpInfo(operationIdxType op, EOpType type, size_t time, vpux::AddressType freeCmx, bool isDataOp,
+                        bool isTrueComputeOp)
+                : op_(op),
+                  opType_(type),
+                  time_(time),
+                  freeCmx_(freeCmx),
+                  isDataOp_(isDataOp),
+                  isTrueComputeOp_(isTrueComputeOp) {
         }
-        ScheduledOpInfo(): op_(), opType_(), time_(), freeCmx_(), isDataOp_() {
+        ScheduledOpInfo(): op_(), opType_(), time_(), freeCmx_(), isDataOp_(), isTrueComputeOp_() {
         }
         bool operator==(const ScheduledOpInfo& other) const {
             return (other.op_ == op_) && (other.opType_ == opType_);
@@ -205,6 +214,9 @@ public:
         bool isDataOp() const {
             return isDataOp_;
         }
+        bool isTrueComputeOp() const {
+            return isTrueComputeOp_;
+        }
         size_t resourceSize() const {
             size_t size = 0;
             for (size_t resourceIdx = 0; resourceIdx < numOfResources(); resourceIdx++) {
@@ -228,6 +240,7 @@ public:
         size_t time_;
         vpux::AddressType freeCmx_;
         bool isDataOp_;
+        bool isTrueComputeOp_;
         SmallVector<IntervalInfo> resourceInfo_;
     };
     // Struct storing eviction policy info for buffers

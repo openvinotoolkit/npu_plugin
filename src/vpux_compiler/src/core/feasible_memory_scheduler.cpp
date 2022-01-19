@@ -884,6 +884,7 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     scheduled.time_ = scheduledOp.time_;
     scheduled.resourceInfo_ = intervals;
     scheduled.isDataOp_ = isDataOp(scheduledOp.op_);
+    scheduled.isTrueComputeOp_ = !scheduled.isDataOp_ && !isCopyOutOp(scheduledOp.op_);
     scheduled.freeCmx_ = _scan.totalFreeSize();
     _scheduledOps.push_back(scheduled);
 }

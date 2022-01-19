@@ -108,6 +108,22 @@ bool vpux::PrefetchEdgeGenerator::canDataOpBePrefetched(ScheduledOpInfo* dataOp)
     return true;
 }
 
+bool vpux::PrefetchEdgeGenerator::isPrefetchSinkOperation(ScheduledOpInfo* op) {
+    auto execOp = _depsInfo.getExecuteOpAtIndex(op->op_);
+    uint32_t numUnits = 0;
+    const auto executor = IERT::IERTDialect::getExecutor(execOp, numUnits);
+    if (executor.getLeafReference() != VPU::ExecutorKindAttr::get(execOp->getContext(), VPU::ExecutorKind::NCE)) {
+        return false;
+    }
+    auto nce = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(execOp.body().front().front());
+    if (nce) {
+        if (nce.task_type() == vpux::VPUIP::NCETaskType::ELTWISE) {
+            return false;
+        }
+    }
+    return op->isTrueComputeOp() && op->hasActiveResource();
+}
+
 vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePrefetchEdges() {
     _log.trace("Creating pipelining chains");
 
@@ -121,7 +137,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
 
     while (computeOp != _scheduledOps.end()) {
         // find compute op
-        if (!computeOp->isDataOp() && computeOp->hasActiveResource()) {
+        if (isPrefetchSinkOperation(computeOp)) {
             // find first possible data op to overlap with the compute
             currentComputeOpLevel = 1;
             // NOTE: data op must be after compute
@@ -134,7 +150,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
             // iterate over the following ops
             while (dataOp != _scheduledOps.end()) {
                 // 1. verify prefetching constraints met, if not move to next compute
-                if (!dataOp->isDataOp() && dataOp->hasActiveResource()) {
+                if (isPrefetchSinkOperation(dataOp) && dataOp->resourceSize() > 1000) {
                     ++currentComputeOpLevel;
                 }
                 if (!prefetchConstraintsSatisifed(dataOp, computeOp, currentComputeOpLevel)) {
@@ -148,7 +164,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                     // retrieve max free size to data op
                     auto temp = computeOp;
                     while (temp != dataOp && temp->time_ < dataOp->time_) {
-                        if (!temp->isDataOp() && temp->hasActiveResource()) {
+                        if (isPrefetchSinkOperation(temp)) {
                             maxFreeSize = std::min(maxFreeSize, temp->freeCmx_);
                         }
                         ++temp;
@@ -169,7 +185,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                         // update free size for all compute ops to the prefetch op
                         auto temp = computeOp;
                         while (temp != dataOp && temp->time_ < dataOp->time_) {
-                            if (!temp->isDataOp() && temp->hasActiveResource()) {
+                            if (isPrefetchSinkOperation(temp)) {
                                 temp->freeCmx_ -= dataOpSize;
                             }
                             ++temp;
