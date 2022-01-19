@@ -413,7 +413,7 @@ nb::ActivationLayer nb::TestCaseJsonDescriptor::loadActivationLayer(llvm::json::
 
     auto axis = act->getNumber("axis");
     if (axis.hasValue()) {
-        result.axis = axis.getValue();
+        result.axis = vpux::checked_cast<size_t>(axis.getValue());
     }
 
     return result;
