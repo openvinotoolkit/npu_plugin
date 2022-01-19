@@ -44,8 +44,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(CumSumUPAOp op) {
 void vpux::VPUIP::CumSumUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                      mlir::Value output, mlir::IntegerAttr axis, mlir::BoolAttr exclusive,
                                      mlir::BoolAttr reverse) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, axis, exclusive, reverse, nullptr,
-          nullptr);
+    build(builder, state, input, output, axis, exclusive, reverse, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CumSumUPAOp::serialize(VPUIP::BlobWriter& writer) {

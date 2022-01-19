@@ -2643,15 +2643,11 @@ def VPUIP_CumSumUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
         OptionalAttr<IntAttr>:$axis,
         OptionalAttr<BoolAttr>:$exclusive,
         OptionalAttr<BoolAttr>:$reverse,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
@@ -2678,8 +2674,6 @@ def VPUIP_CumSumUPAOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }
