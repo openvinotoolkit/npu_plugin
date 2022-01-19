@@ -11,6 +11,8 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/core/attributes/dims_order.hpp"  // mateusz
+
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -26,6 +28,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 
 #include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/strings.hpp"  // mateusz
 
 #include "vpux/utils/core/range.hpp"
 
@@ -252,6 +255,77 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
         // where part of the concatinated buffer is also used by another operation
         // visible in yolo-v4-tiny concatinate 4
         return mlir::failure();
+    }
+
+    // static int cmx_concat_count = 0;
+
+    // // 0 - Exact match
+    // // 1 - A bit different
+    // // 2 - NOK
+    // // 3 - NOK
+    // // 5 - NOK
+    // // 11 - NOK
+    // if (cmx_concat_count >= 110) {
+    //     return mlir::failure();
+    // }
+    // cmx_concat_count++;
+    // std::cout << " Mateusz: Concat in CMX - " << stringifyLocation(concat->getLoc()) << "\n";
+
+    for (auto user : concat.output().getUsers()) {
+        if (auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(user)) {
+            // std::cout << " Mateusz: Concat user is SubView\n";
+            // Check if SubView performs a split along major dimension taking into accout order in memory
+            // For NCHW that would be split along C
+            // For NHWC that would be split along H
+            // Only such cases are supported by DPU IDU becasue only then input to DPU is a contiguous
+            // block in memory. Otherwise this behavior needs to be performed by DMA
+            const auto inputType = subViewOp.source().getType().dyn_cast<mlir::MemRefType>();
+            const auto outputType = subViewOp.result().getType().dyn_cast<mlir::MemRefType>();
+            // inputType.dump();
+            const auto inputTypeShape = inputType.getShape();
+            const auto outputTypeShape = outputType.getShape();
+            // std::cout << "\nMateusz: input shape:";
+            // for (auto& el : inputTypeShape) {
+            //     std::cout << " " << el;
+            // }
+            // std::cout << "\n";
+            // std::cout << "Mateusz: output shape:";
+            // for (auto& el : outputTypeShape) {
+            //     std::cout << " " << el;
+            // }
+            // std::cout << "\n";
+
+            if (inputTypeShape.size() != outputTypeShape.size() || inputTypeShape.size() != 4) {
+                return mlir::failure();
+            }
+
+            SmallVector<bool> dimsDifference;
+            for (size_t i = 0; i < 4; i++) {
+                if (inputTypeShape[i] != outputTypeShape[i]) {
+                    dimsDifference.push_back(true);
+                } else {
+                    dimsDifference.push_back(false);
+                }
+            }
+
+            if (std::count(dimsDifference.begin(), dimsDifference.end(), true) > 1) {
+                return mlir::failure();
+            }
+
+            const auto order = DimsOrder::fromType(outputType);
+
+            if (dimsDifference[0] || dimsDifference[3]) {
+                return mlir::failure();
+            } else if (dimsDifference[1]) {
+                if (order != DimsOrder::NCHW) {
+                    return mlir::failure();
+                }
+            } else if (dimsDifference[2]) {
+                if (order != DimsOrder::NHWC) {
+                    return mlir::failure();
+                }
+            }
+        }
     }
 
     // create a new CMX memref and AllocOp
