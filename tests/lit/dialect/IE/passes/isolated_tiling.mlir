@@ -11,46 +11,68 @@ func @InterpSplitOverH(
     %2 = const.Declare tensor<2xsi64> = #const.Content<dense<[2, 3]> : tensor<2xsi64>>
 
     %3 = IE.Interpolate(%input1, %0, %1, %2) {
-    attr = {antialias = false, coord_mode = "half_pixel", cube_coeff = -7.500000e-01, mode = "linear", nearest_mode = "round_prefer_floor", pads_begin = [0, 0, 0, 0], pads_end = [0, 0, 0, 0], shape_calc_mode = "sizes"},
+    attr = {antialias = false, coord_mode = "half_pixel", cube_coeff = -7.500000e-01, mode = "linear", nearest_mode = "round_prefer_floor", pads_begin = [0, 0, 0, 0], pads_end = [0, 0, 0, 0], shape_calc_mode = "scales"},
     operand_segment_sizes = dense<1> : vector<4xi32> } : tensor<1x32x128x128xf16>, tensor<2xsi64>, tensor<2xf32>, tensor<2xsi64> -> tensor<1x32x512x512xf16>
 
     return %3 : tensor<1x32x512x512xf16>
 }
 
 
-// CHECK-LABEL: func @SplitOverC
-// CHECK-SAME:        [[INPUT1:%arg[0-9]]]: tensor<1x1024x14x14xf16>,
-// CHECK-SAME:        [[INPUT2:%arg[0-9]]]: tensor<1x1024x14x14xf16>
+// CHECK-LABEL: func @InterpSplitOverH
+// CHECK-SAME:        [[INPUT1:%arg[0-9]]]: tensor<1x32x128x128xf16>
+
 
 // Tile 0
 
-// CHECK:       [[INPUT0_TILE0:%.+]] = IE.Slice [[INPUT1]] [0, 0, 0, 0] [1, 512, 14, 14]
-// CHECK-SAME:      : tensor<1x1024x14x14xf16> to tensor<1x512x14x14xf16>
+// CHECK:       [[TILE0:%.+]] = IE.Slice [[INPUT1]] [0, 0, 0, 0] [1, 32, 25, 128]
+// CHECK-SAME:      : tensor<1x32x128x128xf16> to tensor<1x32x25x128xf16>
 
-// CHECK:       [[INPUT1_TILE0:%.+]] = IE.Slice [[INPUT2]] [0, 0, 0, 0] [1, 512, 14, 14]
-// CHECK-SAME:      : tensor<1x1024x14x14xf16> to tensor<1x512x14x14xf16>
-
-// CHECK:       [[OUTPUT_TILE0:%.+]] = IE.Add([[INPUT0_TILE0]], [[INPUT1_TILE0]])
-// CHECK-SAME:      -> tensor<1x512x14x14xf16>
+// CHECK:       [[INTERP0:%.+]] = IE.Interpolate([[TILE0]])
+// CHECK-SAME:      : tensor<1x32x25x128xf16> -> tensor<1x32x102x512xf16>
 
 // Tile 1
 
-// CHECK:       [[INPUT0_TILE1:%.+]] = IE.Slice [[INPUT1]] [0, 512, 0, 0] [1, 512, 14, 14]
-// CHECK-SAME:      : tensor<1x1024x14x14xf16> to tensor<1x512x14x14xf16>
+// CHECK:       [[TILE1:%.+]] = IE.Slice [[INPUT1]] [0, 0, 25, 0] [1, 32, 25, 128]
+// CHECK-SAME:      : tensor<1x32x128x128xf16> to tensor<1x32x25x128xf16>
 
-// CHECK:       [[INPUT1_TILE1:%.+]] = IE.Slice [[INPUT2]] [0, 512, 0, 0] [1, 512, 14, 14]
-// CHECK-SAME:      : tensor<1x1024x14x14xf16> to tensor<1x512x14x14xf16>
+// CHECK:       [[INTERP1:%.+]] = IE.Interpolate([[TILE1]])
+// CHECK-SAME:      : tensor<1x32x25x128xf16> -> tensor<1x32x102x512xf16>
 
-// CHECK:       [[OUTPUT_TILE1:%.+]] = IE.Add([[INPUT0_TILE1]], [[INPUT1_TILE1]])
-// CHECK-SAME:      -> tensor<1x512x14x14xf16>
+
+// Tile 2
+
+// CHECK:       [[TILE2:%.+]] = IE.Slice [[INPUT1]] [0, 0, 51, 0] [1, 32, 25, 128]
+// CHECK-SAME:      : tensor<1x32x128x128xf16> to tensor<1x32x25x128xf16>
+
+// CHECK:       [[INTERP2:%.+]] = IE.Interpolate([[TILE2]])
+// CHECK-SAME:      : tensor<1x32x25x128xf16> -> tensor<1x32x102x512xf16>
+
+
+// Tile 3
+
+// CHECK:       [[TILE3:%.+]] = IE.Slice [[INPUT1]] [0, 0, 76, 0] [1, 32, 25, 128]
+// CHECK-SAME:      : tensor<1x32x128x128xf16> to tensor<1x32x25x128xf16>
+
+// CHECK:       [[INTERP3:%.+]] = IE.Interpolate([[TILE3]])
+// CHECK-SAME:      : tensor<1x32x25x128xf16> -> tensor<1x32x102x512xf16>
+
+
+// Tile 4
+
+// CHECK:       [[TILE4:%.+]] = IE.Slice [[INPUT1]] [0, 0, 102, 0] [1, 32, 26, 128]
+// CHECK-SAME:      : tensor<1x32x128x128xf16> to tensor<1x32x26x128xf16>
+
+// CHECK:       [[INTERP4:%.+]] = IE.Interpolate([[TILE4]])
+// CHECK-SAME:      : tensor<1x32x26x128xf16> -> tensor<1x32x104x512xf16>
+
 
 // Concat
 
-// CHECK:       [[OUTPUT:%.+]] = IE.Concat([[OUTPUT_TILE0]], [[OUTPUT_TILE1]])
-// CHECK-SAME:      [0, 0, 0, 0], [0, 512, 0, 0]
-// CHECK-SAME:      -> tensor<1x1024x14x14xf16>
+// CHECK:       [[OUTPUT:%.+]] = IE.Concat([[INTERP0]], [[INTERP1]], [[INTERP2]], [[INTERP3]], [[INTERP4]])
+// CHECK-SAME:      [0, 0, 0, 0], [0, 0, 102, 0], [0, 0, 204, 0], [0, 0, 306, 0], [0, 0, 408, 0]
+// CHECK-SAME:      -> tensor<1x32x512x512xf16>
 
-// CHECK:       return [[OUTPUT]] : tensor<1x1024x14x14xf16>
+// CHECK:       return [[OUTPUT]] : tensor<1x32x512x512xf16>
 // -----
 
 <<<<<<< HEAD
