@@ -278,6 +278,12 @@ add_types("VPURT")
 add_enum_attrs("VPURT")
 add_passes("dialect/VPURT" "VPURT")
 
+add_dialect("ELF")
+add_op_interfaces("dialect/ELF")
+add_enum_attrs("ELF")
+add_types("ELF")
+add_passes("dialect/ELF" "ELF")
+
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")
 
@@ -432,6 +438,7 @@ else()
     target_link_libraries(${OBJ_TARGET_NAME}
         PUBLIC
             vpux_al
+            vpux_elf
     )
 endif()
 

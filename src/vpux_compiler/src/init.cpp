@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/init.hpp"
 
+#include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
@@ -46,7 +47,8 @@ void vpux::registerDialects(mlir::DialectRegistry& registry) {
                     vpux::VPU::VPUDialect,      //
                     vpux::IERT::IERTDialect,    //
                     vpux::VPUIP::VPUIPDialect,  //
-                    vpux::VPURT::VPURTDialect>();
+                    vpux::VPURT::VPURTDialect,  //
+                    vpux::ELF::ELFDialect>();
 
     registry.insert<mlir::StandardOpsDialect,          //
                     mlir::async::AsyncDialect,         //

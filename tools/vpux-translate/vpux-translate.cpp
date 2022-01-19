@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/ELF/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/import.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
@@ -140,6 +141,13 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
     return mlir::success();
 }
 
+mlir::LogicalResult exportELF(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
+    mlir::DefaultTimingManager tm;
+    const auto buf = ELF::exportToELF(module);
+    output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
+    return mlir::success();
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -148,6 +156,7 @@ int main(int argc, char* argv[]) {
         mlir::TranslateToMLIRRegistration("import-HWTEST", importHWTEST);
         mlir::TranslateToMLIRRegistration("import-VPUIP", importVPUIP);
         mlir::TranslateFromMLIRRegistration("export-VPUIP", exportVPUIP, registerDialects);
+        mlir::TranslateFromMLIRRegistration("export-ELF", exportELF, registerDialects);
 
         return mlir::asMainReturnCode(mlir::mlirTranslateMain(argc, argv, "VPUX Translation Testing Tool"));
     } catch (const std::exception& e) {
