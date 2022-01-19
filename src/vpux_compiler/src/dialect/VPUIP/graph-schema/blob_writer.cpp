@@ -260,7 +260,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     SmallString uniqueInvocationName(kernelFunc.getName());
     uniqueInvocationName.append("_invo");
 
-    auto kernelMapEntries = _actKernelsData.count(uniqueInvocationName.c_str());
+    const auto startsWith =
+            [&uniqueInvocationName](const std::pair<std::string, vpux::SerializedKernelDataDesc>& entry) -> bool {
+        return entry.first.find(uniqueInvocationName.c_str()) == 0;
+    };
+    auto kernelMapEntries = std::count_if(_actKernelsData.begin(), _actKernelsData.end(), startsWith);
 
     // cache not used since we refer to same actKernelData for invocation and for .data section
     if (kernelMapEntries != 0) {

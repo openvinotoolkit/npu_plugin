@@ -174,7 +174,7 @@ void vpux::IMD::ExecutorImpl::storeNetworkInputs(StringRef workDir, const BlobMa
 void vpux::IMD::ExecutorImpl::runApp(StringRef workDir) {
     using namespace std::chrono_literals;
 
-    static const auto RUN_TIMEOUT = std::chrono::duration_cast<std::chrono::seconds>(20min);
+    static const auto RUN_TIMEOUT = std::chrono::duration_cast<std::chrono::seconds>(60min);
 
     _log.trace("Run the application...");
 
