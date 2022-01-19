@@ -23,16 +23,14 @@ using namespace vpux;
 namespace {
 
 mlir::LogicalResult verifyTensorSize(mlir::Location loc, mlir::Value tensor) {
-    // According to the documentation total transfer length (LEN) field is stored in 24 bits
-    // that means max value is 16MB
-    static const auto limitSize = static_cast<Byte>(16_MB);
     const auto size = static_cast<Byte>(getCompactSize(tensor));
 
-    if (size <= limitSize) {
+    if (size <= VPUIP::DMA_LIMIT) {
         return mlir::success();
     }
 
-    return errorAt(loc, "The size of the transaction {0} is greater than the limit {1}", size, limitSize);
+    return errorAt(loc, "The size of the DMA transaction {0} for a {1} tensor is greater than the limit {2}", size,
+                   getShape(tensor), VPUIP::DMA_LIMIT);
 }
 
 }  // namespace

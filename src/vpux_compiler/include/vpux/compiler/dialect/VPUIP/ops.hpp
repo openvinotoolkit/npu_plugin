@@ -52,6 +52,9 @@ namespace VPUIP {
 constexpr Bit FP16_SIZE = 16_Bit;
 constexpr KB SHAVE_LIB_DATA_SIZE = 112_KB;
 
+// According to the documentation, total transfer length (LEN) field is stored in 24 bits that means max value is 16MB
+constexpr Byte DMA_LIMIT = 16_MB;
+
 mlir::LogicalResult verifyOp(ConvertUPAOp op);
 mlir::LogicalResult verifyOp(SoftMaxUPAOp op);
 mlir::LogicalResult verifyOp(PoolingUPAOp op);

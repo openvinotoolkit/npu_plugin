@@ -98,6 +98,9 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
+    pm.addPass(IERT::createCopyOpLegalizationPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
@@ -198,6 +201,9 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     // Level 2 : Abstract RunTime
 
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
+
+    pm.addPass(IERT::createCopyOpLegalizationPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 
     if (options.enableProfiling && options.enableDPUProfiling) {
         pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
@@ -316,6 +322,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
         pm.addPass(IERT::createOptimizeCopiesPass(log));
         pm.addPass(IERT::createCopyOpHoistingPass(log));
     }
+
+    pm.addPass(IERT::createCopyOpLegalizationPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 
     if (options.enableProfiling && options.enableDPUProfiling) {
         pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));

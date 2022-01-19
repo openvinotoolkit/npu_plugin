@@ -46,6 +46,20 @@ def CopyOpHoisting : PassBase<"copy-op-hoisting", "vpux::FunctionPass"> {
 }
 
 //
+// CopyOpLegalization
+//
+
+def CopyOpLegalization : PassBase<"legalize-copies", "vpux::FunctionPass"> {
+    let summary = "Legalizes Copy Ops which do not fit hardware capabilities";
+
+    let description = [{
+        This pass checks if Copy Op can be executed at target hardware and splits it into a few tiles if necessary.
+    }];
+
+    let constructor = "vpux::IERT::createCopyOpLegalizationPass()";
+}
+
+//
 // SetInternalMemorySpace
 //
 
