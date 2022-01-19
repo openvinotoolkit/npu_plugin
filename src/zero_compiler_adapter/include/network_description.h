@@ -40,24 +40,7 @@ public:
             : NetworkDescription(compliedNetwork, graphName, std::get<0>(networkMeta), std::get<1>(networkMeta),
                                  std::get<2>(networkMeta), std::get<3>(networkMeta)) {
     }
-
-    explicit NetworkDescription(void* handle, const std::string& name, const DataMap& networkInputs,
-                                const DataMap& networkOutputs, const DataMap& deviceInputs,
-                                const DataMap& deviceOutputs)
-            : _handle(handle),
-              _name(name),
-              _networkInputs(networkInputs),
-              _networkOutputs(networkOutputs),
-              _deviceInputs(deviceInputs),
-              _deviceOutputs(deviceOutputs) {
-    }
-
-    explicit NetworkDescription(void* handle, const std::tuple<const std::string, const DataMap, const DataMap,
-                                                               const DataMap, const DataMap>& networkMeta)
-            : NetworkDescription(handle, std::get<0>(networkMeta), std::get<1>(networkMeta), std::get<2>(networkMeta),
-                                 std::get<3>(networkMeta), std::get<4>(networkMeta)) {
-    }
-
+    
 public:
     const vpux::QuantizationParamMap& getQuantParamsInfo() const final {
         return _quantParams;
@@ -68,7 +51,7 @@ public:
     }
 
     const void* getNetworkModel() const final {
-        return _handle;
+        return _compiledNetwork.data();
     }
 
     std::size_t getNetworkModelSize() const final {
