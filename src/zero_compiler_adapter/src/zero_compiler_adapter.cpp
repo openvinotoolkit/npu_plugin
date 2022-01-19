@@ -40,6 +40,7 @@ std::shared_ptr<INetworkDescription> LevelZeroCompilerAdapter::compile(
     return apiAdapter->compileIR(netName, IR.xml, IR.weights);
 }
 
+// TODO #-29924: Implement query method
 InferenceEngine::QueryNetworkResult LevelZeroCompilerAdapter::query(const InferenceEngine::CNNNetwork& /* network */,
                                                                     const vpux::Config& /* config */) {
     THROW_IE_EXCEPTION << "vpux::LevelZeroCompilerAdapter::query is not implemented.";
