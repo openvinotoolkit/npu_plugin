@@ -340,6 +340,8 @@ func @MultiAxesAndPerAxisQuant(
 
 // CHECK:       return [[OUTPUT]] : tensor<1x32x8x8x!qElemType0>
 
+// -----
+
 IE.MemoryResource 1000000 bytes of @CMX_NN
 
 func @InterpSplitOverH(
