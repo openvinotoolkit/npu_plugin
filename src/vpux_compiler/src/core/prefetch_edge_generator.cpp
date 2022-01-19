@@ -115,12 +115,6 @@ bool vpux::PrefetchEdgeGenerator::isPrefetchSinkOperation(ScheduledOpInfo* op) {
     if (executor.getLeafReference() != VPU::ExecutorKindAttr::get(execOp->getContext(), VPU::ExecutorKind::NCE)) {
         return false;
     }
-    auto nce = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(execOp.body().front().front());
-    if (nce) {
-        if (nce.task_type() == vpux::VPUIP::NCETaskType::ELTWISE) {
-            return false;
-        }
-    }
     return op->isTrueComputeOp() && op->hasActiveResource();
 }
 
@@ -131,8 +125,8 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
     size_t currentComputeOpLevel;
     auto computeOp = _scheduledOps.begin();
     // skip input op, mark input as executed
-    _executedOps.insert(computeOp->op_);
-    ++computeOp;
+    // _executedOps.insert(computeOp->op_);
+    // ++computeOp;
     auto dataOp = computeOp;
 
     while (computeOp != _scheduledOps.end()) {
@@ -150,10 +144,15 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
             // iterate over the following ops
             while (dataOp != _scheduledOps.end()) {
                 // 1. verify prefetching constraints met, if not move to next compute
-                if (isPrefetchSinkOperation(dataOp) && dataOp->resourceSize() > 1000) {
-                    ++currentComputeOpLevel;
+                if (isPrefetchSinkOperation(dataOp) && dataOp->resourceSize() > 100) {
+                    auto execOp = _depsInfo.getExecuteOpAtIndex(dataOp->op_);
+                    auto nce = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(execOp.body().front().front());
+                    if (nce && nce.task_type() != vpux::VPUIP::NCETaskType::ELTWISE) {
+                        ++currentComputeOpLevel;
+                    }
                 }
                 if (!prefetchConstraintsSatisifed(dataOp, computeOp, currentComputeOpLevel)) {
+                    std::cout << "condition not satisifed" << std::endl;
                     break;
                 }
 
@@ -164,9 +163,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                     // retrieve max free size to data op
                     auto temp = computeOp;
                     while (temp != dataOp && temp->time_ < dataOp->time_) {
-                        if (isPrefetchSinkOperation(temp)) {
-                            maxFreeSize = std::min(maxFreeSize, temp->freeCmx_);
-                        }
+                        maxFreeSize = std::min(maxFreeSize, temp->freeCmx_);
                         ++temp;
                     }
 
@@ -176,6 +173,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                                    "dif '{3}'",
                                    dataOp->op_, computeOp->op_, (dataOp->time_ - computeOp->time_),
                                    currentComputeOpLevel);
+                        std::cout << dataOp->op_ << " during " << computeOp->op_ << std::endl;
                         // store the prefetch edge
                         _prefetchEdges[computeOp->op_].insert(std::make_pair(dataOp->op_, dataOp->time_));
                         _prefetchedDataOps.insert(dataOp->op_);
@@ -190,6 +188,9 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                             }
                             ++temp;
                         }
+                    } else {
+                        std::cout << dataOp->op_ << " NOT during " << computeOp->op_ << " " << maxFreeSize << " "
+                                  << dataOpSize << std::endl;
                     }
                 }
 
