@@ -116,6 +116,57 @@ def VPURT_DeclareBufferOp :
 }
 
 //
+// DeclareSparseBufferOp
+//
+
+def VPURT_DeclareSparseBufferOp :
+        VPURT_Op<
+            "DeclareSparseBuffer",
+            [
+                NoSideEffect,
+                DeclarationOp,
+                DotInterface,
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<GroupedViewOpInterface>
+            ]
+        > {
+    let summary = "Declare sparse VPU run-time buffer";
+
+    let arguments = (ins
+        AnyMemRef:$data,
+        Optional<AnyMemRef>:$sparsityMap,
+        Optional<AnyMemRef>:$storageElementTable
+    );
+
+    let results = (outs
+        VPURT_SparseBuffer:$sparseBuffer
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$data)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$data, "mlir::Value":$sparsityMap)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$data, "mlir::Value":$sparsityMap, "mlir::Value":$storageElementTable)
+        >
+    ];
+
+    let assemblyFormat = [{
+        $data `:` type($data) `,` ($sparsityMap^ `:` type($sparsityMap))? `,` ($storageElementTable^ `:` type($storageElementTable))?
+        attr-dict `->` type(results)
+    }];
+
+    let extraClassDeclaration = [{
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::ORANGE;
+        }
+    }];
+}
+
+//
 // DeclareVirtualBarrierOp
 //
 

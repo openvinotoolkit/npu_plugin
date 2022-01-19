@@ -30,10 +30,7 @@ void vpux::VPURT::VPURTDialect::initialize() {
 #include <vpux/compiler/dialect/VPURT/generated/ops.cpp.inc>
             >();
 
-    addTypes<
-#define GET_TYPEDEF_LIST
-#include <vpux/compiler/dialect/VPURT/generated/types.cpp.inc>
-            >();
+    registerTypes();
 }
 
 //

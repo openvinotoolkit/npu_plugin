@@ -14,6 +14,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/dialect/VPURT/types.hpp"
 
 #include "vpux/utils/core/error.hpp"
 
@@ -51,7 +52,7 @@ ShapeRef vpux::getShape(mlir::ShapedType type) {
 }
 
 ShapeRef vpux::getShape(mlir::Value val) {
-    auto type = val.getType().dyn_cast<mlir::ShapedType>();
+    auto type = VPURT::SparseBufferType::getDataType(val).dyn_cast<mlir::ShapedType>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
     return getShape(type);
 }
@@ -67,7 +68,7 @@ MemShape vpux::getMemShape(mlir::ShapedType type) {
 }
 
 MemShape vpux::getMemShape(mlir::Value val) {
-    auto type = val.getType().dyn_cast<mlir::ShapedType>();
+    auto type = VPURT::SparseBufferType::getDataType(val).dyn_cast<mlir::ShapedType>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
     return getMemShape(type);
 }

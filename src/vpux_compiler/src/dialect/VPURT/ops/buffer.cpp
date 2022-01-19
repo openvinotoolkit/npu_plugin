@@ -43,3 +43,36 @@ mlir::LogicalResult vpux::VPURT::verifyOp(DeclareBufferOp op) {
 
     return mlir::success();
 }
+
+//
+// DeclareSparseBufferOp
+//
+
+mlir::ValueRange vpux::VPURT::DeclareSparseBufferOp::getViewSources() {
+    return getOperands();
+}
+
+void vpux::VPURT::DeclareSparseBufferOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
+                                               mlir::Value data) {
+    const auto inputType = data.getType().cast<mlir::MemRefType>();
+    const auto sparseBuffer = VPURT::SparseBufferType::get(inputType);
+    build(odsBuilder, odsState, sparseBuffer, data, nullptr, nullptr);
+}
+
+void vpux::VPURT::DeclareSparseBufferOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
+                                               mlir::Value data, mlir::Value sparsityMap) {
+    const auto inputType = data.getType().cast<mlir::MemRefType>();
+    const auto sparsityMapType = sparsityMap.getType().cast<mlir::MemRefType>();
+    const auto sparseBuffer = VPURT::SparseBufferType::get(inputType, sparsityMapType);
+    build(odsBuilder, odsState, sparseBuffer, data, sparsityMap, nullptr);
+}
+
+void vpux::VPURT::DeclareSparseBufferOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
+                                               mlir::Value data, mlir::Value sparsityMap,
+                                               mlir::Value storageElementTable) {
+    const auto inputType = data.getType().cast<mlir::MemRefType>();
+    const auto sparsityMapType = sparsityMap.getType().cast<mlir::MemRefType>();
+    const auto storageElementTableType = storageElementTable.getType().cast<mlir::MemRefType>();
+    const auto sparseBuffer = VPURT::SparseBufferType::get(inputType, sparsityMapType, storageElementTableType);
+    build(odsBuilder, odsState, sparseBuffer, data, sparsityMap, storageElementTable);
+}

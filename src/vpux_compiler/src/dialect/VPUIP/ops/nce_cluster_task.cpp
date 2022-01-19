@@ -20,6 +20,7 @@
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/types.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -409,7 +410,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
     const auto arch = VPU::getArch(op.getOperation()->getParentOfType<mlir::ModuleOp>());
 
     for (const auto& operand : op.getOpOperands()) {
-        const auto val = operand.get();
+        const auto val = VPURT::SparseBufferType::getData(operand.get());
         const auto type = val.getType().cast<mlir::MemRefType>().getElementType();
 
         if (arch != VPU::ArchKind::MTL && type.isBF16()) {
@@ -462,7 +463,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
 
     for (const auto& operand : op.getOpOperands()) {
         const auto val = operand.get();
-        const auto type = val.getType().cast<mlir::MemRefType>();
+        const auto type = VPURT::SparseBufferType::getDataType(val).cast<mlir::MemRefType>();
 
         const auto mem = VPU::getMemoryKind(type);
         if (mem != VPU::MemoryKind::CMX_NN && mem != VPU::MemoryKind::Register) {
@@ -630,7 +631,8 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
     // Get also ZP from output
     SmallVector<uint8_t> quantZeroPoints;
 
-    auto outputElementType = nceTask.output().getType().cast<mlir::ShapedType>().getElementType();
+    auto outputType = VPURT::SparseBufferType::getDataType(nceTask.output()).cast<mlir::ShapedType>();
+    auto outputElementType = outputType.getElementType();
     if (const auto uniformQuantType = outputElementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         quantZeroPoints.push_back(checked_cast<uint8_t>(uniformQuantType.getZeroPoint()));
     } else if (const auto uniformQuantPerAxisType =
@@ -649,12 +651,12 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
                       ppeQuantShift.size(), quantZeroPoints.size());
 
     // Find corresponding DeclareBufferOp to get all the data needed to build new TensorReference
-    auto bufferOp = nceTask.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
+    auto bufferOp = VPURT::SparseBufferType::getData(nceTask.output_buff()).getDefiningOp<VPURT::DeclareBufferOp>();
     VPUX_THROW_UNLESS(bufferOp != nullptr, "Unable to find parent DeclareBufferOp to build new TensorReference");
 
-    return writer.createTensorRef("output_tensor_scale_updated", nceTask.getType(0).cast<mlir::ShapedType>(),
-                                  bufferOp.section(), bufferOp.sectionIndex().getValueOr(0), bufferOp.byteOffset(),
-                                  ppeQuantMult, ppeQuantShift, ppeQuantPostShift, quantZeroPoints);
+    return writer.createTensorRef("output_tensor_scale_updated", outputType, bufferOp.section(),
+                                  bufferOp.sectionIndex().getValueOr(0), bufferOp.byteOffset(), ppeQuantMult,
+                                  ppeQuantShift, ppeQuantPostShift, quantZeroPoints);
 }
 
 }  // namespace
@@ -772,19 +774,21 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     }
 
     // Extract output permutation from output layout
-    MVCNN::Permutation oduPermutation = getODUPermutationType(DimsOrder::fromValue(output()));
+    MVCNN::Permutation oduPermutation =
+            getODUPermutationType(DimsOrder::fromValue(VPURT::SparseBufferType::getData(output())));
 
     if (cm_sp_patternAttr() != nullptr) {
         cm_sp_pattern = checked_cast<uint16_t>(cm_sp_patternAttr().getValue().getSExtValue());
     }
 
-    const auto inputData = writer.getTensorRef(input());
-    const auto weightsData = weights() != nullptr ? writer.getTensorRef(weights()) : 0;
+    const auto inputData = writer.getTensorRef(VPURT::SparseBufferType::getData(input()));
+    const auto weightsData =
+            weights() != nullptr ? writer.getTensorRef(VPURT::SparseBufferType::getData(weights())) : 0;
     const auto weightsTable = weight_table() != nullptr ? writer.getTensorRef(weight_table()) : 0;
     const auto activationWindow = activation_window() != nullptr ? writer.getTensorRef(activation_window()) : 0;
     const auto activationWindowChannelLength = checked_cast<int32_t>(activation_window_channel_length().getValueOr(0));
 
-    auto outputData = writer.getTensorRef(output());
+    auto outputData = writer.getTensorRef(VPURT::SparseBufferType::getData(output()));
 
     // If quant scale (mult, shift) settings were provided as part of PPE block then use it to build new
     // output TensorReference. This is required for Eltwise operation which doesn't have weights table
@@ -800,8 +804,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                                               ppeQuantShift.getValue(), ppeQuantPostShift.getValue());
     }
 
-    const auto parentInputTensor = writer.getTensorRef(parent_input());
-    const auto parentOutputTensor = writer.getTensorRef(parent_output());
+    const auto parentInputTensor = writer.getTensorRef(VPURT::SparseBufferType::getData(parent_input()));
+    const auto parentOutputTensor = writer.getTensorRef(VPURT::SparseBufferType::getData(parent_output()));
 
     const auto invariantMPEMode = getMPEFrequentModeFromDPUTasks(variants());
 

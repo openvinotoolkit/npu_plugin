@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 
+#include "vpux/compiler/dialect/VPURT/types.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
@@ -253,7 +254,7 @@ bool vpux::StrideReqsRef::checkStrides(mlir::MemRefType type) const {
 }
 
 bool vpux::StrideReqsRef::checkStrides(mlir::Value val) const {
-    const auto type = val.getType().dyn_cast_or_null<mlir::MemRefType>();
+    const auto type = VPURT::SparseBufferType::getDataType(val).dyn_cast_or_null<mlir::MemRefType>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non MemRefType '{1}'", val, val.getType());
     return checkStrides(type);
 }

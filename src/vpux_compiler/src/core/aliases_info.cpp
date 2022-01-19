@@ -14,6 +14,7 @@
 #include "vpux/compiler/core/aliases_info.hpp"
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPURT/types.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -156,9 +157,11 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                     const auto result = viewOp->getResult(0);
                     const auto sources = viewOp.getViewSources();
 
-                    VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
-                                      "AliasesInfo analysis works only with MemRef types, got '{0}'", result.getType());
-                    for (const auto source : sources) {
+                    VPUX_THROW_UNLESS(
+                            (result.getType().isa<mlir::MemRefType, VPURT::SparseBufferType>()),
+                            "AliasesInfo analysis works only with MemRef and VPURT::SparseBuffer types, got '{0}'",
+                            result.getType());
+                    for (auto source : sources) {
                         VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(),
                                           "AliasesInfo analysis works only with MemRef types, got '{0}'",
                                           source.getType());

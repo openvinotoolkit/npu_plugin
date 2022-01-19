@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
+#include "vpux/compiler/dialect/VPURT/types.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -88,7 +89,7 @@ Strides vpux::getStrides(mlir::ShapedType type) {
 }
 
 Strides vpux::getStrides(mlir::Value val) {
-    const auto type = val.getType().dyn_cast<mlir::ShapedType>();
+    const auto type = VPURT::SparseBufferType::getDataType(val).dyn_cast<mlir::ShapedType>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
     return getStrides(type);
 }
@@ -124,7 +125,7 @@ MemStrides vpux::getMemStrides(mlir::ShapedType type) {
 }
 
 MemStrides vpux::getMemStrides(mlir::Value val) {
-    const auto type = val.getType().dyn_cast<mlir::ShapedType>();
+    const auto type = VPURT::SparseBufferType::getDataType(val).dyn_cast<mlir::ShapedType>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
     return getMemStrides(type);
 }

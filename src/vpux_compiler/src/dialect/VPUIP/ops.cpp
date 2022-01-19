@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPURT/types.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
 

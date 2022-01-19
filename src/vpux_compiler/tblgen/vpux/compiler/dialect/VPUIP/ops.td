@@ -25,6 +25,7 @@ include "vpux/compiler/dialect/VPU/attributes.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
+include "vpux/compiler/dialect/VPURT/types.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/CopyOpInterface.td"
@@ -2167,9 +2168,9 @@ def VPUIP_WeightsTableOp :
     let summary = "Intermediate task for creating weights table based on the addresses of CMX buffers";
 
     let arguments = (ins
-        MemRefOf<[F16, quant_QuantizedType]>:$op_input,
-        MemRefOf<[F16, quant_QuantizedType]>:$op_output,
-        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$weights,
+        AnyTypeOf<[MemRefOf<[F16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$op_input,
+        AnyTypeOf<[MemRefOf<[F16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$op_output,
+        Optional<AnyTypeOf<[MemRefOf<[F16, quant_QuantizedType]>, VPURT_SparseBuffer]>>:$weights,
         Optional<MemRefOf<[F16, F32]>>:$bias,
         Optional<MemRefOf<[UI8]>>:$activation_window
     );
@@ -2309,15 +2310,15 @@ def VPUIP_NCEClusterTaskOp :
     }];
 
     let arguments = (ins
-        MemRefOf<[F16, BF16, quant_QuantizedType]>:$input,
-        Optional<MemRefOf<[F16, BF16, quant_QuantizedType]>>:$weights,
+        AnyTypeOf<[MemRefOf<[F16, BF16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$input,
+        Optional<AnyTypeOf<[MemRefOf<[F16, BF16, quant_QuantizedType]>, VPURT_SparseBuffer]>>:$weights,
         Optional<MemRefOf<[SI32]>>:$weight_table,
         Optional<MemRefOf<[UI8]>>:$activation_window,
 
-        AnyMemRef:$parent_input,
-        AnyMemRef:$parent_output,
+        AnyTypeOf<[AnyMemRef, VPURT_SparseBuffer]>:$parent_input,
+        AnyTypeOf<[AnyMemRef, VPURT_SparseBuffer]>:$parent_output,
 
-        MemRefOf<[F16, F32, BF16, quant_QuantizedType]>:$output_buff,
+        AnyTypeOf<[MemRefOf<[F16, F32, BF16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$output_buff,
         Optional<MemRefOf<[UI64]>>:$profiling_data,
 
         VPUIP_NCETaskType:$task_type,
@@ -2330,7 +2331,7 @@ def VPUIP_NCEClusterTaskOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, F32, BF16, quant_QuantizedType]>:$output,
+        AnyTypeOf<[MemRefOf<[F16, F32, BF16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$output,
         Optional<MemRefOf<[UI64]>>:$profiling_output
     );
 

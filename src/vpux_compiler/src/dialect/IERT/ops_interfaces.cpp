@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPURT/types.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -33,7 +34,7 @@ namespace {
 ptrdiff_t getLastMemRefPosition(mlir::ValueRange vals) {
     return std::find_if(vals.begin(), vals.end(),
                         [](mlir::Value val) {
-                            return !val.getType().isa<mlir::MemRefType>();
+                            return !val.getType().isa<mlir::MemRefType, VPURT::SparseBufferType>();
                         }) -
            vals.begin();
 }

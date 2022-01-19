@@ -33,6 +33,10 @@ It handles such VPU-specifics as:
 
     let cppNamespace = "vpux::VPURT";
 
+    let extraClassDeclaration = [{
+        void registerTypes();
+    }];
+
     let dependentDialects = [
         "mlir::StandardOpsDialect",
         "vpux::IERT::IERTDialect",

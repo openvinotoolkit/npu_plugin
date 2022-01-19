@@ -34,6 +34,7 @@
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
+#include <llvm/ADT/DenseMap.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
 
@@ -431,11 +432,41 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir:
     auto scopeTiming = rootTiming.nest("Serialize tensor declarations");
 
     size_t tempTensorInd = 0;
-    netFunc.walk([&](VPURT::DeclareBufferOp bufOp) {
+    const auto createTensorRef = [&](VPURT::DeclareBufferOp bufOp, const Optional<int64_t> sparsityMapOffset = None,
+                                     const Optional<int64_t> storageElementOffset = None) {
         writer.createTensorRef(bufOp.buffer(), llvm::formatv("temp-{0}", tempTensorInd).str(), bufOp.section(),
-                               bufOp.sectionIndex().getValueOr(0), bufOp.byteOffset());
+                               bufOp.sectionIndex().getValueOr(0), bufOp.byteOffset(), sparsityMapOffset,
+                               storageElementOffset);
+        tempTensorInd++;
+    };
 
-        ++tempTensorInd;
+    llvm::DenseSet<mlir::Operation*> sparseBuffers;
+    netFunc.walk([&](VPURT::DeclareSparseBufferOp sparseBufOp) {
+        Optional<int64_t> sparsityMapOffset = None;
+        Optional<int64_t> storageElementOffset = None;
+        if (sparseBufOp.sparsityMap()) {
+            auto sparsityMapBufOp = sparseBufOp.sparsityMap().getDefiningOp<VPURT::DeclareBufferOp>();
+            sparsityMapOffset = sparsityMapBufOp.byteOffset();
+            createTensorRef(sparsityMapBufOp);
+            sparseBuffers.insert(sparsityMapBufOp.getOperation());
+        }
+        if (sparseBufOp.storageElementTable()) {
+            auto storageElementBufOp = sparseBufOp.storageElementTable().getDefiningOp<VPURT::DeclareBufferOp>();
+            storageElementOffset = storageElementBufOp.byteOffset();
+            createTensorRef(storageElementBufOp);
+            sparseBuffers.insert(storageElementBufOp.getOperation());
+        }
+
+        auto bufOp = sparseBufOp.data().getDefiningOp<VPURT::DeclareBufferOp>();
+        createTensorRef(bufOp, sparsityMapOffset, storageElementOffset);
+        sparseBuffers.insert(bufOp.getOperation());
+    });
+
+    netFunc.walk([&](VPURT::DeclareBufferOp bufOp) {
+        if (sparseBuffers.contains(bufOp.getOperation())) {
+            return;
+        }
+        createTensorRef(bufOp);
     });
 }
 

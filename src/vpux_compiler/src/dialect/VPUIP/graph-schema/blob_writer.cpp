@@ -344,7 +344,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         StringRef name, mlir::ShapedType type, VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset,
-        ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints) {
+        ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints,
+        Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset) {
     const auto serializedName = createString(name);
 
     const auto serializedDataType = VPUIP::createDType(type.getElementType());
@@ -352,7 +353,8 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
     const auto serializedStrides = createStrides(type);
     const auto dimsOrder = DimsOrder::fromType(type);
 
-    const auto serializedDataReference = createIndirectDataReference(byteOffset);
+    const auto serializedDataReference =
+            createIndirectDataReference(byteOffset, sparsityMapOffset, storageElementOffset);
 
     const auto serializedLocale = VPUIP::createMemoryLocation(section);
     const auto serializedLocaleIndex = createVector(makeArrayRef({checked_cast<uint32_t>(sectionIndex)}));
@@ -382,7 +384,9 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(StringRef name, mlir::ShapedType type,
                                                                             VPURT::BufferSection section,
-                                                                            int64_t sectionIndex, int64_t byteOffset) {
+                                                                            int64_t sectionIndex, int64_t byteOffset,
+                                                                            Optional<int64_t> sparsityMapOffset,
+                                                                            Optional<int64_t> storageElementOffset) {
     SmallVector<uint8_t> zeroPoints;
     SmallVector<uint16_t> mult;
     SmallVector<uint8_t> shift;
@@ -409,14 +413,18 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(Stri
         shift.push_back(0);
     }
 
-    return createTensorRef(name, type, section, sectionIndex, byteOffset, mult, shift, 0, zeroPoints);
+    return createTensorRef(name, type, section, sectionIndex, byteOffset, mult, shift, 0, zeroPoints, sparsityMapOffset,
+                           storageElementOffset);
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(mlir::Value val, StringRef name,
                                                                             VPURT::BufferSection section,
-                                                                            int64_t sectionIndex, int64_t byteOffset) {
+                                                                            int64_t sectionIndex, int64_t byteOffset,
+                                                                            Optional<int64_t> sparsityMapOffset,
+                                                                            Optional<int64_t> storageElementOffset) {
     VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value '{0}' was already serialized", val.getLoc());
-    const auto ref = createTensorRef(name, val.getType().cast<mlir::ShapedType>(), section, sectionIndex, byteOffset);
+    const auto ref = createTensorRef(name, val.getType().cast<mlir::ShapedType>(), section, sectionIndex, byteOffset,
+                                     sparsityMapOffset, storageElementOffset);
     _tensors.insert({val, ref});
     return ref;
 }
