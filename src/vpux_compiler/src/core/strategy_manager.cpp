@@ -20,24 +20,55 @@ StrategyManager::StrategyManager(mlir::FuncOp func, size_t numClusters, Logger l
         : _log(log), _numClusters(numClusters), _func(func) {
 }
 
+// This channel major efficiency table is from the ArchBench tool
+std::map<double, std::map<int64_t,int64_t>> StrategyManager::channelMajorEfficiencyTable() {
+    return { {
+       { 0.165,  { {1, 3} } },
+       { 0.128,  { {2, 3} } },
+       { 0.128,  { {4, 3} } },
+       { 0.165,  { {6, 3} } },
+       { 0.483,  { {1, 5} } },
+       { 0.241,  { {2, 5} } },
+       { 0.132,  { {4, 5} } },
+       { 0.483,  { {6, 5} } },
+       { 0.6,    { {1, 7} } },
+       { 0.2965, { {2, 7} } },
+       { 0.15,   { {4, 7} } },
+       { 0.0395, { {6, 7} } },
+       { 0.8008, { {1, 9} } },
+       { 0.4687, { {2, 9} } },
+       { 0.2266, { {4, 9} } },
+       { 0.8008, { {6, 9} } },
+       { 0.9023, { {1, 11} } },
+       { 0.4687, { {2, 11} } },
+       { 0.2366, { {4, 11} } },
+       { 0.9023, { {6, 11} } },
+     } };
+}
+
 size_t StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
     return llvm::TypeSwitch<mlir::Operation*, size_t>(op)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
                 const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
                 const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
+                const auto weightsType = op->getOperand(1).getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
                 const auto inputShape = getShape(inputType);
+                const auto weightsShape = getShape(weightsType);
                 const auto IC = inputShape[Dims4D::Act::C];
                 const auto OC = outputShape[Dims4D::Act::C];
                 const auto OH = outputShape[Dims4D::Act::H];
                 const auto OW = outputShape[Dims4D::Act::W];
+                const auto KY = weightsShape[Dims4D::Filter::KY];
+
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
                 const double outputTensorVolume = OC * OH * OW;
                 double efficency = 0;
 
                 // Different efficency formula required for CM Conv and ZM Conv
                 if (IC == 3) {
-                    efficency = 0.183594 *
+                    auto constant = channelMajorEfficiencyTable()[strides[0]][KY];
+                    efficency = constant *
                                 std::max(outputTensorVolume / (16.0 * std::ceil(OH / 16.0) * 20.0 *
                                                                std::ceil(OW / 20.0) * 16.0 * std::ceil(OC / 16.0)),
                                          outputTensorVolume / (64.0 * std::ceil(OH / 64.0) * 5.0 * std::ceil(OW / 5.0) *
