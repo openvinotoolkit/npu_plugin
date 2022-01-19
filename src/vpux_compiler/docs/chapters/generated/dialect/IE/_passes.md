@@ -88,6 +88,13 @@ This pass processes operations, which can be compile as a DPU tasks and
 ### `-fuse-convert-with-quantize`: Fuse Convert with Quantize into QuantCast operation
 Pass detects pattern Convert(i8/ui8 -> FP16) -> Quantize(FP16 -> !quant.uniform<...>)
 and fuses it into single QuantCast(i8/ui8 -> !quant.uniform<...>) operation.
+### `-fuse-pad-ops`: Fuse PadOp with CONSTANT model
+The pass is a part of `AdjustForVPU` pipeline.
+
+PadOp with CONSTANT model, pad value is 0 and the padding is needed in H and W dimensions only.
+Merge [Pad] -> [Conv] into [Conv].
+Merge [Pad] -> [GroupConv] into [GroupConv].
+Merge [Pad] -> [MaxPool] into [MaxPool].
 ### `-fuse-post-ops`: Fuse activation functions with tasks that support post-processing
 The pass is a part of `AdjustForVPU` pipeline.
 

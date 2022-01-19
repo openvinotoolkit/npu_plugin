@@ -47,6 +47,48 @@ bool vpux::VPU::NCEInvariant::isPrecisionSupported(ArchKind arch, mlir::ValueRan
 }
 
 //
+// Fuse PadOp check
+//
+
+bool vpux::VPU::NCEInvariant::verifyPads(int64_t KY, int64_t KX, int64_t padTop, int64_t padBottom, int64_t padLeft,
+                                         int64_t padRight, LogCb logCb) {
+    if (padTop < 0 || (padTop > 1 && padTop > KY / 2)) {
+        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padTop, KY / 2));
+        return false;
+    }
+    if (padBottom < 0 || (padBottom > 1 && padBottom > KY / 2)) {
+        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padBottom, KY / 2));
+        return false;
+    }
+    if (padLeft < 0 || (padLeft > 1 && padLeft > KX / 2)) {
+        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padLeft, KX / 2));
+        return false;
+    }
+    if (padRight < 0 || (padRight > 1 && padRight > KX / 2)) {
+        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padRight, KX / 2));
+        return false;
+    }
+
+    return true;
+}
+
+bool vpux::VPU::NCEInvariant::verifyPads(mlir::ArrayAttr kernelSizeAttr, mlir::ArrayAttr padBeginAttr,
+                                         mlir::ArrayAttr padEndAttr, LogCb logCb) {
+    const auto kernelSize = parseIntArrayAttr<int64_t>(kernelSizeAttr);
+    const auto KY = kernelSize[kernelSize.size() == 4 ? (Dims4D::Filter::KY.ind()) : (Dims4D::Kernel::Y.ind())];
+    const auto KX = kernelSize[kernelSize.size() == 4 ? (Dims4D::Filter::KX.ind()) : (Dims4D::Kernel::X.ind())];
+
+    const auto padsBegin = parseIntArrayAttr<int64_t>(padBeginAttr);
+    const auto padsEnd = parseIntArrayAttr<int64_t>(padEndAttr);
+    const auto padTop = padsBegin[Dims4D::PadsBegin::Top.ind()];
+    const auto padLeft = padsBegin[Dims4D::PadsBegin::Left.ind()];
+    const auto padBottom = padsEnd[Dims4D::PadsEnd::Bottom.ind()];
+    const auto padRight = padsEnd[Dims4D::PadsEnd::Right.ind()];
+
+    return verifyPads(KY, KX, padTop, padBottom, padLeft, padRight, logCb);
+}
+
+//
 // Attributes checks
 //
 
@@ -82,24 +124,7 @@ bool vpux::VPU::NCEInvariant::isAttrsSupported(ArchKind arch, int64_t KY, int64_
         return false;
     }
 
-    if (padTop < 0 || (padTop > 1 && padTop > KY / 2)) {
-        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padTop, KY / 2));
-        return false;
-    }
-    if (padBottom < 0 || (padBottom > 1 && padBottom > KY / 2)) {
-        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padBottom, KY / 2));
-        return false;
-    }
-    if (padLeft < 0 || (padLeft > 1 && padLeft > KX / 2)) {
-        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padLeft, KX / 2));
-        return false;
-    }
-    if (padRight < 0 || (padRight > 1 && padRight > KX / 2)) {
-        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padRight, KX / 2));
-        return false;
-    }
-
-    return true;
+    return verifyPads(KY, KX, padTop, padBottom, padLeft, padRight, logCb);
 }
 
 //

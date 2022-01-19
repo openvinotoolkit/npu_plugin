@@ -80,6 +80,15 @@ Byte getWeightsTableSize(int64_t OC);
 
 bool isChannelMajorCompatible(ArchKind arch, mlir::ShapedType inputType);
 
+//
+// Fuse PadOp check
+//
+
+bool verifyPads(mlir::ArrayAttr kernelSizeAttr, mlir::ArrayAttr padBeginAttr, mlir::ArrayAttr padEndAttr,
+                LogCb logCb = emptyLogCb);
+bool verifyPads(int64_t KY, int64_t KX, int64_t padTop, int64_t padBottom, int64_t padLeft, int64_t padRight,
+                LogCb logCb = emptyLogCb);
+
 }  // namespace NCEInvariant
 
 }  // namespace VPU

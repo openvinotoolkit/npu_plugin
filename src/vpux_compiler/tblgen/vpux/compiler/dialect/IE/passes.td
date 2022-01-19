@@ -750,6 +750,30 @@ def HandleAsymmetricStrides : PassBase<"handle-asymmetric-strides", "vpux::Funct
 }
 
 //
+// FusePadOps
+//
+
+def FusePadOps : PassBase<"fuse-pad-ops", "vpux::FunctionPass"> {
+    let summary = "Fuse PadOp with CONSTANT model";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        PadOp with CONSTANT model, pad value is 0 and the padding is needed in H and W dimensions only.
+        Merge [Pad] -> [Conv] into [Conv].
+        Merge [Pad] -> [GroupConv] into [GroupConv].
+        Merge [Pad] -> [MaxPool] into [MaxPool].
+    }];
+
+    let constructor = "vpux::IE::createFusePadOpsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+
+}
+
+//
 // SupportBatchForPadOp
 //
 

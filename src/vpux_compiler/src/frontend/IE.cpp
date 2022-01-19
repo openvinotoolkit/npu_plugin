@@ -25,7 +25,6 @@
 #include "vpux/passes/clean_up_fq.hpp"
 #include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "vpux/passes/convert_variadic_split_to_strided_slice.hpp"
-#include "vpux/passes/fuse_padding.hpp"
 #include "vpux/passes/fuse_scale_in_previous_weights_fq.hpp"
 #include "vpux/passes/fuse_scaleshift.hpp"
 #include "vpux/passes/propagate_fq.hpp"
@@ -74,6 +73,7 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
+#include <transformations/common_optimizations/pad_fusion.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
 #include <transformations/common_optimizations/space_to_batch_fusion.hpp>
@@ -2427,6 +2427,9 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     // before CommonOptimization pipeline execution
     manager.register_pass<ngraph::pass::MOCTransformations>(true, false);
 
+    auto pass_config = manager.get_pass_config();
+    pass_config->disable<ngraph::pass::PadFusion>();
+
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
     common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false);
@@ -2489,7 +2492,6 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph,
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<vpux::pass::RemoveSplitConcat>();
-    manager.register_pass<vpux::pass::FusePadding>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
