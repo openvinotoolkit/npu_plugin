@@ -1114,6 +1114,56 @@ class ActKernel(MPE):
             return False
         return True
 
+class RaceConditionDMA(MPE):
+
+    PARAMS = ['mpe_op_class', 'input_ttype', 'output_ttype', 'iteration_count']
+
+    def __init__(self, settings):
+        self.settings = settings
+
+    def json_info(self, input, output):
+        return {
+            'case_type': 'RaceConditionDMA',
+            'input': input[0].json_info,
+            'output': output.json_info,
+            'iteration_count' : self.settings.iteration_count
+        }
+
+    def validate(self):
+        pass
+
+    @property
+    def ident(self) -> str:
+        return f'DMA_race_cond{self.settings.input_ttype.stype}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNCHW
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return OrderNCHW
+
+    @property
+    def data(self) -> dict:
+        return {
+            'MPE Mode': 'DMA_race_cond',
+            'Input Type': self.settings.input_ttype.stype,
+            'Output Type': self.settings.output_ttype.stype,
+            'Iteration Count': self.settings.iteration_count.stype
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', [1, 16, 16, 16], rng)
+        ]
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        lhs, _ = idu(values[0], values[0])
+        return lhs
+
+    def filter_issues(self, args) -> bool:
+        return True
 
 def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], bitshift: int) -> Value:
     """Models the hardware PPE"""
@@ -1433,6 +1483,16 @@ def genActShave(input_types,
                act_shave_subtypes):
     for (input_type, input_shape, output_type, act_shave_subtype) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes):
         yield DPUPipeline(ActKernel.PARAMS, (ActKernel, input_type, input_shape, output_type, act_shave_subtype))
+
+def genRaceConditionDMA(input_types=[FP16(2)],
+                        output_types=[FP16(2)],
+                        iteration_count=64):
+    for (input_type, output_type) in itertools.product(input_types, output_types):
+        yield DPUPipeline(RaceConditionDMA.PARAMS, (RaceConditionDMA,
+                                                    input_type,
+                                                    output_type,
+                                                    iteration_count
+                                                    ))
 
 def generate_options(args):
     return itertools.chain(
@@ -2006,6 +2066,11 @@ def generate_options(args):
             output_orders=[Order.NCHW],
             pads=[[0, 0, 0, 0]]),
 
+        genRaceConditionDMA(
+            input_types=[FP16(2)],
+            output_types=[FP16(2)],
+            iteration_count=64
+        ),
     )
 
 

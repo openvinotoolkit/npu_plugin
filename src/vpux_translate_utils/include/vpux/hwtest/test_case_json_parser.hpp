@@ -25,7 +25,17 @@
 #include <string>
 
 namespace nb {
-enum class CaseType { ZMajorConvolution, DepthWiseConv, EltwiseAdd, EltwiseMult, MaxPool, AvgPool, ActShave, Unknown };
+enum class CaseType {
+    ZMajorConvolution,
+    DepthWiseConv,
+    EltwiseAdd,
+    EltwiseMult,
+    MaxPool,
+    AvgPool,
+    ActShave,
+    RaceConditionDMA,
+    Unknown
+};
 
 std::string to_string(CaseType case_);
 CaseType to_case(llvm::StringRef str);
@@ -133,6 +143,9 @@ public:
     MVCNN::Permutation getODUPermutation() const {
         return odu_permutation_;
     }
+    std::size_t getIterationCount() const {
+        return iterationCount_;
+    }
 
 private:
     InputLayer loadInputLayer(llvm::json::Object* jsonObj);
@@ -143,6 +156,7 @@ private:
     ActivationLayer loadActivationLayer(llvm::json::Object* jsonObj);
     CaseType loadCaseType(llvm::json::Object* jsonObj);
     QuantParams loadQuantizationParams(llvm::json::Object* obj);
+    std::size_t loadIterationCount(llvm::json::Object* obj);
 
     CaseType caseType_;
     ConvLayer convLayer_;
@@ -156,6 +170,7 @@ private:
     std::string caseTypeStr_;
     vpux::VPU::PPEMode ppeLayerType_ = vpux::VPU::PPEMode::ADD;
     MVCNN::Permutation odu_permutation_ = MVCNN::Permutation::Permutation_ZXY;
+    std::size_t iterationCount_;
 };
 
 }  // namespace nb

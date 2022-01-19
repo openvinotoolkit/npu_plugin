@@ -164,6 +164,8 @@ std::string nb::to_string(CaseType case_) {
         return "AvgPool";
     case CaseType::ActShave:
         return "ActShave";
+    case CaseType::RaceConditionDMA:
+        return "RaceConditionDMA";
     default:
         return "unknown";
     }
@@ -185,6 +187,8 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
     if (isEqual(str, "ActShave")) {
         return CaseType::ActShave;
     }
+    if (isEqual(str, "RaceConditionDMA"))
+        return CaseType::RaceConditionDMA;
     return CaseType::Unknown;
 };
 
@@ -419,6 +423,10 @@ nb::ActivationLayer nb::TestCaseJsonDescriptor::loadActivationLayer(llvm::json::
     return result;
 }
 
+std::size_t nb::TestCaseJsonDescriptor::loadIterationCount(llvm::json::Object* jsonObj) {
+    return jsonObj->getInteger("iteration_count").getValue();
+}
+
 nb::TestCaseJsonDescriptor::TestCaseJsonDescriptor(llvm::StringRef jsonString) {
     if (!jsonString.empty()) {
         parse(jsonString);
@@ -490,6 +498,11 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
 
     if (caseType_ == CaseType::ActShave) {
         activationLayer_ = loadActivationLayer(json_obj);
+        return;
+    }
+
+    if (caseType_ == CaseType::RaceConditionDMA) {
+        iterationCount_ = loadIterationCount(json_obj);
         return;
     }
 
