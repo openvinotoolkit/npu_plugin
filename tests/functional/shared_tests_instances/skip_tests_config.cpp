@@ -222,6 +222,8 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*SetPreProcessToInputInfo.*",
                 ".*InferRequestPreprocess.*",
                 ".*HoldersTestOnImportedNetwork.*",
+                ".*HoldersTest.Orders.*",
+                ".*HoldersTestImportNetwork.Orders.*",
 
                 // Cannot compile network without explicit specifying of the platform in case of no devices
                 ".*OVExecGraphImportExportTest.*",
