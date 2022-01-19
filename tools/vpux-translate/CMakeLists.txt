@@ -25,6 +25,6 @@ vpux_enable_clang_format(${TARGET_NAME})
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux_utils
-        vpux_compiler_static
+        vpux_mlir_compiler_static
         vpux_translate_utils_static
 )

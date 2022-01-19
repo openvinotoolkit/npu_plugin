@@ -79,10 +79,10 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
 
     switch (compilerType) {
     case InferenceEngine::VPUXConfigParams::CompilerType::MCM: {
-        return std::make_shared<Compiler>(getLibFilePath("frontend_mcm"));
+        return std::make_shared<Compiler>(getLibFilePath("vpux_mcm_frontend"));
     }
     case InferenceEngine::VPUXConfigParams::CompilerType::MLIR: {
-        return std::make_shared<Compiler>(getLibFilePath("vpux_compiler"));
+        return std::make_shared<Compiler>(getLibFilePath("vpux_mlir_compiler"));
     }
     default:
         IE_THROW() << "Compiler type not found";

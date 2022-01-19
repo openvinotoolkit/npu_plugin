@@ -29,5 +29,5 @@ else()
     message("Consider upgrading to a newer version of CMake (at least 3.8.0)")
 endif()
 
-swig_link_libraries(composition_api ${PYTHON_LIBRARIES} mcmCompiler)
+swig_link_libraries(composition_api ${PYTHON_LIBRARIES} vpux_mcm_compiler)
 set_target_properties(${SWIG_MODULE_composition_api_REAL_NAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python/api")

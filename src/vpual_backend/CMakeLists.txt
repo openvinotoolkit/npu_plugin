@@ -15,9 +15,9 @@ if(ENABLE_LTO)
    ie_enable_lto()
 endif()
 
-set(TARGET_NAME "vpual_backend")
-set(OBJ_TARGET_NAME "vpual_backend_obj")
-set(STATIC_TARGET_NAME "vpual_backend_static")
+set(TARGET_NAME "vpux_vpual_backend")
+set(OBJ_TARGET_NAME "vpux_vpual_backend_obj")
+set(STATIC_TARGET_NAME "vpux_vpual_backend_static")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -48,7 +48,7 @@ target_link_libraries(${OBJ_TARGET_NAME}
     PRIVATE
         vpux_al
         kmb_utils
-        mcmCompiler)
+        vpux_mcm_compiler)
 
 add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}>)
 target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})

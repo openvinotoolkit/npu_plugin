@@ -45,7 +45,7 @@ if(BUILD_COMPILER_FOR_DRIVER)
 
     target_link_libraries(${TARGET_NAME}
         PRIVATE
-            vpux_compiler_static)
+            vpux_mlir_compiler_static)
 
     target_compile_definitions(${TARGET_NAME}
         PUBLIC

@@ -25,7 +25,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 list(FILTER SOURCES EXCLUDE REGEX "vpux_plugin.cpp")
 
-set(VPUX_PLUGIN_TARGET "VPUXPlugin" CACHE INTERNAL "")
+set(VPUX_PLUGIN_TARGET "ov_intel_vpux_plugin" CACHE INTERNAL "")
 set(VPUX_PLUGIN_OBJS_TARGET ${VPUX_PLUGIN_TARGET}_objs)
 set(VPUX_PLUGIN_STATIC_TARGET "${VPUX_PLUGIN_TARGET}_static" CACHE INTERNAL "")
 set(VPUX_PLUGIN_ENGINE_SOURCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/vpux_plugin.cpp CACHE INTERNAL "")
@@ -138,7 +138,7 @@ if(ENABLE_MCM_COMPILER)
             "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/mcm_config"
         COMMENT "[MCM Compiler] Copy config files"
     )
-    add_dependencies(${VPUX_PLUGIN_TARGET} frontend_mcm mcm_compiler_copy)
+    add_dependencies(${VPUX_PLUGIN_TARGET} vpux_mcm_frontend mcm_compiler_copy)
 endif()
 
 if(AARCH64)
@@ -185,7 +185,7 @@ if(ENABLE_HDDL2 AND UNIX)
             "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/config"
         COMMENT "[PCIe drivers] Copy driver packages"
     )
-    add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend pcie_drivers_copy)
+    add_dependencies(${VPUX_PLUGIN_TARGET} vpux_hddl2_backend pcie_drivers_copy)
 
     if(ENABLE_CUSTOM_HDDLUNITE)
         add_custom_target(hddlunite_components_copy ALL
@@ -199,7 +199,7 @@ if(ENABLE_HDDL2 AND UNIX)
                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
             COMMENT "[hddlunite components] Copy hddlunite components"
         )
-        add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend hddlunite_components_copy)
+        add_dependencies(${VPUX_PLUGIN_TARGET} vpux_hddl2_backend hddlunite_components_copy)
 
         if(EXISTS "/usr/lib/libXLink.so")
             add_custom_target(hddlunite_xlink_copy ALL
@@ -208,7 +208,7 @@ if(ENABLE_HDDL2 AND UNIX)
                     "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
                 COMMENT "[hddlunite xlink] Copy hddlunite xlink"
             )
-            add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend hddlunite_xlink_copy)
+            add_dependencies(${VPUX_PLUGIN_TARGET} vpux_hddl2_backend hddlunite_xlink_copy)
         endif()
     else()
         add_custom_target(hddl_unite_copy ALL
@@ -228,6 +228,6 @@ if(ENABLE_HDDL2 AND UNIX)
                 "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux_4/"
             COMMENT "[HDDL Unite] Copy libraries"
         )
-        add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend hddl_unite_copy)
+        add_dependencies(${VPUX_PLUGIN_TARGET} vpux_hddl2_backend hddl_unite_copy)
     endif()
 endif()

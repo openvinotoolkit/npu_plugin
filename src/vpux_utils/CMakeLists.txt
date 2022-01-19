@@ -60,7 +60,7 @@ link_system_libraries(${TARGET_NAME_RAW}
 )
 
 add_dependencies(${TARGET_NAME_RAW}
-    vpux_compiler_schema
+    vpux_mlir_compiler_schema
 )
 
 # make vpux_utils include LLVMSupport and depending on it libraries

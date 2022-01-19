@@ -17,7 +17,7 @@ if(ENABLE_HDDL2_TESTS)
         )
 
     set(HDDL2_LIBS
-            hddl2_backend_static
+            vpux_hddl2_backend_static
         )
 else()
     set(EXCLUDED_HDDL2_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hddl2_tests")
@@ -63,8 +63,8 @@ addIeTargetTest(
         kmb_utils
         vpux_al
         vpux_utils
-        vpux_compiler_static
-        frontend_mcm_static
+        vpux_mlir_compiler_static
+        vpux_mcm_frontend_static
         vpux_translate_utils_static
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
@@ -79,7 +79,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tests")
 add_dependencies(${TARGET_NAME} throw_test_backend vpu3700_test_backend no_devices_test_backend)
 
 if(AARCH64)
-    target_link_libraries(${TARGET_NAME} PRIVATE vpual_backend_static)
+    target_link_libraries(${TARGET_NAME} PRIVATE vpux_vpual_backend_static)
 endif()
 
 enable_warnings_as_errors(${TARGET_NAME})

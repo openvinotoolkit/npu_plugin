@@ -29,5 +29,5 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux_utils
-        vpux_compiler_static
+        vpux_mlir_compiler_static
 )

@@ -29,7 +29,7 @@ protected:
 };
 
 //------------------------------------------------------------------------------
-inline HDDL2Backend_Helper::HDDL2Backend_Helper() : _backend(getLibFilePath("hddl2_backend")) {}
+inline HDDL2Backend_Helper::HDDL2Backend_Helper() : _backend(getLibFilePath("vpux_hddl2_backend")) {}
 inline const std::shared_ptr<Device> HDDL2Backend_Helper::getDevice(const InferenceEngine::ParamMap& map) {
     return _backend.getDevice(map);
 }

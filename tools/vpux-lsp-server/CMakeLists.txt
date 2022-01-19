@@ -28,5 +28,5 @@ link_system_libraries(${TARGET_NAME}
 )
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        vpux_compiler_static
+        vpux_mlir_compiler_static
 )

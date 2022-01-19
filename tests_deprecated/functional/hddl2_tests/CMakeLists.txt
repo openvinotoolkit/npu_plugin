@@ -31,7 +31,7 @@ addIeTargetTest(
         IE::funcTestUtils
         IE::vpu_common_lib
         kmb_utils
-        frontend_mcm_static
+        vpux_mcm_frontend_static
         common_tests_helpers
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
@@ -44,5 +44,5 @@ if(OpenCV_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_core opencv_imgproc opencv_imgcodecs)
 endif()
 
-add_dependencies(${TARGET_NAME} ${VPUX_PLUGIN_TARGET} hddl2_backend)
+add_dependencies(${TARGET_NAME} ${VPUX_PLUGIN_TARGET} vpux_hddl2_backend)
 enable_warnings_as_errors(${TARGET_NAME})

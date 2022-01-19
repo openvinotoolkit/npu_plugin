@@ -332,7 +332,7 @@ set_source_files_properties(
         GENERATED TRUE
 )
 
-add_library(mcmCompiler SHARED
+add_library(vpux_mcm_compiler SHARED
     ${base} ${model} ${logger} ${pass} ${compiler} ${syscalls}
     "${META_DIR_PATH}/src/compositional_model.cpp"
     "${META_DIR_PATH}/src/op_model.cpp"
@@ -347,18 +347,18 @@ if (UNIX)
     )
 endif()
 
-set_target_properties(mcmCompiler PROPERTIES
+set_target_properties(vpux_mcm_compiler PROPERTIES
     VERSION "${PROJECT_VERSION}"
     SOVERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
 )
 
 if(MSVC)
-    set_target_properties(mcmCompiler PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+    set_target_properties(vpux_mcm_compiler PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 endif()
 
-add_dependencies(mcmCompiler mcmCompilerGenSchema mcmCompilerGenCompAPI)
+add_dependencies(vpux_mcm_compiler mcmCompilerGenSchema mcmCompilerGenCompAPI)
 
-target_include_directories(mcmCompiler
+target_include_directories(vpux_mcm_compiler
     PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -373,7 +373,7 @@ target_include_directories(mcmCompiler
         "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/include/"
 )
 
-target_link_libraries(mcmCompiler PUBLIC vpux_al PRIVATE flatbuffers)
+target_link_libraries(vpux_mcm_compiler PUBLIC vpux_al PRIVATE flatbuffers)
 
 if(ENABLE_MCM_COMPILER_PYTHON)
     add_subdirectory(python/api)
@@ -383,7 +383,7 @@ endif()
 # targets install
 #
 
-install(TARGETS mcmCompiler
+install(TARGETS vpux_mcm_compiler
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
 

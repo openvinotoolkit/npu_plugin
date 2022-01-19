@@ -15,9 +15,9 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME "frontend_mcm")
-set(OBJ_TARGET_NAME "frontend_mcm_obj")
-set(STATIC_TARGET_NAME "frontend_mcm_static")
+set(TARGET_NAME "vpux_mcm_frontend")
+set(OBJ_TARGET_NAME "vpux_mcm_frontend_obj")
+set(STATIC_TARGET_NAME "vpux_mcm_frontend_static")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -64,7 +64,7 @@ link_system_libraries(${OBJ_TARGET_NAME}
         IE::pugixml
         IE::ngraph_reference
         IE::vpu_common_lib
-        mcmCompiler
+        vpux_mcm_compiler
         flatbuffers
         vpux_ngraph_transformations
 )

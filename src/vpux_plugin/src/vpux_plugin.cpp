@@ -87,16 +87,16 @@ Engine::Engine()
     }
 #endif
 #if defined(_WIN32) || defined(_WIN64) || (defined(__linux__) && defined(__x86_64__))
-    backendRegistry.push_back("zero_backend");
+    backendRegistry.push_back("vpux_level_zero_backend");
 #endif
 #if defined(__arm__) || defined(__aarch64__)
-    backendRegistry.push_back("vpual_backend");
+    backendRegistry.push_back("vpux_vpual_backend");
 #endif
 #if defined(ENABLE_HDDL2)
-    backendRegistry.push_back("hddl2_backend");
+    backendRegistry.push_back("vpux_hddl2_backend");
 #endif
 #if defined(ENABLE_EMULATOR)
-    backendRegistry.push_back("emulator_backend");
+    backendRegistry.push_back("vpux_emulator_backend");
 #endif
 
     _backends = std::make_shared<VPUXBackends>(backendRegistry);
@@ -290,7 +290,7 @@ IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::str
     IE_THROW(NotImplemented);
 }
 
-static const IE::Version version = {{2, 1}, CI_BUILD_NUMBER, "VPUXPlugin"};
+static const IE::Version version = {{2, 1}, CI_BUILD_NUMBER, "ov_intel_vpux_plugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
 
 }  // namespace vpux

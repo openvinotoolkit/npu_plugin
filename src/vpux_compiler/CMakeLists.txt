@@ -13,7 +13,7 @@
 
 replace_noerror()
 
-set(TARGET_NAME "vpux_compiler")
+set(TARGET_NAME "vpux_mlir_compiler")
 set(TBLGEN_TARGET_NAME "${TARGET_NAME}_tblgen")
 set(SCHEMA_TARGET_NAME "${TARGET_NAME}_schema")
 set(DOCS_TARGET_NAME "${TARGET_NAME}_docs")

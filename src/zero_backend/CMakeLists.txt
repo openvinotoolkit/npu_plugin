@@ -15,7 +15,7 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME zero_backend)
+set(TARGET_NAME vpux_level_zero_backend)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -46,7 +46,7 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux_al
         kmb_utils
-        mcmCompiler)
+        vpux_mcm_compiler)
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)

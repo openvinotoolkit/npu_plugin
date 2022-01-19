@@ -8,5 +8,5 @@ add_executable(validate
     "validate.cpp"
 )
 
-target_link_libraries(validate gflags mcmCompiler)
-add_dependencies(validate mcmCompiler)
+target_link_libraries(validate gflags vpux_mcm_compiler)
+add_dependencies(validate vpux_mcm_compiler)
