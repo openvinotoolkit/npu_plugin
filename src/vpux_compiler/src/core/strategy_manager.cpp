@@ -21,29 +21,24 @@ StrategyManager::StrategyManager(mlir::FuncOp func, size_t numClusters, Logger l
 }
 
 // This channel major efficiency table is from the ArchBench tool
-std::map<double, std::map<int64_t,int64_t>> StrategyManager::channelMajorEfficiencyTable() {
-    return { {
-       { 0.165,  { {1, 3} } },
-       { 0.128,  { {2, 3} } },
-       { 0.128,  { {4, 3} } },
-       { 0.165,  { {6, 3} } },
-       { 0.483,  { {1, 5} } },
-       { 0.241,  { {2, 5} } },
-       { 0.132,  { {4, 5} } },
-       { 0.483,  { {6, 5} } },
-       { 0.6,    { {1, 7} } },
-       { 0.2965, { {2, 7} } },
-       { 0.15,   { {4, 7} } },
-       { 0.0395, { {6, 7} } },
-       { 0.8008, { {1, 9} } },
-       { 0.4687, { {2, 9} } },
-       { 0.2266, { {4, 9} } },
-       { 0.8008, { {6, 9} } },
-       { 0.9023, { {1, 11} } },
-       { 0.4687, { {2, 11} } },
-       { 0.2366, { {4, 11} } },
-       { 0.9023, { {6, 11} } },
-     } };
+std::map<int64_t, std::map<int64_t, double>> StrategyManager::depthwiseEfficiencyTable() {
+    return {{
+            {3, {{1, 0.165}, {2, 0.128}, {4, 0.128}, {6, 01.65}}},
+            {5, {{1, 0.483}, {2, 0.241}, {4, 0.132}, {6, 0.483}}},
+            {7, {{1, 0.6}, {2, 0.2965}, {4, 0.15}, {6, 0.0395}}},
+            {9, {{1, 0.8008}, {2, 0.4687}, {4, 0.2266}, {6, 0.8008}}},
+            {11, {{1, 0.9023}, {2, 0.4687}, {4, 0.2366}, {6, 0.9023}}},
+    }};
+}
+
+std::map<int64_t, std::map<int64_t, double>> StrategyManager::channelMajorEfficiencyTable() {
+    return {{
+            {3, {{1, 0.253}, {2, 0.183594}, {4, 0.183594}}},
+            {5, {{1, 0.535156}, {2, 0.2773}, {4, 0.152344}}},
+            {7, {{1, 0.6}, {2, 0.2965}, {4, 0.15}}},
+            {9, {{1, 0.8008}, {2, 0.4687}, {4, 0.2266}}},
+            {11, {{1, 0.9023}, {2, 0.4687}, {4, 0.2366}}},
+    }};
 }
 
 size_t StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
@@ -66,14 +61,23 @@ size_t StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                 double efficency = 0;
 
                 // Different efficency formula required for CM Conv and ZM Conv
+                // CM Conv
                 if (IC == 3) {
-                    auto constant = channelMajorEfficiencyTable()[strides[0]][KY];
-                    efficency = constant *
+                    auto efficiencyConstant = channelMajorEfficiencyTable()[KY][strides[0]];
+                    efficency = efficiencyConstant *
                                 std::max(outputTensorVolume / (16.0 * std::ceil(OH / 16.0) * 20.0 *
                                                                std::ceil(OW / 20.0) * 16.0 * std::ceil(OC / 16.0)),
                                          outputTensorVolume / (64.0 * std::ceil(OH / 64.0) * 5.0 * std::ceil(OW / 5.0) *
                                                                16.0 * std::ceil(OC / 16.0)));
+                    // ZM Conv
                 } else {
+                    efficency = std::max(
+                            ((OH / 4 * OW * OC) / (5 * std::ceil((4 * std::ceil(std::ceil(OH / 4) / 4) * 4 *
+                                                                  std::ceil(OW / 4) * 16 * std::ceil(OC / 16)) /
+                                                                 5))),
+                            ((OH / 4 * OW * OC) / (5 * std::ceil((16 * std::ceil(std::ceil(OH / 4) / 16) * 1 *
+                                                                  std::ceil(OW / 1) * 16 * std::ceil(OC / 16)) /
+                                                                 5))));
                 }
                 return efficency;
             })
@@ -94,14 +98,20 @@ size_t StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp origOp) {
                 const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
+                const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
+                const auto weightsType = op->getOperand(1).getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
+                const auto inputShape = getShape(inputType);
+                const auto weightsShape = getShape(weightsType);
                 const auto OC = outputShape[Dims4D::Act::C];
                 const auto OH = outputShape[Dims4D::Act::H];
                 const auto OW = outputShape[Dims4D::Act::W];
+                const auto KY = weightsShape[Dims4D::Filter::KY];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
 
                 double efficency = 0;
-                efficency = 0.483 * std::max(((OH / 4.0 * OW * OC) /
+                auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
+                efficency = efficiencyConstant * std::max(((OH / 4.0 * OW * OC) /
                                               (5.0 * std::ceil((4.0 * std::ceil(std::ceil(OH / 4.0) / 4.0) * 4 *
                                                                 std::ceil(OW / 4.0) * 16.0 * std::ceil(OC / 16)) /
                                                                5))),
@@ -121,17 +131,18 @@ size_t StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
     return llvm::TypeSwitch<mlir::Operation*, size_t>(op)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
                 const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
+                const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
+                const auto weightsType = op->getOperand(1).getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
+                const auto inputShape = getShape(inputType);
+                const auto weightsShape = getShape(weightsType);
                 const auto OC = outputShape[Dims4D::Act::C];
                 const auto OH = outputShape[Dims4D::Act::H];
                 const auto OW = outputShape[Dims4D::Act::W];
-                const double outputTensorVolume = OC * OH * OW;
+                const auto KY = weightsShape[Dims4D::Filter::KY];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-                const double efficency =
-                        0.183594 * std::max(outputTensorVolume / (16.0 * std::ceil(OH / 16.0) * 20.0 *
-                                                                  std::ceil(OW / 20.0) * 16.0 * std::ceil(OC / 16.0)),
-                                            outputTensorVolume / (64.0 * std::ceil(OH / 64.0) * 5.0 *
-                                                                  std::ceil(OW / 5.0) * 16.0 * std::ceil(OC / 16.0)));
+                const double outputTensorVolume = OC * OH * OW;
+                double efficency = std::max((outputTensorVolume/4)/(5*std::ceil((4*std::ceil(OH/4)*4*std::ceil(OW/4)*16*std::ceil(std::ceil(OC/4)/16))/5)),(outputTensorVolume/4)/(5*std::ceil((16*std::ceil(OH/16)*1*std::ceil(OW/1)*16*std::ceil(std::ceil(OC/4)/16))/5)));
                 return efficency;
             })
             .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp origOp) {
@@ -151,13 +162,22 @@ size_t StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp origOp) {
                 const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
+                const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
+                const auto weightsType = op->getOperand(1).getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
+                const auto inputShape = getShape(inputType);
+                const auto weightsShape = getShape(weightsType);
                 const auto OC = outputShape[Dims4D::Act::C];
                 const auto OH = outputShape[Dims4D::Act::H];
                 const auto OW = outputShape[Dims4D::Act::W];
+                const auto KY = weightsShape[Dims4D::Filter::KY];
+                const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
 
-                double efficency =
-                        0.483 * std::max(((OH / 4.0 * OW * OC) /
+                double efficency = 0;
+                auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
+
+                efficency =
+                        efficiencyConstant * std::max(((OH / 4.0 * OW * OC) /
                                           (5.0 * std::ceil((4.0 * std::ceil(std::ceil(OH / 4.0) / 4.0) * 4 *
                                                             std::ceil(OW / 4.0) * 16.0 * std::ceil(OC / 16)) /
                                                            5))),
@@ -184,6 +204,10 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                 .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
                     if (isOperationSplitOverHeightCompatible<IE::ConvolutionOp>(op)) {
                         _splitOverHeightEfficencies.insert({op, calculateSplitOverHeightEfficency(op)});
+                    }
+                    // Is operation SOK compatible
+                    if (isOperationSplitOverKernelCompatible<IE::ConvolutionOp>(op)) {
+                        _splitOverKernelEfficencies.insert({op, calculateSplitOverKernelEfficency(op)});
                     }
                 })
                 .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
