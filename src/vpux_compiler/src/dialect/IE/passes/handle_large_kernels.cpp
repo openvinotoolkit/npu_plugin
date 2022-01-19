@@ -182,6 +182,8 @@ public:
 
     mlir::LogicalResult matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
 
+    mlir::FailureOr<mlir::Value> splitAvgOperationSlicing(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const;
+
 private:
     Logger _log;
 };
@@ -207,14 +209,115 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, m
                                                   firstOpKernelAttr, firstOpPadBegin, firstOpPadEnd,
                                                   origOp.rounding_typeAttr(), origOp.exclude_padsAttr());
 
+    const auto firstOpOutputShapeType = firstOp.output().getType().cast<mlir::ShapedType>();
+    const auto firstOpOutputShape = firstOpOutputShapeType.getShape();
+
+    auto firstAvgPoolOutput = firstOp.output();
+    auto checkStrideRelation = [](const int64_t strideLeft, const int64_t strideRight) -> bool {
+        return strideLeft > strideRight && strideLeft % strideRight == 0;
+    };
+
+    bool useSplitAvgOperationSlicing =
+            checkStrideRelation(firstOpKernel[Dims4D::Strides::X.ind()], firstOpKernel[Dims4D::Strides::Y.ind()]) ||
+            checkStrideRelation(firstOpKernel[Dims4D::Strides::Y.ind()], firstOpKernel[Dims4D::Strides::X.ind()]);
+    if (useSplitAvgOperationSlicing) {
+        const auto concatOp = splitAvgOperationSlicing(firstOp, rewriter);
+        if (mlir::failed(concatOp)) {
+            return mlir::failure();
+        }
+        firstAvgPoolOutput = concatOp.getValue();
+    }
+
+    auto globalAvgOverH = firstOpOutputShape[Dims4D::Act::H.ind()] == sequencedOpKernel[0];
+    auto globalAvgOverW = firstOpOutputShape[Dims4D::Act::W.ind()] == sequencedOpKernel[1];
+    std::array<int64_t, 2> sequencedOpStrides = {1, 1};
+    if (!globalAvgOverH) {
+        sequencedOpStrides[0] = sequencedOpKernel[0];
+    }
+    if (!globalAvgOverW) {
+        sequencedOpStrides[1] = sequencedOpKernel[1];
+    }
+    const auto sequencedOpStridesAttr = getIntArrayAttr(ctx, makeArrayRef(sequencedOpStrides));
+
     calculatedPadding = {0, 0, 0, 0};
     const auto sequencedOpPadBegin = getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[2], calculatedPadding[0]}));
     const auto sequencedOpPadEnd = getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[3], calculatedPadding[1]}));
-    rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(origOp, origOp.getType(), firstOp.output(), sequencedOpKernelAttr,
-                                               sequencedOpKernelAttr, sequencedOpPadBegin, sequencedOpPadEnd,
+    rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(origOp, origOp.getType(), firstAvgPoolOutput, sequencedOpKernelAttr,
+                                               sequencedOpStridesAttr, sequencedOpPadBegin, sequencedOpPadEnd,
                                                origOp.rounding_typeAttr(), origOp.exclude_padsAttr());
 
     return mlir::success();
+}
+
+mlir::FailureOr<mlir::Value> AveragePoolRewriter::splitAvgOperationSlicing(IE::AvgPoolOp origOp,
+                                                                           mlir::PatternRewriter& rewriter) const {
+    auto ctx = origOp.getContext();
+    const auto inputShape = getShape(origOp.input());
+    const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+    if (strides[0] <= 0 || strides[1] <= 0) {
+        return errorAt(origOp->getLoc(), "Invalid stride value");
+    }
+    const auto minStride = std::min(strides[0], strides[1]);
+    const auto maxStride = std::max(strides[0], strides[1]);
+    auto paddingEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
+
+    // calculate the new stride for avg pooling
+    const auto newStrides = getIntArrayAttr(ctx, makeArrayRef({maxStride, maxStride}));
+
+    // try to slice the tensor into maxStride/minStride pieces on the dim with minStride, and don't need slice on the
+    // other dim
+    int64_t stepsH = (strides[1] + strides[0] - 1) / strides[0];  // the slice number on the height axis
+    int64_t stepsW = (strides[0] + strides[1] - 1) / strides[1];  // the slice number on the width axis
+
+    mlir::SmallVector<mlir::Value> wSliced;
+    for (auto i : irange(stepsW)) {  // slicing on the horizontal axis
+        mlir::SmallVector<mlir::Value> hSliced;
+        for (auto j : irange(stepsH)) {  // slicing on the vertical axis
+            Shape offsets(inputShape.size());
+            SmallVector<int64_t> slicePaddingEnd(2);
+
+            // calculate the offset for the slice
+            offsets[Dims4D::Act::H] = j * minStride;
+            offsets[Dims4D::Act::W] = i * minStride;
+            if (inputShape[Dims4D::Act::H] <= offsets[Dims4D::Act::H] ||
+                inputShape[Dims4D::Act::W] <= offsets[Dims4D::Act::W]) {
+                continue;
+            }
+
+            // calculate the shape of the slice
+            SmallVector<int64_t> sliceShape{inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C],
+                                            inputShape[Dims4D::Act::H] - offsets[Dims4D::Act::H],
+                                            inputShape[Dims4D::Act::W] - offsets[Dims4D::Act::W]};
+
+            const auto sliceName = llvm::formatv("slice {0}, {1}", i, j).str();
+            const auto loc = appendLoc(origOp->getLoc(), sliceName);
+
+            auto slicedInput = rewriter.create<IE::SliceOp>(
+                    loc, origOp->getOperand(0), getIntArrayAttr(ctx, offsets.raw()), getIntArrayAttr(ctx, sliceShape));
+
+            // create avg pooling for this slice with new symmetric stride
+            auto newOp = rewriter.create<IE::AvgPoolOp>(loc, slicedInput.result(), origOp.kernel_size(), newStrides,
+                                                        origOp.pads_begin(), origOp.pads_end(),
+                                                        origOp.rounding_typeAttr(), origOp.exclude_padsAttr());
+            hSliced.push_back(newOp->getResult(0));
+        }
+        if (!hSliced.empty()) {
+            // concatenate the slices if there are more than one slice on vertical axis, and store it in wSliced
+            wSliced.push_back(hSliced.size() != 1 ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), hSliced,
+                                                                                  Dims4D::Act::H, minStride, maxStride)
+                                                  : hSliced.front());
+        }
+    }
+    if (wSliced.empty()) {
+        return errorAt(origOp->getLoc(), "Empty slice for avgpool");
+    }
+
+    // concatenate the slices if there are more than one slice on horizontal axis
+    const auto concatOp = wSliced.size() != 1 ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), wSliced, Dims4D::Act::W,
+                                                                              minStride, maxStride)
+                                              : wSliced.front();
+    rewriter.replaceOp(origOp, concatOp);
+    return concatOp;
 }
 
 //
@@ -338,6 +441,8 @@ void HandleLargeKernelsPass::safeRunOnFunc() {
     };
 
     mlir::ConversionTarget target(ctx);
+    target.addLegalOp<IE::SliceOp>();
+    target.addLegalOp<IE::ConcatOp>();
     target.addDynamicallyLegalOp<IE::AvgPoolOp>([&](IE::AvgPoolOp op) {
         const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_size());
         if (hasSupportedKernels(kernelSize)) {

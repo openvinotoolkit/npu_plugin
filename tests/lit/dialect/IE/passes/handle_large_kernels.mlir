@@ -18,13 +18,13 @@ func @HandleLargeKernelsAvgPool(%arg0 : tensor<1x2048x23x30xf16>) -> (tensor<1x2
     // CHECK-SAME:      pads_end = [1, 0]
     // CHECK-SAME:      rounding_type = "FLOOR",
     // CHECK-SAME:      strides = [6, 6]
-    // CHECK-SAME:      : tensor<1x2048x23x30xf16> -> tensor<1x2048x4x5xf16> 
+    // CHECK-SAME:      : tensor<1x2048x23x30xf16> -> tensor<1x2048x4x5xf16>
     // CHECK:       IE.AvgPool
     // CHECK-SAME:      kernel_size = [4, 5]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
     // CHECK-SAME:      rounding_type = "FLOOR",
-    // CHECK-SAME:      strides = [4, 5]
+    // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      : tensor<1x2048x4x5xf16> -> tensor<1x2048x1x1xf16>
 }
 
@@ -72,19 +72,32 @@ func @HandleLargeKernelsXAvgPool(%arg0 : tensor<1x64x10x13xf16>) -> (tensor<1x64
     } : tensor<1x64x10x13xf16> -> tensor<1x64x10x1xf16>
 
     return %ave_pool : tensor<1x64x10x1xf16>
+    // CHECK:       IE.Slice
+    // CHECK-SAME:    tensor<1x64x10x13xf16> to tensor<1x64x10x13xf16>
     // CHECK:       IE.AvgPool
     // CHECK-SAME:      kernel_size = [1, 7]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 1]
     // CHECK-SAME:      rounding_type = "FLOOR",
-    // CHECK-SAME:      strides = [1, 7]
-    // CHECK-SAME:      : tensor<1x64x10x13xf16> -> tensor<1x64x10x2xf16> 
+    // CHECK-SAME:      strides = [7, 7]
+    // CHECK-SAME:      : tensor<1x64x10x13xf16> -> tensor<1x64x2x2xf16>
+    // CHECK:       IE.Slice
+    // CHECK-SAME:    tensor<1x64x10x13xf16> to tensor<1x64x9x13xf16>
+    // CHECK:       IE.AvgPool
+    // CHECK-SAME:      kernel_size = [1, 7]
+    // CHECK-SAME:      pads_begin = [0, 0]
+    // CHECK-SAME:      pads_end = [0, 1]
+    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      strides = [7, 7]
+    // CHECK-SAME:      : tensor<1x64x9x13xf16> -> tensor<1x64x2x2xf16>
+    // CHECK:       IE.Concat
+    // CHECK-SAME:      : tensor<1x64x2x2xf16>, tensor<1x64x2x2xf16>, tensor<1x64x2x2xf16>, tensor<1x64x1x2xf16>, tensor<1x64x1x2xf16>, tensor<1x64x1x2xf16>, tensor<1x64x1x2xf16> -> tensor<1x64x10x2xf16>
     // CHECK:       IE.AvgPool
     // CHECK-SAME:      kernel_size = [1, 2]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
     // CHECK-SAME:      rounding_type = "FLOOR",
-    // CHECK-SAME:      strides = [1, 2]
+    // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      : tensor<1x64x10x2xf16> -> tensor<1x64x10x1xf16>
 }
 
@@ -130,21 +143,33 @@ func @HandleLargeKernelsYAvgPool(%arg0 : tensor<1x64x13x10xf16>) -> (tensor<1x64
         rounding_type = "FLOOR",
         strides = [13, 1]
     } : tensor<1x64x13x10xf16> -> tensor<1x64x1x10xf16>
-
     return %ave_pool : tensor<1x64x1x10xf16>
+    // CHECK:       IE.Slice
+    // CHECK-SAME:    tensor<1x64x13x10xf16> to tensor<1x64x13x10xf16>
     // CHECK:       IE.AvgPool
     // CHECK-SAME:      kernel_size = [7, 1]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [1, 0]
     // CHECK-SAME:      rounding_type = "FLOOR",
-    // CHECK-SAME:      strides = [7, 1]
-    // CHECK-SAME:      : tensor<1x64x13x10xf16> -> tensor<1x64x2x10xf16> 
+    // CHECK-SAME:      strides = [7, 7]
+    // CHECK-SAME:      : tensor<1x64x13x10xf16> -> tensor<1x64x2x2xf16>
+    // CHECK:       IE.Slice
+    // CHECK-SAME:    tensor<1x64x13x10xf16> to tensor<1x64x13x9xf16>
+    // CHECK:       IE.AvgPool
+    // CHECK-SAME:      kernel_size = [7, 1]
+    // CHECK-SAME:      pads_begin = [0, 0]
+    // CHECK-SAME:      pads_end = [1, 0]
+    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      strides = [7, 7]
+    // CHECK-SAME:      : tensor<1x64x13x9xf16> -> tensor<1x64x2x2xf16>
+    // CHECK:       IE.Concat
+    // CHECK-SAME:      : tensor<1x64x2x2xf16>, tensor<1x64x2x2xf16>, tensor<1x64x2x2xf16>, tensor<1x64x2x1xf16>, tensor<1x64x2x1xf16>, tensor<1x64x2x1xf16>, tensor<1x64x2x1xf16> -> tensor<1x64x2x10xf16>
     // CHECK:       IE.AvgPool
     // CHECK-SAME:      kernel_size = [2, 1]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
     // CHECK-SAME:      rounding_type = "FLOOR",
-    // CHECK-SAME:      strides = [2, 1]
+    // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      : tensor<1x64x2x10xf16> -> tensor<1x64x1x10xf16>
 }
 
