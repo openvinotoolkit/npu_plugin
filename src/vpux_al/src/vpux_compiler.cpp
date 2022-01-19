@@ -84,7 +84,7 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
     case InferenceEngine::VPUXConfigParams::CompilerType::MLIR: {
         return std::make_shared<Compiler>(getLibFilePath("vpux_mlir_compiler"));
     }
-    case InferenceEngine::VPUXConfigParams::CompilerType::ZERO_ADAPTER: {
+    case InferenceEngine::VPUXConfigParams::CompilerType::VPUX_IN_DRIVER: {
         return std::make_shared<Compiler>(getLibFilePath("zero_compiler_adapter"));
     }
     default:

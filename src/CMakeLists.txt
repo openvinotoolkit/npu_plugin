@@ -47,8 +47,6 @@ if(ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(zero_backend)
 endif()
 
-# FIXME Should be inside BUILD_COMPILER_FOR_DRIVER ?
-add_subdirectory(zero_compiler_adapter)
 if(BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(VPUXCompilerL0)
 endif()
@@ -56,6 +54,10 @@ add_subdirectory(vpux_elf)
 # TODO: enable always as vpux compiler can be built in a pure static build
 if(NOT BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(vpux_plugin)
+endif()
+
+if (ENABLE_VPUX_IN_DRIVER)
+    add_subdirectory(zero_compiler_adapter)
 endif()
 
 add_subdirectory(vpux_utils)

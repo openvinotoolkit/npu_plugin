@@ -23,13 +23,13 @@ else()
     set(EXCLUDED_HDDL2_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hddl2_tests")
 endif()
 
-if(ENABLE_ZERO_COMPILER_ADAPTER)
-    set(ZERO_COMPILER_ADAPTER_UNIT_TESTS_DIR "")
-    set(ZERO_COMPILER_ADAPTER_LIBS
+if(ENABLE_VPUX_IN_DRIVER)
+    set(VPUX_IN_DRIVER_UNIT_TESTS_DIR "")
+    set(VPUX_IN_DRIVER_LIBS
             zero_compiler_adapter_static
         )
 else()
-    set(ZERO_COMPILER_ADAPTER_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/zero_compiler_adapter")
+    set(VPUX_IN_DRIVER_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/zero_compiler_adapter")
 endif()
 
 set(MCM_SCHEDULER_INCLUDES_DIR
@@ -51,7 +51,7 @@ endif()
 addIeTargetTest(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-    EXCLUDED_SOURCE_PATHS ${EXCLUDED_HDDL2_UNIT_TESTS_DIR} ${ZERO_COMPILER_ADAPTER_UNIT_TESTS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/kmb/test_utils
+    EXCLUDED_SOURCE_PATHS ${EXCLUDED_HDDL2_UNIT_TESTS_DIR} ${VPUX_IN_DRIVER_UNIT_TESTS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/kmb/test_utils
     INCLUDES
         ${HDDL2_INCLUDES}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
@@ -74,7 +74,7 @@ addIeTargetTest(
         vpux_mlir_compiler_static
         vpux_mcm_frontend_static
         vpux_translate_utils_static
-        ${ZERO_COMPILER_ADAPTER_LIBS}
+        ${VPUX_IN_DRIVER_LIBS}
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
     DEFINES

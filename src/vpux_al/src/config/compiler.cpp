@@ -38,8 +38,8 @@ StringLiteral vpux::stringifyEnum(CompilerType val) {
         return "MCM";
     case CompilerType::MLIR:
         return "MLIR";
-    case CompilerType::ZERO_ADAPTER:
-        return "ZERO_ADAPTER";
+    case CompilerType::VPUX_IN_DRIVER:
+        return "VPUX_IN_DRIVER";
     default:
         return "<UNKNOWN>";
     }
@@ -50,8 +50,8 @@ CompilerType vpux::COMPILER_TYPE::parse(StringRef val) {
         return CompilerType::MCM;
     } else if (val == VPUX_CONFIG_VALUE(MLIR)) {
         return CompilerType::MLIR;
-    } else if (val == VPUX_CONFIG_VALUE(ZERO_ADAPTER)) {
-        return CompilerType::ZERO_ADAPTER;
+    } else if (val == VPUX_CONFIG_VALUE(VPUX_IN_DRIVER)) {
+        return CompilerType::VPUX_IN_DRIVER;
     }
 
     VPUX_THROW("Value '{0}' is not a valid COMPILER_TYPE option", val);
