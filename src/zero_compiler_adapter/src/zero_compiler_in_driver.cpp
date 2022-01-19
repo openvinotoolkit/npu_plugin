@@ -114,8 +114,9 @@ size_t getDimCount(const IE::Layout layout) {
 // TODO Use log level to logger from config or global logger value
 // TODO Fix log messages and error handling. Throw instead of just return, since no error handling in return case.
 // TODO Copy-paste form adapter for most case
-LevelZeroCompilerInDriver::LevelZeroCompilerInDriver(): _logger("LevelZeroCompilerInDriver", LogLevel::Debug) {
-    _logger.debug("LevelZeroCompilerInDriver::LevelZeroCompilerInDriver");
+LevelZeroCompilerInDriver::LevelZeroCompilerInDriver(): _logger("LevelZeroCompilerInDriver", LogLevel::Error) {
+    // FIXME Return debug log level. This is only to make sure CID used
+    _logger.error("LevelZeroCompilerInDriver::LevelZeroCompilerInDriver");
     auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
     if (ZE_RESULT_SUCCESS != result) {
         std::cerr << "ZeroDevicesSingleton zeInit failed 0x" << std::hex << uint64_t(result) << std::dec << std::endl;

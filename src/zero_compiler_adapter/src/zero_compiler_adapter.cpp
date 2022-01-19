@@ -21,13 +21,13 @@ namespace vpux {
 namespace zeroCompilerAdapter {
 
 // FIXME Fix logger, incorrect log level
-LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(): _logger("LevelZeroCompilerAdapter", LogLevel::Debug) {
+LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(): _logger("LevelZeroCompilerAdapter", LogLevel::Error) {
     apiAdapter = std::make_shared<LevelZeroCompilerInDriver>();
 }
 
 // FIXME Fix logger, incorrect log level
 LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(const IExternalCompiler::Ptr& compilerAdapter)
-        : apiAdapter(compilerAdapter), _logger("LevelZeroCompilerAdapter", LogLevel::Debug) {
+        : apiAdapter(compilerAdapter), _logger("LevelZeroCompilerAdapter", LogLevel::Error) {
 }
 
 // TODO How to use inputsInfo, outputsInfo ?
