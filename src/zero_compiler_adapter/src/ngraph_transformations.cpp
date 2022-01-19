@@ -38,8 +38,6 @@ bool isFunctionSupported(const std::shared_ptr<const ngraph::Function>& netGraph
 }
 
 IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph) {
-    //    const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(new vpu::Logger(
-    //            "ngraphTransformations", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
     const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
     ngraph::pass::Manager manager(passConfig);
 
@@ -54,8 +52,6 @@ IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph) {
     xmlStream.read(xmlBlob.data(), xmlSize);
     weightsStream.read(weightsBlob.data(), weightsSize);
 
-    //    _logger->info("|| Timer ||;ngraphTransformations::serializeToIR (ms);\t{}",
-    //                  std::chrono::duration_cast<ms>(finish - start).count());
     return {xmlBlob, weightsBlob};
 }
 

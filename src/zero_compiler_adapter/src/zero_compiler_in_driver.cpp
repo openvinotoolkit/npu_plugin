@@ -117,7 +117,7 @@ size_t getDimCount(const IE::Layout layout) {
 LevelZeroCompilerInDriver::LevelZeroCompilerInDriver(): _logger("LevelZeroCompilerInDriver", LogLevel::Error) {
     // FIXME Return debug log level. This is only to make sure CID used
     _logger.error("LevelZeroCompilerInDriver::LevelZeroCompilerInDriver");
-    auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
+    auto result = zeInit(0);
     if (ZE_RESULT_SUCCESS != result) {
         std::cerr << "ZeroDevicesSingleton zeInit failed 0x" << std::hex << uint64_t(result) << std::dec << std::endl;
         return;
@@ -183,11 +183,6 @@ using SerializedIR = std::vector<uint8_t>;
 /**
  * @brief Place xml + weights in sequential memory
  * @details Format of the memory:
- *  1. Number of data element (now only xml + weights = 2)
- *  2. Size of data 1 (xml)
- *  3. Data 1
- *  4. Size of data 2 (weights)
- *  5. Data 2
  */
 SerializedIR LevelZeroCompilerInDriver::serializeIR(const std::vector<char>& xml, const std::vector<char>& weights) {
     const uint32_t maxNumberOfElements = 10;
@@ -351,12 +346,6 @@ LevelZeroCompilerInDriver::getNetworkMeta(ze_graph_handle_t graph_handle) {
             IE_THROW() << "Failed to get pfnGetArgumentProperties2";
         }
 
-        // ze_graph_argument_properties_t arg;
-        // result = _graph_ddi_table_ext->pfnGetArgumentProperties(_graph_handle, index, &arg);
-        // if (ZE_RESULT_SUCCESS != result) {
-        //     IE_THROW() << "Failed to get pfnGetArgumentProperties";
-        // }
-
         IE::Precision net_precision = toIEPrecision(arg.networkPrecision);
         IE::Layout net_layout = toIELayout(arg.networkLayout);
         IE::SizeVector net_dims(arg.dims, arg.dims + getDimCount(net_layout));
@@ -374,7 +363,7 @@ LevelZeroCompilerInDriver::getNetworkMeta(ze_graph_handle_t graph_handle) {
             dev_inputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, dev_dataDesc));
         }
 
-        // Same code
+        // FIXME Same code
         if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
             _logger.debug("Found output {}", arg.name);
 

@@ -26,7 +26,6 @@ struct IR {
  * @brief Interface for external compiler
  * @details Isolate external API calls from general logic
  */
-// TODO Should it also
 class IExternalCompiler {
 public:
     virtual ~IExternalCompiler() = default;

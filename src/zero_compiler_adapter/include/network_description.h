@@ -104,7 +104,6 @@ public:
     }
 
 private:
-    void* _handle;
     std::vector<char> _compiledNetwork;
 
     std::string _name;
