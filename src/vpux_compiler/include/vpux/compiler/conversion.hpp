@@ -96,6 +96,18 @@ std::unique_ptr<mlir::Pass> createConvertViewOps2VPUIPPass(Logger log = Logger::
 std::unique_ptr<mlir::Pass> createConvertAsyncOps2VPUIPPass(Logger log = Logger::global());
 
 //
+// LowerLinalg2VPUIP
+//
+
+//
+// Performs full lowering from the MLIR Linalg Dialect to VPUIP Dialect.
+//
+
+void buildLowerLinalg2VPUIPPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+
+std::unique_ptr<mlir::Pass> createConvertConv2D2VPUIPPass(Logger log = Logger::global());
+
+//
 // registerConversionPipelines
 //
 

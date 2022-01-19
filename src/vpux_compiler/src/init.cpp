@@ -21,6 +21,7 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Dialect/Async/IR/Async.h>
+#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -50,6 +51,7 @@ void vpux::registerDialects(mlir::DialectRegistry& registry) {
 
     registry.insert<mlir::StandardOpsDialect,          //
                     mlir::async::AsyncDialect,         //
+                    mlir::linalg::LinalgDialect,       //
                     mlir::memref::MemRefDialect,       //
                     mlir::quant::QuantizationDialect,  //
                     mlir::tensor::TensorDialect>();

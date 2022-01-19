@@ -56,6 +56,14 @@ void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, const LowerIERT
 }
 
 //
+// LowerLinalg2VPUIP
+//
+
+void vpux::buildLowerLinalg2VPUIPPipeline(mlir::OpPassManager& pm, Logger log) {
+    //pm.addPass(createConvertLinalg2VPUIPPass(log));
+}
+
+//
 // registerConversionPipelines
 //
 
@@ -70,4 +78,9 @@ void vpux::registerConversionPipelines() {
             [](mlir::OpPassManager& pm, const LowerIERT2VPUIPOptions& options) {
                 buildLowerIERT2VPUIPPipeline(pm, options);
             });
+
+    mlir::PassPipelineRegistration<>("lower-Linalg-to-IERT", "Performs full lowering from the Linalg Dialect to VPUIP Dialect",
+                                     [](mlir::OpPassManager& pm) {
+                                         buildLowerLinalg2VPUIPPipeline(pm);
+                                     });
 }

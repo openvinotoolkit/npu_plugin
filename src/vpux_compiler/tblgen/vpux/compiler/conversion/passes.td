@@ -209,4 +209,22 @@ def ConvertAsyncOps2VPUIP : PassBase<"convert-async-ops-to-VPUIP", "vpux::Functi
     ];
 }
 
+//=================================================================================
+// LowerLinalg2VPUIP
+//=================================================================================
+
+//
+// ConvertConv2D2VPUIP
+//
+
+def ConvertConv2D2VPUIP : PassBase<"convert-conv2d-to-VPUIP", "vpux::FunctionPass"> {
+    let summary = "Convert Linalg Conv2D Operation to VPUIP Dialect (UPA and DMA tasks)";
+
+    let constructor = "vpux::createConvertConv2D2VPUIPPass()";
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect",
+    ];
+}
+
 #endif
