@@ -47,7 +47,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, InferenceEngine::VPUXConf
 #endif
 
     static InferenceEngine::VPUXConfigParams::CompilerType defaultValue() {
-        // FIXME REMOVE BEFORE MERGE 
+        // FIXME REMOVE BEFORE MERGE
         return InferenceEngine::VPUXConfigParams::CompilerType::VPUX_IN_DRIVER;
     }
 
