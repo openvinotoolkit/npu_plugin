@@ -44,6 +44,7 @@ import sys
 import traceback
 import warnings
 from typing import Callable, List, Optional, Sequence, Union
+import numpy.ma as ma
 
 
 # TODO: Fix this awful hack, whose purpose in life is to point to where you've
@@ -58,6 +59,7 @@ else:
 
 from operators.compute_core import bfloat16
 from operators.vpu26 import Add, Mult, MTLConv2D, MaxPool, AveragePool
+from operators.vpu26 import HSwish, Sigmoid, Softmax
 from operators.platform.quantize_info import QuantizationInfo
 from operators.platform.quantized_tensor import NBQuantized
 from operators.platform.vpu26 import PlatformVPU26
@@ -620,6 +622,10 @@ class MPE(ABC):
     def apply(self, lhs: np.ndarray, rhs: np.ndarray) -> np.ndarray:
         pass
 
+    @abstractmethod 
+    def filter_issues(self, args) -> bool:
+        pass
+
 
 def shape_to_str(shape: Sequence[int]) -> str:
     return 'x'.join([str(d) for d in shape])
@@ -704,6 +710,9 @@ class ZMajorConvolution(MPE):
                         strides = self.settings.kernel_strides)
         result = c2d.inference(lhs, rhs)
         return result
+    
+    def filter_issues(self, args) -> bool:
+        return True
 
 
 class DepthWiseConv(MPE):
@@ -771,6 +780,9 @@ class DepthWiseConv(MPE):
                         group = self.settings.weight_shape[0])
         return c2d.inference(lhs, rhs)
 
+    def filter_issues(self, args) -> bool:
+        return True
+
 
 class EltwiseAdd(MPE):
 
@@ -830,6 +842,9 @@ class EltwiseAdd(MPE):
             return adder.add.inference(lhs, rhs)
         return adder.inference(lhs, rhs)
 
+    def filter_issues(self, args) -> bool:
+        return True
+
 
 class EltwiseMult(MPE):
 
@@ -884,6 +899,8 @@ class EltwiseMult(MPE):
             return multer.inference(lhs, rhs)
         return multer.functor(lhs, rhs)
 
+    def filter_issues(self, args) -> bool:
+        return True
 
 class Maxpool(MPE):
 
@@ -940,6 +957,9 @@ class Maxpool(MPE):
         lhs, rhs = idu(values[0], values[0])
         maxpool = MaxPool(kernel_shape=self.settings.kernel_shape, strides=self.settings.kernel_strides, pads=self.settings.kernel_pads)
         return maxpool.inference(lhs)
+
+    def filter_issues(self, args) -> bool:
+        return True
 
 
 class AvgPool(MPE):
@@ -999,6 +1019,100 @@ class AvgPool(MPE):
         lhs, rhs = idu(values[0], values[0])
         avgpool = AveragePool(kernel_shape=self.settings.kernel_shape, strides=self.settings.kernel_strides, pads=[0, 0, 0, 0])
         return avgpool.inference(lhs)
+
+    def filter_issues(self, args) -> bool:
+        return True
+
+
+class ActivationType(Enum):
+    HSwish = auto()
+    Sigmoid = auto()
+    Softmax = auto()
+
+class ActKernel(MPE):
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'activation_type']
+
+    def __init__(self, settings):
+        self.settings = settings
+        self.issues = set()
+        if self.settings.activation_type[0] == ActivationType.Sigmoid :
+            self.issues.add('EISW-29771')
+        if self.settings.activation_type[0] == ActivationType.Softmax :
+            self.issues.add('EISW-29771')
+            self.issues.add('EISW-29786')
+        
+
+    @property
+    def ident(self) -> str:
+        name = self.settings.activation_type[0].name
+        ident = f'act_kernel_{name}_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}'
+        if self.settings.activation_type[0] == ActivationType.Softmax :
+            ident += f'_axis_{self.settings.activation_type[1]}'
+        return ident
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def data(self) -> dict:
+        return {
+            'MPE Mode': 'HSwish',
+            'Input Type': self.settings.input_ttype.stype,
+            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
+            'Output Type': self.settings.output_ttype.stype
+        }
+
+    def validate(self):
+        return True
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
+        ]
+
+    def json_info(self, inputs, output):
+        assert(output.is_float)
+
+        json = {
+            'case_type': 'ActShave',
+            'input': inputs[0].json_info,
+            'output': output.json_info,
+            'activation': {
+                'name' : self.settings.activation_type[0].name
+            }
+        }
+        if self.settings.activation_type[0] == ActivationType.Softmax :
+            json['activation']['axis']=self.settings.activation_type[1]
+
+        return json
+        
+    def apply(self, values: List[Value]) -> np.ndarray:
+        if self.settings.activation_type[0] == ActivationType.HSwish :
+            result = HSwish().inference(values[0].data.astype(np.float32))
+        elif self.settings.activation_type[0] == ActivationType.Sigmoid :
+            result = Sigmoid().inference(values[0].data.astype(np.float32))
+        elif self.settings.activation_type[0] == ActivationType.Softmax :
+            result = Softmax(axis=self.settings.activation_type[1]).inference(values[0].data.astype(np.float32))
+        else :
+            raise Error(f'Unsupported Act-shave sub-type: {self.settings.activation_type[0].name}')
+        
+        result = ma.getdata(result)
+
+        return result
+
+    def filter_issues(self, args) -> bool:
+        if 'EISW-29771' in self.issues:
+            # Filter not bit-exact comparision issues
+            return False
+        if 'EISW-29786' in self.issues:
+            # Filter incorrect tensor serialization issues
+            return False
+        return True
 
 
 def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], bitshift: int) -> Value:
@@ -1091,9 +1205,6 @@ class DPUPipeline:
     def value(self):
         return {
             **self.mpe_op.json_info(self.inputs, self.o),
-            'activation': {
-                'name': None
-            }
         }
 
 
@@ -1125,7 +1236,7 @@ class Pad:
 
 def filter_issues(args, p: DPUPipeline) -> bool:
     # TODO: Add arguments to selectively filter by issues.
-    return True
+    return p.mpe_op.filter_issues(args)
 
 
 _ZMCONV_VALID_WEIGHT_TYPES = {
@@ -1316,9 +1427,28 @@ def genDepthWiseConvs(input_types=[FP16(2)],
                                                      pad
                                                      ))
 
+def genActShave(input_types,
+               input_shapes,
+               output_types,
+               act_shave_subtypes):
+    for (input_type, input_shape, output_type, act_shave_subtype) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes):
+        yield DPUPipeline(ActKernel.PARAMS, (ActKernel, input_type, input_shape, output_type, act_shave_subtype))
 
 def generate_options(args):
     return itertools.chain(
+        # ActShave
+        genActShave(
+            input_types=[FP16(0)],
+            input_shapes=[[1, 10, 2, 3],  [1, 1000, 1, 1], [1, 1, 1000, 1], [1, 1, 1, 1000]],
+            output_types=[FP16()],
+            act_shave_subtypes=[
+                [ActivationType.HSwish],
+                [ActivationType.Sigmoid], # - Sigmoid testcase fails on. Inference result is close enough to NumericBench reference, but not bit-exact
+                [ActivationType.Softmax, 1],  # axis C
+                [ActivationType.Softmax, 2],  # axis H
+                [ActivationType.Softmax, 3],  # axis W
+            ]),
+
         # Z-Major Convolution
         #
         # NB MoviSim seems to require uint8 activations when using uint8

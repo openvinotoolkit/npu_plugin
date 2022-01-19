@@ -112,6 +112,15 @@ nb::ActivationType nb::to_activation_type(llvm::StringRef str) {
     if (isEqual(str, "Mish")) {
         return nb::ActivationType::Mish;
     }
+    if (isEqual(str, "HSwish")) {
+        return nb::ActivationType::HSwish;
+    }
+    if (isEqual(str, "Sigmoid")) {
+        return nb::ActivationType::Sigmoid;
+    }
+    if (isEqual(str, "Softmax")) {
+        return nb::ActivationType::Softmax;
+    }
 
     return nb::ActivationType::Unknown;
 }
@@ -128,6 +137,12 @@ std::string nb::to_string(nb::ActivationType activationType) {
         return "LeakyReLU";
     case ActivationType::Mish:
         return "Mish";
+    case ActivationType::HSwish:
+        return "HSwish";
+    case ActivationType::Sigmoid:
+        return "Sigmoid";
+    case ActivationType::Softmax:
+        return "Softmax";
     default:
         return "Unknown";
     }
@@ -147,6 +162,8 @@ std::string nb::to_string(CaseType case_) {
         return "MaxPool";
     case CaseType::AvgPool:
         return "AvgPool";
+    case CaseType::ActShave:
+        return "ActShave";
     default:
         return "unknown";
     }
@@ -165,6 +182,9 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::MaxPool;
     if (isEqual(str, "AvgPool"))
         return CaseType::AvgPool;
+    if (isEqual(str, "ActShave")) {
+        return CaseType::ActShave;
+    }
     return CaseType::Unknown;
 };
 
@@ -391,6 +411,11 @@ nb::ActivationLayer nb::TestCaseJsonDescriptor::loadActivationLayer(llvm::json::
         result.maximum = maximum.getValue();
     }
 
+    auto axis = act->getNumber("axis");
+    if (axis.hasValue()) {
+        result.axis = vpux::checked_cast<size_t>(axis.getValue());
+    }
+
     return result;
 }
 
@@ -463,7 +488,12 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
         return;
     }
 
-    throw std::runtime_error{llvm::formatv("Unsupported case type: {0}", caseTypeStr_).str()};
+    if (caseType_ == CaseType::ActShave) {
+        activationLayer_ = loadActivationLayer(json_obj);
+        return;
+    }
+
+    throw std::runtime_error{llvm::formatv("Unsupported case type: {0} 1", caseTypeStr_).str()};
 }
 
 nb::CaseType nb::TestCaseJsonDescriptor::loadCaseType(llvm::json::Object* jsonObj) {

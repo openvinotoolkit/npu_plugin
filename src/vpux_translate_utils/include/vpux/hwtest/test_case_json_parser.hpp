@@ -25,7 +25,7 @@
 #include <string>
 
 namespace nb {
-enum class CaseType { ZMajorConvolution, DepthWiseConv, EltwiseAdd, EltwiseMult, MaxPool, AvgPool, Unknown };
+enum class CaseType { ZMajorConvolution, DepthWiseConv, EltwiseAdd, EltwiseMult, MaxPool, AvgPool, ActShave, Unknown };
 
 std::string to_string(CaseType case_);
 CaseType to_case(llvm::StringRef str);
@@ -83,7 +83,7 @@ struct OutputLayer {
     QuantParams qp;
 };
 
-enum class ActivationType { None, ReLU, ReLUX, LeakyReLU, Mish, Unknown };
+enum class ActivationType { None, ReLU, ReLUX, LeakyReLU, Mish, HSwish, Sigmoid, Softmax, Unknown };
 
 ActivationType to_activation_type(llvm::StringRef str);
 std::string to_string(ActivationType activationType);
@@ -92,6 +92,7 @@ struct ActivationLayer {
     ActivationType activationType = ActivationType::None;
     double alpha = 0.;
     double maximum = 0;
+    size_t axis = 0;
     // TODO: add support for activation functions that take parameters
 };
 
@@ -125,7 +126,7 @@ public:
     }
     std::string getCaseStr() const {
         return caseTypeStr_;
-    };
+    }
     vpux::VPU::PPEMode getPPELayerType() const {
         return ppeLayerType_;
     }
