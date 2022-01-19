@@ -19,6 +19,43 @@
 #include "vpux/utils/core/checked_cast.hpp"
 namespace vpux {
 
+class OperationEfficiencyTable {
+    using tableMap = std::map<int, std::map<int, int>>;
+    tableMap operationEfficiencyTable;
+
+    class proxy {
+        const std::map<int, int>& mMap;
+
+    public:
+        proxy(const std::map<int, int>& m): mMap(m) {
+        }
+
+        int operator[](int x) const {
+            std::map<int, int>::const_iterator iter = mMap.find(x);
+            if (iter == mMap.end()) {
+                VPUX_THROW("Unable to find value '{0}' in oepration efficency table", x);
+            } else {
+                return iter->second;
+            }
+        }
+    };
+
+public:
+    OperationEfficiencyTable() {
+    }
+    OperationEfficiencyTable(const std::map<int, std::map<int, int>>& o) : operationEfficiencyTable(o) {}
+
+    proxy operator[](int x) const {
+        std::map<int, std::map<int, int>>::const_iterator iter = operationEfficiencyTable.find(x);
+        if (iter == operationEfficiencyTable.end()) {
+            VPUX_THROW("Unable to find value '{0}' in oepration efficency table", x);
+        } else {
+            return proxy(iter->second);
+        }
+    }
+};
+
+
 //
 // StrategyManager
 //
@@ -37,6 +74,7 @@ private:
     bool isOperationSplitOverKernelCompatible(ConcreteOp op);
     size_t calculateSplitOverHeightEfficency(mlir::Operation* op);
     size_t calculateSplitOverKernelEfficency(mlir::Operation* op);
+    std::map<double, std::map<int64_t,int64_t>> channelMajorEfficiencyTable();
 
     const size_t _minimumHeightForSOH = 20;
     const size_t _minimumOutputChannelsPerCluster = 16;
