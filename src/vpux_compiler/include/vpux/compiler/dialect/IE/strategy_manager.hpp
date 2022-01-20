@@ -19,6 +19,10 @@
 #include "vpux/utils/core/checked_cast.hpp"
 namespace vpux {
 
+constexpr llvm::StringLiteral multiClusterStrategyAttrName = "multiClusterStrategy";
+
+enum class MULTI_CLUSTER_STRATEGY { Clustering, SplitOverH, SplitOverK };
+
 class OperationEfficiencyTable {
     using tableMap = std::map<int, std::map<int, int>>;
     tableMap operationEfficiencyTable;
@@ -43,7 +47,8 @@ class OperationEfficiencyTable {
 public:
     OperationEfficiencyTable() {
     }
-    OperationEfficiencyTable(const std::map<int, std::map<int, int>>& o) : operationEfficiencyTable(o) {}
+    OperationEfficiencyTable(const std::map<int, std::map<int, int>>& o): operationEfficiencyTable(o) {
+    }
 
     proxy operator[](int x) const {
         std::map<int, std::map<int, int>>::const_iterator iter = operationEfficiencyTable.find(x);
@@ -54,7 +59,6 @@ public:
         }
     }
 };
-
 
 //
 // StrategyManager
@@ -74,6 +78,7 @@ private:
     bool isOperationSplitOverKernelCompatible(ConcreteOp op);
     size_t calculateSplitOverHeightEfficency(mlir::Operation* op);
     size_t calculateSplitOverKernelEfficency(mlir::Operation* op);
+    void assignMultiClusterStrategy(mlir::Operation* op);
     std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable();
     std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable();
 

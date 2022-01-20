@@ -111,14 +111,15 @@ size_t StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
 
                 double efficency = 0;
                 auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
-                efficency = efficiencyConstant * std::max(((OH / 4.0 * OW * OC) /
-                                              (5.0 * std::ceil((4.0 * std::ceil(std::ceil(OH / 4.0) / 4.0) * 4 *
-                                                                std::ceil(OW / 4.0) * 16.0 * std::ceil(OC / 16)) /
-                                                               5))),
-                                             ((OH / 4.0 * OW * OC) /
-                                              (5.0 * std::ceil((16.0 * std::ceil(std::ceil(OH / 4.0) / 16.0) * 1.0 *
-                                                                std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
-                                                               5.0))));
+                efficency = efficiencyConstant *
+                            std::max(((OH / 4.0 * OW * OC) /
+                                      (5.0 * std::ceil((4.0 * std::ceil(std::ceil(OH / 4.0) / 4.0) * 4 *
+                                                        std::ceil(OW / 4.0) * 16.0 * std::ceil(OC / 16)) /
+                                                       5))),
+                                     ((OH / 4.0 * OW * OC) /
+                                      (5.0 * std::ceil((16.0 * std::ceil(std::ceil(OH / 4.0) / 16.0) * 1.0 *
+                                                        std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
+                                                       5.0))));
                 return efficency;
             })
             .Default([](mlir::Operation* unknownOp) {
@@ -142,7 +143,13 @@ size_t StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 const auto KY = weightsShape[Dims4D::Filter::KY];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
                 const double outputTensorVolume = OC * OH * OW;
-                double efficency = std::max((outputTensorVolume/4)/(5*std::ceil((4*std::ceil(OH/4)*4*std::ceil(OW/4)*16*std::ceil(std::ceil(OC/4)/16))/5)),(outputTensorVolume/4)/(5*std::ceil((16*std::ceil(OH/16)*1*std::ceil(OW/1)*16*std::ceil(std::ceil(OC/4)/16))/5)));
+                double efficency = std::max(
+                        (outputTensorVolume / 4) / (5 * std::ceil((4 * std::ceil(OH / 4) * 4 * std::ceil(OW / 4) * 16 *
+                                                                   std::ceil(std::ceil(OC / 4) / 16)) /
+                                                                  5)),
+                        (outputTensorVolume / 4) / (5 * std::ceil((16 * std::ceil(OH / 16) * 1 * std::ceil(OW / 1) *
+                                                                   16 * std::ceil(std::ceil(OC / 4) / 16)) /
+                                                                  5)));
                 return efficency;
             })
             .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp origOp) {
@@ -176,15 +183,15 @@ size_t StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 double efficency = 0;
                 auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
 
-                efficency =
-                        efficiencyConstant * std::max(((OH / 4.0 * OW * OC) /
-                                          (5.0 * std::ceil((4.0 * std::ceil(std::ceil(OH / 4.0) / 4.0) * 4 *
-                                                            std::ceil(OW / 4.0) * 16.0 * std::ceil(OC / 16)) /
-                                                           5))),
-                                         ((OH / 4.0 * OW * OC) /
-                                          (5.0 * std::ceil((16.0 * std::ceil(std::ceil(OH / 4.0) / 16.0) * 1.0 *
-                                                            std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
-                                                           5.0))));
+                efficency = efficiencyConstant *
+                            std::max(((OH / 4.0 * OW * OC) /
+                                      (5.0 * std::ceil((4.0 * std::ceil(std::ceil(OH / 4.0) / 4.0) * 4 *
+                                                        std::ceil(OW / 4.0) * 16.0 * std::ceil(OC / 16)) /
+                                                       5))),
+                                     ((OH / 4.0 * OW * OC) /
+                                      (5.0 * std::ceil((16.0 * std::ceil(std::ceil(OH / 4.0) / 16.0) * 1.0 *
+                                                        std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
+                                                       5.0))));
 
                 return efficency;
             })
@@ -192,6 +199,28 @@ size_t StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 VPUX_THROW("Operation is not supported by the NCE");
                 return 0;
             });
+}
+
+void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
+    auto strategy = MULTI_CLUSTER_STRATEGY::Clustering;
+    auto splitOverHeightEfficency = _splitOverHeightEfficencies.find(op);
+    auto splitOverKernelEfficency = _splitOverKernelEfficencies.find(op);
+
+    if (splitOverHeightEfficency == _splitOverHeightEfficencies.end()) {
+        if (splitOverKernelEfficency != _splitOverKernelEfficencies.end()) {
+            strategy = MULTI_CLUSTER_STRATEGY::SplitOverK;
+        }
+    } else if (splitOverKernelEfficency == _splitOverKernelEfficencies.end()) {
+        strategy = MULTI_CLUSTER_STRATEGY::SplitOverH;
+    } else {
+        strategy = splitOverHeightEfficency->second > splitOverKernelEfficency->second
+                           ? MULTI_CLUSTER_STRATEGY::SplitOverH
+                           : MULTI_CLUSTER_STRATEGY::SplitOverK;
+    }
+
+    op->setAttr(multiClusterStrategyAttrName, getIntAttr(op->getContext(), (unsigned)strategy));
+    _log.trace("Add multi cluster strategy '{0}' to '{1}'",
+               op->getAttr(multiClusterStrategyAttrName).cast<mlir::IntegerAttr>().getInt(), op->getName());
 }
 
 void StrategyManager::computeOptimalMultiClusterStrategy() {
@@ -209,6 +238,7 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     if (isOperationSplitOverKernelCompatible<IE::ConvolutionOp>(op)) {
                         _splitOverKernelEfficencies.insert({op, calculateSplitOverKernelEfficency(op)});
                     }
+                    assignMultiClusterStrategy(op);
                 })
                 .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
                     // Is operation SOH compatible
@@ -219,6 +249,7 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     if (isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
                         _splitOverKernelEfficencies.insert({op, calculateSplitOverKernelEfficency(op)});
                     }
+                    assignMultiClusterStrategy(op);
                 });
     };
 
