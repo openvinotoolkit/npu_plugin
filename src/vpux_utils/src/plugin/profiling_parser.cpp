@@ -467,7 +467,8 @@ void vpux::getLayerProfilingInfo(const void* data, size_t data_len, const void* 
         });
         if (result == end(layerInfo)) {
             ProfilingLayerInfo info = ProfilingLayerInfo();
-            strncpy(info.name, task.name, sizeof(ProfilingLayerInfo::name) - 1);
+            strncpy(info.name, task.name, sizeof(ProfilingLayerInfo::name));
+            info.name[sizeof(info.name) - 1] = '\0';
             info.status = ProfilingLayerInfo::layer_status_t::EXECUTED;
             info.start_time_ns = task.start_time_ns;
             info.duration_ns = 0;
@@ -487,11 +488,13 @@ void vpux::getLayerProfilingInfo(const void* data, size_t data_len, const void* 
 
         if (task.exec_type == ProfilingTaskInfo::exec_type_t::DPU) {
             layer->dpu_ns += task.duration_ns;
-            strncpy(layer->layer_type, task.layer_type, sizeof(ProfilingLayerInfo::layer_type) - 1);
+            strncpy(layer->layer_type, task.layer_type, sizeof(ProfilingLayerInfo::layer_type));
+            layer->layer_type[sizeof(layer->layer_type) - 1] = '\0';
         }
         if (task.exec_type == ProfilingTaskInfo::exec_type_t::SW) {
             layer->sw_ns += task.duration_ns;
-            strncpy(layer->layer_type, task.layer_type, sizeof(ProfilingLayerInfo::layer_type) - 1);
+            strncpy(layer->layer_type, task.layer_type, sizeof(ProfilingLayerInfo::layer_type));
+            layer->layer_type[sizeof(layer->layer_type) - 1] = '\0';
         }
         if (task.exec_type == ProfilingTaskInfo::exec_type_t::DMA) {
             layer->dma_ns += task.duration_ns;
