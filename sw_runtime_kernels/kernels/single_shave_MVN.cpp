@@ -5,8 +5,8 @@
 #else
 #define nnLog(level, ...)
 #endif
-#include <mvSubspaces.h>
 #include <moviVectorConvert.h>
+#include <mvSubspaces.h>
 
 #include <math.h>
 #include <moviVectorTypes.h>
@@ -139,8 +139,8 @@ void mvMVN_1(t_MvMVNParamNClasses* p) {
     float* intermedia_mean = p->intermedia_mean;
 
     for (int c = 0; c < C; ++c) {
-        intermedia_mean[c * nShaves] = 0;
-        intermedia_mean[buf_size + c * nShaves] = 0;
+        intermedia_mean[c] = 0;
+        intermedia_mean[buf_size + c] = 0;
     }
 
     if (order == ND_HWC || order == ND_NHWC) {
@@ -153,17 +153,15 @@ void mvMVN_1(t_MvMVNParamNClasses* p) {
                 calc_mean_var_NHWC_fp16(line, W, C, stride, intermedia_mean, buf_size);
             }
         }
-    } else {
+    } else {  // order = ND_CHW || order == ND_NCHW
         for (int c = 0; c < C; c++) {
-            int index = c * nShaves;
-
             for (int h = 0; h < H; h++) {
                 half* line = input + c * H * stride + h * stride;
 
                 if (!normalize_variance) {
-                    calc_mean_CHW_fp16(line, W, intermedia_mean, index);
+                    calc_mean_CHW_fp16(line, W, intermedia_mean, c);
                 } else {
-                    calc_mean_var_CHW_fp16(line, W, intermedia_mean, index, buf_size);
+                    calc_mean_var_CHW_fp16(line, W, intermedia_mean, c, buf_size);
                 }
             }
         }
@@ -192,33 +190,57 @@ void mvMVN_23(t_MvMVNParamNClasses* p) {
     float mean;
     float variance;
 
-    for (int c = 0; c < C; c++) {
-        float m_acc;
-        float v_acc;
+    if (order == ND_HWC || order == ND_NHWC) {
+        for (int c = 0; c < C; c++) {
+            float m_acc;
+            float v_acc;
 
-        m_acc = mean_part[c];
-        v_acc = variance_part[c];
-        m_acc = m_acc / (H * W);
-        v_acc = v_acc / (H * W);
-        v_acc = v_acc - m_acc * m_acc;
-        v_acc = v_acc < 0 ? 1.f : v_acc;
-        v_acc = sqrtf(v_acc) + epsilon;
+            m_acc = mean_part[c];
+            v_acc = variance_part[c];
+            m_acc = m_acc / (H * W);
+            v_acc = v_acc / (H * W);
+            v_acc = v_acc - m_acc * m_acc;
+            v_acc = v_acc < 0 ? 1.f : v_acc;
+            v_acc = sqrtf(v_acc) + epsilon;
 
-        mean = m_acc;
-        variance = 1.f / v_acc;
+            mean = m_acc;
+            variance = 1.f / v_acc;
 
-        for (int h = 0; h < H; h++) {
-            for (int w = 0; w < W; w++) {
-                int offset;
-                if (order == ND_HWC || order == ND_NHWC) {
-                    offset = h * W * stride + w * stride + c;
-                } else {
-                    offset = c * H * stride + h * stride + w;
+            for (int h = 0; h < H; h++) {
+                for (int w = 0; w < W; w++) {
+                    int offset = h * W * stride + w * stride + c;
+
+                    output[offset] = input[offset] - mean;
+                    if (normalize_variance) {
+                        output[offset] = output[offset] * variance;
+                    }
                 }
+            }
+        }
+    } else {  // order = ND_CHW || order == ND_NCHW
+        for (int c = 0; c < C; c++) {
+            float m_acc;
+            float v_acc;
 
-                output[offset] = input[offset] - mean;
-                if (normalize_variance) {
-                    output[offset] = output[offset] * variance;
+            m_acc = mean_part[c];
+            v_acc = variance_part[c];
+            m_acc = m_acc / (H * W);
+            v_acc = v_acc / (H * W);
+            v_acc = v_acc - m_acc * m_acc;
+            v_acc = v_acc < 0 ? 1.f : v_acc;
+            v_acc = sqrtf(v_acc) + epsilon;
+
+            mean = m_acc;
+            variance = 1.f / v_acc;
+
+            for (int h = 0; h < H; h++) {
+                for (int w = 0; w < W; w++) {
+                    int offset = c * H * stride + h * stride + w;
+
+                    output[offset] = input[offset] - mean;
+                    if (normalize_variance) {
+                        output[offset] = output[offset] * variance;
+                    }
                 }
             }
         }
