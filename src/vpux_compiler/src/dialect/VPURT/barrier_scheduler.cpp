@@ -74,22 +74,22 @@ void BarrierScheduler::populateTasksUpdateWaitBarrierMap(barrierWaitMapType& bar
     size_t virtualBarrierCount = barrierOpWaitMap.size();
     taskOpWaitMap.resize(_taskCount);
     for (auto& wait : taskOpWaitMap) {
-        wait.resize(virtualBarrierCount);
+        wait.resize((unsigned)virtualBarrierCount);
     }
 
     taskOpUpdateMap.resize(_taskCount);
     for (auto& update : taskOpUpdateMap) {
-        update.resize(virtualBarrierCount);
+        update.resize((unsigned)virtualBarrierCount);
     }
 
-    for (size_t ind = 0; ind < barrierOpWaitMap.size(); ind++) {
+    for (unsigned ind = 0; ind < barrierOpWaitMap.size(); ind++) {
         auto waitMap = barrierOpWaitMap[ind].set_bits();
         for (auto wait : waitMap) {
             taskOpUpdateMap[wait].set(ind);
         }
     }
 
-    for (size_t ind = 0; ind < barrierOpUpdateMap.size(); ind++) {
+    for (unsigned ind = 0; ind < barrierOpUpdateMap.size(); ind++) {
         auto updateMap = barrierOpUpdateMap[ind].set_bits();
         for (auto update : updateMap) {
             taskOpWaitMap[update].set(ind);
@@ -838,7 +838,7 @@ void BarrierScheduler::removeRedundantDependencies() {
     for (size_t ind = 0; ind < _configureBarrierOpWaitMap.size(); ind++) {
         // producers
         auto& producers = _configureBarrierOpWaitMap[ind];
-        SmallVector<size_t> producersToRemove;
+        SmallVector<unsigned> producersToRemove;
         for (auto prod = producers.set_bits_begin(); prod != producers.set_bits_end(); prod++) {
             auto prod1 = prod;
             prod1++;
@@ -858,7 +858,7 @@ void BarrierScheduler::removeRedundantDependencies() {
 
         // consumers
         auto& consumers = _configureBarrierOpUpdateMap[ind];
-        SmallVector<size_t> consumersToRemove;
+        SmallVector<unsigned> consumersToRemove;
         for (auto cons = consumers.set_bits_begin(); cons != consumers.set_bits_end(); cons++) {
             auto cons1 = cons;
             cons1++;

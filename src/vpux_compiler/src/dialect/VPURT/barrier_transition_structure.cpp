@@ -88,7 +88,7 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
             _feasibleBarrierScheduler._log.trace("Adding producer task with ID {0} to barrier ID {1}",
                                                  BarrierScheduler::getUniqueID(source), currentBarrierID);
 
-            _feasibleBarrierScheduler._configureBarrierOpWaitMap[currentBarrierID].set(sourceID);
+            _feasibleBarrierScheduler._configureBarrierOpWaitMap[currentBarrierID].set((unsigned)sourceID);
         } else {
             VPUX_THROW("Error unable to find the update tasks for barrier ID {0}",
                        currentBarrier->getAttr(virtualIdAttrName));
@@ -105,7 +105,7 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
                                                      currentBarrier->getAttr(virtualIdAttrName));
 
                 size_t consumerID = getTaskUniqueID(*consumer);
-                _feasibleBarrierScheduler._configureBarrierOpUpdateMap[currentBarrierID].set(consumerID);
+                _feasibleBarrierScheduler._configureBarrierOpUpdateMap[currentBarrierID].set((unsigned)consumerID);
             }
         } else {
             VPUX_THROW("Error unable to find the wait tasks for barrier ID {0}",
@@ -121,7 +121,7 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
                                                      BarrierScheduler::getUniqueID(source),
                                                      barrierPrevious->getAttr(virtualIdAttrName));
 
-                _feasibleBarrierScheduler._configureBarrierOpUpdateMap[barrierPreviousID].set(sourceID);
+                _feasibleBarrierScheduler._configureBarrierOpUpdateMap[barrierPreviousID].set((unsigned)sourceID);
             } else {
                 VPUX_THROW("Not found");
             }
@@ -198,9 +198,9 @@ mlir::Operation* BarrierScheduler::barrierTransitionStructure::createNewBarrierT
     _feasibleBarrierScheduler._orderedBarrier.push_back(newBarrier);
 
     llvm::BitVector newBarrierProducers;
-    newBarrierProducers.resize(_taskCount);
+    newBarrierProducers.resize((unsigned)_taskCount);
     llvm::BitVector newBarrierConsumers;
-    newBarrierConsumers.resize(_taskCount);
+    newBarrierConsumers.resize((unsigned)_taskCount);
 
     _feasibleBarrierScheduler._configureBarrierOpWaitMap.push_back(newBarrierProducers);
     _feasibleBarrierScheduler._configureBarrierOpUpdateMap.push_back(newBarrierConsumers);
