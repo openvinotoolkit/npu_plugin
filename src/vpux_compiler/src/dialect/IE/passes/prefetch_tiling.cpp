@@ -63,6 +63,92 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
                    : fillDividedTiles(nTilesOnDim, outputShape);
 }
 
+SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Operation* parentOp, Logger log) {
+    // TODO: merge with IE::computeGeneralTileStrategy
+    auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
+    VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
+    auto tilingBuilder = mlir::dyn_cast<IE::TilingBuilderOpInterface>(op);
+    VPUX_THROW_WHEN(tilingBuilder == nullptr, "Operation '{0}' doesn't implement TilingBuilderOpInterface",
+                    op->getName());
+    const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
+    const auto parentOutputType = parentOp->getResult(0).getType().cast<mlir::ShapedType>();
+    const auto outputShape = getShape(outputType);
+    const auto parentOutputShape = getShape(parentOutputType);
+
+    int64_t minChannelSize = 1;
+    if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
+        minChannelSize = channelsInfo.getOutputChannelAlignment();
+    }
+
+    Shape nTilesOnDim(outputShape.size(), 1);
+    Shape nTilesOnDimParent(parentOutputShape.size(), 1);
+
+    // Try to tile the largest dim (C or H)
+    Dim dimToTile = Dims4D::Act::C;
+    if (outputShape[Dims4D::Act::C] < outputShape[Dims4D::Act::H]) {
+        dimToTile = Dims4D::Act::H;
+    }
+
+    const auto isSupportedTilesPattern = [&]() -> bool {
+        return tilingInfo.isSupportedPrefetchPattern(nTilesOnDim, parentOp, nTilesOnDimParent, log);
+    };
+    const auto isSupportedChannelDivision = [&]() -> bool {
+        if ((outputShape[Dims4D::Act::C] % nTilesOnDim[Dims4D::Act::C]) != 0) {
+            return false;
+        }
+        const auto tileChannels = outputShape[Dims4D::Act::C] / nTilesOnDim[Dims4D::Act::C];
+        return (tileChannels % minChannelSize) == 0;
+    };
+    const auto& maxNumTiles = tilingBuilder.getMaxNumTiles();
+    const auto isDimLeftToTile = [&]() -> bool {
+        return nTilesOnDim[dimToTile] < maxNumTiles[dimToTile.ind()];
+    };
+    while (!isSupportedTilesPattern()) {
+        if (!isDimLeftToTile()) {
+            VPUX_THROW("Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
+        }
+        // increase current op tiles
+        if (dimToTile == Dims4D::Act::C) {
+            do {
+                ++nTilesOnDim[Dims4D::Act::C];
+            } while (!isSupportedChannelDivision());
+        } else {
+            nTilesOnDim[dimToTile]++;
+        }
+        // increase parent op tiles
+        if (!isSupportedTilesPattern()) {
+            if (dimToTile == Dims4D::Act::C) {
+                do {
+                    ++nTilesOnDimParent[Dims4D::Act::C];
+                } while (!isSupportedChannelDivision());
+            } else {
+                nTilesOnDimParent[dimToTile]++;
+            }
+        }
+    }
+    return {nTilesOnDim, nTilesOnDimParent};
+}
+
+bool needTilingToMultiOpsPrefetch(mlir::Operation* op, Logger log) {
+    auto parentOp = op->getOperand(0).getDefiningOp();
+    auto opTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
+    auto parentTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(parentOp);
+    if (!opTilingInter || !parentTilingInter) {
+        return false;
+    }
+    // For parallel sub-graphs, the order is undecided yet
+    // Abandon prefetching these cases
+    if (!parentOp->getResult(0).hasOneUse()) {
+        return false;
+    }
+    std::cout << llvm::formatv("needTilingToMultiOpsPrefetch: check op {0} {1}; parent {2}, {3}", op->getLoc(),
+                               op->getName(), parentOp->getLoc(), parentOp->getName())
+                         .str()
+              << std::endl;
+    const auto resShape = getShape(op->getResult(0));
+    Shape neutralTile(resShape.size(), 1);
+    return !opTilingInter.isSupportedPrefetchPattern(neutralTile, parentOp, neutralTile, log);
+}
 //
 // PrefetchTiling
 //
@@ -84,10 +170,44 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
                                                     mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
 
-    const auto tiles = generatePrefetchTiles(origOp.getOperation(), _log.nest());
-    _log.nest(1).trace("Create {0} tiles:", tiles.size());
+    auto op = origOp.getOperation();
+    const auto resShape = getShape(op->getResult(0));
+    auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
+    if (tilingInfo.isSupportedTiling({TileInfo(resShape)}, _log.nest())) {
+        // If the current op fits CMX but still run into here
+        // The op needs tiling to be prefetched by its parent
+        auto parentOp = op->getOperand(0).getDefiningOp();
+        const auto parentResShape = getShape(parentOp->getResult(0));
+        auto tiles = generatePrefetchPatternTiles(op, parentOp, _log.nest());
 
-    return applyTileStrategy(origOp, tiles, rewriter, _log);
+        auto getDimsToTile = [](ShapeRef nTilesOnDim) -> SmallVector<Dim> {
+            SmallVector<Dim> res;
+            for (unsigned i = 0; i < nTilesOnDim.size(); i++) {
+                if (nTilesOnDim[Dim(i)] > 1)
+                    res.emplace_back(Dim(i));
+            }
+            return res;
+        };
+        auto curTiles = fillDividedTiles(tiles[0], resShape);
+        auto parentTiles = fillDividedTiles(tiles[1], parentResShape);
+        std::cout << llvm::formatv("cur tile: {0}", tiles[0]).str() << std::endl;
+        std::cout << llvm::formatv("parent tile: {0}", tiles[1]).str() << std::endl;
+        if (getDimsToTile(tiles[1]).size() == 0) {
+            return applyTileStrategy(origOp, curTiles, rewriter, _log);
+        } else {
+            if (mlir::succeeded(applyTileStrategy(mlir::dyn_cast<IE::TilingBuilderOpInterface>(parentOp), parentTiles,
+                                                  rewriter, _log)) &&
+                mlir::succeeded(applyTileStrategy(origOp, curTiles, rewriter, _log))) {
+                return mlir::success();
+            }
+        }
+        return mlir::success();
+    } else {
+        const auto tiles = generatePrefetchTiles(origOp.getOperation(), _log.nest());
+        _log.nest(1).trace("Create {0} tiles:", tiles.size());
+        return applyTileStrategy(origOp, tiles, rewriter, _log);
+    }
+    return mlir::success();
 }
 
 //
@@ -114,7 +234,13 @@ void PrefetchTilingPass::safeRunOnFunc() {
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
             const auto resShape = getShape(op->getResult(0));
-            return iface.isSupportedTiling({TileInfo(resShape)}, _log.nest());
+            if (!iface.isSupportedTiling({TileInfo(resShape)}, _log.nest())) {
+                return false;
+            }
+            if (needTilingToMultiOpsPrefetch(op, _log)) {
+                std::cout << "needTilingToMultiOpsPrefetch: YES!!" << std::endl;
+                return false;
+            }
         }
 
         return true;
