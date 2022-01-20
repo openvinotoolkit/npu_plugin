@@ -27,8 +27,11 @@ using namespace vpux;
 void InvocationBuilder::addArg(mlir::Value operand) {
     // TODO: add support for non int constants
     llvm::APInt intVal;
+    mlir::FloatAttr floatVal;
     if (mlir::matchPattern(operand, mlir::m_ConstantInt(&intVal))) {
         appendValue(_scalarStorage, intVal.getSExtValue());
+    } else if (mlir::matchPattern(operand, mlir::m_Constant(&floatVal))) {
+        appendValue(_scalarStorage, static_cast<float>(floatVal.getValue().convertToDouble()));
     } else {
         VPUX_THROW("Act Shave Invocation: cannot store arg of type {0}", operand.getType());
     }

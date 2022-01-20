@@ -259,6 +259,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_FP16Only, KmbActivationLayerTest,
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesMTL = {
         {Sigmoid,  {{1.0f}}},
         {HSwish,   {{1.0f}}},
+        {Elu,      {{1.0f}}},
 };
 
 const auto basicCasesMTL = ::testing::Combine(
