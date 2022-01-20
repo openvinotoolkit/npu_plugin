@@ -23,7 +23,7 @@ StrategyManager::StrategyManager(mlir::FuncOp func, size_t numClusters, Logger l
 // This channel major efficiency table is from the ArchBench tool
 std::map<int64_t, std::map<int64_t, double>> StrategyManager::depthwiseEfficiencyTable() {
     return {{
-            {3, {{1, 0.165}, {2, 0.128}, {4, 0.128}, {6, 01.65}}},
+            {3, {{1, 0.165}, {2, 0.128}, {4, 0.128}, {6, 0.165}}},
             {5, {{1, 0.483}, {2, 0.241}, {4, 0.132}, {6, 0.483}}},
             {7, {{1, 0.6}, {2, 0.2965}, {4, 0.15}, {6, 0.0395}}},
             {9, {{1, 0.8008}, {2, 0.4687}, {4, 0.2266}, {6, 0.8008}}},
