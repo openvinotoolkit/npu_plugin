@@ -150,7 +150,14 @@ mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, Outpu
     // TODO: remove with EISW-25333
     newConcat->setAttr("CMXConcat", rewriter.getBoolAttr(false));
     return mlir::success();
-
+    
+    for (auto concatOp : resultTileVals[0].getUsers()) {
+        if (!mlir::isa<IE::ConcatOp>(*concatOp)) {
+            continue;
+        }
+        origOp->replaceAllUsesWith(concatOp);
+        break;
+    }
     return mlir::success();
 }
 }  // namespace IE
