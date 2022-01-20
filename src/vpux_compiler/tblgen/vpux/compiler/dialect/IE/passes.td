@@ -774,23 +774,21 @@ def FusePadOps : PassBase<"fuse-pad-ops", "vpux::FunctionPass"> {
 }
 
 //
-// SupportBatchForPadOp
+// ConvertPadToConcat
 //
 
-def SupportBatchForPad : PassBase<"support-batch-for-pad", "vpux::FunctionPass"> {
-    let summary = "Handle PadOp with non-zero padding on batch dimension";
+def ConvertPadToConcat : PassBase<"convert-pad-to-concat", "vpux::FunctionPass"> {
+    let summary = "Convert Pad Ops to Concat with Constant";
 
     let description = [{
         The pass is a part of `AdjustForVPU` pipeline.
 
-        Split `IE::PadOp` with pads_begin[M, x, x, x] and pads_end[N, x, x, x] into several parts.
-        Create `IE::PadOp` with pads_begin[0, x, x, x] and pads_end[0, x, x, x] attributes.
-        Append tensor of size M * batchSize to the beginning, and tensor of size N * batchSize to the end.
-        Replace original `IE::PadOp` with `IE::Concat(%cst_front, %batchless_pad, %cst_back)`.
+        After FusePadOps pass, there are Pad Ops can not be fused.
+        Replace `IE::PadOp` with `IE::ConcatOp` and `Const::DeclareOp`
         Only `IE::PadMode::CONSTANT` case is supported.
     }];
 
-    let constructor = "vpux::IE::createSupportBatchForPadPass()";
+    let constructor = "vpux::IE::createConvertPadToConcatPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

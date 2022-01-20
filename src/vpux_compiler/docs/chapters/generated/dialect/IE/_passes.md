@@ -26,6 +26,12 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces all `FullyConnected` operations with `Convolution` operation.
 It inserts extra `Reshape` operations to satisfy `Convolution` specification.
+### `-convert-pad-to-concat`: Convert Pad Ops to Concat with Constant
+The pass is a part of `AdjustForVPU` pipeline.
+
+After FusePadOps pass, there are Pad Ops can not be fused.
+Replace `IE::PadOp` with `IE::ConcatOp` and `Const::DeclareOp`
+Only `IE::PadMode::CONSTANT` case is supported.
 ### `-convert-paddings-to-floor-mode`: Convert Convolution and Pooling layers paddings to FLOOR rouding mode
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -156,14 +162,6 @@ able to quantize convolution and fuse bias and post-processing operations.
 The pass is a part of `LowPrecision` pipeline.
 
 It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
-### `-support-batch-for-pad`: Handle PadOp with non-zero padding on batch dimension
-The pass is a part of `AdjustForVPU` pipeline.
-
-Split `IE::PadOp` with pads_begin[M, x, x, x] and pads_end[N, x, x, x] into several parts.
-Create `IE::PadOp` with pads_begin[0, x, x, x] and pads_end[0, x, x, x] attributes.
-Append tensor of size M * batchSize to the beginning, and tensor of size N * batchSize to the end.
-Replace original `IE::PadOp` with `IE::Concat(%cst_front, %batchless_pad, %cst_back)`.
-Only `IE::PadMode::CONSTANT` case is supported.
 ### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
 This pass is needed for MTL only since HW MaxPool does not support post-op operations.
 Operations are swapped only if there is an operation before MaxPool that supports post-ops.

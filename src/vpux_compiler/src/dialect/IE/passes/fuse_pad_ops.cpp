@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/pad_extract.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -30,20 +31,6 @@
 using namespace vpux;
 
 namespace {
-
-mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::ArrayAttr padValue) {
-    if (padValue == nullptr) {
-        return mlir::failure();
-    }
-
-    const auto valueVector = parseIntArrayAttr<int64_t>(padValue);
-
-    if (valueVector.size() != 4 || valueVector[Dims4D::Act::N.ind()] != 0 || valueVector[Dims4D::Act::C.ind()] != 0) {
-        return mlir::failure();
-    }
-
-    return valueVector;
-}
 
 //
 // generalFusion
@@ -61,12 +48,12 @@ mlir::LogicalResult generalFusion(mlir::Operation* origOp, mlir::ArrayAttr kerne
         return mlir::failure();
     }
 
-    auto padsBegin = extractPads(origPadOp.pads_begin_attrAttr());
+    auto padsBegin = vpux::IE::extractPads(origPadOp.pads_begin_attrAttr(), log);
     if (mlir::failed(padsBegin)) {
         return mlir::failure();
     }
 
-    auto padsEnd = extractPads(origPadOp.pads_end_attrAttr());
+    auto padsEnd = vpux::IE::extractPads(origPadOp.pads_end_attrAttr(), log);
     if (mlir::failed(padsEnd)) {
         return mlir::failure();
     }

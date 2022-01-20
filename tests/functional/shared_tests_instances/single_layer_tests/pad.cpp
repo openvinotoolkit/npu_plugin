@@ -86,12 +86,12 @@ namespace {
             KmbPadLayerTest::getTestCaseName
     );
 
-    const std::vector<std::vector<int64_t>> padsBeginWithBatch = {{0, 0, 0, 0}, {4, 2, 1, 3}, {8, 0, 0, 0}};
-    const std::vector<std::vector<int64_t>> padsEndWithBatch   = {{0, 0, 0, 0}, {5, 2, 6, 1}, {8, 0, 0, 0}};
+    const std::vector<std::vector<int64_t>> padsBeginForConcat = {{0, 0, 0, 0}, {4, 2, 1, 3}, {8, 0, 0, 0}, {0, 0, 2, 0}};
+    const std::vector<std::vector<int64_t>> padsEndForConcat   = {{0, 0, 0, 0}, {5, 2, 6, 1}, {8, 0, 0, 0}, {0, 1, 0, 3}};
 
-    const auto padWithBatch = testing::Combine(
-            testing::ValuesIn(padsBeginWithBatch),
-            testing::ValuesIn(padsEndWithBatch),
+    const auto padConvertToConcat = testing::Combine(
+            testing::ValuesIn(padsBeginForConcat),
+            testing::ValuesIn(padsEndForConcat),
             testing::Values(0, 1),
             testing::Values(ngraph::helpers::PadMode::CONSTANT),
             testing::ValuesIn(netPrecisions),
@@ -103,9 +103,9 @@ namespace {
     );
 
     INSTANTIATE_TEST_SUITE_P(
-            smoke_PadWithBatch,
+            smoke_PadConvertToConcat,
             KmbPadLayerTest_MLIR_ONLY,
-            padWithBatch,
+            padConvertToConcat,
             KmbPadLayerTest::getTestCaseName
     );
 
