@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --convert-scale-shift-depthwise %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --convert-scale-shift-depthwise %s
 
 // CHECK-LABEL: @ConvertScaleShiftToDepthwise
 func @ConvertScaleShiftToDepthwise(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x3x224x224xf16> {
