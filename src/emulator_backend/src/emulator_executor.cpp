@@ -51,7 +51,7 @@ vpu::LogLevel toOldLogLevel(LogLevel lvl) {
 EmulatorExecutor::EmulatorExecutor(const vpux::NetworkDescription::Ptr& network, const Config& config)
         : _logger("EmulatorBackend", LogLevel::Debug /*_config.logLevel()*/),
           _network(network),
-          _manager(ie::getIELibraryPath() + "/vpux_emulator", toOldLogLevel(config.get<LOG_LEVEL>())) {
+          _manager(ie::getIELibraryPath() + "/vpux_emulator", vpu::LogLevel::Info) {
 }
 
 void EmulatorExecutor::push(const ie::BlobMap& inputs, const PreprocMap&) {
