@@ -421,13 +421,17 @@ class UInt8(TType):
         return data.round().clip(0, 255)
 
 class Int8(TType):
-    def __init__(self, bitwidth=7):
+    def __init__(self, bitwidth=7, value=None):
         super().__init__(np.int8, 'int8', 'int8', bitwidth, True)
         self.bitsize = 8
         self.low = np.int8(-(2 ** bitwidth))
         self.high = np.int8((2 ** bitwidth) - 1)
+        self.value = value
 
     def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
+        if self.value:
+            self.low = self.high = self.value
+
         return Value(self,
                       filename,
                       rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.int8),
@@ -479,18 +483,23 @@ class Int32(TType):
 
 
 class FP16(TType):
-    def __init__(self, bitwidth=16):
+    def __init__(self, bitwidth=16, value=None):
         super().__init__(np.float16, 'fp16', None, bitwidth, True)
         self.bitsize = 16
+        self.value = value
 
     def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
-        data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
+        if self.value:
+            data = np.full(shape, self.value, dtype=np.float16)
+        else:
+            data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
+            data = (data * (2. ** self.bitwidth)).astype(np.float16)
 
         return Value(self,
                       filename,
-                      (data * (2. ** self.bitwidth)).astype(np.float16),
+                      data,
                       self.bitwidth,
                       self.bitsize,
                       True,
