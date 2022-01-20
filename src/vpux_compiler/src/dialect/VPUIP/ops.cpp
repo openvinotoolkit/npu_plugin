@@ -397,6 +397,16 @@ public:
         return ::isSupportedPrefetchTiling(mlir::cast<MainOpType>(origOp), tileAxis, log);
     }
 
+    bool isSupportedPrefetchPattern(mlir::Operation* origOp, ShapeRef tileAxis, mlir::Operation* parentOp,
+                                    ShapeRef parentTileAxis, Logger log) const {
+        auto outputShape = getShape(origOp->getResult(0));
+        auto tileResult = fillDividedTiles(tileAxis, outputShape);
+        auto parentOutputShape = getShape(origOp->getResult(0));
+        auto parentTileResult = fillDividedTiles(parentTileAxis, parentOutputShape);
+        return mlir::succeeded(
+                VPUIP::NCEInvariant::verifyPrefetchPatternCMX(origOp, tileResult, parentOp, parentTileResult, log));
+    }
+
 private:
     static bool isSupportedByNCE(MainOpType op, Logger log) {
         if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
@@ -433,22 +443,12 @@ public:
     }
 
     bool isSupportedPrefetchTiling(mlir::Operation* /*op*/, ShapeRef /*tileAxis*/, Logger /*log*/) const {
-        // Temporally hack to disable prefetch-tiling for eltwise ops.
         return false;
-        //        auto tileDims = getTileDims(tileAxis);
-        //        if (tileDims.size() != 1) {
-        //            return false;
-        //        }
-        //        auto tileDim = tileDims[0];
-        //        auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
-        //
-        //        auto isMemPrefetchable = [&]() -> bool {
-        //            auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        //            return vpux::VPUIP::NCEInvariant::verifyEltwisePrefetchCMX(op, tileResult, log).succeeded();
-        //        };
-        //
-        //        return isDivisibleTile(op, tileAxis, tileDim, 1) && isMemPrefetchable() &&
-        //               !isLastTileBiggest(tileAxis, outputShape, tileDim);
+    }
+
+    bool isSupportedPrefetchPattern(mlir::Operation* /*origOp*/, ShapeRef /*tileAxis*/, mlir::Operation* /*parentOp*/,
+                                    ShapeRef /*parentTileAxis*/, Logger /*log*/) const {
+        return false;
     }
 
 private:

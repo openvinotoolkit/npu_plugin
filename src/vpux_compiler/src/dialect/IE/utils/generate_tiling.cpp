@@ -146,6 +146,13 @@ mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, Outpu
 
     rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, origOp->getResult(0).getType(), mlir::ValueRange(resultTileVals),
                                               makeArrayRef(resultTileOffsets));
+    for (auto concatOp : resultTileVals[0].getUsers()) {
+        if (!mlir::isa<IE::ConcatOp>(*concatOp)) {
+            continue;
+        }
+        origOp->replaceAllUsesWith(concatOp);
+        break;
+    }
     return mlir::success();
 }
 }  // namespace IE
