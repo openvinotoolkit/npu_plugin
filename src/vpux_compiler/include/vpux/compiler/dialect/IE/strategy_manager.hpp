@@ -21,8 +21,6 @@ namespace vpux {
 
 constexpr llvm::StringLiteral multiClusterStrategyAttrName = "multiClusterStrategy";
 
-enum class MULTI_CLUSTER_STRATEGY { Clustering, SplitOverH, SplitOverK };
-
 class OperationEfficiencyTable {
     using tableMap = std::map<int, std::map<int, int>>;
     tableMap operationEfficiencyTable;

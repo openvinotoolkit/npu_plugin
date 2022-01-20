@@ -202,25 +202,22 @@ size_t StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
 }
 
 void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
-    auto strategy = MULTI_CLUSTER_STRATEGY::Clustering;
+    auto strategy = "Clustering";
     auto splitOverHeightEfficency = _splitOverHeightEfficencies.find(op);
     auto splitOverKernelEfficency = _splitOverKernelEfficencies.find(op);
 
     if (splitOverHeightEfficency == _splitOverHeightEfficencies.end()) {
         if (splitOverKernelEfficency != _splitOverKernelEfficencies.end()) {
-            strategy = MULTI_CLUSTER_STRATEGY::SplitOverK;
+            strategy = "SplitOverK";
         }
     } else if (splitOverKernelEfficency == _splitOverKernelEfficencies.end()) {
-        strategy = MULTI_CLUSTER_STRATEGY::SplitOverH;
+        strategy = "SplitOverH";
     } else {
-        strategy = splitOverHeightEfficency->second > splitOverKernelEfficency->second
-                           ? MULTI_CLUSTER_STRATEGY::SplitOverH
-                           : MULTI_CLUSTER_STRATEGY::SplitOverK;
+        strategy = splitOverHeightEfficency->second > splitOverKernelEfficency->second ? "SplitOverH" : "SplitOverK";
     }
 
-    op->setAttr(multiClusterStrategyAttrName, getIntAttr(op->getContext(), (unsigned)strategy));
-    _log.trace("Add multi cluster strategy '{0}' to '{1}'",
-               op->getAttr(multiClusterStrategyAttrName).cast<mlir::IntegerAttr>().getInt(), op->getName());
+    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), strategy));
+    _log.trace("Add multi cluster strategy '{0}' to '{1}'", op->getAttr(multiClusterStrategyAttrName), op->getName());
 }
 
 void StrategyManager::computeOptimalMultiClusterStrategy() {
