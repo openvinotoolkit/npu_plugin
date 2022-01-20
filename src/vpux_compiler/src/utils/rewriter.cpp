@@ -204,3 +204,20 @@ vpux::BufferizeTypeConverter::BufferizeTypeConverter() {
 void vpux::populateBufferizeMaterializationLegality(mlir::ConversionTarget& target) {
     target.addLegalOp<mlir::UnrealizedConversionCastOp>();
 }
+
+//
+// inferReturnTypes
+//
+
+void vpux::inferReturnTypes(mlir::Operation* op) {
+    auto iface = mlir::dyn_cast<mlir::InferTypeOpInterface>(op);
+    VPUX_THROW_WHEN(iface == nullptr, "Can't cast the opearation {0} to InferTypeOpInterface", op->getName());
+    SmallVector<mlir::Type> newTypes;
+    VPUX_THROW_WHEN(iface.inferReturnTypes(op->getContext(), op->getLoc(), op->getOperands(), op->getAttrDictionary(),
+                                           op->getRegions(), newTypes)
+                            .failed(),
+                    "Failed to infer return types for operaton '{0}'", op->getName());
+    for (auto p : zip(op->getResults(), newTypes)) {
+        std::get<0>(p).setType(std::get<1>(p));
+    }
+}

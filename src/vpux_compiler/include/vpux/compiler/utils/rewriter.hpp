@@ -73,4 +73,10 @@ public:
 
 void populateBufferizeMaterializationLegality(mlir::ConversionTarget& target);
 
+//
+// inferReturnTypes
+//
+
+void inferReturnTypes(mlir::Operation*);
+
 }  // namespace vpux

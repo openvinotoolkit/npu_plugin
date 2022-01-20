@@ -1,5 +1,20 @@
 // RUN: vpux-opt --split-input-file --canonicalize %s | FileCheck %s
 
+!qElemType = type !quant.uniform<u8:f16:1, {1.0000000000000000E-1, 2.0000000000000000E-1}>
+
+// CHECK-LABEL: @ConcatLargeOffsetStride
+func @ConcatLargeOffsetStride(%arg0: tensor<1x2x3x4x!qElemType>, %arg1: tensor<1x2x3x4x!qElemType>) -> tensor<2x2x3x4x!qElemType> {
+    %0 = IE.Concat(%arg0, %arg1) {
+        per_axis = {axis = 0, offset = 1, stride = 2}
+    } : tensor<1x2x3x4x!qElemType>, tensor<1x2x3x4x!qElemType> -> tensor<2x2x3x4x!qElemType>
+    return %0 : tensor<2x2x3x4x!qElemType>
+
+    // The operation should be parsed and verified successfully
+    // CHECK: IE.Concat
+}
+
+// -----
+
 !qElemType = type !quant.uniform<u8:f16, 1.0000000000000000E-1>
 
 // CHECK-LABEL: @PerTensorQuant
