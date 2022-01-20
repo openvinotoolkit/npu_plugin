@@ -9,7 +9,13 @@
 
 namespace LayerTestsDefinitions {
 
+    class KmbPadLayerTest_MLIR_ONLY: public PadLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
     class KmbPadLayerTest: public PadLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+
+    TEST_P(KmbPadLayerTest_MLIR_ONLY, CompareWithRefs_MLIR_ONLY) {
+        useCompilerMLIR();
+        Run();
+    }
 
     TEST_P(KmbPadLayerTest, CompareWithRefs_MLIR) {
         useCompilerMLIR();
@@ -77,6 +83,29 @@ namespace {
             smoke_Pad4D,
             KmbPadLayerTest,
             pad4Dparams,
+            KmbPadLayerTest::getTestCaseName
+    );
+
+    const std::vector<std::vector<int64_t>> padsBeginForConcat = {{0, 0, 0, 0}, {4, 2, 1, 3}, {8, 0, 0, 0}, {0, 0, 2, 0}};
+    const std::vector<std::vector<int64_t>> padsEndForConcat   = {{0, 0, 0, 0}, {5, 2, 6, 1}, {8, 0, 0, 0}, {0, 1, 0, 3}};
+
+    const auto padConvertToConcat = testing::Combine(
+            testing::ValuesIn(padsBeginForConcat),
+            testing::ValuesIn(padsEndForConcat),
+            testing::Values(0, 1),
+            testing::Values(ngraph::helpers::PadMode::CONSTANT),
+            testing::ValuesIn(netPrecisions),
+            testing::Values(InferenceEngine::Precision::FP16),
+            testing::Values(InferenceEngine::Precision::FP16),
+            testing::Values(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC),
+            testing::Values(std::vector<size_t>{1, 10, 20, 30}),
+            testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+    );
+
+    INSTANTIATE_TEST_SUITE_P(
+            smoke_PadConvertToConcat,
+            KmbPadLayerTest_MLIR_ONLY,
+            padConvertToConcat,
             KmbPadLayerTest::getTestCaseName
     );
 

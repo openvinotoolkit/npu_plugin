@@ -86,9 +86,6 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
 
     const auto inputShape = origPadOp.input().getType().cast<mlir::ShapedType>().getShape();
     const auto outputShape = origPadOp.output().getType().cast<mlir::ShapedType>().getShape();
-    if (inputShape.size() != 4 || outputShape.size() != 4) {
-        return mlir::failure();
-    }
 
     const auto createConstOp = [&](SmallVector<mlir::Value>& values, const size_t axis, ArrayRef<int64_t> padSize,
                                    const float padValue) {
@@ -96,7 +93,7 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
             return;
         }
 
-        auto constShape = SmallVector<int64_t>(4, 0);
+        auto constShape = SmallVector<int64_t>(inputShape.size(), 0);
         for (const auto& ind : irange(inputShape.size())) {
             constShape[ind] = ind < axis ? inputShape[ind] : outputShape[ind];
         }
@@ -116,10 +113,13 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
     };
 
     auto midInput = origPadOp.input();
-    for (const auto reversedAxis : irange(inputShape.size()) | reversed) {
-        const auto padsBeginValue = padsBegin.getValue();
-        const auto padsEndValue = padsEnd.getValue();
+    const auto padsBeginValue = padsBegin.getValue();
+    const auto padsEndValue = padsEnd.getValue();
+    VPUX_THROW_UNLESS(padsBeginValue.size() == inputShape.size() && padsEndValue.size() == inputShape.size(),
+                      "`IE::PadOp` {0} shape size {1} mismatch with input size {2}", origPadOp.getLoc(),
+                      padsBeginValue.size(), inputShape.size());
 
+    for (const auto reversedAxis : irange(inputShape.size()) | reversed) {
         if (padsBeginValue[reversedAxis] == 0 && padsEndValue[reversedAxis] == 0) {
             continue;
         }
@@ -139,8 +139,7 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
         midInput = concat.output();
     }
 
-    origPadOp.replaceAllUsesWith(midInput);
-    rewriter.eraseOp(origPadOp);
+    rewriter.replaceOp(origPadOp, midInput);
 
     return mlir::success();
 }
