@@ -92,33 +92,66 @@ mlir::LogicalResult DeconvolutionConversion::matchAndRewrite(IE::DeconvolutionOp
     const auto dataStorageType =
             mlir::RankedTensorType::get(to_small_vector(filterShape), elemType).cast<vpux::NDTypeInterface>();
 
-    VPUX_THROW_UNLESS(origOp.filter().getDefiningOp<Const::DeclareOp>() != nullptr,
-                      "Non constant filter is not supported");
-    const auto dwConvFilterContent = origOp.filter().getDefiningOp<Const::DeclareOp>().content();
+    if (origOp.filter().getDefiningOp<Const::DeclareOp>() != nullptr) {
+        const auto dwConvFilterContent = origOp.filter().getDefiningOp<Const::DeclareOp>().content();
 
-    // Weights reverse according to ngraph implementation
-    // https://github.com/openvinotoolkit/openvino/blob/745c8933bc67f0eaf7996848f5188521fdf50d14/ngraph/core/reference/include/ngraph/runtime/reference/convolution_backprop_data.hpp#L268
-    // TODO: implement this reversing via lazy constant folding mechanism (JIRA:
-    // https://jira.devtools.intel.com/browse/EISW-28339)
-    SmallVector<float16> reversedVals(dwConvFilterContent.getValues<float16>());
-    size_t spatialDims = filterShape[Dims4D::Filter::KX] * filterShape[Dims4D::Filter::KY];
-    for (auto it = reversedVals.begin(); it < reversedVals.end(); it += spatialDims) {
-        std::reverse(it, it + spatialDims);
+        // Weights reverse according to ngraph implementation
+        // https://github.com/openvinotoolkit/openvino/blob/745c8933bc67f0eaf7996848f5188521fdf50d14/ngraph/core/reference/include/ngraph/runtime/reference/convolution_backprop_data.hpp#L268
+        // TODO: implement this reversing via lazy constant folding mechanism (JIRA:
+        // https://jira.devtools.intel.com/browse/EISW-28339)
+        SmallVector<float16> reversedVals(dwConvFilterContent.getValues<float16>());
+        size_t spatialDims = filterShape[Dims4D::Filter::KX] * filterShape[Dims4D::Filter::KY];
+        for (auto it = reversedVals.begin(); it < reversedVals.end(); it += spatialDims) {
+            std::reverse(it, it + spatialDims);
+        }
+
+        SmallVector<int64_t> convFilterShape{filterShape[Dims4D::Filter::IC], filterShape[Dims4D::Filter::OC],
+                                             filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]};
+
+        const auto newConstType = dataStorageType.changeShape(ShapeRef(convFilterShape));
+        const auto newDataStorageType =
+                dataStorageType.changeElemType(mlir::Float16Type::get(getContext())).cast<mlir::RankedTensorType>();
+        const auto dataAttr = mlir::DenseElementsAttr::get(newDataStorageType, makeArrayRef(reversedVals));
+        const auto content = Const::ContentAttr::get(dataAttr).convertElemType(elemType).transpose(DimsOrder::IOYX);
+        auto convFilter = rewriter.create<Const::DeclareOp>(origOp.getLoc(), newConstType, content);
+
+        rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(origOp, newUpsamplingOp.output(), convFilter.output(), nullptr,
+                                                       strides, padsBegin, padsEnd, dilations, nullptr);
+    } else {
+        SmallVector<int64_t> revSeqFilterShape{filterShape[Dims4D::Filter::OC] * filterShape[Dims4D::Filter::IC],
+                                               filterShape[Dims4D::Filter::KY] * filterShape[Dims4D::Filter::KX]};
+        auto revSeqReshapedFilter = rewriter.create<IE::ReshapeOp>(origOp.getLoc(), origOp.filter(), nullptr, false,
+                                                                   getIntArrayAttr(getContext(), revSeqFilterShape));
+
+        SmallVector<int32_t> seqLengthVector;
+        for (int batch = 0; batch < filterShape[Dims4D::Filter::OC] * filterShape[Dims4D::Filter::IC]; batch++)
+            seqLengthVector.append(1, filterShape[Dims4D::Filter::KY] * filterShape[Dims4D::Filter::KX]);
+
+        SmallVector<int64_t> seqLengthVectorShape{(int64_t)seqLengthVector.size()};
+        auto dataStorageTypeRS =
+                mlir::RankedTensorType::get(to_small_vector(seqLengthVectorShape),
+                                            mlir::IntegerType::get(getContext(), 32, mlir::IntegerType::Signed));
+        const auto revSeqDataAttr = mlir::DenseElementsAttr::get(dataStorageTypeRS, makeArrayRef(seqLengthVector));
+        const auto revSeqContent = Const::ContentAttr::get(revSeqDataAttr);
+        auto seqLengthConst =
+                rewriter.create<Const::DeclareOp>(origOp.getLoc(), revSeqContent.getType(), revSeqContent);
+
+        auto reversedFilter = rewriter.create<IE::ReverseSequenceOp>(origOp.getLoc(), revSeqReshapedFilter.output(),
+                                                                     seqLengthConst, 1, 0);
+
+        SmallVector<int64_t> convFilterShape{filterShape[Dims4D::Filter::OC], filterShape[Dims4D::Filter::IC],
+                                             filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]};
+
+        auto reshapedFilter = rewriter.create<IE::ReshapeOp>(origOp.getLoc(), reversedFilter.output(), nullptr, false,
+                                                             getIntArrayAttr(getContext(), convFilterShape));
+
+        auto convFilter =
+                rewriter.create<IE::TransposeOp>(origOp->getLoc(), reshapedFilter.output(), nullptr,
+                                                 mlir::AffineMapAttr::get(DimsOrder::IOYX.toAffineMap(getContext())));
+
+        rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(origOp, newUpsamplingOp.output(), convFilter.output(), nullptr,
+                                                       strides, padsBegin, padsEnd, dilations, nullptr);
     }
-
-    auto C_IN = filterShape[Dims4D::Filter::OC];
-    filterShape[Dims4D::Filter::OC] = filterShape[Dims4D::Filter::IC];
-    filterShape[Dims4D::Filter::IC] = C_IN;
-
-    const auto newConstType = dataStorageType.changeShape(ShapeRef(filterShape));
-    const auto newDataStorageType =
-            dataStorageType.changeElemType(mlir::Float16Type::get(getContext())).cast<mlir::RankedTensorType>();
-    const auto dataAttr = mlir::DenseElementsAttr::get(newDataStorageType, makeArrayRef(reversedVals));
-    const auto content = Const::ContentAttr::get(dataAttr).convertElemType(elemType).transpose(DimsOrder::IOYX);
-    auto reshapedFilter = rewriter.create<Const::DeclareOp>(origOp.getLoc(), newConstType, content);
-
-    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(origOp, newUpsamplingOp.output(), reshapedFilter.output(), nullptr,
-                                                   strides, padsBegin, padsEnd, dilations, nullptr);
 
     _log.trace("Replaced with 'IE::Convolution' (2D)");
 
@@ -153,6 +186,8 @@ void ConvertDeconv2DToConv2DPass::safeRunOnFunc() {
     target.addLegalOp<IE::UpsamplingOp>();
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::ReshapeOp>();
+    target.addLegalOp<IE::ReverseSequenceOp>();
+    target.addLegalOp<IE::TransposeOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<DeconvolutionConversion>(&ctx, _log);
