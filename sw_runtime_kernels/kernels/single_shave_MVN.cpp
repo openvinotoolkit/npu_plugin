@@ -254,6 +254,12 @@ using namespace subspace;
 namespace nn {
 namespace shave_lib {
 
+// At the moment the kernel has some limitations, it only supports:
+// across_channels = false
+// order = NCHW || CHW || HWC || NHWC
+//
+// [EISW-24995]
+
 extern "C" {
 void singleShaveMVN(uint32_t lParams) {
     const MvnParams* layerParams = reinterpret_cast<const MvnParams*>(lParams);
