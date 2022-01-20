@@ -30,7 +30,7 @@ namespace VPU {
 namespace NCESparsity {
 
 using BiasConverterCb = int32_t (*)(double);
-using PPEConverterCb = int32_t (*)(unsigned, unsigned, double, mlir::Type);
+using PPEConverterCb = int32_t (*)(uint8_t, uint16_t, double, mlir::Type);
 
 extern const EnumMap<ArchKind, PPEConverterCb> ppeConvertersMap;
 extern const EnumMap<ArchKind, BiasConverterCb> biasConvertersMap;

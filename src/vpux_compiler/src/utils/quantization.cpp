@@ -217,31 +217,47 @@ std::pair<Scales, ZeroPoints> vpux::extractScalesAndZeroPoints(mlir::Type tensor
     VPUX_THROW("Unsupported Quantized Type {0}", qType);
 }
 
+namespace {
+
+template <uint8_t BITS, typename OutputType>
+OutputType getMultFromScale(double scale) {
+    int exponent = 0;
+    const auto mantissa = std::frexp(scale, &exponent);
+    return checked_cast<OutputType>(mantissa * std::pow(2, BITS));
+}
+
+template <uint8_t BITS, typename ShiftType, typename PostShiftType>
+std::pair<ShiftType, PostShiftType> getShiftAndPostShiftFromScale(double scale) {
+    int exponent = 0;
+    std::frexp(scale, &exponent);
+
+    const auto shift = exponent > BITS ? 0 : checked_cast<ShiftType>(BITS - exponent);
+    const auto postShift = exponent > BITS ? checked_cast<PostShiftType>(BITS - exponent) : 0;
+
+    return {shift, postShift};
+}
+
+template <uint8_t BITS, typename OutputType>
+OutputType getShiftFromScale(double scale) {
+    const auto shiftAndPostShift = getShiftAndPostShiftFromScale<BITS, OutputType, int32_t>(scale);
+    const auto& shift = shiftAndPostShift.first;
+    const auto& postShift = shiftAndPostShift.second;
+    VPUX_THROW_UNLESS(shift >= 0 && postShift == 0, "Failed to get non-negative shift from {0}", scale);
+    return shift;
+}
+
+}  // namespace
+
 uint16_t vpux::getQuantMultFromScale(double quantScale) {
-    const static int BITS = 15;
-    int exp;
-    double mantissa = std::frexp(quantScale, &exp);
-    return static_cast<uint16_t>(mantissa * std::pow(2, BITS));
+    return getMultFromScale<15, uint16_t>(quantScale);
 }
 
 uint8_t vpux::getQuantShiftFromScale(double quantScale) {
-    const static int BITS = 15;
-    int exp;
-    std::frexp(quantScale, &exp);
-
-    VPUX_THROW_UNLESS(BITS >= exp, "Quant shift cannot be negative number - {0}", (BITS - exp));
-    return static_cast<uint8_t>(BITS - exp);
+    return getShiftFromScale<15, uint8_t>(quantScale);
 }
 
 std::pair<uint8_t, int8_t> vpux::getQuantShiftAndPostShiftFromScale(double quantScale) {
-    const static int BITS = 15;
-    int exp;
-    std::frexp(quantScale, &exp);
-
-    const auto shift = exp > BITS ? 0 : checked_cast<uint8_t>(BITS - exp);
-    const auto postShift = exp > BITS ? checked_cast<int8_t>(BITS - exp) : 0;
-
-    return {shift, postShift};
+    return getShiftAndPostShiftFromScale<15, uint8_t, int8_t>(quantScale);
 }
 
 //
