@@ -127,27 +127,6 @@ mlir::LogicalResult UpstreamSlicePass::GenericSliceUpstreaming::matchAndRewrite(
         return mlir::failure();
     }
 
-    const auto reInferReturnTypes = [](mlir::InferTypeOpInterface& op, bool limitToShape = false) {
-        mlir::SmallVector<mlir::Type> inferredTypes;
-        VPUX_THROW_UNLESS(op.inferReturnTypes(op->getContext(), op->getLoc(), op->getOperands(),
-                                              op->getAttrDictionary(), op->getRegions(), inferredTypes)
-                                  .succeeded(),
-                          "New type inference failed for '{0}'", op);
-        if (limitToShape) {
-            for (auto p : zip(op->getResults(), inferredTypes)) {
-                auto resVal = std::get<0>(p);
-                const auto origType = resVal.getType().cast<mlir::ShapedType>();
-                const auto inferredType = std::get<1>(p).cast<mlir::ShapedType>();
-                const auto newType = changeShape(origType, getShape(inferredType));
-                resVal.setType(newType);
-            }
-        } else {
-            for (auto p : zip(op->getResults(), inferredTypes)) {
-                std::get<0>(p).setType(std::get<1>(p));
-            }
-        }
-    };
-
     mlir::InferTypeOpInterface parentOp = origInput.getDefiningOp();
     rewriter.setInsertionPoint(parentOp);
     auto opOperands = parentOp->getOpOperands();
@@ -156,7 +135,7 @@ mlir::LogicalResult UpstreamSlicePass::GenericSliceUpstreaming::matchAndRewrite(
         }) == opOperands.end()) {
         auto newSlice = mlir::cast<mlir::InferTypeOpInterface>(rewriter.clone(*origOp));
         newSlice->setOperand(0, opOperands[0].get());
-        reInferReturnTypes(newSlice);
+        inferReturnTypes(newSlice, InferShapedTypeMode::ALL);
         for (auto& operand : opOperands) {
             operand.set(newSlice->getResult(0));
         }
@@ -164,18 +143,16 @@ mlir::LogicalResult UpstreamSlicePass::GenericSliceUpstreaming::matchAndRewrite(
         for (auto& operand : opOperands) {
             auto newSlice = mlir::cast<mlir::InferTypeOpInterface>(rewriter.clone(*origOp));
             newSlice->setOperand(0, operand.get());
-            reInferReturnTypes(newSlice);
+            inferReturnTypes(newSlice, InferShapedTypeMode::ALL);
             operand.set(newSlice->getResult(0));
         }
     }
 
     VPUX_THROW_UNLESS(parentOp->getResults().size() == 1, "Don't support backprop for multiple outputs yet '{0}'",
                       parentOp);
-    reInferReturnTypes(parentOp, true);
+    inferReturnTypes(parentOp, InferShapedTypeMode::SHAPE);
+
     rewriter.replaceOp(origOp, parentOp->getResults());
-
-    _log.trace("Upstreamed slice.");
-
     return mlir::success();
 }
 

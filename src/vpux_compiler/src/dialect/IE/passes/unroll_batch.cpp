@@ -84,22 +84,15 @@ public:
 
     mlir::Value appendOperationsToSlices(mlir::PatternRewriter& rewriter, ConcreteOp origOp,
                                          mlir::ValueRange slices) const {
-        if (std::is_same<ConcreteOp, IE::AndOp>::value || std::is_same<ConcreteOp, IE::AddOp>::value) {
-            auto newType = changeShape(origOp.getType(), getShape(slices[0]));
-            auto op = rewriter.create<ConcreteOp>(origOp->getLoc(), newType, slices,
-                                                  origOp->getAttrDictionary().getValue());
-            return op.output();
-        } else {
-            auto* op = (mlir::Operation*)origOp;
-            const auto origOperands = op->getOperands();
-            mlir::BlockAndValueMapping mapper;
-            mapper.map(origOperands.take_front(slices.size()), slices);
-            auto* newOp = rewriter.clone(*op, mapper);
+        const auto origOperands = origOp->getOperands();
 
-            vpux::inferReturnTypes(newOp);
+        mlir::BlockAndValueMapping mapper;
+        mapper.map(origOperands.take_front(slices.size()), slices);
 
-            return newOp->getResult(0);
-        }
+        auto* newOp = rewriter.clone(*origOp.getOperation(), mapper);
+        inferReturnTypes(newOp, InferShapedTypeMode::SHAPE);
+
+        return newOp->getResult(0);
     }
 
 private:
@@ -111,8 +104,9 @@ protected:
 
 template <class ConcreteOp>
 mlir::LogicalResult OpConverter<ConcreteOp>::matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const {
-    const auto operands = origOp.getOperands();
+    const auto operands = origOp->getOperands();
     VPUX_THROW_WHEN(operands.empty(), "No operands to slice");
+    VPUX_THROW_WHEN(origOp->getNumResults() != 1, "Operations with multiple results are not supported");
     VPUX_THROW_UNLESS(operands.size() >= _numInputs,
                       "Not enough operands to slice. Not less than {0} expected, but {1} provided", _numInputs,
                       operands.size());
@@ -121,21 +115,24 @@ mlir::LogicalResult OpConverter<ConcreteOp>::matchAndRewrite(ConcreteOp origOp, 
     const auto input1Shape = getShape(input1);
     const auto rowCount = input1Shape[Dim(0)];
     const auto operandsToSlice = operands.take_front(_numInputs);
+
     const bool isBatchEqual =
             std::all_of(operandsToSlice.begin(), operandsToSlice.end(), [rowCount](mlir::Value value) {
                 return getShape(value)[Dim(0)] == rowCount;
             });
     VPUX_THROW_UNLESS(isBatchEqual, "The pass can only slice the inputs with equal batch dimension");
+
     SmallVector<mlir::Value> slicesToConcat;
     for (const auto sliceIdx : irange(rowCount)) {
-        mlir::ValueRange slices = sliceInputs(rewriter, origOp, sliceIdx);
+        const auto slices = sliceInputs(rewriter, origOp, sliceIdx);
         VPUX_THROW_UNLESS(slices.size() == _numInputs, "Slices range must contain {0} values, but {1} provided",
                           _numInputs, slices.size());
-        mlir::Value output = appendOperationsToSlices(rewriter, origOp, slices);
+
+        const auto output = appendOperationsToSlices(rewriter, origOp, slices);
         slicesToConcat.push_back(output);
     }
-    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, slicesToConcat, Dim(0).ind());
 
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, slicesToConcat, Dim(0).ind());
     return mlir::success();
 }
 

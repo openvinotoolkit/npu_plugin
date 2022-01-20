@@ -77,6 +77,26 @@ void populateBufferizeMaterializationLegality(mlir::ConversionTarget& target);
 // inferReturnTypes
 //
 
-void inferReturnTypes(mlir::Operation*);
+enum class InferShapedTypeMode : uint32_t {
+    SHAPE = 1 << 0,
+    ELEM_TYPE = 1 << 1,
+    LAYOUT = 1 << 2,
+    MEM_SPACE = 1 << 3,
+    SPARSITY = 1 << 4,
+
+    ALL = std::numeric_limits<uint32_t>::max()
+};
+
+inline InferShapedTypeMode operator|(InferShapedTypeMode lhs, InferShapedTypeMode rhs) {
+    return static_cast<InferShapedTypeMode>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+}
+inline InferShapedTypeMode operator&(InferShapedTypeMode lhs, InferShapedTypeMode rhs) {
+    return static_cast<InferShapedTypeMode>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));
+}
+inline bool bitEnumContains(InferShapedTypeMode bits, InferShapedTypeMode bit) {
+    return (static_cast<uint32_t>(bits) & static_cast<uint32_t>(bit)) != 0;
+}
+
+void inferReturnTypes(mlir::Operation* op, InferShapedTypeMode mode);
 
 }  // namespace vpux

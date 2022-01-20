@@ -209,15 +209,51 @@ void vpux::populateBufferizeMaterializationLegality(mlir::ConversionTarget& targ
 // inferReturnTypes
 //
 
-void vpux::inferReturnTypes(mlir::Operation* op) {
+void vpux::inferReturnTypes(mlir::Operation* op, InferShapedTypeMode mode) {
     auto iface = mlir::dyn_cast<mlir::InferTypeOpInterface>(op);
-    VPUX_THROW_WHEN(iface == nullptr, "Can't cast the opearation {0} to InferTypeOpInterface", op->getName());
+    VPUX_THROW_WHEN(iface == nullptr, "Operation '{0}' doesn't implement InferTypeOpInterface", op->getName());
+
     SmallVector<mlir::Type> newTypes;
     VPUX_THROW_WHEN(iface.inferReturnTypes(op->getContext(), op->getLoc(), op->getOperands(), op->getAttrDictionary(),
                                            op->getRegions(), newTypes)
                             .failed(),
                     "Failed to infer return types for operaton '{0}'", op->getName());
+
     for (auto p : zip(op->getResults(), newTypes)) {
-        std::get<0>(p).setType(std::get<1>(p));
+        auto val = std::get<0>(p);
+        auto newType = std::get<1>(p);
+
+        if (!bitEnumContains(mode, InferShapedTypeMode::SHAPE)) {
+            if (const auto oldType = val.getType().dyn_cast<mlir::ShapedType>()) {
+                newType = changeShape(newType.cast<mlir::ShapedType>(), getShape(oldType));
+            }
+        }
+        if (!bitEnumContains(mode, InferShapedTypeMode::ELEM_TYPE)) {
+            if (const auto oldType = val.getType().dyn_cast<mlir::ShapedType>()) {
+                newType = changeElemType(newType.cast<mlir::ShapedType>(), oldType.getElementType());
+            }
+        }
+        if (!bitEnumContains(mode, InferShapedTypeMode::LAYOUT)) {
+            if (const auto oldType = val.getType().dyn_cast<mlir::ShapedType>()) {
+                newType = changeDimsOrder(newType.cast<mlir::ShapedType>(), DimsOrder::fromType(oldType));
+            }
+        }
+        if (!bitEnumContains(mode, InferShapedTypeMode::MEM_SPACE)) {
+            if (const auto oldType = val.getType().dyn_cast<mlir::RankedTensorType>()) {
+                newType = changeMemSpace(newType.cast<mlir::RankedTensorType>(), IE::getMemorySpace(oldType));
+            } else if (const auto oldType = val.getType().dyn_cast<mlir::MemRefType>()) {
+                newType = changeMemSpace(newType.cast<mlir::MemRefType>(),
+                                         oldType.getMemorySpace() != nullptr
+                                                 ? oldType.getMemorySpace().cast<IndexedSymbolAttr>()
+                                                 : nullptr);
+            }
+        }
+        if (!bitEnumContains(mode, InferShapedTypeMode::SPARSITY)) {
+            if (const auto oldType = val.getType().dyn_cast<mlir::RankedTensorType>()) {
+                newType = changeSparse(newType.cast<mlir::RankedTensorType>(), IE::isSparse(oldType));
+            }
+        }
+
+        val.setType(newType);
     }
 }
