@@ -50,6 +50,8 @@ using ZeroPoints = SmallVector<int64_t>;
 
 std::pair<Scales, ZeroPoints> extractScalesAndZeroPoints(mlir::Type tensorElemType);
 
+int32_t getPReLUMultFromScale(double preluMult);
+uint32_t getPReLUShiftFromScale(double preluMult);
 uint16_t getQuantMultFromScale(double quantScale);
 uint8_t getQuantShiftFromScale(double quantScale);
 std::pair<uint8_t, int8_t> getQuantShiftAndPostShiftFromScale(double quantScale);

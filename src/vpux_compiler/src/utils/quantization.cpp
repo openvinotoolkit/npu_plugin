@@ -248,6 +248,14 @@ OutputType getShiftFromScale(double scale) {
 
 }  // namespace
 
+int32_t vpux::getPReLUMultFromScale(double preluScale) {
+    return getMultFromScale<11, int32_t>(preluScale);
+}
+
+uint32_t vpux::getPReLUShiftFromScale(double preluScale) {
+    return getShiftFromScale<11, uint32_t>(preluScale);
+}
+
 uint16_t vpux::getQuantMultFromScale(double quantScale) {
     return getMultFromScale<15, uint16_t>(quantScale);
 }
