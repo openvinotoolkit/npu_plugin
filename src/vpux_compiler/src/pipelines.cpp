@@ -86,6 +86,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
     IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
 
     pm.addPass(IE::createConvertToMemPermutePass(log));
+    pm.addPass(IE::createConvertReduceToPoolingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // Lowering
@@ -148,6 +149,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     if (options.enableConvertFCToConv) {
         pm.addPass(IE::createConvertFCToConvPass(log));
     }
+    pm.addPass(IE::createConvertReduceToPoolingPass(log));
     pm.addPass(IE::createHandleLargeKernelsPass(log));
     if (options.enableConvertAvgPoolToDWConv) {
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
@@ -265,6 +267,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     if (options.enableConvertFCToConv) {
         pm.addPass(IE::createConvertFCToConvPass(log));
     }
+    pm.addPass(IE::createConvertReduceToPoolingPass(log));
     pm.addPass(IE::createHandleLargeKernelsPass(log));
     if (options.enableConvertAvgPoolToDWConv) {
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));

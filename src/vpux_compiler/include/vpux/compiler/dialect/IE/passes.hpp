@@ -135,6 +135,7 @@ std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::gl
 std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleLargeKernelsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertReduceToPoolingPass(Logger log = Logger::global());
 
 //
 // Tiling
