@@ -49,6 +49,7 @@ const std::string vpux::IMD::BackendImpl::getName() const {
 void vpux::IMD::BackendImpl::registerOptions(OptionsDesc& options) const {
     options.add<IMD::MV_TOOLS_PATH>();
     options.add<IMD::LAUNCH_MODE>();
+    options.add<IMD::MV_RUN_TIMEOUT>();
 }
 
 INFERENCE_PLUGIN_API(void) CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj) {

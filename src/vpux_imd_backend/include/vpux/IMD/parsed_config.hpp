@@ -17,6 +17,8 @@
 
 #include "vpux/utils/IE/config.hpp"
 
+#include <chrono>
+
 namespace vpux {
 namespace IMD {
 
@@ -66,6 +68,28 @@ struct LAUNCH_MODE final : OptionBase<LAUNCH_MODE, LaunchMode> {
     static LaunchMode defaultValue() {
         return LaunchMode::MoviSim;
     }
+
+    static bool isPublic() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+struct MV_RUN_TIMEOUT final : OptionBase<MV_RUN_TIMEOUT, std::chrono::seconds> {
+    static StringRef key() {
+        return VPUX_IMD_CONFIG_KEY(MV_RUN_TIMEOUT);
+    }
+
+    static StringRef envVar() {
+        return "IE_MV_RUN_TIMEOUT";
+    }
+
+    static std::chrono::seconds parse(StringRef val);
+
+    static std::chrono::seconds defaultValue();
 
     static bool isPublic() {
         return false;

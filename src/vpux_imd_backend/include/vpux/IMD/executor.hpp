@@ -51,6 +51,7 @@ private:
         std::string elfFile;
         std::string runProgram;
         SmallVector<StringRef> runArgs;
+        int64_t timeoutSec;
     };
 
     void parseAppConfig(InferenceEngine::VPUXConfigParams::VPUXPlatform platform, const Config& config);

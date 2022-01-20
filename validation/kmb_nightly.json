@@ -1726,7 +1726,8 @@
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "2"
+                "VPUX_EXECUTOR_STREAMS": "2",
+                "VPUX_IMD_MV_RUN_TIMEOUT": "3600"
             },
             "NetTest-CalcRef": {
                 "inputs" : [["224x224/husky.bmp"]],

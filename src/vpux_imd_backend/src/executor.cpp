@@ -26,7 +26,6 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Program.h>
 
-#include <chrono>
 #include <fstream>
 
 using namespace vpux;
@@ -84,6 +83,8 @@ void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXPlatform platform, const Config
     default:
         VPUX_THROW("Unsupported launch mode '{0}'", mode);
     }
+
+    _app.timeoutSec = config.get<IMD::MV_RUN_TIMEOUT>().count();
 }
 
 //
@@ -172,10 +173,6 @@ void vpux::IMD::ExecutorImpl::storeNetworkInputs(StringRef workDir, const BlobMa
 //
 
 void vpux::IMD::ExecutorImpl::runApp(StringRef workDir) {
-    using namespace std::chrono_literals;
-
-    static const auto RUN_TIMEOUT = std::chrono::duration_cast<std::chrono::seconds>(60min);
-
     _log.trace("Run the application...");
 
     SmallString curPath;
@@ -199,7 +196,7 @@ void vpux::IMD::ExecutorImpl::runApp(StringRef workDir) {
 
     std::string errMsg;
     const auto procErr = llvm::sys::ExecuteAndWait(_app.runProgram, makeArrayRef(_app.runArgs), /*Env=*/None,
-                                                   /*Redirects=*/{}, checked_cast<uint32_t>(RUN_TIMEOUT.count()),
+                                                   /*Redirects=*/{}, checked_cast<uint32_t>(_app.timeoutSec),
                                                    /*MemoryLimit=*/0, &errMsg);
     VPUX_THROW_WHEN(procErr != 0, "Failed to run InferenceManagerDemo : {0}", errMsg);
 }

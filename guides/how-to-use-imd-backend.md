@@ -39,3 +39,7 @@ MDK tools must be available in development environment. It can be done in multip
 
 Then, the `IE_VPUX_USE_IMD_BACKEND=1` environment variable must be set to enable its usage by the VPUX plugin.
 Once this is done, any OpenVINO based application (like `benchmark_app` or `vpuxFuncTests`) can be used to run inference.
+
+It is possible to configure custom inference timeout either via `VPUX_IMD_CONFIG_KEY(MV_RUN_TIMEOUT)` configuration
+parameter or with `IE_MV_RUN_TIMEOUT` environment variable. Time must be specified in seconds.
+The default value is 20 minutes (1200 seconds).
