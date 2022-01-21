@@ -126,11 +126,11 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                                                        5.0))));
                 _log.trace("The SOH efficiency for the group convolution is {0}", efficency);
                 return efficency;
-            })
-            .Default([](mlir::Operation* unknownOp) {
-                VPUX_THROW("Operation is not supported by the NCE");
-                return 0;
             });
+    // .Default([](mlir::Operation* unknownOp) {
+    //     VPUX_THROW("Operation is not supported by the NCE");
+    //     return 0;
+    // });
 }
 
 double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
@@ -199,11 +199,11 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                                                        5.0))));
                 _log.trace("The SOK efficiency for the group convolution is {0}", efficency);
                 return efficency;
-            })
-            .Default([](mlir::Operation* unknownOp) {
-                VPUX_THROW("Operation is not supported by the NCE");
-                return 0;
             });
+    // .Default([](mlir::Operation* unknownOp) {
+    //     VPUX_THROW("Operation is not supported by the NCE");
+    //     return 0;
+    // });
 }
 
 // Computes the multi-cluster efficiency value for operation
@@ -245,11 +245,11 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     }
                     // Assign the most strategy
                     assignMultiClusterStrategy(op);
-                })
-                .Default([](mlir::Operation* unknownOp) {
-                    VPUX_THROW("Operation is not supported by the NCE");
-                    return 0;
                 });
+        // .Default([](mlir::Operation* unknownOp) {
+        //     VPUX_THROW("Operation is not supported by the NCE");
+        //     return 0;
+        // });
     };
 
     _func.walk(callback);
@@ -263,14 +263,13 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                     op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverH"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
-                    break;
+
                 }
                 // SOK is more efficient
                 else if (_splitOverHeightEfficencies.find(op)->second < _splitOverKernelEfficencies.find(op)->second) {
                     op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverK"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
-                    break;
 
                 }
                 // Operation should be clustering
@@ -278,7 +277,6 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                     op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
-                    break;
                 }
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
@@ -291,19 +289,71 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                 const auto IC = inputShape[Dims4D::Act::C];
                 const auto IH = inputShape[Dims4D::Act::H];
                 const auto IW = inputShape[Dims4D::Act::W];
-                const auto KY = weightsShape[Dims4D::Filter::KY];
-                const auto KX = weightsShape[Dims4D::Filter::KX];
-                const auto WIC = weightsShape[Dims4D::Filter::IC];
-                const auto WOC = weightsShape[Dims4D::Filter::OC];
-                const double inputTensorVolume = IC * IH * IW; // Need to add precision
-                const double weightTensorVolume = KY * KX * WIC * WOC;
-                if ((_splitOverHeightEfficencies.find(op)->second == _splitOverKernelEfficencies.find(op)->second) &&
-                    isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op) &&
-                    isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
+                const double KY = weightsShape[Dims4D::Filter::KY];
+                const double KX = weightsShape[Dims4D::Filter::KX];
+                const double WIC = weightsShape[Dims4D::Filter::IC];
+                const double WOC = weightsShape[Dims4D::Filter::OC];
+                const double inputTensorVolume = IC * IH * IW;  // Need to add precision
+                const double weightTensorVolume =
+                        WOC * 1 * std::ceil((1 * KY * KX) / 16) * 16;  // Need to add precision
+
+                // If operation is neither SOH or SOK compatible, then it has to be Clustering
+                if (!isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op) &&
+                    !isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
+                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
+                               op->getAttr(multiClusterStrategyAttrName), op->getName());
                 }
-            })
-            .Default([](mlir::Operation* unknownOp) {
-                VPUX_THROW("Operation is not supported by the NCE");
-                return 0;
+                // If the SOH and SOK efficiency values are equal
+                // and the operation is both SOH and SOK compatible
+                // then select either SOK or SOH based on the lesser
+                // amount of data that has to be moved
+                else if ((_splitOverHeightEfficencies.find(op)->second ==
+                          _splitOverKernelEfficencies.find(op)->second) &&
+                         isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op) &&
+                         isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
+                    if (_numClusters * inputTensorVolume + weightTensorVolume <
+                        inputTensorVolume + (_numClusters * weightTensorVolume)) {
+                        op->setAttr(multiClusterStrategyAttrName,
+                                    mlir::StringAttr::get(op->getContext(), "SplitOverK"));
+                        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
+                                   op->getAttr(multiClusterStrategyAttrName), op->getName());
+                    } else {
+                        op->setAttr(multiClusterStrategyAttrName,
+                                    mlir::StringAttr::get(op->getContext(), "SplitOverH"));
+                        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
+                                   op->getAttr(multiClusterStrategyAttrName), op->getName());
+                    }
+                } else if ((_splitOverHeightEfficencies.find(op)->second >
+                            _splitOverKernelEfficencies.find(op)->second) &&
+                           isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op)) {
+                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverH"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
+                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+
+                } else if ((_splitOverHeightEfficencies.find(op)->second >
+                            _splitOverKernelEfficencies.find(op)->second) &&
+                           !isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op)) {
+                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
+                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+                } else if ((_splitOverHeightEfficencies.find(op)->second <
+                            _splitOverKernelEfficencies.find(op)->second) &&
+                           isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
+                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverK"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
+                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+
+                } else if ((_splitOverHeightEfficencies.find(op)->second <
+                            _splitOverKernelEfficencies.find(op)->second) &&
+                           !isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
+                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
+                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+                }
             });
+    // .Default([](mlir::Operation* unknownOp) {
+    //     VPUX_THROW("Operation is not supported by the NCE");
+    //     return 0;
+    // });
 }
