@@ -119,4 +119,8 @@ add_subdirectory(tools)
 # CPack
 #
 
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+        DESTINATION "runtime/include/ie"
+        COMPONENT ${VPUX_PLUGIN_COMPONENT})
+ 
 ie_cpack(${VPUX_PLUGIN_COMPONENT})
