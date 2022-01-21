@@ -49,7 +49,7 @@ void vpux::VPUIP::CumSumUPAOp::build(mlir::OpBuilder& builder, mlir::OperationSt
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CumSumUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::CumSumParamsBuilder builder(writer);
-    builder.add_axis(axis().getValueOr(0));
+    builder.add_axis(checked_cast<int32_t>(axis().getValueOr(0)));
     builder.add_exclusive(exclusive().getValueOr(false));
     builder.add_reverse(reverse().getValueOr(false));
 
