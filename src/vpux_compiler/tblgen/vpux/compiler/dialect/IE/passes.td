@@ -151,6 +151,26 @@ def ConvertPrecisionToI32 : PassBase<"convert-precision-to-i32", "vpux::ModulePa
 }
 
 //
+// ConvertDepth2SpaceLayer
+//
+
+def ConvertDepth2SpaceLayer : PassBase<"convert-depthToSpace", "vpux::FunctionPass"> {
+    let summary = "Convert DepthToSpace layer to {reshape -> transpose -> reshape} subgraph";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass replaces all `DepthToSpace` operations with {reshape -> transpose -> reshape} subgraph.
+    }];
+
+    let constructor = "vpux::IE::createConvertDepth2SpaceLayerPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertShapeTo4D
 //
 

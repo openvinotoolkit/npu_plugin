@@ -21,6 +21,10 @@ dilations:  {2} -> dilations:  {1, 2}
 The pass is a part of `AdjustForVPU` pipeline.
 
 Replaces deconvolution by upsampling and convolution
+### `-convert-depthToSpace`: Convert DepthToSpace layer to {reshape -> transpose -> reshape} subgraph
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces all `DepthToSpace` operations with {reshape -> transpose -> reshape} subgraph.
 ### `-convert-fc-to-conv`: Convert FullyConnected op to Convolution operation
 The pass is a part of `AdjustForVPU` pipeline.
 
