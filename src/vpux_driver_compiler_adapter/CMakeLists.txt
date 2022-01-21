@@ -15,9 +15,9 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME "zero_compiler_adapter")
-set(OBJ_TARGET_NAME "zero_compiler_adapter_obj")
-set(STATIC_TARGET_NAME "zero_compiler_adapter_static")
+set(TARGET_NAME "vpux_driver_compiler_adapter")
+set(OBJ_TARGET_NAME "vpux_driver_compiler_adapter_obj")
+set(STATIC_TARGET_NAME "vpux_driver_compiler_adapter_static")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -56,6 +56,7 @@ target_link_libraries(${OBJ_TARGET_NAME}
         vpux_al
 #        TODO Avoid this dependencies
         kmb_utils)
+    
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${OBJ_TARGET_NAME} FOR_TARGETS ${OBJ_TARGET_NAME} ALL)

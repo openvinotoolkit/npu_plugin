@@ -12,7 +12,7 @@
 //
 #include <gtest/gtest.h>
 #include "ngraph_transformations.h"
-#include "zero_compiler_adapter.h"
+#include "vpux_driver_compiler_adapter.h"
 
 #include "ngraph/ngraph.hpp"
 

@@ -57,7 +57,7 @@ if(NOT BUILD_COMPILER_FOR_DRIVER)
 endif()
 
 if (ENABLE_VPUX_IN_DRIVER)
-    add_subdirectory(zero_compiler_adapter)
+    add_subdirectory(vpux_driver_compiler_adapter)
 endif()
 
 add_subdirectory(vpux_utils)

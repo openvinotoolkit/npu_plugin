@@ -13,7 +13,7 @@
 
 #pragma once
 #include <vector>
-#include "zero_compiler_adapter.h"
+#include "vpux_driver_compiler_adapter.h"
 
 namespace vpux {
 namespace zeroCompilerAdapter {

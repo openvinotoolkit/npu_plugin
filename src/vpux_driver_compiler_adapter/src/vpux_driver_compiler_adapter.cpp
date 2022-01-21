@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "zero_compiler_adapter.h"
+#include "vpux_driver_compiler_adapter.h"
 #include <chrono>
 #include "network_description.h"
 #include "ngraph_transformations.h"

@@ -26,10 +26,10 @@ endif()
 if(ENABLE_VPUX_IN_DRIVER)
     set(VPUX_IN_DRIVER_UNIT_TESTS_DIR "")
     set(VPUX_IN_DRIVER_LIBS
-            zero_compiler_adapter_static
+            vpux_driver_compiler_adapter_static
         )
 else()
-    set(VPUX_IN_DRIVER_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/zero_compiler_adapter")
+    set(VPUX_IN_DRIVER_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vpux_driver_compiler_adapter")
 endif()
 
 set(MCM_SCHEDULER_INCLUDES_DIR
