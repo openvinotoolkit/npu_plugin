@@ -45,8 +45,8 @@ private:
 
     const size_t _minimumHeightForSOH = 20;
     const size_t _minimumOutputChannelsPerCluster = 16;
-    //llvm::DenseMap<mlir::Operation*, double> _splitOverHeightEfficencies;
-    //llvm::DenseMap<mlir::Operation*, double> _splitOverKernelEfficencies;
+    // llvm::DenseMap<mlir::Operation*, double> _splitOverHeightEfficencies;
+    // llvm::DenseMap<mlir::Operation*, double> _splitOverKernelEfficencies;
     std::map<mlir::Operation*, double> _splitOverHeightEfficencies;
     std::map<mlir::Operation*, double> _splitOverKernelEfficencies;
     size_t _numClusters;
