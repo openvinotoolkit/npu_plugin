@@ -486,17 +486,17 @@ def IE_ColorFmt :
 
 
 //
-// ExtractImagePatchesPadMode
+// PadType
 //
 
-def IE_ExtractImagePatchesPadMode :
+def IE_PadType :
         StrEnumAttr<
-            "ExtractImagePatchesPadMode",
-            "ExtractImagePatchesPadMode that the InferenceEngine supports",
+            "PadType",
+            "PadType that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"same_upper">,
-                StrEnumAttrCase<"same_lower">,
-                StrEnumAttrCase<"valid">,
+                StrEnumAttrCase<"SAME_UPPER">,
+                StrEnumAttrCase<"SAME_LOWER">,
+                StrEnumAttrCase<"VALID">,
             ]
         > {
     let cppNamespace = "vpux::IE";

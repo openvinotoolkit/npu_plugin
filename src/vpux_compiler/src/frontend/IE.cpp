@@ -287,7 +287,7 @@ private:
     IE::RNNSequenceDirectionAttr importRNNSequenceDirection(const ngraph::op::RecurrentSequenceDirection val);
     IE::DepthToSpaceModeAttr importDepthToSpaceMode(const ngraph::op::v0::DepthToSpace::DepthToSpaceMode val);
     IE::SpaceToDepthModeAttr importSpaceToDepthMode(const ngraph::op::SpaceToDepth::SpaceToDepthMode val);
-    IE::ExtractImagePatchesPadModeAttr importExtractImagePatchesPadMode(const ngraph::op::v3::ExtractImagePatchesPadMode::paddingType& mode);
+    IE::PadTypeAttr importPadType(const ngraph::op::PadType& autoPads);
 
     mlir::MLIRContext* _ctx = nullptr;
     std::shared_ptr<const ngraph::Function> _netGraph;
@@ -2000,7 +2000,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 //    const auto sizes = getIntAttr(_ctx, origNode->get_sizes());
 //    const auto strides = getIntAttr(_ctx, origNode->get_strides());
 //    const auto rates = getIntAttr(_ctx, origNode->get_rates());
-//    const auto paddingType = importExtractImagePatchesPadMode(origNode->get_padding());
+//    const auto paddingType = importPadType(origNode->get_padding());
 
 //    auto op = builder.create<IE::ROIAlignOp>(createLocation(origNode), inputs[0], sizes,
 //                                                 strides, rates, paddingType);
@@ -2327,16 +2327,16 @@ IE::ROIAlignMethodAttr NGraphImporter::importROIAlignMethod(const ngraph::op::v3
     return attr;
 }
 
-IE::ExtractImagePatchesPadModeAttr NGraphImporter::importExtractImagePatchesPadMode(const ngraph::op::v3::ExtractImagePatches::paddingType& padding) {
-    IE::ExtractImagePatchesPadModeAttr attr;
-    if (padding == ngraph::op::v3::ExtractImagePatches::paddingType::SAME_UPPER) {
-        attr = IE::ExtractImagePatchesPadModeAttr::get(_ctx, IE::ExtractImagePatchesPadMode::same_upper);
-    } else if (padding == ngraph::op::v3::ExtractImagePatches::paddingType::SAME_LOWER) {
-        attr = IE::ExtractImagePatchesPadModeAttr::get(_ctx, IE::ExtractImagePatchesPadMode::same_lower);
-    } else if (padding == ngraph::op::v3::ExtractImagePatches::paddingType::VALID) {
-            attr = IE::ExtractImagePatchesPadModeAttr::get(_ctx, IE::ExtractImagePatchesPadMode::valid);
+IE::PadTypeAttr NGraphImporter::importPadType(const ngraph::op::PadType& padding) {
+    IE::PadTypeAttr attr;
+    if (padding == ngraph::op::PadType::SAME_UPPER) {
+        attr = IE::PadTypeAttr::get(_ctx, IE::PadType::SAME_UPPER);
+    } else if (padding == ngraph::op::PadType::SAME_LOWER) {
+        attr = IE::PadTypeAttr::get(_ctx, IE::PadType::SAME_LOWER);
+    } else if (padding == ngraph::op::PadType::VALID) {
+            attr = IE::PadTypeAttr::get(_ctx, IE::PadType::VALID);
     } else {
-            VPUX_THROW("Unknown ExtractImagePatchesPadMode");
+            VPUX_THROW("Unknown PadType");
     }
     return attr;
 }

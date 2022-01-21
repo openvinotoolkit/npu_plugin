@@ -1,4 +1,4 @@
-// Copyright (C) Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@ TEST_P(KmbExtractImagePatchesLayerTest, CompareWithRefs_MLIR) {
 }  // namespace LayerTestsDefinitions
 
 using namespace ngraph::helpers;
+using ngraph::op::PadType;
 using namespace LayerTestsDefinitions;
 
 namespace {
@@ -28,35 +29,26 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP16,
 };
 
-//std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
+//std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = { // ???
 //    {{1, 50, 1, 1}, {{}}},
 //    {{1, 128, 1, 1}, {{}}},
 //};
 
 // data the 4-D tensor of type T with shape [batch, depth, in_rows, in_cols].
-const std::vector<InferenceEngine::SizeVector> inputShapes = {
-    InferenceEngine::SizeVector { 64, 3, 10, 10 },
-};
+// const std::vector<InferenceEngine::SizeVector> inputShapes = {
+//     InferenceEngine::SizeVector {1, 1, 10, 10}, 
+//     InferenceEngine::SizeVector {1, 3, 10, 10}
+// };
 
 //const std::vector<size_t> inputShape = {
-//        { 2, 18, 20, 20 },
-//        { 2, 4, 20, 20 },
-//        { 2, 4, 20, 40 },
-//        { 10, 1, 20, 20 }
+//        {1, 1, 10, 10}, 
+//        {1, 3, 10, 10}
 //};
 
-//const std::vector<size_t> sizes = {{3, 3}}; // int64_t
-
-//const std::vector<size_t> strides = {{5, 5}}; // int64_t
-
-//const std::vector<size_t> rates = {{1, 1}}; // int64_t
-
-const std::vector<std::string> paddingType = {
-            "same_upper",
-            "same_lower",
-            "valid"
-    };
-
+// const std::vector<std::vector<size_t>> sizes = {{2, 2}, {3, 3}, {4, 4}, {1, 3}, {4, 2}};
+// const std::vector<std::vector<size_t>> strides = {{3, 3}, {5, 5}, {9, 9}, {1, 3}, {6, 2}};
+// const std::vector<std::vector<size_t>> rates = {{1, 1}, {1, 2}, {2, 1}, {2, 2}};
+// const std::vector<PadType> paddingType = {PadType::VALID, PadType::SAME_UPPER, PadType::SAME_LOWER};
 
 const auto testExtractImagePatchesParams = testing::Combine(
         testing::ValuesIn(inputShape),
@@ -65,6 +57,10 @@ const auto testExtractImagePatchesParams = testing::Combine(
         testing::ValuesIn(rates)
         testing::ValuesIn(paddingType),
         testing::ValuesIn(netPrecision),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
@@ -79,5 +75,6 @@ const auto testExtractImagePatchesParams = testing::Combine(
 //    testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 //);
 
-INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches, KmbExtractImagePatchesLayerTest, testExtractImagePatchesParams, ExtractImagePatchesLayerTest::getTestCaseName
-);
+INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches, KmbExtractImagePatchesLayerTest, testExtractImagePatchesParams, ExtractImagePatchesLayerTest::getTestCaseName);
+
+}  // namespace

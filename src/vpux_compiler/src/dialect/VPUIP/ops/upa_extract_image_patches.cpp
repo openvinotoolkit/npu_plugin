@@ -23,20 +23,20 @@
 using namespace vpux;
 
 //namespace {
-//MVCNN::ExtractImagePatchesPadMode ExtractImagePatchesPadMode2MVCNN(IE::ExtractImagePatchesPadMode padding) {
-//    MVCNN::ExtractImagePatchesPadMode mvcnn_padding;
+//MVCNN::PadType PadType2MVCNN(IE::PadType padding) {
+//    MVCNN::PadType mvcnn_padding;
 //    switch (padding) {
-//    case IE::ExtractImagePatchesPadMode::same_upper:
-//        mvcnn_padding = MVCNN::ExtractImagePatchesPadMode_padding_same_upper;
+//    case IE::PadType::SAME_UPPER:
+//        mvcnn_padding = MVCNN::PadType::PadType_SAME_UPPER;
 //        break;
-//    case IE::ExtractImagePatchesPadMode::same_lower:
-//        mvcnn_padding = MVCNN::ExtractImagePatchesPadMode_padding_same_lower;
+//    case IE::PadType::SAME_LOWER:
+//        mvcnn_padding = MVCNN::PadType::PadType_SAME_LOWER;
 //        break;
-//    case IE::ExtractImagePatchesPadMode::valid:
-//        mvcnn_padding = MVCNN::ExtractImagePatchesPadMode_padding_valid;
+//    case IE::PadType::VALID:
+//        mvcnn_padding = MVCNN::PadType::PadType_VALID;
 //        break;
 //    default:
-//        VPUX_THROW("Unknown ExtractImagePatchesPadMode. same upper (same lower) and valid types are supported only");
+//        VPUX_THROW("Unknown PadType. same upper (same lower) and valid types are supported only");
 //    }
 //    return mvcnn_padding;
 //}
@@ -45,7 +45,7 @@ using namespace vpux;
 //void vpux::VPUIP::ExtractImagePatchesUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
 //                                       mlir::Value data, mlir::Value output,
 //                                       mlir::ArrayAttr sizes, mlir::ArrayAttr strides, mlir::ArrayAttr rates,
-//                                       IE::ExtractImagePatchesPadModeAttr paddingType) {
+//                                       IE::PadTypeAttr paddingType) {
 //    build(odsBuilder, odsState, data, output, mlir::ValueRange{}, mlir::ValueRange{}, sizes, strides, rates, paddingType, nullptr, nullptr);
 //}
 
@@ -60,7 +60,7 @@ using namespace vpux;
 //      return to_std_vector(values);
 //      };
 //
-//      builder.add_padding(ExtractImagePatchesPadMode2MVCNN(paddingType()));
+//      builder.add_padding(PadType2MVCNN(paddingType()));
 //      builder.add_sizes(builder.fbb_.CreateVector(attrToVector(sizes().getValue())));
 //      builder.add_strides(builder.fbb_.CreateVector(attrToVector(strides().getValue())));
 //      builder.add_rates(builder.fbb_.CreateVector(attrToVector(rates().getValue())));
@@ -70,19 +70,19 @@ using namespace vpux;
 //      return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ExtractImagePatchesParams});
 //}
 
-//IE::ExtractImagePatchesPadMode softLayerParam2IEType(size_t padding) {
-//    IE::ExtractImagePatchesPadMode ieType;
+//IE::PadType softLayerParam2IEType(size_t padding) {
+//    IE::PadType ieType;
 //    switch (padding) {
-//    case 0:
-//        ieType = IE::ExtractImagePatchesPadMode_padding_same_upper;
-//        break;
 //    case 1:
-//        ieType = IE::ExtractImagePatchesPadMode_padding_same_lower;
+//        ieType = IE::PadType::SAME_LOWER;
 //        break;
 //    case 2:
-//        ieType = IE::ExtractImagePatchesPadMode_padding_valid;
+//        ieType = IE::PadType::SAME_UPPER;
+//        break;
+//    case 3:
+//        ieType = IE::PadType::VALID;
 //    default:
-//        VPUX_THROW("Unknown ExtractImagePatchesPadMode. same upper (same lower) and valid types are supported only");
+//        VPUX_THROW("Unknown PadType. same upper (same lower) and valid types are supported only");
 //    }
 
 //    return ieType;
@@ -100,9 +100,9 @@ using namespace vpux;
 //    const auto strides = getIntAttr(_ctx, params->strides());
 //    const auto rates = getIntAttr(_ctx, params->rates());
 //    */
-//    IE::ExtractImagePatchesPadMode padding = softLayerParam2IEType(params->padding());
+//    IE::PadType padding = softLayerParam2IEType(params->padding());
 //
 //    return builder.create<VPUIP::ExtractImagePatchesUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0],
 //                                                outputs[0], sizes, strides, rates,
-//                                                IE::ExtractImagePatchesPadModeAttr::get(_ctx, padding));
+//                                                IE::PadTypeAttr::get(_ctx, padding));
 //}
