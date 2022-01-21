@@ -171,11 +171,29 @@ void ConvertQuantizeOpsToEltwisePass::safeRunOnFunc() {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
 
+    const auto isChannelMajorCompatible = [&](mlir::ShapedType inputType) {
+        if (arch != VPU::ArchKind::KMB) {
+            return false;
+        }
+
+        const auto inputShape = getShape(inputType);
+        const auto IC = inputShape[Dims4D::Act::C];
+        const auto IW = inputShape[Dims4D::Act::W];
+
+        return (IC == 3) && (IW % 16 == 0);
+    };
+
     // HW Eltwise supports only per-tensor bias/scale parameters
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::QuantizeOp>([&](IE::QuantizeOp quantizeOp) {
-        auto outElemType = quantizeOp.output().getType().cast<mlir::ShapedType>().getElementType();
-        return outElemType.isa<mlir::quant::UniformQuantizedPerAxisType>();
+        auto outType = quantizeOp.output().getType().cast<mlir::ShapedType>();
+        auto typeCheck = outType.getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>();
+        auto nextOps = quantizeOp.output().getUsers();
+        for (const auto& nextOp : nextOps) {
+            auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(nextOp);
+            std::cout << (convOp != nullptr) << isChannelMajorCompatible(outType) << typeCheck << std::endl;
+            return ((convOp != nullptr) && isChannelMajorCompatible(outType)) || typeCheck;
+        }
     });
     target.addDynamicallyLegalOp<IE::DequantizeOp>([&](IE::DequantizeOp dequantizeOp) {
         auto inElemType = dequantizeOp.input().getType().cast<mlir::ShapedType>().getElementType();
