@@ -47,15 +47,12 @@ link_system_libraries(${OBJ_TARGET_NAME}
         IE::inference_engine_plugin_api
         ze_loader
         vpux_ngraph_transformations
-#        TODO Avoid this dependencies
-        IE::vpu_common_lib
         )
 
 target_link_libraries(${OBJ_TARGET_NAME}
     PRIVATE
         vpux_al
-#        TODO Avoid this dependencies
-        kmb_utils)
+        )
     
 
 if(ENABLE_CLANG_FORMAT)
