@@ -81,9 +81,11 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
     case InferenceEngine::VPUXConfigParams::CompilerType::MCM: {
         return std::make_shared<Compiler>(getLibFilePath("vpux_mcm_frontend"));
     }
-    case InferenceEngine::VPUXConfigParams::CompilerType::MLIR: {
-        return std::make_shared<Compiler>(getLibFilePath("vpux_mlir_compiler"));
-    }
+    // FIXME Pretend that MLIR = CID for validation
+    case InferenceEngine::VPUXConfigParams::CompilerType::MLIR: 
+    // {
+    //     return std::make_shared<Compiler>(getLibFilePath("vpux_mlir_compiler"));
+    // }
     case InferenceEngine::VPUXConfigParams::CompilerType::VPUX_IN_DRIVER: {
         return std::make_shared<Compiler>(getLibFilePath("zero_compiler_adapter"));
     }
