@@ -23,7 +23,7 @@ else()
     set(EXCLUDED_HDDL2_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hddl2_tests")
 endif()
 
-if(ENABLE_VPUX_IN_DRIVER)
+if(ENABLE_DRIVER_COMPILER_ADAPTER)
     set(VPUX_IN_DRIVER_UNIT_TESTS_DIR "")
     set(VPUX_IN_DRIVER_LIBS
             vpux_driver_compiler_adapter_static

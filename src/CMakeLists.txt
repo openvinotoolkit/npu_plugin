@@ -56,7 +56,7 @@ if(NOT BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(vpux_plugin)
 endif()
 
-if (ENABLE_VPUX_IN_DRIVER)
+if (ENABLE_DRIVER_COMPILER_ADAPTER)
     add_subdirectory(vpux_driver_compiler_adapter)
 endif()
 
