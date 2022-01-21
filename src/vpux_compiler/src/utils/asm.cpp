@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/utils/asm.hpp"
 
+#include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
 
@@ -26,12 +27,21 @@ using namespace vpux;
 
 namespace {
 
-bool isDefinedAbove(mlir::Value val, mlir::Operation* op) {
+bool isDefinedAbove(mlir::Value val, mlir::Operation* user) {
     if (val.isa<mlir::BlockArgument>()) {
         return true;
     }
 
-    return val.getDefiningOp()->getBlock() == op->getBlock() && val.getDefiningOp()->isBeforeInBlock(op);
+    auto* producer = val.getDefiningOp();
+
+    if (producer->getBlock() == user->getBlock()) {
+        return producer->isBeforeInBlock(user);
+    }
+
+    auto* producerRegion = producer->getParentRegion();
+    auto* userAncestor = producerRegion->findAncestorOpInRegion(*user);
+
+    return userAncestor != nullptr && producer->isBeforeInBlock(userAncestor);
 }
 
 bool canSkipOperandTypes(mlir::Operation* op) {
@@ -42,18 +52,34 @@ bool canSkipOperandTypes(mlir::Operation* op) {
 
 }  // namespace
 
-void vpux::details::printOptionalTypes(mlir::OpAsmPrinter& printer, mlir::Operation* op, ArrayRef<mlir::Type> types) {
+void vpux::printOptionalTypes(mlir::OpAsmPrinter& printer, mlir::Operation* op, mlir::TypeRange types) {
     if (canSkipOperandTypes(op)) {
         return;
     }
+
+    const auto nonNull = [](mlir::Type type) {
+        return type != nullptr;
+    };
+    VPUX_THROW_UNLESS(llvm::all_of(types, nonNull), "Optional values are not supported");
 
     printer << ": ";
     llvm::interleaveComma(types, printer);
 }
 
+mlir::ParseResult vpux::parseOptionalTypes(mlir::OpAsmParser& parser, SmallVectorImpl<mlir::Type>& types) {
+    if (parser.parseOptionalColonTypeList(types)) {
+        return mlir::success();
+    }
+
+    return mlir::success();
+}
+
 mlir::ParseResult vpux::details::parseOptionalTypes(mlir::OpAsmParser& parser, ArrayRef<mlir::Type*> dst) {
     SmallVector<mlir::Type> types;
     if (parser.parseOptionalColonTypeList(types)) {
+        return mlir::success();
+    }
+    if (types.empty()) {
         return mlir::success();
     }
 

@@ -19,7 +19,6 @@
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/asm.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>

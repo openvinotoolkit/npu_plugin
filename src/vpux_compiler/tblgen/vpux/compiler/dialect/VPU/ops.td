@@ -27,7 +27,6 @@ include "vpux/compiler/dialect/VPU/ops_interfaces.td"
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 
 //
@@ -110,7 +109,6 @@ def VPU_NCEConvolutionOp :
                 NoRegionArguments,
                 NoTerminator,
                 SingleBlock,
-                OpAsmOpInterface,
                 IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
@@ -155,10 +153,6 @@ def VPU_NCEConvolutionOp :
     }];
 
     let extraClassDeclaration = [{
-        static mlir::StringRef getDefaultDialect() {
-            return "VPU";
-        }
-
         static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
                                mlir::ShapedType input, mlir::ShapedType filter,
                                mlir::ShapedType output);
@@ -182,7 +176,6 @@ def VPU_NCEDepthConvolutionOp :
                 NoRegionArguments,
                 NoTerminator,
                 SingleBlock,
-                OpAsmOpInterface,
                 IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
@@ -227,10 +220,6 @@ def VPU_NCEDepthConvolutionOp :
     }];
 
     let extraClassDeclaration = [{
-        static mlir::StringRef getDefaultDialect() {
-            return "VPU";
-        }
-
         static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
                                mlir::ShapedType input, mlir::ShapedType filter,
                                mlir::ShapedType output);
@@ -254,7 +243,6 @@ def VPU_NCEMaxPoolOp :
                 NoRegionArguments,
                 NoTerminator,
                 SingleBlock,
-                OpAsmOpInterface,
                 IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
@@ -294,10 +282,6 @@ def VPU_NCEMaxPoolOp :
     }];
 
     let extraClassDeclaration = [{
-        static mlir::StringRef getDefaultDialect() {
-            return "VPU";
-        }
-
         static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernel_size, mlir::ArrayAttr strides,
                                mlir::ShapedType input, mlir::ShapedType output);
 
@@ -320,7 +304,6 @@ def VPU_NCEEltwiseOp :
                 NoRegionArguments,
                 NoTerminator,
                 SingleBlock,
-                OpAsmOpInterface,
                 IE_EltwiseOp,
                 IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
@@ -356,10 +339,6 @@ def VPU_NCEEltwiseOp :
     }];
 
     let extraClassDeclaration = [{
-        static mlir::StringRef getDefaultDialect() {
-            return "VPU";
-        }
-
         static bool fitIntoCMX(mlir::Operation* op,
                                mlir::ShapedType input1, mlir::ShapedType input2,
                                mlir::ShapedType output);

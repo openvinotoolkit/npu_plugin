@@ -21,31 +21,26 @@
 namespace vpux {
 
 //
-// OptionalType
-//
-
-void printOptionalType(mlir::OpAsmPrinter& printer, mlir::Operation* op, mlir::Type type);
-mlir::ParseResult parseOptionalType(mlir::OpAsmParser& parser, mlir::Type& type);
-
-//
 // OptionalTypes
 //
 
+void printOptionalTypes(mlir::OpAsmPrinter& printer, mlir::Operation* op, mlir::TypeRange types);
+mlir::ParseResult parseOptionalTypes(mlir::OpAsmParser& parser, SmallVectorImpl<mlir::Type>& types);
+
+template <typename... Args>
+void printOptionalTypes(mlir::OpAsmPrinter& printer, mlir::Operation* op, mlir::Type type, Args... types) {
+    printOptionalTypes(printer, op, mlir::TypeRange(makeArrayRef({type, types...})));
+}
+
 namespace details {
 
-void printOptionalTypes(mlir::OpAsmPrinter& printer, mlir::Operation* op, ArrayRef<mlir::Type> types);
 mlir::ParseResult parseOptionalTypes(mlir::OpAsmParser& parser, ArrayRef<mlir::Type*> types);
 
 }  // namespace details
 
 template <typename... Args>
-void printOptionalTypes(mlir::OpAsmPrinter& printer, mlir::Operation* op, Args... types) {
-    details::printOptionalTypes(printer, op, makeArrayRef({types...}));
-}
-
-template <typename... Args>
-mlir::ParseResult parseOptionalTypes(mlir::OpAsmParser& parser, Args&... types) {
-    return details::parseOptionalTypes(parser, makeArrayRef({&types...}));
+mlir::ParseResult parseOptionalTypes(mlir::OpAsmParser& parser, mlir::Type& type, Args&... types) {
+    return details::parseOptionalTypes(parser, makeArrayRef({&type, &types...}));
 }
 
 //
