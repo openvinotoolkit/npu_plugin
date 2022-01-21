@@ -26,3 +26,4 @@ VPUIP_2_REL_THROUGH_ROOT := $(REL_TO_ROOT)$(VPUIP_2_ABS_DIR)
 
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  leon/common leon/inference_runtime leon/common_runtime
 subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  leon
+ccopt-lrt-$(CONFIG_TARGET_SOC_3720)  += -DJTAG_LOW_LEVEL=0

@@ -153,7 +153,7 @@ void ShaveManager::initActRtCodeBuffer(const uint8_t tile) {
 #ifdef CONFIG_VALIDATION_APP_ENABLED
 void ShaveManager::initActRtStacksAndDatas(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs) {
     // TODO: Implement this when the compiler is ready to embed the ActRT into the blob
-    nnLog(MVLOG_WARN, "Validation App Mode: Using embedded Act stacks");
+    nnLog(MVLOG_DEBUG, "Validation App Mode: Using embedded Act stacks");
 
     // Workaround for EISW-23330 when running VPUX softmax software layer.
     // The DDR stacks for the activation SHAVEs is causing instruction corruption.
@@ -191,19 +191,19 @@ void ShaveManager::startActShaves(const uint8_t tile, const ActKernelRuntimeConf
 
     // Set stack location, set the stack size, then start the Shave
     for (uint32_t i = startShvId; i < startShvId + 1; i++) {
-        nnLog(MVLOG_INFO, "ACTSHV %d stack addr @ %p", i, actShvStacks[i]);
+        nnLog(MVLOG_DEBUG, "ACTSHV %d stack addr @ %p", i, actShvStacks[i]);
         auto rc = ShCtrlSetStackAddr(actShvHnd[i], actShvStacks[i]);
         if (rc != HGL_SHAVE_CTRL_SUCCESS) {
             nnLog(MVLOG_ERROR, "ActShaveCtrlSetStackAddr: %d", (int)rc);
         }
 
-        nnLog(MVLOG_INFO, "ACTSHV %d stack size = 0x%x", i, cfgs.stackSize_);
+        nnLog(MVLOG_DEBUG, "ACTSHV %d stack size = 0x%x", i, cfgs.stackSize_);
         rc = ShCtrlSetStackSize(actShvHnd[i], cfgs.stackSize_);
         if (rc != HGL_SHAVE_CTRL_SUCCESS) {
             nnLog(MVLOG_ERROR, "ActShaveCtrlSetStackSize: %d", (int)rc);
         }
 
-        nnLog(MVLOG_INFO, "ACTSHV %d WIN_%d = %p", i, mapWindowAddrMaskToName(ACT_RT_CODE_WINDOW),
+        nnLog(MVLOG_DEBUG, "ACTSHV %d WIN_%d = %p", i, mapWindowAddrMaskToName(ACT_RT_CODE_WINDOW),
               reinterpret_cast<uint32_t>(actShvTextsBuffers[tile]));
         rc = ShCtrlSetWindowAddr(actShvHnd[i], mapWindowAddrMaskToName(ACT_RT_CODE_WINDOW),
                                     reinterpret_cast<uint32_t>(actShvTextsBuffers[tile]));
@@ -211,7 +211,7 @@ void ShaveManager::startActShaves(const uint8_t tile, const ActKernelRuntimeConf
             nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr (for RT code buffer): 0x%x", ACT_RT_CODE_WINDOW);
         }
 
-        nnLog(MVLOG_INFO, "ACTSHV %d WIN_%d = %p", i, mapWindowAddrMaskToName(ACT_CMX_WINDOW),
+        nnLog(MVLOG_DEBUG, "ACTSHV %d WIN_%d = %p", i, mapWindowAddrMaskToName(ACT_CMX_WINDOW),
               cmxMapping.workareas_[tile].addr32());
         rc = ShCtrlSetWindowAddr(actShvHnd[i], mapWindowAddrMaskToName(ACT_CMX_WINDOW),
                                     cmxMapping.workareas_[tile].addr32());
@@ -219,7 +219,7 @@ void ShaveManager::startActShaves(const uint8_t tile, const ActKernelRuntimeConf
             nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr (for window into CMX): ox%x", ACT_CMX_WINDOW);
         }
 
-        nnLog(MVLOG_INFO, "Starting ACTSHV %d from %p windowed to A", i, actShvEntries[tile]);
+        nnLog(MVLOG_DEBUG, "Starting ACTSHV %d from %p windowed to A", i, actShvEntries[tile]);
         auto fifoCfg = acts_cfgs[i];
         printFifoConfig(unpackSHVConfig(fifoCfg));
         rc = ShCtrlStart(actShvHnd[i], reinterpret_cast<void *>(actShvEntries[tile]), "i", fifoCfg);
@@ -329,7 +329,7 @@ void ShaveManager::stopActShavesForTile(uint32_t tile) {
     const unsigned int finalAct = startAct + AS_PER_TILE;
 
     for (unsigned int i = startAct; i < startAct + 1; i++) {
-        nnLog(MVLOG_INFO, "Stopping Act Shave");
+        nnLog(MVLOG_DEBUG, "Stopping Act Shave");
         auto rc = ShCtrlStop(actShvHnd[i]);
         if (rc != HGL_SHAVE_CTRL_SUCCESS)
             nnLog(MVLOG_ERROR, "ShaveCtrlStop: rc = %x", (int)rc);

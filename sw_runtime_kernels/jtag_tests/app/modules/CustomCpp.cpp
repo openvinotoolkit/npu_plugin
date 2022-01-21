@@ -124,7 +124,7 @@ bool CustomCpp::parse(Layer * layer) {
     RETURN_FALSE_UNLESS(parseCustomElf(elf, descriptor/*, *argCountPtr*/),
                         "Failed to parse kernel elf");
 
-    logI("KernelDescriptor: descriptor.entry=%p descriptor.sec_mem_total=%u\n",
+    logD("KernelDescriptor: descriptor.entry=%p descriptor.sec_mem_total=%u\n",
                 (void*)descriptor.kernelEntry, descriptor.sec_mem_total);
 
     void * code = nullptr;
@@ -157,7 +157,7 @@ bool CustomCpp::parse(Layer * layer) {
     auto inRefs = layer->getInputs();
     auto outRefs = layer->getOutputs();
 
-    logI("inputs %lu outputs %lu kernel selected %x",
+    logD("inputs %lu outputs %lu kernel selected %x",
          inRefs.size(), outRefs.size(), params->kernelOffset);
 
     params->kernel = ops.kernel;

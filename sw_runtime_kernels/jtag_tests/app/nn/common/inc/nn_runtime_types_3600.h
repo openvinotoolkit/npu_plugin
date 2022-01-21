@@ -609,7 +609,11 @@ typedef void (*actRuntimeEntry)(const uint32_t);
 // these are going to be done via ctrl messages, but special tasks like loops may stay here
 // refactor/remove in the futore
 ///@deprecated
-enum class ActWLType : uint8_t { WL_KERNEL = 0x00, WL_DEBUG = 0x04, WL_UNKNOWN };
+enum class ActWLType : uint8_t { WL_KERNEL = 0x00, WL_DEBUG = 0x04, WL_UNKNOWN,
+#ifdef JTAG_LOW_LEVEL
+    WL_KERNEL_LRT_SYNC
+#endif
+};
 
 #ifdef NN_ENABLE_CONTEXT_DEBUGGING
 enum class ActDebug : uint32_t {
@@ -644,6 +648,10 @@ extern "C" struct ActKernelRange {
     volatile uint32_t dbg2_{0};
     volatile uint32_t dbg3_{0};
 #endif
+#ifdef JTAG_LOW_LEVEL
+    enum {LRT_WAIT = 1, KERNEL_DONE};
+    int32_t LRTSynch_ = 0;
+#endif
 };
 
 extern "C" struct ActKernelInvocation {
@@ -652,11 +660,15 @@ extern "C" struct ActKernelInvocation {
     actKernelDataBuffer dataWindowBase_{nullptr};
 
     BarrierUserConfig barriers_{};
-    BarrierGpioConfig barriers_gpio_{};
-    unsigned int invo_index_{0};
+    BarrierGpioConfig barriersGpio_{};
+
+    void *perfPacketOut_{0};
+    /// The schedule compiler can infer an index if it's needed pre/post inference
+    /// Update: we can/will use the index to virtualize a WI FIFO state in a preemption payload
+    unsigned int invoIndex_{0};
 };
 extern "C" struct ActKernelRuntimeConfigs {
-    unsigned int stackFrames_[4/*common_runtime::AS_TOTAL*/]{0};
+    unsigned int stackFrames_[common_runtime::AS_TOTAL]{0};
     unsigned int stackSize_{0};
     bool useScheduleEmbeddedRt_{false};
 
@@ -668,8 +680,11 @@ extern "C" struct ActKernelRuntimeConfigs {
     // when useScheduleEmbeddedRt = true; buffer already contains the ActRt
     unsigned char *actRtWindowBase_{nullptr};
     unsigned int codeWindowBufferSize_{0};
+
+    unsigned int perfMetricsMask_{0};
 };
 } // namespace act_runtime
+
 namespace util {
 class TaskContext;
 }

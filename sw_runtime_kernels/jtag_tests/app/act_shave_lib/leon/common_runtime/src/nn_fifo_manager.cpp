@@ -37,33 +37,31 @@ SHVFifoConfig unpackSHVConfig(uint32_t packedCfg) {
 #if defined(__leon__) || defined(__leon_nn__)
 
 uint32_t packSNNCtrlMessage(SNNCtrlMessage cm) {
-    UNUSED(cm);
-    return 0;
+    if (cm.payload & CTRL_MESSAGE_MASK)
+        return 0;
+
+    uint32_t out{cm.payload};
+    out |= cm.message << MAX_CTRL_PAYLOAD_BITS;
+    return out;
 }
 
 uint32_t packASCtrlMessage(ASCtrlMessage cm) {
-    UNUSED(cm);
-    return 0;
+    if (cm.payload & CTRL_MESSAGE_MASK)
+        return 0;
+
+    uint32_t out{cm.payload};
+    out |= cm.message << MAX_CTRL_PAYLOAD_BITS;
+    return out;
 }
 
 SNNCtrlResponse unpackSNNCtrlResponse(uint32_t cr) {
     UNUSED(cr);
-    return {};
+    return SNNCtrlResponse();
 }
 
 ASCtrlResponse unpackASCtrlResponse(uint32_t cr) {
     UNUSED(cr);
-    return {};
-}
-
-SNNPerfReport unpackSNNPerfReport(uint64_t pr) {
-    UNUSED(pr);
-    return {};
-}
-
-ASPerfReport unpackASPerfReport(uint64_t pr) {
-    UNUSED(pr);
-    return {};
+    return ASCtrlResponse();
 }
 
 bool isSNNWorkFifoFull(uint8_t tile) {
@@ -133,16 +131,50 @@ void sendWorkToASs(uint8_t tile, void *p) {
     }
 }
 
-void sendCtrlToSNNs(uint8_t tile, uint8_t snn, void *p) {
+void sendCtrlToSNNs(uint8_t tile, uint8_t snn, uint32_t packedMessage) {
     UNUSED(tile);
     UNUSED(snn);
-    UNUSED(p);
+    UNUSED(packedMessage);
 }
 
-void sendCtrlToASs(uint8_t tile, uint8_t as, void *p) {
-    UNUSED(tile);
-    UNUSED(as);
-    UNUSED(p);
+void sendCtrlToASs(uint8_t tile, uint8_t as, uint32_t packedMessage) {
+    uint8_t fifoNum{0};
+    uint8_t fifoIdx{0};
+
+    static_assert(AS_PER_TILE == 2, "Rewrite this to support different number of act-shaves per tile");
+
+    switch (tile) {
+        case 0:
+            switch (as) {
+                case 0:
+                    // TODO: check out the compilation and make sure these constexpr calls collapse into immidiate
+                    // values
+                    fifoNum = getActCtrlRxFifo(0, 0).fifo;
+                    fifoIdx = getActCtrlRxFifo(0, 0).index;
+                    break;
+                case 1:
+                    fifoNum = getActCtrlRxFifo(0, 1).fifo;
+                    fifoIdx = getActCtrlRxFifo(0, 1).index;
+                    break;
+            }
+            break;
+        case 1:
+            switch (as) {
+                case 0:
+                    fifoNum = getActCtrlRxFifo(1, 0).fifo;
+                    fifoIdx = getActCtrlRxFifo(1, 0).index;
+                    break;
+                case 1:
+                    fifoNum = getActCtrlRxFifo(1, 1).fifo;
+                    fifoIdx = getActCtrlRxFifo(1, 1).index;
+                    break;
+            }
+        default:
+            nnLog(MVLOG_ERROR, "ActSHV Work fifo send fail: Tile number too high");
+            break;
+    }
+
+    util::fifoDynamicSend(fifoNum, fifoIdx, reinterpret_cast<void *>(packedMessage));
 }
 
 // FIXME: we could further limit compiled code per shave type if there was a `defined(__act_shave__)`
@@ -158,24 +190,22 @@ uint32_t packASCtrlResponse(ASCtrlResponse cr) {
     return 0;
 }
 
-uint64_t packSNNPerfReport(SNNPerfReport pr) {
-    UNUSED(pr);
-    return 0;
-}
-
-uint64_t packASPerfReport(ASPerfReport pr) {
-    UNUSED(pr);
-    return 0;
-}
+//uint64_t packSNNPerfReport(SNNPerfReport pr) {
+//    UNUSED(pr);
+//    return 0;
+//}
+//
+//uint64_t packASPerfReport(ASPerfReport pr) {
+//    UNUSED(pr);
+//    return 0;
+//}
 
 SNNCtrlMessage unpackSNNCtrlMessage(uint32_t cm) {
-    UNUSED(cm);
-    return {SHVCtrlMessage::Shutdown};
+    return {((SHVCtrlMessage)((cm & CTRL_MESSAGE_MASK) >> MAX_CTRL_MESSAGE_BITS)), (cm & ~CTRL_MESSAGE_MASK)};
 }
 
 ASCtrlMessage unpackASCtrlMessage(uint32_t cm) {
-    UNUSED(cm);
-    return {SHVCtrlMessage::Shutdown};
+    return {((SHVCtrlMessage)((cm & CTRL_MESSAGE_MASK) >> MAX_CTRL_MESSAGE_BITS)), (cm & ~CTRL_MESSAGE_MASK)};
 }
 
 #endif
