@@ -190,11 +190,15 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     pm.addPass(IE::createIsolatedTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
+    pm.addPass(createConvertIEToVPUNCEPass(log));
+    pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
+    pm.addPass(VPU::createConvertPostOpsToPPEPass(log));
+
     // Lowering
 
     buildLowerIE2IERTPipeline(pm, log);
 
-    pm.addPass(createConvertToNCEOpsPass(log));
+    pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
@@ -307,11 +311,15 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IE::createIsolatedTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
+    pm.addPass(createConvertIEToVPUNCEPass(log));
+    pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
+    pm.addPass(VPU::createConvertPostOpsToPPEPass(log));
+
     // Lowering
 
     buildLowerIE2IERTPipeline(pm, log);
 
-    pm.addPass(createConvertToNCEOpsPass(log));
+    pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 

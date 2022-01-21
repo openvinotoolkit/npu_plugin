@@ -22,4 +22,6 @@ MemShape applyPerm(MemShapeRef memShape, mlir::AffineMap memPerm);
 
 bool isTrivialPermute(MemShapeRef inShape, mlir::AffineMap memPerm);
 
+mlir::AffineMap getPermutationFromOrders(DimsOrder inOrder, DimsOrder outOrder, mlir::MLIRContext* ctx);
+
 }  // namespace vpux

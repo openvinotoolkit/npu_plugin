@@ -108,7 +108,10 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     const auto outTiles = fillDividedTiles(nTilesOnDim, outputShape);
 
     for (const auto& outTile : outTiles) {
-        origOp.addWorkload(rewriter, origOp.getLoc(), outTile.offsets, outTile.shape, pads,
+        const auto padsTileConf = backInferPadsTile(outTile, outputShape, VPU::toPadInfo(pads));
+        const auto tilePad = VPU::getPaddingAttr(rewriter.getContext(), padsTileConf);
+
+        origOp.addWorkload(rewriter, origOp.getLoc(), outTile.offsets, outTile.shape, tilePad,
                            mpeByType(inElemType, outElemType, origOp));
     }
 }

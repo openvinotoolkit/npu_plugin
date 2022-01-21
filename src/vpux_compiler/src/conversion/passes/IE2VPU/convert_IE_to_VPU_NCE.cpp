@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -60,6 +61,14 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
         std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
     };
 
+    const auto inOrder = DimsOrder::fromValue(origOp.input());
+    if (inOrder != DimsOrder::NCHW && inOrder != DimsOrder::NHWC) {
+        return matchFailed(_log, rewriter, origOp, "Operation at '{0}' has unsupported input layout '{1}'",
+                           origOp->getLoc(), inOrder);
+    }
+
+    const auto isCMajor = inOrder == DimsOrder::NCHW;
+
     if (!VPU::NCEConvolutionOp::isSupported(origOp, logCb)) {
         return mlir::failure();
     }
@@ -76,7 +85,13 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
     }
 
     const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
-    const auto filterCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "filter-CMX"), origOp.filter());
+
+    auto filter = origOp.filter();
+    if (isCMajor) {
+        filter = VPU::alignChannelMajorWeightsTensor(rewriter, origOp->getLoc(), filter);
+    }
+    const auto rawFilterShape = getIntArrayAttr(rewriter, getShape(origOp.filter()));
+    const auto filterCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "filter-CMX"), filter);
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
@@ -84,7 +99,7 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
 
     auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), newOutType, inputCMX, filterCMX, bias,
                                                         origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
-                                                        /*ppe=*/nullptr);
+                                                        /*ppe=*/nullptr, rawFilterShape);
 
     const auto newOutput =
             copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());
@@ -132,8 +147,12 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
         bias = biasConstOp.contentAttr();
     }
 
+    const auto rawFilterShape = getIntArrayAttr(rewriter, getShape(origOp.filter()));
+
     const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
-    const auto filterCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "filter-CMX"), origOp.filter());
+
+    const auto alignedFilter = VPU::alignDepthWiseWeightsTensor(rewriter, origOp.getLoc(), origOp.filter());
+    const auto filterCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "filter-CMX"), alignedFilter);
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
@@ -141,7 +160,7 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
 
     auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(origOp->getLoc(), newOutType, inputCMX, filterCMX, bias,
                                                              origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
-                                                             /*ppe=*/nullptr);
+                                                             /*ppe=*/nullptr, rawFilterShape);
 
     const auto newOutput =
             copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());

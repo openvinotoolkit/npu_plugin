@@ -57,6 +57,10 @@ mlir::ParseResult vpux::details::parseOptionalTypes(mlir::OpAsmParser& parser, A
         return mlir::success();
     }
 
+    if (types.empty()) {
+        return mlir::success();
+    }
+
     if (types.size() != dst.size()) {
         return printTo(parser.emitError(parser.getCurrentLocation()),
                        "Got unexpected number of types '{0}', expected '{1}'", types.size(), dst.size());

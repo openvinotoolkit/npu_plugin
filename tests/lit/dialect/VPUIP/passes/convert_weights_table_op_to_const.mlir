@@ -28,7 +28,7 @@ func @Conv2dTest(%arg0: memref<1x8x20x20xf16, #NHWC>, %arg1: memref<1x16x19x19xf
         op_input(%5 : memref<1x8x20x20xf16, #NHWC, @CMX_NN>)
         op_output(%8 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>)
         weights(%7 : memref<16x8x2x2xf16, #NHWC, @CMX_NN>)
-        bias(%0 : memref<1x16x1x1xf16>)
+        bias(#const.Content<dense<2.000000e+00> : tensor<1x16x1x1xf16>>)
         -> memref<16x1x1x4xsi32>
 
     %10 = IERT.StaticAlloc<7424> -> memref<16x1x1x4xsi32, @CMX_NN>

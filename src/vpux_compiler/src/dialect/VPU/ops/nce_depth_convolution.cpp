@@ -157,6 +157,18 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, NC
 //
 
 mlir::LogicalResult vpux::VPU::verifyOp(NCEDepthConvolutionOp op) {
+    const auto filterShape = getShape(op.filter());
+    const auto filtersPerInChan = filterShape[Dims4D::Filter::IC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto alignment = NCEInvariant::getAlignment(op.filter().getType().cast<mlir::ShapedType>().getElementType());
+
+    const int64_t remainder = (filtersPerInChan * KY * KX) % alignment;
+    if (remainder > 0) {
+        return errorAt(op->getLoc(), "Filter must be already aligned");
+    }
+
     const auto arch = getArch(op);
     const NCEConvolutionOpAdaptor convAdaptor(op->getOperands(), op->getAttrDictionary(), op->getRegions());
     return verifyConv(op->getLoc(), arch, convAdaptor, op.output());
@@ -177,7 +189,8 @@ mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto filterShape = getShape(op.filter());
+    const auto filterShape = op.rawFilterShape() != nullptr ? Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()))
+                                                            : getShape(op.filter());
     const auto fIC = filterShape[Dims4D::Filter::IC];
 
     if (fIC != 1) {

@@ -189,18 +189,15 @@ int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Type in
 }
 
 llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type inElemType, mlir::Type outElemType,
-                                                   mlir::Type weightsElemType, mlir::Value bias, VPU::ArchKind arch,
-                                                   size_t OC) {
+                                                   mlir::Type weightsElemType, Const::ContentAttr bias,
+                                                   VPU::ArchKind arch, size_t OC) {
     if (bias == nullptr) {
         return [](int64_t) -> double {
             return 0.0f;
         };
     }
 
-    auto biasConst = bias.getDefiningOp<Const::DeclareOp>();
-    VPUX_THROW_UNLESS(biasConst != nullptr, "Only constant biases are supported, got '{0}'", bias);
-
-    auto biasContent = biasConst.content();
+    auto biasContent = bias.fold();
 
     if (inElemType.isa<mlir::quant::QuantizedType>() && outElemType.isa<mlir::quant::QuantizedType>()) {
         auto inQuantScale = extractScalesAndZeroPoints(inElemType).first;
@@ -359,7 +356,8 @@ std::vector<uint8_t> vpux::VPU::NCESparsity::getFakeSparsity(Mode mode, ShapeRef
 std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemType, mlir::Type outElemType,
                                                              Optional<int32_t> weightPtrOffset, int32_t weightPtrStep,
                                                              Optional<int32_t> sparsityPtrOffset, ArchKind arch,
-                                                             int64_t OC, mlir::Type weightsElemType, mlir::Value bias) {
+                                                             int64_t OC, mlir::Type weightsElemType,
+                                                             Const::ContentAttr bias) {
     VPUX_THROW_WHEN(inElemType == nullptr || outElemType == nullptr,
                     "Can't create weights table without operation input/output types");
 

@@ -2517,14 +2517,20 @@ Syntax:
 
 ```
 operation ::= `VPUIP.WeightsTableOp` attr-dict
-              `op_input` `(` $op_input  `:` type($op_input) `)`
-              `op_output` `(` $op_output  `:` type($op_output) `)`
-              (`weights` `(` $weights^  `:` type($weights) `)`)?
-              (`bias` `(` $bias^  `:` type($bias) `)`)?
-              (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
+              `op_input` `(` $op_input `:` type($op_input) `)`
+              `op_output` `(` $op_output `:` type($op_output) `)`
+              (`weights` `(` $weights^ `:` type($weights) `)`)?
+              (`activation_window` `(` $activation_window^ `:` type($activation_window) `)`)?
+              (`bias` `(` $bias^ `)`)?
               `->` type(results)
 ```
 
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`bias` | vpux::Const::ContentAttr | Lazy folded constant content
 
 #### Operands:
 
@@ -2533,7 +2539,6 @@ operation ::= `VPUIP.WeightsTableOp` attr-dict
 `op_input` | memref of 16-bit float or QuantizedType values or VPURT Sparse Buffer Type
 `op_output` | memref of 16-bit float or QuantizedType values or VPURT Sparse Buffer Type
 `weights` | memref of 16-bit float or QuantizedType values or VPURT Sparse Buffer Type
-`bias` | memref of 16-bit float or 32-bit float values
 `activation_window` | memref of 8-bit unsigned integer values
 
 #### Results:

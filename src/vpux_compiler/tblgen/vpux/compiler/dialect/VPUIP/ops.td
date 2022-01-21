@@ -1825,7 +1825,7 @@ def VPUIP_UpsamplingUPAOp :
 
     let builders = [
         OpBuilder<
-            (ins 
+            (ins
                 "mlir::Value":$input,
                 "mlir::Value":$output,
                 "mlir::ArrayAttr":$upsampling_factor,
@@ -2171,8 +2171,8 @@ def VPUIP_WeightsTableOp :
         AnyTypeOf<[MemRefOf<[F16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$op_input,
         AnyTypeOf<[MemRefOf<[F16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$op_output,
         Optional<AnyTypeOf<[MemRefOf<[F16, quant_QuantizedType]>, VPURT_SparseBuffer]>>:$weights,
-        Optional<MemRefOf<[F16, F32]>>:$bias,
-        Optional<MemRefOf<[UI8]>>:$activation_window
+        Optional<MemRefOf<[UI8]>>:$activation_window,
+        OptionalAttr<Const_ContentAttr>:$bias
     );
 
     let results = (outs
@@ -2187,13 +2187,15 @@ def VPUIP_WeightsTableOp :
 
     let assemblyFormat = [{
         attr-dict
-        `op_input` `(` $op_input  `:` type($op_input) `)`
-        `op_output` `(` $op_output  `:` type($op_output) `)`
-        (`weights` `(` $weights^  `:` type($weights) `)`)?
-        (`bias` `(` $bias^  `:` type($bias) `)`)?
-        (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
+        `op_input` `(` $op_input `:` type($op_input) `)`
+        `op_output` `(` $op_output `:` type($op_output) `)`
+        (`weights` `(` $weights^ `:` type($weights) `)`)?
+        (`activation_window` `(` $activation_window^ `:` type($activation_window) `)`)?
+        (`bias` `(` $bias^ `)`)?
         `->` type(results)
     }];
+
+    let hasCanonicalizer = 1;
 }
 
 //

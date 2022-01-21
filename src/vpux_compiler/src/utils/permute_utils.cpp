@@ -60,3 +60,14 @@ bool vpux::isTrivialPermute(MemShapeRef inShape, mlir::AffineMap memPerm) {
 
     return true;
 }
+
+mlir::AffineMap vpux::getPermutationFromOrders(DimsOrder inOrder, DimsOrder outOrder, mlir::MLIRContext* ctx) {
+    auto inPerm = inOrder.toPermutation();
+    auto outPerm = outOrder.toPermutation();
+    SmallVector<uint32_t> memPerm(inPerm.size());
+    for (auto p : outPerm | indexed) {
+        memPerm[p.index()] = static_cast<uint32_t>(inOrder.dimPos(p.value()));
+    }
+
+    return mlir::AffineMap::getPermutationMap(makeArrayRef(memPerm), ctx);
+}

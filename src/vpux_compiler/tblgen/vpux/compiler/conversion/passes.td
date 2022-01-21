@@ -109,16 +109,17 @@ def AddBuffersForNetResults : PassBase<"add-buffers-for-net-results", "vpux::Mod
 // ConvertToNCEOps
 //
 
-def ConvertToNCEOps : PassBase<"convert-to-nce-ops", "vpux::FunctionPass"> {
-    let summary = "Convert to NCE2 ops";
+def ConvertVPUToVPUIP : PassBase<"convert-vpu-to-vpuip", "vpux::FunctionPass"> {
+    let summary = "Convert VPU ops to NCE ops";
 
     let description = [{
         Convert ops which can be executed on NCE to explicit NCE ops.
     }];
 
-    let constructor = "vpux::createConvertToNCEOpsPass()";
+    let constructor = "vpux::createConvertVPUToVPUIPPass()";
 
     let dependentDialects = [
+        "vpux::VPU::VPUDialect",
         "vpux::IERT::IERTDialect",
         "vpux::VPUIP::VPUIPDialect"
     ];

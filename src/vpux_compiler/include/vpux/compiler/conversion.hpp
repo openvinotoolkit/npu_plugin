@@ -57,10 +57,10 @@ std::unique_ptr<mlir::Pass> createAddBuffersForNetResults(Logger log = Logger::g
 //
 // Performs partial lowering from the IERT Dialect to VPUIP Dialect.
 //
-// Converts IERT Operations to VPUIP NCE Operations, where possible.
+// Converts VPU Operations to VPUIP NCE Operations, where possible.
 //
 
-std::unique_ptr<mlir::Pass> createConvertToNCEOpsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertVPUToVPUIPPass(Logger log = Logger::global());
 
 //
 // LowerIERT2VPUIP

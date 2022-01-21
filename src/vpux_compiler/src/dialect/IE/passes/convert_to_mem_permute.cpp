@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -23,16 +24,6 @@
 using namespace vpux;
 
 namespace {
-
-SmallVector<uint32_t> getOrder(DimsOrder inOrder, DimsOrder outOrder) {
-    auto inPerm = inOrder.toPermutation();
-    auto outPerm = outOrder.toPermutation();
-    SmallVector<uint32_t> memPerm(inPerm.size());
-    for (auto p : outPerm | indexed) {
-        memPerm[p.index()] = static_cast<uint32_t>(inOrder.dimPos(p.value()));
-    }
-    return memPerm;
-}
 
 //
 // ConvertToMemPermutePass
@@ -76,8 +67,7 @@ mlir::LogicalResult ConvertToMemPermutePass::ReorderOpConverter::matchAndRewrite
     auto inOrder = DimsOrder::fromValue(origOp.input());
     auto outOrder = DimsOrder::fromValue(origOp.output());
 
-    auto memPerm = mlir::AffineMap::getPermutationMap(makeArrayRef(getOrder(inOrder, outOrder)), origOp->getContext());
-    auto memPermAttr = mlir::AffineMapAttr::get(memPerm);
+    auto memPermAttr = mlir::AffineMapAttr::get(getPermutationFromOrders(inOrder, outOrder, origOp->getContext()));
 
     rewriter.replaceOpWithNewOp<IE::MemPermuteOp>(origOp, origOp.input(), origOp.dstOrderAttr(), memPermAttr);
 
