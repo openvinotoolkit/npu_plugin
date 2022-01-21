@@ -110,6 +110,26 @@ def OptimizeReorders : PassBase<"optimize-reorders", "vpux::FunctionPass"> {
 //=================================================================================
 
 //
+// ConvertNearestToStridedConcat
+//
+
+def ConvertNearestToStridedConcat : PassBase<"convert-nearest-to-strided-concat", "vpux::FunctionPass"> {
+    let summary = "Convert nearest interpolate op to strided concat ops";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass replaces `Nearest Interpolate` operations with `Concat` operations with strides.
+    }];
+
+    let constructor = "vpux::IE::createConvertNearestToStridedConcatPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertPrecisionToFP16
 //
 

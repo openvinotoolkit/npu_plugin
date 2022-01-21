@@ -67,6 +67,7 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createConvertConv1DToConv2DPass(log));
     pm.addPass(IE::createConvertPaddingsToFloorModePass(log));
     pm.addPass(IE::createConvertShuffleChannelsPass(log));
+    pm.addPass(IE::createConvertNearestToStridedConcatPass(log));
     pm.addPass(IE::createResolveStridedSlicePass(log));
     pm.addPass(IE::createFusePadOpsPass(log));
     pm.addPass(IE::createConvertPadToConcatPass(log));

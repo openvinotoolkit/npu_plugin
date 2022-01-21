@@ -129,6 +129,7 @@ std::unique_ptr<mlir::Pass> createMatMulInputsTo2dPass(Logger log = Logger::glob
 std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertScaleShiftToDWPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertNearestToStridedConcatPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSplitConvWithMultipleFQPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
