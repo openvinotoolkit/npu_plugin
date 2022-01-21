@@ -13,7 +13,6 @@
 
 __attribute__((aligned(1024)))
 #include "sk.nnActEntry.3010xx.text.xdat"
-void * sk_nnActEntry_3010xx_text_ref = (void*)sk_nnActEntry_3010xx_text;
 #include <sw_nn_runtime_types.h>
 #include <sw_shave_lib_common.h>
 #include <HglShaveCommon.h>
@@ -44,10 +43,12 @@ const uint32_t NN_CMX_BASE = 0x2e000000;
 #if defined(NN_ENABLE_SCALABILITY_REPORTING)
 const uint32_t NN_LOG_BUFFER_SIZE = 0x800;
 #endif /* NN_ENABLE_SCALABILITY_REPORTING */
+constexpr uint32_t MAX_WAIT_ITERATIONS=1000000;
 } // namespace
 
 static SoftLayerExec __attribute__((section(".nncmx0.shared.data"))) sl;
 static Layer __attribute__((section(".nncmx0.shared.data"))) layer;
+
 using namespace nn;
 extern bool HglShaveAccessAllowed[HGL_SHAVE_TYPE_NB];
 
@@ -80,7 +81,7 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     HglShaveAccessAllowed[2] = true;
     cache::flush(HglShaveAccessAllowed, sizeof(bool) * HGL_SHAVE_TYPE_NB);
     auto globalAreas = getStaticMapping(nnCmx);
-    auto shaveManager = getShaveManager(globalAreas);
+    _shaveManager = getShaveManager(globalAreas);
 
     actRtConfigs.useScheduleEmbeddedRt_ = true;
 
@@ -93,15 +94,15 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
 
     cache::flush(actRtConfigs);
     cache::flush(globalAreas);
-    cache::flush(shaveManager);
+    cache::flush(_shaveManager);
     cache::flush(*globalAreas);
-    cache::flush(*shaveManager);
-    shaveManager->startActShavesForTile(0, actRtConfigs, true);
-    act_runtime::ActKernelRange kRng = {nn::act_runtime::ActWLType::WL_KERNEL,
+    cache::flush(*_shaveManager);
+    _shaveManager->startActShavesForTile(0, actRtConfigs, true);
+    act_runtime::ActKernelRange kRng = {nn::act_runtime::ActWLType::WL_KERNEL_LRT_SYNC,
                                             reinterpret_cast<act_runtime::actKernelEntry>(customOp->ops.kernel),
                                             reinterpret_cast<act_runtime::actKernelTextBuffer>(customOp->ops.kernel),
                                             customOp->ops.kernelDataLen,
-                                            0};
+                                            0, act_runtime::ActKernelRange::LRT_WAIT};
     kRange = kRng;
     cache::flush(kRange);
 
@@ -129,77 +130,24 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     kInvo = kInv;
     cache::flush(kInvo);
     leonDataCacheFlush();
-//    ShaveL1Error ShaveDL1CacheAction(ShaveType type, uint32_t shaveId, ShaveDL1Action action) {
-//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 0, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
-//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 1, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
-//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 2, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
-//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 3, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
-//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 4, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
-//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 5, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
-//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 6, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
-//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 7, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
-//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 8, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
-//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 9, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
-//    HglShaveDL1TriggerTXN(HGL_SHAVE_ACT, 10, HGL_CTRL_TXN_INV_ALL_SHAVE_DL1_CACHE, 0);
     fifo::sendWorkToASs(0/*local_aki.tile_*/, &kInvo);
 
-//    sleep(10);
-
-    for (int i = 0; i < 1000000; i++) {
-        qq++;
-    }
-    printf("!!!!!!!!!! after send %d!!!!!!!!!!!!!\n", qq);
-
-    shaveManager->stopActShavesForTiles();
-    printf("!!!!!!!!!! after stop !!!!!!!!!!!!!\n");
-
-    uint32_t * tmp = (uint32_t*)0x2e014000;
-#define N_OF_LOGS 10
-    cache::invalidate(tmp, sizeof(uint32_t));
-    cache::invalidate(tmp, tmp[0] * sizeof(uint32_t));
-
     _enqued = true;
-    return true;
-
-    memset(&sl, 0, sizeof(sl));
-    memset(&layer, 0, sizeof(layer));
-
-    memory::cache_aligned_vector<TensorRef> &layerImputs = layer.getInputs();
-    memory::cache_aligned_vector<TensorRef> &layerOutputs = layer.getOutputs();
-    layerImputs.resize(inputs.size());
-    layerOutputs.resize(outputs.size());
-    for (unsigned i = 0; i < inputs.size(); i++) {
-        layerImputs[i] = inputs[i];
-    }
-    for (unsigned i = 0; i < outputs.size(); i++) {
-        layerOutputs[i] = outputs[i];
-    }
-
-    sl.counters_ = perfData->perfCounters;
-
-    auto totalByteSize = [](const OpTensor & b) {
-        return b.getFullDataSize();
-    };
-
-    auto &addrs = sl.abs_addr_;
-
-    int addrsIdx = 0;
-    for (auto && input : inputs) {
-        addrs.inputs_[addrsIdx] = reinterpret_cast<const unsigned char *>(input.addr);
-        nn::cache::flush(input.addr, totalByteSize(input));
-        addrsIdx ++;
-    }
-    addrsIdx = 0;
-    for (auto && output : outputs) {
-        addrs.outputs_[addrsIdx] = reinterpret_cast<unsigned char *>(output.addr);
-        nn::cache::invalidate(output.addr, totalByteSize(output));
-        addrsIdx ++;
-    }
-    _enqued = true;
-
     return true;
 }
 
 bool ShaveTaskRunner::dequeResult() {
-    return _enqued;
+    if (_enqued) {
+        int i = 0;
+        for (; i < MAX_WAIT_ITERATIONS; i++) {
+            cache::invalidate(kRange);
+            if (kRange.LRTSynch_ == act_runtime::ActKernelRange::KERNEL_DONE) break;
+        }
+
+        nnLog(MVLOG_DEBUG, "After send waiting %d", i);
+
+        _shaveManager->stopActShavesForTiles();
+        _enqued = false;
+    }
+    return true;
 }
