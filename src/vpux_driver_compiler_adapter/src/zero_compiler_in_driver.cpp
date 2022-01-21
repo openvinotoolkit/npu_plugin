@@ -233,7 +233,7 @@ SerializedIR LevelZeroCompilerInDriver::serializeIR(const std::vector<char>& xml
     return serializedIR;
 }
 
-// FIXME REMOVE THIS BEFORE MERGE
+// FIXME REMOVE THIS BEFORE MERGE hello there
 std::string toStr(const ze_result_t resultCode) {
     switch (resultCode)
     {
