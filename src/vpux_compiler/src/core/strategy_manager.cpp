@@ -75,12 +75,14 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                     // ZM Conv
                 } else {
                     efficency = std::max(
-                            ((OH / 4 * OW * OC) / (5 * std::ceil((4 * std::ceil(std::ceil(OH / 4) / 4) * 4 *
-                                                                  std::ceil(OW / 4) * 16 * std::ceil(OC / 16)) /
-                                                                 5))),
-                            ((OH / 4 * OW * OC) / (5 * std::ceil((16 * std::ceil(std::ceil(OH / 4) / 16) * 1 *
-                                                                  std::ceil(OW / 1) * 16 * std::ceil(OC / 16)) /
-                                                                 5))));
+                            ((OH / _numClusters * OW * OC) /
+                             (5 * std::ceil((_numClusters * std::ceil(std::ceil(OH / _numClusters) / _numClusters) *
+                                             _numClusters * std::ceil(OW / _numClusters) * 16 * std::ceil(OC / 16)) /
+                                            5))),
+                            ((OH / _numClusters * OW * OC) /
+                             (5 * std::ceil((16 * std::ceil(std::ceil(OH / _numClusters) / 16) * 1 * std::ceil(OW / 1) *
+                                             16 * std::ceil(OC / 16)) /
+                                            5))));
                 }
                 _log.trace("The SOH efficiency for the convolution is {0}", efficency);
                 return efficency;
@@ -113,24 +115,21 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                 const auto KY = weightsShape[Dims4D::Filter::KY];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
 
-                double efficency = 0;
                 auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
-                efficency = efficiencyConstant *
-                            std::max(((OH / 4.0 * OW * OC) /
-                                      (5.0 * std::ceil((4.0 * std::ceil(std::ceil(OH / 4.0) / 4.0) * 4 *
-                                                        std::ceil(OW / 4.0) * 16.0 * std::ceil(OC / 16)) /
-                                                       5))),
-                                     ((OH / 4.0 * OW * OC) /
-                                      (5.0 * std::ceil((16.0 * std::ceil(std::ceil(OH / 4.0) / 16.0) * 1.0 *
-                                                        std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
-                                                       5.0))));
+                double efficency =
+                        efficiencyConstant *
+                        std::max(((OH / _numClusters * OW * OC) /
+                                  (5.0 *
+                                   std::ceil((4.0 * std::ceil(std::ceil(OH / _numClusters) / _numClusters) *
+                                              _numClusters * std::ceil(OW / _numClusters) * 16.0 * std::ceil(OC / 16)) /
+                                             5))),
+                                 ((OH / _numClusters * OW * OC) /
+                                  (5.0 * std::ceil((16.0 * std::ceil(std::ceil(OH / _numClusters) / 16.0) * 1.0 *
+                                                    std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
+                                                   5.0))));
                 _log.trace("The SOH efficiency for the group convolution is {0}", efficency);
                 return efficency;
             });
-    // .Default([](mlir::Operation* unknownOp) {
-    //     VPUX_THROW("Operation is not supported by the NCE");
-    //     return 0;
-    // });
 }
 
 double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
@@ -147,13 +146,15 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 const auto OW = outputShape[Dims4D::Act::W];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
                 const double outputTensorVolume = OC * OH * OW;
-                double efficency = std::max(
-                        (outputTensorVolume / 4) / (5 * std::ceil((4 * std::ceil(OH / 4) * 4 * std::ceil(OW / 4) * 16 *
-                                                                   std::ceil(std::ceil(OC / 4) / 16)) /
-                                                                  5)),
-                        (outputTensorVolume / 4) / (5 * std::ceil((16 * std::ceil(OH / 16) * 1 * std::ceil(OW / 1) *
-                                                                   16 * std::ceil(std::ceil(OC / 4) / 16)) /
-                                                                  5)));
+                double efficency = std::max((outputTensorVolume / _numClusters) /
+                                                    (5 * std::ceil((4 * std::ceil(OH / _numClusters) * _numClusters *
+                                                                    std::ceil(OW / _numClusters) * 16 *
+                                                                    std::ceil(std::ceil(OC / _numClusters) / 16)) /
+                                                                   5)),
+                                            (outputTensorVolume / _numClusters) /
+                                                    (5 * std::ceil((16 * std::ceil(OH / 16) * 1 * std::ceil(OW / 1) *
+                                                                    16 * std::ceil(std::ceil(OC / _numClusters) / 16)) /
+                                                                   5)));
                 _log.trace("The SOK efficiency for the convolution is {0}", efficency);
                 return efficency;
             })
@@ -185,25 +186,22 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 const auto KY = weightsShape[Dims4D::Filter::KY];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
 
-                double efficency = 0;
                 auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
 
-                efficency = efficiencyConstant *
-                            std::max(((OH / 4.0 * OW * OC) /
-                                      (5.0 * std::ceil((4.0 * std::ceil(std::ceil(OH / 4.0) / 4.0) * 4 *
-                                                        std::ceil(OW / 4.0) * 16.0 * std::ceil(OC / 16)) /
-                                                       5))),
-                                     ((OH / 4.0 * OW * OC) /
-                                      (5.0 * std::ceil((16.0 * std::ceil(std::ceil(OH / 4.0) / 16.0) * 1.0 *
-                                                        std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
-                                                       5.0))));
+                double efficency =
+                        efficiencyConstant *
+                        std::max(((OH / _numClusters * OW * OC) /
+                                  (5.0 *
+                                   std::ceil((4.0 * std::ceil(std::ceil(OH / _numClusters) / _numClusters) *
+                                              _numClusters * std::ceil(OW / _numClusters) * 16.0 * std::ceil(OC / 16)) /
+                                             5))),
+                                 ((OH / _numClusters * OW * OC) /
+                                  (5.0 * std::ceil((16.0 * std::ceil(std::ceil(OH / _numClusters) / 16.0) * 1.0 *
+                                                    std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
+                                                   5.0))));
                 _log.trace("The SOK efficiency for the group convolution is {0}", efficency);
                 return efficency;
             });
-    // .Default([](mlir::Operation* unknownOp) {
-    //     VPUX_THROW("Operation is not supported by the NCE");
-    //     return 0;
-    // });
 }
 
 // Computes the multi-cluster efficiency value for operation
@@ -235,8 +233,9 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     // Is operation SOH compatible
                     if (isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op)) {
                         _splitOverHeightEfficencies.insert({op, calculateSplitOverHeightEfficency(op)});
+                    } else {
+                        _splitOverHeightEfficencies.insert({op, 0});
                     }
-                    { _splitOverHeightEfficencies.insert({op, 0}); }
                     // Is operation SOK compatible
                     if (isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
                         _splitOverKernelEfficencies.insert({op, calculateSplitOverKernelEfficency(op)});
@@ -246,10 +245,6 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     // Assign the most strategy
                     assignMultiClusterStrategy(op);
                 });
-        // .Default([](mlir::Operation* unknownOp) {
-        //     VPUX_THROW("Operation is not supported by the NCE");
-        //     return 0;
-        // });
     };
 
     _func.walk(callback);
@@ -257,24 +252,25 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
 
 void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
     llvm::TypeSwitch<mlir::Operation*, void>(op)
-            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
-                // Compare the SOK and SOK efficiencies, favour SOH if they are equal
-                if (_splitOverHeightEfficencies.find(op)->second >= _splitOverKernelEfficencies.find(op)->second) {
+            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
+                // If operation is neither SOH or SOK compatible, then it has to be Clustering
+                if (!isOperationSplitOverHeightCompatible<IE::ConvolutionOp>(op) &&
+                    !isOperationSplitOverKernelCompatible<IE::ConvolutionOp>(op)) {
+                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
+                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+                }
+                // Compare the SOK and SOK efficiencies
+                // Select SOH if they are equal
+                else if (_splitOverHeightEfficencies.find(op)->second >= _splitOverKernelEfficencies.find(op)->second) {
                     op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverH"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
 
                 }
-                // SOK is more efficient
+                // SOK is more efficient than SOH
                 else if (_splitOverHeightEfficencies.find(op)->second < _splitOverKernelEfficencies.find(op)->second) {
                     op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverK"));
-                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                               op->getAttr(multiClusterStrategyAttrName), op->getName());
-
-                }
-                // Operation should be clustering
-                else {
-                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
                 }
@@ -291,7 +287,6 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                 const auto IW = inputShape[Dims4D::Act::W];
                 const double KY = weightsShape[Dims4D::Filter::KY];
                 const double KX = weightsShape[Dims4D::Filter::KX];
-                const double WIC = weightsShape[Dims4D::Filter::IC];
                 const double WOC = weightsShape[Dims4D::Filter::OC];
                 const double inputTensorVolume = IC * IH * IW;  // Need to add precision
                 const double weightTensorVolume =
@@ -312,6 +307,7 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                           _splitOverKernelEfficencies.find(op)->second) &&
                          isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op) &&
                          isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
+                    // If the
                     if (_numClusters * inputTensorVolume + weightTensorVolume <
                         inputTensorVolume + (_numClusters * weightTensorVolume)) {
                         op->setAttr(multiClusterStrategyAttrName,
@@ -352,8 +348,4 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
                 }
             });
-    // .Default([](mlir::Operation* unknownOp) {
-    //     VPUX_THROW("Operation is not supported by the NCE");
-    //     return 0;
-    // });
 }
