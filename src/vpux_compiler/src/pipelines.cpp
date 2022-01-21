@@ -104,6 +104,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
+    pm.addPass(IERT::createLinearizationPass(log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
@@ -120,6 +121,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
             pm.addPass(VPUIP::createUPAProfilingPass(log));
         }
         pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+        pm.addPass(createMoveDeclarationsToTopPass(log));
     }
 
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
@@ -221,6 +223,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
+    pm.addPass(IERT::createLinearizationPass(log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));
@@ -370,8 +373,10 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
             pm.addPass(VPUIP::createUPAProfilingPass(log));
         }
         pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+        pm.addPass(createMoveDeclarationsToTopPass(log));
     }
 
+    pm.addPass(VPURT::createAssignVirtualBarriersPass(log));
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));

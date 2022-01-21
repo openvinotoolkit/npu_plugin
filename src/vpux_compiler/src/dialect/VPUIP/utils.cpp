@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
@@ -63,6 +64,36 @@ double vpux::VPUIP::getProcessorFrequency(IE::ExecutorResourceOp res) {
                       res.getKind(), VPU::getProcessorFrequencyAttrName(), attr);
 
     return attr.cast<mlir::FloatAttr>().getValueAsDouble();
+}
+
+int64_t vpux::VPUIP::getNumAvailableBarriers(mlir::Operation* parentOp) {
+    const EnumMap<VPU::ArchKind, int64_t> MAX_BARRIERS_PER_INFERENCE = {
+            {VPU::ArchKind::KMB, 64 / 2},  // half barries are used (runtime limitation)
+            {VPU::ArchKind::TBH, 64 / 2},  // half barries are used (runtime limitation)
+            {VPU::ArchKind::MTL, 64},      //
+            {VPU::ArchKind::LNL, 64},      //
+    };
+
+    const auto arch = VPU::getArch(parentOp);
+
+    auto module = parentOp->getParentOfType<mlir::ModuleOp>();
+    auto nceResOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
+    VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE Executor information");
+
+    const auto numClusters = nceResOp.count();
+
+    const auto maxNumClustersForArch = VPU::getMaxDPUClusterNum(module);
+    VPUX_THROW_UNLESS(maxNumClustersForArch != 0, "Failed to get maxNumClustersForArch");
+
+    const auto barIt = MAX_BARRIERS_PER_INFERENCE.find(arch);
+    VPUX_THROW_WHEN(barIt == MAX_BARRIERS_PER_INFERENCE.end(), "Unsupported VPU architecture '{0}'", arch);
+
+    const auto maxBarriersPerInference = barIt->second;
+
+    const auto barriersPerCluster = maxBarriersPerInference / maxNumClustersForArch;
+    const auto maxNumBarriers = std::min(maxBarriersPerInference, barriersPerCluster * numClusters);
+
+    return maxNumBarriers;
 }
 
 //

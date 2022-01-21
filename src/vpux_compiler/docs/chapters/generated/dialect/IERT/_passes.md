@@ -24,6 +24,8 @@ Schedule async.execute opeations based on their dependecies and CMX memory avail
 Groups consecutive operations which utilizes the same executor and max resources into same async.execute region
 ### `-legalize-copies`: Legalizes Copy Ops which do not fit hardware capabilities
 This pass checks if Copy Op can be executed at target hardware and splits it into a few tiles if necessary.
+### `-linearization`: Perform linearization of the IR
+Perform linearization of the IR with fully sequential execution.
 ### `-move-view-ops-into-async-regions`: Moves view-like Operations inside the asynchronous regions which depends on them
 ### `-move-wait-result-to-async-block-args`: Moves 'async.await' result usage from 'async.execute' body to it's operands
 ### `-optimize-async-deps`: Optimizes dependencies between 'async.execute' operations

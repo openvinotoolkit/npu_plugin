@@ -4,7 +4,17 @@ This pass replaces virtual barriers with physical barriers and assign IDs to the
 
 #### Options
 ```
--num-barriers : Number of physical barriers, available for usage
+-num-barriers : Number of physical barriers, available for use
+```
+### `-assign-virtual-barriers`: Schedules virtual barriers
+This pass inserts virtual barriers in the IR such that the number of active barriers at any time
+does not exceed the physical number of available barriers 
+and that the number of producers to a barrier is less than 256.
+
+#### Options
+```
+-num-barriers          : Number of physical barriers, available for use
+-num-slots-per-barrier : Number of producer slots per barrier, available for use
 ```
 ### `-barrier-simulation`: Simulate barriers
 Simulates the physical barrier execution and stops compilation on fail.
