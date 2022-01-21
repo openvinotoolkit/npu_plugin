@@ -115,7 +115,7 @@ const std::vector<size_t> axis4D = {0, 1, 2, 3};
 const auto params4D = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes4D)), testing::ValuesIn(axis4D),
-        testing::Values(testPlatformTargetDevice), testing::Values(std::map<std::string, std::string>()));
+        testing::Values(testPlatformTargetDevice), testing::Values(ov::AnyMap()));
 
 INSTANTIATE_TEST_CASE_P(smoke_SoftMax4D, VPUXSoftMaxLayerTest, params4D, SoftMaxLayerTest::getTestCaseName);
 

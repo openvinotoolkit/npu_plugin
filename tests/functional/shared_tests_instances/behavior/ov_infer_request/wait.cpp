@@ -18,15 +18,15 @@
 using namespace ov::test::behavior;
 
 namespace {
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
    {}
 };
 
-const std::vector<std::map<std::string, std::string>> multiConfigs = {
+const std::vector<ov::AnyMap> multiConfigs = {
    {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_KEEMBAY}}
 };
 
-const std::vector<std::map<std::string, std::string>> autoConfigs = {
+const std::vector<ov::AnyMap> autoConfigs = {
    {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_KEEMBAY}}
 };
 

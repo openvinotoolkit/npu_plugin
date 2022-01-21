@@ -11,7 +11,7 @@ const std::vector<ov::element::Type_t> netPrecisions = {
         ov::element::f16,
         ov::element::f32,
 };
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<ov::AnyMap> configs = {
         {}
 };
 
