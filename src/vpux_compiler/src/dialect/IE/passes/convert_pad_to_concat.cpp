@@ -48,20 +48,6 @@ private:
     Logger _log;
 };
 
-static mlir::DenseElementsAttr buildWeightData(const mlir::RankedTensorType dataStorageType, const float value) {
-    const auto elemType = dataStorageType.getElementType();
-    if (elemType.isF32()) {
-        return mlir::DenseElementsAttr::get(dataStorageType, value);
-    } else if (elemType.isF16()) {
-        const ngraph::float16 valueFP16 = value;
-        return mlir::DenseElementsAttr::get(dataStorageType, valueFP16);
-    } else if (elemType.isInteger(CHAR_BIT)) {
-        const uint8_t valueU8 = checked_cast<uint8_t>(value);
-        return mlir::DenseElementsAttr::get(dataStorageType, valueU8);
-    }
-    return nullptr;
-}
-
 mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp origPadOp,
                                                                   mlir::PatternRewriter& rewriter) const {
     _log.trace("Found IE::PadOp Operation '{0}'", origPadOp->getLoc());
@@ -82,13 +68,12 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
 
     VPUX_THROW_UNLESS(origPadOp.pad_value_attr().hasValue(), "IE::PadOp has pad_value_attr() == nullptr {0}",
                       origPadOp->getLoc());
-    auto padsValue = origPadOp.pad_value_attr().getValue().convertToFloat();
+    const auto padValue = origPadOp.pad_value_attr().getValue().convertToDouble();
 
     const auto inputShape = origPadOp.input().getType().cast<mlir::ShapedType>().getShape();
     const auto outputShape = origPadOp.output().getType().cast<mlir::ShapedType>().getShape();
 
-    const auto createConstOp = [&](SmallVector<mlir::Value>& values, const size_t axis, ArrayRef<int64_t> padSize,
-                                   const float padValue) {
+    const auto createConstOp = [&](SmallVector<mlir::Value>& values, size_t axis, ArrayRef<int64_t> padSize) {
         if (padSize[axis] == 0) {
             return;
         }
@@ -99,17 +84,16 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
         }
         constShape[axis] = padSize[axis];
 
-        const auto elemType = origPadOp.input().getType().cast<mlir::ShapedType>().getElementType();
-        const auto dataStorageType = mlir::RankedTensorType::get(constShape, elemType);
-        const auto dataAttr = buildWeightData(dataStorageType, padValue);
-        VPUX_THROW_UNLESS(dataAttr != nullptr,
-                          "`IE::PadOp` has incompatible data type {0}. Only uint8 or float16 or float32 are supported",
-                          elemType);
+        const auto origElemType = origPadOp.input().getType().cast<mlir::ShapedType>().getElementType();
 
-        auto constant = rewriter.create<Const::DeclareOp>(origPadOp->getLoc(), dataStorageType,
-                                                          Const::ContentAttr::get(dataAttr));
+        const auto padDataStorageType = mlir::RankedTensorType::get(constShape, mlir::Float32Type::get(getContext()));
+        const auto padDataStorage = mlir::DenseElementsAttr::get(padDataStorageType, static_cast<float>(padValue));
 
-        values.push_back(constant);
+        const auto padDataType = mlir::RankedTensorType::get(constShape, origElemType);
+        const auto padDataAttr = Const::ContentAttr::get(padDataStorage).convertElemType(origElemType);
+
+        auto constant = rewriter.create<Const::DeclareOp>(origPadOp->getLoc(), padDataType, padDataAttr);
+        values.push_back(constant.output());
     };
 
     auto midInput = origPadOp.input();
@@ -127,12 +111,12 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
         SmallVector<mlir::Value> valueRange;
 
         _log.nest().trace("Insert ConstOp convert from padsBegin index: {0}", reversedAxis);
-        createConstOp(valueRange, reversedAxis, padsBeginValue, padsValue);
+        createConstOp(valueRange, reversedAxis, padsBeginValue);
 
         valueRange.push_back(midInput);
 
         _log.nest().trace("Insert ConstOp convert from padsEnd index: {0}", reversedAxis);
-        createConstOp(valueRange, reversedAxis, padsEndValue, padsValue);
+        createConstOp(valueRange, reversedAxis, padsEndValue);
 
         auto concat = rewriter.create<IE::ConcatOp>(midInput.getLoc(), valueRange, reversedAxis);
         _log.nest().trace("Insert ConcatOp {0}", concat.getLoc());

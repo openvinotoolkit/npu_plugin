@@ -6,9 +6,9 @@ func @convertPadToConcatWithN(%arg0: tensor<1x8x16x16xf16>) -> tensor<4x8x16x16x
                         : tensor<1x8x16x16xf16> -> tensor<4x8x16x16xf16>
     return %0 : tensor<4x8x16x16xf16>
 
-    // CHECK-DAG:      [[CST0:%.*]] = const.Declare tensor<1x8x16x16xf16> = #const.Content<dense<1.000000e+00> : tensor<1x8x16x16xf16>>
-    // CHECK-DAG:      [[CST1:%.*]] = const.Declare tensor<2x8x16x16xf16> = #const.Content<dense<1.000000e+00> : tensor<2x8x16x16xf16>>
-    // CHEAK-NOT:      IE.Pad
+    // CHECK-DAG:      [[CST0:%.*]] = const.Declare tensor<1x8x16x16xf16> = #const.Content<dense<1.000000e+00>
+    // CHECK-DAG:      [[CST1:%.*]] = const.Declare tensor<2x8x16x16xf16> = #const.Content<dense<1.000000e+00>
+    // CHECK-NOT:      IE.Pad
     // CHECK:       [[VAR0:%.*]] = IE.Concat([[CST0]], %arg0, [[CST1]]) {per_axis = {axis = 0 : i64}}
     // CHECK-SAME:       tensor<1x8x16x16xf16>, tensor<1x8x16x16xf16>, tensor<2x8x16x16xf16> -> tensor<4x8x16x16xf16>
     // CHECK:       return [[VAR0]] : tensor<4x8x16x16xf16>
@@ -20,11 +20,11 @@ func @convertPadToConcatWithHW(%arg0: tensor<1x8x16x16xf16>) -> tensor<1x8x19x19
                         : tensor<1x8x16x16xf16> -> tensor<1x8x19x19xf16>
     return %0 : tensor<1x8x19x19xf16>
 
-    // CHECK-DAG:      [[CST0:%.*]] = const.Declare tensor<1x8x16x2xf16> = #const.Content<dense<1.000000e+00> : tensor<1x8x16x2xf16>>
-    // CHECK-DAG:      [[CST1:%.*]] = const.Declare tensor<1x8x16x1xf16> = #const.Content<dense<1.000000e+00> : tensor<1x8x16x1xf16>>
-    // CHECK-DAG:      [[CST2:%.*]] = const.Declare tensor<1x8x1x19xf16> = #const.Content<dense<1.000000e+00> : tensor<1x8x1x19xf16>>
-    // CHECK-DAG:      [[CST3:%.*]] = const.Declare tensor<1x8x2x19xf16> = #const.Content<dense<1.000000e+00> : tensor<1x8x2x19xf16>>
-    // CHEAK-NOT:      IE.Pad
+    // CHECK-DAG:      [[CST0:%.*]] = const.Declare tensor<1x8x16x2xf16> = #const.Content<dense<1.000000e+00>
+    // CHECK-DAG:      [[CST1:%.*]] = const.Declare tensor<1x8x16x1xf16> = #const.Content<dense<1.000000e+00>
+    // CHECK-DAG:      [[CST2:%.*]] = const.Declare tensor<1x8x1x19xf16> = #const.Content<dense<1.000000e+00>
+    // CHECK-DAG:      [[CST3:%.*]] = const.Declare tensor<1x8x2x19xf16> = #const.Content<dense<1.000000e+00>
+    // CHECK-NOT:      IE.Pad
     // CHECK:       [[VAR0:%.*]] = IE.Concat([[CST0]], %arg0, [[CST1]]) {per_axis = {axis = 3 : i64}}
     // CHECK-SAME:       tensor<1x8x16x2xf16>, tensor<1x8x16x16xf16>, tensor<1x8x16x1xf16> -> tensor<1x8x16x19xf16>
     // CHECK:       [[VAR1:%.*]] = IE.Concat([[CST2]], [[VAR0]], [[CST3]]) {per_axis = {axis = 2 : i64}}
@@ -38,15 +38,15 @@ func @convertPadToConcatWithNCHW(%arg0: tensor<1x8x16x16xf16>) -> tensor<6x13x21
                         : tensor<1x8x16x16xf16> -> tensor<6x13x21x21xf16>
     return %0 : tensor<6x13x21x21xf16>
 
-    // CHECK-DAG:      [[CST0:%.*]] = const.Declare tensor<1x8x16x1xf16> = #const.Content<dense<0.000000e+00> : tensor<1x8x16x1xf16>>
-    // CHECK-DAG:      [[CST1:%.*]] = const.Declare tensor<1x8x16x4xf16> = #const.Content<dense<0.000000e+00> : tensor<1x8x16x4xf16>>
-    // CHECK-DAG:      [[CST2:%.*]] = const.Declare tensor<1x8x2x21xf16> = #const.Content<dense<0.000000e+00> : tensor<1x8x2x21xf16>>
-    // CHECK-DAG:      [[CST3:%.*]] = const.Declare tensor<1x8x3x21xf16> = #const.Content<dense<0.000000e+00> : tensor<1x8x3x21xf16>>
-    // CHECK-DAG:      [[CST4:%.*]] = const.Declare tensor<1x3x21x21xf16> = #const.Content<dense<0.000000e+00> : tensor<1x3x21x21xf16>>
-    // CHECK-DAG:      [[CST5:%.*]] = const.Declare tensor<1x2x21x21xf16> = #const.Content<dense<0.000000e+00> : tensor<1x2x21x21xf16>>
-    // CHECK-DAG:      [[CST6:%.*]] = const.Declare tensor<4x13x21x21xf16> = #const.Content<dense<0.000000e+00> : tensor<4x13x21x21xf16>>
-    // CHECK-DAG:      [[CST7:%.*]] = const.Declare tensor<1x13x21x21xf16> = #const.Content<dense<0.000000e+00> : tensor<1x13x21x21xf16>>
-    // CHEAK-NOT:      IE.Pad
+    // CHECK-DAG:      [[CST0:%.*]] = const.Declare tensor<1x8x16x1xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-DAG:      [[CST1:%.*]] = const.Declare tensor<1x8x16x4xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-DAG:      [[CST2:%.*]] = const.Declare tensor<1x8x2x21xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-DAG:      [[CST3:%.*]] = const.Declare tensor<1x8x3x21xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-DAG:      [[CST4:%.*]] = const.Declare tensor<1x3x21x21xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-DAG:      [[CST5:%.*]] = const.Declare tensor<1x2x21x21xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-DAG:      [[CST6:%.*]] = const.Declare tensor<4x13x21x21xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-DAG:      [[CST7:%.*]] = const.Declare tensor<1x13x21x21xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-NOT:      IE.Pad
     // CHECK:       [[VAR0:%.*]] = IE.Concat([[CST0]], %arg0, [[CST1]]) {per_axis = {axis = 3 : i64}}
     // CHECK-SAME:       tensor<1x8x16x1xf16>, tensor<1x8x16x16xf16>, tensor<1x8x16x4xf16> -> tensor<1x8x16x21xf16>
     // CHECK:       [[VAR1:%.*]] = IE.Concat([[CST2]], [[VAR0]], [[CST3]]) {per_axis = {axis = 2 : i64}}
@@ -78,13 +78,13 @@ func @convertPadToConcatWithMultiUser(%arg0: tensor<1x3x297x297xf16>) -> (tensor
         tensor<1x3x300x300xf16>, tensor<1x3x1x1xf16> -> tensor<1x3x300x300xf16>
     return %1, %3 : tensor<1x16x300x300xf16>, tensor<1x3x300x300xf16>
 
-    // CHECK-DAG:      [[CST0:%.*]] = const.Declare tensor<1x3x1x1xf16> = #const.Content<dense<1.000000e+00> : tensor<1x3x1x1xf16>>
-    // CHECK-DAG:      [[CST1:%.*]] = const.Declare tensor<16x3x3x3xf16> = #const.Content<dense<1.000000e+00> : tensor<16x3x3x3xf16>>
-    // CHECK-DAG:      [[CST2:%.*]] = const.Declare tensor<1x3x297x2xf16> = #const.Content<dense<0.000000e+00> : tensor<1x3x297x2xf16>>
-    // CHECK-DAG:      [[CST3:%.*]] = const.Declare tensor<1x3x297x1xf16> = #const.Content<dense<0.000000e+00> : tensor<1x3x297x1xf16>>
-    // CHECK-DAG:      [[CST4:%.*]] = const.Declare tensor<1x3x1x300xf16> = #const.Content<dense<0.000000e+00> : tensor<1x3x1x300xf16>>
-    // CHECK-DAG:      [[CST5:%.*]] = const.Declare tensor<1x3x2x300xf16> = #const.Content<dense<0.000000e+00> : tensor<1x3x2x300xf16>>
-    // CHEAK-NOT:      IE.Pad
+    // CHECK-DAG:      [[CST0:%.*]] = const.Declare tensor<1x3x1x1xf16> = #const.Content<dense<1.000000e+00>
+    // CHECK-DAG:      [[CST1:%.*]] = const.Declare tensor<16x3x3x3xf16> = #const.Content<dense<1.000000e+00>
+    // CHECK-DAG:      [[CST2:%.*]] = const.Declare tensor<1x3x297x2xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-DAG:      [[CST3:%.*]] = const.Declare tensor<1x3x297x1xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-DAG:      [[CST4:%.*]] = const.Declare tensor<1x3x1x300xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-DAG:      [[CST5:%.*]] = const.Declare tensor<1x3x2x300xf16> = #const.Content<dense<0.000000e+00>
+    // CHECK-NOT:      IE.Pad
     // CHECK:       [[VAR0:%.*]] = IE.Concat([[CST2]], %arg0, [[CST3]]) {per_axis = {axis = 3 : i64}}
     // CHECK-SAME:       tensor<1x3x297x2xf16>, tensor<1x3x297x297xf16>, tensor<1x3x297x1xf16> -> tensor<1x3x297x300xf16>
     // CHECK:       [[VAR1:%.*]] = IE.Concat([[CST4]], [[VAR0]], [[CST5]]) {per_axis = {axis = 2 : i64}}
