@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/VPU/pwl_utils.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 #include "vpux/utils/core/error.hpp"
 
@@ -67,14 +68,19 @@ std::unique_ptr<VPU::PwlQuantReqs> vpux::VPU::getCustomPwlQuantReqs(IE::LayerWit
                                    .cast<mlir::RankedTensorType>()
                                    .getElementType()
                                    .dyn_cast<mlir::quant::UniformQuantizedType>();
+    VPUX_THROW_UNLESS(inputType, "InputType must be mlir::quant::UniformQuantizedType");
     const auto outputType = origOp->getResult(0)
                                     .getType()
                                     .cast<mlir::RankedTensorType>()
                                     .getElementType()
                                     .dyn_cast<mlir::quant::UniformQuantizedType>();
+    VPUX_THROW_UNLESS(outputType, "InputType must be mlir::quant::UniformQuantizedType");
+    VPUX_THROW_UNLESS(origOp.getPostOp().hasValue(), "{0} must have postOp", origOp);
 
-    auto pwlTable = findCustomPWLTable(origOp.getPostOp().getValue().getStringRef().str(),
+    auto pwlTable = findCustomPWLTable(origOp.getPostOp().getValue().getStringRef(),
                                        origOp->getResult(0).getType().cast<mlir::RankedTensorType>().getElementType());
+    VPUX_THROW_UNLESS(pwlTable.hasValue(), "Custom PWL Table was not found for {0} {1}", origOp.getPostOp().getValue(),
+                      outputType);
 
     const auto pwlTableRange = pwlTable.getValue().range;
     const auto pwlRange = std::make_pair(pwlTableRange[0], pwlTableRange[pwlTableRange.size() - 1]);
@@ -85,31 +91,31 @@ std::unique_ptr<VPU::PwlQuantReqs> vpux::VPU::getCustomPwlQuantReqs(IE::LayerWit
     getFakeQuantParams(outputType, levels, flMin, flMax);
     const double scale = outputType.getScale();
     const int64_t zeroPoint = outputType.getZeroPoint();
-    VPUX_THROW_UNLESS(scale != 0.0, "Output quantParam scale is 0");
+    VPUX_THROW_UNLESS(!isDoubleEqual(scale, 0.0), "Output quantParam scale is 0");
     const double qMax = std::round(flMax / scale + zeroPoint);
 
     bool leakyReluCase = false;
+    auto negativeSlopeAttr = origOp.getPostOpAttrs().get("negative_slope");
 
-    if (origOp.getPostOpAttrs().get("negative_slope")) {
-        const double leakyAlpha =
-                origOp.getPostOpAttrs().get("negative_slope").cast<mlir::FloatAttr>().getValueAsDouble();
+    if (negativeSlopeAttr) {
+        const double leakyAlpha = negativeSlopeAttr.cast<mlir::FloatAttr>().getValueAsDouble();
         const double flMinBeforeLrelu = flMin / leakyAlpha;
         const double qMin = std::round(flMinBeforeLrelu / scale + zeroPoint);
         const auto scaledqMin = std::round(std::abs(qMin) * leakyAlpha);
         leakyReluCase = (scaledqMin - zeroPoint) > std::abs(pwlRange.first);
     }
 
-    if (qMax - zeroPoint > pwlRange.second || leakyReluCase) {
-        const double newScale = flMax / (pwlRange.second - zeroPoint);
-
-        float inputMin;
-        float inputMax;
-        getFakeQuantParams(inputType, levels, inputMin, inputMax);
-
-        VPU::PwlQuantReqs newQuantParams{{inputMin, inputMax, inputType.getScale(), inputType.getZeroPoint(), 0},
-                                         {flMin, flMax, newScale, zeroPoint, 0}};
-        return std::make_unique<VPU::PwlQuantReqs>(std::move(newQuantParams));
+    if (qMax - zeroPoint <= pwlRange.second && !leakyReluCase) {
+        return nullptr;
     }
 
-    return nullptr;
+    const double newScale = flMax / (pwlRange.second - zeroPoint);
+    float inputMin;
+    float inputMax;
+    getFakeQuantParams(inputType, levels, inputMin, inputMax);
+
+    VPU::PwlQuantReqs newQuantParams{{inputMin, inputMax, inputType.getScale(), inputType.getZeroPoint(), 0},
+                                     {flMin, flMax, newScale, zeroPoint, 0}};
+
+    return std::make_unique<VPU::PwlQuantReqs>(std::move(newQuantParams));
 }

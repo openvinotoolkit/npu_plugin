@@ -111,7 +111,7 @@ class KmbConvPwlQuantizedSubGraphTest :
             const auto negativeSlope = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {0.1}, false);
             const auto postOp = std::make_shared<ngraph::op::v0::PRelu>(conv, negativeSlope);
             outputFq = ngraph::builder::makeFakeQuantize(postOp, ngraph::element::f32, outLevels, {},
-                                                         {0.0}, {255.0}, {-128.0}, {127.0});
+                                                         {-128.0}, {127.0}, {-128.0}, {127.0});
         }
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outputFq)};

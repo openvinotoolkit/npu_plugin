@@ -307,6 +307,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(IE::createUnrollBatchPass(log));
     pm.addPass(IE::createResolvePWLPostOpsPass(log));
+    if (options.enableLowPrecision) {
+        pm.addPass(IE::createConvertQuantizeOpsToEltwisePass(log));
+    }
 
     if (options.enableUpstreamSlice) {
         pm.addPass(IE::createUpstreamSlicePass(log));

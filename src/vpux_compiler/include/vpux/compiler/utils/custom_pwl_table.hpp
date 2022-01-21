@@ -9,7 +9,7 @@
 namespace vpux {
 
 struct PWLTableType {
-    std::string activation;
+    llvm::StringRef activation;
     mlir::Type dtype;
 };
 
@@ -23,7 +23,7 @@ struct PWLTableEntry {
 
 struct PWLTableHash {
     std::size_t operator()(const PWLTableType& key) const {
-        const auto h1 = std::hash<std::string>()(key.activation);
+        const auto h1 = std::hash<std::string>()(key.activation.str());
         const auto h2 = mlir::hash_value(key.dtype);
 
         return h1 ^ h2;
@@ -36,8 +36,8 @@ struct PWLTableEq {
     }
 };
 
-typedef std::unordered_map<PWLTableType, SmallVector<PWLTableEntry>, PWLTableHash, PWLTableEq> PWLTableMap;
+using PWLTableMap = std::unordered_map<PWLTableType, SmallVector<PWLTableEntry>, PWLTableHash, PWLTableEq>;
 
-vpux::PWLTableEntry customPWLTable_leakyRelu(mlir::Type outElemType);
-Optional<vpux::PWLTableEntry> findCustomPWLTable(const std::string& activationName, mlir::Type outElemType);
+vpux::PWLTableEntry getLeakyReluPWLEntry(mlir::Type outElemType);
+Optional<vpux::PWLTableEntry> findCustomPWLTable(const StringRef activationName, mlir::Type outElemType);
 }  // namespace vpux

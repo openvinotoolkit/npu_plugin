@@ -41,7 +41,8 @@ private:
                                         mlir::PatternRewriter& rewriter) const final;
 
     mlir::LogicalResult ensureRequantizationRange(IE::LayerWithPostOpInterface origOp, mlir::PatternRewriter& rewriter,
-                                                  const VPU::PwlQuantReqs& quantReqs, const bool quantType) const;
+                                                  const VPU::PwlQuantReqs& quantReqs,
+                                                  const bool isRequantizeNeeded) const;
 
     template <class PostOpType>
     mlir::LogicalResult unfusePostOp(IE::LayerWithPostOpInterface origOp, llvm::StringRef postOpName,
@@ -54,7 +55,7 @@ private:
 mlir::LogicalResult FusableOpRewriter::ensureRequantizationRange(IE::LayerWithPostOpInterface origOp,
                                                                  mlir::PatternRewriter& rewriter,
                                                                  const VPU::PwlQuantReqs& quantReqs,
-                                                                 const bool quantType) const {
+                                                                 const bool isRequantizeNeeded) const {
     _log.nest().trace("Ensure requantization range for {0}", origOp->getName());
 
     const auto origType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
@@ -85,7 +86,7 @@ mlir::LogicalResult FusableOpRewriter::ensureRequantizationRange(IE::LayerWithPo
 
     auto clone = rewriter.clone(*origOp.getOperation());
     clone->getResult(0).setType(pwlInType);
-    if (quantType) {
+    if (isRequantizeNeeded) {
         _log.nest().trace("Adding QuantizeCast output operation");
         rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(origOp, pwlOutType, clone->getResult(0), pwlOutElemType);
     } else {
