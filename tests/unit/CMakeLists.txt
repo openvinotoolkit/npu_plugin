@@ -24,12 +24,12 @@ else()
 endif()
 
 if(ENABLE_DRIVER_COMPILER_ADAPTER)
-    set(VPUX_IN_DRIVER_UNIT_TESTS_DIR "")
-    set(VPUX_IN_DRIVER_LIBS
+    set(VPUX_DRIVER_COMPILER_ADAPTER_UNIT_TESTS_DIR "")
+    set(VPUX_DRIVER_COMPILER_ADAPTER_LIBS
             vpux_driver_compiler_adapter_static
         )
 else()
-    set(VPUX_IN_DRIVER_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vpux_driver_compiler_adapter")
+    set(VPUX_DRIVER_COMPILER_ADAPTER_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vpux_driver_compiler_adapter")
 endif()
 
 set(MCM_SCHEDULER_INCLUDES_DIR
@@ -51,7 +51,7 @@ endif()
 addIeTargetTest(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-    EXCLUDED_SOURCE_PATHS ${EXCLUDED_HDDL2_UNIT_TESTS_DIR} ${VPUX_IN_DRIVER_UNIT_TESTS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/kmb/test_utils
+    EXCLUDED_SOURCE_PATHS ${EXCLUDED_HDDL2_UNIT_TESTS_DIR} ${VPUX_DRIVER_COMPILER_ADAPTER_UNIT_TESTS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/kmb/test_utils
     INCLUDES
         ${HDDL2_INCLUDES}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
@@ -74,7 +74,7 @@ addIeTargetTest(
         vpux_mlir_compiler_static
         vpux_mcm_frontend_static
         vpux_translate_utils_static
-        ${VPUX_IN_DRIVER_LIBS}
+        ${VPUX_DRIVER_COMPILER_ADAPTER_LIBS}
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
     DEFINES
