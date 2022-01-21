@@ -269,14 +269,14 @@ TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetMetricAndPrint) {
     std::cout << "Architect type: " << architecture << std::endl;
 }
 
-TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetMetricWithoutDevice) {
+TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetMetricWithoutDeviceThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     InferenceEngine::Core ie;
 
     if (supportsDeviceID(ie, deviceName)) {
         const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
         if (!deviceIDs.empty())
-            GTEST_SKIP() << "Devices list not empty";
+            GTEST_SKIP() << "Devices list is not empty";
 
         ASSERT_ANY_THROW(ie.GetMetric(deviceName, METRIC_KEY(DEVICE_ARCHITECTURE)));
     }
@@ -323,6 +323,71 @@ TEST_P(IEClassGetMetricTest_BACKEND_NAME, GetBackendName) {
 INSTANTIATE_TEST_CASE_P(
         IEClassGetMetricTest_nightly,
         IEClassGetMetricTest_BACKEND_NAME,
+        ::testing::ValuesIn(devices));
+
+TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricForAllDevicesWithDeviceID) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    InferenceEngine::Core ie;
+    const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.empty()) {
+        GTEST_SKIP() << "No devices available";
+    }
+
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(FULL_DEVICE_NAME));
+    std::string fullDevName;
+    for (const auto& deviceID : deviceIDs) {
+        ASSERT_NO_THROW(fullDevName = ie.GetMetric(deviceName + "." + deviceID, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>());
+        ASSERT_FALSE(fullDevName.empty());
+        std::cout << "Full device name: " << fullDevName << std::endl;
+    }
+}
+
+TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricForSingleDeviceWithoutDeviceID) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    InferenceEngine::Core ie;
+    const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.size() != 1) {
+        GTEST_SKIP() << "Not single device case";
+    }
+
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(FULL_DEVICE_NAME));
+    std::string fullDevName;
+    ASSERT_NO_THROW(fullDevName = ie.GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>());
+    ASSERT_FALSE(fullDevName.empty());
+    std::cout << "Full device name: " << fullDevName << std::endl;
+}
+
+TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricWithoutDeviceThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    InferenceEngine::Core ie;
+
+    const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (!deviceIDs.empty()) {
+        GTEST_SKIP() << "Devices list is not empty";
+    }
+
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(FULL_DEVICE_NAME));
+    ASSERT_ANY_THROW(ie.GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)));
+}
+
+TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricWithIncorrectDeviceIDThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    InferenceEngine::Core ie;
+    const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.empty()) {
+        GTEST_SKIP() << "No devices available";
+    }
+
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(FULL_DEVICE_NAME));
+    std::vector<std::string> incorrectDevIds = {"IncorrectDevId", "Platform.slice", "3000.0"};
+    for (const auto& incorrectDevId : incorrectDevIds) {
+        ASSERT_ANY_THROW(ie.GetMetric(deviceName + "." + incorrectDevId, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>());
+    }
+}
+
+INSTANTIATE_TEST_CASE_P(
+        IEClassGetMetricTest_nightly,
+        IEClassGetMetricTest_FULL_DEVICE_NAME,
         ::testing::ValuesIn(devices));
 
 } // namespace

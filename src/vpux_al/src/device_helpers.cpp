@@ -26,7 +26,7 @@ const static std::map<uint32_t, ie::VPUXConfigParams::VPUXPlatform> platformIdMa
 const static std::map<ie::VPUXConfigParams::VPUXPlatform, std::string> platformNameMap = {
         {ie::VPUXConfigParams::VPUXPlatform::AUTO, "AUTO"},           // auto detection
         {ie::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "3400_A0"},  // KMB A0
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3400, "3400"},        // KMB B0 400 MHz
+        {ie::VPUXConfigParams::VPUXPlatform::VPU3400, "3400"},        // KMB B0 500 MHz
         {ie::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},        // KMB B0 700 MHz
         {ie::VPUXConfigParams::VPUXPlatform::VPU3800, "3800"},        // TBH Prime
         {ie::VPUXConfigParams::VPUXPlatform::VPU3900, "3900"},        // TBH Full
@@ -36,17 +36,28 @@ const static std::map<ie::VPUXConfigParams::VPUXPlatform, std::string> platformN
 const static std::map<std::string, ie::VPUXConfigParams::VPUXPlatform> platformNameInverseMap = {
         {"AUTO", ie::VPUXConfigParams::VPUXPlatform::AUTO},             // auto detection
         {"3400_A0", ie::VPUXConfigParams::VPUXPlatform::VPU3400_A0},    // KMB A0
-        {"3400", ie::VPUXConfigParams::VPUXPlatform::VPU3400},          // KMB B0 400 MHz
+        {"3400", ie::VPUXConfigParams::VPUXPlatform::VPU3400},          // KMB B0 500 MHz
         {"3700", ie::VPUXConfigParams::VPUXPlatform::VPU3700},          // KMB B0 700 MHz
         {"3800", ie::VPUXConfigParams::VPUXPlatform::VPU3800},          // TBH Prime
         {"3900", ie::VPUXConfigParams::VPUXPlatform::VPU3900},          // TBH Full
         {"3720", ie::VPUXConfigParams::VPUXPlatform::VPU3720},          // MTL
         {"3400_A0_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},  // Emulator KMB A0
-        {"3400_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator KMB B0 400 MHz
+        {"3400_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator KMB B0 500 MHz
         {"3700_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator KMB B0 700 MHz
         {"3800_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator TBH Prime
         {"3900_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator TBH Full
         {"3720_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator MTL
+};
+
+// TODO Need to clarify the full names of devices. Definitely for MTL, possibly for others
+const static std::map<ie::VPUXConfigParams::VPUXPlatform, std::string> platformToFullDeviceNameMap = {
+        {ie::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "Gen3 Intel(R) Movidius(TM) VPU 3400VE"},  // KMB A0
+        {ie::VPUXConfigParams::VPUXPlatform::VPU3400, "Gen3 Intel(R) Movidius(TM) VPU 3400VE"},     // KMB B0 500 MHz
+        {ie::VPUXConfigParams::VPUXPlatform::VPU3700, "Gen3 Intel(R) Movidius(TM) VPU 3700VE"},     // KMB B0 700 MHz
+        {ie::VPUXConfigParams::VPUXPlatform::VPU3800, "Gen3 Intel(R) Movidius(TM) S VPU 3800V"},    // TBH Prime
+        {ie::VPUXConfigParams::VPUXPlatform::VPU3900, "Gen3 Intel(R) Movidius(TM) S VPU 3900V"},    // TBH Full
+        {ie::VPUXConfigParams::VPUXPlatform::VPU3720, "Gen4 Intel(R) Movidius(TM) VPU 3720VE"},     // MTL
+        {ie::VPUXConfigParams::VPUXPlatform::EMULATOR, "Emulator"},                                 // Emulator
 };
 
 bool utils::isVPUDevice(const uint32_t deviceId) {
@@ -144,6 +155,14 @@ ie::VPUXConfigParams::VPUXPlatform utils::getPlatformByDeviceName(const std::str
     }
 
     return platformNameInverseMap.at(platformName);
+}
+
+std::string utils::getFullDeviceNameByDeviceName(const std::string& deviceName) {
+    const auto platform = getPlatformByDeviceName(deviceName);
+    if (platformToFullDeviceNameMap.find(platform) == platformToFullDeviceNameMap.end()) {
+        IE_THROW() << "Unexpected device name: " << deviceName;
+    }
+    return platformToFullDeviceNameMap.at(platform);
 }
 
 bool utils::isPlatformNameSupported(const std::string& platformName) {

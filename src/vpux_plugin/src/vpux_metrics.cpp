@@ -51,9 +51,9 @@ const std::vector<std::string>& Metrics::SupportedMetrics() const {
     return _supportedMetrics;
 }
 
-// TODO: Need to add the full name
-std::string Metrics::GetFullDevicesNames() const {
-    return {};
+std::string Metrics::GetFullDeviceName(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    return utils::getFullDeviceNameByDeviceName(devName);
 }
 
 // TODO each backend may support different configs
@@ -75,28 +75,48 @@ const std::tuple<uint32_t, uint32_t>& Metrics::GetRangeForStreams() const {
 }
 
 std::string Metrics::GetDeviceArchitecture(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    return utils::getPlatformNameByDeviceName(devName);
+}
+
+std::string Metrics::GetBackendName() const {
+    if (_backends == nullptr) {
+        IE_THROW() << "No available backends";
+    }
+
+    return _backends->getBackendName();
+}
+
+std::string Metrics::getDeviceName(const std::string& specifiedDeviceName) const {
     std::vector<std::string> devNames;
     if (_backends == nullptr || (devNames = _backends->getAvailableDevicesNames()).empty()) {
         IE_THROW() << "No available devices";
     }
 
+    // In case of single device and empty input from user we should use the first element from the device list
     if (specifiedDeviceName.empty()) {
         if (devNames.size() == 1) {
-            return utils::getPlatformNameByDeviceName(devNames[0]);
+            return devNames[0];
         } else {
-            IE_THROW() << "Missing name of a specific device";
+            IE_THROW() << "The device name was not specified. Please specify device name by providing DEVICE_ID";
         }
     }
 
-    return utils::getPlatformNameByDeviceName(specifiedDeviceName);
-}
-
-std::string Metrics::GetBackendName() const {
-    if (_backends == nullptr) {
-        return {};
+    // In case of multiple devices and non-empty input from user we have to check if such device exists in system
+    // First, check format "platform.slice_id"
+    if (std::find(devNames.cbegin(), devNames.cend(), specifiedDeviceName) == devNames.cend()) {
+        // Second, check format "platform"
+        const auto userPlatform = utils::getPlatformByDeviceName(specifiedDeviceName);
+        const auto platformIt = std::find_if(devNames.cbegin(), devNames.cend(), [=](const std::string& devName) {
+            const auto devPlatform = utils::getPlatformByDeviceName(devName);
+            return userPlatform == devPlatform;
+        });
+        if (platformIt == devNames.cend()) {
+            IE_THROW() << "List of system devices doesn't contain specified device " << specifiedDeviceName;
+        }
     }
 
-    return _backends->getBackendName();
+    return specifiedDeviceName;
 }
 
 }  // namespace vpux

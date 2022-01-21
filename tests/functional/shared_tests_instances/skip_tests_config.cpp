@@ -197,6 +197,10 @@ std::vector<std::string> disabledTestPatterns() {
 
             // TODO: EISW-29542
             ".*smoke_Auto_BehaviorTests.*",
+
+            // Current OV logic with FULL_DEVICE_NAME metric differs from VPUX Plugin
+            // Plugin throws an exception in case of absence VPUX devices in system
+            ".*IEClassGetMetricTest_FULL_DEVICE_NAME.*GetMetricAndPrintNoThrow.*",
             }
         );
 

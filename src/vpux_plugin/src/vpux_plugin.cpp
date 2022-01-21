@@ -262,12 +262,21 @@ IE::Parameter Engine::GetConfig(const std::string& name,
 }
 
 IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, IE::Parameter>& options) const {
+    auto getSpecifiedDeviceName = [&options]() {
+        std::string specifiedDeviceName;
+        if (options.count(CONFIG_KEY(DEVICE_ID)) && options.at(CONFIG_KEY(DEVICE_ID)).is<std::string>()) {
+            specifiedDeviceName = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
+        }
+        return specifiedDeviceName;
+    };
+
     if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics->GetAvailableDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics->SupportedMetrics());
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _metrics->GetFullDevicesNames());
+        const auto specifiedDeviceName = getSpecifiedDeviceName();
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _metrics->GetFullDeviceName(specifiedDeviceName));
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _metrics->GetSupportedConfigKeys());
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
@@ -279,10 +288,7 @@ IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::str
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == METRIC_KEY(DEVICE_ARCHITECTURE)) {
-        std::string specifiedDeviceName;
-        if (options.count(CONFIG_KEY(DEVICE_ID)) && options.at(CONFIG_KEY(DEVICE_ID)).is<std::string>()) {
-            specifiedDeviceName = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
-        }
+        const auto specifiedDeviceName = getSpecifiedDeviceName();
         IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics->GetDeviceArchitecture(specifiedDeviceName));
     } else if (name == VPUX_METRIC_KEY(BACKEND_NAME)) {
         IE_SET_METRIC_RETURN(VPUX_BACKEND_NAME, _metrics->GetBackendName());

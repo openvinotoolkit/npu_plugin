@@ -25,13 +25,13 @@
 
 namespace vpux {
 
-class Metrics {
+class Metrics final {
 public:
     Metrics(const VPUXBackends::CPtr& backends);
 
     std::vector<std::string> GetAvailableDevicesNames() const;
     const std::vector<std::string>& SupportedMetrics() const;
-    std::string GetFullDevicesNames() const;
+    std::string GetFullDeviceName(const std::string& specifiedDeviceName) const;
     const std::vector<std::string>& GetSupportedConfigKeys() const;
     const std::vector<std::string>& GetOptimizationCapabilities() const;
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
@@ -52,6 +52,8 @@ private:
 
     // Metric to provide information about a range for streams.(bottom bound, upper bound)
     const std::tuple<uint32_t, uint32_t> _rangeForStreams{1u, 4u};
+
+    std::string getDeviceName(const std::string& specifiedDeviceName) const;
 };
 
 }  // namespace vpux
