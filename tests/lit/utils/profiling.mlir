@@ -1,4 +1,4 @@
-// RUN: vpux-translate --export-VPUIP -o %t %s && prof_parser %t %profiling_0_bin% | FileCheck %s
+// RUN: vpux-translate --export-VPUIP -o %t %s && prof_parser -b %t -p %profiling_0_bin% -f text | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #loc0 = loc(unknown)

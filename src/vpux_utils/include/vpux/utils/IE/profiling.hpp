@@ -13,15 +13,22 @@
 
 #pragma once
 
-#include <ie_blob.h>
 #include <ie_common.h>
 #include "vpux/utils/plugin/profiling_parser.hpp"
 
 namespace vpux {
+namespace profiling {
+
+enum class OutputType { NONE, TEXT, JSON };
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> convertProfilingLayersToIEInfo(
-        std::vector<vpux::ProfilingLayerInfo>& layerInfo);
+        std::vector<LayerInfo>& layerInfo);
 
-void printProfiling(const void* data, size_t data_len, const void* output, size_t output_len);
+// This function decodes profiling buffer into readable format.
+// Format can be either regular text or TraceEvent json.
+// outputFile is an optional argument - path to a file to store output. stdout if empty.
+void outputWriter(const OutputType profilingType, const std::vector<char>& blob,
+                  const std::pair<const void*, uint64_t>& profiling, const std::string& outputFile);
 
+}  // namespace profiling
 }  // namespace vpux

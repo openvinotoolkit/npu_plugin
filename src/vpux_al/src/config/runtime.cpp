@@ -35,6 +35,7 @@ void vpux::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<EXECUTOR_STREAMS>();
     desc.add<INFERENCE_TIMEOUT_MS>();
     desc.add<PRINT_PROFILING>();
+    desc.add<PROFILING_OUTPUT_FILE>();
 }
 
 //
@@ -49,4 +50,20 @@ InferenceEngine::ColorFormat vpux::GRAPH_COLOR_FORMAT::parse(StringRef val) {
     }
 
     VPUX_THROW("Value '{0}' is not a valid GRAPH_COLOR_FORMAT option", val);
+}
+
+//
+// PRINT_PROFILING
+//
+
+InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg vpux::PRINT_PROFILING::parse(StringRef val) {
+    if (val == VPUX_CONFIG_VALUE(NONE)) {
+        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::NONE;
+    } else if (val == VPUX_CONFIG_VALUE(TEXT)) {
+        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::TEXT;
+    } else if (val == VPUX_CONFIG_VALUE(JSON)) {
+        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::JSON;
+    }
+
+    VPUX_THROW("Value '{0}' is not a valid PRINT_PROFILING option", val);
 }

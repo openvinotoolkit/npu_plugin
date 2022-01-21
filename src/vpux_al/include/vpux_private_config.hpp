@@ -173,10 +173,23 @@ DECLARE_VPUX_CONFIG_KEY(DPU_GROUPS);
 
 /**
  * @brief [Only for VPUX Plugin]
- * Type: "YES", "NO", default is "NO"
- * Print detailed profiling info during inference
+ * Type: string, default is NONE
+ * NONE - do not print profiling info
+ * TEXT, JSON - print detailed profiling info during inference in requested format
  */
+enum class ProfilingOutputTypeArg { NONE, TEXT, JSON };
 DECLARE_VPUX_CONFIG_KEY(PRINT_PROFILING);
+DECLARE_VPUX_CONFIG_VALUE(NONE);
+DECLARE_VPUX_CONFIG_VALUE(TEXT);
+DECLARE_VPUX_CONFIG_VALUE(JSON);
+
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: string, default is empty.
+ * File that contains profiling output.
+ * std::cout is used if this string is empty
+ */
+DECLARE_VPUX_CONFIG_KEY(PROFILING_OUTPUT_FILE);
 
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

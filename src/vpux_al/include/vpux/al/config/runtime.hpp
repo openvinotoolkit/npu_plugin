@@ -359,14 +359,16 @@ struct INFERENCE_TIMEOUT_MS final : OptionBase<INFERENCE_TIMEOUT_MS, int64_t> {
 // PRINT_PROFILING
 //
 
-struct PRINT_PROFILING final : OptionBase<PRINT_PROFILING, bool> {
+struct PRINT_PROFILING final : OptionBase<PRINT_PROFILING, InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg> {
     static StringRef key() {
         return VPUX_CONFIG_KEY(PRINT_PROFILING);
     }
 
-    static bool defaultValue() {
-        return false;
+    static InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg defaultValue() {
+        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::NONE;
     }
+
+    static InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg parse(StringRef val);
 
     static OptionMode mode() {
         return OptionMode::RunTime;
@@ -377,6 +379,20 @@ struct PRINT_PROFILING final : OptionBase<PRINT_PROFILING, bool> {
         return "IE_VPUX_PRINT_PROFILING";
     }
 #endif
+};
+
+struct PROFILING_OUTPUT_FILE final : OptionBase<PROFILING_OUTPUT_FILE, std::string> {
+    static StringRef key() {
+        return VPUX_CONFIG_KEY(PROFILING_OUTPUT_FILE);
+    }
+
+    static std::string defaultValue() {
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
 };
 
 }  // namespace vpux

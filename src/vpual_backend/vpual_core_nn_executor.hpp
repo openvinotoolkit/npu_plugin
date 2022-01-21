@@ -28,6 +28,7 @@
 #endif
 
 #include "vpux.hpp"
+#include "vpux/utils/IE/profiling.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux_private_config.hpp"
 
@@ -78,6 +79,8 @@ private:
     std::function<void(uint8_t*)> _csramDeallocator;
     Config _config;
     Logger _logger;
+    const profiling::OutputType _profilingType;
+    const std::string _profilingOutputFile;
 
 #if defined(__arm__) || defined(__aarch64__)
     std::shared_ptr<WatchDog> _wd;
@@ -106,6 +109,7 @@ private:
     ie::BlobMap extractProfilingOutputsFromPhysAddr(uint32_t physAddr);
     void repackDeviceOutputsToNetworkOutputs(const InferenceEngine ::BlobMap& deviceOutputs,
                                              InferenceEngine::BlobMap& networkOutputs);
+    void handleProfiling();
 
     std::vector<void*> _scratchBuffers;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preFetchBuffer;

@@ -20,6 +20,7 @@
 #include <schema/graphfile_generated.h>
 
 using namespace vpux;
+using namespace vpux::profiling;
 
 typedef struct {
     std::string layer_type;
@@ -65,9 +66,9 @@ static double get_frc_speed(const MVCNN::GraphFile* graphFile) {
     return frc_speed_mhz;
 }
 
-static const std::vector<std::pair<ProfilingTaskInfo::exec_type_t, uint32_t>> get_profilings_offets(
+static const std::vector<std::pair<TaskInfo::ExecType, uint32_t>> get_profilings_offets(
         const MVCNN::GraphFile* graphFile) {
-    std::vector<std::pair<ProfilingTaskInfo::exec_type_t, uint32_t>> offsets;
+    std::vector<std::pair<TaskInfo::ExecType, uint32_t>> offsets;
 
     auto profiling_outputs = graphFile->header()->profiling_output();
     VPUX_THROW_UNLESS(profiling_outputs, "Blob contains no profiling_output");
@@ -87,13 +88,13 @@ static const std::vector<std::pair<ProfilingTaskInfo::exec_type_t, uint32_t>> ge
             auto name = output_name.substr(bpos, pos - bpos);
             bpos = pos + 1;
 
-            auto type = ProfilingTaskInfo::exec_type_t::NONE;
+            auto type = TaskInfo::ExecType::NONE;
             if (name == "dma") {
-                type = ProfilingTaskInfo::exec_type_t::DMA;
+                type = TaskInfo::ExecType::DMA;
             } else if (name == "dpu") {
-                type = ProfilingTaskInfo::exec_type_t::DPU;
+                type = TaskInfo::ExecType::DPU;
             } else if (name == "upa") {
-                type = ProfilingTaskInfo::exec_type_t::SW;
+                type = TaskInfo::ExecType::SW;
             }
             offsets.push_back({type, offset});
         }
@@ -117,7 +118,7 @@ void getProfilingMeta(std::string& taskName, unsigned size, std::string* profili
 
 static void parseDMATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>>* dma_taskList,
                                   const void* output, size_t output_len, double frc_speed_mhz,
-                                  std::vector<ProfilingTaskInfo>& profInfo) {
+                                  std::vector<TaskInfo>& profInfo) {
     if (dma_taskList == nullptr) {
         return;
     }
@@ -136,9 +137,9 @@ static void parseDMATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
 
             if ((profiling_meta[2] != "PROFTASKBEGIN") && (profiling_meta[2] != "PROFBEGIN")) {
                 unsigned layerNumber = 0;
-                ProfilingTaskInfo profInfoItem;
+                TaskInfo profInfoItem;
                 profInfoItem.layer_type[0] = '\0';
-                profInfoItem.exec_type = ProfilingTaskInfo::exec_type_t::DMA;
+                profInfoItem.exec_type = TaskInfo::ExecType::DMA;
 
                 layerNumber = stoi(profiling_meta[2]);
                 unsigned lastDMAid = stoi(profiling_meta[1]);
@@ -173,7 +174,7 @@ static void parseDMATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
 
 static void parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>>* upa_taskList,
                                   const void* output, size_t output_len, double frc_speed_mhz,
-                                  std::vector<ProfilingTaskInfo>& profInfo) {
+                                  std::vector<TaskInfo>& profInfo) {
     struct upa_data_t {
         uint64_t begin;
         uint64_t end;
@@ -204,7 +205,7 @@ static void parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
                 continue;
             }
 
-            ProfilingTaskInfo profInfoItem;
+            TaskInfo profInfoItem;
             auto softLayer = task->task_as_UPALayerTask();
             if (softLayer != nullptr) {
                 auto typeLen = sizeof(profInfoItem.layer_type) / sizeof(profInfoItem.layer_type[0]);
@@ -213,7 +214,7 @@ static void parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
             } else {
                 profInfoItem.layer_type[0] = '\0';
             }
-            profInfoItem.exec_type = ProfilingTaskInfo::exec_type_t::SW;
+            profInfoItem.exec_type = TaskInfo::ExecType::SW;
             uint64_t diff = output_upa[currentPos].end - output_upa[currentPos].begin;
             profInfoItem.start_time_ns = (uint64_t)(output_upa[currentPos].begin * 1000 / frc_speed_mhz);
             profInfoItem.duration_ns = (uint64_t)(diff * 1000 / frc_speed_mhz);
@@ -231,7 +232,7 @@ static void parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
 
 static void parseDPUTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>>* dpu_taskList,
                                   const void* output, size_t output_len, double frc_speed_mhz,
-                                  std::vector<ProfilingTaskInfo>& profInfo) {
+                                  std::vector<TaskInfo>& profInfo) {
     struct dpu_data_t {
         uint64_t begin;
         uint64_t end;
@@ -260,9 +261,9 @@ static void parseDPUTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
                 continue;
             }
 
-            ProfilingTaskInfo profInfoItem;
+            TaskInfo profInfoItem;
             profInfoItem.layer_type[0] = '\0';
-            profInfoItem.exec_type = ProfilingTaskInfo::exec_type_t::DPU;
+            profInfoItem.exec_type = TaskInfo::ExecType::DPU;
             uint64_t diff = output_dpu[currentPos].end - output_dpu[currentPos].begin;
             profInfoItem.start_time_ns = (uint64_t)(output_dpu[currentPos].begin * 1000 / frc_speed_mhz);
             profInfoItem.duration_ns = (uint64_t)(diff * 1000 / frc_speed_mhz);
@@ -278,8 +279,8 @@ static void parseDPUTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
     }
 }
 
-void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* output, size_t output_len,
-                                std::vector<ProfilingTaskInfo>& taskInfo, ProfilingTaskType type) {
+void vpux::profiling::getTaskInfo(const void* data, size_t data_len, const void* output, size_t output_len,
+                                  std::vector<TaskInfo>& taskInfo, TaskType type) {
     (void)data_len;
 
     if ((nullptr == data) || (nullptr == output)) {
@@ -320,18 +321,15 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
             len = output_len - offset.second;
         }
 
-        if (offset.first == ProfilingTaskInfo::exec_type_t::DMA &&
-            (type == ProfilingTaskType::ALL || type == ProfilingTaskType::DMA)) {
+        if (offset.first == TaskInfo::ExecType::DMA && (type == TaskType::ALL || type == TaskType::DMA)) {
             auto output_bytes = reinterpret_cast<const uint8_t*>(output);
             parseDMATaskProfiling(dma_taskList, output_bytes + offset.second, len, frc_speed_mhz, taskInfo);
         }
-        if (offset.first == ProfilingTaskInfo::exec_type_t::SW &&
-            (type == ProfilingTaskType::ALL || type == ProfilingTaskType::DPU_SW)) {
+        if (offset.first == TaskInfo::ExecType::SW && (type == TaskType::ALL || type == TaskType::DPU_SW)) {
             auto output_bytes = reinterpret_cast<const uint8_t*>(output);
             parseUPATaskProfiling(upa_taskList, output_bytes + offset.second, len, frc_speed_mhz, taskInfo);
         }
-        if (offset.first == ProfilingTaskInfo::exec_type_t::DPU &&
-            (type == ProfilingTaskType::ALL || type == ProfilingTaskType::DPU_SW)) {
+        if (offset.first == TaskInfo::ExecType::DPU && (type == TaskType::ALL || type == TaskType::DPU_SW)) {
             auto output_bytes = reinterpret_cast<const uint8_t*>(output);
             parseDPUTaskProfiling(dpu_taskList, output_bytes + offset.second, len, frc_speed_mhz, taskInfo);
         }
@@ -350,7 +348,7 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
     std::map<std::string, LayerTimes> layerInfoTimes;
 
     for (auto& task : taskInfo) {
-        if (task.exec_type == ProfilingTaskInfo::exec_type_t::DMA) {
+        if (task.exec_type == TaskInfo::ExecType::DMA) {
             continue;
         }
 
@@ -365,7 +363,7 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
 
         if (task.start_time_ns < layer->task_start_ns) {
             layer->task_start_ns = task.start_time_ns;
-            auto taskList = (task.exec_type == ProfilingTaskInfo::exec_type_t::DPU) ? dpu_taskList : upa_taskList;
+            auto taskList = (task.exec_type == TaskInfo::ExecType::DPU) ? dpu_taskList : upa_taskList;
             layer->task_wait_barriers_list = (*taskList)[task.task_id]->associated_barriers()->wait_barriers();
         }
     }
@@ -373,7 +371,7 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
     uint64_t min_dma_start_ns = std::numeric_limits<uint64_t>::max();
     uint64_t min_dpu_sw_start_ns = std::numeric_limits<uint64_t>::max();
     for (auto& task : taskInfo) {
-        if (task.exec_type != ProfilingTaskInfo::exec_type_t::DMA) {
+        if (task.exec_type != TaskInfo::ExecType::DMA) {
             // Finding minimum start time for the DPU or SW task
             if (task.start_time_ns < min_dpu_sw_start_ns) {
                 min_dpu_sw_start_ns = task.start_time_ns;
@@ -435,7 +433,7 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
 
     for (auto& task : taskInfo) {
         int64_t start_time_ns = task.start_time_ns;
-        if (task.exec_type == ProfilingTaskInfo::exec_type_t::DMA) {
+        if (task.exec_type == TaskInfo::ExecType::DMA) {
             start_time_ns -= min_dma_start_ns;
         } else {
             start_time_ns += dma_task_timer_diff - min_dma_start_ns;
@@ -444,14 +442,14 @@ void vpux::getTaskProfilingInfo(const void* data, size_t data_len, const void* o
     }
 }
 
-void vpux::getLayerProfilingInfo(const void* data, size_t data_len, const void* output, size_t output_len,
-                                 std::vector<ProfilingLayerInfo>& layerInfo) {
-    std::vector<ProfilingTaskInfo> taskInfo;
+void vpux::profiling::getLayerInfo(const void* data, size_t data_len, const void* output, size_t output_len,
+                                   std::vector<LayerInfo>& layerInfo) {
+    std::vector<TaskInfo> taskInfo;
 
-    getTaskProfilingInfo(data, data_len, output, output_len, taskInfo, vpux::ProfilingTaskType::ALL);
+    getTaskInfo(data, data_len, output, output_len, taskInfo, TaskType::ALL);
 
     for (auto& task : taskInfo) {
-        ProfilingLayerInfo* layer;
+        LayerInfo* layer;
         auto name = task.name;
         auto ptr = strstr(name, "/output tile");
         if (ptr != nullptr) {
@@ -462,14 +460,14 @@ void vpux::getLayerProfilingInfo(const void* data, size_t data_len, const void* 
             *ptr = '\0';
         }
 
-        auto result = std::find_if(begin(layerInfo), end(layerInfo), [&](ProfilingLayerInfo item) {
-            return strncmp(item.name, task.name, sizeof(ProfilingLayerInfo::name)) == 0;
+        auto result = std::find_if(begin(layerInfo), end(layerInfo), [&](LayerInfo item) {
+            return strncmp(item.name, task.name, sizeof(LayerInfo::name)) == 0;
         });
         if (result == end(layerInfo)) {
-            ProfilingLayerInfo info = ProfilingLayerInfo();
-            strncpy(info.name, task.name, sizeof(ProfilingLayerInfo::name));
+            LayerInfo info = LayerInfo();
+            strncpy(info.name, task.name, sizeof(LayerInfo::name));
             info.name[sizeof(info.name) - 1] = '\0';
-            info.status = ProfilingLayerInfo::layer_status_t::EXECUTED;
+            info.status = LayerInfo::layer_status_t::EXECUTED;
             info.start_time_ns = task.start_time_ns;
             info.duration_ns = 0;
             layerInfo.push_back(info);
@@ -486,17 +484,17 @@ void vpux::getLayerProfilingInfo(const void* data, size_t data_len, const void* 
             layer->duration_ns = duration;
         }
 
-        if (task.exec_type == ProfilingTaskInfo::exec_type_t::DPU) {
+        if (task.exec_type == TaskInfo::ExecType::DPU) {
             layer->dpu_ns += task.duration_ns;
-            strncpy(layer->layer_type, task.layer_type, sizeof(ProfilingLayerInfo::layer_type));
+            strncpy(layer->layer_type, task.layer_type, sizeof(LayerInfo::layer_type));
             layer->layer_type[sizeof(layer->layer_type) - 1] = '\0';
         }
-        if (task.exec_type == ProfilingTaskInfo::exec_type_t::SW) {
+        if (task.exec_type == TaskInfo::ExecType::SW) {
             layer->sw_ns += task.duration_ns;
-            strncpy(layer->layer_type, task.layer_type, sizeof(ProfilingLayerInfo::layer_type));
+            strncpy(layer->layer_type, task.layer_type, sizeof(LayerInfo::layer_type));
             layer->layer_type[sizeof(layer->layer_type) - 1] = '\0';
         }
-        if (task.exec_type == ProfilingTaskInfo::exec_type_t::DMA) {
+        if (task.exec_type == TaskInfo::ExecType::DMA) {
             layer->dma_ns += task.duration_ns;
         }
     }

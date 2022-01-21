@@ -18,13 +18,15 @@
 #include <vector>
 
 namespace vpux {
-enum ProfilingTaskType {
+namespace profiling {
+
+enum TaskType {
     ALL,     //< Report all tasks for profiling
     DPU_SW,  //< Only execution tasks profiling
     DMA,     //< Only DMA tasks profiling
 };
 
-struct ProfilingLayerInfo {
+struct LayerInfo {
     char name[256];
     char layer_type[50];
     enum layer_status_t { NOT_RUN, OPTIMIZED_OUT, EXECUTED };
@@ -40,16 +42,16 @@ struct ProfilingLayerInfo {
     uint64_t dma_ns;
 };
 
-struct ProfilingTaskInfo {
+struct TaskInfo {
     char name[256];
     char layer_type[50];
-    enum exec_type_t {
+    enum class ExecType {
         NONE,
         DPU,
         SW,
         DMA,
     };
-    exec_type_t exec_type;
+    ExecType exec_type;
     uint64_t start_time_ns;
     uint64_t duration_ns;
     uint32_t active_cycles;
@@ -58,12 +60,14 @@ struct ProfilingTaskInfo {
     uint32_t parent_layer_id;  //< Not used
 };
 
-void getTaskProfilingInfo(const void* data, size_t data_len,      // Pointer to the graph blob
-                          const void* output, size_t output_len,  // Pointer to full profilngBuffer tensor
-                          std::vector<ProfilingTaskInfo>& profInfo, ProfilingTaskType type);
-void getLayerProfilingInfo(const void* data, size_t data_len,      // Pointer to the graph blob
-                           const void* output, size_t output_len,  // Pointer to full profilngBuffer tensor
-                           std::vector<ProfilingLayerInfo>& profInfo);
+void getTaskInfo(const void* data, size_t data_len,      // Pointer to the graph blob
+                 const void* output, size_t output_len,  // Pointer to full profilngBuffer tensor
+                 std::vector<TaskInfo>& profInfo, TaskType type);
+void getLayerInfo(const void* data, size_t data_len,      // Pointer to the graph blob
+                  const void* output, size_t output_len,  // Pointer to full profilngBuffer tensor
+                  std::vector<LayerInfo>& profInfo);
+
+}  // namespace profiling
 }  // namespace vpux
 
 #endif

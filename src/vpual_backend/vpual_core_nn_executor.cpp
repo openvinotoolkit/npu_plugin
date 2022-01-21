@@ -29,7 +29,6 @@
 #include <vector>
 #include <vpu/utils/enums.hpp>
 
-#include "vpux/utils/IE/profiling.hpp"
 #include "vpux/utils/plugin/profiling_parser.hpp"
 
 #if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
@@ -62,6 +61,9 @@
 #include "vpusmm_allocator.hpp"
 
 namespace ie = InferenceEngine;
+
+using ie::VPUXConfigParams::ProfilingOutputTypeArg;
+using vpux::profiling::OutputType;
 
 namespace vpux {
 
@@ -224,6 +226,18 @@ void VpualCoreNNExecutor::PipePrintHandler::threadBody(PipePrintHandler* obj) {
 
 #endif
 
+static vpux::profiling::OutputType argToProfType(const ie::VPUXConfigParams::ProfilingOutputTypeArg argument) {
+    switch (argument) {
+    case ProfilingOutputTypeArg::NONE:
+        return OutputType::NONE;
+    case ProfilingOutputTypeArg::JSON:
+        return OutputType::JSON;
+    case ProfilingOutputTypeArg::TEXT:
+        return OutputType::TEXT;
+    }
+    IE_THROW() << "Unknown profiling output type.";
+}
+
 VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
                                          const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId,
                                          const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform,
@@ -243,6 +257,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
           }),
           _config(config),
           _logger("VpualCoreNNExecutor", _config.get<LOG_LEVEL>()),
+          _profilingType(argToProfType(_config.get<PRINT_PROFILING>())),
+          _profilingOutputFile(_config.get<PROFILING_OUTPUT_FILE>()),
 #if defined(__arm__) || defined(__aarch64__)
           _nnXlinkPlg(new NnXlinkPlg(deviceId)),
           _nnCorePlg(new NnCorePlg(deviceId),
@@ -323,6 +339,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
           }),
           _config(config),
           _logger("VpualCoreNNExecutor", _config.get<LOG_LEVEL>()),
+          _profilingType(argToProfType(_config.get<PRINT_PROFILING>())),
+          _profilingOutputFile(_config.get<PROFILING_OUTPUT_FILE>()),
           _nnXlinkPlg(other_nnXlinkPlg),
           _nnCorePlg(other_nnCorePlg),
           _vpualSyncImpl(other_nnXlinkPlg),
@@ -866,28 +884,38 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     ie::BlobMap deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
     repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
 
-    if (_config.get<PRINT_PROFILING>()) {
-        if (!_profilingOutputPhysAddrs.empty()) {
-            ie::BlobMap profilingOutputs = extractProfilingOutputsFromPhysAddr(_profilingOutputPhysAddrs.at(0));
-            if (!profilingOutputs.empty()) {
-                ie::BlobMap::iterator profilingOutputBlob = profilingOutputs.begin();
-                const auto profilingMemoryBlob = ie::as<ie::MemoryBlob>(profilingOutputBlob->second);
-                if (profilingMemoryBlob == nullptr) {
-                    IE_THROW() << "VPUX Plugin profiling blob is null: " << profilingOutputBlob->first;
-                }
-                const auto blob = _networkDescription->getCompiledNetwork();
-                const auto& profilingOutput = profilingMemoryBlob->rmap().as<const void*>();
-                vpux::printProfiling(blob.data(), blob.size(), profilingOutput, profilingMemoryBlob->byteSize());
-            }
-        } else {
-            _logger.error("Profiling printing is enabled but not profiling output detected");
-        }
-    }
+    handleProfiling();
 
     _logger.info("pull finished");
 #else
     VPUX_UNUSED(outputs);
 #endif
+}
+
+void VpualCoreNNExecutor::handleProfiling() {
+    if (_profilingType == OutputType::NONE) {
+        return;
+    }
+
+    if (_profilingOutputPhysAddrs.empty()) {
+        _logger.error("Profiling printing is enabled but no profiling output detected.");
+        return;
+    }
+
+    const auto& profilingOutputs = extractProfilingOutputsFromPhysAddr(_profilingOutputPhysAddrs.at(0));
+    if (profilingOutputs.empty()) {
+        IE_THROW() << "Can't extract profiling output.";
+    }
+
+    auto profilingOutputBlob = profilingOutputs.begin();
+    const auto profilingMemoryBlob = ie::as<ie::MemoryBlob>(profilingOutputBlob->second);
+    if (profilingMemoryBlob == nullptr) {
+        IE_THROW() << "VPUX Plugin profiling blob is null: " << profilingOutputBlob->first;
+    }
+    const auto& blob = _networkDescription->getCompiledNetwork();
+    const auto& profilingData =
+            std::make_pair(profilingMemoryBlob->rmap().as<const void*>(), profilingMemoryBlob->byteSize());
+    profiling::outputWriter(_profilingType, blob, profilingData, _profilingOutputFile);
 }
 
 ie::BlobMap VpualCoreNNExecutor::extractOutputsFromPhysAddr(uint32_t physAddr) {
@@ -991,9 +1019,9 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
     }
     const auto& profilingOutput = profilingMemoryBlob->rmap().as<const void*>();
 
-    std::vector<vpux::ProfilingLayerInfo> layerProfiling;
-    vpux::getLayerProfilingInfo(blob.data(), blob.size(), profilingOutput, profilingMemoryBlob->byteSize(),
-                                layerProfiling);
+    std::vector<vpux::profiling::LayerInfo> layerProfiling;
+    vpux::profiling::getLayerInfo(blob.data(), blob.size(), profilingOutput, profilingMemoryBlob->byteSize(),
+                                  layerProfiling);
 
     return convertProfilingLayersToIEInfo(layerProfiling);
 }
