@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
@@ -43,6 +44,24 @@ private:
 
 mlir::LogicalResult GenericConverter::matchAndRewrite(mlir::Operation* postOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got Eltwise operation '{1}' at '{2}'", getDebugName(), postOp->getName(), postOp->getLoc());
+
+    if (mlir::isa<IE::PReluOp>(postOp)) {
+        auto pReluOp = mlir::cast<IE::PReluOp>(postOp);
+        auto slopes = pReluOp.negative_slope().getDefiningOp<Const::DeclareOp>();
+        const auto slopesContent = slopes.content();
+        const auto slopesValue = slopesContent.getValues<double>();
+        VPUX_THROW_WHEN(slopesValue.empty(), "No slope value found in PRelu");
+        auto slope = slopesValue[0];
+
+        if (llvm::all_of(slopesValue, [slope](auto const& elem) {
+                return isDoubleEqual(slope, elem);
+            })) {
+            rewriter.replaceOpWithNewOp<IE::LeakyReluOp>(pReluOp, pReluOp.input(),
+                                                         getFPAttr(pReluOp->getContext(), slope));
+            return matchFailed(_log, rewriter, postOp,
+                               "PRelu with same slope values is replaced by LeakyRelu for later fusing");
+        }
+    }
 
     if (!postOp->getOperand(0).hasOneUse()) {
         return matchFailed(_log, rewriter, postOp, "PostOp is not the only user of its input Value");

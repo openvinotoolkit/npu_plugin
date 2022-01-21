@@ -118,9 +118,9 @@ mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTabl
     const auto op_weightsElemType =
             createWTableOp.weights() ? createWTableOp.weights().getType().cast<mlir::ShapedType>().getElementType()
                                      : nullptr;
-    const auto weightsTable = VPU::NCESparsity::getWeightsTable(op_inElemType, op_outElemType, weightPtrOffset,
-                                                                weightPtrStep, sparsityPtrOffset, _arch, OC,
-                                                                op_weightsElemType, createWTableOp.biasAttr());
+    const auto weightsTable = VPU::NCESparsity::getWeightsTable(
+            op_inElemType, op_outElemType, weightPtrOffset, weightPtrStep, sparsityPtrOffset, _arch, OC,
+            op_weightsElemType, createWTableOp.biasAttr(),createWTableOp.ppeAttr());
 
     const auto outType = createWTableOp.output().getType();
     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();

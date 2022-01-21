@@ -47,7 +47,7 @@ std::vector<uint8_t> getFakeSparsity(Mode mode, ShapeRef kernelSize, int64_t SX,
 std::vector<int32_t> getWeightsTable(mlir::Type inElemType, mlir::Type outElemType, Optional<int32_t> weightPtrOffset,
                                      int32_t weightPtrStep, Optional<int32_t> sparsityPtrOffset, ArchKind arch,
                                      int64_t OC, mlir::Type weightsElemType = nullptr,
-                                     Const::ContentAttr bias = nullptr);
+                                     Const::ContentAttr bias = nullptr, VPU::PPETaskAttr ppe = nullptr);
 
 }  // namespace NCESparsity
 
