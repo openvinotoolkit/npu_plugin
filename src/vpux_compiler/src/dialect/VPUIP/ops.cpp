@@ -37,7 +37,8 @@ namespace {
 //
 
 bool isSupportedHWPostOp(mlir::Operation* postOp) {
-    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp>(postOp)) {
+    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp, IE::LeakyReluOp, IE::PReluOp>(
+                postOp)) {
         return false;
     }
 
@@ -53,6 +54,12 @@ bool isSupportedHWPostOp(mlir::Operation* postOp) {
     const auto module = postOp->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
     if (arch == VPU::ArchKind::MTL && mlir::isa<IE::MaxPoolOp>(postOp)) {
+        return false;
+    }
+
+    auto producerOp = postOp->getOperand(0).getDefiningOp();
+    if (producerOp && (mlir::isa<IE::MaxPoolOp>(producerOp) || producerOp->hasTrait<IE::EltwiseOp>()) &&
+        mlir::isa<IE::LeakyReluOp>(postOp)) {
         return false;
     }
 

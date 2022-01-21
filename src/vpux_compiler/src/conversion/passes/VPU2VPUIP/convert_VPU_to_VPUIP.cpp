@@ -56,12 +56,12 @@ void addPPETask(mlir::OpBuilder& builder, VPUIP::NCEClusterTaskOp& nceOp, VPU::P
 
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value op_input,
                                      mlir::Value op_output, mlir::Value weights, mlir::Value activationWindow,
-                                     Const::ContentAttr bias) {
+                                     Const::ContentAttr bias, vpux::VPU::PPETaskAttr ppeTaskAttr) {
     SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
 
     const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext()));
-    auto createWeightsTableOp =
-            builder.create<VPUIP::WeightsTableOp>(loc, dataType, op_input, op_output, weights, activationWindow, bias);
+    auto createWeightsTableOp = builder.create<VPUIP::WeightsTableOp>(loc, dataType, op_input, op_output, weights,
+                                                                      activationWindow, bias, ppeTaskAttr);
 
     const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
 
@@ -198,8 +198,9 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     // Prepare output buffer for DPU
     //
 
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, newArgs.input(), outputBuffer,
-                                                 newArgs.filter(), activationWindow, origOp.biasAttr());
+    auto weightsTable =
+            createWeightsTableTensor(rewriter, origOp->getLoc(), OC, newArgs.input(), outputBuffer, newArgs.filter(),
+                                     activationWindow, origOp.biasAttr(), origOp.ppeAttr());
 
     //
     // Create NCE per-cluster Operation
@@ -285,7 +286,7 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, O
     //
 
     auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC, newArgs.input(), outputBuffer, nullptr,
-                                                 activationWindow, nullptr);
+                                                 activationWindow, nullptr, origOp.ppeAttr());
 
     //
     // Create NCE per-cluster Operation
@@ -376,8 +377,10 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
     //
     const auto outputBuffer = allocateResult(origOp.getLoc(), rewriter, *typeConverter, origOp.output());
 
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, newArgs.input(), outputBuffer,
-                                                 newArgs.filter(), activationWindow, origOp.biasAttr());
+
+    auto weightsTable =
+            createWeightsTableTensor(rewriter, origOp->getLoc(), OC, newArgs.input(), outputBuffer, newArgs.filter(),
+                                     activationWindow, origOp.biasAttr(), origOp.ppeAttr());
 
     //
     // Create NCE per-cluster Operation

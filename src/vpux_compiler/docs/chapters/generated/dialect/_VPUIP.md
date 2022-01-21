@@ -2344,6 +2344,7 @@ operation ::= `VPUIP.WeightsTableOp` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `bias` | vpux::Const::ContentAttr | Lazy folded constant content
+`ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
 
 #### Operands:
 

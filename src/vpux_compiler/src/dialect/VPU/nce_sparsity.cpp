@@ -357,7 +357,7 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
                                                              Optional<int32_t> weightPtrOffset, int32_t weightPtrStep,
                                                              Optional<int32_t> sparsityPtrOffset, ArchKind arch,
                                                              int64_t OC, mlir::Type weightsElemType,
-                                                             Const::ContentAttr bias) {
+                                                             Const::ContentAttr bias, VPU::PPETaskAttr ppe) {
     VPUX_THROW_WHEN(inElemType == nullptr || outElemType == nullptr,
                     "Can't create weights table without operation input/output types");
 
@@ -375,6 +375,7 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
 
     const auto weightsElementTypeBitSize =
             weightsElemType ? static_cast<Bit>(getElemTypeSize(weightsElemType)).count() : 0;
+
     for (auto oc : irange(checked_cast<size_t>(OC))) {
         const auto wtInd = oc * static_cast<size_t>(VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
 
@@ -387,6 +388,10 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
         weightsTableVals[wtInd + 0] = weightPtr;
         weightsTableVals[wtInd + 1] = sparsityPtr;
         weightsTableVals[wtInd + 2] = getMultShift(oc);
+        if (ppe && ppe.mode().getValue() == VPU::PPEMode::LPRELU) {
+            weightsTableVals[wtInd + 2] &= 0xFFFFFF00;
+            weightsTableVals[wtInd + 2] |= static_cast<int32_t>(ppe.lrelu_mult().getInt());
+        }
         weightsTableVals[wtInd + 3] = getBiasFP(oc);
 
         weightPtr += weightPtrStep;

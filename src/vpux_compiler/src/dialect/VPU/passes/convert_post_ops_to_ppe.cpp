@@ -158,17 +158,29 @@ mlir::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inE
         VPUX_THROW_UNLESS(leakyRelu.verify(loc).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp", postOp.attrs(),
                           postOp.name());
 
-        int64_t clampLow = 0;
+        int64_t clampLow = static_cast<int32_t>(std::numeric_limits<int32_t>::min() /
+                                                leakyRelu.negative_slope().getValueAsDouble());
         if (outElemQType != nullptr) {
             clampLow =
                     (arch == VPU::ArchKind::MTL)
                             ? clampLowQuantized
-                            : static_cast<int64_t>(clampLowQuantized / leakyRelu.negative_slope().getValueAsDouble());
+                            : static_cast<int32_t>(clampLowQuantized / leakyRelu.negative_slope().getValueAsDouble());
         }
-        int64_t clampHigh = (outElemQType != nullptr) ? clampHighQuantized : std::numeric_limits<int32_t>::max();
-        const int64_t LreluMult = 1;
-        const int64_t LreluShift = 0;
 
+        int64_t clampHigh = (outElemQType != nullptr) ? clampHighQuantized : std::numeric_limits<int32_t>::max();
+        unsigned leakyAccuracyBits = arch == VPU::ArchKind::MTL ? 31 : 7;
+        int64_t LreluMult = 1;
+        int64_t LreluShift = 0;
+        const auto alpha = leakyRelu.negative_slope().getValueAsDouble();
+        if (alpha == 0.0) {
+            LreluMult = 0;
+        } else if (alpha != 1.0) {
+            int exponent;
+            double mantissa;
+            mantissa = std::frexp(alpha, &exponent);
+            LreluShift = leakyAccuracyBits - exponent;
+            LreluMult = mantissa * pow(2, leakyAccuracyBits);
+        }
         return PostOpParams{VPU::PPEMode::LPRELU, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
         return getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::SIGMOID);

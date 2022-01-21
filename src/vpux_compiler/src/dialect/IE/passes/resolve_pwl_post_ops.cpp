@@ -141,6 +141,16 @@ mlir::LogicalResult FusableOpRewriter::matchAndRewrite(IE::LayerWithPostOpInterf
         } else {
             return unfusePostOp<IE::TanhOp>(origOp, postOpName, rewriter);
         }
+    } else if (postOpName == IE::LeakyReluOp::getOperationName()) {
+        if (isQuantizedPerTensor(origOp)) {
+            // FIXME use PWL for fusing
+            return unfusePostOp<IE::LeakyReluOp>(origOp, postOpName, rewriter);
+        }
+    } else if (postOpName == IE::PReluOp::getOperationName()) {
+        if (isQuantizedPerTensor(origOp)) {
+            // FIXME use PWL for fusing
+            return unfusePostOp<IE::LeakyReluOp>(origOp, postOpName, rewriter);
+        }
     }
 
     return matchFailed(_log.nest(), rewriter, origOp, "Non-PWL post-op");
