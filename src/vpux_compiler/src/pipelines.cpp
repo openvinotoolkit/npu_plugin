@@ -344,9 +344,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
         pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     }
 
-    if (true) {  // TODO if pipelineOptions->enableCMXConcat.getValue()
-        pm.addPass(IERT::createCMXConcatPass(log));
-    }
+    pm.addPass(IERT::createCMXConcatPass(log));
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
