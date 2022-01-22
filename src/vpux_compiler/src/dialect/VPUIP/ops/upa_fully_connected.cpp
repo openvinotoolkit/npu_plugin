@@ -17,11 +17,6 @@
 
 using namespace vpux;
 
-void vpux::VPUIP::FullyConnectedUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                             mlir::Value weights, mlir::Value bias, mlir::Value output) {
-    build(builder, state, input, weights, bias, output, nullptr);
-}
-
 void vpux::VPUIP::FullyConnectedUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
     IE::fillDefaultLayoutInfo(info);
 }

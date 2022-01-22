@@ -110,13 +110,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
     return mlir::success();
 }
 
-void vpux::VPUIP::FakeQuantizeUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                           mlir::Value output, uint32_t levels, Const::ContentAttr input_low,
-                                           Const::ContentAttr input_high, Const::ContentAttr output_low,
-                                           Const::ContentAttr output_high) {
-    build(builder, state, input, output, levels, input_low, input_high, output_low, output_high, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FakeQuantizeUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto getRawFP16 = [](const float16& val) {
         return val.to_bits();

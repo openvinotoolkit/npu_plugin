@@ -29,12 +29,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ProposalUPAOp op) {
     return mlir::success();
 }
 
-void vpux::VPUIP::ProposalUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
-                                       mlir::Value class_probs, mlir::Value bbox_deltas, mlir::Value image_shape,
-                                       mlir::Value output, IE::ProposalAttr proposal_attrs) {
-    build(odsBuilder, odsState, class_probs, bbox_deltas, image_shape, output, proposal_attrs, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ProposalUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::ProposalParamsBuilder builder(writer);
 

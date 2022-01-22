@@ -43,10 +43,22 @@ IndexedSymbolAttr getExecutorAttr(uint32_t& numUnits, mlir::Operation* op, VPU::
 IndexedSymbolAttr getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits);
 
 //
-// UPATaskOpInterface
+// UPATask
 //
 
 mlir::LogicalResult verifyUPATask(mlir::Operation* op);
+
+template <typename ConcreteOp>
+class UPATask : public mlir::OpTrait::TraitBase<ConcreteOp, UPATask> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifyUPATask(op);
+    }
+
+    static VPU::ExecutorKind getExecutorKind() {
+        return VPU::ExecutorKind::SHAVE_UPA;
+    }
+};
 
 //
 // Legacy4D

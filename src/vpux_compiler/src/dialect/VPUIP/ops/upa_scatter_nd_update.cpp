@@ -20,11 +20,6 @@
 
 using namespace vpux;
 
-void vpux::VPUIP::ScatterNDUpdateUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                              mlir::Value indices, mlir::Value updates, mlir::Value output) {
-    build(builder, state, input, indices, updates, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ScatterNDUpdateUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::ScatterNDUpdateParamsBuilder builder(writer);
     const auto paramsOff = builder.Finish();

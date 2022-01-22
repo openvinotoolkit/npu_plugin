@@ -18,15 +18,6 @@
 
 #include <mlir/IR/BuiltinTypes.h>
 
-void vpux::VPUIP::LSTMSequenceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value inputData,
-                                           mlir::Value initialHiddenState, mlir::Value initialCellState,
-                                           mlir::Value weights, mlir::Value biases, mlir::Value outputHiddenValues,
-                                           mlir::Value outputCellState, mlir::Value outputHiddenState,
-                                           mlir::IntegerAttr sequenceLength, IE::RNNSequenceDirectionAttr direction) {
-    build(builder, state, inputData, initialHiddenState, initialCellState, weights, biases, outputHiddenValues,
-          outputHiddenState, outputCellState, sequenceLength, direction, nullptr);
-}
-
 vpux::VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LSTMSequenceUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::LSTMCellParamsBuilder builder(writer);
     builder.add_RNNForward(direction() == IE::RNNSequenceDirection::FORWARD ? 1 : 0);

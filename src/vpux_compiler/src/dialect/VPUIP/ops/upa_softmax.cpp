@@ -38,11 +38,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(SoftMaxUPAOp op) {
     return mlir::success();
 }
 
-void vpux::VPUIP::SoftMaxUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                      mlir::Value output, mlir::IntegerAttr axisInd) {
-    build(builder, state, input, output, axisInd, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftMaxUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::SoftmaxParamsBuilder builder(writer);
     builder.add_axis(checked_cast<uint32_t>(axisInd()));

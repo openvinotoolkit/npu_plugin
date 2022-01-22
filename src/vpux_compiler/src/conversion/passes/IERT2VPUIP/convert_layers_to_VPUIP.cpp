@@ -294,7 +294,7 @@ mlir::LogicalResult TopKRewrite::matchAndRewrite(IERT::TopKOp origOp, mlir::Patt
 
     rewriter.replaceOpWithNewOp<VPUIP::TopKUPAOp>(origOp, origOp.input(), k1DTensor, origOp.output_values_buff(),
                                                   origOp.target_shape_buff(), origOp.axisAttr(), origOp.modeAttr(),
-                                                  origOp.sortAttr(), origOp.element_typeAttr(), nullptr);
+                                                  origOp.sortAttr(), origOp.element_typeAttr());
 
     return mlir::success();
 }

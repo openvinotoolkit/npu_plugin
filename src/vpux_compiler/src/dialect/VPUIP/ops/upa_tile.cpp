@@ -34,12 +34,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PerAxisTileUPAOp op) {
     return mlir::success();
 }
 
-void vpux::VPUIP::PerAxisTileUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
-                                          mlir::Value input, mlir::Value output, mlir::IntegerAttr axis,
-                                          mlir::IntegerAttr tiles) {
-    build(odsBuilder, odsState, input, output, axis, tiles, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PerAxisTileUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::TileParamsBuilder builder(writer);
     builder.add_axis(checked_cast<uint32_t>(axis()));

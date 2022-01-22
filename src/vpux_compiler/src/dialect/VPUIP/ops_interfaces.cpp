@@ -57,8 +57,7 @@ IndexedSymbolAttr vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op, uint32_t& 
     case VPU::ExecutorKind::SHAVE_ACT:
         return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::SHAVE_ACT, 1);
     case VPU::ExecutorKind::SHAVE_UPA: {
-        auto upaTask = mlir::cast<VPUIP::UPATaskOpInterface>(op);
-        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::SHAVE_UPA, upaTask.maxShaves());
+        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::SHAVE_UPA, None);
     }
     default:
         VPUX_THROW("Unsupported executor '{0}'", executor);
@@ -73,11 +72,6 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
     auto task = mlir::dyn_cast<TaskOpInterface>(op);
     if (task == nullptr) {
         return errorAt(op, "Operation '{0}' doesn't implement VPUIP Task interface", op->getName());
-    }
-
-    auto upaTask = mlir::dyn_cast<UPATaskOpInterface>(op);
-    if (upaTask == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement VPUIP UPATask interface", op->getName());
     }
 
     auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
@@ -102,17 +96,6 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
 
         if (!strideReqs.checkStrides(opVal)) {
             return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", opVal, strideReqs);
-        }
-    }
-
-    if (upaTask.maxShaves().hasValue()) {
-        auto available = IE::getAvailableExecutor(op->getParentOfType<mlir::ModuleOp>(), VPU::ExecutorKind::SHAVE_UPA);
-        if (available == nullptr) {
-            return errorAt(op, "SHAVE_UPA executor is not avaialble in run-time");
-        }
-        if (upaTask.maxShaves().getValue() > available.count()) {
-            return errorAt(op, "maxShaves attribute '{0}' exceeds available count '{1}'", upaTask.maxShaves(),
-                           available.count());
         }
     }
 

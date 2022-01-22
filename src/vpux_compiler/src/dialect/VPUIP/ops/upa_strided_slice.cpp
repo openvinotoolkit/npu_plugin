@@ -17,12 +17,6 @@
 #include <mlir/IR/BuiltinTypes.h>
 using namespace vpux;
 
-void vpux::VPUIP::StridedSliceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                           mlir::Value output, mlir::ArrayAttr begins, mlir::ArrayAttr ends,
-                                           mlir::ArrayAttr strides) {
-    build(builder, state, input, output, begins, ends, strides, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::StridedSliceUPAOp::serialize(VPUIP::BlobWriter& writer) {
     auto attrToVector = [&](mlir::ArrayAttr attr) {
         return to_std_vector(parseIntArrayAttr<uint32_t>(attr));

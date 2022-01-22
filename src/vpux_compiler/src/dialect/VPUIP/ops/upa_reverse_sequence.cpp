@@ -28,12 +28,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ReverseSequenceUPAOp op) {
     return mlir::success();
 }
 
-void vpux::VPUIP::ReverseSequenceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value data,
-                                              mlir::Value seq_length, mlir::Value output, mlir::IntegerAttr seq_axis,
-                                              mlir::IntegerAttr batch_axis) {
-    build(builder, state, data, seq_length, output, seq_axis, batch_axis, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReverseSequenceUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::ReversesequenceParamsBuilder builder(writer);
     builder.add_seq_axis(checked_cast<int32_t>(seq_axis()));

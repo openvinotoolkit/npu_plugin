@@ -18,13 +18,6 @@
 
 using namespace vpux;
 
-void vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
-                                                     mlir::Value input, mlir::Value sequenceLength,
-                                                     mlir::Value blankIndex, mlir::Value output,
-                                                     mlir::Value outputLength, mlir::UnitAttr mergeRepeated) {
-    build(builder, state, input, sequenceLength, blankIndex, output, outputLength, mergeRepeated, nullptr);
-}
-
 void vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
     IE::fillDefaultLayoutInfo(info);
 }

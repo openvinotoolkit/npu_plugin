@@ -306,11 +306,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' is not a RT Layer", op->getName());
 
-    auto upaTask = mlir::dyn_cast<VPUIP::UPATaskOpInterface>(op);
-    VPUX_THROW_UNLESS(upaTask != nullptr, "Operation '{0}' is not a UPA Task", op->getName());
-
-    const auto maxShaves = upaTask.maxShaves();
-
     auto taskOp = op->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_WHEN(taskOp == nullptr, "VPUIP task is doesn`t have VPURT TaskOp as a parent");
     const auto isTrailingSWLayer = taskOp.isTrailingSWLayer();
@@ -327,21 +322,19 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     const auto inputs = createVector(layer.getInputs() | transformed(getTensorCb));
     const auto outputs = createVector(layer.getOutputs() | transformed(getTensorCb));
 
-    MVCNN::UPALayerTaskBuilder builder(_impl);
-    if (maxShaves.hasValue()) {
-        builder.add_maxShaves(checked_cast<uint8_t>(maxShaves.getValue()));
-    } else {
-        auto available = IE::getAvailableExecutor(op->getParentOfType<mlir::ModuleOp>(), VPU::ExecutorKind::SHAVE_UPA);
-        VPUX_THROW_UNLESS(available != nullptr, "SHAVE_UPA executor is not avaialble in run-time");
+    auto upaShavesInfo = IE::getAvailableExecutor(op->getParentOfType<mlir::ModuleOp>(), VPU::ExecutorKind::SHAVE_UPA);
+    VPUX_THROW_UNLESS(upaShavesInfo != nullptr, "SHAVE_UPA executor for '{0}' is not available in run-time",
+                      op->getName());
 
-        builder.add_maxShaves(checked_cast<uint8_t>(available.count()));
-    }
+    MVCNN::UPALayerTaskBuilder builder(_impl);
+    builder.add_maxShaves(checked_cast<uint8_t>(upaShavesInfo.count()));
     builder.add_softLayerParams_type(params.type);
     builder.add_softLayerParams(params.obj);
     builder.add_inputs(inputs);
     builder.add_outputs(outputs);
-    if (!profiling.IsNull())
+    if (!profiling.IsNull()) {
         builder.add_profiling_data(profiling);
+    }
     builder.add_isTrailingSWLayer(isTrailingSWLayer);
     return {builder.Finish().Union(), MVCNN::SpecificTask_UPALayerTask};
 }

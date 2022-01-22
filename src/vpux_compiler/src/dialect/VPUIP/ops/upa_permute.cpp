@@ -56,15 +56,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
 }
 
 //
-// build
-//
-
-void vpux::VPUIP::PermuteUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
-                                      mlir::Value input, mlir::Value output, mlir::AffineMapAttr order) {
-    build(odsBuilder, odsState, input, output, order, nullptr);
-}
-
-//
 // TaskOpInterface
 //
 

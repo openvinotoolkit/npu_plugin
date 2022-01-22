@@ -31,12 +31,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(GatherUPAOp op) {
     return mlir::success();
 }
 
-void vpux::VPUIP::GatherUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                     mlir::Value indices, mlir::Value output, mlir::IntegerAttr axis,
-                                     mlir::IntegerAttr batch_dims) {
-    build(builder, state, input, indices, output, axis, batch_dims, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GatherUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::GatherParamsBuilder builder(writer);
     builder.add_axis(checked_cast<uint32_t>(axis()));

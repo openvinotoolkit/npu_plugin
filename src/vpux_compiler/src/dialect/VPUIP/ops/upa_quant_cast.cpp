@@ -127,11 +127,6 @@ void vpux::VPUIP::QuantCastUPAOp::inferLayoutInfo(mlir::Operation* origOp, IE::L
     }
 }
 
-void vpux::VPUIP::QuantCastUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                        mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::QuantCastUPAOp::serialize(BlobWriter& writer) {
     auto scalesAndZeroPoints = serializeScalesAndZeroPoints(input(), output(), writer);
 

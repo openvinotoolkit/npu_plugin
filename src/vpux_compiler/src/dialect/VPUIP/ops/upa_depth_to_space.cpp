@@ -47,12 +47,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DepthToSpaceUPAOp op) {
     return mlir::success();
 }
 
-void vpux::VPUIP::DepthToSpaceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                           mlir::Value output, mlir::IntegerAttr block_size,
-                                           IE::DepthToSpaceModeAttr mode) {
-    build(builder, state, input, output, block_size, mode, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DepthToSpaceUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::DepthToSpaceParamsBuilder builder(writer);
 

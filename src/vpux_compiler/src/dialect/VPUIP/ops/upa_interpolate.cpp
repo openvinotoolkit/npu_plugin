@@ -61,13 +61,6 @@ void vpux::VPUIP::InterpolateUPAOp::inferLayoutInfo(mlir::Operation* op, IE::Lay
     }
 }
 
-void vpux::VPUIP::InterpolateUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                          mlir::Value output, vpux::IE::InterpolateModeAttr mode,
-                                          vpux::IE::InterpolateCoordModeAttr coord_mode,
-                                          vpux::IE::InterpolateNearestModeAttr nearest_mode, mlir::UnitAttr antialias) {
-    build(builder, state, input, output, mode, coord_mode, nearest_mode, antialias, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::InterpolateUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::InterpolateParamsBuilder builder(writer);
 

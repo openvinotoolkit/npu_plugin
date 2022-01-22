@@ -26,6 +26,7 @@
 using namespace vpux;
 
 namespace {
+
 // This method converts value from ROIPoolingMethod view to corresponds t_ROIPooling_method view from runtime
 uint32_t ROIPoolingMethod2Int32(IE::ROIPoolingMethod method) {
     uint32_t out_code = 0;
@@ -41,7 +42,9 @@ uint32_t ROIPoolingMethod2Int32(IE::ROIPoolingMethod method) {
     }
     return out_code;
 }
+
 }  // namespace
+
 mlir::LogicalResult vpux::VPUIP::verifyOp(ROIPoolingUPAOp op) {
     const auto inShapeFeatureMap = getShape(op.input());
     const auto inShapeCoord = getShape(op.coords());
@@ -66,13 +69,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ROIPoolingUPAOp op) {
     }
 
     return mlir::success();
-}
-
-void vpux::VPUIP::ROIPoolingUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
-                                         mlir::Value input, mlir::Value coords, mlir::Value output,
-                                         mlir::ArrayAttr output_size, mlir::FloatAttr spatial_scale,
-                                         IE::ROIPoolingMethodAttr method) {
-    build(odsBuilder, odsState, input, coords, output, output_size, spatial_scale, method, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {

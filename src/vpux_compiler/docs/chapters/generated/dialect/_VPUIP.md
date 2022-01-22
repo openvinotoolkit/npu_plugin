@@ -35,12 +35,6 @@ operation ::= `VPUIP.AcoshUPA` attr-dict
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-
 #### Operands:
 
 | Operand | Description |
@@ -68,12 +62,6 @@ operation ::= `VPUIP.AsinhUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -108,7 +96,6 @@ operation ::= `VPUIP.BroadcastUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `mode` | vpux::IE::BroadcastTypeAttr | Broadcast type that operations support
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -145,7 +132,6 @@ operation ::= `VPUIP.CTCGreedyDecoderSeqLenUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `mergeRepeated` | ::mlir::UnitAttr | unit attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -184,7 +170,6 @@ operation ::= `VPUIP.CTCGreedyDecoderUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `mergeRepeated` | ::mlir::UnitAttr | unit attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -214,12 +199,6 @@ operation ::= `VPUIP.CeilingUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -255,7 +234,6 @@ operation ::= `VPUIP.ClampUPA` attr-dict
 | :-------: | :-------: | ----------- |
 `min` | ::mlir::FloatAttr | 64-bit float attribute
 `max` | ::mlir::FloatAttr | 64-bit float attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -330,7 +308,6 @@ operation ::= `VPUIP.ConvertUPA` attr-dict
 `fromDetectionOutput` | ::mlir::UnitAttr | unit attribute
 `haveBatch` | ::mlir::UnitAttr | unit attribute
 `batchID` | mlir::IntegerAttr | Integer attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -369,7 +346,6 @@ operation ::= `VPUIP.ConvolutionUPA` attr-dict
 `padsBegin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `padsEnd` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `groups` | mlir::IntegerAttr | Integer attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -400,12 +376,6 @@ operation ::= `VPUIP.CoshUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -462,7 +432,6 @@ operation ::= `VPUIP.DepthToSpaceUPA` attr-dict
 | :-------: | :-------: | ----------- |
 `block_size` | mlir::IntegerAttr | Integer attribute
 `mode` | vpux::IE::DepthToSpaceModeAttr | DepthToSpaceMode that the InferenceEngine supports
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -497,7 +466,6 @@ operation ::= `VPUIP.DetectionOutputUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `attr` | vpux::IE::DetectionOutputAttr | DictionaryAttr with field(s): 'num_classes', 'background_label_id', 'top_k', 'variance_encoded_in_target', 'keep_top_k', 'code_type', 'share_location', 'nms_threshold', 'confidence_threshold', 'clip_after_nms', 'clip_before_nms', 'decrease_label_id', 'normalized', 'input_height', 'input_width', 'objectness_score' (each field having its own constraints)
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -536,7 +504,6 @@ operation ::= `VPUIP.EltwiseUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `type` | vpux::VPU::EltwiseTypeAttr | Type of Eltwise operation
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -572,7 +539,6 @@ operation ::= `VPUIP.EluUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `x` | ::mlir::FloatAttr | 64-bit float attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -602,12 +568,6 @@ operation ::= `VPUIP.ErfUPA` attr-dict
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-
 #### Operands:
 
 | Operand | Description |
@@ -635,12 +595,6 @@ operation ::= `VPUIP.ExpUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -679,7 +633,6 @@ operation ::= `VPUIP.FakeQuantizeUPA` attr-dict
 `input_high` | vpux::Const::ContentAttr | Lazy folded constant content
 `output_low` | vpux::Const::ContentAttr | Lazy folded constant content
 `output_high` | vpux::Const::ContentAttr | Lazy folded constant content
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -709,12 +662,6 @@ operation ::= `VPUIP.FloorUPA` attr-dict
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-
 #### Operands:
 
 | Operand | Description |
@@ -742,12 +689,6 @@ operation ::= `VPUIP.FullyConnectedUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -784,7 +725,6 @@ operation ::= `VPUIP.GRNUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `bias` | ::mlir::FloatAttr | 64-bit float attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -819,7 +759,6 @@ operation ::= `VPUIP.GatherElementsUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `axis` | mlir::IntegerAttr | Integer attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -856,7 +795,6 @@ operation ::= `VPUIP.GatherUPA` attr-dict
 | :-------: | :-------: | ----------- |
 `axis` | mlir::IntegerAttr | Integer attribute
 `batch_dims` | mlir::IntegerAttr | Integer attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -887,12 +825,6 @@ operation ::= `VPUIP.GeluUPA` attr-dict
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-
 #### Operands:
 
 | Operand | Description |
@@ -920,12 +852,6 @@ operation ::= `VPUIP.HSwishUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -963,7 +889,6 @@ operation ::= `VPUIP.Interpolate` attr-dict
 `coord_mode` | vpux::IE::InterpolateCoordModeAttr | coordinate_transformation_mode specifies how to transform the coordinate.
 `nearest_mode` | vpux::IE::InterpolateNearestModeAttr | specifies round mode when mode == nearest
 `antialias` | ::mlir::UnitAttr | unit attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -994,12 +919,6 @@ operation ::= `VPUIP.LSTMCellUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1044,7 +963,6 @@ operation ::= `VPUIP.LSTMSequenceUPA` attr-dict
 | :-------: | :-------: | ----------- |
 `sequenceLength` | mlir::IntegerAttr | Integer attribute
 `direction` | vpux::IE::RNNSequenceDirectionAttr | RNNSequenceDirection that the InferenceEngine supports
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1087,7 +1005,6 @@ operation ::= `VPUIP.LeakyReluUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `negative_slope` | ::mlir::FloatAttr | 64-bit float attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1116,12 +1033,6 @@ operation ::= `VPUIP.LogUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1158,7 +1069,6 @@ operation ::= `VPUIP.MVNUPA` attr-dict
 `across_channels` | ::mlir::BoolAttr | bool attribute
 `normalize_variance` | ::mlir::BoolAttr | bool attribute
 `eps` | ::mlir::FloatAttr | 64-bit float attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1187,12 +1097,6 @@ operation ::= `VPUIP.MishUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1326,12 +1230,6 @@ operation ::= `VPUIP.NegativeUPA` attr-dict
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-
 #### Operands:
 
 | Operand | Description |
@@ -1369,7 +1267,6 @@ operation ::= `VPUIP.NormUPA` attr-dict
 `bias` | ::mlir::FloatAttr | 64-bit float attribute
 `local_size` | mlir::IntegerAttr | Integer attribute
 `region` | vpux::IE::LRN_IERegionAttr | LRN_IE region that operations support
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1406,7 +1303,6 @@ operation ::= `VPUIP.NormalizeIEUPA` attr-dict
 `eps` | ::mlir::FloatAttr | 64-bit float attribute
 `across_spatial` | ::mlir::BoolAttr | bool attribute
 `channel_shared` | ::mlir::BoolAttr | bool attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1462,12 +1358,6 @@ operation ::= `VPUIP.PReluUPA` attr-dict
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-
 #### Operands:
 
 | Operand | Description |
@@ -1505,7 +1395,6 @@ operation ::= `VPUIP.Pad` attr-dict
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pad_value` | ::mlir::FloatAttr | 64-bit float attribute
 `mode` | vpux::IE::PadModeAttr | TPadMode that the InferenceEngine supports
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1541,7 +1430,6 @@ operation ::= `VPUIP.PerAxisTileUPA` attr-dict
 | :-------: | :-------: | ----------- |
 `axis` | mlir::IntegerAttr | Integer attribute
 `tiles` | mlir::IntegerAttr | Integer attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1576,7 +1464,6 @@ operation ::= `VPUIP.PermuteUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `order_value` | ::mlir::AffineMapAttr | AffineMap attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1616,7 +1503,6 @@ operation ::= `VPUIP.PoolingUPA` attr-dict
 `padsBegin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `padsEnd` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `excludePad` | ::mlir::UnitAttr | unit attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1651,7 +1537,6 @@ operation ::= `VPUIP.ProposalUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `proposal_attrs` | vpux::IE::ProposalAttr | DictionaryAttr with field(s): 'baseSize', 'preNmsTopN', 'postNmsTopN', 'nmsThresh', 'featStride', 'minSize', 'ratio', 'scale', 'clipBeforeNms', 'clipAfterNms', 'normalize', 'boxSizeScale', 'boxCoordinateScale', 'framework', 'inferProbs' (each field having its own constraints)
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1682,12 +1567,6 @@ operation ::= `VPUIP.QuantCastUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1726,7 +1605,6 @@ operation ::= `VPUIP.ROIAlignUPA` attr-dict
 `sampling_ratio` | mlir::IntegerAttr | Integer attribute
 `spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
 `poolingMode` | vpux::IE::ROIAlignMethodAttr | ROIAlignMethod that the InferenceEngine supports
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1765,7 +1643,6 @@ operation ::= `VPUIP.ROIPoolingUPA` attr-dict
 `output_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
 `method` | vpux::IE::ROIPoolingMethodAttr | ROIPoolingMethod that the InferenceEngine supports
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1795,12 +1672,6 @@ operation ::= `VPUIP.ReLUUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1836,7 +1707,6 @@ operation ::= `VPUIP.ReduceUPA` attr-dict
 | :-------: | :-------: | ----------- |
 `keep_dims` | ::mlir::UnitAttr | unit attribute
 `type` | vpux::VPUIP::ReduceLayerTypeAttr | Type of Reduce layer
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1876,7 +1746,6 @@ operation ::= `VPUIP.RegionYoloUPA` attr-dict
 `regions` | mlir::IntegerAttr | Integer attribute
 `do_softmax` | ::mlir::BoolAttr | bool attribute
 `mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1912,7 +1781,6 @@ operation ::= `VPUIP.ReverseSequenceUPA` attr-dict
 | :-------: | :-------: | ----------- |
 `seq_axis` | mlir::IntegerAttr | Integer attribute
 `batch_axis` | mlir::IntegerAttr | Integer attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1948,7 +1816,6 @@ operation ::= `VPUIP.RoundUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `mode` | vpux::IE::RoundModeAttr | RoundMode that the InferenceEngine supports
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1977,12 +1844,6 @@ operation ::= `VPUIP.ScaleShiftUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2014,12 +1875,6 @@ operation ::= `VPUIP.ScatterNDUpdateUPA` attr-dict
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-
 #### Operands:
 
 | Operand | Description |
@@ -2050,12 +1905,6 @@ operation ::= `VPUIP.SigmoidUPA` attr-dict
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-
 #### Operands:
 
 | Operand | Description |
@@ -2084,12 +1933,6 @@ operation ::= `VPUIP.SignUPA` attr-dict
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-
 #### Operands:
 
 | Operand | Description |
@@ -2117,12 +1960,6 @@ operation ::= `VPUIP.SinhUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2157,7 +1994,6 @@ operation ::= `VPUIP.SoftMaxUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `axisInd` | mlir::IntegerAttr | Integer attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2186,12 +2022,6 @@ operation ::= `VPUIP.SoftPlusUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2227,7 +2057,6 @@ operation ::= `VPUIP.SpaceToDepthUPA` attr-dict
 | :-------: | :-------: | ----------- |
 `block_size` | mlir::IntegerAttr | Integer attribute
 `mode` | vpux::IE::SpaceToDepthModeAttr | SpaceToDepthMode that the InferenceEngine supports
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2256,12 +2085,6 @@ operation ::= `VPUIP.SqrtUPA` attr-dict
               `->` type(results)
 ```
 
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2298,7 +2121,6 @@ operation ::= `VPUIP.StridedSlice` attr-dict
 `begins` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `ends` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2391,7 +2213,6 @@ operation ::= `VPUIP.SwishUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `beta_value` | ::mlir::FloatAttr | 64-bit float attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2421,12 +2242,6 @@ operation ::= `VPUIP.TanhUPA` attr-dict
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-
 #### Operands:
 
 | Operand | Description |
@@ -2453,7 +2268,6 @@ TopK UPA SHAVE kernel
 `mode` | vpux::IE::TopKModeAttr | TopKMode that the InferenceEngine supports
 `sort` | vpux::IE::TopKSortTypeAttr | TopKSortType that the InferenceEngine supports
 `element_type` | ::mlir::TypeAttr | any type attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2493,7 +2307,6 @@ operation ::= `VPUIP.UpsamplingUPA` attr-dict
 `upsampling_factor` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pad_l` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pad_r` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2568,7 +2381,6 @@ operation ::= `VPUIP.YuvToRgbUPA` attr-dict
 | :-------: | :-------: | ----------- |
 `inFmt` | vpux::IE::ColorFmtAttr | YUV, RGB color formats
 `outFmt` | vpux::IE::ColorFmtAttr | YUV, RGB color formats
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 

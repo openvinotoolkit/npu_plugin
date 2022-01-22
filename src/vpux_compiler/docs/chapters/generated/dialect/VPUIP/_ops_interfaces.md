@@ -17,20 +17,4 @@ NOTE: This method *must* be implemented by the user.
 ```c++
 static vpux::VPU::ExecutorKind getExecutorKind();
 ```
-Get the executor for the Operation## UPATaskOpInterface (`VPUIP_UPATaskOpInterface`)
-
-Interface for VPUIP UPA Task
-### Methods:
-#### `maxShaves`
-
-```c++
-vpux::Optional<int64_t> maxShaves();
-```
-Get maximal number of UPA SHAVEs to use#### `setMaxShaves`
-
-```c++
-void setMaxShaves(int64_t maxShaves);
-```
-Update maximal number of UPA SHAVEs to use
-NOTE: This method *must* be implemented by the user.
-
+Get the executor for the Operation

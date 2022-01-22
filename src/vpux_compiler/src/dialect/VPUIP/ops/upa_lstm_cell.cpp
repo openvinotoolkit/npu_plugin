@@ -15,14 +15,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 
-void vpux::VPUIP::LSTMCellUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value inputData,
-                                       mlir::Value initialHiddenState, mlir::Value initialCellState,
-                                       mlir::Value weights, mlir::Value biases, mlir::Value outputHiddenState,
-                                       mlir::Value outputCellState) {
-    build(builder, state, inputData, initialHiddenState, initialCellState, weights, biases, outputHiddenState,
-          outputCellState, nullptr);
-}
-
 vpux::VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LSTMCellUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto inputDataShape = inputData().getType().cast<mlir::ShapedType>().getShape();
     VPUX_THROW_UNLESS(inputDataShape.size() == 2, "LSTMCellUPAOp inputData shape must be 2D");

@@ -30,16 +30,16 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces all `FullyConnected` operations with `Convolution` operation.
 It inserts extra `Reshape` operations to satisfy `Convolution` specification.
+### `-convert-nearest-to-strided-concat`: Convert nearest interpolate op to strided concat ops
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces `Nearest Interpolate` operations with `Concat` operations with strides.
 ### `-convert-pad-to-concat`: Convert Pad Ops to Concat with Constant
 The pass is a part of `AdjustForVPU` pipeline.
 
 After FusePadOps pass, there are Pad Ops can not be fused.
 Replace `IE::PadOp` with `IE::ConcatOp` and `Const::DeclareOp`
 Only `IE::PadMode::CONSTANT` case is supported.
-### `-convert-nearest-to-strided-concat`: Convert nearest interpolate op to strided concat ops
-The pass is a part of `AdjustForVPU` pipeline.
-
-This pass replaces `Nearest Interpolate` operations with `Concat` operations with strides.
 ### `-convert-paddings-to-floor-mode`: Convert Convolution and Pooling layers paddings to FLOOR rouding mode
 The pass is a part of `AdjustForVPU` pipeline.
 

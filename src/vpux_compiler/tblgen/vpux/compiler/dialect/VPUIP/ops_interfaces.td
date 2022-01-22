@@ -49,41 +49,11 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
 }
 
 //
-// UPATaskOpInterface
+// UPATask
 //
 
-def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
-    let description = "Interface for VPUIP UPA Task";
-
+def VPUIP_UPATask : NativeOpTrait<"UPATask"> {
     let cppNamespace = "vpux::VPUIP";
-
-    let methods = [
-        InterfaceMethod<
-            "Get maximal number of UPA SHAVEs to use",
-            "vpux::Optional<int64_t>", "maxShaves", (ins),
-            [{
-                return $_op.maxShaves();
-            }]
-        >,
-        InterfaceMethod<
-            "Update maximal number of UPA SHAVEs to use",
-            "void", "setMaxShaves", (ins "int64_t":$maxShaves),
-            [{}],
-            [{
-                $_op.maxShavesAttr(vpux::getIntAttr($_op.getContext(), maxShaves));
-            }]
-        >,
-    ];
-
-    let verify = [{
-        return vpux::VPUIP::verifyUPATask($_op);
-    }];
-
-    let extraTraitClassDeclaration = [{
-        static vpux::VPU::ExecutorKind getExecutorKind() {
-            return vpux::VPU::ExecutorKind::SHAVE_UPA;
-        }
-    }];
 }
 
 //

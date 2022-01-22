@@ -41,13 +41,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ConvolutionUPAOp op) {
     return mlir::success();
 }
 
-void vpux::VPUIP::ConvolutionUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                          mlir::Value filter, mlir::Value bias, mlir::Value output,
-                                          mlir::ArrayAttr strides, mlir::ArrayAttr dilations, mlir::ArrayAttr padsBegin,
-                                          mlir::ArrayAttr padsEnd, uint32_t groups) {
-    build(builder, state, input, filter, bias, output, strides, dilations, padsBegin, padsEnd, groups, nullptr);
-}
-
 void vpux::VPUIP::ConvolutionUPAOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     const auto expectedFilterLayout = mlir::isa<IE::GroupConvolutionOp>(origOp) ? DimsOrder::OIYX : DimsOrder::YXOI;
 

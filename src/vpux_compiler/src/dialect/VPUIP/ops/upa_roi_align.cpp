@@ -18,6 +18,7 @@
 using namespace vpux;
 
 namespace {
+
 MVCNN::ROIAlignMethod ROIAlignMethod2MVCNN(IE::ROIAlignMethod method) {
     MVCNN::ROIAlignMethod mvcnn_method;
     switch (method) {
@@ -32,16 +33,8 @@ MVCNN::ROIAlignMethod ROIAlignMethod2MVCNN(IE::ROIAlignMethod method) {
     }
     return mvcnn_method;
 }
-}  // namespace
 
-void vpux::VPUIP::ROIAlignUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
-                                       mlir::Value input, mlir::Value coords, mlir::Value roisIdx, mlir::Value output,
-                                       mlir::IntegerAttr pooled_h, mlir::IntegerAttr pooled_w,
-                                       mlir::IntegerAttr sampling_ratio, mlir::FloatAttr spatial_scale,
-                                       IE::ROIAlignMethodAttr poolingMode) {
-    build(odsBuilder, odsState, input, coords, roisIdx, output, pooled_h, pooled_w, sampling_ratio, spatial_scale,
-          poolingMode, nullptr);
-}
+}  // namespace
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIAlignUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const float spatial_scale_val = static_cast<float>(spatial_scale().convertToDouble());
@@ -58,6 +51,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIAlignUPAOp::serialize(VPUIP::Blo
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ROIAlignParams});
 }
 
+namespace {
+
 IE::ROIAlignMethod softLayerParam2IEMethod(size_t method) {
     IE::ROIAlignMethod ieMethod;
     switch (method) {
@@ -73,6 +68,8 @@ IE::ROIAlignMethod softLayerParam2IEMethod(size_t method) {
 
     return ieMethod;
 }
+
+}  // namespace
 
 mlir::Operation* vpux::VPUIP::BlobReader::parseROIAlign(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                                         ArrayRef<mlir::Value> outputs,

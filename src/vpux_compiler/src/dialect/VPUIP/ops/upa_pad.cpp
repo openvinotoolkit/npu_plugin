@@ -72,12 +72,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PadUPAOp op) {
     return mlir::success();
 }
 
-void vpux::VPUIP::PadUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                  mlir::Value output, mlir::ArrayAttr pad_begin, mlir::ArrayAttr pad_end,
-                                  mlir::FloatAttr pad_value, vpux::IE::PadModeAttr mode) {
-    build(builder, state, input, output, pad_begin, pad_end, pad_value, mode, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PadUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto padsBegin = writer.createVector(parseIntArrayAttr<uint32_t>(pads_begin()));
     const auto padsEnd = writer.createVector(parseIntArrayAttr<uint32_t>(pads_end()));

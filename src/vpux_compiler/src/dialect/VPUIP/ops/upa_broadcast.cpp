@@ -18,12 +18,6 @@
 
 using namespace vpux;
 
-void vpux::VPUIP::BroadcastUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                        mlir::Value target_shape, mlir::Value axes_mapping, mlir::Value output,
-                                        IE::BroadcastTypeAttr mode) {
-    build(builder, state, input, target_shape, axes_mapping, output, mode, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BroadcastUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::BroadcastParamsBuilder builder(writer);
 

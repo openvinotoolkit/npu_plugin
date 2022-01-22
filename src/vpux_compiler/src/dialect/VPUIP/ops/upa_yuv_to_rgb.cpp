@@ -28,12 +28,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(YuvToRgbUPAOp op) {
     return mlir::success();
 }
 
-void vpux::VPUIP::YuvToRgbUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input1,
-                                       mlir::Value input2, mlir::Value input3, mlir::Value output,
-                                       IE::ColorFmtAttr inFmt, IE::ColorFmtAttr outFmt) {
-    build(builder, state, input1, input2, input3, output, inFmt, outFmt, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::YuvToRgbUPAOp::serialize(VPUIP::BlobWriter& writer) {
     if (inFmt() == IE::ColorFmt::NV12) {
         MVCNN::ConvertColorNV12ToRGBParamsBuilder builder(writer);

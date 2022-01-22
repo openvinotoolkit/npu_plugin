@@ -74,7 +74,7 @@ class VPUIP_UPATaskOp<int numResult, string mnemonic, list<OpTrait> traits = []>
             !listconcat(
                 traits,
                 [
-                    DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                    VPUIP_UPATask
                 ]
             )
         >;
@@ -212,9 +212,7 @@ def VPUIP_ConvertUPAOp :
         OptionalAttr<F64Attr>:$bias,
         UnitAttr:$fromDetectionOutput,
         UnitAttr:$haveBatch,
-        OptionalAttr<IntAttr>:$batchID,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        OptionalAttr<IntAttr>:$batchID
     );
 
     let results = (outs
@@ -258,23 +256,12 @@ def VPUIP_SoftMaxUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        IntAttr:$axisInd,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IntAttr:$axisInd
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::IntegerAttr":$axisInd
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -311,26 +298,12 @@ def VPUIP_PoolingUPAOp :
         I64ArrayAttr:$strides,
         I64ArrayAttr:$padsBegin,
         I64ArrayAttr:$padsEnd,
-        UnitAttr:$excludePad,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        UnitAttr:$excludePad
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "vpux::VPUIP::PoolLayerTypeAttr":$type,
-                "mlir::ArrayAttr":$kernel, "mlir::ArrayAttr":$strides,
-                "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd,
-                "mlir::UnitAttr":$excludePad
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -367,25 +340,12 @@ def VPUIP_ConvolutionUPAOp :
         I64ArrayAttr:$dilations,
         I64ArrayAttr:$padsBegin,
         I64ArrayAttr:$padsEnd,
-        IntAttr:$groups,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IntAttr:$groups
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$filter, "mlir::Value":$bias, "mlir::Value":$output,
-                "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$dilations,
-                "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd,
-                "uint32_t":$groups
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -421,20 +381,12 @@ def VPUIP_ReLUUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -466,20 +418,12 @@ def VPUIP_SigmoidUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -511,20 +455,12 @@ def VPUIP_HSwishUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -556,20 +492,12 @@ def VPUIP_ErfUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -601,20 +529,12 @@ def VPUIP_MishUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -646,20 +566,12 @@ def VPUIP_FloorUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -693,23 +605,12 @@ def VPUIP_RoundUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        IE_RoundMode:$mode,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IE_RoundMode:$mode
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "IE::RoundModeAttr":$mode
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -744,23 +645,12 @@ def VPUIP_ClampUPAOp :
         F16MemRef:$output_buff,
 
         F64Attr:$min,
-        F64Attr:$max,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F64Attr:$max
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$min, "mlir::FloatAttr":$max
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -794,23 +684,12 @@ def VPUIP_EluUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        F64Attr:$x,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F64Attr:$x
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$x
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -842,20 +721,12 @@ def VPUIP_TanhUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -887,20 +758,12 @@ def VPUIP_SqrtUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -932,20 +795,12 @@ def VPUIP_SinhUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -977,20 +832,12 @@ def VPUIP_CoshUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -1022,20 +869,12 @@ def VPUIP_AsinhUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -1067,20 +906,12 @@ def VPUIP_AcoshUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -1112,20 +943,12 @@ def VPUIP_LogUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -1157,20 +980,12 @@ def VPUIP_GeluUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -1202,20 +1017,12 @@ def VPUIP_ExpUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -1251,25 +1058,12 @@ def VPUIP_FakeQuantizeUPAOp :
         Const_ContentAttr:$input_low,
         Const_ContentAttr:$input_high,
         Const_ContentAttr:$output_low,
-        Const_ContentAttr:$output_high,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        Const_ContentAttr:$output_high
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "uint32_t":$levels,
-                "vpux::Const::ContentAttr":$input_low, "vpux::Const::ContentAttr":$input_high,
-                "vpux::Const::ContentAttr":$output_low, "vpux::Const::ContentAttr":$output_high
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -1299,18 +1093,12 @@ def VPUIP_QuantCastUPAOp :
 
     let arguments = (ins
         MemRefOf<[F16, quant_QuantizedType]>:$input,
-        MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        MemRefOf<[F16, quant_QuantizedType]>:$output_buff
     );
 
     let results = (outs
         MemRefOf<[F16, quant_QuantizedType]>:$output
     );
-
-    let builders = [
-        OpBuilder<(ins "mlir::Value":$input, "mlir::Value":$output)>
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -1344,23 +1132,12 @@ def VPUIP_PReluUPAOp :
     let arguments = (ins
         F16MemRef:$input,
         F16MemRef:$negative_slope,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$negative_slope,
-                "mlir::Value":$output
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1387,23 +1164,12 @@ def VPUIP_LeakyReluUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        F64Attr:$negative_slope,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F64Attr:$negative_slope
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$negative_slope
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1430,24 +1196,12 @@ def VPUIP_EltwiseUPAOp :
         F16MemRef:$input2,
         F16MemRef:$output_buff,
 
-        VPU_EltwiseType:$type,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        VPU_EltwiseType:$type
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input1, "mlir::Value":$input2,
-                "mlir::Value":$output,
-                "vpux::VPU::EltwiseTypeAttr":$type
-            )
-        >
-    ];
 
     let extraClassDeclaration = [{
         static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
@@ -1484,24 +1238,12 @@ def VPUIP_DetectionOutputUPAOp :
 
         F16MemRef:$output_buff,
 
-        IE_DetectionOutputAttrs:$attr,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IE_DetectionOutputAttrs:$attr
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$in_box_logits, "mlir::Value":$in_class_preds,"mlir::Value":$in_proposals,
-                "mlir::Value":$in_additional_preds, "mlir::Value":$in_additional_proposals,
-                "mlir::Value":$output, "vpux::IE::DetectionOutputAttr":$attr
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1528,23 +1270,12 @@ def VPUIP_SwishUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        F64Attr:$beta_value,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F64Attr:$beta_value
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$beta_value
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1571,23 +1302,12 @@ def VPUIP_GRNUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        F64Attr:$bias,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F64Attr:$bias
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$bias
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1616,24 +1336,12 @@ def VPUIP_ReduceUPAOp :
         MemRefOf<[F16, SI32]>:$output_buff,
 
         UnitAttr:$keep_dims,
-        VPUIP_ReduceLayerType:$type,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        VPUIP_ReduceLayerType:$type
     );
 
     let results = (outs
         MemRefOf<[F16, SI32]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$axes,
-                "mlir::Value":$output, "mlir::UnitAttr":$keep_dims,
-                "VPUIP::ReduceLayerTypeAttr":$type
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1665,25 +1373,12 @@ def VPUIP_NormUPAOp :
         F64Attr:$beta,
         F64Attr:$bias,
         IntAttr:$local_size,
-        IE_LRN_IERegion:$region,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IE_LRN_IERegion:$region
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$alpha, "mlir::FloatAttr":$beta,
-                "mlir::FloatAttr":$bias, "mlir::IntegerAttr":$local_size,
-                "IE::LRN_IERegionAttr":$region
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1717,24 +1412,12 @@ def VPUIP_BroadcastUPAOp :
 
         F16MemRef:$output_buff,
 
-        OptionalAttr<IE_BroadcastType>:$mode,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        OptionalAttr<IE_BroadcastType>:$mode
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$target_shape,
-                "mlir::Value":$axes_mapping, "mlir::Value":$output,
-                "IE::BroadcastTypeAttr":$mode
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1764,23 +1447,12 @@ def VPUIP_ScaleShiftUPAOp :
         F16MemRef:$input,
         Optional<F16MemRef>:$weights,
         Optional<F16MemRef>:$biases,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$weights,
-                "mlir::Value":$biases,"mlir::Value":$output
-            )
-        >
-    ];
 
     let extraClassDeclaration = [{
         static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
@@ -1814,26 +1486,12 @@ def VPUIP_UpsamplingUPAOp :
 
         I64ArrayAttr:$upsampling_factor,
         I64ArrayAttr:$pad_l,
-        I64ArrayAttr:$pad_r,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        I64ArrayAttr:$pad_r
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::ArrayAttr":$upsampling_factor,
-                "mlir::ArrayAttr":$pad_l,
-                "mlir::ArrayAttr":$pad_r
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1861,23 +1519,12 @@ def VPUIP_PerAxisTileUPAOp :
         F16MemRef:$output_buff,
 
         IntAttr:$axis,
-        IntAttr:$tiles,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IntAttr:$tiles
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::IntegerAttr":$axis, "mlir::IntegerAttr":$tiles
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1902,20 +1549,12 @@ def VPUIP_NegativeUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1939,20 +1578,12 @@ def VPUIP_SignUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1981,23 +1612,12 @@ def VPUIP_ProposalUPAOp :
         F16MemRef:$image_shape,
         F16MemRef:$output_buff,
 
-        IE_ProposalAttrs:$proposal_attrs,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IE_ProposalAttrs:$proposal_attrs
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$class_probs, "mlir::Value":$bbox_deltas,"mlir::Value":$image_shape,
-                "mlir::Value":$output, "vpux::IE::ProposalAttr":$attr
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -2027,24 +1647,12 @@ def VPUIP_ROIPoolingUPAOp :
 
         I64ArrayAttr:$output_size,
         F64Attr:$spatial_scale,
-        IE_ROIPoolingMethod:$method,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IE_ROIPoolingMethod:$method
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$coords,
-                "mlir::Value":$output,
-                "mlir::ArrayAttr":$output_size, "mlir::FloatAttr":$spatial_scale, "IE::ROIPoolingMethodAttr":$method
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -2076,24 +1684,12 @@ def VPUIP_ROIAlignUPAOp :
         IntAttr:$pooled_w,
         IntAttr:$sampling_ratio,
         F64Attr:$spatial_scale,
-        IE_ROIAlignMethod:$poolingMode,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IE_ROIAlignMethod:$poolingMode
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$coords, "mlir::Value":$roisIdx, "mlir::Value":$output,
-                "mlir::IntegerAttr":$pooled_h, "mlir::IntegerAttr":$pooled_w,
-                "mlir::IntegerAttr":$sampling_ratio, "mlir::FloatAttr":$spatial_scale, "IE::ROIAlignMethodAttr":$poolingMode
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -2119,23 +1715,12 @@ def VPUIP_PermuteUPAOp :
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
 
-        AffineMapAttr:$order_value,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        AffineMapAttr:$order_value
     );
 
     let results = (outs
         AnyMemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::AffineMapAttr":$order_value
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -2432,24 +2017,12 @@ def VPUIP_CTCGreedyDecoderUPAOp :
         F16MemRef:$sequenceLengths,
         F16MemRef:$output_buff,
 
-        UnitAttr:$mergeRepeated,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        UnitAttr:$mergeRepeated
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$sequenceLengths,
-                "mlir::Value":$output,
-                "mlir::UnitAttr":$mergeRepeated
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -2486,25 +2059,13 @@ def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
         MemRefOf<[SI32]>:$output_buff,
         MemRefOf<[SI32]>:$outputLength_buff,
 
-        UnitAttr:$mergeRepeated,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        UnitAttr:$mergeRepeated
     );
 
     let results = (outs
         MemRefOf<[SI32]>:$output,
         MemRefOf<[SI32]>:$outputLength
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$sequenceLength, "mlir::Value":$blankIndex,
-                "mlir::Value":$output, "mlir::Value":$outputLength,
-                "mlir::UnitAttr":$mergeRepeated
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -2538,25 +2099,12 @@ def VPUIP_PadUPAOp :
         I64ArrayAttr:$pads_begin,
         I64ArrayAttr:$pads_end,
         OptionalAttr<F64Attr>:$pad_value,
-        IE_PadMode:$mode,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IE_PadMode:$mode
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::ArrayAttr":$pads_begin, "mlir::ArrayAttr":$pads_end, "mlir::FloatAttr":$pad_value,
-                "IE::PadModeAttr":$mode
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -2590,25 +2138,13 @@ def VPUIP_LSTMCellUPAOp :
         F16MemRef:$weights,
         F16MemRef:$biases,
         F16MemRef:$outputHiddenState_buff,
-        F16MemRef:$outputCellState_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$outputCellState_buff
     );
 
     let results = (outs
         F16MemRef:$outputHiddenState,
         F16MemRef:$outputCellState
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$inputData, "mlir::Value":$initialHiddenState,
-                "mlir::Value":$initialCellState, "mlir::Value":$weights, "mlir::Value":$biases,
-                "mlir::Value":$outputHiddenState, "mlir::Value":$outputCellState
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -2729,9 +2265,7 @@ def VPUIP_LSTMSequenceUPAOp :
         F16MemRef:$outputHiddenState_buff,
 
         IntAttr:$sequenceLength,
-        IE_RNNSequenceDirection:$direction,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IE_RNNSequenceDirection:$direction
     );
 
     let results = (outs
@@ -2739,17 +2273,6 @@ def VPUIP_LSTMSequenceUPAOp :
         F16MemRef:$outputCellState,
         F16MemRef:$outputHiddenState
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$inputData, "mlir::Value":$initialHiddenState,
-                "mlir::Value":$initialCellState, "mlir::Value":$weights, "mlir::Value":$biases,
-                "mlir::Value":$outputHiddenValues, "mlir::Value":$outputCellState, "mlir::Value":$outputHiddenState,
-                "mlir::IntegerAttr":$sequenceLength, "IE::RNNSequenceDirectionAttr":$direction
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -2786,27 +2309,12 @@ def VPUIP_InterpolateUPAOp :
         IE_InterpolateMode:$mode,
         IE_InterpolateCoordMode:$coord_mode,
         IE_InterpolateNearestMode:$nearest_mode,
-        UnitAttr:$antialias,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        UnitAttr:$antialias
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "IE::InterpolateModeAttr":$mode,
-                "IE::InterpolateCoordModeAttr":$coord_mode,
-                "IE::InterpolateNearestModeAttr":$nearest_mode,
-                "mlir::UnitAttr":$antialias
-            )
-        >
-    ];
 
     let extraClassDeclaration = [{
         static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
@@ -2840,24 +2348,12 @@ def VPUIP_StridedSliceUPAOp :
 
         I64ArrayAttr:$begins,
         I64ArrayAttr:$ends,
-        I64ArrayAttr:$strides,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        I64ArrayAttr:$strides
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::ArrayAttr":$begins, "mlir::ArrayAttr":$ends, "mlir::ArrayAttr":$strides
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -2883,22 +2379,12 @@ def VPUIP_FullyConnectedUPAOp :
         F16MemRef:$input,
         F16MemRef:$weights,
         Optional<F16MemRef>:$bias,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$bias, "mlir::Value":$output
-            )
-        >
-    ];
 
     let extraClassDeclaration = [{
         static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
@@ -2932,28 +2418,12 @@ def VPUIP_RegionYoloUPAOp :
         IntAttr:$classes,
         IntAttr:$regions,
         OptionalAttr<BoolAttr>:$do_softmax,
-        OptionalAttr<I64ArrayAttr>:$mask,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        OptionalAttr<I64ArrayAttr>:$mask
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::IntegerAttr":$coord,
-                "mlir::IntegerAttr":$classes,
-                "mlir::IntegerAttr":$regions,
-                "mlir::BoolAttr":$do_softmax,
-                "mlir::ArrayAttr":$mask
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -2988,26 +2458,12 @@ def VPUIP_MVNUPAOp :
 
         OptionalAttr<BoolAttr>:$across_channels,
         OptionalAttr<BoolAttr>:$normalize_variance,
-        F64Attr:$eps,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F64Attr:$eps
     );
 
     let results = (outs
         AnyMemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::BoolAttr":$across_channels,
-                "mlir::BoolAttr":$normalize_variance,
-                "mlir::FloatAttr":$eps
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -3040,26 +2496,12 @@ def VPUIP_GatherUPAOp :
         AnyMemRef:$output_buff,
 
         IntAttr:$axis,
-        IntAttr:$batch_dims,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IntAttr:$batch_dims
     );
 
     let results = (outs
         AnyMemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$indices,
-                "mlir::Value":$output,
-                "mlir::IntegerAttr":$axis,
-                "mlir::IntegerAttr":$batch_dims
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -3092,25 +2534,12 @@ def VPUIP_SpaceToDepthUPAOp :
         F16MemRef:$output_buff,
 
         IntAttr:$block_size,
-        IE_SpaceToDepthMode:$mode,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IE_SpaceToDepthMode:$mode
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::IntegerAttr":$block_size,
-                "IE::SpaceToDepthModeAttr":$mode
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -3141,25 +2570,12 @@ def VPUIP_ScatterNDUpdateUPAOp :
         AnyMemRef:$input,
         MemRefOf<[SI32]>:$indices,
         AnyMemRef:$updates,
-        AnyMemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        AnyMemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$indices,
-                "mlir::Value":$updates,
-                "mlir::Value":$output
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -3187,20 +2603,12 @@ def VPUIP_CeilingUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -3231,25 +2639,12 @@ def VPUIP_GatherElementsUPAOp :
         MemRefOf<[SI64, SI32]>:$indices,
         AnyMemRef:$output_buff,
 
-        IntAttr:$axis,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IntAttr:$axis
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$indices,
-                "mlir::Value":$output,
-                "mlir::IntegerAttr":$axis
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -3278,25 +2673,12 @@ def VPUIP_DepthToSpaceUPAOp :
         F16MemRef:$output_buff,
 
         IntAttr:$block_size,
-        IE_DepthToSpaceMode:$mode,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IE_DepthToSpaceMode:$mode
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::IntegerAttr":$block_size,
-                "IE::DepthToSpaceModeAttr":$mode
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -3330,27 +2712,12 @@ def VPUIP_NormalizeIEUPAOp :
 
         F64Attr:$eps,
         BoolAttr:$across_spatial,
-        BoolAttr:$channel_shared,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        BoolAttr:$channel_shared
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$data,
-                "mlir::Value":$weights,
-                "mlir::Value":$output,
-                "mlir::FloatAttr":$eps,
-                "mlir::BoolAttr":$across_spatial,
-                "mlir::BoolAttr":$channel_shared
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -3379,26 +2746,12 @@ def VPUIP_ReverseSequenceUPAOp :
         F16MemRef:$output_buff,
 
         IntAttr:$seq_axis,
-        IntAttr:$batch_axis,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IntAttr:$batch_axis
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$data,
-                "mlir::Value":$seq_length,
-                "mlir::Value":$output,
-                "mlir::IntegerAttr":$seq_axis,
-                "mlir::IntegerAttr":$batch_axis
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -3433,30 +2786,13 @@ def VPUIP_TopKUPAOp:
         IntAttr:$axis,
         IE_TopKMode:$mode,
         IE_TopKSortType:$sort,
-        TypeAttr:$element_type,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        TypeAttr:$element_type
     );
 
     let results = (outs
         F16MemRef:$output_values,
         MemRefOf<[SI32]>:$target_shape
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output_values,
-                "mlir::Value":$target_shape,
-                "mlir::IntegerAttr":$k,
-                "mlir::IntegerAttr":$axis,
-                "vpux::IE::TopKModeAttr":$mode,
-                "vpux::IE::TopKSortTypeAttr":$sort,
-                "mlir::TypeAttr":$element_type
-            )
-        >
-    ];
 }
 
 //
@@ -3476,20 +2812,12 @@ def VPUIP_SoftPlusUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        F16MemRef:$output_buff
     );
 
     let results = (outs
         F16MemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyPostOp(*this);
@@ -3524,27 +2852,12 @@ def VPUIP_YuvToRgbUPAOp :
                  MemRefOf<[I8, F16, F32]> :$output_buff,
 
         IE_ColorFmt:$inFmt,
-        IE_ColorFmt:$outFmt,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IE_ColorFmt:$outFmt
     );
 
     let results = (outs
         MemRefOf<[I8, F16, F32]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input1,
-                "mlir::Value":$input2,
-                "mlir::Value":$input3,
-                "mlir::Value":$output,
-                "IE::ColorFmtAttr":$inFmt,
-                "IE::ColorFmtAttr":$outFmt
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);

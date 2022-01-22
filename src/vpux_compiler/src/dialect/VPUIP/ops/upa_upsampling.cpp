@@ -21,12 +21,6 @@
 
 using namespace vpux;
 
-void vpux::VPUIP::UpsamplingUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                         mlir::Value output, mlir::ArrayAttr upsampling_factor, mlir::ArrayAttr pad_l,
-                                         mlir::ArrayAttr pad_r) {
-    build(builder, state, input, output, upsampling_factor, pad_l, pad_r, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UpsamplingUPAOp::serialize(VPUIP::BlobWriter& writer) {
     SmallVector<int32_t> pad_x = {(int32_t)pad_l()[0].cast<mlir::IntegerAttr>().getInt(),
                                   (int32_t)pad_r()[0].cast<mlir::IntegerAttr>().getInt()};

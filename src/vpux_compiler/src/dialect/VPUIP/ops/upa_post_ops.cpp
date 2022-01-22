@@ -39,6 +39,7 @@ MVCNN::RoundMode converVPUXRoundModeToMVCNN(vpux::IE::RoundMode vpux_mode) {
 }
 
 }  // namespace
+
 //
 // verifyPostOp
 //
@@ -69,11 +70,6 @@ mlir::LogicalResult vpux::VPUIP::verifyPostOp(mlir::Operation* op) {
 // ClampUPAOp
 //
 
-void vpux::VPUIP::ClampUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                    mlir::Value output, mlir::FloatAttr min, mlir::FloatAttr max) {
-    build(builder, state, input, output, min, max, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ClampUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const float min_val = static_cast<float>(min().convertToDouble());
     const float max_val = static_cast<float>(max().convertToDouble());
@@ -92,11 +88,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ClampUPAOp::serialize(VPUIP::BlobWr
 // EluUPAOp
 //
 
-void vpux::VPUIP::EluUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                  mlir::Value output, mlir::FloatAttr x) {
-    build(builder, state, input, output, x, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EluUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const float x_val = static_cast<float>(x().convertToDouble());
 
@@ -114,11 +105,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EluUPAOp::serialize(VPUIP::BlobWrit
 // HSwishUPAOp
 //
 
-void vpux::VPUIP::HSwishUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                     mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::HSwishUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto hswish = MVCNN::CreateHSwishParams(writer);
 
@@ -134,11 +120,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::HSwishUPAOp::serialize(VPUIP::BlobW
 // FloorUPAOp
 //
 
-void vpux::VPUIP::FloorUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                    mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FloorUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto floor = MVCNN::CreateFloorParams(writer);
 
@@ -153,11 +134,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FloorUPAOp::serialize(VPUIP::BlobWr
 //
 // RoundUPAOp
 //
-
-void vpux::VPUIP::RoundUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                    mlir::Value output, vpux::IE::RoundModeAttr mode) {
-    build(builder, state, input, output, mode, nullptr);
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RoundUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto roundMode = converVPUXRoundModeToMVCNN(mode());
@@ -175,11 +151,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RoundUPAOp::serialize(VPUIP::BlobWr
 // MishUPAOp
 //
 
-void vpux::VPUIP::MishUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                   mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::MishUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto mish = MVCNN::CreateMishParams(writer);
 
@@ -194,11 +165,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::MishUPAOp::serialize(VPUIP::BlobWri
 //
 // ErfUPAOp
 //
-
-void vpux::VPUIP::ErfUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                  mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ErfUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto erf = MVCNN::CreateErfParams(writer);
@@ -215,11 +181,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ErfUPAOp::serialize(VPUIP::BlobWrit
 // Tanh
 //
 
-void vpux::VPUIP::TanhUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                   mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::TanhUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto tanh = MVCNN::CreateTanhParams(writer);
 
@@ -234,11 +195,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::TanhUPAOp::serialize(VPUIP::BlobWri
 //
 // Sqrt
 //
-
-void vpux::VPUIP::SqrtUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                   mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SqrtUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto sqrt = MVCNN::CreateSqrtParams(writer);
@@ -255,11 +211,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SqrtUPAOp::serialize(VPUIP::BlobWri
 // Sinh
 //
 
-void vpux::VPUIP::SinhUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                   mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SinhUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto sinh = MVCNN::CreateSinhParams(writer);
 
@@ -274,11 +225,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SinhUPAOp::serialize(VPUIP::BlobWri
 //
 // Cosh
 //
-
-void vpux::VPUIP::CoshUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                   mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CoshUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto cosh = MVCNN::CreateCoshParams(writer);
@@ -295,11 +241,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CoshUPAOp::serialize(VPUIP::BlobWri
 // Asinh
 //
 
-void vpux::VPUIP::AsinhUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                    mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AsinhUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto asinh = MVCNN::CreateAsinhParams(writer);
 
@@ -314,11 +255,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AsinhUPAOp::serialize(VPUIP::BlobWr
 //
 // Acosh
 //
-
-void vpux::VPUIP::AcoshUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                    mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AcoshUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto acosh = MVCNN::CreateAcoshParams(writer);
@@ -335,11 +271,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AcoshUPAOp::serialize(VPUIP::BlobWr
 // LogUPAOp
 //
 
-void vpux::VPUIP::LogUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                  mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LogUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto log = MVCNN::CreateLogParams(writer);
 
@@ -354,11 +285,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LogUPAOp::serialize(VPUIP::BlobWrit
 //
 // GeluUPAOp
 //
-
-void vpux::VPUIP::GeluUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                   mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GeluUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto gelu = MVCNN::CreateGeluParams(writer);
@@ -375,11 +301,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GeluUPAOp::serialize(VPUIP::BlobWri
 // Exp
 //
 
-void vpux::VPUIP::ExpUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                  mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExpUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto exp = MVCNN::CreateExpParams(writer);
 
@@ -394,11 +315,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExpUPAOp::serialize(VPUIP::BlobWrit
 //
 // ReLUUPAOp
 //
-
-void vpux::VPUIP::ReLUUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                   mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReLUUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto relu = MVCNN::CreateReluParams(writer);
@@ -415,11 +331,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReLUUPAOp::serialize(VPUIP::BlobWri
 // SigmoidUPAOp
 //
 
-void vpux::VPUIP::SigmoidUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                      mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SigmoidUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto sigmoid = MVCNN::CreateSigmoidParams(writer);
 
@@ -434,11 +345,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SigmoidUPAOp::serialize(VPUIP::Blob
 //
 // SignUPAOp
 //
-
-void vpux::VPUIP::SignUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                   mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SignUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto Sign = MVCNN::CreateSignParams(writer);
@@ -455,11 +361,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SignUPAOp::serialize(VPUIP::BlobWri
 // PRelu
 //
 
-void vpux::VPUIP::PReluUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                    mlir::Value negative_slope, mlir::Value output) {
-    build(builder, state, input, negative_slope, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PReluUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto prelu = MVCNN::CreatePReluParams(writer);
 
@@ -474,11 +375,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PReluUPAOp::serialize(VPUIP::BlobWr
 //
 // LeakyRelu
 //
-
-void vpux::VPUIP::LeakyReluUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                        mlir::Value output, mlir::FloatAttr negative_slope) {
-    build(builder, state, input, output, negative_slope, nullptr);
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LeakyReluUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const float negative_slope_val = static_cast<float>(negative_slope().convertToDouble());
@@ -497,11 +393,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LeakyReluUPAOp::serialize(VPUIP::Bl
 // Swish
 //
 
-void vpux::VPUIP::SwishUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                    mlir::Value output, mlir::FloatAttr beta) {
-    build(builder, state, input, output, beta, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SwishUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto beta = beta_valueAttr().getValueAsDouble();
 
@@ -518,11 +409,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SwishUPAOp::serialize(VPUIP::BlobWr
 //
 // ScaleShift
 //
-
-void vpux::VPUIP::ScaleShiftUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                         mlir::Value weights, mlir::Value biases, mlir::Value output) {
-    build(builder, state, input, weights, biases, output, nullptr);
-}
 
 void vpux::VPUIP::ScaleShiftUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
     // Investigate perfromance degradation for NHWC layout
@@ -557,11 +443,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ScaleShiftUPAOp::serialize(VPUIP::B
 // CeilingUPAOp
 //
 
-void vpux::VPUIP::CeilingUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                      mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CeilingUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto ceiling = MVCNN::CreateCeilingParams(writer);
 
@@ -576,11 +457,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CeilingUPAOp::serialize(VPUIP::Blob
 //
 // SoftPlusUPAOp
 //
-
-void vpux::VPUIP::SoftPlusUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                       mlir::Value output) {
-    build(builder, state, input, output, nullptr);
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftPlusUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto softPlus = MVCNN::CreateSoftPlusParams(writer);

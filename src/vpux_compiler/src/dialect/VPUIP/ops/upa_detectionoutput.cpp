@@ -20,15 +20,6 @@
 
 using namespace vpux;
 
-void vpux::VPUIP::DetectionOutputUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
-                                              mlir::Value in_box_logits, mlir::Value in_class_preds,
-                                              mlir::Value in_proposals, mlir::Value in_additional_preds,
-                                              mlir::Value in_additional_proposals, mlir::Value output,
-                                              vpux::IE::DetectionOutputAttr attr) {
-    build(builder, state, in_box_logits, in_class_preds, in_proposals, in_additional_preds, in_additional_proposals,
-          output, attr, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DetectionOutputUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto detectionOutputAttr = attr();
     const auto code_type = detectionOutputAttr.code_type().getValue().str();

@@ -40,12 +40,6 @@ void vpux::VPUIP::CTCGreedyDecoderUPAOp::inferLayoutInfo(mlir::Operation*, IE::L
     IE::fillDefaultLayoutInfo(info);
 }
 
-void vpux::VPUIP::CTCGreedyDecoderUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                               mlir::Value sequenceLengths, mlir::Value output,
-                                               mlir::UnitAttr mergeRepeated) {
-    build(builder, state, input, sequenceLengths, output, mergeRepeated, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CTCGreedyDecoderUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::CTCDecoderParamsBuilder builder(writer);
     builder.add_ctc_merge_repeated(mergeRepeated());
