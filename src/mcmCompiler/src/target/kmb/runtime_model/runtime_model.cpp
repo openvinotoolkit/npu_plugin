@@ -2990,6 +2990,49 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAProposalTask(ComputationModel &c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAAveragePoolTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PoolingParams;
+    auto softLayerParamsValue = new MVCNN::PoolingParamsT();
+
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    // Fill in required params
+    softLayerParamsValue->pool_method = "avg";
+    softLayerParamsValue->exclude_pad = "true";
+    
+
+    auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
+    auto pads_begin =
+            std::unique_ptr<MVCNN::order3>(new MVCNN::order3(kernelPadding[0], kernelPadding[2], 0)); // Left,Top,Front
+        softLayerParamsValue->pads_begin = std::move(pads_begin);
+
+        auto pads_end =
+            std::unique_ptr<MVCNN::order3>(new MVCNN::order3(kernelPadding[1], kernelPadding[3], 0)); // Right,Bottom,Back
+        softLayerParamsValue->pads_end = std::move(pads_end);
+
+     auto kernelStride = opIt->get<std::array<unsigned short, 2>>("stride");
+        auto strides =
+            std::unique_ptr<MVCNN::order3>(new MVCNN::order3(kernelStride[0], kernelStride[1], 0));
+        softLayerParamsValue->strides = std::move(strides);
+ 
+    auto kernelShape = opIt->get<std::array<unsigned short, 2>>("kSize");
+    auto kernel = std::unique_ptr<MVCNN::order3>(new MVCNN::order3(kernelShape[0], kernelShape[1], 0)); // Left,Top,Front
+    softLayerParamsValue->kernel = std::move(kernel);
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAROIPoolingTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
 
@@ -4466,6 +4509,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAProposalTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "ROIPooling")
         toReturn[0]->task.value = buildUPAROIPoolingTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "AveragePool")
+        toReturn[0]->task.value = buildUPAAveragePoolTask(cm, compilationDescriptor, opIt);
     else if (underlyingTask == "PSROIPooling")
         toReturn[0]->task.value = buildUPAPSROIPoolingTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Quantize")

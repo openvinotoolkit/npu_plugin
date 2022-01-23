@@ -77,7 +77,7 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, LogLevel> {
 #endif
 
     static LogLevel defaultValue() {
-        return LogLevel::None;
+        return LogLevel::Info;
     }
 };
 

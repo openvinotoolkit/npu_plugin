@@ -16,6 +16,8 @@ const size_t FULLY_CONNECTED_KERNEL = 1;
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, const mv::TargetDescriptor& td);
 static void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&);
+void averagePoolToSWPoolFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, const mv::TargetDescriptor& td);
+
 void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -102,14 +104,15 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replacePermuteReshapePermutePatternFcn(pass, model);
     replaceExpReduceSumMultipyFcn(pass, model);
     replaceLargeGlobalPoolingFcn(pass, model);
-    replaceLargeKernelsFcn(pass, model);
-    replaceLargeStridesFcn(pass, model);
+    //replaceLargeKernelsFcn(pass, model);
+    //replaceLargeStridesFcn(pass, model);
     replaceAsymmetricStridesFcn(pass, model);
     replaceBigInputChannels(pass, model);
     topKAsArgMaxFcn(pass, model);
     resampleWithStorageElementPointerTable(pass, model);
     bilinearInterpAsDPUSFcn(pass, model); //apart from modelE, for the rest for now we are using SW layer
     interpAsDepthConvFcn(pass, model);
+    averagePoolToSWPoolFcn(pass, model, td);
     averageAsDepthWiseFcn(pass, model, td);
     scaleAsDepthwiseFcn(pass, model);
     flattenAsReshapeFcn(pass, model);
@@ -542,6 +545,31 @@ void replaceStridedSliceWithSlice(const mv::pass::PassEntry&, mv::ComputationMod
 
         // Replace StridedSlice with Slice
         linkNewOperationsReplacement(parentOp, slice, om, om.getSourceOp(stridedSlice));
+    }
+}
+
+void averagePoolToSWPoolFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, const mv::TargetDescriptor& /*td*/)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto averagePoolOps = om.getOps("AveragePool");
+
+    for (auto& opIt : averagePoolOps)
+    {
+        std::array<unsigned short, 2> kSize;
+        if (opIt->hasAttr("kSize"))
+            kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+        else
+        {
+            kSize[mv::KERNEL_HEIGHT] = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_HEIGHT];
+            kSize[mv::KERNEL_WIDTH] = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_WIDTH];
+        }
+        if(kSize[mv::KERNEL_WIDTH] > mv::MAX_KERNEL || kSize[mv::KERNEL_HEIGHT] > mv::MAX_KERNEL) 
+        {
+            opIt->set<bool>("softwareExecuted", true);
+        }
+            
     }
 }
 
@@ -1602,6 +1630,12 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
         std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
         std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
         std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
+
+
+        //new
+        if(kSize[mv::KERNEL_WIDTH] > mv::MAX_KERNEL || kSize[mv::KERNEL_HEIGHT] > mv::MAX_KERNEL) 
+            continue;
+
 
         unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * kSize[1] * kSize[0];
         double scaleValue = 1/double(kSize[0] * kSize[1]);
