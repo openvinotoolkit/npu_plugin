@@ -90,21 +90,65 @@ private:
 
 void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VPU::PaddingAttr pads,
                  const mlir::Type inElemType, const mlir::Type outElemType, ShapeRef outputShape, int64_t numDPU,
-                 VPU::ArchKind arch) {
+                 VPU::ArchKind arch, bool isZTilingSupported) {
     const auto mpeByType = mpeMap.at(arch);
+    auto mpeMode = mpeByType(inElemType, outElemType, origOp);
 
-    const int64_t minTileSize = 1;
+    VPUIP::DpuTiler dpuTiler(outputShape, {mpeMode});
+    dpuTiler.tileOverH(numDPU);
+#ifdef __linux__
+    dpuTiler.generateSplitNumberPool(numDPU, 5);
+    auto splitNumPool = dpuTiler.getSplitNumberPool();
+    /*Eltwise ops (including HwConvert) are performed by the PPE, which does not support Z-Tiling*/
+#if 0
+    auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(origOp);
+    auto nceType = nceOp->task_type();
+    bool isZTilingSupported = true;
+    switch (nceType) {
+    case VPUIP::NCETaskType::ELTWISE: {
+        isZTilingSupported = false;
+        break;
+    }
+    case VPUIP::NCETaskType::CMCONV:
+    case VPUIP::NCETaskType::DWCONV:
+    case VPUIP::NCETaskType::MAXPOOL:
+    case VPUIP::NCETaskType::AVEPOOL: {
+        if (mpeMode != VPU::MPEMode::VECTOR) {
+            isZTilingSupported = false;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+#endif
+    if (isZTilingSupported) {
+        for (auto& splitNum : splitNumPool) {
+            dpuTiler.tileOverZ(splitNum);
+        }
+    }
 
-    const int64_t minTilesCount = 1;
-    const int64_t maxTilesCount = numDPU;
-
-    int64_t tilesCount = outputShape[Dims4D::Act::H] / minTileSize;
-    tilesCount = std::min(std::max(tilesCount, minTilesCount), maxTilesCount);
-
-    Shape nTilesOnDim(outputShape.size(), minTilesCount);
-    nTilesOnDim[Dims4D::Act::H] = tilesCount;
-
-    const auto outTiles = fillDividedTiles(nTilesOnDim, outputShape);
+    // select workload with minimum cost
+    uint32_t bestScore = UINT32_MAX;
+    int best = -1;
+    const auto& splitCandidates = dpuTiler.getSplitPool();
+    for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
+        auto score = dpuTiler.cost(nceOp, splitCandidates[idx], numDPU, arch);
+        if (bestScore > score) {
+            bestScore = score;
+            best = idx;
+        }
+    }
+    if (best == -1) {
+        VPUX_THROW("no workload splits found!");
+    }
+    const auto& outTiles = splitCandidates[best];
+#else
+    VPUX_UNUSED(archKind);
+    const auto& splitCandidates = dpuTiler.getSplitPool();
+    VPUX_THROW_WHEN(splitCandidates.empty(), "No available workload dpu tiles found");
+    const auto& outTiles = splitCandidates.front();
+#endif
 
     for (const auto& outTile : outTiles) {
         const auto padsTileConf = backInferPadsTile(outTile, outputShape, VPU::toPadInfo(pads));
@@ -124,8 +168,15 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
     const auto inElemType = origOp.input().getType().template cast<mlir::RankedTensorType>().getElementType();
     const auto outElemType = origOp.output().getType().template cast<mlir::RankedTensorType>().getElementType();
 
+    const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
+                             ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
+                             : getShape(origOp.filter());
+
+    const auto mpeByType = mpeMap.at(_arch);
+    const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
+    const auto isZTilingSupported = VPU::isZTilingSupported(origOp->getOperation(),mpeMode);
     rewriter.updateRootInPlace(origOp, [&]() {
-        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch);
+        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch, isZTilingSupported);
     });
 
     return mlir::success();
@@ -160,9 +211,12 @@ mlir::LogicalResult EltwiseNCERewrite::matchAndRewrite(VPU::NCEEltwiseOp origOp,
 
     const auto inElemType = origOp.input1().getType().cast<mlir::RankedTensorType>().getElementType();
     const auto outElemType = origOp.output().getType().cast<mlir::RankedTensorType>().getElementType();
+    const auto mpeByType = mpeMap.at(_arch);
+    const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
+    const auto isZTilingSupported = VPU::isZTilingSupported(origOp->getOperation(),mpeMode);
 
     rewriter.updateRootInPlace(origOp, [&]() {
-        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch);
+        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch, isZTilingSupported);
     });
 
     return mlir::success();

@@ -102,10 +102,11 @@ static VPUNN::VPUDevice getVPUDeviceType(VPU::ArchKind archKind) {
     }
 }
 
-static VPUNN::VPUTensor getOutputTensor(const VPUIP::DpuTile& dpuTile, VPUNN::DataType dataType) {
-    return VPUNN::VPUTensor({static_cast<unsigned int>(dpuTile.end[1] - dpuTile.start[1] + 1),
-                             static_cast<unsigned int>(dpuTile.end[0] - dpuTile.start[0] + 1),
-                             static_cast<unsigned int>(dpuTile.end[2] - dpuTile.start[2] + 1), 1},
+static VPUNN::VPUTensor getOutputTensor(const TileInfo& tileInfo, VPUNN::DataType dataType) {
+    return VPUNN::VPUTensor({static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::H]),
+                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::W]),
+                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::C]),
+                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::N])},
                             dataType);
 }
 
@@ -221,7 +222,7 @@ bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t max
     return true;
 }
 
-bool vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, PadInfo padInfo, VPU::MPEMode mpeMode) {
+bool vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
     // FIXME: find the optimal number of tiles
     const int64_t minTileSize = 1;
 
@@ -235,6 +236,7 @@ bool vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, PadInfo padInfo, VPU::MPEM
     nTilesOnDim[Dims4D::Act::H] = tilesCount;
 
     const auto outTiles = fillDividedTiles(nTilesOnDim, _outShape);
+#if 0
     SmallVector<DpuTile> dpuTiles;
     dpuTiles.reserve(outTiles.size());
 
@@ -251,14 +253,18 @@ bool vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, PadInfo padInfo, VPU::MPEM
                 {start, end, padsTileConf.left, padsTileConf.right, padsTileConf.top, padsTileConf.bottom, mpeMode});
     }
     _splitPool.push_back(std::move(dpuTiles));
+#else
+    _splitPool.push_back(std::move(outTiles));
+#endif
 
     return true;
 }
 
-bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, PadInfo padInfo, SmallVector<uint32_t> validZTiles,
-                                      bool sparse, bool has_se) {
+bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles, bool sparse,
+                                      bool has_se) {
     VPUX_UNUSED(sparse);
     VPUX_UNUSED(has_se);
+    OutputTiling outputTiles;
     if (_outShape.size() < 2 || splitNumber == 0) {
         return false;
     }
@@ -312,7 +318,9 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, PadInfo padInfo, Sma
                 return false;
             }
         }
+        outputTiles.push_back(std::move(outTile));
 
+#if 0
         const auto padsTileConf = backInferPadsTile(outTile, _outShape, padInfo);
         SmallVector<int64_t> start{outTile.offsets[Dims4D::Act::W], outTile.offsets[Dims4D::Act::H],
                                    outTile.offsets[Dims4D::Act::C]};
@@ -323,17 +331,23 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, PadInfo padInfo, Sma
 
         dpuTiles.push_back(
                 {start, end, padsTileConf.left, padsTileConf.right, padsTileConf.top, padsTileConf.bottom, mpeMode});
+#endif
         if (remainedChannel == 0) {
             break;
         }
     }
+#if 0
     _splitPool.push_back(std::move(dpuTiles));
+#else
+    _splitPool.push_back(std::move(outputTiles));
+#endif
+
     return true;
 }
 
 #ifdef __linux__
-uint32_t vpux::VPUIP::DpuTiler::cost(VPUIP::NCEClusterTaskOp op, const SmallVector<VPUIP::DpuTile>& dpuTiles,
-                                     unsigned int numDPU, VPU::ArchKind arch) {
+uint32_t vpux::VPUIP::DpuTiler::cost(VPUIP::NCEClusterTaskOp op, const OutputTiling& dpuTiles, const PadInfo& padInfo,
+                                     unsigned int numDPU, VPU::MPEMode mpeMode, VPU::ArchKind arch) {
     if (!isCostModelInited()) {
         initCostModel();
     }
@@ -357,11 +371,12 @@ uint32_t vpux::VPUIP::DpuTiler::cost(VPUIP::NCEClusterTaskOp op, const SmallVect
 
     std::vector<unsigned int> workloadCost;
     for (const auto& dpuTile : dpuTiles) {
+        const auto padsTileConf = backInferPadsTile(dpuTile, _outShape, padInfo);
         VPUNN::VPUTensor outputTensor = getOutputTensor(dpuTile, elemType);
-        VPUNN::VPUTensor inputTensor({(outputTensor.x() - 1) * SX + KX - static_cast<unsigned int>(dpuTile.padLeft) -
-                                              static_cast<unsigned int>(dpuTile.padRight),
-                                      (outputTensor.y() - 1) * SY + KY - static_cast<unsigned int>(dpuTile.padTop) -
-                                              static_cast<unsigned int>(dpuTile.padBottom),
+        VPUNN::VPUTensor inputTensor({(outputTensor.x() - 1) * SX + KX - static_cast<unsigned int>(padsTileConf.left) -
+                                              static_cast<unsigned int>(padsTileConf.right),
+                                      (outputTensor.y() - 1) * SY + KY - static_cast<unsigned int>(padsTileConf.top) -
+                                              static_cast<unsigned int>(padsTileConf.bottom),
                                       static_cast<unsigned int>(inputShape[Dims4D::Act::C]), 1},
                                      elemType);
         workloadCost.push_back(gCostModel->DPU(
@@ -371,15 +386,15 @@ uint32_t vpux::VPUIP::DpuTiler::cost(VPUIP::NCEClusterTaskOp op, const SmallVect
                  {outputTensor},
                  {KX, KY},
                  {SX, SY},
-                 {static_cast<unsigned int>(dpuTile.padTop), static_cast<unsigned int>(dpuTile.padBottom),
-                  static_cast<unsigned int>(dpuTile.padLeft), static_cast<unsigned int>(dpuTile.padRight)},
-                 getExecutionMode(dpuTile.mpeMode)}));
+                 {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
+                  static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right},
+                 getExecutionMode(mpeMode)}));
     }
     return VPUNN::dpu_schedule(numDPU, workloadCost);
 }
 #endif
 
-SmallVector<SmallVector<vpux::VPUIP::DpuTile>> vpux::VPUIP::DpuTiler::getSplitPool() {
+SmallVector<OutputTiling> vpux::VPUIP::DpuTiler::getSplitPool() {
     return _splitPool;
 }
 

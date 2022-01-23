@@ -105,5 +105,10 @@ PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t cl
 
 VPU::PPEMode getPPEMode(VPU::EltwiseType type);
 
+//
+// Workload
+//
+
+bool isZTilingSupported(mlir::Operation* operation, VPU::MPEMode mpeMode);
 }  // namespace VPU
 }  // namespace vpux

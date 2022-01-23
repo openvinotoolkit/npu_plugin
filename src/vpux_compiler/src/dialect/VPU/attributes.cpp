@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -332,6 +333,31 @@ VPU::PPEMode vpux::VPU::getPPEMode(VPU::EltwiseType type) {
     default:
         VPUX_THROW("Unsupported EltwiseType '{0}' for PPEMode", type);
     }
+}
+
+bool isZTilingSupported(mlir::Operation* operation, VPU::MPEMode mpeMode) {
+    auto value = llvm::TypeSwitch<mlir::Operation*, bool>(operation)
+                         .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp op) {
+                             auto inOrder = DimsOrder::fromValue(op.input());
+                             const auto isCMajor = inOrder == DimsOrder::NCHW;
+                             if (isCMajor && mpeMode != VPU::MPEMode::VECTOR) {
+                                 return false;
+                             }
+                             return true;
+                         })
+                         .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp ) {
+                             return mpeMode == VPU::MPEMode::VECTOR;
+                         })
+                         .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp ) {
+                             return mpeMode == VPU::MPEMode::VECTOR;
+                         })
+                         .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp ) {
+                             return false;
+                         })
+                         .Default([&](auto) {
+                             return true;
+                         });
+    return value;
 }
 
 //

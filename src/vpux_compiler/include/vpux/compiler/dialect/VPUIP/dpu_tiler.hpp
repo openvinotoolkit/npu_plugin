@@ -39,15 +39,15 @@ public:
     }
 
     bool generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits = 50, SmallVector<uint32_t> validZTiles = {});
-    bool tileOverH(int64_t numDPU, PadInfo padInfo, VPU::MPEMode mpeMode);
-    bool tileOverZ(uint32_t splitNumber, PadInfo padInfo, SmallVector<uint32_t> validZTiles = {}, bool sparse = false,
+    bool tileOverH(int64_t numDPU);
+    bool tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles = {}, bool sparse = false,
                    bool has_se = false);
-    SmallVector<SmallVector<DpuTile>> getSplitPool();
+    SmallVector<OutputTiling> getSplitPool();
     SmallVector<uint32_t> getSplitNumberPool();
 
 #ifdef __linux__
-    uint32_t cost(VPUIP::NCEClusterTaskOp op, const SmallVector<VPUIP::DpuTile>& dpuTiles, unsigned int numDPU,
-                  VPU::ArchKind arch);
+    uint32_t cost(VPUIP::NCEClusterTaskOp op, const OutputTiling& dpuTiles, const PadInfo& padInfo, unsigned int numDPU,
+                  VPU::MPEMode mpeMode, VPU::ArchKind arch);
 #endif
 
 private:
@@ -57,7 +57,7 @@ private:
     ShapeRef _outShape;
     SmallVector<VPU::MPEMode> _mpeModeList;
     SmallVector<uint32_t> _splitNumberPool;
-    SmallVector<SmallVector<DpuTile>> _splitPool;
+    SmallVector<OutputTiling> _splitPool;
 };
 
 }  // namespace VPUIP
