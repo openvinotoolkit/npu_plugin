@@ -12,9 +12,9 @@
 //
 
 #include "vpux/compiler/utils/quantization.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
 
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -310,7 +310,7 @@ std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx
 
 mlir::quant::QuantizedType vpux::getQuantizedType(mlir::Attribute lowConstAttr, mlir::Attribute highConstAttr,
                                                   int64_t levels, mlir::FloatType realType, bool isSigned,
-                                                  mlir::Location loc) {
+                                                  mlir::Location loc, IE::AutoBroadcastType broadcast) {
     const auto lowConst = lowConstAttr.dyn_cast_or_null<Const::ContentAttr>();
     const auto highConst = highConstAttr.dyn_cast_or_null<Const::ContentAttr>();
     if (lowConst == nullptr || highConst == nullptr) {
@@ -340,39 +340,44 @@ mlir::quant::QuantizedType vpux::getQuantizedType(mlir::Attribute lowConstAttr, 
     const auto lowShape = lowAttr.getShape();
     const auto highShape = highAttr.getShape();
 
-    if (lowShape != highShape) {
-        (void)errorAt(loc, "Low values shape '{0}' doesn't match with high values shape '{1}'", lowShape, highShape);
+    const auto broadcastShapeRes = IE::broadcastEltwiseShape(lowShape.raw(), highShape.raw(), broadcast, loc);
+    if (mlir::failed(broadcastShapeRes)) {
+        (void)errorAt(loc, "Low values shape '{0}' doesn't match with high values shape '{1}' and cannot be broadcast",
+                      lowShape, highShape);
         return nullptr;
     }
+    const auto broadcastShape = broadcastShapeRes.getValue();
 
     Optional<int32_t> axisInd;
-    for (size_t i = 0; i < lowShape.size(); ++i) {
-        if (lowShape[Dim(i)] == 1) {
+    for (size_t i = 0; i < broadcastShape.size(); ++i) {
+        if (broadcastShape[Dim(i).ind()] == 1) {
             continue;
         }
 
         if (axisInd.hasValue()) {
-            (void)errorAt(loc, "Can't get axis index from shape '{0}'", lowShape);
+            (void)errorAt(loc, "Can't get axis index from shape '{0}'", broadcastShape);
             return nullptr;
         }
 
         axisInd = checked_cast<int32_t>(i);
     }
     if (!axisInd.hasValue()) {
-        (void)errorAt(loc, "Can't get axis index from shape '{0}'", lowShape);
+        (void)errorAt(loc, "Can't get axis index from shape '{0}'", broadcastShape);
         return nullptr;
     }
 
     const auto lowVals = lowAttr.getValues<double>();
     const auto highVals = highAttr.getValues<double>();
-    VPUX_THROW_UNLESS(lowVals.size() == highVals.size(), "Low/high attributes size mismatch : '{0}' vs '{1}'",
-                      lowVals.size(), highVals.size());
 
-    SmallVector<double> scales(lowVals.size());
-    SmallVector<int64_t> zeroPoints(lowVals.size());
+    SmallVector<double> lows(lowVals);
+    SmallVector<double> highs(highVals);
+    broadcastRange(lows, highs, broadcast);
 
-    loop_1d(LoopExecPolicy::Parallel, lowVals.size(), [&](size_t i) {
-        std::tie(scales[i], zeroPoints[i]) = calcScaleAndZeroPoint(qMin, qMax, lowVals[i], highVals[i], isSigned);
+    SmallVector<double> scales(lows.size());
+    SmallVector<int64_t> zeroPoints(lows.size());
+
+    loop_1d(LoopExecPolicy::Parallel, lows.size(), [&](size_t i) {
+        std::tie(scales[i], zeroPoints[i]) = calcScaleAndZeroPoint(qMin, qMax, lows[i], highs[i], isSigned);
     });
 
     return mlir::quant::UniformQuantizedPerAxisType::getChecked(

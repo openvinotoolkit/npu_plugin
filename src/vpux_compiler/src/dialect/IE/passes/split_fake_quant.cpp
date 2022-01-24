@@ -38,7 +38,7 @@ bool hasNegativeValues(const Const::Content& low) {
     });
 }
 
-bool containsValueZero(Const::ContentAttr lowConst, Const::ContentAttr highConst) {
+bool containsValueZero(Const::ContentAttr lowConst, Const::ContentAttr highConst, IE::AutoBroadcastType broadcast) {
     auto containsZero = [](const double low, const double high) {
         return low <= 0 && high >= 0;
     };
@@ -53,10 +53,12 @@ bool containsValueZero(Const::ContentAttr lowConst, Const::ContentAttr highConst
 
     const auto lowVals = lowAttr.getValues<double>();
     const auto highVals = highAttr.getValues<double>();
-    VPUX_THROW_UNLESS(lowVals.size() == highVals.size(), "Low/high attributes size mismatch : '{0}' vs '{1}'",
-                      lowVals.size(), highVals.size());
 
-    for (auto p : zip(lowVals, highVals)) {
+    SmallVector<double> lows(lowVals);
+    SmallVector<double> highs(highVals);
+    broadcastRange(lows, highs, broadcast);
+
+    for (auto p : zip(lows, highs)) {
         const auto lowVal = std::get<0>(p);
         const auto highVal = std::get<1>(p);
         if (!containsZero(lowVal, highVal))
@@ -73,8 +75,8 @@ bool hasRangeWithoutZero(IE::FakeQuantizeOp fqOp) {
     auto outLowConst = fqOp.output_low().getDefiningOp<Const::DeclareOp>();
     auto outHighConst = fqOp.output_high().getDefiningOp<Const::DeclareOp>();
 
-    if (!containsValueZero(inLowConst.contentAttr(), inHighConst.contentAttr()) ||
-        !containsValueZero(outLowConst.contentAttr(), outHighConst.contentAttr())) {
+    if (!containsValueZero(inLowConst.contentAttr(), inHighConst.contentAttr(), fqOp.auto_broadcast()) ||
+        !containsValueZero(outLowConst.contentAttr(), outHighConst.contentAttr(), fqOp.auto_broadcast())) {
         return true;
     }
 
@@ -120,14 +122,16 @@ mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     const auto realType = origOp.input().getType().cast<mlir::ShapedType>();
     const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
-    const auto inQuantizeElemType = getQuantizedType(inLowConst.contentAttr(), inHighConst.contentAttr(),
-                                                     origOp.levels(), realElemType, false, origOp.getLoc());
+    const auto inQuantizeElemType =
+            getQuantizedType(inLowConst.contentAttr(), inHighConst.contentAttr(), origOp.levels(), realElemType, false,
+                             origOp.getLoc(), origOp.auto_broadcast());
     if (inQuantizeElemType == nullptr) {
         return mlir::failure();
     }
 
-    const auto outQuantizeElemType = getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(),
-                                                      origOp.levels(), realElemType, false, origOp.getLoc());
+    const auto outQuantizeElemType =
+            getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(), origOp.levels(), realElemType,
+                             false, origOp.getLoc(), origOp.auto_broadcast());
     if (outQuantizeElemType == nullptr) {
         return mlir::failure();
     }
@@ -261,8 +265,9 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
     const auto lowContent = inLowConst.contentAttr().fold();
-    const auto qElemType = getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(), origOp.levels(),
-                                            realElemType, hasNegativeValues(lowContent), origOp.getLoc());
+    const auto qElemType =
+            getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(), origOp.levels(), realElemType,
+                             hasNegativeValues(lowContent), origOp.getLoc(), origOp.auto_broadcast());
     if (qElemType == nullptr) {
         return mlir::failure();
     }

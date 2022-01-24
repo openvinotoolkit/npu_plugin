@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/IE/attributes/enums.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -55,7 +56,8 @@ std::pair<uint8_t, int8_t> getQuantShiftAndPostShiftFromScale(double quantScale)
 //
 
 mlir::quant::QuantizedType getQuantizedType(mlir::Attribute lowConstAttr, mlir::Attribute highConstAttr, int64_t levels,
-                                            mlir::FloatType realType, bool isSigned, mlir::Location loc);
+                                            mlir::FloatType realType, bool isSigned, mlir::Location loc,
+                                            IE::AutoBroadcastType broadcast = IE::AutoBroadcastType::NONE_OR_EXPLICIT);
 
 void getFakeQuantParams(mlir::quant::UniformQuantizedType qElemType, int64_t& levels, float& rMin, float& rMax);
 
@@ -78,5 +80,33 @@ float dequantize(int64_t qVal, double scale, int64_t zeroPoint);
 //
 
 int32_t toFixedPoint(const double realVal);
+
+// Broadcasting
+
+template <typename T>
+void broadcastRange(SmallVectorImpl<T>& lowVals, SmallVectorImpl<T>& highVals, IE::AutoBroadcastType broadcast) {
+    if (lowVals.size() == highVals.size()) {
+        return;
+    }
+    if (broadcast == IE::AutoBroadcastType::NONE_OR_EXPLICIT) {
+        return;
+    }
+
+    const auto numpyBroadcast = [](SmallVectorImpl<T>& smaller, SmallVectorImpl<T>& larger) {
+        VPUX_THROW_UNLESS(smaller.size() == 1, "One of the dimensions should be 1 for broadcasting.");
+        return SmallVector<T>(larger.size(), smaller[0]);
+    };
+
+    if (broadcast == IE::AutoBroadcastType::NUMPY) {
+        if (lowVals.size() < highVals.size()) {
+            lowVals = numpyBroadcast(lowVals, highVals);
+        } else {
+            highVals = numpyBroadcast(highVals, lowVals);
+        }
+        return;
+    }
+
+    VPUX_THROW("Unsupported broadcast type '{0}'", broadcast);
+}
 
 }  // namespace vpux
