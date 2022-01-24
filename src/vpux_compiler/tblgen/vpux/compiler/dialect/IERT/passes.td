@@ -57,6 +57,9 @@ def CopyOpLegalization : PassBase<"legalize-copies", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IERT::createCopyOpLegalizationPass()";
+}
+
+//
 // CMXConcat
 //
 
