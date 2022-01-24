@@ -41,19 +41,17 @@ namespace {
 bool isOptimizableOp(mlir::async::ExecuteOp execOp) {
     auto module = execOp->getParentOfType<mlir::ModuleOp>();
 
-    uint32_t numUnits = 0;
-    const auto executor = vpux::IERT::IERTDialect::getExecutor(execOp, numUnits);
+    const auto executor = vpux::IERT::IERTDialect::getExecutor(execOp);
 
     auto executorInfo = IE::getAvailableExecutor(module, executor.getNameAttr());
     VPUX_THROW_UNLESS(executorInfo != nullptr, "Failed to get information about executor {0}", executor);
 
-    return numUnits == executorInfo.count() && executorInfo.subExecutors().front().empty();
+    return executorInfo.subExecutors().front().empty();
 }
 
 bool isSameExecutor(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execOp2) {
-    uint32_t numUnits = 0;
-    auto executor1 = vpux::IERT::IERTDialect::getExecutor(execOp1, numUnits);
-    auto executor2 = vpux::IERT::IERTDialect::getExecutor(execOp2, numUnits);
+    auto executor1 = vpux::IERT::IERTDialect::getExecutor(execOp1);
+    auto executor2 = vpux::IERT::IERTDialect::getExecutor(execOp2);
     return executor1 == executor2;
 }
 
@@ -139,9 +137,8 @@ mlir::async::ExecuteOp mergeAsyncExecuteOps(mlir::async::ExecuteOp prevExecOp, m
     auto newExecOp = rewriter.create<mlir::async::ExecuteOp>(prevExecOp->getLoc(), newResultTypes, newDependencies,
                                                              newOperands, bodyBuilder);
 
-    uint32_t numUnits = 0;
-    auto executor = vpux::IERT::IERTDialect::getExecutor(execOp, numUnits);
-    IERT::IERTDialect::setExecutor(newExecOp, executor, numUnits);
+    auto executor = vpux::IERT::IERTDialect::getExecutor(execOp);
+    IERT::IERTDialect::setExecutor(newExecOp, executor);
 
     return newExecOp;
 }

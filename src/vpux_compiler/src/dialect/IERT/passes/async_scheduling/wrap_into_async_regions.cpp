@@ -28,10 +28,9 @@ void warpIntoAsyncRegion(IERT::AsyncLayerOpInterface op, Logger log) {
         return;
     }
 
-    uint32_t numExecutorUnits = 0;
-    const auto executor = op.getExecutor(numExecutorUnits);
+    const auto executor = op.getExecutor();
     if (executor != nullptr) {
-        log.trace("It will be executed on '{0}' units of '{1}' Executor", numExecutorUnits, executor);
+        log.trace("It will be executed on '{0}' Executor", executor);
     }
 
     log.trace("Create 'async.execute' Operation");
@@ -46,7 +45,7 @@ void warpIntoAsyncRegion(IERT::AsyncLayerOpInterface op, Logger log) {
 
     auto execOp = builder.create<mlir::async::ExecuteOp>(op->getLoc(), op->getResultTypes(), None, None, bodyBuilder);
     if (executor != nullptr) {
-        IERT::IERTDialect::setExecutor(execOp, executor, numExecutorUnits);
+        IERT::IERTDialect::setExecutor(execOp, executor);
     }
 
     log.trace("Create 'async.await' Operations per each original result");

@@ -361,40 +361,32 @@ private:
 // AsyncLayerOpModel
 //
 
-IndexedSymbolAttr getExecutorForSW(mlir::Operation* origOp, uint32_t& numUnits) {
-    return VPUIP::getExecutorAttr(numUnits, origOp, VPU::ExecutorKind::SHAVE_UPA);
-}
-
-IndexedSymbolAttr getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits) {
-    if (VPU::getCompilationMode(origOp) == VPU::CompilationMode::ReferenceSW) {
-        return getExecutorForSW(origOp, numUnits);
-    }
-
-    if (VPUIP::NCEInvariant::verifyOp(origOp).failed()) {
-        return getExecutorForSW(origOp, numUnits);
-    }
-
-    return VPUIP::getExecutorAttr(numUnits, origOp, VPU::ExecutorKind::NCE, 1);
-}
-
 class AsyncLayerOpModelForHW final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForHW> {
 public:
-    IndexedSymbolAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
-        return getExecutorForHW(origOp, numUnits);
+    IndexedSymbolAttr getExecutor(mlir::Operation* origOp) const {
+        if (VPU::getCompilationMode(origOp) == VPU::CompilationMode::ReferenceSW) {
+            return VPUIP::getExecutorAttr(origOp, VPU::ExecutorKind::SHAVE_UPA);
+        }
+
+        if (VPUIP::NCEInvariant::verifyOp(origOp).failed()) {
+            return VPUIP::getExecutorAttr(origOp, VPU::ExecutorKind::SHAVE_UPA);
+        }
+
+        return VPUIP::getExecutorAttr(origOp, VPU::ExecutorKind::NCE);
     }
 };
 
 class AsyncLayerOpModelForDMA final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForDMA> {
 public:
-    IndexedSymbolAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
-        return VPUIP::getExecutorAttr(numUnits, origOp, VPU::ExecutorKind::DMA_NN);
+    IndexedSymbolAttr getExecutor(mlir::Operation* origOp) const {
+        return VPUIP::getExecutorAttr(origOp, VPU::ExecutorKind::DMA_NN);
     }
 };
 
 class AsyncLayerOpModelForSW final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForSW> {
 public:
-    IndexedSymbolAttr getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
-        return getExecutorForSW(origOp, numUnits);
+    IndexedSymbolAttr getExecutor(mlir::Operation* origOp) const {
+        return VPUIP::getExecutorAttr(origOp, VPU::ExecutorKind::SHAVE_UPA);
     }
 };
 

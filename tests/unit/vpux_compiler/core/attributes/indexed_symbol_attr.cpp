@@ -146,14 +146,14 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
                 %3 = IERT.StaticAlloc<482432> -> memref<48x1x1x4xsi32, @CMX_NN>
                 %token, %results = async.execute ->
                                     !async.value<memref<1x16x62x62xf16, #NHWC, @CMX_NN>>
-                                        attributes { IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 0 : i64 } {
+                                        attributes { IERT.executor = @DMA_NN } {
                     %5 = IERT.Copy inputs(%arg0 : memref<1x16x62x62xf16, #NHWC>)
                                    outputs(%0 : memref<1x16x62x62xf16, #NHWC, @CMX_NN>) -> memref<1x16x62x62xf16, #NHWC, @CMX_NN>
                     async.yield %0 : memref<1x16x62x62xf16, #NHWC, @CMX_NN>
                 }
                 %token_0, %results_1:2 = async.execute [%token] ->
                                             (!async.value<memref<48x1x1x4xsi32, @CMX_NN>>, !async.value<memref<48x16x3x3xf16, #NHWC, @CMX_NN>>)
-                                                attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 1 : i64} {
+                                                attributes { IERT.executor = @DMA_NN } {
                   %cst_6 = const.Declare memref<48x1x1x4xsi32> = #const.Content<dense<1> : tensor<48x1x1x4xsi32>>
                   %5 = IERT.Copy inputs(%cst_6 : memref<48x1x1x4xsi32>) outputs(%3 : memref<48x1x1x4xsi32, @CMX_NN>) -> memref<48x1x1x4xsi32, @CMX_NN>
                   %6 = IERT.Copy inputs(%cst : memref<48x16x3x3xf16, #NHWC>) outputs(%1 : memref<48x16x3x3xf16, #NHWC, @CMX_NN>) -> memref<48x16x3x3xf16, #NHWC, @CMX_NN>
@@ -164,7 +164,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
                                         %results_1#1 as %arg3: !async.value<memref<48x16x3x3xf16, #NHWC, @CMX_NN>>,
                                         %results_1#0 as %arg4: !async.value<memref<48x1x1x4xsi32, @CMX_NN>>) ->
                                             !async.value<memref<1x48x60x60xf16, #NHWC, @CMX_NN>>
-                                                attributes {IERT.executor = [@NCE, 1, [@DPU]], IERT.num_units = 1 : i64, "async-deps-index" = 2 : i64} {
+                                                attributes { IERT.executor = [@NCE, 1, [@DPU]] } {
                   %5 = VPUIP.NCEClusterTask {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [3, 3], kernel_strides = [1, 1], task_type = "CONV"}
                                                 input(%arg2 : memref<1x16x62x62xf16, #NHWC, @CMX_NN>)
                                                 weights(%arg3 : memref<48x16x3x3xf16, #NHWC, @CMX_NN>)
@@ -184,7 +184,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
                 }
                 %token_4, %results_5 = async.execute [%token_2] (%results_3 as %arg2: !async.value<memref<1x48x60x60xf16, #NHWC, @CMX_NN>>) ->
                                         !async.value<memref<1x48x60x60xf16, #NHWC>>
-                                            attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 3 : i64} {
+                                            attributes { IERT.executor = @DMA_NN } {
                   %5 = IERT.Copy inputs(%arg2 : memref<1x48x60x60xf16, #NHWC, @CMX_NN>) outputs(%arg1 : memref<1x48x60x60xf16, #NHWC>) -> memref<1x48x60x60xf16, #NHWC>
                   async.yield %arg1 : memref<1x48x60x60xf16, #NHWC>
                 }
@@ -202,8 +202,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
 
     for (auto& op : func.getOps()) {
         if(auto executeOp = mlir::dyn_cast<mlir::async::ExecuteOp>(op)) {
-            uint32_t numUnits = 0;
-            const auto executor = vpux::IERT::IERTDialect::getExecutor(executeOp, numUnits);
+            const auto executor = vpux::IERT::IERTDialect::getExecutor(executeOp);
             ASSERT_TRUE(executor != nullptr);
 
             const auto execRes = vpux::IE::getAvailableExecutor(module.get(), executor.getNameAttr());

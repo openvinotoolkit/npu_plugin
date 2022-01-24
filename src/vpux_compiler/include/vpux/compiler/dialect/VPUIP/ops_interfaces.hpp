@@ -37,10 +37,9 @@ class BlobWriter;
 using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
 void getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
 
-IndexedSymbolAttr getExecutorAttr(uint32_t& numUnits, mlir::Operation* op, VPU::ExecutorKind kind,
-                                  Optional<int64_t> opNumUnits = None);
+IndexedSymbolAttr getExecutorAttr(mlir::Operation* op, VPU::ExecutorKind kind);
 
-IndexedSymbolAttr getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits);
+IndexedSymbolAttr getTaskOpExecutor(mlir::Operation* op);
 
 //
 // UPATask

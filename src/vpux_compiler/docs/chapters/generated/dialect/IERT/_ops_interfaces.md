@@ -7,7 +7,7 @@ Interface for layers that will be executed asynchronously in separate Executor
 #### `getExecutor`
 
 ```c++
-vpux::IndexedSymbolAttr getExecutor(uint32_t&numUnits);
+vpux::IndexedSymbolAttr getExecutor();
 ```
 Get Executor for the asynchronous launch
 NOTE: This method *must* be implemented by the user.

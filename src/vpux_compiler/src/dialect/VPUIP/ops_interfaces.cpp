@@ -29,39 +29,15 @@ using namespace vpux;
 // TaskOpInterface
 //
 
-IndexedSymbolAttr vpux::VPUIP::getExecutorAttr(uint32_t& numUnits, mlir::Operation* op, VPU::ExecutorKind kind,
-                                               Optional<int64_t> opNumUnits) {
+IndexedSymbolAttr vpux::VPUIP::getExecutorAttr(mlir::Operation* op, VPU::ExecutorKind kind) {
     const auto kindAttr = VPU::ExecutorKindAttr::get(op->getContext(), kind);
-
-    if (opNumUnits.hasValue()) {
-        numUnits = checked_cast<uint32_t>(opNumUnits.getValue());
-    } else {
-        auto module = op->getParentOfType<mlir::ModuleOp>();
-        auto available = IE::getAvailableExecutor(module, kind);
-        VPUX_THROW_UNLESS(available != nullptr, "Executor for '{0}' is not available", kind);
-        numUnits = checked_cast<uint32_t>(available.count());
-    }
-
     return IndexedSymbolAttr::get(kindAttr);
 }
 
-IndexedSymbolAttr vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits) {
-    auto task = mlir::cast<VPUIP::TaskOpInterface>(op);
-    const auto executor = task.getExecutorKind();
-
-    switch (executor) {
-    case VPU::ExecutorKind::DMA_NN:
-        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::DMA_NN, 1);
-    case VPU::ExecutorKind::NCE:
-        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::NCE, 1);
-    case VPU::ExecutorKind::SHAVE_ACT:
-        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::SHAVE_ACT, 1);
-    case VPU::ExecutorKind::SHAVE_UPA: {
-        return VPUIP::getExecutorAttr(numUnits, op, VPU::ExecutorKind::SHAVE_UPA, None);
-    }
-    default:
-        VPUX_THROW("Unsupported executor '{0}'", executor);
-    }
+IndexedSymbolAttr vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op) {
+    auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op);
+    VPUX_THROW_WHEN(task == nullptr, "Operation '{0}' is not a VPUIP Task", op->getName());
+    return VPUIP::getExecutorAttr(op, task.getExecutorKind());
 }
 
 //

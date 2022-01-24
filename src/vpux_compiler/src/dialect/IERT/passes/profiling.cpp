@@ -99,11 +99,10 @@ mlir::Value AddCMX2DDRExecuteOp(mlir::OpBuilder& builder, mlir::MLIRContext* ctx
     builder.create<mlir::async::YieldOp>(copyLoc, outputOp->getResults());
 
     // Add execution attributes to async exec op
-    uint32_t numExecutorUnits = 0;
     auto newOpExecutor = mlir::dyn_cast_or_null<IERT::AsyncLayerOpInterface>(outputOp.getOperation());
-    auto executor = newOpExecutor.getExecutor(numExecutorUnits);
+    auto executor = newOpExecutor.getExecutor();
     if (executor != nullptr) {
-        IERT::IERTDialect::setExecutor(execOp, executor, numExecutorUnits);
+        IERT::IERTDialect::setExecutor(execOp, executor);
     }
     builder.setInsertionPointAfter(execOp);
     auto waitOp = builder.create<mlir::async::AwaitOp>(execOp->getLoc(), execOp.results()[0]);
@@ -293,9 +292,9 @@ void DMATaskProfilingPass::safeRunOnModule() {
         builder.setInsertionPointAfter(execOp);
         auto newExecOp = builder.create<mlir::async::ExecuteOp>(execOp->getLoc(), yieldOp->getOperandTypes(),
                                                                 execOp.dependencies(), execOp.operands(), bodyBuilder);
-        uint32_t numExecutorUnits = 0;
-        auto executor = vpux::IERT::IERTDialect::getExecutor(execOp, numExecutorUnits);
-        IERT::IERTDialect::setExecutor(newExecOp, executor, numExecutorUnits);
+
+        auto executor = vpux::IERT::IERTDialect::getExecutor(execOp);
+        IERT::IERTDialect::setExecutor(newExecOp, executor);
 
         for (size_t id = 0; id < localTimestampsOps.size(); id++) {
             timestampsOps.push_back(newExecOp.results()[firstTimestampOperandId + id]);

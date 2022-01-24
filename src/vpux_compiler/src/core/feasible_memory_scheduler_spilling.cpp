@@ -337,11 +337,10 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
     _aliasInfo.addAlias(spillBuffer.memref(), spillWriteCopyOp.output());
 
     // Update executor attributes of new AsyncExecOp
-    uint32_t numExecutorUnits = 0;
     auto copyOpExecutor = mlir::dyn_cast_or_null<IERT::AsyncLayerOpInterface>(spillWriteCopyOp.getOperation());
-    auto executor = copyOpExecutor.getExecutor(numExecutorUnits);
+    auto executor = copyOpExecutor.getExecutor();
     if (executor != nullptr) {
-        IERT::IERTDialect::setExecutor(spillWriteExecOp, executor, numExecutorUnits);
+        IERT::IERTDialect::setExecutor(spillWriteExecOp, executor);
     }
 
     // Update dependencies map and get new operation index
@@ -414,11 +413,10 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     _aliasInfo.addAlias(newBuffer.memref(), spillReadCopyOp.output());
 
     // Update executor attributes of new AsyncExecOp
-    uint32_t numExecutorUnits = 0;
     auto copyOpExecutor = mlir::dyn_cast_or_null<IERT::AsyncLayerOpInterface>(spillReadCopyOp.getOperation());
-    auto executor = copyOpExecutor.getExecutor(numExecutorUnits);
+    auto executor = copyOpExecutor.getExecutor();
     if (executor != nullptr) {
-        IERT::IERTDialect::setExecutor(spillReadExecOp, executor, numExecutorUnits);
+        IERT::IERTDialect::setExecutor(spillReadExecOp, executor);
     }
 
     // Update dependencies map and get new operation index

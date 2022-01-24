@@ -118,7 +118,7 @@ def IERT_AsyncLayerOpInterface : OpInterface<"AsyncLayerOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Get Executor for the asynchronous launch",
-            "vpux::IndexedSymbolAttr", "getExecutor", (ins "uint32_t&":$numUnits)
+            "vpux::IndexedSymbolAttr", "getExecutor", (ins)
         >
     ];
 }

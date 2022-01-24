@@ -29,19 +29,15 @@ void checkExecutorKind(mlir::Operation* op, vpux::VPU::ExecutorKind expectedKind
     auto iface = mlir::dyn_cast<vpux::IERT::AsyncLayerOpInterface>(op);
     ASSERT_NE(iface, nullptr);
 
-    uint32_t numUnits = 0;
-    auto kindAttr = iface.getExecutor(numUnits);
-
+    auto kindAttr = iface.getExecutor();
     ASSERT_TRUE(kindAttr != nullptr);
     ASSERT_TRUE(kindAttr.isa<mlir::SymbolRefAttr>());
 
     auto kind = vpux::VPU::symbolizeEnum<vpux::VPU::ExecutorKind>(kindAttr.getName());
     EXPECT_EQ(kind.getValue(), expectedKind);
-    EXPECT_GE(numUnits, 1u);
 }
 
-}
-
+}  // namespace
 
 TEST(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
     mlir::DialectRegistry registry;

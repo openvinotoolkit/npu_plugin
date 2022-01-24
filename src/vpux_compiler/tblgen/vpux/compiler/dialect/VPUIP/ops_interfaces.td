@@ -42,8 +42,8 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
     ];
 
     let extraTraitClassDeclaration = [{
-        vpux::IndexedSymbolAttr getExecutor(uint32_t& numUnits) {
-            return vpux::VPUIP::getTaskOpExecutor($_op, numUnits);
+        vpux::IndexedSymbolAttr getExecutor() {
+            return vpux::VPUIP::getTaskOpExecutor($_op);
         }
     }];
 }
