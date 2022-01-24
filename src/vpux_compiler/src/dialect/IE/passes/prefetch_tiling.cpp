@@ -131,6 +131,10 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
 
 bool needTilingToMultiOpsPrefetch(mlir::Operation* op, Logger log) {
     auto parentOp = op->getOperand(0).getDefiningOp();
+    std::cout << llvm::formatv("needTilingToMultiOpsPrefetch: check op {0} {1}; parent {2}, {3}", op->getLoc(),
+                               op->getName(), parentOp->getLoc(), parentOp->getName())
+                         .str()
+              << std::endl;
     auto opTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
     auto parentTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(parentOp);
     if (!opTilingInter || !parentTilingInter) {
@@ -141,12 +145,9 @@ bool needTilingToMultiOpsPrefetch(mlir::Operation* op, Logger log) {
     if (!parentOp->getResult(0).hasOneUse()) {
         return false;
     }
-    std::cout << llvm::formatv("needTilingToMultiOpsPrefetch: check op {0} {1}; parent {2}, {3}", op->getLoc(),
-                               op->getName(), parentOp->getLoc(), parentOp->getName())
-                         .str()
-              << std::endl;
+
     const auto resShape = getShape(op->getResult(0));
-    Shape neutralTile(resShape.size(), 1);
+    const Shape neutralTile(resShape.size(), 1);
     return !opTilingInter.isSupportedPrefetchPattern(neutralTile, parentOp, neutralTile, log);
 }
 //
