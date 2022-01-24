@@ -54,9 +54,9 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                 const auto inputShape = getShape(inputType);
                 const auto weightsShape = getShape(weightsType);
                 const auto IC = inputShape[Dims4D::Act::C];
-                const auto OC = outputShape[Dims4D::Act::C];
-                const auto OH = outputShape[Dims4D::Act::H];
-                const auto OW = outputShape[Dims4D::Act::W];
+                const double OC = outputShape[Dims4D::Act::C];
+                const double OH = outputShape[Dims4D::Act::H];
+                const double OW = outputShape[Dims4D::Act::W];
                 const auto KY = weightsShape[Dims4D::Filter::KY];
 
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
@@ -109,9 +109,9 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                 const auto outputShape = getShape(outputType);
                 const auto inputShape = getShape(inputType);
                 const auto weightsShape = getShape(weightsType);
-                const auto OC = outputShape[Dims4D::Act::C];
-                const auto OH = outputShape[Dims4D::Act::H];
-                const auto OW = outputShape[Dims4D::Act::W];
+                const double OC = outputShape[Dims4D::Act::C];
+                const double OH = outputShape[Dims4D::Act::H];
+                const double OW = outputShape[Dims4D::Act::W];
                 const auto KY = weightsShape[Dims4D::Filter::KY];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
 
@@ -141,9 +141,9 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 const auto outputShape = getShape(outputType);
                 const auto inputShape = getShape(inputType);
                 const auto weightsShape = getShape(weightsType);
-                const auto OC = outputShape[Dims4D::Act::C];
-                const auto OH = outputShape[Dims4D::Act::H];
-                const auto OW = outputShape[Dims4D::Act::W];
+                const double OC = outputShape[Dims4D::Act::C];
+                const double OH = outputShape[Dims4D::Act::H];
+                const double OW = outputShape[Dims4D::Act::W];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
                 const double outputTensorVolume = OC * OH * OW;
                 double efficency = std::max((outputTensorVolume / _numClusters) /
@@ -180,9 +180,9 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 const auto outputShape = getShape(outputType);
                 const auto inputShape = getShape(inputType);
                 const auto weightsShape = getShape(weightsType);
-                const auto OC = outputShape[Dims4D::Act::C];
-                const auto OH = outputShape[Dims4D::Act::H];
-                const auto OW = outputShape[Dims4D::Act::W];
+                const double OC = outputShape[Dims4D::Act::C];
+                const double OH = outputShape[Dims4D::Act::H];
+                const double OW = outputShape[Dims4D::Act::W];
                 const auto KY = weightsShape[Dims4D::Filter::KY];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
 
@@ -190,14 +190,14 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
 
                 double efficency =
                         efficiencyConstant *
-                        std::max(((OH / _numClusters * OW * OC) /
+                        std::max(((OH * OW * OC / _numClusters) /
                                   (5.0 *
-                                   std::ceil((4.0 * std::ceil(std::ceil(OH / _numClusters) / _numClusters) *
-                                              _numClusters * std::ceil(OW / _numClusters) * 16.0 * std::ceil(OC / 16)) /
-                                             5))),
-                                 ((OH / _numClusters * OW * OC) /
-                                  (5.0 * std::ceil((16.0 * std::ceil(std::ceil(OH / _numClusters) / 16.0) * 1.0 *
-                                                    std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
+                                   std::ceil((4.0 * std::ceil(OH / _numClusters) * _numClusters) *
+                                             std::ceil(OW / _numClusters) * 16.0 * std::ceil(std::ceil(OC / 4) / 16)) /
+                                   5)),
+                                 ((OH * OW * OC / _numClusters) /
+                                  (5.0 * std::ceil((16.0 * std::ceil(OH / 16.0) * 1.0 * std::ceil(OW / 1.0) * 16.0 *
+                                                    std::ceil(std::ceil(OC / 4) / 16)) /
                                                    5.0))));
                 _log.trace("The SOK efficiency for the group convolution is {0}", efficency);
                 return efficency;
