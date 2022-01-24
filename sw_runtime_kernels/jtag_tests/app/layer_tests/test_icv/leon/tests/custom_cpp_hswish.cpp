@@ -45,7 +45,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, HSwish)) {
             const SingleTest* test = m_currentTest;
             int32_t ind[subspace::MAX_DIMS] = {0};
             subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
-            m_hswishParams = reinterpret_cast<sw_params::HSwishParams*>(paramContainer/*.data()*/);
+            m_hswishParams = reinterpret_cast<sw_params::HSwishParams*>(paramContainer);
             *m_hswishParams = sw_params::HSwishParams();
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
             m_params.paramDataLen = sizeof(sw_params::HSwishParams);

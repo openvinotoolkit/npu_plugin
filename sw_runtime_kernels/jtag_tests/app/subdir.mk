@@ -114,5 +114,3 @@ ccopt-lrt-y += -DNN_SCALABILITY_REPORTING_PERIOD_MS=$(CONFIG_NN_SCALABILITY_REPO
 
 srcs-lrt-$(CONFIG_TARGET_SOC_3720) += $(FIRMWARE_VPU_REL_THROUGH_ROOT)/drivers/nn/src/nn_fifo.cpp
 
-$(info !!!!! subdirs-shave-y = !!!!!!!!!!! $(subdirs-shave-y))
-

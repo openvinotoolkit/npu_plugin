@@ -47,8 +47,6 @@ inline constexpr ShaveWindow mapWindowAddrMaskToName(uint32_t windowAddrMask) {
 }
 } // namespace
 
-extern void const *shvNN0_nnEntry;
-
 namespace nn {
 namespace inference_runtime {
 namespace shaves {
@@ -229,48 +227,6 @@ void ShaveManager::startActShaves(const uint8_t tile, const ActKernelRuntimeConf
     }
 }
 
-void ShaveManager::startNNShavesForTile(const uint32_t tile) {
-    static_assert(SNN_PER_TILE <= MAX_SUPPORTED_NN_SHV_PER_TILE, "Up to 2 SNNs per tile is supported");
-
-    // Check that we are operating on a supported tile ID
-    if (!(tile < MAX_TILES)) {
-        nnLog(MVLOG_ERROR, "Invalid Shave type selected");
-        return;
-    }
-
-    // Shave IDs, depending on the tile
-    const uint32_t startShvId = tile * SNN_PER_TILE;
-    const uint32_t maxShvId = startShvId + SNN_PER_TILE;
-
-    // Set stack location, set the stack size, then start the Shave
-    for (uint32_t i = startShvId; i < maxShvId; i++) {
-        auto nnShvStack = cmxMapping.snnStack_[tile].addr32();
-        auto stackSize = cmxMapping.snnStack_[tile].size();
-        auto rc = ShCtrlSetStackAddr(nnShvHnd[i], nnShvStack);
-        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
-            nnLog(MVLOG_ERROR, "ShaveCtrlSetStackAddr: %d", (int)rc);
-        }
-
-        auto rc2 = ShCtrlSetStackSize(nnShvHnd[i], stackSize);
-        if (rc2 != HGL_SHAVE_CTRL_SUCCESS) {
-            nnLog(MVLOG_ERROR, "ShaveCtrlSetStackSize: %d", (int)rc2);
-        }
-
-        nnLog(MVLOG_DEBUG, "Starting NN Shave %d from %p", i, &shvNN0_nnEntry);
-        auto fifoCfg = snn_cfgs[i];
-        printFifoConfig(unpackSHVConfig(fifoCfg));
-        auto rc3 = ShCtrlStart(nnShvHnd[i], &shvNN0_nnEntry, "i", fifoCfg);
-        if (rc3 != HGL_SHAVE_CTRL_SUCCESS) {
-            nnLog(MVLOG_ERROR, "ShaveCtrlStart: %d", (int)rc3);
-        }
-    }
-}
-
-void ShaveManager::startNNShavesForTiles() {
-    startNNShavesForTile(0);
-    startNNShavesForTile(1);
-}
-
 void ShaveManager::startActShavesForTile(const uint32_t tile, const ActKernelRuntimeConfigs &cfgs, bool forceRestart) {
     forceRestart |= processConfigChanges(tile, cfgs);
 
@@ -292,36 +248,6 @@ void ShaveManager::startActShavesForTile(const uint32_t tile, const ActKernelRun
 void ShaveManager::startActShavesForTiles(const ActKernelRuntimeConfigs &cfgs, bool forceRestart) {
     startActShavesForTile(0, cfgs, forceRestart);
     startActShavesForTile(1, cfgs, forceRestart);
-}
-
-void ShaveManager::stopNNShavesForTile(uint32_t tile) {
-    // Shave IDs, depending on the tile
-    const uint32_t startShvId = tile * SNN_PER_TILE;
-    const uint32_t maxShvId = startShvId + SNN_PER_TILE;
-
-    for (uint32_t i = startShvId; i < maxShvId; i++) {
-        auto rc = ShCtrlStop(nnShvHnd[i]);
-        if (rc != HGL_SHAVE_CTRL_SUCCESS)
-            nnLog(MVLOG_ERROR, "ShaveCtrlStop: rc = %x", (int)rc);
-    }
-}
-
-void ShaveManager::stopNNShavesForTiles() {
-    static_assert(MAX_TILES == HGL_NCE_TILE_NB, "Supports up to 2 tiles only");
-    stopNNShavesForTile(TILE_0);
-    stopNNShavesForTile(TILE_1);
-}
-
-void ShaveManager::stopNNShavesForTileMask(uint32_t mask) {
-    for (unsigned int i = 0; i < MAX_TILES; i++)
-        if (mask & (1 << i))
-            stopNNShavesForTile(i);
-}
-
-void ShaveManager::startNNShavesForTileMask(uint32_t mask) {
-    for (unsigned int i = 0; i < MAX_TILES; i++)
-        if (mask & (1 << i))
-            startNNShavesForTile(i);
 }
 
 void ShaveManager::stopActShavesForTile(uint32_t tile) {

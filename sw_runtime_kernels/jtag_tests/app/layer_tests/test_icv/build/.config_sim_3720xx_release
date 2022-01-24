@@ -149,7 +149,7 @@ CONFIG_HAS_SHAVEAPPS_NN=y
 # CONFIG_SHAVEAPP_NN_LINK_ANSILIBS is not set
 # CONFIG_USE_CUSTOM_SHAVE_NN_LINKING_CONFIGURATION is not set
 CONFIG_APP_SHAVE_NN_DYN_APPS_SRCS_DIR="shaveNNDynApps"
-CONFIG_APP_SHAVE_NN_ENTRY_POINT="nnActEntry act_shave_runtime_shaveMain chw_postOps_3D_core hwc_postOps_3D_core hcw_postOps_3D_core prePostOpsHWC preCustomLayerCpp custom_cpp"
+CONFIG_APP_SHAVE_NN_ENTRY_POINT=""
 
 #
 # SHAVE NN placement
