@@ -186,7 +186,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
         if (options.enableOptimizeReorders) {
             pm.addPass(IE::createOptimizeReordersPass(log));
-            pm.addPass(IE::createUniquifyOpsPass(log));
         }
     }
 
@@ -311,7 +310,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
         if (options.enableOptimizeReorders) {
             pm.addPass(IE::createOptimizeReordersPass(log));
-            pm.addPass(IE::createUniquifyOpsPass(log));
+            pm.addPass(IE::createRemoveDuplicatesPass(log));
         }
     }
 
@@ -324,6 +323,10 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(createConvertIEToVPUNCEPass(log));
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
     pm.addPass(VPU::createConvertPostOpsToPPEPass(log));
+
+    if (options.enableOptimizeCopies) {
+        pm.addPass(IE::createRemoveDuplicatesPass(log));
+    }
 
     // Lowering
 

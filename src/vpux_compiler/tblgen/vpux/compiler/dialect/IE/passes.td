@@ -457,28 +457,6 @@ def ConvertConv1DToConv2D : PassBase<"convert-conv1d-to-conv2d", "vpux::Function
     ];
 }
 
-
-//
-// UniquifyOps
-//
-
-def UniquifyOps : PassBase<"uniquify-ops", "vpux::FunctionPass"> {
-    let summary = "Remove duplicating operations with a common producer Value";
-
-    let description = [{
-        The pass is a part of `AdjustForVPU` pipeline.
-
-        This pass merges operations that are identical to each other, combining consumers.
-    }];
-
-    let constructor = "vpux::IE::createUniquifyOpsPass()";
-
-    let dependentDialects = [
-        "vpux::IE::IEDialect"
-    ];
-}
-
-
 //
 // ConvertToMemPermute
 //
@@ -499,6 +477,7 @@ def ConvertToMemPermute : PassBase<"convert-to-mem-permute", "vpux::FunctionPass
     ];
 }
 
+//
 // SplitConvWithMultipleFQ
 //
 
@@ -879,27 +858,6 @@ def ConvertPadToConcat : PassBase<"convert-pad-to-concat", "vpux::FunctionPass">
 }
 
 //
-// UpstreamSlice
-//
-
-def UpstreamSlice : PassBase<"upstream-slice", "vpux::FunctionPass"> {
-    let summary = "Optimization by upstreaming slice operations";
-
-    let description = [{
-        Optimizes scenarios of IE::StridedSlice and IE::SliceOp without neighboring operations.
-        Moves the slice operations upwards through the graph, reducing both compute and memory usage.
-        In some cases the slice operation may be safely removed from the graph, if the action of upstreaming it
-            only adapts the operations constants.
-    }];
-
-    let constructor = "vpux::IE::createUpstreamSlicePass()";
-
-    let dependentDialects = [
-        "vpux::IE::IEDialect"
-    ];
-}
-
-//
 // HandleLargeKernels
 //
 
@@ -977,6 +935,44 @@ def PrefetchTiling : PassBase<"prefetch-tiling", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createPrefetchTilingPass()";
+}
+//=================================================================================
+// Generic Optimizations
+//=================================================================================
+
+//
+// UpstreamSlice
+//
+
+def UpstreamSlice : PassBase<"upstream-slice", "vpux::FunctionPass"> {
+    let summary = "Optimization by upstreaming slice operations";
+
+    let description = [{
+        Optimizes scenarios of IE::StridedSlice and IE::SliceOp without neighboring operations.
+        Moves the slice operations upwards through the graph, reducing both compute and memory usage.
+        In some cases the slice operation may be safely removed from the graph, if the action of upstreaming it
+            only adapts the operations constants.
+    }];
+
+    let constructor = "vpux::IE::createUpstreamSlicePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// RemoveDuplicates
+//
+
+def RemoveDuplicates : PassBase<"remove-duplicates", "vpux::FunctionPass"> {
+    let summary = "Remove duplicating operations with a common producer Value";
+
+    let description = [{
+        This pass merges duplicating operations that are identical to each other, combining consumers.
+    }];
+
+    let constructor = "vpux::IE::createRemoveDuplicatesPass()";
 }
 
 #endif
