@@ -412,7 +412,7 @@ public:
                                     ShapeRef parentTileAxis, Logger log) const {
         auto outputShape = getShape(origOp->getResult(0));
         auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        auto parentOutputShape = getShape(origOp->getResult(0));
+        auto parentOutputShape = getShape(parentOp->getResult(0));
         auto parentTileResult = fillDividedTiles(parentTileAxis, parentOutputShape);
         return mlir::succeeded(
                 VPUIP::NCEInvariant::verifyPrefetchPatternCMX(origOp, tileResult, parentOp, parentTileResult, log));
