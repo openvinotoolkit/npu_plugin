@@ -401,7 +401,7 @@ public:
                                     ShapeRef parentTileAxis, Logger log) const {
         auto outputShape = getShape(origOp->getResult(0));
         auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        auto parentOutputShape = getShape(origOp->getResult(0));
+        auto parentOutputShape = getShape(parentOp->getResult(0));
         auto parentTileResult = fillDividedTiles(parentTileAxis, parentOutputShape);
         return mlir::succeeded(
                 VPUIP::NCEInvariant::verifyPrefetchPatternCMX(origOp, tileResult, parentOp, parentTileResult, log));
@@ -448,7 +448,9 @@ public:
 
     bool isSupportedPrefetchPattern(mlir::Operation* /*origOp*/, ShapeRef /*tileAxis*/, mlir::Operation* /*parentOp*/,
                                     ShapeRef /*parentTileAxis*/, Logger /*log*/) const {
-        return false;
+        // Avoid tiling for eltwise operations
+        // the DPU time is too short compared to the DMA time.
+        return true;
     }
 
 private:
