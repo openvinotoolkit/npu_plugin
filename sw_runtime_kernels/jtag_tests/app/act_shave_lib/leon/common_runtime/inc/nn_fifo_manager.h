@@ -107,9 +107,6 @@ uint32_t packASCtrlMessage(ASCtrlMessage cm);
 SNNCtrlResponse unpackSNNCtrlResponse(uint32_t cr);
 ASCtrlResponse unpackASCtrlResponse(uint32_t cr);
 
-//SNNPerfReport unpackSNNPerfReport(uint64_t pr);
-//ASPerfReport unpackASPerfReport(uint64_t pr);
-
 bool isSNNWorkFifoFull(uint8_t tile);
 bool isASWorkFifoFull(uint8_t tile);
 
@@ -135,9 +132,6 @@ void printFifoConfig(SHVFifoConfig config);
 
 uint32_t packSNNCtrlResponse(SNNCtrlResponse cr);
 uint32_t packASCtrlResponse(ASCtrlResponse cr);
-
-//uint64_t packSNNPerfReport(SNNPerfReport pr);
-//uint64_t packASPerfReport(ASPerfReport pr);
 
 SNNCtrlMessage unpackSNNCtrlMessage(uint32_t cm);
 ASCtrlMessage unpackASCtrlMessage(uint32_t cm);

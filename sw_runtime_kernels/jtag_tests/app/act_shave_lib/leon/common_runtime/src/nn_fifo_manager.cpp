@@ -190,16 +190,6 @@ uint32_t packASCtrlResponse(ASCtrlResponse cr) {
     return 0;
 }
 
-//uint64_t packSNNPerfReport(SNNPerfReport pr) {
-//    UNUSED(pr);
-//    return 0;
-//}
-//
-//uint64_t packASPerfReport(ASPerfReport pr) {
-//    UNUSED(pr);
-//    return 0;
-//}
-
 SNNCtrlMessage unpackSNNCtrlMessage(uint32_t cm) {
     return {((SHVCtrlMessage)((cm & CTRL_MESSAGE_MASK) >> MAX_CTRL_MESSAGE_BITS)), (cm & ~CTRL_MESSAGE_MASK)};
 }

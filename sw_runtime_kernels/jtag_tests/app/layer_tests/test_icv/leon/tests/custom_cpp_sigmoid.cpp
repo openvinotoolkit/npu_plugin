@@ -45,10 +45,10 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
             const SingleTest* test = m_currentTest;
             int32_t ind[subspace::MAX_DIMS] = {0};
             subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
-            m_sigmoidParams = reinterpret_cast<sw_params::SigmoidParams*>(paramContainer/*.data()*/);
+            m_sigmoidParams = reinterpret_cast<sw_params::SigmoidParams*>(paramContainer);
             *m_sigmoidParams = sw_params::SigmoidParams();
-            m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer/*.data()*/);
-            m_params.paramDataLen = sizeof(sw_params::SigmoidParams);//paramContainer.size() * sizeof(uint64_t);
+            m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
+            m_params.paramDataLen = sizeof(sw_params::SigmoidParams);
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[0]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_sigmoidParams);
             nn::cache::flush(*m_sigmoidParams);

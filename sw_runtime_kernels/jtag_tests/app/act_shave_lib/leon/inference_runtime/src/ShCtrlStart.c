@@ -195,7 +195,6 @@ static HglShaveCtrlError ShCtrlRawAddressWinToAbs(ShHandle *handle, uint32_t add
     SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SUCCESS);
 }
 
-
 HglShaveCtrlError ShCtrlStart(ShHandle *handle, void *entry_point, const char *fmt, ...) {
     SHAVE_FUNC("%p, %p, %s, ...", handle, entry_point, fmt);
     // This function is subject to the following tickets:

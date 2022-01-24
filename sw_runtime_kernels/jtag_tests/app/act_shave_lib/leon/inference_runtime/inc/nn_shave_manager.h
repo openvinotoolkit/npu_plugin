@@ -31,9 +31,6 @@ public:
     ShaveManager(const common_runtime::StaticMapping &sMapping);
     ~ShaveManager();
 
-    void startNNShavesForTile(const uint32_t tile);
-    void startNNShavesForTiles();
-    void stopNNShavesForTileMask(uint32_t mask);
     void startNNShavesForTileMask(uint32_t mask);
 
     /// These functions reduce to a noop if the shaves are already running, they match the requested configuration, and
@@ -41,9 +38,6 @@ public:
     /// @param tile description
     void startActShavesForTile(const uint32_t tile, const ActKernelRuntimeConfigs &cfgs, bool forceRestart = false);
     void startActShavesForTiles(const ActKernelRuntimeConfigs &cfgs, bool forceRestart = false);
-
-    void stopNNShavesForTile(const uint32_t tile);
-    void stopNNShavesForTiles();
 
     void stopActShavesForTile(const uint32_t tile);
     void stopActShavesForTiles();

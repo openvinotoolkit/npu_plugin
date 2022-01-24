@@ -52,7 +52,7 @@ protected:
 
             checkTestConsistency();
 
-            m_reorderParams = reinterpret_cast<sw_params::ReorderParams*>(paramContainer/*.data()*/);
+            m_reorderParams = reinterpret_cast<sw_params::ReorderParams*>(paramContainer);
             *m_reorderParams = sw_params::ReorderParams();
 
             const int ndims = m_inputTensor.ndims();
