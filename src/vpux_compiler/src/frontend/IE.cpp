@@ -2428,7 +2428,8 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     manager.register_pass<ngraph::pass::MOCTransformations>(true, false);
 
     auto pass_config = manager.get_pass_config();
-    pass_config->disable<ngraph::pass::PadFusion>();
+    pass_config->disable<ngraph::pass::PadFusionConvolution>();
+    pass_config->disable<ngraph::pass::PadFusionGroupConvolution>();
 
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
