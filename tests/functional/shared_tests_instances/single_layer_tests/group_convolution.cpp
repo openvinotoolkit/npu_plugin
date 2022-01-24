@@ -154,6 +154,11 @@ const auto groupConv2DParams_LargeStrides = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})), ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
         ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels), ::testing::ValuesIn(numGroups),
         ::testing::Values(ngraph::op::PadType::VALID));
+const auto groupConv2DParams_MultiCluster = ::testing::Combine(
+        ::testing::ValuesIn(kernels), ::testing::Values(std::vector<size_t>({2, 2})),
+        ::testing::Values(std::vector<ptrdiff_t>({1, 1})), ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::ValuesIn(dilations), ::testing::ValuesIn(std::vector<size_t>({64})), ::testing::ValuesIn(std::vector<size_t>({64})),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT));
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_ExplicitPadding, KmbGroupConvolutionLayerTest,
                         ::testing::Combine(groupConv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -182,6 +187,16 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_LargeStrides, KmbGroupConvoluti
                                            ::testing::Values(InferenceEngine::Layout::ANY),
                                            ::testing::Values(InferenceEngine::Layout::ANY),
                                            ::testing::Values(std::vector<size_t>({1, 16, 30, 30})),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        KmbGroupConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_MultiCluster, KmbGroupConvolutionLayerTest,
+                        ::testing::Combine(groupConv2DParams_MultiCluster, ::testing::ValuesIn(netPrecisions),
+                                           ::testing::Values(InferenceEngine::Precision::FP16),
+                                           ::testing::Values(InferenceEngine::Precision::FP16),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(std::vector<size_t>({1, 64, 112, 112})),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbGroupConvolutionLayerTest::getTestCaseName);
 
