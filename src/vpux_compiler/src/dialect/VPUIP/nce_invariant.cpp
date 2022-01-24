@@ -841,6 +841,188 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::AndOp origO
 //
 // verifyPrefetchPatternCMX
 //
+
+Byte getRequiredCMXForWeight(IE::ConvolutionOp convOp, const vpux::TileInfo& tiling) {
+    auto tileTypes = getTileTypes(convOp.getOperation(), tiling);
+    const auto lastFilterTileType = tileTypes[1];
+    const auto outputChannel = getShape(lastFilterTileType)[Dims4D::Filter::OC];
+    return getRequiredCMXForTiling({lastFilterTileType}, outputChannel);
+}
+
+Byte getRequiredCMX(IE::ConvolutionOp convOp, const vpux::TileInfo& tiling) {
+    auto tileTypes = getTileTypes(convOp.getOperation(), tiling);
+    const auto lastInputTileType = tileTypes[0];
+    const auto lastFilterTileType = tileTypes[1];
+    const auto lastOutputTileType = tileTypes[2];
+    const auto outputChannel = getShape(lastFilterTileType)[Dims4D::Filter::OC];
+    return getRequiredCMXForTiling({lastInputTileType, lastFilterTileType, lastOutputTileType}, outputChannel);
+}
+
+Byte getRequiredCMXForWeight(IE::GroupConvolutionOp gConvOp, const vpux::TileInfo& tiling) {
+    auto tileTypes = getTileTypes(gConvOp.getOperation(), tiling);
+    const auto filterTileShape = tileTypes[1];
+    const auto outputTileType = tileTypes[2];
+    auto kernelStrides = gConvOp.strides();
+    const auto filterShape = getShape(filterTileShape);
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto filtersPerInChan = filterShape[Dims4D::Filter::IC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto alignment = VPU::NCEInvariant::getAlignment(outputTileType.getElementType());
+
+    const auto remainder = (filtersPerInChan * KY * KX) % alignment;
+    VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
+
+    const auto padding = (remainder > 0) ? (alignment - remainder) : 0;
+    const auto alignedWeightShape = SmallVector<int64_t>{OC, 1, 1, filtersPerInChan * KY * KX + padding};
+    const auto alignedFilterType = mlir::RankedTensorType::get(alignedWeightShape, filterTileShape.getElementType());
+
+    const Shape kernelSizeVals{KY, KX};
+    const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(kernelStrides));
+
+    return getRequiredCMXForTiling({alignedFilterType}, OC);
+}
+
+Byte getRequiredCMX(IE::GroupConvolutionOp gConvOp, const vpux::TileInfo& tiling) {
+    auto tileTypes = getTileTypes(gConvOp.getOperation(), tiling);
+    const auto inputTileType = tileTypes[0];
+    const auto filterTileShape = tileTypes[1];
+    const auto filterShape = getShape(filterTileShape);
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+    const Shape kernelSizeVals{KY, KX};
+    auto kernelStrides = gConvOp.strides();
+    const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(kernelStrides));
+
+    const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
+            kernelSizeVals, kernelStridesVals[Dims4D::Strides::X], inputTileType.getElementType(), OC);
+
+    return getRequiredCMXForTiling({inputTileType, inputTileType}, 0) + activationWindowSize * 1_Byte +
+           getRequiredCMXForWeight(gConvOp, tiling);
+}
+
+Byte getRequiredCMXForWeight(IE::MaxPoolOp /*op*/, const vpux::TileInfo& /*tiling*/) {
+    return Byte(0);
+}
+
+Byte getRequiredCMX(IE::MaxPoolOp poolOp, const vpux::TileInfo& tiling) {
+    auto tileTypes = getTileTypes(poolOp.getOperation(), tiling);
+    auto inputType = tileTypes[0];
+    auto outputType = tileTypes[1];
+    auto kernelSize = poolOp.kernel_size();
+    auto kernelStrides = poolOp.strides();
+    const auto inputShape = getShape(inputType);
+    const auto IC = inputShape[Dims4D::Act::C];
+
+    const auto kernelSizeVals = Shape(parseIntArrayAttr<int64_t>(kernelSize));
+    const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(kernelStrides));
+
+    const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
+            kernelSizeVals, kernelStridesVals[Dims4D::Strides::X], inputType.getElementType(), IC);
+
+    return getRequiredCMXForTiling({inputType, outputType}, IC) + activationWindowSize * 1_Byte;
+}
+
+Byte getEltwiseRequiredCMX(mlir::Operation* op, const vpux::TileInfo& tiling) {
+    auto tileTypes = getTileTypes(op, tiling);
+    auto firstInputType = tileTypes[0];
+    auto secondInputType = tileTypes[1];
+    auto outputType = tileTypes[2];
+    return getRequiredCMXForTiling({firstInputType, secondInputType, outputType}, 0);
+}
+
+Byte getRequiredCMX(IE::AddOp op, const vpux::TileInfo& tiling) {
+    return getEltwiseRequiredCMX(op.getOperation(), tiling);
+}
+
+Byte getRequiredCMXForWeight(IE::AddOp /*op*/, const vpux::TileInfo& /*tiling*/) {
+    return Byte(0);
+}
+
+Byte getRequiredCMX(IE::MultiplyOp op, const vpux::TileInfo& tiling) {
+    return getEltwiseRequiredCMX(op.getOperation(), tiling);
+}
+
+Byte getRequiredCMXForWeight(IE::MultiplyOp /*op*/, const vpux::TileInfo& /*tiling*/) {
+    return Byte(0);
+}
+
+Byte getRequiredCMX(IE::SubtractOp op, const vpux::TileInfo& tiling) {
+    return getEltwiseRequiredCMX(op.getOperation(), tiling);
+}
+
+Byte getRequiredCMXForWeight(IE::SubtractOp /*op*/, const vpux::TileInfo& /*tiling*/) {
+    return Byte(0);
+}
+
+Byte getRequiredCMX(IE::AndOp op, const vpux::TileInfo& tiling) {
+    return getEltwiseRequiredCMX(op.getOperation(), tiling);
+}
+
+Byte getRequiredCMXForWeight(IE::AndOp /*op*/, const vpux::TileInfo& /*tiling*/) {
+    return Byte(0);
+}
+
+Byte getRequiredCMXForWeight(mlir::Operation* op, const vpux::TileInfo& tiling) {
+    return llvm::TypeSwitch<mlir::Operation*, Byte>(op)
+            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
+                return getRequiredCMXForWeight(origOp, tiling);
+            })
+            .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp origOp) {
+                return getRequiredCMXForWeight(origOp, tiling);
+            })
+            .Case<IE::AddOp>([&](IE::AddOp origOp) {
+                return getRequiredCMXForWeight(origOp, tiling);
+            })
+            .Case<IE::MultiplyOp>([&](IE::MultiplyOp origOp) {
+                return getRequiredCMXForWeight(origOp, tiling);
+            })
+            .Case<IE::SubtractOp>([&](IE::SubtractOp origOp) {
+                return getRequiredCMXForWeight(origOp, tiling);
+            })
+            .Case<IE::AndOp>([&](IE::AndOp origOp) {
+                return getRequiredCMXForWeight(origOp, tiling);
+            })
+            .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp origOp) {
+                return getRequiredCMXForWeight(origOp, tiling);
+            })
+            .Default([](mlir::Operation* unknownOp) -> Byte {
+                VPUX_THROW("Operation CMX check '{0}' at '{1}' is not implemented", unknownOp->getName(),
+                           unknownOp->getLoc());
+            });
+}
+
+Byte getRequiredCMX(mlir::Operation* op, const vpux::TileInfo& tiling) {
+    return llvm::TypeSwitch<mlir::Operation*, Byte>(op)
+            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
+                return getRequiredCMX(origOp, tiling);
+            })
+            .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp origOp) {
+                return getRequiredCMX(origOp, tiling);
+            })
+            .Case<IE::AddOp>([&](IE::AddOp origOp) {
+                return getRequiredCMX(origOp, tiling);
+            })
+            .Case<IE::MultiplyOp>([&](IE::MultiplyOp origOp) {
+                return getRequiredCMX(origOp, tiling);
+            })
+            .Case<IE::SubtractOp>([&](IE::SubtractOp origOp) {
+                return getRequiredCMX(origOp, tiling);
+            })
+            .Case<IE::AndOp>([&](IE::AndOp origOp) {
+                return getRequiredCMX(origOp, tiling);
+            })
+            .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp origOp) {
+                return getRequiredCMX(origOp, tiling);
+            })
+            .Default([](mlir::Operation* unknownOp) -> Byte {
+                VPUX_THROW("Operation CMX check '{0}' at '{1}' is not implemented", unknownOp->getName(),
+                           unknownOp->getLoc());
+            });
+}
+
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchPatternCMX(mlir::Operation* op, vpux::OutputTiling tiling,
                                                                         mlir::Operation* parentOp,
                                                                         vpux::OutputTiling parentTiling, Logger log) {
@@ -852,25 +1034,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchPatternCMX(mlir::Op
     const auto cmxSize = getCMXSizeForTiling(module);
 
     // Calculate the CMX memory required by the last tile of parent Op
-    Byte cmxRequiredByParent = Byte(0);
     auto lastParentTile = parentTiling[parentTiling.size() - 1];
-    auto lastParentTileTypes = getTileTypes(parentOp, lastParentTile);
-    const auto lastParentInputTileType = lastParentTileTypes[0];
-    const auto lastParentFilterTileType = lastParentTileTypes[1];
-    const auto lastParentOutputTileType = lastParentTileTypes[2];
-    const auto parentOC = getShape(lastParentFilterTileType)[Dims4D::Filter::OC];
-    cmxRequiredByParent = getRequiredCMXForTiling(
-            {lastParentInputTileType, lastParentFilterTileType, lastParentOutputTileType}, parentOC);
+    Byte cmxRequiredByParent = getRequiredCMX(parentOp, lastParentTile);
 
     // Calculate the CMX memory required by the first tile of current op to prefetch
     auto firstPrefetchTile = tiling[tiling.size() - 1];
-    Byte cmxRequiredToPrefetch = Byte(0);
-    auto firstTileTypes = getTileTypes(op, firstPrefetchTile);
-    //    const auto firstInputTileType = firstTileTypes[0];
-    const auto firstFilterTileType = firstTileTypes[1];
-    //    cmxRequiredToPrefetch = std::min(getRequiredCMXForTiling({firstFilterTileType}, 0),
-    //                                     getRequiredCMXForTiling({firstInputTileType}, 0));
-    cmxRequiredToPrefetch = getRequiredCMXForTiling({firstFilterTileType}, 0);
+    Byte cmxRequiredToPrefetch = getRequiredCMXForWeight(op, firstPrefetchTile);
 
     if (cmxRequiredByParent + cmxRequiredToPrefetch > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}', required by "
