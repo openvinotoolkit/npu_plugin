@@ -19,6 +19,7 @@
 #include "vpux/compiler/core/feasible_memory_scheduler_control_edges.hpp"
 #include "vpux/compiler/core/feasible_memory_scheduler_spilling.hpp"
 #include "vpux/compiler/core/mem_live_range_info.hpp"
+#include "vpux/compiler/core/prefetch_edge_generator.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -163,12 +164,32 @@ void FeasibleAllocationPass::safeRunOnModule() {
     auto& liveRangeInfo = getChildAnalysis<MemLiveRangeInfo>(netFunc);
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
 
+    // Copy classes for iteration with prefetch edges, as for prefetching
+    // scheduler will run twice and first iteration is used to gather information
+    // about the schedule and second one will perform the final allocation
+    auto prefetchScan = scan;
+    auto prefetchLiveRangeInfo = liveRangeInfo;
+
     // feasible memory scheduler - list scheduler
     FeasibleMemoryScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, aliasesInfo, _log, scan);
+
     // 1. initial schedule
     auto scheduledOps = scheduler.generateSchedule();
 
-    // 2. optimize spills
+    // 2. prefetching
+    // 2.1. optimization for inital schedule - generating prefetch edges
+    PrefetchEdgeGenerator PrefetchEdgeGenerator(scheduledOps, depsInfo);
+    auto prefetchEdges = PrefetchEdgeGenerator.generatePrefetchEdges();
+
+    // 2.2. schedule again with prefetching
+    if (!prefetchEdges.empty()) {
+        FeasibleMemoryScheduler schedulerWithPrefetch(_memSpace, prefetchLiveRangeInfo, depsInfo, aliasesInfo, _log,
+                                                      prefetchScan);
+        scheduledOps = schedulerWithPrefetch.generateSchedule(prefetchEdges);
+        scan = prefetchScan;
+    }
+
+    // 3. optimize spills
     FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
     spilling.optimizeDataOpsSpills(scheduledOps);
     spilling.removeRedundantSpillWrites(scheduledOps);

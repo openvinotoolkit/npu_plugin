@@ -29,6 +29,7 @@ public:
 
 public:
     void markAsDead(mlir::Value val);
+    void markAllBuffersAsDead();
     void markAsAlive(mlir::Value val);
     Byte maxAllocatedSize() const;
 

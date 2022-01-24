@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/async_deps_info.hpp"
 #include "vpux/compiler/core/linear_scan_handler.hpp"
 #include "vpux/compiler/core/mem_live_range_info.hpp"
+#include "vpux/compiler/utils/partitioner.hpp"
 
 namespace vpux {
 
@@ -23,7 +24,7 @@ class FeasibleMemoryScheduler final {
 public:
     using operationIdxType = size_t;
     // Operation type
-    enum class EOpType { ORIGINAL_OP = 0, IMPLICIT_OP_READ = 1, IMPLICIT_OP_WRITE = 2 };
+    enum class EOpType { ORIGINAL_OP = 0, IMPLICIT_OP_READ = 1, IMPLICIT_OP_WRITE = 2, ORIGINAL_PREFETCHED_OP = 3 };
     // Operation state
     enum class EOpState { ACTIVE = 0, SPILLED = 1, CONSUMED = 2 };
     // Core struct in the feasible memory scheduler
@@ -38,7 +39,10 @@ public:
             return (op_ == other.op_) && (time_ == other.time_) && (spillBuffer_ == other.spillBuffer_);
         }
         bool isOriginalOp() const {
-            return (opType_ == EOpType::ORIGINAL_OP);
+            return (opType_ == EOpType::ORIGINAL_OP) || (opType_ == EOpType::ORIGINAL_PREFETCHED_OP);
+        }
+        bool isPrefetched() const {
+            return (opType_ == EOpType::ORIGINAL_PREFETCHED_OP);
         }
         bool isImplicitWriteOp() const {
             return (opType_ == EOpType::IMPLICIT_OP_WRITE);
@@ -51,6 +55,9 @@ public:
     // Sort heap by smallest time
     struct MinHeapOrdering {
         bool operator()(const HeapElement& a, const HeapElement& b) {
+            if (a.time_ == b.time_) {
+                return a.isPrefetched();
+            }
             return a.time_ > b.time_;
         }
     };
@@ -63,6 +70,18 @@ public:
             }
 
             return op1.second > op2.second;
+        }
+    };
+    // Sort pair by the second arg
+    struct TimeSort {
+        bool operator()(const std::pair<operationIdxType, vpux::AddressType>& op1,
+                        const std::pair<operationIdxType, vpux::AddressType>& op2) const {
+            if (op1.second == op2.second) {
+                return op1.first < op2.first;
+            }
+
+            // if time is the same sort by operationIdx which reflects IR order
+            return op1.second < op2.second;
         }
     };
     // Struct used during scheduling, containing op info
@@ -132,10 +151,10 @@ public:
     };
     // Struct used to output the scheduled op info
     struct ScheduledOpInfo {
-        ScheduledOpInfo(operationIdxType op, EOpType type, size_t time, bool isDataOp)
-                : op_(op), opType_(type), time_(time), isDataOp_(isDataOp) {
+        ScheduledOpInfo(operationIdxType op, EOpType type, size_t time, vpux::AddressType freeCmx, bool isDataOp)
+                : op_(op), opType_(type), time_(time), freeCmx_(freeCmx), isDataOp_(isDataOp) {
         }
-        ScheduledOpInfo(): op_(), opType_(), time_(), isDataOp_() {
+        ScheduledOpInfo(): op_(), opType_(), time_(), freeCmx_(), isDataOp_() {
         }
         bool operator==(const ScheduledOpInfo& other) const {
             return (other.op_ == op_) && (other.opType_ == opType_);
@@ -146,13 +165,16 @@ public:
             return *this;
         }
         bool isOriginalOp() const {
-            return (opType_ == EOpType::ORIGINAL_OP);
+            return (opType_ == EOpType::ORIGINAL_OP) || (opType_ == EOpType::ORIGINAL_PREFETCHED_OP);
         }
         bool isSpillWrite() const {
             return (opType_ == EOpType::IMPLICIT_OP_WRITE);
         }
         bool isSpillRead() const {
             return (opType_ == EOpType::IMPLICIT_OP_READ);
+        }
+        bool isPrefetched() const {
+            return (opType_ == EOpType::ORIGINAL_PREFETCHED_OP);
         }
         StringLiteral opTypeName() const {
             if (opType_ == EOpType::ORIGINAL_OP) {
@@ -161,6 +183,8 @@ public:
                 return StringLiteral("SPILLED_READ");
             } else if (opType_ == EOpType::IMPLICIT_OP_WRITE) {
                 return StringLiteral("SPILLED_WRITE");
+            } else if (opType_ == EOpType::ORIGINAL_PREFETCHED_OP) {
+                return StringLiteral("PREFETCHED");
             }
             return StringLiteral("UNDEFINED");
         }
@@ -181,6 +205,15 @@ public:
         bool isDataOp() const {
             return isDataOp_;
         }
+        size_t resourceSize() const {
+            size_t size = 0;
+            for (size_t resourceIdx = 0; resourceIdx < numOfResources(); resourceIdx++) {
+                if (isActiveResource(resourceIdx)) {
+                    size += endResource(resourceIdx) - beginResource(resourceIdx);
+                }
+            }
+            return size;
+        }
         size_t beginResource(size_t idx) const {
             return resourceInfo_[idx].begin_;
         }
@@ -193,6 +226,7 @@ public:
         operationIdxType op_;
         EOpType opType_;
         size_t time_;
+        vpux::AddressType freeCmx_;
         bool isDataOp_;
         SmallVector<IntervalInfo> resourceInfo_;
     };
@@ -234,13 +268,15 @@ public:
             return ec1.outputIdx_ > ec2.outputIdx_;
         }
     };
+    using prefetchMap =
+            std::unordered_map<operationIdxType, std::set<std::pair<operationIdxType, vpux::AddressType>, TimeSort>>;
 
 public:
     FeasibleMemoryScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo, AsyncDepsInfo& depsInfo,
                             AliasesInfo& aliasInfo, Logger log, LinearScan<mlir::Value, LinearScanHandler>& scan);
 
 public:
-    SmallVector<ScheduledOpInfo> generateSchedule();
+    SmallVector<ScheduledOpInfo> generateSchedule(prefetchMap prefetchEdges = {});
 
 private:
     bool init();
@@ -256,9 +292,11 @@ private:
                                                              llvm::ArrayRef<mlir::Value> neededBuffers);
     void scheduleInputOpForComputeOp(operationIdxType inputIdx, size_t delay);
     void scheduleSpilledOpBuffer(operationIdxType inputIdx, mlir::Value* buffer);
-    size_t allocateBuffersAndInputOps(operationIdxType opIdx);
+    size_t allocateBuffersAndInputOps(operationIdxType opIdx,
+                                      Partitioner::Direction allocDir = Partitioner::Direction::Up);
     size_t scheduleComputeOp(operationIdxType opIdx);
     size_t scheduleAllPossibleReadyOpsAndUpdate();
+    void schedulePrefetchedDataOps(size_t computeOpStartTime);
     void pushToStartTimeHeap(const HeapElement& elem);
     void pushToCompletionTimeHeap(const HeapElement& elem);
     HeapElement popFromStartTimeHeap();
@@ -306,6 +344,10 @@ private:
     std::unordered_map<operationIdxType, size_t> _inDegreeTable;
     // operation out-degree, number of outgoing edges
     std::unordered_map<operationIdxType, size_t> _outDegreeTable;
+    // map storing prefetch edges
+    prefetchMap _prefetchEdges;
+    // unlocked prefetch data ops
+    std::set<operationIdxType> _prefetchDataOps;
     // contains scheduled ops along with their status/type
     std::unordered_map<operationIdxType, OpOutputInfo> _opOutputTable;
     // contains the operation writing to the buffer

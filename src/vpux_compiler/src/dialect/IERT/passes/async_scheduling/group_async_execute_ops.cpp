@@ -55,6 +55,22 @@ bool isSameExecutor(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execO
     return executor1 == executor2;
 }
 
+bool haveSameDependencies(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execOp2) {
+    // check for prefetched data operations which have an injected dependency
+    if (execOp1.dependencies().size() == 1 && execOp2.dependencies().size() == 1) {
+        llvm::DenseSet<mlir::Value> dependencies;
+        for (auto dep : execOp1.dependencies()) {
+            dependencies.insert(dep);
+        }
+        for (auto dep : execOp2.dependencies()) {
+            if (dependencies.find(dep) == dependencies.end()) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 bool prevHasUniqueUsers(mlir::async::ExecuteOp prevExecOp, mlir::async::ExecuteOp execOp) {
     auto getUsers = [](mlir::async::ExecuteOp op) {
         std::set<mlir::async::ExecuteOp> users;
@@ -205,6 +221,10 @@ mlir::LogicalResult GroupAsyncExecuteOps::matchAndRewrite(mlir::async::ExecuteOp
 
     if (!isSameExecutor(prevExecOp, execOp)) {
         return matchFailed(_log.nest(), rewriter, execOp, "Previous 'async.execute' uses another executor");
+    }
+
+    if (!haveSameDependencies(prevExecOp, execOp)) {
+        return matchFailed(_log.nest(), rewriter, execOp, "Previous 'async.execute' has different dependencies");
     }
 
     /*  TODO: Remove check below when proper operands mapping is implemented.

@@ -1,7 +1,8 @@
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --group-async-execute-ops %s | FileCheck %s
 
-// CHECK-LABEL: @MergeUPAAndDMA
-func @MergeUPAAndDMA(%arg0: memref<16xui8>, %arg1: memref<16xf16>, %arg2: memref<16xf16>)
+// CHECK-LABEL: @NoMergeUPAAndDMA
+// Do not merge 2 UPA task or 2 DMAs task due to exclusie users or different dependencies
+func @NoMergeUPAAndDMA(%arg0: memref<16xui8>, %arg1: memref<16xf16>, %arg2: memref<16xf16>)
         -> (memref<16xf16>, memref<16xf16>) {
     %buf0 = memref.alloc() : memref<16xf16>
     %buf1 = memref.alloc() : memref<16xf16>
@@ -54,25 +55,33 @@ func @MergeUPAAndDMA(%arg0: memref<16xui8>, %arg1: memref<16xf16>, %arg2: memref
     // CHECK:           [[VAR0:%.*]] = IERT.Convert inputs(%arg0 : memref<16xui8>) outputs([[BUF0]] : memref<16xf16>)
     // CHECK:           async.yield [[VAR0]]
 
-    // CHECK:       [[T1:%.+]], [[F1:%.+]]:2 = async.execute
+    // CHECK:       [[T1:%.+]], [[F1:%.+]] = async.execute
     // CHECK-SAME:          [[T0]]
-    // CHECK-SAME:          [[F0]] as [[VAR0_0:%.*]]: !async.value<memref<16xf16>>,
-    // CHECK-SAME:          [[F0]] as [[VAR0_1:%.*]]: !async.value<memref<16xf16>>
+    // CHECK-SAME:          [[F0]] as [[VAR0_0:%.*]]: !async.value<memref<16xf16>>
     // CHECK:           [[VAR1:%.*]] = IERT.ReLU inputs([[VAR0_0]] : memref<16xf16>) outputs([[BUF1]] : memref<16xf16>)
+    // CHECK:           async.yield [[VAR1]]
+
+    // CHECK:       [[T2:%.+]], [[F2:%.+]] = async.execute
+    // CHECK-SAME:          [[T0]]
+    // CHECK-SAME:          [[F0]] as [[VAR0_1:%.*]]: !async.value<memref<16xf16>>
     // CHECK:           [[VAR2:%.*]] = IERT.ReLU inputs([[VAR0_1]] : memref<16xf16>) outputs([[BUF2]] : memref<16xf16>)
-    // CHECK:           async.yield [[VAR1]], [[VAR2]]
+    // CHECK:           async.yield [[VAR2]]
 
-    // CHECK:       [[T3:%.+]], [[F3:%.+]]:2  = async.execute
+    // CHECK:       [[T3:%.+]], [[F3:%.+]] = async.execute
+    // CHECK-SAME:          [[T2]]
+    // CHECK-SAME:          [[F2]] as [[VAR0_2:%.*]]: !async.value<memref<16xf16>>
+    // CHECK:           [[VAR3:%.*]] = IERT.Copy inputs([[VAR0_2]] : memref<16xf16>) outputs(%arg1 : memref<16xf16>)
+    // CHECK:           async.yield [[VAR3]]
+
+    // CHECK:       [[T4:%.+]], [[F4:%.+]] = async.execute
     // CHECK-SAME:          [[T1]]
-    // CHECK-SAME:          [[F1]]#1 as [[VAR2:%.*]]: !async.value<memref<16xf16>>,
-    // CHECK-SAME:          [[F1]]#0 as [[VAR1:%.*]]: !async.value<memref<16xf16>>
-    // CHECK:           [[VAR3:%.*]] = IERT.Copy inputs([[VAR2]] : memref<16xf16>) outputs(%arg1 : memref<16xf16>)
-    // CHECK:           [[VAR4:%.*]] = IERT.Copy inputs([[VAR1]] : memref<16xf16>) outputs(%arg2 : memref<16xf16>)
-    // CHECK:           async.yield [[VAR3]], [[VAR4]]
+    // CHECK-SAME:          [[F1]] as [[VAR0_3:%.*]]: !async.value<memref<16xf16>>
+    // CHECK:           [[VAR4:%.*]] = IERT.Copy inputs([[VAR0_3]] : memref<16xf16>) outputs(%arg2 : memref<16xf16>)
+    // CHECK:           async.yield [[VAR4]]
 
-    // CHECK:       [[VAR3:%.*]] = async.await [[F3]]#0
-    // CHECK:       [[VAR4:%.*]] = async.await [[F3]]#1
-    // CHECK:       return [[VAR3]], [[VAR4]]
+    // CHECK:       [[VAR5:%.*]] = async.await [[F3]]
+    // CHECK:       [[VAR6:%.*]] = async.await [[F4]]
+    // CHECK:       return [[VAR5]], [[VAR6]]
 }
 
 // -----

@@ -30,6 +30,11 @@ LinearScanHandler::LinearScanHandler(AddressType defaultAlignment): _defaultAlig
 void LinearScanHandler::markAsDead(mlir::Value val) {
     _aliveValues.erase(val);
 }
+
+void LinearScanHandler::markAllBuffersAsDead() {
+    _aliveValues.clear();
+}
+
 void LinearScanHandler::markAsAlive(mlir::Value val) {
     _aliveValues.insert(val);
 }
