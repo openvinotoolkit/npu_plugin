@@ -26,15 +26,15 @@ ccopt-los-y   += -falign-functions=64 -falign-loops=64
 ccopt-lrt-y   += -falign-functions=64 -falign-loops=64
 
 CURRENT_DIR := $(abspath ./)
-VPUIP_2_ABS_DIR := $(abspath ${VPUIP_2_Directory})
+FIRMWARE_VPU_ABS_DIR := $(abspath ${FIRMWARE_VPU_DIR})
 
 EMPTY :=
 SPACE := $(EMPTY) $(EMPTY)
 REL_TO_ROOT := $(subst /, ,${CURRENT_DIR})
 REL_TO_ROOT := $(patsubst %,../,${REL_TO_ROOT})
 REL_TO_ROOT := $(subst $(SPACE),,$(REL_TO_ROOT))
-VPUIP_2_REL_THROUGH_ROOT := $(REL_TO_ROOT)$(VPUIP_2_ABS_DIR)
-VSYSTEM := $(VPUIP_2_REL_THROUGH_ROOT)/system
+FIRMWARE_VPU_REL_THROUGH_ROOT := $(REL_TO_ROOT)$(FIRMWARE_VPU_ABS_DIR)
+VSYSTEM := $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system
 
 ccopt-lrt-y += -DCONFIG_USE_COMPONENT_NN
 ccopt-lnn-y += -DCONFIG_USE_COMPONENT_NN
@@ -112,7 +112,7 @@ ccopt-lnn-$(CONFIG_NN_ENABLE_SCALABILITY_REPORTING) += -DNN_ENABLE_SCALABILITY_R
 
 ccopt-lrt-y += -DNN_SCALABILITY_REPORTING_PERIOD_MS=$(CONFIG_NN_SCALABILITY_REPORTING_PERIOD_MS)
 
-srcs-lrt-$(CONFIG_TARGET_SOC_3720) += $(VPUIP_2_REL_THROUGH_ROOT)/drivers/nn/src/nn_fifo.cpp
+srcs-lrt-$(CONFIG_TARGET_SOC_3720) += $(FIRMWARE_VPU_REL_THROUGH_ROOT)/drivers/nn/src/nn_fifo.cpp
 
 $(info !!!!! subdirs-shave-y = !!!!!!!!!!! $(subdirs-shave-y))
 
