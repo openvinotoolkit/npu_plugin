@@ -25,6 +25,13 @@
 
 using namespace vpux;
 
+#define RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(Operation)     \
+    for (auto user : Operation->getUsers()) {                  \
+        if (mlir::dyn_cast<IE::QuantizeOp>(user) == nullptr) { \
+            return mlir::failure();                            \
+        }                                                      \
+    }
+
 namespace {
 
 //
@@ -61,6 +68,8 @@ mlir::LogicalResult FuseWithConv::matchAndRewrite(IE::QuantizeOp quantizeOp, mli
     if (convOp == nullptr) {
         return mlir::failure();
     }
+
+    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(convOp)
 
     if (VPUIP::NCEInvariant::verifyKernel(convOp, _log).failed()) {
         return mlir::failure();
@@ -121,6 +130,8 @@ mlir::LogicalResult FuseWithGroupConv::matchAndRewrite(IE::QuantizeOp quantizeOp
         return mlir::failure();
     }
 
+    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(grConvOp)
+
     if (VPUIP::NCEInvariant::verifyKernel(grConvOp, _log).failed()) {
         return mlir::failure();
     }
@@ -178,6 +189,8 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
     if (maxPoolOp == nullptr) {
         return mlir::failure();
     }
+
+    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(maxPoolOp)
 
     if (VPUIP::NCEInvariant::verifyKernel(maxPoolOp, _log).failed()) {
         return mlir::failure();
@@ -241,6 +254,8 @@ mlir::LogicalResult FuseWithSlice::matchAndRewrite(IE::QuantizeOp quantizeOp, ml
         return mlir::failure();
     }
 
+    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(sliceOp)
+
     auto inputDequantizeOp = sliceOp.source().getDefiningOp<IE::DequantizeOp>();
     if (inputDequantizeOp == nullptr) {
         return mlir::failure();
@@ -287,6 +302,8 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
     if (concatOp == nullptr) {
         return mlir::failure();
     }
+
+    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(concatOp)
 
     SmallVector<mlir::Value> newConcatInputs;
     newConcatInputs.reserve(concatOp.inputs().size());
@@ -364,6 +381,8 @@ mlir::LogicalResult FuseWithSplit::matchAndRewrite(IE::SplitOp splitOp, mlir::Pa
         return mlir::failure();
     }
 
+    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(splitOp)
+
     SmallVector<mlir::Type> newSplitOutputsType;
     newSplitOutputsType.reserve(splitOp.outputs().size());
 
@@ -440,6 +459,8 @@ mlir::LogicalResult FuseWithEltwiseConverter<ConcreteOp>::matchAndRewrite(IE::Qu
     if (eltwiseOp == nullptr) {
         return mlir::failure();
     }
+
+    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(eltwiseOp)
 
     if (eltwiseOp.input1().getType().template cast<mlir::ShapedType>().getShape() !=
         eltwiseOp.input2().getType().template cast<mlir::ShapedType>().getShape()) {
@@ -544,7 +565,30 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
-}
+
+    auto funcOp = getFunction();
+    funcOp.walk([this](vpux::IE::QuantizeOp quantizeOp) {
+        if (!quantizeOp->hasOneUse()) {
+            return;
+        }
+        auto dequantizeOp = mlir::dyn_cast<vpux::IE::DequantizeOp>(*quantizeOp->getUsers().begin());
+        if (dequantizeOp == nullptr) {
+            return;
+        }
+        dequantizeOp.replaceAllUsesWith(quantizeOp.input());
+    });
+    funcOp.walk([this](vpux::IE::DequantizeOp dequantizeOp) {
+        if (dequantizeOp->getUses().empty()) {
+            dequantizeOp->erase();
+        }
+    });
+    funcOp.walk([this](vpux::IE::QuantizeOp quantizeOp) {
+        if (quantizeOp->getUses().empty()) {
+            quantizeOp->erase();
+        }
+    });
+
+}  // namespace
 
 }  // namespace
 
