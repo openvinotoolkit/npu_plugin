@@ -40,7 +40,6 @@ struct PwlQuantReqs {
 extern const EnumMap<VPU::PPEMode, PwlQuantReqs> pwlQuantReqs;
 
 PwlQuantReqs getPwlQuantReqs(VPU::PPEMode ppeType);
-std::unique_ptr<VPU::PwlQuantReqs> getCustomPwlQuantReqs(IE::LayerWithPostOpInterface origOp);
 
 }  // namespace VPU
 }  // namespace vpux
