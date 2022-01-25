@@ -90,17 +90,20 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
             }
         }
 
-        // Check 3: current op's consumer is copied to DDR immediately after execution
-        auto childOfSiblingOp = siblingOp->getResult(0).getUsers().begin();
-        auto childCopyOfSiblingOp = mlir::dyn_cast<IERT::CopyOp>(*childOfSiblingOp->getResult(0).getUsers().begin());
-        if (childCopyOfSiblingOp == nullptr) {
-            return false;
-        }
-        if (VPU::getMemoryKind(childCopyOfSiblingOp.input().getType().cast<mlir::MemRefType>()) !=
-                    VPU::MemoryKind::CMX_NN ||
-            VPU::getMemoryKind(childCopyOfSiblingOp.output().getType().cast<mlir::MemRefType>()) !=
-                    VPU::MemoryKind::DDR) {
-            return false;
+        // Check 3: current op's consumers are copied to DDR immediately after execution
+        for (const auto childOfSiblingOp : siblingOp->getResult(0).getUsers()) {
+            for (const auto grandChildOfSiblingOp : childOfSiblingOp->getResult(0).getUsers()) {
+                auto childCopyOfSiblingOp = mlir::dyn_cast<IERT::CopyOp>(grandChildOfSiblingOp);
+                if (childCopyOfSiblingOp == nullptr) {
+                    return false;
+                }
+                if (VPU::getMemoryKind(childCopyOfSiblingOp.input().getType().cast<mlir::MemRefType>()) !=
+                            VPU::MemoryKind::CMX_NN ||
+                    VPU::getMemoryKind(childCopyOfSiblingOp.output().getType().cast<mlir::MemRefType>()) !=
+                            VPU::MemoryKind::DDR) {
+                    return false;
+                }
+            }
         }
 
         if (siblingOp != copyOp) {
