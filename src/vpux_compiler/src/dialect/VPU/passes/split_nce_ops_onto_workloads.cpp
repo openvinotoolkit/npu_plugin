@@ -97,7 +97,8 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
 
     VPUIP::DpuTiler dpuTiler(outputShape, {mpeMode});
     dpuTiler.tileOverH(numDPU);
-#ifdef __linux__
+//#ifdef  __linux__
+#if 1
     dpuTiler.generateSplitNumberPool(numDPU, 5);
     auto splitNumPool = dpuTiler.getSplitNumberPool();
     if (costParams.isZTilingSupported) {
@@ -109,9 +110,17 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     // select workload with minimum cost
     uint32_t bestScore = UINT32_MAX;
     int best = -1;
+    llvm::outs() << "{\n";
+    origOp->print(llvm::outs());
+    llvm::outs()<<"\n";
+    llvm::outs() << "workloads candidates: {\n";
+
     const auto& splitCandidates = dpuTiler.getSplitPool();
     for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
+        llvm::outs() << "workload "<<idx<< ": {\n";
         auto score = dpuTiler.cost(splitCandidates[idx], costParams);
+        llvm::outs() << "},\n";
+        llvm::outs() << "total score: " << score << "\n";
         if (bestScore > score) {
             bestScore = score;
             best = idx;
@@ -120,9 +129,14 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     if (best == -1) {
         VPUX_THROW("no workload splits found!");
     }
+    llvm::outs() << "},\n";
+    if (best != 0) {
+        llvm::outs() << "best candidates:" << best << "\n";
+    }
+    llvm::outs() << "},\n";
     const auto& outTiles = splitCandidates[best];
 #else
-    VPUX_UNUSED(archKind);
+    VPUX_UNUSED(costParams);
     const auto& splitCandidates = dpuTiler.getSplitPool();
     VPUX_THROW_WHEN(splitCandidates.empty(), "No available workload dpu tiles found");
     const auto& outTiles = splitCandidates.front();
@@ -183,9 +197,27 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
     return mlir::success();
 }
 
-template <>
-mlir::LogicalResult GenericNCERewrite<NCEDepthConvolutionOp>::matchAndRewrite(NCEDepthConvolutionOp origOp,
-                                                                              mlir::PatternRewriter& rewriter) const {
+//
+// DepthConvolutionNCERewrite
+//
+
+class DepthConvolutionNCERewrite final : public mlir::OpRewritePattern<VPU::NCEDepthConvolutionOp> {
+public:
+    DepthConvolutionNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<VPU::NCEDepthConvolutionOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(VPU::NCEDepthConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    const int64_t _numDPU;
+    VPU::ArchKind _arch;
+    Logger _log;
+};
+
+mlir::LogicalResult DepthConvolutionNCERewrite::matchAndRewrite(VPU::NCEDepthConvolutionOp origOp,
+                                                                mlir::PatternRewriter& rewriter) const {
     const auto outputShape = getShape(origOp.output());
     auto pads = origOp.pad();
 
@@ -225,9 +257,27 @@ mlir::LogicalResult GenericNCERewrite<NCEDepthConvolutionOp>::matchAndRewrite(NC
     return mlir::success();
 }
 
-template <>
-mlir::LogicalResult GenericNCERewrite<NCEMaxPoolOp>::matchAndRewrite(NCEMaxPoolOp origOp,
-                                                                     mlir::PatternRewriter& rewriter) const {
+//
+// MaxPoolNCERewrite
+//
+
+class MaxPoolNCERewrite final : public mlir::OpRewritePattern<VPU::NCEMaxPoolOp> {
+public:
+    MaxPoolNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<VPU::NCEMaxPoolOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(VPU::NCEMaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    const int64_t _numDPU;
+    VPU::ArchKind _arch;
+    Logger _log;
+};
+
+mlir::LogicalResult MaxPoolNCERewrite::matchAndRewrite(VPU::NCEMaxPoolOp origOp,
+                                                       mlir::PatternRewriter& rewriter) const {
     const auto outputShape = getShape(origOp.output());
     auto pads = origOp.pad();
 
@@ -264,6 +314,7 @@ mlir::LogicalResult GenericNCERewrite<NCEMaxPoolOp>::matchAndRewrite(NCEMaxPoolO
 
     return mlir::success();
 }
+
 //
 // EltwiseNCERewrite
 //
@@ -349,8 +400,8 @@ void SplitNCEOpsOntoWorkloadsPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<GenericNCERewrite<VPU::NCEConvolutionOp>>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<GenericNCERewrite<VPU::NCEMaxPoolOp>>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<GenericNCERewrite<VPU::NCEDepthConvolutionOp>>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<DepthConvolutionNCERewrite>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<MaxPoolNCERewrite>(&ctx, dpuExec.count(), arch, _log);
     patterns.insert<EltwiseNCERewrite>(&ctx, dpuExec.count(), arch, _log);
 
     mlir::ConversionTarget target(ctx);

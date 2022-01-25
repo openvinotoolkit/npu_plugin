@@ -295,8 +295,8 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t
     originalShape[Dims4D::Act::H] = H;
     auto bestPadding = selectPadding(originalShape);
 
-//    SmallVector<DpuTile> dpuTiles;
-//    dpuTiles.reserve(splitNumber);
+    //    SmallVector<DpuTile> dpuTiles;
+    //    dpuTiles.reserve(splitNumber);
     uint32_t remainedChannel = static_cast<uint32_t>(C);
     for (uint32_t idx = 0; idx < splitNumber; idx++) {
         TileInfo outTile(_outShape.size());
@@ -363,6 +363,7 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
     const auto SX = static_cast<unsigned int>(params.kernelStride[1]);
 
     std::vector<unsigned int> workloadCost;
+    int i = 0;
     for (const auto& dpuTile : dpuTiles) {
         const auto padsTileConf = backInferPadsTile(dpuTile, params.outputShape, params.padInfo);
         VPUNN::VPUTensor outputTensor = getOutputTensor(dpuTile, elemType);
@@ -372,6 +373,7 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
                                               static_cast<unsigned int>(padsTileConf.bottom),
                                       static_cast<unsigned int>(params.inputShape[Dims4D::Act::C]), 1},
                                      elemType);
+
         workloadCost.push_back(gCostModel->DPU(
                 {getVPUDeviceType(params.arch),
                  opType,
@@ -382,6 +384,16 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
                  {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
                   static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
                  getExecutionMode(params.mpeMode)}));
+        llvm::outs() << "workload split " << i << ":{\n";
+        llvm::outs() << "   input:[" << inputTensor.x() << "," << inputTensor.y() << "," << inputTensor.z() << "],";
+        llvm::outs() << "output:[" << outputTensor.x() << "," << outputTensor.y() << "," << outputTensor.z() << "],";
+        llvm::outs() << "kernel:[" << KX << "," << KY << "],";
+        llvm::outs() << "stride :[" << SX << "," << SY << "],";
+        llvm::outs() << "pad :[" << padsTileConf.top << "," << padsTileConf.bottom << "," << padsTileConf.left << ","
+                     << padsTileConf.right << "],";
+        llvm::outs() << "score:" << workloadCost.back() << "\n";
+        llvm::outs() << "}\n";
+        i++;
     }
     return VPUNN::dpu_schedule(params.numDPU, workloadCost);
 }
