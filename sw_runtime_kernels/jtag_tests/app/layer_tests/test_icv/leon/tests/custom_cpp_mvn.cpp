@@ -1,4 +1,15 @@
-// {% copyright %}
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
 
 #include <custom_cpp_tests.h>
 #include <cmath>
@@ -16,7 +27,7 @@ __attribute__((aligned(1024)))
 
 #define F_EPS 0x3727c5ac  // Hex representation of 10^(-5)f
 
-namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
+namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MVN)) {
 
     const bool save_to_file = false;
     const bool customData = true;
@@ -53,7 +64,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Mvn)) {
 
     protected:
         const char* suiteName() const override {
-            return "CustomCppMvnTest";
+            return "CustomCppMVNTest";
         }
         void userLoops() override {
             addLoop(m_testsLoop);
