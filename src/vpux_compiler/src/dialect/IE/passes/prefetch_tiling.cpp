@@ -131,10 +131,6 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
 
 bool needTilingToMultiOpsPrefetch(mlir::Operation* op, Logger log) {
     auto parentOp = op->getOperand(0).getDefiningOp();
-    std::cout << llvm::formatv("needTilingToMultiOpsPrefetch: check op {0} {1}; parent {2}, {3}", op->getLoc(),
-                               op->getName(), parentOp->getLoc(), parentOp->getName())
-                         .str()
-              << std::endl;
     auto opTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
     auto parentTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(parentOp);
     if (!opTilingInter || !parentTilingInter) {
@@ -170,6 +166,9 @@ private:
 mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
                                                     mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
+    std::cout << llvm::formatv("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc())
+                         .str()
+              << std::endl;
 
     auto op = origOp.getOperation();
     const auto resShape = getShape(op->getResult(0));
@@ -191,8 +190,8 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
         };
         auto curTiles = fillDividedTiles(tiles[0], resShape);
         auto parentTiles = fillDividedTiles(tiles[1], parentResShape);
-        std::cout << llvm::formatv("cur tile: {0}", tiles[0]).str() << std::endl;
-        std::cout << llvm::formatv("parent tile: {0}", tiles[1]).str() << std::endl;
+        std::cout << llvm::formatv("\tcur tile: {0}", tiles[0]).str() << std::endl;
+        std::cout << llvm::formatv("\tparent tile: {0}", tiles[1]).str() << std::endl;
         if (getDimsToTile(tiles[1]).size() == 0) {
             return applyTileStrategy(origOp, curTiles, rewriter, _log);
         } else {
