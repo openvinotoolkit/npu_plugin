@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -174,8 +175,16 @@ void ConvertQuantizeOpsToEltwisePass::safeRunOnFunc() {
     // HW Eltwise supports only per-tensor bias/scale parameters
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::QuantizeOp>([&](IE::QuantizeOp quantizeOp) {
-        auto outElemType = quantizeOp.output().getType().cast<mlir::ShapedType>().getElementType();
-        return outElemType.isa<mlir::quant::UniformQuantizedPerAxisType>();
+        auto outType = quantizeOp.output().getType().cast<mlir::ShapedType>();
+        const auto isPerChannelQuantized = outType.getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>();
+        const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(arch, outType);
+
+        auto outputLayerUsers = quantizeOp.output().getUsers();
+        auto anyUserIsConv = !outputLayerUsers.empty() && ::llvm::any_of(outputLayerUsers, [](auto user) {
+            return mlir::isa<IE::ConvolutionOp>(user);
+        });
+
+        return (anyUserIsConv && canUseCMajor) || isPerChannelQuantized;
     });
     target.addDynamicallyLegalOp<IE::DequantizeOp>([&](IE::DequantizeOp dequantizeOp) {
         auto inElemType = dequantizeOp.input().getType().cast<mlir::ShapedType>().getElementType();

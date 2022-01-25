@@ -197,5 +197,5 @@ bool vpux::VPU::NCEInvariant::isChannelMajorCompatible(ArchKind arch, mlir::Shap
     const auto IC = inputShape[Dims4D::Act::C];
     const auto IW = inputShape[Dims4D::Act::W];
 
-    return (IC == NCEInvariant::KMB_CMCONV_CHANNELS_LIMIT) && (IW % NCEInvariant::KMB_CMCONV_WIDTH_ALIGNMENT == 0);
+    return (IC < NCEInvariant::KMB_CMCONV_CHANNELS_LIMIT) && (IW % NCEInvariant::KMB_CMCONV_WIDTH_ALIGNMENT == 0);
 }

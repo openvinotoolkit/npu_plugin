@@ -57,3 +57,26 @@ func @PerChannelNoChanges(%arg0 : tensor<1x4xf32>) -> tensor<1x4xf32> {
 
     return %1 : tensor<1x4xf32>
 }
+
+// -----
+
+!qElemType = type !quant.uniform<u8:f32, 1.000000e+00>
+
+module @NoConvertQuantizeToEltwiseKMB attributes {VPU.arch = "KMB"} {
+
+func @EnabelCMcovNoChanges(%arg0 : tensor<1x3x352x352xf32>) -> tensor<1x32x175x175x!qElemType> {
+    %0 = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x3x352x352xf32> -> tensor<1x3x352x352x!qElemType>
+    %1 = const.Declare tensor<32x3x3x3xf32> = #const.Content<dense<1.0> : tensor<32x3x3x3xf32>>
+    %2 = IE.Convolution(%0, %1) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [2, 2]} :
+                    tensor<1x3x352x352x!qElemType>, tensor<32x3x3x3xf32> -> tensor<1x32x175x175x!qElemType>
+
+    return %2 : tensor<1x32x175x175x!qElemType>
+
+    // CHECK:  [[QUANT0:%.*]] = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x3x352x352xf32> -> tensor<1x3x352x352x!qElemType>
+    // CHECK:  [[CST0:%.*]] = const.Declare tensor<32x3x3x3xf32> = #const.Content<dense<1.000000e+00> : tensor<32x3x3x3xf32>>
+    // CHECK:  [[VAR0:%.*]] = IE.Convolution([[QUANT0]], [[CST0]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [2, 2]}
+    // CHECK-SAME:  tensor<1x3x352x352x!qElemType>, tensor<32x3x3x3xf32> -> tensor<1x32x175x175x!qElemType>
+    // CHECK:  return [[VAR0]] : tensor<1x32x175x175x!qElemType>
+}
+
+}
