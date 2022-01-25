@@ -22,6 +22,7 @@
 namespace vpux {
 namespace VPUIP {
 
+#if 0
 struct DpuTile final {
     SmallVector<int64_t> start;
     SmallVector<int64_t> end;
@@ -30,6 +31,21 @@ struct DpuTile final {
     int64_t padTop;
     int64_t padBottom;
     VPU::MPEMode mpeMode;
+};
+#endif
+
+struct WorkloadCostParams{
+    bool isZTilingSupported;
+    VPUIP::NCETaskType nceTaskType;
+    mlir::Type dataType;
+    VPU::ArchKind arch;
+    VPU::MPEMode mpeMode;
+    ShapeRef inputShape;
+    ShapeRef outputShape;
+    PadInfo padInfo;
+    unsigned int numDPU;
+    SmallVector<int64_t> kernelSize;
+    SmallVector<int64_t> kernelStride;
 };
 
 class DpuTiler final {
@@ -48,6 +64,8 @@ public:
 #ifdef __linux__
     uint32_t cost(VPUIP::NCEClusterTaskOp op, const OutputTiling& dpuTiles, const PadInfo& padInfo, unsigned int numDPU,
                   VPU::MPEMode mpeMode, VPU::ArchKind arch);
+
+    uint32_t cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
 #endif
 
 private:

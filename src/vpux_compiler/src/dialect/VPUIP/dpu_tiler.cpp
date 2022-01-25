@@ -149,6 +149,7 @@ static double splitEfficiency(ShapeRef tensorzShape, ShapeRef paddedTensorShape)
                                                static_cast<int64_t>(1), std::multiplies<int64_t>()));
 }
 
+#if 0
 static VPU::MPEMode selectBestMPEMode(ShapeRef shape, const SmallVector<VPU::MPEMode>& availableModes) {
     VPUX_THROW_WHEN(availableModes.empty(), "available MPE mode empty");
 
@@ -171,6 +172,7 @@ static VPU::MPEMode selectBestMPEMode(ShapeRef shape, const SmallVector<VPU::MPE
     }
     return mode;
 }
+#endif
 
 static SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLimit) {
     SmallVector<uint32_t> splits;
@@ -293,8 +295,8 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t
     originalShape[Dims4D::Act::H] = H;
     auto bestPadding = selectPadding(originalShape);
 
-    SmallVector<DpuTile> dpuTiles;
-    dpuTiles.reserve(splitNumber);
+//    SmallVector<DpuTile> dpuTiles;
+//    dpuTiles.reserve(splitNumber);
     uint32_t remainedChannel = static_cast<uint32_t>(C);
     for (uint32_t idx = 0; idx < splitNumber; idx++) {
         TileInfo outTile(_outShape.size());
@@ -346,6 +348,44 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t
 }
 
 #ifdef __linux__
+uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
+    if (!isCostModelInited()) {
+        initCostModel();
+    }
+    const auto opType = getOperationType(params.nceTaskType);
+    const auto elemType = getElementType(params.dataType);
+    VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
+    const auto KY = static_cast<unsigned int>(params.kernelSize[0]);
+    const auto KX = static_cast<unsigned int>(params.kernelSize[1]);
+
+    VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
+    const auto SY = static_cast<unsigned int>(params.kernelStride[0]);
+    const auto SX = static_cast<unsigned int>(params.kernelStride[1]);
+
+    std::vector<unsigned int> workloadCost;
+    for (const auto& dpuTile : dpuTiles) {
+        const auto padsTileConf = backInferPadsTile(dpuTile, params.outputShape, params.padInfo);
+        VPUNN::VPUTensor outputTensor = getOutputTensor(dpuTile, elemType);
+        VPUNN::VPUTensor inputTensor({(outputTensor.x() - 1) * SX + KX - static_cast<unsigned int>(padsTileConf.left) -
+                                              static_cast<unsigned int>(padsTileConf.right),
+                                      (outputTensor.y() - 1) * SY + KY - static_cast<unsigned int>(padsTileConf.top) -
+                                              static_cast<unsigned int>(padsTileConf.bottom),
+                                      static_cast<unsigned int>(params.inputShape[Dims4D::Act::C]), 1},
+                                     elemType);
+        workloadCost.push_back(gCostModel->DPU(
+                {getVPUDeviceType(params.arch),
+                 opType,
+                 {inputTensor},
+                 {outputTensor},
+                 {KX, KY},
+                 {SX, SY},
+                 {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
+                  static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
+                 getExecutionMode(params.mpeMode)}));
+    }
+    return VPUNN::dpu_schedule(params.numDPU, workloadCost);
+}
+
 uint32_t vpux::VPUIP::DpuTiler::cost(VPUIP::NCEClusterTaskOp op, const OutputTiling& dpuTiles, const PadInfo& padInfo,
                                      unsigned int numDPU, VPU::MPEMode mpeMode, VPU::ArchKind arch) {
     if (!isCostModelInited()) {
@@ -387,7 +427,7 @@ uint32_t vpux::VPUIP::DpuTiler::cost(VPUIP::NCEClusterTaskOp op, const OutputTil
                  {KX, KY},
                  {SX, SY},
                  {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
-                  static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right},
+                  static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
                  getExecutionMode(mpeMode)}));
     }
     return VPUNN::dpu_schedule(numDPU, workloadCost);
