@@ -646,17 +646,20 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp o
 
     const auto nextInputTileType = nextTileTypes[0];
 
+    const auto kernelSizeVals = Shape(parseIntArrayAttr<int64_t>(origOp.kernel_sizeAttr()));
+    const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(origOp.stridesAttr()));
+
     //  Consider tiling does not change the element type
     const auto inType = origOp.input().getType().cast<mlir::RankedTensorType>();
     const auto curActivationWindowSize = VPU::NCESparsity::getActivationWindowSize(
-            Shape(parseIntArrayAttr<int64_t>(origOp.kernel_sizeAttr())),
-            parseIntArrayAttr<int64_t>(origOp.stridesAttr())[0], inType.getElementType(), curIC);
+            VPU::NCESparsity::Mode::POOL, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
+            inType.getElementType(), curIC);
     const auto nextActivationWindowSize = VPU::NCESparsity::getActivationWindowSize(
-            Shape(parseIntArrayAttr<int64_t>(origOp.kernel_sizeAttr())),
-            parseIntArrayAttr<int64_t>(origOp.stridesAttr())[0], inType.getElementType(), nextIC);
+            VPU::NCESparsity::Mode::POOL, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
+            inType.getElementType(), nextIC);
 
-    requiredCMX = getRequiredCMXForTiling({curInputTileType, curOutputTileType, nextInputTileType}, curIC + nextIC) +
-                  Byte(curActivationWindowSize + nextActivationWindowSize);
+    requiredCMX += getRequiredCMXForTiling({curInputTileType, curOutputTileType, nextInputTileType}, curIC + nextIC) +
+                   Byte(curActivationWindowSize + nextActivationWindowSize);
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'",
                   origOp->getLoc(), cmxSize, requiredCMX);
@@ -718,13 +721,16 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::GroupConvol
     const auto nextIC = getShape(nextInputTileType)[Dims4D::Act::C];
     const auto inType = origOp.input().getType().cast<mlir::RankedTensorType>();
 
-    const auto kernelSizeVals = Shape(SmallVector<int64_t>{getShape(curFilterTileType)[Dims4D::Filter::KX],
-                                                           getShape(curFilterTileType)[Dims4D::Filter::KY]});
+    const Shape kernelSizeVals{getShape(curFilterTileType)[Dims4D::Filter::KY],
+                               getShape(curFilterTileType)[Dims4D::Filter::KX]};
+    const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(origOp.stridesAttr()));
 
     const auto curActivationWindowSize = VPU::NCESparsity::getActivationWindowSize(
-            kernelSizeVals, parseIntArrayAttr<int64_t>(origOp.stridesAttr())[0], inType.getElementType(), curIC);
+            VPU::NCESparsity::Mode::DW_CONV, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
+            inType.getElementType(), curIC);
     const auto nextActivationWindowSize = VPU::NCESparsity::getActivationWindowSize(
-            kernelSizeVals, parseIntArrayAttr<int64_t>(origOp.stridesAttr())[0], inType.getElementType(), nextIC);
+            VPU::NCESparsity::Mode::DW_CONV, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
+            inType.getElementType(), nextIC);
 
     if (isWeightPrefetch) {
         const auto nextOC = getShape(nextFilterTileType)[Dims4D::Filter::OC];
