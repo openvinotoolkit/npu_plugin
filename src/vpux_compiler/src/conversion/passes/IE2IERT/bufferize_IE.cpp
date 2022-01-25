@@ -365,9 +365,9 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, OpAdapto
 
     const auto chunk = subShape[Dims4D::Act::C.ind()];
     const auto OC = getShape(origOp.output())[Dims4D::Act::C];
+    const auto IC = subShape[Dims4D::Act::C.ind()];
 
     SmallVector<mlir::Value> concatInputs;
-    const auto fullCopyNum = OC / chunk;
 
     // The first version copied the input once. Example:
     // tensor<1x3xHxWxf16>(first channel:[0.1, 0.2, 0.3]) -> Expand ->
@@ -382,30 +382,35 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, OpAdapto
     // tensor<1x3xHxWxf16>(first channel:[0.1, 0.2, 0.3]) -> Expand ->
     // tensor<1x8xHxWxf16>(first channel:[0.1, 0.2, 0.3, 0.1, 0.2, 0.3, 0.1, 0.2])
 
-    for (int copyIdx = 0; copyIdx < fullCopyNum; copyIdx++) {
-        auto subView = rewriter.create<IERT::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsetsBegin, subShape);
-        auto subViewCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newArgs.input(), subView);
+    // copy input
+    auto subView = rewriter.create<IERT::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsetsBegin, subShape);
+    auto subViewCopy = rewriter.create<IERT::CopyOp>(origOp.getLoc(), newArgs.input(), subView);
 
-        concatInputs.push_back(subViewCopy.output());
+    concatInputs.push_back(subViewCopy.output());
 
-        subOffsetsBegin[Dims4D::Act::C.ind()] += chunk;
-    }
+    subOffsetsBegin[Dims4D::Act::C.ind()] += chunk;
 
-    const auto filledSize = subOffsetsBegin[Dims4D::Act::C.ind()];
-    if (filledSize < OC) {
-        SmallVector<int64_t> subInputOffsetsBegin{0, 0, 0, 0};
-        subShape[Dims4D::Act::C.ind()] = OC - filledSize;
+    // pad const op
+    auto padShape = subShape;
+    padShape[Dims4D::Act::C.ind()] = OC - IC;
+    const auto padValue = 0.f;
 
-        auto subViewInput =
-                rewriter.create<IERT::SubViewOp>(origOp.getLoc(), newArgs.input(), subInputOffsetsBegin, subShape);
-        auto subViewTail =
-                rewriter.create<IERT::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsetsBegin, subShape);
+    const auto origElemType = origOp.input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto padDataStorageType = mlir::RankedTensorType::get(padShape, mlir::Float32Type::get(getContext()));
+    const auto padDataStorage = mlir::DenseElementsAttr::get(padDataStorageType, static_cast<float>(padValue));
 
-        auto subViewCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), subViewInput, subViewTail);
+    const auto padDataAttr = Const::ContentAttr::get(padDataStorage).convertElemType(origElemType);
+    const auto padAllocType = mlir::MemRefType::get(padShape, origElemType);
 
-        concatInputs.push_back(subViewCopy.output());
-    }
+    auto constant = rewriter.create<Const::DeclareOp>(origOp.getLoc(), padAllocType, padDataAttr);
 
+    // copy const op
+    auto padSubView = rewriter.create<IERT::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsetsBegin, padShape);
+    auto padSubViewCopy = rewriter.create<IERT::CopyOp>(origOp.getLoc(), constant.output(), padSubView);
+
+    concatInputs.push_back(padSubViewCopy.output());
+
+    // create concat Op
     rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, concatInputs, expandedBuffer[0]);
 
     return mlir::success();
