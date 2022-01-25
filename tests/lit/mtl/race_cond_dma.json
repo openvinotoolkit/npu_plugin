@@ -1,5 +1,4 @@
 // RUN: vpux-translate --import-HWTEST %s
-
 {
     "case_type": "RaceConditionDMA",
     "input": {
@@ -32,8 +31,5 @@
             "high_range": 1
         }
     },
-    "iteration_count": 64,
-    "activation": {
-        "name": null
-    }
+    "iteration_count": 64
 }
