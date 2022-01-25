@@ -39,7 +39,7 @@ private:
 };
 
 bool isCopyFusable(IERT::CopyOp copyOp) {
-    // Check 1: copy DDR->DMA
+    // Check 1: copy DDR->CMX
     const auto srcMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
     const auto dstMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
     if (srcMemory == dstMemory || srcMemory == VPU::MemoryKind::CMX_NN) {
@@ -47,7 +47,7 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
     }
 
     // Check 2: parallel
-    // All the consumer of the parent op should be copies
+    // All the consumers of the parent op should be copies
     // At least one more copy except for the current one
     auto parentOp = copyOp.input().getDefiningOp();
     if (parentOp == nullptr) {
@@ -55,15 +55,39 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
     }
 
     // Temporally disable the optimization for constant nodes, like weights, activation_windows, etc.
-    // Ticket: EISW-28833
+    // [Track number: E#28833]
     if (mlir::isa<Const::DeclareOp>(parentOp)) {
         return false;
     }
-
+    bool hasSubView = false;
+    auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(copyOp.input().getDefiningOp());
+    if (mlir::isa<IERT::SubViewOp>(parentOp)) {
+        hasSubView = true;
+        parentOp = mlir::dyn_cast<IERT::SubViewOp>(parentOp).source().getDefiningOp();
+    }
     bool hasSiblingCopy = false;
     for (auto siblingOp : parentOp->getResult(0).getUsers()) {
         if (!mlir::isa<IERT::CopyOp>(*siblingOp)) {
-            return false;
+            if (!mlir::isa<IERT::SubViewOp>(*siblingOp)) {
+                continue;
+            } else {
+                auto childOfSiblingOp = *siblingOp->getResult(0).getUsers().begin();
+                if (!mlir::isa<IERT::CopyOp>(childOfSiblingOp)) {
+                    continue;
+                }
+                // match SubView->Copy
+                if (!hasSubView) {
+                    continue;
+                }
+                auto siblingSubViewOp = mlir::dyn_cast<IERT::SubViewOp>(siblingOp);
+                if (parseIntArrayAttr<int64_t>(subViewOp.static_offsets()) !=
+                            parseIntArrayAttr<int64_t>(siblingSubViewOp.static_offsets()) ||
+                    parseIntArrayAttr<int64_t>(subViewOp.static_sizes()) !=
+                            parseIntArrayAttr<int64_t>(siblingSubViewOp.static_sizes())) {
+                    continue;
+                }
+                siblingOp = childOfSiblingOp;
+            }
         }
 
         // Check 3: current op's consumer is copied to DDR immediately after execution
@@ -92,6 +116,37 @@ mlir::LogicalResult fuseParallelCopyOp(IERT::CopyOp copyOp, Logger log) {
     if (parentOp == nullptr) {
         return mlir::failure();
     }
+
+    if (mlir::isa<IERT::SubViewOp>(parentOp)) {
+        auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(parentOp);
+        parentOp = subViewOp.source().getDefiningOp();
+        auto getSiblingSubViews = [&]() -> SmallVector<IERT::SubViewOp> {
+            SmallVector<IERT::SubViewOp> res;
+            for (auto siblingOp : parentOp->getResult(0).getUsers()) {
+                if (mlir::isa<IERT::SubViewOp>(*siblingOp) && siblingOp != subViewOp) {
+                    auto siblingSubViewOp = mlir::dyn_cast<IERT::SubViewOp>(*siblingOp);
+                    if (siblingSubViewOp.static_offsets() == subViewOp.static_offsets() &&
+                        siblingSubViewOp.static_sizes() == subViewOp.static_sizes()) {
+                        res.push_back(mlir::dyn_cast<IERT::SubViewOp>(*siblingOp));
+                    }
+                }
+            }
+            return res;
+        };
+        auto siblingSubViews = getSiblingSubViews();
+        for (auto siblingSubView : siblingSubViews) {
+            log.trace("Fuse SubView op {0} to {1}", subViewOp->getLoc(), siblingSubView->getLoc());
+            auto siblingCopy = mlir::dyn_cast<IERT::CopyOp>(*siblingSubView.result().getUsers().begin());
+
+            siblingSubView.getOperation()->replaceAllUsesWith(subViewOp.getOperation());
+            siblingCopy.getOperation()->replaceAllUsesWith(copyOp);
+            siblingCopy->erase();
+            siblingSubView->erase();
+        }
+
+        return mlir::success();
+    }
+
     auto getSiblingCopies = [&]() -> SmallVector<IERT::CopyOp> {
         SmallVector<IERT::CopyOp> res;
         for (auto siblingOp : parentOp->getResult(0).getUsers()) {
