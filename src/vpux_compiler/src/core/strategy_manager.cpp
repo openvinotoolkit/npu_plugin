@@ -18,6 +18,7 @@ using namespace vpux;
 
 StrategyManager::StrategyManager(mlir::FuncOp func, size_t numClusters, Logger log)
         : _log(log), _numClusters(numClusters), _func(func) {
+    _numDPU = _numClusters * _numDPUPerCluster;
 }
 
 // This channel major efficiency table is from the ArchBench tool
@@ -44,6 +45,10 @@ std::map<int64_t, std::map<int64_t, double>> StrategyManager::channelMajorEffici
     }};
 }
 
+double getAlignment(double input, size_t unit) {
+    return std::ceil(input / unit) * unit;
+}
+
 double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
@@ -68,21 +73,24 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                 if (IC == 3) {
                     auto efficiencyConstant = channelMajorEfficiencyTable()[KY][strides[0]];
                     efficency = efficiencyConstant *
-                                std::max(outputTensorVolume / (16.0 * std::ceil(OH / 16.0) * 20.0 *
-                                                               std::ceil(OW / 20.0) * 16.0 * std::ceil(OC / 16.0)),
-                                         outputTensorVolume / (64.0 * std::ceil(OH / 64.0) * 5.0 * std::ceil(OW / 5.0) *
-                                                               16.0 * std::ceil(OC / 16.0)));
+                                std::max(outputTensorVolume /
+                                                 (getAlignment(OH, _numChannelAlignment) * getAlignment(OH, _numDPU) *
+                                                  getAlignment(OC, _numChannelAlignment)),
+                                         outputTensorVolume / (getAlignment(OH, _numChannelAlignment * _numClusters) *
+                                                               getAlignment(OW, _numDPUPerCluster) *
+                                                               getAlignment(OC, _numChannelAlignment)));
                     // ZM Conv
                 } else {
                     efficency = std::max(
-                            ((OH / _numClusters * OW * OC) /
-                             (5 * std::ceil((_numClusters * std::ceil(std::ceil(OH / _numClusters) / _numClusters) *
-                                             _numClusters * std::ceil(OW / _numClusters) * 16 * std::ceil(OC / 16)) /
-                                            5))),
-                            ((OH / _numClusters * OW * OC) /
-                             (5 * std::ceil((16 * std::ceil(std::ceil(OH / _numClusters) / 16) * 1 * std::ceil(OW / 1) *
-                                             16 * std::ceil(OC / 16)) /
-                                            5))));
+                            (outputTensorVolume / _numClusters) /
+                                    getAlignment(
+                                            (getAlignment(std::ceil(OH / _numClusters), _numClusters) *
+                                             getAlignment(OW, _numClusters) * getAlignment(OC, _numChannelAlignment)),
+                                            _numDPUPerCluster),
+                            (outputTensorVolume / _numClusters) /
+                                    getAlignment((getAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
+                                                  getAlignment(OW, 1) * getAlignment(OC, _numChannelAlignment)),
+                                                 _numDPUPerCluster));
                 }
                 _log.trace("The SOH efficiency for the convolution is {0}", efficency);
                 return efficency;

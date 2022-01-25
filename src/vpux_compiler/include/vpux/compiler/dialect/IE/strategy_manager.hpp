@@ -50,6 +50,9 @@ private:
     std::map<mlir::Operation*, double> _splitOverHeightEfficencies;
     std::map<mlir::Operation*, double> _splitOverKernelEfficencies;
     size_t _numClusters;
+    size_t _numDPUPerCluster = 5;
+    size_t _numDPU;
+    size_t _numChannelAlignment = 16;
     Logger _log;
     mlir::FuncOp _func;
 };
