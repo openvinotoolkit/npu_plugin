@@ -142,6 +142,16 @@ namespace {
 
         return ioMap;
     }
+
+    int getDPUPerCluster(const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform) {
+        if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720) {
+            constexpr int MTL_DPU_PER_CLUSTER = 1;
+            return MTL_DPU_PER_CLUSTER;
+        }
+
+        constexpr int KMB_DPU_PER_CLUSTER = 5;
+        return KMB_DPU_PER_CLUSTER;
+    }
 }
 
 std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
@@ -342,7 +352,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             // number of DPU and barriers per cluster was deduced empirically
             // other values lead either to exceptions in mcmCompiler
             // or to hang-ups during inference
-            constexpr int DPU_PER_CLUSTER = 5;
+            const int DPU_PER_CLUSTER = getDPUPerCluster(config.get<PLATFORM>());
             const int dpuCount = clusterCount * DPU_PER_CLUSTER;
             constexpr int BARRIERS_PER_CLUSTER = 8;
             const int barrierCount = clusterCount * BARRIERS_PER_CLUSTER;
