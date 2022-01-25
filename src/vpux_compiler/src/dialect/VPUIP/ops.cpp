@@ -318,7 +318,7 @@ bool isLastTileBiggest(ShapeRef tileAxis, ShapeRef outputShape, Dim tileDim) {
 bool isDivisibleTile(mlir::Operation* op, ShapeRef tileAxis, Dim tileDim, int64_t kernelSize) {
     int64_t minChannelSize = 1;
     if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
-        minChannelSize = channelsInfo.getChannelAlignment();
+        minChannelSize = channelsInfo.getOutputChannelAlignment();
     }
     auto outputShape = getShape(op->getResult(0));
     if (tileDim == Dims4D::Act::C) {
