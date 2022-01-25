@@ -208,6 +208,18 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
 
                 })
                 .Case<IE::AvgPoolOp>([&](IE::AvgPoolOp op) {})
+                .Case<IE::AddOp>([&](IE::AddOp op) {
+                    assignMultiClusterStrategy(op);
+                })
+                .Case<IE::MultiplyOp>([&](IE::MultiplyOp op) {
+                    assignMultiClusterStrategy(op);
+                })
+                .Case<IE::SubtractOp>([&](IE::SubtractOp op) {
+                    assignMultiClusterStrategy(op);
+                })
+                .Case<IE::AndOp>([&](IE::AndOp op) {
+                    assignMultiClusterStrategy(op);
+                })
                 .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
                     // Is operation SOH compatible
                     if (isOperationSplitOverHeightCompatible<IE::ConvolutionOp>(op)) {
@@ -342,5 +354,17 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
                 }
+            })
+            .Case<IE::AddOp>([&](IE::AddOp op) {
+                assignMultiClusterStrategyForEltwise<IE::AddOp>(op);
+            })
+            .Case<IE::MultiplyOp>([&](IE::MultiplyOp op) {
+                assignMultiClusterStrategyForEltwise<IE::MultiplyOp>(op);
+            })
+            .Case<IE::SubtractOp>([&](IE::SubtractOp op) {
+                assignMultiClusterStrategyForEltwise<IE::SubtractOp>(op);
+            })
+            .Case<IE::AndOp>([&](IE::AndOp op) {
+                assignMultiClusterStrategyForEltwise<IE::AndOp>(op);
             });
 }

@@ -37,6 +37,8 @@ private:
     bool isOperationSplitOverHeightCompatible(ConcreteOp op);
     template <class ConcreteOp>
     bool isOperationSplitOverKernelCompatible(ConcreteOp op);
+    template <class ConcreteOp>
+    void assignMultiClusterStrategyForEltwise(ConcreteOp& op);
     void assignMultiClusterStrategy(mlir::Operation* op);
     double calculateSplitOverHeightEfficency(mlir::Operation* op);
     double calculateSplitOverKernelEfficency(mlir::Operation* op);
@@ -70,5 +72,19 @@ bool StrategyManager::isOperationSplitOverKernelCompatible(ConcreteOp op) {
     const auto OC = outputShape[Dims4D::Act::C];
     return OC >= _minimumOutputChannelsPerCluster * _numClusters;
 }
+
+template <class ConcreteOp>
+void StrategyManager::assignMultiClusterStrategyForEltwise(ConcreteOp& op) {
+    // If operation is not SOH compatible, then it has to be Clustering
+    if (isOperationSplitOverHeightCompatible<ConcreteOp>(op)) {
+        op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverH"));
+        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategyAttrName),
+                   op->getName());
+    } else {
+        op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
+        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategyAttrName),
+                   op->getName());
+    }
+};
 
 }  // namespace vpux
