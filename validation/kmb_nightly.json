@@ -2865,8 +2865,9 @@
 
         {
             "name" : "BDK_tf_FP16-INT8_deeplabv3",
-            "ir" : "models/clientmodels/BDK3/deeplabv3/tf/FP16-INT8/deeplabv3.xml",
+            "ir" : "models/clientmodels/BDK4/deeplabv3/tf/FP16-INT8/deeplabv3_int8.xml",
             "category" : "MCM",
+            "disabled" :  true,
             "3900" : {
                 "disabled" : true
             },
@@ -4265,7 +4266,7 @@
 
         {
             "name" : "deeplabv3_fp16",
-            "ir" : "models/clientmodels/BDK3/deeplabv3/tf/FP16/deeplabv3_fp16.xml",
+            "ir" : "models/clientmodels/BDK4/deeplabv3/tf/FP16/deeplabv3_fp16.xml",
             "category" : "MLIR",
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
