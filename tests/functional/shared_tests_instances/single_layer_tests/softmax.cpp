@@ -57,7 +57,7 @@ class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTe
         return vpux::None;
     }
 };
-
+/*
 TEST_P(VPUXSoftMaxLayerTest, MCM) {
     abs_threshold = 1e-3;
     run();
@@ -68,8 +68,9 @@ TEST_P(VPUXSoftMaxLayerTest, MLIR) {
     useCompilerMLIR();
     run();
 }
-
+*/
 TEST_P(VPUXSoftMaxLayerTest, MLIR_MTL) {
+    abs_threshold = 1e-3;
     useCompilerMLIR();
     setPlatformMTL();
     setDefaultHardwareModeMLIR();
