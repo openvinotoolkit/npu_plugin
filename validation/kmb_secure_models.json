@@ -6,7 +6,7 @@
             "ir": "Model_A_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "THROUGHPUT",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -27,13 +27,13 @@
                 "special": true
             }
         },
-        
+
         {
             "name": "BDK_INT8_ModelA_224",
             "ir": "Model_A_224_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "THROUGHPUT",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -54,13 +54,13 @@
                 "special": true
             }
         },
-        
+
         {
             "name": "BDK_INT8_ModelE",
             "ir": "Model_E_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "THROUGHPUT",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -81,13 +81,13 @@
                 "special": true
             }
         },
-        
+
         {
             "name": "BDK_INT8_ModelC1",
             "ir": "Model_C1_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "THROUGHPUT",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -114,7 +114,7 @@
             "ir" : "Model_C2_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "THROUGHPUT",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -140,7 +140,7 @@
             "ir" : "Model_F_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "THROUGHPUT",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -167,7 +167,7 @@
             "ir" : "Model_B1_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "THROUGHPUT",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -194,7 +194,7 @@
             "ir" : "Model_B2_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "THROUGHPUT",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -215,13 +215,13 @@
                 "special" : true
             }
         },
-        
+
         {
             "name": "BDK_INT8_ModelA",
             "ir": "Model_A_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -242,13 +242,13 @@
                 "special": true
             }
         },
-        
+
         {
             "name": "BDK_INT8_ModelA_224",
             "ir": "Model_A_224_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -269,13 +269,13 @@
                 "special": true
             }
         },
-        
+
         {
             "name": "BDK_INT8_ModelE",
             "ir": "Model_E_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -296,13 +296,13 @@
                 "special": true
             }
         },
-        
+
         {
             "name": "BDK_INT8_ModelC1",
             "ir": "Model_C1_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -329,7 +329,7 @@
             "ir" : "Model_C2_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -355,7 +355,7 @@
             "ir" : "Model_F_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -382,7 +382,7 @@
             "ir" : "Model_B1_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -409,7 +409,7 @@
             "ir" : "Model_B2_Int8_Proxy.xml",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MCM",
-                "VPUX_EXECUTOR_STREAMS":"2",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
