@@ -25,7 +25,7 @@ VPUXLayerTestsCommon::VPUXLayerTestsCommon() {
     _log.setLevel(vpux::LogLevel::Warning);
 
     if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
-        core->set_config({{CONFIG_KEY(LOG_LEVEL), envConfig.IE_KMB_TESTS_LOG_LEVEL}}, testPlatformTargetDevice);
+        core->set_property(testPlatformTargetDevice, {{CONFIG_KEY(LOG_LEVEL), envConfig.IE_KMB_TESTS_LOG_LEVEL}});
 
         const auto logLevel = vpux::OptionParser<vpux::LogLevel>::parse(envConfig.IE_KMB_TESTS_LOG_LEVEL);
         _log.setLevel(logLevel);
@@ -64,7 +64,7 @@ bool VPUXLayerTestsCommon::isCompilerMCM() const {
         return true;
     }
 
-    return it->second == VPUX_CONFIG_VALUE(MCM);
+    return it->second.as<std::string>() == VPUX_CONFIG_VALUE(MCM);
 }
 
 bool VPUXLayerTestsCommon::isCompilerMLIR() const {
@@ -73,7 +73,7 @@ bool VPUXLayerTestsCommon::isCompilerMLIR() const {
         return false;
     }
 
-    return it->second == VPUX_CONFIG_VALUE(MLIR);
+    return it->second.as<std::string>() == VPUX_CONFIG_VALUE(MLIR);
 }
 
 bool VPUXLayerTestsCommon::isPlatformMTL() const {
@@ -82,7 +82,7 @@ bool VPUXLayerTestsCommon::isPlatformMTL() const {
         return false;
     }
 
-    return it->second == "VPU3720";
+    return it->second.as<std::string>() == "VPU3720";
 }
 
 void VPUXLayerTestsCommon::run() {
@@ -260,7 +260,9 @@ void VPUXLayerTestsCommon::exportReference() {
 void VPUXLayerTestsCommon::printNetworkConfig() const {
     std::ostringstream ostr;
     for (const auto& item : configuration) {
-        ostr << item.first << "=" << item.second << "; ";
+        ostr << item.first << "=";
+        item.second.print(ostr);
+        ostr << "; ";
     }
     std::cout << "LoadNetwork Config: " << ostr.str() << '\n';
 }
