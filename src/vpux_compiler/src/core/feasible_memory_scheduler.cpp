@@ -501,6 +501,7 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
                     _depsInfo.getIndex(writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>());
             demandList.erase(executeOpIdx);
             scheduleSpilledOpBuffer(executeOpIdx, &val);
+            maxInputDelay = 1;
         }
     }
 
