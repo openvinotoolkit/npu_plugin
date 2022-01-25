@@ -50,6 +50,18 @@ double getAlignment(double input, size_t unit) {
 }
 
 double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
+    const auto splitOverHeightFormula = [&](double OH, double OW, double OC) {
+        double outputTensorVolume = OC * OH * OW;
+        return std::max((outputTensorVolume / _numClusters) /
+                                getAlignment((getAlignment(std::ceil(OH / _numClusters), _numClusters) *
+                                              getAlignment(OW, _numClusters) * getAlignment(OC, _numChannelAlignment)),
+                                             _numDPUPerCluster),
+                        (outputTensorVolume / _numClusters) /
+                                getAlignment((getAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
+                                              getAlignment(OW, 1) * getAlignment(OC, _numChannelAlignment)),
+                                             _numDPUPerCluster));
+    };
+
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
                 const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
@@ -81,16 +93,7 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                                                                getAlignment(OC, _numChannelAlignment)));
                     // ZM Conv
                 } else {
-                    efficency = std::max(
-                            (outputTensorVolume / _numClusters) /
-                                    getAlignment(
-                                            (getAlignment(std::ceil(OH / _numClusters), _numClusters) *
-                                             getAlignment(OW, _numClusters) * getAlignment(OC, _numChannelAlignment)),
-                                            _numDPUPerCluster),
-                            (outputTensorVolume / _numClusters) /
-                                    getAlignment((getAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
-                                                  getAlignment(OW, 1) * getAlignment(OC, _numChannelAlignment)),
-                                                 _numDPUPerCluster));
+                    efficency = splitOverHeightFormula(OH, OW, OC);
                 }
                 _log.trace("The SOH efficiency for the convolution is {0}", efficency);
                 return efficency;
@@ -122,25 +125,28 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                 const double OW = outputShape[Dims4D::Act::W];
                 const auto KY = weightsShape[Dims4D::Filter::KY];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+                const double outputTensorVolume = OC * OH * OW;
 
                 auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
-                double efficency =
-                        efficiencyConstant *
-                        std::max(((OH / _numClusters * OW * OC) /
-                                  (5.0 *
-                                   std::ceil((4.0 * std::ceil(std::ceil(OH / _numClusters) / _numClusters) *
-                                              _numClusters * std::ceil(OW / _numClusters) * 16.0 * std::ceil(OC / 16)) /
-                                             5))),
-                                 ((OH / _numClusters * OW * OC) /
-                                  (5.0 * std::ceil((16.0 * std::ceil(std::ceil(OH / _numClusters) / 16.0) * 1.0 *
-                                                    std::ceil(OW / 1.0) * 16.0 * std::ceil(OC / 16.0)) /
-                                                   5.0))));
+                double efficency = efficiencyConstant * splitOverHeightFormula(OH, OW, OC);
                 _log.trace("The SOH efficiency for the group convolution is {0}", efficency);
                 return efficency;
             });
 }
 
 double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
+    const auto splitOverKernelFormula = [&](double OH, double OW, double OC) {
+        double outputTensorVolume = OC * OH * OW;
+        return std::max((outputTensorVolume / _numClusters) /
+                                getAlignment((getAlignment(OH, _numClusters) * getAlignment(OW, _numClusters) *
+                                              getAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                             _numDPUPerCluster),
+                        (outputTensorVolume / _numClusters) /
+                                getAlignment((getAlignment(OH, _numChannelAlignment) * getAlignment(OW, 1) *
+                                              getAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                             _numDPUPerCluster));
+    };
+
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
                 const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
@@ -153,16 +159,7 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 const double OH = outputShape[Dims4D::Act::H];
                 const double OW = outputShape[Dims4D::Act::W];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-                const double outputTensorVolume = OC * OH * OW;
-                double efficency = std::max((outputTensorVolume / _numClusters) /
-                                                    (5 * std::ceil((4 * std::ceil(OH / _numClusters) * _numClusters *
-                                                                    std::ceil(OW / _numClusters) * 16 *
-                                                                    std::ceil(std::ceil(OC / _numClusters) / 16)) /
-                                                                   5)),
-                                            (outputTensorVolume / _numClusters) /
-                                                    (5 * std::ceil((16 * std::ceil(OH / 16) * 1 * std::ceil(OW / 1) *
-                                                                    16 * std::ceil(std::ceil(OC / _numClusters) / 16)) /
-                                                                   5)));
+                double efficency = splitOverKernelFormula(OH, OW, OC);
                 _log.trace("The SOK efficiency for the convolution is {0}", efficency);
                 return efficency;
             })
@@ -196,17 +193,7 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
 
                 auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
 
-                double efficency =
-                        efficiencyConstant *
-                        std::max(((OH * OW * OC / _numClusters) /
-                                  (5.0 *
-                                   std::ceil((4.0 * std::ceil(OH / _numClusters) * _numClusters) *
-                                             std::ceil(OW / _numClusters) * 16.0 * std::ceil(std::ceil(OC / 4) / 16)) /
-                                   5)),
-                                 ((OH * OW * OC / _numClusters) /
-                                  (5.0 * std::ceil((16.0 * std::ceil(OH / 16.0) * 1.0 * std::ceil(OW / 1.0) * 16.0 *
-                                                    std::ceil(std::ceil(OC / 4) / 16)) /
-                                                   5.0))));
+                double efficency = efficiencyConstant * splitOverKernelFormula(OH, OW, OC);
                 _log.trace("The SOK efficiency for the group convolution is {0}", efficency);
                 return efficency;
             });
