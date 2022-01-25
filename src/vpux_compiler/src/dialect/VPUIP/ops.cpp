@@ -443,21 +443,9 @@ public:
         });
     }
 
-    bool isSupportedPrefetchTiling(mlir::Operation* op, ShapeRef tileAxis, Logger log) const {
-        auto tileDims = getTileDims(tileAxis);
-        if (tileDims.size() != 1) {
-            return false;
-        }
-        auto tileDim = tileDims[0];
-        auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
-
-        auto isMemPrefetchable = [&]() -> bool {
-            auto tileResult = fillDividedTiles(tileAxis, outputShape);
-            return vpux::VPUIP::NCEInvariant::verifyEltwisePrefetchCMX(op, tileResult, log).succeeded();
-        };
-
-        return isDivisibleTile(op, tileAxis, tileDim, 1) && isMemPrefetchable() &&
-               !isLastTileBiggest(tileAxis, outputShape, tileDim);
+    bool isSupportedPrefetchTiling(mlir::Operation* /*op*/, ShapeRef /*tileAxis*/, Logger /*log*/) const {
+        // The DPU time of eltwise operations are too short to worth prefetching.
+        return false;
     }
 
 private:
