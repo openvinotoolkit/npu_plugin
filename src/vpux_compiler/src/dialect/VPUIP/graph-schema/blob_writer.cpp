@@ -272,16 +272,15 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
         uniqueInvocationName.append(StringRef(std::to_string(kernelMapEntries)));
     }
 
-    const uint64_t non_empty_offset = 1;
+    constexpr uint64_t reserved_offset = 1;
 
     // offset is preliminary and will be further corrected 1 is force flatbuffer to produce 4 bytes in storage
     auto dataSection =
-            createKernelDataRef(uniqueInvocationName, non_empty_offset, actKernelDesc.data.size, invocationArgsAndData);
+            createKernelDataRef(uniqueInvocationName, reserved_offset, actKernelDesc.data.size, invocationArgsAndData);
 
     // offset is preliminary and will be further corrected
     auto invocationSection =
-            createKernelDataRef(uniqueInvocationName, non_empty_offset + actKernelDesc.data.data.size(),
-                                invocationArgs.size(), invocationArgsAndData);
+            createKernelDataRef(uniqueInvocationName, reserved_offset, invocationArgs.size(), invocationArgsAndData);
 
     MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
     invocationBuilder.add_dataSection(dataSection);
