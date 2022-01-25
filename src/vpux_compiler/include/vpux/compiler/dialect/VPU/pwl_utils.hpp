@@ -45,7 +45,6 @@ struct PwlQuantReqs {
 extern const EnumMap<VPU::PPEMode, PwlQuantReqs> pwlQuantReqs;
 
 PwlQuantReqs getPwlQuantReqs(VPU::PPEMode ppeType);
-std::unique_ptr<VPU::PwlQuantReqs> getCustomPwlQuantReqs(IE::LayerWithPostOpInterface origOp);
 
 int64_t getPwlPostShift(const VPU::PPEMode ppeType);
 int64_t getPwlClamp(const mlir::Type inElemType, const mlir::Type outElemType, const VPU::PPEMode ppeType,
