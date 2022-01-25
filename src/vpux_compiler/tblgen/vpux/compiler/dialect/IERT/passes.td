@@ -46,6 +46,21 @@ def CopyOpHoisting : PassBase<"copy-op-hoisting", "vpux::FunctionPass"> {
 }
 
 //
+// OptimizeParallelCopies
+//
+
+def OptimizeParallelCopies : PassBase<"optimize-parallel-copies", "vpux::FunctionPass"> {
+    let summary = "Copy the data only once for all the tiles that share the same data";
+    
+    let description = [{
+    This pass checks all the CopyOps consumed by tiles of one tiling subgraph.
+    If the CopyOps operate on the same weight or activation, merge the parallel copies into one.
+    }];
+    
+    let constructor = "vpux::IERT::createOptimizeParallelCopiesPass()";
+}
+
+//
 // CopyOpLegalization
 //
 
