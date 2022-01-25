@@ -87,7 +87,7 @@ bool FeasibleMemoryScheduler::isDataOp(operationIdxType opIdx) {
     }
 
     const auto executor = IERT::IERTDialect::getExecutor(op);
-    if (executor.getNameAttr().getAttr() != VPU::ExecutorKindAttr::get(op->getContext(), VPU::ExecutorKind::DMA_NN)) {
+    if (executor.getLeafNameAttr() != VPU::ExecutorKindAttr::get(op->getContext(), VPU::ExecutorKind::DMA_NN)) {
         return false;
     }
 

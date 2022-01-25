@@ -155,7 +155,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     // linear scan
-    auto available = IE::getAvailableMemory(module, _memSpace.getNameAttr());
+    auto available = IE::getAvailableMemory(module, _memSpace.getFullReference());
     const auto maxSize = available.size();
     const uint64_t alignment = 64;
 
@@ -231,7 +231,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
         return;
     }
 
-    IE::setUsedMemory(module, _memSpace.getNameAttr(), scan.handler().maxAllocatedSize());
+    IE::setUsedMemory(module, _memSpace.getFullReference(), scan.handler().maxAllocatedSize());
 }
 
 }  // namespace

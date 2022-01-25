@@ -128,7 +128,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
 
     auto module = netFunc->getParentOfType<mlir::ModuleOp>();
-    auto availableMem = IE::getAvailableMemory(module, _memSpace.getNameAttr());
+    auto availableMem = IE::getAvailableMemory(module, _memSpace.getFullReference());
     VPUX_THROW_WHEN(availableMem == nullptr, "The memory space '{0}' is not available", _memSpace);
 
     const Byte maxMemSize = availableMem.size();
@@ -252,7 +252,7 @@ void StaticAllocationPass::safeRunOnModule() {
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     const auto allocInfo = runLinearScan(netFunc);
-    IE::setUsedMemory(module, _memSpace.getNameAttr(), allocInfo.maxAllocatedSize());
+    IE::setUsedMemory(module, _memSpace.getFullReference(), allocInfo.maxAllocatedSize());
 
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<IERT::IERTDialect>();

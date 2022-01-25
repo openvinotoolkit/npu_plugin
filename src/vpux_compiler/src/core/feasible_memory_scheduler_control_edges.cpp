@@ -87,7 +87,7 @@ void FeasibleMemorySchedulerControlEdges::insertScheduleOrderDepsForExecutor(
         }
 
         const auto executor = IERT::IERTDialect::getExecutor(execOp);
-        if (executor.getNameAttr().getAttr() != VPU::ExecutorKindAttr::get(execOp->getContext(), executorKind)) {
+        if (executor.getLeafNameAttr() != VPU::ExecutorKindAttr::get(execOp->getContext(), executorKind)) {
             return false;
         }
         return true;

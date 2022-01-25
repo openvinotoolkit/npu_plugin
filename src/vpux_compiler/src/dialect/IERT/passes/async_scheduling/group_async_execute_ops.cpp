@@ -43,7 +43,7 @@ bool isOptimizableOp(mlir::async::ExecuteOp execOp) {
 
     const auto executor = vpux::IERT::IERTDialect::getExecutor(execOp);
 
-    auto executorInfo = IE::getAvailableExecutor(module, executor.getNameAttr());
+    auto executorInfo = IE::getAvailableExecutor(module, executor.getFullReference());
     VPUX_THROW_UNLESS(executorInfo != nullptr, "Failed to get information about executor {0}", executor);
 
     return executorInfo.subExecutors().front().empty();

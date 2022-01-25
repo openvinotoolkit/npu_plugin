@@ -11,14 +11,14 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/core/attributes/indexed_symbol_attr.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/IE/utils/resources.hpp"
-#include "vpux/compiler/core/attributes/indexed_symbol_attr.hpp"
 #include "vpux/compiler/init.hpp"
 
-#include <mlir/Parser.h>
 #include <mlir/IR/MLIRContext.h>
+#include <mlir/Parser.h>
 
 #include <gtest/gtest.h>
 
@@ -31,19 +31,21 @@ constexpr vpux::StringRef NCE_NAME = "NCE";
 constexpr vpux::StringRef DPU_NAME = "DPU";
 
 void checkDDRSpace(vpux::IndexedSymbolAttr indexedSymbol) {
-    ASSERT_TRUE(indexedSymbol.getName() == DDR_NAME);
-    ASSERT_TRUE(!indexedSymbol.isDefined());
-    ASSERT_TRUE(!indexedSymbol.getNestedAttr().hasValue());
+    ASSERT_EQ(indexedSymbol.getRootName(), DDR_NAME);
+    ASSERT_EQ(indexedSymbol.getLeafName(), DDR_NAME);
+    ASSERT_FALSE(indexedSymbol.getIndex().hasValue());
+    ASSERT_FALSE(indexedSymbol.getNestedReference().hasValue());
 }
 
 void checkCMXSpace(vpux::IndexedSymbolAttr indexedSymbol, int64_t expIndex) {
-    ASSERT_TRUE(indexedSymbol.getName() == CMX_NAME);
-    ASSERT_TRUE(indexedSymbol.isDefined());
-    ASSERT_TRUE(indexedSymbol.getIndex() == expIndex);
-    ASSERT_TRUE(!indexedSymbol.getNestedAttr().hasValue());
+    ASSERT_EQ(indexedSymbol.getRootName(), CMX_NAME);
+    ASSERT_EQ(indexedSymbol.getLeafName(), CMX_NAME);
+    ASSERT_TRUE(indexedSymbol.getIndex().hasValue());
+    ASSERT_EQ(indexedSymbol.getIndex().getValue(), expIndex);
+    ASSERT_FALSE(indexedSymbol.getNestedReference().hasValue());
 }
 
-}
+}  // namespace
 
 TEST(MLIR_IndexedSymbolAttr, CheckNestedAttr) {
     mlir::DialectRegistry registry;
@@ -51,22 +53,31 @@ TEST(MLIR_IndexedSymbolAttr, CheckNestedAttr) {
 
     mlir::MLIRContext ctx(registry);
 
-    int64_t dummyIdx = 0;
-    auto dummyNameAttr = mlir::FlatSymbolRefAttr::get(&ctx, "@DUMMY");
-    auto expNestedAttr = vpux::IndexedSymbolAttr::get(&ctx, {dummyNameAttr, vpux::getIntAttr(&ctx, dummyIdx)});
+    const int64_t nestedIdx = 0;
+    const auto nestedNameAttr = mlir::FlatSymbolRefAttr::get(&ctx, "@DUMMY");
+    const auto nestedAttr = vpux::IndexedSymbolAttr::get(&ctx, {nestedNameAttr, vpux::getIntAttr(&ctx, nestedIdx)});
 
-    int64_t cmxIdx = 1;
-    auto cmxNameAttr = mlir::FlatSymbolRefAttr::get(&ctx, CMX_NAME);
-    auto rootAttr = vpux::IndexedSymbolAttr::get(&ctx, {cmxNameAttr, vpux::getIntAttr(&ctx, cmxIdx), expNestedAttr});
+    const int64_t rootIdx = 1;
+    const auto rootNameAttr = mlir::FlatSymbolRefAttr::get(&ctx, CMX_NAME);
+    const auto rootAttr = vpux::IndexedSymbolAttr::get(&ctx, {rootNameAttr, vpux::getIntAttr(&ctx, rootIdx), nestedAttr});
 
-    ASSERT_TRUE(rootAttr.getName() == CMX_NAME);
-    ASSERT_TRUE(rootAttr.getIndex() == cmxIdx);
-    ASSERT_TRUE(rootAttr.getNestedAttr().hasValue());
+    const auto fullSymbolAttr = mlir::SymbolRefAttr::get(rootNameAttr.getAttr(), llvm::makeArrayRef(nestedNameAttr));
 
-    auto actNestedAttr = rootAttr.getNestedAttr().getValue();
-    ASSERT_TRUE(actNestedAttr.getNameAttr() == dummyNameAttr);
-    ASSERT_TRUE(actNestedAttr.getIndex() == dummyIdx);
-    ASSERT_TRUE(!actNestedAttr.getNestedAttr().hasValue());
+    ASSERT_EQ(rootAttr.getRootReference(), rootNameAttr);
+    ASSERT_EQ(rootAttr.getLeafReference(), nestedNameAttr);
+    ASSERT_EQ(rootAttr.getFullReference(), fullSymbolAttr);
+    ASSERT_TRUE(rootAttr.getIndex().hasValue());
+    ASSERT_EQ(rootAttr.getIndex().getValue(), rootIdx);
+    ASSERT_TRUE(rootAttr.getNestedReference().hasValue());
+
+    const auto actNestedAttr = rootAttr.getNestedReference().getValue();
+    ASSERT_EQ(actNestedAttr, nestedAttr);
+    ASSERT_EQ(actNestedAttr.getRootReference(), nestedNameAttr);
+    ASSERT_EQ(actNestedAttr.getLeafReference(), nestedNameAttr);
+    ASSERT_EQ(actNestedAttr.getFullReference(), nestedNameAttr);
+    ASSERT_TRUE(actNestedAttr.getIndex().hasValue());
+    ASSERT_EQ(actNestedAttr.getIndex().getValue(), nestedIdx);
+    ASSERT_FALSE(actNestedAttr.getNestedReference().hasValue());
 }
 
 TEST(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
@@ -94,7 +105,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
     ASSERT_TRUE(func != nullptr);
 
     const auto checkMemSpace = [](vpux::IndexedSymbolAttr indexedSymAttr) {
-        if(indexedSymAttr.getName() == DDR_NAME) {
+        if (indexedSymAttr.getLeafName() == DDR_NAME) {
             checkDDRSpace(indexedSymAttr);
         } else {
             checkCMXSpace(indexedSymAttr, 0);
@@ -102,7 +113,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
     };
 
     for (auto& op : func.getOps()) {
-        if(auto allocOp = mlir::dyn_cast<mlir::memref::AllocOp>(op)) {
+        if (auto allocOp = mlir::dyn_cast<mlir::memref::AllocOp>(op)) {
             const auto type = allocOp.memref().getType().cast<mlir::MemRefType>();
             auto memSpace = vpux::getMemorySpace(type);
 
@@ -111,15 +122,14 @@ TEST(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
             auto inMemSpace = vpux::getMemorySpace(copyOp.input().getType().cast<mlir::MemRefType>());
             auto outMemSpace = vpux::getMemorySpace(copyOp.output().getType().cast<mlir::MemRefType>());
 
-            ASSERT_TRUE(inMemSpace != outMemSpace);
-            ASSERT_TRUE(inMemSpace.getName() == DDR_NAME || inMemSpace.getName() == CMX_NAME);
+            ASSERT_NE(inMemSpace, outMemSpace);
+            ASSERT_TRUE(inMemSpace.getLeafName() == DDR_NAME || inMemSpace.getLeafName() == CMX_NAME);
 
             checkMemSpace(inMemSpace);
             checkMemSpace(outMemSpace);
         }
     }
 }
-
 
 TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
     mlir::DialectRegistry registry;
@@ -205,18 +215,22 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
             const auto executor = vpux::IERT::IERTDialect::getExecutor(executeOp);
             ASSERT_TRUE(executor != nullptr);
 
-            const auto execRes = vpux::IE::getAvailableExecutor(module.get(), executor.getNameAttr());
+            auto execRes = vpux::IE::getAvailableExecutor(module.get(), executor.getRootReference());
             ASSERT_TRUE(execRes != nullptr);
 
-            if(executor.getName() == NCE_NAME) {
-                ASSERT_TRUE(executor.isDefined());
-                ASSERT_TRUE(executor.getIndex() == 1);
-                ASSERT_TRUE(executor.getNestedAttr().hasValue());
+            if (executor.getRootName() == NCE_NAME) {
+                ASSERT_TRUE(executor.getIndex().hasValue());
+                ASSERT_EQ(executor.getIndex().getValue(), 1);
+                ASSERT_TRUE(executor.getNestedReference().hasValue());
+                ASSERT_EQ(executor.getLeafName(), DPU_NAME);
 
-                auto nestedExecAttr = executor.getNestedAttr().getValue();
-                ASSERT_TRUE(nestedExecAttr.getName() == DPU_NAME);
-                ASSERT_TRUE(!nestedExecAttr.isDefined());
-                ASSERT_TRUE(!nestedExecAttr.getNestedAttr().hasValue());
+                auto nestedExecAttr = executor.getNestedReference().getValue();
+                ASSERT_EQ(nestedExecAttr.getRootName(), DPU_NAME);
+                ASSERT_FALSE(nestedExecAttr.getNestedReference().hasValue());
+
+                auto nestedExecRes = vpux::IE::getAvailableExecutor(module.get(), executor.getFullReference());
+                ASSERT_TRUE(nestedExecRes != nullptr);
+                ASSERT_EQ(nestedExecRes.sym_name(), DPU_NAME);
             }
         }
     }

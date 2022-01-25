@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
@@ -25,22 +27,30 @@ public:
     using mlir::Attribute::Attribute;
 
 public:
-    static IndexedSymbolAttr get(mlir::MLIRContext* context, mlir::ArrayRef<mlir::Attribute> array);
+    static bool classof(mlir::Attribute attr);
+
+public:
+    static IndexedSymbolAttr get(mlir::MLIRContext* context, ArrayRef<mlir::Attribute> array);
     static IndexedSymbolAttr get(mlir::MLIRContext* context, StringRef name);
     static IndexedSymbolAttr get(mlir::StringAttr name);
 
-    mlir::FlatSymbolRefAttr getNameAttr() const;
-    mlir::Optional<mlir::IntegerAttr> getIndexAttr() const;
-    mlir::Optional<vpux::IndexedSymbolAttr> getNestedAttr() const;
+public:
+    Optional<IndexedSymbolAttr> getNestedReference() const;
 
-    StringRef getName() const;
+public:
+    mlir::FlatSymbolRefAttr getRootReference() const;
+    mlir::StringAttr getRootNameAttr() const;
+    StringRef getRootName() const;
 
-    bool isDefined() const;
-    int64_t getIndex() const;
+    mlir::FlatSymbolRefAttr getLeafReference() const;
+    mlir::StringAttr getLeafNameAttr() const;
+    StringRef getLeafName() const;
 
-    mlir::Attribute getValue();
+    mlir::SymbolRefAttr getFullReference() const;
 
-    static bool classof(mlir::Attribute attr);
+public:
+    Optional<mlir::IntegerAttr> getIndexAttr() const;
+    Optional<int64_t> getIndex() const;
 };
 
 }  // namespace vpux

@@ -31,9 +31,10 @@ def IndexedSymbolAttr :
             CPred<"$_self.isa<vpux::IndexedSymbolAttr>()">,
             "Symbol name with optional index"
         > {
-
-    let storageType = [{ vpux::IndexedSymbolAttr }];
-    let returnType = [{ mlir::Attribute }];
+    let storageType = "vpux::IndexedSymbolAttr";
+    let returnType = "vpux::IndexedSymbolAttr";
+    let convertFromStorage = "$_self";
+    let constBuilderCall = "$0";
 }
 
 #endif
