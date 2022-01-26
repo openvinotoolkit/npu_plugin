@@ -105,12 +105,21 @@ Bypass related preparations
 
 ### ClangFormat
 
-`sudo apt-get install -y clang-format-9`
+* Install the proper version of ClangFormat tool:
+  * In Linux: `$ sudo apt install -y clang-format-9`
+  * If you use another OS, please update this document after you install the application
+* Set up the formatter tool in your IDE:
+  * For Visual Studio Code IDE, follow [this manual](https://code.visualstudio.com/docs/cpp/cpp-ide#_code-formatting).
+    * In Linux, the path to ClangFormat9 application is usually `/usr/bin/clang-format-9`
+      You can check it with `$ which clang-format-9`
+  * If you use another IDE, please update this document after you set it up properly
+* If necessary, you can format the whole project at once:
+  * Set CMake option: `-D CLANG_FORMAT=path_to_your_clang_format_9`
+  * Build target `clang_format_fix_all`
 
 ### Code style
 
-* Set CMake option `-D CLANG_FORMAT=/usr/bin/clang-format-9`
-* Build target `clang_format_fix_all` to fix code style issues.
+* [VPUX Compiler C++ code-style document](src/vpux_compiler/docs/code_style.md)
 
 ### Developer build
 
