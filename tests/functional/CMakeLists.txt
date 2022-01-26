@@ -20,6 +20,7 @@ addIeTargetTest(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpual_backend"
         "${CMAKE_CURRENT_SOURCE_DIR}/internal"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_test_classes/include"
+        ${LLVM_INCLUDE_DIRS}
     DEPENDENCIES
         ov_intel_vpux_plugin
     LINK_LIBRARIES

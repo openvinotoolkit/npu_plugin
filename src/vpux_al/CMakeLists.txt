@@ -29,29 +29,6 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include>
 )
-# FIXME: S#71607
-if(NOT MSVC)
-    target_compile_options(${TARGET_NAME}
-        PUBLIC
-            -Wno-error=deprecated-declarations
-    )
-endif()
-
-if(BUILD_COMPILER_FOR_DRIVER)
-    target_include_directories(${TARGET_NAME}
-        PUBLIC
-            $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_compiler/include>
-    )
-
-    target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            vpux_mlir_compiler_static)
-
-    target_compile_definitions(${TARGET_NAME}
-        PUBLIC
-            BUILD_COMPILER_FOR_DRIVER
-    )
-endif()
 
 set(VPUX_VERSION_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp)
 addVersionDefines(${VPUX_VERSION_FILE} CI_BUILD_NUMBER)
@@ -62,11 +39,38 @@ link_system_libraries(${TARGET_NAME}
 )
 
 if(BUILD_SHARED_LIBS)
-    link_system_libraries(${TARGET_NAME}
+    target_link_libraries(${TARGET_NAME}
         PRIVATE
             IE::inference_engine
     )
-endif()
+else()
+    target_link_libraries(${TARGET_NAME}
+        PRIVATE
+            IE::inference_engine_plugin_api
+            openvino::runtime
+        PUBLIC
+            vpux_mlir_compiler
+    )
+
+    target_include_directories(${TARGET_NAME}
+        PUBLIC
+            $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_compiler/include>
+    )
+
+    if(ENABLE_ZEROAPI_BACKEND)
+        target_link_libraries(${TARGET_NAME}
+            PUBLIC
+                vpux_level_zero_backend
+        )
+
+        target_include_directories(${TARGET_NAME}
+            PUBLIC
+                $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/zero_backend/include>
+        )
+    endif()
+
+    target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+endif ()
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
@@ -80,9 +84,11 @@ if(ENABLE_CLANG_FORMAT)
     add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
 endif()
 
+#
+# targets install
+#
+
 if (NOT BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
 endif()

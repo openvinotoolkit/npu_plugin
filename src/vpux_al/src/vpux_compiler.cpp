@@ -24,11 +24,7 @@
 
 #include <fstream>
 
-// FIXME: use OPENVINO_STATIC_LIBRARY instead of
-// BUILD_COMPILER_FOR_DRIVER once the compiler can be used in
-// purely static build
-// #ifdef OPENVINO_STATIC_LIBRARY
-#ifdef BUILD_COMPILER_FOR_DRIVER
+#ifdef OPENVINO_STATIC_LIBRARY
 #include "vpux/compiler/compiler.hpp"
 #endif
 
@@ -65,12 +61,8 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& 
 }
 
 vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
-// FIXME: use OPENVINO_STATIC_LIBRARY instead of
-// BUILD_COMPILER_FOR_DRIVER once the compiler can be used in
-// purely static build
-// #ifdef OPENVINO_STATIC_LIBRARY
-#ifdef BUILD_COMPILER_FOR_DRIVER
-    // Always use vpux compiler
+#ifdef OPENVINO_STATIC_LIBRARY
+    // use vpux compiler
     (void)(config);
     const auto mlir = std::make_shared<vpux::CompilerImpl>();
     return std::make_shared<Compiler>(mlir);
@@ -90,7 +82,7 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
 #endif
 }
 
-#ifndef BUILD_COMPILER_FOR_DRIVER
+#ifndef OPENVINO_STATIC_LIBRARY
 vpux::Compiler::Compiler(const std::string& libpath) {
     using CreateFuncT = void (*)(std::shared_ptr<ICompiler>&);
     static constexpr auto CreateFuncName = "CreateVPUXCompiler";

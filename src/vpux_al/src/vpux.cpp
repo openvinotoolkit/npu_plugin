@@ -20,6 +20,13 @@
 
 #include <cstdlib>
 
+// TODO: the creation of backend is not scalable,
+// it needs to be refactored in order to simplify
+// adding other backends into static build config
+#if defined(OPENVINO_STATIC_LIBRARY) && defined(ENABLE_ZEROAPI_BACKEND)
+#include <zero_backend.h>
+#endif
+
 namespace vpux {
 
 bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
@@ -35,6 +42,9 @@ std::string getLibFilePath(const std::string& baseName) {
 }
 
 //------------------------------------------------------------------------------
+#ifdef OPENVINO_STATIC_LIBRARY
+EngineBackend::EngineBackend(std::shared_ptr<IEngineBackend> impl): _impl{impl} {};
+#else
 EngineBackend::EngineBackend(const std::string& pathToLib) {
     using CreateFuncT = void (*)(std::shared_ptr<IEngineBackend>&);
     static constexpr auto CreateFuncName = "CreateVPUXEngineBackend";
@@ -44,6 +54,7 @@ EngineBackend::EngineBackend(const std::string& pathToLib) {
     const auto createFunc = reinterpret_cast<CreateFuncT>(ov::util::get_symbol(_so, CreateFuncName));
     createFunc(_impl);
 }
+#endif
 
 inline const std::shared_ptr<Device> wrapDeviceWithImpl(const std::shared_ptr<IDevice>& device,
                                                         const std::shared_ptr<void>& so) {
@@ -52,6 +63,7 @@ inline const std::shared_ptr<Device> wrapDeviceWithImpl(const std::shared_ptr<ID
     }
     return std::make_shared<Device>(device, so);
 }
+
 const std::shared_ptr<Device> EngineBackend::getDevice() const {
     return wrapDeviceWithImpl(_impl->getDevice(), _so);
 }

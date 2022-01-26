@@ -61,7 +61,7 @@ link_system_libraries(${OBJ_TARGET_NAME}
         IE::inference_engine
         IE::inference_engine_legacy
         IE::inference_engine_transformations
-        IE::pugixml
+        IE::inference_engine_plugin_api
         IE::ngraph_reference
         IE::vpu_common_lib
         vpux_mcm_compiler

@@ -60,6 +60,10 @@ if(BUILD_SHARED_LIBS)
     target_link_libraries(${VPUX_PLUGIN_TARGET} PUBLIC ${VPUX_PLUGIN_OBJS_TARGET})
 else()
     set(TARGET_NAME ${VPUX_PLUGIN_TARGET} CACHE INTERNAL "")
+    if(ENABLE_ZEROAPI_BACKEND)
+        target_link_libraries(${VPUX_PLUGIN_TARGET} INTERFACE vpux_level_zero_backend)
+    endif()
+    target_compile_definitions(${VPUX_PLUGIN_TARGET} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
 enable_warnings_as_errors(${TARGET_NAME})
@@ -73,8 +77,8 @@ target_include_directories(${TARGET_NAME}
 
 link_system_libraries(${TARGET_NAME}
     PUBLIC
-        IE::inference_engine
-        IE::inference_engine_plugin_api
+        openvino::runtime
+        openvino::runtime::dev
         IE::vpu_common_lib
 )
 
@@ -100,11 +104,6 @@ if(BUILD_SHARED_LIBS)
     add_library(${VPUX_PLUGIN_STATIC_TARGET} STATIC
             $<TARGET_OBJECTS:${VPUX_PLUGIN_OBJS_TARGET}>
             ${VPUX_PLUGIN_ENGINE_SOURCE_FILE}
-    )
-
-    target_include_directories(${VPUX_PLUGIN_STATIC_TARGET}
-        PUBLIC
-            $<TARGET_PROPERTY:${VPUX_PLUGIN_OBJS_TARGET},INTERFACE_INCLUDE_DIRECTORIES>
     )
 
     target_link_libraries(${VPUX_PLUGIN_STATIC_TARGET}
@@ -172,7 +171,6 @@ if(AARCH64)
             DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpu"
             COMPONENT    ${VPUX_PLUGIN_COMPONENT})
 endif()
-
 
 if(ENABLE_HDDL2 AND UNIX)
     add_custom_target(pcie_drivers_copy ALL
