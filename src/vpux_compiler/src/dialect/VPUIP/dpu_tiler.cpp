@@ -114,7 +114,16 @@ inline bool isCostModelInited() {
 }
 
 void initCostModel() {
-    gCostModel = std::make_unique<VPUNN::VPUCostModel>();
+    SmallString modelDir;
+    // probe for OV_BUILD_DIR
+    auto ovBuildDir = InferenceEngine::getIELibraryPath();
+
+    modelDir = ovBuildDir;
+    llvm::sys::path::append(modelDir, "vpunnd");
+    llvm::sys::path::append(modelDir, "vpu_2_0.vpunn");
+
+    VPUX_THROW_UNLESS(llvm::sys::fs::exists(modelDir), "vpunnd model {0} is not exist", modelDir);
+    gCostModel = std::make_unique<VPUNN::VPUCostModel>(modelDir.str().str());
 }
 #else
 using namespace vpux;
