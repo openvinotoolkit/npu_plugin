@@ -30,7 +30,6 @@ else()
     list(APPEND EXCLUDED_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hddl2_tests")
 endif()
 
-<<<<<<< HEAD
 if(ENABLE_DRIVER_COMPILER_ADAPTER)
     list(APPEND OPTIONAL_UNIT_TESTS_INCLUDES
         "${CMAKE_CURRENT_SOURCE_DIR}/vpux_driver_compiler_adapter"
@@ -45,8 +44,6 @@ else()
     )
 endif()
 
-=======
->>>>>>> 00c89aae6 (Static compiler and zero backend (#351))
 #
 # Add optional MCM tests
 #
