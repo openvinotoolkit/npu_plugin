@@ -54,7 +54,7 @@ def ConvertInstructionListTableOp2Const : PassBase<"convert-itable-op-to-constan
     let summary = "Convert InstructionListTable Operations to IERT.ConstantOp";
 
     let description = [{
-        This pass fills instruction list table.
+        This pass fills instruction list table from a pwl table using the equation: ((x << m) + b) >> s. It is used for FLEXARB PPE.
     }];
 
     let constructor = "vpux::VPUIP::createConvertInstructionListTableOp2ConstPass()";

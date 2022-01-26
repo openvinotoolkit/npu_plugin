@@ -32,6 +32,7 @@
 
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/IR/BlockAndValueMapping.h>
@@ -63,30 +64,34 @@ mlir::Value createInstructionListTableTensor(mlir::OpBuilder& builder, mlir::Loc
         return nullptr;
     }
 
-    auto pwlTable = findCustomPWLTable(postOp.name().getValue(), outElemType);
+    const auto pwlTable = findCustomPWLTable(postOp.name().getValue(), outElemType);
 
     if (!pwlTable.hasValue()) {
         return nullptr;
     }
 
-    auto pwlTableRange = pwlTable.getValue().range;
-    auto pwlTableShift = pwlTable.getValue().shift;
-    auto pwlTableBias = pwlTable.getValue().bias;
+    const auto pwlTableRange = pwlTable.getValue().range;
+    const auto pwlTableShift = pwlTable.getValue().shift;
+    const auto pwlTableBias = pwlTable.getValue().bias;
 
     auto ctx = builder.getContext();
-    SmallVector<int64_t> instructionListTableShape{1, 1, 1, 32};
+    const size_t vectorSize = pwlTableRange.size() + pwlTableShift.size() + pwlTableBias.size();
+    // We need a NOP to terminate each chain of 16 instructions.
+    const size_t nopCount = vectorSize >> 4;
+    const size_t instructionListTableSize = alignVal<size_t>(vectorSize + nopCount, 16);
+    SmallVector<int64_t> instructionListTableShape{1, 1, 1, static_cast<int64_t>(instructionListTableSize)};
 
     const auto dataType = mlir::MemRefType::get(instructionListTableShape, getSInt32Type(ctx));
     auto instructionListTableOp = builder.create<VPUIP::InstructionListTableOp>(
             loc, dataType, getIntArrayAttr(ctx, makeArrayRef(pwlTableRange)),
             getIntArrayAttr(ctx, makeArrayRef(pwlTableShift)), getIntArrayAttr(ctx, makeArrayRef(pwlTableBias)));
 
-    const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
+    const auto dataTypeCMX = dataType.cast<vpux::NDTypeInterface>().changeMemSpace(VPU::MemoryKind::CMX_NN);
 
-    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
+    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX.cast<mlir::MemRefType>());
     auto copyOp = builder.create<IERT::CopyOp>(loc, instructionListTableOp.output(), dataAllocOp);
     return copyOp.output();
-}
+}  // namespace
 
 void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, mlir::Region& workloads) {
     for (auto dpuTaskOp : workloads.getOps<VPU::DPUWorkloadOp>()) {
@@ -165,17 +170,11 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     // Prepare output buffer for DPU
     //
 
-<<<<<<< HEAD
     const auto outputBuffer = allocateResult(origOp.getLoc(), rewriter, *typeConverter, origOp.output());
-=======
-    auto weightsTable =
-            createWeightsTableTensor(rewriter, origOp->getLoc(), OC, newArgs.input(), outputBuffer, newArgs.filter(),
-                                     activationWindow, origOp.biasAttr(), origOp.ppeAttr());
-    
+
     auto instructionListTable =
-        createInstructionListTableTensor(rewriter, origOp->getLoc(), origOp.post_opAttr(),
-                                            origOp.output().getType().cast<mlir::MemRefType>().getElementType());
->>>>>>> custom pwl leaky relu successfully compiled
+            createInstructionListTableTensor(rewriter, origOp->getLoc(), origOp.post_opAttr(),
+                                             origOp.output().getType().cast<mlir::ShapedType>().getElementType());
 
     //
     // Create NCE per-cluster Operation
@@ -184,21 +183,13 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
     const auto taskType = isCMajor ? VPUIP::NCETaskType::CMCONV : VPUIP::NCETaskType::CONV;
 
-<<<<<<< HEAD
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-            origOp->getLoc(), newArgs.input(), newArgs.filter(), newArgs.weightsTable(), newArgs.activationWindow(),
+            origOp->getLoc(), newArgs.input(), newArgs.filter(), newArgs.weightsTable(), instructionListTable,
+            newArgs.activationWindow(),
             /*parent_input=*/newArgs.input(),
             /*parent_output=*/outputBuffer,
             /*output_buff=*/outputBuffer, taskType, kernelSizeAttr, origOp.strides(), origOp.padAttr(),
             origOp.activation_window_channel_lengthAttr());
-=======
-    auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(origOp->getLoc(), newArgs.input(), newArgs.filter(),
-                                                          weightsTable, instructionListTable, activationWindow,
-                                                          /*parent_input=*/newArgs.input(),
-                                                          /*parent_output=*/outputBuffer,
-                                                          /*output_buff=*/outputBuffer, taskType, kernelSizeAttr,
-                                                          origOp.strides(), origOp.padAttr(), actWindowChanLen);
->>>>>>> custom pwl leaky relu successfully compiled
 
     addDPUTasks(nceOp, rewriter, origOp.workloads());
 
@@ -249,13 +240,9 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, O
     //
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-<<<<<<< HEAD
-            origOp->getLoc(), newArgs.input(), /*weights=*/nullptr, newArgs.weightsTable(), newArgs.activationWindow(),
+            origOp->getLoc(), newArgs.input(), /*weights=*/nullptr, newArgs.weightsTable(),
+            /*instruction_table_list=*/nullptr, newArgs.activationWindow(),
             /*parent_input=*/newArgs.input(),
-=======
-            origOp->getLoc(), newArgs.input(), /*weights=*/nullptr, weightsTable, /*instruction_table_list=*/nullptr,
-            activationWindow, /*parent_input=*/newArgs.input(),
->>>>>>> custom pwl leaky relu successfully compiled
             /*parent_output=*/outputBuffer,
             /*output_buff=*/outputBuffer, VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),
             origOp.pad(), origOp.activation_window_channel_lengthAttr());
@@ -314,7 +301,7 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
 
     auto instructionListTable =
             createInstructionListTableTensor(rewriter, origOp->getLoc(), origOp.post_opAttr(),
-                                             origOp.output().getType().cast<mlir::MemRefType>().getElementType());
+                                             origOp.output().getType().cast<mlir::ShapedType>().getElementType());
     //
     // Create NCE per-cluster Operation
     //
@@ -322,11 +309,8 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-<<<<<<< HEAD
-            origOp->getLoc(), newArgs.input(), newArgs.filter(), newArgs.weightsTable(), newArgs.activationWindow(),
-=======
-            origOp->getLoc(), newArgs.input(), newArgs.filter(), weightsTable, instructionListTable, activationWindow,
->>>>>>> custom pwl leaky relu successfully compiled
+            origOp->getLoc(), newArgs.input(), newArgs.filter(), newArgs.weightsTable(), instructionListTable,
+            newArgs.activationWindow(),
             /*parent_input=*/newArgs.input(),
             /*parent_output=*/outputBuffer,
             /*output_buff=*/outputBuffer, VPUIP::NCETaskType::DWCONV, kernelSizeAttr, origOp.strides(), origOp.pad(),

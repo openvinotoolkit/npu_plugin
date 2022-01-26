@@ -17,10 +17,6 @@
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 
-#include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
-#include "vpux/compiler/utils/custom_pwl_table.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/numeric.hpp"
 

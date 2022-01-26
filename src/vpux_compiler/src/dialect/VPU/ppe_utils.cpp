@@ -217,6 +217,9 @@ PostOpParams getCustomPwlPostOpParams(IE::PostOp postOp, mlir::Type outElemType)
 
     auto pwlTableRange = pwlTable.getValue().range;
 
+    VPUX_THROW_UNLESS(!pwlTableRange.empty(), "Custom PWL Table range is empty for {0} {1}", postOp.name().getValue(),
+                      outElemType);
+
     const int64_t clampLow = pwlTableRange[0];
     const int64_t clampHigh = pwlTableRange[pwlTableRange.size() - 1];
     const int64_t LreluMult = 1;
@@ -224,8 +227,8 @@ PostOpParams getCustomPwlPostOpParams(IE::PostOp postOp, mlir::Type outElemType)
     const int64_t postShift = pwlTable.getValue().postShift;
 
     // Dummy values for mult & shift, as the actual values will be computed in the weights table
-    SmallVector<int32_t> quantMult = {1};
-    SmallVector<int32_t> quantShift = {0};
+    SmallVector<int64_t> quantMult = {1};
+    SmallVector<int64_t> quantShift = {0};
 
     return PostOpParams{VPU::PPEMode::FLEXARB,
                         clampLow,
@@ -271,7 +274,12 @@ llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Typ
         const int64_t LreluShift = 0;
 
         return PostOpParams{VPU::PPEMode::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
-    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName() && arch == VPU::ArchKind::MTL) {
+    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
+        // PWL case
+        if (arch != VPU::ArchKind::MTL && outElemQType != nullptr) {
+            return getCustomPwlPostOpParams(postOp, outElemType);
+        }
+
         IE::LeakyReluOp::Adaptor leakyRelu(None, postOp.attrs());
         VPUX_THROW_UNLESS(leakyRelu.verify(loc).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp", postOp.attrs(),
                           postOp.name());
@@ -297,9 +305,7 @@ llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Typ
     } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
         return VPU::getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::SIGMOID);
     } else if (postOp.name().getValue() == IE::TanhOp::getOperationName()) {
-        return VPU::getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::TANH);
-    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
-        return getCustomPwlPostOpParams(postOp, outElemType);
+        return getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::TANH);
     }
 
     VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());

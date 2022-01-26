@@ -25,20 +25,18 @@ using namespace vpux;
 
 namespace {
 
-// NOTE: The whole idea of the pwl is that we are going to use a linear function that represents the activation.
-// This comes through the equation and idea of Alessandro
 // https://github.com/intel-innersource/frameworks.ai.vpu.presilicon.fathom/blob/main/notebooks/VPU2.0%20LeakyReLU%20performancs%20vs%20accuracy.ipynb.
 // Idea: We use the equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always
 // satisfies the activation. After we generate the instruction list table and we save the values of the registers
 // inside.
 
-SmallVector<int32_t> getInstructionListTable(const mlir::ArrayAttr argRange, const mlir::ArrayAttr argShift,
-                                             const mlir::ArrayAttr argBias, const mlir::ShapedType shape) {
+SmallVector<int32_t> getInstructionListTable(const mlir::ArrayAttr rangeAttr, const mlir::ArrayAttr shiftAttr,
+                                             const mlir::ArrayAttr biasAttr, const mlir::ShapedType shape) {
     // NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
     // 27 of course will be aligned to 32 and will contain NOPS inside
-    const auto range = parseIntArrayAttr<int>(argRange);
-    const auto shift = parseIntArrayAttr<int>(argShift);
-    const auto bias = parseIntArrayAttr<int>(argBias);
+    const auto range = parseIntArrayAttr<int>(rangeAttr);
+    const auto shift = parseIntArrayAttr<int>(shiftAttr);
+    const auto bias = parseIntArrayAttr<int>(biasAttr);
     SmallVector<int32_t> templateTable(shape.getDimSize(3), 0);
 
     // NOTE: first 2 are hardware reserved areas
@@ -54,16 +52,15 @@ SmallVector<int32_t> getInstructionListTable(const mlir::ArrayAttr argRange, con
     int32_t sizeRange = static_cast<int32_t>(range.size());
     int32_t sizeShift = static_cast<int32_t>(shift.size());
     int32_t sizeBias = static_cast<int32_t>(bias.size());
+    int32_t nopCount = (sizeRange + sizeShift + sizeBias) >> 4;
 
     // Populate the instruction list from the table
     int32_t k = 0;
-    for (int32_t j = 0; j < 32; j++) {
+    for (int32_t j = 0; j < shape.getDimSize(3); j++) {
         first2Bits = j & MASK_FIRST2_BITS;
         first3Bits = j >> 2;
 
-        if (j == 15)
-            templateTable[j] = (ALU_HALT_OPCODE);
-        else if (j > 25)
+        if ((j > sizeRange + sizeShift + sizeBias + nopCount) || (j == 15))
             templateTable[j] = (ALU_HALT_OPCODE);
         else {
             if (j < sizeRange) {
@@ -119,7 +116,7 @@ mlir::LogicalResult CreateITableOpsConverter::matchAndRewrite(VPUIP::Instruction
                                                               mlir::PatternRewriter& rewriter) const {
     _log.trace("Found VPUIP::InstructionListTableOp Operation '{0}'", instrTableOp->getLoc());
     const auto outType = instrTableOp.output().getType();
-    const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
+    const auto shapedType = outType.cast<mlir::ShapedType>();
 
     const auto instructionListTable =
             getInstructionListTable(instrTableOp.range(), instrTableOp.shift(), instrTableOp.bias(), shapedType);

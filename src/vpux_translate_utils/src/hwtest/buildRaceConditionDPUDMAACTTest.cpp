@@ -224,9 +224,9 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
         // DPU task
         auto nceTask_0 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMX.buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, inputCMX.buffer(),
-                outputCMX_0.buffer(), outputCMX_0.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides,
-                kernelPaddings, nullptr, nullptr);
+                loc, inputCMX.buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, nullptr,
+                inputCMX.buffer(), outputCMX_0.buffer(), outputCMX_0.buffer(), vpux::VPUIP::NCETaskType::CONV,
+                kernelSize, strides, kernelPaddings, nullptr, nullptr);
 
         const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
         const auto end = getIntArrayAttr(

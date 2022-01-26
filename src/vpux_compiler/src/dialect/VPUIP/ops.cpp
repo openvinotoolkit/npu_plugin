@@ -37,7 +37,7 @@ namespace {
 // LayerWithPostOpModel
 //
 
-bool isSupportedHWPostOp(mlir::Operation* postOp) {
+bool isSupportedHWPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) {
     if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp, IE::LeakyReluOp, IE::PReluOp>(
                 postOp)) {
         return false;
@@ -52,27 +52,13 @@ bool isSupportedHWPostOp(mlir::Operation* postOp) {
         // TODO: should be check maxVal?
     }
 
-    const auto module = postOp->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-    if (arch == VPU::ArchKind::MTL && mlir::isa<IE::MaxPoolOp>(postOp)) {
+    if (mlir::isa<IE::AddOp, IE::AndOp, IE::MultiplyOp>(mainOp) && mlir::isa<IE::LeakyReluOp>(postOp)) {
         return false;
     }
 
-    auto producerOp = postOp->getOperand(0).getDefiningOp();
-    // FIXME fuse LeakyRelu using PWL here [EISW-13693]
-    const auto isQuantized = [](mlir::Operation* op, mlir::Operation* postOp) -> bool {
-        auto isFakeQuantizeOpInput = mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(op->getOperand(0).getDefiningOp());
-        auto isFakeQuantizeOpOutput = false;
-        for (auto user : postOp->getUsers()) {
-            if (mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(user)) {
-                isFakeQuantizeOpOutput = true;
-                break;
-            }
-        }
-        return isFakeQuantizeOpOutput || isFakeQuantizeOpInput;
-    };
-
-    if (mlir::isa<IE::LeakyReluOp>(postOp) && isQuantized(producerOp, postOp)) {
+    const auto module = postOp->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
+    if (arch == VPU::ArchKind::MTL && mlir::isa<IE::MaxPoolOp>(postOp)) {
         return false;
     }
 
@@ -88,7 +74,7 @@ public:
             return false;
         }
 
-        if (!isSupportedHWPostOp(postOp)) {
+        if (!isSupportedHWPostOp(mainOp, postOp)) {
             return false;
         }
 

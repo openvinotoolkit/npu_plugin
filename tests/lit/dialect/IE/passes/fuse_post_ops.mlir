@@ -132,6 +132,24 @@ func @AddWithReLUTest() -> tensor<1x16x4x4xf16> {
 
 // -----
 
+func @AddWithLeakyReluTest() -> tensor<1x16x4x4xf16> {
+    %0 = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<6.0> : tensor<1x16x4x4xf16>>
+    %1 = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<-7.0> : tensor<1x16x4x4xf16>>
+    %sum = IE.Add(%0, %1) { auto_broadcast = "NUMPY" } : tensor<1x16x4x4xf16>, tensor<1x16x4x4xf16> -> tensor<1x16x4x4xf16>
+    %leakyRelu = IE.LeakyRelu(%sum) {
+            negative_slope = 0.100000e+00
+        } : tensor<1x16x4x4xf16> -> tensor<1x16x4x4xf16>
+
+    return %leakyRelu : tensor<1x16x4x4xf16>
+
+    // CHECK:       %[[RIGHT:.*]] = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<-7.000000e+00> : tensor<1x16x4x4xf16>>
+    // CHECK:       %[[LEFT:.*]] = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<6.000000e+00> : tensor<1x16x4x4xf16>>
+    // CHECK:       %[[SUM:.*]] = IE.Add(%[[LEFT]], %[[RIGHT]])
+    // CHECK:   IE.LeakyRelu(
+}
+
+// -----
+
 func @ShouldNotFuseScaleShiftTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
     %filters = const.Declare tensor<16x16x2x2xf16> = #const.Content<dense<1.0> : tensor<16x16x2x2xf16>>
     %0 = IE.Convolution(%arg0, %filters)

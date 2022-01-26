@@ -7,7 +7,7 @@ This pass applies bitcompactor to tensor binary data. The logic is the following
 4. Wrap compressed weights to flat tensor shapes with UInt8 data type.
 5. Replace original VPUIP::NNDMAOp with VPUIP::CompressedDMAOp
 ### `-convert-itable-op-to-constant`: Convert InstructionListTable Operations to IERT.ConstantOp
-This pass fills instruction list table.
+This pass fills instruction list table from a pwl table using the equation: ((x << m) + b) >> s. It is used for FLEXARB PPE.
 ### `-dump-statistics-of-task-ops`: Dump the statistics of used Task operations
 This pass dumps the statistics of used Task operations and makes a report as warning for operations not converted to DPU.
 ### `-group-profiling-buffers`: Group profiling buffers into single profiling output buffer

@@ -79,7 +79,7 @@ func @NoInsertConvLeakyRelu(%arg0: tensor<1x16x4x4x!qElemType1>) -> tensor<1x16x
             dilations = [1, 1],
             pads_begin = [0, 0],
             pads_end = [0, 0],
-            post_op = {attrs = {negative_slope = 0.10000000149011612 : f64}, name = "IE.LeakyRelu"},
+            post_op = {attrs = {negative_slope = 1.000000e-01 : f64}, name = "IE.LeakyRelu"},
             strides = [1, 1]
         } :
         tensor<1x16x4x4x!qElemType1>, tensor<16x16x2x2x!qElemType0> -> tensor<1x16x3x3x!qElemType2>
@@ -90,7 +90,7 @@ func @NoInsertConvLeakyRelu(%arg0: tensor<1x16x4x4x!qElemType1>) -> tensor<1x16x
     // CHECK-SAME:     dilations = [1, 1]
     // CHECK-SAME:     pads_begin = [0, 0]
     // CHECK-SAME:     pads_end = [0, 0]
-    // CHECK-SAME:     post_op = {attrs = {negative_slope = 0.10000000149011612 : f64}, name = "IE.LeakyRelu"}
+    // CHECK-SAME:     post_op = {attrs = {negative_slope = 1.000000e-01 : f64}, name = "IE.LeakyRelu"}
     // CHECK-SAME:     strides = [1, 1]
     // CHECK-SAME:     tensor<1x16x4x4x!qElemType0>, tensor<16x16x2x2x!qElemType1> ->
     // CHECK-SAME:     tensor<1x16x3x3x!qElemType2>

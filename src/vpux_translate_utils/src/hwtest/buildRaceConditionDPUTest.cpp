@@ -215,13 +215,13 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i);
         auto nceTask_0 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMX_0.buffer(), weightsCMX_0.buffer(), weightsTableCMX_0.buffer(), nullptr,
+                loc, inputCMX_0.buffer(), weightsCMX_0.buffer(), weightsTableCMX_0.buffer(), nullptr, nullptr,
                 inputCMX_0.buffer(), outputCMX_0.buffer(), outputCMX_0.buffer(), vpux::VPUIP::NCETaskType::CONV,
                 kernelSize, strides, kernelPaddings, nullptr, nullptr);
 
         auto nceTask_1 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMX_1.buffer(), weightsCMX_1.buffer(), weightsTableCMX_1.buffer(), nullptr,
+                loc, inputCMX_1.buffer(), weightsCMX_1.buffer(), weightsTableCMX_1.buffer(), nullptr, nullptr,
                 inputCMX_1.buffer(), outputCMX_1.buffer(), outputCMX_1.buffer(), vpux::VPUIP::NCETaskType::CONV,
                 kernelSize, strides, kernelPaddings, nullptr, nullptr);
 
