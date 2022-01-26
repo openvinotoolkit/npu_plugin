@@ -551,6 +551,26 @@ SmallVector<mlir::ShapedType> getTileTypes(IE::ConvolutionOp origOp, const TileI
     return tileTypes;
 }
 
+mlir::ShapedType getAlignedFilterType(const SmallVector<mlir::ShapedType>& tileTypes) {
+    const auto outputTileType = tileTypes[2];
+    const auto filterTileType = tileTypes[1];
+    const auto filterTileShape = getShape(filterTileType);
+    const auto OC = filterTileShape[Dims4D::Filter::OC];
+    const auto IC = filterTileShape[Dims4D::Filter::IC];
+    const auto KY = filterTileShape[Dims4D::Filter::KY];
+    const auto KX = filterTileShape[Dims4D::Filter::KX];
+
+    const auto alignment = VPU::NCEInvariant::getAlignment(outputTileType.getElementType());
+    const auto remainder = (IC * KY * KX) % alignment;
+    VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
+
+    const auto padding = (remainder > 0) ? (alignment - remainder) : 0;
+
+    const auto alignedWeightShape = SmallVector<int64_t>{OC, 1, 1, IC * KY * KX + padding};
+    const auto alignedFilterType = mlir::RankedTensorType::get(alignedWeightShape, filterTileType.getElementType());
+    return alignedFilterType;
+}
+
 // verifyPrefetchCMX
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::ConvolutionOp origOp, vpux::OutputTiling tiling,
@@ -578,21 +598,21 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::Convolution
     const auto curOC = getShape(curTileTypes[1])[Dims4D::Filter::OC];
 
     const auto curInputTileType = curTileTypes[0];
-    const auto curFilterTileType = curTileTypes[1];
+    const auto curAlignedFilterTileType = getAlignedFilterType(curTileTypes);
     const auto curOutputTileType = curTileTypes[2];
 
     const auto nextInputTileType = nextTileTypes[0];
-    const auto nextFilterTileType = nextTileTypes[1];
+    const auto nextAlignedFilterTileType = getAlignedFilterType(nextTileTypes);
 
     if (isWeightPrefetch) {
-        const auto nextOC = getShape(nextFilterTileType)[Dims4D::Filter::OC];
+        const auto nextOC = getShape(nextAlignedFilterTileType)[Dims4D::Filter::OC];
         requiredCMX = getRequiredCMXForTiling(
                 {// Computing current tile, prefetch the next tile.
-                 curInputTileType, curFilterTileType, curOutputTileType, nextFilterTileType},
+                 curInputTileType, curAlignedFilterTileType, curOutputTileType, nextAlignedFilterTileType},
                 curOC + nextOC);
     } else {
         requiredCMX = getRequiredCMXForTiling(
-                {curInputTileType, curFilterTileType, curOutputTileType, nextInputTileType}, curOC);
+                {curInputTileType, curAlignedFilterTileType, curOutputTileType, nextInputTileType}, curOC);
     }
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'",
@@ -711,18 +731,18 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::GroupConvol
     const auto curOC = getShape(curTileTypes[1])[Dims4D::Filter::OC];
 
     const auto curInputTileType = curTileTypes[0];
-    const auto curFilterTileType = curTileTypes[1];
+    const auto curAlignedFilterTileType = getAlignedFilterType(curTileTypes);
     const auto curOutputTileType = curTileTypes[2];
 
     const auto nextInputTileType = nextTileTypes[0];
-    const auto nextFilterTileType = nextTileTypes[1];
+    const auto nextAlignedFilterTileType = getAlignedFilterType(nextTileTypes);
 
     const auto curIC = getShape(curInputTileType)[Dims4D::Act::C];
     const auto nextIC = getShape(nextInputTileType)[Dims4D::Act::C];
     const auto inType = origOp.input().getType().cast<mlir::RankedTensorType>();
 
-    const Shape kernelSizeVals{getShape(curFilterTileType)[Dims4D::Filter::KY],
-                               getShape(curFilterTileType)[Dims4D::Filter::KX]};
+    const Shape kernelSizeVals{getShape(curTileTypes[1])[Dims4D::Filter::KY],
+                               getShape(curTileTypes[1])[Dims4D::Filter::KX]};
     const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(origOp.stridesAttr()));
 
     const auto curActivationWindowSize = VPU::NCESparsity::getActivationWindowSize(
@@ -733,17 +753,18 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::GroupConvol
             inType.getElementType(), nextIC);
 
     if (isWeightPrefetch) {
-        const auto nextOC = getShape(nextFilterTileType)[Dims4D::Filter::OC];
+        const auto nextOC = getShape(nextAlignedFilterTileType)[Dims4D::Filter::OC];
+        requiredCMX = getRequiredCMXForTiling(
+                              {// Computing current tile, prefetch the next tile.
+                               curInputTileType, curAlignedFilterTileType, curOutputTileType, nextInputTileType,
+                               nextAlignedFilterTileType},
+                              curOC + nextOC) +
+                      Byte(curActivationWindowSize + nextActivationWindowSize);
+    } else {
         requiredCMX =
                 getRequiredCMXForTiling(
-                        {// Computing current tile, prefetch the next tile.
-                         curInputTileType, curFilterTileType, curOutputTileType, nextInputTileType, nextFilterTileType},
-                        curOC + nextOC) +
+                        {curInputTileType, curAlignedFilterTileType, curOutputTileType, nextInputTileType}, curOC) +
                 Byte(curActivationWindowSize + nextActivationWindowSize);
-    } else {
-        requiredCMX = getRequiredCMXForTiling(
-                              {curInputTileType, curFilterTileType, curOutputTileType, nextInputTileType}, curOC) +
-                      Byte(curActivationWindowSize + nextActivationWindowSize);
     }
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'",
