@@ -978,6 +978,7 @@ SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::g
 
     _log.trace("Generated Schedule");
     _log = _log.nest();
+    std::cout << std::endl;
     for (const auto& op : _scheduledOps) {
         std::string resourceInfo = "<none>";
         if (op.hasActiveResource()) {
@@ -992,6 +993,9 @@ SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::g
             }
         }
         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
+        std::cout << llvm::formatv("name = {0} \t", _depsInfo.getExecuteOpAtIndex(op.op_).getLoc()).str()
+                  << "op = " << op.op_ << "\t type = " << op.opTypeName().data() << "\t time = " << op.time_ << " \t "
+                  << resourceInfo << std::endl;
     }
     _log = _log.unnest();
 

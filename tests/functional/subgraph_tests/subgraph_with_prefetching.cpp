@@ -22,7 +22,7 @@ struct KmbScheduleSubGraphPrefetchTestParams {
 // Input -> -> Conv1 -> Conv2 -> Conv3 -> Output
 
 class KmbScheduleSubGraphPrefetchTest : public LayerTestsUtils::KmbLayerTestsCommon,
-                                            public testing::WithParamInterface<KmbScheduleSubGraphPrefetchTestParams> {
+                                        public testing::WithParamInterface<KmbScheduleSubGraphPrefetchTestParams> {
     void SetUp() override {
 
         const auto test_params = GetParam();
@@ -33,7 +33,7 @@ class KmbScheduleSubGraphPrefetchTest : public LayerTestsUtils::KmbLayerTestsCom
         const InferenceEngine::SizeVector weights3Shape = test_params._w_dims_conv_3;
         const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
         const auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        
+
         const ngraph::Strides strides = test_params._strides;
         const ngraph::CoordinateDiff pads_begin = test_params._pads_begin;
         const ngraph::CoordinateDiff pads_end = test_params._pads_end;
@@ -41,20 +41,20 @@ class KmbScheduleSubGraphPrefetchTest : public LayerTestsUtils::KmbLayerTestsCom
         std::vector<float> weights1(weights1Shape[0] * weights1Shape[1] * weights1Shape[2] * weights1Shape[3], 1);
         auto weights1FP32 = std::make_shared<ngraph::op::Constant>(
                 ngraph::element::Type_t::f32, weights1Shape, weights1.data());
-        
+
         const auto conv1 = std::make_shared<ngraph::opset2::Convolution>(paramOuts[0], weights1FP32, strides, pads_begin, pads_end, dilations);
         std::vector<float> weights2(weights2Shape[0] * weights2Shape[1] * weights2Shape[2] * weights2Shape[3], 1);
         auto weights2FP32 = std::make_shared<ngraph::op::Constant>(
                 ngraph::element::Type_t::f32, weights2Shape, weights2.data());
         const auto conv2 = std::make_shared<ngraph::opset2::Convolution>(conv1, weights2FP32, strides, pads_begin, pads_end, dilations);
-        
+
         std::vector<float> weights3(weights3Shape[0] * weights3Shape[1] * weights3Shape[2] * weights3Shape[3], 1);
         auto weights3FP32 = std::make_shared<ngraph::op::Constant>(
                 ngraph::element::Type_t::f32, weights3Shape, weights3.data());
         const auto conv3 = std::make_shared<ngraph::opset2::Convolution>(conv2, weights3FP32, strides, pads_begin, pads_end, dilations);
 
         const ngraph::ResultVector results{
-            std::make_shared<ngraph::opset1::Result>(conv3)
+                std::make_shared<ngraph::opset1::Result>(conv3)
         };
 
         function = std::make_shared<ngraph::Function>(results, params, "KmbScheduleSubGraphPrefetchTest");
@@ -63,9 +63,9 @@ class KmbScheduleSubGraphPrefetchTest : public LayerTestsUtils::KmbLayerTestsCom
 };
 
 TEST_P(KmbScheduleSubGraphPrefetchTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
-    setDefaultHardwareModeMLIR();
-    Run();
+useCompilerMLIR();
+setDefaultHardwareModeMLIR();
+Run();
 }
 
 //INSTANTIATE_TEST_CASE_P(smoke, KmbScheduleSubGraphPrefetchTest,
