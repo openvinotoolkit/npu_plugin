@@ -37,7 +37,7 @@ namespace {
 //
 
 bool isSupportedHWPostOp(mlir::Operation* postOp) {
-    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp>(postOp)) {
+    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp, IE::PReluOp>(postOp)) {
         return false;
     }
 

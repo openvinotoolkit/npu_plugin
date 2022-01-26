@@ -207,3 +207,29 @@ func @Conv2dWithTanhTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
     // CHECK-SAME:     strides = [1, 1]
     // CHECK-NOT:   IE.Tanh
 }
+
+// -----
+
+func @Conv2dWithPReluTest(%arg0: tensor<1x3x16x16xf32>) -> tensor<1x3x14x14xf32> {
+    %filters = const.Declare tensor<3x3x3x3xf32> = #const.Content<dense<1.0> : tensor<3x3x3x3xf32>>
+    %0 = IE.Convolution(%arg0, %filters) {
+        dilations = [1, 1],
+        pads_begin = [0, 0],
+        pads_end = [0, 0],
+        strides = [1, 1]
+    } : tensor<1x3x16x16xf32>, tensor<3x3x3x3xf32> -> tensor<1x3x14x14xf32>
+
+    %1 = const.Declare tensor<1x3xf32> = #const.Content<dense<[[4.0, 2.0, 3.0]]> : tensor<1x3xf32>>
+    %2 = IE.PRelu(%0, %1) :
+        tensor<1x3x14x14xf32>, tensor<1x3xf32> -> tensor<1x3x14x14xf32>
+
+    return %2 : tensor<1x3x14x14xf32>
+
+    // CHECK:       IE.Convolution
+    // CHECK-SAME:     dilations = [1, 1]
+    // CHECK-SAME:     pads_begin = [0, 0]
+    // CHECK-SAME:     pads_end = [0, 0]
+    // CHECK-SAME:     post_op = {attrs = {negative_slope = [4.000000e+00 : f32, 2.000000e+00 : f32, 3.000000e+00 : f32]}, name = "IE.PRelu"}
+    // CHECK-SAME:     strides = [1, 1]
+    // CHECK-NOT:   IE.PRelu
+}

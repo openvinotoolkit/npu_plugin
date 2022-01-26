@@ -96,6 +96,14 @@ void setPostOp(mlir::Operation*postOp);
 Set post-processing operation attribute
 NOTE: This method *must* be implemented by the user.
 
+#### `setIEPostOp`
+
+```c++
+void setIEPostOp(IE::PostOp postOp);
+```
+Set PostOp attribute
+NOTE: This method *must* be implemented by the user.
+
 #### `clearPostOp`
 
 ```c++

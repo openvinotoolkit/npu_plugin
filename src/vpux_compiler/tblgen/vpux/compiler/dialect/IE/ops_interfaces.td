@@ -96,6 +96,15 @@ def IE_LayerWithPostOpInterface : OpInterface<"LayerWithPostOpInterface"> {
         >,
 
         InterfaceMethod<
+            "Set PostOp attribute",
+            "void", "setIEPostOp", (ins "IE::PostOp":$postOp),
+            [{}],
+            [{
+                return vpux::IE::setLayerPostOp($_op, postOp);
+            }]
+        >,
+
+        InterfaceMethod<
             "Set post-processing operation attribute",
             "void", "clearPostOp", (ins),
             [{}],

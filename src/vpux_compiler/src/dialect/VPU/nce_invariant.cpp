@@ -160,7 +160,7 @@ bool vpux::VPU::NCEInvariant::isActTypeSupported(mlir::ShapedType type, int64_t 
 //
 
 bool vpux::VPU::NCEInvariant::isPostOpSupported(mlir::Operation* postOp) {
-    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp>(postOp)) {
+    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp, IE::PReluOp>(postOp)) {
         return false;
     }
 

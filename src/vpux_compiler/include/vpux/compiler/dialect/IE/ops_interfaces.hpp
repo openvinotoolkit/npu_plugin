@@ -178,6 +178,14 @@ void setLayerPostOp(ConcreteOp mainOp, mlir::Operation* postOp) {
 }
 
 template <typename ConcreteOp>
+void setLayerPostOp(ConcreteOp mainOp, IE::PostOp postOp) {
+    VPUX_THROW_UNLESS(mainOp.post_opAttr() == nullptr, "Operation '{0}' at '{1}' already has a PostOp '{2}'",
+                      mainOp->getName(), mainOp->getLoc(), mainOp.post_opAttr());
+
+    mainOp.post_opAttr(postOp);
+}
+
+template <typename ConcreteOp>
 void clearLayerPostOp(ConcreteOp mainOp) {
     mainOp.removePost_opAttr();
 }
