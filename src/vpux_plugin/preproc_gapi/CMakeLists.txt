@@ -29,14 +29,11 @@ target_include_directories(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_include_directories(${TARGET_NAME}
-    SYSTEM PRIVATE
-        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-)
-
 link_system_libraries(${TARGET_NAME}
     PRIVATE
         ${VPUMGR_LIBRARY}
+        openvino::runtime
+        IE::inference_engine_plugin_api
         kmb_utils
         ${GAPI_SIPP_LIBRARY}
         ${GAPI_M2I_LIBRARY}
@@ -52,15 +49,17 @@ endif()
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME}
-            FOR_TARGETS ${TARGET_NAME}
-            ALL
-            )
+        FOR_TARGETS ${TARGET_NAME}
+        ALL
+    )
     add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
 endif()
 
+#
+# targets install
+#
+
 if (NOT BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
 endif()

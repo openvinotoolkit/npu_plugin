@@ -25,4 +25,6 @@ vpux_enable_clang_format(${TARGET_NAME})
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux_mlir_compiler_static
+    INTERFACE
+        IE::inference_engine
 )

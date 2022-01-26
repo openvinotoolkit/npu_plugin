@@ -19,4 +19,5 @@ add_subdirectory(single-image-test)
 add_subdirectory(vpux-opt)
 add_subdirectory(vpux-translate)
 add_subdirectory(vpux-lsp-server)
+
 add_subdirectory(profiling_parser)

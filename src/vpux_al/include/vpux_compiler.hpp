@@ -289,12 +289,8 @@ public:
 
     static Ptr create(const Config& config);
 
-// FIXME: use OPENVINO_STATIC_LIBRARY instead of
-// BUILD_COMPILER_FOR_DRIVER once the compiler can be used in
-// purely static build
-// #ifdef OPENVINO_STATIC_LIBRARY
-#ifdef BUILD_COMPILER_FOR_DRIVER
-    Compiler(const std::shared_ptr<ICompiler>& com): _impl(com){};
+#ifdef OPENVINO_STATIC_LIBRARY
+    Compiler(const std::shared_ptr<ICompiler>& compiler): _impl(compiler){};
 #else
     Compiler(const std::string& libpath);
 #endif

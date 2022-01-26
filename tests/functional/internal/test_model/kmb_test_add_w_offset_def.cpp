@@ -47,6 +47,7 @@ BlobVector refAddWOffset(const TestNetwork::NodePtr& layer, const BlobVector& in
     IE_ASSERT(inputs.size() == 2);
 
     const auto addWOffsetLayer = std::dynamic_pointer_cast<SampleExtension::AddWOffsetOp>(layer);
+
     IE_ASSERT(addWOffsetLayer != nullptr);
 
     const auto offset = addWOffsetLayer->getOffsetAttr();

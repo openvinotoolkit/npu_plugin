@@ -13,6 +13,10 @@
 
 replace_noerror()
 
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
+
 set(TARGET_NAME "vpux_mlir_compiler")
 set(TBLGEN_TARGET_NAME "${TARGET_NAME}_tblgen")
 set(SCHEMA_TARGET_NAME "${TARGET_NAME}_schema")
@@ -341,12 +345,16 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 if(BUILD_COMPILER_FOR_DRIVER)
     addVersionDefines(${COMPILER_FOR_DRIVER_VERSION_FILE} CI_BUILD_NUMBER)
-    add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES} ${COMPILER_FOR_DRIVER_VERSION_FILE})
-    target_compile_definitions(${OBJ_TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
-else()
-    add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES})
 endif()
 
+if(BUILD_SHARED_LIBS)
+    add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES})
+else()
+    set(OBJ_TARGET_NAME ${TARGET_NAME})
+    add_library(${OBJ_TARGET_NAME} STATIC ${SOURCES} ${COMPILER_FOR_DRIVER_VERSION_FILE})
+endif()
+
+target_sources(${OBJ_TARGET_NAME} PRIVATE $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
 set_target_properties(${OBJ_TARGET_NAME} PROPERTIES FOLDER "src")
 
 add_dependencies(${OBJ_TARGET_NAME}
@@ -367,8 +375,6 @@ if(NOT MSVC)
     target_compile_options(${OBJ_TARGET_NAME}
         PUBLIC
             -Wno-error=suggest-override
-            # FIXME: S#71607
-            -Wno-error=deprecated-declarations
     )
 endif()
 
@@ -387,84 +393,85 @@ add_custom_target(copy-act-shave-runtime ALL
         DEPENDS ${OBJ_TARGET_NAME})
 
 target_include_directories(${OBJ_TARGET_NAME}
-    SYSTEM PUBLIC
-        "${CMAKE_CURRENT_BINARY_DIR}/include"
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels"
-        ${MLIR_INCLUDE_DIRS}
-)
-target_include_directories(${OBJ_TARGET_NAME}
     PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PRIVATE
         $<TARGET_PROPERTY:bitcompactor,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:huffman_codec,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
+target_include_directories(${OBJ_TARGET_NAME}
+    SYSTEM PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+        $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels>
+)
+
 link_system_libraries(${OBJ_TARGET_NAME}
     PUBLIC
-        MLIRAffineToStandard
-        MLIRAffineTransforms
-        MLIRAsync
-        MLIRIR
-        MLIRMemRef
-        MLIROptLib
-        MLIRPass
-        MLIRQuant
-        MLIRSCFTransforms
-        MLIRStandard
-        MLIRStandardOpsTransforms
-        MLIRTransforms
-        MLIRTranslation
         flatbuffers
-        IE::ngraph
-        IE::inference_engine
-        IE::inference_engine_transformations
+        openvino::runtime
+        openvino::runtime::dev
+        IE::inference_engine_plugin_api
+        IE::ngraph_reference
         vpux_ngraph_transformations
-        # TODO: get rid of this dependency
-        IE::vpu_common_lib
 )
 
 target_link_libraries(${OBJ_TARGET_NAME}
     PUBLIC
         vpux_utils
+        vpux_al
+        vpux_elf
 )
-if(BUILD_COMPILER_FOR_DRIVER)
 
-    target_include_directories(${OBJ_TARGET_NAME}
-        PUBLIC
-            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_al/include"
-    )
-else()
-    target_link_libraries(${OBJ_TARGET_NAME}
-        PUBLIC
-            vpux_al
-            vpux_elf
-    )
-endif()
+add_library(mlir-dependencies INTERFACE)
+target_link_libraries(mlir-dependencies INTERFACE
+    MLIRAffineToStandard
+    MLIRAffineTransforms
+    MLIRAsync
+    MLIRIR
+    MLIRMemRef
+    MLIROptLib
+    MLIRPass
+    MLIRQuant
+    MLIRSCFTransforms
+    MLIRStandard
+    MLIRStandardOpsTransforms
+    MLIRTransforms
+    MLIRTranslation
+)
+target_include_directories(mlir-dependencies
+    SYSTEM INTERFACE 
+        ${MLIR_INCLUDE_DIRS}
+)
+
+target_link_libraries(${OBJ_TARGET_NAME} PUBLIC $<BUILD_INTERFACE:mlir-dependencies>)
 
 #
 # MODULE target
 #
 
-add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
-target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
+if(BUILD_SHARED_LIBS)
+    add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
+endif()
 
 #
 # STATIC target
 #
 
-add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
-target_link_libraries(${STATIC_TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${OBJ_TARGET_NAME}>)
+if(BUILD_SHARED_LIBS)
+    add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
+    target_link_libraries(${STATIC_TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${OBJ_TARGET_NAME}>)
+else()
+    bundle_static_library(${OBJ_TARGET_NAME} mlir-dependencies)
+    add_library(${STATIC_TARGET_NAME} ALIAS ${OBJ_TARGET_NAME})
+endif()
 
 #
 # targets install
 #
-if(BUILD_SHARED_LIBS)
-    set(INSTALL_TARGET_NAME ${TARGET_NAME})
-else()
-    set(INSTALL_TARGET_NAME ${STATIC_TARGET_NAME})
-endif()
-install(TARGETS ${INSTALL_TARGET_NAME} EXPORT OpenVINOTargets
-    ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-    LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-)
+
+install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})

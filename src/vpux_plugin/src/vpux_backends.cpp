@@ -22,12 +22,28 @@
 
 #include <device_helpers.hpp>
 
+// TODO: E#30339 the creation of backend is not scalable,
+// it needs to be refactored in order to simplify
+// adding other backends into static build config
+#if defined(OPENVINO_STATIC_LIBRARY) && defined(ENABLE_ZEROAPI_BACKEND)
+#include <zero_backend.h>
+#endif
+
 namespace vpux {
 namespace IE = InferenceEngine;
 
 // TODO Config will be useless here, since only default values will be used
 VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry): _logger("VPUXBackends", LogLevel::Error) {
     std::vector<std::shared_ptr<EngineBackend>> registeredBackends;
+    const auto registerBackend = [&](std::shared_ptr<EngineBackend> backend, const std::string& name) {
+        const auto backendDevices = backend->getDeviceNames();
+        if (!backendDevices.empty()) {
+            _logger.nest().debug("Register '{0}' with devices '{1}'", name, backendDevices);
+            registeredBackends.emplace_back(backend);
+        }
+    };
+
+#ifndef OPENVINO_STATIC_LIBRARY
     for (const auto& name : backendRegistry) {
         _logger.debug("Try '{0}' backend", name);
 
@@ -41,18 +57,27 @@ VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry): _lo
 
         try {
             const auto backend = std::make_shared<EngineBackend>(path);
-            const auto backendDevices = backend->getDeviceNames();
-
-            if (!backendDevices.empty()) {
-                _logger.nest().debug("Register '{0}' with devices '{1}'", name, backendDevices);
-                registeredBackends.emplace_back(backend);
-            }
+            registerBackend(backend, name);
         } catch (const std::exception& ex) {
             _logger.warning("Got an error during backend '{0}' loading : {1}", name, ex.what());
         } catch (...) {
             _logger.warning("Got an unknown error during backend '{0}' loading : {1}", name);
         }
     }
+#else
+
+    (void)backendRegistry;
+#ifdef ENABLE_ZEROAPI_BACKEND
+    const auto backend = std::make_shared<EngineBackend>(std::make_shared<ZeroEngineBackend>());
+#else
+    const auto backend = std::make_shared<EngineBackend>(nullptr);
+    IE_THROW() << "No backends available. The only available backend for static library configuration is "
+                  "vpux_level_zero_backend."
+               << "Please make sure that ENABLE_ZEROAPI_BACKEND is ON";
+#endif
+    registerBackend(backend, "vpux_level_zero_backend");
+
+#endif
 
     if (registeredBackends.empty()) {
         registeredBackends.emplace_back(nullptr);

@@ -50,10 +50,7 @@ if(BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(VPUXCompilerL0)
 endif()
 add_subdirectory(vpux_elf)
-# TODO: enable always as vpux compiler can be built in a pure static build
-if(NOT BUILD_COMPILER_FOR_DRIVER)
-    add_subdirectory(vpux_plugin)
-endif()
+add_subdirectory(vpux_plugin)
 
 add_subdirectory(vpux_utils)
 add_subdirectory(vpux_compiler)

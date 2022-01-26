@@ -79,6 +79,10 @@ Engine::Engine()
     // TODO: generation of available backends list can be done during execution of CMake scripts
     std::vector<std::string> backendRegistry;
 
+#if defined(OPENVINO_STATIC_LIBRARY)
+    backendRegistry.push_back("vpux_level_zero_backend");
+#else
+
 #if defined(ENABLE_IMD_BACKEND)
     if (const auto* envVar = std::getenv("IE_VPUX_USE_IMD_BACKEND")) {
         if (envVarStrToBool("IE_VPUX_USE_IMD_BACKEND", envVar)) {
@@ -86,6 +90,7 @@ Engine::Engine()
         }
     }
 #endif
+
 #if defined(_WIN32) || defined(_WIN64) || (defined(__linux__) && defined(__x86_64__))
     backendRegistry.push_back("vpux_level_zero_backend");
 #endif
@@ -97,6 +102,8 @@ Engine::Engine()
 #endif
 #if defined(ENABLE_EMULATOR)
     backendRegistry.push_back("vpux_emulator_backend");
+#endif
+
 #endif
 
     _backends = std::make_shared<VPUXBackends>(backendRegistry);
