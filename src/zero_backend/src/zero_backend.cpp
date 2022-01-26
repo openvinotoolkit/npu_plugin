@@ -25,7 +25,7 @@ using namespace vpux;
 namespace {
 class ZeroDevicesSingleton {
     ZeroDevicesSingleton(): log(Logger::global().nest("ZeroDevicesSingleton", 0)) {
-        auto result = zeInit(0);
+        auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
         if (ZE_RESULT_SUCCESS != result) {
             log.warning("zeInit failed {0:X+}", uint64_t(result));
             return;
