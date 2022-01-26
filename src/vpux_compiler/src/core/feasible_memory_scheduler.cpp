@@ -501,6 +501,7 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
                     _depsInfo.getIndex(writerOp->getBlock()->getParent()->getParentOfType<mlir::async::ExecuteOp>());
             demandList.erase(executeOpIdx);
             scheduleSpilledOpBuffer(executeOpIdx, &val);
+            maxInputDelay = 1;
         }
     }
 
@@ -831,13 +832,6 @@ void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
     auto evictionCandidate = chooseCandidateForEviction(aliveBuffers);
     _log.nest().trace("Candidate selected for eviction {0}", evictionCandidate.bufferWriterIdx_);
 
-    // TEMP LOG
-    for (auto bufferUser : evictionCandidate.buffer_.getUsers()) {
-        if (bufferUser->hasAttr("CMXConcat")) {
-            std::cout << "spilling CMX-ed Concat: " << evictionCandidate.bufferWriterIdx_ << std::endl;
-        }
-    }
-
     // free the memory space by freeing the op output buffer
     evictActiveOp(evictionCandidate);
     _log.nest().trace("Candidate evicted and spilled");
@@ -1028,8 +1022,6 @@ SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::g
                 }
             }
         }
-        // std::cout << "op = " << op.op_ << "\t type = " << op.opTypeName().data() << "\t time = " << op.time_ << "\t "
-        //           << resourceInfo << std::endl;
         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
     }
     _log = _log.unnest();
