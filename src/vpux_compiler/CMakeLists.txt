@@ -354,7 +354,16 @@ else()
     add_library(${OBJ_TARGET_NAME} STATIC ${SOURCES} ${COMPILER_FOR_DRIVER_VERSION_FILE})
 endif()
 
-target_sources(${OBJ_TARGET_NAME} PRIVATE $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
+# FIXME: E#30420
+# on one hand, adding bitcompactor and huffman_codec as sources
+# makes clang_format corrupt those object files
+# on the other, without them we do not have symbols defined in static build configuration
+if(NOT BUILD_SHARED_LIBS)
+    target_sources(${OBJ_TARGET_NAME} PRIVATE $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
+endif()
+if(BUILD_SHARED_LIBS)
+    vpux_enable_clang_format(${OBJ_TARGET_NAME})
+endif()
 set_target_properties(${OBJ_TARGET_NAME} PROPERTIES FOLDER "src")
 
 add_dependencies(${OBJ_TARGET_NAME}
@@ -378,7 +387,6 @@ if(NOT MSVC)
     )
 endif()
 
-vpux_enable_clang_format(${OBJ_TARGET_NAME})
 
 target_compile_definitions(${OBJ_TARGET_NAME}
     PRIVATE
