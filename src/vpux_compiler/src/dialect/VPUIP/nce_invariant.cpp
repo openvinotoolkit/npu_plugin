@@ -1034,6 +1034,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchPatternCMX(mlir::Op
     }
     auto module = op->getParentOfType<mlir::ModuleOp>();
     const auto cmxSize = getCMXSizeForTiling(module);
+    auto ratioToAvoidFragmentation = 0.8;
 
     // Calculate the CMX memory required by the last tile of parent Op
     auto lastParentTile = parentTiling[parentTiling.size() - 1];
@@ -1043,12 +1044,30 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchPatternCMX(mlir::Op
     auto firstPrefetchTile = tiling[tiling.size() - 1];
     Byte cmxRequiredToPrefetch = getRequiredCMXForWeight(op, firstPrefetchTile);
 
-    if (cmxRequiredByParent + cmxRequiredToPrefetch > cmxSize) {
+    if (cmxRequiredByParent + cmxRequiredToPrefetch >
+        Byte(std::ceil((double)cmxSize.count() * ratioToAvoidFragmentation))) {
         log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}', required by "
                   "parent {3}",
-                  op->getLoc(), cmxSize, cmxRequiredByParent + cmxRequiredToPrefetch, cmxRequiredByParent);
+                  op->getLoc(), (cmxSize * ratioToAvoidFragmentation), cmxRequiredByParent + cmxRequiredToPrefetch,
+                  cmxRequiredByParent);
+        std::cout << llvm::formatv("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required "
+                                   "'{2}', required by "
+                                   "parent {3}",
+                                   op->getLoc(), std::ceil((double)cmxSize.count() * ratioToAvoidFragmentation),
+                                   cmxRequiredByParent + cmxRequiredToPrefetch, cmxRequiredByParent)
+                             .str()
+                  << std::endl;
+
         return mlir::failure();
     }
+    std::cout
+            << llvm::formatv(
+                       "[{0}] CMX memory is enough for prefetch pipeline, available '{1}', required '{2}', required by "
+                       "parent {3}",
+                       op->getLoc(), std::ceil((double)cmxSize.count() * ratioToAvoidFragmentation),
+                       cmxRequiredByParent + cmxRequiredToPrefetch, cmxRequiredByParent)
+                       .str()
+            << std::endl;
 
     return mlir::success();
 }
