@@ -235,8 +235,8 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
                                      activationWindow, origOp.biasAttr(), origOp.ppeAttr());
     
     auto instructionListTable =
-        createInstructionListTableTensor(rewriter, origOp->getLoc(), origOp.post_opAttr(),
-                                            origOp.output().getType().cast<mlir::MemRefType>().getElementType());
+            createInstructionListTableTensor(rewriter, origOp->getLoc(), origOp.post_opAttr(),
+                                             origOp.output().getType().cast<mlir::ShapedType>().getElementType());
 
     //
     // Create NCE per-cluster Operation
@@ -419,7 +419,7 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
 
     auto instructionListTable =
             createInstructionListTableTensor(rewriter, origOp->getLoc(), origOp.post_opAttr(),
-                                             origOp.output().getType().cast<mlir::MemRefType>().getElementType());
+                                             origOp.output().getType().cast<mlir::ShapedType>().getElementType());
     //
     // Create NCE per-cluster Operation
     //

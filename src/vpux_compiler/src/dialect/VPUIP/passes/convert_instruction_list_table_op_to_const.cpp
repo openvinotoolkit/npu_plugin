@@ -25,8 +25,6 @@ using namespace vpux;
 
 namespace {
 
-// NOTE: The whole idea of the pwl is that we are going to use a linear function that represents the activation.
-// This comes through the equation and idea of Alessandro
 // https://github.com/intel-innersource/frameworks.ai.vpu.presilicon.fathom/blob/main/notebooks/VPU2.0%20LeakyReLU%20performancs%20vs%20accuracy.ipynb.
 // Idea: We use the equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always
 // satisfies the activation. After we generate the instruction list table and we save the values of the registers
@@ -54,6 +52,7 @@ SmallVector<int32_t> getInstructionListTable(const mlir::ArrayAttr argRange, con
     int32_t sizeRange = static_cast<int32_t>(range.size());
     int32_t sizeShift = static_cast<int32_t>(shift.size());
     int32_t sizeBias = static_cast<int32_t>(bias.size());
+    int32_t nopCount = (sizeRange + sizeShift + sizeBias) >> 4;
 
     // Populate the instruction list from the table
     int32_t k = 0;
@@ -63,7 +62,7 @@ SmallVector<int32_t> getInstructionListTable(const mlir::ArrayAttr argRange, con
 
         if (j == 15)
             templateTable[j] = (ALU_HALT_OPCODE);
-        else if (j > 25)
+        else if (j > sizeRange + sizeShift + sizeBias + nopCount)
             templateTable[j] = (ALU_HALT_OPCODE);
         else {
             if (j < sizeRange) {

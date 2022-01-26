@@ -109,10 +109,6 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
             return mlir::failure();
         }
 
-        if (mlir::cast<ConcreteOp>($_op).post_opAttr() != nullptr && mlir::cast<ConcreteOp>($_op).ppeAttr() != nullptr) {
-            return vpux::errorAt($_op, "Can't have both 'post_op' and 'ppe' attributes at the same time");
-        }
-
         return mlir::success();
     }];
 }

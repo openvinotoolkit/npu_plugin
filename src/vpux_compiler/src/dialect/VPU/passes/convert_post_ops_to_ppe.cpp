@@ -127,8 +127,8 @@ PostOpParams getCustomPwlPostOpParams(IE::PostOp postOp, mlir::Type outElemType)
     const int64_t postShift = pwlTable.getValue().postShift;
 
     // Dummy values for mult & shift, as the actual values will be computed in the weights table
-    SmallVector<int32_t> quantMult = {1};
-    SmallVector<int32_t> quantShift = {0};
+    SmallVector<int64_t> quantMult = {1};
+    SmallVector<int64_t> quantShift = {0};
 
     return PostOpParams{VPU::PPEMode::FLEXARB,
                         clampLow,
@@ -212,7 +212,7 @@ mlir::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inE
     } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
         return getCustomPwlPostOpParams(postOp, outElemType);
     }
-    
+
     VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
 }
 
@@ -321,7 +321,6 @@ void ConvertPostOpsToPPEPass::updatePPETasks(ConcreteOp op, VPU::ArchKind arch) 
 
     const auto ppeTask = getPPEAttr(postOpParams.getValue(), op.getContext());
     op.ppeAttr(ppeTask);
-    op.removePost_opAttr();
 }
 
 void ConvertPostOpsToPPEPass::updateNCEEltwisePPETasks(VPU::NCEEltwiseOp op, VPU::ArchKind arch) {
@@ -375,7 +374,6 @@ void ConvertPostOpsToPPEPass::updateNCEEltwisePPETasks(VPU::NCEEltwiseOp op, VPU
 
     op.ppeAttr(ppeAttr);
     // Can't have both 'post_op' and 'ppe' attributes at the same time
-    op.removePost_opAttr();
 }
 
 void ConvertPostOpsToPPEPass::safeRunOnFunc() {
