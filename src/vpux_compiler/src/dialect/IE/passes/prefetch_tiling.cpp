@@ -105,6 +105,10 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
     };
     while (!isSupportedTilesPattern()) {
         if (!isDimLeftToTile()) {
+            std::cout << llvm::formatv("nTilesOnDim[dimToTile]: {0}; maxNumTiles[dimToTile.ind()]: {1}",
+                                       nTilesOnDim[dimToTile], maxNumTiles[dimToTile.ind()])
+                                 .str()
+                      << std::endl;
             VPUX_THROW("Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
         }
         // increase current op tiles
@@ -166,7 +170,7 @@ private:
 mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
                                                     mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
-    std::cout << llvm::formatv("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc())
+    std::cout << llvm::formatv("!!![{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc())
                          .str()
               << std::endl;
 
@@ -177,6 +181,9 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
         // If the current op fits CMX but still run into here
         // The op needs tiling to be prefetched by its parent
         auto parentOp = op->getOperand(0).getDefiningOp();
+        std::cout << llvm::formatv("op {0} and parentOp {1} needs pattern tile.", origOp->getLoc(), parentOp->getLoc())
+                             .str()
+                  << std::endl;
         const auto parentResShape = getShape(parentOp->getResult(0));
         auto tiles = generatePrefetchPatternTiles(op, parentOp, _log.nest());
 
