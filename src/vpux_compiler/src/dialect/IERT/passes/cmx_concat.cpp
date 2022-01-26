@@ -430,6 +430,17 @@ void CMXConcatPass::safeRunOnFunc() {
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
+
+    func->walk([&](mlir::Operation* op) {
+        if (!mlir::isa<IERT::LayerOpInterface>(op)) {
+            return;
+        }
+        if (op->getResult(0).use_empty()) {
+            std::cout << "Mateusz: Operation has no use - " << op->getName().getStringRef().data() << " - "
+                      << stringifyLocation(op->getLoc()) << "\n";
+            op->erase();
+        }
+    });
 }
 
 }  // namespace
