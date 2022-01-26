@@ -141,10 +141,10 @@ bool twoApiLayoutCouplingCheck(const ze_graph_argument_layout_t zeroL, const IE:
 
 size_t getSizeIOBytes(const ze_graph_argument_properties_t& argument) {
     size_t num_elements = 1;
-    for (size_t i = 0; i < layoutCount(argument.layout); ++i) {
+    for (size_t i = 0; i < layoutCount(argument.deviceLayout); ++i) {
         num_elements *= argument.dims[i];
     }
-    const size_t size_in_bytes = num_elements * precisionToSize(argument.precision);
+    const size_t size_in_bytes = num_elements * precisionToSize(argument.devicePrecision);
     return size_in_bytes;
 }
 
@@ -449,10 +449,12 @@ void ZeroExecutor::CommandList::appendMemoryCopy(void* dst, const void* src, siz
                 zeCommandListAppendMemoryCopy(_handle, dst, src, size, nullptr, 0, nullptr));
 }
 void ZeroExecutor::CommandList::appendGraphInitialize(const ze_graph_handle_t& graph_handle) {
-    throwOnFail("pfnAppendGraphInitialize", _graph_ddi_table_ext->pfnAppendGraphInitialize(_handle, graph_handle));
+    throwOnFail("pfnAppendGraphInitialize",
+                _graph_ddi_table_ext->pfnAppendGraphInitialize(_handle, graph_handle, nullptr, 0, nullptr));
 }
 void ZeroExecutor::CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle) {
-    throwOnFail("pfnAppendGraphExecute", _graph_ddi_table_ext->pfnAppendGraphExecute(_handle, graph_handle));
+    throwOnFail("pfnAppendGraphExecute",
+                _graph_ddi_table_ext->pfnAppendGraphExecute(_handle, graph_handle, nullptr, nullptr, 0, nullptr));
 }
 // TODO This is a work-around due to bug on ARM side
 // ARM sends signal before all necessary copying operations are completed
@@ -477,8 +479,16 @@ ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_con
           _command_list(device_handle, _context, graph_ddi_table_ext),
           _fence(std::make_shared<Fence>(_command_queue)),
           _graph_ddi_table_ext(graph_ddi_table_ext) {
-    ze_graph_desc_t desc = {ZE_GRAPH_FORMAT_NATIVE, _blob.size(), reinterpret_cast<const uint8_t*>(_blob.data())};
-    throwOnFail("pfnCreate", _graph_ddi_table_ext->pfnCreate(device_handle, &desc, &_handle));
+    ze_graph_desc_t desc{ZE_GRAPH_FORMAT_NATIVE,
+                         _blob.size(),
+                         reinterpret_cast<const uint8_t*>(_blob.data()),
+                         0,
+                         nullptr,
+                         ZE_GRAPH_ARGUMENT_LAYOUT_ANY,
+                         ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN,
+                         ZE_GRAPH_ARGUMENT_LAYOUT_ANY,
+                         ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN};
+    throwOnFail("pfnCreate", _graph_ddi_table_ext->pfnCreate(_context, device_handle, &desc, &_handle));
 
     throwOnFail("pfnGetProperties", _graph_ddi_table_ext->pfnGetProperties(_handle, &_props));
     for (uint32_t index = 0; index < _props.numGraphArgs; ++index) {
@@ -628,11 +638,11 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
         // TODO Currently L0 and Plugin might return different layouts which have dims like [1,1...]
         // They might be reinterpreted in different ways, so this check has been added to prevent that behavior
         if (std::max(getNumDims(desc.info.dims), getNumDims(deviceInput->getTensorDesc().getDims())) > 2) {
-            if (!twoApiLayoutCouplingCheck(desc.info.layout, deviceInput->getLayout())) {
+            if (!twoApiLayoutCouplingCheck(desc.info.deviceLayout, deviceInput->getLayout())) {
                 IE_THROW() << "Parsing error: layouts are different for push blobs";
             }
         }
-        if (desc.info.precision != getZePrecision(deviceInput->getPrecision())) {
+        if (desc.info.devicePrecision != getZePrecision(deviceInput->getPrecision())) {
             IE_THROW() << "Parsing error: precisions are different for push blobs";
         }
 
@@ -681,11 +691,11 @@ void ZeroExecutor::pull(IE::BlobMap& outputs) {
         const auto& desc = mapArguments(_graph->_outputs_desc_map, name);
         const auto& deviceOutput = deviceOutputs.at(name);
         if (std::max(getNumDims(desc.info.dims), getNumDims(deviceOutput->getTensorDesc().getDims())) > 2) {
-            if (!twoApiLayoutCouplingCheck(desc.info.layout, deviceOutput->getLayout())) {
+            if (!twoApiLayoutCouplingCheck(desc.info.deviceLayout, deviceOutput->getLayout())) {
                 IE_THROW() << "Parsing error: layouts are different for pull blobs";
             }
         }
-        if (desc.info.precision != getZePrecision(deviceOutput->getPrecision())) {
+        if (desc.info.devicePrecision != getZePrecision(deviceOutput->getPrecision())) {
             IE_THROW() << "Parsing error: precisions are different for pull blobs";
         }
 
