@@ -103,10 +103,9 @@ static VPUNN::VPUDevice getVPUDeviceType(VPU::ArchKind archKind) {
 }
 
 static VPUNN::VPUTensor getOutputTensor(const TileInfo& tileInfo, VPUNN::DataType dataType) {
-    return VPUNN::VPUTensor({static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::H]),
-                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::W]),
-                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::C]),
-                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::N])},
+    return VPUNN::VPUTensor({static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::W]),
+                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::H]),
+                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::C]), 1},
                             dataType);
 }
 
