@@ -48,6 +48,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /src/vpual_backend @briangrifiin @ArtemySkrebkov-intel @alpkn
 /src/vpux_al @ArtemySkrebkov-intel @mznamens @sshumihi
 /src/vpux_compiler @vinograd47 @nikita-kud @briangrifiin @sshumihi @andrejsokolov
+/src/vpux_driver_compiler_adapter @sshumihi @ArtemySkrebkov-intel @mznamens
 /src/vpux_elf @AndrewBakalinIntel @szilveszteri @gladilov-gleb
 /src/vpux_ngraph_transformations @shokinal @maxim-kurin
 /src/vpux_plugin @ArtemySkrebkov-intel @mznamens
@@ -82,6 +83,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /tests/unit/mcmCompiler @syao-2015 @mmineeva
 /tests/unit/mtl @gladilov-gleb @MikhailPedus @briangrifiin
 /tests/unit/vpux_compiler @vinograd47 @nikita-kud @briangrifiin
+/tests/unit/vpux_driver_compiler_adapter @sshumihi @ArtemySkrebkov-intel @mznamens
 /tests/unit/vpux_elf @AndrewBakalinIntel @szilveszteri @gladilov-gleb
 /tests/unit/vpux_utils @vinograd47 @nikita-kud
 #

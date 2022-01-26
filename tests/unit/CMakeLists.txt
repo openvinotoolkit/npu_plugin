@@ -30,6 +30,20 @@ else()
     list(APPEND EXCLUDED_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hddl2_tests")
 endif()
 
+if(ENABLE_DRIVER_COMPILER_ADAPTER)
+    list(APPEND OPTIONAL_UNIT_TESTS_INCLUDES
+        "${CMAKE_CURRENT_SOURCE_DIR}/vpux_driver_compiler_adapter"
+    )
+
+    list(APPEND OPTIONAL_UNIT_TESTS_LIBS
+            vpux_driver_compiler_adapter_static
+        )
+else()
+    list(APPEND EXCLUDED_UNIT_TESTS_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/vpux_driver_compiler_adapter"
+    )
+endif()
+
 #
 # Add optional MCM tests
 #
@@ -78,6 +92,7 @@ addIeTargetTest(
         vpux_elf
         IE::commonTestUtils
         IE::ngraph
+        IE::ngraphFunctions
         IE::gmock
         ${VPUMGR_LIBRARY}
         common_tests_helpers
