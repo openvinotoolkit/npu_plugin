@@ -25,6 +25,11 @@ __attribute__((aligned(1024)))
 #include <CustomCpp.h>
 #include <leonUtils.h>
 
+#if !defined(JTAG_LOW_LEVEL)
+//#include </home/alex/work/dev/movidius/tasks/review_vpux_397/vpuip2/drivers/resource/barrier/inc/HglBarrier.h>
+#include <HglBarrier.h>
+#endif // !JTAG_LOW_LEVEL
+
 unsigned char __attribute__((section(".nncmx0.shared.data"), aligned(64))) actShaveData[SHAVE_LIB_DATA_SIZE];
 unsigned int actShaveDataReserved = 0;
 
@@ -69,6 +74,15 @@ std::shared_ptr<nn::inference_runtime::shaves::ShaveManager> getShaveManager(std
     return holder;
 }
 
+#if !defined(JTAG_LOW_LEVEL)
+const int ConsumerNum = 0;
+const int ProducerNum = 1;
+const int ConsumerMask = (1 << ConsumerNum);
+const int ProducerMask = (1 << ProducerNum);
+#endif // !JTAG_LOW_LEVEL
+
+//int qq = 0;
+
 bool ShaveTaskRunner::enqueTask(Op * operation,
                               const std::vector<OpTensor> &inputs,
                               const std::vector<OpTensor> &outputs,
@@ -91,6 +105,7 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     actRtConfigs.actRtWindowBase_ = reinterpret_cast<unsigned char*>(sk_nnActEntry_3010xx_text);
 
     int qq = operation->parse(&layer);
+//    qq = operation->parse(&layer);
 
     cache::flush(actRtConfigs);
     cache::flush(globalAreas);
@@ -98,15 +113,29 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     cache::flush(*globalAreas);
     cache::flush(*_shaveManager);
     _shaveManager->startActShavesForTile(0, actRtConfigs, true);
+
+#if defined(JTAG_LOW_LEVEL)
     act_runtime::ActKernelRange kRng = {nn::act_runtime::ActWLType::WL_KERNEL_LRT_SYNC,
                                             reinterpret_cast<act_runtime::actKernelEntry>(customOp->ops.kernel),
                                             reinterpret_cast<act_runtime::actKernelTextBuffer>(customOp->ops.kernel),
                                             customOp->ops.kernelDataLen,
                                             0, act_runtime::ActKernelRange::LRT_WAIT};
+#else // JTAG_LOW_LEVEL
+    act_runtime::ActKernelRange kRng = {nn::act_runtime::ActWLType::WL_KERNEL,
+                                            reinterpret_cast<act_runtime::actKernelEntry>(customOp->ops.kernel),
+                                            reinterpret_cast<act_runtime::actKernelTextBuffer>(customOp->ops.kernel),
+                                            customOp->ops.kernelDataLen,
+                                            0};
+#endif // JTAG_LOW_LEVEL
+
     kRange = kRng;
     cache::flush(kRange);
 
+#if defined(JTAG_LOW_LEVEL)
     const BarrierUserConfig userBariers = {0, 0, 0, 0, 0};
+#else // JTAG_LOW_LEVEL
+    const BarrierUserConfig userBariers = {ConsumerMask, ProducerMask, 0, 0, 0};
+#endif // JTAG_LOW_LEVEL
 //        PhysicalBarrierMask wait_mask_;
 //        PhysicalBarrierMask post_mask_;
 //        unsigned short start_after_;
@@ -122,6 +151,17 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
 //    };
     cache::flush(gpioBarriers);
 
+#if !defined(JTAG_LOW_LEVEL)
+    HglBarrierReset(ConsumerMask);
+    HglBarrierReset(ProducerMask);
+//    HglBarrierSetProdConsCounts(ConsumerNum, 0, 1);
+    HglBarrierSetProdConsCounts(ConsumerNum, 1, 1);
+    HglBarrierSetProdConsCounts(ProducerNum, 1, 0);
+#endif // !JTAG_LOW_LEVEL
+
+//    printf("!!!!!!!!!!!!!! [0] HglBarrierGetProdConsCounts(0) = 0x%08x\n", HglBarrierGetProdConsCounts(0));
+//    printf("!!!!!!!!!!!!!! [0] HglBarrierGetProdConsCounts(1) = 0x%08x\n", HglBarrierGetProdConsCounts(1));
+
     act_runtime::ActKernelInvocation kInv = {&kRange,
             (void*)(customOp->ops.paramData),
             reinterpret_cast<act_runtime::actKernelDataBuffer>(customOp->ops.paramData),
@@ -132,19 +172,40 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     leonDataCacheFlush();
     fifo::sendWorkToASs(0/*local_aki.tile_*/, &kInvo);
 
+    HglBarrierProduce(ConsumerMask);
     _enqued = true;
     return true;
 }
 
 bool ShaveTaskRunner::dequeResult() {
     if (_enqued) {
+#if defined(JTAG_LOW_LEVEL)
         int i = 0;
         for (; i < MAX_WAIT_ITERATIONS; i++) {
             cache::invalidate(kRange);
             if (kRange.LRTSynch_ == act_runtime::ActKernelRange::KERNEL_DONE) break;
         }
-
         nnLog(MVLOG_DEBUG, "After send waiting %d", i);
+#else // JTAG_LOW_LEVEL
+//        HglBarrierProduce(ConsumerMask);
+//        printf("!!!!!!!!!!!!!! [1] HglBarrierGetProdConsCounts(0) = 0x%08x\n", HglBarrierGetProdConsCounts(0));
+//        printf("!!!!!!!!!!!!!! [1] HglBarrierGetProdConsCounts(1) = 0x%08x\n", HglBarrierGetProdConsCounts(1));
+        HglBarrierWait(ProducerMask);
+//        printf("!!!!!!!!!!!!!! [2] HglBarrierGetProdConsCounts(0) = 0x%08x\n", HglBarrierGetProdConsCounts(0));
+//        printf("!!!!!!!!!!!!!! [2] HglBarrierGetProdConsCounts(1) = 0x%08x\n", HglBarrierGetProdConsCounts(1));
+//        uint32_t * tmp = (uint32_t*)0x2e014000;
+//        for (int i = 0; i < 1000000; i++) {
+//            qq++;
+//        }
+////        printf("!!!!!!!!!! after send %d!!!!!!!!!!!!!\n", qq);
+//        printf("!!!!!!!!!! after send!!!!!!!!!!!!!\n");
+//        cache::invalidate(tmp, sizeof(uint32_t));
+//        cache::invalidate(tmp, tmp[0] * sizeof(uint32_t));
+//        for (int i = 0; i < tmp[0]; i++) {
+//            printf( "\t\t%d) %d 0x%08x\n", i, tmp[i], tmp[i]);
+//        }
+        nnLog(MVLOG_DEBUG, "After send waiting is done");
+#endif // JTAG_LOW_LEVEL
 
         _shaveManager->stopActShavesForTiles();
         _enqued = false;
