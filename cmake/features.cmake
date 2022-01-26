@@ -89,6 +89,12 @@ if(ENABLE_ZEROAPI_BACKEND)
     add_definitions(-DENABLE_ZEROAPI_BACKEND)
 endif()
 
+# if ENABLE_ZEROAPI_BACKEND=ON, it adds the ze_loader dependency for VPUXCompilerL0
+ie_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend" ON "NOT AARCH64;NOT BUILD_COMPILER_FOR_DRIVER" OFF)
+if(ENABLE_ZEROAPI_BACKEND)
+    add_definitions(-DENABLE_ZEROAPI_BACKEND)
+endif()
+
 ie_option(ENABLE_DEVELOPER_BUILD "Enable developer build with extra validation/logging functionality" OFF)
 
 if(NOT DEFINED MV_TOOLS_PATH AND DEFINED ENV{MV_TOOLS_DIR} AND DEFINED ENV{MV_TOOLS_VERSION})

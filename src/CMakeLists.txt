@@ -52,10 +52,13 @@ if(BUILD_COMPILER_FOR_DRIVER)
 endif()
 add_subdirectory(vpux_elf)
 add_subdirectory(vpux_plugin)
+<<<<<<< HEAD
 
 if(ENABLE_DRIVER_COMPILER_ADAPTER)
     add_subdirectory(vpux_driver_compiler_adapter)
 endif()
+=======
+>>>>>>> 00c89aae6 (Static compiler and zero backend (#351))
 
 add_subdirectory(vpux_utils)
 
