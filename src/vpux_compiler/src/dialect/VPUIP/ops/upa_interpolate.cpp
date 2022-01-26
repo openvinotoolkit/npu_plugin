@@ -54,7 +54,8 @@ void vpux::VPUIP::InterpolateUPAOp::inferLayoutInfo(mlir::Operation* op, IE::Lay
     // Select NCHW layout due to performance reasons
     // [Track number: E#25302]
     auto channels = inputShape[1];
-    if (channels == 1) {
+    const auto antialias = mlir::cast<IE::InterpolateOp>(op).attr().antialias().getValue();
+    if (channels == 1 || antialias) {
         IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
     } else {
         IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::NHWC});
