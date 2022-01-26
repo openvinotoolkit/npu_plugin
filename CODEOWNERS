@@ -84,7 +84,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /tests/unit/vpux_compiler @vinograd47 @nikita-kud @briangrifiin
 /tests/unit/vpux_elf @AndrewBakalinIntel @szilveszteri @gladilov-gleb
 /tests/unit/vpux_utils @vinograd47 @nikita-kud
-/tests/unit/CMakeLists.txt @alpkn
+
 #
 # tools folder
 /tools @shokinal @mmineeva
