@@ -149,10 +149,11 @@ DECLARE_VPUX_CONFIG_KEY(INFERENCE_TIMEOUT);
  * Type: string, default is MLIR.
  * Type of VPU compiler to be used for compilation of a network
  */
-enum class CompilerType { MCM, MLIR };
+enum class CompilerType { MCM, MLIR, DRIVER };
 DECLARE_VPUX_CONFIG_KEY(COMPILER_TYPE);
 DECLARE_VPUX_CONFIG_VALUE(MCM);
 DECLARE_VPUX_CONFIG_VALUE(MLIR);
+DECLARE_VPUX_CONFIG_VALUE(DRIVER);
 
 DECLARE_VPUX_CONFIG_KEY(COMPILATION_MODE);
 

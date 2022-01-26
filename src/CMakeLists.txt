@@ -46,11 +46,16 @@ endif()
 if(ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(zero_backend)
 endif()
+
 if(BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(VPUXCompilerL0)
 endif()
 add_subdirectory(vpux_elf)
 add_subdirectory(vpux_plugin)
+
+if (ENABLE_DRIVER_COMPILER_ADAPTER)
+    add_subdirectory(vpux_driver_compiler_adapter)
+endif()
 
 add_subdirectory(vpux_utils)
 add_subdirectory(vpux_compiler)
