@@ -1788,7 +1788,7 @@
         {
             "name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013_compressed",
             "ir" : "scale/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013.xml",
-            "category" : "MLIR/precommit",
+            "category" : "MLIR/precommit/SKIP",
             "3720": {
                 "disabled" : true
             },
@@ -2630,7 +2630,7 @@
         {
             "name" : "BDK_INT8_StyleTransfer",
             "ir" : "models/clientmodels/BDK3/StyleTransfer/Cyberlink/INT8/StyleTransfer.xml",
-            "category" : "MLIR",
+            "category" : "MLIR/SKIP",
             "3720": {
                 "disabled" : true
             },
