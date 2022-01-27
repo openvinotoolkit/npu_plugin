@@ -106,7 +106,7 @@
         {
             "name" : "por_tf_FP16-INT8_yolo-v2-ava-0001",
             "ir" : "por/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP",
             "3720": {
                 "disabled" : true
             },
