@@ -136,15 +136,15 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
             nTilesOnDim[dimToTile]++;
         }
         // increase parent op tiles
-        if (!isSupportedTilesPattern()) {
-            if (dimToTile == Dims4D::Act::C) {
-                do {
-                    ++nTilesOnDimParent[Dims4D::Act::C];
-                } while (!isSupportedChannelDivision());
-            } else {
-                nTilesOnDimParent[dimToTile]++;
-            }
-        }
+        //        if (!isSupportedTilesPattern()) {
+        //            if (dimToTile == Dims4D::Act::C) {
+        //                do {
+        //                    ++nTilesOnDimParent[Dims4D::Act::C];
+        //                } while (!isSupportedChannelDivision());
+        //            } else {
+        //                nTilesOnDimParent[dimToTile]++;
+        //            }
+        //        }
     }
     return {nTilesOnDim, nTilesOnDimParent};
 }
@@ -211,28 +211,11 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
         const auto parentResShape = getShape(parentOp->getResult(0));
         auto tiles = generatePrefetchPatternTiles(op, parentOp, _log.nest());
 
-        auto getDimsToTile = [](ShapeRef nTilesOnDim) -> SmallVector<Dim> {
-            SmallVector<Dim> res;
-            for (unsigned i = 0; i < nTilesOnDim.size(); i++) {
-                if (nTilesOnDim[Dim(i)] > 1)
-                    res.emplace_back(Dim(i));
-            }
-            return res;
-        };
         auto curTiles = fillDividedTiles(tiles[0], resShape);
         auto parentTiles = fillDividedTiles(tiles[1], parentResShape);
         std::cout << llvm::formatv("\tcur tile: {0}", tiles[0]).str() << std::endl;
         std::cout << llvm::formatv("\tparent tile: {0}", tiles[1]).str() << std::endl;
-        if (getDimsToTile(tiles[1]).size() == 0) {
-            return applyTileStrategy(origOp, curTiles, rewriter, _log);
-        } else {
-            if (mlir::succeeded(applyTileStrategy(mlir::dyn_cast<IE::TilingBuilderOpInterface>(parentOp), parentTiles,
-                                                  rewriter, _log)) &&
-                mlir::succeeded(applyTileStrategy(origOp, curTiles, rewriter, _log))) {
-                return mlir::success();
-            }
-        }
-        return mlir::success();
+        return applyTileStrategy(origOp, curTiles, rewriter, _log);
     } else {
         const auto tiles = generatePrefetchTiles(origOp.getOperation(), _log.nest());
         _log.nest(1).trace("Create {0} tiles:", tiles.size());
