@@ -76,9 +76,9 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
     const auto padShape = SmallVector<int64_t>{OC, padding, 1, 1};
     const auto padValues = std::vector<ngraph::float16>(OC * padding, 0.f);
     const auto padType =
-            changeDimsOrder(mlir::RankedTensorType::get(padShape, origFilterType.getElementType()), DimsOrder::NCHW);
+            changeDimsOrder(mlir::RankedTensorType::get(padShape, mlir::Float16Type::get(ctx)), DimsOrder::NCHW);
     const auto padAttr = mlir::DenseElementsAttr::get(padType, makeArrayRef(padValues));
-    const auto padContentAttr = Const::ContentAttr::get(padAttr);
+    const auto padContentAttr = Const::ContentAttr::get(padAttr).convertElemType(origFilterType.getElementType());
 
     const auto padAllocType = mlir::RankedTensorType::get(padShape, origFilterType.getElementType());
     const auto padAllocTypeNHWC = changeDimsOrder(padAllocType, DimsOrder::NCHW);
