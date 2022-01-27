@@ -72,7 +72,7 @@
         {
             "name" : "por_tf_FP16_yolo-v2-tiny-ava-0001",
             "ir" : "por/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml",
-            "category" : "MLIR",
+            "category" : "MLIR/SKIP",
             "3720": {
                 "disabled" : true
             },
