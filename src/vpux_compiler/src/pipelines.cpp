@@ -220,8 +220,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
         pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     }
 
-    pm.addPass(IERT::createCMXConcatPass(log));
-
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
     if (options.enableProfiling && options.enableDMAProfiling) {

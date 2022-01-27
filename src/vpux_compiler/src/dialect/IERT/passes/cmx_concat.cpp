@@ -28,9 +28,6 @@
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 
 #include "vpux/compiler/utils/logging.hpp"
-#include "vpux/compiler/utils/strings.hpp"
-
-#include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
 
@@ -61,7 +58,7 @@ size_t getSize(mlir::Value val) {
     }
     // assert the value is a memref
     const auto type = val.getType().dyn_cast<mlir::MemRefType>();
-    VPUX_THROW_UNLESS(type != nullptr, "StaticAllocation can work only with MemRef Type, got '{0}'", val.getType());
+    VPUX_THROW_UNLESS(type != nullptr, "CMX Concat can work only with MemRef Type, got '{0}'", val.getType());
     // return the size of the memref
     const Byte totalSize = getTotalSize(type);
     return checked_cast<size_t>(totalSize.count());
@@ -70,7 +67,6 @@ size_t getSize(mlir::Value val) {
 bool isThisAComplexConcat(SmallVector<VPUIP::NCEClusterTaskOp> nceTiles, SmallVector<IERT::CopyOp> copyInOps) {
     // avoid concats which are complex, where the inputs to the concat are used
     // by other operations
-
     for (size_t idx = 0; idx < nceTiles.size(); idx++) {
         for (auto user : nceTiles[idx].output().getUsers()) {
             if (user != copyInOps[idx].getOperation()) {
@@ -85,13 +81,16 @@ bool isThisAComplexConcat(SmallVector<VPUIP::NCEClusterTaskOp> nceTiles, SmallVe
 
 bool concatOperationDoesNotFitInCMX(IERT::ConcatViewOp concat, SmallVector<VPUIP::NCEClusterTaskOp> nceTiles,
                                     size_t cmxSize) {
+    // check if the concat can fit in CMX
+    // in order to CMX a concat the entire output buffer + inputs for the
+    // largest tile must fit in CMX at the same time
     auto output = concat.getResult();
     size_t concatSize = getSize(output);
     size_t maxUserSize = 0;
     size_t currUserSize = 0;
     ValueOrderedSet inputs;
 
-    // from all users find the one with the biggest size
+    // from all users find the one with the largest size
     for (auto user : nceTiles) {
         currUserSize = 0;
         inputs.clear();
@@ -117,6 +116,8 @@ bool concatOperationDoesNotFitInCMX(IERT::ConcatViewOp concat, SmallVector<VPUIP
 }
 
 bool childOperationsDoNotFitInCMX(IERT::ConcatViewOp concat, SmallVector<IERT::CopyOp> copyOutOps, size_t cmxSize) {
+    // check if the child operations - operations using the concat output buffer
+    // will fit in CMX along with their inputs and output
     auto output = concat.getResult();
     size_t concatSize = getSize(output);
     size_t maxConsumerSize = 0;
@@ -150,7 +151,6 @@ bool isSplitSupportedOnDPU(IERT::SubViewOp subViewOp) {
     // For NHWC that would be split along H
     // Only such cases are supported by DPU IDU becasue only then input to DPU is a contiguous
     // block in memory. Otherwise this behavior needs to be performed by DMA
-
     const auto inputType = subViewOp.source().getType().dyn_cast<mlir::MemRefType>();
     const auto outputType = subViewOp.result().getType().dyn_cast<mlir::MemRefType>();
     const auto inputTypeShape = inputType.getShape();
@@ -159,13 +159,6 @@ bool isSplitSupportedOnDPU(IERT::SubViewOp subViewOp) {
     if (inputTypeShape.size() != outputTypeShape.size() || inputTypeShape.size() != 4) {
         return false;
     }
-
-    // // 0 - Exact match
-    // // 1 - A bit different
-    // // 2 - NOK
-    // // 3 - NOK
-    // // 5 - NOK
-    // // 11 - NOK
 
     SmallVector<bool> dimsDifference;
     for (size_t i = 0; i < 4; i++) {
@@ -417,11 +410,16 @@ void CMXConcatPass::safeRunOnFunc() {
     }
 
     // 4. Remove left over operations with no users
-    func->walk([&](mlir::Operation* op) {
-        if (!mlir::isa<IERT::LayerOpInterface>(op)) {
-            return;
+    func->walk([](IERT::LayerOpInterface op) {
+        bool canRemove = true;
+        for (const auto res : op->getResults()) {
+            if (!res.use_empty()) {
+                canRemove = false;
+                break;
+            }
         }
-        if (op->getResult(0).use_empty()) {
+
+        if (canRemove) {
             op->erase();
         }
     });
