@@ -44,7 +44,7 @@ link_system_libraries(${TARGET_NAME}
     PRIVATE
         # IE::inference_engine
         IE::inference_engine_plugin_api
-        IE::vpu_common_lib
+        vpux_utils
         ze_loader
  )
 

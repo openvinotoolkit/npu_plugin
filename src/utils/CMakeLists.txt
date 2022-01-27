@@ -48,7 +48,6 @@ link_system_libraries(${TARGET_NAME}
         IE::inference_engine_plugin_api
     PUBLIC
         IE::inference_engine_legacy
-        IE::vpu_common_lib
         vpux_utils
 )
 

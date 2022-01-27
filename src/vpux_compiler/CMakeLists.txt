@@ -423,6 +423,7 @@ link_system_libraries(${OBJ_TARGET_NAME}
         IE::inference_engine_plugin_api
         IE::ngraph_reference
         vpux_ngraph_transformations
+        vpux_utils
 )
 
 target_link_libraries(${OBJ_TARGET_NAME}

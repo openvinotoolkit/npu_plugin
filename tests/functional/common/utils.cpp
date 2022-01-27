@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
 #include "utils.hpp"
 #include "vpux_private_metrics.hpp"
 

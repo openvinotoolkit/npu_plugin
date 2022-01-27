@@ -54,8 +54,9 @@ struct NormTestParams final {
         return *this;
     }
 };
+
 std::ostream& operator<<(std::ostream& os, const NormTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, normParams:%v , scalesBroadCasting:%v]", p._inDims, p._normParams,
+    vpux::printTo(os, "[inDims:{0}, normParams:{1} , scalesBroadCasting:{2}]", p._inDims, p._normParams,
             p._scalesBroadcasting);
     return os;
 }

@@ -79,7 +79,7 @@ link_system_libraries(${TARGET_NAME}
     PUBLIC
         openvino::runtime
         openvino::runtime::dev
-        IE::vpu_common_lib
+        vpux_utils
 )
 
 target_link_libraries(${TARGET_NAME}

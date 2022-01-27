@@ -21,8 +21,8 @@ public:
     int32_t runTest(const TestNetworkDesc& netDesc, const std::string& netFileName);
 };
 
-int32_t KmbClusterTest::runTest(const TestNetworkDesc& netDesc, const std::string& netFileName) {
-    const auto blobFileName = vpu::formatString("%v/%v.net", KmbTestBase::DUMP_PATH, netFileName);
+int32_t KmbClusterTest::runTest(const TestNetworkDesc& netDesc, const std::string& netFileName) {    
+    const auto blobFileName = vpux::printToString("{0}/{1}.net", KmbTestBase::DUMP_PATH, netFileName);
     if (KmbTestBase::RUN_COMPILER) {
         ExecutableNetwork exeNet = getExecNetwork(netDesc);
         exeNet.Export(blobFileName);
@@ -79,7 +79,7 @@ struct ClusterTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const ClusterTestParams& p) {
-    vpu::formatPrint(os, "[net name: %s, clusters: %s]", p._netName, p._numClusters);
+    vpux::printTo(os, "[net name: {0}, clusters: {1}]", p._netName, p._numClusters);
     return os;
 }
 

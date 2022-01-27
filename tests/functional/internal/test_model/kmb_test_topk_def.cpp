@@ -68,8 +68,3 @@ TestNetwork& TopKLayerDef::build() {
 
     return testNet.addLayer(name, node, refTopK);
 }
-
-std::ostream& operator<<(std::ostream& os, const TopKParams& p) {
-    vpu::formatPrint(os, "[_axis:%v,_mode:%v,_sort:%v]", p._axis, p._modeType, p._sortType);
-    return os;
-}

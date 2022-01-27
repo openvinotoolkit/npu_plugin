@@ -21,14 +21,34 @@
 #pragma once
 
 #include "vpux/utils/core/hash.hpp"
+#include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
+#include <istream>
 #include <map>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 namespace vpux {
+
+template <typename T>
+std::enable_if_t<std::is_integral<T>::value, Optional<T>> parseNumber(StringRef str) {
+    T res = 0;
+    if (str.getAsInteger(10, res)) {
+        return res;
+    }
+    return None;
+}
+
+template <typename T>
+std::enable_if_t<std::is_floating_point<T>::value, Optional<T>> parseNumber(StringRef str) {
+    double res = 0;
+    if (str.getAsDouble(res)) {
+        return static_cast<T>(res);
+    }
+    return None;
+}
 
 //
 // IntOrFloat

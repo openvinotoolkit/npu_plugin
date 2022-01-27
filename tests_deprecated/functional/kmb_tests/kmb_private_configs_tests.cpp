@@ -16,7 +16,6 @@
 #include <fstream>
 
 #include <allocators.hpp>
-#include <vpu/utils/io.hpp>
 
 #include "models/model_pooling.h"
 #include "vpu_layers_tests.hpp"
@@ -92,9 +91,9 @@ struct PrivateConfigTestParams final {
     }
 };
 std::ostream& operator<<(std::ostream& os, const PrivateConfigTestParams& p) {
-    vpu::formatPrint(os,
-        "[testDescription:%v, modelPath:%v, inputPath:%v, referencePath:%v, preProc:%v, checkSIPP:%v, "
-        "privateConfig:%v, inputWidth:%v, inputHeight:%v, nClasses:%v]",
+    vpux::printTo(os,
+        "[testDescription:{0}, modelPath:{1}, inputPath:{2}, referencePath:{3}, preProc:{4}, checkSIPP:{5}, "
+        "privateConfig:{6}, inputWidth:{7}, inputHeight:{8}, nClasses:{9}]",
         p._testDescription, p._modelPath, p._inputPath, p._referencePath, p._preProc, p._checkSIPP, p._privateConfig,
         p._inputWidth, p._inputHeight, p._nClasses);
     return os;

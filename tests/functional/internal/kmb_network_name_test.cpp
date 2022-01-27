@@ -48,8 +48,8 @@ TestNetwork KmbNetworkNameTest::buildPowerLayer(const std::string& netName) {
     return testNet;
 }
 
-std::string KmbNetworkNameTest::runTest(TestNetwork& netDesc, const std::string& netFileName) {
-    const auto blobFileName = vpu::formatString("%v/%v.net", DUMP_PATH, netFileName);
+std::string KmbNetworkNameTest::runTest(TestNetwork& netDesc, const std::string& netFileName) {    
+    const auto blobFileName = vpux::printToString("{0}/{1}.net", DUMP_PATH, netFileName);
     if (RUN_COMPILER) {
         ExecutableNetwork exeNet = KmbLayerTestBase::getExecNetwork(netDesc);
         exeNet.Export(blobFileName);

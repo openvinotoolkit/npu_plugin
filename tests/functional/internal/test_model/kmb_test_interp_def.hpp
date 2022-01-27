@@ -27,7 +27,12 @@ struct InterpParams final {
     size_t _padEnd;
 };
 
-std::ostream& operator<<(std::ostream& os, const InterpParams& p);
+template <typename Stream>
+inline Stream& operator<<(Stream& os, const InterpParams& p) {
+    vpux::printTo(
+        os, "[_align_corners:{0},_antialias:{1}, _pad_begin:{2},_pad_end:{3}]", p._alignCorners, p._antialias, p._padBeg, p._padEnd);
+    return os;
+}
 
 struct InterpLayerDef final {
     TestNetwork& testNet;

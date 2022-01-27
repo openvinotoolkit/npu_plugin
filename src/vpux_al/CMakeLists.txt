@@ -35,7 +35,7 @@ addVersionDefines(${VPUX_VERSION_FILE} CI_BUILD_NUMBER)
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
-        IE::vpu_common_lib
+        vpux_utils
 )
 
 if(BUILD_SHARED_LIBS)

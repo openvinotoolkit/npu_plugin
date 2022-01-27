@@ -25,7 +25,46 @@ struct TopKParams final {
     ngraph::op::v1::TopK::SortType _sortType;
 };
 
-std::ostream& operator<<(std::ostream& os, const TopKParams& p);
+namespace llvm {
+
+template <>
+struct format_provider<ngraph::op::v1::TopK::Mode> final {
+    static void format(const ngraph::op::v1::TopK::Mode& mode, llvm::raw_ostream& stream, StringRef style) {
+        switch (mode) {
+            case ngraph::op::v1::TopK::Mode::MAX:
+            stream << "MAX";
+            return;
+            case ngraph::op::v1::TopK::Mode::MIN:
+            stream << "MIN";
+            return;
+        }
+    }
+};
+
+template <>
+struct format_provider<ngraph::op::v1::TopK::SortType> final {
+    static void format(const ngraph::op::v1::TopK::SortType& st, llvm::raw_ostream& stream, StringRef style) {
+        switch(st) {
+            case ngraph::op::v1::TopK::SortType::SORT_INDICES:
+            stream << "Sort indices";
+            return;
+            case ngraph::op::v1::TopK::SortType::SORT_VALUES:
+            stream << "Sort values";
+            return;
+            default:
+            case ngraph::op::v1::TopK::SortType::NONE:
+            stream << "<NONE>";
+            return;
+        }
+    }
+};
+}
+
+template <typename Stream>
+inline Stream& operator<<(Stream& os, const TopKParams& p) {
+    vpux::printTo(os, "[_axis:%v,_mode:%v,_sort:%v]", p._axis, p._modeType, p._sortType);
+    return os;
+}
 
 struct TopKLayerDef final {
     TestNetwork& testNet;

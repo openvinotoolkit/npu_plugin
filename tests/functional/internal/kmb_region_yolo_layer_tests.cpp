@@ -30,7 +30,7 @@ std::ostream& operator<<(std::ostream& os, const RegionYoloTestParams& p) {
     const auto num = p.doSoftmax() ? p.regions() : p.mask().size();
     const auto& dims = SizeVector{1, num * (p.coords() + p.classes() + 1), p.height(), p.width()};
 
-    vpu::formatPrint(os, "dims: %v, classes: %l, coords: %l, regions: %l, maskSize: %l, doSoftmax: %l",
+    vpux::printTo(os, "dims: {0}, classes: {1}, coords: {2}, regions: {3}, maskSize: {4}, doSoftmax: {5}",
         dims, p.classes(), p.coords(), p.regions(), p.mask().size(), p.doSoftmax());
     return os;
 }

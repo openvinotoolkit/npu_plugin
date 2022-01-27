@@ -33,7 +33,7 @@ if (UNIX)
             LINK_LIBRARIES
                 IE::IESharedTests
                 IE::funcTestUtils
-                IE::vpu_common_lib
+                vpux_utils
                 IE::ngraph
                 IE::ngraph_reference
                 ${XLINK_LIB} # required for getAvailableDevices test

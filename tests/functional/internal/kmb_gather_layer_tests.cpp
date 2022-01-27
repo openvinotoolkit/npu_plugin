@@ -65,7 +65,7 @@ struct GatherTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const GatherTestParams& p) {
-    vpu::formatPrint(os, "[axis:%v, indices size:%v]", p._axis, p._indices.size());
+    vpux::printTo(os, "[axis:{0}, indices size:{1}]", p._axis, p._indices.size());
     return os;
 }
 

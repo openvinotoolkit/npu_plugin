@@ -23,7 +23,7 @@ struct AsyncTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const AsyncTestParams &p) {
-    vpu::formatPrint(os, "nireq: %u, niter: %u", p.nireq(), p.niter());
+    vpux::printTo(os, "nireq: {0}, niter: {1}", p.nireq(), p.niter());
     return os;
 }
 

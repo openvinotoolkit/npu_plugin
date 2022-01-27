@@ -11,7 +11,6 @@
 // included with the Software Package for additional details.
 //
 
-#include <vpu/utils/ie_helpers.hpp>
 #include <file_utils.h>
 #include "test_model/kmb_test_base.hpp"
 #include "test_model/kmb_test_add_w_offset_def.hpp"
@@ -23,8 +22,8 @@ struct AddWOffsetTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const AddWOffsetTestParams& p) {
-    vpu::formatPrint(
-        os, "offset: %l", p.offset());
+    vpux::printTo(
+        os, "offset: {0}", p.offset());
     return os;
 }
 

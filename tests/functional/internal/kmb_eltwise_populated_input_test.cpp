@@ -32,7 +32,7 @@ struct EltwisePopulatedInputTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const EltwisePopulatedInputTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, outPrecision:%v]", p._inDims, p._outPrecision);
+    vpux::printTo(os, "[inDims:{0}, outPrecision:{1}]", p._inDims, p._outPrecision);
     return os;
 }
 

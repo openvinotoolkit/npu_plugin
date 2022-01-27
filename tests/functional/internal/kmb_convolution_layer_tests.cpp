@@ -21,7 +21,7 @@ using ConvTestParams = std::tuple<
 >;
 
 void PrintTo(const ConvTestParams& p, std::ostream* os) {
-    vpu::formatPrint(*os, "[inDims:%v, convParams:%v, withBiases:%v, swMode:%v]",
+    vpux::printTo(*os, "[inDims:{0}, convParams:{1}, withBiases:{2}, swMode:{3}]",
                      std::get<0>(p), std::get<1>(p), std::get<2>(p), std::get<3>(p));
 }
 

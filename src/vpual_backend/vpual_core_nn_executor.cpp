@@ -27,9 +27,9 @@
 #include <tensor_ref_helpers.hpp>
 #include <utility>
 #include <vector>
-#include <vpu/utils/enums.hpp>
 
 #include "vpux/utils/plugin/profiling_parser.hpp"
+#include "vpux/utils/core/enums.hpp"
 
 #if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
 #include "mmapped_pointer.hpp"
@@ -490,7 +490,7 @@ static uint8_t* setPrefetchHelper(const std::shared_ptr<NnCorePlg>& nnCorePtr, c
     return preFetchVirtAddr;
 }
 
-const static vpu::EnumSet<InferenceEngine::VPUXConfigParams::VPUXPlatform> platformsWithCSRAM = {
+const static vpux::EnumSet<InferenceEngine::VPUXConfigParams::VPUXPlatform> platformsWithCSRAM = {
         InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800,
         InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900,
 };
