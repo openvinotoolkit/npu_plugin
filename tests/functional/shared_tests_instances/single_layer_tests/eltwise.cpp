@@ -45,14 +45,17 @@ TEST_P(VPUXEltwiseLayerTest_MCM, DISABLED_MCM) {
     run();
 }
 
-TEST_P(VPUXEltwiseLayerTest_MLIR, MLIR_SW) {
+//
+//[Track number: E#30253]
+//
+TEST_P(VPUXEltwiseLayerTest_MLIR, DISABLED_MLIR_SW) {
     abs_threshold = 0.005;
     useCompilerMLIR();
     setReferenceSoftwareModeMLIR();
     run();
 }
 
-TEST_P(VPUXEltwiseLayerTest_MLIR, MLIR_HW) {
+TEST_P(VPUXEltwiseLayerTest_MLIR, DISABLED_MLIR_HW) {
     abs_threshold = 0.005;
     useCompilerMLIR();
     setDefaultHardwareModeMLIR();
