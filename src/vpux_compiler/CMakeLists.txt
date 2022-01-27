@@ -463,6 +463,9 @@ target_link_libraries(${OBJ_TARGET_NAME} PUBLIC $<BUILD_INTERFACE:mlir-dependenc
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
+    if(WIN32)
+        ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+    endif()
 endif()
 
 #
