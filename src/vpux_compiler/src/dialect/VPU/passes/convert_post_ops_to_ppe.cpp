@@ -16,6 +16,7 @@
 #include "vpux/compiler/dialect/VPU/pwl_utils.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -172,9 +173,9 @@ mlir::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inE
         int64_t LreluMult = 1;
         int64_t LreluShift = 0;
         const auto alpha = leakyRelu.negative_slope().getValueAsDouble();
-        if (alpha == 0.0) {
+        if (isDoubleEqual(alpha, 0.0)) {
             LreluMult = 0;
-        } else if (alpha != 1.0) {
+        } else if (!isDoubleEqual(alpha, 1.0)) {
             int exponent;
             double mantissa;
             mantissa = std::frexp(alpha, &exponent);
