@@ -338,6 +338,9 @@ add_library(vpux_mcm_compiler SHARED
     "${META_DIR_PATH}/src/op_model.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
 )
+if(WIN32)
+    ie_add_api_validator_post_build_step(TARGET vpux_mcm_compiler)
+endif()
 
 if (UNIX)
     set_source_files_properties(

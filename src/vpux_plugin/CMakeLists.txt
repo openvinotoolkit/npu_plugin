@@ -129,6 +129,9 @@ set(ALL_PLUGINS)
 list(APPEND ALL_PLUGINS ${VPUX_PLUGIN_TARGET})
 
 ie_register_plugins(MAIN_TARGET ${VPUX_PLUGIN_TARGET} POSSIBLE_PLUGINS ${ALL_PLUGINS})
+if(WIN32)
+    ie_add_api_validator_post_build_step(TARGET ${VPUX_PLUGIN_TARGET})
+endif()
 
 if(ENABLE_MCM_COMPILER)
     add_custom_target(mcm_compiler_copy ALL
