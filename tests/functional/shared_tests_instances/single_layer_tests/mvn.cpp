@@ -30,16 +30,6 @@ class KmbMvnLayerTestMLIR_MTL : public Mvn1LayerTest, virtual public LayerTestsU
         inPrc = InferenceEngine::Precision::FP16;
         outPrc = InferenceEngine::Precision::FP16;
     }
-    void SkipBeforeLoad() override {
-        if (std::getenv("OV_BUILD_DIR") == nullptr) {
-            throw LayerTestsUtils::KmbSkipTestException(
-                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
-        }
-
-#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
-        throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
-#endif
-    }
     void SkipBeforeInfer() override {
         // Format of act-shave tensors serialization doesn't match with kernel expectation
         // [EISW-29786]
