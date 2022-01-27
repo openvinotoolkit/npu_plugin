@@ -45,6 +45,7 @@ private:
                                       size_t currentComputeOpLevel);
     bool allDataOpDependenciesExecuted(operationIdxType dataIdx);
     bool canDataOpBePrefetched(ScheduledOpInfo* dataOp);
+    bool isEltwiseOp(ScheduledOpInfo* op);
 
 private:
     Logger _log;
