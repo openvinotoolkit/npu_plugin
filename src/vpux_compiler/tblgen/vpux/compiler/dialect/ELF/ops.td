@@ -53,7 +53,7 @@ def CreateSectionOp :
 
     let arguments = (ins
         StrAttr:$secName,
-        ELF_SectionTypeAttr2:$secType,
+        ELF_SectionTypeAttr:$secType,
         ELF_SectionFlagsAttr:$secFlags,
         IntAttr:$secInfo,
         IntAttr:$secAddrAlign

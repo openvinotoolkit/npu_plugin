@@ -95,6 +95,49 @@ mlir::OpFoldResult vpux::Const::DeclareOp::fold(ArrayRef<mlir::Attribute> operan
 }
 
 //
+// DeclareOp::serialize
+//
+
+void vpux::Const::DeclareOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
+    vpux::Const::Content cnt = content();
+
+    // printf("vpux::Const::DeclareOp::serialize(): content().getNumElements() = %ld\n", cnt.getNumElements());
+    const Byte byteTotalSize = cnt.getTotalSize();
+    int64_t typeTotalSize = byteTotalSize.count();
+    // printf("content().getTypeTotalSize() = %ld\n", typeTotalSize);
+    // fflush(stdout);
+
+    char* tmpBuf = new char[typeTotalSize];
+
+    MutableArrayRef<char> buf(tmpBuf, typeTotalSize);
+    cnt.copyTo(buf);
+
+    uint8_t* ptrCharTmp = reinterpret_cast<uint8_t*>(tmpBuf);
+    binDataSection.appendData(ptrCharTmp, getBinarySize());
+    /*
+    for (std::size_t i = 0; i < buf.size(); i++) {
+        buffer.push_back(buf[i]);
+    }
+    */
+
+    delete tmpBuf;
+}
+
+//
+// DeclareOp::getBinarySize
+//
+
+size_t vpux::Const::DeclareOp::getBinarySize() {
+    vpux::Const::Content cnt = content();
+    const Byte aByteTotal = cnt.getTotalSize();
+    int64_t typeTotalSize = aByteTotal.count();
+    // printf("vpux::Const::DeclareOp::getBinarySize(): content().getTypeTotalSize() = %ld\n", typeTotalSize);
+    // fflush(stdout);
+
+    return typeTotalSize;
+}
+
+//
 // verifyOp
 //
 

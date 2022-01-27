@@ -210,4 +210,38 @@ def ConvertAsyncOps2VPUIP : PassBase<"convert-async-ops-to-VPUIP", "vpux::Functi
     ];
 }
 
+
+//
+// ConvertVPUIP2VPUIPRegMapped
+//
+
+def ConvertVPUIP2VPUIPRegMapped : PassBase<"convert-VPUIP-to-VPUIPRegMapped", "vpux::FunctionPass"> {
+    let summary = "Convert VPUIP Dialect to VPUIPRegMapped Dialect";
+
+    let constructor = "vpux::createConvertVPUIP2VPUIPRegMappedPass()";
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect",
+        "vpux::VPURT::VPURTDialect",
+        "vpux::VPUIPRegMapped::VPUIPRegMappedDialect",
+        "vpux::ELF::ELFDialect"
+    ];
+}
+
+
+//
+// Convert2VPUIPRegMappedAndELF
+//
+
+def Convert2VPUIPRegMappedAndELF : PassBase<"convert-to-VPUIPRegMapped-and-ELF", "vpux::ModulePass"> {
+    let summary = "Convert to VPUIPRegMapped Dialect and ELF Dialect";
+
+    let constructor = "vpux::createConvert2VPUIPRegMappedAndELFPass()";
+
+    let dependentDialects = [
+        "vpux::VPUIPRegMapped::VPUIPRegMappedDialect",
+        "vpux::ELF::ELFDialect"
+    ];
+}
+
 #endif

@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,22 +13,21 @@
 
 #pragma once
 
-#include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/ELF/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
-#include "vpux/compiler/dialect/const/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIPRegMapped/attributes/enums.hpp"
 
-#include "vpux/utils/core/logger.hpp"
+#include <mlir/IR/BuiltinOps.h>
 
-#include <mlir/IR/Dialect.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/Transforms/DialectConversion.h>
+namespace vpux {
+namespace VPUIPRegMapped {
 
-//
-// Generated
-//
+constexpr uint32_t HW_TIMER_ABSOLUTE_ADDR = 0x208200BC;
 
-#include <vpux/compiler/dialect/const/generated/dialect.hpp.inc>
+// void setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups = None);
+ArchKind getArch(mlir::ModuleOp module);
 
-#define GET_OP_CLASSES
-#include <vpux/compiler/dialect/const/generated/ops.hpp.inc>
+double getMemoryDerateFactor(IE::MemoryResourceOp mem);
+uint32_t getMemoryBandwidth(IE::MemoryResourceOp mem);
+
+}  // namespace VPUIPRegMapped
+}  // namespace vpux

@@ -101,7 +101,7 @@ operation ::= `ELF.CreateSection` `secType` `(` $secType `)`
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `secName` | ::mlir::StringAttr | string attribute
-`secType` | vpux::ELF::SectionTypeAttr2Attr | Enum for describing ELF section header types
+`secType` | vpux::ELF::SectionTypeAttrAttr | Enum for describing ELF section header types
 `secFlags` | vpux::ELF::SectionFlagsAttrAttr | Enum for describing ELF section header flags (we can use also the | operator)
 `secInfo` | mlir::IntegerAttr | Integer attribute
 `secAddrAlign` | mlir::IntegerAttr | Integer attribute

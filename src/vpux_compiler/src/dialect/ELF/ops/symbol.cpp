@@ -13,12 +13,16 @@ mlir::Operation* getParentSectionOp(mlir::Value val) {
             break;
         }
     }
-    // This is for the case BlockArgument (e.g., arg0 value)
+
+    // This happens normally in case val is a BlockArgument (e.g., "arg0" in the .mlir file)
     if (op == nullptr) {
         op = val.getDefiningOp();
+
+        return val.getParentRegion()->getParentOp();
     }
 
     auto region = op->getParentRegion();
+
     return region->getParentOp();
 }
 
@@ -41,12 +45,16 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
       The ticket #29144 plans to handle these last 2 types of sections.
     */
 
-    mlir::Operation* parentSection;
+    // We initialize parentSection to nullptr, since inputArg() can be a BlockArgument,
+    //   which has getDefiningOp() equal to nullptr.
+    mlir::Operation* parentSection = nullptr;
+
     if (auto inputArgDefOp = inputArg().getDefiningOp()) {
         if (llvm::isa<ELF::ElfSectionInterface>(inputArgDefOp)) {
             parentSection = inputArgDefOp;
         } else {
             parentSection = getParentSectionOp(inputArg());
+
             VPUX_THROW_UNLESS(parentSection != nullptr, "Could not find valid parent section for op");
         }
     }
@@ -62,5 +70,7 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
         auto sectionEntry = sectionMapEntry->second;
 
         symbol->setRelatedSection(sectionEntry);
+    } else {
+        parentSection = getParentSectionOp(inputArg());
     }
 }
