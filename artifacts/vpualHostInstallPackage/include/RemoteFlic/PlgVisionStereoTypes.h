@@ -144,15 +144,20 @@ struct StereoDesc {
 };
 } // namespace StereoSipp
 
-/// @brief The struct types from this namespace was ported from the WarpSipp VPU class.
-namespace WarpSipp {
+/// @brief The struct types from this namespace was ported from the WarpStereoIf VPU class.
+namespace WarpStereoIf {
 /// @brief Expose the possible configs for Warp filter mode.
 enum class FilterMode {
     BILINEAR = 0x0, // Set the filter to be in Bilinear mode
     BICUBIC = 0x1,  // Set the filter to be in Bicubic mode
     BYPASS = 0x2,   // Set the filter to be in Bypass mode
 };
-} // namespace WarpSipp
+/// @brief Expose what Warp component to be used.
+enum class RuntimeMode {
+    DDR_TO_DDR = 0x0, ///< Use DDR-to-DDR Warp Component
+    SIPP = 0x1,       ///< Use Warp SIPP Component
+};
+} // namespace WarpStereoIf
 
 /// @brief This config is used by the plgVisionStereo flic plugin on the warp stage
 struct CfgWarpStage {
@@ -164,9 +169,10 @@ struct CfgWarpStage {
     uint16_t meshHeight{}; // [MANDATORY] TO BE SET AT THE USER LEVEL
     uint16_t startX{0x0};  // X co-ord of start location within the output image
     uint16_t startY{0x0};  // Y co-ord of start location within the output image
-    uint8_t filterMode{static_cast<uint8_t>(WarpSipp::FilterMode::BICUBIC)};
+    uint8_t filterMode{static_cast<uint8_t>(WarpStereoIf::FilterMode::BICUBIC)};
     uint32_t nrPoolBuffs{WARP_NR_POOL_BUFFS};
     bool bypassStage{BYPASS_STAGE};
+    uint8_t runtimeMode{static_cast<uint8_t>(WarpStereoIf::RuntimeMode::DDR_TO_DDR)};
 };
 
 /// @brief This config is used by the plgVisionStereo flic plugin on the NN-descriptor stage
