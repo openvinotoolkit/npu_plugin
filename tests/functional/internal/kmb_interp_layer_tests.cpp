@@ -38,7 +38,7 @@ struct InterpTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const InterpTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, interp:%v]", p._inDims, p._interpParams);
+    vpux::printTo(os, "[inDims:{0}, interp:{1}]", p._inDims, p._interpParams);
     return os;
 }
 

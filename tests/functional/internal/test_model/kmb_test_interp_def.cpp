@@ -132,9 +132,3 @@ TestNetwork& InterpLayerDef::build() {
 
     return testNet.addLayer(name, node, refInterp);
 }
-
-std::ostream& operator<<(std::ostream& os, const InterpParams& p) {
-    vpu::formatPrint(
-        os, "[_align_corners:%v,_antialias:%v, _pad_begin:%v,_pad_end:%v]", p._alignCorners, p._antialias, p._padBeg, p._padEnd);
-    return os;
-}

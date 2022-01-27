@@ -22,7 +22,7 @@ struct GRNTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const GRNTestParams& p) {
-    vpu::formatPrint(os, "dims: %l, layout: %l, bias: %l", p.dims(), p.layout(), p.bias());
+    vpux::printTo(os, "dims: {0}, layout: {1}, bias: {2}", p.dims(), p.layout(), p.bias());
     return os;
 }
 

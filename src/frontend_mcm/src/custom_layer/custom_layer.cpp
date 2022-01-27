@@ -23,8 +23,8 @@
 #include <caseless.hpp>
 #include <cstring>
 #include <description_buffer.hpp>
-#include <vpu/utils/simple_math.hpp>
 
+#include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/simple_math.hpp"
 
 namespace vpu {
@@ -34,33 +34,33 @@ namespace {
 void assertExactlyOneOccurrence(const pugi::xml_node& node, const std::vector<std::string>& childs) {
     for (const auto& name : childs) {
         const auto& child = node.child(name.c_str());
-        VPU_THROW_UNLESS(!child.empty(), "Required parameter %s is not found", name);
-        VPU_THROW_UNLESS(child.next_sibling(name.c_str()).empty(), "Found several definitions of the parameter %s",
-                         name);
+        VPUX_THROW_UNLESS(!child.empty(), "Required parameter {0} is not found", name);
+        VPUX_THROW_UNLESS(child.next_sibling(name.c_str()).empty(), "Found several definitions of the parameter {0}",
+                          name);
     }
 }
 
 void assertOneOrMoreOccurrence(const pugi::xml_node& node, const std::vector<std::string>& childs) {
     for (const auto& name : childs) {
         const auto& child = node.child(name.c_str());
-        VPU_THROW_UNLESS(!child.empty(), "Required parameter %s is not found", name);
+        VPUX_THROW_UNLESS(!child.empty(), "Required parameter {0} is not found", name);
     }
 }
 
 void assertZeroOrOneOccurrence(const pugi::xml_node& node, const std::vector<std::string>& childNames) {
     for (const auto& name : childNames) {
         const auto& child = node.child(name.c_str());
-        VPU_THROW_UNLESS(!child.empty() || child.next_sibling(name.c_str()).empty(),
-                         "Found several definitions of the parameter %s", name);
+        VPUX_THROW_UNLESS(!child.empty() || child.next_sibling(name.c_str()).empty(),
+                          "Found several definitions of the parameter {0}", name);
     }
 }
 
 void assertNoEmptyAttributes(const pugi::xml_node& customLayer) {
     const auto checkAttributes = [&customLayer](const pugi::xml_node& node) {
         for (const auto& attr : node.attributes()) {
-            VPU_THROW_UNLESS(strlen(attr.value()) != 0,
-                             "Wrong custom layer XML: Custom layer %s has node <%s> with an empty attribute %s",
-                             customLayer.attribute("name").value(), node.name(), attr.name());
+            VPUX_THROW_UNLESS(strlen(attr.value()) != 0,
+                              "Wrong custom layer XML: Custom layer {0} has node <{1}> with an empty attribute {2}",
+                              customLayer.attribute("name").value(), node.name(), attr.name());
         }
     };
 
@@ -83,8 +83,8 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
             // Config file might not exist - like global config, for example.
             return {};
         } else {
-            VPU_THROW_FORMAT("Failed to load custom layer configuration file %s : %s at offset %s", configFile,
-                             res.description(), res.offset);
+            VPUX_THROW("Failed to load custom layer configuration file {0} : {1} at offset {2}", configFile,
+                       res.description(), res.offset);
         }
     }
 
@@ -96,9 +96,9 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
     auto abs_path_ptr = realpath(configFile.c_str(), path);
 #endif
 
-    VPU_THROW_UNLESS(abs_path_ptr != nullptr,
-                     "Failed to load custom layer configuration file %s : can't get canonicalized absolute path",
-                     configFile);
+    VPUX_THROW_UNLESS(abs_path_ptr != nullptr,
+                      "Failed to load custom layer configuration file {0} : can't get canonicalized absolute path",
+                      configFile);
 
     std::string abs_file_name(path);
 
@@ -112,8 +112,7 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
     if (dir_split_pos != std::string::npos && (colon_pos != std::string::npos || first_slash_pos == 0)) {
         dir_path = abs_file_name.substr(0, dir_split_pos);
     } else {
-        VPU_THROW_EXCEPTION << "Failed to load custom layer configuration file " << configFile
-                            << " : path is not valid";
+        VPUX_THROW("Failed to load custom layer configuration file {0} : path is not valid", configFile);
     }
 
     auto out = ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>>{};
@@ -128,15 +127,15 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
 CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLayer): _configDir(std::move(configDir)) {
     const auto cmp = ie::details::CaselessEq<std::string>{};
     const auto nodeName = customLayer.name();
-    VPU_THROW_UNLESS(cmp(nodeName, "CustomLayer"), "Wrong custom layer XML : Node is not CustomLayer, but %s",
-                     nodeName);
+    VPUX_THROW_UNLESS(cmp(nodeName, "CustomLayer"), "Wrong custom layer XML : Node is not CustomLayer, but {0}",
+                      nodeName);
 
     const auto nodeType = XMLParseUtils::GetStrAttr(customLayer, "type");
-    VPU_THROW_UNLESS(cmp(nodeType, "MVCL") || cmp(nodeType, "CPP"),
-                     "Wrong custom layer XML. Supported types: MVCL and CPP. Parsed type: %s", nodeType);
+    VPUX_THROW_UNLESS(cmp(nodeType, "MVCL") || cmp(nodeType, "CPP"),
+                      "Wrong custom layer XML. Supported types: MVCL and CPP. Parsed type: {0}", nodeType);
 
     const auto version = XMLParseUtils::GetIntAttr(customLayer, "version");
-    VPU_THROW_UNLESS(version == 1, "Wrong custom layer XML : only version 1 is supported");
+    VPUX_THROW_UNLESS(version == 1, "Wrong custom layer XML : only version 1 is supported");
 
     _layerName = XMLParseUtils::GetStrAttr(customLayer, "name");
 
@@ -174,23 +173,24 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
         auto stageOrder = std::map<int, CustomKernel::Ptr>{};
         for (const auto& kernel : kernelNodes) {
             const auto stageAttr = kernel.attribute("stage");
-            VPU_THROW_UNLESS(stageAttr,
-                             "Error while binding %s custom layer: for multi-kernel binding, "
-                             "each kernel should be provided with 'stage' attribute.",
-                             _layerName);
+            VPUX_THROW_UNLESS(stageAttr,
+                              "Error while binding {0} custom layer: for multi-kernel binding, "
+                              "each kernel should be provided with 'stage' attribute.",
+                              _layerName);
 
             const auto stageNum = std::stoi(stageAttr.value());
-            VPU_THROW_UNLESS(stageOrder.find(stageNum) == stageOrder.end(),
-                             "Error while binding %s custom layer: found duplicating stage id.", _layerName);
+            VPUX_THROW_UNLESS(stageOrder.find(stageNum) == stageOrder.end(),
+                              "Error while binding {0} custom layer: found duplicating stage id.", _layerName);
 
             stageOrder.emplace(stageNum, createKernel(kernel, _configDir));
         }
 
-        VPU_THROW_UNLESS(stageOrder.size() > 0, "Error stage order for %s layer is empty", _layerName);
-        VPU_THROW_UNLESS(stageOrder.begin()->first == 0, "Error while binding %s custom layer: Stage 0 is not found.",
-                         _layerName);
-        VPU_THROW_UNLESS(static_cast<size_t>(stageOrder.rbegin()->first) == stageOrder.size() - 1,
-                         "Error while binding %s custom layer: Kernels should have stage id from 0 to N.", _layerName);
+        VPUX_THROW_UNLESS(stageOrder.size() > 0, "Error stage order for {0} layer is empty", _layerName);
+        VPUX_THROW_UNLESS(stageOrder.begin()->first == 0, "Error while binding {0} custom layer: Stage 0 is not found.",
+                          _layerName);
+        VPUX_THROW_UNLESS(static_cast<size_t>(stageOrder.rbegin()->first) == stageOrder.size() - 1,
+                          "Error while binding {0} custom layer: Kernels should have stage id from 0 to N.",
+                          _layerName);
 
         for (auto& stage : stageOrder) {
             _kernels.push_back(std::move(stage.second));
@@ -275,7 +275,7 @@ bool CustomLayer::meetsWhereRestrictions(const std::map<std::string, std::string
         }
 
         const auto& restriction = where.second;
-        const auto number = parseNumber<float>(param->second);
+        const auto number = vpux::parseNumber<float>(param->second);
 
         const auto meetsRestriction = [&] {
             // compare non-number restrictions (ex. kernel="3,3")
@@ -284,21 +284,21 @@ bool CustomLayer::meetsWhereRestrictions(const std::map<std::string, std::string
             } else {
                 if (restriction[0] == '>' && restriction[1] == '=') {
                     const auto to_compare = std::stof(restriction.substr(2, std::string::npos));
-                    return number.get() >= to_compare;
+                    return number.getValue() >= to_compare;
                 } else if (restriction[0] == '<' && restriction[1] == '=') {
                     const auto to_compare = std::stof(restriction.substr(2, std::string::npos));
-                    return number.get() <= to_compare;
+                    return number.getValue() <= to_compare;
                 } else if (restriction[0] == '>') {
                     const auto to_compare = std::stof(restriction.substr(1, std::string::npos));
-                    return number.get() > to_compare;
+                    return number.getValue() > to_compare;
                 } else if (restriction[0] == '<') {
                     const auto to_compare = std::stof(restriction.substr(1, std::string::npos));
-                    return number.get() < to_compare;
+                    return number.getValue() < to_compare;
                 } else if (restriction[0] == '!' && restriction[1] == '=') {
                     const auto to_compare = std::stof(restriction.substr(2, std::string::npos));
-                    return number.get() != to_compare;
+                    return number.getValue() != to_compare;
                 }
-                return number.get() == std::stof(restriction);
+                return number.getValue() == std::stof(restriction);
             }
         }();
 
@@ -330,14 +330,14 @@ void SizeRuleValidator::visitCL(const CustomKernelOcl& kernel) {
             std::all_of(begin(gws), end(gws), validSizeRule) && std::all_of(begin(lws), end(lws), validSizeRule);
 
     const decltype(lws.size()) workGroupDims = 3;
-    VPU_THROW_UNLESS(lws.size() <= workGroupDims,
-                     "Failed to parse '%s' custom layer binding list. Local work group size count "
-                     "is greater than 3.",
-                     _customLayer->layerName());
-    VPU_THROW_UNLESS(gws.size() <= workGroupDims,
-                     "Failed to parse '%s' custom layer binding list. Global work group size count "
-                     "is greater than 3.",
-                     _customLayer->layerName());
+    VPUX_THROW_UNLESS(lws.size() <= workGroupDims,
+                      "Failed to parse '{0}' custom layer binding list. Local work group size count "
+                      "is greater than 3.",
+                      _customLayer->layerName());
+    VPUX_THROW_UNLESS(gws.size() <= workGroupDims,
+                      "Failed to parse '{0}' custom layer binding list. Global work group size count "
+                      "is greater than 3.",
+                      _customLayer->layerName());
 
     _result = validGridSizes;
     if (!_result) {

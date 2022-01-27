@@ -44,7 +44,7 @@ struct ProposalTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const ProposalTestParams& p) {
-    vpu::formatPrint(os, "[cls_score_dims:%v, bbox_pred_dims:%v, img_info:%v, params:%v]",
+    vpux::printTo(os, "[cls_score_dims:{0}, bbox_pred_dims:{1}, img_info:{2}, params:{3}]",
                      p.cls_score_dims_, p.bbox_pred_dims_, p.img_info_, p.params_);
     return os;
 }

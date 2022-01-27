@@ -15,8 +15,6 @@
 
 #include <blob_transform.hpp>
 
-#include "vpu/utils/ie_helpers.hpp"
-
 namespace {
 
 static void refAddWOffsetFromVPU(const Blob::Ptr src1, const Blob::Ptr src2, Blob::Ptr dst, float offset) {

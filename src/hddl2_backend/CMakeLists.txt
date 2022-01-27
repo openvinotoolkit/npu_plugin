@@ -54,7 +54,7 @@ target_link_libraries(${HDDL2_BACKEND_MODULE_TARGET}
         HddlUnite
         vpux_al
         kmb_utils
-        IE::vpu_common_lib)
+        vpux_utils)
 
 # FIXME: this is a WA for E#13996
 # for some reason, compile_tool hangs after hddlUnite.so fini
@@ -95,7 +95,7 @@ if(ENABLE_TESTS)
     target_link_libraries(${HDDL2_BACKEND_STATIC_TARGET}
         PUBLIC
             #   TODO FIX PUBLIC "fatal error: vpu/parsed_config_base.hpp: No such file or directory" otherwise
-            IE::vpu_common_lib
+            vpux_utils
         PRIVATE
             HddlUnite
             vpux_al

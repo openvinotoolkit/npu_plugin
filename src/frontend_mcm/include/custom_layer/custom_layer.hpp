@@ -6,13 +6,13 @@
 
 #include <custom_layer/custom_kernel.hpp>
 
+#include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/logger.hpp"
 
 #include <include/mcm/op_model.hpp>
 
 #include <ie_common.h>
 #include <caseless.hpp>
-#include <vpu/utils/enums.hpp>
 
 #include <pugixml.hpp>
 

@@ -31,7 +31,7 @@ struct ReshapeTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const ReshapeTestParams& p) {
-    vpu::formatPrint(os, "[in_dims:%v, shape:%v]", p.in_dims_, p.shape_);
+    vpux::printTo(os, "[in_dims:{0}, shape:{1}]", p.in_dims_, p.shape_);
     return os;
 }
 

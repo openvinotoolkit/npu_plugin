@@ -22,7 +22,7 @@ struct CTCDecoderTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const CTCDecoderTestParams& p) {
-    vpu::formatPrint(os, "dims: %l, layout: %l, merge_repeated: %l", p.dims(), p.layout(), p.mergeRepeated());
+    vpux::printTo(os, "dims: {0}, layout: {1}, merge_repeated: {2}", p.dims(), p.layout(), p.mergeRepeated());
     return os;
 }
 

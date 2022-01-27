@@ -23,7 +23,7 @@ struct SigmoidTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const SigmoidTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v]", p._inDims);
+    vpux::printTo(os, "[inDims:{0}]", p._inDims);
     return os;
 }
 

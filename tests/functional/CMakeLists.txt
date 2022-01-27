@@ -25,7 +25,7 @@ addIeTargetTest(
         ov_intel_vpux_plugin
     LINK_LIBRARIES
         IE::funcSharedTests
-        IE::vpu_common_lib
+        vpux_utils
         IE::ngraph
         IE::ngraph_reference
         IE::format_reader

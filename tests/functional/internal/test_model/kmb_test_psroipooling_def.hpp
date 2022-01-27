@@ -55,8 +55,9 @@ struct PSROIPoolingParams final {
     }
 };
 
-inline std::ostream& operator<<(std::ostream& os, const PSROIPoolingParams& p) {
-        vpu::formatPrint(os, "[output_dim:%v, group_size:%v, spatial_bin_x:%v, spatial_bin_y:%v, spatial_scale:%v, mode:%v]",
+template <typename Stream>
+inline Stream& operator<<(Stream& os, const PSROIPoolingParams& p) {
+        vpux::printTo(os, "[output_dim:{0}, group_size:{1}, spatial_bin_x:{2}, spatial_bin_y:{3}, spatial_scale:{4}, mode:{5}]",
                 p.output_dim_, p.group_size_, p.spatial_bin_x_, p.spatial_bin_y_, p.spatial_scale_, p.mode_);
 	return os;
 }

@@ -23,35 +23,10 @@ namespace ie = InferenceEngine;
 
 namespace vpux {
 
-namespace {
-
-vpu::LogLevel toOldLogLevel(LogLevel lvl) {
-    switch (lvl) {
-    case LogLevel::None:
-        return vpu::LogLevel::None;
-    case LogLevel::Fatal:
-        return vpu::LogLevel::Fatal;
-    case LogLevel::Error:
-        return vpu::LogLevel::Error;
-    case LogLevel::Warning:
-        return vpu::LogLevel::Warning;
-    case LogLevel::Info:
-        return vpu::LogLevel::Info;
-    case LogLevel::Debug:
-        return vpu::LogLevel::Debug;
-    case LogLevel::Trace:
-        return vpu::LogLevel::Trace;
-    }
-
-    VPUX_THROW("LogLevel '{0}' is not supported", lvl);
-}
-
-}  // namespace
-
 EmulatorExecutor::EmulatorExecutor(const vpux::NetworkDescription::Ptr& network, const Config& config)
         : _logger("EmulatorBackend", LogLevel::Debug /*_config.logLevel()*/),
           _network(network),
-          _manager(ie::getIELibraryPath() + "/vpux_emulator", toOldLogLevel(config.get<LOG_LEVEL>())) {
+          _manager(ie::getIELibraryPath() + "/vpux_emulator", config.get<LOG_LEVEL>()) {
 }
 
 void EmulatorExecutor::push(const ie::BlobMap& inputs, const PreprocMap&) {

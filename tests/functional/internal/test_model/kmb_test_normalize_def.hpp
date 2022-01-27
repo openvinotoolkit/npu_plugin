@@ -25,7 +25,28 @@ struct NormalizeParams final {
     ngraph::op::EpsMode _eps_mode;
 };
 
-std::ostream& operator<<(std::ostream& os, const NormalizeParams& p);
+namespace llvm {
+template <>
+struct format_provider<ngraph::op::EpsMode> final {
+    static void format(const ngraph::op::EpsMode& em, llvm::raw_ostream& stream, StringRef style) {
+        switch (em) {
+            case ngraph::op::EpsMode::ADD:
+                stream << "Add";
+                return;
+            case ngraph::op::EpsMode::MAX:
+                stream << "Max";
+                return;
+        }
+    }
+};
+}
+
+template <typename Stream>
+inline Stream& operator<<(Stream& os, const NormalizeParams& p) {
+    vpux::printTo(
+        os, "[_eps:{0},_eps_mode:{1}]", p._eps, p._eps_mode);
+    return os;
+}
 
 struct NormalizeLayerDef final {
     TestNetwork& testNet;

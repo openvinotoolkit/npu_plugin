@@ -113,11 +113,12 @@ struct ProposalParams final {
     std::vector<float> ratio_;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const ProposalParams& p) {
-    vpu::formatPrint(os, "[feat_stride:%v, base_size:%v, min_size:%v, pre_nms_topn:%v,"
-                           "post_nms_topn:%v, nms_thresh:%v, box_coordinate_scale:%v,"
-                           "box_size_scale:%v, normalize:%v, clip_before_nms:%v, clip_after_nms:%v,"
-                           " for_deformable:%v, framework:%v, scale:%v, ratio:%v]",
+template <typename Stream>
+inline Stream& operator<<(Stream& os, const ProposalParams& p) {
+    vpux::printTo(os, "[feat_stride:{0}, base_size:{1}, min_size:{2}, pre_nms_topn:{3},"
+                           "post_nms_topn:{4}, nms_thresh:{5}, box_coordinate_scale:{6},"
+                           "box_size_scale:{7}, normalize:{8}, clip_before_nms:{9}, clip_after_nms:{10},"
+                           " for_deformable:{11}, framework:{12}, scale:{13}, ratio:{14}]",
                            p.feat_stride_, p.base_size_, p.min_size_, p.pre_nms_topn_,
                            p.post_nms_topn_, p.nms_thresh_, p.box_coordinate_scale_,
                            p.box_size_scale_, p.normalize_, p.clip_before_nms_, p.clip_after_nms_,

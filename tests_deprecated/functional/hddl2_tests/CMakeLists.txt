@@ -29,7 +29,7 @@ addIeTargetTest(
     LINK_LIBRARIES
         IE::IESharedTests
         IE::funcTestUtils
-        IE::vpu_common_lib
+        vpux_utils
         kmb_utils
         vpux_mcm_frontend_static
         common_tests_helpers

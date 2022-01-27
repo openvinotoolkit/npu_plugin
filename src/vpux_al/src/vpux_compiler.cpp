@@ -16,8 +16,6 @@
 #include "vpux.hpp"
 #include "vpux/al/config/compiler.hpp"
 
-#include <vpu/utils/io.hpp>
-
 #include <file_reader.h>
 #include <file_utils.h>
 #include <openvino/util/shared_object.hpp>

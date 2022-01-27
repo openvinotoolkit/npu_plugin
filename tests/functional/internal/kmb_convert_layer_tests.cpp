@@ -13,6 +13,8 @@
 
 #include "test_model/kmb_test_base.hpp"
 
+#include <vpux/utils/IE/format.hpp>
+
 struct ConvertTestParams final {
     ConvertParams params;
 
@@ -22,8 +24,8 @@ struct ConvertTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const ConvertTestParams &p) {
-    vpu::formatPrint(
-        os, "dims: %v, source_type: %t, destination_type: %t", p.dims(), p.source_type(), p.destination_type());
+    vpux::printTo(
+        os, "dims: {0}, source_type: {1}, destination_type: {2}", p.dims(), p.source_type(), p.destination_type());
     return os;
 }
 

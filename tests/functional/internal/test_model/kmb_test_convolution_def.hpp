@@ -64,8 +64,10 @@ struct ConvolutionParams final {
         return *this;
     }
 };
-inline std::ostream& operator<<(std::ostream& os, const ConvolutionParams& p) {
-    vpu::formatPrint(os, "[outChannels:%v, kernel:%v, strides:%v, pad:%v, dilation:%v]",
+
+template <typename Stream>
+inline Stream& operator<<(Stream& os, const ConvolutionParams& p) {
+    vpux::printTo(os, "[outChannels:{0}, kernel:{1}, strides:{2}, pad:{3}, dilation:{4}]",
         p._outChannels, p._kernel, p._strides, p._pad, p._dilation);
     return os;
 }
