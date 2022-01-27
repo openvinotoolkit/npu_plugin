@@ -21,6 +21,22 @@ using namespace vpux;
 
 namespace {
 
+// Hack for MSFT
+mlir::Operation* getParentConvOp(mlir::Operation* op) {
+    mlir::Operation* parentOp = op->getOperand(0).getDefiningOp();
+    auto isOpIgnorable = [](mlir::Operation* op) -> bool {
+        return mlir::isa<IE::AddOp>(op) || mlir::isa<IE::PermuteCastOp>(op) || mlir::isa<IE::ReshapeOp>(op);
+    };
+    while (parentOp && !mlir::isa<IE::ConvolutionOp>(parentOp) && isOpIgnorable(parentOp)) {
+        // skip the Permute, Reshape and Add
+        if (parentOp->getOperands().size() < 1) {
+            break;
+        }
+        parentOp = parentOp->getOperand(0).getDefiningOp();
+    }
+    return parentOp;
+}
+
 OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
     log.trace("Generating prefetch tiles for op {0} at {1}", op->getName(), op->getLoc());
 
@@ -134,16 +150,24 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
 }
 
 bool needTilingToMultiOpsPrefetch(mlir::Operation* op, Logger log) {
-    auto parentOp = op->getOperand(0).getDefiningOp();
+    auto parentOp = getParentConvOp(op);
     auto opTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
     auto parentTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(parentOp);
     if (!opTilingInter || !parentTilingInter) {
         return false;
     }
+    std::cout << "\n===needTilingToMultiOpsPrefetch===\n" << std::endl;
+    op->dump();
+    parentOp->dump();
     // For parallel sub-graphs, the order is undecided yet
     // Abandon prefetching these cases
     if (!parentOp->getResult(0).hasOneUse()) {
-        return false;
+        auto user1 = *parentOp->getResult(0).getUsers().begin();
+        for (auto remainUser : parentOp->getResult(0).getUsers()) {
+            if (remainUser != user1) {
+                return false;
+            }
+        }
     }
 
     const auto resShape = getShape(op->getResult(0));
@@ -180,7 +204,7 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
     if (tilingInfo.isSupportedTiling({TileInfo(resShape)}, _log.nest())) {
         // If the current op fits CMX but still run into here
         // The op needs tiling to be prefetched by its parent
-        auto parentOp = op->getOperand(0).getDefiningOp();
+        auto parentOp = getParentConvOp(op);
         std::cout << llvm::formatv("op {0} and parentOp {1} needs pattern tile.", origOp->getLoc(), parentOp->getLoc())
                              .str()
                   << std::endl;
