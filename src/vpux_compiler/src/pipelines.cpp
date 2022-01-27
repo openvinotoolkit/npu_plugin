@@ -152,6 +152,9 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     if (options.enableConvertAvgPoolToDWConv) {
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     }
+
+    IE::buildAdjustForVPUPipeline(pm, log);
+
     if (options.enableConvertScaleShiftDW) {
         pm.addPass(IE::createConvertScaleShiftToDWPass(log));
     }
@@ -159,8 +162,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
         pm.addPass(IE::createSplitConvWithMultipleFQPass(log));
     }
     pm.addPass(mlir::createCanonicalizerPass(grc));
-
-    IE::buildAdjustForVPUPipeline(pm, log);
 
     if (options.enableHandleLargeStrides) {
         pm.addPass(IE::createHandleLargeStridesPass(log));
@@ -269,6 +270,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     if (options.enableConvertAvgPoolToDWConv) {
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     }
+
+    IE::buildAdjustForVPUPipeline(pm, log);
+
     if (options.enableConvertScaleShiftDW) {
         pm.addPass(IE::createConvertScaleShiftToDWPass(log));
     }
@@ -276,8 +280,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
         pm.addPass(IE::createSplitConvWithMultipleFQPass(log));
     }
     pm.addPass(mlir::createCanonicalizerPass(grc));
-
-    IE::buildAdjustForVPUPipeline(pm, log);
 
     if (options.enableHandleLargeStrides) {
         pm.addPass(IE::createHandleLargeStridesPass(log));
