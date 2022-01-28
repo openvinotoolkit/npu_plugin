@@ -283,37 +283,11 @@ static void calculateSoftMaxInner(const int dimX, int n, half* input, half* outp
 static void calculateSoftMaxOuter(const int dimX, int n, half* input, half* output,
         int istride1, int istride2, int ostride1, int ostride2)
 {
-    /*
-     * WARNING: This debug helper will almost certainly corrupt an inference and is _not_ safe to call by multiple
-     * shaves from any tile > 0. Use at your own risk. It's only intended as a fast debugging tool to avoid MoviDebug's
-     * complicated debuging features.
-     */
-    static uint32_t nTimes= 0;
-    uint32_t *debug{(uint32_t *)(0x2E0000A0 + 1024 * 1024 - 1024)};
-    uint32_t next{0};
-
-
-    auto cmxDebugStride = [&](uint32_t value) {
-        if (next < 1024) {
-            *reinterpret_cast<uint32_t *>((reinterpret_cast<uint32_t>(debug) + next)) = value;
-            next += 4;
-        }
-    };
-
     int w = 0;
     for(; w < dimX - 7; w += 8)
     {
-
         softmax8(input + w * istride1, n, istride2, output + w * ostride1, ostride2);
     }
-    cmxDebugStride(++nTimes);
-    cmxDebugStride(dimX);
-    cmxDebugStride((uint32_t)input);
-    cmxDebugStride(n);
-    cmxDebugStride(istride2);
-    cmxDebugStride(ostride2);
-    cmxDebugStride((uint32_t)output);
-
     for(; w < dimX; ++w)
     {
         softmax(input + w * istride1, n, istride2, output + w * ostride1, ostride2);
@@ -350,19 +324,6 @@ struct t_MvSoftMaxParamNClasses
 // softmax on inner/outer dimensions
 void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
 {
-
-    static uint32_t nTimes= 0;
-    uint32_t *debug{(uint32_t *)(0x2E0000D0 + 1024 * 1024 - 1024)};
-    uint32_t next{0};
-
-
-    auto cmxDebugStride = [&](uint32_t value) {
-        if (next < 1024) {
-            *reinterpret_cast<uint32_t *>((reinterpret_cast<uint32_t>(debug) + next)) = value;
-            next += 4;
-        }
-    };
-
     half* in  = p->input;
     half* out = p->output;
 
@@ -399,13 +360,6 @@ void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
             r_step = __builtin_shave_cmu_min_i32_rr_int(sets_per_step, dims[0] - setCoords[0]);
             unsigned inOffset, outOffset;
             subspace::getOffsetsU8(setCoords, istrides, ostrides, ndims, inOffset, outOffset);
-
-            if (nTimes < 10) {
-                nTimes++;
-                cmxDebugStride(nTimes);
-                cmxDebugStride(r_step);
-                cmxDebugStride(inOffset);
-            }
             if (p->inputInCmx) {
                 p_input0 = (half*)((u8*)in + inOffset);
             } else {
@@ -446,24 +400,6 @@ namespace shave_lib {
 extern "C" {
 
 void singleShaveSoftmax(uint32_t lParams) {
-
-    /*
-     * WARNING: This debug helper will almost certainly corrupt an inference and is _not_ safe to call by multiple
-     * shaves from any tile > 0. Use at your own risk. It's only intended as a fast debugging tool to avoid MoviDebug's
-     * complicated debuging features.
-     */
-    auto cmxDebugStride = [](uint32_t value) {
-        // NOTE!: .data* sections are windowed to same window as .text for the ActRT.
-        //        That means all shaves share the same .data!
-        static uint32_t *debug{(uint32_t *)(0x2E000000 + 1024 * 1024 - 1024)};
-        static uint32_t next{0};
-
-        if (next < 1024) {
-            *reinterpret_cast<uint32_t *>((reinterpret_cast<uint32_t>(debug) + next)) = value;
-            next += 4;
-        }
-    };
-
     uint8_t * cmxData = nullptr;   // TODO: Restore the possibility of working with DDR tensors
     int32_t availableCmxBytes = 0;
     auto layerParams = reinterpret_cast<const SoftmaxParams *>(lParams);
@@ -475,10 +411,6 @@ void singleShaveSoftmax(uint32_t lParams) {
     t_MvSoftMaxParamNClasses softmaxParamsCMX;
     t_MvSoftMaxParamNClasses* sp = &softmaxParamsCMX;
 
-    //cmxDebugStride((uint32_t)layerParams);
-    //cmxDebugStride((uint32_t)p_act_data);
-    //cmxDebugStride((uint32_t)p_act_out);
-
     // rebuild axis order - kernel expect strides and dims in following order
     // W H C N - etc, so 3,2,1,0 - according to given order lets rebuild permutation
     bool bres = false;
@@ -487,60 +419,24 @@ void singleShaveSoftmax(uint32_t lParams) {
     if (!bres) {
         return;
     }
-    cmxDebugStride(layerParams->input.dimsOrder);
-  //  NDDims permutation;
-
-    // creating permutation to get w h c n order
-//    for (auto i = 0; i != layerParams->input.numDims; i++) {
-//        permutation.push_back(layerParams->input.numDims - 1 - order[i]);
-//        cmxDebugStride(i);
-//        cmxDebugStride(order[i]);
-//        cmxDebugStride(permutation[i]);
-//    }
 
     // parameters specific for softmax in customCpp parameter buffer
     sp->axis = permutation[layerParams->axis];  // axis in arguments in memory notation because tensors are represented as TensorRefNDData
-
-    cmxDebugStride(sp->axis);
-
-                         // which is in memory notation too
+                                                // which is in memory notation too
     sp->inputInCmx = true;//(layerParams->input.location == sw_params::Location::NN_CMX || layerParams->input.location == sw_params::Location::UPA_CMX);
     sp->outputInCmx = true;//(layerParams->output.location == sw_params::Location::NN_CMX || layerParams->output.location == sw_params::Location::UPA_CMX);
     sp->ndims = layerParams->input.numDims;
-
-    cmxDebugStride(sp->ndims);
 
     int32_t *pDims     = (int32_t *)(layerParams->input.dimsAddr);
     int64_t *iPStrides = (int64_t *)(layerParams->input.stridesAddr);
     int64_t *oPStrides = (int64_t *)(layerParams->output.stridesAddr);
 
-    /*p_act_out[15 + 0] = iPStrides[0];
-    p_act_out[15 + 1] = iPStrides[1];
-    p_act_out[15 + 2] = iPStrides[2];
-    p_act_out[15 + 3] = iPStrides[3];*/
-
-    //if (layerParams->axis > 1)
-    {
-     //   sp->axis = layerParams->input.numDims - 1 - layerParams->axis;
-    }
-
     for (int i = 0; i < layerParams->input.numDims; i++) {
         int map_index = permutation[i];
-        //if (layerParams->axis > 1 && i > 0)
-        {
-         //   map_index = layerParams->input.numDims - 1 - i;
-        }
         sp->in_dims[i] = pDims[map_index];
-        cmxDebugStride(sp->in_dims[i]);
         sp->in_strides[i] = iPStrides[map_index] / CHAR_BIT;
-        cmxDebugStride(sp->in_strides[i]);
         sp->out_strides[i] = oPStrides[map_index] / CHAR_BIT;
     }
-
-    //permuteArray(pDims, permutation, sp->in_dims, layerParams->input.numDims);
-    //permuteArray(iPStrides, permutation, sp->in_strides, layerParams->input.numDims);
-    //permuteArray(oPStrides, permutation, sp->out_strides, layerParams->input.numDims);
-
 
     // excluding dim == 1 from dims
     for (int i = sp->ndims - 1; i >= 0; --i) {
@@ -556,13 +452,6 @@ void singleShaveSoftmax(uint32_t lParams) {
         }
     }
 
-    cmxDebugStride(0xdeaddead);
-    cmxDebugStride(sp->ndims);
-    for (size_t y = 0; y < sp->ndims; y++) {
-        cmxDebugStride(sp->in_dims[y]);
-    }
-
-
     if (sp->axis == 0 &&
             (sp->in_strides[0]  > static_cast<int32_t>(sizeof(fp16)) ||
              sp->out_strides[0] > static_cast<int32_t>(sizeof(fp16)))) {
@@ -571,12 +460,6 @@ void singleShaveSoftmax(uint32_t lParams) {
         arrayElementInclude(sp->out_strides, 0, sp->out_strides[0], sp->ndims);
         sp->ndims++;
         sp->axis = 1;
-    }
-
-    cmxDebugStride(0xdeaddead);
-    cmxDebugStride(sp->ndims);
-    for (size_t y = 0; y < sp->ndims; y++) {
-        cmxDebugStride(sp->in_dims[y]);
     }
 
     if (sp->ndims < 3) { // works only with ndims >= 3 to simplicity
@@ -588,21 +471,14 @@ void singleShaveSoftmax(uint32_t lParams) {
         sp->ndims = 3;
     }
 
-
     sp->axisDim = sp->in_dims[sp->axis];
-    cmxDebugStride(sp->axis);
-    cmxDebugStride(sp->axisDim);
     if (sp->axis) {
         sp->axisIStride = sp->in_strides[sp->axis];
         sp->axisOStride = sp->out_strides[sp->axis];
-
     } else {
         sp->axisIStride = sp->in_strides[1];
         sp->axisOStride = sp->out_strides[1];
     }
-
-    cmxDebugStride(sp->axisIStride);
-    cmxDebugStride(sp->axisOStride);
 
     arrayElementExclude(sp->in_dims, sp->axis, sp->ndims);
     sp->ndims = arraysElementExclude(sp->in_strides, sp->out_strides, sp->axis, sp->ndims);
@@ -611,15 +487,7 @@ void singleShaveSoftmax(uint32_t lParams) {
 
     const auto *lp = &softmaxParamsCMX;
 
-    cmxDebugStride(0xdeaddead);
-    cmxDebugStride(lp->ndims);
-    for (size_t y = 0; y < lp->ndims; y++) {
-        cmxDebugStride(lp->in_dims[y]);
-    }
-
     int to_process = getTotal(lp->in_dims, lp->ndims);
-    cmxDebugStride(to_process);
-
     unsigned int shaves_no = 1;
     int32_t firstShave = 0;
     int32_t lastShave = firstShave + static_cast<int>(shaves_no) - 1;
@@ -636,11 +504,10 @@ void singleShaveSoftmax(uint32_t lParams) {
 
         int i = firstShave;
         int processed = 0;
-        cmxDebugStride(0xdead);
+
         for (; i <= lastShave/* && processed < to_process*/; i++) {
             t_MvSoftMaxParamNClasses *softMaxParamNClasses = &softmaxParamsCMX;;
             int to_process_on_shave = step_size + ((step_size_rem-- > 0) ? 1 : 0);
-            cmxDebugStride(to_process_on_shave);
             nnLog(MVLOG_DEBUG, "i %d, to_process_on_shave %d lines, started from %d\n", i, to_process_on_shave, processed);
 
             softMaxParamNClasses->input = reinterpret_cast<half *>(p_act_data);
