@@ -58,6 +58,7 @@ subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  ../../kernels
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += nn/common nn/inference_runtime_common
 
 include-dirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += nn/shave_lib/inc nn/shave_lib/inc/layers
+include-dirs-lrt-$(CONFIG_TARGET_SOC_3720) += $(FIRMWARE_VPU_REL_THROUGH_ROOT)/drivers/resource/barrier/inc
 
 ccopt-lrt-$(CONFIG_NN_PROFILING) += -DNN_PROFILING
 ccopt-lnn-$(CONFIG_NN_PROFILING) += -DNN_PROFILING

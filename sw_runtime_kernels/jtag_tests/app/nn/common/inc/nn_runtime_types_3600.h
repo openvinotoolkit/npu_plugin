@@ -609,11 +609,7 @@ typedef void (*actRuntimeEntry)(const uint32_t);
 // these are going to be done via ctrl messages, but special tasks like loops may stay here
 // refactor/remove in the futore
 ///@deprecated
-enum class ActWLType : uint8_t { WL_KERNEL = 0x00, WL_DEBUG = 0x04, WL_UNKNOWN,
-#ifdef JTAG_LOW_LEVEL
-    WL_KERNEL_LRT_SYNC
-#endif
-};
+enum class ActWLType : uint8_t { WL_KERNEL = 0x00, WL_DEBUG = 0x04, WL_UNKNOWN };
 
 #ifdef NN_ENABLE_CONTEXT_DEBUGGING
 enum class ActDebug : uint32_t {
@@ -647,10 +643,6 @@ extern "C" struct ActKernelRange {
     volatile uint32_t dbg1_{0};
     volatile uint32_t dbg2_{0};
     volatile uint32_t dbg3_{0};
-#endif
-#ifdef JTAG_LOW_LEVEL
-    enum {LRT_WAIT = 1, KERNEL_DONE};
-    int32_t LRTSynch_ = 0;
 #endif
 };
 

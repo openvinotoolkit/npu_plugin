@@ -25,6 +25,8 @@ __attribute__((aligned(1024)))
 #include <CustomCpp.h>
 #include <leonUtils.h>
 
+#include <HglBarrier.h>
+
 unsigned char __attribute__((section(".nncmx0.shared.data"), aligned(64))) actShaveData[SHAVE_LIB_DATA_SIZE];
 unsigned int actShaveDataReserved = 0;
 
@@ -69,6 +71,11 @@ std::shared_ptr<nn::inference_runtime::shaves::ShaveManager> getShaveManager(std
     return holder;
 }
 
+const int ConsumerNum = 0;
+const int ProducerNum = 1;
+const int ConsumerMask = (1 << ConsumerNum);
+const int ProducerMask = (1 << ProducerNum);
+
 bool ShaveTaskRunner::enqueTask(Op * operation,
                               const std::vector<OpTensor> &inputs,
                               const std::vector<OpTensor> &outputs,
@@ -90,7 +97,7 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::act_runtime::actRuntimeEntry>(sk_nnActEntry_3010xx_text);
     actRtConfigs.actRtWindowBase_ = reinterpret_cast<unsigned char*>(sk_nnActEntry_3010xx_text);
 
-    int qq = operation->parse(&layer);
+    operation->parse(&layer);
 
     cache::flush(actRtConfigs);
     cache::flush(globalAreas);
@@ -98,15 +105,17 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     cache::flush(*globalAreas);
     cache::flush(*_shaveManager);
     _shaveManager->startActShavesForTile(0, actRtConfigs, true);
-    act_runtime::ActKernelRange kRng = {nn::act_runtime::ActWLType::WL_KERNEL_LRT_SYNC,
+
+    act_runtime::ActKernelRange kRng = {nn::act_runtime::ActWLType::WL_KERNEL,
                                             reinterpret_cast<act_runtime::actKernelEntry>(customOp->ops.kernel),
                                             reinterpret_cast<act_runtime::actKernelTextBuffer>(customOp->ops.kernel),
                                             customOp->ops.kernelDataLen,
-                                            0, act_runtime::ActKernelRange::LRT_WAIT};
+                                            0};
+
     kRange = kRng;
     cache::flush(kRange);
 
-    const BarrierUserConfig userBariers = {0, 0, 0, 0, 0};
+    const BarrierUserConfig userBariers = {ConsumerMask, ProducerMask, 0, 0, 0};
 //        PhysicalBarrierMask wait_mask_;
 //        PhysicalBarrierMask post_mask_;
 //        unsigned short start_after_;
@@ -122,6 +131,11 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
 //    };
     cache::flush(gpioBarriers);
 
+    HglBarrierReset(ConsumerMask);
+    HglBarrierReset(ProducerMask);
+    HglBarrierSetProdConsCounts(ConsumerNum, 1, 1);
+    HglBarrierSetProdConsCounts(ProducerNum, 1, 0);
+
     act_runtime::ActKernelInvocation kInv = {&kRange,
             (void*)(customOp->ops.paramData),
             reinterpret_cast<act_runtime::actKernelDataBuffer>(customOp->ops.paramData),
@@ -132,19 +146,17 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     leonDataCacheFlush();
     fifo::sendWorkToASs(0/*local_aki.tile_*/, &kInvo);
 
+    HglBarrierProduce(ConsumerMask);
+
     _enqued = true;
     return true;
 }
 
 bool ShaveTaskRunner::dequeResult() {
     if (_enqued) {
-        int i = 0;
-        for (; i < MAX_WAIT_ITERATIONS; i++) {
-            cache::invalidate(kRange);
-            if (kRange.LRTSynch_ == act_runtime::ActKernelRange::KERNEL_DONE) break;
-        }
+        HglBarrierWait(ProducerMask);
 
-        nnLog(MVLOG_DEBUG, "After send waiting %d", i);
+        nnLog(MVLOG_DEBUG, "After send waiting is done");
 
         _shaveManager->stopActShavesForTiles();
         _enqued = false;

@@ -172,11 +172,7 @@ extern "C" void nnActEntry(void *config, void *scratch) {
             writeFRC();
             (kr->kernelEntry_)(ki->kernelArgs_);
         }
-#ifdef JTAG_LOW_LEVEL
-        if (kr->type_ == ActWLType::WL_KERNEL_LRT_SYNC && kr->LRTSynch_ == ActKernelRange::LRT_WAIT) {
-            kr->LRTSynch_ = ActKernelRange::KERNEL_DONE;
-        }
-#endif
+
         HglBarrierProduce(barriers.post_mask_);
     };
 
@@ -190,9 +186,6 @@ extern "C" void nnActEntry(void *config, void *scratch) {
                 handleKRChange();
 
             switch (kr->type_) {
-#ifdef JTAG_LOW_LEVEL
-                case ActWLType::WL_KERNEL_LRT_SYNC:
-#endif
                 case ActWLType::WL_KERNEL: {
                     execWL();
                     break;
