@@ -100,7 +100,7 @@ mlir::LogicalResult GenericConverter::matchAndRewrite(mlir::Operation* postOp, m
     };
 
     if (mlir::isa<IE::LeakyReluOp>(postOp) && isQuantized(producerOp, postOp)) {
-            return mlir::failure();
+        return matchFailed(_log, rewriter, postOp, "PostOp producer only support fusing Leakyrelu with FP16");
     }
 
     producerOp.setPostOp(postOp);
