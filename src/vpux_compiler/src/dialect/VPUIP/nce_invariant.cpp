@@ -580,7 +580,8 @@ SmallVector<mlir::ShapedType> getTileTypes(IE::ConvolutionOp origOp, const TileI
 }
 
 SmallVector<mlir::ShapedType> getRequiredOperandsForPrefetch(IE::ConvolutionOp origOp, vpux::OutputTiling tiling) {
-    // Check the first two tiles to make sure at least one pair of tiles could be prefetchable.
+    // The tiling strategy follows last-tile-not-biggest
+    // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
     auto nextTile = tiling[1];
     bool isWeightPrefetch = curTile.axis[Dims4D::Act::C] > 1;
@@ -646,7 +647,8 @@ SmallVector<mlir::ShapedType> getTileTypes(IE::MaxPoolOp origOp, const TileInfo&
 }
 
 SmallVector<mlir::ShapedType> getRequiredOperandsForPrefetch(IE::MaxPoolOp origOp, vpux::OutputTiling tiling) {
-    // Check the first two tiles to make sure at least one pair of tiles could be prefetchable.
+    // The tiling strategy follows last-tile-not-biggest
+    // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
     auto nextTile = tiling[1];
 
@@ -728,7 +730,8 @@ SmallVector<mlir::ShapedType> getTileTypes(IE::GroupConvolutionOp origOp, const 
 }
 
 SmallVector<mlir::ShapedType> getRequiredOperandsForPrefetch(IE::GroupConvolutionOp origOp, vpux::OutputTiling tiling) {
-    // Check the first two tiles to make sure at least one pair of tiles could be prefetchable.
+    // The tiling strategy follows last-tile-not-biggest
+    // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
     auto nextTile = tiling[1];
     bool isWeightPrefetch = curTile.axis[Dims4D::Act::C] > 1;
@@ -827,7 +830,8 @@ SmallVector<mlir::ShapedType> getTileTypes(mlir::Operation* op, const TileInfo& 
 }
 
 SmallVector<mlir::ShapedType> getRequiredOperandsForPrefetch(mlir::Operation* op, vpux::OutputTiling tiling) {
-    // Check the first two tiles to make sure at least one pair of tiles could be prefetchable.
+    // The tiling strategy follows last-tile-not-biggest
+    // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
     auto nextTile = tiling[1];
 
