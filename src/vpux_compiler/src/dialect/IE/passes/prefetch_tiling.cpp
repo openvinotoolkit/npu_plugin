@@ -125,7 +125,7 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
                                        nTilesOnDim[dimToTile], maxNumTiles[dimToTile.ind()])
                                  .str()
                       << std::endl;
-            VPUX_THROW("Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
+            return {Shape(outputShape.size(), 1), Shape(outputShape.size(), 1)};
         }
         // increase current op tiles
         if (dimToTile == Dims4D::Act::C) {
@@ -172,7 +172,12 @@ bool needTilingToMultiOpsPrefetch(mlir::Operation* op, Logger log) {
 
     const auto resShape = getShape(op->getResult(0));
     const Shape neutralTile(resShape.size(), 1);
-    return !opTilingInter.isSupportedPrefetchPattern(neutralTile, parentOp, neutralTile, log);
+    if (opTilingInter.isSupportedPrefetchPattern(neutralTile, parentOp, neutralTile, log)) {
+        return false;
+    }
+    // Try to tile to satisfy prefetching
+    auto tiles = generatePrefetchPatternTiles(op, parentOp, log.nest());
+    return tiles[0] != neutralTile || tiles[1] != neutralTile;
 }
 //
 // PrefetchTiling
