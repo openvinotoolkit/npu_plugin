@@ -166,6 +166,8 @@ std::string nb::to_string(CaseType case_) {
         return "ActShave";
     case CaseType::RaceConditionDMA:
         return "RaceConditionDMA";
+    case CaseType::RaceConditionDPU:
+        return "RaceConditionDPU";
     default:
         return "unknown";
     }
@@ -189,6 +191,8 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
     }
     if (isEqual(str, "RaceConditionDMA"))
         return CaseType::RaceConditionDMA;
+    if (isEqual(str, "RaceConditionDPU"))
+        return CaseType::RaceConditionDPU;
     return CaseType::Unknown;
 };
 
@@ -476,12 +480,17 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
 
     // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
     // eltwise needed).
-    if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv) {
+    if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv ||
+        caseType_ == CaseType::RaceConditionDPU) {
         wtLayer_ = loadWeightLayer(json_obj);
         convLayer_ = loadConvLayer(json_obj);
 
         if (caseType_ == CaseType::ZMajorConvolution) {
             odu_permutation_ = to_odu_permutation(json_obj->getString("output_order").getValue());
+        }
+
+        if (caseType_ == CaseType::RaceConditionDPU) {
+            iterationCount_ = loadIterationCount(json_obj);
         }
         return;
     }

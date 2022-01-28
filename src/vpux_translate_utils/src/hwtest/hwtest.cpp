@@ -60,6 +60,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     bool isAvgPool = jsonDesc.getCaseType() == nb::CaseType::AvgPool;
     bool isActShave = jsonDesc.getCaseType() == nb::CaseType::ActShave;
     bool isRaceConditionDMA = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDMA;
+    bool isRaceConditionDPU = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDPU;
 
     auto weightType = [&]() {
         nb::WeightLayer weight = jsonDesc.getWeightLayer();
@@ -92,6 +93,8 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         hwtest::buildActShave(jsonDesc, module, builder, log, input_type, output_type);
     } else if (isRaceConditionDMA) {
         hwtest::buildRaceConditionDMATest(jsonDesc, module, builder, log, input_type, output_type);
+    } else if (isRaceConditionDPU) {
+        hwtest::buildRaceConditionDPUTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else {
         VPUX_THROW("Unknown type: {0}", opType);
     }
