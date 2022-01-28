@@ -15,7 +15,8 @@ func @MatMul4dInputsTo2d(%arg0: tensor<1x2x1x512xf32>) -> tensor<1x2x1x40xf32> {
     // CHECK:  %[[IN_1_2D:.*]] = IE.AffineReshape(%[[IN_1]])
     // CHECK:  %[[FC_0:.*]] = IE.FullyConnected(%[[IN_0_2D]], %[[CST_0]]) : tensor<1x512xf32>, tensor<40x512xf32> -> tensor<1x40xf32>
     // CHECK:  %[[FC_1:.*]] = IE.FullyConnected(%[[IN_1_2D]], %[[CST_1]]) : tensor<1x512xf32>, tensor<40x512xf32> -> tensor<1x40xf32>
-    // CHECK:  %[[CONCAT:.*]] = IE.Concat(%[[FC_0]], %[[FC_1]]) {per_axis = {axis = 0 : i64}} : tensor<1x40xf32>, tensor<1x40xf32> -> tensor<2x40xf32>
+    // CHECK:  %[[CONCAT:.*]] = IE.Concat(%[[FC_0]], %[[FC_1]])
+    // CHECK-SAME{LITERAL}:  {static_offsets = [[0, 0], [1, 0]]} : tensor<1x40xf32>, tensor<1x40xf32> -> tensor<2x40xf32>
     // CHECK:  %[[OUT:.*]] = IE.AffineReshape(%[[CONCAT]])
     // CHECK:  return %[[OUT]] : tensor<1x2x1x40xf32>
 }
@@ -35,7 +36,8 @@ func @MatMul3dInputsTo2d(%arg0: tensor<2x1x512xf32>) -> tensor<2x1x40xf32> {
     // CHECK:  %[[IN_1_2D:.*]] = IE.AffineReshape(%[[IN_1]])
     // CHECK:  %[[FC_0:.*]] = IE.FullyConnected(%[[IN_0_2D]], %[[CST_0]]) : tensor<1x512xf32>, tensor<40x512xf32> -> tensor<1x40xf32>
     // CHECK:  %[[FC_1:.*]] = IE.FullyConnected(%[[IN_1_2D]], %[[CST_1]]) : tensor<1x512xf32>, tensor<40x512xf32> -> tensor<1x40xf32>
-    // CHECK:  %[[CONCAT:.*]] = IE.Concat(%[[FC_0]], %[[FC_1]]) {per_axis = {axis = 0 : i64}} : tensor<1x40xf32>, tensor<1x40xf32> -> tensor<2x40xf32>
+    // CHECK:  %[[CONCAT:.*]] = IE.Concat(%[[FC_0]], %[[FC_1]])
+    // CHECK-SAME{LITERAL}:  {static_offsets = [[0, 0], [1, 0]]} : tensor<1x40xf32>, tensor<1x40xf32> -> tensor<2x40xf32>
     // CHECK:  %[[OUT:.*]] = IE.AffineReshape(%[[CONCAT]])
     // CHECK:  return %[[OUT]] : tensor<2x1x40xf32>
 }
