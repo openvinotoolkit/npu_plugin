@@ -25,7 +25,7 @@ namespace {
 mlir::Operation* getParentConvOp(mlir::Operation* op) {
     mlir::Operation* parentOp = op->getOperand(0).getDefiningOp();
     auto isOpIgnorable = [](mlir::Operation* op) -> bool {
-        return mlir::isa<IE::AddOp>(op) || mlir::isa<IE::PermuteCastOp>(op) || mlir::isa<IE::ReshapeOp>(op);
+        return mlir::isa<IE::AndOp>(op) || mlir::isa<IE::PermuteCastOp>(op) || mlir::isa<IE::ReshapeOp>(op);
     };
     while (parentOp && !mlir::isa<IE::ConvolutionOp>(parentOp) && isOpIgnorable(parentOp)) {
         // skip the Permute, Reshape and Add
