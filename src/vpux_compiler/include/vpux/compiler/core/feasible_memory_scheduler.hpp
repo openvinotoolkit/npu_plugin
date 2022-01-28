@@ -56,7 +56,10 @@ public:
     struct MinHeapOrdering {
         bool operator()(const HeapElement& a, const HeapElement& b) {
             if (a.time_ == b.time_) {
-                return a.isPrefetched();
+                if (a.isPrefetched() == b.isPrefetched())
+                    return a.op_ > b.op_;
+                else
+                    return a.isPrefetched();
             }
             return a.time_ > b.time_;
         }
