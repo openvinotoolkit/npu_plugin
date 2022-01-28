@@ -37,6 +37,7 @@ shavelib-preserved-symbols-y += sigmoid_fp16
 shavelib-preserved-symbols-y += reorder_fp16
 shavelib-preserved-symbols-y += hswish_fp16
 shavelib-preserved-symbols-y += elu_fp16
+shavelib-preserved-symbols-y += exp_fp16
 shavelib-preserved-symbols-y += edsl
 shavelib-preserved-symbols-y += Dummy
 shavelib-preserved-symbols-y += proposal
