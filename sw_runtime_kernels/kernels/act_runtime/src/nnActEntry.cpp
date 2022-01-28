@@ -32,9 +32,6 @@ using namespace nn::util;
 using namespace nn::common_runtime::fifo;
 
 extern "C" void nnActEntry(void *config, void *scratch) {
-//    uint32_t * tmp = (uint32_t *)0x2e014000;
-//    uint32_t& debInd = *tmp;
-//    debInd = 1;
     const SHVFifoConfig fifoCfg = unpackSHVConfig(reinterpret_cast<uint32_t>(config));
     const uint32_t wlFifoAddr = computeFifoRecieveAddress(fifoCfg.work.fifo, fifoCfg.work.index);
     const uint32_t ctFifoAddr = computeFifoRecieveAddress(fifoCfg.ctrx.fifo, fifoCfg.ctrx.index);
@@ -86,8 +83,6 @@ extern "C" void nnActEntry(void *config, void *scratch) {
          *   Use a free HW mutex?
          */
         kr = ki->range_;
-
-//        tmp[debInd++] = 222222;
 
         setShaveWindow(1, kr->textWindowBase_);
 
@@ -154,26 +149,15 @@ extern "C" void nnActEntry(void *config, void *scratch) {
         const auto &barriers = ki->barriers_;
         const auto &barriers_gpio = ki->barriersGpio_;
 
-//        tmp[debInd++] = 333330;
         setShaveWindow(2, ki->dataWindowBase_);
 
-//        tmp[debInd++] = 333331;
-//        tmp[debInd++] = HglBarrierGetProdConsCounts(0);
-//        tmp[debInd++] = HglBarrierGetProdConsCounts(1);
         waitBarrier(barriers, barriers_gpio, shaveIndex);
-//        HglBarrierWait(barriers.wait_mask_);
-//        tmp[debInd++] = 333332;
-//        tmp[debInd++] = HglBarrierGetProdConsCounts(0);
-//        tmp[debInd++] = HglBarrierGetProdConsCounts(1);
         HglBarrierConsume(barriers.wait_mask_);
-//        tmp[debInd++] = 333333;
 
         if (perfMetricMask) {
             resetCounters(pr);
 
-//            tmp[debInd++] = 333334;
             (kr->kernelEntry_)(ki->kernelArgs_);
-//            tmp[debInd++] = 333335;
 
             recordCounters(pr);
             packActPerfReport(perfMetricMask, pr, reinterpret_cast<void *>(packedPr));
@@ -186,18 +170,9 @@ extern "C" void nnActEntry(void *config, void *scratch) {
             }
         } else {
             writeFRC();
-//            tmp[debInd++] = 333336;
             (kr->kernelEntry_)(ki->kernelArgs_);
-//            tmp[debInd++] = 333337;
         }
-//#ifdef JTAG_LOW_LEVEL
-//        if (kr->type_ == ActWLType::WL_KERNEL_LRT_SYNC && kr->LRTSynch_ == ActKernelRange::LRT_WAIT) {
-//            kr->LRTSynch_ = ActKernelRange::KERNEL_DONE;
-//        }
-//#endif
-//        tmp[debInd++] = 333338;
         HglBarrierProduce(barriers.post_mask_);
-//        tmp[debInd++] = 333339;
     };
 
     setFPRound(P_CFG_SETTING);
@@ -210,9 +185,6 @@ extern "C" void nnActEntry(void *config, void *scratch) {
                 handleKRChange();
 
             switch (kr->type_) {
-//#ifdef JTAG_LOW_LEVEL
-//                case ActWLType::WL_KERNEL_LRT_SYNC:
-//#endif
                 case ActWLType::WL_KERNEL: {
                     execWL();
                     break;
