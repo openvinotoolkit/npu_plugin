@@ -23,7 +23,8 @@ func @HandleLargeStridesPrimeStride(%arg0: tensor<1x16x28x28xf16>) -> tensor<1x3
   // CHECK:       %[[SLICED_CONV2:.*]] = IE.Convolution(%[[SLICED_INPUT2]], %[[CST]])
   // CHECK-SAME:  {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]}
 
-  // CHECK:       %[[CONCAT0:.*]] = IE.Concat(%[[SLICED_CONV0]], %[[SLICED_CONV1]], %[[SLICED_CONV2]]) {per_axis = {axis = 3 : i64}}
+  // CHECK:       %[[CONCAT0:.*]] = IE.Concat(%[[SLICED_CONV0]], %[[SLICED_CONV1]], %[[SLICED_CONV2]])
+  // CHECK-SAME{LITERAL}:       {static_offsets = [[0, 0, 0, 0], [0, 0, 0, 1], [0, 0, 0, 2]]}
   // CHECK-SAME:      : tensor<1x32x1x1xf16>, tensor<1x32x1x1xf16>, tensor<1x32x1x1xf16> -> tensor<1x32x1x3xf16>
 
   // CHECK:       %[[SLICED_INPUT3:.*]] = IE.Slice %arg0 [0, 0, 11, 0] [1, 16, 3, 3] : tensor<1x16x28x28xf16> to tensor<1x16x3x3xf16>
@@ -41,7 +42,8 @@ func @HandleLargeStridesPrimeStride(%arg0: tensor<1x16x28x28xf16>) -> tensor<1x3
   // CHECK:       %[[SLICED_CONV5:.*]] = IE.Convolution(%[[SLICED_INPUT5]], %[[CST]])
   // CHECK-SAME:  {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]}
 
-  // CHECK:       %[[CONCAT1:.*]] = IE.Concat(%[[SLICED_CONV3]], %[[SLICED_CONV4]], %[[SLICED_CONV5]]) {per_axis = {axis = 3 : i64}}
+  // CHECK:       %[[CONCAT1:.*]] = IE.Concat(%[[SLICED_CONV3]], %[[SLICED_CONV4]], %[[SLICED_CONV5]])
+  // CHECK-SAME{LITERAL}:       {static_offsets = [[0, 0, 0, 0], [0, 0, 0, 1], [0, 0, 0, 2]]}
   // CHECK-SAME:      : tensor<1x32x1x1xf16>, tensor<1x32x1x1xf16>, tensor<1x32x1x1xf16> -> tensor<1x32x1x3xf16>
 
   // CHECK:       %[[SLICED_INPUT6:.*]] = IE.Slice %arg0 [0, 0, 22, 0] [1, 16, 3, 3] : tensor<1x16x28x28xf16> to tensor<1x16x3x3xf16>
@@ -59,10 +61,12 @@ func @HandleLargeStridesPrimeStride(%arg0: tensor<1x16x28x28xf16>) -> tensor<1x3
   // CHECK:       %[[SLICED_CONV8:.*]] = IE.Convolution(%[[SLICED_INPUT8]], %[[CST]])
   // CHECK-SAME:  {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]}
 
-  // CHECK:       %[[CONCAT2:.*]] = IE.Concat(%[[SLICED_CONV6]], %[[SLICED_CONV7]], %[[SLICED_CONV8]]) {per_axis = {axis = 3 : i64}}
+  // CHECK:       %[[CONCAT2:.*]] = IE.Concat(%[[SLICED_CONV6]], %[[SLICED_CONV7]], %[[SLICED_CONV8]])
+  // CHECK-SAME{LITERAL}:       {static_offsets = [[0, 0, 0, 0], [0, 0, 0, 1], [0, 0, 0, 2]]}
   // CHECK-SAME:      : tensor<1x32x1x1xf16>, tensor<1x32x1x1xf16>, tensor<1x32x1x1xf16> -> tensor<1x32x1x3xf16>
 
-  // CHECK:       %[[CONCAT:.*]] = IE.Concat(%[[CONCAT0]], %[[CONCAT1]], %[[CONCAT2]]) {per_axis = {axis = 2 : i64}}
+  // CHECK:       %[[CONCAT:.*]] = IE.Concat(%[[CONCAT0]], %[[CONCAT1]], %[[CONCAT2]])
+  // CHECK-SAME{LITERAL}:       {static_offsets = [[0, 0, 0, 0], [0, 0, 1, 0], [0, 0, 2, 0]]}
   // CHECK-SAME:      : tensor<1x32x1x3xf16>, tensor<1x32x1x3xf16>, tensor<1x32x1x3xf16> -> tensor<1x32x3x3xf16>
 
   return %1 : tensor<1x32x3x3xf16>

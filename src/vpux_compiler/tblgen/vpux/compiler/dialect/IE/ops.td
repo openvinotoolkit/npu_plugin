@@ -2148,6 +2148,8 @@ def IE_ConcatOp :
         >,
     ];
 
+    let hasCanonicalizer = 1;
+
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;

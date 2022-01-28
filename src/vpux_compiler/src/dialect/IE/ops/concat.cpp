@@ -369,3 +369,119 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(outShape.getValue().raw(), outElemType.getValue(), inDesc);
     return mlir::success();
 }
+
+//
+// ConvertPerAxisToOffsets
+//
+
+namespace {
+
+class ConvertPerAxisToOffsets final : public mlir::OpRewritePattern<IE::ConcatOp> {
+public:
+    using mlir::OpRewritePattern<IE::ConcatOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ConcatOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+const mlir::ArrayAttr inferOffsetsAttrWithAxis(IE::ConcatOp origOp, const int64_t& axis) {
+    auto rank = origOp.output().getType().cast<mlir::ShapedType>().getRank();
+
+    SmallVector<SmallVector<int64_t>> finalOffsets;
+    finalOffsets.push_back(SmallVector<int64_t>(rank, 0));
+
+    for (auto input : origOp.inputs() | indexed) {
+        auto inputShape = getShape(input.value());
+        auto offsets = SmallVector<int64_t>(rank, 0);
+        offsets[axis] = inputShape[Dim(axis)] + finalOffsets.back()[axis];
+        finalOffsets.push_back(offsets);
+    }
+    finalOffsets.pop_back();
+
+    return getIntArrayOfArray(origOp.getContext(), finalOffsets);
+}
+
+mlir::LogicalResult ConvertPerAxisToOffsets::matchAndRewrite(IE::ConcatOp origOp,
+                                                             mlir::PatternRewriter& rewriter) const {
+    if (origOp.static_offsetsAttr()) {
+        return mlir::failure();
+    }
+
+    if (origOp.per_axisAttr().stride() || origOp.per_axisAttr().offset()) {
+        return mlir::failure();
+    }
+
+    const auto outType = origOp.output().getType().cast<mlir::RankedTensorType>();
+    const auto axis = origOp.per_axisAttr().axis().getValue().getSExtValue();
+    const auto finalOffsetsAttr = inferOffsetsAttrWithAxis(origOp, axis);
+
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, outType, origOp.inputs(), finalOffsetsAttr);
+    return mlir::success();
+}
+
+}  // namespace
+
+//
+// FuseConcat
+//
+
+namespace {
+
+class FuseConcat final : public mlir::OpRewritePattern<IE::ConcatOp> {
+public:
+    using OpRewritePattern::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(IE::ConcatOp op, mlir::PatternRewriter& rewriter) const final;
+};
+
+SmallVector<mlir::Value> getAllInputOp(IE::ConcatOp origOp, const std::unordered_set<Dim>& axis) {
+    SmallVector<mlir::Value> inputOps;
+    for (auto preOps : origOp.inputs()) {
+        auto producerConcatOp = preOps.getDefiningOp<IE::ConcatOp>();
+
+        if (producerConcatOp != nullptr && producerConcatOp.static_offsetsAttr()) {
+            const auto subAxis = getConcatAxesFromOffsets(producerConcatOp, getShape(producerConcatOp.output()));
+            if (subAxis == axis) {
+                for (auto inputTensor : producerConcatOp.getInputs()) {
+                    inputOps.emplace_back(inputTensor);
+                }
+                continue;
+            }
+        }
+
+        inputOps.emplace_back(preOps);
+    }
+    return inputOps;
+}
+
+mlir::LogicalResult FuseConcat::matchAndRewrite(IE::ConcatOp origOp, mlir::PatternRewriter& rewriter) const {
+    if (origOp.per_axisAttr()) {
+        return mlir::failure();
+    }
+
+    const auto axis = getConcatAxesFromOffsets(origOp, getShape(origOp.output()));
+    if (axis.size() != 1) {
+        return mlir::failure();
+    }
+
+    const auto fuseInputs = getAllInputOp(origOp, axis);
+    if (fuseInputs.size() <= origOp.inputs().size()) {
+        return mlir::failure();
+    }
+
+    const auto axisValue = *axis.begin();
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, fuseInputs, axisValue.ind());
+
+    return mlir::success();
+}
+
+}  // namespace
+
+//
+// getCanonicalizationPatterns
+//
+
+void vpux::IE::ConcatOp::getCanonicalizationPatterns(mlir::RewritePatternSet& results, mlir::MLIRContext* ctx) {
+    results.add<ConvertPerAxisToOffsets>(ctx);
+    results.add<FuseConcat>(ctx);
+}
