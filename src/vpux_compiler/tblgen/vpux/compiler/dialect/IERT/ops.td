@@ -228,6 +228,37 @@ def IERT_SoftMaxOp :
 }
 
 //
+// AdaAvgPoolOp
+//
+
+def IERT_AdaAvgPoolOp :
+        IERT_LayerOp<1, "AdaAvgPool",
+            [
+                ViewLikeOpInterface,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time AdaAvgPool layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // AvgPoolOp
 //
 
@@ -2965,7 +2996,7 @@ def IERT_EqualOp :
     }];
 }
 
-// 
+//
 // DepthToSpaceOp
 //
 
@@ -3033,7 +3064,7 @@ def IERT_NotEqualOp :
 //
 
 def IERT_ReverseSequenceOp :
-        IERT_LayerOp<1, 
+        IERT_LayerOp<1,
             "ReverseSequence",
             [
                 ViewLikeOpInterface

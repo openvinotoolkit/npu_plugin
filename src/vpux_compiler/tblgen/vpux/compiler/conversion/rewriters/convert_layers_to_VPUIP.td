@@ -76,6 +76,16 @@ def RewriteSoftMax :
         >;
 
 //
+// IERT.AdaAvgPool -> VPUIP.PoolingUPA
+//
+
+def RewriteAdaAvgPool :
+        Pat<
+            (IERT_AdaAvgPoolOp $input1, $input2, $output),
+            (createAvgPoolingUPAOp<"ADA_AVG_POOL"> $input1, $input2, $output)
+        >;
+
+//
 // IERT.AvgPool -> VPUIP.PoolingUPA
 //
 
@@ -373,7 +383,7 @@ def RewriteSqrt :
             (IERT_SqrtOp $input, $output),
             (createSqrtUPAOp $input, $output)
         >;
-        
+
 //
 // IERT.Sinh -> VPUIP.SinhUPA
 //
@@ -434,7 +444,7 @@ def RewriteAcosh :
             (IERT_AcoshOp $input, $output),
             (createAcoshUPAOp $input, $output)
         >;
-        
+
 
 //
 // IERT.Log -> VPUIP.LogUPA
@@ -551,7 +561,7 @@ def RewriteTile :
         >;
 
 //
-// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|And|Equal|Less|LessEqual|NotEqual|Greater|GreaterEqual|LogicalOr|LogicalXor]Pool -> VPUIP.EltwiseUPA
+// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|And|Equal|Less|LessEqual|NotEqual|Greater|GreaterEqual|LogicalOr|LogicalXor|AdaAvgPool]Pool -> VPUIP.EltwiseUPA
 //
 
 class createEltwiseUPAOp<string method> :

@@ -211,12 +211,14 @@ void ConvertAvgPoolToDWConvPass::safeRunOnFunc() {
     };
 
     mlir::ConversionTarget target(ctx);
+    target.addDynamicallyLegalOp<IE::AdaAvgPoolOp>(isLegal);
     target.addDynamicallyLegalOp<IE::AvgPoolOp>(isLegal);
     target.addLegalOp<IE::FakeQuantizeOp>();
     target.addLegalOp<IE::GroupConvolutionOp>();
     target.addLegalOp<Const::DeclareOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
+    patterns.insert<AdaAvgPoolOpConverter>(&ctx, _log);
     patterns.insert<AvgPoolOpConverter>(&ctx, _log);
 
     auto func = getFunction();

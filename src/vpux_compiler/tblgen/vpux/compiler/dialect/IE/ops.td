@@ -901,6 +901,28 @@ def IE_GroupConvolutionOp :
 }
 
 //
+// AdaptiveAvgPoolOp
+//
+
+def IE_AdaAvgPoolOp :
+        IE_LayerOp<
+            "AdaAvgPool"
+        > {
+    let summary = "InferenceEngine AdaAvgPool layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // AvgPoolOp
 //
 
