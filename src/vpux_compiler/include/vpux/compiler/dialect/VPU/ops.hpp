@@ -17,6 +17,7 @@
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
 #include "vpux/compiler/dialect/VPU/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPU/types.hpp"
 
 #include "vpux/utils/core/error.hpp"
 
@@ -41,6 +42,12 @@ mlir::LogicalResult verifyConv(mlir::Location loc, ArchKind arch, NCEConvolution
 mlir::LogicalResult verifyOp(NCEConvolutionOp op);
 mlir::LogicalResult verifyOp(NCEDepthConvolutionOp op);
 mlir::LogicalResult verifyOp(NCEMaxPoolOp op);
+
+mlir::LogicalResult verifyOp(NCEClusterTilingOp op);
+mlir::LogicalResult verifyOp(YieldOp op);
+
+void print(mlir::OpAsmPrinter& p, VPU::NCEClusterTilingOp op);
+mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);
 
 }  // namespace VPU
 }  // namespace vpux

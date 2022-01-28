@@ -30,6 +30,10 @@ def VPU_Dialect : Dialect {
 
     let cppNamespace = "vpux::VPU";
 
+    let extraClassDeclaration = [{
+        void registerTypes();
+    }];
+
     let dependentDialects = [
         "vpux::Const::ConstDialect",
         "vpux::IE::IEDialect",

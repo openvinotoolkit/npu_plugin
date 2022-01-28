@@ -253,4 +253,39 @@ def VPU_PPETaskAttr :
             ]
         >;
 
+//
+// DistributionMode
+//
+
+def VPU_DistributionMode :
+        StrEnumAttr<
+            "DistributionMode",
+            "Tensor distribution mode",
+            [
+                StrEnumAttrCase<"overlapped">,
+                StrEnumAttrCase<"duplicated">,
+                StrEnumAttrCase<"segmented">,
+                StrEnumAttrCase<"multicasted">
+            ]
+        > {
+    let cppNamespace = "vpux::VPU";
+    let genSpecializedAttr = 1;
+}
+
+//
+// DistributedTensorAttr
+//
+
+def VPU_DistributedTensorAttr :
+        StructAttr<
+            "DistributedTensorAttr",
+            VPU_Dialect,
+            [
+                StructFieldAttr<"mode", VPU_DistributionMode>,
+                StructFieldAttr<"num_tiles", OptionalAttr<I64ArrayAttr>>,
+                StructFieldAttr<"kernel", OptionalAttr<I64ArrayAttr>>,
+                StructFieldAttr<"pads", OptionalAttr<VPU_PaddingAttr>>,
+            ]
+        >;
+
 #endif
