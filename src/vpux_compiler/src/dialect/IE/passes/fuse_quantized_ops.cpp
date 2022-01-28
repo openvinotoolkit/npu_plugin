@@ -25,12 +25,14 @@
 
 using namespace vpux;
 
-#define RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(Operation)     \
-    for (auto user : Operation->getUsers()) {                  \
-        if (mlir::dyn_cast<IE::QuantizeOp>(user) == nullptr) { \
-            return mlir::failure();                            \
-        }                                                      \
+bool areAllUsersQuantized(mlir::Operation* op) {
+    for (auto user : op->getUsers()) {
+        if (mlir::dyn_cast<IE::QuantizeOp>(user) == nullptr) {
+            return false;
+        }
     }
+    return true;
+}
 
 namespace {
 
@@ -69,7 +71,9 @@ mlir::LogicalResult FuseWithConv::matchAndRewrite(IE::QuantizeOp quantizeOp, mli
         return mlir::failure();
     }
 
-    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(convOp)
+    if (!areAllUsersQuantized(convOp)) {
+        return mlir::failure();
+    }
 
     if (VPUIP::NCEInvariant::verifyKernel(convOp, _log).failed()) {
         return mlir::failure();
@@ -130,7 +134,9 @@ mlir::LogicalResult FuseWithGroupConv::matchAndRewrite(IE::QuantizeOp quantizeOp
         return mlir::failure();
     }
 
-    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(grConvOp)
+    if (!areAllUsersQuantized(grConvOp)) {
+        return mlir::failure();
+    }
 
     if (VPUIP::NCEInvariant::verifyKernel(grConvOp, _log).failed()) {
         return mlir::failure();
@@ -190,7 +196,9 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
         return mlir::failure();
     }
 
-    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(maxPoolOp)
+    if (!areAllUsersQuantized(maxPoolOp)) {
+        return mlir::failure();
+    }
 
     if (VPUIP::NCEInvariant::verifyKernel(maxPoolOp, _log).failed()) {
         return mlir::failure();
@@ -254,7 +262,9 @@ mlir::LogicalResult FuseWithSlice::matchAndRewrite(IE::QuantizeOp quantizeOp, ml
         return mlir::failure();
     }
 
-    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(sliceOp)
+    if (!areAllUsersQuantized(sliceOp)) {
+        return mlir::failure();
+    }
 
     auto inputDequantizeOp = sliceOp.source().getDefiningOp<IE::DequantizeOp>();
     if (inputDequantizeOp == nullptr) {
@@ -303,7 +313,9 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
         return mlir::failure();
     }
 
-    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(concatOp)
+    if (!areAllUsersQuantized(concatOp)) {
+        return mlir::failure();
+    }
 
     SmallVector<mlir::Value> newConcatInputs;
     newConcatInputs.reserve(concatOp.inputs().size());
@@ -381,7 +393,9 @@ mlir::LogicalResult FuseWithSplit::matchAndRewrite(IE::SplitOp splitOp, mlir::Pa
         return mlir::failure();
     }
 
-    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(splitOp)
+    if (!areAllUsersQuantized(splitOp)) {
+        return mlir::failure();
+    }
 
     SmallVector<mlir::Type> newSplitOutputsType;
     newSplitOutputsType.reserve(splitOp.outputs().size());
@@ -460,7 +474,9 @@ mlir::LogicalResult FuseWithEltwiseConverter<ConcreteOp>::matchAndRewrite(IE::Qu
         return mlir::failure();
     }
 
-    RETURN_FAILURE_IF_USER_NOT_QUANTIZED_OP(eltwiseOp)
+    if (!areAllUsersQuantized(eltwiseOp)) {
+        return mlir::failure();
+    }
 
     if (eltwiseOp.input1().getType().template cast<mlir::ShapedType>().getShape() !=
         eltwiseOp.input2().getType().template cast<mlir::ShapedType>().getShape()) {
@@ -566,8 +582,10 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
         signalPassFailure();
     }
 
-    auto funcOp = getFunction();
-    funcOp.walk([this](vpux::IE::QuantizeOp quantizeOp) {
+    // Remove remaining Quantize->Dequantize sequence to not perform explicit FakeQuantize.
+    // This might have slight impact on accuracy but gives visible performance improvement
+    // TODO: Evaluate possibility of replacing such sequence with ClampOp fused with DPU task
+    func.walk([this](vpux::IE::QuantizeOp quantizeOp) {
         if (!quantizeOp->hasOneUse()) {
             return;
         }
@@ -577,12 +595,12 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
         }
         dequantizeOp.replaceAllUsesWith(quantizeOp.input());
     });
-    funcOp.walk([this](vpux::IE::DequantizeOp dequantizeOp) {
+    func.walk([this](vpux::IE::DequantizeOp dequantizeOp) {
         if (dequantizeOp->getUses().empty()) {
             dequantizeOp->erase();
         }
     });
-    funcOp.walk([this](vpux::IE::QuantizeOp quantizeOp) {
+    func.walk([this](vpux::IE::QuantizeOp quantizeOp) {
         if (quantizeOp->getUses().empty()) {
             quantizeOp->erase();
         }
