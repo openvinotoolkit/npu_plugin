@@ -85,8 +85,8 @@ public:
         return _logLevel;
     }
 
-    void setLevel(LogLevel lvl) {
-        _logLevel = lvl;
+    void setLevel(LogLevel ) {
+        _logLevel = LogLevel::Trace;
     }
 
     bool isActive(LogLevel msgLevel) const;

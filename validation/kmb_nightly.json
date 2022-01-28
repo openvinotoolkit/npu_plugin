@@ -1796,8 +1796,7 @@
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "PERFORMANCE_HINT": "THROUGHPUT",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_COMPILATION_MODE_PARAMS": "compress-weights",
-                "LOG_LEVEL": "LOG_DEBUG"
+                "VPUX_COMPILATION_MODE_PARAMS": "compress-weights"
             },
             "BenchmarkApp" : {
                 "input_folder" : "62x62"
