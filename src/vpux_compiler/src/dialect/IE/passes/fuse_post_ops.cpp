@@ -49,13 +49,8 @@ mlir::LogicalResult GenericConverter::matchAndRewrite(mlir::Operation* postOp, m
         auto pReluOp = mlir::cast<IE::PReluOp>(postOp);
         auto slopes = pReluOp.negative_slope().getDefiningOp<Const::DeclareOp>();
         const auto slopesContent = slopes.content();
-        const auto slopesValue = slopesContent.getValues<double>();
-        VPUX_THROW_WHEN(slopesValue.empty(), "No slope value found in PRelu");
-        auto slope = slopesValue[0];
-
-        if (llvm::all_of(slopesValue, [slope](auto const& elem) {
-                return isDoubleEqual(slope, elem);
-            })) {
+        if (slopesContent.isSplat()) {
+            auto slope = slopesContent.getSplatValue<double>();
             rewriter.replaceOpWithNewOp<IE::LeakyReluOp>(pReluOp, pReluOp.input(),
                                                          getFPAttr(pReluOp->getContext(), slope));
             return matchFailed(_log, rewriter, postOp,
