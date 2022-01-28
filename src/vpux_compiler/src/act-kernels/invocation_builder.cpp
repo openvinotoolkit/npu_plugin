@@ -55,7 +55,7 @@ void InvocationBuilder::addTensorArg(mlir::Value value, const MVCNN::TensorRefer
     sw_params::MemRefData memrefData{};
 
     const auto shape = getShape(value);
-    memrefData.numDims = checked_cast<uint32_t>(getShape(value).size());
+    memrefData.numDims = checked_cast<uint32_t>(shape.size());
 
     // dims
     const auto dimsPatcher = [](sw_params::MemRefData& memrefData, uint32_t updateTo) {

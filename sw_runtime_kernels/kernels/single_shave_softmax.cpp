@@ -289,7 +289,7 @@ static void calculateSoftMaxOuter(const int dimX, int n, half* input, half* outp
      * complicated debuging features.
      */
     static uint32_t nTimes= 0;
-    uint32_t *debug{(uint32_t *)(0x2E000080 + 1024 * 1024 - 1024)};
+    uint32_t *debug{(uint32_t *)(0x2E0000A0 + 1024 * 1024 - 1024)};
     uint32_t next{0};
 
 
@@ -350,6 +350,19 @@ struct t_MvSoftMaxParamNClasses
 // softmax on inner/outer dimensions
 void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
 {
+
+    static uint32_t nTimes= 0;
+    uint32_t *debug{(uint32_t *)(0x2E0000D0 + 1024 * 1024 - 1024)};
+    uint32_t next{0};
+
+
+    auto cmxDebugStride = [&](uint32_t value) {
+        if (next < 1024) {
+            *reinterpret_cast<uint32_t *>((reinterpret_cast<uint32_t>(debug) + next)) = value;
+            next += 4;
+        }
+    };
+
     half* in  = p->input;
     half* out = p->output;
 
@@ -386,6 +399,13 @@ void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
             r_step = __builtin_shave_cmu_min_i32_rr_int(sets_per_step, dims[0] - setCoords[0]);
             unsigned inOffset, outOffset;
             subspace::getOffsetsU8(setCoords, istrides, ostrides, ndims, inOffset, outOffset);
+
+            if (nTimes < 10) {
+                nTimes++;
+                cmxDebugStride(nTimes);
+                cmxDebugStride(r_step);
+                cmxDebugStride(inOffset);
+            }
             if (p->inputInCmx) {
                 p_input0 = (half*)((u8*)in + inOffset);
             } else {
@@ -446,20 +466,41 @@ void singleShaveSoftmax(uint32_t lParams) {
 
     uint8_t * cmxData = nullptr;   // TODO: Restore the possibility of working with DDR tensors
     int32_t availableCmxBytes = 0;
+    auto layerParams = reinterpret_cast<const SoftmaxParams *>(lParams);
+
     // Special DMA to copy layer params from physical DDR
-    half* p_act_data = (half*)(reinterpret_cast<SoftmaxParams*>(lParams)->input.dataAddr); // 0x1F000000
-    half* p_act_out = (half*)(reinterpret_cast<SoftmaxParams*>(lParams)->output.dataAddr); // 0x1F004000
-    const SoftmaxParams * layerParams = reinterpret_cast<const SoftmaxParams *>(lParams);
+    half* p_act_data = (half*)(layerParams->input.dataAddr); // 0x1F000000
+    half* p_act_out = (half*)(layerParams->output.dataAddr); // 0x1F004000
+
     t_MvSoftMaxParamNClasses softmaxParamsCMX;
     t_MvSoftMaxParamNClasses* sp = &softmaxParamsCMX;
 
-    cmxDebugStride((uint32_t)layerParams);
-    cmxDebugStride((uint32_t)p_act_data);
-    cmxDebugStride((uint32_t)p_act_out);
+    //cmxDebugStride((uint32_t)layerParams);
+    //cmxDebugStride((uint32_t)p_act_data);
+    //cmxDebugStride((uint32_t)p_act_out);
 
+    // rebuild axis order - kernel expect strides and dims in following order
+    // W H C N - etc, so 3,2,1,0 - according to given order lets rebuild permutation
+    bool bres = false;
+    auto permutation = orderNDToPermutation(layerParams->input.dimsOrder, bres);
+    // TODO: bres status not handled.
+    if (!bres) {
+        return;
+    }
+    cmxDebugStride(layerParams->input.dimsOrder);
+  //  NDDims permutation;
+
+    // creating permutation to get w h c n order
+//    for (auto i = 0; i != layerParams->input.numDims; i++) {
+//        permutation.push_back(layerParams->input.numDims - 1 - order[i]);
+//        cmxDebugStride(i);
+//        cmxDebugStride(order[i]);
+//        cmxDebugStride(permutation[i]);
+//    }
 
     // parameters specific for softmax in customCpp parameter buffer
-    sp->axis = layerParams->axis;  // axis in arguments in memory notation because tensors are represented as TensorRefNDData
+    sp->axis = permutation[layerParams->axis];  // axis in arguments in memory notation because tensors are represented as TensorRefNDData
+
     cmxDebugStride(sp->axis);
 
                          // which is in memory notation too
@@ -473,18 +514,32 @@ void singleShaveSoftmax(uint32_t lParams) {
     int64_t *iPStrides = (int64_t *)(layerParams->input.stridesAddr);
     int64_t *oPStrides = (int64_t *)(layerParams->output.stridesAddr);
 
-    p_act_out[15 + 0] = iPStrides[0];
+    /*p_act_out[15 + 0] = iPStrides[0];
     p_act_out[15 + 1] = iPStrides[1];
     p_act_out[15 + 2] = iPStrides[2];
-    p_act_out[15 + 3] = iPStrides[3];
+    p_act_out[15 + 3] = iPStrides[3];*/
 
+    //if (layerParams->axis > 1)
+    {
+     //   sp->axis = layerParams->input.numDims - 1 - layerParams->axis;
+    }
 
     for (int i = 0; i < layerParams->input.numDims; i++) {
-        sp->in_dims[i] = pDims[i];
+        int map_index = permutation[i];
+        //if (layerParams->axis > 1 && i > 0)
+        {
+         //   map_index = layerParams->input.numDims - 1 - i;
+        }
+        sp->in_dims[i] = pDims[map_index];
         cmxDebugStride(sp->in_dims[i]);
-        sp->in_strides[i] = iPStrides[i] / CHAR_BIT;
-        sp->out_strides[i] = oPStrides[i] / CHAR_BIT;
+        sp->in_strides[i] = iPStrides[map_index] / CHAR_BIT;
+        cmxDebugStride(sp->in_strides[i]);
+        sp->out_strides[i] = oPStrides[map_index] / CHAR_BIT;
     }
+
+    //permuteArray(pDims, permutation, sp->in_dims, layerParams->input.numDims);
+    //permuteArray(iPStrides, permutation, sp->in_strides, layerParams->input.numDims);
+    //permuteArray(oPStrides, permutation, sp->out_strides, layerParams->input.numDims);
 
 
     // excluding dim == 1 from dims
