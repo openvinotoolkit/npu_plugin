@@ -140,7 +140,7 @@
         {
             "name" : "scale_caffe_FP16-INT8_yolo-v3",
             "ir" : "scale/yolo-v3/caffe/FP16-INT8/yolo-v3.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP",
             "3720": {
                 "disabled" : true
             },
@@ -174,7 +174,7 @@
         {
             "name" : "scale_tf_FP16-INT8_yolo_v3",
             "ir" : "scale/yolo_v3/tf/FP16-INT8/yolo_v3.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP",
             "3720": {
                 "disabled" : true
             },
@@ -207,7 +207,7 @@
         {
             "name" : "por_tf_FP16-INT8_yolo_v4",
             "ir" : "por/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
-            "category" : "MCM/precommit/weekly_public",
+            "category" : "MCM/precommit/weekly_public/SKIP",
             "3720": {
                 "disabled" : true
             },
@@ -243,7 +243,7 @@
         {
             "name" : "por_tf_FP16-INT8_yolo_v4",
             "ir" : "por/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
-            "category" : "MLIR/precommit",
+            "category" : "MLIR/precommit/SKIP",
             "3720": {
                 "disabled" : true
             },
@@ -273,7 +273,7 @@
         {
             "name" : "ea_tf_FP16_yolo_v4_ww14",
             "ir" : "yolo_v4-ww14/tf/FP16/yolo_v4.xml",
-            "category" : "MLIR",
+            "category" : "MLIR/SKIP",
             "3720": {
                 "disabled" : true
             },
@@ -303,7 +303,7 @@
         {
             "name" : "BDK_tf_FP16-INT8_yolo_v4_tiny",
             "ir" : "models/clientmodels/BDK4/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP",
             "3720": {
                 "disabled" : true
             },
@@ -340,7 +340,7 @@
             "name" : "por_tf_FP16-INT8_yolo_v4_tiny",
             "oldName" : "BDK_tf_FP16-INT8_yolo_v4_tiny_MLIR",
             "ir" : "por/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
-            "category" : "MLIR/precommit",
+            "category" : "MLIR/precommit/SKIP",
             "3720": {
                 "disabled" : true
             },
