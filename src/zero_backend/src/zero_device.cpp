@@ -11,6 +11,8 @@
 // included with the Software Package for additional details.
 //
 
+#include "ze_api.h"
+
 #include "zero_device.h"
 
 #include "zero_allocator.h"
@@ -30,5 +32,36 @@ std::shared_ptr<Executor> ZeroDevice::createExecutor(const NetworkDescription::P
 }
 
 std::string ZeroDevice::getName() const {
-    return std::string("3700.0");
+    ze_device_properties_t properties;
+    auto res = zeDeviceGetProperties(_device_handle, &properties);
+    if (res != ZE_RESULT_SUCCESS) {
+        IE_THROW() << "Error obtaining device name: err code " << res;
+    }
+
+//    KMD is setting usDeviceID from VpuFamilyID.h
+#define IVPU_MYRIADX_DEVICE_ID 0x6200     // MyriadX device
+#define IVPU_KEEMBAY_DEVICE_ID 0x6240     // KeemBay device
+#define IVPU_METEORLAKE_DEVICE_ID 0x7D1D  // MeteorLake device
+#define IVPU_LUNARLAKE_DEVICE_ID 0x643E   // LunarLake device
+
+    std::string name;
+    switch (properties.deviceId) {
+    case IVPU_MYRIADX_DEVICE_ID:
+        name = "2700";
+        break;
+    case IVPU_KEEMBAY_DEVICE_ID:
+        name = "3700";
+        break;
+    case IVPU_METEORLAKE_DEVICE_ID:
+        name = "3720";
+        break;
+    case IVPU_LUNARLAKE_DEVICE_ID:
+        // TODO to be changed
+        name = "3720";
+        break;
+    default:
+        name = "Unknown";
+    }
+
+    return name + ".0";
 }
