@@ -45,20 +45,20 @@ void vpux::VPURT::VPURTDialect::registerTypes() {
 mlir::Type vpux::VPURT::VPURTDialect::parseType(mlir::DialectAsmParser& parser) const {
     StringRef mnemonic;
     if (mlir::failed(parser.parseKeyword(&mnemonic))) {
-        printTo(parser.emitError(parser.getCurrentLocation()), "Failed to get VPUIP Type mnemonic");
+        printTo(parser.emitError(parser.getCurrentLocation()), "Failed to get VPURT Type mnemonic");
         return nullptr;
     }
 
     mlir::Type type;
     if (!generatedTypeParser(parser, mnemonic, type).hasValue()) {
-        printTo(parser.emitError(parser.getCurrentLocation()), "Unknown VPUIP Type '{0}'", mnemonic);
+        printTo(parser.emitError(parser.getCurrentLocation()), "Unknown VPURT Type '{0}'", mnemonic);
     }
 
     return type;
 }
 
 void vpux::VPURT::VPURTDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& os) const {
-    VPUX_THROW_UNLESS(mlir::succeeded(generatedTypePrinter(type, os)), "Got unsupported Type : {}", type);
+    VPUX_THROW_UNLESS(mlir::succeeded(generatedTypePrinter(type, os)), "Got unsupported Type : {0}", type);
 }
 
 //
@@ -91,7 +91,7 @@ mlir::Type vpux::VPURT::SparseBufferType::getDataType(mlir::Value val) {
 }
 
 void vpux::VPURT::SparseBufferType::print(mlir::DialectAsmPrinter& printer) const {
-    printer << "<data=" << getData();
+    printer << getMnemonic() << "<data=" << getData();
     if (const auto& sparsityMap = getSparsity_map()) {
         printer << ", sparsity_map=" << sparsityMap;
     }

@@ -11,27 +11,17 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPU/dialect.hpp"
+#pragma once
 
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 
-using namespace vpux;
-
-//
-// initialize
-//
-
-void vpux::VPU::VPUDialect::initialize() {
-    addOperations<
-#define GET_OP_LIST
-#include <vpux/compiler/dialect/VPU/generated/ops.cpp.inc>
-            >();
-
-    registerTypes();
-}
+#include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 //
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPU/generated/dialect.cpp.inc>
+#define GET_TYPEDEF_CLASSES
+#include <vpux/compiler/dialect/VPU/generated/types.hpp.inc>
+#undef GET_TYPEDEF_CLASSES

@@ -79,9 +79,6 @@ mlir::ParseResult vpux::details::parseOptionalTypes(mlir::OpAsmParser& parser, A
     if (parser.parseOptionalColonTypeList(types)) {
         return mlir::success();
     }
-    if (types.empty()) {
-        return mlir::success();
-    }
 
     if (types.empty()) {
         return mlir::success();

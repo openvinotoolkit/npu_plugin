@@ -9,6 +9,11 @@ The operations in the **VPU Dialect** are pure functional and works on tensor le
 
 [TOC]
 
+## Type constraint definition
+
+### VPU tensor type to describe the tensor tiling
+This type of tensor is used together with the ClusterTiling operation
+                           to describe a tile operation between clusters
 ## Operation definition
 
 ### `VPU.DPU.Workload` (vpux::VPU::DPUWorkloadOp)
@@ -31,6 +36,23 @@ operation ::= `VPU.DPU.Workload` $offsets $sizes $pad $mpe_mode attr-dict-with-k
 `sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPU::MPEModeAttr | MPE Mode
+
+### `VPU.NCE.ClusterTiling` (vpux::VPU::NCEClusterTilingOp)
+
+Operation that encapsulates details of tiling operation between clusters
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`operands` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values or VPU tensor type to describe the tensor tiling
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`results` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values or VPU tensor type to describe the tensor tiling
 
 ### `VPU.NCE.Convolution` (vpux::VPU::NCEConvolutionOp)
 
@@ -188,4 +210,42 @@ operation ::= `VPU.NCE.MaxPool` `(` $input `)`
 | Result | Description |
 | :----: | ----------- |
 `output` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+
+### `VPU.Yield` (vpux::VPU::YieldOp)
+
+Terminator for NCE.ClusterTiling operation
+
+
+Syntax:
+
+```
+operation ::= `VPU.Yield` $operands
+              custom<OptionalTypes>(type($operands)) ``
+              attr-dict
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`operands` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+
+## Type definition
+
+### DistributedTensorType
+
+VPU tensor type to describe the tensor tiling
+
+This type of tensor is used together with the ClusterTiling operation
+                           to describe a tile operation between clusters
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| shape | `::llvm::ArrayRef<int64_t>` |  |
+| elementType | `mlir::Type` |  |
+| order | `mlir::AffineMapAttr` |  |
+| memSpace | `mlir::SymbolRefAttr` |  |
+| distribution | `DistributedTensorAttr` |  |
 
