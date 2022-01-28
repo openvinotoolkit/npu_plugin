@@ -68,17 +68,6 @@ public:
     static mlir::LogicalResult verifyPrefetchCMX(IE::GroupConvolutionOp origOp, vpux::OutputTiling tiling,
                                                  Logger log = Logger::global());
 
-    static mlir::LogicalResult verifyPrefetchCMX(IE::AddOp origOp, vpux::OutputTiling tiling,
-                                                 Logger log = Logger::global());
-    static mlir::LogicalResult verifyPrefetchCMX(IE::MultiplyOp origOp, vpux::OutputTiling tiling,
-                                                 Logger log = Logger::global());
-    static mlir::LogicalResult verifyPrefetchCMX(IE::SubtractOp origOp, vpux::OutputTiling tiling,
-                                                 Logger log = Logger::global());
-    static mlir::LogicalResult verifyPrefetchCMX(IE::AndOp origOp, vpux::OutputTiling tiling,
-                                                 Logger log = Logger::global());
-    static mlir::LogicalResult verifyEltwisePrefetchCMX(mlir::Operation* op, vpux::OutputTiling tiling,
-                                                        Logger log = Logger::global());
-
 public:
     static mlir::LogicalResult verifyChannels(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::ConvolutionOp origOp, Logger log = Logger::global());
