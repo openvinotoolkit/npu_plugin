@@ -1055,7 +1055,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchPatternCMX(mlir::Op
     }
     auto module = op->getParentOfType<mlir::ModuleOp>();
     const auto cmxSize = getCMXSizeForTiling(module);
-    auto ratioToAvoidFragmentation = 0.8;
+    auto ratioToAvoidFragmentation = 0.9;
 
     // Calculate the CMX memory required by the last tile of parent Op
     auto lastParentTile = parentTiling[parentTiling.size() - 1];
