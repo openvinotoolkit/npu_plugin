@@ -10,4 +10,6 @@ initializes **IERT Dialect** run-time resources information.
 -compilation-mode  : Set compilation mode as `ReferenceSW`, `ReferenceHW` or `DefaultHW`
 -num-of-dpu-groups : [Optional] Number of available DPU groups
 ```
+### `-multi-cluster-stragegy-assignment`: Determines which multi-cluster strategy is the most optimal for a given layer
+Determines which multi-cluster strategy is the most optimal for a given layer
 ### `-split-NCE-ops-onto-workloads`: Split VPU NCE operation onto workloads
