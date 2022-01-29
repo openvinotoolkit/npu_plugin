@@ -23,6 +23,48 @@ using namespace vpux;
 namespace {
 
 //
+// ConvToMultiCluster
+//
+
+class ConvToMultiCluster final : public mlir::OpRewritePattern<VPU::NCEConvolutionOp> {
+public:
+    ConvToMultiCluster(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<VPU::NCEConvolutionOp>(ctx), _log(log) {
+        setDebugName("ConvToMultiCluster");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(VPU::NCEConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp origOp,
+                                                        mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
+
+    const auto logCb = [&](const llvm::formatv_object_base& msg) {
+        std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
+    };
+
+    const auto inOrder = DimsOrder::fromValue(origOp.input());
+    if (inOrder != DimsOrder::NCHW && inOrder != DimsOrder::NHWC) {
+        return matchFailed(_log, rewriter, origOp, "Operation at '{0}' has unsupported input layout '{1}'",
+                           origOp->getLoc(), inOrder);
+    }
+
+    const auto isCMajor = inOrder == DimsOrder::NCHW;
+
+    // auto nceClusterTilingOp = rewriter.create<VPU::NCEClusterTilingOp>(origOp->getLoc(), origOp.getType(),
+    // origOp.getOperands()));
+
+    // rewriter.replaceOp(origOp, nceClusterTilingOp.results());
+
+    return mlir::success();
+}
+
+//
 // MultiClusterStrategyAssignmentPass
 //
 
@@ -45,6 +87,15 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     auto func = getFunction();
     StrategyManager strategyManager(func, 4, _log);
     strategyManager.computeOptimalMultiClusterStrategy();
+
+    auto& ctx = getContext();
+    mlir::OwningRewritePatternList patterns(&ctx);
+    patterns.add<ConvToMultiCluster>(&ctx, _log);
+
+    // if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig())))
+    // {
+    //     signalPassFailure();
+    // }
 }
 
 }  // namespace
