@@ -419,7 +419,7 @@ uint32_t vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const W
         } else if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "VECTOR") {
             cost = ceil(outputTensor.x() / 1.0) * ceil(outputTensor.y() / 16.0) * ceil(outputTensor.z() / 16.0);
         } else if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "MATRIX") {
-            cost = ceil(outputTensor.x() / 1.0) * ceil(outputTensor.y() / 16.0) * ceil(outputTensor.z() / 16.0);
+            cost = ceil(outputTensor.x() / 4.0) * ceil(outputTensor.y() / 4.0) * ceil(outputTensor.z() / 16.0);
         } else {
             VPUX_THROW("Failed to support mpeMode");
         }
