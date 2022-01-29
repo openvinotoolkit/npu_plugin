@@ -206,12 +206,26 @@ private:
 // TilingInfoOpModel
 //
 
+bool isLastTileBiggest(const OutputTiling& tiles) {
+    if (tiles.size() <= 1) {
+        return false;
+    }
+    auto lastTile = tiles.back();
+    auto firstTile = tiles.front();
+    for (size_t i = 0; i < lastTile.offsets.size(); ++i) {
+        if (lastTile.offsets[Dim(i)] != 0) {
+            return lastTile.shape[Dim(i)] > firstTile.shape[Dim(i)];
+        }
+    }
+    VPUX_THROW("Tile offset {0} value exception", lastTile.offsets);
+}
+
 bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
     const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
     const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
     const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
 
-    return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+    return !isLastTileBiggest(tiles) && llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         const auto origInputShape = getShape(origOp.input());
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
@@ -242,7 +256,7 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
 
     auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
 
-    return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+    return !isLastTileBiggest(tiles) && llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(outputTile.shape[Dims4D::Act::C])) {
             return false;
         }
@@ -276,7 +290,7 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
 
     auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
 
-    return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+    return !isLastTileBiggest(tiles) && llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(outputTile.shape[Dims4D::Act::C])) {
             return false;
         }
@@ -432,7 +446,7 @@ public:
         const auto input2Type = origOp->getOperand(1).getType().cast<mlir::ShapedType>();
         const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
 
-        return llvm::all_of(tiles, [&](const TileInfo& tile) {
+        return !isLastTileBiggest(tiles) && llvm::all_of(tiles, [&](const TileInfo& tile) {
             const auto input1TileType = getDenseTileType(input1Type, tile.offsets, tile.shape);
             const auto input2TileType = getDenseTileType(input2Type, tile.offsets, tile.shape);
             const auto outputTileType = getDenseTileType(outputType, tile.offsets, tile.shape);
