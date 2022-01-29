@@ -959,24 +959,6 @@ def InsertMaxpoolToConcatLRelu : PassBase<"insert-maxpool-to-concat-lrelu", "vpu
 }
 
 //=================================================================================
-// Multi-cluster strategy assignment
-//=================================================================================
-
-//
-// Multi-cluster strategy assignment
-//
-
-def MultiClusterStrategyAssignment : PassBase<"multi-cluster-stragegy-assignment", "vpux::FunctionPass"> {
-    let summary = "Determines which multi-cluster strategy is the most optimal for a given layer";
-
-    let description = [{
-        Determines which multi-cluster strategy is the most optimal for a given layer
-    }];
-
-    let constructor = "vpux::IE::createMultiClusterStrategyAssignmentPass()";
-}
-
-//=================================================================================
 // Tiling
 //=================================================================================
 
