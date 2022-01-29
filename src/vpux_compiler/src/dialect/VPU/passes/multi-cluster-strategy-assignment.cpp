@@ -11,8 +11,8 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/IE/strategy_manager.hpp"
+#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/strategy_manager.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -27,7 +27,7 @@ namespace {
 //
 
 class MultiClusterStrategyAssignmentPass final :
-        public IE::MultiClusterStrategyAssignmentBase<MultiClusterStrategyAssignmentPass> {
+        public VPU::MultiClusterStrategyAssignmentBase<MultiClusterStrategyAssignmentPass> {
 public:
     explicit MultiClusterStrategyAssignmentPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
@@ -53,6 +53,6 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
 // createMultiClusterStrategyAssignmentPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createMultiClusterStrategyAssignmentPass(Logger log) {
+std::unique_ptr<mlir::Pass> vpux::VPU::createMultiClusterStrategyAssignmentPass(Logger log) {
     return std::make_unique<MultiClusterStrategyAssignmentPass>(log);
 }

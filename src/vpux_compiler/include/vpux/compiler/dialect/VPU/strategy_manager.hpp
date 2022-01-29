@@ -14,8 +14,9 @@
 #pragma once
 
 #include <map>
-#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 namespace vpux {
 

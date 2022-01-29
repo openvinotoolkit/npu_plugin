@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/IE/strategy_manager.hpp"
+#include "vpux/compiler/dialect/VPU/strategy_manager.hpp"
 #include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
@@ -63,18 +63,17 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
     };
 
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
-            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
-                const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
-                const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
-                const auto weightsType = op->getOperand(1).getType().cast<mlir::ShapedType>();
+            .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp origOp) {
+                const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+                const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
                 const auto inputShape = getShape(inputType);
-                const auto weightsShape = getShape(weightsType);
+                const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
                 const auto IC = inputShape[Dims4D::Act::C];
                 const double OC = outputShape[Dims4D::Act::C];
                 const double OH = outputShape[Dims4D::Act::H];
                 const double OW = outputShape[Dims4D::Act::W];
-                const auto KY = weightsShape[Dims4D::Filter::KY];
+                const auto KY = filterShape[Dims4D::Filter::KY];
 
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
                 const double outputTensorVolume = OC * OH * OW;
@@ -98,32 +97,22 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                 _log.trace("The SOH efficiency for the convolution is {0}", efficency);
                 return efficency;
             })
-            .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp origOp) {
+            .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp origOp) {
                 return 1;
             })
-            .Case<IE::AddOp>([&](IE::AddOp origOp) {
+            .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp origOp) {
                 return 1;
             })
-            .Case<IE::MultiplyOp>([&](IE::MultiplyOp origOp) {
-                return 1;
-            })
-            .Case<IE::SubtractOp>([&](IE::SubtractOp origOp) {
-                return 1;
-            })
-            .Case<IE::AndOp>([&](IE::AndOp origOp) {
-                return 1;
-            })
-            .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp origOp) {
-                const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
-                const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
-                const auto weightsType = op->getOperand(1).getType().cast<mlir::ShapedType>();
+            .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
+                const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+                const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
                 const auto inputShape = getShape(inputType);
-                const auto weightsShape = getShape(weightsType);
+                const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
                 const double OC = outputShape[Dims4D::Act::C];
                 const double OH = outputShape[Dims4D::Act::H];
                 const double OW = outputShape[Dims4D::Act::W];
-                const auto KY = weightsShape[Dims4D::Filter::KY];
+                const auto KY = filterShape[Dims4D::Filter::KY];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
                 const double outputTensorVolume = OC * OH * OW;
 
@@ -148,13 +137,12 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
     };
 
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
-            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
-                const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
-                const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
-                const auto weightsType = op->getOperand(1).getType().cast<mlir::ShapedType>();
+            .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp origOp) {
+                const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+                const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
                 const auto inputShape = getShape(inputType);
-                const auto weightsShape = getShape(weightsType);
+                const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
                 const double OC = outputShape[Dims4D::Act::C];
                 const double OH = outputShape[Dims4D::Act::H];
                 const double OW = outputShape[Dims4D::Act::W];
@@ -163,32 +151,22 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 _log.trace("The SOK efficiency for the convolution is {0}", efficency);
                 return efficency;
             })
-            .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp origOp) {
+            .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp origOp) {
                 return 1;
             })
-            .Case<IE::AddOp>([&](IE::AddOp origOp) {
+            .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp origOp) {
                 return 1;
             })
-            .Case<IE::MultiplyOp>([&](IE::MultiplyOp origOp) {
-                return 1;
-            })
-            .Case<IE::SubtractOp>([&](IE::SubtractOp origOp) {
-                return 1;
-            })
-            .Case<IE::AndOp>([&](IE::AndOp origOp) {
-                return 1;
-            })
-            .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp origOp) {
-                const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
-                const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
-                const auto weightsType = op->getOperand(1).getType().cast<mlir::ShapedType>();
+            .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
+                const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+                const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
                 const auto inputShape = getShape(inputType);
-                const auto weightsShape = getShape(weightsType);
+                const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
                 const double OC = outputShape[Dims4D::Act::C];
                 const double OH = outputShape[Dims4D::Act::H];
                 const double OW = outputShape[Dims4D::Act::W];
-                const auto KY = weightsShape[Dims4D::Filter::KY];
+                const auto KY = filterShape[Dims4D::Filter::KY];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
 
                 auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
@@ -204,31 +182,21 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
 void StrategyManager::computeOptimalMultiClusterStrategy() {
     const auto callback = [&](mlir::Operation* op) {
         llvm::TypeSwitch<mlir::Operation*, void>(op)
-                .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp op) {
+                .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp op) {
 
                 })
-                .Case<IE::AvgPoolOp>([&](IE::AvgPoolOp op) {})
-                .Case<IE::AddOp>([&](IE::AddOp op) {
+                .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp op) {
                     assignMultiClusterStrategy(op);
                 })
-                .Case<IE::MultiplyOp>([&](IE::MultiplyOp op) {
-                    assignMultiClusterStrategy(op);
-                })
-                .Case<IE::SubtractOp>([&](IE::SubtractOp op) {
-                    assignMultiClusterStrategy(op);
-                })
-                .Case<IE::AndOp>([&](IE::AndOp op) {
-                    assignMultiClusterStrategy(op);
-                })
-                .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
+                .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp op) {
                     // Is operation SOH compatible
-                    if (isOperationSplitOverHeightCompatible<IE::ConvolutionOp>(op)) {
+                    if (isOperationSplitOverHeightCompatible<VPU::NCEConvolutionOp>(op)) {
                         _splitOverHeightEfficencies.insert({op, calculateSplitOverHeightEfficency(op)});
                     } else {
                         _splitOverHeightEfficencies.insert({op, 0});
                     }
                     // Is operation SOK compatible
-                    if (isOperationSplitOverKernelCompatible<IE::ConvolutionOp>(op)) {
+                    if (isOperationSplitOverKernelCompatible<VPU::NCEConvolutionOp>(op)) {
                         _splitOverKernelEfficencies.insert({op, calculateSplitOverKernelEfficency(op)});
                     } else {
                         _splitOverKernelEfficencies.insert({op, 0});
@@ -236,15 +204,15 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     // Assign the most strategy
                     assignMultiClusterStrategy(op);
                 })
-                .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
+                .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp op) {
                     // Is operation SOH compatible
-                    if (isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op)) {
+                    if (isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                         _splitOverHeightEfficencies.insert({op, calculateSplitOverHeightEfficency(op)});
                     } else {
                         _splitOverHeightEfficencies.insert({op, 0});
                     }
                     // Is operation SOK compatible
-                    if (isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
+                    if (isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                         _splitOverKernelEfficencies.insert({op, calculateSplitOverKernelEfficency(op)});
                     } else {
                         _splitOverKernelEfficencies.insert({op, 0});
@@ -259,10 +227,10 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
 
 void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
     llvm::TypeSwitch<mlir::Operation*, void>(op)
-            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
+            .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp op) {
                 // If operation is neither SOH or SOK compatible, then it has to be Clustering
-                if (!isOperationSplitOverHeightCompatible<IE::ConvolutionOp>(op) &&
-                    !isOperationSplitOverKernelCompatible<IE::ConvolutionOp>(op)) {
+                if (!isOperationSplitOverHeightCompatible<VPU::NCEConvolutionOp>(op) &&
+                    !isOperationSplitOverKernelCompatible<VPU::NCEConvolutionOp>(op)) {
                     op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
@@ -282,26 +250,25 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
                 }
             })
-            .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
-                const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
-                const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
-                const auto weightsType = op->getOperand(1).getType().cast<mlir::ShapedType>();
+            .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp op) {
+                const auto outputType = op.output().getType().cast<mlir::ShapedType>();
+                const auto inputType = op.input().getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
                 const auto inputShape = getShape(inputType);
-                const auto weightsShape = getShape(weightsType);
+                const auto filterShape = Shape(parseIntArrayAttr<int64_t>(op.rawFilterShapeAttr()));
                 const auto IC = inputShape[Dims4D::Act::C];
                 const auto IH = inputShape[Dims4D::Act::H];
                 const auto IW = inputShape[Dims4D::Act::W];
-                const double KY = weightsShape[Dims4D::Filter::KY];
-                const double KX = weightsShape[Dims4D::Filter::KX];
-                const double WOC = weightsShape[Dims4D::Filter::OC];
+                const double KY = filterShape[Dims4D::Filter::KY];
+                const double KX = filterShape[Dims4D::Filter::KX];
+                const double WOC = filterShape[Dims4D::Filter::OC];
                 const double inputTensorVolume = IC * IH * IW;  // Need to add precision
                 const double weightTensorVolume =
                         WOC * 1 * std::ceil((1 * KY * KX) / 16) * 16;  // Need to add precision
 
                 // If operation is neither SOH or SOK compatible, then it has to be Clustering
-                if (!isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op) &&
-                    !isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
+                if (!isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op) &&
+                    !isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                     op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
@@ -312,8 +279,8 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                 // amount of data that has to be moved
                 else if ((_splitOverHeightEfficencies.find(op)->second ==
                           _splitOverKernelEfficencies.find(op)->second) &&
-                         isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op) &&
-                         isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
+                         isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op) &&
+                         isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                     // If the
                     if (_numClusters * inputTensorVolume + weightTensorVolume <
                         inputTensorVolume + (_numClusters * weightTensorVolume)) {
@@ -329,42 +296,33 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                     }
                 } else if ((_splitOverHeightEfficencies.find(op)->second >
                             _splitOverKernelEfficencies.find(op)->second) &&
-                           isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op)) {
+                           isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                     op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverH"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
 
                 } else if ((_splitOverHeightEfficencies.find(op)->second >
                             _splitOverKernelEfficencies.find(op)->second) &&
-                           !isOperationSplitOverHeightCompatible<IE::GroupConvolutionOp>(op)) {
+                           !isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                     op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
                 } else if ((_splitOverHeightEfficencies.find(op)->second <
                             _splitOverKernelEfficencies.find(op)->second) &&
-                           isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
+                           isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                     op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverK"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
 
                 } else if ((_splitOverHeightEfficencies.find(op)->second <
                             _splitOverKernelEfficencies.find(op)->second) &&
-                           !isOperationSplitOverKernelCompatible<IE::GroupConvolutionOp>(op)) {
+                           !isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                     op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
                 }
             })
-            .Case<IE::AddOp>([&](IE::AddOp op) {
-                assignMultiClusterStrategyForEltwise<IE::AddOp>(op);
-            })
-            .Case<IE::MultiplyOp>([&](IE::MultiplyOp op) {
-                assignMultiClusterStrategyForEltwise<IE::MultiplyOp>(op);
-            })
-            .Case<IE::SubtractOp>([&](IE::SubtractOp op) {
-                assignMultiClusterStrategyForEltwise<IE::SubtractOp>(op);
-            })
-            .Case<IE::AndOp>([&](IE::AndOp op) {
-                assignMultiClusterStrategyForEltwise<IE::AndOp>(op);
+            .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp op) {
+                assignMultiClusterStrategyForEltwise<VPU::NCEEltwiseOp>(op);
             });
 }
