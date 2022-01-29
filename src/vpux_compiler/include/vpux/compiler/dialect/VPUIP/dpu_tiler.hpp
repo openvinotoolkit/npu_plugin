@@ -34,7 +34,7 @@ struct DpuTile final {
 };
 #endif
 
-struct WorkloadCostParams{
+struct WorkloadCostParams {
     bool isZTilingSupported;
     VPUIP::NCETaskType nceTaskType;
     mlir::Type dataType;
@@ -66,6 +66,8 @@ public:
                   VPU::MPEMode mpeMode, VPU::ArchKind arch);
 
     uint32_t cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
+
+    uint32_t simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
 #endif
 
 private:

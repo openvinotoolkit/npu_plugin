@@ -397,6 +397,48 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
     return VPUNN::dpu_schedule(params.numDPU, workloadCost);
 }
 
+uint32_t vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
+    const auto elemType = getElementType(params.dataType);
+    VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
+    const auto KY = static_cast<unsigned int>(params.kernelSize[0]);
+    const auto KX = static_cast<unsigned int>(params.kernelSize[1]);
+
+    VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
+    const auto SY = static_cast<unsigned int>(params.kernelStride[0]);
+    const auto SX = static_cast<unsigned int>(params.kernelStride[1]);
+
+    std::vector<unsigned int> workloadCost;
+    int i = 0;
+    unsigned int cost = 0;
+    for (const auto& dpuTile : dpuTiles) {
+        const auto padsTileConf = backInferPadsTile(dpuTile, params.outputShape, params.padInfo);
+        VPUNN::VPUTensor outputTensor = getOutputTensor(dpuTile, elemType);
+
+        if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "VECTOR_FP16") {
+            cost = ceil(outputTensor.x() / 1.0) * ceil(outputTensor.y() / 4.0) * ceil(outputTensor.z() / 16.0);
+        } else if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "VECTOR") {
+            cost = ceil(outputTensor.x() / 1.0) * ceil(outputTensor.y() / 16.0) * ceil(outputTensor.z() / 16.0);
+        } else if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "MATRIX") {
+            cost = ceil(outputTensor.x() / 1.0) * ceil(outputTensor.y() / 16.0) * ceil(outputTensor.z() / 16.0);
+        } else {
+            VPUX_THROW("Failed to support mpeMode");
+        }
+
+        workloadCost.push_back(cost);
+        cost = 0;
+        llvm::outs() << "workload split " << i << ":{\n";
+        llvm::outs() << "output:[" << outputTensor.x() << "," << outputTensor.y() << "," << outputTensor.z() << "],";
+        llvm::outs() << "kernel:[" << KX << "," << KY << "],";
+        llvm::outs() << "stride :[" << SX << "," << SY << "],";
+        llvm::outs() << "pad :[" << padsTileConf.top << "," << padsTileConf.bottom << "," << padsTileConf.left << ","
+                     << padsTileConf.right << "],";
+        llvm::outs() << "score:" << workloadCost.back() << "\n";
+        llvm::outs() << "}\n";
+        i++;
+    }
+    return VPUNN::dpu_schedule(params.numDPU, workloadCost);
+}
+
 uint32_t vpux::VPUIP::DpuTiler::cost(VPUIP::NCEClusterTaskOp op, const OutputTiling& dpuTiles, const PadInfo& padInfo,
                                      unsigned int numDPU, VPU::MPEMode mpeMode, VPU::ArchKind arch) {
     if (!isCostModelInited()) {

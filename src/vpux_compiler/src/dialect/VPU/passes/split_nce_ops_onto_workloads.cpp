@@ -112,13 +112,15 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     int best = -1;
     llvm::outs() << "{\n";
     origOp->print(llvm::outs());
-    llvm::outs()<<"\n";
+    llvm::outs() << "\n";
     llvm::outs() << "workloads candidates: {\n";
 
     const auto& splitCandidates = dpuTiler.getSplitPool();
+
     for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
-        llvm::outs() << "workload "<<idx<< ": {\n";
-        auto score = dpuTiler.cost(splitCandidates[idx], costParams);
+        llvm::outs() << "workload " << idx << ": {\n";
+        // auto score = dpuTiler.cost(splitCandidates[idx], costParams);
+        auto score = dpuTiler.simpleCost(splitCandidates[idx], costParams);
         llvm::outs() << "},\n";
         llvm::outs() << "total score: " << score << "\n";
         if (bestScore > score) {
@@ -131,6 +133,7 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     }
     llvm::outs() << "},\n";
     if (best != 0) {
+        origOp.getLoc().dump();
         llvm::outs() << "best candidates:" << best << "\n";
     }
     llvm::outs() << "},\n";
