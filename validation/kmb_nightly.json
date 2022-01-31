@@ -1396,7 +1396,7 @@
         {
             "name" : "por_tf_FP16-INT8_icnet-camvid-ava-0001",
             "ir" : "por/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP",
             "3720": {
                 "disabled" : true
             },
