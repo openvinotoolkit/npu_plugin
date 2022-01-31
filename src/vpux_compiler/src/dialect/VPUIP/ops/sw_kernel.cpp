@@ -63,6 +63,9 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             .Case<IERT::ExpOp>([&](IERT::ExpOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"exp_fp16"}, {"exp_fp16.cpp"}};
             })
+            .Case<IERT::TanhOp>([&](IERT::TanhOp) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"tanh_fp16"}, {"tanh_fp16.cpp"}};
+            })
             .Case<IERT::HSwishOp>([&](IERT::HSwishOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"hswish_fp16"}, {"hswish_fp16.cpp"}};
             })
