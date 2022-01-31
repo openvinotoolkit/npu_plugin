@@ -2629,7 +2629,7 @@
         {
             "name" : "BDK_INT8_StyleTransfer",
             "ir" : "models/clientmodels/BDK3/StyleTransfer/Cyberlink/INT8/StyleTransfer.xml",
-            "category" : "MLIR/SKIP",
+            "category" : "MLIR",
             "3720": {
                 "disabled" : true
             },
@@ -2637,6 +2637,8 @@
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "PERFORMANCE_HINT": "THROUGHPUT",
                 "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_THROUGHPUT_STREAMS": "1",
+                "VPUX_EXECUTOR_STREAMS": "1",
                 "VPUX_INFERENCE_TIMEOUT": "100000"
             },
             "BenchmarkApp" : {

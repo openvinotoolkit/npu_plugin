@@ -43,6 +43,16 @@ This pass updates all Types for internal memory buffers and sets the specified m
 ```
 -memory-space : Memory space to perform allocation
 ```
+### `-split-by-planes`: Legalizes Copy Ops which have more than 255 planes
+A tensor may have more than 255 planes, causing the hardware to malfunction. This pass checks if Copy Op has
+less than 256 planes and splits it into several tiles if necessary. The number of planes is defined by the
+outermost dimension in the tensor (except for N - batch). Depending on the order of the data in memory, there
+may be several options for what to count as the number of planes. For example, if the dimension order (from the
+outermost to the innermost) is NCHW, then HW (height-width) is considered a plane, and the number of planes
+equals to the value of dimension C. The number of planes for different dimension orders:
+* For NHWC - H
+* For NCHW - C
+* For NWCH - W
 ### `-static-allocation`: Replace dynamic allocations with static
 This pass replaces all dynamic `alloc`/`dealloc` Operations with `IERT.StaticAlloc`.
 It uses simple LinearScan algorithm.
