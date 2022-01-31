@@ -137,7 +137,7 @@ static void parseDMATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
 
             if ((profiling_meta[2] != "PROFTASKBEGIN") && (profiling_meta[2] != "PROFBEGIN")) {
                 unsigned layerNumber = 0;
-                TaskInfo profInfoItem;
+                TaskInfo profInfoItem = TaskInfo();
                 profInfoItem.layer_type[0] = '\0';
                 profInfoItem.exec_type = TaskInfo::ExecType::DMA;
 
@@ -205,12 +205,14 @@ static void parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
                 continue;
             }
 
-            TaskInfo profInfoItem;
+            TaskInfo profInfoItem = TaskInfo();
             auto softLayer = task->task_as_UPALayerTask();
             if (softLayer != nullptr) {
-                auto typeLen = sizeof(profInfoItem.layer_type) / sizeof(profInfoItem.layer_type[0]);
-                strncpy(profInfoItem.layer_type, EnumNameSoftwareLayerParams(softLayer->softLayerParams_type()),
-                        typeLen - 1);
+                const auto typeLen = sizeof(profInfoItem.layer_type);
+                const char* typeName = EnumNameSoftwareLayerParams(softLayer->softLayerParams_type());
+                if (typeName != nullptr) {
+                    strncpy(profInfoItem.layer_type, typeName, typeLen - 1);
+                }
             } else {
                 profInfoItem.layer_type[0] = '\0';
             }
@@ -222,8 +224,8 @@ static void parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
             profInfoItem.stall_cycles = output_upa[currentPos].stall_cycles;
             profInfoItem.task_id = upa_taskListId;
 
-            auto typeLen = sizeof(profInfoItem.name) / sizeof(profInfoItem.name[0]);
-            auto length = taskName.copy(profInfoItem.name, typeLen, 0);
+            const auto nameLen = sizeof(profInfoItem.name) / sizeof(profInfoItem.name[0]);
+            const auto length = taskName.copy(profInfoItem.name, nameLen, 0);
             profInfoItem.name[length] = '\0';
             profInfo.push_back(profInfoItem);
         }
@@ -261,7 +263,7 @@ static void parseDPUTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
                 continue;
             }
 
-            TaskInfo profInfoItem;
+            TaskInfo profInfoItem = TaskInfo();
             profInfoItem.layer_type[0] = '\0';
             profInfoItem.exec_type = TaskInfo::ExecType::DPU;
             uint64_t diff = output_dpu[currentPos].end - output_dpu[currentPos].begin;
