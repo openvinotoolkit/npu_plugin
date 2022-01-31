@@ -51,7 +51,7 @@ void PatchWeightsTablePass::safeRunOnFunc() {
     // should be modified by adding relocateWeightTable transformation.
     funcOp.walk([this](vpux::VPUIP::NCEClusterTaskOp nceOp) {
         auto wTable = nceOp.weight_table();
-        if (wTable != nullptr) {
+        if (wTable == nullptr) {
             return;
         }
         auto wtDecBuf = wTable.getDefiningOp<VPURT::DeclareBufferOp>();
