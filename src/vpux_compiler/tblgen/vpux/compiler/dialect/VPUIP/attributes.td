@@ -64,6 +64,7 @@ def VPUIP_NCETaskType :
                 StrEnumAttrCase<"CONV">,
                 StrEnumAttrCase<"DWCONV">,
                 StrEnumAttrCase<"MAXPOOL">,
+                StrEnumAttrCase<"ADA_AVG_POOL">,
                 StrEnumAttrCase<"AVEPOOL">,
                 StrEnumAttrCase<"FCL">,
                 StrEnumAttrCase<"ELTWISE">,
