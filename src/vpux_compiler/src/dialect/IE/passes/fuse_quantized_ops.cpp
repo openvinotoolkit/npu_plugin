@@ -27,12 +27,14 @@ using namespace vpux;
 
 namespace {
 
-bool areAllUsersQuantized(mlir::Operation* op) {
+bool areAllUsersQuantized(mlir::Operation*) {
+#if 0
     for (auto user : op->getUsers()) {
         if (mlir::dyn_cast<IE::QuantizeOp>(user) == nullptr) {
             return false;
         }
     }
+#endif
     return true;
 }
 
@@ -582,6 +584,7 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
         signalPassFailure();
     }
 
+#if 0
     // Remove remaining Quantize->Dequantize sequence to not perform explicit FakeQuantize.
     // This might have slight impact on accuracy but gives visible performance improvement
     // TODO: Evaluate possibility of replacing such sequence with ClampOp fused with DPU task
@@ -595,6 +598,7 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
         }
         dequantizeOp.replaceAllUsesWith(quantizeOp.input());
     });
+#endif
 
 }  // namespace
 
