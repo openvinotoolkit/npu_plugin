@@ -14,7 +14,9 @@
 #include "vpux_compiler.hpp"
 
 #include "vpux.hpp"
+#include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 #include <file_reader.h>
 #include <file_utils.h>
@@ -59,6 +61,7 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& 
 }
 
 vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
+    vpux::Logger logger("CompilerCreate", config.get<LOG_LEVEL>());
 #ifdef OPENVINO_STATIC_LIBRARY
     // use vpux compiler
     (void)(config);
@@ -69,12 +72,15 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
 
     switch (compilerType) {
     case InferenceEngine::VPUXConfigParams::CompilerType::MCM: {
+        logger.info("MCM compiler will be used.");
         return std::make_shared<Compiler>(getLibFilePath("vpux_mcm_frontend"));
     }
     case InferenceEngine::VPUXConfigParams::CompilerType::MLIR: {
+        logger.info("MLIR compiler will be used.");
         return std::make_shared<Compiler>(getLibFilePath("vpux_mlir_compiler"));
     }
     case InferenceEngine::VPUXConfigParams::CompilerType::DRIVER: {
+        logger.info("Driver compiler will be used.");
         return std::make_shared<Compiler>(getLibFilePath("vpux_driver_compiler_adapter"));
     }
     default:
