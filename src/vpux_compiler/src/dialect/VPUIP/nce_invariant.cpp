@@ -738,10 +738,12 @@ SmallVector<mlir::ShapedType> getRequiredOperandsForPrefetch(IE::GroupConvolutio
 
     const auto& curTileTypes = getTileTypes(origOp, curTile);
     const auto& nextTileTypes = getTileTypes(origOp, nextTile);
-    SmallVector<mlir::ShapedType> requiredOperands{curTileTypes[0], getAlignedFilterType(curTileTypes), curTileTypes[2],
-                                                   nextTileTypes[0]};
+    SmallVector<mlir::ShapedType> requiredOperands{curTileTypes[0], getAlignedFilterType(curTileTypes),
+                                                   curTileTypes[2]};
     if (isWeightPrefetch) {
         requiredOperands.push_back(getAlignedFilterType(nextTileTypes));
+    } else {
+        requiredOperands.push_back(nextTileTypes[0]);
     }
     return requiredOperands;
 }
