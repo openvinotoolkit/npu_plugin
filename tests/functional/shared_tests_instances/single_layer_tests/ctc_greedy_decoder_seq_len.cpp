@@ -28,7 +28,7 @@ class KmbCTCGreedyDecoderSeqLenLayerTest
         if (isCompilerMCM()) {
             throw LayerTestsUtils::KmbSkipTestException("failing compilation");
         } else {
-            throw LayerTestsUtils::KmbSkipTestException("differs from the reference");
+            //throw LayerTestsUtils::KmbSkipTestException("differs from the reference");
         }
     }
 };
