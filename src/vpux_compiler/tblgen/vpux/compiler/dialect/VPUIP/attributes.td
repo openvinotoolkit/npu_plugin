@@ -27,6 +27,7 @@ def VPUIP_PoolLayerType :
             "Type of Pooling layer",
             [
                 StrEnumAttrCase<"MAX">,
+                StrEnumAttrCase<"ADA_AVG_POOL">,
                 StrEnumAttrCase<"AVG">,
             ]
         > {

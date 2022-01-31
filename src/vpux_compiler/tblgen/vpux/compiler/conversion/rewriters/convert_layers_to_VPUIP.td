@@ -79,10 +79,16 @@ def RewriteSoftMax :
 // IERT.AdaAvgPool -> VPUIP.PoolingUPA
 //
 
+def createAdaAvgPoolUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PoolingUPAOp>(
+                $_loc, $0, $1, $2)
+        }]>;
+
 def RewriteAdaAvgPool :
         Pat<
             (IERT_AdaAvgPoolOp $input1, $input2, $output),
-            (createAvgPoolingUPAOp<"ADA_AVG_POOL"> $input1, $input2, $output)
+            (createAdaAvgPoolUPAOp $input1, $input2, $output)
         >;
 
 //
