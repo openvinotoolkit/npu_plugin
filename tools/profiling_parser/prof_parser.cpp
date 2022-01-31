@@ -15,7 +15,6 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <sys/stat.h>
 #include <ie_version.hpp>
 
 #include <gflags/gflags.h>
@@ -31,15 +30,18 @@ DEFINE_string(f, "json", "Format to use (text or json)");
 DEFINE_string(o, "", "Output file, stdout by default");
 
 static bool validateFile(const char* flagName, const std::string& pathToFile) {
-    struct stat file_stat;
     if(pathToFile.empty()) {
         // Default value must fail validation
         return false;
     }
-    const bool isValid = stat(pathToFile.c_str(), &file_stat) == 0;
-    if (!isValid) {
-        char* errorString = strerror(errno);
-        std::cerr << "Got \"" << errorString << "\" error when parsing argument \""
+    std::ifstream ifile;
+    ifile.open(pathToFile);
+
+    const bool isValid = ifile.good();
+    if (isValid) {
+        ifile.close();
+    } else {
+        std::cerr << "Got error when parsing argument \""
                   << flagName << "\" with value " << pathToFile << std::endl;
     }
     return isValid;
@@ -80,22 +82,24 @@ int main(int argc, char** argv)
     const OutputType format = (FLAGS_f == "text") ? OutputType::TEXT : OutputType::JSON;
     
     std::ifstream blob_file;
-    struct stat blob_stat;
-    stat(blobPath.c_str(), &blob_stat);
-    std::vector<char> blob_bin(blob_stat.st_size);
     blob_file.open(blobPath, std::ios::in | std::ios::binary);
-    blob_file.read((char*)blob_bin.data(), blob_stat.st_size);
+    blob_file.seekg (0, blob_file.end);
+    const int blob_length = static_cast<int>(blob_file.tellg());
+    blob_file.seekg (0, blob_file.beg);
+    std::vector<char> blob_bin(blob_length);
+    blob_file.read((char*)blob_bin.data(), blob_length);
     blob_file.close();
 
     std::fstream profiling_results;
-    struct stat output_stat;
-    stat(profResult.c_str(), &output_stat);
-    std::vector<uint32_t> output_bin(output_stat.st_size/4);
     profiling_results.open(profResult, std::ios::in | std::ios::binary);
-    profiling_results.read((char*)output_bin.data(), output_stat.st_size);
+    profiling_results.seekg (0, profiling_results.end);
+    const int profiling_length = static_cast<int>(profiling_results.tellg());
+    profiling_results.seekg (0, profiling_results.beg);
+    std::vector<char> output_bin(profiling_length);
+    profiling_results.read((char*)output_bin.data(), profiling_length);
     profiling_results.close();
 
-    const auto profilingData = std::make_pair(static_cast<const void*>(output_bin.data()), output_stat.st_size);
+    const auto profilingData = std::make_pair(static_cast<const void*>(output_bin.data()), profiling_length);
 
     vpux::profiling::outputWriter(format, blob_bin, profilingData, FLAGS_o);
 

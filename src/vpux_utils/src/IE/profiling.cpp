@@ -71,7 +71,7 @@ std::map<std::string, ie::InferenceEngineProfileInfo> vpux::profiling::convertPr
             strncpy(info.exec_type, "DMA", typeLen - 1);
         }
         info.cpu_uSec = (layer.dma_ns + layer.sw_ns + layer.dpu_ns) / 1000;
-        typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
+        typeLen = sizeof(info.layer_type);
         strncpy(info.layer_type, layer.layer_type, typeLen - 1);
         perfCounts[name] = info;
     }
