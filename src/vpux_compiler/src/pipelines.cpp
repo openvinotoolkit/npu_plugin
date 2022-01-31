@@ -194,6 +194,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     }
 
     pm.addPass(IE::createConvertToMemPermutePass(log));
+    pm.addPass(IE::createSwapPermuteWithExpandPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     pm.addPass(IE::createIsolatedTilingPass(log));
@@ -321,6 +322,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     }
 
     pm.addPass(IE::createConvertToMemPermutePass(log));
+    pm.addPass(IE::createSwapPermuteWithExpandPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     pm.addPass(IE::createPrefetchTilingPass(log));

@@ -195,6 +195,11 @@ It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
 ### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
 This pass is needed for MTL only since HW MaxPool does not support post-op operations.
 Operations are swapped only if there is an operation before MaxPool that supports post-ops.
+### `-swap-permute-with-expand`: Swaps MemPermute operation with Expand
+The pass is a part of `HardwareMode` pipeline.
+
+It swaps `MemPermute` operation with `Expand` operation when possible.
+This transormation reduces the number of `MemPermute` operations in resulting graph.
 ### `-swap-transpose-with-fq`: Swaps Transpose operation with FakeQuantize
 The pass is a part of `HardwareMode` pipeline.
 

@@ -109,6 +109,7 @@ std::unique_ptr<mlir::Pass> createConvertDepth2SpaceLayerPass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createInsertMaxpoolToConcatLReluPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapTransposeWithFQPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createInsertReorderBetweenTransposeAndConcatPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSwapPermuteWithExpandPass(Logger log = Logger::global());
 
 //
 // LowPrecision
