@@ -25,6 +25,8 @@
 
 using namespace vpux;
 
+namespace {
+
 bool areAllUsersQuantized(mlir::Operation* op) {
     for (auto user : op->getUsers()) {
         if (mlir::dyn_cast<IE::QuantizeOp>(user) == nullptr) {
@@ -33,8 +35,6 @@ bool areAllUsersQuantized(mlir::Operation* op) {
     }
     return true;
 }
-
-namespace {
 
 //
 // FuseWithConv
@@ -594,16 +594,6 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
             return;
         }
         dequantizeOp.replaceAllUsesWith(quantizeOp.input());
-    });
-    func.walk([this](vpux::IE::DequantizeOp dequantizeOp) {
-        if (dequantizeOp->getUses().empty()) {
-            dequantizeOp->erase();
-        }
-    });
-    func.walk([this](vpux::IE::QuantizeOp quantizeOp) {
-        if (quantizeOp->getUses().empty()) {
-            quantizeOp->erase();
-        }
     });
 
 }  // namespace
