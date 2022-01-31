@@ -51,7 +51,7 @@ void PatchWeightsTablePass::safeRunOnFunc() {
     // should be modified by adding relocateWeightTable transformation.
     funcOp.walk([this](vpux::VPUIP::NCEClusterTaskOp nceOp) {
         auto wTable = nceOp.weight_table();
-        if (!wTable) {
+        if (wTable != nullptr) {
             return;
         }
         auto wtDecBuf = wTable.getDefiningOp<VPURT::DeclareBufferOp>();
@@ -64,8 +64,7 @@ void PatchWeightsTablePass::safeRunOnFunc() {
                 break;
             }
         }
-        VPUX_THROW_UNLESS(((dmaOp != nullptr) && (dmaOp.output_buff() == wtBuffResult)),
-                          "DmaOp expected, but not found for the weight table");
+        VPUX_THROW_UNLESS(dmaOp != nullptr, "DmaOp expected, but not found for the weight table");
         const auto dmaInput = dmaOp.input();
         auto cst = dmaInput.getDefiningOp<Const::DeclareOp>();
         VPUX_THROW_UNLESS(cst != nullptr, "Constant expected as DMA input for weights table.");
@@ -91,12 +90,12 @@ void PatchWeightsTablePass::relocateWeightsTable(Const::DeclareOp cst, VPUIP::NN
     auto origConstAttr = cst.contentAttr();
     // Create new attribute based on existing one by adding new relocateWeightTable
     // transformation
-    Const::ContentAttr newConstAttr = origConstAttr.relocateWeightsTablePointers(weightBasePointer, sparsityBasePtr);
+    auto newConstAttr = origConstAttr.relocateWeightsTablePointers(weightBasePointer, sparsityBasePtr);
     mlir::OpBuilder builder(cst);
 
     // Create new DeclareOp with the new content attribute and replace the old DeclareOp
     // with it
-    Const::DeclareOp newConstOp = builder.create<Const::DeclareOp>(cst.getLoc(), cst.output().getType(), newConstAttr);
+    auto newConstOp = builder.create<Const::DeclareOp>(cst.getLoc(), cst.output().getType(), newConstAttr);
     dmaOp.setOperand(0, newConstOp.output());
     if (cst->getUses().empty()) {
         cst.erase();
@@ -107,7 +106,7 @@ uint64_t PatchWeightsTablePass::getPointer(mlir::Value value, uint64_t defaultVa
     if (value == nullptr) {
         return defaultValue;
     }
-    auto valueDeclareBuffer = llvm::dyn_cast<VPURT::DeclareBufferOp>(value.getDefiningOp());
+    auto valueDeclareBuffer = mlir::dyn_cast<VPURT::DeclareBufferOp>(value.getDefiningOp());
     if (valueDeclareBuffer == nullptr) {
         return defaultValue;
     }
