@@ -359,8 +359,10 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
         auto newOutSubView = rewriter.create<IERT::SubViewOp>(copyOutSubViews[idx].getLoc(), newConcat.output(),
                                                               copyOutSubViews[idx].static_offsetsAttr(),
                                                               copyOutSubViews[idx].static_sizesAttr());
+        copyOutSubViews[idx].result().replaceAllUsesWith(newOutSubView);
         copyOutOpsWithSubView[idx].output().replaceAllUsesWith(newOutSubView);
         copyOutOpsWithSubView[idx].output_buff().replaceAllUsesWith(newOutSubView);
+        copyOutOpsWithSubView[idx].erase();
     }
     for (size_t idx = 0; idx < copyOutOps.size(); idx++) {
         // Case 2. Without child streaming
