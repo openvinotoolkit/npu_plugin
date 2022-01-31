@@ -302,7 +302,7 @@
 
         {
             "name" : "BDK_tf_FP16-INT8_yolo_v4_tiny",
-            "ir" : "models/clientmodels/BDK3/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
+            "ir" : "models/clientmodels/BDK4/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -332,7 +332,7 @@
                 "subsample_size": 10
             },
             "CI-options" : {
-                "blob_name" : "yolo_v4_tiny"
+                "blob_name" : "bdk_yolo_v4_tiny"
             }
         },
 
@@ -434,7 +434,7 @@
 
         {
             "name" : "BDK_FP16-INT8_yolo-v2-tiny-ava-0001",
-            "ir" : "models/clientmodels/BDK3/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
+            "ir" : "models/clientmodels/BDK4/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -461,13 +461,13 @@
                 ]
             },
             "CI-options" : {
-                "blob_name" : "yolo-v2-tiny-ava-0001_tf"
+                "blob_name" : "bdk_yolo-v2-tiny-ava-0001_tf"
             }
         },
 
         {
             "name" : "BDK_FP16-INT8_yolo-v2-ava-0001",
-            "ir" : "models/clientmodels/BDK3/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
+            "ir" : "models/clientmodels/BDK4/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -494,13 +494,13 @@
                 "disabled" : true
             },
             "CI-options" : {
-                "blob_name" : "yolo-v2-ava-0001_tf"
+                "blob_name" : "bdk_yolo-v2-ava-0001_tf"
             }
         },
 
         {
             "name" : "BDK_FP16-INT8_googlenet-v1",
-            "ir" : "models/clientmodels/BDK3/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "ir" : "models/clientmodels/BDK4/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -528,13 +528,13 @@
                 ]
             },
             "CI-options" : {
-                "blob_name" : "googlenet-v1_tf"
+                "blob_name" : "bdk_googlenet-v1_tf"
             }
         },
 
         {
             "name" : "BDK_FP16-INT8_googlenet-v3",
-            "ir" : "models/clientmodels/BDK3/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
+            "ir" : "models/clientmodels/BDK4/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -562,13 +562,13 @@
                 ]
             },
             "CI-options" : {
-                "blob_name" : "googlenet-v3_tf"
+                "blob_name" : "bdk_googlenet-v3_tf"
             }
         },
 
         {
             "name" : "BDK_FP16-INT8_squeezenet1.1",
-            "ir" : "models/clientmodels/BDK3/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
+            "ir" : "models/clientmodels/BDK4/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -596,13 +596,13 @@
                 ]
             },
             "CI-options" : {
-                "blob_name" : "squeezenet1-1_cf2"
+                "blob_name" : "bdk_squeezenet1-1_cf2"
             }
         },
 
         {
             "name" : "BDK_FP16-INT8_openpose-pose",
-            "ir" : "models/clientmodels/BDK3/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
+            "ir" : "models/clientmodels/BDK4/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -631,7 +631,7 @@
                 "disabled" : true
             },
             "CI-options" : {
-                "blob_name" : "openpose-pose_cf"
+                "blob_name" : "bdk_openpose-pose_cf"
             }
         },
 
@@ -1943,7 +1943,7 @@
         {
             "name" : "BDK_FP16-INT8_ModelA",
             "ir" : "models/clientmodels/BDK3/ModelA/Surface/INT8/ModelA.xml",
-            "category" : "MCM/precommit/weekly_private",
+            "category" : "MCM/precommit",
             "3720": {
                 "disabled" : true
             },
@@ -2013,7 +2013,7 @@
 
         {
             "name" : "BDK_Deblur_AA",
-            "ir" : "models/clientmodels/BDK3/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml",
+            "ir" : "models/clientmodels/BDK4/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml",
             "category" : "MCM/weekly_private",
             "3900" : {
                 "disabled" : true
@@ -2056,7 +2056,7 @@
         {
             "name" : "BDK_Deblur_AA",
             "ir" : "models/clientmodels/BDK3/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml",
-            "category" : "MLIR/weekly_private",
+            "category" : "MLIR",
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "PERFORMANCE_HINT": "THROUGHPUT",
@@ -2093,7 +2093,7 @@
 
         {
             "name" : "BDK_caffe2_FP16-INT8_mobilenet-v2",
-            "ir" : "models/clientmodels/BDK3/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml",
+            "ir" : "models/clientmodels/BDK4/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -2130,7 +2130,7 @@
         {
             "name" : "BDK_INT8_ModelE_V2",
             "ir" : "models/clientmodels/BDK3/ModelE-V2/Surface/INT8/ModelE-V2.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM",
             "3720": {
                 "disabled" : true
             },
@@ -2166,7 +2166,7 @@
         {
             "name" : "BDK_INT8_ModelE_V3",
             "ir" : "models/clientmodels/BDK3/ModelE-V3/Surface/INT8/ModelE-V3.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM",
             "3720": {
                 "disabled" : true
             },
@@ -2260,7 +2260,7 @@
         {
             "name" : "BDK_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
             "ir" : "models/clientmodels/BDK3/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM",
             "3720": {
                 "disabled" : true
             },
@@ -2297,7 +2297,7 @@
         {
             "name" : "BDK_tf_FP16-INT8_mobilenet-v3-small-1.0-224",
             "ir" : "models/clientmodels/BDK3/mobilenet-v3-small-1.0-224/tf/FP16-INT8/mobilenet-v3-small-1.0-224.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM",
             "3720": {
                 "disabled" : true
             },
@@ -2454,7 +2454,7 @@
         {
             "name" : "BDK_caffe2_FP16-INT8_modnet_photographic_portrait_matting",
             "ir" : "models/clientmodels/BDK3/modnet_photographic_portrait_matting/caffe2/FP16-INT8/modnet_photographic_portrait_matting.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -2491,7 +2491,7 @@
         {
             "name" : "BDK_caffe2_FP16-INT8_modnet_webcam_portrait_matting",
             "ir" : "models/clientmodels/BDK3/modnet_webcam_portrait_matting/caffe2/FP16-INT8/modnet_webcam_portrait_matting.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -2527,7 +2527,7 @@
 
         {
             "name" : "BDK_caffe2_FP16-INT8_resnet-50-pytorch",
-            "ir" : "models/clientmodels/BDK3/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
+            "ir" : "models/clientmodels/BDK4/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -2562,7 +2562,7 @@
 
         {
             "name" : "BDK_FP16-INT8_hg-s8-b1-mpii",
-            "ir" : "models/clientmodels/BDK3/StackedHourglass/Surface/FP16-INT8/hg-s8-b1-mpii.xml",
+            "ir" : "models/clientmodels/BDK4/StackedHourglass/Surface/FP16-INT8/hg-s8-b1-mpii.xml",
             "category" : "MCM/precommit/weekly_private",
             "3720": {
                 "disabled" : true
@@ -2663,7 +2663,7 @@
 
         {
             "name" : "BDK_INT8_StyleTransfer",
-            "ir" : "models/clientmodels/BDK3/StyleTransfer/Cyberlink/INT8/StyleTransfer.xml",
+            "ir" : "models/clientmodels/BDK4/StyleTransfer/Cyberlink/INT8/StyleTransfer.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -2696,7 +2696,7 @@
         },
         {
             "name" : "BDK_FP16-INT8_SuperRes_AA",
-            "ir" : "models/clientmodels/BDK3/SuperRes/AccuracyAware/SuperRes_INT8_AA.xml",
+            "ir" : "models/clientmodels/BDK4/SuperRes/AccuracyAware/SuperRes_INT8_AA.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -2730,7 +2730,7 @@
 
         {
             "name" : "BDK_FP16-INT8_unet-camvid-onnx-0001",
-            "ir" : "models/clientmodels/BDK3/UnetAutoencoder/Surface/FP16-INT8/unet-camvid-onnx-0001.xml",
+            "ir" : "models/clientmodels/BDK4/UnetAutoencoder/Surface/FP16-INT8/unet-camvid-onnx-0001.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -2765,7 +2765,7 @@
         {
             "name" : "BDK_tf_FP16-INT8_yolo_v4",
             "ir" : "models/clientmodels/BDK3/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM",
             "3720": {
                 "disabled" : true
             },
@@ -2800,7 +2800,7 @@
         {
             "name" : "BDK_caffe2_FP16-INT8_yolo_v5m",
             "ir" : "models/clientmodels/BDK3/yolo_v5m/caffe2/FP16-INT8/yolo_v5m.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -2868,7 +2868,7 @@
         {
             "name" : "BDK_tf_FP16-INT8_deeplabv3",
             "ir" : "models/clientmodels/BDK4/deeplabv3/tf/FP16-INT8/deeplabv3_int8.xml",
-            "category" : "MCM",
+            "category" : "MCM/weekly_private",
             "disabled" :  true,
             "3900" : {
                 "disabled" : true
@@ -4122,8 +4122,9 @@
 
         {
             "name" : "BDK_edsr3",
-            "ir" : "models/clientmodels/BDK3/edsr3/FP16-INT8/edsr.xml",
+            "ir" : "models/clientmodels/BDK4/edsr3/FP16-INT8/edsr3.xml",
             "category" : "MCM/weekly_private",
+            "disabled" :  true,
             "3900" : {
                 "disabled" : true
             },
@@ -4160,8 +4161,8 @@
         },
 
         {
-            "name" : "BDK3_caffe2_FP16-INT8_modnet_custom",
-            "ir" : "models/clientmodels/BDK3/modnet_custom/onnx/FP16-INT8/modnet_custom.xml",
+            "name" : "BDK_caffe2_FP16-INT8_modnet_custom",
+            "ir" : "models/clientmodels/BDK4/modnet_custom/onnx/FP16-INT8/modnet_custom.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -4188,7 +4189,7 @@
                 "subsample_size": 50
             },
             "CI-options" : {
-                "blob_name" : "bdk3_modnet_custom",
+                "blob_name" : "bdk_modnet_custom",
                 "special" : true
             }
         },
