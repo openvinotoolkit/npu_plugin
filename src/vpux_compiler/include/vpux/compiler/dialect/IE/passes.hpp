@@ -103,6 +103,7 @@ std::unique_ptr<mlir::Pass> createSwapMaxPoolWithActivation(Logger log = Logger:
 std::unique_ptr<mlir::Pass> createConvertDeconv2DToConv2DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertDepth2SpaceLayerPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapTransposeWithFQPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSwapPermuteWithExpandPass(Logger log = Logger::global());
 
 //
 // LowPrecision
