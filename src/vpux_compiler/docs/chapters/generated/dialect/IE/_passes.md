@@ -175,6 +175,11 @@ It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
 ### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
 This pass is needed for MTL only since HW MaxPool does not support post-op operations.
 Operations are swapped only if there is an operation before MaxPool that supports post-ops.
+### `-swap-transpose-with-fq`: Swaps Transpose operation with FakeQuantize
+The pass is a part of `HardwareMode` pipeline.
+
+It swaps `Transpose` operation with per-tensor `FakeQuantize` operation when possible.
+This transormation reduces the number of `MemPermute` operations in resulting graph.
 ### `-uniquify-ops`: Remove duplicating operations with a common producer Value
 The pass is a part of `AdjustForVPU` pipeline.
 

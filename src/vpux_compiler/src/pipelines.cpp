@@ -158,6 +158,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     IE::buildAdjustForVPUPipeline(pm, log);
 
+    pm.addPass(IE::createSwapTransposeWithFQPass(log));
     if (options.enableConvertScaleShiftDW) {
         pm.addPass(IE::createConvertScaleShiftToDWPass(log));
     }
@@ -278,6 +279,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     IE::buildAdjustForVPUPipeline(pm, log);
 
+    pm.addPass(IE::createSwapTransposeWithFQPass(log));
     if (options.enableConvertScaleShiftDW) {
         pm.addPass(IE::createConvertScaleShiftToDWPass(log));
     }

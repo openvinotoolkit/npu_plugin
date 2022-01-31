@@ -919,4 +919,25 @@ def IsolatedTiling : PassBase<"isolated-tiling", "vpux::FunctionPass"> {
     let constructor = "vpux::IE::createIsolatedTilingPass()";
 }
 
+//
+// SwapTransposeWithFQ
+//
+
+def SwapTransposeWithFQ : PassBase<"swap-transpose-with-fq", "vpux::FunctionPass"> {
+    let summary = "Swaps Transpose operation with FakeQuantize";
+
+    let description = [{
+        The pass is a part of `HardwareMode` pipeline.
+
+        It swaps `Transpose` operation with per-tensor `FakeQuantize` operation when possible.
+        This transormation reduces the number of `MemPermute` operations in resulting graph.
+    }];
+
+    let constructor = "vpux::IE::createSwapTransposeWithFQPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 #endif
