@@ -34,7 +34,7 @@ ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${EN
 ie_option(ENABLE_KMB_SAMPLES "Enable KMB samples" OFF)
 
 set(HAVE_HDDL_UNITE_PACKAGE FALSE)
-if(X86_64 AND LINUX)
+if(X86_64 AND LINUX AND LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
     set(HAVE_HDDL_UNITE_PACKAGE TRUE)
 endif()
 # TODO: [Track number: S#46168] Investigate hddlunite build issue for ARM
