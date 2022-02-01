@@ -46,6 +46,53 @@ mlir::LogicalResult verifyOp(NCEMaxPoolOp op);
 mlir::LogicalResult verifyOp(NCEClusterTilingOp op);
 mlir::LogicalResult verifyOp(YieldOp op);
 
+//
+// Tiling
+//
+
+// Adjust paddings attributes for tiled input
+template <typename ConcreteOp>
+void adjustPaddings(ConcreteOp* op, const TilingInfo& inputTiling) {
+    VPUX_THROW_UNLESS(inputTiling.pads.hasValue(), "Missing tile information for paddings");
+
+    auto newPadAttr = getPaddingAttr(op->getContext(), inputTiling.pads.getValue());
+
+    op->padAttr(newPadAttr);
+}
+
+// Adjust bias attribute for specific output tile
+template <typename ConcreteOp>
+void adjustBias(ConcreteOp* op, const TileInfo& outputTile) {
+    const auto fullBiasAttr = op->biasAttr();
+    if (fullBiasAttr == nullptr) {
+        return;
+    }
+
+    auto biasTileOffset = Shape(outputTile.offsets);
+    auto biasTileShape = Shape(outputTile.shape);
+    for (const auto axis : {Dims4D::Act::N, Dims4D::Act::H, Dims4D::Act::W}) {
+        biasTileOffset[axis] = 0;
+        biasTileShape[axis] = 1;
+    }
+
+    auto newBiasAttr = fullBiasAttr.subview(biasTileOffset, biasTileShape);
+    op->biasAttr(newBiasAttr);
+}
+
+// Adjust rawFilterShape attribute for specific output tile
+template <typename ConcreteOp>
+void adjustRawFilterShape(ConcreteOp* op, const TileInfo& outputTile) {
+    auto newRawFilterShape = Shape(parseIntArrayAttr<int64_t>(op->rawFilterShape()));
+
+    newRawFilterShape[Dims4D::Filter::OC] = outputTile.shape[Dims4D::Act::C];
+
+    op->rawFilterShapeAttr(getIntArrayAttr(op->getContext(), newRawFilterShape));
+}
+
+//
+// Misc
+//
+
 void print(mlir::OpAsmPrinter& p, VPU::NCEClusterTilingOp op);
 mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);
 
