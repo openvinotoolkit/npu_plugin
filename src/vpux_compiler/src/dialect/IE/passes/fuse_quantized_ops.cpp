@@ -582,20 +582,6 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
         signalPassFailure();
     }
 
-    // Remove remaining Quantize->Dequantize sequence to not perform explicit FakeQuantize.
-    // This might have slight impact on accuracy but gives visible performance improvement
-    // TODO: Evaluate possibility of replacing such sequence with ClampOp fused with DPU task
-    func.walk([this](vpux::IE::QuantizeOp quantizeOp) {
-        if (!quantizeOp->hasOneUse()) {
-            return;
-        }
-        auto dequantizeOp = mlir::dyn_cast<vpux::IE::DequantizeOp>(*quantizeOp->getUsers().begin());
-        if (dequantizeOp == nullptr) {
-            return;
-        }
-        dequantizeOp.replaceAllUsesWith(quantizeOp.input());
-    });
-
 }  // namespace
 
 }  // namespace

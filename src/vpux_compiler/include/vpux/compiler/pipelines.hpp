@@ -99,6 +99,10 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
     BoolOption enableLowPrecision{*this, "low-precision", llvm::cl::desc("Enable low-precision pipeline building"),
                                   llvm::cl::init(true)};
 
+    BoolOption enableQuantDequantRemoval{*this, "quant-dequant-removal",
+                                         llvm::cl::desc("Enable quantize->dequantize sequence removal"),
+                                         llvm::cl::init(false)};
+
     BoolOption enableExpandActivationChannels{*this, "expand-activation-channels",
                                               llvm::cl::desc("Enable expand-activation-channels pass"),
                                               llvm::cl::init(true)};
@@ -159,6 +163,10 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 
     BoolOption enableLowPrecision{*this, "low-precision", llvm::cl::desc("Enable low-precision pipeline building"),
                                   llvm::cl::init(true)};
+
+    BoolOption enableQuantDequntRemoval{*this, "quant-dequant-removal",
+                                        llvm::cl::desc("Enable quantize->dequantize sequence removal"),
+                                        llvm::cl::init(false)};
 
     BoolOption enableUpstreamSlice{*this, "upstream-slice", llvm::cl::desc("Enable upstream-slice pipeline building"),
                                    llvm::cl::init(true)};
