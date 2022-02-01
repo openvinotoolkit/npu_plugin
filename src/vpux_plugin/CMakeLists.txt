@@ -121,7 +121,20 @@ if(AARCH64)
                     $<TARGET_PROPERTY:XLink,IMPORTED_LOCATION_NOCONFIG>
                     $<TARGET_PROPERTY:RemoteFlic,IMPORTED_LOCATION_NOCONFIG>
             DESTINATION ${IE_CPACK_LIBRARY_PATH}
-            COMPONENT ${VPUX_PLUGIN_COMPONENT})
+            COMPONENT ${VPUX_TESTS_COMPONENT}
+            EXCLUDE_FROM_ALL
+    )
+
+    # TODO: Remove duplication EISW-31024
+    install(FILES   $<TARGET_PROPERTY:NN,IMPORTED_LOCATION_NOCONFIG>
+                    $<TARGET_PROPERTY:VpualDispatcher,IMPORTED_LOCATION_NOCONFIG>
+                    $<TARGET_PROPERTY:sipp_custom,IMPORTED_LOCATION_NOCONFIG>
+                    $<TARGET_PROPERTY:XLink,IMPORTED_LOCATION_NOCONFIG>
+                    $<TARGET_PROPERTY:RemoteFlic,IMPORTED_LOCATION_NOCONFIG>
+            DESTINATION ${IE_CPACK_LIBRARY_PATH}
+            COMPONENT tests
+            EXCLUDE_FROM_ALL
+    )
 endif()
 
 set(ALL_PLUGINS)
@@ -166,13 +179,28 @@ if(AARCH64)
 
     install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/"
             DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpu"
-            COMPONENT    ${VPUX_PLUGIN_COMPONENT}
+            COMPONENT    ${VPUX_TESTS_COMPONENT}
+            EXCLUDE_FROM_ALL
             FILES_MATCHING
             PATTERN "*.bin")
 
     install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/lib/"
             DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpu"
-            COMPONENT    ${VPUX_PLUGIN_COMPONENT})
+            COMPONENT    ${VPUX_TESTS_COMPONENT}
+            EXCLUDE_FROM_ALL)
+
+    # TODO: Remove duplication EISW-31024
+    install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/"
+            DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpu"
+            COMPONENT    tests
+            EXCLUDE_FROM_ALL
+            FILES_MATCHING
+            PATTERN "*.bin")
+
+    install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/lib/"
+            DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpu"
+            COMPONENT    tests
+            EXCLUDE_FROM_ALL)
 endif()
 
 if(ENABLE_HDDL2 AND UNIX)

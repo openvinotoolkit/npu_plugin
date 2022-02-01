@@ -378,20 +378,48 @@ if(ENABLE_HDDL2 AND UNIX AND LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
 
         install(DIRECTORY   "${HDDL_UNITE}/lib/"
                 DESTINATION "${HDDL_UNITE_INSTALL_DIR}/lib"
-                COMPONENT   ${VPUX_PLUGIN_COMPONENT})
+                COMPONENT   ${VPUX_TESTS_COMPONENT}
+                EXCLUDE_FROM_ALL)
 
         install(DIRECTORY   "${HDDL_UNITE}/thirdparty/XLink/lib/"
                 DESTINATION "${HDDL_UNITE_INSTALL_DIR}/thirdparty/XLink/lib"
-                COMPONENT   ${VPUX_PLUGIN_COMPONENT})
+                COMPONENT   ${VPUX_TESTS_COMPONENT}
+                EXCLUDE_FROM_ALL)
 
         set(HDDL_UNITE_VPUX_4_INSTALL_DIR "${IE_CPACK_LIBRARY_PATH}/vpux_4/hddl_unite")
 
         install(DIRECTORY   "${TEMP}/vpux_4/hddl_unite/lib/"
                 DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/lib"
-                COMPONENT   ${VPUX_PLUGIN_COMPONENT})
+                COMPONENT   ${VPUX_TESTS_COMPONENT}
+                EXCLUDE_FROM_ALL)
         
         install(DIRECTORY   "${TEMP}/vpux_4/hddl_unite/thirdparty/XLink/lib/"
                 DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/thirdparty/XLink/lib"
-                COMPONENT   ${VPUX_PLUGIN_COMPONENT})                
+                COMPONENT   ${VPUX_TESTS_COMPONENT}
+                EXCLUDE_FROM_ALL)
+
+        # TODO: Remove duplication EISW-31024
+        install(DIRECTORY   "${HDDL_UNITE}/lib/"
+                DESTINATION "${HDDL_UNITE_INSTALL_DIR}/lib"
+                COMPONENT   tests
+                EXCLUDE_FROM_ALL)
+
+        install(DIRECTORY   "${HDDL_UNITE}/thirdparty/XLink/lib/"
+                DESTINATION "${HDDL_UNITE_INSTALL_DIR}/thirdparty/XLink/lib"
+                COMPONENT   tests
+                EXCLUDE_FROM_ALL)
+
+        set(HDDL_UNITE_VPUX_4_INSTALL_DIR "${IE_CPACK_LIBRARY_PATH}/vpux_4/hddl_unite")
+
+        install(DIRECTORY   "${TEMP}/vpux_4/hddl_unite/lib/"
+                DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/lib"
+                COMPONENT   tests
+                EXCLUDE_FROM_ALL)
+
+        install(DIRECTORY   "${TEMP}/vpux_4/hddl_unite/thirdparty/XLink/lib/"
+                DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/thirdparty/XLink/lib"
+                COMPONENT   tests
+                EXCLUDE_FROM_ALL)
+
     endif()
 endif()
