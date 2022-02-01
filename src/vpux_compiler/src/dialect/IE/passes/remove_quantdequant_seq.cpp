@@ -13,16 +13,6 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
-#include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-
-#include <mlir/Dialect/Quant/QuantTypes.h>
-#include <mlir/IR/PatternMatch.h>
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
 using namespace vpux;
 
 namespace {

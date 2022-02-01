@@ -581,8 +581,7 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
-
-}  // namespace
+}
 
 }  // namespace
 
