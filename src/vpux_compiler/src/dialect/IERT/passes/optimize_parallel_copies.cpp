@@ -56,9 +56,9 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
 
     // Temporally disable the optimization for constant nodes, like weights, activation_windows, etc.
     // [Track number: E#28833]
-    if (mlir::isa<Const::DeclareOp>(parentOp)) {
-        return false;
-    }
+    // if (mlir::isa<Const::DeclareOp>(parentOp)) {
+    //     return false;
+    // }
     bool hasSubView = false;
     auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(copyOp.input().getDefiningOp());
     if (mlir::isa<IERT::SubViewOp>(parentOp)) {
