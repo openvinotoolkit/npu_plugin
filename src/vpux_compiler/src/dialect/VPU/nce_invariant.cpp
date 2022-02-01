@@ -194,6 +194,10 @@ bool vpux::VPU::NCEInvariant::isChannelMajorCompatible(ArchKind arch, mlir::Shap
     }
 
     const auto inputShape = getShape(inputType);
+    if (inputShape.size() < 4) {
+        return false;
+    }
+
     const auto IC = inputShape[Dims4D::Act::C];
     const auto IW = inputShape[Dims4D::Act::W];
 
