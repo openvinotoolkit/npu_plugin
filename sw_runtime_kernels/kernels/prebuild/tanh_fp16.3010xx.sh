@@ -2,22 +2,22 @@
 env_is_set=1
 optimization=-O3
 alwaye_inline=-DCONFIG_ALWAYS_INLINE
-cpunum=3720
+#cpunum=3720  # compiled under 3010 temporarily due to old movi tools (21.12.1-internal) is used on CI
+cpunum=3010
 cpu=${cpunum}xx
 
 if [ ${cpunum} -eq "3720" ]; then USE_3720_INTSTRUCTIONS=-DUSE_3720_INTSTRUCTIONS; fi
 echo USE_3720_INTSTRUCTIONS=${USE_3720_INTSTRUCTIONS}
 
+if [ -z "${KERNEL_DIR}" ]; then KERNEL_DIR=..; fi
 if [ -z ${FIRMWARE_VPU_DIR} ]; then FIRMWARE_VPU_DIR=${VPUIP_2_DIR}; fi
 if [ -z "${MV_TOOLS_DIR}" ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
-if [ -z "${MV_TOOLS_VERSION}" ]; then
-mv_tools_version_str=`grep "mv_tools_version" ../../vpuip_2_revision.txt`
+if [ -z "${MV_TOOLS_VERSION}" ]; then 
+mv_tools_version_str=`grep "mv_tools_version" ${KERNEL_DIR}/../firmware_vpu_revision.txt`
 mv_tools_version_arr=($mv_tools_version_str)
 MV_TOOLS_VERSION=${mv_tools_version_arr[1]}
 if [ -z "${MV_TOOLS_VERSION}" ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
 fi
-if [ -z "${KERNEL_DIR}" ]; then KERNEL_DIR=..; fi
-if [ -z "${FIRMWARE_VPU_DIR}" ]; then echo "FIRMWARE_VPU_DIR is not set"; env_is_set=0; fi
 
 if [ $env_is_set = 0 ]; then exit 1; fi
 
