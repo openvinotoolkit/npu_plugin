@@ -45,19 +45,6 @@ private:
 mlir::LogicalResult GenericConverter::matchAndRewrite(mlir::Operation* postOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got Eltwise operation '{1}' at '{2}'", getDebugName(), postOp->getName(), postOp->getLoc());
 
-    if (mlir::isa<IE::PReluOp>(postOp)) {
-        auto pReluOp = mlir::cast<IE::PReluOp>(postOp);
-        auto slopes = pReluOp.negative_slope().getDefiningOp<Const::DeclareOp>();
-        const auto slopesContent = slopes.content();
-        if (slopesContent.isSplat()) {
-            auto slope = slopesContent.getSplatValue<double>();
-            rewriter.replaceOpWithNewOp<IE::LeakyReluOp>(pReluOp, pReluOp.input(),
-                                                         getFPAttr(pReluOp->getContext(), slope));
-            return matchFailed(_log, rewriter, postOp,
-                               "PRelu with same slope values is replaced by LeakyRelu for later fusing");
-        }
-    }
-
     if (!postOp->getOperand(0).hasOneUse()) {
         return matchFailed(_log, rewriter, postOp, "PostOp is not the only user of its input Value");
     }
@@ -79,23 +66,6 @@ mlir::LogicalResult GenericConverter::matchAndRewrite(mlir::Operation* postOp, m
         return matchFailed(_log, rewriter, postOp,
                            "Only single input operation can be attached as PostOp via attributes. Got '{0}' inputs",
                            postOp->getNumOperands());
-    }
-
-    // FIXME fuse LeakyRelu using PWL here
-    const auto isQuantized = [](mlir::Operation* op, mlir::Operation* postOp) -> bool {
-        auto isFakeQuantizeOpInput = mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(op->getOperand(0).getDefiningOp());
-        auto isFakeQuantizeOpOutput = false;
-        for (auto user : postOp->getUsers()) {
-            if (mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(user)) {
-                isFakeQuantizeOpOutput = true;
-                break;
-            }
-        }
-        return isFakeQuantizeOpOutput || isFakeQuantizeOpInput;
-    };
-
-    if (mlir::isa<IE::LeakyReluOp>(postOp) && isQuantized(producerOp, postOp)) {
-        return matchFailed(_log, rewriter, postOp, "PostOp producer only support fusing Leakyrelu with FP16");
     }
 
     producerOp.setPostOp(postOp);

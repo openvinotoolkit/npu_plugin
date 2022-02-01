@@ -49,6 +49,8 @@ std::vector<int32_t> getWeightsTable(mlir::Type inElemType, mlir::Type outElemTy
                                      int64_t OC, mlir::Type weightsElemType = nullptr,
                                      Const::ContentAttr bias = nullptr, VPU::PPETaskAttr ppe = nullptr);
 
+void computeQuantMultShift(double scale, int64_t& shift, int64_t& mult, uint32_t bits = 15);
+
 }  // namespace NCESparsity
 
 }  // namespace VPU

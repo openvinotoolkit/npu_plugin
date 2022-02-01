@@ -377,7 +377,6 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
     //
     const auto outputBuffer = allocateResult(origOp.getLoc(), rewriter, *typeConverter, origOp.output());
 
-
     auto weightsTable =
             createWeightsTableTensor(rewriter, origOp->getLoc(), OC, newArgs.input(), outputBuffer, newArgs.filter(),
                                      activationWindow, origOp.biasAttr(), origOp.ppeAttr());
