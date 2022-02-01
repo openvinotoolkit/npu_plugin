@@ -135,7 +135,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
 
     // track the level of the current compute op
     size_t currentComputeOpLevel;
-    size_t bracketForCMXFragmentation = 91600;  // 10% of cmx
+    size_t bracketForCMXFragmentation = 90000;  // 10% of cmx
     auto computeOp = _scheduledOps.begin();
     // skip input op, mark input as executed
     _executedOps.insert(computeOp->op_);
@@ -178,8 +178,17 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                         ++temp;
                     }
 
-                    if (dataOpSize < maxFreeSize && computeOp->time_ <= dataOp->time_ &&
-                        maxFreeSize - dataOpSize > bracketForCMXFragmentation) {
+                    // work-arround for MSFT models performance
+                    bool prevOp = computeOp->time_ + 1 == dataOp->time_;
+                    bool dataGreater = computeOp->resourceSize() < dataOp->resourceSize();
+                    bool dataStall = (dataOp->resourceSize() / computeOp->resourceSize()) > 5;
+                    bool sizeExceed = (maxFreeSize - dataOpSize) < bracketForCMXFragmentation;
+                    bool hasPrefetch = !_prefetchEdges[computeOp->op_].empty();
+
+                    bool fragmentation = (!prevOp && sizeExceed) ||
+                                         (prevOp && sizeExceed && (!dataGreater || dataStall) && !hasPrefetch);
+
+                    if (dataOpSize < maxFreeSize && computeOp->time_ <= dataOp->time_ && !fragmentation) {
                         // ensure the data operation will fit through all ops scheduled intermediately
                         _log.trace("data op = '{0}' will fit during compute = '{1}' with time dif = '{2}' and level "
                                    "dif '{3}'",
