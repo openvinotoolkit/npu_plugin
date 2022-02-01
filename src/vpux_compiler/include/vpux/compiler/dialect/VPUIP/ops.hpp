@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"

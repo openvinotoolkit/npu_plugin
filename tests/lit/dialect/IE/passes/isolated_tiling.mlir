@@ -345,12 +345,12 @@ func @MultiAxesAndPerAxisQuant(
 
 func @AvoidClusterTiling(%arg0: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}> {
     %weights = const.Declare tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}> = #const.Content<dense<1.000000e+00> : tensor<128x32x3x3xf16, {mem_space = @CMX_NN}>, [#const.Reorder<#NHWC>]>
-    %wt = const.Declare tensor<128x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}> = #const.Content<dense<10> : tensor<128x1x1x4xsi32, {mem_space = @CMX_NN}>>
+    %weights_table = const.Declare tensor<128x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}> = #const.Content<dense<10> : tensor<128x1x1x4xsi32, {mem_space = @CMX_NN}>>
 
     %0 = VPU.NCE.ClusterTiling (
             %arg0 as %arg1: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>,
             %weights as %arg2: tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>,
-            %wt as %arg3: tensor<128x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
+            %weights_table as %arg3: tensor<128x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
                 -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}> {
       %1 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) {
                 pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
@@ -381,3 +381,155 @@ func @AvoidClusterTiling(%arg0: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, o
 // CHECK:           VPU.Yield [[NCE_CONV]]
 
 // CHECK:         return [[CLUSTER_TILING]] : tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+IE.MemoryResource 3200000 bytes of @CMX_NN
+
+func @SplitNCEConvOverOC(%arg0: tensor<1x32x100x100xf16, {order = #NHWC}>) -> tensor<1x128x100x100xf16, {order = #NHWC}> {
+    %weights = const.Declare tensor<128x32x3x3xf16, {order = #NHWC}> = #const.Content<dense<1.000000e+00> : tensor<128x32x3x3xf16>, [#const.Reorder<#NHWC>]>
+    %weights_table = const.Declare tensor<128x1x1x4xsi32, {order = #NCHW}> = #const.Content<dense<10> : tensor<128x1x1x4xsi32>>
+
+    %0 = VPU.NCE.Convolution(%arg0, %weights, %weights_table) {
+        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+        rawFilterShape = [128, 32, 3, 3],
+        strides = [1, 1]
+    } -> tensor<1x128x100x100xf16, {order = #NHWC}>
+
+    return %0 : tensor<1x128x100x100xf16, {order = #NHWC}>
+}
+
+// CHECK-LABEL:   @SplitNCEConvOverOC
+// CHECK-SAME:          [[INPUT:%arg[0-9]]]: tensor<1x32x100x100xf16, {order = #NHWC}>
+
+// CHECK:        [[WEIGHTS_TABLE_TILE1:%.+]] = const.Declare tensor<64x1x1x4xsi32> = #const.Content<dense<10>
+// CHECK-SAME:      : tensor<128x1x1x4xsi32>, [#const.SubView<[64, 0, 0, 0], [64, 1, 1, 4]>]>
+
+// CHECK:        [[FILTER_TILE1:%.+]] = const.Declare tensor<64x32x3x3xf16, {order = #NHWC}> = #const.Content<dense<1.000000e+00>
+// CHECK-SAME:      : tensor<128x32x3x3xf16>, [#const.Reorder<#NHWC>, #const.SubView<[64, 0, 0, 0], [64, 32, 3, 3]>]>
+
+// CHECK:        [[WEIGHTS_TABLE_TILE0:%.+]] = const.Declare tensor<64x1x1x4xsi32> = #const.Content<dense<10>
+// CHECK-SAME:      : tensor<128x1x1x4xsi32>, [#const.SubView<[0, 0, 0, 0], [64, 1, 1, 4]>]>
+
+// CHECK:        [[FILTER_TILE0:%.+]] = const.Declare tensor<64x32x3x3xf16, {order = #NHWC}> = #const.Content<dense<1.000000e+00>
+// CHECK-SAME:      : tensor<128x32x3x3xf16>, [#const.Reorder<#NHWC>, #const.SubView<[0, 0, 0, 0], [64, 32, 3, 3]>]>
+
+// CHECK:       [[OUTPUT_TILE0:%.+]] = VPU.NCE.Convolution([[INPUT]], [[FILTER_TILE0]], [[WEIGHTS_TABLE_TILE0]])
+// CHECK-SAME:          pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+// CHECK-SAME:          rawFilterShape = [64, 32, 3, 3],
+// CHECK-SAME:          -> tensor<1x64x100x100xf16, {order = #NHWC}>
+
+// CHECK:       [[OUTPUT_TILE1:%.+]] = VPU.NCE.Convolution([[INPUT]], [[FILTER_TILE1]], [[WEIGHTS_TABLE_TILE1]])
+// CHECK-SAME:          pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+// CHECK-SAME:          rawFilterShape = [64, 32, 3, 3],
+// CHECK-SAME:          -> tensor<1x64x100x100xf16, {order = #NHWC}>
+
+// Concat
+
+// CHECK:       [[OUTPUT:%.+]] = IE.Concat([[OUTPUT_TILE0]], [[OUTPUT_TILE1]])
+// CHECK-SAME:          [0, 0, 0, 0], [0, 64, 0, 0]
+// CHECK-SAME:          -> tensor<1x128x100x100xf16, {order = #NHWC}>
+
+// CHECK:       return [[OUTPUT]] : tensor<1x128x100x100xf16, {order = #NHWC}>
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+IE.MemoryResource 400000 bytes of @CMX_NN
+
+func @SplitNCEMaxPoolOverH(%arg0: tensor<1x16x100x100xf16, {order = #NHWC}>) -> tensor<1x16x100x100xf16, {order = #NHWC}> {
+    %weights_table = const.Declare tensor<16x1x1x4xsi32, {order = #NCHW}> = #const.Content<dense<10> : tensor<16x1x1x4xsi32>>
+    %activation_window = const.Declare tensor<1x1x1x16xui8, {order = #NCHW}> = #const.Content<dense<1> : tensor<1x1x1x16xui8>>
+
+    %0 = VPU.NCE.MaxPool(%arg0, %weights_table, %activation_window) {
+        activation_window_channel_length = 18 : i64,
+        kernel_size = [3, 3],
+        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+        strides = [1, 1]
+    } -> tensor<1x16x100x100xf16, {order = #NHWC}>
+
+    return %0 : tensor<1x16x100x100xf16, {order = #NHWC}>
+}
+
+// CHECK-LABEL: @SplitNCEMaxPoolOverH
+// CHECK-SAME:      [[INPUT:%arg[0-9]]]: tensor<1x16x100x100xf16, {order = #NHWC}>)
+
+// CHECK:       [[ACTIVATION_WINDOW:%.+]] = const.Declare tensor<1x1x1x16xui8, {order = #NCHW}>
+// CHECK-SAME:      = #const.Content<dense<1> : tensor<1x1x1x16xui8>>
+
+// CHECK:       [[WEIGHTS_TABLE:%.+]] = const.Declare tensor<16x1x1x4xsi32, {order = #NCHW}>
+// CHECK-SAME:      = #const.Content<dense<10> : tensor<16x1x1x4xsi32>>
+
+// Tile 0
+
+// CHECK:       [[INPUT_TILE0:%.+]] = IE.Slice [[INPUT]] [0, 0, 0, 0] [1, 16, 51, 100]
+// CHECK-SAME:      : tensor<1x16x100x100xf16, {order = #NHWC}>
+// CHECK-SAME:      to tensor<1x16x51x100xf16, {order = #NHWC}>
+
+// CHECK:       [[OUTPUT_TILE0:%.+]] = VPU.NCE.MaxPool([[INPUT_TILE0]], [[WEIGHTS_TABLE]], [[ACTIVATION_WINDOW]]) {
+// CHECK-SAME:      pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+// CHECK-SAME:      } -> tensor<1x16x50x100xf16, {order = #NHWC}>
+
+// Tile 1
+
+// CHECK:       [[INPUT_TILE1:%.+]] = IE.Slice [[INPUT]] [0, 0, 49, 0] [1, 16, 51, 100]
+// CHECK-SAME:      : tensor<1x16x100x100xf16, {order = #NHWC}>
+// CHECK-SAME:      to tensor<1x16x51x100xf16, {order = #NHWC}>
+
+// CHECK:       [[OUTPUT_TILE1:%.+]] = VPU.NCE.MaxPool([[INPUT_TILE1]], [[WEIGHTS_TABLE]], [[ACTIVATION_WINDOW]]) {
+// CHECK-SAME:      pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:      } -> tensor<1x16x50x100xf16, {order = #NHWC}>
+
+// CHECK:       [[OUTPUT:%.+]] = IE.Concat([[OUTPUT_TILE0]], [[OUTPUT_TILE1]])
+// CHECK-SAME:      [0, 0, 0, 0], [0, 0, 50, 0]
+// CHECK-SAME:      -> tensor<1x16x100x100xf16, {order = #NHWC}>
+
+// CHECK:       return [[OUTPUT]] : tensor<1x16x100x100xf16, {order = #NHWC}>
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+IE.MemoryResource 1000000 bytes of @CMX_NN
+
+func @SplitNCEEltwiseAddSameInput(%arg0: tensor<1x1024x14x14xf16, {order = #NHWC}>) -> tensor<1x1024x14x14xf16, {order = #NHWC}> {
+    %0 = VPU.NCE.Eltwise(%arg0, %arg0) {
+        op_type = "ADD",
+        ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64,
+               lrelu_shift = 0 : i64,
+               mode = "ADD"}
+    } -> tensor<1x1024x14x14xf16, {order = #NHWC}>
+
+    return %0 : tensor<1x1024x14x14xf16, {order = #NHWC}>
+}
+
+// CHECK-LABEL: @SplitNCEEltwiseAddSameInput
+// CHECK-SAME:      [[INPUT:%arg[0-9]]]: tensor<1x1024x14x14xf16, {order = #NHWC}>
+
+// Tile 0
+
+// CHECK:       [[INPUT_TILE0:%.+]] = IE.Slice [[INPUT]] [0, 0, 0, 0] [1, 512, 14, 14]
+// CHECK-SAME:      : tensor<1x1024x14x14xf16, {order = #NHWC}>
+// CHECK-SAME:      to tensor<1x512x14x14xf16, {order = #NHWC}>
+
+// CHECK:       [[OUTPUT_TILE0:%.+]] = VPU.NCE.Eltwise([[INPUT_TILE0]], [[INPUT_TILE0]]) {
+// CHECK-SAME:      op_type = "ADD"
+// CHECK-SAME:      } -> tensor<1x512x14x14xf16, {order = #NHWC}>
+
+// CHECK:       [[INPUT_TILE1:%.+]] = IE.Slice [[INPUT]] [0, 512, 0, 0] [1, 512, 14, 14]
+// CHECK-SAME:      : tensor<1x1024x14x14xf16, {order = #NHWC}>
+// CHECK-SAME:      to tensor<1x512x14x14xf16, {order = #NHWC}>
+
+// CHECK:       [[OUTPUT_TILE1:%.+]] = VPU.NCE.Eltwise([[INPUT_TILE1]], [[INPUT_TILE1]]) {
+// CHECK-SAME:      op_type = "ADD"
+// CHECK-SAME:      } -> tensor<1x512x14x14xf16, {order = #NHWC}>
+
+// CHECK:       [[OUTPUT:%.+]] = IE.Concat([[OUTPUT_TILE0]], [[OUTPUT_TILE1]])
+// CHECK-SAME:      [0, 0, 0, 0], [0, 512, 0, 0]
+// CHECK-SAME:      -> tensor<1x1024x14x14xf16, {order = #NHWC}>
+
+// CHECK:       return [[OUTPUT]] : tensor<1x1024x14x14xf16, {order = #NHWC}>

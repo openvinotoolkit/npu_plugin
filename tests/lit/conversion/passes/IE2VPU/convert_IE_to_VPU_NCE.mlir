@@ -87,11 +87,11 @@ func @DepthConvToNCE(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1
 
     return %0 : tensor<1x16x37x73xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST:%.+]] = const.Declare tensor<1x1x1x16xui8>
-    // CHECK:       [[CST1:%.+]] = const.Declare tensor<16x1x1x4xsi32>
-    // CHECK:       [[CST2:%.+]] = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}>
+    // CHECK:       [[ACTIVATION_WINDOW:%.+]] = const.Declare tensor<1x1x1x16xui8>
+    // CHECK:       [[WEIGHTS_TABLE:%.+]] = const.Declare tensor<16x1x1x4xsi32>
+    // CHECK:       [[WEIGHTS:%.+]] = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}>
 
-    // CHECK:       [[OUT:%.+]] = VPU.NCE.DepthConvolution(%arg0, [[CST2]], [[CST1]], [[CST]])
+    // CHECK:       [[OUT:%.+]] = VPU.NCE.DepthConvolution(%arg0, [[WEIGHTS]], [[WEIGHTS_TABLE]], [[ACTIVATION_WINDOW]])
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
     // CHECK-SAME:      ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64,
     // CHECK-SAME:              lrelu_mult = 102 : i64, lrelu_shift = 10 : i64, mode = "LPRELU"},
@@ -119,10 +119,10 @@ func @MaxPoolToNCE(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<1x16x
 
     return %0 : tensor<1x16x1x4xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST:%.+]] = const.Declare tensor<1x1x1x16xui8>
-    // CHECK:       [[CST1:%.+]] = const.Declare tensor<16x1x1x4xsi32>
+    // CHECK:       [[ACTIVATION_WINDOW:%.+]] = const.Declare tensor<1x1x1x16xui8>
+    // CHECK:       [[WEIGHTS_TABLE:%.+]] = const.Declare tensor<16x1x1x4xsi32>
 
-    // CHECK:       [[OUT:%.+]] = VPU.NCE.MaxPool(%arg0, [[CST1]], [[CST]])
+    // CHECK:       [[OUT:%.+]] = VPU.NCE.MaxPool(%arg0, [[WEIGHTS_TABLE]], [[ACTIVATION_WINDOW]])
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
     // CHECK-SAME:      ppe = {clamp_high = 393216 : i64, clamp_low = 0 : i64,
     // CHECK-SAME:              lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "NOOP"},
@@ -145,11 +145,11 @@ func @EltwiseAddToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: ten
 
     return %0 : tensor<1x64x28x28xf16, {order = #NHWC}>
 
-    // CHECK:       [[VAL0:%.+]] = VPU.NCE.Eltwise(%arg0, %arg1)
+    // CHECK:       [[OUT:%.+]] = VPU.NCE.Eltwise(%arg0, %arg1)
     // CHECK-SAME:      op_type = "ADD"
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {order = #NHWC}>
 
-    // CHECK:       return [[VAL0]] : tensor<1x64x28x28xf16, {order = #NHWC}>
+    // CHECK:       return [[OUT]] : tensor<1x64x28x28xf16, {order = #NHWC}>
 }
 
 // -----
