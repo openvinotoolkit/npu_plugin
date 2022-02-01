@@ -293,7 +293,11 @@ mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, OpAdapto
     const auto results = origOp.per_axisAttr() ? rewriteWithAxis(origOp, newArgs, allocatedBufs, rewriter)
                                                : rewriteWithOffsets(origOp, newArgs, allocatedBufs, rewriter);
 
-    rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, results, allocatedBufs[0]);
+    auto newConcat = rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, results, allocatedBufs[0]);
+    if (origOp->hasAttr("CMXConcat")) {
+        // TODO: remove with EISW-25333
+        newConcat->setAttr("CMXConcat", origOp->getAttr("CMXConcat"));
+    }
     return mlir::success();
 }
 

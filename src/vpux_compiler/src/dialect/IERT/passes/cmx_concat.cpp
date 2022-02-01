@@ -195,6 +195,12 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
         return mlir::failure();
     }
 
+    if (!concat->hasAttr("CMXConcat")) {
+        // TODO: remove with EISW-25333
+        // Move CMX pass before replacement passes
+        return mlir::failure();
+    }
+
     /*      ### Concat Input Pattern ###
 
     (Operation)  (SubView)  (Operation)  (SubView)
@@ -369,6 +375,11 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
         copyOutOps[idx].output().replaceAllUsesWith(newConcat.output());
         copyOutOps[idx].output_buff().replaceAllUsesWith(newConcat.output_buff());
     }
+
+    // newConcat.dump();
+
+    newConcat->getLoc().dump();
+    std::cout << "concat CMX-ed" << std::endl;
 
     return mlir::success();
 }

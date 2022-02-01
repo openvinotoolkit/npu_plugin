@@ -671,7 +671,8 @@ void FeasibleMemoryScheduler::schedulePrefetchedDataOps(size_t computeOpStartTim
         _prefetchDataOps.erase(scheduledOpIdx);
     }
 
-    // leave the prefetch operations in the ready list
+    // remove the not scheduled prefetch operations from the ready list
+    _prefetchDataOps.clear();
 }
 
 void FeasibleMemoryScheduler::evictActiveOp(EvictionCandidate evictionCandidate) {
