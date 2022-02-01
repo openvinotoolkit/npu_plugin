@@ -877,24 +877,6 @@ def HandleLargeKernels : PassBase<"handle-large-kernels", "vpux::FunctionPass"> 
     ];
 }
 
-//
-// ConvertReduceToPooling
-//
-
-def ConvertReduceToPooling : PassBase<"convert-reduce-to-pooling", "vpux::FunctionPass"> {
-    let summary = "Convert reduce to pooling ops";
-
-    let description = [{
-        The pass is to convert reduce operations (mean, max, sum) into pooling.
-    }];
-
-    let constructor = "vpux::IE::createConvertReduceToPoolingPass()";
-
-    let dependentDialects = [
-        "vpux::IE::IEDialect"
-    ];
-}
-
 //=================================================================================
 // Tiling
 //=================================================================================

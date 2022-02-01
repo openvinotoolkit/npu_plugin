@@ -59,8 +59,6 @@ The pass is a part of `LowPrecision` pipeline.
 
 Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
 where input2 is input1 to perform type conversion on DPU instead of UPA.
-### `-convert-reduce-to-pooling`: Convert reduce to pooling ops
-The pass is to convert reduce operations (mean, max, sum) into pooling.
 ### `-convert-scale-shift-depthwise`: Convert Scale-Shift operation to Depthwise Convolution
 The pass is a part of `HardwareMode` pipeline.
 

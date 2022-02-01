@@ -2445,6 +2445,7 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();
     decomp->add_matcher<ngraph::pass::LogSoftmaxDecomposition>();
+    decomp->add_matcher<ngraph::pass::ConvertReduceToPooling>();
     decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
     decomp->add_matcher<ngraph::pass::ConvertMod>();
     decomp->add_matcher<ngraph::pass::ConvertGELU>();
