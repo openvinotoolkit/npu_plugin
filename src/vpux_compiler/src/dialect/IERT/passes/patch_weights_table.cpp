@@ -67,6 +67,41 @@ void PatchWeightsTablePass::safeRunOnFunc() {
         VPUX_THROW_UNLESS(dmaOp != nullptr, "DmaOp expected, but not found for the weight table");
         const auto dmaInput = dmaOp.input();
         auto cst = dmaInput.getDefiningOp<Const::DeclareOp>();
+
+        // // In case WeightsTable was spilled there can be a sequence of DMA
+        // // Need to resolve it and update this DMA to have const as input directly
+        // VPUIP::NNDMAOp upperDmaOp;
+        // auto tmpDmaInput = dmaInput;
+        // if (cst == nullptr) {
+        //     std::cout << "Mateusz: dmaOp - \n";
+        //     dmaOp.dump();
+        //     while (cst == nullptr) {
+        //         upperDmaOp = nullptr;
+        //         for (const auto& user : tmpDmaInput.getUsers()) {
+        //             // user->dump();
+        //             upperDmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(user);
+        //             if ((upperDmaOp != nullptr) && (upperDmaOp.output_buff() == tmpDmaInput)) {
+        //                 // std::cout << "  Mateusz: match \n";
+        //                 break;
+        //             }
+        //         }
+        //         VPUX_THROW_UNLESS(upperDmaOp != nullptr, "Next DMA op as source operation expected");
+        //         std::cout << "Mateusz: upperDmaOp - \n";
+        //         upperDmaOp.dump();
+
+        //         cst = upperDmaOp.input().getDefiningOp<Const::DeclareOp>();
+        //         tmpDmaInput = upperDmaOp.input();
+        //     }
+
+        //     // Const has been located
+        //     // Update closest DMA to use const as input
+        //     dmaOp.setOperand(0, cst.output());
+        //     std::cout << "Mateusz: new dmaOp - \n";
+        //     dmaOp.dump();
+
+        //     cst.contentAttr().dump();
+        // }
+
         VPUX_THROW_UNLESS(cst != nullptr, "Constant expected as DMA input for weights table - {0}", dmaOp);
 
         // On top of existing transformation a new transformation is added to the content attribute
