@@ -158,7 +158,9 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     IE::buildAdjustForVPUPipeline(pm, log);
 
-    pm.addPass(IE::createSwapTransposeWithFQPass(log));
+    if (options.enableSwapTransposeWithFQ) {
+        pm.addPass(IE::createSwapTransposeWithFQPass(log));
+    }
     if (options.enableConvertScaleShiftDW) {
         pm.addPass(IE::createConvertScaleShiftToDWPass(log));
     }
@@ -192,7 +194,9 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     }
 
     pm.addPass(IE::createConvertToMemPermutePass(log));
-    pm.addPass(IE::createSwapPermuteWithExpandPass(log));
+    if (options.enableSwapPermuteWithExpand) {
+        pm.addPass(IE::createSwapPermuteWithExpandPass(log));
+    }
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     pm.addPass(IE::createIsolatedTilingPass(log));
@@ -280,7 +284,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     IE::buildAdjustForVPUPipeline(pm, log);
 
-    pm.addPass(IE::createSwapTransposeWithFQPass(log));
+    if (options.enableSwapTransposeWithFQ) {
+        pm.addPass(IE::createSwapTransposeWithFQPass(log));
+    }
     if (options.enableConvertScaleShiftDW) {
         pm.addPass(IE::createConvertScaleShiftToDWPass(log));
     }
@@ -319,7 +325,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     }
 
     pm.addPass(IE::createConvertToMemPermutePass(log));
-    pm.addPass(IE::createSwapPermuteWithExpandPass(log));
+    if (options.enableSwapPermuteWithExpand) {
+        pm.addPass(IE::createSwapPermuteWithExpandPass(log));
+    }
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     pm.addPass(IE::createIsolatedTilingPass(log));

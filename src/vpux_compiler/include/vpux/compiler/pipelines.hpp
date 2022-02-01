@@ -109,6 +109,13 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
     BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
                                       llvm::cl::init(false)};
 
+    BoolOption enableSwapTransposeWithFQ{*this, "swap-transpose-with-fq",
+                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(false)};
+
+    BoolOption enableSwapPermuteWithExpand{*this, "swap-permute-with-expand",
+                                           ::llvm::cl::desc("Enable SwapPermuteWithExpand pass"),
+                                           ::llvm::cl::init(false)};
+
     bool enableCompressWeights = false;
 };
 
@@ -181,6 +188,13 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 
     BoolOption enableCompressWeights{*this, "compress-weights", ::llvm::cl::desc("Enable compress-weights pass"),
                                      ::llvm::cl::init(false)};
+
+    BoolOption enableSwapTransposeWithFQ{*this, "swap-transpose-with-fq",
+                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(false)};
+
+    BoolOption enableSwapPermuteWithExpand{*this, "swap-permute-with-expand",
+                                           ::llvm::cl::desc("Enable SwapPermuteWithExpand pass"),
+                                           ::llvm::cl::init(false)};
 };
 
 void buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options,
