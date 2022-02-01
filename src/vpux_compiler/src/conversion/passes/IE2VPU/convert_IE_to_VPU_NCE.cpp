@@ -27,16 +27,6 @@ using namespace vpux;
 
 namespace {
 
-mlir::Value copyToCMX(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value val) {
-    const auto memSpace = IndexedSymbolAttr::get(builder.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
-    return builder.createOrFold<IE::CopyOp>(loc, val, memSpace);
-}
-
-mlir::Value copyBack(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value val, mlir::Type origType) {
-    const auto memSpace = IE::getMemorySpace(origType.cast<mlir::RankedTensorType>());
-    return builder.createOrFold<IE::CopyOp>(loc, val, memSpace);
-}
-
 //
 // ConvToNCE
 //
@@ -66,9 +56,6 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
         return matchFailed(_log, rewriter, origOp, "Operation at '{0}' has unsupported input layout '{1}'",
                            origOp->getLoc(), inOrder);
     }
-
-    const auto isCMajor = inOrder == DimsOrder::NCHW;
-
     if (!VPU::NCEConvolutionOp::isSupported(origOp, logCb)) {
         return mlir::failure();
     }
@@ -84,27 +71,19 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
         bias = biasConstOp.contentAttr();
     }
 
-    const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
-
     auto filter = origOp.filter();
-    if (isCMajor) {
+    if (inOrder == DimsOrder::NCHW) {
         filter = VPU::alignChannelMajorWeightsTensor(rewriter, origOp->getLoc(), filter);
     }
     const auto rawFilterShape = getIntArrayAttr(rewriter, getShape(origOp.filter()));
-    const auto filterCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "filter-CMX"), filter);
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
-    const auto newOutType = changeMemSpace(origOp.getType().cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
-
-    auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), newOutType, inputCMX, filterCMX, bias,
-                                                        origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
+    auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), origOp.getType(), origOp.input(), filter,
+                                                        bias, origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
                                                         /*ppe=*/nullptr, rawFilterShape);
 
-    const auto newOutput =
-            copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());
-
-    rewriter.replaceOp(origOp, newOutput);
+    rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
 }
 
@@ -148,24 +127,16 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
     }
 
     const auto rawFilterShape = getIntArrayAttr(rewriter, getShape(origOp.filter()));
-
-    const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
-
     const auto alignedFilter = VPU::alignDepthWiseWeightsTensor(rewriter, origOp.getLoc(), origOp.filter());
-    const auto filterCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "filter-CMX"), alignedFilter);
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
-    const auto newOutType = changeMemSpace(origOp.getType().cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
-
-    auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(origOp->getLoc(), newOutType, inputCMX, filterCMX, bias,
-                                                             origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
+    auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(origOp->getLoc(), origOp.getType(), origOp.input(),
+                                                             alignedFilter, bias, origOp.stridesAttr(), padAttr,
+                                                             origOp.post_opAttr(),
                                                              /*ppe=*/nullptr, rawFilterShape);
 
-    const auto newOutput =
-            copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());
-
-    rewriter.replaceOp(origOp, newOutput);
+    rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
 }
 
@@ -196,20 +167,14 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
         return mlir::failure();
     }
 
-    const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
-
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
-    const auto newOutType = changeMemSpace(origOp.getType().cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
-
-    auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(origOp->getLoc(), newOutType, inputCMX, origOp.kernel_sizeAttr(),
-                                                    origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
+    auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(origOp->getLoc(), origOp.getType(), origOp.input(),
+                                                    origOp.kernel_sizeAttr(), origOp.stridesAttr(), padAttr,
+                                                    origOp.post_opAttr(),
                                                     /*ppe=*/nullptr);
 
-    const auto newOutput =
-            copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());
-
-    rewriter.replaceOp(origOp, newOutput);
+    rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
 }
 
@@ -248,23 +213,15 @@ mlir::LogicalResult EltwiseToNCE<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
         return mlir::failure();
     }
 
-    const auto inputCMX1 = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input1-CMX"), origOp.input1());
-    const auto inputCMX2 = origOp.input1() == origOp.input2()
-                                   ? inputCMX1
-                                   : copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input2-CMX"), origOp.input2());
+    const auto input1 = origOp.input1();
+    const auto input2 = origOp.input1() == origOp.input2() ? origOp.input1() : origOp.input2();
 
-    const auto memSpace = IndexedSymbolAttr::get(this->getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
-    const auto newOutType = changeMemSpace(origOp.getType(), memSpace);
-
-    auto nceOp = rewriter.create<VPU::NCEEltwiseOp>(origOp->getLoc(), newOutType, inputCMX1, inputCMX2,
+    auto nceOp = rewriter.create<VPU::NCEEltwiseOp>(origOp->getLoc(), origOp.getType(), input1, input2,
                                                     VPU::EltwiseTypeAttr::get(this->getContext(), _opType),
                                                     origOp.post_opAttr(),
                                                     /*ppe=*/nullptr);
 
-    const auto newOutput =
-            copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());
-
-    rewriter.replaceOp(origOp, newOutput);
+    rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
 }
 

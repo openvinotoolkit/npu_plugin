@@ -31,29 +31,29 @@ using namespace vpux;
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides, mlir::ShapedType input,
-                                                  mlir::ShapedType filter, mlir::ShapedType output) {
+bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::ShapedType input, mlir::ShapedType filter,
+                                                  mlir::ShapedType output) {
     const auto filterShape = getShape(filter);
-    const auto OC = filterShape[Dims4D::Filter::OC];
-    const auto KY = filterShape[Dims4D::Filter::KY];
-    const auto KX = filterShape[Dims4D::Filter::KX];
+    const auto kernelsNum = filterShape[Dims4D::Filter::OC];
+    const auto kernelHeight = filterShape[Dims4D::Filter::KY];
+    const auto kernelWidth = filterShape[Dims4D::Filter::KX];
 
-    const Shape kernelSize{KY, KX};
+    const Shape kernelSize{kernelHeight, kernelWidth};
 
-    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides));
-    const auto SX = kernelStrides[Dims4D::Strides::X];
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides()));
+    const auto strideW = kernelStrides[Dims4D::Strides::X];
 
-    const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::DW_CONV, kernelSize, SX,
-                                                                           input.getElementType(), OC);
+    const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::DW_CONV, kernelSize,
+                                                                           strideW, input.getElementType(), kernelsNum);
 
     const auto alignment = NCEInvariant::getAlignment(output.getElementType());
 
-    const int64_t remainder = (KY * KX) % alignment;
+    const auto remainder = (kernelHeight * kernelWidth) % alignment;
     VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
 
     const int64_t padding = (remainder > 0) ? (alignment - remainder) : 0;
 
-    const std::array<int64_t, 4> alignedFilterShape{OC, 1, 1, KY * KX + padding};
+    const std::array<int64_t, 4> alignedFilterShape{kernelsNum, 1, 1, kernelHeight * kernelWidth + padding};
     const mlir::ShapedType alignedFilter = mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType());
 
     Byte requiredCMX(0);
@@ -62,10 +62,10 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::Arr
         requiredCMX += getTotalSize(type);
     }
 
-    requiredCMX += NCEInvariant::getWeightsTableSize(OC);
+    requiredCMX += NCEInvariant::getWeightsTableSize(kernelsNum);
     requiredCMX += activationWindowSize * 1_Byte;
 
-    return requiredCMX <= getTotalCMXSize(op);
+    return requiredCMX <= getTotalCMXSize(getOperation());
 }
 
 //
@@ -141,11 +141,6 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, NC
 
     if (inputOrder != DimsOrder::NHWC || filterOrder != DimsOrder::OYXI || outputOrder != DimsOrder::NHWC) {
         logCb(llvm::formatv("Unsupported layout"));
-        return false;
-    }
-
-    if (!fitIntoCMX(op, op.strides(), inputType, filterType, outputType)) {
-        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
         return false;
     }
 
@@ -252,4 +247,23 @@ bool vpux::VPU::NCEDepthConvolutionOp::checkChannelRestrictions(int64_t channels
     }
 
     return true;
+}
+
+//
+// TilingBuilderOpInterface
+//
+
+vpux::InputTiling vpux::VPU::NCEDepthConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+    const auto origInputShape = getShape(input());
+    const auto origFilterShape = getShape(filter());
+    const auto origBiasShape = bias().hasValue() ? getShape(bias().getValue().getType()) : ShapeRef();
+    const auto origPadding = toPadInfo(pad());
+
+    return backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
+}
+
+void vpux::VPU::NCEDepthConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
+    VPU::adjustPaddings(this, inputTiling);
+    VPU::adjustRawFilterShape(this, outputTile);
+    VPU::adjustBias(this, outputTile);
 }

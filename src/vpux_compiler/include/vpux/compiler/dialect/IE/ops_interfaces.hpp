@@ -232,7 +232,7 @@ public:
         return IE::backInferEltwiseTile(this->getOperation(), outputTile);
     }
 
-    void adjustAttrs(const TilingInfo&) {
+    void adjustAttrs(const TilingInfo&, const TileInfo&) {
     }
 };
 

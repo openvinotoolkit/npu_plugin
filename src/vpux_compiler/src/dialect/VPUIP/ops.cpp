@@ -235,9 +235,10 @@ bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logg
         const auto origInputShape = getShape(origOp.input());
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+        const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
 
         const auto inputTiling = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                   origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+                                                   origOp.strides(), origPadding);
 
         const auto& tileConf = inputTiling.tiles;
         VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
@@ -252,6 +253,34 @@ bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logg
         return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(
                 origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(), inputTileType, filterTileType,
                 outputTileType, origOp.strides(), log));
+    });
+}
+
+bool isSupportedTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
+    const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
+    const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
+    const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+
+    return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        const auto origInputShape = getShape(origOp.input());
+        const auto origFilterShape = getShape(origOp.filter());
+        const auto origBiasShape = origOp.bias().hasValue() ? getShape(origOp.bias().getValue().getType()) : ShapeRef();
+        const auto origPadding = toPadInfo(origOp.pad());
+
+        const auto inputTiling = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
+                                                   origOp.strides(), origPadding);
+
+        const auto& tileConf = inputTiling.tiles;
+        VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
+                          tileConf.size());
+        const auto& inputTile = tileConf[0];
+        const auto& filterTile = tileConf[1];
+
+        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
+        const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
+        const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
+
+        return origOp.fitIntoCMX(inputTileType, filterTileType, outputTileType);
     });
 }
 
@@ -270,9 +299,10 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
         const auto origInputShape = getShape(origOp.input());
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+        const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
 
         const auto inputTiling = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                        origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+                                                        origOp.strides(), origPadding);
 
         const auto& tileConf = inputTiling.tiles;
         VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
@@ -290,6 +320,36 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
     });
 }
 
+bool isSupportedTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
+    const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
+    const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
+    const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+
+    return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        const auto origInputShape = getShape(origOp.input());
+        const auto origFilterShape = getShape(origOp.filter());
+        const auto origBiasShape = origOp.bias().hasValue() ? getShape(origOp.bias().getValue().getType()) : ShapeRef();
+        const auto origPadding = toPadInfo(origOp.pad());
+
+        const auto inputTiling = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
+                                                        origOp.strides(), origPadding);
+
+        const auto& tileConf = inputTiling.tiles;
+        VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
+                          tileConf.size());
+        const auto& inputTile = tileConf[0];
+        const auto& filterTile = tileConf[1];
+
+        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
+        const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
+        const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
+
+        return origOp.fitIntoCMX(inputTileType, filterTileType, outputTileType);
+    });
+}
+
 bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger log) {
     const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
     const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
@@ -302,9 +362,10 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
         }
 
         const auto origInputShape = getShape(origOp.input());
+        const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
 
-        const auto inputTiling = backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(),
-                                                   origOp.pads_begin(), origOp.pads_end());
+        const auto inputTiling =
+                backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(), origPadding);
 
         const auto& tileConf = inputTiling.tiles;
         VPUX_THROW_UNLESS(!tileConf.empty(), "Got empty tile information");
@@ -316,6 +377,48 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
         return mlir::succeeded(VPUIP::NCEInvariant::verifyPoolCMX(
                 origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(), inputTileType, outputTileType,
                 origOp.kernel_size(), origOp.strides(), log));
+    });
+}
+
+bool isSupportedTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiles, Logger log) {
+    const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
+    const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+
+    return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(outputTile.shape[Dims4D::Act::C])) {
+            return false;
+        }
+
+        const auto origInputShape = getShape(origOp.input());
+        const auto origPadding = toPadInfo(origOp.pad());
+
+        const auto inputTiling =
+                backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(), origPadding);
+
+        const auto& tileConf = inputTiling.tiles;
+        VPUX_THROW_UNLESS(!tileConf.empty(), "Got empty tile information");
+        const auto& inputTile = tileConf[0];
+
+        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
+        const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
+
+        return origOp.fitIntoCMX(inputTileType, outputTileType);
+    });
+}
+
+bool isSupportedTiling(VPU::NCEEltwiseOp origOp, const OutputTiling& tiles, Logger log) {
+    const auto input1Type = origOp.getOperand(0).getType().cast<mlir::ShapedType>();
+    const auto input2Type = origOp.getOperand(1).getType().cast<mlir::ShapedType>();
+    const auto outputType = origOp.getResult().getType().cast<mlir::ShapedType>();
+
+    return llvm::all_of(tiles, [&](const TileInfo& tile) {
+        const auto input1TileType = getDenseTileType(input1Type, tile.offsets, tile.shape);
+        const auto input2TileType = getDenseTileType(input2Type, tile.offsets, tile.shape);
+        const auto outputTileType = getDenseTileType(outputType, tile.offsets, tile.shape);
+
+        return origOp.fitIntoCMX(input1TileType, input2TileType, outputTileType);
     });
 }
 
@@ -366,6 +469,22 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, ShapeRef tileAxis, Logg
            isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
+bool isSupportedPrefetchTiling(VPU::NCEConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
+    auto outputShape = getShape(origOp.output());
+    auto tileDims = getTileDims(tileAxis);
+    if (tileDims.size() != 1) {
+        return false;
+    }
+    auto tileDim = tileDims[0];
+    auto isMemPrefetchable = [&]() -> bool {
+        auto tileResult = fillDividedTiles(tileAxis, outputShape);
+        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
+    };
+
+    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
+           isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
+}
+
 bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
     auto outputShape = getShape(origOp.output());
     auto tileDims = getTileDims(tileAxis);
@@ -388,7 +507,53 @@ bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, ShapeRef tileAxis,
            isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
+bool isSupportedPrefetchTiling(VPU::NCEDepthConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
+    auto outputShape = getShape(origOp.output());
+    auto tileDims = getTileDims(tileAxis);
+    if (tileDims.size() != 1) {
+        return false;
+    }
+    auto tileDim = tileDims[0];
+
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
+        return false;
+    }
+
+    auto isMemPrefetchable = [&]() -> bool {
+        auto tileResult = fillDividedTiles(tileAxis, outputShape);
+        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
+    };
+
+    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
+           isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
+}
+
 bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, ShapeRef tileAxis, Logger log) {
+    auto tileDims = getTileDims(tileAxis);
+    if (tileDims.size() != 1) {
+        return false;
+    }
+    auto tileDim = tileDims[0];
+    auto outputShape = getShape(origOp.output());
+
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
+        return false;
+    }
+
+    auto isMemPrefetchable = [&]() -> bool {
+        auto tileResult = fillDividedTiles(tileAxis, outputShape);
+        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
+    };
+
+    size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
+    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim,
+                           parseIntArrayAttr<int64_t>(origOp.kernel_size())[realKernelIndex]) &&
+           isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
+}
+
+bool isSupportedPrefetchTiling(VPU::NCEMaxPoolOp origOp, ShapeRef tileAxis, Logger log) {
     auto tileDims = getTileDims(tileAxis);
     if (tileDims.size() != 1) {
         return false;
@@ -762,6 +927,11 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     registry.addOpInterface<IE::MultiplyOp, NCEEltwiseTilingInfoOpModel<IE::MultiplyOp>>();
     registry.addOpInterface<IE::SubtractOp, NCEEltwiseTilingInfoOpModel<IE::SubtractOp>>();
     registry.addOpInterface<IE::AndOp, NCEEltwiseTilingInfoOpModel<IE::AndOp>>();
+
+    registry.addOpInterface<VPU::NCEConvolutionOp, NCETilingInfoOpModel<VPU::NCEConvolutionOp>>();
+    registry.addOpInterface<VPU::NCEDepthConvolutionOp, NCETilingInfoOpModel<VPU::NCEDepthConvolutionOp>>();
+    registry.addOpInterface<VPU::NCEMaxPoolOp, NCETilingInfoOpModel<VPU::NCEMaxPoolOp>>();
+    registry.addOpInterface<VPU::NCEEltwiseOp, NCEEltwiseTilingInfoOpModel<VPU::NCEEltwiseOp>>();
 
     registry.addOpInterface<IERT::SigmoidOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::SoftMaxOp, SoftwareLayerOpModel>();
