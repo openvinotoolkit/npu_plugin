@@ -150,12 +150,12 @@ InputTiling vpux::IE::ConvolutionOp::backInferTileInfo(const vpux::TileInfo& out
     const auto origInputShape = getShape(input());
     const auto origFilterShape = getShape(filter());
     const auto origBiasShape = bias() != nullptr ? getShape(bias()) : ShapeRef();
+    const auto origPadding = PadInfo(pads_begin(), pads_end());
 
-    return backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), pads_begin(),
-                             pads_end());
+    return backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
 }
 
-void vpux::IE::ConvolutionOp::adjustAttrs(const TilingInfo& inputTiling) {
+void vpux::IE::ConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
     IE::adjustPaddings(this, inputTiling);
 }
 
@@ -270,12 +270,12 @@ InputTiling vpux::IE::GroupConvolutionOp::backInferTileInfo(const vpux::TileInfo
     const auto origInputShape = getShape(input());
     const auto origFilterShape = getShape(filter());
     const auto origBiasShape = bias() != nullptr ? getShape(bias()) : ShapeRef();
+    const auto origPadding = PadInfo(pads_begin(), pads_end());
 
-    return backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), pads_begin(),
-                                  pads_end());
+    return backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
 }
 
-void vpux::IE::GroupConvolutionOp::adjustAttrs(const TilingInfo& inputTiling) {
+void vpux::IE::GroupConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
     const auto& inputTiles = inputTiling.tiles;
     VPUX_THROW_UNLESS(inputTiles.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
                       inputTiles.size());
