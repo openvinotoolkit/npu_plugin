@@ -41,12 +41,12 @@
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/IE/generated/ops.hpp.inc>
 
+namespace vpux {
+namespace IE {
+
 //
 // Operation verifiers
 //
-
-namespace vpux {
-namespace IE {
 
 mlir::LogicalResult verifyOp(CNNNetworkOp op);
 mlir::LogicalResult verifyOp(DataInfoOp op);
