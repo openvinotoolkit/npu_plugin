@@ -201,6 +201,18 @@ std::vector<std::string> disabledTestPatterns() {
             // Current OV logic with FULL_DEVICE_NAME metric differs from VPUX Plugin
             // Plugin throws an exception in case of absence VPUX devices in system
             ".*IEClassGetMetricTest_FULL_DEVICE_NAME.*GetMetricAndPrintNoThrow.*",
+
+            // Tests with unsupported precision
+            ".*InferRequestCheckTensorPrecision.*type=boolean.*",
+            ".*InferRequestCheckTensorPrecision.*type=bf16.*",
+            ".*InferRequestCheckTensorPrecision.*type=f64.*",
+            ".*InferRequestCheckTensorPrecision.*type=i4.*",
+            ".*InferRequestCheckTensorPrecision.*type=i16.*",
+            ".*InferRequestCheckTensorPrecision.*type=i64.*",
+            ".*InferRequestCheckTensorPrecision.*type=u1.*",
+            ".*InferRequestCheckTensorPrecision.*type=u4.*",
+            ".*InferRequestCheckTensorPrecision.*type=u16.*",
+            ".*InferRequestCheckTensorPrecision.*type=u64.*",
             }
         );
 
