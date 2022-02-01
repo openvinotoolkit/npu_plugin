@@ -51,7 +51,7 @@ void PatchWeightsTablePass::safeRunOnFunc() {
     // should be modified by adding relocateWeightTable transformation.
     funcOp.walk([this](vpux::VPUIP::NCEClusterTaskOp nceOp) {
         auto wTable = nceOp.weight_table();
-        if (wTable != nullptr) {
+        if (wTable == nullptr) {
             return;
         }
         auto wtDecBuf = wTable.getDefiningOp<VPURT::DeclareBufferOp>();
@@ -67,7 +67,7 @@ void PatchWeightsTablePass::safeRunOnFunc() {
         VPUX_THROW_UNLESS(dmaOp != nullptr, "DmaOp expected, but not found for the weight table");
         const auto dmaInput = dmaOp.input();
         auto cst = dmaInput.getDefiningOp<Const::DeclareOp>();
-        VPUX_THROW_UNLESS(cst != nullptr, "Constant expected as DMA input for weights table.");
+        VPUX_THROW_UNLESS(cst != nullptr, "Constant expected as DMA input for weights table - {0}", dmaOp);
 
         // On top of existing transformation a new transformation is added to the content attribute
         // of weight table const. The new transformation will patch offsets in this constant
