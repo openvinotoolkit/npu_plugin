@@ -52,15 +52,19 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux_elf
         vpux_utils
-        vpux_compiler_static
+        vpux_mlir_compiler_static
         vpux_translate_utils_static
         vpux_emulator
 )
 
-# add_library(${TARGET_NAME}
-#     MODULE
-
-#     )
+add_custom_target(vpux_jit_copy ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux_jit"
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${CMAKE_CURRENT_LIST_DIR}/VPUX_JIT_FW.elf"
+        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux_jit"
+    COMMENT "[VPUX-JIT] Copy vpux-jit VPU firmware"
+)
 
 enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
 vpux_enable_clang_format(${TARGET_NAME})
