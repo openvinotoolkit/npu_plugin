@@ -54,11 +54,17 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
         return false;
     }
 
-    // Temporally disable the optimization for constant nodes, like weights, activation_windows, etc.
-    // [Track number: E#28833]
-    // if (mlir::isa<Const::DeclareOp>(parentOp)) {
-    //     return false;
-    // }
+    // Do not perform optimization for CopyOps which load weightsTable as nevertheless
+    // each NCE tasks needs to have its own weights table data
+    if (mlir::isa<Const::DeclareOp>(parentOp)) {
+        for (const auto& user : copyOp.output().getUsers()) {
+            auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(user);
+            if ((nceOp != nullptr) && (nceOp.weight_table() == copyOp.output())) {
+                return false;
+            }
+        }
+    }
+
     bool hasSubView = false;
     auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(copyOp.input().getDefiningOp());
     if (mlir::isa<IERT::SubViewOp>(parentOp)) {
