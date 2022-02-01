@@ -120,7 +120,7 @@ mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTabl
                                      : nullptr;
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
             op_inElemType, op_outElemType, weightPtrOffset, weightPtrStep, sparsityPtrOffset, _arch, OC,
-            op_weightsElemType, createWTableOp.biasAttr(),createWTableOp.ppeAttr());
+            op_weightsElemType, createWTableOp.biasAttr(), createWTableOp.ppeAttr());
 
     const auto outType = createWTableOp.output().getType();
     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();

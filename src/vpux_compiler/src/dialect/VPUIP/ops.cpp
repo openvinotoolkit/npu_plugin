@@ -63,6 +63,23 @@ bool isSupportedHWPostOp(mlir::Operation* postOp) {
         return false;
     }
 
+    // FIXME fuse LeakyRelu using PWL here
+    const auto isQuantized = [](mlir::Operation* op, mlir::Operation* postOp) -> bool {
+        auto isFakeQuantizeOpInput = mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(op->getOperand(0).getDefiningOp());
+        auto isFakeQuantizeOpOutput = false;
+        for (auto user : postOp->getUsers()) {
+            if (mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(user)) {
+                isFakeQuantizeOpOutput = true;
+                break;
+            }
+        }
+        return isFakeQuantizeOpOutput || isFakeQuantizeOpInput;
+    };
+
+    if (mlir::isa<IE::LeakyReluOp>(postOp) && isQuantized(producerOp, postOp)) {
+        return false;
+    }
+
     return true;
 }
 

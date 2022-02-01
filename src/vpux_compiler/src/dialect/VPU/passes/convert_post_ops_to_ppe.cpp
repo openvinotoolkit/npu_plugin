@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPU/pwl_utils.hpp"
@@ -165,7 +166,7 @@ mlir::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inE
             clampLow =
                     (arch == VPU::ArchKind::MTL)
                             ? clampLowQuantized
-                            : static_cast<int32_t>(clampLowQuantized / leakyRelu.negative_slope().getValueAsDouble());
+                            : static_cast<int64_t>(clampLowQuantized / leakyRelu.negative_slope().getValueAsDouble());
         }
 
         int64_t clampHigh = (outElemQType != nullptr) ? clampHighQuantized : std::numeric_limits<int32_t>::max();
@@ -176,11 +177,7 @@ mlir::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inE
         if (isDoubleEqual(alpha, 0.0)) {
             LreluMult = 0;
         } else if (!isDoubleEqual(alpha, 1.0)) {
-            int exponent;
-            double mantissa;
-            mantissa = std::frexp(alpha, &exponent);
-            LreluShift = leakyAccuracyBits - exponent;
-            LreluMult = mantissa * pow(2, leakyAccuracyBits);
+            vpux::VPU::NCESparsity::computeQuantMultShift(alpha, LreluShift, LreluMult, leakyAccuracyBits);
         }
         return PostOpParams{VPU::PPEMode::LPRELU, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
