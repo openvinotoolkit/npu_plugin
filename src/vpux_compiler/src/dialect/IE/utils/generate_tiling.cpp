@@ -113,7 +113,7 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
     VPUX_THROW_WHEN(tiledBuilderOp == nullptr, "Operation '{0}' doesn't implement TilingBuilderOpInterface",
                     tiledBuilderOp->getName());
 
-    tiledBuilderOp.adjustAttrs(inputTiling);
+    tiledBuilderOp.adjustAttrs(inputTiling, outputTile);
 
     const auto baseResType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
     const auto tiledResType = baseResType.extractDenseTile(outputTile.offsets, outputTile.shape);
