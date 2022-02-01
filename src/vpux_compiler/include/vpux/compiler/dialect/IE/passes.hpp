@@ -65,7 +65,7 @@ struct AdjustLayoutOptions : mlir::PassPipelineOptions<AdjustLayoutOptions> {
                                       llvm::cl::init(true)};
 
     BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
-                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(false)};
+                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(true)};
 
     AdjustLayoutOptions() = default;
 

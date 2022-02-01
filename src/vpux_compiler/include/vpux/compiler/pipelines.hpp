@@ -51,7 +51,7 @@ struct ReferenceSWOptions : mlir::PassPipelineOptions<ReferenceSWOptions> {
     bool enableCompressWeights = false;
 
     BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
-                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(false)};
+                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(true)};
 };
 
 void buildReferenceSWModePipeline(mlir::OpPassManager& pm, const ReferenceSWOptions& options,
@@ -113,16 +113,16 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
                                       llvm::cl::init(false)};
 
     BoolOption enableSwapTransposeWithFQ{*this, "swap-transpose-with-fq",
-                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(false)};
+                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(true)};
 
     BoolOption enableSwapPermuteWithExpand{*this, "swap-permute-with-expand",
                                            ::llvm::cl::desc("Enable SwapPermuteWithExpand pass"),
-                                           ::llvm::cl::init(false)};
+                                           ::llvm::cl::init(true)};
 
     bool enableCompressWeights = false;
 
     BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
-                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(false)};
+                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(true)};
 };
 
 void buildReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOptions& options,
@@ -196,14 +196,14 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
                                      ::llvm::cl::init(false)};
 
     BoolOption enableSwapTransposeWithFQ{*this, "swap-transpose-with-fq",
-                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(false)};
+                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(true)};
 
     BoolOption enableSwapPermuteWithExpand{*this, "swap-permute-with-expand",
                                            ::llvm::cl::desc("Enable SwapPermuteWithExpand pass"),
-                                           ::llvm::cl::init(false)};
+                                           ::llvm::cl::init(true)};
 
     BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
-                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(false)};
+                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(true)};
 };
 
 void buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options,
