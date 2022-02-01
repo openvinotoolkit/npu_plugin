@@ -101,7 +101,7 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
 
     BoolOption enableQuantDequantRemoval{*this, "quant-dequant-removal",
                                          llvm::cl::desc("Enable quantize->dequantize sequence removal"),
-                                         llvm::cl::init(false)};
+                                         llvm::cl::init(true)};
 
     BoolOption enableExpandActivationChannels{*this, "expand-activation-channels",
                                               llvm::cl::desc("Enable expand-activation-channels pass"),
@@ -166,7 +166,7 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 
     BoolOption enableQuantDequntRemoval{*this, "quant-dequant-removal",
                                         llvm::cl::desc("Enable quantize->dequantize sequence removal"),
-                                        llvm::cl::init(false)};
+                                        llvm::cl::init(true)};
 
     BoolOption enableUpstreamSlice{*this, "upstream-slice", llvm::cl::desc("Enable upstream-slice pipeline building"),
                                    llvm::cl::init(true)};
