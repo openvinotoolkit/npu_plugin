@@ -71,7 +71,7 @@ protected:
 
     void initTestCase() override {
         m_currentTest = &m_testsLoop.value();
-        m_test_threshold = 0.0005f;
+        m_test_threshold = 0.001f;
 
 //        const StorageOrder& storageOrder = m_currentTest->storageOrder;
 //        const auto& dimIn = m_currentTest->inDim;
