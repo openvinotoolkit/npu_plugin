@@ -967,16 +967,17 @@ def InsertMaxpoolToConcatLRelu : PassBase<"insert-maxpool-to-concat-lrelu", "vpu
 //
 
 def IsolatedTiling : PassBase<"isolated-tiling", "vpux::FunctionPass"> {
-    let summary = "Tile layers in isolation so that all their I/O fit into requirements";
+    let summary = "Tile layers in isolation so that all their I/O meet the memory capacity";
 
     let description = [{
-        The pass performs simple tiling of the layers, which doesn't fit into memory requirements.
+        The pass applies tiling to the layers whose memory requirements exceed the capacity available.
 
-        The pass tries to fit single layer in isolation, without any heuristics to run something
-        in parallel or continue computation in tiles.
+        The pass tries to split each single layer in isolation, with no smarter heuristics
+        such as "allow running in parallel" or "allow continious computation in tiles" or any else.
 
-        The pass doesn't use any cost model and just choose the first largest tile size,
-        which fits into the memory requirements.
+        The pass does not use any cost model to optimize the entire layer's processing time. It just
+        iteratively increases the number of tiles until the the largest tile's memory requirements  meet
+        the device capacity, and stops there.
     }];
 
     let constructor = "vpux::IE::createIsolatedTilingPass()";

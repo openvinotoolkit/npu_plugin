@@ -197,7 +197,7 @@ def IE_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
         InterfaceMethod<
             "Adjust the operation attributes to the current tile properties",
             "void", "adjustAttrs",
-            (ins "const vpux::TilingInfo&":$inputTiling)
+            (ins "const vpux::TilingInfo&":$inputTiling, "const TileInfo&":$outputTile)
         >,
     ];
 }

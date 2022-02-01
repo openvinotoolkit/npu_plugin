@@ -183,7 +183,7 @@ NOTE: This method *must* be implemented by the user.
 #### `adjustAttrs`
 
 ```c++
-void adjustAttrs(const vpux::TilingInfo&inputTiling);
+void adjustAttrs(const vpux::TilingInfo&inputTiling, const TileInfo&outputTile);
 ```
 Adjust the operation attributes to the current tile properties
 NOTE: This method *must* be implemented by the user.

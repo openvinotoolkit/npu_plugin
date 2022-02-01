@@ -29,13 +29,13 @@ using namespace vpux;
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides, vpux::NDTypeInterface input,
-                                             vpux::NDTypeInterface filter, vpux::NDTypeInterface output) {
+bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                             vpux::NDTypeInterface output) {
     const auto filterShape = filter.getShape();
-    const auto OC = filterShape[Dims4D::Filter::OC];
-    const auto IC = filterShape[Dims4D::Filter::IC];
-    const auto KY = filterShape[Dims4D::Filter::KY];
-    const auto KX = filterShape[Dims4D::Filter::KX];
+    const auto kernelsNum = filterShape[Dims4D::Filter::OC];
+    const auto kernelChannels = filterShape[Dims4D::Filter::IC];
+    const auto kernelHeight = filterShape[Dims4D::Filter::KY];
+    const auto kernelWidth = filterShape[Dims4D::Filter::KX];
 
     const auto inOrder = input.getDimsOrder();
 
@@ -44,37 +44,38 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAtt
     requiredCMX += input.getTotalAllocSize();
     requiredCMX += output.getTotalAllocSize();
 
-    requiredCMX += NCEInvariant::getWeightsTableSize(OC);
+    requiredCMX += NCEInvariant::getWeightsTableSize(kernelsNum);
 
     if (inOrder == DimsOrder::NHWC) {
         requiredCMX += filter.getTotalAllocSize();
     } else if (inOrder == DimsOrder::NCHW) {
         const auto alignment = NCEInvariant::getAlignment(output.getElementType());
 
-        const auto remainder = (IC * KY * KX) % alignment;
+        const auto remainder = (kernelChannels * kernelHeight * kernelWidth) % alignment;
         VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
 
         const auto padding = (remainder > 0) ? (alignment - remainder) : 0;
 
-        const auto alignedFilterShape = SmallVector<int64_t>{OC, 1, 1, IC * KY * KX + padding};
+        const auto alignedFilterShape =
+                SmallVector<int64_t>{kernelsNum, 1, 1, kernelChannels * kernelHeight * kernelWidth + padding};
         const auto alignedFilter =
                 mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType()).cast<vpux::NDTypeInterface>();
 
-        const auto kernelSize = Shape{KY, KX};
+        const auto kernelSize = Shape{kernelHeight, kernelWidth};
 
-        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides));
-        const auto SX = kernelStrides[Dims4D::Strides::X];
+        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides()));
+        const auto strideW = kernelStrides[Dims4D::Strides::X];
 
-        const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::CM_CONV, kernelSize,
-                                                                               SX, input.getElementType(), IC);
+        const auto activationWindowSize = NCESparsity::getActivationWindowSize(
+                NCESparsity::Mode::CM_CONV, kernelSize, strideW, input.getElementType(), kernelChannels);
 
         requiredCMX += alignedFilter.getTotalAllocSize();
         requiredCMX += activationWindowSize * 1_Byte;
     } else {
-        VPUX_THROW("[{0}] Unsupported input layout '{1}'", op->getLoc(), inOrder);
+        VPUX_THROW("[{0}] Unsupported input layout '{1}'", getLoc(), inOrder);
     }
 
-    return requiredCMX <= getTotalCMXSize(op);
+    return requiredCMX <= getTotalCMXSize(getOperation());
 }
 
 //
@@ -134,11 +135,6 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, NCEInvariant
     }
     if (arch != VPU::ArchKind::MTL && outputOrder != DimsOrder::NHWC) {
         logCb(llvm::formatv("Unsupported output layout '{0}'", outputOrder));
-        return false;
-    }
-
-    if (!fitIntoCMX(op, op.strides(), inputType, filterType, outputType)) {
-        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
         return false;
     }
 
@@ -302,4 +298,23 @@ int64_t vpux::VPU::NCEConvolutionOp::getInputChannelAlignment(vpux::NDTypeInterf
     }
 
     return NCEInvariant::getAlignment(inputType.getElementType());
+}
+
+//
+// TilingBuilderOpInterface
+//
+
+vpux::InputTiling vpux::VPU::NCEConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+    const auto origInputShape = getShape(input());
+    const auto origFilterShape = getShape(filter());
+    const auto origBiasShape = bias().hasValue() ? bias().getValue().getShape() : ShapeRef();
+    const auto origPadding = toPadInfo(pad());
+
+    return backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
+}
+
+void vpux::VPU::NCEConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
+    VPU::adjustPaddings(this, inputTiling);
+    VPU::adjustRawFilterShape(this, outputTile);
+    VPU::adjustBias(this, outputTile);
 }
