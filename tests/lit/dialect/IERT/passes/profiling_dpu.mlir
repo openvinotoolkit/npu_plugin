@@ -1,4 +1,4 @@
-// RUN: vpux-opt --convert-IE-to-VPU-NCE --split-NCE-ops-onto-workloads --lower-IE-to-IERT --convert-vpu-to-vpuip --dpu-profiling %s | FileCheck %s
+// RUN: vpux-opt --convert-IE-to-VPU-NCE --adjust-memory-space --split-NCE-ops-onto-workloads --lower-IE-to-IERT --convert-vpu-to-vpuip --dpu-profiling %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 

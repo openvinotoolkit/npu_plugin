@@ -27,15 +27,15 @@ using namespace vpux;
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(mlir::Operation* op, vpux::NDTypeInterface input1,
-                                         vpux::NDTypeInterface input2, vpux::NDTypeInterface output) {
+bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
+                                         vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
     for (const auto& type : {input1, input2, output}) {
         requiredCMX += type.getTotalAllocSize();
     }
 
-    return requiredCMX <= getTotalCMXSize(op);
+    return requiredCMX <= getTotalCMXSize(getOperation());
 }
 
 //
@@ -105,11 +105,6 @@ bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDiffere
 
     if (inputOrder1 != DimsOrder::NHWC || inputOrder2 != DimsOrder::NHWC || outputOrder != DimsOrder::NHWC) {
         logCb(llvm::formatv("Unsupported layout"));
-        return false;
-    }
-
-    if (!fitIntoCMX(op, input1, input2, output)) {
-        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
         return false;
     }
 

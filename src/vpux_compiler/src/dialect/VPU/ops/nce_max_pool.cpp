@@ -31,9 +31,8 @@ using namespace vpux;
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernel_size, mlir::ArrayAttr strides,
-                                         vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
-    const auto arch = getArch(op);
+bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
+    const auto arch = getArch(getOperation());
 
     Byte requiredCMX(0);
 
@@ -44,21 +43,21 @@ bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr ke
     // MTL hw doesn't require weights table and activation window for max/average pool ops
     if (arch != VPU::ArchKind::MTL) {
         const auto outputShape = output.getShape();
-        const auto OC = outputShape[Dims4D::Act::C];
+        const auto outputChannels = outputShape[Dims4D::Act::C];
 
-        const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(kernel_size));
+        const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(kernel_size()));
 
-        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides));
-        const auto SX = kernelStrides[Dims4D::Strides::X];
+        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides()));
+        const auto strideW = kernelStrides[Dims4D::Strides::X];
 
-        const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::POOL, kernelSize, SX,
-                                                                               input.getElementType(), OC);
+        const auto activationWindowSize = NCESparsity::getActivationWindowSize(
+                NCESparsity::Mode::POOL, kernelSize, strideW, input.getElementType(), outputChannels);
 
-        requiredCMX += NCEInvariant::getWeightsTableSize(OC);
+        requiredCMX += NCEInvariant::getWeightsTableSize(outputChannels);
         requiredCMX += activationWindowSize * 1_Byte;
     }
 
-    return requiredCMX <= getTotalCMXSize(op);
+    return requiredCMX <= getTotalCMXSize(getOperation());
 }
 
 //
@@ -110,11 +109,6 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, NCEInvariant::LogCb 
 
     if (inputOrder != DimsOrder::NHWC || outputOrder != DimsOrder::NHWC) {
         logCb(llvm::formatv("Unsupported layout"));
-        return false;
-    }
-
-    if (!fitIntoCMX(op, op.kernel_size(), op.strides(), inputType, outputType)) {
-        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
         return false;
     }
 
@@ -218,4 +212,19 @@ bool vpux::VPU::NCEMaxPoolOp::checkChannelRestrictions(int64_t channels) {
     }
 
     return true;
+}
+
+//
+// TilingBuilderOpInterface
+//
+
+vpux::InputTiling vpux::VPU::NCEMaxPoolOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+    const auto origInputShape = getShape(input());
+    const auto origPadding = toPadInfo(pad());
+
+    return vpux::backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), origPadding);
+}
+
+void vpux::VPU::NCEMaxPoolOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
+    VPU::adjustPaddings(this, inputTiling);
 }
