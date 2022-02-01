@@ -185,6 +185,11 @@ The pass is a part of `HardwareMode` pipeline.
 
 It swaps `Transpose` operation with per-tensor `FakeQuantize` operation when possible.
 This transormation reduces the number of `MemPermute` operations in resulting graph.
+### `-transpose-reorder-concat-pass`: Inserts Reorder operation between Transpose and Concat
+The pass is a part of `HardwareMode` pipeline.
+
+It inserts `Reorder` operation between `Transpose` and `Concat` operation when possible.
+This transormation reduces the number of `MemPermute` operations in resulting graph.
 ### `-uniquify-ops`: Remove duplicating operations with a common producer Value
 The pass is a part of `AdjustForVPU` pipeline.
 

@@ -961,4 +961,25 @@ def SwapPermuteWithExpand : PassBase<"swap-permute-with-expand", "vpux::Function
     ];
 }
 
+//
+// InsertReorderBetweenConcatAndTranspose
+//
+
+def InsertReorderBetweenTransposeAndConcat : PassBase<"transpose-reorder-concat-pass", "vpux::FunctionPass"> {
+    let summary = "Inserts Reorder operation between Transpose and Concat";
+
+    let description = [{
+        The pass is a part of `HardwareMode` pipeline.
+
+        It inserts `Reorder` operation between `Transpose` and `Concat` operation when possible.
+        This transormation reduces the number of `MemPermute` operations in resulting graph.
+    }];
+
+    let constructor = "vpux::IE::createInsertReorderBetweenTransposeAndConcatPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 #endif
