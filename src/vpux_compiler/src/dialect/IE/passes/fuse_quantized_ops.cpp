@@ -27,6 +27,15 @@ using namespace vpux;
 
 namespace {
 
+bool areAllUsersQuantized(mlir::Operation* op) {
+    for (auto user : op->getUsers()) {
+        if (mlir::dyn_cast<IE::QuantizeOp>(user) == nullptr) {
+            return false;
+        }
+    }
+    return true;
+}
+
 //
 // FuseWithConv
 //
@@ -59,6 +68,10 @@ private:
 mlir::LogicalResult FuseWithConv::matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const {
     auto convOp = quantizeOp.input().getDefiningOp<IE::ConvolutionOp>();
     if (convOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (!areAllUsersQuantized(convOp)) {
         return mlir::failure();
     }
 
@@ -121,6 +134,10 @@ mlir::LogicalResult FuseWithGroupConv::matchAndRewrite(IE::QuantizeOp quantizeOp
         return mlir::failure();
     }
 
+    if (!areAllUsersQuantized(grConvOp)) {
+        return mlir::failure();
+    }
+
     if (VPUIP::NCEInvariant::verifyKernel(grConvOp, _log).failed()) {
         return mlir::failure();
     }
@@ -176,6 +193,10 @@ private:
 mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const {
     auto maxPoolOp = quantizeOp.input().getDefiningOp<IE::MaxPoolOp>();
     if (maxPoolOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (!areAllUsersQuantized(maxPoolOp)) {
         return mlir::failure();
     }
 
@@ -241,6 +262,10 @@ mlir::LogicalResult FuseWithSlice::matchAndRewrite(IE::QuantizeOp quantizeOp, ml
         return mlir::failure();
     }
 
+    if (!areAllUsersQuantized(sliceOp)) {
+        return mlir::failure();
+    }
+
     auto inputDequantizeOp = sliceOp.source().getDefiningOp<IE::DequantizeOp>();
     if (inputDequantizeOp == nullptr) {
         return mlir::failure();
@@ -285,6 +310,10 @@ private:
 mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const {
     auto concatOp = quantizeOp.input().getDefiningOp<IE::ConcatOp>();
     if (concatOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (!areAllUsersQuantized(concatOp)) {
         return mlir::failure();
     }
 
@@ -364,6 +393,10 @@ mlir::LogicalResult FuseWithSplit::matchAndRewrite(IE::SplitOp splitOp, mlir::Pa
         return mlir::failure();
     }
 
+    if (!areAllUsersQuantized(splitOp)) {
+        return mlir::failure();
+    }
+
     SmallVector<mlir::Type> newSplitOutputsType;
     newSplitOutputsType.reserve(splitOp.outputs().size());
 
@@ -438,6 +471,10 @@ mlir::LogicalResult FuseWithEltwiseConverter<ConcreteOp>::matchAndRewrite(IE::Qu
 
     auto eltwiseOp = quantizeOp.input().getDefiningOp<ConcreteOp>();
     if (eltwiseOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (!areAllUsersQuantized(eltwiseOp)) {
         return mlir::failure();
     }
 
