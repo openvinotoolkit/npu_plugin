@@ -117,7 +117,7 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
 
     BoolOption enableSwapPermuteWithExpand{*this, "swap-permute-with-expand",
                                            ::llvm::cl::desc("Enable SwapPermuteWithExpand pass"),
-                                           ::llvm::cl::init(true)};
+                                           ::llvm::cl::init(false)};
 
     bool enableCompressWeights = false;
 
@@ -200,7 +200,7 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 
     BoolOption enableSwapPermuteWithExpand{*this, "swap-permute-with-expand",
                                            ::llvm::cl::desc("Enable SwapPermuteWithExpand pass"),
-                                           ::llvm::cl::init(true)};
+                                           ::llvm::cl::init(false)};
 
     BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
                                        llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(true)};

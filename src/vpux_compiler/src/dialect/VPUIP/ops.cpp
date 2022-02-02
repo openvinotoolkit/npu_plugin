@@ -58,8 +58,7 @@ bool isSupportedHWPostOp(mlir::Operation* postOp) {
     }
 
     auto producerOp = postOp->getOperand(0).getDefiningOp();
-    if (producerOp && (mlir::isa<IE::MaxPoolOp>(producerOp) || producerOp->hasTrait<IE::EltwiseOp>()) &&
-        mlir::isa<IE::LeakyReluOp>(postOp)) {
+    if (producerOp && producerOp->hasTrait<IE::EltwiseOp>() && mlir::isa<IE::LeakyReluOp>(postOp)) {
         return false;
     }
 

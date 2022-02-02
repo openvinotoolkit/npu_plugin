@@ -281,6 +281,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     if (options.enableConvertAvgPoolToDWConv) {
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     }
+    pm.addPass(IE::createConcatPostOpHandle(log));
 
     IE::buildAdjustForVPUPipeline(pm, log);
 
@@ -304,6 +305,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     if (options.enableLowPrecision) {
         IE::buildLowPrecisionPipeline(pm, log);
+        pm.addPass(IE::createFusePostOpsPass(log));
     }
     pm.addPass(IE::createUnrollBatchPass(log));
     pm.addPass(IE::createResolvePWLPostOpsPass(log));

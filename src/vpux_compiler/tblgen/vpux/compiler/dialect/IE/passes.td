@@ -769,6 +769,26 @@ def ConvertAvgPoolToDWConv : PassBase<"convert-avg-pool-to-dw-conv", "vpux::Func
 }
 
 //
+//
+//
+
+def ConcatPostOpHandle : PassBase<"cocat-postop-handle", "vpux::FunctionPass"> {
+    let summary = "";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass replaces suitable `AvgPool` operations with `GroupConvolution` operation.
+    }];
+
+    let constructor = "vpux::IE::createConcatPostOpHandle()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // HandleAsymmetricStrides
 //
 
