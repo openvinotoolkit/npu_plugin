@@ -30,6 +30,7 @@ extern "C" {
 
 void maximum(const struct MaximumParams *lParams) {
     half* in = (half*)lParams->input.dataAddr;
+    half* in2 = (half*)lParams->input2.dataAddr;
     half* out = (half*)lParams->output.dataAddr;
 
     int32_t *pDims = (int32_t *)(lParams->input.dimsAddr);
@@ -39,8 +40,8 @@ void maximum(const struct MaximumParams *lParams) {
         nElements *=  pDims[i];
     }
 
-    for (int32_t i = 0; i < nElements/2; i++) {
-        out[i] = MAX(in[i] , in[i + nElements/2]);
+    for (int32_t i = 0; i < nElements; i++) {
+        out[i] = MAX(in[i] , in2[i]);
     }
 }
 

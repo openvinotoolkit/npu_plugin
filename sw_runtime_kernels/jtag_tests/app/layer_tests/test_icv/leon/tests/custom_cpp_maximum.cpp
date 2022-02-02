@@ -26,19 +26,27 @@ __attribute__((aligned(1024)))
 #include "param_maximum.h"
 
 #define USE_SEED_VALUE 0xbdd1cb13  // defined to use this value as random seed
+#define USE_SEED_VALUE_IN2 0xfa3b8fed  // defined to use this value as random seed
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Maximum)) {
     static constexpr std::initializer_list<SingleTest> maximum_test_list{
-            {{64, 64, 64},
-             {64, 64, 32},
+            {{2, 2, 2},
+             {2, 2, 2},
              orderZXY,
              FPE("maximum.elf"),
              {{
                      sw_params::Location::NN_CMX /*mem type*/,
              }}},
-            {{2, 2, 2},
+            {{2, 2, 1},
              {2, 2, 1},
+             orderZXY,
+             FPE("maximum.elf"),
+             {{
+                     sw_params::Location::NN_CMX /*mem type*/,
+             }}},
+            {{32, 32, 32},
+             {32, 32, 32},
              orderZXY,
              FPE("maximum.elf"),
              {{
@@ -65,7 +73,28 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Maximum)) {
             m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
 
             paramContainer.resize(((int)sizeof(sw_params::MaximumParams) + 7) / 8);
-            CustomCppTests<fp16>::initData();
+
+            initElfBuffer();
+            initTestCase();
+            const Dimensions& dimIn = m_currentTest->inDim;
+            const Dimensions& dimIn2 = m_currentTest->inDim;
+            const Dimensions& dimOut = m_currentTest->outDim;
+            const StorageOrder& storageOrder = m_currentTest->storageOrder;
+
+            const TensorDims dims3In(dimIn.width,   dimIn.height,  dimIn.channels,  1);
+            const TensorDims dims3In2(dimIn2.width,   dimIn2.height,  dimIn2.channels,  1);
+            const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
+
+            m_inputTensor.init(storageOrder, dims3In);
+            m_inputTensor2.init(storageOrder, dims3In2);
+            m_outputTensor.init(storageOrder, dims3Out);
+            m_referenceOutputTensor.init(storageOrder, dims3Out);
+
+            allocBuffer(m_inputTensor);
+            allocBuffer(m_inputTensor2);
+            allocBuffer(m_outputTensor);
+            allocBuffer(m_referenceOutputTensor);
+
             const SingleTest* test = m_currentTest;
             m_maximumParams = reinterpret_cast<sw_params::MaximumParams*>(paramContainer.data());
             *m_maximumParams = sw_params::MaximumParams();
@@ -81,6 +110,26 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Maximum)) {
 #endif
         }
 
+        void initParserRunner() override
+        {
+            initMyriadResources();
+            initDebugInfo();
+
+            static_assert(std::is_base_of<Op, CustomCpp>());
+            CustomCpp* customCppOp = static_cast<CustomCpp*>(m_op);
+            Buffer inBuff;
+            Buffer inBuff2;
+            Buffer outBuff;
+            m_inputTensor.exportToBuffer(inBuff);
+            m_inputTensor2.exportToBuffer(inBuff2);
+            m_outputTensor.exportToBuffer(outBuff);
+
+            customCppOp->addInputBuffer(inBuff, m_requiredTensorLocation);
+            customCppOp->addInputBuffer(inBuff2, m_requiredTensorLocation);
+            customCppOp->addOutputBuffer(outBuff, m_requiredTensorLocation);
+            customCppOp->ops = *getParams();
+        }
+
         void initTestCase() override {
             m_currentTest = &m_testsLoop.value();
             m_test_threshold = 0.008f;
@@ -89,12 +138,14 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Maximum)) {
         void generateInputData() override {
 #if defined(USE_SEED_VALUE)
             auto seedValue = USE_SEED_VALUE;
+            auto seedValueIn2 = USE_SEED_VALUE_IN2;
 #else
             u64 systemTicks;
             DrvTimerGetSystemTicks64(&systemTicks);
             auto seedValue = static_cast<unsigned int>(systemTicks);
 #endif
             std::mt19937 generator(seedValue);
+            std::mt19937 generator2(seedValueIn2);
             m_inputTensor.forEach(false, [this, &generator](const MemoryDims& indices) {
                 // We generate the random value between -8.f and 8f and the kernel do x * relu6(x+3) / 6
                 // So the minimum resolution is 2^(-7) = 0.00781f and the kernel may calculate 0 output value
@@ -104,23 +155,31 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Maximum)) {
                 do {
                     fp32Value = float(generator()) / generator.max() * 16.f - 8.f;
                 } while (fabs(fp32Value) < precisionLimitations && fp32Value != 0.f);
-                storedValues.push_back(fp32Value);
 
                 m_inputTensor.at(indices) = f32Tof16(fp32Value);
+            });
+
+            m_inputTensor2.forEach(false, [this, &generator2](const MemoryDims& indices) {
+                // We generate the random value between -8.f and 8f and the kernel do x * relu6(x+3) / 6
+                // So the minimum resolution is 2^(-7) = 0.00781f and the kernel may calculate 0 output value
+                // if input value is less than this resolution. In such cases, relative difference would be 1.
+                const float precisionLimitations = 0.00781f;
+                float fp32Value = 0.f;
+                do {
+                    fp32Value = float(generator2()) / generator2.max() * 16.f - 8.f;
+                } while (fabs(fp32Value) < precisionLimitations && fp32Value != 0.f);
+
+                m_inputTensor2.at(indices) = f32Tof16(fp32Value);
             });
         }
 
         void generateReferenceData() override {
             m_referenceOutputTensor.forEach(false, [&](const MemoryDims& indices) {
-                float val1 = storedValues[count];
-                float val2 = storedValues[count + m_inputTensor.fullSize()/2];
+                float val1 = f16Tof32(m_inputTensor.at(indices));
+                float val2 = f16Tof32(m_inputTensor2.at(indices));
                 float ref = MAX(val1, val2);
                 m_referenceOutputTensor.at(indices) = f32Tof16(ref);
-                count++;
             });
-
-            // reset counter
-            count = 0;
         }
 
         virtual bool checkResult() override {
@@ -156,8 +215,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Maximum)) {
         ListIterator<SingleTest> m_testsLoop;
 
         // Additional buffer to avoid convertion back and forth
-        uint32_t count = 0;
-        std::vector<float> storedValues;
+        Tensor<fp16> m_inputTensor2;
         std::vector<uint64_t> paramContainer;
         sw_params::MaximumParams* m_maximumParams;
     };

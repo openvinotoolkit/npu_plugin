@@ -18,6 +18,7 @@ namespace sw_params {
 
 struct __attribute__ ((packed)) MaximumParams {
     struct MemRefData input;
+    struct MemRefData input2;
     struct MemRefData output;
 };
 
@@ -25,7 +26,7 @@ struct __attribute__ ((packed)) MaximumParams {
 
 inline struct BaseKernelParams ToBaseKernelParams(struct MaximumParams * params) {
     struct BaseKernelParams result;
-    result.numInputs = 1;
+    result.numInputs = 2;
     result.numOutputs = 1;
 #ifdef  __cplusplus
     result.inputsOffset = reinterpret_cast<uint8_t*>(&(params->input)) - reinterpret_cast<uint8_t*>(params);
