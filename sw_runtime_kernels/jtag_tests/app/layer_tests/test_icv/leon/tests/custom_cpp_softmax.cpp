@@ -54,25 +54,24 @@ protected:
             0
         };
 
-        paramContainer.resize(((int)sizeof(sw_params::SoftmaxParams) + 7) / 8);
         CustomCppTests<fp16>::initData();
         const SingleTest* test = m_currentTest;
         int32_t ind[subspace::MAX_DIMS] = {0, };
         subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
         m_axis = ind[test->customLayerParams.layerParams[0]];
         m_temp = allocData<float>(m_inputTensor.memoryDims().dims[m_axis]);
-        m_softmaxParams = reinterpret_cast<sw_params::SoftmaxParams *>(paramContainer.data());
+        m_softmaxParams = reinterpret_cast<sw_params::SoftmaxParams *>(paramContainer);
         *m_softmaxParams = sw_params::SoftmaxParams();
         m_softmaxParams->axis = m_axis;
-        m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
-        m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
+        m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
+        m_params.paramDataLen = sizeof(sw_params::SoftmaxParams);
         m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[1]);
         m_params.baseParamData = sw_params::softmaxParamsToBaseKernelParams(m_softmaxParams);
     }
 
     void initTestCase() override {
         m_currentTest = &m_testsLoop.value();
-        m_test_threshold = 0.0005f;
+        m_test_threshold = 0.001f;
 
 //        const StorageOrder& storageOrder = m_currentTest->storageOrder;
 //        const auto& dimIn = m_currentTest->inDim;
@@ -198,7 +197,6 @@ private:
     // Additional buffer to avoid convertion back and forth
     int m_axis;
     float* m_temp;
-    std::vector<uint64_t> paramContainer;
     sw_params::SoftmaxParams * m_softmaxParams;
 //    Tensor<fp16> m_referenceTensor;
 };

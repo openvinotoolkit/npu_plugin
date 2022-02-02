@@ -72,16 +72,15 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Elu)) {
         void initData() override {
             m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
 
-            paramContainer.resize(((int)sizeof(sw_params::EluParams) + 7) / 8);
             CustomCppTests<fp16>::initData();
             const SingleTest* test = m_currentTest;
             const Hex alpha_hex = {.i = test->customLayerParams.layerParams[0]};
             m_alpha = alpha_hex.f;
-            m_eluParams = reinterpret_cast<sw_params::EluParams*>(paramContainer.data());
+            m_eluParams = reinterpret_cast<sw_params::EluParams*>(paramContainer);
             *m_eluParams = sw_params::EluParams();
             m_eluParams->alpha = m_alpha;
-            m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
-            m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
+            m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
+            m_params.paramDataLen = sizeof(sw_params::EluParams);
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[1]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_eluParams);
 
@@ -164,7 +163,6 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Elu)) {
 
         // Additional buffer to avoid convertion back and forth
         float m_alpha;
-        std::vector<uint64_t> paramContainer;
         sw_params::EluParams* m_eluParams;
     };
 

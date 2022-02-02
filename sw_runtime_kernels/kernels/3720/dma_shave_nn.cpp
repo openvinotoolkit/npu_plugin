@@ -1,9 +1,31 @@
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
 #include <dma_shave_nn.h>
 #include <string.h>
 #include <algorithm>
+#if defined(__leon__) || defined(__leon_nn__)
+#include <rtems/rtems/cache.h>
+#endif
 
 INLINE_ATTRIBUTE bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength) {
+#if defined(__leon__) || defined(__leon_nn__)
+    rtems_cache_invalidate_multiple_data_lines(a_src, byteLength);
+#endif
     memcpy(a_dst, a_src, byteLength);
+#if defined(__leon__) || defined(__leon_nn__)
+    rtems_cache_flush_multiple_data_lines(a_dst, byteLength);
+#endif
     return true;
 }
 
@@ -23,7 +45,13 @@ INLINE_ATTRIBUTE bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t
     for (uint32_t si = 0, di = 0, length = byteLength; length > 0;)
     {
         const uint32_t chunk = std::min(std::min(srcWidth - si, dstWidth - di), length);
+#if defined(__leon__) || defined(__leon_nn__)
+        rtems_cache_invalidate_multiple_data_lines(src, chunk);
+#endif
         memcpy(dst, src, chunk);
+#if defined(__leon__) || defined(__leon_nn__)
+    rtems_cache_flush_multiple_data_lines(dst, chunk);
+#endif
 
         si += chunk;
         di += chunk;

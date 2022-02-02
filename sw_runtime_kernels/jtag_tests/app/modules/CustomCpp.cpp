@@ -1,10 +1,21 @@
-// {% copyright %}
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
 
 #include "CustomCpp.h"
 #include <mv_types.h>
 #include <nn_log.h>
 
-#include "upa_task_runner.hpp"
+#include "shave_task_runner.hpp"
 
 #include "layers/param_custom_cpp.h"
 #include "layers/pre_custom_cpp.h"
@@ -28,14 +39,18 @@ using namespace nn::shave_lib;
 #include "ShaveElfMetadata/ShaveElfMetadataParser.h"
 #ifdef CONFIG_TARGET_SOC_3720
 #include <sw_nn_runtime_types_3600.h>
-extern void*  (shvNN0_preCustomLayerCpp);
-extern void*  (shvNN0_custom_cpp);
+#include <dma_shave_nn.h>
+void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr);
 #else
 #include <sw_nn_runtime_types_2490.h>
 #include "svuSLKernels_EP.h"
 #endif
 
 namespace {
+//  FIXME: Temporarily are located on CMX due to problem of ACT_SHAVE cache invalidation
+OpTensor cmxInputs[shave_lib::MAX_INPUT_TENSORS] __attribute__((section(".nncmx0.shared.data")));
+OpTensor cmxOutputs[shave_lib::MAX_OUTPUT_TENSORS] __attribute__((section(".nncmx0.shared.data")));
+
 static bool parseCustomElf(const uint8_t* ElfBuffer, KernelCppDescriptor& descriptor/*, uint32_t argsNum*/)
 {
     descriptor.kernelEntry = 0x1e000000; // default entry point
@@ -74,17 +89,27 @@ bool CustomCpp::parse(Layer * layer) {
     std::vector<uint64_t> kernelData((uint64_t*)ops.kernelData, (uint64_t*)ops.kernelData+(ops.kernelDataLen+7)/8);
 
     sw_params::BaseKernelParams * kernelParams = &(ops.baseParamData);
+
+
     sw_params::MemRefData* inTensors =
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->inputsOffset);
     for (unsigned i = 0; i < inputVec.size(); i++) {
-        inTensors[i] = inputVec[i].toMemRefData(inputLocations[i]);
-        inTensors[i].location = inputLocations[i];
+        cmxInputs[i] = inputVec[i];
+        inTensors[i] = cmxInputs[i].toMemRefData(inputLocations[i], true);
+        nn::cache::flush(inTensors[i]);
+        uint32_t * dims = reinterpret_cast<uint32_t*>(inTensors[i].dimsAddr);
+        nn::cache::flush(dims, inTensors[i].numDims * sizeof(uint32_t));
+        nn::cache::flush(cmxInputs, shave_lib::MAX_INPUT_TENSORS * sizeof(OpTensor));
     }
     sw_params::MemRefData* outTensors =
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->outputsOffset);
     for (unsigned i = 0; i < outputVec.size(); i++) {
-        outTensors[i] = outputVec[i].toMemRefData(outputLocations[i]);
-        outTensors[i].location = outputLocations[i];
+        cmxOutputs[i] = outputVec[i];
+        outTensors[i] = cmxOutputs[i].toMemRefData(outputLocations[i], false);
+        nn::cache::flush(outTensors[i]);
+        uint32_t * dims = reinterpret_cast<uint32_t*>(outTensors[i].dimsAddr);
+        nn::cache::flush(dims, outTensors[i].numDims * sizeof(uint32_t));
+        nn::cache::flush(cmxOutputs, shave_lib::MAX_OUTPUT_TENSORS * sizeof(OpTensor));
     }
 
     const uint8_t *elf = reinterpret_cast<const uint8_t *>(kernelData.data());
@@ -99,7 +124,7 @@ bool CustomCpp::parse(Layer * layer) {
     RETURN_FALSE_UNLESS(parseCustomElf(elf, descriptor/*, *argCountPtr*/),
                         "Failed to parse kernel elf");
 
-    logI("KernelDescriptor: descriptor.entry=%p descriptor.sec_mem_total=%u\n",
+    logD("KernelDescriptor: descriptor.entry=%p descriptor.sec_mem_total=%u\n",
                 (void*)descriptor.kernelEntry, descriptor.sec_mem_total);
 
     void * code = nullptr;
@@ -132,7 +157,7 @@ bool CustomCpp::parse(Layer * layer) {
     auto inRefs = layer->getInputs();
     auto outRefs = layer->getOutputs();
 
-    logI("inputs %lu outputs %lu kernel selected %x",
+    logD("inputs %lu outputs %lu kernel selected %x",
          inRefs.size(), outRefs.size(), params->kernelOffset);
 
     params->kernel = ops.kernel;
@@ -143,17 +168,10 @@ bool CustomCpp::parse(Layer * layer) {
     layer->setParams(id,
                      static_cast<LayerParams *>(params));
 
-#ifdef CONFIG_TARGET_SOC_3720
-    layer->setPreamble(reinterpret_cast<preamble>(&shvNN0_preCustomLayerCpp));
-//    layer->setKernelEntry(reinterpret_cast<void (*)(void*)>(&shvNN0_custom_cpp));
-#else
+#ifdef CONFIG_TARGET_SOC_MA2490
     layer->setPreamble(PREAMBLE_FUNC(preCustomLayerCpp));
 //    layer->setKernelEntry(KERNEL_FUNC(custom_cpp));
 #endif
-//        convParams->layerRequiresCacheFlushOnCompletion = true;
-//        layer->requireCacheFlushOnCompletion();
-//    layer->setExecCleanup(PREAMBLE_FUNC(execCleanupCustomLayerCpp));
-//    layer->setLayerCleanup(&layerCleanupCustomCppLayer);
 
     return true;
 }
@@ -161,7 +179,7 @@ bool CustomCpp::parse(Layer * layer) {
 void CustomCpp::run(mv::tensor::Processor& ,
                   t_MvTensorMyriadResources& myriadRes,
                   t_MvTensorDebugInfo&) {
-    for(const Buffer& input: inputVec) {
+    for(const OpTensor& input: inputVec) {
         nnLog(MVLOG_DEBUG, "ndims  = %ld\n", input.ndims);
         nnLog(MVLOG_DEBUG, "order  = 0x%x\n", input.order);
         nnLog(MVLOG_DEBUG, "dims.0 = %ld(%ld)\n", input.dims[0], input.strides[0]);
@@ -170,14 +188,29 @@ void CustomCpp::run(mv::tensor::Processor& ,
         nnLog(MVLOG_DEBUG, "dims.3 = %ld(%ld)\n", input.dims[3], input.strides[3]);
         nnLog(MVLOG_DEBUG, "Input buffer %p.\n", input.addr);
     }
-    for(const Buffer& output: outputVec) {
+    for(const OpTensor& output: outputVec) {
         nnLog(MVLOG_DEBUG, "Output buffer %p.\n", output.addr);
     }
     nnLog(MVLOG_DEBUG, "leonPreambleID %ld\n", ops.leonPreambleID);
     nnLog(MVLOG_DEBUG, "KernelData %p with length %ld.\n", ops.kernelData, ops.kernelDataLen);
     nnLog(MVLOG_DEBUG, "ParamData  %p with length %ld.\n", ops.paramData,  ops.paramDataLen);
 
-    UPATaskRunner runner;
+    ShaveTaskRunner runner;
     mvTensorAssert(runner.enqueTask(this, std::move(inputVec), std::move(outputVec), myriadRes.lastShave - myriadRes.firstShave + 1, &perfData), "custom OpenCPP layer run failed");
     mvTensorAssert(runner.dequeResult(), "custom Cpp layer run failed");
+
+#ifdef CONFIG_TARGET_SOC_3720
+    sw_params::BaseKernelParams * kernelParams = &(ops.baseParamData);
+    sw_params::MemRefData* outTensors =
+            reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->outputsOffset);
+    for (unsigned i = 0; i < outputVec.size(); i++) {
+        if (outTensors[i].location == sw_params::Location::NN_CMX || outTensors[i].location == sw_params::Location::UPA_CMX) {
+            DmaAlShave dmaTask;
+            auto totalBytes = (outputVec[i].ndims > 0) ? outputVec[i].dims[outputVec[i].ndims - 1] * outputVec[i].strides[outputVec[i].ndims - 1] : 0;
+            dmaTask.start(reinterpret_cast<uint8_t*>(outTensors[i].dataAddr), reinterpret_cast<uint8_t*>(outputVec[i].addr),
+                    totalBytes);
+            dmaTask.wait();
+        }
+    }
+#endif
 }

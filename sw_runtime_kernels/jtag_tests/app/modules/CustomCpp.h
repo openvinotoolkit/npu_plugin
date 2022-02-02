@@ -1,4 +1,15 @@
-// {% copyright %}
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
 
 #pragma once
 
@@ -10,7 +21,7 @@
 struct CustomCppLayerParams {
     uint32_t leonPreambleID;
 
-    const uint8_t* kernelData;
+    uint8_t* kernelData;
     size_t kernelDataLen;
 
     uint32_t* paramData;
@@ -29,11 +40,11 @@ public:
     virtual void run(mv::tensor::Processor& mvtp,
             t_MvTensorMyriadResources& myriadRes,
             t_MvTensorDebugInfo& debugInfo) override;
-    void addInputBuffer(const Buffer& input, sw_params::Location loc = sw_params::Location::DDR) {
+    void addInputBuffer(const OpTensor& input, sw_params::Location loc = sw_params::Location::DDR) {
         inputVec.push_back(input);
         inputLocations.push_back(loc);
     }
-    void addOutputBuffer(const Buffer& output, sw_params::Location loc = sw_params::Location::DDR) {
+    void addOutputBuffer(const OpTensor& output, sw_params::Location loc = sw_params::Location::DDR) {
         outputVec.push_back(output);
         outputLocations.push_back(loc);
     }
@@ -43,8 +54,8 @@ public:
     CustomCppLayerParams ops;
 
 private:
-    std::vector<Buffer> inputVec;
+    std::vector<OpTensor> inputVec;
     std::vector<sw_params::Location> inputLocations;
-    std::vector<Buffer> outputVec;
+    std::vector<OpTensor> outputVec;
     std::vector<sw_params::Location> outputLocations;
 };

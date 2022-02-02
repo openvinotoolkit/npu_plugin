@@ -9,16 +9,12 @@
 
 #define INVALID_SHAVE_ID 4 //
 // MTL stubs
-namespace nn
-{
-
-  namespace util
-  {
+namespace nn {
+  namespace util {
     struct TaskContext;
   }
 
-  namespace shave_lib
-  {
+  namespace shave_lib {
     constexpr uint8_t MAX_INPUT_TENSORS = 8;
     constexpr uint8_t MAX_OUTPUT_TENSORS = 4;
 
