@@ -144,17 +144,6 @@ void dumpInputs(const std::vector<elf::DeviceBuffer>& vec) {
     }
 }
 
-struct HexMappedInferenceEntry {
-    uint32_t elfEntryPtr;
-    uint32_t totalSize;
-    uint32_t inputsPtr;
-    uint32_t inputSizesPtr;
-    uint32_t inputsCount;
-    uint32_t outputsPtr;
-    uint32_t outputSizesPtr;
-    uint32_t outputsCount;
-};
-
 int main(int argc, char* argv[]) {
     llvm::cl::ParseCommandLineOptions(argc, argv);
 
@@ -174,8 +163,8 @@ int main(int argc, char* argv[]) {
     vpux::binutils::HardCodedSymtabToCluster0 singleClusterSymTab;
     vpux::binutils::FlatHexBufferManager bufferManager(baseAddr, memSize);
 
-    HexMappedInferenceEntry* hexEntry = reinterpret_cast<HexMappedInferenceEntry*>(
-            bufferManager.allocate(1, sizeof(HexMappedInferenceEntry)).cpu_addr());
+    vpux::binutils::HexMappedInferenceEntry* hexEntry = reinterpret_cast<vpux::binutils::HexMappedInferenceEntry*>(
+            bufferManager.allocate(1, sizeof(vpux::binutils::HexMappedInferenceEntry)).cpu_addr());
 
     elf::VPUXLoader loader(reinterpret_cast<void*>(elfFile.data()), elfFile.size(), singleClusterSymTab.symTab(),
                            &bufferManager);

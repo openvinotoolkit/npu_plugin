@@ -65,6 +65,10 @@ public:
 
     bool empty() const { return m_size == 0; }
 
+    std::vector<T> vec() const {
+        return std::vector<T>(m_data, m_data + m_size);
+    }
+
 private:
     const T* m_data;
     const size_t m_size;

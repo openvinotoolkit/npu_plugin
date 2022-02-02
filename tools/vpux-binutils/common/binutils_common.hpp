@@ -29,11 +29,6 @@ public:
             : m_startAddr(startAddr), m_totalSize(size), m_buffer(new uint8_t[m_totalSize]), m_tracker(m_buffer) {
     }
 
-    FlatHexBufferManager(void* buffer, uint32_t startAddr, size_t size)
-            : m_startAddr(startAddr), m_totalSize(size), m_buffer(reinterpret_cast<uint8_t*>(buffer)), m_tracker(m_buffer) {
-
-    }
-
     DeviceBuffer allocate(size_t alignment, size_t size) override {
         if (!m_buffer) {
             VPUX_THROW("Failed to allocate overall buffer of size {0}", size);
@@ -72,6 +67,10 @@ public:
     }
     size_t size() const {
         return m_tracker - m_buffer;
+    }
+
+    uint32_t vpuBaseAddr() const {
+        return m_startAddr;
     }
 
 private:
@@ -146,5 +145,16 @@ public:
     }
 };
 
-} //namepsace binutils
-} //napesmace vpux
+struct HexMappedInferenceEntry {
+    uint32_t elfEntryPtr;
+    uint32_t totalSize;
+    uint32_t inputsPtr;
+    uint32_t inputSizesPtr;
+    uint32_t inputsCount;
+    uint32_t outputsPtr;
+    uint32_t outputSizesPtr;
+    uint32_t outputsCount;
+};
+
+}  // namespace binutils
+}  // namespace vpux
