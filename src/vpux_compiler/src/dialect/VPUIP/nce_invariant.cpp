@@ -1101,24 +1101,26 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchPatternCMX(mlir::Op
                   "parent {3}",
                   op->getLoc(), (cmxSize * ratioToAvoidFragmentation), cmxRequiredByParent + cmxRequiredToPrefetch,
                   cmxRequiredByParent);
-        std::cout << llvm::formatv("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required "
-                                   "'{2}', required by "
-                                   "parent {3}",
-                                   op->getLoc(), std::ceil((double)cmxSize.count() * ratioToAvoidFragmentation),
-                                   cmxRequiredByParent + cmxRequiredToPrefetch, cmxRequiredByParent)
-                             .str()
-                  << std::endl;
+        // useful print for debug
+        // std::cout << llvm::formatv("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required "
+        //                            "'{2}', required by "
+        //                            "parent {3}",
+        //                            op->getLoc(), std::ceil((double)cmxSize.count() * ratioToAvoidFragmentation),
+        //                            cmxRequiredByParent + cmxRequiredToPrefetch, cmxRequiredByParent)
+        //                      .str()
+        //           << std::endl;
 
         return mlir::failure();
     }
-    std::cout
-            << llvm::formatv(
-                       "[{0}] CMX memory is enough for prefetch pipeline, available '{1}', required '{2}', required by "
-                       "parent {3}",
-                       op->getLoc(), std::ceil((double)cmxSize.count() * ratioToAvoidFragmentation),
-                       cmxRequiredByParent + cmxRequiredToPrefetch, cmxRequiredByParent)
-                       .str()
-            << std::endl;
+    // useful print for debug
+    // std::cout
+    //         << llvm::formatv(
+    //                    "[{0}] CMX memory is enough for prefetch pipeline, available '{1}', required '{2}', required by "
+    //                    "parent {3}",
+    //                    op->getLoc(), std::ceil((double)cmxSize.count() * ratioToAvoidFragmentation),
+    //                    cmxRequiredByParent + cmxRequiredToPrefetch, cmxRequiredByParent)
+    //                    .str()
+    //         << std::endl;
 
     return mlir::success();
 }

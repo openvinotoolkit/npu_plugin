@@ -87,20 +87,6 @@ setDefaultHardwareModeMLIR();
 Run();
 }
 
-//INSTANTIATE_TEST_CASE_P(smoke, KmbScheduleSubGraphPrefetchMatMulTest,
-//        ::testing::Values(
-//        KmbScheduleSubGraphPrefetchMatMulTestParams {
-//                LayerTestsUtils::testPlatformTargetDevice,  // _device
-//                {1, 64, 8, 8},   // in dims
-//                {128, 64, 3, 3},    // weights 1 dims
-//                {128, 128, 3, 3},    // weights 2 dims
-//                {256, 128, 3, 3},    // weights 3 dims
-//                {1, 1},            // strides
-//                {0, 0},            // pads_begin
-//                {0, 0},            // pads_end
-//        })
-//);
-
 INSTANTIATE_TEST_CASE_P(smoke, KmbScheduleSubGraphPrefetchMatMulTest,
         ::testing::Values(
         KmbScheduleSubGraphPrefetchMatMulTestParams {
