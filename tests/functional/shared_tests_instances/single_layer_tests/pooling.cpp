@@ -556,6 +556,13 @@ INSTANTIATE_TEST_CASE_P(smoke_MaxPooling_LargeKernelsY, KmbPoolingLayerTest,
 
 /* ============= Adaptive_AVG_Pool / 3D ============= */
 
+     const std::vector<InferenceEngine::Precision> inputPrecisions = {
+            InferenceEngine::Precision::FP32,
+            InferenceEngine::Precision::FP16,
+            InferenceEngine::Precision::U8,
+    };
+
+
 const auto AdaPool3DCases =
         ::testing::Combine(::testing::ValuesIn(
                 std::vector<std::vector<size_t>> {
@@ -564,14 +571,14 @@ const auto AdaPool3DCases =
                         { 3, 17, 5 }}),
         ::testing::ValuesIn(std::vector<std::vector<int>>{ {1}, {3}, {5} }),
         ::testing::ValuesIn(std::vector<std::string>{"max", "avg"}),
-        ::testing::ValuesIn(netPRCs),
+        ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestsAdaPool3D, KmbPoolingLayerTest, AdaPool3DCases, PoolingLayerTest::getTestCaseName);
 
 /* ============= Adaptive_AVG_Pool / 3D ============= */
-
+/*
 const auto AdaPool4DCases = ::testing::Combine(
         ::testing::ValuesIn(
                 std::vector<std::vector<size_t>> {
@@ -580,14 +587,14 @@ const auto AdaPool4DCases = ::testing::Combine(
                         { 3, 17, 5, 1}}),
         ::testing::ValuesIn(std::vector<std::vector<int>>{ {1, 1}, {3, 5}, {5, 5} }),
         ::testing::ValuesIn(std::vector<std::string>{"max", "avg"}),
-        ::testing::ValuesIn(netPRCs),
+        ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestsAdaPool4D, KmbPoolingLayerTest, AdaPool4DCases, PoolingLayerTest::getTestCaseName);
 
 /* ============= Adaptive_AVG_Pool / 3D ============= */
-
+/*
 const auto AdaPool5DCases = ::testing::Combine(
         ::testing::ValuesIn(
                 std::vector<std::vector<size_t>> {
@@ -596,10 +603,10 @@ const auto AdaPool5DCases = ::testing::Combine(
                         { 3, 17, 5, 1, 2}}),
         ::testing::ValuesIn(std::vector<std::vector<int>>{ {1, 1, 1}, {3, 5, 3}, {5, 5, 5} }),
         ::testing::ValuesIn(std::vector<std::string>{"max", "avg"}),
-        ::testing::ValuesIn(netPRCs),
+        ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestsAdaPool5D, KmbPoolingLayerTest, AdaPool5DCases, PoolingLayerTest::getTestCaseName);
-
+*/
 }  // namespace
