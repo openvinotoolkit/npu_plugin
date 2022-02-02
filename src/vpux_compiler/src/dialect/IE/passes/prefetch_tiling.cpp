@@ -21,8 +21,10 @@ using namespace vpux;
 
 namespace {
 
-// Hack for MSFT
 mlir::Operation* getParentConvOp(mlir::Operation* op) {
+    // for const prefetch ignore cases where activation is handled by
+    // indermediate operations and causes a stall
+    // prefetch is wanted from conv to previous conv
     mlir::Operation* parentOp = op->getOperand(0).getDefiningOp();
     auto isOpIgnorable = [](mlir::Operation* op) -> bool {
         return mlir::isa<IE::AndOp>(op) || mlir::isa<IE::PermuteCastOp>(op) || mlir::isa<IE::ReshapeOp>(op);
