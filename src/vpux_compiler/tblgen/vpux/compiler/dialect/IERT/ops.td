@@ -569,6 +569,39 @@ def IERT_ReduceSumOp :
 }
 
 //
+// ReduceLogicalAndOp
+//
+
+def IERT_ReduceLogicalAndOp :
+        IERT_LayerOp<1, "ReduceLogicalAnd",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReduceLogicalAnd layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$axes,
+
+        AnyMemRef:$output_buff,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ClampOp
 //
 

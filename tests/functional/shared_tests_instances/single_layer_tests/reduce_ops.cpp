@@ -210,6 +210,24 @@ namespace {
         KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
     );
 
+    INSTANTIATE_TEST_CASE_P(
+        smoke_ReduceLogicalAnd,
+        KmbReduceOpsLayerWithSpecificInputTest,
+        testing::Combine(
+                testing::ValuesIn(decltype(axes) {{0}}),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(true, false),
+                testing::Values(ngraph::helpers::ReductionType::Max),
+                testing::ValuesIn(netPrecisions),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Layout::ANY),
+                testing::Values(std::vector<size_t> {1, 512, 7, 7}),
+                testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+        KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
+    );
+
+
     // [Track number: E#22733]
     INSTANTIATE_TEST_SUITE_P(
             DISABLED_smoke_ReduceMean3D,

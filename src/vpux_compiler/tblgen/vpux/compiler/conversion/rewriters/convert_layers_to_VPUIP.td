@@ -131,7 +131,7 @@ def RewriteBroadcast :
         >;
 
 //
-// IERT.Reduce[Max|Mean|Sum]Op -> VPUIP.ReduceUPA
+// IERT.Reduce[Max|Mean|Sum|LogicalAnd]Op -> VPUIP.ReduceUPA
 //
 
 class createReduceUPAOp<string method> :
@@ -160,6 +160,26 @@ def RewriteReduceSum :
         Pat<
             (IERT_ReduceSumOp $input, $axes, $output, $keep_dims),
             (createReduceUPAOp<"SUM"> $input, $axes, $output, $keep_dims)
+        >;
+
+//
+// IERT.ReduceLogicalAnd -> VPUIP.Reduce
+//
+
+def createReduceLogicalAndUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReduceUPAOp>(
+                $_loc, $0, $1, $2, $3,
+                vpux::VPUIP::ReduceLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::ReduceLayerType::MAX
+                ))
+        }]>;
+
+def RewriteReduceLogicalAnd :
+        Pat<
+                (IERT_ReduceLogicalAndOp $input, $axes, $output, $keep_dims),
+                (createReduceLogicalAndUPAOp $input, $axes, $output, $keep_dims)
         >;
 
 //
