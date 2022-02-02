@@ -78,7 +78,7 @@ void UPAProfilingPass::safeRunOnModule() {
     unsigned outputSize = static_cast<unsigned>(upaTasks.size() * elementSize);
     auto outputResult = mlir::MemRefType::get({outputSize}, getUInt32Type(ctx));
 
-    unsigned profilingId = static_cast<unsigned>(netOp.getProfilingOutputsCount());
+    auto profilingId = static_cast<int64_t>(netOp.getProfilingOutputsCount());
     unsigned upaId = 0;
     for (auto& upaTask : upaTasks) {
         builder.setInsertionPoint(upaTask);
@@ -188,10 +188,16 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
     netFunc.walk([&](VPURT::DeclareBufferOp op) {
         if (op.section() == VPURT::BufferSection::ProfilingOutput) {
             auto sectionIndex = op.sectionIndex();
-            if (sectionIndex.hasValue() && sectionIndex.getValue() > 0) {
-                auto idx = sectionIndex.getValue();
+            if (sectionIndex.hasValue()) {
+                VPUX_THROW_UNLESS(sectionIndex.getValue().size() == 1,
+                                  "Profiling output is expected to have just one locale index");
+                auto idx = parseIntArrayAttr<int64_t>(sectionIndex.getValue())[0];
+                if (idx <= 0) {
+                    return;
+                }
+
                 auto base = outputBases[idx];
-                op.sectionIndexAttr(builder.getUI32IntegerAttr(0));
+                op.sectionIndexAttr(getIntArrayAttr(ctx, SmallVector<int64_t>({0})));
                 auto offset = static_cast<uint32_t>(base + op.byteOffset());
                 op.byteOffsetAttr(builder.getUI32IntegerAttr(offset));
             }

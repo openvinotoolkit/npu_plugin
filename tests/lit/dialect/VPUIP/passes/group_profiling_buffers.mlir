@@ -35,15 +35,15 @@ module @GroupProfilingBuffers {
     //CHECK-NEXT:   DataInfo "0_dpu_32_dma_88_upa" : tensor<46xui32>   
     //CHECK:        %arg0: memref<1x48x30x30xf16>, %arg1: memref<1x48x30x30xf32>, %arg2: memref<46xui32>) -> (memref<1x48x30x30xf32>, memref<46xui32>)
 
-    //CHECK:        [[VAR0:%.+]] = VPURT.DeclareBuffer "ProfilingOutput"[0] <160> -> memref<6xui32>
+    //CHECK:        [[VAR0:%.+]] = VPURT.DeclareBuffer "ProfilingOutput" [0] <160> -> memref<6xui32>
     //CHECK:        VPURT.Task
     //CHECK-SAME:   profiling_data([[VAR0]] : memref<6xui32>)
 
-    //CHECK:        [[VAR1:%.+]] = VPURT.DeclareBuffer "ProfilingOutput"[0] <0> -> memref<4xui64>
+    //CHECK:        [[VAR1:%.+]] = VPURT.DeclareBuffer "ProfilingOutput" [0] <0> -> memref<4xui64>
     //CHECK:        VPUIP.NNDMA
     //CHECK-SAME:   outputs([[VAR1]] : memref<4xui64>)
 
-    //CHECK:        [[VAR2:%.+]] = VPURT.DeclareBuffer "ProfilingOutput"[0] <32> -> memref<14xui32>
+    //CHECK:        [[VAR2:%.+]] = VPURT.DeclareBuffer "ProfilingOutput" [0] <32> -> memref<14xui32>
     //CHECK:        VPUIP.NNDMA
     //CHECK-SAME:   outputs([[VAR2]] : memref<14xui32>)
     //CHECK:        return %arg1, %arg2 : memref<1x48x30x30xf32>, memref<46xui32> 

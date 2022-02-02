@@ -107,12 +107,20 @@ public:
 
 public:
     TensorReference createTensorRef(StringRef name, mlir::ShapedType type, VPURT::BufferSection section,
-                                    int64_t sectionIndex, int64_t byteOffset, ArrayRef<uint16_t> mult,
+                                    ArrayRef<int64_t> sectionIndex, int64_t byteOffset, ArrayRef<uint16_t> mult,
                                     ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints,
                                     Optional<int64_t> sparsityMapOffset = None,
                                     Optional<int64_t> storageElementOffset = None);
     TensorReference createTensorRef(StringRef name, mlir::ShapedType type, VPURT::BufferSection section,
+                                    ArrayRef<int64_t> sectionIndex, int64_t byteOffset,
+                                    Optional<int64_t> sparsityMapOffset = None,
+                                    Optional<int64_t> storageElementOffset = None);
+    TensorReference createTensorRef(StringRef name, mlir::ShapedType type, VPURT::BufferSection section,
                                     int64_t sectionIndex, int64_t byteOffset,
+                                    Optional<int64_t> sparsityMapOffset = None,
+                                    Optional<int64_t> storageElementOffset = None);
+    TensorReference createTensorRef(mlir::Value val, StringRef name, VPURT::BufferSection section,
+                                    ArrayRef<int64_t> sectionIndex, int64_t byteOffset,
                                     Optional<int64_t> sparsityMapOffset = None,
                                     Optional<int64_t> storageElementOffset = None);
     TensorReference createTensorRef(mlir::Value val, StringRef name, VPURT::BufferSection section, int64_t sectionIndex,

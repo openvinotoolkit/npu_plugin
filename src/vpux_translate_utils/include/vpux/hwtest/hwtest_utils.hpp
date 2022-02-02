@@ -94,12 +94,12 @@ mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> s
 
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
-                                                   int locale, size_t offset);
+                                                   int64_t locale, size_t offset);
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
-                                                   StridesRef strides, int locale, size_t offset);
+                                                   StridesRef strides, int64_t locale, size_t offset);
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::MemRefType type,
-                                                   VPURT::BufferSection section, int locale, size_t offset);
+                                                   VPURT::BufferSection section, int64_t locale, size_t offset);
 
 mlir::OpResult getTensorResult(VPURT::DeclareBufferOp op);
 

@@ -83,7 +83,7 @@ def VPURT_DeclareBufferOp :
 
     let arguments = (ins
         VPURT_BufferSection:$section,
-        OptionalAttr<IntAttr>:$sectionIndex,
+        OptionalAttr<I64ArrayAttr>:$sectionIndex,
         IntAttr:$byteOffset
     );
 
@@ -96,6 +96,9 @@ def VPURT_DeclareBufferOp :
             (ins "mlir::Type":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$byteOffset)
         >,
         OpBuilder<
+            (ins "mlir::Type":$type, "vpux::VPURT::BufferSection":$section, "ArrayRef<int64_t>":$sectionIndex, "int64_t":$byteOffset)
+        >,
+        OpBuilder<
             (ins "mlir::Type":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$sectionIndex, "int64_t":$byteOffset)
         >
     ];
@@ -105,13 +108,14 @@ def VPURT_DeclareBufferOp :
     }];
 
     let assemblyFormat = [{
-        $section (`[` $sectionIndex^ `]`)? `<` $byteOffset `>` attr-dict `->` type(results)
+        $section ($sectionIndex^)? ` ``<` $byteOffset `>` attr-dict `->` type(results)
     }];
 
     let extraClassDeclaration = [{
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::ORANGE;
         }
+        SmallVector<int64_t> getNonEmptySectionIndex();
     }];
 }
 

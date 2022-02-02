@@ -38,10 +38,12 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
                                           mlir::ArrayAttr kernel_strides, VPU::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
-                                          mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern) {
+                                          mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
+                                          mlir::UnitAttr is_segmented) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
           parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
-          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern);
+          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern,
+          is_segmented);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -55,10 +57,11 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
                                           mlir::ArrayAttr kernel_strides, VPU::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
-                                          mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern) {
+                                          mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
+                                          mlir::UnitAttr is_segmented) {
     build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
           output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
-          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern);
+          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -461,16 +464,39 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
         }
     }
 
-    for (const auto& operand : op.getOpOperands()) {
-        const auto val = operand.get();
-        const auto type = VPURT::SparseBufferType::getDataType(val).cast<mlir::MemRefType>();
+    const auto appendToVector = [](SmallVector<mlir::Value>& operands, mlir::Value val) {
+        if (val != nullptr)
+            operands.push_back(val);
+    };
+    auto nnCMXOperands = SmallVector<mlir::Value>();
 
-        const auto mem = VPU::getMemoryKind(type);
-        if (mem != VPU::MemoryKind::CMX_NN && mem != VPU::MemoryKind::Register) {
-            return errorAt(op, "Can't operate with '{0}' MemoryKind. Only '{1}' or '{2} MemoryKind is allowed", mem,
-                           VPU::MemoryKind::CMX_NN, VPU::MemoryKind::Register);
+    appendToVector(nnCMXOperands, op.input());
+    appendToVector(nnCMXOperands, op.weights());
+    appendToVector(nnCMXOperands, op.weight_table());
+    appendToVector(nnCMXOperands, op.activation_window());
+    appendToVector(nnCMXOperands, op.output_buff());
+    appendToVector(nnCMXOperands, op.profiling_data());
+
+    const auto checkMemoryKind = [&op](mlir::ValueRange operands, EnumSet<VPU::MemoryKind> acceptedMemoryKinds) {
+        for (const auto& val : operands) {
+            const auto type = VPURT::SparseBufferType::getDataType(val).cast<mlir::MemRefType>();
+
+            const auto mem = VPU::getMemoryKind(type);
+            if (llvm::find(acceptedMemoryKinds, mem) == acceptedMemoryKinds.end())
+                return errorAt(op, "Can't operate with '{0}' MemoryKind.", mem);
         }
+        return mlir::success();
+    };
 
+    const auto nncmxStatus = checkMemoryKind(
+            nnCMXOperands, EnumSet<VPU::MemoryKind>({VPU::MemoryKind::CMX_NN, VPU::MemoryKind::Register}));
+    if (nncmxStatus.failed())
+        return nncmxStatus;
+
+    // TODO revisit memory checks for parent operands
+
+    for (const auto& val : op.getOperands()) {
+        const auto type = VPURT::SparseBufferType::getDataType(val).cast<mlir::MemRefType>();
         const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(type.getRank() - 1)));
 
         if (!strideReqs.checkStrides(val)) {
@@ -654,9 +680,11 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
     auto bufferOp = VPURT::SparseBufferType::getData(nceTask.output_buff()).getDefiningOp<VPURT::DeclareBufferOp>();
     VPUX_THROW_UNLESS(bufferOp != nullptr, "Unable to find parent DeclareBufferOp to build new TensorReference");
 
-    return writer.createTensorRef("output_tensor_scale_updated", outputType, bufferOp.section(),
-                                  bufferOp.sectionIndex().getValueOr(0), bufferOp.byteOffset(), ppeQuantMult,
-                                  ppeQuantShift, ppeQuantPostShift, quantZeroPoints);
+    auto sectionIndex = bufferOp.getNonEmptySectionIndex();
+
+    return writer.createTensorRef("output_tensor_scale_updated", outputType, bufferOp.section(), sectionIndex,
+                                  bufferOp.byteOffset(), ppeQuantMult, ppeQuantShift, ppeQuantPostShift,
+                                  quantZeroPoints);
 }
 
 }  // namespace
@@ -769,9 +797,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         kernelPadB = checked_cast<int16_t>(kernelPadding.bottom().getInt());
     }
 
-    if (is_continuedAttr() != nullptr) {
-        is_continued = true;
-    }
+    is_continued = (is_continuedAttr() != nullptr);
+    is_segmented = (is_segmentedAttr() != nullptr);
 
     // Extract output permutation from output layout
     MVCNN::Permutation oduPermutation =

@@ -52,7 +52,7 @@ Declare VPU run-time buffer
 Syntax:
 
 ```
-operation ::= `VPURT.DeclareBuffer` $section (`[` $sectionIndex^ `]`)? `<` $byteOffset `>` attr-dict `->` type(results)
+operation ::= `VPURT.DeclareBuffer` $section ($sectionIndex^)? ` ``<` $byteOffset `>` attr-dict `->` type(results)
 ```
 
 
@@ -61,7 +61,7 @@ operation ::= `VPURT.DeclareBuffer` $section (`[` $sectionIndex^ `]`)? `<` $byte
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `section` | vpux::VPURT::BufferSectionAttr | Values indicating which section of BLOB the buffer resides in
-`sectionIndex` | mlir::IntegerAttr | Integer attribute
+`sectionIndex` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `byteOffset` | mlir::IntegerAttr | Integer attribute
 
 #### Results:

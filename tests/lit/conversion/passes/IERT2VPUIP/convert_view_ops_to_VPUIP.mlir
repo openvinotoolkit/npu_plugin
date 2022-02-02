@@ -9,7 +9,7 @@ func @Reshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x51
     %4 = VPUIP.NNDMA inputs(%3 : memref<1x512xf16, @DDR>) outputs(%arg1 : memref<1x512xf16>) -> memref<1x512xf16>
     return %4 : memref<1x512xf16>
 
-    // CHECK:       [[VAR0:%.*]] = VPURT.DeclareBuffer "NetworkInput"[0] <0> -> memref<1x512x1x1xf16>
+    // CHECK:       [[VAR0:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x512x1x1xf16>
 
     // CHECK:       [[VAR1:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x512x1x1xf16, @DDR>
 
@@ -41,14 +41,14 @@ func @SubView(%arg0: memref<4x4xf16>, %arg1: memref<4x4xf16>) -> memref<4x4xf16>
 
     return %arg1 : memref<4x4xf16>
 
-    // CHECK:       [[VAR0:%.*]] = VPURT.DeclareBuffer "NetworkInput"[0] <0> -> memref<2x4xf16>
-    // CHECK:       [[VAR1:%.*]] = VPURT.DeclareBuffer "NetworkOutput"[0] <0> -> memref<2x4xf16>
+    // CHECK:       [[VAR0:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<2x4xf16>
+    // CHECK:       [[VAR1:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<2x4xf16>
     // CHECK:       [[VAR2:%.*]] = VPUIP.NNDMA
     // CHECK-SAME:      inputs([[VAR0]] : memref<2x4xf16>)
     // CHECK-SAME:      outputs([[VAR1]] : memref<2x4xf16>) -> memref<2x4xf16>
 
-    // CHECK:       [[VAR3:%.*]] = VPURT.DeclareBuffer "NetworkInput"[0] <16> -> memref<2x4xf16>
-    // CHECK:       [[VAR4:%.*]] = VPURT.DeclareBuffer "NetworkOutput"[0] <16> -> memref<2x4xf16>
+    // CHECK:       [[VAR3:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <16> -> memref<2x4xf16>
+    // CHECK:       [[VAR4:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <16> -> memref<2x4xf16>
     // CHECK:       [[VAR5:%.*]] = VPUIP.NNDMA
     // CHECK-SAME:      inputs([[VAR3]] : memref<2x4xf16>)
     // CHECK-SAME:      outputs([[VAR4]] : memref<2x4xf16>) -> memref<2x4xf16>
@@ -135,7 +135,7 @@ func @PermuteCast(%arg0: memref<1x12x16x16xf16, #NHWC>, %arg1: memref<1x16x16x12
         outputs(%arg1 : memref<1x16x16x12xf16>) -> memref<1x16x16x12xf16>
     return %3 : memref<1x16x16x12xf16>
 
-    //CHECK:        [[VAR0:%.*]] = VPURT.DeclareBuffer "NetworkInput"[0] <0> -> memref<1x16x16x12xf16>
+    //CHECK:        [[VAR0:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x16x16x12xf16>
     //CHECK:        [[VAR1:%.*]] = VPURT.DeclareBuffer "DDR" <2000> -> memref<1x16x16x12xf16, @DDR>
     //CHECK:        [[VAR2:%.*]] = VPUIP.SoftMaxUPA {axisInd = 1 : i64}
     //CHECK-SAME:       inputs([[VAR0]] : memref<1x16x16x12xf16>)

@@ -356,8 +356,12 @@ mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, co
         VPUX_THROW("Location {0} is not supported", tensorRef->locale());
     }
 
-    return builder.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(_ctx), importedType, section,
-                                                  tensorRef->locale_index()->Get(0), tensorRef->data()->data_index());
+    const auto sectionIndex = to_small_vector(*tensorRef->locale_index() | transformed([](uint32_t v) {
+        return checked_cast<int64_t>(v);
+    }));
+
+    return builder.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(_ctx), importedType, section, sectionIndex,
+                                                  tensorRef->data()->data_index());
 }
 
 void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {

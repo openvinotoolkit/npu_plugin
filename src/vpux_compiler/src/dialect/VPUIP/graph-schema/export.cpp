@@ -308,7 +308,6 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
 
     for (const auto& p : inputsInfo | indexed) {
         const auto ind = checked_cast<uint32_t>(p.index());
-
         auto userInfo = p.value();
         const auto val = netFunc.getArgument(ind);
 
@@ -326,8 +325,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     graphProfilingOutputs.reserve(profilingOutputsInfo.size());
 
     for (const auto& p : outputsInfo | indexed) {
-        const auto ind = checked_cast<uint32_t>(p.index());
-        const auto funcArgInd = inputsInfo.size() + p.index();
+        const auto ind = p.index();
+        const auto funcArgInd = inputsInfo.size() + ind;
 
         auto userInfo = p.value();
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
@@ -342,8 +341,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     }
 
     for (const auto& p : profilingOutputsInfo | indexed) {
-        const auto ind = checked_cast<uint32_t>(p.index());
-        const auto funcArgInd = inputsInfo.size() + outputsInfo.size() + p.index();
+        const auto ind = p.index();
+        const auto funcArgInd = inputsInfo.size() + outputsInfo.size() + ind;
 
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
@@ -434,9 +433,9 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir:
     size_t tempTensorInd = 0;
     const auto createTensorRef = [&](VPURT::DeclareBufferOp bufOp, const Optional<int64_t> sparsityMapOffset = None,
                                      const Optional<int64_t> storageElementOffset = None) {
+        auto sectionIndex = bufOp.getNonEmptySectionIndex();
         writer.createTensorRef(bufOp.buffer(), llvm::formatv("temp-{0}", tempTensorInd).str(), bufOp.section(),
-                               bufOp.sectionIndex().getValueOr(0), bufOp.byteOffset(), sparsityMapOffset,
-                               storageElementOffset);
+                               sectionIndex, bufOp.byteOffset(), sparsityMapOffset, storageElementOffset);
         tempTensorInd++;
     };
 

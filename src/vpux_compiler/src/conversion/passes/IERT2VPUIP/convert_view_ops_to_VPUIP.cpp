@@ -18,6 +18,8 @@
 
 #include <mlir/Transforms/DialectConversion.h>
 
+#include "vpux/compiler/utils/attributes.hpp"
+
 using namespace vpux;
 
 namespace {
@@ -86,7 +88,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
     const auto rootVal = *roots.begin();
 
     VPURT::BufferSection section = VPURT::BufferSection::DDR;
-    Optional<int64_t> sectionIndex;
+    Optional<mlir::ArrayAttr> sectionIndex;
 
     if (auto declareOp = rootVal.getDefiningOp<VPURT::DeclareBufferOp>()) {
         _log.nest().trace("It aliases internal buffer produced by '{0}'", declareOp->getLoc());
@@ -115,24 +117,26 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         const auto numNetOutputs = numOutputs - numProfilingOutputs;
         const auto numNetInputs = funcOp.getNumArguments() - numOutputs;
 
+        int64_t sectionIndexVal;
         if (argInd < numNetInputs) {
             _log.nest(2).trace("It aliases network input");
 
             section = VPURT::BufferSection::NetworkInput;
-            sectionIndex = argInd;
+            sectionIndexVal = argInd;
         } else if (argInd < numNetInputs + numNetOutputs) {
             _log.nest(2).trace("It aliases network output");
 
             section = VPURT::BufferSection::NetworkOutput;
-            sectionIndex = argInd - numNetInputs;
+            sectionIndexVal = argInd - numNetInputs;
         } else if (argInd < numNetInputs + numOutputs) {
             _log.nest(2).trace("It aliases network output");
 
             section = VPURT::BufferSection::ProfilingOutput;
-            sectionIndex = argInd - numNetInputs - numNetOutputs;
+            sectionIndexVal = argInd - numNetInputs - numNetOutputs;
         } else {
             VPUX_THROW("The view source doesn't belong to network entry point Function");
         }
+        sectionIndex = getIntArrayAttr(getContext(), makeArrayRef(sectionIndexVal));
     } else {
         VPUX_THROW("Unknown source owner");
     }
