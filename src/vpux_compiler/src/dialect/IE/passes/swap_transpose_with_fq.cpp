@@ -83,9 +83,14 @@ void SwapTransposeWithFQ::safeRunOnFunc() {
         if (!transposeIn) {
             return true;
         }
-        const auto maybeFqOp = transposeIn.getDefiningOp<IE::FakeQuantizeOp>();
+
         // FIXME check that FakeQuantize has per-tensor quantization
-        return maybeFqOp == nullptr;
+        auto maybeFqOp = transposeIn.getDefiningOp<IE::FakeQuantizeOp>();
+        if (maybeFqOp == nullptr) {
+            return true;
+        }
+
+        return (maybeFqOp.input().dyn_cast<mlir::BlockArgument>() == nullptr);
     };
 
     mlir::ConversionTarget target(ctx);

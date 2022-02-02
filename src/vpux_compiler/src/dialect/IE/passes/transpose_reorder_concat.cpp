@@ -113,6 +113,13 @@ void InsertReorderBetweenTransposeAndConcat::safeRunOnFunc() {
                 return false;
             }
         }
+
+        for (const auto& concatInput : concatInputList) {
+            const auto maybeFqOp = concatInput.getDefiningOp<IE::FakeQuantizeOp>();
+            if (maybeFqOp != nullptr) {
+                return false;
+            }
+        }
         return true;
     };
 
