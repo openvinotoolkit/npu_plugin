@@ -115,7 +115,7 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
 
                 auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
                 double efficency = efficiencyConstant * splitOverHeightFormula(OH, OW, OC);
-                _log.trace("The SOH efficiency for the group convolution is {0}", efficency);
+                //_log.trace("The SOH efficiency for the group convolution is {0}", efficency);
                 return efficency;
             });
 }
@@ -143,7 +143,7 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 const double OW = outputShape[Dims4D::Act::W];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
                 double efficency = splitOverKernelFormula(OH, OW, OC);
-                _log.trace("The SOK efficiency for the convolution is {0}", efficency);
+                //_log.trace("The SOK efficiency for the convolution is {0}", efficency);
                 return efficency;
             })
             .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {
