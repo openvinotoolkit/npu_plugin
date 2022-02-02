@@ -12,7 +12,6 @@
 //
 
 #include "vpux/compiler/dialect/VPU/pwl_utils.hpp"
-#include "vpux/utils/core/numeric.hpp"
 
 #include "vpux/utils/core/error.hpp"
 

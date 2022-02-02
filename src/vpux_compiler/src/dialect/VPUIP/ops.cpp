@@ -37,7 +37,7 @@ namespace {
 // LayerWithPostOpModel
 //
 
-bool isSupportedHWPostOp(mlir::Operation* postOp) {
+bool isSupportedHWPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) {
     if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp, IE::LeakyReluOp, IE::PReluOp>(
                 postOp)) {
         return false;
@@ -50,6 +50,10 @@ bool isSupportedHWPostOp(mlir::Operation* postOp) {
         }
 
         // TODO: should be check maxVal?
+    }
+
+    if (mlir::isa<IE::AddOp, IE::AndOp, IE::MultiplyOp>(mainOp) && mlir::isa<IE::LeakyReluOp>(postOp)) {
+        return false;
     }
 
     const auto module = postOp->getParentOfType<mlir::ModuleOp>();
@@ -88,7 +92,7 @@ public:
             return false;
         }
 
-        if (!isSupportedHWPostOp(postOp)) {
+        if (!isSupportedHWPostOp(mainOp, postOp)) {
             return false;
         }
 

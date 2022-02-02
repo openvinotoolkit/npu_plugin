@@ -120,6 +120,9 @@ PostOpParams getCustomPwlPostOpParams(IE::PostOp postOp, mlir::Type outElemType)
 
     auto pwlTableRange = pwlTable.getValue().range;
 
+    VPUX_THROW_UNLESS(!pwlTableRange.empty(), "Custom PWL Table range is empty for {0} {1}", postOp.name().getValue(),
+                      outElemType);
+
     const int64_t clampLow = pwlTableRange[0];
     const int64_t clampHigh = pwlTableRange[pwlTableRange.size() - 1];
     const int64_t LreluMult = 1;
@@ -182,7 +185,12 @@ mlir::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inE
         const int64_t LreluShift = 0;
 
         return PostOpParams{VPU::PPEMode::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
-    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName() && arch == VPU::ArchKind::MTL) {
+    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
+        // PWL case
+        if (arch != VPU::ArchKind::MTL && outElemQType != nullptr) {
+            return getCustomPwlPostOpParams(postOp, outElemType);
+        }
+
         IE::LeakyReluOp::Adaptor leakyRelu(None, postOp.attrs());
         VPUX_THROW_UNLESS(leakyRelu.verify(loc).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp", postOp.attrs(),
                           postOp.name());
@@ -209,8 +217,6 @@ mlir::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inE
         return getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::SIGMOID);
     } else if (postOp.name().getValue() == IE::TanhOp::getOperationName()) {
         return getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::TANH);
-    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
-        return getCustomPwlPostOpParams(postOp, outElemType);
     }
 
     VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());

@@ -15,10 +15,6 @@
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
-#include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
-#include "vpux/compiler/utils/custom_pwl_table.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/utils/core/enums.hpp"
 
 namespace vpux {

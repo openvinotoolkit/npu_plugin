@@ -31,6 +31,7 @@
 
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/Transforms/Bufferize.h>
@@ -61,18 +62,22 @@ mlir::Value createInstructionListTableTensor(mlir::OpBuilder& builder, mlir::Loc
         return nullptr;
     }
 
-    auto pwlTable = findCustomPWLTable(postOp.name().getValue(), outElemType);
+    const auto pwlTable = findCustomPWLTable(postOp.name().getValue(), outElemType);
 
     if (!pwlTable.hasValue()) {
         return nullptr;
     }
 
-    auto pwlTableRange = pwlTable.getValue().range;
-    auto pwlTableShift = pwlTable.getValue().shift;
-    auto pwlTableBias = pwlTable.getValue().bias;
+    const auto pwlTableRange = pwlTable.getValue().range;
+    const auto pwlTableShift = pwlTable.getValue().shift;
+    const auto pwlTableBias = pwlTable.getValue().bias;
 
     auto ctx = builder.getContext();
-    SmallVector<int64_t> instructionListTableShape{1, 1, 1, 32};
+    const size_t vectorSize = pwlTableRange.size() + pwlTableShift.size() + pwlTableBias.size();
+    // We need a NOP to terminate each chain of 16 instructions.
+    const size_t nopCount = vectorSize >> 4;
+    const size_t instructionListTableSize = alignVal<size_t>(vectorSize + nopCount, 16);
+    SmallVector<int64_t> instructionListTableShape{1, 1, 1, static_cast<int64_t>(instructionListTableSize)};
 
     const auto dataType = mlir::MemRefType::get(instructionListTableShape, getSInt32Type(ctx));
     auto instructionListTableOp = builder.create<VPUIP::InstructionListTableOp>(
@@ -84,7 +89,7 @@ mlir::Value createInstructionListTableTensor(mlir::OpBuilder& builder, mlir::Loc
     auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
     auto copyOp = builder.create<IERT::CopyOp>(loc, instructionListTableOp.output(), dataAllocOp);
     return copyOp.output();
-}
+}  // namespace
 
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value op_input,
                                      mlir::Value op_output, mlir::Value weights, mlir::Value activationWindow,
@@ -233,7 +238,7 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     auto weightsTable =
             createWeightsTableTensor(rewriter, origOp->getLoc(), OC, newArgs.input(), outputBuffer, newArgs.filter(),
                                      activationWindow, origOp.biasAttr(), origOp.ppeAttr());
-    
+
     auto instructionListTable =
             createInstructionListTableTensor(rewriter, origOp->getLoc(), origOp.post_opAttr(),
                                              origOp.output().getType().cast<mlir::ShapedType>().getElementType());

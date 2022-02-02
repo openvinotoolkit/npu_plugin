@@ -1,15 +1,30 @@
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
 #pragma once
 
-#include <mlir/Dialect/Quant/QuantTypes.h>
-#include <string>
-#include <unordered_map>
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/types.hpp"
+
+#include <mlir/Dialect/Quant/QuantTypes.h>
+
+#include <string>
+#include <unordered_map>
 
 namespace vpux {
 
 struct PWLTableType {
-    llvm::StringRef activation;
+    StringRef activation;
     mlir::Type dtype;
 };
 
@@ -38,6 +53,6 @@ struct PWLTableEq {
 
 using PWLTableMap = std::unordered_map<PWLTableType, SmallVector<PWLTableEntry>, PWLTableHash, PWLTableEq>;
 
-vpux::PWLTableEntry getLeakyReluPWLEntry(mlir::Type outElemType);
-Optional<vpux::PWLTableEntry> findCustomPWLTable(const StringRef activationName, mlir::Type outElemType);
+vpux::PWLTableEntry getLeakyReluPWLEntry();
+Optional<vpux::PWLTableEntry> findCustomPWLTable(StringRef activationName, mlir::Type outElemType);
 }  // namespace vpux

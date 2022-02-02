@@ -49,7 +49,6 @@ func @ConvWithReluRewriter(%arg0: tensor<1x16x16x16xf16, {mem_space = @CMX_NN, o
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
     // CHECK-SAME:      ppe = {clamp_high = 2147483647 : i64, clamp_low = 0 : i64,
     // CHECK-SAME:              lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "LRELU"},
-    // CHECK-NOT:       post_op
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
@@ -75,7 +74,6 @@ func @MaxPoolWithClampRewriter(%arg0: tensor<1x16x1x4xf16, {mem_space = @CMX_NN,
 
     // CHECK:       [[VAL0:%.+]] = VPU.NCE.MaxPool(%arg0) {
     // CHECK-SAME:      kernel_size = [1, 1],
-    // CHECK-NOT:       post_op
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
     // CHECK-SAME:      ppe = {clamp_high = 393216 : i64, clamp_low = 0 : i64,
     // CHECK-SAME:              lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "NOOP"},
@@ -132,7 +130,6 @@ func @EltwiseAddWithReluRewriter(%arg0: tensor<1x64x28x28xf16, {mem_space = @CMX
 
     // CHECK:       [[VAL0:%.+]] = VPU.NCE.Eltwise(%arg0, %arg1) {
     // CHECK-SAME:      op_type = "ADD",
-    // CHECK-NOT:       post_op
     // CHECK-SAME:      ppe = {clamp_high = 2147483647 : i64, clamp_low = 0 : i64,
     // CHECK-SAME:              lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}}
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
