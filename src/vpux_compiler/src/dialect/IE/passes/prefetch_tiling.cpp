@@ -29,8 +29,8 @@ mlir::Operation* getParentConvOp(mlir::Operation* op) {
     auto isOpIgnorable = [](mlir::Operation* op) -> bool {
         return mlir::isa<IE::AndOp>(op) || mlir::isa<IE::PermuteCastOp>(op) || mlir::isa<IE::ReshapeOp>(op);
     };
-    while (parentOp && !mlir::isa<IE::ConvolutionOp>(parentOp) && isOpIgnorable(parentOp)) {
-        // skip the Permute, Reshape and Add
+    while (parentOp && isOpIgnorable(parentOp)) {
+        // skip the Permute, Reshape and And
         if (parentOp->getOperands().size() < 1) {
             break;
         }
@@ -82,6 +82,8 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
 }
 
 SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Operation* parentOp, Logger log) {
+    // Generate a valid supported tiling pattern for an op on the largest dimension possible
+    // satisfy the restrictions of operation tiling
     // TODO: merge with IE::computeGeneralTileStrategy
     auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
     VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
@@ -106,7 +108,7 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
     if (outputShape[Dims4D::Act::C] < outputShape[Dims4D::Act::H]) {
         dimToTile = Dims4D::Act::H;
     }
-
+    // check if pattern supported
     const auto isSupportedTilesPattern = [&]() -> bool {
         return tilingInfo.isSupportedPrefetchPattern(nTilesOnDim, parentOp, nTilesOnDimParent, log);
     };
@@ -121,6 +123,8 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
     const auto isDimLeftToTile = [&]() -> bool {
         return nTilesOnDim[dimToTile] < maxNumTiles[dimToTile.ind()];
     };
+    // increase tiles on the dimention to tile until the tiling pattern
+    // is supported, do not exceed max tiles (HW req)
     while (!isSupportedTilesPattern()) {
         if (!isDimLeftToTile()) {
             return {Shape(outputShape.size(), 1), Shape(outputShape.size(), 1)};
@@ -137,11 +141,29 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
     return {nTilesOnDim, nTilesOnDimParent};
 }
 
-bool needTilingToMultiOpsPrefetch(mlir::Operation* op, Logger log) {
+bool isNotValidPatternForPrefetching(mlir::Operation* op, Logger log) {
     auto parentOp = getParentConvOp(op);
-    auto opTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
+    if (!parentOp) {
+        return false;
+    }
     auto parentTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(parentOp);
-    if (!opTilingInter || !parentTilingInter) {
+    if (!parentTilingInter) {
+        return false;
+    }
+    auto opTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
+    const auto resShape = getShape(op->getResult(0));
+    const Shape neutralTile(resShape.size(), 1);
+    if (opTilingInter.isSupportedPrefetchPattern(neutralTile, parentOp, neutralTile, log)) {
+        return false;
+    }
+    // Try to tile to satisfy prefetching
+    auto tiles = generatePrefetchPatternTiles(op, parentOp, log.nest());
+    return tiles[0] != neutralTile || tiles[1] != neutralTile;
+}
+
+bool isParentWithBranches(mlir::Operation* op) {
+    auto parentOp = getParentConvOp(op);
+    if (!parentOp) {
         return false;
     }
     // For parallel sub-graphs, the order is undecided yet
@@ -154,15 +176,7 @@ bool needTilingToMultiOpsPrefetch(mlir::Operation* op, Logger log) {
             }
         }
     }
-
-    const auto resShape = getShape(op->getResult(0));
-    const Shape neutralTile(resShape.size(), 1);
-    if (opTilingInter.isSupportedPrefetchPattern(neutralTile, parentOp, neutralTile, log)) {
-        return false;
-    }
-    // Try to tile to satisfy prefetching
-    auto tiles = generatePrefetchPatternTiles(op, parentOp, log.nest());
-    return tiles[0] != neutralTile || tiles[1] != neutralTile;
+    return true;
 }
 //
 // PrefetchTiling
@@ -185,7 +199,8 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
                                                     mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
     // useful print for debug
-    // std::cout << llvm::formatv("!!![{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc())
+    // std::cout << llvm::formatv("!!![{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(),
+    // origOp->getLoc())
     //                      .str()
     //           << std::endl;
 
@@ -196,10 +211,8 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
         // If the current op fits CMX but still run into here
         // The op needs tiling to be prefetched by its parent
         auto parentOp = getParentConvOp(op);
-        const auto parentResShape = getShape(parentOp->getResult(0));
         auto tiles = generatePrefetchPatternTiles(op, parentOp, _log.nest());
         auto curTiles = fillDividedTiles(tiles[0], resShape);
-        auto parentTiles = fillDividedTiles(tiles[1], parentResShape);
         return applyTileStrategy(origOp, curTiles, rewriter, _log);
     } else {
         const auto tiles = generatePrefetchTiles(origOp.getOperation(), _log.nest());
@@ -236,7 +249,7 @@ void PrefetchTilingPass::safeRunOnFunc() {
             if (!iface.isSupportedTiling({TileInfo(resShape)}, _log.nest())) {
                 return false;
             }
-            if (needTilingToMultiOpsPrefetch(op, _log)) {
+            if (isParentWithBranches(op) && isNotValidPatternForPrefetching(op, _log)) {
                 return false;
             }
         }

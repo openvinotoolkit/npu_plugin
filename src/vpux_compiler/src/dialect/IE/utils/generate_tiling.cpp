@@ -126,6 +126,8 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
 
 mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, OutputTiling tiles,
                                       mlir::PatternRewriter& rewriter, Logger log) {
+    // apply the generated tiling strategy and create tiled operations
+    // insert the tiled pattern with a concat to the IR
     SmallVector<mlir::Value> resultTileVals;
     SmallVector<ShapeRef> resultTileOffsets;
 
@@ -150,6 +152,7 @@ mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, Outpu
     // TODO: remove with EISW-25333
     newConcat->setAttr("CMXConcat", rewriter.getBoolAttr(false));
 
+    // update concat users and also place correctly in the IR
     for (auto* concatOp : resultTileVals[0].getUsers()) {
         if (!mlir::isa<IE::ConcatOp>(concatOp)) {
             continue;

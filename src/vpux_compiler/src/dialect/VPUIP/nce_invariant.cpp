@@ -1115,10 +1115,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchPatternCMX(mlir::Op
     // useful print for debug
     // std::cout
     //         << llvm::formatv(
-    //                    "[{0}] CMX memory is enough for prefetch pipeline, available '{1}', required '{2}', required by "
-    //                    "parent {3}",
-    //                    op->getLoc(), std::ceil((double)cmxSize.count() * ratioToAvoidFragmentation),
-    //                    cmxRequiredByParent + cmxRequiredToPrefetch, cmxRequiredByParent)
+    //                    "[{0}] CMX memory is enough for prefetch pipeline, available '{1}', required '{2}', required
+    //                    by " "parent {3}", op->getLoc(), std::ceil((double)cmxSize.count() *
+    //                    ratioToAvoidFragmentation), cmxRequiredByParent + cmxRequiredToPrefetch, cmxRequiredByParent)
     //                    .str()
     //         << std::endl;
 
