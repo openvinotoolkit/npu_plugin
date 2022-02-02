@@ -28,7 +28,7 @@ mlir::LogicalResult vpux::IE::ReduceLogicalAndOp::inferReturnTypeComponents(
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    IE::xSumOpAdaptor reduceLogicalAnd(operands, attrs);
+    IE::ReduceLogicalAndOpAdaptor reduceLogicalAnd(operands, attrs);
     if (mlir::failed(reduceLogicalAnd.verify(loc))) {
         return mlir::failure();
     }
@@ -39,4 +39,5 @@ mlir::LogicalResult vpux::IE::ReduceLogicalAndOp::inferReturnTypeComponents(
 
     return IE::inferReduceReturnTypeComponents(loc, input, keepDims, axes, inferredReturnShapes);
 }
+
 
