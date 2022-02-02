@@ -52,6 +52,11 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const llvm::SmallVector<std::int64_t> inputShape(input.shape.begin(), input.shape.end());
     const llvm::SmallVector<std::int64_t> outputShape(output.shape.begin(), output.shape.end());
     const llvm::SmallVector<std::int64_t> weightsShape{weights.shape.begin(), weights.shape.end()};
+
+    VPUX_THROW_UNLESS(!inputShape.empty(), "buildSimpleZMajorConv: Got empty inputShape");
+    VPUX_THROW_UNLESS(!outputShape.empty(), "buildSimpleZMajorConv: Got empty outputShape");
+    VPUX_THROW_UNLESS(!weightsShape.empty(), "buildSimpleZMajorConv: Got empty weightsShape");
+
     const llvm::SmallVector<std::int64_t> weightsTableShape{weightsShape[0], 1, 1, 4};
 
     const char* weightsFileName = "weights.dat";

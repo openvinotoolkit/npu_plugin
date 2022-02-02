@@ -105,6 +105,7 @@ mlir::DenseElementsAttr generateWeights(std::ifstream& stream, mlir::RankedTenso
 
 mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> shape, mlir::Type type, mlir::MLIRContext* context,
                                         const char* weightsFileName) {
+    VPUX_THROW_UNLESS(!shape.empty(), "generateWeights: Got empty shape");
     auto wtData_ddr_valueType = mlir::RankedTensorType::get(shape, type);
     const auto vecSize = static_cast<std::size_t>(
             std::accumulate(shape.begin(), shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>()));

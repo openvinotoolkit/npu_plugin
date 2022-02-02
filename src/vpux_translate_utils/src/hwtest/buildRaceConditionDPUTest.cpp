@@ -67,6 +67,11 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     const SmallVector<std::int64_t> weightsShape{weights.shape.begin(), weights.shape.end()};
     const SmallVector<std::int64_t> weightsTableShape{weightsShape[0], 1, 1, 4};
 
+    VPUX_THROW_UNLESS(!inputShape.empty(), "buildRaceConditionDPUTest: Got empty inputShape");
+    VPUX_THROW_UNLESS(!outputShape.empty(), "buildRaceConditionDPUTest: Got empty outputShape");
+    VPUX_THROW_UNLESS(!weightsShape.empty(), "buildRaceConditionDPUTest: Got empty weightsShape");
+    VPUX_THROW_UNLESS(!weightsTableShape.empty(), "buildRaceConditionDPUTest: Got empty weightsTableShape");
+
     const char* weightsFileName = "weights.dat";
 
     auto inputCMXShape = inputShape;

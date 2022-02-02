@@ -69,12 +69,17 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     SmallVector<int64_t> in_shape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> out_shape(output.shape.begin(), output.shape.end());
 
+    VPUX_THROW_UNLESS(!in_shape.empty(), "buildDWConv: Got empty inputShape");
+    VPUX_THROW_UNLESS(!out_shape.empty(), "buildDWConv: Got empty outputShape");
+
     VPUX_THROW_UNLESS(conv.group == in_shape[1],
                       "For Depthwise convolution group should be equal to no. of input channels");
 
     std::vector<int64_t> filter_size{weight.shape[2], weight.shape[3]};
     std::vector<int64_t> stried_vec(conv.stride.begin(), conv.stride.end());
     std::vector<int64_t> padding_vec = convertNBPadtoNCETaskPad(conv.pad);
+
+    VPUX_THROW_UNLESS(stried_vec.size() == 2, "Strides vector has inappropriate size");
 
     SmallVector<int64_t> wt_data_shape{weight.shape[0], weight.shape[1], weight.shape[2], weight.shape[3]};
 
