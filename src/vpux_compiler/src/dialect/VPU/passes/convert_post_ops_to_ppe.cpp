@@ -160,26 +160,24 @@ mlir::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inE
         VPUX_THROW_UNLESS(leakyRelu.verify(loc).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp", postOp.attrs(),
                           postOp.name());
 
-        int64_t clampLow = static_cast<int32_t>(std::numeric_limits<int32_t>::min() /
-                                                leakyRelu.negative_slope().getValueAsDouble());
+        const auto alpha = leakyRelu.negative_slope().getValueAsDouble();
+        int32_t clampLow = static_cast<int32_t>(std::numeric_limits<int32_t>::min() / alpha);
         if (outElemQType != nullptr) {
-            clampLow =
-                    (arch == VPU::ArchKind::MTL)
-                            ? clampLowQuantized
-                            : static_cast<int64_t>(clampLowQuantized / leakyRelu.negative_slope().getValueAsDouble());
+            clampLow = (arch == VPU::ArchKind::MTL) ? static_cast<int32_t>(clampLowQuantized)
+                                                    : static_cast<int32_t>(clampLowQuantized / alpha);
         }
 
         int64_t clampHigh = (outElemQType != nullptr) ? clampHighQuantized : std::numeric_limits<int32_t>::max();
-        unsigned leakyAccuracyBits = arch == VPU::ArchKind::MTL ? 31 : 7;
-        int64_t LreluMult = 1;
-        int64_t LreluShift = 0;
-        const auto alpha = leakyRelu.negative_slope().getValueAsDouble();
+        uint32_t leakyAccuracyBits = arch == VPU::ArchKind::MTL ? 31 : 7;
+        uint32_t LreluMult = 1;
+        uint32_t LreluShift = 0;
         if (isDoubleEqual(alpha, 0.0)) {
             LreluMult = 0;
         } else if (!isDoubleEqual(alpha, 1.0)) {
             vpux::VPU::NCESparsity::computeQuantMultShift(alpha, LreluShift, LreluMult, leakyAccuracyBits);
         }
-        return PostOpParams{VPU::PPEMode::LPRELU, clampLow, clampHigh, LreluMult, LreluShift};
+        return PostOpParams{VPU::PPEMode::LPRELU, static_cast<int64_t>(clampLow), clampHigh,
+                            static_cast<int64_t>(LreluMult), static_cast<int64_t>(LreluShift)};
     } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
         return getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::SIGMOID);
     } else if (postOp.name().getValue() == IE::TanhOp::getOperationName()) {

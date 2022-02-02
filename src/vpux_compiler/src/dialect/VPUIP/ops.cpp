@@ -58,12 +58,7 @@ bool isSupportedHWPostOp(mlir::Operation* postOp) {
     }
 
     auto producerOp = postOp->getOperand(0).getDefiningOp();
-    if (producerOp && (mlir::isa<IE::MaxPoolOp>(producerOp) || producerOp->hasTrait<IE::EltwiseOp>()) &&
-        mlir::isa<IE::LeakyReluOp>(postOp)) {
-        return false;
-    }
-
-    // FIXME fuse LeakyRelu using PWL here
+    // FIXME fuse LeakyRelu using PWL here [EISW-13693]
     const auto isQuantized = [](mlir::Operation* op, mlir::Operation* postOp) -> bool {
         auto isFakeQuantizeOpInput = mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(op->getOperand(0).getDefiningOp());
         auto isFakeQuantizeOpOutput = false;
