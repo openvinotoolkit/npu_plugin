@@ -1600,10 +1600,18 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                   "opset operation mismatch");
 
     const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Swish node '{0}' has unsupported number of inputs '{1}'",
-                      origNode->get_friendly_name(), inputs.size());
 
-    auto op = builder.create<IE::SwishOp>(createLocation(origNode), inputs[0], inputs[1], nullptr);
+    vpux::IE::SwishOp op;
+
+    if (inputs.size() == 1) {
+        op = builder.create<IE::SwishOp>(createLocation(origNode), inputs[0], nullptr, nullptr);
+    } else if (inputs.size() == 2) {
+        op = builder.create<IE::SwishOp>(createLocation(origNode), inputs[0], inputs[1], nullptr);
+    } else {
+        VPUX_THROW("nGraph Swish node '{0}' has unsupported number of inputs '{1}'", origNode->get_friendly_name(),
+                   inputs.size());
+    }
+
     addOutputs(origNode, op);
 }
 
