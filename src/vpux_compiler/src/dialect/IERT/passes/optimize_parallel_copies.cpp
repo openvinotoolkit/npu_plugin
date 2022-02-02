@@ -162,23 +162,6 @@ mlir::LogicalResult fuseParallelCopyOp(IERT::CopyOp copyOp, Logger log) {
     auto siblingCopies = getSiblingCopies();
     for (auto siblingCopy : siblingCopies) {
         log.trace("Fuse copy op {0} to {1}", copyOp->getLoc(), siblingCopy->getLoc());
-        SmallVector<mlir::Operation*> wtUsingOutBuf;
-        for (auto use : siblingCopy.output_buff().getUsers()) {
-            if (mlir::isa<VPUIP::WeightsTableOp>(*use)) {
-                wtUsingOutBuf.push_back(use);
-            }
-        }
-        for (auto wt : wtUsingOutBuf) {
-            unsigned int index = 0;
-            for (const auto operand : wt->getOperands()) {
-                if (operand == siblingCopy.output_buff()) {
-                    break;
-                }
-                index++;
-            }
-            wt->setOperand(index, copyOp.output_buff());
-        }
-
         siblingCopy.getOperation()->replaceAllUsesWith(copyOp.getOperation());
         siblingCopy->erase();
     }
