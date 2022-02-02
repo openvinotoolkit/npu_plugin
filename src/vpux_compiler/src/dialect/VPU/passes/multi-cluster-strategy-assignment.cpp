@@ -44,9 +44,9 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
                                                         mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
 
-    const auto logCb = [&](const llvm::formatv_object_base& msg) {
-        std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
-    };
+    // const auto logCb = [&](const llvm::formatv_object_base& msg) {
+    //     std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
+    // };
 
     const auto inOrder = DimsOrder::fromValue(origOp.input());
     if (inOrder != DimsOrder::NCHW && inOrder != DimsOrder::NHWC) {
@@ -54,7 +54,7 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
                            origOp->getLoc(), inOrder);
     }
 
-    const auto isCMajor = inOrder == DimsOrder::NCHW;
+    // const auto isCMajor = inOrder == DimsOrder::NCHW;
 
     // auto nceClusterTilingOp = rewriter.create<VPU::NCEClusterTilingOp>(origOp->getLoc(), origOp.getType(),
     // origOp.getOperands()));
