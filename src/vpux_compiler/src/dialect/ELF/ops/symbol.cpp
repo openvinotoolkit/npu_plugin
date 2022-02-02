@@ -7,7 +7,7 @@ mlir::Operation* getParentSectionOp(mlir::Value val) {
     // Based on IR validity, any PutOpInSection op is always in a CreateSymbolTableSection (or CreateSection).
     mlir::Operation* op = nullptr;
     for (auto user : val.getUsers()) {
-        if (auto placeholder = llvm::dyn_cast_or_null<vpux::ELF::PutOpInSectionOp>(user)) {
+        if (mlir::dyn_cast_or_null<vpux::ELF::PutOpInSectionOp>(user)) {
             op = user;
             // In a section we should have only 1 PutOpInSectionOp user for each object put in it.
             break;
@@ -19,6 +19,8 @@ mlir::Operation* getParentSectionOp(mlir::Value val) {
     }
 
     auto region = op->getParentRegion();
+    VPUX_THROW_UNLESS(region != nullptr, "Unlinked ops are unsupported");
+
     return region->getParentOp();
 }
 
@@ -41,9 +43,9 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
       The ticket #29144 plans to handle these last 2 types of sections.
     */
 
-    mlir::Operation* parentSection;
+    mlir::Operation* parentSection = nullptr;
     if (auto inputArgDefOp = inputArg().getDefiningOp()) {
-        if (llvm::isa<ELF::ElfSectionInterface>(inputArgDefOp)) {
+        if (mlir::isa<ELF::ElfSectionInterface>(inputArgDefOp)) {
             parentSection = inputArgDefOp;
         } else {
             parentSection = getParentSectionOp(inputArg());
@@ -56,7 +58,7 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
     symbol->setSize(symSize);
     symbol->setValue(symVal);
 
-    if (parentSection) {
+    if (parentSection != nullptr) {
         auto sectionMapEntry = sectionMap.find(parentSection);
         VPUX_THROW_UNLESS(sectionMapEntry != sectionMap.end(), "Unable to find section entry for SymbolOp");
         auto sectionEntry = sectionMapEntry->second;

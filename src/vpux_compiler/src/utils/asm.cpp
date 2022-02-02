@@ -28,13 +28,12 @@ using namespace vpux;
 namespace {
 
 bool isDefinedAbove(mlir::Value val, mlir::Operation* user) {
-    if (val.isa<mlir::BlockArgument>()) {
+    auto* producer = val.getDefiningOp();
+    if (producer == nullptr) {
         return true;
     }
 
-    auto* producer = val.getDefiningOp();
-
-    if (producer->getBlock() == user->getBlock()) {
+    if (user != nullptr && producer->getBlock() == user->getBlock()) {
         return producer->isBeforeInBlock(user);
     }
 

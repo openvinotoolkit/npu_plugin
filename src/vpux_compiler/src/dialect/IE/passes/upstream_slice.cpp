@@ -67,7 +67,7 @@ bool isUpstreamPossible(IE::LayerOpInterface sliceOp, mlir::Value tensor) {
     mlir::Operation* parentOp = tensor.getDefiningOp();
     // Unary and eltwise ops are primary candidates for upstreaming slice ops.
     // Later on, implementation could handle also Conv, Pool upstreaming
-    if (!parentOp->hasTrait<IE::EltwiseOp>())
+    if (parentOp == nullptr || !parentOp->hasTrait<IE::EltwiseOp>())
         return false;
 
     if (parentOp->getNumResults() > 1)

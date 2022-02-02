@@ -343,7 +343,9 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::sortUsedBuffers(mlir::DenseSet
                    // If size is the same use position in IR to have
                    // consistent order between executions
                    if (val1.first == val2.first) {
-                       return val1.second.getDefiningOp()->isBeforeInBlock(val2.second.getDefiningOp());
+                       const auto parentOp = val1.second.getDefiningOp();
+                       VPUX_THROW_UNLESS(parentOp != nullptr, "Block arguments are not supported");
+                       return parentOp->isBeforeInBlock(val2.second.getDefiningOp());
                    }
                    return val1.first > val2.first;
                });
