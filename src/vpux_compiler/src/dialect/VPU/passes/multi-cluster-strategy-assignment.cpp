@@ -16,6 +16,8 @@
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
+#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -42,25 +44,20 @@ private:
 
 mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp origOp,
                                                         mlir::PatternRewriter& rewriter) const {
-    _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
-
-    // const auto logCb = [&](const llvm::formatv_object_base& msg) {
-    //     std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
-    // };
-
-    const auto inOrder = DimsOrder::fromValue(origOp.input());
-    if (inOrder != DimsOrder::NCHW && inOrder != DimsOrder::NHWC) {
-        return matchFailed(_log, rewriter, origOp, "Operation at '{0}' has unsupported input layout '{1}'",
-                           origOp->getLoc(), inOrder);
+    _log.trace("Got operation {0}", origOp);
+    if (origOp->getParentOfType<VPU::NCEClusterTilingOp>()) {
+        _log.trace("The operation is already wrapped");
+        return mlir::failure();
     }
-
-    // const auto isCMajor = inOrder == DimsOrder::NCHW;
-
-    // auto nceClusterTilingOp = rewriter.create<VPU::NCEClusterTilingOp>(origOp->getLoc(), origOp.getType(),
-    // origOp.getOperands()));
-
-    // rewriter.replaceOp(origOp, nceClusterTilingOp.results());
-
+    const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
+        mlir::BlockAndValueMapping mapper;
+        mapper.map(origOp->getOperands(), newOperands);
+        auto* newOp = builder.clone(*origOp, mapper);
+        builder.create<VPU::YieldOp>(loc, newOp->getResults());
+    };
+    _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
+    rewriter.replaceOpWithNewOp<VPU::NCEClusterTilingOp>(origOp, origOp->getResultTypes(), origOp->getOperands(),
+                                                         bodyBuilder);
     return mlir::success();
 }
 
