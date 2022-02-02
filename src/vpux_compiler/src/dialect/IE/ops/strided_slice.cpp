@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -247,4 +247,20 @@ void vpux::IE::StridedSliceOp::getCanonicalizationPatterns(mlir::OwningRewritePa
                                                            mlir::MLIRContext* context) {
     patterns.insert<ConvertConstToAttr>(context);
     patterns.insert<ComposeStridedSlice>(context);
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::StridedSliceOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const auto beginMask = parseIntArrayAttr<int64_t>(begin_mask());
+    const auto endMask = parseIntArrayAttr<int64_t>(end_mask());
+    const auto newAxisMask = parseIntArrayAttr<int64_t>(new_axis_mask());
+    const auto shrinkAxisMask = parseIntArrayAttr<int64_t>(shrink_axis_mask());
+    const auto ellipsisMask = parseIntArrayAttr<int64_t>(ellipsis_mask());
+
+    return std::make_shared<opset_latest::StridedSlice>(outputs.at(0), outputs.at(1), outputs.at(2), outputs.at(3),
+        std::vector<int64_t>{beginMask.begin(), beginMask.end()},
+        std::vector<int64_t>{endMask.begin(), endMask.end()},
+        std::vector<int64_t>{newAxisMask.begin(), newAxisMask.end()},
+        std::vector<int64_t>{shrinkAxisMask.begin(), shrinkAxisMask.end()},
+        std::vector<int64_t>{ellipsisMask.begin(), ellipsisMask.end()});
 }

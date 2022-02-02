@@ -45,6 +45,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include <mlir/IR/PatternMatch.h>
 
@@ -207,4 +208,9 @@ mlir::LogicalResult TransposeWeights::matchAndRewrite(IE::MatMulOp matmulOp, mli
 void vpux::IE::MatMulOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.insert<TransposeWeights>(context);
     patterns.insert<UseFullyConnected>(context);
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::MatMulOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<opset_latest::MatMul>(outputs.at(0), outputs.at(1), transpose_a(), transpose_b());
 }

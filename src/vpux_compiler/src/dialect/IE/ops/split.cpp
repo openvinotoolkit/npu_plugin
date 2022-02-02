@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -156,4 +156,11 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SplitOp splitOp, mli
 void vpux::IE::SplitOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
                                                     mlir::MLIRContext* context) {
     patterns.insert<ConvertConstToAttr>(context);
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::SplitOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const auto numSplits = num_splits();
+
+    return std::make_shared<opset_latest::Split>(outputs.at(0), outputs.at(1), numSplits);
 }

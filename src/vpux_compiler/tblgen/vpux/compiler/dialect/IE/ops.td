@@ -302,7 +302,8 @@ def IE_ConvertOp :
             [
                 DeclareOpInterfaceMethods<CastOpInterface>,
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Convert layer";
@@ -358,7 +359,10 @@ def IE_ReorderOp :
 
 def IE_SoftMaxOp :
         IE_LayerOp<
-            "SoftMax"
+            "SoftMax",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine SoftMax layer";
 
@@ -381,7 +385,10 @@ def IE_SoftMaxOp :
 
 def IE_TileOp :
         IE_LayerOp<
-            "Tile"
+            "Tile",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Tile layer";
 
@@ -429,7 +436,8 @@ def IE_ReLUOp :
             "ReLU",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine ReLU layer";
@@ -449,7 +457,10 @@ def IE_ReLUOp :
 
 def IE_SplitOp :
         IE_LayerOp<
-            "Split"
+            "Split",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Split layer";
 
@@ -481,7 +492,8 @@ def IE_PowerOp :
             "Power",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Power layer";
@@ -508,7 +520,8 @@ def IE_AddOp :
             [
                 IE_TilingBuilderOpInterface,
                 Commutative,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Add layer";
@@ -540,7 +553,8 @@ def IE_DivideOp :
             "Divide",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Divide layer";
@@ -566,7 +580,8 @@ def IE_SquaredDifferenceOp :
             "SquaredDiff",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine SquaredDiff layer";
@@ -592,7 +607,8 @@ def IE_FloorModOp :
             "FloorMod",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine FloorMod layer";
@@ -618,7 +634,8 @@ def IE_LessOp :
             "Less",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Less layer";
@@ -644,7 +661,8 @@ def IE_LessEqualOp :
             "LessEqual",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine LessEqual layer";
@@ -799,7 +817,8 @@ def IE_MultiplyOp :
             [
                 IE_TilingBuilderOpInterface,
                 Commutative,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Multiply layer";
@@ -832,7 +851,8 @@ def IE_AndOp :
             [
                 IE_TilingBuilderOpInterface,
                 Commutative,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine And layer";
@@ -860,7 +880,8 @@ def IE_ConvolutionOp :
         IE_LayerOp<
             "Convolution",
             [
-                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Convolution layer";
@@ -895,7 +916,8 @@ def IE_GroupConvolutionOp :
         IE_LayerOp<
             "GroupConvolution",
             [
-                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine GroupConvolution layer";
@@ -929,7 +951,10 @@ def IE_GroupConvolutionOp :
 
 def IE_AvgPoolOp :
         IE_LayerOp<
-            "AvgPool"
+            "AvgPool",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine AvgPool layer";
 
@@ -957,7 +982,8 @@ def IE_MaxPoolOp :
         IE_LayerOp<
             "MaxPool",
             [
-                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine MaxPool layer";
@@ -1013,7 +1039,10 @@ def IE_ShuffleChannelsOp :
 
 def IE_GatherOp :
         IE_LayerOp<
-            "Gather"
+            "Gather",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Gather layer";
 
@@ -1038,7 +1067,10 @@ def IE_GatherOp :
 
 def IE_GatherElementsOp :
         IE_LayerOp<
-              "GatherElements"
+            "GatherElements",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine GatherElements layer";
 
@@ -1086,7 +1118,8 @@ def IE_ClampOp :
             "Clamp",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Clamp layer";
@@ -1112,7 +1145,8 @@ def IE_EluOp :
             "Elu",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Elu layer";
@@ -1136,7 +1170,8 @@ def IE_ReshapeOp :
         IE_LayerOp<
             "Reshape",
             [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Reshape layer";
@@ -1170,7 +1205,8 @@ def IE_SqueezeOp :
         IE_LayerOp<
             "Squeeze",
             [
-                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Squeeze layer";
@@ -1203,7 +1239,8 @@ def IE_UnsqueezeOp :
         IE_LayerOp<
             "Unsqueeze",
             [
-                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
 
@@ -1238,7 +1275,8 @@ def IE_SigmoidOp :
             "Sigmoid",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Sigmoid layer";
@@ -1258,7 +1296,10 @@ def IE_SigmoidOp :
 
 def IE_LRNOp :
         IE_LayerOp<
-            "LRN"
+            "LRN",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine LRN layer";
 
@@ -1283,7 +1324,10 @@ def IE_LRNOp :
 
 def IE_LRN_IEOp :
         IE_LayerOp<
-            "LRN_IE"
+            "LRN_IE",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine LRN_IE layer";
 
@@ -1308,7 +1352,10 @@ def IE_LRN_IEOp :
 
 def IE_BroadcastOp :
         IE_LayerOp<
-            "Broadcast"
+            "Broadcast",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Broadcast layer";
 
@@ -1331,7 +1378,10 @@ def IE_BroadcastOp :
 
 def IE_ReduceMaxOp :
         IE_LayerOp<
-            "ReduceMax"
+            "ReduceMax",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine ReduceMax layer";
 
@@ -1375,7 +1425,10 @@ def IE_ReduceMeanOp :
 
 def IE_ReduceSumOp :
         IE_LayerOp<
-            "ReduceSum"
+            "ReduceSum",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine ReduceSum layer";
 
@@ -1400,7 +1453,8 @@ def IE_MinimumOp :
             "Minimum",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Minimum layer";
@@ -1426,7 +1480,8 @@ def IE_MaximumOp :
             "Maximum",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Maximum layer";
@@ -1452,7 +1507,8 @@ def IE_FakeQuantizeOp :
             "FakeQuantize",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine FakeQuantize layer";
@@ -1552,7 +1608,10 @@ def IE_QuantizeCastOp :
 
 def IE_MatMulOp:
         IE_LayerOp<
-            "MatMul"
+            "MatMul",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine MatMul layer";
 
@@ -1580,7 +1639,8 @@ def IE_TanhOp :
             "Tanh",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Tanh layer";
@@ -1603,7 +1663,8 @@ def IE_SqrtOp :
             "Sqrt",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Sqrt layer";
@@ -1833,7 +1894,8 @@ def IE_LogOp :
             "Log",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Log layer";
@@ -1879,7 +1941,8 @@ def IE_ExpOp :
             "Exp",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Exp layer";
@@ -1902,7 +1965,8 @@ def IE_HSwishOp :
             "HSwish",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine HSwish layer";
@@ -1925,7 +1989,8 @@ def IE_FloorOp :
             "Floor",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Floor layer";
@@ -1948,7 +2013,8 @@ def IE_RoundOp :
             "Round",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Round layer";
@@ -1973,7 +2039,8 @@ def IE_MishOp :
             "Mish",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Mish layer";
@@ -1996,7 +2063,8 @@ def IE_ErfOp :
             "Erf",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Erf layer";
@@ -2018,7 +2086,8 @@ def IE_TransposeOp :
         IE_LayerOp<
             "Transpose",
             [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Transpose layer";
@@ -2048,7 +2117,10 @@ def IE_TransposeOp :
 
 def IE_ProposalOp :
         IE_LayerOp<
-            "Proposal"
+            "Proposal",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Proposal layer";
 
@@ -2073,7 +2145,8 @@ def IE_InterpolateOp :
         IE_LayerOp<
             "Interpolate",
             [
-                AttrSizedOperandSegments
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Interpolate layer";
@@ -2104,7 +2177,10 @@ def IE_InterpolateOp :
 
 def IE_TopKOp :
         IE_LayerOp<
-            "TopK"
+            "TopK",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine TopK layer";
 
@@ -2130,7 +2206,10 @@ def IE_TopKOp :
 
 def IE_RegionYoloOp :
         IE_LayerOp<
-            "RegionYolo"
+            "RegionYolo",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine RegionYolo layer";
 
@@ -2158,7 +2237,10 @@ def IE_RegionYoloOp :
 
 def IE_ReorgYoloOp :
         IE_LayerOp<
-            "ReorgYolo"
+            "ReorgYolo",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine ReorgYolo layer";
 
@@ -2181,7 +2263,8 @@ def IE_DetectionOutputOp :
         IE_LayerOp<
             "DetectionOutput",
             [
-                AttrSizedOperandSegments
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine DetectionOutput layer";
@@ -2207,7 +2290,10 @@ def IE_DetectionOutputOp :
 
 def IE_NormalizeIEOp :
         IE_LayerOp<
-            "NormalizeIE"
+            "NormalizeIE",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine NormalizeIE layer";
 
@@ -2231,7 +2317,10 @@ def IE_NormalizeIEOp :
 
 def IE_MVNOp :
         IE_LayerOp<
-            "MVN"
+            "MVN",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine MVN layer";
 
@@ -2254,7 +2343,10 @@ def IE_MVNOp :
 
 def IE_ConcatOp :
         IE_LayerOp<
-            "Concat"
+            "Concat",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Concat layer";
 
@@ -2308,7 +2400,10 @@ def IE_ConcatOp :
 
 def IE_ROIPoolingOp :
         IE_LayerOp<
-            "ROIPooling"
+            "ROIPooling",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine ROIPooling layer";
 
@@ -2364,7 +2459,8 @@ def IE_StridedSliceOp :
         IE_LayerOp<
             "StridedSlice",
             [
-                AttrSizedOperandSegments
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine StridedSlice layer";
@@ -2404,7 +2500,10 @@ def IE_StridedSliceOp :
 
 def IE_DeconvolutionOp:
         IE_LayerOp<
-            "Deconvolution"
+            "Deconvolution",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Deconvolution layer";
 
@@ -2434,7 +2533,8 @@ def IE_PReluOp :
             "PRelu",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine PRelu layer";
@@ -2485,7 +2585,8 @@ def IE_SwishOp :
             "Swish",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Swish layer";
@@ -2561,7 +2662,10 @@ def IE_UpsamplingOp :
 
 def IE_GRNOp :
         IE_LayerOp<
-            "GRN"
+            "GRN",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine GRN layer";
 
@@ -2585,7 +2689,8 @@ def IE_NegativeOp :
             "Negative",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Negative layer";
@@ -2650,7 +2755,10 @@ def IE_FullyConnectedOp:
 
 def IE_CTCGreedyDecoderOp :
         IE_LayerOp<
-            "CTCGreedyDecoder"
+            "CTCGreedyDecoder",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine CTCGreedyDecoder layer";
 
@@ -2672,7 +2780,10 @@ def IE_CTCGreedyDecoderOp :
 
 def IE_CTCGreedyDecoderSeqLenOp :
         IE_LayerOp<
-            "CTCGreedyDecoderSeqLen"
+            "CTCGreedyDecoderSeqLen",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine CTCGreedyDecoderSeqLen layer";
 
@@ -2698,7 +2809,8 @@ def IE_PadOp :
         IE_LayerOp<
             "Pad",
             [
-                AttrSizedOperandSegments
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Pad layer";
@@ -2768,7 +2880,10 @@ def IE_ExpandOp :
 
 def IE_LSTMCellOp :
         IE_LayerOp<
-            "LSTMCell"
+            "LSTMCell",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine LSTMCell layer";
 
@@ -2841,7 +2956,8 @@ def IE_SubtractOp :
             "Subtract",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Subtract layer";
@@ -2868,7 +2984,10 @@ def IE_SubtractOp :
 
 def IE_LSTMSequenceOp :
         IE_LayerOp<
-            "LSTMSequence"
+            "LSTMSequence",
+            [
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
+            ]
         > {
     let summary = "InferenceEngine LSTMSequence layer";
 
@@ -2957,7 +3076,8 @@ def IE_CeilingOp :
             "Ceiling",
             [
                 IE_TilingBuilderOpInterface,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Ceiling layer";
@@ -2981,7 +3101,8 @@ def IE_EqualOp :
             [
                 IE_TilingBuilderOpInterface,
                 Commutative,
-                IE_EltwiseOp
+                IE_EltwiseOp,
+                DeclareOpInterfaceMethods<IE_ToNgraphOpInterface>
             ]
         > {
     let summary = "InferenceEngine Equal layer";

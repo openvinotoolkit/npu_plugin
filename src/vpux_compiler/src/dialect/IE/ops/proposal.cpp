@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -36,4 +37,12 @@ mlir::LogicalResult vpux::IE::ProposalOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
 
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::ProposalOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const auto attrs = proposal_attrs();
+
+    return std::make_shared<opset_latest::Proposal>(outputs.at(0), outputs.at(1), outputs.at(2),
+        exportProposalAttrs(attrs));
 }

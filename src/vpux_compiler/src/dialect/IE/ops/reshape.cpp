@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -391,4 +392,9 @@ void vpux::IE::ReshapeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& p
     patterns.insert<FuseReshapes>(ctx);
     patterns.insert<ConvertConstToAttr>(ctx);
     patterns.insert<ConvertToAffineReshape>(ctx);
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::ReshapeOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<opset_latest::Reshape>(outputs.at(0), outputs.at(1), special_zero());
 }

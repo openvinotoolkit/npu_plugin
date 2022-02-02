@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 using namespace vpux;
 
@@ -30,4 +31,9 @@ mlir::LogicalResult vpux::IE::SqrtOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::SqrtOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<opset_latest::Sqrt>(outputs.at(0));
 }

@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -130,6 +130,11 @@ mlir::OpFoldResult vpux::IE::TileOp::fold(ArrayRef<mlir::Attribute>) {
     }
     // Tile with current param do nothing and should be optimized
     return input();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::TileOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<opset_latest::Tile>(outputs.at(0), outputs.at(1));
 }
 
 mlir::LogicalResult vpux::IE::PerAxisTileOp::inferReturnTypeComponents(

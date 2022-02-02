@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 using namespace vpux;
 
@@ -38,4 +39,12 @@ mlir::LogicalResult vpux::IE::LessEqualOp::inferReturnTypeComponents(
     }
 
     return outShapeRes;
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::LessEqualOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const ngraph::op::AutoBroadcastType autoBroadCastType = exportBroadcastType(auto_broadcast());
+
+    return std::make_shared<opset_latest::LessEqual>(outputs.at(0), outputs.at(1),
+        ngraph::op::AutoBroadcastSpec(autoBroadCastType));
 }

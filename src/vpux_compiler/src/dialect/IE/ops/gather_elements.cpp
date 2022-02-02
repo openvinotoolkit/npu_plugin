@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 using namespace vpux;
@@ -33,4 +33,9 @@ mlir::LogicalResult vpux::IE::GatherElementsOp::inferReturnTypeComponents(
 
     inferredReturnShapes.emplace_back(inIndicesType.getShape(), inInputType.getElementType());
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::GatherElementsOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<opset_latest::GatherElements>(outputs.at(0), outputs.at(1), axis());
 }

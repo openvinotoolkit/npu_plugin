@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -60,4 +61,18 @@ mlir::LogicalResult vpux::IE::AvgPoolOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(shapeI64, inType);
 
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::AvgPoolOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const auto strides = parseIntArrayAttr<size_t>(stridesAttr());
+    const auto padsBegin = parseIntArrayAttr<size_t>(pads_begin());
+    const auto padsEnd = parseIntArrayAttr<size_t>(pads_end());
+    const auto kernel = parseIntArrayAttr<size_t>(kernel_size());
+    const auto excludePads = exclude_pads();
+    const auto roundingType = exportRoundingType(rounding_type());
+
+    return std::make_shared<opset_latest::AvgPool>(outputs.at(0), ngraph::Strides(strides.begin(),strides.end()),
+        ngraph::Shape(padsBegin.begin(), padsBegin.end()), ngraph::Shape(padsEnd.begin(), padsEnd.end()),
+        ngraph::Shape(kernel.begin(), kernel.end()), excludePads, roundingType);
 }

@@ -29,6 +29,8 @@
 #include <mlir/IR/Operation.h>
 #include <mlir/Interfaces/InferTypeOpInterface.h>
 
+#include <ngraph/node.hpp>
+
 namespace vpux {
 namespace IE {
 

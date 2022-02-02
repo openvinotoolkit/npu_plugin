@@ -17,6 +17,23 @@
 include "mlir/IR/OpBase.td"
 
 //
+// ToNgraphOpInterface
+//
+
+def IE_ToNgraphOpInterface : OpInterface<"ToNgraphOpInterface"> {
+    let description = "Interface for operations that require conversion to nGraph";
+
+    let cppNamespace = "vpux::IE";
+
+    let methods = [
+        InterfaceMethod<
+            "Convert to nGraph operation",
+            "std::shared_ptr<ngraph::Node>", "toNgraph", (ins "ngraph::OutputVector&":$outp)
+        >,
+    ];
+}
+
+//
 // LayerOpInterface
 //
 

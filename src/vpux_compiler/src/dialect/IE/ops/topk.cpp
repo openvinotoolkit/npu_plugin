@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -59,4 +59,13 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(outShape, topK.element_type().getValue());
 
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::TopKOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const mlir::Type elType = element_type();
+    mlir::MLIRContext* ctx = elType.getContext();
+
+    return std::make_shared<opset_latest::TopK>(outputs.at(0), outputs.at(1), axis(), exportTopKMode(mode()),
+        exportTopKSortType(sort()), exportElemType(ctx, elType));
 }

@@ -12,8 +12,11 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
+
+#include <legacy/ngraph_ops/lrn_ie.hpp>
 
 using namespace vpux;
 
@@ -32,4 +35,12 @@ mlir::LogicalResult vpux::IE::LRN_IEOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::LRN_IEOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const auto reg = exportLRN_IERegion(region());
+
+    return std::make_shared<ngraph::op::LRN_IE>(outputs.at(0), alpha().convertToDouble(),
+        beta().convertToDouble(), bias().convertToDouble(), size(), reg);
 }

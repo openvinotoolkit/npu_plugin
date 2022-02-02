@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -47,4 +48,12 @@ mlir::LogicalResult vpux::IE::FakeQuantizeOp::inferReturnTypeComponents(
     }
 
     return outShapeOrResult;
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::FakeQuantizeOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const ngraph::op::AutoBroadcastType autoBroadCastType = exportBroadcastType(auto_broadcast());
+
+    return std::make_shared<opset_latest::FakeQuantize>(outputs.at(0), outputs.at(1), outputs.at(2), outputs.at(3),
+        outputs.at(4), levels(), ngraph::op::AutoBroadcastSpec(autoBroadCastType));
 }

@@ -18,6 +18,7 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -159,6 +160,19 @@ void vpux::IE::ConvolutionOp::adjustAttrs(const TilingInfo& inputTiling) {
     IE::adjustPaddings(this, inputTiling);
 }
 
+std::shared_ptr<ngraph::Node> vpux::IE::ConvolutionOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    VPUX_THROW_WHEN(bias() != nullptr, "bias input for '{0}' is not supported", IE::ConcatOp::getOperationName());
+    VPUX_THROW_WHEN(post_opAttr() != nullptr, "post_op attribute for '{0}' is not supported", IE::ConcatOp::getOperationName());
+    const auto strides = parseIntArrayAttr<size_t>(stridesAttr());
+    const auto padsBegin = parseIntArrayAttr<std::ptrdiff_t>(pads_begin());
+    const auto padsEnd = parseIntArrayAttr<std::ptrdiff_t>(pads_end());
+    const auto dils = parseIntArrayAttr<size_t>(dilations());
+    return std::make_shared<opset_latest::Convolution>(outputs.at(0), outputs.at(1),
+        ngraph::Strides(strides.begin(),strides.end()), ngraph::CoordinateDiff(padsBegin.begin(), padsBegin.end()),
+        ngraph::CoordinateDiff(padsEnd.begin(), padsEnd.end()), ngraph::Strides(dils.begin(), dils.end()));
+}
+
 //
 // GroupConvolution
 //
@@ -287,4 +301,17 @@ void vpux::IE::GroupConvolutionOp::adjustAttrs(const TilingInfo& inputTiling) {
     const auto groupsNewAttr = getIntAttr(getContext(), groups);
 
     groupsAttr(groupsNewAttr);
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::GroupConvolutionOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    VPUX_THROW_WHEN(bias() != nullptr, "bias input for '{0}' is not supported", IE::ConcatOp::getOperationName());
+    VPUX_THROW_WHEN(post_opAttr() != nullptr, "post_op attribute for '{0}' is not supported", IE::ConcatOp::getOperationName());
+    const auto strides = parseIntArrayAttr<size_t>(stridesAttr());
+    const auto padsBegin = parseIntArrayAttr<std::ptrdiff_t>(pads_begin());
+    const auto padsEnd = parseIntArrayAttr<std::ptrdiff_t>(pads_end());
+    const auto dil = parseIntArrayAttr<size_t>(dilations());
+    return std::make_shared<opset_latest::GroupConvolution>(outputs.at(0), outputs.at(1),
+        ngraph::Strides(strides.begin(),strides.end()), ngraph::CoordinateDiff(padsBegin.begin(), padsBegin.end()),
+        ngraph::CoordinateDiff(padsEnd.begin(), padsEnd.end()), ngraph::Strides(dil.begin(), dil.end()));
 }

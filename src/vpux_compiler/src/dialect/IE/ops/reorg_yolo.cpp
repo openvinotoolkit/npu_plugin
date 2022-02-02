@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -53,4 +53,9 @@ mlir::LogicalResult vpux::IE::ReorgYoloOp::inferReturnTypeComponents(
 
     inferredReturnShapes.emplace_back(outputShape, inType.getElementType());
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::ReorgYoloOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<opset_latest::ReorgYolo>(outputs.at(0), stride());
 }

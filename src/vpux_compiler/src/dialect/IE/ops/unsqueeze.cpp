@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -265,4 +265,9 @@ void vpux::IE::UnsqueezeOp::getCanonicalizationPatterns(mlir::OwningRewritePatte
                                                         mlir::MLIRContext* context) {
     patterns.insert<FuseWithReshape>(context);
     patterns.insert<ConvertConstToAttr>(context);
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::UnsqueezeOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<opset_latest::Unsqueeze>(outputs.at(0), outputs.at(1));
 }

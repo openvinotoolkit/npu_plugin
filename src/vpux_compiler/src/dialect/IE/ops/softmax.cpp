@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -49,4 +50,11 @@ mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(ArrayRef<mlir::Attribute>) {
     const auto baseContent = Const::ContentAttr::get(mlir::DenseElementsAttr::get(valueType, 1.0f));
 
     return baseContent.convertElemType(output().getType().cast<mlir::ShapedType>().getElementType());
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::SoftMaxOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const auto axisIndVal = axisInd();
+    
+    return std::make_shared<opset_latest::Softmax>(outputs.at(0), axisIndVal);
 }

@@ -12,6 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
+#include <vpux/compiler/utils/attributes.hpp>
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -55,4 +57,14 @@ mlir::LogicalResult vpux::IE::RegionYoloOp::inferReturnTypeComponents(
 
     inferredReturnShapes.emplace_back(outputShape, inType.getElementType());
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::RegionYoloOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const auto msk = parseIntArrayAttr<int64_t>(mask());
+    const auto anch = parseFPArrayAttr<float>(anchors());
+
+    return std::make_shared<opset_latest::RegionYolo>(outputs.at(0), coords(), classes(), regions(), do_softmax(),
+        std::vector<int64_t>{msk.begin(), msk.end()}, axis(), end_axis(),
+        std::vector<float>{anch.begin(), anch.end()});
 }

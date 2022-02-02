@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/numeric.hpp"
@@ -128,4 +129,11 @@ mlir::OpFoldResult vpux::IE::AddOp::fold(ArrayRef<mlir::Attribute> operands) {
     }
 
     return nullptr;
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::AddOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const ngraph::op::AutoBroadcastType autoBroadCastType = exportBroadcastType(auto_broadcast());
+    return std::make_shared<opset_latest::Add>(outputs.at(0), outputs.at(1),
+        ngraph::op::AutoBroadcastSpec(autoBroadCastType));
 }

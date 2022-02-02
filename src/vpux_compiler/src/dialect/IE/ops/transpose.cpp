@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -347,4 +347,9 @@ mlir::OpFoldResult vpux::IE::TransposeOp::fold(ArrayRef<mlir::Attribute> operand
     }
 
     return nullptr;
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::TransposeOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<opset_latest::Transpose>(outputs.at(0), outputs.at(1));
 }

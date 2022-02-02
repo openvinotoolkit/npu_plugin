@@ -12,12 +12,14 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
+#include <ngraph/opsets/opset7.hpp>
 
 #include <map>
 #include <unordered_set>
@@ -484,4 +486,12 @@ mlir::LogicalResult FuseConcat::matchAndRewrite(IE::ConcatOp origOp, mlir::Patte
 void vpux::IE::ConcatOp::getCanonicalizationPatterns(mlir::RewritePatternSet& results, mlir::MLIRContext* ctx) {
     results.add<ConvertPerAxisToOffsets>(ctx);
     results.add<FuseConcat>(ctx);
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::ConcatOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    VPUX_THROW_WHEN(per_axisAttr() == nullptr, "per_axis attribute for '{0}' missing", IE::ConcatOp::getOperationName());
+    const auto axis = per_axisAttr().axis().getInt();
+
+    return std::make_shared<opset_latest::Concat>(outputs, axis);
 }

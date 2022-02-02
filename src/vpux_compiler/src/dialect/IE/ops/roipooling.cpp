@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -64,4 +64,14 @@ mlir::LogicalResult vpux::IE::ROIPoolingOp::inferReturnTypeComponents(
 
     inferredReturnShapes.emplace_back(output_shape, inTypeFeatureMap.getElementType());
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::ROIPoolingOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const auto outputSize = parseIntArrayAttr<size_t>(output_size());
+    const auto spatialScale = spatial_scale().convertToDouble();
+    const auto meth = exportROIPoolingMethod(method());
+
+    return std::make_shared<opset_latest::ROIPooling>(outputs.at(0), outputs.at(1),
+        ngraph::Shape(outputSize.begin(), outputSize.end()), spatialScale, meth);
 }

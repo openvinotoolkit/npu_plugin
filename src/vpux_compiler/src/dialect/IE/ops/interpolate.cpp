@@ -16,6 +16,7 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -195,4 +196,11 @@ mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp Inter
 void vpux::IE::InterpolateOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
                                                           mlir::MLIRContext* context) {
     patterns.insert<ConvertInputsToAttr>(context);
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::InterpolateOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const ngraph::opset7::Interpolate::InterpolateAttrs attrs = exportInterpolateAttrs(attr());
+
+    return std::make_shared<opset_latest::Interpolate>(outputs.at(0), outputs.at(1), outputs.at(2), outputs.at(3), attrs);
 }

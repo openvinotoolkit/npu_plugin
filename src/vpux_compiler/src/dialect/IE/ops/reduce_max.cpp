@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -38,4 +38,9 @@ mlir::LogicalResult vpux::IE::ReduceMaxOp::inferReturnTypeComponents(
     auto axes = IE::constInputToData(loc, reduceMax.axes()).getValue();
 
     return IE::inferReduceReturnTypeComponents(loc, input, keepDims, axes, inferredReturnShapes);
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::ReduceMaxOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<opset_latest::ReduceMax>(outputs.at(0), outputs.at(1), keep_dims());
 }

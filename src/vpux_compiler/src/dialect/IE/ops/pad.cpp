@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -193,4 +193,18 @@ mlir::OpFoldResult vpux::IE::PadOp::fold(ArrayRef<mlir::Attribute> operands) {
     }
 
     return nullptr;
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::PadOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const auto pad_mode = mode();
+    if (outputs.size() == 4) {
+        return std::make_shared<opset_latest::Pad>(outputs.at(0), outputs.at(1), outputs.at(2), outputs.at(3),
+            exportPadMode(pad_mode));
+    }
+    else if (outputs.size() == 3) {
+        return std::make_shared<opset_latest::Pad>(outputs.at(0), outputs.at(1), outputs.at(2),
+            exportPadMode(pad_mode));
+    }
+    VPUX_THROW("IE::PadOp has unsupported number of outputs '{0}'", outputs.size());
 }

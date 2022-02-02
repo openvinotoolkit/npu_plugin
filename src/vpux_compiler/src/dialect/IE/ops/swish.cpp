@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -83,4 +84,9 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SwishOp swishOp, mli
 
 void vpux::IE::SwishOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.insert<ConvertConstToAttr>(context);
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::SwishOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<opset_latest::Swish>(outputs.at(0));
 }

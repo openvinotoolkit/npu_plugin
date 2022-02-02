@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -32,4 +33,9 @@ mlir::LogicalResult vpux::IE::ClampOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::ClampOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<opset_latest::Clamp>(outputs.at(0), min().convertToDouble(), max().convertToDouble());
 }

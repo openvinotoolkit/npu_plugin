@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include <mlir/IR/PatternMatch.h>
 
@@ -69,4 +70,11 @@ mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute> operands)
     }
 
     return nullptr;
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::ConvertOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const mlir::Type dstElemT = dstElemType();
+
+    return std::make_shared<opset_latest::Convert>(outputs.at(0), exportElemType(dstElemT.getContext(), dstElemT));
 }

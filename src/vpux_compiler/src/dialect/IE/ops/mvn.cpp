@@ -12,9 +12,11 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
+
+#include <ngraph/opsets/opset4.hpp>
 
 using namespace vpux;
 
@@ -38,4 +40,10 @@ mlir::LogicalResult vpux::IE::MVNOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::MVNOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    return std::make_shared<ngraph::opset4::MVN>(outputs.at(0), across_channels(), normalize_variance(),
+        eps().convertToDouble());
 }

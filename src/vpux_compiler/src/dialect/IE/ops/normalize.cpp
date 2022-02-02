@@ -15,8 +15,11 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/dialect/IE/utils/to_ngraph.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
+
+#include "legacy/ngraph_ops/normalize_ie.hpp"
 
 #include <mlir/IR/PatternMatch.h>
 
@@ -41,4 +44,13 @@ mlir::LogicalResult vpux::IE::NormalizeIEOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
+}
+
+std::shared_ptr<ngraph::Node> vpux::IE::NormalizeIEOp::toNgraph(ngraph::OutputVector &outputs)
+{
+    const auto type = getType().getElementType();
+    mlir::MLIRContext* ctx = getContext();
+
+    return std::make_shared<ngraph::op::NormalizeIE>(outputs.at(0), outputs.at(1), eps().convertToDouble(),
+        across_spatial(), channel_shared(), exportElemType(ctx, type));
 }
