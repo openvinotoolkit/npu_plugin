@@ -97,24 +97,21 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                 _log.trace("The SOH efficiency for the convolution is {0}", efficency);
                 return efficency;
             })
-            .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp origOp) {
+            .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {
                 return 1;
             })
-            .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp origOp) {
+            .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp) {
                 return 1;
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
                 const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
-                const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
-                const auto inputShape = getShape(inputType);
                 const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
                 const double OC = outputShape[Dims4D::Act::C];
                 const double OH = outputShape[Dims4D::Act::H];
                 const double OW = outputShape[Dims4D::Act::W];
                 const auto KY = filterShape[Dims4D::Filter::KY];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-                const double outputTensorVolume = OC * OH * OW;
 
                 auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
                 double efficency = efficiencyConstant * splitOverHeightFormula(OH, OW, OC);
@@ -139,9 +136,7 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
             .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp origOp) {
                 const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
-                const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
-                const auto inputShape = getShape(inputType);
                 const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
                 const double OC = outputShape[Dims4D::Act::C];
                 const double OH = outputShape[Dims4D::Act::H];
@@ -151,17 +146,15 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 _log.trace("The SOK efficiency for the convolution is {0}", efficency);
                 return efficency;
             })
-            .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp origOp) {
+            .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {
                 return 1;
             })
-            .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp origOp) {
+            .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp) {
                 return 1;
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
                 const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
-                const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
-                const auto inputShape = getShape(inputType);
                 const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
                 const double OC = outputShape[Dims4D::Act::C];
                 const double OH = outputShape[Dims4D::Act::H];
@@ -182,7 +175,7 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
 void StrategyManager::computeOptimalMultiClusterStrategy() {
     const auto callback = [&](mlir::Operation* op) {
         llvm::TypeSwitch<mlir::Operation*, void>(op)
-                .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp op) {
+                .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {
 
                 })
                 .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp op) {
@@ -251,9 +244,7 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                 }
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp op) {
-                const auto outputType = op.output().getType().cast<mlir::ShapedType>();
                 const auto inputType = op.input().getType().cast<mlir::ShapedType>();
-                const auto outputShape = getShape(outputType);
                 const auto inputShape = getShape(inputType);
                 const auto filterShape = Shape(parseIntArrayAttr<int64_t>(op.rawFilterShapeAttr()));
                 const auto IC = inputShape[Dims4D::Act::C];

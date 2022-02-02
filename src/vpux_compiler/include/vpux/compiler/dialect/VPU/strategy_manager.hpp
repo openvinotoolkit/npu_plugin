@@ -46,17 +46,17 @@ private:
     std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable();
     std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable();
 
-    const size_t _minimumHeightForSOH = 20;
-    const size_t _minimumOutputChannelsPerCluster = 16;
+    const long int _minimumHeightForSOH = 20;
+    const long int _minimumOutputChannelsPerCluster = 16;
     // llvm::DenseMap<mlir::Operation*, double> _splitOverHeightEfficencies;
     // llvm::DenseMap<mlir::Operation*, double> _splitOverKernelEfficencies;
     std::map<mlir::Operation*, double> _splitOverHeightEfficencies;
     std::map<mlir::Operation*, double> _splitOverKernelEfficencies;
-    size_t _numClusters;
+    Logger _log;
+    long int _numClusters;
     size_t _numDPUPerCluster = 5;
     size_t _numDPU;
     size_t _numChannelAlignment = 16;
-    Logger _log;
     mlir::FuncOp _func;
 };
 
