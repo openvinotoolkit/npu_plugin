@@ -121,10 +121,6 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
     };
     while (!isSupportedTilesPattern()) {
         if (!isDimLeftToTile()) {
-            std::cout << llvm::formatv("nTilesOnDim[dimToTile]: {0}; maxNumTiles[dimToTile.ind()]: {1}",
-                                       nTilesOnDim[dimToTile], maxNumTiles[dimToTile.ind()])
-                                 .str()
-                      << std::endl;
             return {Shape(outputShape.size(), 1), Shape(outputShape.size(), 1)};
         }
         // increase current op tiles
@@ -135,16 +131,6 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
         } else {
             nTilesOnDim[dimToTile]++;
         }
-        // increase parent op tiles
-        //        if (!isSupportedTilesPattern()) {
-        //            if (dimToTile == Dims4D::Act::C) {
-        //                do {
-        //                    ++nTilesOnDimParent[Dims4D::Act::C];
-        //                } while (!isSupportedChannelDivision());
-        //            } else {
-        //                nTilesOnDimParent[dimToTile]++;
-        //            }
-        //        }
     }
     return {nTilesOnDim, nTilesOnDimParent};
 }
@@ -156,9 +142,6 @@ bool needTilingToMultiOpsPrefetch(mlir::Operation* op, Logger log) {
     if (!opTilingInter || !parentTilingInter) {
         return false;
     }
-    std::cout << "\n===needTilingToMultiOpsPrefetch===\n" << std::endl;
-    op->dump();
-    parentOp->dump();
     // For parallel sub-graphs, the order is undecided yet
     // Abandon prefetching these cases
     if (!parentOp->getResult(0).hasOneUse()) {
@@ -199,9 +182,10 @@ private:
 mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
                                                     mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
-    std::cout << llvm::formatv("!!![{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc())
-                         .str()
-              << std::endl;
+    // useful print for debug
+    // std::cout << llvm::formatv("!!![{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc())
+    //                      .str()
+    //           << std::endl;
 
     auto op = origOp.getOperation();
     const auto resShape = getShape(op->getResult(0));
@@ -210,16 +194,10 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
         // If the current op fits CMX but still run into here
         // The op needs tiling to be prefetched by its parent
         auto parentOp = getParentConvOp(op);
-        std::cout << llvm::formatv("op {0} and parentOp {1} needs pattern tile.", origOp->getLoc(), parentOp->getLoc())
-                             .str()
-                  << std::endl;
         const auto parentResShape = getShape(parentOp->getResult(0));
         auto tiles = generatePrefetchPatternTiles(op, parentOp, _log.nest());
-
         auto curTiles = fillDividedTiles(tiles[0], resShape);
         auto parentTiles = fillDividedTiles(tiles[1], parentResShape);
-        std::cout << llvm::formatv("\tcur tile: {0}", tiles[0]).str() << std::endl;
-        std::cout << llvm::formatv("\tparent tile: {0}", tiles[1]).str() << std::endl;
         return applyTileStrategy(origOp, curTiles, rewriter, _log);
     } else {
         const auto tiles = generatePrefetchTiles(origOp.getOperation(), _log.nest());
@@ -257,7 +235,6 @@ void PrefetchTilingPass::safeRunOnFunc() {
                 return false;
             }
             if (needTilingToMultiOpsPrefetch(op, _log)) {
-                std::cout << "needTilingToMultiOpsPrefetch: YES!!" << std::endl;
                 return false;
             }
         }
