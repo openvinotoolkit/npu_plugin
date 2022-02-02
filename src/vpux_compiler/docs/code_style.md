@@ -116,6 +116,31 @@ void justPrintArray(const SmallVector<mlir::Value>& array); // BAD: pass it by A
 
 ## Formatting
 
+### Indentation
+
+Follow [1TBS aka OTBS](https://en.wikipedia.org/wiki/Indentation_style#Variant:_1TBS_(OTBS)) ("one true brace style"). 
+In other words, use brackets with all constructions: function definition, `if`, `else`, `while`, etc.
+The readability of this principle is debatable. But this allows us to achieve that insertion of a new line of code anywhere is always safe.
+
+```cpp
+void someFunction(mlir::Operation* op) { // OK
+    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+    if (layer == nullptr) { // OK
+        return;
+    }
+
+    // <...>
+}
+
+void someFunction(mlir::Operation* op)  // BAD: the opening bracket is at the next line but it should be here
+{
+    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+    if (layer == nullptr) // BAD: even single-line constructions must have brackets
+        return;
+}
+
+```
+
 ### Surplus namespaces
 
 Do not use `llvm::` (or other) namespace prefix for classes imported into `vpux` namespace.
