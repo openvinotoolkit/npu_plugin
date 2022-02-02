@@ -32,9 +32,6 @@ project(InferenceEngineVPUXPlugin)
 # Build properties
 #
 
-# !!! FIXME EISW-30286
-set(ENABLE_LTO OFF)
-
 set(VPUX_DEVICE_NAME "VPUX")
 string(TOLOWER "${VPUX_DEVICE_NAME}" VPUX_PLUGIN_COMPONENT)
 set(VPUX_TESTS_COMPONENT "${VPUX_PLUGIN_COMPONENT}_tests")
