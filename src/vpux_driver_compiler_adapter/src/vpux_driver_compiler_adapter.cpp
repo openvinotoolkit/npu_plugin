@@ -15,28 +15,26 @@
 #include "network_description.h"
 #include "ngraph_transformations.h"
 #include "zero_compiler_in_driver.h"
+#include "vpux/al/config/common.hpp"
 
 namespace vpux {
 namespace driverCompilerAdapter {
 
-// TODO #-30198 Fix config and log level usage
-LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(): _logger("LevelZeroCompilerAdapter", LogLevel::Error) {
+LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(): _logger("LevelZeroCompilerAdapter", LogLevel::None) {
     apiAdapter = std::make_shared<LevelZeroCompilerInDriver>();
 }
 
-// TODO #-30198 Fix config and log level usage
 LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(const IExternalCompiler::Ptr& compilerAdapter)
-        : apiAdapter(compilerAdapter), _logger("LevelZeroCompilerAdapter", LogLevel::Error) {
+        : apiAdapter(compilerAdapter), _logger("LevelZeroCompilerAdapter", LogLevel::None) {
 }
 
-// TODO #-30199 Add inputsInfo and outputs info support to be able to set user precision / layout
-// TODO #-30198 Fix config and log level usage
 std::shared_ptr<INetworkDescription> LevelZeroCompilerAdapter::compile(
         const std::shared_ptr<ngraph::Function>& ngraphFunc, const std::string& netName,
         const InferenceEngine::InputsDataMap& inputsInfo, const InferenceEngine::OutputsDataMap& outputsInfo,
-        const vpux::Config& /*config*/) {
+        const vpux::Config& config) {
+    _logger.setLevel(config.get<LOG_LEVEL>());
     auto IR = ngraphTransformations::serializeToIR(ngraphFunc);
-    return apiAdapter->compileIR(netName, IR.xml, IR.weights, inputsInfo, outputsInfo);
+    return apiAdapter->compileIR(netName, IR.xml, IR.weights, inputsInfo, outputsInfo, config);
 }
 
 // TODO #-29924: Implement query method
@@ -46,11 +44,11 @@ InferenceEngine::QueryNetworkResult LevelZeroCompilerAdapter::query(const Infere
     return InferenceEngine::QueryNetworkResult();
 }
 
-// TODO #-30198 Fix config and log level usage
 std::shared_ptr<vpux::INetworkDescription> LevelZeroCompilerAdapter::parse(const std::vector<char>& blob,
-                                                                           const vpux::Config& /* config */,
+                                                                           const vpux::Config& config,
                                                                            const std::string& netName) {
-    return apiAdapter->parseBlob(netName, blob);
+    _logger.setLevel(config.get<LOG_LEVEL>());
+    return apiAdapter->parseBlob(netName, blob, config);
 }
 
 INFERENCE_PLUGIN_API(void)

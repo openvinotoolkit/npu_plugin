@@ -33,11 +33,11 @@ public:
 
     size_t getSupportedOpset() override;
 
-    std::shared_ptr<INetworkDescription> compileIR(const std::string& graphName, const std::vector<char>& xml,
-                                                   const std::vector<char>& weights, const InferenceEngine::InputsDataMap& inputsInfo, const InferenceEngine::OutputsDataMap& outputsInfo) final;
+    std::shared_ptr<INetworkDescription> compileIR(const std::string& graphName, const std::vector<char>& xml, const std::vector<char>& weights,
+                const InferenceEngine::InputsDataMap& inputsInfo, const InferenceEngine::OutputsDataMap& outputsInfo,
+                const vpux::Config& config) final;
 
-    std::shared_ptr<INetworkDescription> parseBlob(const std::string& graphName,
-                                                   const std::vector<char>& blob) final;
+    std::shared_ptr<INetworkDescription> parseBlob(const std::string& graphName, const std::vector<char>& blob, const vpux::Config& config) final;
 
 private:
     std::tuple<const NetworkInputs, const NetworkOutputs, const DeviceInputs, const DeviceOutputs> getNetworkMeta(

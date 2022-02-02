@@ -14,6 +14,7 @@
 #include "zero_compiler_in_driver.h"
 #include "ie_layouts.h"
 #include "network_description.h"
+#include "vpux/al/config/common.hpp"
 
 namespace vpux {
 namespace driverCompilerAdapter {
@@ -172,30 +173,25 @@ _ze_graph_argument_precision_t toZePrecision(const IE::Precision precision) {
 }
 
 //------------------------------------------------------------------------------
-// TODO #-30198 Fix config and log level usage
-// TODO #-30201 Fix log messages and error handling. Throw instead of just return (?), since no error handling in return case.
-LevelZeroCompilerInDriver::LevelZeroCompilerInDriver(): _logger("LevelZeroCompilerInDriver", LogLevel::Error) {
-    _logger.debug("LevelZeroCompilerInDriver::LevelZeroCompilerInDriver");
+LevelZeroCompilerInDriver::LevelZeroCompilerInDriver(): _logger("LevelZeroCompilerInDriver", LogLevel::None) {
     auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
     if (ZE_RESULT_SUCCESS != result) {
-        _logger.warning("zeInit failed {0:X+}", uint64_t(result));
-        return;
+        IE_THROW() << "Failed to initialize zeAPI. Error code: " << std::hex << result;
     }
 
     uint32_t drivers = 0;
     result = zeDriverGet(&drivers, nullptr);
 
     if (ZE_RESULT_SUCCESS != result) {
-        _logger.warning("zeDriverGet count failed {0:X+}", uint64_t(result));
-        return;
+        IE_THROW() << "Failed to get information about zeDriver. Error code: " << std::hex << result;
     }
 
     std::vector<ze_driver_handle_t> all_drivers(drivers);
     result = zeDriverGet(&drivers, all_drivers.data());
     if (ZE_RESULT_SUCCESS != result) {
-        _logger.warning("zeDriverGet get failed {0:X+}", uint64_t(result));
-        return;
+        IE_THROW() << "Failed to get zeDriver. Error code: " << std::hex << result;
     }
+
     // Get our target driver
     for (uint32_t i = 0; i < drivers; ++i) {
         // arbitrary test at this point
@@ -208,26 +204,21 @@ LevelZeroCompilerInDriver::LevelZeroCompilerInDriver(): _logger("LevelZeroCompil
     result = zeDriverGetExtensionFunctionAddress(_driver_handle, "ZE_extension_graph",
                                                  reinterpret_cast<void**>(&_graph_ddi_table_ext));
     if (ZE_RESULT_SUCCESS != result) {
-        _logger.warning("zeDriverGetExtensionFunctionAddress failed {0:X+}", uint64_t(result));
-        return;
+        IE_THROW() << "Failed to initialize zeDriver. Error code: " << std::hex << result;
     }
 
     uint32_t device_count = 1;
     // Get our target device
     result = zeDeviceGet(_driver_handle, &device_count, &_device_handle);
     if (ZE_RESULT_SUCCESS != result) {
-        _logger.warning("zeDeviceGet failed {0:X+}", uint64_t(result));
-        return;
+        IE_THROW() << "Failed to get device. Error code: " << std::hex << result;
     }
 
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0};
     result = zeContextCreate(_driver_handle, &context_desc, &_context);
     if (ZE_RESULT_SUCCESS != result) {
-        _logger.warning("zeContextCreate failed {0:X+}", uint64_t(result));
-        return;
+        IE_THROW() << "Failed to initialize context for device. Error code: " << std::hex << result;
     }
-
-    _logger.debug("LevelZeroCompilerInDriver::LevelZeroCompilerInDriver done");
 }
 
 LevelZeroCompilerInDriver::~LevelZeroCompilerInDriver() {
@@ -302,7 +293,9 @@ INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(const std::string&
                                                               const std::vector<char>& xml,
                                                               const std::vector<char>& weights,
                                                               const IE::InputsDataMap& inputsInfo, 
-                                                              const IE::OutputsDataMap& outputsInfo) {
+                                                              const IE::OutputsDataMap& outputsInfo,
+                                                              const vpux::Config& config) {
+    _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("LevelZeroCompilerInDriver::compileIR");
     auto serializedIR = serializeIR(xml, weights);
 
@@ -343,21 +336,21 @@ INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(const std::string&
     ze_graph_handle_t graph_handle;
     auto result = _graph_ddi_table_ext->pfnCreate(_context, _device_handle, &desc, &graph_handle);
     if (ZE_RESULT_SUCCESS != result) {
-        IE_THROW() << "Failed to compile graph with Zero API with error: " << result;
+        IE_THROW() << "Failed to compile network. Error code: " << std::hex << result;
     }
 
     // Get blob size first
     size_t blobSize = -1;
     result = _graph_ddi_table_ext->pfnGetNativeBinary(graph_handle, &blobSize, nullptr);
     if (ZE_RESULT_SUCCESS != result) {
-        IE_THROW() << "Failed to get blob size";
+        IE_THROW() << "Failed to get blob size. Error code: " << std::hex << result;
     }
 
     std::vector<char> blob(blobSize);
     // Get blob data
     result = _graph_ddi_table_ext->pfnGetNativeBinary(graph_handle, &blobSize, reinterpret_cast<uint8_t*>(blob.data()));
     if (ZE_RESULT_SUCCESS != result) {
-        IE_THROW() << "Failed to get native binary";
+        IE_THROW() << "Failed to get compiled network. Error code: " << std::hex << result;
     }
 
     const auto networkMeta = getNetworkMeta(graph_handle);
@@ -366,7 +359,9 @@ INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(const std::string&
 }
 
 std::shared_ptr<INetworkDescription> LevelZeroCompilerInDriver::parseBlob(const std::string& graphName,
-                                                                          const std::vector<char>& blob) {
+                                                                          const std::vector<char>& blob,
+                                                                          const vpux::Config& config) {
+    _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("LevelZeroCompilerInDriver::getNetworkMeta");
     ze_graph_handle_t graph_handle;
 
@@ -377,7 +372,7 @@ std::shared_ptr<INetworkDescription> LevelZeroCompilerInDriver::parseBlob(const 
 
         auto result = _graph_ddi_table_ext->pfnCreate(_context, _device_handle, &desc, &graph_handle);
         if (ZE_RESULT_SUCCESS != result) {
-            IE_THROW() << "Failed to load blob with zero API";
+            IE_THROW() << "Failed to import blob. Error code: " << std::hex << result;
         }
     } else {
         THROW_IE_EXCEPTION << "Empty blob";
@@ -394,7 +389,7 @@ size_t LevelZeroCompilerInDriver::getSupportedOpset() {
         IE_THROW() << "Failed to get opset version from compiler";
     }
     const auto maxOpsetVersion = graph_properties.maxOVOpsetVersionSupported;
-    _logger.info("Max supported version of opset in CiD: {1}", maxOpsetVersion);
+    _logger.info("Max supported version of opset in CiD: {0}", maxOpsetVersion);
     return maxOpsetVersion;
 }
 
@@ -430,14 +425,14 @@ LevelZeroCompilerInDriver::getNetworkMeta(ze_graph_handle_t graph_handle) {
         IE::TensorDesc dev_dataDesc(dev_precision, dev_dims, dev_layout);
 
         if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
-            _logger.debug("Found input {1}", arg.name);
+            _logger.debug("Found input \"{0}\"", arg.name);
 
             net_inputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, net_dataDesc));
             dev_inputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, dev_dataDesc));
         }
 
         if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
-            _logger.debug("Found output {1}", arg.name);
+            _logger.debug("Found output \"{0}\"", arg.name);
 
             net_outputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, net_dataDesc));
             dev_outputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, dev_dataDesc));

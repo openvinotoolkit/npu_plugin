@@ -41,10 +41,11 @@ public:
      * @brief compile NGraph and return blob file
      * @return compiled graph (blob)
      */
-    virtual std::shared_ptr<INetworkDescription> compileIR(const std::string& graphName, const std::vector<char>& xml,
-                                                           const std::vector<char>& weights, const InferenceEngine::InputsDataMap& inputsInfo, const InferenceEngine::OutputsDataMap& outputsInfo) = 0;
-    virtual std::shared_ptr<INetworkDescription> parseBlob(const std::string& graphName,
-                                                           const std::vector<char>& blob) = 0;
+    virtual std::shared_ptr<INetworkDescription> compileIR(const std::string& graphName, const std::vector<char>& xml, const std::vector<char>& weights, 
+                                                           const InferenceEngine::InputsDataMap& inputsInfo, const InferenceEngine::OutputsDataMap& outputsInfo,
+                                                           const vpux::Config& config) = 0;
+    virtual std::shared_ptr<INetworkDescription> parseBlob(const std::string& graphName, const std::vector<char>& blob, 
+                                                           const vpux::Config& config) = 0;
 };
 }  // namespace driverCompilerAdapter
 }  // namespace vpux
