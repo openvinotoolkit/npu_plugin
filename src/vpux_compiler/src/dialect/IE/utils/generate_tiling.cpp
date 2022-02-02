@@ -146,11 +146,8 @@ mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, Outpu
         resultTileOffsets.push_back(outputTile.offsets);
     }
 
-    auto newConcat = rewriter.replaceOpWithNewOp<IE::ConcatOp>(
-            origOp, origOp->getResult(0).getType(), mlir::ValueRange(resultTileVals), makeArrayRef(resultTileOffsets));
-
-    // TODO: remove with EISW-25333
-    newConcat->setAttr("CMXConcat", rewriter.getBoolAttr(false));
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, origOp->getResult(0).getType(), mlir::ValueRange(resultTileVals),
+                                              makeArrayRef(resultTileOffsets));
 
     // update concat users and also place correctly in the IR
     for (auto* concatOp : resultTileVals[0].getUsers()) {
