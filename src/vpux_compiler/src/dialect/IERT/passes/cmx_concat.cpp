@@ -141,6 +141,8 @@ bool childOperationsDoNotFitInCMX(IERT::ConcatViewOp concat, SmallVector<IERT::C
         }
     }
 
+    std::cout << maxConsumerSize + concatSize << std::endl;
+
     // return concat size greater than CMX size
     return (maxConsumerSize + concatSize) > cmxSize;
 }
@@ -295,10 +297,14 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
         }
     }
 
+    std::cout << "here" << std::endl;
+
     // assert that the concat will fit in CMX
     if (concatOperationDoesNotFitInCMX(concat, nceTiles, _cmxSize)) {
         return mlir::failure();
     }
+
+    std::cout << "here0" << std::endl;
 
     // verify the following operation can fit in CMX
     if (childOperationsDoNotFitInCMX(concat, copyOutOpsWithSubView, _cmxSize) ||
@@ -306,12 +312,16 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
         return mlir::failure();
     }
 
+    std::cout << "here1" << std::endl;
+
     if (isThisAComplexConcat(nceTiles, copyInOps)) {
         // TODO implement complex concat
         // where part of the concatinated buffer is also used by another operation
         // visible in yolo-v4-tiny concatinate 4
         return mlir::failure();
     }
+
+    std::cout << "here2" << std::endl;
 
     // create a new CMX memref and AllocOp
     auto masterBufferOutput = concat.getResult();
@@ -356,6 +366,12 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
         nceTiles[idx].output_buff().replaceAllUsesWith(newInSubViews[idx]);
         // update type of result
         copyInOps[idx].input().setType(nceTiles[idx].output_buff().getType());
+        // update old subView use
+        auto copyInSubView = mlir::dyn_cast<IERT::SubViewOp>(copyInSubViews[idx].getDefiningOp());
+        copyInSubView.result().replaceAllUsesWith(newInSubViews[idx]);
+        // remove usused
+        copyInOps[idx].erase();
+        copyInSubView.erase();
     }
 
     // create new CMX-out SubViewOps
@@ -369,6 +385,7 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
         copyOutOpsWithSubView[idx].output().replaceAllUsesWith(newOutSubView);
         copyOutOpsWithSubView[idx].output_buff().replaceAllUsesWith(newOutSubView);
         copyOutOpsWithSubView[idx].erase();
+        // copyOutSubViews[idx].erase();
     }
     for (size_t idx = 0; idx < copyOutOps.size(); idx++) {
         // Case 2. Without child streaming
