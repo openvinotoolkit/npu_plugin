@@ -4,6 +4,10 @@ The pass is a part of `IECommon` pipeline.
 
 This pass adds the required layouts instead of the default one
 depending on the layer specification from underlying Dialect.
+### `-collapse-transposes-pass`: Replaces chain of Transpose -> Reshape -> Transpose with single Reshape
+This pass checks whether `Reshape` operation between two `Transpose` operations gathers any dimensions.
+If so, it checks whether the second transposition cancels the effect of the first one.
+In such cases, the whole subgraph can be replaced with a single reshape.
 ### `-convert-avg-pool-to-dw-conv`: Convert AvgPool op to GroupConvolution op
 The pass is a part of `AdjustForVPU` pipeline.
 

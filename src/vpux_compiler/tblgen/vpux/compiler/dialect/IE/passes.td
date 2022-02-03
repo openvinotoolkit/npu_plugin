@@ -938,6 +938,26 @@ def ConvertReduceToPooling : PassBase<"convert-reduce-to-pooling", "vpux::Functi
     ];
 }
 
+//
+// CollapseMutualTransposes
+//
+
+def CollapseMutualTransposes : PassBase<"collapse-transposes-pass", "vpux::FunctionPass"> {
+    let summary = "Replaces chain of Transpose -> Reshape -> Transpose with single Reshape";
+
+    let description = [{
+        This pass checks whether `Reshape` operation between two `Transpose` operations gathers any dimensions.
+        If so, it checks whether the second transposition cancels the effect of the first one.
+        In such cases, the whole subgraph can be replaced with a single reshape.
+    }];
+
+    let constructor = "vpux::IE::createCollapseMutualTransposes()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 //=================================================================================
 // Tiling
 //=================================================================================
