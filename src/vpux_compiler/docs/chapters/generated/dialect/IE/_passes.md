@@ -132,6 +132,10 @@ This pass replaces average pooling layers that have kernels bigger than supporte
 with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13).
 ### `-handle-large-strides`: Handle operations with large strides
 This pass splits operations with strides larger than supported on hardware.
+### `-insert-maxpool-to-concat-prelu`: Insert Maxpool op between Concat and PRelu ops
+The pass is a part of `AdjustForVPU` pipeline.
+
+Pass converts Concat->PRelu to Concat->Maxpool->PRelu.
 ### `-isolated-tiling`: Tile layers in isolation so that all their I/O fit into requirements
 The pass performs simple tiling of the layers, which doesn't fit into memory requirements.
 
