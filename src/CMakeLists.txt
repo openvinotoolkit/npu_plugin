@@ -60,7 +60,7 @@ endif()
 =======
 >>>>>>> 00c89aae6 (Static compiler and zero backend (#351))
 
-if (ENABLE_DRIVER_COMPILER_ADAPTER)
+if(ENABLE_DRIVER_COMPILER_ADAPTER)
     add_subdirectory(vpux_driver_compiler_adapter)
 endif()
 
