@@ -131,9 +131,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PoolingUPAOp::serialize(VPUIP::Blob
     case VPUIP::PoolLayerType::MAX:
         type = writer.createString("max");
         break;
-    case VPUIP::PoolLayerType::ADA_AVG_POOL:
-        type = writer.createString("ada_avg_pool");
-        break;
     case VPUIP::PoolLayerType::AVG:
         type = writer.createString("avg");
         break;
@@ -164,8 +161,6 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePooling(mlir::OpBuilder& builder,
     VPUIP::PoolLayerType type;
     if (typeStr == std::string("max")) {
         type = VPUIP::PoolLayerType::MAX;
-    } else if (typeStr == std::string("ada_avg_pool")) {
-        type = VPUIP::PoolLayerType::ADA_AVG_POOL;
     } else if (typeStr == std::string("avg")) {
         type = VPUIP::PoolLayerType::AVG;
     } else {
