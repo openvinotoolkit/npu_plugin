@@ -42,17 +42,17 @@ mlir::LogicalResult vpux::IE::AdaAvgPoolOp::inferReturnTypeComponents(
     const auto windowStrides = parseIntArrayAttr<int64_t>(AdaAvgPool.strides());
     const auto roundingType = AdaAvgPool.rounding_type().getValue(); */
 
-    const auto inType = AdaAvgPool.input().getType().cast<mlir::ShapedType>().getElementType();
-    const auto inShape = AdaAvgPool.input().getType().cast<mlir::ShapedType>().getShape();
+    const auto inType = AdaAvgPool.input1().getType().cast<mlir::ShapedType>().getElementType();
+    const auto inShape = AdaAvgPool.input2().getType().cast<mlir::ShapedType>().getShape();
 
     const auto outputShape = ngraph::infer_batched_pooling_forward(
-            nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
-            ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
+            nullptr, ngraph::Shape(inShape.begin(), inShape.end()));
+/*            ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
             ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
             ngraph::Shape(windowShape.begin(), windowShape.end()),
-            ngraph::Strides(windowStrides.begin(), windowStrides.end()),
-            true, /* It is only used during assertion. True will make it pass */
-            roundingType == vpux::IE::RoundingType::CEIL);
+            ngraph::Strides(windowStrides.begin(), windowStrides.end()),*/
+            //true, /* It is only used during assertion. True will make it pass */
+            //roundingType == vpux::IE::RoundingType::CEIL);
 
     const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
                                               return checked_cast<int64_t>(val);
