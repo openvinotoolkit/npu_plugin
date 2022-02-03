@@ -67,11 +67,11 @@ mlir::LogicalResult CollapseMutualTransposes::TransposeOpConverter::matchAndRewr
     VPUX_THROW_UNLESS(lastTransposeIn != nullptr, "TransposeOpConverter: transpose input is a null pointer");
     auto maybeReshapeOp = lastTransposeIn.getDefiningOp<IE::AffineReshapeOp>();
     VPUX_THROW_UNLESS(maybeReshapeOp != nullptr, "TransposeOpConverter: transpose input is not a reshape");
-    auto reshapeIn = maybeReshapeOp.input();
+    const auto reshapeIn = maybeReshapeOp.input();
     VPUX_THROW_UNLESS(reshapeIn != nullptr, "TransposeOpConverter: reshape input is a null pointer");
     auto firstTranspose = reshapeIn.getDefiningOp<IE::TransposeOp>();
     VPUX_THROW_UNLESS(firstTranspose != nullptr, "TransposeOpConverter: rehsape input is not a transpose");
-    auto firstTransposeIn = firstTranspose.input();
+    const auto firstTransposeIn = firstTranspose.input();
     VPUX_THROW_UNLESS(firstTransposeIn != nullptr,
                       "TransposeOpConverter: input of the first transpose is a null pointer");
 
@@ -83,35 +83,19 @@ mlir::LogicalResult CollapseMutualTransposes::TransposeOpConverter::matchAndRewr
     return mlir::success();
 }
 
-bool isTrivialReshape(const ShapeRef inShape, const ShapeRef outShape) {
+bool isTrivialTransformation(const ShapeRef inShape, const ShapeRef outShape) {
     // Remove all trivial dimensions.
-    std::vector<int64_t> inShapeVec;
-    for (size_t ind = 0; ind < inShape.size(); ind++) {
-        const auto dimVal = inShape[Dim(ind)];
-        if (dimVal > 1) {
-            inShapeVec.push_back(dimVal);
-        }
-    }
+    const auto isTrivial = [](const int64_t dimVal) -> bool {
+        return dimVal > 1;
+    };
+    Shape inShapeDiminished;
+    std::copy_if(inShape.begin(), inShape.end(), std::back_inserter(inShapeDiminished), isTrivial);
 
-    std::vector<int64_t> outShapeVec;
-    for (size_t ind = 0; ind < outShape.size(); ind++) {
-        const auto dimVal = outShape[Dim(ind)];
-        if (dimVal > 1) {
-            outShapeVec.push_back(dimVal);
-        }
-    }
+    Shape outShapeDiminished;
+    std::copy_if(outShape.begin(), outShape.end(), std::back_inserter(outShapeDiminished), isTrivial);
 
-    if (inShapeVec.size() != inShapeVec.size()) {
-        return false;
-    }
-
-    for (size_t ind = 0; ind < inShapeVec.size() && ind < inShapeVec.size(); ind++) {
-        if (inShapeVec[ind] != outShapeVec[ind]) {
-            return false;
-        }
-    }
-
-    return true;
+    // Check that resulting shapes preserve the order of dimensions.
+    return inShapeDiminished == outShapeDiminished;
 }
 
 bool canBeCollapsed(IE::TransposeOp op) {
@@ -144,12 +128,12 @@ bool canBeCollapsed(IE::TransposeOp op) {
     // 1x28x70x1 -> Reshape -> 1x28x70 -- trivial
     // 1x28x1x70 -> Reshape -> 1x28x70 -- trivial
     // 1x28x1x70 -> Reshape -> 1x70x28 -- non-trivial, since the order is not preserved.
-    if (!isTrivialReshape(getShape(maybeReshapeOp.input()), getShape(maybeReshapeOp.output()))) {
+    if (!isTrivialTransformation(getShape(maybeReshapeOp.input()), getShape(maybeReshapeOp.output()))) {
         return false;
     }
 
-    // Check that the second reshape is the inverse of the first one.
-    if (!isTrivialReshape(getShape(firstTranspose.input()), getShape(op.output()))) {
+    // Check that the second transpose is the inverse of the first one.
+    if (!isTrivialTransformation(getShape(firstTranspose.input()), getShape(op.output()))) {
         return false;
     }
 
@@ -161,7 +145,7 @@ void CollapseMutualTransposes::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     const auto isLegalTranspose = [](IE::TransposeOp op) -> bool {
-        // The possibility to collapse that transpose makes it illegal
+        // The possibility to collapse the chain makes the operation illegal.
         return !canBeCollapsed(op);
     };
     target.addDynamicallyLegalOp<IE::TransposeOp>(isLegalTranspose);
