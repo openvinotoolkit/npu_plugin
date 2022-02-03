@@ -159,7 +159,7 @@ def VPURT_DeclareSparseBufferOp :
     ];
 
     let assemblyFormat = [{
-        $data `:` type($data) `,` ($sparsityMap^ `:` type($sparsityMap))? `,` ($storageElementTable^ `:` type($storageElementTable))?
+        $data `:` type($data) (`,` $sparsityMap^ `:` type($sparsityMap))? (`,` $storageElementTable^ `:` type($storageElementTable))?
         attr-dict `->` type(results)
     }];
 

@@ -126,6 +126,7 @@ to quantized type with quantization parameters:
 
     let extraClassDeclaration = [{
         static void populateBufferizePatterns(mlir::RewritePatternSet& patterns, mlir::TypeConverter& typeConverter, vpux::Logger log);
+        static void setupExtraInterfaces(mlir::DialectRegistry& registry);
     }];
 }
 

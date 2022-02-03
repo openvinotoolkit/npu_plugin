@@ -155,3 +155,165 @@ mlir::Type vpux::VPURT::SparseBufferType::parse(mlir::DialectAsmParser& parser) 
 
     return get(data, sparsityMap, storageElementTable);
 }
+
+//
+// ShapedPropertiesTypeInterface
+//
+
+vpux::ShapeRef vpux::VPURT::SparseBufferType::getShape() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.getShape();
+}
+
+vpux::MemShape vpux::VPURT::SparseBufferType::getMemShape() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.getMemShape();
+}
+
+bool vpux::VPURT::SparseBufferType::hasRank() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.hasRank();
+}
+
+int64_t vpux::VPURT::SparseBufferType::getRank() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.getRank();
+}
+
+int64_t vpux::VPURT::SparseBufferType::getNumElements() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.getNumElements();
+}
+
+mlir::Type vpux::VPURT::SparseBufferType::getElementType() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.getElementType();
+}
+
+vpux::DimsOrder vpux::VPURT::SparseBufferType::getDimsOrder() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.getDimsOrder();
+}
+
+vpux::IndexedSymbolAttr vpux::VPURT::SparseBufferType::getMemSpace() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.getMemSpace();
+}
+
+vpux::VPU::MemoryKind vpux::VPURT::SparseBufferType::getMemoryKind() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.getMemoryKind();
+}
+
+vpux::Strides vpux::VPURT::SparseBufferType::getStrides() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.getStrides();
+}
+
+vpux::MemStrides vpux::VPURT::SparseBufferType::getMemStrides() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.getMemStrides();
+}
+
+vpux::Bit vpux::VPURT::SparseBufferType::getElemTypeSize() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    return data.getElemTypeSize();
+}
+
+vpux::Byte vpux::VPURT::SparseBufferType::getTotalAllocSize() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    auto totalSize = data.getTotalAllocSize();
+    if (getSparsity_map() != nullptr) {
+        const auto sparsityMap = getSparsity_map().cast<vpux::ShapedPropertiesTypeInterface>();
+        totalSize += sparsityMap.getTotalAllocSize();
+    }
+    if (getStorage_element_table() != nullptr) {
+        const auto storageElementTable = getStorage_element_table().cast<vpux::ShapedPropertiesTypeInterface>();
+        totalSize += storageElementTable.getTotalAllocSize();
+    }
+    return totalSize;
+}
+
+vpux::Byte vpux::VPURT::SparseBufferType::getCompactAllocSize() const {
+    const auto data = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    auto compactSize = data.getCompactAllocSize();
+    if (getSparsity_map() != nullptr) {
+        const auto sparsityMap = getSparsity_map().cast<vpux::ShapedPropertiesTypeInterface>();
+        compactSize += sparsityMap.getCompactAllocSize();
+    }
+    if (getStorage_element_table() != nullptr) {
+        const auto storageElementTable = getStorage_element_table().cast<vpux::ShapedPropertiesTypeInterface>();
+        compactSize += storageElementTable.getCompactAllocSize();
+    }
+    return compactSize;
+}
+
+vpux::ShapedPropertiesTypeInterface vpux::VPURT::SparseBufferType::changeShape(vpux::ShapeRef shape) const {
+    VPUX_THROW_UNLESS(getStorage_element_table() == nullptr, "Storage element table is not yet supported");
+
+    const auto shapedData = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    const auto data = shapedData.changeShape(shape).cast<mlir::MemRefType>();
+
+    auto sparsityMap = getSparsity_map();
+    if (sparsityMap != nullptr) {
+        const auto shapedSparsityMap = sparsityMap.cast<vpux::ShapedPropertiesTypeInterface>();
+        sparsityMap = shapedSparsityMap.changeShape(shape).cast<mlir::MemRefType>();
+    }
+
+    return VPURT::SparseBufferType::get(data, sparsityMap);
+}
+
+vpux::ShapedPropertiesTypeInterface vpux::VPURT::SparseBufferType::changeElemType(mlir::Type elemType) const {
+    const auto shapedData = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    const auto data = shapedData.changeElemType(elemType).cast<mlir::MemRefType>();
+    return VPURT::SparseBufferType::get(data, getSparsity_map(), getStorage_element_table());
+}
+
+vpux::ShapedPropertiesTypeInterface vpux::VPURT::SparseBufferType::changeDimsOrder(vpux::DimsOrder order) const {
+    const auto shapedData = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    const auto data = shapedData.changeDimsOrder(order).cast<mlir::MemRefType>();
+
+    auto sparsityMap = getSparsity_map();
+    if (sparsityMap != nullptr) {
+        const auto shapedSparsityMap = sparsityMap.cast<vpux::ShapedPropertiesTypeInterface>();
+        sparsityMap = shapedSparsityMap.changeDimsOrder(order).cast<mlir::MemRefType>();
+    }
+
+    auto storageElementTable = getStorage_element_table();
+    if (storageElementTable != nullptr) {
+        const auto shapedStorageElementTable = storageElementTable.cast<vpux::ShapedPropertiesTypeInterface>();
+        storageElementTable = shapedStorageElementTable.changeDimsOrder(order).cast<mlir::MemRefType>();
+    }
+
+    return VPURT::SparseBufferType::get(data, sparsityMap, storageElementTable);
+}
+
+vpux::ShapedPropertiesTypeInterface vpux::VPURT::SparseBufferType::changeMemSpace(
+        vpux::IndexedSymbolAttr memSpace) const {
+    const auto shapedData = getData().cast<vpux::ShapedPropertiesTypeInterface>();
+    const auto data = shapedData.changeMemSpace(memSpace).cast<mlir::MemRefType>();
+
+    auto sparsityMap = getSparsity_map();
+    if (sparsityMap != nullptr) {
+        const auto shapedSparsityMap = sparsityMap.cast<vpux::ShapedPropertiesTypeInterface>();
+        sparsityMap = shapedSparsityMap.changeMemSpace(memSpace).cast<mlir::MemRefType>();
+    }
+
+    auto storageElementTable = getStorage_element_table();
+    if (storageElementTable != nullptr) {
+        const auto shapedStorageElementTable = storageElementTable.cast<vpux::ShapedPropertiesTypeInterface>();
+        storageElementTable = shapedStorageElementTable.changeMemSpace(memSpace).cast<mlir::MemRefType>();
+    }
+
+    return VPURT::SparseBufferType::get(data, sparsityMap, storageElementTable);
+}
+
+vpux::ShapedPropertiesTypeInterface vpux::VPURT::SparseBufferType::extractDenseTile(
+        vpux::ShapeRef /*tileOffsets*/, vpux::ShapeRef /*tileShape*/) const {
+    VPUX_THROW("Not yet implemented");
+}
+
+vpux::ShapedPropertiesTypeInterface vpux::VPURT::SparseBufferType::pad(vpux::ShapeRef /*padBefore*/,
+                                                                       vpux::ShapeRef /*padAfter*/) const {
+    VPUX_THROW("Not yet implemented");
+}

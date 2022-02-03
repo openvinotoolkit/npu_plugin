@@ -246,6 +246,7 @@ macro(add_rewriters subdir)
 endmacro()
 
 add_op_interfaces("core")
+add_type_interfaces("core")
 add_passes("core" "Core")
 
 add_dialect("const")

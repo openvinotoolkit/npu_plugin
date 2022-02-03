@@ -78,7 +78,7 @@ Declare sparse VPU run-time buffer
 Syntax:
 
 ```
-operation ::= `VPURT.DeclareSparseBuffer` $data `:` type($data) `,` ($sparsityMap^ `:` type($sparsityMap))? `,` ($storageElementTable^ `:` type($storageElementTable))?
+operation ::= `VPURT.DeclareSparseBuffer` $data `:` type($data) (`,` $sparsityMap^ `:` type($sparsityMap))? (`,` $storageElementTable^ `:` type($storageElementTable))?
               attr-dict `->` type(results)
 ```
 
