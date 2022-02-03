@@ -51,6 +51,12 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
     }
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
+
+        // Create NCEClusterTilingOp with SOH Distributed Tensor
+        auto mode = vpux::VPU::DistributionMode::segmented;
+        SmallVector<uint16_t, 4> numTiles = {1, 1, 4, 1};
+        auto numClusters = 4;
+
         mapper.map(origOp->getOperands(), newOperands);
         auto* newOp = builder.clone(*origOp, mapper);
         builder.create<VPU::YieldOp>(loc, newOp->getResults());
