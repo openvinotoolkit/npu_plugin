@@ -60,7 +60,7 @@ size_t precisionToSize(const ze_graph_argument_precision_t val) {
     }
 }
 
-_ze_graph_argument_precision_t getZePrecision(const IE::Precision precision) {
+ze_graph_argument_precision_t getZePrecision(const IE::Precision precision) {
     switch (precision) {
     case IE::Precision::I8:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT8;
@@ -479,15 +479,8 @@ ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_con
           _command_list(device_handle, _context, graph_ddi_table_ext),
           _fence(std::make_shared<Fence>(_command_queue)),
           _graph_ddi_table_ext(graph_ddi_table_ext) {
-    ze_graph_desc_t desc{ZE_GRAPH_FORMAT_NATIVE,
-                         _blob.size(),
-                         reinterpret_cast<const uint8_t*>(_blob.data()),
-                         0,
-                         nullptr,
-                         ZE_GRAPH_ARGUMENT_LAYOUT_ANY,
-                         ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN,
-                         ZE_GRAPH_ARGUMENT_LAYOUT_ANY,
-                         ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN};
+    ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,        nullptr, ZE_GRAPH_FORMAT_NATIVE, _blob.size(),
+                         reinterpret_cast<const uint8_t*>(_blob.data()), nullptr};
     throwOnFail("pfnCreate", _graph_ddi_table_ext->pfnCreate(_context, device_handle, &desc, &_handle));
 
     throwOnFail("pfnGetProperties", _graph_ddi_table_ext->pfnGetProperties(_handle, &_props));

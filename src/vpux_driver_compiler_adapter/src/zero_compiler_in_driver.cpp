@@ -114,7 +114,7 @@ size_t getDimCount(const IE::Layout layout) {
 }
 
 // TODO #-30406 : Remove helpers-converters duplications between driver compiler adapter and zero backend
-_ze_graph_argument_layout_t toZeLayout(const IE::Layout layout) {
+ze_graph_argument_layout_t toZeLayout(const IE::Layout layout) {
     switch (layout) {
     case IE::Layout::NCHW:
         return ZE_GRAPH_ARGUMENT_LAYOUT_NCHW;
@@ -131,7 +131,7 @@ _ze_graph_argument_layout_t toZeLayout(const IE::Layout layout) {
     case IE::Layout::C:
         return ZE_GRAPH_ARGUMENT_LAYOUT_C;
 
-    case IE::Layout::CHW :
+    case IE::Layout::CHW:
         return ZE_GRAPH_ARGUMENT_LAYOUT_CHW;
 
     case IE::Layout::HW:
@@ -149,7 +149,7 @@ _ze_graph_argument_layout_t toZeLayout(const IE::Layout layout) {
 }
 
 // TODO #-30406 : Remove helpers-converters duplications between driver compiler adapter and zero backend
-_ze_graph_argument_precision_t toZePrecision(const IE::Precision precision) {
+ze_graph_argument_precision_t toZePrecision(const IE::Precision precision) {
     switch (precision) {
     case IE::Precision::I8:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT8;
@@ -263,8 +263,8 @@ SerializedIR LevelZeroCompilerInDriver::serializeIR(const std::vector<char>& xml
         IE_THROW() << "Bin file is too big to process.";
     }
 
-    const uint64_t sizeOfSerializedIR =
-            sizeof(compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) + xml.size() + sizeof(weightsSize) + weights.size();
+    const uint64_t sizeOfSerializedIR = sizeof(compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) +
+                                        xml.size() + sizeof(weightsSize) + weights.size();
 
     std::vector<uint8_t> serializedIR;
     serializedIR.resize(sizeOfSerializedIR);
@@ -289,6 +289,52 @@ SerializedIR LevelZeroCompilerInDriver::serializeIR(const std::vector<char>& xml
     return serializedIR;
 }
 
+std::string to_string(const ze_graph_argument_precision_t& precision) {
+    if (precision == ZE_GRAPH_ARGUMENT_PRECISION_UINT8)
+        return "UINT8";
+    else if (precision == ZE_GRAPH_ARGUMENT_PRECISION_INT8)
+        return "INT8";
+    else if (precision == ZE_GRAPH_ARGUMENT_PRECISION_INT32)
+        return "INT32";
+    else if (precision == ZE_GRAPH_ARGUMENT_PRECISION_FP16)
+        return "FP16";
+    else if (precision == ZE_GRAPH_ARGUMENT_PRECISION_FP32)
+        return "FP32";
+    else {
+        std::cerr << "to_string(ze_graph_argument_precision_t): unsupported value" << std::endl;
+        return "";
+    }
+}
+
+std::string to_string(const ze_graph_argument_layout_t& layout) {
+    switch (layout) {
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
+        return "NCHW";
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC:
+        return "NHWC";
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW:
+        return "NCDHW";
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
+        return "NDHWC";
+    case ZE_GRAPH_ARGUMENT_LAYOUT_OIHW:
+        return "OIHW";
+    case ZE_GRAPH_ARGUMENT_LAYOUT_C:
+        return "C";
+    case ZE_GRAPH_ARGUMENT_LAYOUT_CHW:
+        return "CHW";
+    case ZE_GRAPH_ARGUMENT_LAYOUT_HW:
+        return "HW";
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NC:
+        return "NC";
+    case ZE_GRAPH_ARGUMENT_LAYOUT_CN:
+        return "CN";
+    case ZE_GRAPH_ARGUMENT_LAYOUT_BLOCKED:
+        return "BLOCKED";
+    default:
+        return "ANY";
+    }
+}
+
 INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(const std::string& graphName,
                                                               const std::vector<char>& xml,
                                                               const std::vector<char>& weights,
@@ -301,34 +347,48 @@ INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(const std::string&
 
     ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
 
-
     if (inputsInfo.empty() || outputsInfo.empty()) {
         THROW_IE_EXCEPTION << "Information about inputs or outputs is not provided.";
     }
     // TODO #-30404 Add ability to specify precision and layout for multiple inputs and outputs
     if (inputsInfo.size() > 1) {
-        _logger.warning("More than one input. Layout and precision can be specified only for first input.");
+        _logger.warning(
+                "More than one input. Layout and precision from the first input will be propagated to all inputs.");
     }
     if (outputsInfo.size() > 1) {
-        _logger.warning("More than one output. Layout and precision can be specified only for first output.");
+        _logger.warning(
+                "More than one output. Layout and precision from the first output will be propagated to all outputs.");
     }
 
-    _ze_graph_argument_layout_t inputLayout = toZeLayout(inputsInfo.begin()->second->getLayout());
-    _ze_graph_argument_precision_t inputPrecision = toZePrecision(inputsInfo.begin()->second->getPrecision());
+    // Build flags for compilation
+    std::string build_flags;
 
-    _ze_graph_argument_layout_t outputLayout = toZeLayout(outputsInfo.begin()->second->getLayout());
-    _ze_graph_argument_precision_t ouputPrecision = toZePrecision(outputsInfo.begin()->second->getPrecision());
+    const auto inputPrecision = toZePrecision(inputsInfo.begin()->second->getPrecision());
+    build_flags += "-ze_graph_input_precision:";
+    build_flags += to_string(inputPrecision);
+    build_flags += ",";
 
-    ze_graph_desc_t desc = {format,
-                            serializedIR.size(),
-                            serializedIR.data(),
-                            0,
-                            nullptr,
-                            inputLayout,
-                            inputPrecision,
-                            outputLayout,
-                            ouputPrecision
-                            };
+    const auto inputLayout = toZeLayout(inputsInfo.begin()->second->getLayout());
+    build_flags += "-ze_graph_input_layout:";
+    build_flags += to_string(inputLayout);
+    build_flags += ",";
+
+    const auto ouputPrecision = toZePrecision(outputsInfo.begin()->second->getPrecision());
+    build_flags += "-ze_graph_output_precision:";
+    build_flags += to_string(ouputPrecision);
+    build_flags += ",";
+
+    const auto outputLayout = toZeLayout(outputsInfo.begin()->second->getLayout());
+    build_flags += "-ze_graph_output_layout:";
+    build_flags += to_string(outputLayout);
+    build_flags += ",";
+
+    ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                         nullptr,
+                         format,
+                         serializedIR.size(),
+                         serializedIR.data(),
+                         build_flags.c_str()};
 
     // TODO #-30202 Store graph_handle inside NetworkDesc instead of blob. But this will require changes in zeroAPI
 
@@ -368,7 +428,8 @@ std::shared_ptr<INetworkDescription> LevelZeroCompilerInDriver::parseBlob(const 
     if (!blob.empty()) {
         _logger.debug("Import network case");
         ze_graph_format_t format = ZE_GRAPH_FORMAT_NATIVE;
-        ze_graph_desc_t desc = {format, blob.size(), reinterpret_cast<const uint8_t*>(blob.data())};
+        ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,       nullptr, format, blob.size(),
+                             reinterpret_cast<const uint8_t*>(blob.data()), nullptr};
 
         auto result = _graph_ddi_table_ext->pfnCreate(_context, _device_handle, &desc, &graph_handle);
         if (ZE_RESULT_SUCCESS != result) {
