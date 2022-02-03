@@ -26,6 +26,28 @@ class KmbMaxMinLayerTest_MCM: public KmbMaxMinLayerTest {
 
 class KmbMaxMinLayerTest_MLIR: public KmbMaxMinLayerTest { };
 
+class KmbMaxMinLayerTestMLIR_MTL: public KmbMaxMinLayerTest {
+    void SetUp() override {
+        KmbMaxMinLayerTest::SetUp();
+
+        inPrc = InferenceEngine::Precision::FP16;
+        outPrc = InferenceEngine::Precision::FP16;
+    }
+    void SkipBeforeLoad() override {
+        if (std::getenv("OV_BUILD_DIR") == nullptr) {
+            throw LayerTestsUtils::KmbSkipTestException(
+                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
+        }
+
+#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
+        throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
+#endif
+    }
+    void SkipBeforeInfer() override {
+        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+    }
+ };
+
 // MCM and MLIR tests use different parameters. See below.
 
 TEST_P(KmbMaxMinLayerTest_MCM, CompareWithRefs) {
@@ -34,6 +56,13 @@ TEST_P(KmbMaxMinLayerTest_MCM, CompareWithRefs) {
 
 TEST_P(KmbMaxMinLayerTest_MLIR, CompareWithRefs) {
     useCompilerMLIR();
+    Run();
+}
+
+TEST_P(KmbMaxMinLayerTestMLIR_MTL, CompareWithRefs_MLIR_MTL) {
+    useCompilerMLIR();
+    setPlatformMTL();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -52,7 +81,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<ngraph::helpers::MinMaxOpType> opType = {
-        ngraph::helpers::MinMaxOpType::MINIMUM,
+        // ngraph::helpers::MinMaxOpType::MINIMUM,
         ngraph::helpers::MinMaxOpType::MAXIMUM,
 };
 
@@ -101,6 +130,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D, KmbMaxMinLayerTest_MLIR,
 const std::vector<std::vector<std::vector<size_t>>> inShapesScalar = {
         /// test scalar constant input for case MAX(x, scalar_threshold)
         {{32}, {1}}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D, KmbMaxMinLayerTestMLIR_MTL,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes3D),
+                                ::testing::ValuesIn(opType),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::FP16),
+                                ::testing::Values(InferenceEngine::Precision::FP16),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputType),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        KmbMaxMinLayerTest::getTestCaseName);
+
+const std::vector<std::vector<std::vector<size_t>>> inShapes3D_MTL = {
+        {{2, 2, 2}, {1}}
 };
 
 // [Track number: E#13808]
