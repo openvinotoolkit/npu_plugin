@@ -77,8 +77,8 @@ void exp_fp16(const struct ExpParams *lParams) {
     }
 
     //Compute exp(x) ≈ 2 ^ (x * 0x3dc5)
-    const uint16_t inv_ln2 = 0x3dc5;\
-    const half inv_ln2_h = *(const half*)&inv_ln2;\
+    const uint16_t inv_ln2 = 0x3dc5;
+    const half inv_ln2_h = *(const half*)&inv_ln2;
 
     for(i = numVectors * VECTOR_SIZE; i < nElements; i ++){
         p_act_out_s[i] = __builtin_shave_sau_exp2_f16_l_r(p_act_data_s[i] * inv_ln2_h);
