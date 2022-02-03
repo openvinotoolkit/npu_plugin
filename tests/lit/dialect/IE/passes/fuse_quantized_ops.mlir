@@ -261,3 +261,4 @@ func @FuseQuantParamsIntoGroupConv(%arg0: tensor<1x3x10x10xf16>) -> tensor<1x3x1
 
     //CHECK: return [[VAL2]] : tensor<1x3x10x10xf16>
 }
+
