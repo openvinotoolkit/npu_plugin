@@ -18,6 +18,11 @@
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
+
+#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/BuiltinTypes.h>
+#include <mlir/Transforms/DialectConversion.h>
+#include "vpux/compiler/conversion.hpp"
 namespace vpux {
 
 constexpr llvm::StringLiteral multiClusterStrategyAttrName = "multiClusterStrategy";
@@ -32,6 +37,7 @@ public:
 
 public:
     void computeOptimalMultiClusterStrategy();
+    void insertCopyOpForDistributedTensor();
 
 private:
     template <class ConcreteOp>

@@ -91,6 +91,9 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     StrategyManager strategyManager(func, 4, _log);
     strategyManager.computeOptimalMultiClusterStrategy();
 
+    // Created distributed tensors
+    strategyManager.insertCopyOpForDistributedTensor();
+
     auto& ctx = getContext();
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.add<ConvToMultiCluster>(&ctx, _log);
