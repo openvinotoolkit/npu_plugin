@@ -65,6 +65,10 @@ add_dependencies(${TARGET_NAME}
     vpux_mlir_compiler_schema
 )
 
+add_dependencies(${TARGET_NAME}
+    LLVMSupport
+)
+
 if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PUBLIC LLVMSupport)
 else()

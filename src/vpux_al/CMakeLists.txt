@@ -38,6 +38,13 @@ link_system_libraries(${TARGET_NAME}
         vpux_utils
 )
 
+target_compile_definitions(${TARGET_NAME}
+    PRIVATE
+        $<$<BOOL:${ENABLE_MCM_COMPILER}>:ENABLE_MCM_COMPILER>
+        $<$<BOOL:${ENABLE_MLIR_COMPILER}>:ENABLE_MLIR_COMPILER>
+        $<$<BOOL:${ENABLE_DRIVER_COMPILER_ADAPTER}>:ENABLE_DRIVER_COMPILER_ADAPTER>
+)
+
 if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME}
         PRIVATE
@@ -49,12 +56,8 @@ else()
             IE::inference_engine_plugin_api
             openvino::runtime
         PUBLIC
-            vpux_mlir_compiler
-    )
-
-    target_include_directories(${TARGET_NAME}
-        PUBLIC
-            $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_compiler/include>
+            $<$<BOOL:${ENABLE_MLIR_COMPILER}>:vpux_mlir_compiler>
+            $<$<BOOL:${ENABLE_DRIVER_COMPILER_ADAPTER}>:vpux_driver_compiler_adapter>
     )
 
     if(ENABLE_ZEROAPI_BACKEND)

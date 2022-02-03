@@ -114,7 +114,9 @@ if(ENABLE_KMB_SAMPLES)
     add_subdirectory(samples)
 endif()
 
-add_subdirectory(tools)
+if(BUILD_SHARED_LIBS)
+    add_subdirectory(tools)
+endif()
 
 #
 # targets install

@@ -22,7 +22,12 @@ set(STATIC_TARGET_NAME "vpux_driver_compiler_adapter_static")
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES})
+if(BUILD_SHARED_LIBS)
+    add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES})
+else()
+    set(OBJ_TARGET_NAME ${TARGET_NAME})
+    add_library(${OBJ_TARGET_NAME} STATIC ${SOURCES})
+endif()
 
 ie_faster_build(${OBJ_TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
@@ -35,24 +40,35 @@ target_compile_definitions(${OBJ_TARGET_NAME}
         IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 target_include_directories(${OBJ_TARGET_NAME}
-    PUBLIC
+    SYSTEM PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include
         ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/level-zero/include
         ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/level-zero-ext)
 
+if(BUILD_SHARED_LIBS)
+    link_system_libraries(${OBJ_TARGET_NAME}
+        PRIVATE
+            IE::inference_engine
+    )
+else()
+    link_system_libraries(${OBJ_TARGET_NAME}
+        PRIVATE
+            openvino::runtime
+    )
+endif()
+
 link_system_libraries(${OBJ_TARGET_NAME}
     PRIVATE
-        IE::inference_engine
         IE::inference_engine_plugin_api
         ze_loader
         vpux_ngraph_transformations
-        )
+)
 
 target_link_libraries(${OBJ_TARGET_NAME}
     PRIVATE
         vpux_al
-        )
+)
 
 
 if(ENABLE_CLANG_FORMAT)
@@ -60,18 +76,23 @@ if(ENABLE_CLANG_FORMAT)
     add_dependencies(${OBJ_TARGET_NAME} clang_format_${OBJ_TARGET_NAME})
 endif()
 
-add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}>)
-target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
-if(WIN32)
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+if(BUILD_SHARED_LIBS)
+    add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}>)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
+    if(WIN32)
+        ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+    endif()
+
+    add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}>)
+    target_link_libraries(${STATIC_TARGET_NAME} PUBLIC ${OBJ_TARGET_NAME})
+else()
+    add_library(${STATIC_TARGET_NAME} ALIAS ${TARGET_NAME})
 endif()
 
-add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}>)
-target_link_libraries(${STATIC_TARGET_NAME} PUBLIC ${OBJ_TARGET_NAME})
-
-#
+# 
 # targets install
 #
 
-install(TARGETS ${TARGET_NAME}
+install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})

@@ -337,6 +337,10 @@ vpux_add_flatc_target(${SCHEMA_TARGET_NAME}
 )
 set_target_properties(${SCHEMA_TARGET_NAME} PROPERTIES FOLDER "src")
 
+if(NOT ENABLE_MLIR_COMPILER)
+    return()
+endif()
+
 #
 # OBJECT target
 #

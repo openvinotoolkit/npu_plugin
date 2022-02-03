@@ -25,7 +25,16 @@
 #include <fstream>
 
 #ifdef OPENVINO_STATIC_LIBRARY
+
+#ifdef ENABLE_MLIR_COMPILER
 #include "vpux/compiler/compiler.hpp"
+#endif
+
+#ifdef ENABLE_DRIVER_COMPILER_ADAPTER
+#include "vpux_driver_compiler_adapter.h"
+using vpux::driverCompilerAdapter::LevelZeroCompilerAdapter;
+#endif
+
 #endif
 
 vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr impl, const std::shared_ptr<void>& so)
@@ -62,31 +71,54 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& 
 
 vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
     vpux::Logger logger("CompilerCreate", config.get<LOG_LEVEL>());
-#ifdef OPENVINO_STATIC_LIBRARY
-    // use vpux compiler
-    (void)(config);
-    const auto mlir = std::make_shared<vpux::CompilerImpl>();
-    return std::make_shared<Compiler>(mlir);
-#else
+
+    std::shared_ptr<Compiler> compiler;
     const auto compilerType = config.get<COMPILER_TYPE>();
 
     switch (compilerType) {
+#ifdef ENABLE_MCM_COMPILER
     case InferenceEngine::VPUXConfigParams::CompilerType::MCM: {
         logger.info("MCM compiler will be used.");
-        return std::make_shared<Compiler>(getLibFilePath("vpux_mcm_frontend"));
+        compiler = std::make_shared<Compiler>(getLibFilePath("vpux_mcm_frontend"));
+        break;
     }
+#endif
+
+#ifdef ENABLE_MLIR_COMPILER
     case InferenceEngine::VPUXConfigParams::CompilerType::MLIR: {
         logger.info("MLIR compiler will be used.");
-        return std::make_shared<Compiler>(getLibFilePath("vpux_mlir_compiler"));
+
+#ifndef OPENVINO_STATIC_LIBRARY
+        compiler = std::make_shared<Compiler>(getLibFilePath("vpux_mlir_compiler"));
+#else
+        const auto compilerInterface = std::make_shared<vpux::CompilerImpl>();
+        compiler = std::make_shared<Compiler>(compilerInterface);
+#endif
+
+        break;
     }
+#endif
+
+#ifdef ENABLE_DRIVER_COMPILER_ADAPTER
     case InferenceEngine::VPUXConfigParams::CompilerType::DRIVER: {
         logger.info("Driver compiler will be used.");
-        return std::make_shared<Compiler>(getLibFilePath("vpux_driver_compiler_adapter"));
+
+#ifndef OPENVINO_STATIC_LIBRARY
+        compiler = std::make_shared<Compiler>(getLibFilePath("vpux_driver_compiler_adapter"));
+#else
+        const auto compilerInterface = std::make_shared<LevelZeroCompilerAdapter>();
+        compiler = std::make_shared<Compiler>(compilerInterface);
+#endif
+
+        break;
     }
+#endif
+
     default:
         IE_THROW() << "Compiler type not found";
     }
-#endif
+
+    return compiler;
 }
 
 #ifndef OPENVINO_STATIC_LIBRARY

@@ -53,13 +53,17 @@ endif()
 add_subdirectory(vpux_elf)
 add_subdirectory(vpux_plugin)
 
-if (ENABLE_DRIVER_COMPILER_ADAPTER)
+if(ENABLE_DRIVER_COMPILER_ADAPTER)
     add_subdirectory(vpux_driver_compiler_adapter)
 endif()
 
 add_subdirectory(vpux_utils)
+
 add_subdirectory(vpux_compiler)
-add_subdirectory(vpux_translate_utils)
+
+if(BUILD_SHARED_LIBS)
+    add_subdirectory(vpux_translate_utils)
+endif()
 
 if(ENABLE_IMD_BACKEND)
     add_subdirectory(vpux_imd_backend)
