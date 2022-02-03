@@ -21,7 +21,7 @@ addIeTargetTest(
         "${CMAKE_CURRENT_SOURCE_DIR}/internal"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_test_classes/include"
     DEPENDENCIES
-        ov_intel_vpux_plugin
+        openvino_intel_vpux_plugin
     LINK_LIBRARIES
         IE::funcSharedTests
         IE::vpu_common_lib

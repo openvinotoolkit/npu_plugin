@@ -17,7 +17,7 @@ target_include_directories(gapi_test_computations
 
 target_link_libraries(gapi_test_computations
     PUBLIC
-        ov_intel_vpux_plugin_static
+        openvino_intel_vpux_plugin_static
     PRIVATE
         ${GAPI_SIPP_LIBRARY}
         ${GAPI_M2I_LIBRARY}

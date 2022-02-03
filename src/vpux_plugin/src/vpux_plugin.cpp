@@ -296,7 +296,7 @@ IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::str
     IE_THROW(NotImplemented);
 }
 
-static const IE::Version version = {{2, 1}, CI_BUILD_NUMBER, "ov_intel_vpux_plugin"};
+static const IE::Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_intel_vpux_plugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
 
 }  // namespace vpux
