@@ -29,7 +29,7 @@ private:
     const std::string _probabilityStr = "probability";
     const std::string _labelStr = "label";
     size_t _nTop;
-    ov::runtime::Tensor _outTensor;
+    ov::Tensor _outTensor;
     InferenceEngine::Blob::Ptr _outBlob;
     const std::vector<std::string> _labels;
     const std::vector<strType> _imageNames;
@@ -57,7 +57,7 @@ private:
      * @param output Vector of indexes for the top n places
      */
     template <class T>
-    void topResults(unsigned int n, const ov::runtime::Tensor& input, std::vector<unsigned>& output) {
+    void topResults(unsigned int n, const ov::Tensor& input, std::vector<unsigned>& output) {
         ov::Shape shape = input.get_shape();
         size_t input_rank = shape.size();
         OPENVINO_ASSERT(input_rank != 0 && shape[0] != 0, "Input tensor has incorrect dimensions!");
@@ -129,7 +129,7 @@ private:
      * @param input 1D blob that contains probabilities
      * @param output Vector of indexes for the top n places
      */
-    void topResults(unsigned int n, const ov::runtime::Tensor& input, std::vector<unsigned>& output) {
+    void topResults(unsigned int n, const ov::Tensor& input, std::vector<unsigned>& output) {
 #define TENSOR_TOP_RESULT(elem_type)                                                  \
     case ov::element::Type_t::elem_type: {                                            \
         using tensor_type = ov::fundamental_type_for<ov::element::Type_t::elem_type>; \
@@ -202,7 +202,7 @@ public:
         topResults(_nTop, _outBlob, _results);
     }
 
-    explicit ClassificationResultT(const ov::runtime::Tensor& output_tensor,
+    explicit ClassificationResultT(const ov::Tensor& output_tensor,
                                    const std::vector<strType>& image_names = {},
                                    size_t batch_size = 1,
                                    size_t num_of_top = 10,
