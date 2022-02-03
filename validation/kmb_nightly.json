@@ -2,6 +2,71 @@
     "networks" :
     [
         {
+            "name" : "por_tf_FP16-INT8_googlenet-v1",
+            "ir" : "por/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "category" : "MCM/weekly_public",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "PERFORMANCE_HINT": "LATENCY",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "Compile" : {
+                "old_api" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "inception_v1_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "googlenet-v1_tf"
+            }
+        },
+
+        {
+            "name" : "por_tf_FP16-INT8_googlenet-v1",
+            "ir" : "por/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "category" : "MLIR/precommit",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "inception_v1_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "googlenet-v1_tf_int8"
+            }
+        },
+
+        {
             "name" : "por_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
             "ir" : "por/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
             "category" : "MCM/weekly_public",
@@ -824,71 +889,6 @@
             },
             "CI-options" : {
                 "blob_name" : "mobilenet-v2_onnx"
-            }
-        },
-
-        {
-            "name" : "por_tf_FP16-INT8_googlenet-v1",
-            "ir" : "por/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
-            "category" : "MCM/weekly_public",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "PERFORMANCE_HINT": "LATENCY",
-                "VPUX_INFERENCE_SHAVES": "16"
-            },
-            "Compile" : {
-                "old_api" : true
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "AccuracyCheck" : {
-                "config": "inception_v1_v10.yml"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.7"
-                ]
-            },
-            "CI-options" : {
-                "blob_name" : "googlenet-v1_tf"
-            }
-        },
-
-        {
-            "name" : "por_tf_FP16-INT8_googlenet-v1",
-            "ir" : "por/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
-            "category" : "MLIR/precommit",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
-                "VPUX_INFERENCE_SHAVES": "16"
-            },
-            "BenchmarkApp" : {
-                "input_folder" : "224x224"
-            },
-            "AccuracyCheck" : {
-                "config": "inception_v1_v10.yml"
-            },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "0.7"
-                ]
-            },
-            "CI-options" : {
-                "blob_name" : "googlenet-v1_tf_int8"
             }
         },
 
