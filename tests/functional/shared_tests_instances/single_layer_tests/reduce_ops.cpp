@@ -217,7 +217,7 @@ namespace {
                 testing::ValuesIn(decltype(axes) {{0}}),
                 testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::Values(true, false),
-                testing::Values(ngraph::helpers::ReductionType::Max),
+                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
                 testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
