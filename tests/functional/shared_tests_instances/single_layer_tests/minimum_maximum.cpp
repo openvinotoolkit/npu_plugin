@@ -132,23 +132,6 @@ const std::vector<std::vector<std::vector<size_t>>> inShapesScalar = {
         {{32}, {1}}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D, KmbMaxMinLayerTestMLIR_MTL,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(inShapes3D),
-                                ::testing::ValuesIn(opType),
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::FP16),
-                                ::testing::Values(InferenceEngine::Precision::FP16),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::ValuesIn(inputType),
-                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbMaxMinLayerTest::getTestCaseName);
-
-const std::vector<std::vector<std::vector<size_t>>> inShapes3D_MTL = {
-        {{2, 2, 2}, {1}}
-};
-
 // [Track number: E#13808]
 // [Track number: S#43484]
 INSTANTIATE_TEST_SUITE_P(smoke_maximum_scalar, KmbMaxMinLayerTest_MCM,
@@ -158,6 +141,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_maximum_scalar, KmbMaxMinLayerTest_MCM,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputType),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        KmbMaxMinLayerTest::getTestCaseName);
+
+const std::vector<std::vector<std::vector<size_t>>> inShapes3D_MTL = {
+        {{2, 2, 2}, {2, 2, 2}}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D_MTL, KmbMaxMinLayerTestMLIR_MTL,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes3D_MTL),
+                                ::testing::ValuesIn(opType),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::FP16),
+                                ::testing::Values(InferenceEngine::Precision::FP16),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputType),
