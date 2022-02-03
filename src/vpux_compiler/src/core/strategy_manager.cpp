@@ -101,6 +101,7 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                 return 1;
             })
             .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp) {
+                _log.trace("Eltwise {0} operation detected. SOH wil be assigned", op->getName());
                 return 1;
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
@@ -143,13 +144,14 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
                 const double OW = outputShape[Dims4D::Act::W];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
                 double efficency = splitOverKernelFormula(OH, OW, OC);
-                //_log.trace("The SOK efficiency for the convolution is {0}", efficency);
+                _log.trace("The SOK efficiency for the convolution is {0}", efficency);
                 return efficency;
             })
             .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {
                 return 1;
             })
             .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp) {
+                _log.trace("Eltwise {0} operation detected. SOH wil be assigned", op->getName());
                 return 1;
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
@@ -316,4 +318,50 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
             .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp op) {
                 assignMultiClusterStrategyForEltwise<VPU::NCEEltwiseOp>(op);
             });
+}
+
+void StrategyManager::insertCopyOpForDistributedTensor() {
+    const auto callback = [&](mlir::Operation* origOp) {
+        llvm::TypeSwitch<mlir::Operation*, void>(origOp)
+                .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {})
+                .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp origOp) {})
+                .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp origOp) {
+                    _log.trace("Got operation {0}", origOp);
+                    if (origOp->getParentOfType<VPU::NCEClusterTilingOp>()) {
+                        _log.trace("The operation is already wrapped");
+                        return mlir::failure();
+                    }
+
+                    // Create IE::Copy Op
+                    mlir::OpBuilder builder(_func.getBody());
+                    const auto memSpace =
+                            IndexedSymbolAttr::get(builder.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
+
+                    auto distributedCopyOp = builder.create<IE::CopyOp>(origOp->getLoc(), origOp.input(), memSpace);
+
+                    // Clone the IE::Copy Op via bodybuilder
+                    const auto bodyBuilder = [distributedCopyOp](mlir::OpBuilder& builder, mlir::Location loc,
+                                                                 mlir::ValueRange newOperands) {
+                        mlir::BlockAndValueMapping mapper;
+
+                        mapper.map(distributedCopyOp->getOperands(), newOperands);
+                        auto* newOp = builder.clone(*distributedCopyOp, mapper);
+                        builder.create<VPU::YieldOp>(loc, newOp->getResults());
+                    };
+
+                    _log.trace("Wrap {0} into NCEClusterTilingOp", distributedCopyOp->getName());
+
+                    // Wrap the IE::Copy Op in NCEClusterTiling and return a distributed tensor type
+                    auto distributedCopyTensor = builder.create<VPU::NCEClusterTilingOp>(
+                            distributedCopyOp->getLoc(), distributedCopyOp->getResultTypes(),
+                            distributedCopyOp->getOperands(), bodyBuilder);
+
+                    // TODO: Set the attributes of the distributed tensor type depening if it is SOH/SOK
+                })
+                .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
+
+                });
+    };
+
+    _func.walk(callback);
 }
