@@ -144,8 +144,10 @@ mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, Outpu
         resultTileOffsets.push_back(outputTile.offsets);
     }
 
-    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, origOp->getResult(0).getType(), mlir::ValueRange(resultTileVals),
-                                              makeArrayRef(resultTileOffsets));
+    auto newConcat = rewriter.replaceOpWithNewOp<IE::ConcatOp>(
+            origOp, origOp->getResult(0).getType(), mlir::ValueRange(resultTileVals), makeArrayRef(resultTileOffsets));
+    // TODO: remove with E#25333
+    newConcat->setAttr("CMXConcat", rewriter.getBoolAttr(false));
     return mlir::success();
 }
 }  // namespace IE

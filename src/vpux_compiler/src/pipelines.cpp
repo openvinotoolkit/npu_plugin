@@ -351,6 +351,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
         pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     }
 
+    pm.addPass(IERT::createCMXConcatPass(log));
+
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
     if (options.enableProfiling && options.enableDMAProfiling) {

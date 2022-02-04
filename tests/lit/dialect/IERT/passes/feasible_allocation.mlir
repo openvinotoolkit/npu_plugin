@@ -106,16 +106,16 @@ func @main(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16>) -> 
     %3 = async.await %results_5 : !async.value<memref<2xf16>>
     return %2, %3 : memref<2xf16>, memref<2xf16>
 
-    // CHECK:       [[BUF0:%.*]] = IERT.StaticAlloc<0> -> memref<2xf16, @CMX_NN>
-    // CHECK:       [[BUF1:%.*]] = IERT.StaticAlloc<64> -> memref<2xf16, @CMX_NN>
+    // CHECK:       [[BUF0:%.*]] = IERT.StaticAlloc<64> -> memref<2xf16, @CMX_NN>
+    // CHECK:       [[BUF1:%.*]] = IERT.StaticAlloc<0> -> memref<2xf16, @CMX_NN>
 
     // CHECK:       IERT.ReLU
-    // CHECK-SAME:      outputs([[BUF0]] : memref<2xf16, @CMX_NN>)
+    // CHECK-SAME:      outputs([[BUF1]] : memref<2xf16, @CMX_NN>)
 
     // CHECK:       IERT.Copy
 
     // CHECK:       IERT.ReLU
-    // CHECK-SAME:      outputs([[BUF1]] : memref<2xf16, @CMX_NN>)
+    // CHECK-SAME:      outputs([[BUF0]] : memref<2xf16, @CMX_NN>)
 
     // CHECK:       IERT.Copy
 }
