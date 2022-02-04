@@ -84,13 +84,16 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
 // LowPrecision
 //
 
-void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
+void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, bool removeQuantDequantSeq, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(IE::createSplitFakeQuantPass(log));
     pm.addPass(IE::createFuseConvertWithQuantizePass(log));
     pm.addPass(IE::createPropagateQuantizeDequantizePass(log));
     pm.addPass(IE::createFuseQuantizedOpsPass(log));
+    if (removeQuantDequantSeq) {
+        pm.addPass(IE::createRemoveQuantDequantSeqPass(log));
+    }
     pm.addPass(IE::createConvertWeightsToU8Pass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(IE::createDequantizeConstPass(log));

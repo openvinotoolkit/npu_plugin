@@ -710,6 +710,28 @@ def FuseQuantizedOps : PassBase<"fuse-quantized-ops", "vpux::FunctionPass"> {
 }
 
 //
+// RemoveQuantDequantSeq
+//
+
+def RemoveQuantDequantSeq : PassBase<"remove-quantdequant-seq", "vpux::FunctionPass"> {
+    let summary = "Removes quantize->dequantize ops sequence";
+
+    let description = [{
+        The optional pass in the `LowPrecision` pipeline.
+
+        Pass detects pattern quantize -> dequantize and removes it
+    }];
+
+    let constructor = "vpux::IE::createRemoveQuantDequantSeqPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
+    ];
+}
+
+
+//
 // ConvertWeightsToU8
 //
 
@@ -871,7 +893,7 @@ def UpstreamSlice : PassBase<"upstream-slice", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createUpstreamSlicePass()";
-    
+
     let dependentDialects = [
         "vpux::IE::IEDialect"
     ];
