@@ -14,6 +14,7 @@
 #pragma once
 
 #include <map>
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils.hpp"
@@ -26,7 +27,10 @@
 namespace vpux {
 
 constexpr llvm::StringLiteral multiClusterStrategyAttrName = "multiClusterStrategy";
+constexpr llvm::StringLiteral splitOverHeightOverLappedStrategyAttrName =
+        "SplitOverHeightOverLapped";  // This strategy is for channel major convolutions
 constexpr llvm::StringLiteral splitOverHeightStrategyAttrName = "SplitOverHeight";
+constexpr llvm::StringLiteral splitOverKernelStrategyAttrName = "SplitOverKernel";
 
 //
 // StrategyManager
@@ -34,7 +38,7 @@ constexpr llvm::StringLiteral splitOverHeightStrategyAttrName = "SplitOverHeight
 
 class StrategyManager final {
 public:
-    explicit StrategyManager(mlir::FuncOp func, size_t numClusters, Logger log);
+    explicit StrategyManager(mlir::FuncOp func, Logger log);
 
 public:
     void computeOptimalMultiClusterStrategy();
