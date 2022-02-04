@@ -25,21 +25,22 @@ namespace {
 // GenericConverter
 //
 
-class GenericConverter final : public mlir::OpRewritePattern<IE::PReluOp> {
+class GenericConverter final : public mlir::OpRewritePattern<IE::LeakyReluOp> {
 public:
-    GenericConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::PReluOp>(ctx), _log(log) {
-        this->setDebugName("InsertMaxpoolToConcatPRelu::GenericConverter");
+    GenericConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::LeakyReluOp>(ctx), _log(log) {
+        this->setDebugName("InsertMaxpoolToConcatLRelu::GenericConverter");
     }
 
 private:
-    mlir::LogicalResult matchAndRewrite(IE::PReluOp preluOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::LeakyReluOp leakyReluOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult GenericConverter::matchAndRewrite(IE::PReluOp preluOp, mlir::PatternRewriter& rewriter) const {
-    auto concatOp = preluOp.getOperand(0).getDefiningOp<IE::ConcatOp>();
+mlir::LogicalResult GenericConverter::matchAndRewrite(IE::LeakyReluOp leakyReluOp,
+                                                      mlir::PatternRewriter& rewriter) const {
+    auto concatOp = leakyReluOp.getOperand().getDefiningOp<IE::ConcatOp>();
     if (concatOp == nullptr) {
         return mlir::failure();
     }
@@ -47,26 +48,26 @@ mlir::LogicalResult GenericConverter::matchAndRewrite(IE::PReluOp preluOp, mlir:
     const SmallVector<int64_t> maxPoolStrides = {1, 1};
     const SmallVector<int64_t> maxPoolKernels = {1, 1};
     const SmallVector<int64_t> pads = {0, 0};
-    auto ctx = preluOp.getContext();
+    auto ctx = leakyReluOp.getContext();
     const auto padsAttr = getIntArrayAttr(ctx, pads);
 
     auto maxPoolOp = rewriter.create<IE::MaxPoolOp>(
-            preluOp.getLoc(), preluOp.getOperand(0), getIntArrayAttr(ctx, maxPoolKernels),
+            leakyReluOp.getLoc(), leakyReluOp.getOperand(), getIntArrayAttr(ctx, maxPoolKernels),
             getIntArrayAttr(ctx, maxPoolStrides), padsAttr, padsAttr,
             vpux::IE::RoundingTypeAttr::get(ctx, vpux::IE::RoundingType::FLOOR), nullptr);
 
-    rewriter.replaceOpWithNewOp<IE::PReluOp>(preluOp, maxPoolOp.output(), preluOp.negative_slope());
+    rewriter.replaceOpWithNewOp<IE::LeakyReluOp>(leakyReluOp, maxPoolOp.output(), leakyReluOp.negative_slopeAttr());
 
     return mlir::success();
 }
 
 //
-// InsertMaxpoolToConcatPReluPass
+// InsertMaxpoolToConcatLReluPass
 //
 
-class InsertMaxpoolToConcatPReluPass final : public IE::InsertMaxpoolToConcatPReluBase<InsertMaxpoolToConcatPReluPass> {
+class InsertMaxpoolToConcatLReluPass final : public IE::InsertMaxpoolToConcatLReluBase<InsertMaxpoolToConcatLReluPass> {
 public:
-    explicit InsertMaxpoolToConcatPReluPass(Logger log): _log(log) {
+    explicit InsertMaxpoolToConcatLReluPass(Logger log): _log(log) {
         _log.setName(Base::getArgumentName());
     }
 
@@ -77,7 +78,7 @@ private:
     Logger _log;
 };
 
-void InsertMaxpoolToConcatPReluPass::safeRunOnFunc() {
+void InsertMaxpoolToConcatLReluPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::OwningRewritePatternList patterns(&ctx);
@@ -91,6 +92,6 @@ void InsertMaxpoolToConcatPReluPass::safeRunOnFunc() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IE::createInsertMaxpoolToConcatPReluPass(Logger log) {
-    return std::make_unique<InsertMaxpoolToConcatPReluPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createInsertMaxpoolToConcatLReluPass(Logger log) {
+    return std::make_unique<InsertMaxpoolToConcatLReluPass>(log);
 }
