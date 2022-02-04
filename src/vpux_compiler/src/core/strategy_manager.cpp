@@ -332,56 +332,75 @@ void StrategyManager::insertCopyOpForDistributedTensor() {
                         return mlir::failure();
                     }
 
-                    // Step 1: Create DistributedTensorAttr fields
-                    const auto distributionModeAttr = vpux::VPU::DistributionModeAttr::get(
-                            origOp.getContext(), vpux::VPU::DistributionMode::segmented);
-                    const auto filterShape = getShape(origOp.filter());
-                    const auto numTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 4, 1}));
-                    const auto kernel = getIntArrayAttr(
-                            origOp.getContext(),
-                            makeArrayRef(
-                                    {filterShape[Dims4D::Filter::OC], filterShape[Dims4D::Filter::IC],
-                                     filterShape[Dims4D::Filter::KY],
-                                     filterShape[Dims4D::Filter::KX]}));  // TODO: Is this the correct order of dims?
+                    // Retrieve the strategy 
+                    const auto strategy =
+                            origOp->getAttr(multiClusterStrategyAttrName).cast<mlir::StringAttr>().getValue();
+                    
+                    // Create the Copy op for the distributed tesnor for SOH
+                    if (strategy == splitOverHeightStrategyAttrName) {
+                        // Step 1: Create DistributedTensorAttr fields
+                        // Specify the distribution mode of the tensor  overlapped,duplicated,segmented, multicasted,
+                        const auto distributionModeAttr = vpux::VPU::DistributionModeAttr::get(
+                                origOp.getContext(), vpux::VPU::DistributionMode::segmented);
 
-                    // Step 2: Create DistributedTensorAttr
-                    auto distributedTensorAttr = vpux::VPU::DistributedTensorAttr::get(
-                            distributionModeAttr, numTiles, kernel, origOp.padAttr(), origOp.getContext());
+                        // Specify the number of tiles (clusters)
+                        const auto numTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 4, 1}));
 
-                    // Step 3: Create DistributedTensorType fields
-                    const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
-                    const auto inputShape = getShape(inputType);
-                    SmallVector<int64_t> inShape{inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C],
-                                                 inputShape[Dims4D::Act::H], inputShape[Dims4D::Act::W]};
+                        // Specify the kernel. TODO: is this required for SOH activation tensor?
+                        const auto filterShape = getShape(origOp.filter());
+                        const auto kernel = getIntArrayAttr(
+                                origOp.getContext(),
+                                makeArrayRef({filterShape[Dims4D::Filter::OC], filterShape[Dims4D::Filter::IC],
+                                              filterShape[Dims4D::Filter::KY],
+                                              filterShape[Dims4D::Filter::KX]}));  // TODO: Is this the correct order of
+                                                                                   // dims?
 
-                    const auto memSpace = mlir::SymbolRefAttr::get(
-                            VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
+                        // Step 2: Create DistributedTensorAttr
+                        auto distributedTensorAttr = vpux::VPU::DistributedTensorAttr::get(
+                                distributionModeAttr, numTiles, kernel, origOp.padAttr(), origOp.getContext());
 
-                    const auto order = mlir::AffineMapAttr::get(
-                            DimsOrder::fromType(origOp.input().getType().cast<mlir::ShapedType>())
-                                    .toAffineMap(origOp.getContext()));
+                        // Step 3: Create DistributedTensorType fields
+                        const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
 
-                    // Step 4: Create DistributedTensorType
-                    const auto distributedTensorType = vpux::VPU::DistributedTensorType::get(
-                            origOp.getContext(), inShape, origOp.input().getType().cast<mlir::ShapedType>(), order,
-                            memSpace, distributedTensorAttr);
+                        // Specify the inputShape
+                        const auto inputShape = getShape(inputType);
+                        SmallVector<int64_t> inShape{
+                                inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C], inputShape[Dims4D::Act::H],
+                                inputShape[Dims4D::Act::W]};  // TODO: Is this the correct order of dims?
 
-                    _log.trace("Wrap into NCEClusterTilingOp");
+                        // Specify the memSpace
+                        const auto memSpace = mlir::SymbolRefAttr::get(
+                                VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
 
-                    // Step 5: Create IE::Copy Op
-                    mlir::OpBuilder builder(_func.getBody());
-                    const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
-                                                 mlir::ValueRange newOperands) {
-                        const auto memSpace =
-                                IndexedSymbolAttr::get(builder.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
-                        auto distributedCopyOp = builder.create<IE::CopyOp>(origOp->getLoc(), origOp.input(), memSpace);
-                        builder.create<VPU::YieldOp>(loc, distributedCopyOp->getResults());
-                    };
+                        // Specify the order
+                        const auto order = mlir::AffineMapAttr::get(
+                                DimsOrder::fromType(origOp.input().getType().cast<mlir::ShapedType>())
+                                        .toAffineMap(origOp.getContext()));
 
-                    // Step 6: Wrap the IE::Copy Op in NCEClusterTiling
-                    auto distributedCopyTensor = builder.create<VPU::NCEClusterTilingOp>(
-                            origOp->getLoc(), distributedTensorType, origOp->getOperands(), bodyBuilder);
+                        // Step 4: Create DistributedTensorType
+                        const auto distributedTensorType = vpux::VPU::DistributedTensorType::get(
+                                origOp.getContext(), inShape, origOp.input().getType().cast<mlir::ShapedType>(), order,
+                                memSpace, distributedTensorAttr);
+
+                        _log.trace("Wrap into NCEClusterTilingOp");
+
+                        // Step 5: Create IE::Copy Op
+                        mlir::OpBuilder builder(_func.getBody());
+                        const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
+                                                     mlir::ValueRange newOperands) {
+                            const auto memSpace = IndexedSymbolAttr::get(builder.getContext(),
+                                                                         stringifyEnum(VPU::MemoryKind::CMX_NN));
+                            auto distributedCopyOp =
+                                    builder.create<IE::CopyOp>(origOp->getLoc(), origOp.input(), memSpace);
+                            builder.create<VPU::YieldOp>(loc, distributedCopyOp->getResults());
+                        };
+
+                        // Step 6: Wrap the IE::Copy Op in NCEClusterTiling
+                        auto distributedCopyTensor = builder.create<VPU::NCEClusterTilingOp>(
+                                origOp->getLoc(), distributedTensorType, origOp->getOperands(), bodyBuilder);
+                    }
                 })
+
                 .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
 
                 });
