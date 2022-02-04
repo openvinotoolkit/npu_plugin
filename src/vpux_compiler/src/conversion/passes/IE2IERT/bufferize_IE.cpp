@@ -1206,7 +1206,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::LogicalOrOp)
     CASE(IE::LogicalXorOp)
     CASE(IE::CopyOp)
-    CASE(IE::ExtractImagePatches)
+    CASE(IE::ExtractImagePatchesOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

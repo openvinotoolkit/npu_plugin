@@ -1990,21 +1990,22 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ExtractImagePatches>& origNode) {
-//    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v3::ExtractImagePatches>::value,
-//                  "opset operation mismatch");
-//    const auto inputs = getInputs(origNode);
-//    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph ExtractImagePatches node '{0}' has unsupported number of inputs '{1}'",
-//                      origNode->get_friendly_name(), inputs.size());
-//    //TODO
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v3::ExtractImagePatches>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph ExtractImagePatches node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+  //TODO
 
-//    const auto sizes = getIntAttr(_ctx, origNode->get_sizes());
-//    const auto strides = getIntAttr(_ctx, origNode->get_strides());
-//    const auto rates = getIntAttr(_ctx, origNode->get_rates());
-//    const auto paddingType = importPadType(origNode->get_padding());
+    const auto sizes = getIntArrayAttr(_ctx, origNode->get_sizes());
+    const auto strides = getIntArrayAttr(_ctx, origNode->get_strides());
+    const auto rates = getIntArrayAttr(_ctx, origNode->get_rates());
+   // const auto paddingType = importPadType(origNode->m_padding());
 
-//    auto op = builder.create<IE::ROIAlignOp>(createLocation(origNode), inputs[0], sizes,
-//                                                 strides, rates, paddingType);
-//    addOutputs(origNode, op);
+    auto op = builder.create<IE::ExtractImagePatchesOp>(createLocation(origNode), inputs[0], sizes,
+                                                 strides, rates, paddingType);
+    addOutputs(origNode, op);
+
     }
 
 //

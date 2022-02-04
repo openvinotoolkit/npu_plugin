@@ -3070,7 +3070,7 @@ def IE_YuvToRgbOp :
 
 def IE_ExtractImagePatchesOp :
         IE_LayerOp<
-            "ExtractImagePatches",
+            "ExtractImagePatches"
         > {
     let summary = "InferenceEngine ExtractImagePatches layer";
 

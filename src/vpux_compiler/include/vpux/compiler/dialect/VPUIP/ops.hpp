@@ -80,7 +80,7 @@ mlir::LogicalResult verifyOp(ReverseSequenceUPAOp op);
 mlir::LogicalResult verifyOp(TopKUPAOp op);
 mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 mlir::LogicalResult verifyOp(NNDMAOp op);
-mlir::LogicalResult verifyOp(ExtractImagePatchesUPA op);
+mlir::LogicalResult verifyOp(ExtractImagePatchesUPAOp op);
 
 }  // namespace VPUIP
 }  // namespace vpux
