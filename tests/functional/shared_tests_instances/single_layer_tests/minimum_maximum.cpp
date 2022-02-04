@@ -81,7 +81,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<ngraph::helpers::MinMaxOpType> opType = {
-        // ngraph::helpers::MinMaxOpType::MINIMUM,
+        ngraph::helpers::MinMaxOpType::MINIMUM,
         ngraph::helpers::MinMaxOpType::MAXIMUM,
 };
 

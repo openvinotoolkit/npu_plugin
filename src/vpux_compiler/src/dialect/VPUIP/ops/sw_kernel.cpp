@@ -73,6 +73,9 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             .Case<IERT::MaximumOp>([&](IERT::MaximumOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"maximum"}, {"maximum.cpp"}};
             })
+            .Case<IERT::MinimumOp>([&](IERT::MinimumOp) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"minimum"}, {"minimum.cpp"}};
+            })
             .Case<IERT::SoftMaxOp>([&](IERT::SoftMaxOp softmax) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{softmax.axisIndAttr()},
                                         {"singleShaveSoftmax"},

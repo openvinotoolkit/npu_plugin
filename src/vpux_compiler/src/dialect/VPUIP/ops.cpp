@@ -771,6 +771,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     registry.addOpInterface<IERT::ExpOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::TanhOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::MaximumOp, SoftwareLayerOpModel>();
+    registry.addOpInterface<IERT::MinimumOp, SoftwareLayerOpModel>();
 
     redirectOpInterfacesForIE<LayoutInfoOpModelForHW, LayoutInfoOpModelForSW>(registry);
     redirectOpInterfacesForIERT<AsyncLayerOpModelForHW, AsyncLayerOpModelForDMA, AsyncLayerOpModelForSW>(registry);
