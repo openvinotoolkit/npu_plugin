@@ -48,6 +48,48 @@ mlir::Value getAlignedConstWeights(mlir::OpBuilder& builder, mlir::Location loc,
     return alignedWeightsOp.output();
 }
 
+Const::ContentAttr buildPadData(const mlir::Type type, ArrayRef<int64_t> shape) {
+    VPUX_THROW_UNLESS(shape.size() == 4, "Unsupported shape size {0}", shape.size());
+    const auto OC = shape[Dims4D::Filter::OC.ind()];
+    const auto alignment = shape[Dims4D::Filter::IC.ind()];
+
+    if (const auto quantizedType = type.dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto padType = mlir::RankedTensorType::get(shape, normalizeQuantStorageType(quantizedType));
+        std::vector<int64_t> padValues;
+
+        if (const auto uniformType = quantizedType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+            padValues.assign(OC * alignment, uniformType.getZeroPoint());
+        } else if (const auto perAxisType = quantizedType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+            const auto zeroPoints = perAxisType.getZeroPoints();
+            VPUX_THROW_UNLESS(checked_cast<size_t>(OC) == zeroPoints.size(),
+                              "Number of zero points {0} and channels {1} don't match", zeroPoints.size(), OC);
+
+            // assuming all zero points are equal to broadcast
+            VPUX_THROW_UNLESS(
+                    zeroPoints.size() == 1 || std::equal(zeroPoints.begin() + 1, zeroPoints.end(), zeroPoints.begin()),
+                    "All zero points should be equal");
+            padValues.assign(OC * alignment, zeroPoints.front());
+
+        } else {
+            VPUX_THROW("Unsupported Quantized Type '{0}'", quantizedType);
+        }
+        std::vector<uint8_t> padValuesUint8;
+        std::transform(padValues.begin(), padValues.end(), std::back_inserter(padValuesUint8),
+                       [](int64_t value) -> uint8_t {
+                           return static_cast<uint8_t>(value);
+                       });
+        const auto padAttr = mlir::DenseElementsAttr::get(padType, makeArrayRef(padValuesUint8));
+
+        return Const::ContentAttr::get(padAttr).quantCast(quantizedType);
+    } else {
+        const auto padType = changeDimsOrder(mlir::RankedTensorType::get(shape, type), DimsOrder::NCHW);
+        const auto padValues = std::vector<ngraph::float16>(OC * alignment, 0.f);
+        const auto padAttr = mlir::DenseElementsAttr::get(padType, makeArrayRef(padValues));
+
+        return Const::ContentAttr::get(padAttr);
+    }
+}
+
 mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter,
                                       Shape flatWeightShape, int64_t padding) {
     auto ctx = builder.getContext();
@@ -74,11 +116,7 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
             mlir::RankedTensorType::get(alignedWeightShape, origFilterType.getElementType()), DimsOrder::NHWC);
 
     const auto padShape = SmallVector<int64_t>{OC, padding, 1, 1};
-    const auto padValues = std::vector<ngraph::float16>(OC * padding, 0.f);
-    const auto padType =
-            changeDimsOrder(mlir::RankedTensorType::get(padShape, mlir::Float16Type::get(ctx)), DimsOrder::NCHW);
-    const auto padAttr = mlir::DenseElementsAttr::get(padType, makeArrayRef(padValues));
-    const auto padContentAttr = Const::ContentAttr::get(padAttr).convertElemType(origFilterType.getElementType());
+    const auto padContentAttr = buildPadData(origFilterType.getElementType(), padShape);
 
     const auto padAllocType = mlir::RankedTensorType::get(padShape, origFilterType.getElementType());
     const auto padAllocTypeNHWC = changeDimsOrder(padAllocType, DimsOrder::NCHW);

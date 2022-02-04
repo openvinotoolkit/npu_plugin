@@ -130,6 +130,20 @@ mlir::quant::UniformQuantizedPerAxisType vpux::tileScalesAndZP(mlir::quant::Unif
             perAxisQType.getStorageTypeMax());
 }
 
+mlir::quant::UniformQuantizedPerAxisType vpux::changeAxis(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
+                                                          int32_t newAxis) {
+    VPUX_THROW_UNLESS(newAxis >= 0, "Invalid axis {0} was passed", newAxis);
+
+    if (newAxis == perAxisQType.getQuantizedDimension()) {
+        return perAxisQType;
+    }
+
+    return mlir::quant::UniformQuantizedPerAxisType::get(
+            perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(),
+            perAxisQType.getScales(), perAxisQType.getZeroPoints(), newAxis, perAxisQType.getStorageTypeMin(),
+            perAxisQType.getStorageTypeMax());
+}
+
 bool vpux::canBeMerged(mlir::quant::UniformQuantizedPerAxisType type1, mlir::quant::UniformQuantizedPerAxisType type2) {
     const auto flags1 = type1.getFlags();
     const auto storageType1 = type1.getStorageType();

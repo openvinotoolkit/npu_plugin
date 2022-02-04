@@ -57,7 +57,6 @@ mlir::FailureOr<DimsOrder> inferOutputLayout(const DimArr& inPerm, mlir::ArrayAt
 
                 continue;
             }
-
             perm.push_back(outDim);
         }
     }
@@ -70,8 +69,52 @@ mlir::FailureOr<DimsOrder> inferOutputLayout(const DimArr& inPerm, mlir::ArrayAt
 
     if (std::adjacent_find(temp.begin(), temp.end()) != temp.end())
         return mlir::failure();
-
     return DimsOrder::fromPermutation(makeArrayRef(perm));
+}
+
+mlir::FailureOr<mlir::Type> inferElemType(IE::AffineReshapeOpAdaptor affineReshapeOp, mlir::Type inputElemType) {
+    const auto perAxisQType = inputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>();
+    if (perAxisQType == nullptr) {
+        return inputElemType;
+    }
+
+    const auto inputQAxis = perAxisQType.getQuantizedDimension();
+
+    const auto dimMapping = parseIntArrayOfArrayAttr<int64_t>(affineReshapeOp.dim_mapping());
+    const auto outputShape = parseIntArrayAttr<int64_t>(affineReshapeOp.shape_value());
+    const auto inputShape = getShape(affineReshapeOp.input()).raw();
+
+    // get output dims for input Q axis
+    const auto outputDims = dimMapping[inputQAxis];
+    int64_t outQAxis = -1;
+    int64_t inputQAxisSize = inputShape[inputQAxis];
+
+    if (inputQAxisSize == 1) {
+        // Per tensor, but must be per channel, do not handle it here
+        return mlir::failure();
+    }
+
+    for (const auto& dim : outputDims) {
+        if (inputQAxisSize == outputShape[dim]) {
+            // firstly check that element is usique and others == 1
+            if (std::find_if(outputDims.begin(), outputDims.end(), [&](int64_t elem) {
+                    return (outputShape[elem] != 1 && outputShape[elem] != inputQAxisSize);
+                }) != outputDims.end()) {
+                return mlir::failure();
+            }
+            outQAxis = dim;
+            break;
+        }
+    }
+
+    if (outQAxis == -1) {
+        return mlir::failure();
+    }
+
+    return mlir::quant::UniformQuantizedPerAxisType::get(
+            perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(),
+            perAxisQType.getScales(), perAxisQType.getZeroPoints(), static_cast<int32_t>(outQAxis),
+            perAxisQType.getStorageTypeMin(), perAxisQType.getStorageTypeMax());
 }
 
 }  // namespace
@@ -104,8 +147,42 @@ mlir::LogicalResult vpux::IE::AffineReshapeOp::inferReturnTypeComponents(
     const auto outDesc =
             IE::getTensorAttr(ctx, outputLayout.getValue(), IE::getMemorySpace(inType), IE::isSparse(inType));
 
-    inferredReturnShapes.emplace_back(outShape, inType.getElementType(), outDesc);
+    const auto elemTypeInferResult = inferElemType(affineReshape, inType.getElementType());
+    if (mlir::failed(elemTypeInferResult)) {
+        inferredReturnShapes.emplace_back(outShape, inType.getElementType(), outDesc);
+    } else {
+        inferredReturnShapes.emplace_back(outShape, elemTypeInferResult.getValue(), outDesc);
+    }
+
     return mlir::success();
+}
+
+//
+// inferElemTypeInfo
+//
+
+void vpux::IE::AffineReshapeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    auto outputElemType = inferElemType(*this, info.getInput(0));
+    if (mlir::failed(outputElemType)) {
+        return;
+    }
+
+    for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
+        info.setOutput(outputInd, outputElemType.getValue());
+    }
+}
+
+void vpux::IE::AffineReshapeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    const auto outputElemType = info.getOutput(0);
+
+    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+        // EISW-31029: implement propagate type up for per channel, currently it leads to failures in later passes.
+        return;
+    }
+
+    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
+        info.setInput(inputInd, outputElemType);
+    }
 }
 
 //

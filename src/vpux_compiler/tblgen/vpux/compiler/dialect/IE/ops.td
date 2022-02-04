@@ -326,7 +326,10 @@ def IE_ConvertOp :
 
 def IE_ReorderOp :
         IE_LayerOp<
-            "Reorder"
+            "Reorder",
+            [
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Reorder layer";
 
@@ -1108,7 +1111,10 @@ def IE_EluOp :
 
 def IE_ReshapeOp :
         IE_LayerOp<
-            "Reshape"
+            "Reshape", 
+            [
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Reshape layer";
 
@@ -1872,7 +1878,10 @@ def IE_ErfOp :
 
 def IE_TransposeOp :
         IE_LayerOp<
-            "Transpose"
+            "Transpose",
+            [
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Transpose layer";
 
@@ -2883,7 +2892,8 @@ def IE_AffineReshapeOp :
         IE_LayerOp<
             "AffineReshape",
             [
-                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
             ]
         > {
     let summary = "AffineReshape layer";

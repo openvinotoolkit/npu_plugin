@@ -668,6 +668,27 @@ def DeletePerAxisQuantization : PassBase<"delete-peraxis-quantization", "vpux::F
 }
 
 //
+// PropagateQuantizeDequantize
+//
+
+def PropagateQuantizeDequantize : PassBase<"propagate-quantize-dequantize", "vpux::FunctionPass"> {
+    let summary = "Propagate Quantize/Dequantize through agnostic operations";
+
+        let description = [{
+        The pass is a part of LowPrecision pipeline.
+
+        Quantize/Dequantize are propagated through operations
+        }];
+
+let constructor = "vpux::IE::createPropagateQuantizeDequantizePass()";
+
+let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
+        ];
+}
+
+//
 // FuseQuantizedOps
 //
 

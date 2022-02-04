@@ -48,6 +48,34 @@ bool checkChannelRestrictions(int64_t channels);
 Check HW channel number restrictions
 NOTE: This method *must* be implemented by the user.
 
+## ElemTypeInfoOpInterface (`IE_ElemTypeInfoOpInterface`)
+
+
+### Methods:
+#### `inferElemTypeInfo`
+
+```c++
+void inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>&info);
+```
+Infer element type down
+NOTE: This method *must* be implemented by the user.
+
+#### `inferElemTypeInfoUp`
+
+```c++
+void inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>&info);
+```
+Infer element type up
+NOTE: This method *must* be implemented by the user.
+
+#### `getElemTypeInfo`
+
+```c++
+vpux::IE::LayerDataInfo<mlir::Type> getElemTypeInfo();
+```
+Get element types for inputs and outpus
+NOTE: This method *must* be implemented by the user.
+
 ## LayerOpInterface (`IE_LayerOpInterface`)
 
 Base interface for IE Layer Operation

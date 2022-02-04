@@ -163,6 +163,10 @@ The 'prefetch' means that the next tile could be loaded in advance when the curr
 
 The pass does not consider cost models,
 only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
+### `-propagate-quantize-dequantize`: Propagate Quantize/Dequantize through agnostic operations
+The pass is a part of LowPrecision pipeline.
+
+Quantize/Dequantize are propagated through operations
 ### `-resolve-pwl-post-ops`: Resolve requirements for fused PWL post-ops
 Ensures the correct quantization ranges are used for fused PWL activation functions or
 unfuses them if surrounding tensors are not quantized per-tensor.

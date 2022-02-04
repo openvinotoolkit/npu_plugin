@@ -275,4 +275,32 @@ def IE_EltwiseOp : NativeOpTrait<"EltwiseOp"> {
     let cppNamespace = "vpux::IE";
 }
 
+//
+// ElemTypeInfoOpInterface
+//
+
+// using ElemTypeInfo = LayerDataInfo<mlir::Type>;
+
+def IE_ElemTypeInfoOpInterface : OpInterface<"ElemTypeInfoOpInterface"> {
+
+    let cppNamespace = "vpux::IE";
+    let methods = [
+        InterfaceMethod<"Infer element type down",
+            "void", "inferElemTypeInfo",
+            (ins "vpux::IE::LayerDataInfo<mlir::Type>&":$info)
+        >,
+        InterfaceMethod<"Infer element type up",
+            "void", "inferElemTypeInfoUp",
+            (ins "vpux::IE::LayerDataInfo<mlir::Type>&":$info)
+        >,
+        InterfaceMethod<"Get element types for inputs and outpus",
+            "vpux::IE::LayerDataInfo<mlir::Type>", "getElemTypeInfo", (ins),
+            [{}],
+            [{
+                return vpux::IE::getElemTypeInfo($_op);
+            }]
+        >
+    ];
+}
+
 #endif

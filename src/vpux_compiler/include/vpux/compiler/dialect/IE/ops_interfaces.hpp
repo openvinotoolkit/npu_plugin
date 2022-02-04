@@ -236,6 +236,14 @@ public:
     }
 };
 
+//
+// ElemTypeInfoOpInterface
+//
+
+void inferElemTypeInfo(mlir::Operation* op, LayerDataInfo<mlir::Type>& info);
+void inferElemTypeInfoUp(mlir::Operation* op, LayerDataInfo<mlir::Type>& info);
+LayerDataInfo<mlir::Type> getElemTypeInfo(mlir::Operation* op);
+
 }  // namespace IE
 }  // namespace vpux
 

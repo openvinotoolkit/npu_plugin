@@ -78,6 +78,9 @@ Byte getTotalSize(mlir::Value val);
 Byte getCompactSize(mlir::ShapedType type);
 Byte getCompactSize(mlir::Value val);
 
+// compute axis permutation
+Optional<int32_t> getQuantizedAxis(int32_t axis, ShapeRef prevShape, ShapeRef newShape);
+
 //
 // MemRefType utilities
 //
