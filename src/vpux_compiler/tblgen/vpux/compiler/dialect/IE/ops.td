@@ -914,7 +914,7 @@ def IE_AdaAvgPoolOp :
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
 
-        IE_AutoBroadcastType:$auto_broadcast
+        IE_AdaptivePoolingMethod:$method
     );
 
     let results = (outs
