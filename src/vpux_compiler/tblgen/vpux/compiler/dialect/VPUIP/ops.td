@@ -2880,6 +2880,7 @@ def VPUIP_ExtractImagePatchesUPAOp :
         VPUIP_UPATaskOp<1, "ExtractImagePatchesUPA",
             [
                 ViewLikeOpInterface,
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "ExtractImagePatches UPA SHAVE kernel";

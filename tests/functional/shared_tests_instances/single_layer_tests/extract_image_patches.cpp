@@ -21,8 +21,8 @@ TEST_P(KmbExtractImagePatchesTest, CompareWithRefs_MLIR) {
 
 }  // namespace LayerTestsDefinitions
 
-using namespace ngraph::helpers;
-using ngraph::op::PadType;
+// using namespace ngraph::helpers;
+// using ngraph::op::PadType;
 using namespace LayerTestsDefinitions;
 
 namespace {
@@ -39,26 +39,27 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 // };
 
 const std::vector<std::vector<size_t>> inputShape = {{1, 1, 10, 10}, {1, 3, 10, 10}};
-
 const std::vector<std::vector<size_t>> sizes = {{2, 2}, {3, 3}, {4, 4}, {1, 3}, {4, 2}};
 const std::vector<std::vector<size_t>> strides = {{3, 3}, {5, 5}, {9, 9}, {1, 3}, {6, 2}};
 const std::vector<std::vector<size_t>> rates = {{1, 1}, {1, 2}, {2, 1}, {2, 2}};
-const std::vector<PadType> paddingType = {PadType::VALID, PadType::SAME_UPPER, PadType::SAME_LOWER};
+// const std::vector<PadType> paddingType = {PadType::VALID, PadType::SAME_UPPER, PadType::SAME_LOWER};
 
-const auto testExtractImagePatchesParams = testing::Combine(
-       testing::ValuesIn(inputShape),
-       testing::ValuesIn(sizes),
-       testing::ValuesIn(strides),
-       testing::ValuesIn(rates),
-       testing::ValuesIn(paddingType),
-       testing::ValuesIn(netPrecisions),
-       testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-       testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-       testing::Values(InferenceEngine::Layout::ANY),
-       testing::Values(InferenceEngine::Layout::ANY),
-       testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+const auto testExtractImagePatchesParams = ::testing::Combine(
+       ::testing::ValuesIn(inputShape),
+       ::testing::ValuesIn(sizes),
+       ::testing::ValuesIn(strides),
+       ::testing::ValuesIn(rates),
+       ::testing::Values(ngraph::op::PadType::VALID),
+       ::testing::ValuesIn(netPrecisions),
+       ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+       ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+       ::testing::Values(InferenceEngine::Layout::ANY),
+       ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches, KmbExtractImagePatchesTest, testExtractImagePatchesParams, ExtractImagePatchesTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches,
+                        KmbExtractImagePatchesTest,
+                        testExtractImagePatchesParams,
+                        KmbExtractImagePatchesTest::getTestCaseName);
 
 }  // namespace

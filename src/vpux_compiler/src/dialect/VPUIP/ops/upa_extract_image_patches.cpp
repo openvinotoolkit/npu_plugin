@@ -25,40 +25,55 @@
 
 using namespace vpux;
 
-void vpux::VPUIP::ExtractImagePatchesUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
-                                      mlir::Value data, mlir::Value output,
-                                      mlir::ArrayAttr sizes, mlir::ArrayAttr strides, mlir::ArrayAttr rates,
-                                      IE::PadTypeAttr paddingType) {
-
-   build(odsBuilder, odsState, data, output, sizes, strides, rates, paddingType, nullptr);
-
-}
-
 // /home/dpapgher/WORK/Intel_work/applications.ai.vpu-accelerators.vpux-plugin/src/vpux_compiler/src/dialect/VPUIP/ops/upa_extract_image_patches.cpp:39:13: error: 
 // ‘PadType’ is not a member of ‘MVCNN’; did you mean ‘vpux::IE::PadType’?
 //    39 |      MVCNN::PadType mvcnn_padding;
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExtractImagePatchesUPAOp::serialize(VPUIP::BlobWriter& writer) {
+mlir::LogicalResult vpux::VPUIP::verifyOp(ExtractImagePatchesUPAOp op) {
+    // const auto inShape = getShape(op.input());
 
+    // if (inShape.size() == 4 && inShape[Dim(0)] != 1) {
+    //     return errorAt(op, "Only input tensor batch = 1 is supported, got '{0}'", inShape[Dim(0)]);
+    // }
+
+    // const auto bias = op.bias().convertToDouble();
+    // if (bias != 1.0) {
+    //     return errorAt(op, "Only bias = 1.0 is supported, got '{0}'", bias);
+    // }
+
+    if(0){
+        return errorAt(op, "Only bias = 1.0 is supported, got");
+    }
+
+    return mlir::success();
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExtractImagePatchesUPAOp::serialize(VPUIP::BlobWriter& writer) {
      MVCNN::ExtractImagePatchesParamsBuilder builder(writer);
 
-     vpux::IE::PadType vpux_padding;
+    MVCNN::ExtractImagePatchesPadMode vpux_padding;
 
      if (this->paddingType() == IE::PadType::SAME_UPPER) {
-        vpux_padding = vpux::IE::PadType::SAME_UPPER;
+        vpux_padding = MVCNN::ExtractImagePatchesPadMode::ExtractImagePatchesPadMode_SAME_UPPER;
     } else if (this->paddingType() == IE::PadType::SAME_LOWER) {
-        vpux_padding = vpux::IE::PadType::SAME_LOWER;
+        vpux_padding = MVCNN::ExtractImagePatchesPadMode::ExtractImagePatchesPadMode_SAME_LOWER;
     } else if (this->paddingType() == IE::PadType::VALID) {
-        vpux_padding = vpux::IE::PadType::VALID;
+        vpux_padding = MVCNN::ExtractImagePatchesPadMode::ExtractImagePatchesPadMode_VALID;
     } else {
         VPUX_THROW("Unsupported pad type {0}", this->paddingType());
     }
 
-    builder.add_autoPad(checked_cast<vpux::IE::PadType>(paddingType()));
+    builder.add_rateRows(checked_cast<uint32_t>(0));
+    builder.add_rateCols(checked_cast<uint32_t>(0));
+    builder.add_autoPad(vpux_padding);
+    builder.add_sizeCols(0);
+    builder.add_sizeRows(0);
+    builder.add_strideCols(0);
+    builder.add_strideRows(0);
 
-     const auto paramsOff = builder.Finish();
+    const auto paramsOff = builder.Finish();
 
-     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ExtractImagePatchesParams});
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ExtractImagePatchesParams});
 }
 
 mlir::Operation* vpux::VPUIP::BlobReader::parseExtractImagePatches(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
@@ -69,27 +84,27 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseExtractImagePatches(mlir::OpBuild
 
    const auto params = task->softLayerParams_as_ExtractImagePatchesParams();
 
-   const auto vpux_paddingType = params->paddingType();
+//    const auto vpux_paddingType = params->paddingType();
 
-   IE::PadType padding;
+//    IE::PadType padding;
 
-    if (vpux_paddingType == vpux::IE::PadType::SAME_UPPER) {
-        padding = IE::PadType::SAME_UPPER;
-    } else if (vpux_paddingType == vpux::IE::PadType::SAME_LOWER) {
-        padding = IE::PadType::SAME_LOWER;
-    } else if (vpux_paddingType == vpux::IE::PadType::VALID) {
-        padding = IE::PadType::VALID;
-    } else {
-        VPUX_THROW("Unsupported pad type {0}", vpux_paddingType);
-    }
+//     if (vpux_paddingType == vpux::IE::PadType::SAME_UPPER) {
+//         padding = IE::PadType::SAME_UPPER;
+//     } else if (vpux_paddingType == vpux::IE::PadType::SAME_LOWER) {
+//         padding = IE::PadType::SAME_LOWER;
+//     } else if (vpux_paddingType == vpux::IE::PadType::VALID) {
+//         padding = IE::PadType::VALID;
+//     } else {
+//         VPUX_THROW("Unsupported pad type {0}", vpux_paddingType);
+//     }
 
-   const auto sizes = params->sizes();
-   const auto strides = params->strides();
-   const auto rates = params->rates();
+//    const auto sizes = params->sizes();
+//    const auto strides = params->strides();
+//    const auto rates = params->rates();
 
-   return builder.create<VPUIP::ExtractImagePatchesUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0],
-                                               outputs[0], sizes, strides, rates,
-                                               IE::PadTypeAttr::get(_ctx, padding));
+//    return builder.create<VPUIP::ExtractImagePatchesUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0],
+//                                                outputs[0], 0, 0, 0,
+//                                                IE::PadTypeAttr::get(_ctx, IE::PadType::VALID));
 }
 
 
