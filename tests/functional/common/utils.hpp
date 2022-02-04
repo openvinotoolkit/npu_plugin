@@ -6,5 +6,5 @@
 
 #include <openvino/runtime/core.hpp>
 
-std::string getBackendName(const ov::runtime::Core& core);
+std::string getBackendName(const ov::Core& core);
 
