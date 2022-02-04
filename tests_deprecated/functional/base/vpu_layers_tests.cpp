@@ -365,9 +365,9 @@ void vpuLayersTests::setup(
     }
     std::map<std::string, std::string> test_config(config);
     if (useHWOpt) {
-        test_config[VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)] = CONFIG_VALUE(YES);
+        test_config["VPU_HW_STAGES_OPTIMIZATION"] = CONFIG_VALUE(YES);
     } else {
-        test_config[VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)] = CONFIG_VALUE(NO);
+        test_config["VPU_HW_STAGES_OPTIMIZATION"] = CONFIG_VALUE(NO);
     }
 #if 0
     test_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);

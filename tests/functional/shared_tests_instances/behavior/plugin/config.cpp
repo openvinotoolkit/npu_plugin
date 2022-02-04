@@ -5,7 +5,6 @@
 #include <vpux/vpux_plugin_config.hpp>
 #include <vpux/vpux_compiler_config.hpp>
 #include "ie_plugin_config.hpp"
-#include "vpu/vpu_plugin_config.hpp"
 #include "behavior/plugin/configuration_tests.hpp"
 
 using namespace BehaviorTestsDefinitions;

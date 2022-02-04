@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include <vpu/vpu_plugin_config.hpp>
+#include "ie_plugin_config.hpp"
 
 #define VPU_COMPILER_CONFIG_KEY(name) InferenceEngine::VPUXConfigParams::_CONFIG_KEY(VPU_COMPILER_##name)
 #define VPU_COMPILER_CONFIG_VALUE(name) InferenceEngine::VPUXConfigParams::VPU_COMPILER_##name
