@@ -26,6 +26,7 @@
 namespace vpux {
 
 constexpr llvm::StringLiteral multiClusterStrategyAttrName = "multiClusterStrategy";
+constexpr llvm::StringLiteral splitOverHeightStrategyAttrName = "SplitOverHeight";
 
 //
 // StrategyManager
