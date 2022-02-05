@@ -275,95 +275,95 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
 
             // Explicit quantization
 
-            // const auto inContent = inConst.content();
-            // const auto inVals = inContent.getValues<float>();
-            // const auto shape = inContent.getShape();
+            const auto inContent = inConst.content();
+            const auto inVals = inContent.getValues<float>();
+            const auto shape = inContent.getShape();
 
-            // auto quantizeType = origOp.input().getType().cast<mlir::ShapedType>();
+            auto quantizeType = origOp.input().getType().cast<mlir::ShapedType>();
 
-            // auto inType = mlir::RankedTensorType::get(makeArrayRef(shape.raw()),
-            //                                           mlir::Float32Type::get(quantizeType.getContext()));
+            auto inType = mlir::RankedTensorType::get(makeArrayRef(shape.raw()),
+                                                      mlir::Float32Type::get(quantizeType.getContext()));
 
-            // auto output = Const::Content::allocTempBuffer(inContent.getType(), mlir::Float32Type::get(getContext()),
-            //                                               inContent.isSplat());
-            // auto qVals = output.getTempBuf<float>();
+            auto output = Const::Content::allocTempBuffer(inContent.getType(), mlir::Float32Type::get(getContext()),
+                                                          inContent.isSplat());
+            auto qVals = output.getTempBuf<float>();
 
-            // SmallVector<float> outVals(qVals.size(), 0);
+            SmallVector<float> outVals(qVals.size(), 0);
 
-            // const auto N = shape[Dims4D::Act::N];
-            // const auto C = shape[Dims4D::Act::C];
-            // const auto H = shape[Dims4D::Act::H];
-            // const auto W = shape[Dims4D::Act::W];
+            const auto N = shape[Dims4D::Act::N];
+            const auto C = shape[Dims4D::Act::C];
+            const auto H = shape[Dims4D::Act::H];
+            const auto W = shape[Dims4D::Act::W];
 
-            // const auto inL = inLowContent.getValues<float>();
-            // const auto inH = inHighContent.getValues<float>();
-            // const auto outL = outLowContent.getValues<float>();
-            // const auto outH = outHighContent.getValues<float>();
+            const auto inL = inLowContent.getValues<float>();
+            const auto inH = inHighContent.getValues<float>();
+            const auto outL = outLowContent.getValues<float>();
+            const auto outH = outHighContent.getValues<float>();
 
-            // const auto levels = origOp.levels();
+            const auto levels = origOp.levels();
 
-            // for (int i = 0; i < qVals.size(); i++) {
-            //     auto ind = i;
-            //     auto n = ind / (C * H * W);
-            //     ind %= (C * H * W);
-            //     auto c = ind / (H * W);
-            //     ind %= (H * W);
-            //     auto h = ind / W;
-            //     ind %= W;
-            //     auto w = ind;
+            for (int i = 0; i < qVals.size(); i++) {
+                auto ind = i;
+                auto n = ind / (C * H * W);
+                ind %= (C * H * W);
+                auto c = ind / (H * W);
+                ind %= (H * W);
+                auto h = ind / W;
+                ind %= W;
+                auto w = ind;
 
-            //     size_t quantInd;
+                size_t quantInd;
 
-            //     switch (axis.getValue()) {
-            //     case 0:
-            //         quantInd = n;
-            //         break;
-            //     case 1:
-            //         quantInd = c;
-            //         break;
-            //     case 2:
-            //         quantInd = h;
-            //         break;
-            //     case 3:
-            //         quantInd = w;
-            //         break;
-            //     default:
-            //         VPUX_THROW("Axis has unexpected value {0}", axis);
-            //     }
+                switch (axis.getValue()) {
+                case 0:
+                    quantInd = n;
+                    break;
+                case 1:
+                    quantInd = c;
+                    break;
+                case 2:
+                    quantInd = h;
+                    break;
+                case 3:
+                    quantInd = w;
+                    break;
+                default:
+                    VPUX_THROW("Axis has unexpected value {0}", axis);
+                }
 
-            //     if (inVals[i] <= std::min(inL[quantInd], inH[quantInd]))
-            //         outVals[i] = outL[quantInd];
-            //     if (inVals[i] > std::max(inL[quantInd], inH[quantInd]))
-            //         outVals[i] = outH[quantInd];
-            //     else
-            //         outVals[i] =
-            //                 std::round((inVals[i] - inL[quantInd]) / (inH[quantInd] - inL[quantInd]) * (levels - 1)) /
-            //                         (levels - 1) * (outH[quantInd] - outL[quantInd]) +
-            //                 outL[quantInd];
-            // }
-
-            // // std::cout << "inH[0] = " << inH[0] << "\n";
-            // // std::cout << "outVals[544329] = " << outVals[544329] << "\n";
-
-            // auto outAttr = mlir::DenseElementsAttr::get(inType, makeArrayRef(outVals));
-
-            // auto newOp = rewriter.create<Const::DeclareOp>(origOp.getLoc(), inType, Const::ContentAttr::get(outAttr));
-            // rewriter.replaceOpWithNewOp<Const::DeclareOp>(
-            //         origOp, origOp.getType(),
-            //         newOp.contentAttr().convertElemType(mlir::Float16Type::get(getContext())));
-
-
-            if (ratioHigh.getValue() == 1.0f) {
-                // FQ input and output ranges are equal, only remove FQ
-                rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), inConst.contentAttr())
-                        ->setLoc(inConst->getLoc());
-            } else {
-                // FQ input and output ranges are NOT equal, rescale weights
-                innerLog.trace("Rescale weights");
-                const auto newConstAttr = inConst.contentAttr().rescale(ratioHigh.getValue());
-                rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), newConstAttr)
-                        ->setLoc(inConst->getLoc());
+                if (inVals[i] <= std::min(inL[quantInd], inH[quantInd]))
+                    outVals[i] = outL[quantInd];
+                if (inVals[i] > std::max(inL[quantInd], inH[quantInd]))
+                    outVals[i] = outH[quantInd];
+                else
+                    outVals[i] =
+                            std::round((inVals[i] - inL[quantInd]) / (inH[quantInd] - inL[quantInd]) * (levels - 1)) /
+                                    (levels - 1) * (outH[quantInd] - outL[quantInd]) +
+                            outL[quantInd];
             }
+
+            // std::cout << "inH[0] = " << inH[0] << "\n";
+            // std::cout << "outVals[544329] = " << outVals[544329] << "\n";
+            // c=====3
+            auto outAttr = mlir::DenseElementsAttr::get(inType, makeArrayRef(outVals));
+
+            auto newOp = rewriter.create<Const::DeclareOp>(origOp.getLoc(), inType, Const::ContentAttr::get(outAttr));
+            rewriter.replaceOpWithNewOp<Const::DeclareOp>(
+                    origOp, origOp.getType(),
+                    newOp.contentAttr().convertElemType(mlir::Float16Type::get(getContext())));
+
+
+            // if (ratioHigh.getValue() == 1.0f) {
+            //     // FQ input and output ranges are equal, only remove FQ
+            //     rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), inConst.contentAttr())
+            //             ->setLoc(inConst->getLoc());
+            // } else {
+            //     // FQ input and output ranges are NOT equal, rescale weights
+            //     innerLog.trace("Rescale weights");
+            //     const auto newConstAttr = inConst.contentAttr().rescale(ratioHigh.getValue());
+            //     rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), newConstAttr)
+            //             ->setLoc(inConst->getLoc());
+            // }
 
             return mlir::success();
         }

@@ -2526,7 +2526,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph,
     addCommonOptimizationsPasses(manager);
 
     manager.register_pass<vpux::passes::PropagateFQ>();
-    manager.register_pass<vpux::passes::AlignScales>();
+    // manager.register_pass<vpux::passes::AlignScales>();
     manager.register_pass<ngraph::pass::ReluFakeQuantizeFusion>();
     // we need additionally propagate FQs because some ReLUs may be removed
     manager.register_pass<vpux::passes::PropagateFQ>();
