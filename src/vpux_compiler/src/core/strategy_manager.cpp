@@ -247,19 +247,20 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                     // Channel Major Conv should be SplitOverHOverLapped
                     if (IC <= 3) {
                         op->setAttr(multiClusterStrategyAttrName,
-                                    mlir::StringAttr::get(op->getContext(), "SplitOverHOverLapped"));
+                                    mlir::StringAttr::get(op->getContext(), "SplitOverHeightOverLapped"));
                         _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                    op->getAttr(multiClusterStrategyAttrName), op->getName());
                     } else {
                         op->setAttr(multiClusterStrategyAttrName,
-                                    mlir::StringAttr::get(op->getContext(), "SplitOverH"));
+                                    mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
                         _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                    op->getAttr(multiClusterStrategyAttrName), op->getName());
                     }
                 }
                 // SOK is more efficient than SOH
                 else if (_splitOverHeightEfficencies.find(op)->second < _splitOverKernelEfficencies.find(op)->second) {
-                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverK"));
+                    op->setAttr(multiClusterStrategyAttrName,
+                                mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
                 }
@@ -297,19 +298,20 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                     if (_numClusters * inputTensorVolume + weightTensorVolume <
                         inputTensorVolume + (_numClusters * weightTensorVolume)) {
                         op->setAttr(multiClusterStrategyAttrName,
-                                    mlir::StringAttr::get(op->getContext(), "SplitOverK"));
+                                    mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
                         _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                    op->getAttr(multiClusterStrategyAttrName), op->getName());
                     } else {
                         op->setAttr(multiClusterStrategyAttrName,
-                                    mlir::StringAttr::get(op->getContext(), "SplitOverH"));
+                                    mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
                         _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                    op->getAttr(multiClusterStrategyAttrName), op->getName());
                     }
                 } else if ((_splitOverHeightEfficencies.find(op)->second >
                             _splitOverKernelEfficencies.find(op)->second) &&
                            isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op)) {
-                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverH"));
+                    op->setAttr(multiClusterStrategyAttrName,
+                                mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
 
@@ -322,7 +324,8 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                 } else if ((_splitOverHeightEfficencies.find(op)->second <
                             _splitOverKernelEfficencies.find(op)->second) &&
                            isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
-                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverK"));
+                    op->setAttr(multiClusterStrategyAttrName,
+                                mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
                                op->getAttr(multiClusterStrategyAttrName), op->getName());
 
@@ -346,121 +349,26 @@ void StrategyManager::insertCopyOpForDistributedTensor() {
                 .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp) {})
                 .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp origOp) {
                     _log.trace("Got operation {0}", origOp);
-                    if (origOp->getParentOfType<VPU::NCEClusterTilingOp>()) {
-                        _log.trace("The operation is already wrapped");
-                        return mlir::failure();
-                    }
+                    // if (origOp->getParentOfType<VPU::NCEClusterTilingOp>()) {
+                    //     _log.trace("The operation is already wrapped");
+                    //     return mlir::failure();
+                    // }
 
                     // Retrieve the strategy
                     const auto strategy =
                             origOp->getAttr(multiClusterStrategyAttrName).cast<mlir::StringAttr>().getValue();
 
-                    // Create the Copy op for the distributed tensor for SOH OverLapped Operation
+                    // Create the Copy ops for the distributed activation and weights tensor for SOH OverLapped
+                    // Operation
                     if (strategy == splitOverHeightOverLappedStrategyAttrName) {
-                        /////////////////////////////////////////////////////////////////////////////////////////////////////////
-                        //// Create the copy operation for the distributed activation tensor for SOH OverLappe Operation
-                        //////
-                        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+                        createSegmentedActivationTensor(
+                                origOp, vpux::VPU::DistributionMode::overlapped,
+                                getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, (int)_numClusters, 1})));
 
-                        // Step 1: Create DistributedTensorAttr fields
-                        // Specify the distribution mode of the tensor  overlapped,duplicated,segmented, multicasted,
-                        const auto activationTensorDistributionModeAttr = vpux::VPU::DistributionModeAttr::get(
-                                origOp.getContext(), vpux::VPU::DistributionMode::overlapped);
-
-                        // Specify the number of tiles (clusters)
-                        const auto numTiles =
-                                getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, (int)_numClusters, 1}));
-
-                        // Specify the kernel
-                        const auto filterShape = getShape(origOp.filter());
-                        const auto kernel = getIntArrayAttr(
-                                origOp.getContext(),
-                                makeArrayRef({filterShape[Dims4D::Filter::KY],
-                                              filterShape[Dims4D::Filter::KX]}));  // TODO: Is this the correct order of
-                                                                                   // dims?
-
-                        // Step 2: Create DistributedTensorAttr
-                        auto activationTensorDistributedTensorAttr = vpux::VPU::DistributedTensorAttr::get(
-                                activationTensorDistributionModeAttr, numTiles, kernel, origOp.strides(),
-                                origOp.padAttr(),
-                                origOp.getContext());  // TODO: Use the padding from origOp?
-
-                        // Step 3: Create DistributedTensorType fields
-                        const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
-
-                        // Specify the inputShape
-                        const auto inputShape = getShape(inputType);
-                        SmallVector<int64_t> inShape{
-                                inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C], inputShape[Dims4D::Act::H],
-                                inputShape[Dims4D::Act::W]};  // TODO: Is this the correct order of dims?
-
-                        // Specify the memSpace
-                        const auto memSpace = mlir::SymbolRefAttr::get(
-                                VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
-
-                        // Specify the order
-                        const auto order = mlir::AffineMapAttr::get(
-                                DimsOrder::fromType(origOp.input().getType().cast<mlir::ShapedType>())
-                                        .toAffineMap(origOp.getContext()));
-
-                        // Step 4: Create DistributedTensorType
-                        const auto activationTensorDistributedTensorType = vpux::VPU::DistributedTensorType::get(
-                                origOp.getContext(), inShape, origOp.input().getType().cast<mlir::ShapedType>(), order,
-                                memSpace, activationTensorDistributedTensorAttr);
-
-                        _log.trace("Wrap copy operation for activation into NCEClusterTilingOp");
-
-                        // Step 5: Create IE::Copy Op
-                        mlir::OpBuilder builder(_func.getBody());
-                        const auto activationTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
-                                                                     mlir::ValueRange newOperands) {
-                            const auto memSpace = IndexedSymbolAttr::get(builder.getContext(),
-                                                                         stringifyEnum(VPU::MemoryKind::CMX_NN));
-                            auto activationTensorDistributedCopyOp =
-                                    builder.create<IE::CopyOp>(origOp->getLoc(), newOperands[0], memSpace);
-                            builder.create<VPU::YieldOp>(loc, activationTensorDistributedCopyOp->getResults());
-                        };
-
-                        // Step 6: Wrap the IE::Copy Op in NCEClusterTiling
-                        builder.create<VPU::NCEClusterTilingOp>(origOp->getLoc(), activationTensorDistributedTensorType,
-                                                                origOp->getOperands(), activationTensorBodyBuilder);
-
-                        /////////////////////////////////////////////////////////////////////////////////////////////////////////
-                        //// Create the copy operation for the multicasted weights for SOH OverLapped Operation
-                        /////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-                        const auto weightsTensorDistributionModeAttr = vpux::VPU::DistributionModeAttr::get(
-                                origOp.getContext(), vpux::VPU::DistributionMode::multicasted);
-
-                        // Step 2: Create DistributedTensorAttr
-                        auto weightsTensorDistributedTensorAttr = vpux::VPU::DistributedTensorAttr::get(
-                                weightsTensorDistributionModeAttr, numTiles, kernel, origOp.strides(), origOp.padAttr(),
-                                origOp.getContext());  // TODO: Use the padding from origOp?
-
-                        // Use the same fields from activation tensor  for step3 & 4
-
-                        // Step 4: Create DistributedTensorType
-                        const auto weightsTensorDistributedTensorType = vpux::VPU::DistributedTensorType::get(
-                                origOp.getContext(), inShape, origOp.input().getType().cast<mlir::ShapedType>(), order,
-                                memSpace, weightsTensorDistributedTensorAttr);
-
-                        _log.trace("Wrap copy operation for weights into NCEClusterTilingOp");
-
-                        // Step 5: Create IE::Copy Op
-                        const auto weightsTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
-                                                                  mlir::ValueRange newOperands) {
-                            const auto memSpace = IndexedSymbolAttr::get(builder.getContext(),
-                                                                         stringifyEnum(VPU::MemoryKind::CMX_NN));
-                            auto weightsTensorDistributedCopyOp =
-                                    builder.create<IE::CopyOp>(origOp->getLoc(), newOperands[0], memSpace);
-                            builder.create<VPU::YieldOp>(loc, weightsTensorDistributedCopyOp->getResults());
-                        };
-
-                        // Step 6: Wrap the IE::Copy Op in NCEClusterTiling
-                        builder.create<VPU::NCEClusterTilingOp>(origOp->getLoc(), weightsTensorDistributedTensorType,
-                                                                origOp.input(), weightsTensorBodyBuilder);
+                        createSegmentedWeightsTensor(origOp, vpux::VPU::DistributionMode::multicasted,
+                                                     getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
                     }
-                    return mlir::success();
+                    // return mlir::success();
                 })
 
                 .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp) {
