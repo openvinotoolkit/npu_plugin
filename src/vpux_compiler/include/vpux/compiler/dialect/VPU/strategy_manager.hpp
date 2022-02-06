@@ -26,11 +26,11 @@
 #include "vpux/compiler/conversion.hpp"
 namespace vpux {
 
-constexpr llvm::StringLiteral multiClusterStrategyAttrName = "multiClusterStrategy";
-constexpr llvm::StringLiteral splitOverHeightOverLappedStrategyAttrName =
+constexpr llvm::StringLiteral multiClusterStrategy = "multiClusterStrategy";
+constexpr llvm::StringLiteral splitOverHeightOverLappedStrategy =
         "SplitOverHeightOverLapped";  // This strategy is for channel major convolutions
-constexpr llvm::StringLiteral splitOverHeightStrategyAttrName = "SplitOverHeight";
-constexpr llvm::StringLiteral splitOverKernelStrategyAttrName = "SplitOverKernel";
+constexpr llvm::StringLiteral splitOverHeightStrategy = "SplitOverHeight";
+constexpr llvm::StringLiteral splitOverKernelStrategy = "SplitOverKernel";
 
 //
 // StrategyManager
@@ -42,7 +42,7 @@ public:
 
 public:
     void computeOptimalMultiClusterStrategy();
-    void insertCopyOpForDistributedTensor();
+    mlir::LogicalResult insertCopyOpForDistributedTensor();
 
 private:
     template <class ConcreteOp>
@@ -95,12 +95,12 @@ template <class ConcreteOp>
 void StrategyManager::assignMultiClusterStrategyForEltwise(ConcreteOp& op) {
     // If operation is not SOH compatible, then it has to be Clustering
     if (isOperationSplitOverHeightCompatible<ConcreteOp>(op)) {
-        op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "SplitOverH"));
-        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategyAttrName),
+        op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverH"));
+        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
                    op->getName());
     } else {
-        op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
-        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategyAttrName),
+        op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "Clustering"));
+        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
                    op->getName());
     }
 };

@@ -86,8 +86,10 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     strategyManager.computeOptimalMultiClusterStrategy();
 
     // Created distributed tensors
-    strategyManager.insertCopyOpForDistributedTensor();
-    _log.trace("Done inserting copy operations");
+    auto result = strategyManager.insertCopyOpForDistributedTensor();
+    if (result.succeeded()) {
+        _log.trace("Sucessfully inserted distributed tensor copy operations for multi-cluster");
+    }
 
     auto& ctx = getContext();
     mlir::OwningRewritePatternList patterns(&ctx);

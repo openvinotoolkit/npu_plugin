@@ -233,9 +233,9 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                 // If operation is neither SOH or SOK compatible, then it has to be Clustering
                 if (!isOperationSplitOverHeightCompatible<VPU::NCEConvolutionOp>(op) &&
                     !isOperationSplitOverKernelCompatible<VPU::NCEConvolutionOp>(op)) {
-                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
-                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+                    op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "Clustering"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
+                               op->getName());
                 }
                 // Compare the SOK and SOK efficiencies
                 // Select SOH if they are equal
@@ -246,23 +246,21 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
 
                     // Channel Major Conv should be SplitOverHOverLapped
                     if (IC <= 3) {
-                        op->setAttr(multiClusterStrategyAttrName,
+                        op->setAttr(multiClusterStrategy,
                                     mlir::StringAttr::get(op->getContext(), "SplitOverHeightOverLapped"));
                         _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                                   op->getAttr(multiClusterStrategyAttrName), op->getName());
+                                   op->getAttr(multiClusterStrategy), op->getName());
                     } else {
-                        op->setAttr(multiClusterStrategyAttrName,
-                                    mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
+                        op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
                         _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                                   op->getAttr(multiClusterStrategyAttrName), op->getName());
+                                   op->getAttr(multiClusterStrategy), op->getName());
                     }
                 }
                 // SOK is more efficient than SOH
                 else if (_splitOverHeightEfficencies.find(op)->second < _splitOverKernelEfficencies.find(op)->second) {
-                    op->setAttr(multiClusterStrategyAttrName,
-                                mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
-                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+                    op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
+                               op->getName());
                 }
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp op) {
@@ -282,9 +280,9 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                 // If operation is neither SOH or SOK compatible, then it has to be Clustering
                 if (!isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op) &&
                     !isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
-                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
-                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+                    op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "Clustering"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
+                               op->getName());
                 }
                 // If the SOH and SOK efficiency values are equal
                 // and the operation is both SOH and SOK compatible
@@ -297,44 +295,40 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                     // If the
                     if (_numClusters * inputTensorVolume + weightTensorVolume <
                         inputTensorVolume + (_numClusters * weightTensorVolume)) {
-                        op->setAttr(multiClusterStrategyAttrName,
-                                    mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
+                        op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
                         _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                                   op->getAttr(multiClusterStrategyAttrName), op->getName());
+                                   op->getAttr(multiClusterStrategy), op->getName());
                     } else {
-                        op->setAttr(multiClusterStrategyAttrName,
-                                    mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
+                        op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
                         _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                                   op->getAttr(multiClusterStrategyAttrName), op->getName());
+                                   op->getAttr(multiClusterStrategy), op->getName());
                     }
                 } else if ((_splitOverHeightEfficencies.find(op)->second >
                             _splitOverKernelEfficencies.find(op)->second) &&
                            isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op)) {
-                    op->setAttr(multiClusterStrategyAttrName,
-                                mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
-                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+                    op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
+                               op->getName());
 
                 } else if ((_splitOverHeightEfficencies.find(op)->second >
                             _splitOverKernelEfficencies.find(op)->second) &&
                            !isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op)) {
-                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
-                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+                    op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "Clustering"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
+                               op->getName());
                 } else if ((_splitOverHeightEfficencies.find(op)->second <
                             _splitOverKernelEfficencies.find(op)->second) &&
                            isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
-                    op->setAttr(multiClusterStrategyAttrName,
-                                mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
-                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+                    op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
+                               op->getName());
 
                 } else if ((_splitOverHeightEfficencies.find(op)->second <
                             _splitOverKernelEfficencies.find(op)->second) &&
                            !isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
-                    op->setAttr(multiClusterStrategyAttrName, mlir::StringAttr::get(op->getContext(), "Clustering"));
-                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                               op->getAttr(multiClusterStrategyAttrName), op->getName());
+                    op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "Clustering"));
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
+                               op->getName());
                 }
             })
             .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp op) {
@@ -342,25 +336,24 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
             });
 }
 
-void StrategyManager::insertCopyOpForDistributedTensor() {
+mlir::LogicalResult StrategyManager::insertCopyOpForDistributedTensor() {
     const auto callback = [&](mlir::Operation* origOp) {
         llvm::TypeSwitch<mlir::Operation*, void>(origOp)
                 .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {})
                 .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp) {})
                 .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp origOp) {
                     _log.trace("Got operation {0}", origOp);
-                    // if (origOp->getParentOfType<VPU::NCEClusterTilingOp>()) {
-                    //     _log.trace("The operation is already wrapped");
-                    //     return mlir::failure();
-                    // }
+                    if (origOp->getParentOfType<VPU::NCEClusterTilingOp>()) {
+                        _log.trace("The operation is already wrapped");
+                        return mlir::failure();
+                    }
 
                     // Retrieve the strategy
-                    const auto strategy =
-                            origOp->getAttr(multiClusterStrategyAttrName).cast<mlir::StringAttr>().getValue();
+                    const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
 
                     // Create the Copy ops for the distributed activation and weights tensor for SOH OverLapped
                     // Operation
-                    if (strategy == splitOverHeightOverLappedStrategyAttrName) {
+                    if (strategy == splitOverHeightOverLappedStrategy) {
                         createSegmentedActivationTensor(
                                 origOp, vpux::VPU::DistributionMode::overlapped,
                                 getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, (int)_numClusters, 1})));
@@ -368,7 +361,25 @@ void StrategyManager::insertCopyOpForDistributedTensor() {
                         createSegmentedWeightsTensor(origOp, vpux::VPU::DistributionMode::multicasted,
                                                      getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
                     }
-                    // return mlir::success();
+                    // Create the Copy ops for the distributed activation and weights tensor for SOH Operation
+                    if (strategy == splitOverHeightStrategy) {
+                        createSegmentedActivationTensor(
+                                origOp, vpux::VPU::DistributionMode::segmented,
+                                getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, (int)_numClusters, 1})));
+
+                        createSegmentedWeightsTensor(origOp, vpux::VPU::DistributionMode::multicasted,
+                                                     getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
+                    }
+                    // Create the Copy ops for the distributed activation and weights tensor for SOK Operation
+                    if (strategy == splitOverKernelStrategy) {
+                        createSegmentedActivationTensor(
+                                origOp, vpux::VPU::DistributionMode::multicasted,
+                                getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
+
+                        createSegmentedWeightsTensor(origOp, vpux::VPU::DistributionMode::segmented,
+                                                     getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
+                    }
+                    return mlir::success();
                 })
 
                 .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp) {
@@ -377,4 +388,5 @@ void StrategyManager::insertCopyOpForDistributedTensor() {
     };
 
     _func.walk(callback);
+    return mlir::success();
 }
