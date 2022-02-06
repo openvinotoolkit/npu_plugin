@@ -44,7 +44,7 @@ private:
 
 mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp origOp,
                                                         mlir::PatternRewriter& rewriter) const {
-    _log.trace("Got operation {0}", origOp);
+    Logger::global().error("Got operation {0}", origOp);
     if (origOp->getParentOfType<VPU::NCEClusterTilingOp>()) {
         _log.trace("The operation is already wrapped");
         return mlir::failure();
@@ -87,15 +87,15 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
 
     // Created distributed tensors
     strategyManager.insertCopyOpForDistributedTensor();
+    _log.trace("Done inserting copy operations");
 
     auto& ctx = getContext();
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.add<ConvToMultiCluster>(&ctx, _log);
 
-    // if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig())))
-    // {
-    //     signalPassFailure();
-    // }
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
+        signalPassFailure();
+    }
 }
 
 }  // namespace
