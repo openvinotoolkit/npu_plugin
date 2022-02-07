@@ -24,6 +24,7 @@
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 namespace vpux {
 
 constexpr llvm::StringLiteral multiClusterStrategy = "multiClusterStrategy";
@@ -42,7 +43,19 @@ public:
 
 public:
     void computeOptimalMultiClusterStrategy();
-    mlir::LogicalResult insertCopyOpForDistributedTensor();
+    // mlir::LogicalResult insertCopyOpForDistributedTensor();
+    template <class ConcreteOp>
+    VPU::NCEClusterTilingOp createDistributedActivationTensor(ConcreteOp& origOp,
+                                                              vpux::VPU::DistributionMode distributionMode,
+                                                              mlir::ArrayAttr numTiles) const;
+    template <class ConcreteOp>
+    VPU::NCEClusterTilingOp createDistributedWeightsTensor(ConcreteOp& origOp,
+                                                           vpux::VPU::DistributionMode distributionMode,
+                                                           mlir::ArrayAttr numTiles) const;
+    template <class ConcreteOp>
+    vpux::VPU::DistributedTensorType createDistributedOutputTensorType(ConcreteOp& origOp,
+                                                                       vpux::VPU::DistributionMode distributionMode,
+                                                                       mlir::ArrayAttr numTiles) const;
 
 private:
     template <class ConcreteOp>
@@ -54,14 +67,7 @@ private:
     void assignMultiClusterStrategy(mlir::Operation* op);
     double calculateSplitOverHeightEfficency(mlir::Operation* op);
     double calculateSplitOverKernelEfficency(mlir::Operation* op);
-    template <class ConcreteOp>
-    VPU::NCEClusterTilingOp createDistributedActivationTensor(ConcreteOp& origOp,
-                                                              vpux::VPU::DistributionMode distributionMode,
-                                                              mlir::ArrayAttr numTiles);
-    template <class ConcreteOp>
-    VPU::NCEClusterTilingOp createDistributedWeightsTensor(ConcreteOp& origOp,
-                                                           vpux::VPU::DistributionMode distributionMode,
-                                                           mlir::ArrayAttr numTiles);
+
     std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable();
     std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable();
 
@@ -110,7 +116,7 @@ void StrategyManager::assignMultiClusterStrategyForEltwise(ConcreteOp& op) {
 template <class ConcreteOp>
 VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(ConcreteOp& origOp,
                                                                            vpux::VPU::DistributionMode distributionMode,
-                                                                           mlir::ArrayAttr numTiles) {
+                                                                           mlir::ArrayAttr numTiles) const {
     // Specify the distribution mode of the tensor  overlapped,duplicated,segmented, multicasted,
     const auto activationTensorDistributionModeAttr =
             vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
@@ -148,7 +154,9 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(Concr
     _log.trace("Wrap copy operation for activation into NCEClusterTilingOp");
 
     // Create IE::Copy Op
-    mlir::OpBuilder builder(_func.getBody());
+    // mlir::OpBuilder builder(_func.getBody());
+    OpBuilderLogger builderLog(_log.nest());
+    mlir::OpBuilder builder(origOp, &builderLog);
     builder.setInsertionPoint(origOp);
     const auto activationTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
                                                  mlir::ValueRange newOperands) {
@@ -166,7 +174,7 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(Concr
 template <class ConcreteOp>
 VPU::NCEClusterTilingOp StrategyManager::createDistributedWeightsTensor(ConcreteOp& origOp,
                                                                         vpux::VPU::DistributionMode distributionMode,
-                                                                        mlir::ArrayAttr numTiles) {
+                                                                        mlir::ArrayAttr numTiles) const {
     // Specify the distribution mode of the tensor  overlapped,duplicated,segmented, multicasted,
     const auto weightsTensorDistributionModeAttr =
             vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
@@ -206,7 +214,10 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedWeightsTensor(Concrete
     _log.trace("Wrap copy operation for weights into NCEClusterTilingOp");
 
     // Create IE::Copy Op
-    mlir::OpBuilder builder(_func.getBody());
+    // mlir::OpBuilder builder(_func.getBody());
+    OpBuilderLogger builderLog(_log.nest());
+    mlir::OpBuilder builder(origOp, &builderLog);
+
     builder.setInsertionPoint(origOp);
     const auto weightsTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
                                               mlir::ValueRange newOperands) {
@@ -217,6 +228,45 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedWeightsTensor(Concrete
     auto distributedWeightsCopyOp = builder.create<VPU::NCEClusterTilingOp>(
             origOp->getLoc(), weightsTensorDistributedTensorType, origOp->getOperands(), weightsTensorBodyBuilder);
     return distributedWeightsCopyOp;
+}
+
+template <class ConcreteOp>
+vpux::VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorType(
+        ConcreteOp& origOp, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles) const {
+    // Specify the distribution mode of the tensor  overlapped,duplicated,segmented, multicasted,
+    const auto outputTensorDistributionModeAttr =
+            vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
+
+    // Specify the kernel
+    const auto filterShape = origOp.rawFilterShape().hasValue()
+                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape().getValue()))
+                                     : getShape(origOp.filter());
+    const auto kernel = getIntArrayAttr(origOp.getContext(),
+                                        makeArrayRef({filterShape[Dims4D::Filter::KY],
+                                                      filterShape[Dims4D::Filter::KX]}));  // TODO: Is this the
+                                                                                           // correct order of dims?
+
+    // Create DistributedTensorAttr
+    auto outputTensorDistributedTensorAttr = vpux::VPU::DistributedTensorAttr::get(
+            outputTensorDistributionModeAttr, numTiles, kernel, origOp.strides(), origOp.padAttr(),
+            origOp.getContext());  // TODO: Use the padding from origOp?
+
+    // Specify the inputShape
+    const auto inputShape = getShape(origOp.input());
+    SmallVector<int64_t> inShape{inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C], inputShape[Dims4D::Act::H],
+                                 inputShape[Dims4D::Act::W]};  // TODO: Is this the correct order of dims?
+
+    // Specify the memSpace
+    const auto memSpace =
+            mlir::SymbolRefAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
+
+    // Specify the order
+    const auto order =
+            mlir::AffineMapAttr::get(DimsOrder::fromNumDims(inputShape.size()).toAffineMap(origOp.getContext()));
+
+    // Create DistributedTensorType
+    return vpux::VPU::DistributedTensorType::get(origOp.getContext(), inShape, origOp.input().getType(), order,
+                                                 memSpace, outputTensorDistributedTensorAttr);
 }
 
 }  // namespace vpux
