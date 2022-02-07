@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --collapse-transposes-pass --canonicalize %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --canonicalize %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #map = affine_map<(d0, d1, d2) -> (d0, d2, d1)>

@@ -77,7 +77,6 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     IE::buildAdjustForVPUPipeline(pm, log);
 
-    pm.addPass(IE::createCollapseMutualTransposes(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(IE::createSplitFakeQuantPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
@@ -160,7 +159,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     IE::buildAdjustForVPUPipeline(pm, log);
 
-    pm.addPass(IE::createCollapseMutualTransposes(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     if (options.enableConvertScaleShiftDW) {
         pm.addPass(IE::createConvertScaleShiftToDWPass(log));
@@ -282,7 +280,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     IE::buildAdjustForVPUPipeline(pm, log);
 
-    pm.addPass(IE::createCollapseMutualTransposes(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     if (options.enableConvertScaleShiftDW) {
         pm.addPass(IE::createConvertScaleShiftToDWPass(log));

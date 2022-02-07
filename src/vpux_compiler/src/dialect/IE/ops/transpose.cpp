@@ -244,12 +244,98 @@ mlir::LogicalResult FuseTransposes::matchAndRewrite(IE::TransposeOp transposeOp,
     return mlir::success();
 }
 
+//
+// CollapseMutualTransposes
+//
+
+class CollapseMutualTransposes final : public mlir::OpRewritePattern<IE::TransposeOp> {
+public:
+    using mlir::OpRewritePattern<IE::TransposeOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::TransposeOp transposeOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+bool isTrivialTransformation(const ShapeRef inShape, const ShapeRef outShape) {
+    // Remove all trivial dimensions.
+    const auto isTrivial = [](const int64_t dimVal) -> bool {
+        return dimVal > 1;
+    };
+    Shape inShapeDiminished;
+    std::copy_if(inShape.begin(), inShape.end(), std::back_inserter(inShapeDiminished), isTrivial);
+
+    Shape outShapeDiminished;
+    std::copy_if(outShape.begin(), outShape.end(), std::back_inserter(outShapeDiminished), isTrivial);
+
+    // Check that resulting shapes preserve the order of dimensions.
+    return inShapeDiminished == outShapeDiminished;
+}
+
+bool canBeCollapsed(IE::TransposeOp op) {
+    // First, check whether the input of that transpose operation is a reshape operation.
+    const auto lastTransposeIn = op.input();
+    auto maybeReshapeOp = lastTransposeIn.getDefiningOp<IE::AffineReshapeOp>();
+    if (maybeReshapeOp == nullptr) {
+        return false;
+    }
+
+    // Now, find out whether this reshape operation has another transpose as an input.
+    const auto reshapeIn = maybeReshapeOp.input();
+    auto firstTranspose = reshapeIn.getDefiningOp<IE::TransposeOp>();
+    if (firstTranspose == nullptr) {
+        return false;
+    }
+
+    // Only trivial reshapes can be collapsed.
+    // Trivial means that all dimensions larger than 1 preserve order.
+    // Examples:
+    // 1x1x28x70 -> Reshape -> 1x28x70 -- trivial
+    // 1x28x70x1 -> Reshape -> 1x28x70 -- trivial
+    // 1x28x1x70 -> Reshape -> 1x28x70 -- trivial
+    // 1x28x1x70 -> Reshape -> 1x70x28 -- non-trivial, since the order is not preserved.
+    if (!isTrivialTransformation(getShape(maybeReshapeOp.input()), getShape(maybeReshapeOp.output()))) {
+        return false;
+    }
+
+    // Check that the second transpose is the inverse of the first one.
+    if (!isTrivialTransformation(getShape(firstTranspose.input()), getShape(op.output()))) {
+        return false;
+    }
+
+    return true;
+}
+
+// Replaces chain of Transpose -> Reshape -> Transpose with single Reshape.
+// Checks whether `Reshape` operation between two `Transpose` operations gathers any dimensions.
+// If so, it checks whether the second transposition cancels the effect of the first one.
+// In such cases, the whole subgraph can be replaced with a single reshape.
+mlir::LogicalResult CollapseMutualTransposes::matchAndRewrite(IE::TransposeOp transposeOp,
+                                                              mlir::PatternRewriter& rewriter) const {
+    if (!canBeCollapsed(transposeOp)) {
+        return mlir::failure();
+    }
+
+    const auto lastTransposeIn = transposeOp.input();
+    auto maybeReshapeOp = lastTransposeIn.getDefiningOp<IE::AffineReshapeOp>();
+    const auto reshapeIn = maybeReshapeOp.input();
+    auto firstTranspose = reshapeIn.getDefiningOp<IE::TransposeOp>();
+    const auto firstTransposeIn = firstTranspose.input();
+
+    const auto shape = transposeOp.output().getType().cast<mlir::ShapedType>().getShape();
+    const auto newShape = to_small_vector(shape);
+    const auto newShapeAttr = getIntArrayAttr(rewriter.getContext(), newShape);
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(transposeOp, firstTransposeIn, nullptr, false, newShapeAttr);
+
+    return mlir::success();
+}
+
 }  // namespace
 
 void vpux::IE::TransposeOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
                                                         mlir::MLIRContext* context) {
     patterns.insert<ConvertConstToAttr>(context);
     patterns.insert<FuseTransposes>(context);
+    patterns.insert<CollapseMutualTransposes>(context);
 }
 
 mlir::OpFoldResult vpux::IE::TransposeOp::fold(ArrayRef<mlir::Attribute> operands) {
