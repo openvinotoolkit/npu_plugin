@@ -117,9 +117,9 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Maximum)) {
 
             static_assert(std::is_base_of<Op, CustomCpp>());
             CustomCpp* customCppOp = static_cast<CustomCpp*>(m_op);
-            Buffer inBuff;
-            Buffer inBuff2;
-            Buffer outBuff;
+            OpTensor inBuff;
+            OpTensor inBuff2;
+            OpTensor outBuff;
             m_inputTensor.exportToBuffer(inBuff);
             m_inputTensor2.exportToBuffer(inBuff2);
             m_outputTensor.exportToBuffer(outBuff);
