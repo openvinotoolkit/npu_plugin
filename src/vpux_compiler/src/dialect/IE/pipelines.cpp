@@ -46,6 +46,10 @@ void vpux::IE::buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLa
         pm.addPass(IE::createUseUserLayout(log));
     }
 
+    if (options.enableForceZMajorConcat) {
+        pm.addPass(IE::createInsertReorderBetweenTransposeAndConcatPass(log));
+    }
+
     pm.addPass(IE::createAdjustLayoutsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
