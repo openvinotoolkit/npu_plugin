@@ -78,14 +78,16 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
         VPUX_THROW("Operation '{0}' does not have a valid multi-cluster strategy", origOp);
     }
 
-    // Create the Copy ops for the distributed activation and weights tensor
+    // Create the copy ops for the distributed activation tensor
     auto distributedActivationCopyOp = _strategyManager.createDistributedActivationTensor(
             origOp, activationTensorDistributionMode, activationTensorNumTiles);
 
+    // Create the copy ops for the distributed weights tensor
     auto distributedWeightsCopyOp = _strategyManager.createDistributedWeightsTensor(
             origOp, weightsTensorDistributionMode, weightTensorNumTiles);
 
-    auto distributedOutputTesnorType = _strategyManager.createDistributedOutputTensorType(
+    // Create the copy ops for the distributed output tensor type
+    auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
             origOp, activationTensorDistributionMode, activationTensorNumTiles);
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
@@ -97,7 +99,7 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
 
     _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
     rewriter.replaceOpWithNewOp<VPU::NCEClusterTilingOp>(
-            origOp, distributedOutputTesnorType,
+            origOp, distributedOutputTensorType,
             mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0)},
             bodyBuilder);
     return mlir::success();
