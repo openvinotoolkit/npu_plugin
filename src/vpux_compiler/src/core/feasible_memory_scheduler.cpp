@@ -124,18 +124,10 @@ bool FeasibleMemoryScheduler::isDataOp(operationIdxType opIdx) {
     return false;
 }
 
-bool FeasibleMemoryScheduler::isProfilingOp(operationIdxType opIdx) {
+bool FeasibleMemoryScheduler::isNonComputeChainOp(operationIdxType opIdx) {
+    // Currently only operations in the model which are not related to
+    // processing network inputs are profiling related operations.
     auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
-
-    if (!op->hasAttr(IERT::IERTDialect::getExecutorAttrName())) {
-        return false;
-    }
-
-    const auto executor = IERT::IERTDialect::getExecutor(op);
-    if (executor.getLeafNameAttr() != VPU::ExecutorKindAttr::get(op->getContext(), VPU::ExecutorKind::DMA_NN)) {
-        return false;
-    }
-
     auto curTaskName = stringifyLocation(op->getLoc());
     if (curTaskName.find(PROFILING_CMX_2_DDR_OP_NAME) != std::string::npos) {
         return true;
@@ -279,11 +271,11 @@ void FeasibleMemoryScheduler::distributeReadyOps(llvm::ArrayRef<operationIdxType
             _log.trace("Add to ready data ops '{0}'", readyOp);
             const auto newReadyOps = reduceInDegreeOfAdjacentOperations(readyOp);
             distributeReadyOps(newReadyOps);
-        } else if (isProfilingOp(readyOp)) {
-            VPUX_THROW_UNLESS(_profilingOps.find(pair) == _profilingOps.end(),
-                              "Operation already in profiling list '{0}'", readyOp);
-            _profilingOps.insert(std::make_pair(readyOp, opSize));
-            _log.trace("Profiling op ready '{0}'", readyOp);
+        } else if (isNonComputeChainOp(readyOp)) {
+            VPUX_THROW_UNLESS(_nonComputeChainOps.find(pair) == _nonComputeChainOps.end(),
+                              "Operation already in non compute chain op list '{0}'", readyOp);
+            _nonComputeChainOps.insert(std::make_pair(readyOp, opSize));
+            _log.trace("Non compute chain op ready '{0}'", readyOp);
         } else if (isComputeOpWithSomeActiveInputs(readyOp)) {
             VPUX_THROW_UNLESS(_activeComputeOps.find(pair) == _activeComputeOps.end(),
                               "Operation already in active compute list '{0}'", readyOp);
@@ -346,7 +338,7 @@ void FeasibleMemoryScheduler::getReadyDataList() {
     _log = _log.nest();
     // populate ready data ops
     for (auto& entry : _inDegreeTable) {
-        if (entry.second == 0 && isDataOp(entry.first) && !isProfilingOp(entry.first)) {
+        if (entry.second == 0 && isDataOp(entry.first) && !isNonComputeChainOp(entry.first)) {
             vpux::AddressType opSize = calculateOpSize(entry.first);
             _readyDataOps.insert(std::make_pair(entry.first, opSize));
             _log.trace("Ready data op: '{0}'", entry.first);
@@ -354,10 +346,11 @@ void FeasibleMemoryScheduler::getReadyDataList() {
             auto newOps = reduceInDegreeOfAdjacentOperations(entry.first);
             if (!newOps.empty()) {
                 for (auto& op : newOps) {
-                    VPUX_THROW_UNLESS(isProfilingOp(op), "Non profiling op - unsupported scenario");
+                    VPUX_THROW_UNLESS(isNonComputeChainOp(op),
+                                      "Not a non compute chain op unlocked - unsupported scenario");
                     opSize = calculateOpSize(op);
-                    _profilingOps.insert(std::make_pair(op, opSize));
-                    _log.trace("Ready profiling op: '{0}'", entry.first);
+                    _nonComputeChainOps.insert(std::make_pair(op, opSize));
+                    _log.trace("Ready non compute chain op: '{0}'", entry.first);
                 }
             }
         }
@@ -370,7 +363,7 @@ void FeasibleMemoryScheduler::getReadyComputeList() {
     _log = _log.nest();
     // populate ready compute ops
     for (auto& entry : _inDegreeTable) {
-        if (entry.second == 0 && !isDataOp(entry.first) && !isProfilingOp(entry.first)) {
+        if (entry.second == 0 && !isDataOp(entry.first) && !isNonComputeChainOp(entry.first)) {
             vpux::AddressType opSize = calculateOpSize(entry.first);
             _readyComputeOps.insert(std::make_pair(entry.first, opSize));
             _log.trace("Ready compute op: '{0}'", entry.first);
@@ -595,7 +588,7 @@ size_t FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
 size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
     SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledActiveOps;
     SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledReadyOps;
-    SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledProfilingOps;
+    SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledNonComputeChainOps;
     auto computeOpStartTime = _currentTime;
     _log.trace("Scheduling all possible ready ops");
     _log = _log.nest();
@@ -621,19 +614,23 @@ size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
         }
     }
 
-    //      1-3. schedule profiling op
-    for (auto& profOp : _profilingOps) {
+    //      1-3. schedule operation not belonging to main network compute chain
+    for (auto& readyOp : _nonComputeChainOps) {
+        // Scheduling such operations can only happen once all input dependencies
+        // (both data and compute ops) have already been executed. This is different
+        // to standard compute op which as part of its scheduling can force scheduling
+        // of needed data ops
         bool areDepsReady = true;
-        for (auto& dep : _depsInfo.getOpDeps(profOp.first)) {
+        for (auto& dep : _depsInfo.getOpDeps(readyOp.first)) {
             if (_opOutputTable.find(dep) == _opOutputTable.end()) {
                 areDepsReady = false;
                 break;
             }
         }
-        if (areDepsReady && isReadyComputeOperationSchedulable(profOp.first)) {
-            _log.trace("Scheduling profiling copy op: '{0}'", profOp.first);
-            computeOpStartTime = std::max(computeOpStartTime, scheduleComputeOp(profOp.first));
-            scheduledProfilingOps.push_back(profOp);
+        if (areDepsReady && isReadyComputeOperationSchedulable(readyOp.first)) {
+            _log.trace("Scheduling non compute chain op: '{0}'", readyOp.first);
+            computeOpStartTime = std::max(computeOpStartTime, scheduleComputeOp(readyOp.first));
+            scheduledNonComputeChainOps.push_back(readyOp);
         }
     }
 
@@ -665,8 +662,8 @@ size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
     for (auto scheduledOp : scheduledReadyOps) {
         _readyComputeOps.erase(scheduledOp);
     }
-    for (auto scheduledOp : scheduledProfilingOps) {
-        _profilingOps.erase(scheduledOp);
+    for (auto scheduledOp : scheduledNonComputeChainOps) {
+        _nonComputeChainOps.erase(scheduledOp);
     }
 
     _log = _log.unnest();
