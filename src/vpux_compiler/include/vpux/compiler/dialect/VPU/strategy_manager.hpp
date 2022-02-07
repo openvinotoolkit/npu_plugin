@@ -43,7 +43,6 @@ public:
 
 public:
     void computeOptimalMultiClusterStrategy();
-    // mlir::LogicalResult insertCopyOpForDistributedTensor();
     template <class ConcreteOp>
     VPU::NCEClusterTilingOp createDistributedActivationTensor(ConcreteOp& origOp,
                                                               vpux::VPU::DistributionMode distributionMode,
