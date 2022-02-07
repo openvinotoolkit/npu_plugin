@@ -65,7 +65,7 @@ Logger& vpux::Logger::global() {
     return log;
 }
 
-vpux::Logger::Logger(StringLiteral name, LogLevel ): _name(name), _logLevel(LogLevel::Trace) {
+vpux::Logger::Logger(StringLiteral name, LogLevel lvl): _name(name), _logLevel(lvl) {
 }
 
 Logger vpux::Logger::nest(size_t inc) const {
@@ -85,8 +85,31 @@ Logger vpux::Logger::unnest(size_t inc) const {
     return unnested;
 }
 
-bool vpux::Logger::isActive(LogLevel ) const {
-    return true;
+bool vpux::Logger::isActive(LogLevel msgLevel) const {
+#if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
+    static const auto logFilter = []() -> llvm::Regex {
+        if (const auto env = std::getenv("IE_VPUX_LOG_FILTER")) {
+            const StringRef filter(env);
+
+            if (!filter.empty()) {
+                return llvm::Regex(filter, llvm::Regex::IgnoreCase);
+            }
+        }
+
+        return {};
+    }();
+
+    if (logFilter.isValid() && logFilter.match(_name)) {
+        return true;
+    }
+#endif
+
+#ifdef NDEBUG
+    return static_cast<int32_t>(msgLevel) <= static_cast<int32_t>(_logLevel);
+#else
+    return (static_cast<int32_t>(msgLevel) <= static_cast<int32_t>(_logLevel)) ||
+           (llvm::DebugFlag && llvm::isCurrentDebugType(name().data()));
+#endif
 }
 
 llvm::raw_ostream& vpux::Logger::getBaseStream() {
