@@ -62,7 +62,7 @@ mlir::LogicalResult UseBaseBuffers::matchAndRewrite(VPUIP::WeightsTableOp wtOp, 
     }
 
     rewriter.replaceOpWithNewOp<VPUIP::WeightsTableOp>(wtOp, wtOp.getType(), newOpInput, newOpOutput, newWeights,
-                                                       newActWindow, wtOp.biasAttr());
+                                                       newActWindow, wtOp.biasAttr(), wtOp.ppeAttr());
     return mlir::success();
 }
 

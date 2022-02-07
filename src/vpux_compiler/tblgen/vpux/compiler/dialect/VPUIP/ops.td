@@ -1757,7 +1757,8 @@ def VPUIP_WeightsTableOp :
         AnyTypeOf<[MemRefOf<[F16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$op_output,
         Optional<AnyTypeOf<[MemRefOf<[F16, quant_QuantizedType]>, VPURT_SparseBuffer]>>:$weights,
         Optional<MemRefOf<[UI8]>>:$activation_window,
-        OptionalAttr<Const_ContentAttr>:$bias
+        OptionalAttr<Const_ContentAttr>:$bias,
+        OptionalAttr<VPU_PPETaskAttr>:$ppe
     );
 
     let results = (outs

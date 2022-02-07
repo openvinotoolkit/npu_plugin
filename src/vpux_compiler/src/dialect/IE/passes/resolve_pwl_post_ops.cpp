@@ -93,7 +93,6 @@ template <class PostOpType>
 mlir::LogicalResult FusableOpRewriter::unfusePostOp(IE::LayerWithPostOpInterface origOp, llvm::StringRef postOpName,
                                                     mlir::PatternRewriter& rewriter) const {
     _log.nest().trace("Unfusing post-op {0} from {1}", postOpName, origOp->getName());
-
     rewriter.setInsertionPointAfter(origOp);
     auto postOp = rewriter.create<PostOpType>(origOp->getLoc(), origOp->getResult(0));
     origOp->getResult(0).replaceAllUsesExcept(postOp->getResult(0), llvm::SmallPtrSet<mlir::Operation*, 1>{postOp});

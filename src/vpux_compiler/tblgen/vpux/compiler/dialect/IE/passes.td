@@ -938,6 +938,26 @@ def ConvertReduceToPooling : PassBase<"convert-reduce-to-pooling", "vpux::Functi
     ];
 }
 
+//
+// InsertMaxpoolToConcatLRelu
+//
+
+def InsertMaxpoolToConcatLRelu : PassBase<"insert-maxpool-to-concat-lrelu", "vpux::FunctionPass"> {
+    let summary = "Insert Maxpool op between Concat and LeakyRelu ops";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        Pass converts Concat->LeakyRelu to Concat->Maxpool->LeakyRelu.
+    }];
+
+    let constructor = "vpux::IE::createInsertMaxpoolToConcatLReluPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 //=================================================================================
 // Tiling
 //=================================================================================
