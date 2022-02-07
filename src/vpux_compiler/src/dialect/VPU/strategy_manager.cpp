@@ -354,11 +354,11 @@ mlir::LogicalResult StrategyManager::insertCopyOpForDistributedTensor() {
                     // Create the Copy ops for the distributed activation and weights tensor for SOH OverLapped
                     // Operation
                     if (strategy == splitOverHeightOverLappedStrategy) {
-                        createDistributedActivationTensor(
+                        auto distributedActivationCopyOp = createDistributedActivationTensor(
                                 origOp, vpux::VPU::DistributionMode::overlapped,
                                 getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, (int)_numClusters, 1})));
 
-                        createDistributedWeightsTensor(
+                        auto distributedWeightsCopyOp = createDistributedWeightsTensor(
                                 origOp, vpux::VPU::DistributionMode::multicasted,
                                 getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
                     }
