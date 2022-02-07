@@ -167,6 +167,10 @@ only tiles layers to make at least two tiles could be loaded in CMX memory at th
 The pass is a part of LowPrecision pipeline.
 
 Quantize/Dequantize are propagated through operations
+### `-remove-quantdequant-seq`: Removes quantize->dequantize ops sequence
+The optional pass in the `LowPrecision` pipeline.
+
+Pass detects pattern quantize -> dequantize and removes it
 ### `-resolve-pwl-post-ops`: Resolve requirements for fused PWL post-ops
 Ensures the correct quantization ranges are used for fused PWL activation functions or
 unfuses them if surrounding tensors are not quantized per-tensor.
@@ -187,6 +191,11 @@ It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
 ### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
 This pass is needed for MTL only since HW MaxPool does not support post-op operations.
 Operations are swapped only if there is an operation before MaxPool that supports post-ops.
+### `-swap-transpose-with-fq`: Swaps Transpose operation with FakeQuantize
+The pass is a part of `HardwareMode` pipeline.
+
+It swaps `Transpose` operation with per-tensor `FakeQuantize` operation when possible.
+This transormation reduces the number of `MemPermute` operations in resulting graph.
 ### `-uniquify-ops`: Remove duplicating operations with a common producer Value
 The pass is a part of `AdjustForVPU` pipeline.
 
