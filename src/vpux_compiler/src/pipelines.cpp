@@ -176,7 +176,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     }
 
     if (options.enableLowPrecision) {
-        IE::buildLowPrecisionPipeline(pm, options.enableQuantDequantRemoval, log);
+        IE::buildLowPrecisionPipeline(pm, IE::LowPrecisionOptions(options), log);
     }
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(IE::createResolvePWLPostOpsPass(log));
@@ -298,7 +298,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     }
 
     if (options.enableLowPrecision) {
-        IE::buildLowPrecisionPipeline(pm, options.enableQuantDequantRemoval, log);
+        IE::buildLowPrecisionPipeline(pm, IE::LowPrecisionOptions(options), log);
     }
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(IE::createUnrollBatchPass(log));
