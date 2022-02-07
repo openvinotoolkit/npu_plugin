@@ -55,11 +55,13 @@ private:
     double calculateSplitOverHeightEfficency(mlir::Operation* op);
     double calculateSplitOverKernelEfficency(mlir::Operation* op);
     template <class ConcreteOp>
-    void createSegmentedActivationTensor(ConcreteOp& origOp, vpux::VPU::DistributionMode distributionMode,
-                                         mlir::ArrayAttr numTiles);
+    VPU::NCEClusterTilingOp createDistributedActivationTensor(ConcreteOp& origOp,
+                                                              vpux::VPU::DistributionMode distributionMode,
+                                                              mlir::ArrayAttr numTiles);
     template <class ConcreteOp>
-    void createSegmentedWeightsTensor(ConcreteOp& origOp, vpux::VPU::DistributionMode distributionMode,
-                                      mlir::ArrayAttr numTiles);
+    VPU::NCEClusterTilingOp createDistributedWeightsTensor(ConcreteOp& origOp,
+                                                           vpux::VPU::DistributionMode distributionMode,
+                                                           mlir::ArrayAttr numTiles);
     std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable();
     std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable();
 
@@ -106,8 +108,9 @@ void StrategyManager::assignMultiClusterStrategyForEltwise(ConcreteOp& op) {
 };
 
 template <class ConcreteOp>
-void StrategyManager::createSegmentedActivationTensor(ConcreteOp& origOp, vpux::VPU::DistributionMode distributionMode,
-                                                      mlir::ArrayAttr numTiles) {
+VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(ConcreteOp& origOp,
+                                                                           vpux::VPU::DistributionMode distributionMode,
+                                                                           mlir::ArrayAttr numTiles) {
     // Specify the distribution mode of the tensor  overlapped,duplicated,segmented, multicasted,
     const auto activationTensorDistributionModeAttr =
             vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
@@ -154,19 +157,24 @@ void StrategyManager::createSegmentedActivationTensor(ConcreteOp& origOp, vpux::
         builder.create<VPU::YieldOp>(loc, activationTensorDistributedCopyOp->getResults());
     };
 
-    builder.create<VPU::NCEClusterTilingOp>(origOp->getLoc(), activationTensorDistributedTensorType,
-                                            origOp->getOperands(), activationTensorBodyBuilder);
+    auto distributedActivationCopyOp =
+            builder.create<VPU::NCEClusterTilingOp>(origOp->getLoc(), activationTensorDistributedTensorType,
+                                                    origOp->getOperands(), activationTensorBodyBuilder);
+    return distributedActivationCopyOp;
 }
 
 template <class ConcreteOp>
-void StrategyManager::createSegmentedWeightsTensor(ConcreteOp& origOp, vpux::VPU::DistributionMode distributionMode,
-                                                   mlir::ArrayAttr numTiles) {
+VPU::NCEClusterTilingOp StrategyManager::createDistributedWeightsTensor(ConcreteOp& origOp,
+                                                                        vpux::VPU::DistributionMode distributionMode,
+                                                                        mlir::ArrayAttr numTiles) {
     // Specify the distribution mode of the tensor  overlapped,duplicated,segmented, multicasted,
     const auto weightsTensorDistributionModeAttr =
             vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
 
     // Specify the kernel
-    const auto filterShape = getShape(origOp.filter());
+    const auto filterShape = origOp.rawFilterShape().hasValue()
+                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape().getValue()))
+                                     : getShape(origOp.filter());
     const auto kernel = getIntArrayAttr(origOp.getContext(),
                                         makeArrayRef({filterShape[Dims4D::Filter::KY],
                                                       filterShape[Dims4D::Filter::KX]}));  // TODO: Is this the
@@ -206,8 +214,9 @@ void StrategyManager::createSegmentedWeightsTensor(ConcreteOp& origOp, vpux::VPU
         auto weightsTensorDistributedCopyOp = builder.create<IE::CopyOp>(origOp->getLoc(), newOperands[0], memSpace);
         builder.create<VPU::YieldOp>(loc, weightsTensorDistributedCopyOp->getResults());
     };
-    builder.create<VPU::NCEClusterTilingOp>(origOp->getLoc(), weightsTensorDistributedTensorType, origOp->getOperands(),
-                                            weightsTensorBodyBuilder);
+    auto distributedWeightsCopyOp = builder.create<VPU::NCEClusterTilingOp>(
+            origOp->getLoc(), weightsTensorDistributedTensorType, origOp->getOperands(), weightsTensorBodyBuilder);
+    return distributedWeightsCopyOp;
 }
 
 }  // namespace vpux
