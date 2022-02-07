@@ -311,6 +311,12 @@ SmallVector<operationIdxType> FeasibleMemoryScheduler::reduceInDegreeOfAdjacentO
             _inDegreeTable[consumer]--;
         }
     }
+    if (!zeroInDegreeOps.empty()) {
+        _log.trace("Mateusz: New zeroInDegreeOps:");
+        for (auto& op : zeroInDegreeOps) {
+            _log.trace("Mateusz: '{0}'", op);
+        }
+    }
     return zeroInDegreeOps;
 }
 
@@ -324,7 +330,23 @@ void FeasibleMemoryScheduler::getReadyDataList() {
             _readyDataOps.insert(std::make_pair(entry.first, opSize));
             _log.trace("Ready data op: '{0}'", entry.first);
             // reduce indegree of op consumers
-            reduceInDegreeOfAdjacentOperations(entry.first);
+            // mateusz
+            // reduceInDegreeOfAdjacentOperations(entry.first);
+            auto newOps = reduceInDegreeOfAdjacentOperations(entry.first);
+            if (!newOps.empty()) {
+                _log.trace("Mateusz: newOps:");
+                for (auto& op : newOps) {
+                    _log.trace("Mateusz: '{0}', isDataOp '{1}'", op, isDataOp(op));
+                    auto opDeps = _depsInfo.getOpDeps(op);
+                    for (auto& opDep : opDeps) {
+                        _log.trace("Mateusz: opDep '{0}', isDataOp '{1}'", opDep, isDataOp(opDep));
+                    }
+                    // Add to dataOps nevertheless
+                    opSize = calculateOpSize(op);
+                    _readyDataOps.insert(std::make_pair(op, opSize));
+                    _log.trace("Mateusz: New special ready data op: '{0}'", entry.first);
+                }
+            }
         }
     }
     _log = _log.unnest();
@@ -807,6 +829,25 @@ FeasibleMemoryScheduler::EvictionCandidate FeasibleMemoryScheduler::chooseCandid
 void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
     // retrieve the alive buffers
     auto aliveBuffers = _scan.handler().getAliveValues();
+    // mateusz
+    if (aliveBuffers.empty()) {
+        std::cout << "Mateusz: _activeComputeOps, size - " << _activeComputeOps.size() << "\n";
+        for (auto& op : _activeComputeOps) {
+            std::cout << "  Mateusz: op - " << op.first << "\n";
+        }
+        std::cout << "Mateusz: _readyComputeOps, size - " << _readyComputeOps.size() << "\n";
+        for (auto& op : _readyComputeOps) {
+            std::cout << "  Mateusz: op - " << op.first << "\n";
+        }
+        std::cout << "Mateusz: _outputOps, size - " << _outputOps.size() << "\n";
+        for (auto& op : _outputOps) {
+            if (_inDegreeTable.find(op) == _inDegreeTable.end()) {
+                std::cout << "  Mateusz: op - " << op << ", zero indegree\n";
+            } else {
+                std::cout << "  Mateusz: op - " << op << ", indegree - " << _inDegreeTable[op] << "\n";
+            }
+        }
+    }
     VPUX_THROW_UNLESS(!aliveBuffers.empty(), "Failed, nothing to spill");
 
     // select a candidate op to be spilled
@@ -917,6 +958,7 @@ bool FeasibleMemoryScheduler::init() {
     for (auto& entry : _outDegreeTable) {
         if (entry.second == 0) {
             _outputOps.insert(entry.first);
+            std::cout << "Mateusz: output op - " << entry.first << "\n";
         }
     }
 
