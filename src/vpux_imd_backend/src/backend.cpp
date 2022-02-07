@@ -39,7 +39,7 @@ const std::shared_ptr<IDevice> vpux::IMD::BackendImpl::getDevice(const Inference
 }
 
 const std::vector<std::string> vpux::IMD::BackendImpl::getDeviceNames() const {
-    return {"3720"};
+    return {"3720", "3400", "3700"};
 }
 
 const std::string vpux::IMD::BackendImpl::getName() const {

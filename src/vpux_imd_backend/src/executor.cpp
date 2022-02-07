@@ -14,6 +14,7 @@
 #include "vpux/IMD/executor.hpp"
 
 #include "vpux/IMD/parsed_config.hpp"
+#include "vpux/IMD/platform_helpers.hpp"
 #include "vpux/al/config/common.hpp"
 #include "vpux/utils/IE/blob.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
@@ -39,8 +40,12 @@ using namespace InferenceEngine::VPUXConfigParams;
 void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXPlatform platform, const Config& config) {
     // InferenceManagerDemo application ELF file
 
-    if (platform == VPUXPlatform::VPU3720) {
-        _app.elfFile = llvm::formatv("{0}/vpux/IMD/3720/InferenceManagerDemo.elf", ov::util::get_ov_lib_path()).str();
+    if (platformSupported(platform)) {
+        auto chipset_value = getChipsetName(platform);  // If above check has passed, platform is present
+
+        _app.elfFile =
+                llvm::formatv("{0}/vpux/IMD/{1}/InferenceManagerDemo.elf", ov::util::get_ov_lib_path(), chipset_value)
+                        .str();
     } else {
         VPUX_THROW("Unsupported VPU platform '{0}'", platform);
     }
@@ -71,9 +76,18 @@ void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXPlatform platform, const Config
     case IMD::LaunchMode::MoviSim: {
         _app.runProgram = llvm::formatv("{0}/moviSim", pathToTools).str();
 
-        if (platform == VPUXPlatform::VPU3720) {
-            // For some reason, -cv:3720xx doesn't work, while -cv:3700xx works OK for MTL
-            _app.runArgs = {_app.runProgram, "-cv:3700xx", "-nodasm", "-q", "-l:LRT:./InferenceManagerDemo.elf"};
+        if (platformSupported(platform)) {
+            if (platform == decltype(platform)::VPU3720) {
+                // For some reason, -cv:3720xx doesn't work, while -cv:3700xx works OK for MTL
+                _app.chipsetVersion = "-cv:3700xx";
+                _app.imdElf = "-l:LRT:./InferenceManagerDemo.elf";
+            } else {
+                _app.chipsetVersion = "-cv:ma2490";
+                // The only of the arch ids from config, that doesn't cause exceptions
+                _app.imdElf = "-l:LRT0:./InferenceManagerDemo.elf";
+            }
+
+            _app.runArgs = {_app.runProgram, _app.chipsetVersion, "-nodasm", "-q", _app.imdElf};
         } else {
             VPUX_THROW("Unsupported VPU platform '{0}'", platform);
         }

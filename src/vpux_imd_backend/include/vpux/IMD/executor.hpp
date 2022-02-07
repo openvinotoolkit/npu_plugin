@@ -52,6 +52,8 @@ private:
         std::string runProgram;
         SmallVector<StringRef> runArgs;
         int64_t timeoutSec;
+        std::string chipsetVersion;
+        std::string imdElf;
     };
 
     void parseAppConfig(InferenceEngine::VPUXConfigParams::VPUXPlatform platform, const Config& config);

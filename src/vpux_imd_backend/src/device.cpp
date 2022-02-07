@@ -12,8 +12,8 @@
 //
 
 #include "vpux/IMD/device.hpp"
-
 #include "vpux/IMD/executor.hpp"
+#include "vpux/IMD/platform_helpers.hpp"
 
 #include "vpux/al/config/common.hpp"
 
@@ -21,7 +21,7 @@ using namespace vpux;
 using namespace InferenceEngine::VPUXConfigParams;
 
 vpux::IMD::DeviceImpl::DeviceImpl(VPUXPlatform platform): _platform(platform) {
-    VPUX_THROW_UNLESS(platform == VPUXPlatform::VPU3720, "Unsupported VPUX platform '{0}'", platform);
+    VPUX_THROW_UNLESS(platformSupported(platform), "Unsupported VPUX platform '{0}'", platform);
 }
 
 std::shared_ptr<Allocator> vpux::IMD::DeviceImpl::getAllocator() const {

@@ -11,6 +11,28 @@
 # included with the Software Package for additional details.
 #
 
+
+function(create_imd_for_platform PLATFORM IMD_CONFIG TARGET_BUILD_ARGS)
+    add_custom_target("${TARGET_NAME}_app_${PLATFORM}" ALL
+        COMMAND
+            ${MAKE_EXECUTABLE} "CONFIG_FILE=${IMD_CONFIG}" ${COMMON_BUILD_ARGS} ${TARGET_BUILD_ARGS}
+        COMMAND
+            ${CMAKE_COMMAND} -E copy
+            "${IMD_APP_PATH}/mvbuild/${PLATFORM}/InferenceManagerDemo.elf"
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/IMD/${PLATFORM}/InferenceManagerDemo.elf"
+        BYPRODUCTS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/IMD/${PLATFORM}/InferenceManagerDemo.elf"
+        WORKING_DIRECTORY ${IMD_APP_PATH}
+        COMMENT "[IMD] Build for MTL platform ${PLATFORM} using config ${IMD_CONFIG}"
+        VERBATIM
+    )
+    install(
+        FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/IMD/${PLATFORM}/InferenceManagerDemo.elf"
+        DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpux/IMD/${PLATFORM}"
+        COMPONENT    ${VPUX_PLUGIN_COMPONENT}
+    )
+    add_dependencies("${TARGET_NAME}_app_${PLATFORM}" "${TARGET_NAME}_app_prepare")
+endfunction(create_imd_for_platform)
+
 set(TARGET_NAME "vpux_imd_backend")
 
 #
@@ -52,24 +74,8 @@ set(COMMON_BUILD_ARGS
     "-j8"
 )
 
-add_custom_target("${TARGET_NAME}_app_MTL" ALL
-    COMMAND
-        ${MAKE_EXECUTABLE} "CONFIG_FILE=.config_sim_3720xx" ${COMMON_BUILD_ARGS}
-    COMMAND
-        ${CMAKE_COMMAND} -E copy
-            "${IMD_APP_PATH}/mvbuild/3720/InferenceManagerDemo.elf"
-            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/IMD/3720/InferenceManagerDemo.elf"
-    BYPRODUCTS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/IMD/3720/InferenceManagerDemo.elf"
-    WORKING_DIRECTORY ${IMD_APP_PATH}
-    COMMENT "[IMD] Build for MTL"
-    VERBATIM
-)
-install(
-    FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/IMD/3720/InferenceManagerDemo.elf"
-    DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpux/IMD/3720"
-    COMPONENT    ${VPUX_PLUGIN_COMPONENT}
-)
-add_dependencies("${TARGET_NAME}_app_MTL" "${TARGET_NAME}_app_prepare")
+create_imd_for_platform("3720" ".config_sim_3720xx" "")
+create_imd_for_platform("ma2490" ".config" "SOC_REVISION=B0")
 
 #
 # Backend target
@@ -87,7 +93,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 add_library(${TARGET_NAME} MODULE ${SOURCES})
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "src")
 
-add_dependencies(${TARGET_NAME} "${TARGET_NAME}_app_MTL")
+add_dependencies(${TARGET_NAME} "${TARGET_NAME}_app_3720" "${TARGET_NAME}_app_ma2490")
 
 enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
 
