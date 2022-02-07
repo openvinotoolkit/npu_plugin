@@ -354,30 +354,33 @@ mlir::LogicalResult StrategyManager::insertCopyOpForDistributedTensor() {
                     // Create the Copy ops for the distributed activation and weights tensor for SOH OverLapped
                     // Operation
                     if (strategy == splitOverHeightOverLappedStrategy) {
-                        createSegmentedActivationTensor(
+                        createDistributedActivationTensor(
                                 origOp, vpux::VPU::DistributionMode::overlapped,
                                 getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, (int)_numClusters, 1})));
 
-                        createSegmentedWeightsTensor(origOp, vpux::VPU::DistributionMode::multicasted,
-                                                     getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
+                        createDistributedWeightsTensor(
+                                origOp, vpux::VPU::DistributionMode::multicasted,
+                                getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
                     }
                     // Create the Copy ops for the distributed activation and weights tensor for SOH Operation
                     if (strategy == splitOverHeightStrategy) {
-                        createSegmentedActivationTensor(
+                        createDistributedActivationTensor(
                                 origOp, vpux::VPU::DistributionMode::segmented,
                                 getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, (int)_numClusters, 1})));
 
-                        createSegmentedWeightsTensor(origOp, vpux::VPU::DistributionMode::multicasted,
-                                                     getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
+                        createDistributedWeightsTensor(
+                                origOp, vpux::VPU::DistributionMode::multicasted,
+                                getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
                     }
                     // Create the Copy ops for the distributed activation and weights tensor for SOK Operation
                     if (strategy == splitOverKernelStrategy) {
-                        createSegmentedActivationTensor(
+                        createDistributedActivationTensor(
                                 origOp, vpux::VPU::DistributionMode::multicasted,
                                 getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
 
-                        createSegmentedWeightsTensor(origOp, vpux::VPU::DistributionMode::segmented,
-                                                     getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
+                        createDistributedWeightsTensor(
+                                origOp, vpux::VPU::DistributionMode::segmented,
+                                getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1})));
                     }
                     return mlir::success();
                 })

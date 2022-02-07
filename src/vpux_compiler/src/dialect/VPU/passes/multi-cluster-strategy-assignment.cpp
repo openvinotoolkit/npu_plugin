@@ -45,9 +45,9 @@ private:
 mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp origOp,
                                                         mlir::PatternRewriter& rewriter) const {
     Logger::global().error("Got operation {0}", origOp);
-    if (origOp->getParentOfType<VPU::NCEClusterTilingOp>()) {
-        _log.trace("The operation is already wrapped");
-        return mlir::failure();
+
+    if (origOp->getParentOfType<VPU::NCEClusterTilingOp>() != nullptr) {
+        return matchFailed(_log, rewriter, origOp, "The operation is already wrapped into NCEClusterTiling");
     }
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
@@ -86,10 +86,10 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     strategyManager.computeOptimalMultiClusterStrategy();
 
     // Created distributed tensors
-    auto result = strategyManager.insertCopyOpForDistributedTensor();
-    if (result.succeeded()) {
-        _log.trace("Sucessfully inserted distributed tensor copy operations for multi-cluster");
-    }
+    // auto result = strategyManager.insertCopyOpForDistributedTensor();
+    // if (result.succeeded()) {
+    //     _log.trace("Sucessfully inserted distributed tensor copy operations for multi-cluster");
+    // }
 
     auto& ctx = getContext();
     mlir::OwningRewritePatternList patterns(&ctx);
