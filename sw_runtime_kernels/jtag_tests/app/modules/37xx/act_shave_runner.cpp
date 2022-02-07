@@ -26,6 +26,9 @@ __attribute__((aligned(1024)))
 #include <leonUtils.h>
 
 #include <HglBarrier.h>
+#include <OsDrvBootFreq.h>
+
+#include <nn_perf_manager.h>
 
 unsigned char __attribute__((section(".nncmx0.shared.data"), aligned(64))) actShaveData[SHAVE_LIB_DATA_SIZE];
 unsigned int actShaveDataReserved = 0;
@@ -76,11 +79,17 @@ const int ProducerNum = 1;
 const int ConsumerMask = (1 << ConsumerNum);
 const int ProducerMask = (1 << ProducerNum);
 
+int qq = 0;
+
+perf::ActPerfReport __attribute__((section(".nncmx0.shared.data"), aligned(64))) actPerfReport{0, 0};
+
+PerformanceData* perfData = nullptr;
+
 bool ShaveTaskRunner::enqueTask(Op * operation,
-                              const std::vector<OpTensor> &inputs,
-                              const std::vector<OpTensor> &outputs,
+                              const std::vector<OpTensor> &/*inputs*/,
+                              const std::vector<OpTensor> &/*outputs*/,
                               int /*numSHAVEs*/,
-                              PerformanceData *perfData) {
+                              PerformanceData *_perfData) {
 
     actShaveDataReserved = 0;
 
@@ -97,7 +106,9 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::act_runtime::actRuntimeEntry>(sk_nnActEntry_3010xx_text);
     actRtConfigs.actRtWindowBase_ = reinterpret_cast<unsigned char*>(sk_nnActEntry_3010xx_text);
 
-    operation->parse(&layer);
+    actRtConfigs.perfMetricsMask_ = (0b1 << perf::FRC_TIMESTAMP_EN) | (0b1 << perf::FRC_DURATION_EN);
+
+    qq = operation->parse(&layer);
 
     cache::flush(actRtConfigs);
     cache::flush(globalAreas);
@@ -139,7 +150,7 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     act_runtime::ActKernelInvocation kInv = {&kRange,
             (void*)(customOp->ops.paramData),
             reinterpret_cast<act_runtime::actKernelDataBuffer>(customOp->ops.paramData),
-            userBariers, gpioBarriers, 0
+            userBariers, gpioBarriers, &actPerfReport
     };
     kInvo = kInv;
     cache::flush(kInvo);
@@ -148,12 +159,17 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
 
     HglBarrierProduce(ConsumerMask);
 
+    perfData = _perfData;
+
     _enqued = true;
     return true;
 }
 
 bool ShaveTaskRunner::dequeResult() {
     if (_enqued) {
+        for (int i = 0; i < 1000000; i++) {
+            qq++;
+        }
         HglBarrierWait(ProducerMask);
 
         nnLog(MVLOG_DEBUG, "After send waiting is done");
@@ -161,5 +177,53 @@ bool ShaveTaskRunner::dequeResult() {
         _shaveManager->stopActShavesForTiles();
         _enqued = false;
     }
+#if 1
+    uint32_t * tmp = (uint32_t*)0x2e014000;
+    cache::invalidate(tmp, sizeof(uint32_t));
+    cache::invalidate(tmp, tmp[0] * sizeof(uint32_t));
+    for (int i = 0; i < tmp[0]; i++) {
+        printf( "#\t\t%d) 0x%08x %d\n", i, tmp[i], tmp[i]);
+    }
+    printf(" &actPerfReport = 0x%08lx\n", (uint32_t)&actPerfReport);
+#endif
+#if 0
+    perf::ActPerfReport* perfPacketOut = (perf::ActPerfReport*)(0x2e014000 + 1024);
+    cache::invalidate(perfPacketOut, sizeof(*perfPacketOut));
+    printf("# perfPacketOut->timestamp = 0x%016llx (%lld)\n", (long long int)perfPacketOut->timestamp, (long long int)perfPacketOut->timestamp);
+    printf("# perfPacketOut->duration  = %ld\n", (long int)perfPacketOut->duration);
+    printf("# perfPacketOut->pc0       = %ld\n", (long int)perfPacketOut->pc0);
+    printf("# perfPacketOut->pc1       = %ld\n", (long int)perfPacketOut->pc1);
+    printf("# perfPacketOut->pc2       = %ld\n", (long int)perfPacketOut->pc2);
+    printf("# perfPacketOut->pc3       = %ld\n", (long int)perfPacketOut->pc3);
+#endif
+#if 1
+    printf("# actPerfReport.timestamp = 0x%016llx (%lld)\n", (long long int)actPerfReport.timestamp, (long long int)actPerfReport.timestamp);
+    printf("# actPerfReport.duration  = %ld\n", (long int)actPerfReport.duration);
+    printf("# actPerfReport.pc0       = %ld\n", (long int)actPerfReport.pc0);
+    printf("# actPerfReport.pc1       = %ld\n", (long int)actPerfReport.pc1);
+    printf("# actPerfReport.pc2       = %ld\n", (long int)actPerfReport.pc2);
+    printf("# actPerfReport.pc3       = %ld\n", (long int)actPerfReport.pc3);
+#endif
+
+    if (perfData)
+    {
+//        perfData->elapsedTimeNs = (actPerfReport.duration * 1000.0f) / 700.0f; // hardcoded 700 MHz
+        perfData->elapsedTimeNs = (actPerfReport.duration * 1000.0f) / 975.0f; // hardcoded 975 MHz (HAS highvcc)
+//        printf("# OsDrvBootCalculateBootFrequency() = %ld\n", OsDrvBootCalculateBootFrequency());
+        perfData = nullptr;
+    }
+
     return true;
 }
+
+// const uint32_t perfCtrl = cfgs.perfMetricsMask_
+//                               ? fifo::packASCtrlMessage(ASCtrlMessage(EnablePerfStream, cfgs.perfMetricsMask_))
+//                               : fifo::packASCtrlMessage(ASCtrlMessage(DisablePerfStream, 0));
+//            void* perfPacketOut = (void*)(0x2e014000 + 1024);
+
+//PIPE:LOS: # perfPacketOut->timestamp = 0xcdcdcdcd001181e0 (-8861745033284419583)
+//PIPE:LOS: # perfPacketOut->duration  = 2464
+//PIPE:LOS: # perfPacketOut->timestamp = 0xcdcdcdcd001239f6 (-8861745033284419583)
+//PIPE:LOS: # perfPacketOut->duration  = 2475
+//PIPE:LOS: # actPerfReport.timestamp = 0xcdcdcdcd0011c42d (-3617008645355486163)
+//PIPE:LOS: # actPerfReport.duration  = 2473

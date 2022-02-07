@@ -55,6 +55,12 @@ using namespace act_runtime;
 using namespace common_runtime;
 using namespace common_runtime::fifo;
 
+//#ifdef CONFIG_ACTSHV_START_STOP_PERF_TEST
+constexpr uint32_t ACTSHV_PER_TILE = 1;
+//#else
+//constexpr uint32_t ACTSHV_PER_TILE = AS_PER_TILE;
+//#endif
+
 ShaveManager::ShaveManager(const StaticMapping &sMapping)
     : cmxMapping(sMapping) {
     // ShaveNN uses SHVNN0 for Tile 0, SHVNN2 for Tile 1.
@@ -187,6 +193,11 @@ void ShaveManager::startActShaves(const uint8_t tile, const ActKernelRuntimeConf
     const uint32_t startShvId = tile * AS_PER_TILE;
     const uint32_t maxShvId = startShvId + AS_PER_TILE;
 
+    printf("# cfgs.perfMetricsMask_ = 0x%08lx\n", (long)cfgs.perfMetricsMask_);
+    const uint32_t perfCtrl = cfgs.perfMetricsMask_
+                                  ? fifo::packASCtrlMessage(ASCtrlMessage(EnablePerfStream, cfgs.perfMetricsMask_))
+                                  : fifo::packASCtrlMessage(ASCtrlMessage(DisablePerfStream, 0));
+
     // Set stack location, set the stack size, then start the Shave
     for (uint32_t i = startShvId; i < startShvId + 1; i++) {
         nnLog(MVLOG_DEBUG, "ACTSHV %d stack addr @ %p", i, actShvStacks[i]);
@@ -224,6 +235,9 @@ void ShaveManager::startActShaves(const uint8_t tile, const ActKernelRuntimeConf
         if (rc != HGL_SHAVE_CTRL_SUCCESS) {
             nnLog(MVLOG_ERROR, "ActShaveCtrlStart: %d", (int)rc);
         }
+
+        fifo::sendCtrlToASs(tile, i % ACTSHV_PER_TILE, perfCtrl);
+        printf("# fifo::sendCtrlToASs(tile, i % ACTSHV_PER_TILE, perfCtrl);\n");
     }
 }
 

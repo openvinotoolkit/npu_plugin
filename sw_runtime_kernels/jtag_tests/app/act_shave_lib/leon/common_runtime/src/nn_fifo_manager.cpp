@@ -174,6 +174,9 @@ void sendCtrlToASs(uint8_t tile, uint8_t as, uint32_t packedMessage) {
             break;
     }
 
+#if 1
+    printf("# sendCtrlToASs(): fifoNum, fifoIdx = %d %d\n", fifoNum, fifoIdx);
+#endif
     util::fifoDynamicSend(fifoNum, fifoIdx, reinterpret_cast<void *>(packedMessage));
 }
 
