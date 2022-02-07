@@ -74,7 +74,8 @@ mlir::Value AddCMX2DDRExecuteOp(mlir::OpBuilder& builder, mlir::MLIRContext* ctx
             mlir::MemRefType::get({static_cast<int64_t>(timestampsOps.size() * elementSize)}, getUInt32Type(ctx));
 
     // Add ExecuteOp with Copy from CMX to DDR
-    auto copyLoc = mlir::NameLoc::get(mlir::Identifier::get(name + "ProfilingCMX2DDR" + std::to_string(offset), ctx));
+    auto copyLoc =
+            mlir::NameLoc::get(mlir::Identifier::get(name + PROFILING_CMX_2_DDR_OP_NAME + std::to_string(offset), ctx));
     auto execOp = builder.create<mlir::async::ExecuteOp>(copyLoc, resultType, None, None);
 
     SmallVector<mlir::Value> values;
@@ -120,7 +121,8 @@ mlir::Value AddCMX2DDRCopyOp(mlir::OpBuilder& builder, mlir::MLIRContext* ctx, m
             SmallVector<int64_t>({static_cast<int64_t>(offset) * elementSize}), resultType.getShape());
 
     // Create DMA from CMX to Profiling Output
-    auto copyLoc2 = mlir::NameLoc::get(mlir::Identifier::get(name + "ProfilingCMX2DDR" + std::to_string(offset), ctx));
+    auto copyLoc2 =
+            mlir::NameLoc::get(mlir::Identifier::get(name + PROFILING_CMX_2_DDR_OP_NAME + std::to_string(offset), ctx));
     auto concatview = builder.create<IERT::ConcatViewOp>(
             mlir::NameLoc::get(mlir::Identifier::get(name + "ProfilingConcat" + std::to_string(offset), ctx)),
             dpuProfilingOutputs, cmxMemOp);
@@ -167,7 +169,7 @@ void DMATaskProfilingPass::safeRunOnModule() {
         bodyBlock.walk([&](IERT::CopyOp curTask) {
             auto curTaskName = stringifyLocation(curTask->getLoc());
             // Skip DMAs which are used for handling profiling data. Such DMAs will not be measured.
-            if (curTaskName.find("ProfilingCMX2DDR") == std::string::npos) {
+            if (curTaskName.find(PROFILING_CMX_2_DDR_OP_NAME) == std::string::npos) {
                 found = true;
             }
         });

@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/core/feasible_memory_scheduler.hpp"
 
+#include "vpux/compiler/core/profiling.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
@@ -136,7 +137,7 @@ bool FeasibleMemoryScheduler::isProfilingOp(operationIdxType opIdx) {
     }
 
     auto curTaskName = stringifyLocation(op->getLoc());
-    if (curTaskName.find("ProfilingCMX2DDR") != std::string::npos) {
+    if (curTaskName.find(PROFILING_CMX_2_DDR_OP_NAME) != std::string::npos) {
         return true;
     }
 

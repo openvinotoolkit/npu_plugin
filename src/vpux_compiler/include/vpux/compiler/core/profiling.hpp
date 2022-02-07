@@ -18,6 +18,8 @@
 
 namespace vpux {
 
+constexpr char PROFILING_CMX_2_DDR_OP_NAME[] = "ProfilingCMX2DDR";
+
 class ChunkWalker {
 private:
     unsigned chunkId = 0;       // Chunk id
