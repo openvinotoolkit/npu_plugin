@@ -151,6 +151,10 @@ const std::vector<std::vector<std::vector<size_t>>> inShapes3D_MTL = {
         {{2, 2, 2}, {2, 2, 2}}
 };
 
+const std::vector<ngraph::helpers::InputLayerType> inputType_MTL = {
+        ngraph::helpers::InputLayerType::PARAMETER
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D_MTL, KmbMaxMinLayerTestMLIR_MTL,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes3D_MTL),
@@ -160,7 +164,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D_MTL, KmbMaxMinLayerTestMLIR_MTL,
                                 ::testing::Values(InferenceEngine::Precision::FP16),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::ValuesIn(inputType),
+                                ::testing::ValuesIn(inputType_MTL),
                                 ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbMaxMinLayerTest::getTestCaseName);
 
