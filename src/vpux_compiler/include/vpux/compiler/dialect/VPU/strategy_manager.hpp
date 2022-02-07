@@ -154,7 +154,6 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(Concr
     _log.trace("Wrap copy operation for activation into NCEClusterTilingOp");
 
     // Create IE::Copy Op
-    // mlir::OpBuilder builder(_func.getBody());
     OpBuilderLogger builderLog(_log.nest());
     mlir::OpBuilder builder(origOp, &builderLog);
     builder.setInsertionPoint(origOp);
@@ -214,7 +213,6 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedWeightsTensor(Concrete
     _log.trace("Wrap copy operation for weights into NCEClusterTilingOp");
 
     // Create IE::Copy Op
-    // mlir::OpBuilder builder(_func.getBody());
     OpBuilderLogger builderLog(_log.nest());
     mlir::OpBuilder builder(origOp, &builderLog);
 
