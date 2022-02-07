@@ -14,6 +14,7 @@
 #include "vpux/compiler/core/feasible_memory_scheduler.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/strings.hpp"
 
 #include "vpux/utils/core/range.hpp"
 
@@ -117,6 +118,26 @@ bool FeasibleMemoryScheduler::isDataOp(operationIdxType opIdx) {
                 return (_memSpace == dstMemSpace && _memSpace != srcMemSpace);
             }
         }
+    }
+
+    return false;
+}
+
+bool FeasibleMemoryScheduler::isProfilingOp(operationIdxType opIdx) {
+    auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
+
+    if (!op->hasAttr(IERT::IERTDialect::getExecutorAttrName())) {
+        return false;
+    }
+
+    const auto executor = IERT::IERTDialect::getExecutor(op);
+    if (executor.getLeafNameAttr() != VPU::ExecutorKindAttr::get(op->getContext(), VPU::ExecutorKind::DMA_NN)) {
+        return false;
+    }
+
+    auto curTaskName = stringifyLocation(op->getLoc());
+    if (curTaskName.find("ProfilingCMX2DDR") != std::string::npos) {
+        return true;
     }
 
     return false;
@@ -257,6 +278,11 @@ void FeasibleMemoryScheduler::distributeReadyOps(llvm::ArrayRef<operationIdxType
             _log.trace("Add to ready data ops '{0}'", readyOp);
             const auto newReadyOps = reduceInDegreeOfAdjacentOperations(readyOp);
             distributeReadyOps(newReadyOps);
+        } else if (isProfilingOp(readyOp)) {
+            VPUX_THROW_UNLESS(_profilingOps.find(pair) == _profilingOps.end(),
+                              "Operation already in profiling list '{0}'", readyOp);
+            _profilingOps.insert(std::make_pair(readyOp, opSize));
+            _log.trace("Profiling op ready '{0}'", readyOp);
         } else if (isComputeOpWithSomeActiveInputs(readyOp)) {
             VPUX_THROW_UNLESS(_activeComputeOps.find(pair) == _activeComputeOps.end(),
                               "Operation already in active compute list '{0}'", readyOp);
@@ -325,7 +351,7 @@ void FeasibleMemoryScheduler::getReadyDataList() {
     _log = _log.nest();
     // populate ready data ops
     for (auto& entry : _inDegreeTable) {
-        if (entry.second == 0 && isDataOp(entry.first)) {
+        if (entry.second == 0 && isDataOp(entry.first) && !isProfilingOp(entry.first)) {
             vpux::AddressType opSize = calculateOpSize(entry.first);
             _readyDataOps.insert(std::make_pair(entry.first, opSize));
             _log.trace("Ready data op: '{0}'", entry.first);
@@ -334,17 +360,11 @@ void FeasibleMemoryScheduler::getReadyDataList() {
             // reduceInDegreeOfAdjacentOperations(entry.first);
             auto newOps = reduceInDegreeOfAdjacentOperations(entry.first);
             if (!newOps.empty()) {
-                _log.trace("Mateusz: newOps:");
                 for (auto& op : newOps) {
-                    _log.trace("Mateusz: '{0}', isDataOp '{1}'", op, isDataOp(op));
-                    auto opDeps = _depsInfo.getOpDeps(op);
-                    for (auto& opDep : opDeps) {
-                        _log.trace("Mateusz: opDep '{0}', isDataOp '{1}'", opDep, isDataOp(opDep));
-                    }
-                    // Add to dataOps nevertheless
+                    VPUX_THROW_UNLESS(isProfilingOp(op), "Non profiling op - unsupported scenario");
                     opSize = calculateOpSize(op);
-                    _readyDataOps.insert(std::make_pair(op, opSize));
-                    _log.trace("Mateusz: New special ready data op: '{0}'", entry.first);
+                    _profilingOps.insert(std::make_pair(op, opSize));
+                    _log.trace("Ready profiling op: '{0}'", entry.first);
                 }
             }
         }
@@ -357,7 +377,7 @@ void FeasibleMemoryScheduler::getReadyComputeList() {
     _log = _log.nest();
     // populate ready compute ops
     for (auto& entry : _inDegreeTable) {
-        if (entry.second == 0 && !isDataOp(entry.first)) {
+        if (entry.second == 0 && !isDataOp(entry.first) && !isProfilingOp(entry.first)) {
             vpux::AddressType opSize = calculateOpSize(entry.first);
             _readyComputeOps.insert(std::make_pair(entry.first, opSize));
             _log.trace("Ready compute op: '{0}'", entry.first);
@@ -582,6 +602,7 @@ size_t FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
 size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
     SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledActiveOps;
     SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledReadyOps;
+    SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledProfilingOps;
     auto computeOpStartTime = _currentTime;
     _log.trace("Scheduling all possible ready ops");
     _log = _log.nest();
@@ -604,6 +625,23 @@ size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
             _log.trace("Scheduling ready copy-out op: '{0}'", readyOp.first);
             computeOpStartTime = std::max(computeOpStartTime, scheduleComputeOp(readyOp.first));
             scheduledReadyOps.push_back(readyOp);
+        }
+    }
+
+    //      1-3. schedule profiling op
+    for (auto& profOp : _profilingOps) {
+        // mateusz
+        bool areDepsReady = true;
+        for (auto& dep : _depsInfo.getOpDeps(profOp.first)) {
+            if (_opOutputTable.find(dep) == _opOutputTable.end()) {
+                areDepsReady = false;
+                break;
+            }
+        }
+        if (areDepsReady && isReadyComputeOperationSchedulable(profOp.first)) {
+            _log.trace("Scheduling profiling copy op: '{0}'", profOp.first);
+            computeOpStartTime = std::max(computeOpStartTime, scheduleComputeOp(profOp.first));
+            scheduledProfilingOps.push_back(profOp);
         }
     }
 
@@ -634,6 +672,9 @@ size_t FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate() {
     }
     for (auto scheduledOp : scheduledReadyOps) {
         _readyComputeOps.erase(scheduledOp);
+    }
+    for (auto scheduledOp : scheduledProfilingOps) {
+        _profilingOps.erase(scheduledOp);
     }
 
     _log = _log.unnest();

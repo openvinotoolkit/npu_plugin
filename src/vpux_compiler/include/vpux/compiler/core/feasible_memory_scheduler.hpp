@@ -309,6 +309,7 @@ private:
     HeapElement popFromCompletionTimeHeap();
     HeapElement const* topElementGen(ArrayRef<HeapElement> heap) const;
     bool isDataOp(operationIdxType opIdx);
+    bool isProfilingOp(operationIdxType opIdx);
     bool isCopyOutOp(operationIdxType opIdx);
     void unscheduleOp(const HeapElement& helement);
     bool isComputeOpWithSomeActiveInputs(operationIdxType opIdx);
@@ -346,6 +347,8 @@ private:
     std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort> _readyComputeOps;
     // data operations with 0 in-degree
     std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort> _readyDataOps;
+    // profiling operations
+    std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort> _profilingOps;
     // operation in-degree, number of incoming edges
     std::unordered_map<operationIdxType, size_t> _inDegreeTable;
     // operation out-degree, number of outgoing edges
