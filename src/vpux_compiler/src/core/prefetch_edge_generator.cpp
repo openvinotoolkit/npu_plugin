@@ -113,11 +113,32 @@ bool vpux::PrefetchEdgeGenerator::canDataOpBePrefetched(ScheduledOpInfo* dataOp)
     return true;
 }
 
+bool vpux::PrefetchEdgeGenerator::isEltwiseOp(ScheduledOpInfo* op) {
+    // in order to align with strategy (no tiling prefetch for Eltwise),
+    // skip eltwise prefetch, skip this operation for perfomance reasons.
+    // with tensor size or cycle count heuristic Eltwise prefetch can be enabled.
+    auto execOp = _depsInfo.getExecuteOpAtIndex(op->op_);
+    auto* bodyBlock = &execOp.body().front();
+    for (auto& innerOp : bodyBlock->getOperations()) {
+        if (mlir::isa<VPUIP::NCEClusterTaskOp>(innerOp)) {
+            if (auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(innerOp)) {
+                if (nceOp.task_type() == VPUIP::NCETaskType::ELTWISE) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePrefetchEdges() {
     _log.trace("Creating pipelining chains");
 
     // track the level of the current compute op
     size_t currentComputeOpLevel;
+    // work-arround for release models performance
+    // TODO: 10% of cmx for master
+    size_t bracketForCMXFragmentation = 90000;
     auto computeOp = _scheduledOps.begin();
     // skip input op, mark input as executed
     _executedOps.insert(computeOp->op_);
@@ -126,7 +147,7 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
 
     while (computeOp != _scheduledOps.end()) {
         // find compute op
-        if (!computeOp->isDataOp() && computeOp->hasActiveResource()) {
+        if (!computeOp->isDataOp() && computeOp->hasActiveResource() && !isEltwiseOp(computeOp)) {
             // find first possible data op to overlap with the compute
             currentComputeOpLevel = 1;
             // NOTE: data op must be after compute
@@ -139,7 +160,8 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
             // iterate over the following ops
             while (dataOp != _scheduledOps.end()) {
                 // 1. verify prefetching constraints met, if not move to next compute
-                if (!dataOp->isDataOp() && dataOp->hasActiveResource()) {
+                if (!dataOp->isDataOp() && dataOp->hasActiveResource() && !isEltwiseOp(dataOp) &&
+                    computeOp->resourceSize() > 256) {
                     ++currentComputeOpLevel;
                 }
                 if (!prefetchConstraintsSatisifed(dataOp, computeOp, currentComputeOpLevel)) {
@@ -159,25 +181,42 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                         ++temp;
                     }
 
-                    if (dataOpSize < maxFreeSize && computeOp->time_ < dataOp->time_) {
+                    // work-arround for release models performance
+                    // TODO: remove for master and add better heuristic
+                    bool prevOp = computeOp->time_ + 1 == dataOp->time_;
+                    bool dataGreater = computeOp->resourceSize() < dataOp->resourceSize();
+                    bool dataStall = (dataOp->resourceSize() / computeOp->resourceSize()) > 5;
+                    bool sizeExceed = (maxFreeSize - dataOpSize) < bracketForCMXFragmentation;
+                    bool hasPrefetch = !_prefetchEdges[computeOp->op_].empty();
+
+                    // if previous compute the data op will be scheduled next so skip this case
+                    // or if we want to prefetch to a previous "small" compute operation
+                    // in order not to stall potential activation data movements add extra constraints
+                    bool fragmentation = (!prevOp && sizeExceed) ||
+                                         (prevOp && sizeExceed && (!dataGreater || dataStall) && !hasPrefetch);
+
+                    if (dataOpSize < maxFreeSize && computeOp->time_ <= dataOp->time_ && !fragmentation) {
                         // ensure the data operation will fit through all ops scheduled intermediately
                         _log.trace("data op = '{0}' will fit during compute = '{1}' with time dif = '{2}' and level "
                                    "dif '{3}'",
                                    dataOp->op_, computeOp->op_, (dataOp->time_ - computeOp->time_),
                                    currentComputeOpLevel);
+
                         // store the prefetch edge
                         _prefetchEdges[computeOp->op_].insert(std::make_pair(dataOp->op_, dataOp->time_));
                         _prefetchedDataOps.insert(dataOp->op_);
-                        // reduce max free size with this data op size
-                        maxFreeSize = maxFreeSize - dataOpSize;
 
-                        // update free size for all compute ops to the prefetch op
-                        auto temp = computeOp;
-                        while (temp != dataOp && temp->time_ < dataOp->time_) {
-                            if (!temp->isDataOp() && temp->hasActiveResource()) {
-                                temp->freeCmx_ -= dataOpSize;
+                        if (computeOp->time_ != dataOp->time_) {
+                            // reduce max free size with this data op size
+                            maxFreeSize = maxFreeSize - dataOpSize;
+                            // update free size for all compute ops to the prefetch op
+                            auto temp = computeOp;
+                            while (temp != dataOp && temp->time_ < dataOp->time_) {
+                                if (!temp->isDataOp() && temp->hasActiveResource()) {
+                                    temp->freeCmx_ -= dataOpSize;
+                                }
+                                ++temp;
                             }
-                            ++temp;
                         }
                     }
                 }
