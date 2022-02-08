@@ -66,12 +66,19 @@ mlir::LogicalResult SwapTransposeWithFQ::TransposeOpConverter::matchAndRewrite(I
                                                                                mlir::PatternRewriter& rewriter) const {
     const auto transposeIn = origOp.input();
     VPUX_THROW_UNLESS(transposeIn != nullptr, "TransposeOpConverter: transpose input is a null pointer");
-    auto origQuantOp = transposeIn.getDefiningOp<IE::QuantizeOp>();
-    VPUX_THROW_UNLESS(origQuantOp != nullptr, "TransposeOpConverter: transpose producer must be IE.Quantize");
-    auto transposeOp =
-            rewriter.create<IE::TransposeOp>(origOp->getLoc(), origQuantOp.input(), nullptr, origOp.order_valueAttr());
+    if (auto origQuantOp = transposeIn.getDefiningOp<IE::QuantizeOp>()) {
+        auto transposeOp = rewriter.create<IE::TransposeOp>(origOp->getLoc(), origQuantOp.input(), nullptr,
+                                                            origOp.order_valueAttr());
 
-    rewriter.replaceOpWithNewOp<IE::QuantizeOp>(origOp, transposeOp.output(), origQuantOp.dstElemType());
+        rewriter.replaceOpWithNewOp<IE::QuantizeOp>(origOp, transposeOp.output(), origQuantOp.dstElemType());
+    } else if (auto origFqOp = transposeIn.getDefiningOp<IE::FakeQuantizeOp>()) {
+        auto transposeOp =
+                rewriter.create<IE::TransposeOp>(origOp->getLoc(), origFqOp.input(), nullptr, origOp.order_valueAttr());
+
+        rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(
+                origOp, transposeOp.output(), origFqOp.input_low(), origFqOp.input_high(), origFqOp.output_low(),
+                origFqOp.output_high(), origFqOp.levels(), origFqOp.auto_broadcast());
+    }
 
     return mlir::success();
 }
@@ -79,34 +86,42 @@ mlir::LogicalResult SwapTransposeWithFQ::TransposeOpConverter::matchAndRewrite(I
 void SwapTransposeWithFQ::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    const auto hasQuantInput = [](IE::TransposeOp op) -> bool {
+    const auto isLegalOp = [](IE::TransposeOp op) -> bool {
         const auto transposeIn = op.input();
         if (!transposeIn) {
             return true;
         }
 
-        auto maybeQuantOp = transposeIn.getDefiningOp<IE::QuantizeOp>();
-        if (maybeQuantOp == nullptr) {
-            return true;
+        if (auto maybeQuantOp = transposeIn.getDefiningOp<IE::QuantizeOp>()) {
+            // Check that Quantize has per-tensor quantization.
+            const auto axis = IE::getQuantAxisIndex(maybeQuantOp);
+            if (axis.hasValue()) {
+                return true;
+            }
+
+            // It turned out that this approach gives performance gain mostly in this case:
+            // NetworkInput (NCHW) -> Quantize -> Transpose
+            // Quantize will eventually become an NCE task, which requires NHWC layout.
+            // If Quantize and Transpose is swapped, transpose and NHWC repack can be fused together.
+            // Also, sometimes such fusion results in PermuteCast, which does nothing in runtime.
+            return (maybeQuantOp.input().dyn_cast<mlir::BlockArgument>() == nullptr);
+        } else if (auto maybeFqOp = transposeIn.getDefiningOp<IE::FakeQuantizeOp>()) {
+            // Check that FQ has per-tensor quantization.
+            const auto axis = IE::getFQAxisIndex(maybeFqOp);
+            if (axis.hasValue()) {
+                return true;
+            }
+
+            return (maybeFqOp.input().dyn_cast<mlir::BlockArgument>() == nullptr);
         }
 
-        // Check that Quantize has per-tensor quantization.
-        const auto axis = IE::getQuantAxisIndex(maybeQuantOp);
-        if (axis.hasValue()) {
-            return true;
-        }
-
-        // It turned out that this approach gives performance gain mostly in this case:
-        // NetworkInput (NCHW) -> Quantize -> Transpose
-        // Quantize will eventually become an NCE task, which requires NHWC layout.
-        // If Quantize and Transpose is swapped, transpose and NHWC repack can be fused together.
-        // Also, sometimes such fusion results in PermuteCast, which does nothing in runtime.
-        return (maybeQuantOp.input().dyn_cast<mlir::BlockArgument>() == nullptr);
+        return true;
     };
 
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::TransposeOp>(hasQuantInput);
+    target.addDynamicallyLegalOp<IE::TransposeOp>(isLegalOp);
     target.addLegalOp<IE::QuantizeOp>();
+    target.addLegalOp<IE::FakeQuantizeOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<SwapTransposeWithFQ::TransposeOpConverter>(&ctx, _log);

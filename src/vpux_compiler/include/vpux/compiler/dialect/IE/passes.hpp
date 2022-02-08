@@ -122,6 +122,10 @@ struct LowPrecisionOptions : mlir::PassPipelineOptions<LowPrecisionOptions> {
     BoolOption enableSwapTransposeWithFQ{*this, "swap-transpose-with-fq",
                                          ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(false)};
 
+    BoolOption enablePropagateQuantDequant{*this, "propagate-quant-dequant",
+                                           llvm::cl::desc("Enable Propagate Quantize Dequantize pass"),
+                                           llvm::cl::init(true)};
+
     LowPrecisionOptions() = default;
 
     template <
@@ -130,6 +134,7 @@ struct LowPrecisionOptions : mlir::PassPipelineOptions<LowPrecisionOptions> {
     explicit LowPrecisionOptions(const OtherOptions& options) {
         enableQuantDequantRemoval = options.enableQuantDequantRemoval;
         enableSwapTransposeWithFQ = options.enableSwapTransposeWithFQ;
+        enablePropagateQuantDequant = options.enablePropagateQuantDequant;
     }
 };
 
