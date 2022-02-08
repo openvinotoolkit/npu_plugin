@@ -956,7 +956,7 @@ operation ::= `IE.ExtractImagePatches` `(` operands `)` attr-dict `:` type(opera
 `strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `sizes` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `rates` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`paddingType` | vpux::IE::PadTypeAttr | PadType that the InferenceEngine supports
+`auto_pad` | vpux::IE::PadTypeAttr | PadType that the InferenceEngine supports
 
 #### Operands:
 

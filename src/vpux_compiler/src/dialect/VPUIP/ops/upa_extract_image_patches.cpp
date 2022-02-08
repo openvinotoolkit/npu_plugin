@@ -25,51 +25,84 @@
 
 using namespace vpux;
 
-// /home/dpapgher/WORK/Intel_work/applications.ai.vpu-accelerators.vpux-plugin/src/vpux_compiler/src/dialect/VPUIP/ops/upa_extract_image_patches.cpp:39:13: error: 
-// ‘PadType’ is not a member of ‘MVCNN’; did you mean ‘vpux::IE::PadType’?
-//    39 |      MVCNN::PadType mvcnn_padding;
+void vpux::VPUIP::ExtractImagePatchesUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
+                                      mlir::Value data, mlir::Value output,
+                                      mlir::ArrayAttr sizes, mlir::ArrayAttr strides, mlir::ArrayAttr rates,
+                                      IE::PadTypeAttr paddingType) {
+   build(odsBuilder, odsState, data, output, sizes, strides, rates, paddingType);
+}
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(ExtractImagePatchesUPAOp op) {
-    // const auto inShape = getShape(op.input());
+    const auto inShape = getShape(op.data());
 
-    // if (inShape.size() == 4 && inShape[Dim(0)] != 1) {
-    //     return errorAt(op, "Only input tensor batch = 1 is supported, got '{0}'", inShape[Dim(0)]);
-    // }
+    if (inShape.size() != 4 ) {
+        return errorAt(op, "Dimension of the input data should be 4D tensor. Got {0} D tensor", inShape.size());
+    }
 
-    // const auto bias = op.bias().convertToDouble();
-    // if (bias != 1.0) {
-    //     return errorAt(op, "Only bias = 1.0 is supported, got '{0}'", bias);
-    // }
+    const auto sizes = parseIntArrayAttr<int32_t>(op.sizes());
+    if (sizes.size() != 2) {
+        return errorAt(op, "Dimension of sizes attributes is expected to be equal to 2. Got {0}", sizes.size());
+    }
 
-    if(0){
-        return errorAt(op, "Only bias = 1.0 is supported, got");
+    if (sizes[0] <= 0 || sizes[1] <= 0) {
+        return errorAt(op, "Sizes attributes sizeRows and sizeCols should be positive.");
+    }
+
+    const auto strides = parseIntArrayAttr<int32_t>(op.strides());
+    
+    if (strides.size() != 2) {
+        return errorAt(op, "Dimension of strides attributes is expected to be equal to 2. Got {0}", strides.size());
+    }
+
+    if (strides[0] <= 0 || strides[1] <= 0) {
+        return errorAt(op, "strides attributes stridesRows and stridesCols should be positive.");
+    }
+
+    const auto rates = parseIntArrayAttr<int32_t>(op.rates());
+    
+    if (rates.size() != 2) {
+        return errorAt(op, "Dimension of rates attributes is expected to be equal to 2. Got {0}", rates.size());
+    }
+
+    if (rates[0] <= 0 || rates[1] <= 0) {
+        return errorAt(op, "rates attributes ratesRows and ratesCols should be positive.");
     }
 
     return mlir::success();
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExtractImagePatchesUPAOp::serialize(VPUIP::BlobWriter& writer) {
-     MVCNN::ExtractImagePatchesParamsBuilder builder(writer);
+    MVCNN::ExtractImagePatchesParamsBuilder builder(writer);
 
     MVCNN::ExtractImagePatchesPadMode vpux_padding;
 
-     if (this->paddingType() == IE::PadType::SAME_UPPER) {
+     if (this->auto_pad() == IE::PadType::SAME_UPPER) {
         vpux_padding = MVCNN::ExtractImagePatchesPadMode::ExtractImagePatchesPadMode_SAME_UPPER;
-    } else if (this->paddingType() == IE::PadType::SAME_LOWER) {
+    } else if (this->auto_pad() == IE::PadType::SAME_LOWER) {
         vpux_padding = MVCNN::ExtractImagePatchesPadMode::ExtractImagePatchesPadMode_SAME_LOWER;
-    } else if (this->paddingType() == IE::PadType::VALID) {
+    } else if (this->auto_pad() == IE::PadType::VALID) {
         vpux_padding = MVCNN::ExtractImagePatchesPadMode::ExtractImagePatchesPadMode_VALID;
     } else {
-        VPUX_THROW("Unsupported pad type {0}", this->paddingType());
+        VPUX_THROW("Unsupported pad type {0}", this->auto_pad());
     }
 
-    builder.add_rateRows(checked_cast<uint32_t>(0));
-    builder.add_rateCols(checked_cast<uint32_t>(0));
+    const auto sizes = parseIntArrayAttr<int32_t>(sizesAttr());
+    const auto strides = parseIntArrayAttr<int32_t>(stridesAttr());
+    const auto rates = parseIntArrayAttr<int32_t>(ratesAttr());
+
+    //sizes is a size [size_rows, size_cols] 
+    builder.add_sizeRows(checked_cast<int32_t>(sizes[0]));
+    builder.add_sizeCols(checked_cast<int32_t>(sizes[1]));
+
+    //strides is a distance [stride_rows, stride_cols] 
+    builder.add_strideRows(checked_cast<int32_t>(strides[0]));
+    builder.add_strideCols(checked_cast<int32_t>(strides[1]));
+
+    // rates is the input stride [rate_rows, rate_cols],
+    builder.add_rateRows(checked_cast<int32_t>(rates[0]));
+    builder.add_rateCols(checked_cast<int32_t>(rates[1]));
+
     builder.add_autoPad(vpux_padding);
-    builder.add_sizeCols(0);
-    builder.add_sizeRows(0);
-    builder.add_strideCols(0);
-    builder.add_strideRows(0);
 
     const auto paramsOff = builder.Finish();
 
@@ -79,120 +112,31 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExtractImagePatchesUPAOp::serialize
 mlir::Operation* vpux::VPUIP::BlobReader::parseExtractImagePatches(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                                        ArrayRef<mlir::Value> outputs,
                                                        const MVCNN::UPALayerTask* task) {
-   VPUX_THROW_UNLESS(inputs.size() == 1, "UPAExtractImagePatches supports only 1 input, got {0}", inputs.size());
-   VPUX_THROW_UNLESS(outputs.size() == 1, "UPAExtractImagePatches supports only 1 output, got {0}", outputs.size());
+    VPUX_THROW_UNLESS(inputs.size() == 1, "UPAExtractImagePatches supports only 1 input, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAExtractImagePatches supports only 1 output, got {0}", outputs.size());
 
-   const auto params = task->softLayerParams_as_ExtractImagePatchesParams();
+    const auto params = task->softLayerParams_as_ExtractImagePatchesParams();
 
-//    const auto vpux_paddingType = params->paddingType();
+    const auto sizes = getIntArrayAttr(_ctx, SmallVector<int32_t>{params->sizeRows(), params->sizeCols()});
+    const auto strides = getIntArrayAttr(_ctx, SmallVector<int32_t>{params->strideRows(), params->strideCols()});
+    const auto rates = getIntArrayAttr(_ctx, SmallVector<int32_t>{params->rateRows(), params->rateCols()});
 
-//    IE::PadType padding;
+    IE::PadType padding;
+    switch (params->autoPad()) {
+    case 0:
+        padding = IE::PadType::SAME_LOWER;
+        break;
+    case 1:
+        padding = IE::PadType::SAME_UPPER;
+        break;
+    case 2:
+        padding = IE::PadType::VALID;
+        break;
+    default:
+        VPUX_THROW("Unknown PadType. same upper (same lower) and valid types are supported only");
+    }
 
-//     if (vpux_paddingType == vpux::IE::PadType::SAME_UPPER) {
-//         padding = IE::PadType::SAME_UPPER;
-//     } else if (vpux_paddingType == vpux::IE::PadType::SAME_LOWER) {
-//         padding = IE::PadType::SAME_LOWER;
-//     } else if (vpux_paddingType == vpux::IE::PadType::VALID) {
-//         padding = IE::PadType::VALID;
-//     } else {
-//         VPUX_THROW("Unsupported pad type {0}", vpux_paddingType);
-//     }
-
-//    const auto sizes = params->sizes();
-//    const auto strides = params->strides();
-//    const auto rates = params->rates();
-
-//    return builder.create<VPUIP::ExtractImagePatchesUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0],
-//                                                outputs[0], 0, 0, 0,
-//                                                IE::PadTypeAttr::get(_ctx, IE::PadType::VALID));
+    return builder.create<VPUIP::ExtractImagePatchesUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0],
+                                               outputs[0], sizes, strides, rates,
+                                               IE::PadTypeAttr::get(_ctx, padding));
 }
-
-
-// VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExtractImagePatchesUPAOp::serialize(VPUIP::BlobWriter& writer) {
-
-//      MVCNN::ExtractImagePatchesParamsBuilder builder(writer);
-
-//      MVCNN::PadType mvcnn_padding;
-
-//      if (this->paddingType() == IE::PadType::SAME_UPPER) {
-//         mvcnn_padding = MVCNN::PadType::PadType_SAME_UPPER;
-//     } else if (this->paddingType() == IE::PadType::SAME_LOWER) {
-//         mvcnn_padding = MVCNN::PadType::PadType_SAME_LOWER;
-//     } else if (this->paddingType() == IE::PadType::VALID) {
-//         mvcnn_padding = MVCNN::PadType::PadType_VALID;
-//     } else {
-//         VPUX_THROW("Unsupported pad type {0}", this->paddingType());
-//     }
-
-//     builder.add_paddingType(mvcnn_padding);
-
-
-//      // auto attrToVector = [&](mlir::ArrayAttr attr) {
-//      // auto values = parseIntArrayAttr(attr) | transformed([](auto value) {
-//      //               return checked_cast<uint32_t>(value);  //uint32_t only??? uint_64 not ???
-//      //                 });
-//      // return to_std_vector(values);
-//      // };
-
-//      // builder.add_padding(padType());
-//      // builder.add_sizes(sizes());
-//      // builder.add_strides(strides());
-//      // builder.add_rates(rates());
-//     //  builder.add_sizes(builder.fbb_.CreateVector(attrToVector(sizes().getValue())));
-//     //  builder.add_strides(builder.fbb_.CreateVector(attrToVector(strides().getValue())));
-//     //  builder.add_rates(builder.fbb_.CreateVector(attrToVector(rates().getValue())));
-
-//      const auto paramsOff = builder.Finish();
-
-//      return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ExtractImagePatchesParams});
-// }
-
-// IE::PadType softLayerParam2IEType(size_t vpux_padding) {
-//    IE::PadType ieType;
-//    switch (vpux_padding) {
-//    case 1:
-//        ieType = IE::PadType::SAME_LOWER;
-//        break;
-//    case 2:
-//        ieType = IE::PadType::SAME_UPPER;
-//        break;
-//    case 3:
-//        ieType = IE::PadType::VALID;
-//    default:
-//        VPUX_THROW("Unknown PadType. same upper (same lower) and valid types are supported only");
-//    }
-
-//    return ieType;
-// }
-
-// mlir::Operation* vpux::VPUIP::BlobReader::parseExtractImagePatches(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
-//                                                        ArrayRef<mlir::Value> outputs,
-//                                                        const MVCNN::UPALayerTask* task) {
-//    VPUX_THROW_UNLESS(inputs.size() == 1, "UPAExtractImagePatches supports only 1 input, got {0}", inputs.size());
-//    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAExtractImagePatches supports only 1 output, got {0}", outputs.size());
-
-//    const auto params = task->softLayerParams_as_ExtractImagePatchesParams();
-
-//    const auto mvcnn_padding = params->paddyngType();
-    
-
-//    IE::PadType padding;
-
-//     if (mvcnn_padding == MVCNN::PadType::PadType_SAME_UPPER) {
-//         padding = IE::PadType::SAME_UPPER;
-//     } else if (mvcnn_padding == MVCNN::PadType::PadType_SAME_LOWER) {
-//         padding = IE::PadType::SAME_LOWER;
-//     } else if (mvcnn_padding == MVCNN::PadType::PadType_VALID) {
-//         padding = IE::PadType::VALID;
-//     } else {
-//         VPUX_THROW("Unsupported pad type {0}", mvcnn_padding);
-//     }
-
-//    const auto sizes = getIntArrayAttr(_ctx, params->sizes());
-//    const auto strides = getIntArrayAttr(_ctx, params->strides());
-//    const auto rates = getIntArrayAttr(_ctx, params->rates());
-
-//    return builder.create<VPUIP::ExtractImagePatchesUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0],
-//                                                outputs[0], sizes, strides, rates,
-//                                                IE::PadTypeAttr::get(_ctx, vpux_padding));
-// }

@@ -3177,7 +3177,7 @@ def IERT_ExtractImagePatchesOp :
         I32ArrayAttr:$strides,
         I32ArrayAttr:$sizes,
         I32ArrayAttr:$rates,
-        IE_PadType:$paddingType
+        IE_PadType:$auto_pad
     );
 
     let results = (outs

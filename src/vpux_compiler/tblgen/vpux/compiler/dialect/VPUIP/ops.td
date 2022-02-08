@@ -2892,7 +2892,7 @@ def VPUIP_ExtractImagePatchesUPAOp :
         I32ArrayAttr:$sizes,
         I32ArrayAttr:$strides,
         I32ArrayAttr:$rates,
-        IE_PadType:$paddingType,
+        IE_PadType:$auto_pad,
 
         OptionalAttr<IntAttr>:$maxShaves
     );
@@ -2909,7 +2909,7 @@ def VPUIP_ExtractImagePatchesUPAOp :
                 "mlir::ArrayAttr":$sizes, 
                 "mlir::ArrayAttr":$strides,
                 "mlir::ArrayAttr":$rates, 
-                "vpux::IE::PadTypeAttr":$paddingType
+                "vpux::IE::PadTypeAttr":$auto_pad
             )
         >
     ];

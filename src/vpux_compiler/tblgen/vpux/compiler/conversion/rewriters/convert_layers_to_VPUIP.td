@@ -1119,11 +1119,11 @@ def createExtractImagePatchesUPAOp :
             $_builder.create<vpux::VPUIP::ExtractImagePatchesUPAOp>(
                 $_loc, $0, $1, $2, $3, $4, $5)
         }]>;
-
+        
 def RewriteExtractImagePatches :
         Pat<
-            (IERT_ExtractImagePatchesOp $data, $output, $sizes, $strides, $rates, $paddingType),
-            (createExtractImagePatchesUPAOp $data, $output, $sizes, $strides, $rates, $paddingType)
+            (IERT_ExtractImagePatchesOp $data, $output, $sizes, $strides, $rates, $auto_pad),
+            (createExtractImagePatchesUPAOp $data, $output, $sizes, $strides, $rates, $auto_pad)
         >;
 
 #endif

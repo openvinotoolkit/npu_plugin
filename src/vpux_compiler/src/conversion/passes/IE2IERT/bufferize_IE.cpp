@@ -1085,7 +1085,7 @@ mlir::Operation* createRTLayer(IE::CopyOp origOp, ArrayRef<mlir::Value> allBufs,
 mlir::Operation* createRTLayer(IE::ExtractImagePatchesOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ExtractImagePatchesOp::Adaptor newOp(allBufs);
     return b.create<IERT::ExtractImagePatchesOp>(origOp.getLoc(), newOp.data(), newOp.output_buff(),
-                                                 origOp.sizesAttr(), origOp.stridesAttr(), origOp.ratesAttr(), origOp.paddingTypeAttr());
+                                                 origOp.sizesAttr(), origOp.stridesAttr(), origOp.ratesAttr(), origOp.auto_padAttr());
 }
 
 class LayerRewrite final : public mlir::ConversionPattern {
