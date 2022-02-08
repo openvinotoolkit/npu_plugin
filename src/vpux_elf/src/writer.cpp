@@ -188,9 +188,12 @@ elf::ELFHeader Writer::generateELFHeader() const {
 
     fileHeader.e_entry = 0;
     fileHeader.e_flags = 0;
+    fileHeader.e_shstrndx = 0;
 
     fileHeader.e_shnum = m_sections.size();
     fileHeader.e_phnum = m_segments.size();
+
+    fileHeader.e_shoff = fileHeader.e_phoff = 0;
 
     fileHeader.e_ehsize = sizeof(ELFHeader);
     fileHeader.e_phentsize = sizeof(ProgramHeader);
