@@ -19,7 +19,7 @@
 #include "vpux/utils/core/range.hpp"
 
 #include <ngraph/coordinate.hpp>
-#include <ngraph/op/max_pool.hpp>
+#include <ngraph/op/adaptive_avg_pool.hpp>
 #include <ngraph/util.hpp>
 #include <ngraph/validation_util.hpp>
 
