@@ -1,2 +1,2 @@
-tag:ci_tag_vpual_release_22ww05.2.1
+tag:ci_tag_vpual_release_22ww07.2.1
 commit:43ffdae1367367a6f1448b94e6c6f454bc58b144
