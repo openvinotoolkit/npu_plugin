@@ -400,6 +400,7 @@ if(ENABLE_HDDL2 AND UNIX AND LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
                 DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/lib"
                 COMPONENT   ${VPUX_TESTS_COMPONENT}
                 EXCLUDE_FROM_ALL)
+
         install(DIRECTORY   "${TEMP}/vpux_4/hddl_unite/thirdparty/XLink/lib/"
                 DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/thirdparty/XLink/lib"
                 COMPONENT   ${VPUX_TESTS_COMPONENT}
