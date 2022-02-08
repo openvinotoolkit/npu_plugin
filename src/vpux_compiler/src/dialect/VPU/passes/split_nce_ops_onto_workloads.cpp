@@ -109,18 +109,10 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     // select workload with minimum cost
     uint32_t bestScore = UINT32_MAX;
     int best = -1;
-    llvm::outs() << "{\n";
-    origOp->print(llvm::outs());
-    llvm::outs() << "\n";
-    llvm::outs() << "workloads candidates: {\n";
-
     const auto& splitCandidates = dpuTiler.getSplitPool();
 
     for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
-        llvm::outs() << "workload " << idx << ": {\n";
         auto score = dpuTiler.simpleCost(splitCandidates[idx], costParams);
-        llvm::outs() << "},\n";
-        llvm::outs() << "total score: " << score << "\n";
         if (bestScore > score) {
             bestScore = score;
             best = idx;
@@ -129,12 +121,6 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     if (best == -1) {
         VPUX_THROW("no workload splits found!");
     }
-    llvm::outs() << "},\n";
-    if (best != 0) {
-        origOp.getLoc().dump();
-        llvm::outs() << "best candidates:" << best << "\n";
-    }
-    llvm::outs() << "},\n";
     const auto& outTiles = splitCandidates[best];
 
     for (const auto& outTile : outTiles) {

@@ -11,28 +11,16 @@
 // included with the Software Package for additional details.
 //
 
+#pragma once
+
 #include "attributes.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#pragma once
-
 namespace vpux {
 namespace VPUIP {
-
-#if 0
-struct DpuTile final {
-    SmallVector<int64_t> start;
-    SmallVector<int64_t> end;
-    int64_t padLeft;
-    int64_t padRight;
-    int64_t padTop;
-    int64_t padBottom;
-    VPU::MPEMode mpeMode;
-};
-#endif
 
 struct WorkloadCostParams {
     bool isZTilingSupported;
@@ -60,15 +48,7 @@ public:
                    bool has_se = false);
     SmallVector<OutputTiling> getSplitPool();
     SmallVector<uint32_t> getSplitNumberPool();
-
-#ifdef __linux__
-    uint32_t cost(VPUIP::NCEClusterTaskOp op, const OutputTiling& dpuTiles, const PadInfo& padInfo, unsigned int numDPU,
-                  VPU::MPEMode mpeMode, VPU::ArchKind arch);
-
-    uint32_t cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
-
     uint32_t simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
-#endif
 
 private:
     Shape selectPadding(ShapeRef original);

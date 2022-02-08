@@ -145,8 +145,6 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t
     originalShape[Dims4D::Act::H] = H;
     auto bestPadding = selectPadding(originalShape);
 
-    //    SmallVector<DpuTile> dpuTiles;
-    //    dpuTiles.reserve(splitNumber);
     uint32_t remainedChannel = static_cast<uint32_t>(C);
     for (uint32_t idx = 0; idx < splitNumber; idx++) {
         TileInfo outTile(_outShape.size());
@@ -181,7 +179,8 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t
     return true;
 }
 
-uint32_t vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
+uint32_t vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles,
+                                           const vpux::VPUIP::WorkloadCostParams& params) {
     VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
     VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
 
@@ -203,14 +202,6 @@ uint32_t vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const W
         }
 
         max_cost = std::max(max_cost, cost);
-        // llvm::outs() << "workload split " << i << ":{\n";
-        // llvm::outs() << "output:[" << outputTensor.x() << "," << outputTensor.y() << "," << outputTensor.z() << "],";
-        // llvm::outs() << "kernel:[" << KX << "," << KY << "],";
-        // llvm::outs() << "stride :[" << SX << "," << SY << "],";
-        // llvm::outs() << "pad :[" << padsTileConf.top << "," << padsTileConf.bottom << "," << padsTileConf.left << ","
-        //              << padsTileConf.right << "],";
-        // llvm::outs() << "score:" << workloadCost.back() << "\n";
-        // llvm::outs() << "}\n";
     }
     return max_cost;
 }
