@@ -298,10 +298,3 @@ target_include_directories(${HUFFMAN_CODEC_TARGET_NAME}
 if(ENABLE_KMB_SAMPLES)
     set(SAMPLES_JSON "${CMAKE_CURRENT_SOURCE_DIR}/json/single_include/nlohmann/" CACHE INTERNAL "")
 endif()
-
-#
-# nn cost model
-#
-if(NOT MSVC)
-    add_subdirectory(vpucostmodel)
-endif()

@@ -97,8 +97,7 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
 
     VPUIP::DpuTiler dpuTiler(outputShape, {mpeMode});
     dpuTiler.tileOverH(numDPU);
-//#ifdef  __linux__
-#if 1
+
     dpuTiler.generateSplitNumberPool(numDPU, 5);
     auto splitNumPool = dpuTiler.getSplitNumberPool();
     if (costParams.isZTilingSupported) {
@@ -119,7 +118,6 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
 
     for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
         llvm::outs() << "workload " << idx << ": {\n";
-        // auto score = dpuTiler.cost(splitCandidates[idx], costParams);
         auto score = dpuTiler.simpleCost(splitCandidates[idx], costParams);
         llvm::outs() << "},\n";
         llvm::outs() << "total score: " << score << "\n";
@@ -138,12 +136,6 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     }
     llvm::outs() << "},\n";
     const auto& outTiles = splitCandidates[best];
-#else
-    VPUX_UNUSED(costParams);
-    const auto& splitCandidates = dpuTiler.getSplitPool();
-    VPUX_THROW_WHEN(splitCandidates.empty(), "No available workload dpu tiles found");
-    const auto& outTiles = splitCandidates.front();
-#endif
 
     for (const auto& outTile : outTiles) {
         const auto padsTileConf = backInferPadsTile(outTile, outputShape, VPU::toPadInfo(pads));
