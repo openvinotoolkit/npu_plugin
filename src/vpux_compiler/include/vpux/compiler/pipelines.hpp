@@ -49,6 +49,7 @@ struct ReferenceSWOptions : mlir::PassPipelineOptions<ReferenceSWOptions> {
                                       llvm::cl::init(false)};
 
     bool enableCompressWeights = false;
+    bool enableForceZMajorConcat = false;
 };
 
 void buildReferenceSWModePipeline(mlir::OpPassManager& pm, const ReferenceSWOptions& options,
@@ -114,6 +115,7 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
                                       llvm::cl::init(false)};
 
     bool enableCompressWeights = false;
+    bool enableForceZMajorConcat = false;
 };
 
 void buildReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOptions& options,
@@ -189,6 +191,9 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 
     BoolOption enableCompressWeights{*this, "compress-weights", ::llvm::cl::desc("Enable compress-weights pass"),
                                      ::llvm::cl::init(false)};
+
+    BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
+                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(false)};
 };
 
 void buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options,
