@@ -56,12 +56,25 @@ ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker
 ie_option(ENABLE_MCM_COMPILER_PACKAGE "Enable build of separate mcmCompiler package" OFF)
 # MCM compiler is not supported for static lib case
 ie_dependent_option(ENABLE_MCM_COMPILER "Enable compilation of mcmCompiler libraries" ON "BUILD_SHARED_LIBS" OFF)
+if(ENABLE_MCM_COMPILER)
+    add_definitions(-DENABLE_MCM_COMPILER)
+endif()
 
 ie_option(ENABLE_MLIR_COMPILER "Enable compilation of vpux_mlir_compiler libraries" ON)
+if(ENABLE_MLIR_COMPILER)
+    add_definitions(-DENABLE_MLIR_COMPILER)
+endif()
 
 ie_option(BUILD_COMPILER_FOR_DRIVER "Enable build of VPUXCompilerL0" OFF)
 
 ie_dependent_option(ENABLE_DRIVER_COMPILER_ADAPTER "Enable VPUX Compiler inside driver" ON "WIN32;NOT BUILD_COMPILER_FOR_DRIVER" OFF)
+if(ENABLE_DRIVER_COMPILER_ADAPTER)
+    add_definitions(-DENABLE_DRIVER_COMPILER_ADAPTER)
+endif()
+
+if(NOT BUILD_SHARED_LIBS AND NOT ENABLE_MLIR_COMPILER AND NOT ENABLE_DRIVER_COMPILER_ADAPTER)
+    message(FATAL_ERROR "No compiler found for static build!")
+endif()
 
 # if ENABLE_ZEROAPI_BACKEND=ON, it adds the ze_loader dependency for VPUXCompilerL0
 ie_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend" ON "NOT AARCH64;NOT BUILD_COMPILER_FOR_DRIVER" OFF)
