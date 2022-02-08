@@ -244,6 +244,10 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
 
     for (auto user : concat.output().getUsers()) {
         if (mlir::isa<IERT::SubViewOp>(user)) {
+            auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(user);
+            if (!isSplitSupportedOnDPU(subViewOp)) {
+                return mlir::failure();
+            }
             for (auto subUser : user->getUsers()) {
                 if (!mlir::isa<IERT::CopyOp>(subUser)) {
                     return mlir::failure();
@@ -254,13 +258,11 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
                 if (dstMemory != VPU::MemoryKind::CMX_NN) {
                     return mlir::failure();
                 }
+                // In cases where multiple copy out ops use one sub view
+                // add in parallel
                 copyOutOpsWithSubView.push_back(copyOut);
+                copyOutSubViews.push_back(subViewOp);
             }
-            auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(user);
-            if (!isSplitSupportedOnDPU(subViewOp)) {
-                return mlir::failure();
-            }
-            copyOutSubViews.push_back(subViewOp);
         } else if (mlir::isa<IERT::CopyOp>(*user)) {
             auto copyOut = mlir::dyn_cast<IERT::CopyOp>(user);
             const auto dstMemory = VPU::getMemoryKind(copyOut.output().getType().cast<mlir::MemRefType>());
