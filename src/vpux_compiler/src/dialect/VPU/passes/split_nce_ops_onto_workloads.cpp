@@ -107,7 +107,7 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     }
 
     // select workload with minimum cost
-    uint32_t bestScore = UINT32_MAX;
+    double bestScore = std::numeric_limits<double>::max();
     int best = -1;
     const auto& splitCandidates = dpuTiler.getSplitPool();
 
@@ -115,7 +115,7 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
         auto score = dpuTiler.simpleCost(splitCandidates[idx], costParams);
         if (bestScore > score) {
             bestScore = score;
-            best = idx;
+            best = (int)idx;
         }
     }
     if (best == -1) {

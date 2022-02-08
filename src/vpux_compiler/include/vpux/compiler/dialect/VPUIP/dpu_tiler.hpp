@@ -31,7 +31,7 @@ struct WorkloadCostParams {
     ShapeRef inputShape;
     ShapeRef outputShape;
     PadInfo padInfo;
-    unsigned int numDPU;
+    int64_t numDPU;
     SmallVector<int64_t> kernelSize;
     SmallVector<int64_t> kernelStride;
 };
@@ -48,7 +48,7 @@ public:
                    bool has_se = false);
     SmallVector<OutputTiling> getSplitPool();
     SmallVector<uint32_t> getSplitNumberPool();
-    uint32_t simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
+    double simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
 
 private:
     Shape selectPadding(ShapeRef original);

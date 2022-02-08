@@ -179,17 +179,16 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t
     return true;
 }
 
-uint32_t vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles,
-                                           const vpux::VPUIP::WorkloadCostParams& params) {
+double vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const vpux::VPUIP::WorkloadCostParams& params) {
     VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
     VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
 
-    uint32_t max_cost = 0;
+    double max_cost = 0;
     for (const auto& dpuTile : dpuTiles) {
         const auto W = dpuTile.shape[Dims4D::Act::W];
         const auto H = dpuTile.shape[Dims4D::Act::H];
         const auto C = dpuTile.shape[Dims4D::Act::C];
-        uint32_t cost = 0;
+        double cost = 0;
 
         if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "VECTOR_FP16") {
             cost = ceil(W / 1.0) * ceil(H / 4.0) * ceil(C / 16.0);
