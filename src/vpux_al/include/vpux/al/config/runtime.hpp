@@ -21,6 +21,7 @@
 #include "vpux_private_config.hpp"
 
 #include <ie_plugin_config.hpp>
+#include <openvino/runtime/properties.hpp>
 
 namespace vpux {
 
@@ -54,7 +55,7 @@ struct EXCLUSIVE_ASYNC_REQUESTS final : OptionBase<EXCLUSIVE_ASYNC_REQUESTS, boo
 
 struct THROUGHPUT_STREAMS final : OptionBase<THROUGHPUT_STREAMS, int64_t> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(THROUGHPUT_STREAMS);
+        return ov::streams::num.name();
     }
 
     static int64_t defaultValue() {
@@ -62,7 +63,7 @@ struct THROUGHPUT_STREAMS final : OptionBase<THROUGHPUT_STREAMS, int64_t> {
     }
 
     static SmallVector<StringRef> deprecatedKeys() {
-        return {KMB_CONFIG_KEY(THROUGHPUT_STREAMS)};
+        return {VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), KMB_CONFIG_KEY(THROUGHPUT_STREAMS)};
     }
 
     static OptionMode mode() {

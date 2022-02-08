@@ -21,6 +21,7 @@
 #include <ie_icore.hpp>
 #include <ie_metric_helpers.hpp>
 #include <ie_ngraph_utils.hpp>
+#include <openvino/runtime/properties.hpp>
 
 // Plugin include
 #include "file_reader.h"
@@ -239,36 +240,96 @@ IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
 
 IE::Parameter Engine::GetConfig(const std::string& name,
                                 const std::map<std::string, IE::Parameter>& /*options*/) const {
+    if (GetCore()->isNewAPI()) {
+        if (name == ov::streams::num) {
+            return _globalConfig.get<THROUGHPUT_STREAMS>();
+        } else if (name == ov::enable_profiling) {
+            return _globalConfig.get<PERF_COUNT>();
+        } else if (name == ov::hint::performance_mode) {
+            return _globalConfig.has<PERFORMANCE_HINT>() ? cvtPerformanceHint(_globalConfig.get<PERFORMANCE_HINT>())
+                                                         : ov::hint::PerformanceMode::UNDEFINED;
+        } else if (name == ov::log::level) {
+            return cvtLogLevel(_globalConfig.get<LOG_LEVEL>());
+        } else if (name == ov::device::id) {
+            return _globalConfig.get<DEVICE_ID>();
+        }
+    }
+
     if (name == CONFIG_KEY(LOG_LEVEL)) {
-        return IE::Parameter(static_cast<int>(_globalConfig.get<LOG_LEVEL>()));
+        return static_cast<int>(_globalConfig.get<LOG_LEVEL>());
     } else if (name == CONFIG_KEY(PERF_COUNT)) {
-        return IE::Parameter(_globalConfig.get<PERF_COUNT>());
+        return _globalConfig.get<PERF_COUNT>();
     } else if (name == CONFIG_KEY(DEVICE_ID)) {
-        return IE::Parameter(_globalConfig.get<DEVICE_ID>());
+        return _globalConfig.get<DEVICE_ID>();
     } else if (name == CONFIG_KEY(PERFORMANCE_HINT)) {
         const auto val = _globalConfig.has<PERFORMANCE_HINT>()
                                  ? stringifyEnum(_globalConfig.get<PERFORMANCE_HINT>()).str()
                                  : std::string{};
-        return IE::Parameter(val);
+        return val;
     } else if ((name == VPUX_CONFIG_KEY(THROUGHPUT_STREAMS)) || (name == KMB_CONFIG_KEY(THROUGHPUT_STREAMS))) {
-        return IE::Parameter(checked_cast<int>(_globalConfig.get<THROUGHPUT_STREAMS>()));
+        return checked_cast<int>(_globalConfig.get<THROUGHPUT_STREAMS>());
     } else if (name == VPUX_CONFIG_KEY(INFERENCE_SHAVES)) {
-        return IE::Parameter(checked_cast<int>(_globalConfig.get<INFERENCE_SHAVES>()));
+        return checked_cast<int>(_globalConfig.get<INFERENCE_SHAVES>());
     } else if (name == VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS)) {
-        return IE::Parameter(_globalConfig.get<COMPILATION_MODE_PARAMS>());
-    } else {
-        IE_THROW(NotImplemented);
+        return _globalConfig.get<COMPILATION_MODE_PARAMS>();
     }
+
+    VPUX_THROW("Unsupported configuration key {0}", name);
 }
 
 IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, IE::Parameter>& options) const {
-    auto getSpecifiedDeviceName = [&options]() {
+    const auto getSpecifiedDeviceName = [&options]() {
         std::string specifiedDeviceName;
+        if (options.count(ov::device::id.name())) {
+            specifiedDeviceName = options.at(ov::device::id.name()).as<std::string>();
+        }
         if (options.count(CONFIG_KEY(DEVICE_ID)) && options.at(CONFIG_KEY(DEVICE_ID)).is<std::string>()) {
             specifiedDeviceName = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
         }
         return specifiedDeviceName;
     };
+
+    if (GetCore()->isNewAPI()) {
+        const auto RO_property = [](const std::string& propertyName) {
+            return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+        };
+        const auto RW_property = [](const std::string& propertyName) {
+            return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+        };
+
+        if (name == ov::supported_properties) {
+            static const std::vector<ov::PropertyName> supportedProperties{
+                    RO_property(ov::supported_properties.name()),            //
+                    RO_property(ov::available_devices.name()),               //
+                    RO_property(ov::device::full_name.name()),               //
+                    RO_property(ov::device::capabilities.name()),            //
+                    RO_property(ov::range_for_async_infer_requests.name()),  //
+                    RO_property(ov::range_for_streams.name()),               //
+                    RO_property(ov::device::architecture.name()),            //
+
+                    RW_property(ov::streams::num.name()),            //
+                    RW_property(ov::enable_profiling.name()),        //
+                    RW_property(ov::hint::performance_mode.name()),  //
+                    RW_property(ov::log::level.name()),              //
+                    RW_property(ov::device::id.name()),              //
+            };
+            return supportedProperties;
+        } else if (name == ov::available_devices) {
+            return _metrics->GetAvailableDevicesNames();
+        } else if (name == ov::device::full_name) {
+            const auto specifiedDeviceName = getSpecifiedDeviceName();
+            return _metrics->GetFullDeviceName(specifiedDeviceName);
+        } else if (name == ov::device::capabilities) {
+            return _metrics->GetOptimizationCapabilities();
+        } else if (name == ov::range_for_async_infer_requests) {
+            return _metrics->GetRangeForAsyncInferRequest();
+        } else if (name == ov::range_for_streams) {
+            return _metrics->GetRangeForStreams();
+        } else if (name == ov::device::architecture) {
+            const auto specifiedDeviceName = getSpecifiedDeviceName();
+            return _metrics->GetDeviceArchitecture(specifiedDeviceName);
+        }
+    }
 
     if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics->GetAvailableDevicesNames());
@@ -293,7 +354,8 @@ IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::str
     } else if (name == VPUX_METRIC_KEY(BACKEND_NAME)) {
         IE_SET_METRIC_RETURN(VPUX_BACKEND_NAME, _metrics->GetBackendName());
     }
-    IE_THROW(NotImplemented);
+
+    VPUX_THROW("Unsupported metric {0}", name);
 }
 
 static const IE::Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_intel_vpux_plugin"};

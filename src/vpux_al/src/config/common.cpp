@@ -43,6 +43,17 @@ StringLiteral vpux::stringifyEnum(PerformanceHint val) {
     }
 }
 
+ov::hint::PerformanceMode vpux::cvtPerformanceHint(PerformanceHint hint) {
+    switch (hint) {
+    case PerformanceHint::Latency:
+        return ov::hint::PerformanceMode::LATENCY;
+    case PerformanceHint::Throughput:
+        return ov::hint::PerformanceMode::THROUGHPUT;
+    default:
+        return ov::hint::PerformanceMode::UNDEFINED;
+    }
+}
+
 PerformanceHint vpux::PERFORMANCE_HINT::parse(StringRef val) {
     if (val == CONFIG_VALUE(LATENCY)) {
         return PerformanceHint::Latency;
@@ -51,6 +62,30 @@ PerformanceHint vpux::PERFORMANCE_HINT::parse(StringRef val) {
     }
 
     VPUX_THROW("Value '{0}' is not a valid PERFORMANCE_HINT option", val);
+}
+
+//
+// LOG_LEVEL
+//
+
+ov::log::Level vpux::cvtLogLevel(LogLevel lvl) {
+    switch (lvl) {
+    case LogLevel::None:
+        return ov::log::Level::NO;
+    case LogLevel::Fatal:
+    case LogLevel::Error:
+        return ov::log::Level::ERR;
+    case LogLevel::Warning:
+        return ov::log::Level::WARNING;
+    case LogLevel::Info:
+        return ov::log::Level::INFO;
+    case LogLevel::Debug:
+        return ov::log::Level::DEBUG;
+    case LogLevel::Trace:
+        return ov::log::Level::TRACE;
+    default:
+        return ov::log::Level::NO;
+    }
 }
 
 //

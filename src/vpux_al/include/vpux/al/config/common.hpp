@@ -19,6 +19,7 @@
 #include "vpux_private_config.hpp"
 
 #include <ie_plugin_config.hpp>
+#include <openvino/runtime/properties.hpp>
 
 namespace vpux {
 
@@ -38,6 +39,8 @@ enum class PerformanceHint {
 };
 
 StringLiteral stringifyEnum(PerformanceHint val);
+
+ov::hint::PerformanceMode cvtPerformanceHint(PerformanceHint hint);
 
 struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, PerformanceHint> {
     static StringRef key() {
@@ -64,6 +67,8 @@ struct PERF_COUNT final : OptionBase<PERF_COUNT, bool> {
 //
 // LOG_LEVEL
 //
+
+ov::log::Level cvtLogLevel(LogLevel lvl);
 
 struct LOG_LEVEL final : OptionBase<LOG_LEVEL, LogLevel> {
     static StringRef key() {

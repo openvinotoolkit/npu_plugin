@@ -14,12 +14,14 @@
 // System
 #include <fstream>
 
+#include <ie_icore.hpp>
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/runtime/properties.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
@@ -225,7 +227,34 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
     }
 }
 
+//------------------------------------------------------------------------------
+//      Config and Metrics
+//------------------------------------------------------------------------------
+
 IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
+    if (_plugin->GetCore()->isNewAPI()) {
+        const auto RO_property = [](const std::string& propertyName) {
+            return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+        };
+
+        if (name == ov::supported_properties) {
+            static const std::vector<ov::PropertyName> supportedProperties{
+                    RO_property(ov::supported_properties.name()),              //
+                    RO_property(ov::model_name.name()),                        //
+                    RO_property(ov::optimal_number_of_infer_requests.name()),  //
+                    RO_property(ov::device::id.name()),                        //
+            };
+            return supportedProperties;
+        } else if (name == ov::model_name) {
+            VPUX_THROW_WHEN(_networkPtr == nullptr, "GetMetric: network is not initialized");
+            return _networkPtr->getName();
+        } else if (name == ov::optimal_number_of_infer_requests) {
+            return static_cast<uint32_t>(8);
+        } else if (name == ov::device::id) {
+            return _config.get<DEVICE_ID>();
+        }
+    }
+
     if (name == METRIC_KEY(NETWORK_NAME)) {
         if (_networkPtr != nullptr) {
             IE_SET_METRIC_RETURN(NETWORK_NAME, _networkPtr->getName());
@@ -234,11 +263,9 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
         }
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(8u));
-    } else {
-        IE_THROW(NotImplemented);
     }
 
-    return {};
+    VPUX_THROW("Unsupported metric {0}", name);
 }
 
 //------------------------------------------------------------------------------

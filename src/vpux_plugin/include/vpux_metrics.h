@@ -45,7 +45,11 @@ private:
     const VPUXBackends::CPtr _backends;
     std::vector<std::string> _supportedMetrics;
     std::vector<std::string> _supportedConfigKeys;
-    const std::vector<std::string> _optimizationCapabilities = {METRIC_VALUE(INT8)};
+    const std::vector<std::string> _optimizationCapabilities = {
+            METRIC_VALUE(FP16),  //
+            METRIC_VALUE(INT8),  //
+            "IMPORT_EXPORT",     //
+    };
 
     // Metric to provide a hint for a range for number of async infer requests. (bottom bound, upper bound, step)
     const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{4u, 10u, 1u};
