@@ -126,6 +126,8 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
 
 mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, OutputTiling tiles,
                                       mlir::PatternRewriter& rewriter, Logger log) {
+    // apply the generated tiling strategy and create tiled operations
+    // insert the tiled pattern with a concat to the IR
     SmallVector<mlir::Value> resultTileVals;
     SmallVector<ShapeRef> resultTileOffsets;
 
@@ -144,10 +146,43 @@ mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, Outpu
         resultTileOffsets.push_back(outputTile.offsets);
     }
 
-    auto newConcat = rewriter.replaceOpWithNewOp<IE::ConcatOp>(
-            origOp, origOp->getResult(0).getType(), mlir::ValueRange(resultTileVals), makeArrayRef(resultTileOffsets));
-    // TODO: remove with E#25333
-    newConcat->setAttr("CMXConcat", rewriter.getBoolAttr(false));
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, origOp->getResult(0).getType(), mlir::ValueRange(resultTileVals),
+                                              makeArrayRef(resultTileOffsets));
+
+    // update concat users and also place correctly in the IR
+    for (auto* concatOp : resultTileVals[0].getUsers()) {
+        if (!mlir::isa<IE::ConcatOp>(concatOp)) {
+            continue;
+        }
+        origOp->replaceAllUsesWith(concatOp);
+        for (auto concatConsumer : concatOp->getResult(0).getUsers()) {
+            if (concatOp->isBeforeInBlock(concatConsumer)) {
+                continue;
+            }
+            concatOp->moveBefore(concatConsumer);
+            // also move the Slice+Conv pattern, first conv, then slice
+            for (auto concatOperand : concatOp->getOperands()) {
+                auto concatProducer = concatOperand.getDefiningOp();
+                if (concatProducer->isBeforeInBlock(concatOp)) {
+                    continue;
+                }
+                concatProducer->moveBefore(concatOp);
+                auto sliceOp = concatProducer->getOperand(0).getDefiningOp();
+                for (auto sliceOperand : concatProducer->getOperands()) {
+                    if (mlir::isa<IE::SliceOp>(sliceOperand.getDefiningOp())) {
+                        sliceOp = sliceOperand.getDefiningOp();
+                        break;
+                    }
+                }
+                if (!mlir::isa<IE::SliceOp>(sliceOp)) {
+                    continue;
+                }
+                sliceOp->moveBefore(concatProducer);
+            }
+        }
+        break;
+    }
+
     return mlir::success();
 }
 }  // namespace IE

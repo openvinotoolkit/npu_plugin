@@ -187,8 +187,8 @@ mlir::LogicalResult vpux::VPU::verifyConv(mlir::Location loc, ArchKind arch, NCE
         }
     }
 
-    const auto filterShape = op.rawFilterShape() != nullptr ? Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()))
-                                                            : getShape(op.filter());
+    const Shape filterShape = op.rawFilterShape() != nullptr ? Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()))
+                                                             : getShape(op.filter()).toValues();
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
@@ -229,8 +229,8 @@ mlir::LogicalResult vpux::VPU::NCEConvolutionOp::inferReturnTypeComponents(
     }
 
     const auto inShape = getShape(op.input());
-    const auto filterShape = op.rawFilterShape() != nullptr ? Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()))
-                                                            : getShape(op.filter());
+    const Shape filterShape = op.rawFilterShape() != nullptr ? Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()))
+                                                             : getShape(op.filter()).toValues();
 
     if (inShape[Dims4D::Act::C] != filterShape[Dims4D::Filter::IC]) {
         return errorAt(loc, "Input tensor channels and filter shape must be the same");

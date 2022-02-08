@@ -112,10 +112,10 @@ func @main(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16>) -> 
     // CHECK:       IERT.ReLU
     // CHECK-SAME:      outputs([[BUF1]] : memref<2xf16, @CMX_NN>)
 
-    // CHECK:       IERT.Copy
-
     // CHECK:       IERT.ReLU
     // CHECK-SAME:      outputs([[BUF0]] : memref<2xf16, @CMX_NN>)
+
+    // CHECK:       IERT.Copy
 
     // CHECK:       IERT.Copy
 }

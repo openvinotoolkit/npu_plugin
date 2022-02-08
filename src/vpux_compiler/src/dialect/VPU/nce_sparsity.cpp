@@ -137,15 +137,6 @@ int32_t toHex(double realVal) {
     return biasVal.m_i32;
 }
 
-void computeQuantMultShift(double scale, uint32_t& shift, uint32_t& mult) {
-    const static int32_t BITS = 15;
-    int32_t exponent = 0;
-
-    const double mantissa = std::frexp(scale, &exponent);
-    shift = BITS - exponent;
-    mult = static_cast<std::uint32_t>((mantissa * pow(2, BITS)));
-}
-
 constexpr int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::Type) {
     // FIXME: set value when PPE is LPRELU in quant mode
     int32_t PRELU_SCALE_OFFSET = 0;
@@ -233,10 +224,18 @@ llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type inElemType, mlir::
 }
 
 llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, mlir::Type outElemType,
-                                                        mlir::Type weightsType, VPU::ArchKind arch, size_t OC) {
+                                                        mlir::Type weightsType, VPU::PPETaskAttr ppe,
+                                                        VPU::ArchKind arch, size_t OC) {
+    auto updateMultForPPE = [](int32_t& mult, VPU::PPETaskAttr ppe) {
+        if (ppe && ppe.mode().getValue() == VPU::PPEMode::LPRELU) {
+            mult &= 0xFFFFFF00;
+            mult |= static_cast<int32_t>(ppe.lrelu_mult().getInt());
+        }
+    };
     if (!inElemType.isa<mlir::quant::QuantizedType>() && !outElemType.isa<mlir::quant::QuantizedType>()) {
         const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
-        const int32_t multShift = ppeConverter(0, 1, 1, inElemType);
+        int32_t multShift = ppeConverter(0, 1, 1, inElemType);
+        updateMultForPPE(multShift, ppe);
         return [multShift](size_t) {
             return multShift;
         };
@@ -259,11 +258,13 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
         }
 
         const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
-        return [rescale = std::move(rescale), ppeConverter, inElemType](size_t oc) {
-            unsigned shift = 0;
-            unsigned mult = 0;
-            computeQuantMultShift(rescale[oc], shift, mult);
-            return ppeConverter(shift, mult, rescale[oc], inElemType);
+        return [rescale = std::move(rescale), ppeConverter, inElemType, ppe, updateMultForPPE](size_t oc) {
+            uint32_t shift = 0;
+            uint32_t mult = 0;
+            vpux::VPU::NCESparsity::computeQuantMultShift(rescale[oc], shift, mult);
+            int32_t multShift = ppeConverter(shift, mult, rescale[oc], inElemType);
+            updateMultForPPE(multShift, ppe);
+            return multShift;
         };
     }
 
@@ -285,6 +286,14 @@ const EnumMap<VPU::ArchKind, VPU::NCESparsity::BiasConverterCb> vpux::VPU::NCESp
         {VPU::ArchKind::TBH, toFixedPoint},
         {VPU::ArchKind::MTL, toHex},
 };
+
+void vpux::VPU::NCESparsity::computeQuantMultShift(double scale, uint32_t& shift, uint32_t& mult, uint32_t bits) {
+    int32_t exponent = 0;
+
+    const double mantissa = std::frexp(scale, &exponent);
+    shift = bits - exponent;
+    mult = static_cast<uint32_t>((mantissa * pow(2, bits)));
+}
 
 int64_t vpux::VPU::NCESparsity::getBitPatternSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
                                                   int64_t IC) {
@@ -357,11 +366,11 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
                                                              Optional<int32_t> weightPtrOffset, int32_t weightPtrStep,
                                                              Optional<int32_t> sparsityPtrOffset, ArchKind arch,
                                                              int64_t OC, mlir::Type weightsElemType,
-                                                             Const::ContentAttr bias) {
+                                                             Const::ContentAttr bias, VPU::PPETaskAttr ppe) {
     VPUX_THROW_WHEN(inElemType == nullptr || outElemType == nullptr,
                     "Can't create weights table without operation input/output types");
 
-    auto getMultShift = getMultShiftFunc(inElemType, outElemType, weightsElemType, arch, checked_cast<size_t>(OC));
+    auto getMultShift = getMultShiftFunc(inElemType, outElemType, weightsElemType, ppe, arch, checked_cast<size_t>(OC));
     auto getBiasFP = getBiasFunc(inElemType, outElemType, weightsElemType, bias, arch, checked_cast<size_t>(OC));
 
     // In case of dense operation use sparsityPtr beyond CMX memory range to satisfy HW requirements
@@ -375,6 +384,7 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
 
     const auto weightsElementTypeBitSize =
             weightsElemType ? static_cast<Bit>(getElemTypeSize(weightsElemType)).count() : 0;
+
     for (auto oc : irange(checked_cast<size_t>(OC))) {
         const auto wtInd = oc * static_cast<size_t>(VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
 
