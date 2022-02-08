@@ -45,10 +45,19 @@ Shape computeGeneralTileStrategy(mlir::Operation* op, Logger log) {
     auto tileDimIter = tileDimOrder.begin();
     auto dimToTile = *tileDimIter;
 
-    const auto isSupportedTileSize = [&tilingInfo, outputShape, log](ShapeRef nTilesOnDim) -> bool {
+    const auto isSupportedTileSize = [&](ShapeRef nTilesOnDim) -> bool {
         const auto tiles = fillDividedTiles(nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, log);
+        const auto isLastTileBiggest = [&]() -> bool {
+            auto lastTile = tiles.end() - 1;
+            auto firstTile = tiles.begin();
+            return lastTile->shape[dimToTile] > firstTile->shape[dimToTile];
+        };
+        return !isLastTileBiggest() && tilingInfo.isSupportedTiling(tiles, log);
     };
+    //    const auto isSupportedTileSize = [&tilingInfo, outputShape, log](ShapeRef nTilesOnDim) -> bool {
+    //        const auto tiles = fillDividedTiles(nTilesOnDim, outputShape);
+    //        return tilingInfo.isSupportedTiling(tiles, log);
+    //    };
 
     const auto isSupportedChannelDivision = [&]() {
         if ((outputShape[Dims4D::Act::C] % nTilesOnDim[Dims4D::Act::C]) != 0) {
