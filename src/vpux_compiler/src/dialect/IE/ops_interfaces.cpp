@@ -309,13 +309,13 @@ vpux::IE::LayerDataInfo<mlir::Type> vpux::IE::getElemTypeInfo(mlir::Operation* o
     SmallVector<mlir::Type> inputTypes;
     inputTypes.reserve(op->getNumOperands());
     for (const auto& val : op->getOperands()) {
-        inputTypes.push_back(val.getType().cast<mlir::MemRefType>().getElementType());
+        inputTypes.push_back(val.getType().cast<mlir::ShapedType>().getElementType());
     }
 
     SmallVector<mlir::Type> outputTypes;
     outputTypes.reserve(op->getNumResults());
     for (const auto& val : op->getResults()) {
-        outputTypes.push_back(val.getType().cast<mlir::MemRefType>().getElementType());
+        outputTypes.push_back(val.getType().cast<mlir::ShapedType>().getElementType());
     }
 
     return vpux::IE::LayerDataInfo<mlir::Type>(std::move(inputTypes), std::move(outputTypes));
