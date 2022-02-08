@@ -191,13 +191,13 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     assignMultiClusterStrategy(op);
                 })
                 .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp op) {
-                    // Is operation SOH compatible
+                    // Check if the operation SOH compatible, otherwise the efficiency is 0
                     if (isOperationSplitOverHeightCompatible<VPU::NCEConvolutionOp>(op)) {
                         _splitOverHeightEfficencies.insert({op, calculateSplitOverHeightEfficency(op)});
                     } else {
                         _splitOverHeightEfficencies.insert({op, 0});
                     }
-                    // Is operation SOK compatible
+                    // Check if the operation SOK compatible, otherwise the efficiency is 0
                     if (isOperationSplitOverKernelCompatible<VPU::NCEConvolutionOp>(op)) {
                         _splitOverKernelEfficencies.insert({op, calculateSplitOverKernelEfficency(op)});
                     } else {
@@ -207,13 +207,13 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     assignMultiClusterStrategy(op);
                 })
                 .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp op) {
-                    // Is operation SOH compatible
+                    // Check if the operation SOH compatible, otherwise the efficiency is 0
                     if (isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                         _splitOverHeightEfficencies.insert({op, calculateSplitOverHeightEfficency(op)});
                     } else {
                         _splitOverHeightEfficencies.insert({op, 0});
                     }
-                    // Is operation SOK compatible
+                    // Check if the operation SOK compatible, otherwise the efficiency is 0
                     if (isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                         _splitOverKernelEfficencies.insert({op, calculateSplitOverKernelEfficency(op)});
                     } else {
@@ -230,21 +230,20 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
 void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
     llvm::TypeSwitch<mlir::Operation*, void>(op)
             .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp op) {
-                // If operation is neither SOH or SOK compatible, then it has to be Clustering
+                // If operation is neither SOH or SOK compatible, then it has clustering strategy
                 if (!isOperationSplitOverHeightCompatible<VPU::NCEConvolutionOp>(op) &&
                     !isOperationSplitOverKernelCompatible<VPU::NCEConvolutionOp>(op)) {
                     op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "Clustering"));
                     _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
                                op->getName());
                 }
-                // Compare the SOK and SOK efficiencies
-                // Select SOH if they are equal
+                // Compare the SOH and SOK efficiencies and select SOH if they are equal
                 else if (_splitOverHeightEfficencies.find(op)->second >= _splitOverKernelEfficencies.find(op)->second) {
                     const auto inputType = op.input().getType().cast<mlir::ShapedType>();
                     const auto inputShape = getShape(inputType);
                     const auto IC = inputShape[Dims4D::Act::C];
 
-                    // Channel Major Conv should be SplitOverHOverLapped
+                    // A channel major conv should be have SplitOverHOverLapped strategy
                     if (IC <= 3) {
                         op->setAttr(multiClusterStrategy,
                                     mlir::StringAttr::get(op->getContext(), "SplitOverHeightOverLapped"));
@@ -277,7 +276,7 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                 const double weightTensorVolume =
                         WOC * 1 * std::ceil((1 * KY * KX) / 16) * 16;  // Need to add precision
 
-                // If operation is neither SOH or SOK compatible, then it has to be Clustering
+                // If operation is neither SOH or SOK compatible, then it has clustering strategy
                 if (!isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op) &&
                     !isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                     op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "Clustering"));
