@@ -64,6 +64,9 @@ struct AdjustLayoutOptions : mlir::PassPipelineOptions<AdjustLayoutOptions> {
     BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
                                       llvm::cl::init(true)};
 
+    BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
+                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(false)};
+
     AdjustLayoutOptions() = default;
 
     template <
@@ -72,6 +75,7 @@ struct AdjustLayoutOptions : mlir::PassPipelineOptions<AdjustLayoutOptions> {
     explicit AdjustLayoutOptions(const OtherOptions& options) {
         enableUseUserLayout = options.enableUseUserLayout;
         enableOptimizeReorders = options.enableOptimizeReorders;
+        enableForceZMajorConcat = options.enableForceZMajorConcat;
     }
 };
 
@@ -103,6 +107,7 @@ std::unique_ptr<mlir::Pass> createSwapMaxPoolWithActivation(Logger log = Logger:
 std::unique_ptr<mlir::Pass> createConvertDeconv2DToConv2DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertDepth2SpaceLayerPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createInsertMaxpoolToConcatLReluPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createInsertReorderBetweenTransposeAndConcatPass(Logger log = Logger::global());
 
 //
 // LowPrecision
