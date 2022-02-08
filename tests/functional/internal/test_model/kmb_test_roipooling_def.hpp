@@ -43,8 +43,9 @@ struct ROIPoolingParams final {
     }
 };
 
-inline std::ostream& operator<<(std::ostream& os, const ROIPoolingParams& p) {
-        vpu::formatPrint(os, "[pooled_w:%v, pooled_h:%v, spatial_scale:%v, mode:%v]",
+template <typename Stream>
+inline Stream& operator<<(Stream& os, const ROIPoolingParams& p) {
+        vpux::printTo(os, "[pooled_w:{0}, pooled_h:{1}, spatial_scale:{2}, mode:{3}]",
                 p.pooled_w_, p.pooled_h_, p.spatial_scale_, p.mode_);
 	return os;
 }

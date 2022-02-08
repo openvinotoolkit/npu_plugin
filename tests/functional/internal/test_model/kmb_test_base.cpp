@@ -191,8 +191,8 @@ void KmbTestBase::SetUp() {
        ((RUN_COMPILER || RUN_INFER) && DEVICE_NAME     == "CPU" )) {
        core->SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, "CPU");
     }
-
-    dumpBaseName = cleanName(vpu::formatString("%v_%v", testInfo->test_case_name(), testInfo->name()));
+     
+    dumpBaseName = cleanName(vpux::printToString("{0}_{1}", testInfo->test_case_name(), testInfo->name()));
 
     if (const auto typeParam = testInfo->type_param()) {
         std::cout << "[ PARAMS   ] " << typeParam << std::endl;
@@ -376,8 +376,8 @@ void KmbTestBase::checkWithOutputsInfo(const BlobMap& actualOutputs,
 
 void KmbTestBase::exportNetwork(ExecutableNetwork& exeNet) {
     IE_ASSERT(!DUMP_PATH.empty());
-
-    const auto fileName = vpu::formatString("%v/%v.net", DUMP_PATH, dumpBaseName);
+    
+    const auto fileName = vpux::printToString("{0}/{1}.net", DUMP_PATH, dumpBaseName);
 
     if (RAW_EXPORT) {
         exeNet.Export(fileName);
@@ -393,7 +393,7 @@ void KmbTestBase::exportNetwork(ExecutableNetwork& exeNet) {
 ExecutableNetwork KmbTestBase::importNetwork(const std::map<std::string, std::string>& importConfig) {
     IE_ASSERT(!DUMP_PATH.empty());
 
-    const auto fileName = vpu::formatString("%v/%v.net", DUMP_PATH, dumpBaseName);
+    const auto fileName = vpux::printToString("{0}/{1}.net", DUMP_PATH, dumpBaseName);
     std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
     if (!file.is_open()) {
         std::stringstream str;
@@ -410,8 +410,8 @@ ExecutableNetwork KmbTestBase::importNetwork(const std::map<std::string, std::st
 
 void KmbTestBase::dumpBlob(const std::string& blobName, const Blob::Ptr& blob) {
     IE_ASSERT(!DUMP_PATH.empty());
-
-    const auto fileName = vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(blobName));
+    
+    const auto fileName = vpux::printToString("{0}/{1}_{2}.blob", DUMP_PATH, dumpBaseName, cleanName(blobName));
 
     std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
     if (!file.is_open())
@@ -434,7 +434,7 @@ Blob::Ptr KmbTestBase::importBlob(const std::string& name, const TensorDesc& des
     const auto blob = make_blob_with_precision(desc);
     blob->allocate();
 
-    const auto fileName = vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(name));
+    const auto fileName = vpux::printToString("{0}/{1}_{2}.blob", DUMP_PATH, dumpBaseName, cleanName(name));
     std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
     if (!file.is_open()) {
         std::stringstream str;

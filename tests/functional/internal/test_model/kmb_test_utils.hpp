@@ -14,9 +14,9 @@
 #pragma once
 
 #include "vpux/utils/IE/blob.hpp"
+#include "vpux/utils/core/format.hpp"
 
 #include <inference_engine.hpp>
-#include <vpu/utils/io.hpp>
 #include <ngraph/type/element_type.hpp>
 
 #include <blob_factory.hpp>
@@ -80,9 +80,10 @@ struct Vec2D final {
     T x;
     T y;
 };
-template <typename T>
-std::ostream& operator<<(std::ostream& os, const Vec2D<T>& v) {
-    vpu::formatPrint(os, "[x:%v, y:%v]", v.x, v.y);
+
+template <typename Stream, typename T>
+Stream& operator<<(Stream& os, const Vec2D<T>& v) {
+    vpux::printTo(os, "[x:{0}, y:{1}]", v.x, v.y);
     return os;
 }
 
@@ -92,8 +93,10 @@ struct Pad2D final {
     ptrdiff_t top;
     ptrdiff_t bottom;
 };
-inline std::ostream& operator<<(std::ostream& os, const Pad2D& p) {
-    vpu::formatPrint(os, "[left:%v, right:%v, top:%v, bottom:%v]", p.left, p.right, p.top, p.bottom);
+
+template <typename Stream>
+inline Stream& operator<<(Stream& os, const Pad2D& p) {
+    vpux::printTo(os, "[left:{0}, right:{1}, top:{2}, bottom:{3}]", p.left, p.right, p.top, p.bottom);
     return os;
 }
 
@@ -118,13 +121,13 @@ enum class KernelType : int {
 inline std::ostream& operator<<(std::ostream& os, const KernelType& p) {
     switch (p) {
         case KernelType::Native:
-            vpu::formatPrint(os, "Native");
+            vpux::printTo(os, "Native");
             break;
         case KernelType::Ocl:
-            vpu::formatPrint(os, "OCL");
+            vpux::printTo(os, "OCL");
             break;
         case KernelType::Cpp:
-            vpu::formatPrint(os, "CPP");
+            vpux::printTo(os, "CPP");
             break;
     }
 

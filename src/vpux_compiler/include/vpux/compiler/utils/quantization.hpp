@@ -39,6 +39,9 @@ mlir::quant::UniformQuantizedPerAxisType expandScalesAndZP(mlir::quant::UniformQ
 mlir::quant::UniformQuantizedPerAxisType tileScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
                                                          ShapeRef shape, ShapeRef offsets);
 
+mlir::quant::UniformQuantizedPerAxisType changeAxis(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
+                                                    int32_t axis);
+
 bool canBeMerged(mlir::quant::UniformQuantizedPerAxisType type1, mlir::quant::UniformQuantizedPerAxisType type2);
 mlir::quant::UniformQuantizedPerAxisType concatScalesAndZP(ArrayRef<mlir::quant::UniformQuantizedPerAxisType> types);
 

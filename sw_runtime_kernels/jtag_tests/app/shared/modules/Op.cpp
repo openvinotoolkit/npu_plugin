@@ -1,4 +1,15 @@
-// {% copyright %}
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
 
 #define MVLOG_UNIT_NAME MvOp
 #include <nn_log.h>
@@ -52,13 +63,13 @@ uint32_t Op::getNumShaves() const
     return numShaves;
 }
 
-void Buffer::set(void* addr, uint32_t dataType, subspace::t_D8StorageOrder oldOrder, const int32_t dims[], const int32_t strides[]) {
+void OpTensor::set(void* addr, uint32_t dataType, subspace::t_D8StorageOrder oldOrder, const int32_t dims[], const int32_t strides[]) {
     this->order = oldOrder;
     NDOrder newOrder = subspace::orderToNDOrder(oldOrder);
     TensorRef::set(addr, dataType, newOrder, dims, strides);
 }
 
-void Buffer::printDims(const char * prefix) {
+void OpTensor::printDims(const char * prefix) {
     int32_t permutation[subspace::MAX_DIMS] = {};
     int nDims = subspace::orderToPermutation(order, permutation);
 

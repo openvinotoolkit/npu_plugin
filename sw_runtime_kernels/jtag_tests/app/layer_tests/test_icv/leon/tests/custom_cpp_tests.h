@@ -1,9 +1,23 @@
-// {% copyright %}
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
 #pragma once
 
 #include "custom_cpp_test_base.h"
 
 using namespace icv_tests;
+
+extern uint64_t cmxParamContainer[];
 
 namespace
 {
@@ -71,8 +85,8 @@ protected:
 
         static_assert(std::is_base_of<Op, CustomCpp>());
         CustomCpp* customCppOp = static_cast<CustomCpp*>(m_op);
-        Buffer inBuff;
-        Buffer outBuff;
+        OpTensor inBuff;
+        OpTensor outBuff;
         m_inputTensor.exportToBuffer(inBuff);
         m_outputTensor.exportToBuffer(outBuff);
 
@@ -118,6 +132,8 @@ protected:
     Tensor<fp16> m_referenceOutputTensor;
     sw_params::Location m_requiredTensorLocation = sw_params::Location::DDR;
 
+    //  FIXME: Temporarily is located on CMX due to problem of ACT_SHAVE cache invalidation
+    uint64_t * paramContainer = cmxParamContainer;
     float m_test_threshold = 0.0f;
 
     // Debug-specific

@@ -34,6 +34,7 @@ enum class CaseType {
     AvgPool,
     ActShave,
     RaceConditionDMA,
+    RaceConditionDPU,
     Unknown
 };
 

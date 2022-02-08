@@ -42,7 +42,7 @@ struct TopKTestParams final {
     }
 };
 std::ostream& operator<<(std::ostream& os, const TopKTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, topkParams:%v ]", p._inDims, p._topkParams);
+    vpux::printTo(os, "[inDims:{0}, topkParams:{1} ]", p._inDims, p._topkParams);
     return os;
 }
 

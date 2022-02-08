@@ -31,7 +31,7 @@ struct TileTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const TileTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, tileParams:%v]",
+    vpux::printTo(os, "[inDims:{0}, tileParams:{1}]",
         p._inDims, p._tileParams);
     return os;
 }

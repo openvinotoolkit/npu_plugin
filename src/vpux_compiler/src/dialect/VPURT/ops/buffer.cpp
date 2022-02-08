@@ -25,9 +25,16 @@ void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::Opera
 }
 
 void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
+                                         VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
+                                         int64_t byteOffset) {
+    build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section),
+          getIntArrayAttr(builder, sectionIndex), getIntAttr(builder, byteOffset));
+}
+
+void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
                                          VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset) {
     build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section),
-          getIntAttr(builder, sectionIndex), getIntAttr(builder, byteOffset));
+          getIntArrayAttr(builder, makeArrayRef({sectionIndex})), getIntAttr(builder, byteOffset));
 }
 
 mlir::LogicalResult vpux::VPURT::verifyOp(DeclareBufferOp op) {
@@ -42,6 +49,13 @@ mlir::LogicalResult vpux::VPURT::verifyOp(DeclareBufferOp op) {
     // TODO: check sectionIndex and byteOffset [track: E#21111]
 
     return mlir::success();
+}
+
+SmallVector<int64_t> vpux::VPURT::DeclareBufferOp::getNonEmptySectionIndex() {
+    if (sectionIndex().hasValue()) {
+        return parseIntArrayAttr<int64_t>(sectionIndex().getValue());
+    }
+    return SmallVector<int64_t>({0});
 }
 
 //

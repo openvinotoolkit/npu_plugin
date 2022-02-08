@@ -21,7 +21,7 @@ struct PReluTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const PReluTestParams& p) {
-    vpu::formatPrint(os, "dims: %l, layout: %l", p.dims(), p.layout());
+    vpux::printTo(os, "dims: {0}, layout: {1}", p.dims(), p.layout());
     return os;
 }
 

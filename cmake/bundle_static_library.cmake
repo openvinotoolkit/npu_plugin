@@ -20,40 +20,49 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# TODO: add a brief comment documenting the function
-function(bundle_static_library TARGET_NAME BUNDLED_TARGET_NAME)
-    list(APPEND STATIC_LIBS ${TARGET_NAME})
+# For a static libary ${TARGET_NAME}:
+#  * recursively collects static libraries in ${ARGN} targets and their dependencies 
+#  * bundles all the collected libraries to ${TARGET_NAME}
+function(bundle_static_library TARGET_NAME)
+    get_target_property(TARGET_TYPE ${TARGET_NAME} TYPE)
+    if (NOT ${TARGET_TYPE} STREQUAL "STATIC_LIBRARY")
+        message(FATAL_ERROR "bundle_static_library function should
+                             be used only with static libraries.")
+        return()
+    endif()
 
-    set(STATIC_LIBS_TO_BUNDLE "")
-    foreach(arg IN LISTS ARGN)
-        if(NOT arg MATCHES "(${TARGET_NAME}|${BUNDLED_TARGET_NAME})")
-            list(APPEND STATIC_LIBS_TO_BUNDLE ${arg})
-        endif()
-    endforeach()
+    # collect static libs
+    set(STATIC_LIBS "")
+    set(STATIC_LIBS_TO_BUNDLE ${ARGN})
 
     function(_recursively_collect_dependencies INPUT_TARGET DEPENDENCIES_TO_INCLUDE)
         set(PUBLIC_DEPENDENCIES "")
         if (DEPENDENCIES_TO_INCLUDE STREQUAL "")
-            set(_INPUT_LINK_LIBRARIES LINK_LIBRARIES)
-            get_target_property(_INPUT_TYPE ${INPUT_TARGET} TYPE)
-            if (${_INPUT_TYPE} STREQUAL "INTERFACE_LIBRARY")
-                set(_INPUT_LINK_LIBRARIES INTERFACE_LINK_LIBRARIES)
+            get_target_property(_INPUT_TARGET_TYPE ${INPUT_TARGET} TYPE)
+            if (${_INPUT_TARGET_TYPE} STREQUAL "INTERFACE_LIBRARY")
+                get_target_property(PUBLIC_DEPENDENCIES ${INPUT_TARGET} INTERFACE_LINK_LIBRARIES)
+            else()
+                get_target_property(PUBLIC_DEPENDENCIES ${INPUT_TARGET} LINK_LIBRARIES)
             endif()
-            get_target_property(PUBLIC_DEPENDENCIES ${INPUT_TARGET} ${_INPUT_LINK_LIBRARIES})
         else()
             set(PUBLIC_DEPENDENCIES ${DEPENDENCIES_TO_INCLUDE})
         endif()
+
         foreach(DEPENDENCY IN LISTS PUBLIC_DEPENDENCIES)
             if(TARGET ${DEPENDENCY})
+                # replace with aliased target if needed
                 get_target_property(_ALIAS ${DEPENDENCY} ALIASED_TARGET)
                 if (TARGET ${_ALIAS})
-                    set(DEPENDENCY ${ALIAS})
+                    set(DEPENDENCY ${_ALIAS})
                 endif()
+
+                # append if a static lib
                 get_target_property(_type ${DEPENDENCY} TYPE)
                 if (${_type} STREQUAL "STATIC_LIBRARY")
                     list(APPEND STATIC_LIBS ${DEPENDENCY})
                 endif()
 
+                # recursive call
                 get_property(LIBRARY_ALREADY_ADDED
                     GLOBAL PROPERTY _${TARGET_NAME}_STATIC_BUNDLE_${DEPENDENCY})
                 if(NOT LIBRARY_ALREADY_ADDED)
@@ -66,27 +75,32 @@ function(bundle_static_library TARGET_NAME BUNDLED_TARGET_NAME)
     endfunction()
 
     _recursively_collect_dependencies(${TARGET_NAME} "${STATIC_LIBS_TO_BUNDLE}")
-
     list(REMOVE_DUPLICATES STATIC_LIBS)
-    set(BUNDLED_TARGET_FULL_NAME
-        ${CMAKE_BINARY_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${BUNDLED_TARGET_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+    # bundle static libs into a single archive
+    set(TARGET_FULL_NAME $<TARGET_FILE:${TARGET_NAME}>)
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|GNU)$")
-        file(WRITE ${CMAKE_BINARY_DIR}/${BUNDLED_TARGET_NAME}.ar.in
-            "CREATE ${BUNDLED_TARGET_FULL_NAME}\n"
+        file(WRITE ${CMAKE_BINARY_DIR}/${TARGET_NAME}.ar.in
+            "CREATE ${TARGET_FULL_NAME}\n"
         )
         
+        file(APPEND ${CMAKE_BINARY_DIR}/${TARGET_NAME}.ar.in
+                "ADDLIB $<TARGET_FILE:${TARGET_NAME}>\n"
+        )
+
         foreach(TARGET IN LISTS STATIC_LIBS)
-            file(APPEND ${CMAKE_BINARY_DIR}/${BUNDLED_TARGET_NAME}.ar.in
+            file(APPEND ${CMAKE_BINARY_DIR}/${TARGET_NAME}.ar.in
                 "ADDLIB $<TARGET_FILE:${TARGET}>\n"
             )
         endforeach()
         
-        file(APPEND ${CMAKE_BINARY_DIR}/${BUNDLED_TARGET_NAME}.ar.in "SAVE\n")
-        file(APPEND ${CMAKE_BINARY_DIR}/${BUNDLED_TARGET_NAME}.ar.in "END\n")
+        file(APPEND ${CMAKE_BINARY_DIR}/${TARGET_NAME}.ar.in "SAVE\n")
+        file(APPEND ${CMAKE_BINARY_DIR}/${TARGET_NAME}.ar.in "END\n")
 
         file(GENERATE
-            OUTPUT ${CMAKE_BINARY_DIR}/${BUNDLED_TARGET_NAME}.ar
-            INPUT ${CMAKE_BINARY_DIR}/${BUNDLED_TARGET_NAME}.ar.in)
+            OUTPUT ${CMAKE_BINARY_DIR}/${TARGET_NAME}.ar
+            INPUT ${CMAKE_BINARY_DIR}/${TARGET_NAME}.ar.in)
 
         set(AR_TOOL ${CMAKE_AR})
         if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
@@ -94,38 +108,25 @@ function(bundle_static_library TARGET_NAME BUNDLED_TARGET_NAME)
         endif()
 
         add_custom_command(
-            OUTPUT ${BUNDLED_TARGET_FULL_NAME}
-            COMMAND ${AR_TOOL} -M < ${CMAKE_BINARY_DIR}/${BUNDLED_TARGET_NAME}.ar
-            DEPENDS ${TARGET_NAME}
-            COMMENT "Bundling ${BUNDLED_TARGET_NAME}"
+            TARGET ${TARGET_NAME} POST_BUILD
+            COMMAND ${AR_TOOL} -M < ${CMAKE_BINARY_DIR}/${TARGET_NAME}.ar
+            COMMENT "Bundling ${TARGET_NAME} with ${STATIC_LIBS}"
             VERBATIM)
     elseif(MSVC)
         find_program(lib_tool lib)
+        set(STATIC_LIBS_FULL_NAMES "${TARGET_FULL_NAME}")
 
         foreach(TARGET IN LISTS STATIC_LIBS)
             list(APPEND STATIC_LIBS_FULL_NAMES $<TARGET_FILE:${TARGET}>)
         endforeach()
 
         add_custom_command(
-            OUTPUT ${BUNDLED_TARGET_FULL_NAME}
-            COMMAND ${lib_tool} /NOLOGO /OUT:${BUNDLED_TARGET_FULL_NAME} ${STATIC_LIBS_FULL_NAMES}
-            DEPENDS ${TARGET_NAME}
-            COMMENT "Bundling ${BUNDLED_TARGET_NAME}"
+            TARGET ${TARGET_NAME} POST_BUILD
+            COMMAND ${lib_tool} /NOLOGO /OUT:${TARGET_FULL_NAME} ${STATIC_LIBS_FULL_NAMES}
+            COMMENT "Bundling ${TARGET_NAME} with ${STATIC_LIBS}"
             VERBATIM
         )
     else()
         message(FATAL_ERROR "Unknown bundle scenario!")
     endif()
-
-    add_custom_target(bundling_target_${BUNDLED_TARGET_NAME} ALL DEPENDS ${BUNDLED_TARGET_FULL_NAME})
-
-    add_library(${BUNDLED_TARGET_NAME} STATIC IMPORTED GLOBAL)
-    set_target_properties(${BUNDLED_TARGET_NAME}
-        PROPERTIES
-            IMPORTED_LOCATION ${BUNDLED_TARGET_FULL_NAME}
-            INTERFACE_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME},INTERFACE_INCLUDE_DIRECTORIES>
-            INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME},INCLUDE_DIRECTORIES>
-    )
-
-    add_dependencies(${BUNDLED_TARGET_NAME} bundling_target_${BUNDLED_TARGET_NAME})
 endfunction()

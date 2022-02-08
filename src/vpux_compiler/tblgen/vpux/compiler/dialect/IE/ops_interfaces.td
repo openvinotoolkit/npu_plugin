@@ -217,6 +217,12 @@ def IE_TilingInfoOpInterface : OpInterface<"TilingInfoOpInterface"> {
             "bool", "isSupportedTiling",
             (ins "const vpux::OutputTiling&":$tiles, "vpux::Logger":$log)
         >,
+
+        InterfaceMethod<
+            "Check, if the operation support prefetch tiling with cmx memory checking only",
+            "bool", "isSupportedPrefetchTiling",
+            (ins "ShapeRef":$tileAxis, "vpux::Logger":$log)
+        >,
     ];
 
     let verify = [{
@@ -267,6 +273,34 @@ def IERT_ResourceOpInterface : OpInterface<"ResourceOpInterface"> {
 // In other words - the iteration space is fully parallel across all indexes.
 def IE_EltwiseOp : NativeOpTrait<"EltwiseOp"> {
     let cppNamespace = "vpux::IE";
+}
+
+//
+// ElemTypeInfoOpInterface
+//
+
+// using ElemTypeInfo = LayerDataInfo<mlir::Type>;
+
+def IE_ElemTypeInfoOpInterface : OpInterface<"ElemTypeInfoOpInterface"> {
+
+    let cppNamespace = "vpux::IE";
+    let methods = [
+        InterfaceMethod<"Infer element type down",
+            "void", "inferElemTypeInfo",
+            (ins "vpux::IE::LayerDataInfo<mlir::Type>&":$info)
+        >,
+        InterfaceMethod<"Infer element type up",
+            "void", "inferElemTypeInfoUp",
+            (ins "vpux::IE::LayerDataInfo<mlir::Type>&":$info)
+        >,
+        InterfaceMethod<"Get element types for inputs and outpus",
+            "vpux::IE::LayerDataInfo<mlir::Type>", "getElemTypeInfo", (ins),
+            [{}],
+            [{
+                return vpux::IE::getElemTypeInfo($_op);
+            }]
+        >
+    ];
 }
 
 #endif

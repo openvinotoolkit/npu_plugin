@@ -1,4 +1,15 @@
-# {% copyright %}
+#
+# Copyright Intel Corporation.
+#
+# LEGAL NOTICE: Your use of this software and any required dependent software
+# (the "Software Package") is subject to the terms and conditions of
+# the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+# which may also include notices, disclaimers, or license terms for
+# third party or open source software included in or with the Software Package,
+# and your use indicates your acceptance of all such terms. Please refer
+# to the "third-party-programs.txt" or other similarly-named text file
+# included with the Software Package for additional details.
+#
 
 kmb_or_tbh =
 
@@ -10,17 +21,17 @@ kmb_or_tbh = y
 endif
 
 ifdef kmb_or_tbh
-include-dirs-lrt-$(CONFIG_HAS_LRT_SRCS) += inc
-include-dirs-lrt-$(CONFIG_HAS_LRT_SRCS) += inc/layers
+include-dirs-lrt-y += inc ../inc
+include-dirs-lrt-y += inc/layers ../inc/layers
 
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/*.c*)
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/layers/parser_*.c*)
 
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/ShaveElfMetadata/*.c*)
 
-srcs-lrt-$(CONFIG_HAS_LRT_SRCS) += $(sys-nn-shave-lib-leon-srcs)
+srcs-lrt-$(CONFIG_TARGET_SOC_MA2490) += $(sys-nn-shave-lib-leon-srcs)
 
-srcs-shave-y += $(wildcard src/2490/layers/pre_*.c*)
+srcs-shave-$(CONFIG_TARGET_SOC_MA2490) += src/pre_custom_cpp.cpp
 
 ccopt-lrt-$(CONFIG_ENABLE_CUSTOM_KERNEL_PERF_COUNTERS) += -DENABLE_CUSTOM_KERNEL_PERF_COUNTERS
 ccopt-lnn-$(CONFIG_ENABLE_CUSTOM_KERNEL_PERF_COUNTERS) += -DENABLE_CUSTOM_KERNEL_PERF_COUNTERS

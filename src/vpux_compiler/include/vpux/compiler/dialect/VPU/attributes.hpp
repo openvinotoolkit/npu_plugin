@@ -28,6 +28,14 @@
 
 #include <llvm/Support/FormatVariadic.h>
 
+namespace vpux {
+namespace VPU {
+
+class PaddingAttr;
+
+}  // namespace VPU
+}  // namespace vpux
+
 //
 // Generated
 //

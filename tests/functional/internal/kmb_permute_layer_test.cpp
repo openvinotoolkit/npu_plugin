@@ -37,7 +37,7 @@ struct PermuteTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const PermuteTestParams& p) {
-    vpu::formatPrint(os, "[in_dims:%v, in_precision:%v, in_layout:%v, order:%v, permute_nd:%s]",
+    vpux::printTo(os, "[in_dims:{0}, in_precision:{1}, in_layout:{2}, order:{3}, permute_nd:{4}]",
             p.in_desc_.getDims(), p.in_desc_.getPrecision(), p.in_desc_.getLayout(), p.order_,
             p.permute_nd_);
     return os;

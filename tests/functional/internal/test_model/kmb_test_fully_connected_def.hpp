@@ -24,8 +24,10 @@ struct FullyConnectedParams final {
         return *this;
     }
 };
-inline std::ostream& operator<<(std::ostream& os, const FullyConnectedParams& p) {
-    vpu::formatPrint(os, "[outChannels:%v]", p._outChannels);
+
+template <typename Stream>
+inline Stream& operator<<(Stream& os, const FullyConnectedParams& p) {
+    vpux::printTo(os, "[outChannels:{0}]", p._outChannels);
     return os;
 }
 

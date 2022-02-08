@@ -56,14 +56,23 @@ public:
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
 
+#ifndef OPENVINO_STATIC_LIBRARY
 protected:
+#endif
     ~IEngineBackend() = default;
 };
 
 class EngineBackend final {
 public:
     EngineBackend() = default;
+
+#ifdef OPENVINO_STATIC_LIBRARY
+    EngineBackend(std::shared_ptr<IEngineBackend> impl);
+#endif
+
+#ifndef OPENVINO_STATIC_LIBRARY
     EngineBackend(const std::string& pathToLib);
+#endif
 
     // Destructor preserves unload order of implementation object and reference to library.
     // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.

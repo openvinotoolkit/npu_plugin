@@ -1,4 +1,15 @@
-// {% copyright %}
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
 
 #include "Permute.h"
 
@@ -7,7 +18,7 @@
 #include <mv_types.h>
 #include <nn_log.h>
 
-#include "upa_task_runner.hpp"
+#include "shave_task_runner.hpp"
 
 using namespace mv::tensor;
 
@@ -21,7 +32,7 @@ void copyElement(void * in, void * out) {
     *(static_cast<T*>(out)) = *(static_cast<T*>(in));
 }
 
-void standartLayoutPermutationToStorageOrderPermutation(Buffer &input, Buffer &output,
+void standartLayoutPermutationToStorageOrderPermutation(OpTensor &input, OpTensor &output,
         const int32_t standartLayoutPerm[], int32_t storageOrderPerm[]) {
     int32_t orderPerm[subspace::MAX_DIMS] = {0, };
     int32_t orderInd[subspace::MAX_DIMS] = {0, };

@@ -67,6 +67,11 @@ auto&& printTo(Stream&& stream, StringRef format, Args&&... args) {
     return stream << llvm::formatv(format.data(), std::forward<Args>(args)...).str();
 }
 
+template <typename... Args>
+std::string printToString(StringLiteral format, Args&&... args) {
+    return llvm::formatv(format.data(), std::forward<Args>(args)...).str();
+}
+
 //
 // Various base classes for `llvm::format_provider` implementations.
 //
@@ -92,7 +97,7 @@ struct MapFormatter {
         stream << '<';
 
         ptrdiff_t ind = 0;
-        const ptrdiff_t size = llvm::size(map);
+        const ptrdiff_t size = map.size();
         for (const auto& p : map) {
             auto keyAdapter = llvm::detail::build_format_adapter(p.first);
             keyAdapter.format(stream, style);

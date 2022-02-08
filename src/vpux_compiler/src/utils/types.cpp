@@ -150,6 +150,43 @@ Byte vpux::getCompactSize(mlir::Value val) {
     return getCompactSize(type);
 }
 
+Optional<int32_t> vpux::getQuantizedAxis(int32_t axis, ShapeRef prevShape, ShapeRef newShape) {
+    auto prevArray = to_small_vector(prevShape.toValues());
+    auto newArray = to_small_vector(newShape.toValues());
+
+    if (checked_cast<size_t>(axis) >= prevShape.size()) {
+        return None;
+    }
+
+    const auto isEqualOne = [](int64_t val) {
+        return val == 1;
+    };
+
+    auto firstPrevIter = std::find_if_not(prevArray.begin(), prevArray.end(), isEqualOne);
+    auto firstNewIter = std::find_if_not(newArray.begin(), newArray.end(), isEqualOne);
+
+    if (firstPrevIter == prevArray.end() || firstNewIter == newArray.end()) {
+        return axis;
+    }
+
+    const auto gap = checked_cast<int32_t>(std::distance(newArray.begin(), firstNewIter) -
+                                           std::distance(prevArray.begin(), firstPrevIter));
+    const auto newArraySize = newArray.size();
+
+    prevArray.erase(std::remove_if(prevArray.begin(), prevArray.end(), isEqualOne), prevArray.end());
+    newArray.erase(std::remove_if(newArray.begin(), newArray.end(), isEqualOne), newArray.end());
+
+    if (!std::equal(prevArray.begin(), prevArray.end(), newArray.begin(), newArray.end())) {
+        return None;
+    }
+
+    if (axis < -gap || axis + gap >= checked_cast<int32_t>(newArraySize)) {
+        return None;
+    }
+
+    return axis + gap;
+}
+
 //
 // MemRefType utilities
 //
@@ -334,8 +371,14 @@ mlir::RankedTensorType vpux::changeShape(mlir::RankedTensorType origType, ShapeR
     const auto origOrder = DimsOrder::fromType(origType);
     const auto newOrder = origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder;
 
-    const auto newType = getTensorType(shape, origType.getElementType(), newOrder, IE::getMemorySpace(origType),
-                                       IE::isSparse(origType));
+    auto elemType = origType.getElementType();
+    if (auto perAxisType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto axis = getQuantizedAxis(perAxisType.getQuantizedDimension(), getShape(origType), shape);
+        if (axis.hasValue()) {
+            elemType = changeAxis(perAxisType, axis.getValue());
+        }
+    }
+    const auto newType = getTensorType(shape, elemType, newOrder, IE::getMemorySpace(origType));
 
     const auto loc = mlir::UnknownLoc::get(origType.getContext());
     VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);

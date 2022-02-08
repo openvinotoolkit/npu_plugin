@@ -29,7 +29,7 @@ struct FCTestParams final {
     }
 };
 std::ostream& operator<<(std::ostream& os, const FCTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, fcParams:%v]", p._inDims, p._fcParams);
+    vpux::printTo(os, "[inDims:{0}, fcParams:{1}]", p._inDims, p._fcParams);
     return os;
 }
 

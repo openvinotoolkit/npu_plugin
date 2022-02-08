@@ -316,7 +316,6 @@ if(ENABLE_HDDL2 AND UNIX AND LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
         set(HDDLUNITE_KMB_ARCHIVE_HASH "89c37f6d5b6295d6513d03dd6d48bcc09d52b0d08a86d26f9d5404580985692c")
         set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww44_2021)
         set(HDDLUNITE_VPUX_4_ARCHIVE_HASH "ddeac69b8b7d59328b18bf998f701490bee00bbeedbbb57bf3cdc649bd2691eb")
-
         set(ARCH_FORMAT ".tgz")
 
         if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
@@ -379,20 +378,48 @@ if(ENABLE_HDDL2 AND UNIX AND LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
 
         install(DIRECTORY   "${HDDL_UNITE}/lib/"
                 DESTINATION "${HDDL_UNITE_INSTALL_DIR}/lib"
-                COMPONENT   ${VPUX_PLUGIN_COMPONENT})
+                COMPONENT   ${VPUX_TESTS_COMPONENT}
+                EXCLUDE_FROM_ALL)
 
         install(DIRECTORY   "${HDDL_UNITE}/thirdparty/XLink/lib/"
                 DESTINATION "${HDDL_UNITE_INSTALL_DIR}/thirdparty/XLink/lib"
-                COMPONENT   ${VPUX_PLUGIN_COMPONENT})
+                COMPONENT   ${VPUX_TESTS_COMPONENT}
+                EXCLUDE_FROM_ALL)
 
         set(HDDL_UNITE_VPUX_4_INSTALL_DIR "${IE_CPACK_LIBRARY_PATH}/vpux_4/hddl_unite")
 
         install(DIRECTORY   "${TEMP}/vpux_4/hddl_unite/lib/"
                 DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/lib"
-                COMPONENT   ${VPUX_PLUGIN_COMPONENT})
-        
+                COMPONENT   ${VPUX_TESTS_COMPONENT}
+                EXCLUDE_FROM_ALL)
+
         install(DIRECTORY   "${TEMP}/vpux_4/hddl_unite/thirdparty/XLink/lib/"
                 DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/thirdparty/XLink/lib"
-                COMPONENT   ${VPUX_PLUGIN_COMPONENT})                
+                COMPONENT   ${VPUX_TESTS_COMPONENT}
+                EXCLUDE_FROM_ALL)
+
+        # TODO: Remove duplication EISW-31024
+        install(DIRECTORY   "${HDDL_UNITE}/lib/"
+                DESTINATION "${HDDL_UNITE_INSTALL_DIR}/lib"
+                COMPONENT   tests
+                EXCLUDE_FROM_ALL)
+
+        install(DIRECTORY   "${HDDL_UNITE}/thirdparty/XLink/lib/"
+                DESTINATION "${HDDL_UNITE_INSTALL_DIR}/thirdparty/XLink/lib"
+                COMPONENT   tests
+                EXCLUDE_FROM_ALL)
+
+        set(HDDL_UNITE_VPUX_4_INSTALL_DIR "${IE_CPACK_LIBRARY_PATH}/vpux_4/hddl_unite")
+
+        install(DIRECTORY   "${TEMP}/vpux_4/hddl_unite/lib/"
+                DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/lib"
+                COMPONENT   tests
+                EXCLUDE_FROM_ALL)
+
+        install(DIRECTORY   "${TEMP}/vpux_4/hddl_unite/thirdparty/XLink/lib/"
+                DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/thirdparty/XLink/lib"
+                COMPONENT   tests
+                EXCLUDE_FROM_ALL)
+
     endif()
 endif()

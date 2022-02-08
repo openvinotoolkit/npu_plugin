@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
+#include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -125,6 +126,17 @@ mlir::LogicalResult verifyOp(Const::DeclareOp op) {
 }
 
 }  // namespace
+
+//
+// setupExtraInterfaces
+//
+
+void Const::ConstDialect::setupExtraInterfaces(mlir::DialectRegistry& registry) {
+    registry.addTypeInterface<Const::ConstDialect, mlir::RankedTensorType, vpux::TensorPropertiesTypeInterface>();
+    registry.addTypeInterface<Const::ConstDialect, mlir::UnrankedTensorType, vpux::TensorPropertiesTypeInterface>();
+    registry.addTypeInterface<Const::ConstDialect, mlir::MemRefType, vpux::MemRefPropertiesTypeInterface>();
+    registry.addTypeInterface<Const::ConstDialect, mlir::UnrankedMemRefType, vpux::MemRefPropertiesTypeInterface>();
+}
 
 //
 // Generated

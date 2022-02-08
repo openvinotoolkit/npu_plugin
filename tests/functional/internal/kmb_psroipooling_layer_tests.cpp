@@ -39,7 +39,7 @@ struct PSROIPoolingTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const PSROIPoolingTestParams& p) {
-        vpu::formatPrint(os, "[input_dims:%v, coords_dims:%v, params:%v]",
+        vpux::printTo(os, "[input_dims:{0}, coords_dims:{1}, params:{2}]",
                 p.input_dims_, p.coords_dims_, p.params_);
 	return os;
 }

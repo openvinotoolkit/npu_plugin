@@ -29,7 +29,7 @@ addIeTargetTest(
     LINK_LIBRARIES
         IE::IESharedTests
         IE::funcTestUtils
-        IE::vpu_common_lib
+        vpux_utils
         kmb_utils
         vpux_mcm_frontend_static
         common_tests_helpers
@@ -46,3 +46,16 @@ endif()
 
 add_dependencies(${TARGET_NAME} ${VPUX_PLUGIN_TARGET} vpux_hddl2_backend)
 enable_warnings_as_errors(${TARGET_NAME})
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT ${VPUX_TESTS_COMPONENT}
+        EXCLUDE_FROM_ALL
+)
+
+# TODO: Remove duplication EISW-31024
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL
+)

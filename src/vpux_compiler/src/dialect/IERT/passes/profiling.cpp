@@ -91,7 +91,7 @@ mlir::Value AddCMX2DDRExecuteOp(mlir::OpBuilder& builder, mlir::MLIRContext* ctx
     builder.setInsertionPointToStart(bodyBlock);
     auto sub = builder.create<IERT::SubViewOp>(
             mlir::NameLoc::get(mlir::Identifier::get(name + "DDR" + std::to_string(offset), ctx)), profilingResult,
-            SmallVector<int64_t>({static_cast<int64_t>(offset * elementSize)}), resultType.getShape());
+            SmallVector<int64_t>({static_cast<int64_t>(offset) * elementSize}), resultType.getShape());
     auto concatview = builder.create<IERT::ConcatViewOp>(
             mlir::NameLoc::get(mlir::Identifier::get(name + "Profiling" + std::to_string(offset), ctx)), values,
             cmxMemOp);
@@ -119,7 +119,7 @@ mlir::Value AddCMX2DDRCopyOp(mlir::OpBuilder& builder, mlir::MLIRContext* ctx, m
 
     auto sub = builder.create<IERT::SubViewOp>(
             mlir::NameLoc::get(mlir::Identifier::get(name + "DDR" + std::to_string(offset), ctx)), profilingResult,
-            SmallVector<int64_t>({static_cast<int64_t>(offset * elementSize)}), resultType.getShape());
+            SmallVector<int64_t>({static_cast<int64_t>(offset) * elementSize}), resultType.getShape());
 
     // Create DMA from CMX to Profiling Output
     auto copyLoc2 = mlir::NameLoc::get(mlir::Identifier::get(name + "ProfilingCMX2DDR" + std::to_string(offset), ctx));

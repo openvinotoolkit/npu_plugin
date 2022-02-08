@@ -23,12 +23,6 @@
 #include <ngraph/pass/manager.hpp>
 #include <openvino/runtime/properties.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
-#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
-#include <transformations/op_conversions/reduce_l1_decomposition.hpp>
-#include <transformations/op_conversions/reduce_l2_decomposition.hpp>
-#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
-#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 
 // Plugin
 #include "vpux/utils/IE/config.hpp"

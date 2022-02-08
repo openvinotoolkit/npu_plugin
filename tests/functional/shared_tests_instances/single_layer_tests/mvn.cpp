@@ -23,6 +23,37 @@ TEST_P(KmbMvnLayerTestMLIR, CompareWithRefs_MLIR) {
     Run();
 }
 
+class KmbMvnLayerTestMLIR_MTL : public Mvn1LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SetUp() override {
+        Mvn1LayerTest::SetUp();
+
+        inPrc = InferenceEngine::Precision::FP16;
+        outPrc = InferenceEngine::Precision::FP16;
+    }
+    void SkipBeforeLoad() override {
+        if (std::getenv("OV_BUILD_DIR") == nullptr) {
+            throw LayerTestsUtils::KmbSkipTestException(
+                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
+        }
+
+#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
+        throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
+#endif
+    }
+    void SkipBeforeInfer() override {
+        // Format of act-shave tensors serialization doesn't match with kernel expectation
+        // [EISW-29786]
+        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+    }
+};
+
+TEST_P(KmbMvnLayerTestMLIR_MTL, CompareWithRefs_MLIR_MTL) {
+    useCompilerMLIR();
+    setPlatformMTL();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
 class KmbMvn6LayerTest : public Mvn6LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
 TEST_P(KmbMvn6LayerTest, basicTest) {
@@ -140,6 +171,18 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     ), KmbMvnLayerTestMLIR::getTestCaseName);
 
+//Test MVN MLIR MTL
+
+INSTANTIATE_TEST_CASE_P(
+    smoke_TestsMVN_MLIR_MTL, KmbMvnLayerTestMLIR_MTL, ::testing::Combine(
+        ::testing::ValuesIn(MLIRinputShapes),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::ValuesIn(emptyReductionAxes),
+        ::testing::Values(false), // acrossChannels (only this case is supported by the MTL runtime kernel [EISW-24995])
+        ::testing::ValuesIn(normalizeVariance),
+        ::testing::ValuesIn(epsilon),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+    ), KmbMvnLayerTestMLIR_MTL::getTestCaseName);
 
 //Test MVN-6
 

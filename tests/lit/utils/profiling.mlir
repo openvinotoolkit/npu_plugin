@@ -83,11 +83,11 @@ module @age_gender attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultH
     %52 = VPURT.DeclareBuffer "Register" <545390780> -> memref<1xui32, @Register> loc(#loc0)
     %53 = VPURT.DeclareBuffer "CMX_NN" <483252> -> memref<1xui32, @CMX_NN> loc(#loc3)
     %54 = VPURT.DeclareBuffer "Register" <545390780> -> memref<1xui32, @Register> loc(#loc0)
-    %55 = VPURT.DeclareBuffer "ProfilingOutput"[0] <88> -> memref<6xui32> loc(#loc0)
+    %55 = VPURT.DeclareBuffer "ProfilingOutput" [0] <88> -> memref<6xui32> loc(#loc0)
     VPURT.Task profiling_data(%55 : memref<6xui32>) updates(%14 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
       %64 = VPUIP.ConvertUPA inputs(%arg0 : memref<1x16x62x62xf32>) outputs(%2 : memref<1x16x62x62xf16, @DDR>) -> memref<1x16x62x62xf16, @DDR> loc(#loc2)
     } loc(#loc4)
-    %56 = VPURT.DeclareBuffer "ProfilingOutput"[0] <112> -> memref<6xui32> loc(#loc0)
+    %56 = VPURT.DeclareBuffer "ProfilingOutput" [0] <112> -> memref<6xui32> loc(#loc0)
     VPURT.Task profiling_data(%56 : memref<6xui32>) waits(%14 : !VPURT.Barrier) updates(%15 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
       %64 = VPUIP.PermuteUPA {order_value = #NHWC} inputs(%2 : memref<1x16x62x62xf16, @DDR>) outputs(%3 : memref<1x16x62x62xf16, #NHWC, @DDR>) -> memref<1x16x62x62xf16, #NHWC, @DDR> loc(#loc2)
     } loc(#loc8)
@@ -192,15 +192,15 @@ module @age_gender attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultH
     VPURT.Task waits(%40 : !VPURT.Barrier) updates(%42 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
       %64 = VPUIP.NNDMA {port = 0 : i64} inputs(%46 : memref<1xui32, @Register>) outputs(%45 : memref<1xui32, @CMX_NN>) -> memref<1xui32, @CMX_NN> loc(#loc17)
     } loc(#loc17)
-    %57 = VPURT.DeclareBuffer "ProfilingOutput"[0] <0> -> memref<4xui64> loc(#loc0)
+    %57 = VPURT.DeclareBuffer "ProfilingOutput" [0] <0> -> memref<4xui64> loc(#loc0)
     VPURT.Task waits(%42 : !VPURT.Barrier) updates(%47 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
       %64 = VPUIP.NNDMA {port = 0 : i64} inputs(%1 : memref<4xui64, @CMX_NN>) outputs(%57 : memref<4xui64>) -> memref<4xui64> loc(#loc7)
     } loc(#loc7)
-    %58 = VPURT.DeclareBuffer "ProfilingOutput"[0] <136> -> memref<6xui32> loc(#loc0)
+    %58 = VPURT.DeclareBuffer "ProfilingOutput" [0] <136> -> memref<6xui32> loc(#loc0)
     VPURT.Task profiling_data(%58 : memref<6xui32>) waits(%47 : !VPURT.Barrier) updates(%48 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
       %64 = VPUIP.PermuteUPA {order_value = #map} inputs(%8 : memref<1x48x30x30xf16, #NHWC, @DDR>) outputs(%12 : memref<1x48x30x30xf16, @DDR>) -> memref<1x48x30x30xf16, @DDR> loc(#loc0)
     } loc(#loc18)
-    %59 = VPURT.DeclareBuffer "ProfilingOutput"[0] <160> -> memref<6xui32> loc(#loc0)
+    %59 = VPURT.DeclareBuffer "ProfilingOutput" [0] <160> -> memref<6xui32> loc(#loc0)
     VPURT.Task profiling_data(%59 : memref<6xui32>) waits(%48 : !VPURT.Barrier) updates(%49 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
       %64 = VPUIP.ConvertUPA inputs(%12 : memref<1x48x30x30xf16, @DDR>) outputs(%13 : memref<1x48x30x30xf32, @DDR>) -> memref<1x48x30x30xf32, @DDR> loc(#loc0)
     } loc(#loc19)
@@ -213,13 +213,13 @@ module @age_gender attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultH
     VPURT.Task waits(%49 : !VPURT.Barrier) updates(%50 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
       %64 = VPUIP.NNDMA {port = 0 : i64} inputs(%54 : memref<1xui32, @Register>) outputs(%53 : memref<1xui32, @CMX_NN>) -> memref<1xui32, @CMX_NN> loc(#loc21)
     } loc(#loc21)
-    %60 = VPURT.DeclareBuffer "ProfilingOutput"[0] <32> -> memref<14xui32> loc(#loc0)
+    %60 = VPURT.DeclareBuffer "ProfilingOutput" [0] <32> -> memref<14xui32> loc(#loc0)
     VPURT.Task waits(%50 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
       %64 = VPUIP.NNDMA {port = 0 : i64} inputs(%0 : memref<14xui32, @CMX_NN>) outputs(%60 : memref<14xui32>) -> memref<14xui32> loc(#loc22)
     } loc(#loc22)
-    %61 = VPURT.DeclareBuffer "ProfilingOutput"[0] <0> -> memref<4xui64> loc(#loc0)
-    %62 = VPURT.DeclareBuffer "ProfilingOutput"[0] <32> -> memref<14xui32> loc(#loc0)
-    %63 = VPURT.DeclareBuffer "ProfilingOutput"[0] <88> -> memref<24xui32> loc(#loc0)
+    %61 = VPURT.DeclareBuffer "ProfilingOutput" [0] <0> -> memref<4xui64> loc(#loc0)
+    %62 = VPURT.DeclareBuffer "ProfilingOutput" [0] <32> -> memref<14xui32> loc(#loc0)
+    %63 = VPURT.DeclareBuffer "ProfilingOutput" [0] <88> -> memref<24xui32> loc(#loc0)
     return %arg1, %arg2 : memref<1x48x30x30xf32>, memref<46xui32> loc(#loc0)
   } loc(#loc0)
 } loc(#loc0)

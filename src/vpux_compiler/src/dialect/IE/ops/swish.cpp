@@ -53,23 +53,28 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SwishOp swishOp, mlir::PatternRewriter& rewriter) const {
-    auto beta = swishOp.beta();
-    if (beta == nullptr) {
+    if (swishOp.beta_value()) {
         return mlir::failure();
     }
 
-    auto betaOp = swishOp.beta().getDefiningOp<Const::DeclareOp>();
-    if (betaOp == nullptr) {
-        return mlir::failure();
-    }
+    float betaValue = 1.0;
 
-    const auto betaContent = betaOp.content();
-    if (!betaContent.isSplat()) {
-        return mlir::failure();
+    if (auto beta = swishOp.beta()) {
+        auto betaOp = beta.getDefiningOp<Const::DeclareOp>();
+        if (betaOp == nullptr) {
+            return mlir::failure();
+        }
+
+        const auto betaContent = betaOp.content();
+        if (!betaContent.isSplat()) {
+            return mlir::failure();
+        }
+
+        betaValue = betaContent.getSplatValue<float>();
     }
 
     rewriter.replaceOpWithNewOp<IE::SwishOp>(swishOp, swishOp.getType(), swishOp.input(), nullptr,
-                                             rewriter.getF64FloatAttr(betaContent.getSplatValue<float>()));
+                                             rewriter.getF64FloatAttr(betaValue));
 
     return mlir::success();
 }

@@ -29,7 +29,7 @@ struct DeconvTestParams final {
     }
 };
 std::ostream& operator<<(std::ostream& os, const DeconvTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, deconvParams:%v]",
+    vpux::printTo(os, "[inDims:{0}, deconvParams:{1}]",
         p._inDims, p._deconvParams);
     return os;
 }

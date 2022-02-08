@@ -47,6 +47,9 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     SmallVector<int64_t> in_shape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> out_shape(output.shape.begin(), output.shape.end());
 
+    VPUX_THROW_UNLESS(!in_shape.empty(), "buildAvgpoolWithDwConv: Got empty inputShape");
+    VPUX_THROW_UNLESS(!out_shape.empty(), "buildAvgpoolWithDwConv: Got empty outputShape");
+
     std::vector<int64_t> filter_size{pool_op.kernel_shape.at(0), pool_op.kernel_shape.at(1)};
     std::vector<int64_t> stride_vec(pool_op.stride.begin(), pool_op.stride.end());
     std::vector<int64_t> padding_vec = convertNBPadtoNCETaskPad(pool_op.pad);

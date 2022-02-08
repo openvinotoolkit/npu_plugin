@@ -15,12 +15,18 @@
 #define VPUX_COMPILER_DIALECT_VPURT_TYPES
 
 include "vpux/compiler/dialect/VPURT/dialect.td"
+include "vpux/compiler/core/type_interfaces.td"
 
 //
 // Base classes
 //
 
-class VPURT_Type<string name> : TypeDef<VPURT_Dialect, name> {
+class VPURT_Type<string name, list<Trait> traits = []> :
+        TypeDef<
+            VPURT_Dialect,
+            name,
+            traits
+        > {
     let mnemonic = name;
 }
 
@@ -38,7 +44,13 @@ def VPURT_Barrier : VPURT_Type<"Barrier"> {
 // SparseBuffer
 //
 
-def VPURT_SparseBuffer : VPURT_Type<"SparseBuffer"> {
+def VPURT_SparseBuffer :
+        VPURT_Type<
+            "SparseBuffer",
+            [
+                ShapedPropertiesTypeInterface
+            ]
+        > {
     let summary = "VPURT Sparse Buffer Type";
 
     let description = "This object represents a set of memory references that compose sparse data";
@@ -67,6 +79,27 @@ def VPURT_SparseBuffer : VPURT_Type<"SparseBuffer"> {
         static mlir::Value getSparsityMap(mlir::Value val);
         static mlir::Value getStorageElementTable(mlir::Value val);
         static mlir::Type getDataType(mlir::Value val);
+
+        vpux::ShapeRef getShape() const;
+        vpux::MemShape getMemShape() const;
+        bool hasRank() const;
+        int64_t getRank() const;
+        int64_t getNumElements() const;
+        mlir::Type getElementType() const;
+        vpux::DimsOrder getDimsOrder() const;
+        vpux::IndexedSymbolAttr getMemSpace() const;
+        vpux::VPU::MemoryKind getMemoryKind() const;
+        vpux::Strides getStrides() const;
+        vpux::MemStrides getMemStrides() const;
+        vpux::Bit getElemTypeSize() const;
+        vpux::Byte getTotalAllocSize() const;
+        vpux::Byte getCompactAllocSize() const;
+        vpux::ShapedPropertiesTypeInterface changeShape(vpux::ShapeRef shape) const;
+        vpux::ShapedPropertiesTypeInterface changeElemType(mlir::Type elemType) const;
+        vpux::ShapedPropertiesTypeInterface changeDimsOrder(vpux::DimsOrder order) const;
+        vpux::ShapedPropertiesTypeInterface changeMemSpace(vpux::IndexedSymbolAttr memSpace) const;
+        vpux::ShapedPropertiesTypeInterface extractDenseTile(vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;
+        vpux::ShapedPropertiesTypeInterface pad(vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
     }];
 }
 

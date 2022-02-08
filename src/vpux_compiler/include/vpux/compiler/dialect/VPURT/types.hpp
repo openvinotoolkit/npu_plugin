@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <mlir/IR/DialectImplementation.h>

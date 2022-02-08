@@ -18,7 +18,7 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
-#include <vpu/utils/logger.hpp>
+#include "vpux/utils/core/logger.hpp"
 #include "vpual_core_nn_synchronizer.hpp"
 
 using namespace vpux;

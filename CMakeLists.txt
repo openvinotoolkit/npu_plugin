@@ -34,6 +34,7 @@ project(InferenceEngineVPUXPlugin)
 
 set(VPUX_DEVICE_NAME "VPUX")
 string(TOLOWER "${VPUX_DEVICE_NAME}" VPUX_PLUGIN_COMPONENT)
+set(VPUX_TESTS_COMPONENT "${VPUX_PLUGIN_COMPONENT}_tests")
 
 set(IE_MAIN_VPUX_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(THIRDPARTY_SERVER_PATH "http://nnt-srv01.inn.intel.com/dl_score_engine/")
@@ -113,14 +114,36 @@ if(ENABLE_KMB_SAMPLES)
     add_subdirectory(samples)
 endif()
 
-add_subdirectory(tools)
+if(BUILD_SHARED_LIBS)
+    add_subdirectory(tools)
+endif()
 
 #
-# CPack
+# targets install
 #
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         DESTINATION "runtime/include/ie"
         COMPONENT ${VPUX_PLUGIN_COMPONENT})
- 
+
+if(NOT BUILD_SHARED_LIBS)
+    if(TARGET ze_loader)
+        install(TARGETS ze_loader EXPORT OpenVINOTargets
+                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+    endif()
+
+    if(TARGET flatbuffers)
+        install(TARGETS flatbuffers EXPORT OpenVINOTargets
+                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+    endif()
+endif()
+
+#
+# CPack
+#
+
 ie_cpack(${VPUX_PLUGIN_COMPONENT})

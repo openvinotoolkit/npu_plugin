@@ -15,8 +15,6 @@
 
 #include <blob_transform.hpp>
 
-#include "vpu/utils/ie_helpers.hpp"
-
 namespace {
 
 static void refAddWOffsetFromVPU(const Blob::Ptr src1, const Blob::Ptr src2, Blob::Ptr dst, float offset) {
@@ -47,6 +45,7 @@ BlobVector refAddWOffset(const TestNetwork::NodePtr& layer, const BlobVector& in
     IE_ASSERT(inputs.size() == 2);
 
     const auto addWOffsetLayer = std::dynamic_pointer_cast<SampleExtension::AddWOffsetOp>(layer);
+
     IE_ASSERT(addWOffsetLayer != nullptr);
 
     const auto offset = addWOffsetLayer->getOffsetAttr();

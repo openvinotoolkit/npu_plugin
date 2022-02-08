@@ -26,9 +26,9 @@ using namespace vpux;
 
 namespace {
 
-mlir::LogicalResult getOrder(IE::TransposeOpAdaptor transpose, SmallVector<int64_t>& order, mlir::Location loc) {
+mlir::LogicalResult getOrder(IE::TransposeOpAdaptor transpose, SmallVector<uint64_t>& order, mlir::Location loc) {
     const auto getDefaultOrder = [](mlir::ShapedType inType) {
-        SmallVector<int64_t> orderIndices{};
+        SmallVector<uint64_t> orderIndices{};
         for (const auto& idx : irange(inType.getRank()) | reversed) {
             orderIndices.push_back(idx);
         }
@@ -52,7 +52,7 @@ mlir::LogicalResult getOrder(IE::TransposeOpAdaptor transpose, SmallVector<int64
         }
 
         const auto orderContent = orderOp.content();
-        const auto orderVals = orderContent.getValues<int64_t>();
+        const auto orderVals = orderContent.getValues<uint64_t>();
 
         order = orderVals.empty() ? getDefaultOrder(inDataType) : to_small_vector(orderVals);
 
@@ -60,11 +60,26 @@ mlir::LogicalResult getOrder(IE::TransposeOpAdaptor transpose, SmallVector<int64
     }
 
     const auto perm = DimsOrder::fromAffineMap(transpose.order_value().getValue());
-    order = to_small_vector(irange(perm.numDims()) | transformed([&](int64_t idx) {
-                                return checked_cast<int64_t>(perm.dimAt(idx).ind());
+    order = to_small_vector(irange(perm.numDims()) | transformed([&](uint64_t idx) {
+                                return checked_cast<uint64_t>(perm.dimAt(idx).ind());
                             }));
 
     return mlir::success();
+}
+
+mlir::Type inferElemType(mlir::AffineMap map, mlir::Type inputElemType) {
+    const auto perAxisQType = inputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>();
+    if (perAxisQType == nullptr) {
+        return inputElemType;
+    }
+
+    const auto origAxis = perAxisQType.getQuantizedDimension();
+    const auto newAxis = DimsOrder::fromAffineMap(map).toPermutation()[origAxis];
+
+    return mlir::quant::UniformQuantizedPerAxisType::get(
+            perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(),
+            perAxisQType.getScales(), perAxisQType.getZeroPoints(), newAxis.ind(), perAxisQType.getStorageTypeMin(),
+            perAxisQType.getStorageTypeMax());
 }
 
 }  // namespace
@@ -83,7 +98,7 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
     const auto inDataType = transpose.input().getType().cast<mlir::RankedTensorType>();
     const auto inDataShape = inDataType.getShape();
 
-    SmallVector<int64_t> order{};
+    SmallVector<uint64_t> order{};
     if (::getOrder(transpose, order, loc).failed()) {
         return mlir::failure();
     }
@@ -92,7 +107,7 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
         return errorAt(loc, "Order vector size doesn't match input rank");
     }
 
-    const auto outRank = static_cast<int64_t>(inDataShape.size());
+    const auto outRank = static_cast<uint64_t>(inDataShape.size());
     SmallVector<int64_t> outShapeVec(outRank);
 
     for (size_t i = 0; i < order.size(); ++i) {
@@ -103,10 +118,43 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
         outShapeVec[i] = inDataShape[order[i]];
     }
 
+    SmallVector<uint32_t> uorder;
+    std::transform(order.begin(), order.end(), std::back_inserter(uorder), [](uint64_t dim) -> uint32_t {
+        return static_cast<uint32_t>(dim);
+    });
+
+    const auto permutationMap = mlir::AffineMap::getPermutationMap(makeArrayRef(uorder), ctx);
+    const auto outputElemType = inferElemType(permutationMap, inDataType.getElementType());
+
     const auto outDesc = IE::getTensorAttr(IE::getOrder(inDataType), nullptr, false);
 
-    inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), inDataType.getElementType(), outDesc);
+    inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), outputElemType, outDesc);
     return mlir::success();
+}
+
+//
+// inferElemTypeInfo
+//
+
+void vpux::IE::TransposeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    auto outputElemType = inferElemType((*this).order_value().getValue(), info.getInput(0));
+
+    for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
+        info.setOutput(outputInd, outputElemType);
+    }
+}
+
+void vpux::IE::TransposeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    const auto outputElemType = info.getOutput(0);
+
+    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+        // EISW-31029: implement propagate type up for per channel, currently it leads to failures in later passes.
+        return;
+    }
+
+    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
+        info.setInput(inputInd, outputElemType);
+    }
 }
 
 namespace {
@@ -129,12 +177,12 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::TransposeOp transpos
         return mlir::failure();
     }
 
-    SmallVector<int64_t> order{};
+    SmallVector<uint64_t> order{};
     if (getOrder(transposeOp, order, transposeOp->getLoc()).failed()) {
         return mlir::failure();
     }
 
-    const auto perm = to_small_vector(order | transformed([](int64_t val) {
+    const auto perm = to_small_vector(order | transformed([](uint64_t val) {
                                           return checked_cast<unsigned>(val);
                                       }));
 
@@ -170,19 +218,19 @@ mlir::LogicalResult FuseTransposes::matchAndRewrite(IE::TransposeOp transposeOp,
         return mlir::failure();
     }
 
-    SmallVector<int64_t> prevOrder{};
+    SmallVector<uint64_t> prevOrder{};
     VPUX_THROW_UNLESS(getOrder(prevTransposeOp, prevOrder, prevTransposeOp->getLoc()).succeeded(),
                       "Failed to get order for Transpose operation '{0}'", prevTransposeOp->getName());
 
-    SmallVector<int64_t> order{};
+    SmallVector<uint64_t> order{};
     VPUX_THROW_UNLESS(getOrder(transposeOp, order, transposeOp->getLoc()).succeeded(),
                       "Failed to get order for Transpose operation '{0}'", transposeOp->getName());
 
-    const auto prevPerm = to_small_vector(prevOrder | transformed([](int64_t val) {
+    const auto prevPerm = to_small_vector(prevOrder | transformed([](uint64_t val) {
                                               return checked_cast<unsigned>(val);
                                           }));
 
-    const auto perm = to_small_vector(order | transformed([](int64_t val) {
+    const auto perm = to_small_vector(order | transformed([](uint64_t val) {
                                           return checked_cast<unsigned>(val);
                                       }));
 

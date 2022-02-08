@@ -31,8 +31,9 @@ struct TileParams final {
     }
 };
 
-inline std::ostream& operator<<(std::ostream& os, const TileParams& p) {
-    vpu::formatPrint(os, "[axis: %v, tiles: %v]",
+template <typename Stream>
+inline Stream& operator<<(Stream& os, const TileParams& p) {
+    vpux::printTo(os, "[axis: {0}, tiles: {1}]",
         p._axis, p._tiles);
     return os;
 }

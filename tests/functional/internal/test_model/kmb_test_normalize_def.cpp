@@ -104,9 +104,3 @@ TestNetwork& NormalizeLayerDef::build() {
 
     return testNet.addLayer(name, normNode, refNorm);
 }
-
-std::ostream& operator<<(std::ostream& os, const NormalizeParams& p) {
-    vpu::formatPrint(
-        os, "[_eps:%v,_eps_mode:%v]", p._eps, p._eps_mode);
-    return os;
-}

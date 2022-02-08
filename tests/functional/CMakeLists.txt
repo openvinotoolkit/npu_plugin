@@ -20,11 +20,12 @@ addIeTargetTest(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpual_backend"
         "${CMAKE_CURRENT_SOURCE_DIR}/internal"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_test_classes/include"
+        ${LLVM_INCLUDE_DIRS}
     DEPENDENCIES
         openvino_intel_vpux_plugin
     LINK_LIBRARIES
         IE::funcSharedTests
-        IE::vpu_common_lib
+        vpux_utils
         IE::ngraph
         IE::ngraph_reference
         IE::format_reader
@@ -50,3 +51,16 @@ if(MSVC)
             /Zc:preprocessor
     )
 endif()
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT ${VPUX_TESTS_COMPONENT}
+        EXCLUDE_FROM_ALL
+)
+
+# TODO: Remove duplication EISW-31024
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL
+)

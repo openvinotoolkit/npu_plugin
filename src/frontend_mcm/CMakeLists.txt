@@ -61,9 +61,9 @@ link_system_libraries(${OBJ_TARGET_NAME}
         IE::inference_engine
         IE::inference_engine_legacy
         IE::inference_engine_transformations
-        IE::pugixml
+        IE::inference_engine_plugin_api
         IE::ngraph_reference
-        IE::vpu_common_lib
+        vpux_utils
         vpux_mcm_compiler
         flatbuffers
         vpux_ngraph_transformations
@@ -85,6 +85,9 @@ endif()
 
 add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}>)
 target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
+if(WIN32)
+    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+endif()
 
 add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}>)
 target_link_libraries(${STATIC_TARGET_NAME} PUBLIC ${OBJ_TARGET_NAME})

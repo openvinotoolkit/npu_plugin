@@ -21,7 +21,7 @@ struct ReorgYoloTestParams final {
 };
 
 std::ostream& operator<<(std::ostream& os, const ReorgYoloTestParams& p) {
-    vpu::formatPrint(os, "dims: %v, stride: %t", p.dims(), p.stride());
+    vpux::printTo(os, "dims: {0}, stride: {1}", p.dims(), p.stride());
     return os;
 }
 

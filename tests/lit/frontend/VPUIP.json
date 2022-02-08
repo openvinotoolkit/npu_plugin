@@ -441,11 +441,11 @@
 
 // CHECK:   func @main(%arg0: memref<1x1x1x1000xf16, @DDR>, %arg1: memref<1x1x1x1000xf16, @DDR>) -> memref<1x1x1x1000xf16, @DDR> {
 // CHECK:   %0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
-// CHECK:   %1 = VPURT.DeclareBuffer "DDR"[0] <0> -> memref<1x1x1x1000xf16, @DDR>
+// CHECK:   %1 = VPURT.DeclareBuffer "DDR" [0] <0> -> memref<1x1x1x1000xf16, @DDR>
 // CHECK:   VPURT.Task
 // CHECK:     waits(%0 : !VPURT.Barrier)
 // CHECK:   VPUIP.NNDMA {is_out_of_order, port = 0 : i64} inputs(%1 : memref<1x1x1x1000xf16, @DDR>) outputs(%arg1 : memref<1x1x1x1000xf16, @DDR>) -> memref<1x1x1x1000xf16, @DDR>
-// CHECK:   %2 = VPURT.DeclareBuffer "DDR"[0] <0> -> memref<1x1x1x1000xf16, @DDR>
+// CHECK:   %2 = VPURT.DeclareBuffer "DDR" [0] <0> -> memref<1x1x1x1000xf16, @DDR>
 // CHECK:   VPURT.Task
 // CHECK:     updates(%0 : !VPURT.Barrier)
 // CHECK:   VPUIP.SoftMaxUPA {axisInd = 3 : i64} inputs(%arg0 : memref<1x1x1x1000xf16, @DDR>) outputs(%2 : memref<1x1x1x1000xf16, @DDR>) -> memref<1x1x1x1000xf16, @DDR>

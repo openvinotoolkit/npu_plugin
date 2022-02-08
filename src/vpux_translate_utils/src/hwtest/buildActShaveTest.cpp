@@ -58,6 +58,9 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
     SmallVector<int64_t> inShape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> outShape(output.shape.begin(), output.shape.end());
 
+    VPUX_THROW_UNLESS(!inShape.empty(), "buildActShave: Got empty inputShape");
+    VPUX_THROW_UNLESS(!outShape.empty(), "buildActShave: Got empty outputShape");
+
     SmallVector<mlir::Type> inputTypes;
     auto inputParamType = getMemRefType(VPURT::BufferSection::NetworkInput, inShape, inputType, DimsOrder::NHWC);
     inputTypes.push_back(inputParamType);

@@ -94,8 +94,8 @@ public:
         BarrierScheduler& _feasibleBarrierScheduler;
         size_t _taskCount;
         size_t _time;
-        mlir::Operation* _currentBarrierTask;
-        mlir::Operation* _previousBarrierTask;
+        mlir::Operation* _currentBarrierTask = nullptr;
+        mlir::Operation* _previousBarrierTask = nullptr;
         producersType _producers;
     };
 

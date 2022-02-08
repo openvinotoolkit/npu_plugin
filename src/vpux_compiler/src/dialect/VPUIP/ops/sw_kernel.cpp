@@ -60,6 +60,12 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
 
 IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
     return llvm::TypeSwitch<mlir::Operation*, IERT::KernelInfo>(origOp)
+            .Case<IERT::ExpOp>([&](IERT::ExpOp) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"exp_fp16"}, {"exp_fp16.cpp"}};
+            })
+            .Case<IERT::TanhOp>([&](IERT::TanhOp) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"tanh_fp16"}, {"tanh_fp16.cpp"}};
+            })
             .Case<IERT::HSwishOp>([&](IERT::HSwishOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"hswish_fp16"}, {"hswish_fp16.cpp"}};
             })
@@ -73,6 +79,12 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             })
             .Case<IERT::EluOp>([&](IERT::EluOp elu) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{elu.xAttr()}, {"elu_fp16"}, {"elu_fp16.cpp"}};
+            })
+            .Case<IERT::MVNOp>([&](IERT::MVNOp MVN) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{MVN.across_channelsAttr(),
+                                                                     MVN.normalize_varianceAttr(), MVN.epsAttr()},
+                                        {"singleShaveMVN"},
+                                        {"single_shave_MVN.cpp"}};
             })
             .Default([](mlir::Operation* unknownOp) -> IERT::KernelInfo {
                 VPUX_THROW("Operation '{0}' is not supported by the act-shaves", unknownOp->getName());

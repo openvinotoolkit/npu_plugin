@@ -55,6 +55,10 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     const llvm::SmallVector<std::int64_t> weightsShape{weights.shape[0], weights.shape[1], weights.shape[2],
                                                        weights.shape[3]};
 
+    VPUX_THROW_UNLESS(inputShape.size() >= 4, "buildContinuedConv: Got inputShape with rank less than 4");
+    VPUX_THROW_UNLESS(outputShape.size() >= 4, "buildContinuedConv: Got outputShape with rank less than 4");
+    VPUX_THROW_UNLESS(weightsShape.size() >= 4, "buildContinuedConv: Got weightsShape with rank less than 4");
+
     const auto streamsOverC = 2;
     const llvm::SmallVector<std::int64_t> inputPartialShape(
             {inputShape[0], inputShape[1] / streamsOverC, inputShape[2], inputShape[3]});

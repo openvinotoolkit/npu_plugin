@@ -34,7 +34,7 @@ struct ScaleShiftTestParams final {
     }
 };
 std::ostream& operator<<(std::ostream& os, const ScaleShiftTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, scale:%v, shift:%v]", p._inDims, p._scale, p._shift);
+    vpux::printTo(os, "[inDims:{0}, scale:{1}, shift:{2}]", p._inDims, p._scale, p._shift);
     return os;
 }
 

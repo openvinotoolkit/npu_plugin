@@ -1,4 +1,15 @@
-// {% copyright %}
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
 
 #if !defined(_ICV_TEST_SUITE_H_)
 #define _ICV_TEST_SUITE_H_
@@ -1477,7 +1488,7 @@ public:
             MemoryDims::forEach(m_ndims, ranges, action);
         }
     // MvTensor interface
-    void exportToBuffer(Buffer& b) const
+    void exportToBuffer(OpTensor& b) const
         {
             int32_t d[MaxTensorDims];
             int32_t s[MaxTensorDims];
@@ -1488,7 +1499,7 @@ public:
             }
             b.set(m_data, type2code(data()), m_storageOrder, d, s);
         }
-    void exportToBuffer4Dto3D(Buffer& b) const
+    void exportToBuffer4Dto3D(OpTensor& b) const
         {
             mvTensorAssert(ndims() == 4, "exportToBuffer4Dto3D works only with 4d tensors");
             int32_t d[3];

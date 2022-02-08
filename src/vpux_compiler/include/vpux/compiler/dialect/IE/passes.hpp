@@ -107,12 +107,15 @@ std::unique_ptr<mlir::Pass> createConvertDepth2SpaceLayerPass(Logger log = Logge
 // LowPrecision
 //
 
-void buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+void buildLowPrecisionPipeline(mlir::OpPassManager& pm, bool removeQuantDequantSeq = false,
+                               Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createSplitFakeQuantPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createPropagateQuantizeDequantizePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseQuantizedOpsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createRemoveQuantDequantSeqPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertWeightsToU8Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseConvertWithQuantizePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = Logger::global());
@@ -135,12 +138,15 @@ std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::gl
 std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleLargeKernelsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertReduceToPoolingPass(Logger log = Logger::global());
 
 //
 // Tiling
 //
 
 std::unique_ptr<mlir::Pass> createIsolatedTilingPass(Logger log = Logger::global());
+
+std::unique_ptr<mlir::Pass> createPrefetchTilingPass(Logger log = Logger::global());
 
 //
 // Generic Optimizations

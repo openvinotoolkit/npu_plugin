@@ -33,7 +33,7 @@ if (UNIX)
             LINK_LIBRARIES
                 IE::IESharedTests
                 IE::funcTestUtils
-                IE::vpu_common_lib
+                vpux_utils
                 IE::ngraph
                 IE::ngraph_reference
                 ${XLINK_LIB} # required for getAvailableDevices test
@@ -51,4 +51,17 @@ if (UNIX)
     add_dependencies(${TARGET_NAME} ${VPUX_PLUGIN_TARGET})
 
     enable_warnings_as_errors(${TARGET_NAME})
+
+    install(TARGETS ${TARGET_NAME}
+            RUNTIME DESTINATION tests
+            COMPONENT ${VPUX_TESTS_COMPONENT}
+            EXCLUDE_FROM_ALL
+    )
+
+    # TODO: Remove duplication EISW-31024
+    install(TARGETS ${TARGET_NAME}
+            RUNTIME DESTINATION tests
+            COMPONENT tests
+            EXCLUDE_FROM_ALL
+    )
 endif()

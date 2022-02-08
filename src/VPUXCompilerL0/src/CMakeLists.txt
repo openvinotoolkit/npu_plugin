@@ -23,6 +23,7 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
   PRIVATE
   vpux_al
+  INTERFACE IE::inference_engine
 )
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})

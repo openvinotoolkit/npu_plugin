@@ -27,7 +27,7 @@ struct StridedSliceTestParams final {
     PARAMETER(SizeVector, inputShape);
 };
 std::ostream& operator<<(std::ostream& os, const StridedSliceTestParams& p) {
-    vpu::formatPrint(os, "[inputShape:%v, begin:%v, end:%v, strides:%v, beginMask:%v, endMask:%v, newAxisMask:%v, shrinkAxisMask:%v, ellipsisAxisMask:%v]",
+    vpux::printTo(os, "[inputShape:{0}, begin:{1}, end:{2}, strides:{3}, beginMask:{4}, endMask:{5}, newAxisMask:{6}, shrinkAxisMask:{7}, ellipsisAxisMask:{8}]",
         p.inputShape(), p.begins(), p.ends(), p.strides(), p.beginMask(), p.endMask(), p.newAxisMask(), p.shrinkAxisMask(), p.ellipsisAxisMask());
     return os;
 }

@@ -59,6 +59,8 @@ The pass is a part of `LowPrecision` pipeline.
 
 Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
 where input2 is input1 to perform type conversion on DPU instead of UPA.
+### `-convert-reduce-to-pooling`: Convert reduce to pooling ops
+The pass is to convert reduce operations (mean, max, sum) into pooling.
 ### `-convert-scale-shift-depthwise`: Convert Scale-Shift operation to Depthwise Convolution
 The pass is a part of `HardwareMode` pipeline.
 
@@ -153,6 +155,22 @@ The pass is a part of `IECommon` pipeline.
 
 This pass tries to optimize out Reorder operations for common cases
 by propagating them from inputs to outputs and merging into layers.
+### `-prefetch-tiling`: Tile layers into smaller tiles to enable prefetch pipeline
+The pass performs tiling on layers to enable prefetch pipeline.
+
+The pass tries run tiles in parallel.
+The 'prefetch' means that the next tile could be loaded in advance when the current tile is computing.
+
+The pass does not consider cost models,
+only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
+### `-propagate-quantize-dequantize`: Propagate Quantize/Dequantize through agnostic operations
+The pass is a part of LowPrecision pipeline.
+
+Quantize/Dequantize are propagated through operations
+### `-remove-quantdequant-seq`: Removes quantize->dequantize ops sequence
+The optional pass in the `LowPrecision` pipeline.
+
+Pass detects pattern quantize -> dequantize and removes it
 ### `-resolve-pwl-post-ops`: Resolve requirements for fused PWL post-ops
 Ensures the correct quantization ranges are used for fused PWL activation functions or
 unfuses them if surrounding tensors are not quantized per-tensor.

@@ -16,6 +16,7 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -133,6 +134,35 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
 
     inferredReturnShapes.emplace_back(outShape.getValue(), inType.getElementType(), outDesc);
     return mlir::success();
+}
+
+//
+// inferElemTypeInfo
+//
+
+void vpux::IE::ReshapeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    const auto inputElemType = info.getInput(0);
+
+    // Do not propagate element type down in per channel case.
+    // EISW-31030
+    if (inputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() == nullptr) {
+        for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
+            info.setOutput(outputInd, inputElemType);
+        }
+    }
+}
+
+void vpux::IE::ReshapeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    const auto outputElemType = info.getOutput(0);
+
+    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+        // EISW-31029: implement propagate type up for per channel, currently it leads to failures in later passes.
+        return;
+    }
+
+    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
+        info.setInput(inputInd, outputElemType);
+    }
 }
 
 //

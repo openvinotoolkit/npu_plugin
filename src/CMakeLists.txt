@@ -46,18 +46,24 @@ endif()
 if(ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(zero_backend)
 endif()
+
 if(BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(VPUXCompilerL0)
 endif()
 add_subdirectory(vpux_elf)
-# TODO: enable always as vpux compiler can be built in a pure static build
-if(NOT BUILD_COMPILER_FOR_DRIVER)
-    add_subdirectory(vpux_plugin)
+add_subdirectory(vpux_plugin)
+
+if(ENABLE_DRIVER_COMPILER_ADAPTER)
+    add_subdirectory(vpux_driver_compiler_adapter)
 endif()
 
 add_subdirectory(vpux_utils)
+
 add_subdirectory(vpux_compiler)
-add_subdirectory(vpux_translate_utils)
+
+if(BUILD_SHARED_LIBS)
+    add_subdirectory(vpux_translate_utils)
+endif()
 
 if(ENABLE_IMD_BACKEND)
     add_subdirectory(vpux_imd_backend)

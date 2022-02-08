@@ -78,6 +78,10 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     SmallVector<int64_t> weights_shape(weight.shape.begin(), weight.shape.end());
     SmallVector<int64_t> out_shape(output.shape.begin(), output.shape.end());
 
+    VPUX_THROW_UNLESS(in_shape.size() >= 4, "buildEltwiseMultWithDwConv: Got input with rank less than 4");
+    VPUX_THROW_UNLESS(out_shape.size() >= 4, "buildEltwiseMultWithDwConv: Got output with rank less than 4");
+    VPUX_THROW_UNLESS(weights_shape.size() >= 4, "buildEltwiseMultWithDwConv: Got weights with rank less than 4");
+
     auto output_totalsize = totalTensorSize(out_shape, outputType);
     auto input_totalsize = totalTensorSize(in_shape, inputType);
 

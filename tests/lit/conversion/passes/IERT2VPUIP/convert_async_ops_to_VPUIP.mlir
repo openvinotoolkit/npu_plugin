@@ -246,7 +246,7 @@ func @WithReshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<
     return %4 : memref<1x512xf16>
 
     // CHECK-DAG:   [[BUF0:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x512x1x1xf16, @DDR>
-    // CHECK-DAG:   [[ARG0:%.+]] = VPURT.DeclareBuffer "NetworkInput"[0] <0> -> memref<1x512x1x1xf16>
+    // CHECK-DAG:   [[ARG0:%.+]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x512x1x1xf16>
     // CHECK-DAG:   [[VAR2:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x512xf16, @DDR>
 
     // CHECK-DAG:   [[B0:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier

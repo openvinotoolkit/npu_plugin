@@ -7,23 +7,24 @@
 #include <ie_common.h>
 
 #include <pugixml.hpp>
-#include <vpu/utils/enums.hpp>
+#include "vpux/utils/core/enums.hpp"
 
 namespace vpu {
 
 namespace ie = InferenceEngine;
 
-VPU_DECLARE_ENUM(CustomParamType, Input, Output, Data, LocalData, InputBuffer, OutputBuffer, Int, Float)
+enum class CustomParamType : int32_t { Input, Output, Data, LocalData, InputBuffer, OutputBuffer, Int, Float };
 
-VPU_DECLARE_ENUM(CustomDataFormat,
-                 BYXF = 0,  // NHWC used in most software layers
-                 BFYX = 1,  // NCHW used if HW module is enabled
-                 YXF = 2,   // HWC used in most software layers
-                 FYX = 3,   // CHW used if HW module is enabled
-                 BF = 4,    // NC layout
-                 Any = 5)   // doesn't really matter
+enum class CustomDataFormat : int32_t {
+    BYXF = 0,  // NHWC used in most software layers
+    BFYX = 1,  // NCHW used if HW module is enabled
+    YXF = 2,   // HWC used in most software layers
+    FYX = 3,   // CHW used if HW module is enabled
+    BF = 4,    // NC layout
+    Any = 5    // doesn't really matter
+};
 
-VPU_DECLARE_ENUM(CustomDimSource, Input, Output)
+enum class CustomDimSource : int32_t { Input, Output };
 
 class CustomKernelCpp;
 class CustomKernelOcl;

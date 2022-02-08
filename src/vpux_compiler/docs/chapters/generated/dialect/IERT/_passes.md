@@ -2,6 +2,8 @@
 ### `-break-data-flow`: Breaks data flow in the graph
 This pass breaks data flow in the graph. It is required for the VPURT dialect for correct task creation
 because all VPUIP dialect tasks will be inside body of the TaskOp and it is impossible to use operation results inside another body of TaskOp.
+### `-cmx-concat`: Tries to CMX a concat
+This pass checks a concat can be in CMX and removes all the spills to DDR and creates a shared memref buffer
 ### `-convert-scalar-to-tensor`: Convert the second scalar input to tensor for Gather
 Gather doesn't support scalar inputs (input is scalar if `rank == 0`). But the second Gather input (indices) could be scalar.
 This pass convert indices to tensor with `rank == 1` and the same content.
@@ -33,6 +35,9 @@ The pass tries to remove extra explicit `!async.token` based dependencies,
 if they are represented implicitly (as a result of transitive dependencies).
 ### `-optimize-copies`: Removes Copy Ops which are unnecessary
 This pass checks if Copy Op can be optimized out to reduce the amount of unnecessary DMAs and intermediate buffers.
+### `-optimize-parallel-copies`: Copy the data only once for all the tiles that share the same data
+This pass checks all the CopyOps consumed by tiles of one tiling subgraph.
+If the CopyOps operate on the same weight or activation, merge the parallel copies into one.
 ### `-set-internal-memory-space`: Set specific memory space for all internal memory buffers
 This pass updates all Types for internal memory buffers and sets the specified memory space for them.
 
@@ -40,6 +45,16 @@ This pass updates all Types for internal memory buffers and sets the specified m
 ```
 -memory-space : Memory space to perform allocation
 ```
+### `-split-by-planes`: Legalizes Copy Ops which have more than 255 planes
+A tensor may have more than 255 planes, causing the hardware to malfunction. This pass checks if Copy Op has
+less than 256 planes and splits it into several tiles if necessary. The number of planes is defined by the
+outermost dimension in the tensor (except for N - batch). Depending on the order of the data in memory, there
+may be several options for what to count as the number of planes. For example, if the dimension order (from the
+outermost to the innermost) is NCHW, then HW (height-width) is considered a plane, and the number of planes
+equals to the value of dimension C. The number of planes for different dimension orders:
+* For NHWC - H
+* For NCHW - C
+* For NWCH - W
 ### `-static-allocation`: Replace dynamic allocations with static
 This pass replaces all dynamic `alloc`/`dealloc` Operations with `IERT.StaticAlloc`.
 It uses simple LinearScan algorithm.

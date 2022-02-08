@@ -26,6 +26,8 @@ void vpux::VPU::VPUDialect::initialize() {
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/VPU/generated/ops.cpp.inc>
             >();
+
+    registerTypes();
 }
 
 //

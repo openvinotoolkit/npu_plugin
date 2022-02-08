@@ -1914,7 +1914,8 @@ def VPUIP_NCEClusterTaskOp :
         OptionalAttr<VPU_PaddingAttr>:$kernel_padding,
         OptionalAttr<IntAttr>:$activation_window_channel_length,
         OptionalAttr<UnitAttr>:$is_continued,
-        OptionalAttr<IntAttr>:$cm_sp_pattern
+        OptionalAttr<IntAttr>:$cm_sp_pattern,
+        OptionalAttr<UnitAttr>:$is_segmented
     );
 
     let results = (outs
@@ -1936,7 +1937,8 @@ def VPUIP_NCEClusterTaskOp :
             "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPU::PaddingAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
             CArg<"mlir::UnitAttr", "nullptr">:$is_continued,
-            CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern
+            CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_segmented
         )>,
         OpBuilder<(ins
             "mlir::Type":$output,
@@ -1947,7 +1949,8 @@ def VPUIP_NCEClusterTaskOp :
             "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPU::PaddingAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
             CArg<"mlir::UnitAttr", "nullptr">:$is_continued,
-            CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern
+            CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_segmented
         )>
     ];
 

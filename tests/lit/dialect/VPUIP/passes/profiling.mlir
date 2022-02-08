@@ -26,10 +26,10 @@ module @UpaProfiling {
     //CHECK:        profilingOutputsInfo
     //CHECK-NEXT:   DataInfo "upa" : tensor<12xui32>
     //CHECK:        func @main(%arg0: memref<1x48x30x30xf16>, %arg1: memref<1x48x30x30xf32>, %arg2: memref<12xui32>) -> (memref<1x48x30x30xf32>, memref<12xui32>)
-    //CHECK:        [[VAR0:%.+]] = VPURT.DeclareBuffer "ProfilingOutput"[0] <0> -> memref<6xui32>
+    //CHECK:        [[VAR0:%.+]] = VPURT.DeclareBuffer "ProfilingOutput" [0] <0> -> memref<6xui32>
     //CHECK:        VPURT.Task
     //CHECK-SAME:   profiling_data([[VAR0]] : memref<6xui32>)
-    //CHECK:        [[VAR1:%.+]] = VPURT.DeclareBuffer "ProfilingOutput"[0] <24> -> memref<6xui32>
+    //CHECK:        [[VAR1:%.+]] = VPURT.DeclareBuffer "ProfilingOutput" [0] <24> -> memref<6xui32>
     //CHECK:        VPURT.Task
     //CHECK-SAME:   profiling_data([[VAR1]] : memref<6xui32>)
     //CHECK:        return %arg1, %arg2 : memref<1x48x30x30xf32>, memref<12xui32>

@@ -1,4 +1,15 @@
-# {% copyright %}
+#
+# Copyright Intel Corporation.
+#
+# LEGAL NOTICE: Your use of this software and any required dependent software
+# (the "Software Package") is subject to the terms and conditions of
+# the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+# which may also include notices, disclaimers, or license terms for
+# third party or open source software included in or with the Software Package,
+# and your use indicates your acceptance of all such terms. Please refer
+# to the "third-party-programs.txt" or other similarly-named text file
+# included with the Software Package for additional details.
+#
 
 kmb_or_tbh =
 
@@ -31,12 +42,15 @@ shavelib-preserved-symbols-y += Passthrough
 shavelib-preserved-symbols-y += PriorboxKernel
 shavelib-preserved-symbols-y += ROIPoolingKernel
 shavelib-preserved-symbols-y += custom_ocl
-shavelib-preserved-symbols-y += custom_cpp
-shavelib-preserved-symbols-y += singleSoftmaxKernel
-shavelib-preserved-symbols-y += sigmoid_fp16
-shavelib-preserved-symbols-y += reorder_fp16
-shavelib-preserved-symbols-y += hswish_fp16
-shavelib-preserved-symbols-y += elu_fp16
+shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += custom_cpp
+shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += singleSoftmaxKernel
+shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += sigmoid_fp16
+shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += reorder_fp16
+shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += hswish_fp16
+shavelib-preserved-symbols-y += singleShaveMVN
+shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += elu_fp16
+shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += exp_fp16
+shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += tanh_fp16
 shavelib-preserved-symbols-y += edsl
 shavelib-preserved-symbols-y += Dummy
 shavelib-preserved-symbols-y += proposal
@@ -59,7 +73,8 @@ shavelib-preserved-symbols-y += nnEntry
 shavelib-preserved-symbols-y += preQuantizer preQuantizer_EqualScales_StridedIn_CompactOut dummyPreamble cleanDummy interpPreamble preNormalize prePriorbox preProposal cleanProposal detOutPreamble detOutCleanup preResample
 shavelib-preserved-symbols-y += preSoftmax singleShaveSoftmax preCorrelation preROIPooling preCTCDecoder preReorgYolo preRegionYolo prePermute prePermute1D eltwisePreamble cleanEltwise argmaxPreamble preAvgPooling
 shavelib-preserved-symbols-y += preCHW_maxPoolMxN preHWC_maxPoolMxN CHW_mvMaxPoolMxN HWC_mvMaxPoolMxN
-shavelib-preserved-symbols-y += preSpatialTransform preCustomLayerOcl preCustomLayerCpp preFakeQuantize grnPreamble mvnPreamble preNorm prePassthrough preReShape execCleanupCustomLayerOcl execCleanupCustomLayerCpp
+shavelib-preserved-symbols-y += preSpatialTransform preCustomLayerOcl preFakeQuantize grnPreamble mvnPreamble preNorm prePassthrough preReShape execCleanupCustomLayerOcl
+shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += execCleanupCustomLayerCpp preCustomLayerCpp 
 shavelib-preserved-symbols-y += PSROIPooling prePSROIPooling preEdsl
 shavelib-preserved-symbols-y += Tile preTile
 shavelib-preserved-symbols-y += prePostOpsCHW prePostOpsHWC prePostOpsHCW prePostOpsND

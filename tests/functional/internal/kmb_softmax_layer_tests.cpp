@@ -40,7 +40,7 @@ struct SoftmaxTestParams final {
     }
 };
 std::ostream& operator<<(std::ostream& os, const SoftmaxTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, axisSet:%v, inPrecision:%v, outPrecision:%v]", p._inDims, p._axisSet, p._inPrecision, p._outPrecision);
+    vpux::printTo(os, "[inDims:{0}, axisSet:{1}, inPrecision:{2}, outPrecision:{3}]", p._inDims, p._axisSet, p._inPrecision, p._outPrecision);
     return os;
 }
 

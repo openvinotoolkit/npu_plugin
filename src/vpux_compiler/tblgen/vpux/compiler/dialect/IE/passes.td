@@ -668,6 +668,27 @@ def DeletePerAxisQuantization : PassBase<"delete-peraxis-quantization", "vpux::F
 }
 
 //
+// PropagateQuantizeDequantize
+//
+
+def PropagateQuantizeDequantize : PassBase<"propagate-quantize-dequantize", "vpux::FunctionPass"> {
+    let summary = "Propagate Quantize/Dequantize through agnostic operations";
+
+        let description = [{
+        The pass is a part of LowPrecision pipeline.
+
+        Quantize/Dequantize are propagated through operations
+        }];
+
+let constructor = "vpux::IE::createPropagateQuantizeDequantizePass()";
+
+let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
+        ];
+}
+
+//
 // FuseQuantizedOps
 //
 
@@ -687,6 +708,28 @@ def FuseQuantizedOps : PassBase<"fuse-quantized-ops", "vpux::FunctionPass"> {
         "mlir::quant::QuantizationDialect"
     ];
 }
+
+//
+// RemoveQuantDequantSeq
+//
+
+def RemoveQuantDequantSeq : PassBase<"remove-quantdequant-seq", "vpux::FunctionPass"> {
+    let summary = "Removes quantize->dequantize ops sequence";
+
+    let description = [{
+        The optional pass in the `LowPrecision` pipeline.
+
+        Pass detects pattern quantize -> dequantize and removes it
+    }];
+
+    let constructor = "vpux::IE::createRemoveQuantDequantSeqPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
+    ];
+}
+
 
 //
 // ConvertWeightsToU8
@@ -850,7 +893,7 @@ def UpstreamSlice : PassBase<"upstream-slice", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createUpstreamSlicePass()";
-    
+
     let dependentDialects = [
         "vpux::IE::IEDialect"
     ];
@@ -871,6 +914,24 @@ def HandleLargeKernels : PassBase<"handle-large-kernels", "vpux::FunctionPass"> 
     }];
 
     let constructor = "vpux::IE::createHandleLargeKernelsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ConvertReduceToPooling
+//
+
+def ConvertReduceToPooling : PassBase<"convert-reduce-to-pooling", "vpux::FunctionPass"> {
+    let summary = "Convert reduce to pooling ops";
+
+    let description = [{
+        The pass is to convert reduce operations (mean, max, sum) into pooling.
+    }];
+
+    let constructor = "vpux::IE::createConvertReduceToPoolingPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"
@@ -899,6 +960,23 @@ def IsolatedTiling : PassBase<"isolated-tiling", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createIsolatedTilingPass()";
+}
+
+
+def PrefetchTiling : PassBase<"prefetch-tiling", "vpux::FunctionPass"> {
+    let summary = "Tile layers into smaller tiles to enable prefetch pipeline";
+
+    let description = [{
+        The pass performs tiling on layers to enable prefetch pipeline.
+
+        The pass tries run tiles in parallel.
+        The 'prefetch' means that the next tile could be loaded in advance when the current tile is computing.
+
+        The pass does not consider cost models,
+        only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
+    }];
+
+    let constructor = "vpux::IE::createPrefetchTilingPass()";
 }
 
 #endif

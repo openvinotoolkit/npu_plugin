@@ -25,7 +25,6 @@
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 
@@ -223,6 +222,10 @@ void SplitNCEOpsOntoWorkloadsPass::safeRunOnFunc() {
 }
 
 }  // namespace
+
+//
+// createSplitNCEOpsOntoWorkloadsPass
+//
 
 std::unique_ptr<mlir::Pass> vpux::VPU::createSplitNCEOpsOntoWorkloadsPass(Logger log) {
     return std::make_unique<SplitNCEOpsOntoWorkloadsPass>(log);

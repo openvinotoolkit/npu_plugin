@@ -48,6 +48,8 @@
 
 #include <vpux/vpux_plugin_config.hpp>
 
+#include <vpux/utils/core/format.hpp>
+
 #include <common_test_utils/test_common.hpp>
 
 #include <gtest/gtest.h>

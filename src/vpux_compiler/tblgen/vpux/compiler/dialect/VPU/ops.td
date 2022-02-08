@@ -23,10 +23,12 @@ include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/VPU/attributes.td"
 include "vpux/compiler/dialect/VPU/dialect.td"
 include "vpux/compiler/dialect/VPU/ops_interfaces.td"
+include "vpux/compiler/dialect/VPU/types.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 
 //
@@ -348,6 +350,76 @@ def VPU_NCEEltwiseOp :
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION];
+}
+
+//
+// NCE.ClusterTiling
+//
+
+def VPU_NCEClusterTilingOp :
+        VPU_Op<
+            "NCE.ClusterTiling",
+            [
+                NoSideEffect,
+                IsolatedFromAbove,
+                DeclareOpInterfaceMethods<RegionBranchOpInterface,
+                    ["getSuccessorEntryOperands", "getNumRegionInvocations"]>,
+                SingleBlockImplicitTerminator<"YieldOp">
+            ]
+        > {
+    let summary = "Operation that encapsulates details of tiling operation between clusters";
+
+    let arguments = (ins
+        Variadic<AnyTypeOf<[4DTensorOf<[F16, BF16, quant_QuantizedType]>, VPU_DistributedTensor]>>:$operands
+    );
+
+    let results = (outs
+        Variadic<AnyTypeOf<[4DTensorOf<[F16, BF16, quant_QuantizedType]>, VPU_DistributedTensor]>>:$results
+    );
+
+    let regions = (region SizedRegion<1>:$body);
+
+    let printer = [{ return vpux::VPU::print(p, *this); }];
+    let parser = [{ return vpux::VPU::parse$cppClass(parser, result); }];
+    let verifier = [{ return vpux::VPU::verifyOp(*this); }];
+
+    let skipDefaultBuilders = 1;
+    let builders = [
+        OpBuilder<(ins "mlir::TypeRange":$resultTypes, "mlir::ValueRange":$operands,
+            "llvm::function_ref<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)>":$bodyBuilder)>,
+    ];
+
+    let extraClassDeclaration = [{
+      using BodyBuilderFn =
+          llvm::function_ref<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)>;
+    }];
+}
+
+//
+// YieldOp
+//
+
+def VPU_YieldOp :
+        VPU_Op<
+            "Yield",
+            [
+                HasParent<"NCEClusterTilingOp">,
+                DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface>,
+                NoSideEffect,
+                Terminator
+            ]
+        > {
+    let summary = "Terminator for NCE.ClusterTiling operation";
+
+    let arguments = (ins Variadic<4DTensorOf<[F16, BF16, quant_QuantizedType]>>:$operands);
+
+    let assemblyFormat = [{
+        $operands
+        custom<OptionalTypes>(type($operands)) ``
+        attr-dict
+    }];
+
+    let verifier = [{ return vpux::VPU::verifyOp(*this); }];
 }
 
 #endif

@@ -60,6 +60,10 @@ if(BUILD_SHARED_LIBS)
     target_link_libraries(${VPUX_PLUGIN_TARGET} PUBLIC ${VPUX_PLUGIN_OBJS_TARGET})
 else()
     set(TARGET_NAME ${VPUX_PLUGIN_TARGET} CACHE INTERNAL "")
+    if(ENABLE_ZEROAPI_BACKEND)
+        target_link_libraries(${VPUX_PLUGIN_TARGET} INTERFACE vpux_level_zero_backend)
+    endif()
+    target_compile_definitions(${VPUX_PLUGIN_TARGET} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
 enable_warnings_as_errors(${TARGET_NAME})
@@ -73,9 +77,9 @@ target_include_directories(${TARGET_NAME}
 
 link_system_libraries(${TARGET_NAME}
     PUBLIC
-        IE::inference_engine
-        IE::inference_engine_plugin_api
-        IE::vpu_common_lib
+        openvino::runtime
+        openvino::runtime::dev
+        vpux_utils
 )
 
 target_link_libraries(${TARGET_NAME}
@@ -102,11 +106,6 @@ if(BUILD_SHARED_LIBS)
             ${VPUX_PLUGIN_ENGINE_SOURCE_FILE}
     )
 
-    target_include_directories(${VPUX_PLUGIN_STATIC_TARGET}
-        PUBLIC
-            $<TARGET_PROPERTY:${VPUX_PLUGIN_OBJS_TARGET},INTERFACE_INCLUDE_DIRECTORIES>
-    )
-
     target_link_libraries(${VPUX_PLUGIN_STATIC_TARGET}
         PUBLIC
             ${VPUX_PLUGIN_OBJS_TARGET}
@@ -122,7 +121,20 @@ if(AARCH64)
                     $<TARGET_PROPERTY:XLink,IMPORTED_LOCATION_NOCONFIG>
                     $<TARGET_PROPERTY:RemoteFlic,IMPORTED_LOCATION_NOCONFIG>
             DESTINATION ${IE_CPACK_LIBRARY_PATH}
-            COMPONENT ${VPUX_PLUGIN_COMPONENT})
+            COMPONENT ${VPUX_TESTS_COMPONENT}
+            EXCLUDE_FROM_ALL
+    )
+
+    # TODO: Remove duplication EISW-31024
+    install(FILES   $<TARGET_PROPERTY:NN,IMPORTED_LOCATION_NOCONFIG>
+                    $<TARGET_PROPERTY:VpualDispatcher,IMPORTED_LOCATION_NOCONFIG>
+                    $<TARGET_PROPERTY:sipp_custom,IMPORTED_LOCATION_NOCONFIG>
+                    $<TARGET_PROPERTY:XLink,IMPORTED_LOCATION_NOCONFIG>
+                    $<TARGET_PROPERTY:RemoteFlic,IMPORTED_LOCATION_NOCONFIG>
+            DESTINATION ${IE_CPACK_LIBRARY_PATH}
+            COMPONENT tests
+            EXCLUDE_FROM_ALL
+    )
 endif()
 
 set(ALL_PLUGINS)
@@ -130,6 +142,9 @@ set(ALL_PLUGINS)
 list(APPEND ALL_PLUGINS ${VPUX_PLUGIN_TARGET})
 
 ie_register_plugins(MAIN_TARGET ${VPUX_PLUGIN_TARGET} POSSIBLE_PLUGINS ${ALL_PLUGINS})
+if(WIN32)
+    ie_add_api_validator_post_build_step(TARGET ${VPUX_PLUGIN_TARGET})
+endif()
 
 if(ENABLE_MCM_COMPILER)
     add_custom_target(mcm_compiler_copy ALL
@@ -164,15 +179,29 @@ if(AARCH64)
 
     install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/"
             DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpu"
-            COMPONENT    ${VPUX_PLUGIN_COMPONENT}
+            COMPONENT    ${VPUX_TESTS_COMPONENT}
+            EXCLUDE_FROM_ALL
             FILES_MATCHING
             PATTERN "*.bin")
 
     install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/lib/"
             DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpu"
-            COMPONENT    ${VPUX_PLUGIN_COMPONENT})
-endif()
+            COMPONENT    ${VPUX_TESTS_COMPONENT}
+            EXCLUDE_FROM_ALL)
 
+    # TODO: Remove duplication EISW-31024
+    install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/"
+            DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpu"
+            COMPONENT    tests
+            EXCLUDE_FROM_ALL
+            FILES_MATCHING
+            PATTERN "*.bin")
+
+    install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/lib/"
+            DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpu"
+            COMPONENT    tests
+            EXCLUDE_FROM_ALL)
+endif()
 
 if(ENABLE_HDDL2 AND UNIX)
     add_custom_target(pcie_drivers_copy ALL

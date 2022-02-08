@@ -20,7 +20,7 @@ using EltwiseTwoInputsTestParams = std::tuple<
 >;
 
 std::ostream& operator<<(std::ostream& os, const EltwiseTwoInputsTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, inPrecision:%v, outPrecision:%v]", std::get<0>(p), std::get<1>(p), std::get<2>(p));
+    vpux::printTo(os, "[inDims:{0}, inPrecision:{1}, outPrecision:{2}]", std::get<0>(p), std::get<1>(p), std::get<2>(p));
     return os;
 }
 
