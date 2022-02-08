@@ -353,13 +353,12 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(IERT::createCopyOpLegalizationPass(log));
     pm.addPass(IERT::createCopyOpSplitByPlanesPass(log));
+    pm.addPass(IERT::createCMXConcatPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     if (options.enableProfiling && options.enableDPUProfiling) {
         pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     }
-
-    pm.addPass(IERT::createCMXConcatPass(log));
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
