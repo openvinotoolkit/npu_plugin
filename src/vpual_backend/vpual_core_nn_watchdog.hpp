@@ -25,8 +25,9 @@ namespace vpux {
 class WatchDog {
 protected:
     std::atomic<bool> _stopWatchdog{false};
-
+#define MAX_LATENCY 20
     std::unordered_map<uintptr_t, std::chrono::steady_clock::time_point> _watchers;
+    std::unordered_map<uintptr_t, std::vector<uint32_t>> _latency;
     std::thread _abortThread;
     std::mutex watchersAccess;
     std::condition_variable _cvPeriodic;
@@ -62,6 +63,13 @@ public:
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - wd_stop_begins)
                         .count();
         _logger.info("[WATCHDOG] stop completed in {0} ms", wd_stopped_in);
+
+
+        for (auto latency : _latency) {
+            for (auto lat : latency.second) {
+                std::cout << "["<< latency.first <<"]: " << lat <<" ms\n";
+            }
+        }
     }
 
     WatchDog(const WatchDog&) = delete;
@@ -99,6 +107,7 @@ private:
         watcher = std::chrono::steady_clock::now();
     }
     void PauseImpl(uintptr_t id) {
+        using namespace std::chrono;
         std::unique_lock<std::mutex> lk(watchersAccess);
         auto watcher = _watchers.find(id);
         if (watcher == _watchers.end() ||
@@ -106,6 +115,10 @@ private:
             throw std::runtime_error("Watchdog unexpected Pause() for id=" + std::to_string(id));
         }
         watcher->second = std::chrono::steady_clock::time_point{};
+
+        if (_latency[id].size() < MAX_LATENCY) {
+            _latency[id].push_back(duration_cast<milliseconds>(steady_clock::now() - watcher->second).count());
+        }
     }
 
     // If we don't get kicked then we will abort the program.

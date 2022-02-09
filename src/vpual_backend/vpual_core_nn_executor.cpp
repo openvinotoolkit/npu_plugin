@@ -74,8 +74,8 @@ constexpr int VPU_CSRAM_DEVICE_ID = 32;
 constexpr uint16_t XLINK_IPC_CHANNELS = 1024;
 
 void VpualCoreNNExecutor::initWatchDog() {
-    _wd.reset(new WatchDog(_config.get<INFERENCE_TIMEOUT_MS>(), _logger, [this]() {
-        _logger.error("{0} milliseconds have passed, closing xlink channels.", _config.get<INFERENCE_TIMEOUT_MS>());
+    _wd.reset(new WatchDog(20000, _logger, [this]() {
+        _logger.error("{0} milliseconds have passed, closing xlink channels.", 20000);
         auto xhndl{getXlinkDeviceHandle(_nnXlinkPlg->getDeviceId())};
         for (uint16_t i{0}; i < XLINK_IPC_CHANNELS; ++i) {
             xlink_close_channel(&xhndl, i);
