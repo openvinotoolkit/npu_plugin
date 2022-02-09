@@ -124,4 +124,18 @@ def AdjustMemorySpace : PassBase<"adjust-memory-space", "vpux::FunctionPass"> {
     ];
 }
 
+//
+// CMXConcat
+//
+
+def CMXConcat : PassBase<"cmx-concat", "vpux::FunctionPass"> {
+    let summary = "Move Concat operations from DDR to NNCMX";
+
+    let constructor = "vpux::VPU::createCMXConcatPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
 #endif
