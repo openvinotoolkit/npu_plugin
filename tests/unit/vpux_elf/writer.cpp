@@ -99,6 +99,7 @@ TEST(ELFWriter, BinaryDataSection) {
     elf::Reader reader(blob.data(), blob.size());
     const auto binarySections = getSectionsByType(reader, elf::SHT_PROGBITS);
     ASSERT_EQ(binarySections.size(), 1);
+    ASSERT_EQ(reader.getSegmentsNum(), 0);
 
     const auto& binarySection = binarySections.front();
     ASSERT_EQ(getSectionName(reader, binarySection), testName);
@@ -127,6 +128,7 @@ TEST(ELFWriter, EmptySection) {
     elf::Reader reader(blob.data(), blob.size());
     const auto emptySections = getSectionsByType(reader, elf::SHT_NOBITS);
     ASSERT_EQ(emptySections.size(), 1);
+    ASSERT_EQ(reader.getSegmentsNum(), 0);
 
     const auto& emptySection = emptySections.front();
     ASSERT_EQ(getSectionName(reader, emptySection), testName);
@@ -157,6 +159,7 @@ TEST(ELFWriter, SymbolSection) {
     elf::Reader reader(blob.data(), blob.size());
     const auto symbolSections = getSectionsByType(reader, elf::SHT_SYMTAB);
     ASSERT_EQ(symbolSections.size(), 1);
+    ASSERT_EQ(reader.getSegmentsNum(), 0);
 
     const auto& symbolSection = symbolSections.front();
     ASSERT_EQ(getSectionName(reader, symbolSection), testName);
@@ -209,6 +212,7 @@ TEST(ELFWriter, RelocationSection) {
     elf::Reader reader(blob.data(), blob.size());
     const auto relocationSections = getSectionsByType(reader, elf::SHT_RELA);
     ASSERT_EQ(relocationSections.size(), 1);
+    ASSERT_EQ(reader.getSegmentsNum(), 0);
 
     const auto& relocationSection = relocationSections.front();
     ASSERT_EQ(getSectionName(reader, relocationSection), testRelocationName);
