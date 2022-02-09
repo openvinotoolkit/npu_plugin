@@ -286,6 +286,7 @@ def VPU_DistributedTensorAttr :
                 StructFieldAttr<"kernel", OptionalAttr<I64ArrayAttr>>,
                 StructFieldAttr<"strides", OptionalAttr<I64ArrayAttr>>,
                 StructFieldAttr<"pads", OptionalAttr<VPU_PaddingAttr>>,
+                StructFieldAttr<"num_clusters", OptionalAttr<IntAttr>>
             ]
         >;
 

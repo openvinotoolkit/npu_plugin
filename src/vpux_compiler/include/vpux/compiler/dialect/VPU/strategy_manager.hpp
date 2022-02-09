@@ -127,9 +127,11 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(Concr
                                                       filterShape[Dims4D::Filter::KX]}));  // TODO: Is this the
                                                                                            // correct order of dims?
 
+    const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
+
     // Create DistributedTensorAttr
     auto activationTensorDistributedTensorAttr = vpux::VPU::DistributedTensorAttr::get(
-            activationTensorDistributionModeAttr, numTiles, kernel, origOp.strides(), origOp.padAttr(),
+            activationTensorDistributionModeAttr, numTiles, kernel, origOp.strides(), origOp.padAttr(), numClusters,
             origOp.getContext());  // TODO: Use the padding from origOp?
 
     // Specify the inputShape
@@ -139,7 +141,7 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(Concr
 
     // Specify the memSpace
     const auto memSpace =
-            mlir::SymbolRefAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
+            vpux::IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
 
     // Specify the order
     const auto order =
@@ -186,9 +188,11 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedWeightsTensor(Concrete
                                                       filterShape[Dims4D::Filter::KX]}));  // TODO: Is this the
                                                                                            // correct order of dims?
 
+    const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
+
     // Create DistributedTensorAttr
     auto weightsTensorDistributedTensorAttr = vpux::VPU::DistributedTensorAttr::get(
-            weightsTensorDistributionModeAttr, numTiles, kernel, origOp.strides(), origOp.padAttr(),
+            weightsTensorDistributionModeAttr, numTiles, kernel, origOp.strides(), origOp.padAttr(), numClusters,
             origOp.getContext());  // TODO: Use the padding from origOp?
 
     // Specify the inputShape
@@ -198,7 +202,7 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedWeightsTensor(Concrete
 
     // Specify the memSpace
     const auto memSpace =
-            mlir::SymbolRefAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
+            vpux::IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
 
     // Specify the order
     const auto order =
@@ -243,26 +247,28 @@ vpux::VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorT
                                                       filterShape[Dims4D::Filter::KX]}));  // TODO: Is this the
                                                                                            // correct order of dims?
 
+    const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
+
     // Create DistributedTensorAttr
     auto outputTensorDistributedTensorAttr = vpux::VPU::DistributedTensorAttr::get(
-            outputTensorDistributionModeAttr, numTiles, kernel, origOp.strides(), origOp.padAttr(),
+            outputTensorDistributionModeAttr, numTiles, kernel, origOp.strides(), origOp.padAttr(), numClusters,
             origOp.getContext());  // TODO: Use the padding from origOp?
 
-    // Specify the inputShape
-    const auto inputShape = getShape(origOp.input());
-    SmallVector<int64_t> inShape{inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C], inputShape[Dims4D::Act::H],
-                                 inputShape[Dims4D::Act::W]};  // TODO: Is this the correct order of dims?
+    // Specify the outputShape
+    const auto outputShape = getShape(origOp.output());
+    SmallVector<int64_t> outShape{outputShape[Dims4D::Act::N], outputShape[Dims4D::Act::C], outputShape[Dims4D::Act::H],
+                                  outputShape[Dims4D::Act::W]};  // TODO: Is this the correct order of dims?
 
     // Specify the memSpace
     const auto memSpace =
-            mlir::SymbolRefAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
+            vpux::IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
 
     // Specify the order
     const auto order =
-            mlir::AffineMapAttr::get(DimsOrder::fromNumDims(inputShape.size()).toAffineMap(origOp.getContext()));
+            mlir::AffineMapAttr::get(DimsOrder::fromNumDims(outputShape.size()).toAffineMap(origOp.getContext()));
 
     // Create DistributedTensorType
-    return vpux::VPU::DistributedTensorType::get(origOp.getContext(), inShape, origOp.input().getType(), order,
+    return vpux::VPU::DistributedTensorType::get(origOp.getContext(), outShape, origOp.output().getType(), order,
                                                  memSpace, outputTensorDistributedTensorAttr);
 }
 

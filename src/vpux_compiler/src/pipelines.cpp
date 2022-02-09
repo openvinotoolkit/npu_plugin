@@ -334,6 +334,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(createConvertIEToVPUNCEPass(log));
     pm.addPass(createPrintDotPass("temp.dot"));
     pm.addPass(VPU::createMultiClusterStrategyAssignmentPass(log));
+    pm.addPass(createPrintDotPass("temp2.dot"));
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
     pm.addPass(VPU::createConvertPostOpsToPPEPass(log));
 
