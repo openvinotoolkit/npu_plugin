@@ -16,7 +16,7 @@
 	url = git@gitlab-icv.inn.intel.com:movidius/btc_models.git
 [submodule "thirdparty/hddlunite"]
 	path = thirdparty/hddlunite
-	url = https://github.com/intel-innersource/frameworks.ai.vpu-accelerators.hddlunite.git
+	url = git@github.com:intel-innersource/frameworks.ai.vpu-accelerators.hddlunite.git
 [submodule "thirdparty/level-zero"]
 	path = thirdparty/level-zero
 	url = https://github.com/oneapi-src/level-zero.git
@@ -29,4 +29,4 @@
 	shallow = true
 [submodule "thirdparty/level-zero-ext"]
 	path = thirdparty/level-zero-ext
-	url = https://github.com/intel-innersource/drivers.vpu.user-mode.applications.umd.ze-ext-headers.git
+	url = git@github.com:intel-innersource/drivers.vpu.user-mode.applications.umd.ze-ext-headers.git
