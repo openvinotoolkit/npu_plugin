@@ -96,7 +96,7 @@ mlir::FailureOr<mlir::Type> inferElemType(IE::AffineReshapeOpAdaptor affineResha
 
     for (const auto& dim : outputDims) {
         if (inputQAxisSize == outputShape[dim]) {
-            // firstly check that element is usique and others == 1
+            // firstly check that element is unique and others == 1
             if (std::find_if(outputDims.begin(), outputDims.end(), [&](int64_t elem) {
                     return (outputShape[elem] != 1 && outputShape[elem] != inputQAxisSize);
                 }) != outputDims.end()) {

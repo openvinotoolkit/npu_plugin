@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 

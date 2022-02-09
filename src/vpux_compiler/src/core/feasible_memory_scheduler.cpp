@@ -961,8 +961,8 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
         const HeapElement* completionTopPtr = topElementGen(_completionTimeHeap);
 
         _log.trace("Choose the min from start time and completion time heaps");
-        bool pop_from_start_heap =
-                start_top_ptr && (!completionTopPtr || (start_top_ptr->time_ < completionTopPtr->time_));
+        bool pop_from_start_heap = (start_top_ptr != nullptr) &&
+                                   (completionTopPtr == nullptr || (start_top_ptr->time_ < completionTopPtr->time_));
 
         if (pop_from_start_heap) {
             _log.trace("Popping from start time heap");

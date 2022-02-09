@@ -37,7 +37,8 @@ namespace {
 //
 
 bool isSupportedHWPostOp(mlir::Operation* postOp) {
-    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp>(postOp)) {
+    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp, IE::LeakyReluOp, IE::PReluOp>(
+                postOp)) {
         return false;
     }
 
@@ -53,6 +54,24 @@ bool isSupportedHWPostOp(mlir::Operation* postOp) {
     const auto module = postOp->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
     if (arch == VPU::ArchKind::MTL && mlir::isa<IE::MaxPoolOp>(postOp)) {
+        return false;
+    }
+
+    auto producerOp = postOp->getOperand(0).getDefiningOp();
+    // FIXME fuse LeakyRelu using PWL here [EISW-13693]
+    const auto isQuantized = [](mlir::Operation* op, mlir::Operation* postOp) -> bool {
+        auto isFakeQuantizeOpInput = mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(op->getOperand(0).getDefiningOp());
+        auto isFakeQuantizeOpOutput = false;
+        for (auto user : postOp->getUsers()) {
+            if (mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(user)) {
+                isFakeQuantizeOpOutput = true;
+                break;
+            }
+        }
+        return isFakeQuantizeOpOutput || isFakeQuantizeOpInput;
+    };
+
+    if (mlir::isa<IE::LeakyReluOp>(postOp) && isQuantized(producerOp, postOp)) {
         return false;
     }
 
@@ -408,6 +427,16 @@ public:
         return ::isSupportedPrefetchTiling(mlir::cast<MainOpType>(origOp), tileAxis, log);
     }
 
+    bool isSupportedPrefetchPattern(mlir::Operation* origOp, ShapeRef tileAxis, mlir::Operation* parentOp,
+                                    ShapeRef parentTileAxis, Logger log) const {
+        auto outputShape = getShape(origOp->getResult(0));
+        auto tileResult = fillDividedTiles(tileAxis, outputShape);
+        auto parentOutputShape = getShape(parentOp->getResult(0));
+        auto parentTileResult = fillDividedTiles(parentTileAxis, parentOutputShape);
+        return mlir::succeeded(
+                VPUIP::NCEInvariant::verifyPrefetchPatternCMX(origOp, tileResult, parentOp, parentTileResult, log));
+    }
+
 private:
     static bool isSupportedByNCE(MainOpType op, Logger log) {
         if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
@@ -446,6 +475,13 @@ public:
     bool isSupportedPrefetchTiling(mlir::Operation* /*op*/, ShapeRef /*tileAxis*/, Logger /*log*/) const {
         // The DPU time of eltwise operations are too short to worth prefetching.
         return false;
+    }
+
+    bool isSupportedPrefetchPattern(mlir::Operation* /*origOp*/, ShapeRef /*tileAxis*/, mlir::Operation* /*parentOp*/,
+                                    ShapeRef /*parentTileAxis*/, Logger /*log*/) const {
+        // Avoid tiling for eltwise operations
+        // the DPU time is too short compared to the DMA time.
+        return true;
     }
 
 private:

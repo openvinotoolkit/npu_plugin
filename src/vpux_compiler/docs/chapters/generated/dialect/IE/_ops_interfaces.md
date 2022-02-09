@@ -208,3 +208,11 @@ bool isSupportedPrefetchTiling(ShapeRef tileAxis, vpux::Logger log);
 Check, if the operation support prefetch tiling with cmx memory checking only
 NOTE: This method *must* be implemented by the user.
 
+#### `isSupportedPrefetchPattern`
+
+```c++
+bool isSupportedPrefetchPattern(ShapeRef tileAxis, mlir::Operation*parentOp, ShapeRef parentTileAxis, vpux::Logger log);
+```
+Check, if the pattern (current op and parent op, with specific tiling) supports prefetch with cmx memory checking only
+NOTE: This method *must* be implemented by the user.
+
