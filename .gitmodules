@@ -6,7 +6,7 @@
 	url = https://github.com/google/flatbuffers.git
 [submodule "thirdparty/graphFile-schema"]
 	path = thirdparty/graphFile-schema
-	url = https://github.com/intel-innersource/libraries.ai.vpu.graphfile.git
+	url = git@github.com:intel-innersource/libraries.ai.vpu.graphfile.git
 [submodule "thirdparty/llvm-project"]
 	path = thirdparty/llvm-project
 	url = https://github.com/plaidml/llvm-project.git
