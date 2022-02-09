@@ -338,6 +338,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(VPU::createAdjustMemorySpacePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
+    pm.addPass(VPU::createCMXConcatPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+    
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
 
     // Lowering
@@ -362,7 +365,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(IERT::createCopyOpLegalizationPass(log));
     pm.addPass(IERT::createCopyOpSplitByPlanesPass(log));
-    pm.addPass(IERT::createCMXConcatPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     if (options.enableProfiling && options.enableDPUProfiling) {
