@@ -289,24 +289,32 @@ SerializedIR LevelZeroCompilerInDriver::serializeIR(const std::vector<char>& xml
     return serializedIR;
 }
 
-std::string to_string(const ze_graph_argument_precision_t& precision) {
-    if (precision == ZE_GRAPH_ARGUMENT_PRECISION_UINT8)
+std::string toString(const ze_graph_argument_precision_t& precision) {
+    switch (precision) {
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
         return "UINT8";
-    else if (precision == ZE_GRAPH_ARGUMENT_PRECISION_INT8)
-        return "INT8";
-    else if (precision == ZE_GRAPH_ARGUMENT_PRECISION_INT32)
-        return "INT32";
-    else if (precision == ZE_GRAPH_ARGUMENT_PRECISION_FP16)
-        return "FP16";
-    else if (precision == ZE_GRAPH_ARGUMENT_PRECISION_FP32)
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
         return "FP32";
-    else {
-        std::cerr << "to_string(ze_graph_argument_precision_t): unsupported value" << std::endl;
-        return "";
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
+        return "FP16";
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
+        return "UINT16";
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
+        return "INT32";
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
+        return "INT16";
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT8:
+        return "INT8";
+    case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
+        return "BIN";
+    case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
+        return "BF16";
+    default:
+        return "UNKNOWN";
     }
 }
 
-std::string to_string(const ze_graph_argument_layout_t& layout) {
+std::string toString(const ze_graph_argument_layout_t& layout) {
     switch (layout) {
     case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
         return "NCHW";
@@ -335,12 +343,9 @@ std::string to_string(const ze_graph_argument_layout_t& layout) {
     }
 }
 
-INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(const std::string& graphName,
-                                                              const std::vector<char>& xml,
-                                                              const std::vector<char>& weights,
-                                                              const IE::InputsDataMap& inputsInfo, 
-                                                              const IE::OutputsDataMap& outputsInfo,
-                                                              const vpux::Config& config) {
+INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(
+        const std::string& graphName, const std::vector<char>& xml, const std::vector<char>& weights,
+        const IE::InputsDataMap& inputsInfo, const IE::OutputsDataMap& outputsInfo, const vpux::Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("LevelZeroCompilerInDriver::compileIR");
     auto serializedIR = serializeIR(xml, weights);
@@ -365,23 +370,22 @@ INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(const std::string&
 
     const auto inputPrecision = toZePrecision(inputsInfo.begin()->second->getPrecision());
     build_flags += "-ze_graph_input_precision:";
-    build_flags += to_string(inputPrecision);
+    build_flags += toString(inputPrecision);
     build_flags += ",";
 
     const auto inputLayout = toZeLayout(inputsInfo.begin()->second->getLayout());
     build_flags += "-ze_graph_input_layout:";
-    build_flags += to_string(inputLayout);
+    build_flags += toString(inputLayout);
     build_flags += ",";
 
-    const auto ouputPrecision = toZePrecision(outputsInfo.begin()->second->getPrecision());
+    const auto outputPrecision = toZePrecision(outputsInfo.begin()->second->getPrecision());
     build_flags += "-ze_graph_output_precision:";
-    build_flags += to_string(ouputPrecision);
+    build_flags += toString(outputPrecision);
     build_flags += ",";
 
     const auto outputLayout = toZeLayout(outputsInfo.begin()->second->getLayout());
     build_flags += "-ze_graph_output_layout:";
-    build_flags += to_string(outputLayout);
-    build_flags += ",";
+    build_flags += toString(outputLayout);
 
     ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                          nullptr,
