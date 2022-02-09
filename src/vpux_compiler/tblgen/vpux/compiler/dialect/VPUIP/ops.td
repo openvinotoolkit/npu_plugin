@@ -2511,6 +2511,10 @@ def VPUIP_GatherUPAOp :
         return vpux::VPUIP::verifyOp(*this);
     }];
 
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
