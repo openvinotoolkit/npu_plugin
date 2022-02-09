@@ -40,10 +40,10 @@ struct ReferenceSWOptions : mlir::PassPipelineOptions<ReferenceSWOptions> {
     StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("KMB")};
 
     BoolOption enableUseUserPrecision{*this, "use-user-precision", llvm::cl::desc("Enable use-user-precision pass"),
-                                      llvm::cl::init(true)};
+                                      llvm::cl::init(false)};
 
     BoolOption enableUseUserLayout{*this, "use-user-layout", llvm::cl::desc("Enable use-user-layout pass"),
-                                   llvm::cl::init(true)};
+                                   llvm::cl::init(false)};
 
     BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
                                       llvm::cl::init(false)};
@@ -74,7 +74,7 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
     IntOption numberOfDPUGroups{*this, "num-of-dpu-groups", llvm::cl::desc("Number of DPU groups")};
 
     BoolOption enableUseUserPrecision{*this, "use-user-precision", llvm::cl::desc("Enable use-user-precision pass"),
-                                      llvm::cl::init(true)};
+                                      llvm::cl::init(false)};
 
     BoolOption enableConvertFCToConv{*this, "convert-fc-to-conv", llvm::cl::desc("Enable convert-fc-to-conv pass"),
                                      llvm::cl::init(true)};
@@ -110,7 +110,7 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
                                               llvm::cl::init(true)};
 
     BoolOption enableUseUserLayout{*this, "use-user-layout", llvm::cl::desc("Enable use-user-layout pass"),
-                                   llvm::cl::init(true)};
+                                   llvm::cl::init(false)};
 
     BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
                                       llvm::cl::init(false)};
@@ -144,7 +144,7 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
     IntOption numberOfDPUGroups{*this, "num-of-dpu-groups", llvm::cl::desc("Number of DPU groups")};
 
     BoolOption enableUseUserPrecision{*this, "use-user-precision", llvm::cl::desc("Enable use-user-precision pass"),
-                                      llvm::cl::init(true)};
+                                      llvm::cl::init(false)};
 
     BoolOption enableConvertFCToConv{*this, "convert-fc-to-conv", llvm::cl::desc("Enable convert-fc-to-conv pass"),
                                      llvm::cl::init(true)};
@@ -183,7 +183,7 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
                                               llvm::cl::init(true)};
 
     BoolOption enableUseUserLayout{*this, "use-user-layout", llvm::cl::desc("Enable use-user-layout pass"),
-                                   llvm::cl::init(true)};
+                                   llvm::cl::init(false)};
 
     BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
                                       llvm::cl::init(true)};

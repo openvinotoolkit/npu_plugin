@@ -21,8 +21,8 @@ module @Convolution {
     }
 
     // CHECK:       func @main(
-    // CHECK-SAME:      [[ARG0:%.+]]: memref<1x3x62x62xf16, #NHWC>,
-    // CHECK-SAME:      [[ARG1:%.+]]: memref<1x48x60x60xf16, #NHWC>) -> memref<1x48x60x60xf16, #NHWC> {
+    // CHECK-SAME:      [[ARG0:%.+]]: memref<1x3x62x62xf16>,
+    // CHECK-SAME:      [[ARG1:%.+]]: memref<1x48x60x60xf16>) -> memref<1x48x60x60xf16> {
     func @main(%arg: tensor<1x3x62x62xf32>) -> tensor<1x48x60x60xf32> {
         %cst = const.Declare tensor<48x3x3x3xf32> = #const.Content<dense<1.0> : tensor<48x3x3x3xf32>>
         %1 = IE.Convolution(%arg, %cst) {

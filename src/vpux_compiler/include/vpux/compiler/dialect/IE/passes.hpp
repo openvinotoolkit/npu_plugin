@@ -34,7 +34,7 @@ namespace IE {
 
 struct AdjustPrecisionOptions : mlir::PassPipelineOptions<AdjustPrecisionOptions> {
     BoolOption enableUseUserPrecision{*this, "use-user-precision", llvm::cl::desc("Enable use-user-precision pass"),
-                                      llvm::cl::init(true)};
+                                      llvm::cl::init(false)};
 
     AdjustPrecisionOptions() = default;
 
@@ -59,7 +59,7 @@ std::unique_ptr<mlir::Pass> createUseUserPrecisionPass(Logger log = Logger::glob
 
 struct AdjustLayoutOptions : mlir::PassPipelineOptions<AdjustLayoutOptions> {
     BoolOption enableUseUserLayout{*this, "use-user-layout", llvm::cl::desc("Enable use-user-layout pass"),
-                                   llvm::cl::init(true)};
+                                   llvm::cl::init(false)};
 
     BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
                                       llvm::cl::init(true)};

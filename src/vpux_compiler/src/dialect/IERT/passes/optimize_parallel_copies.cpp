@@ -66,6 +66,9 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
         parentOp = mlir::dyn_cast<IERT::SubViewOp>(parentOp).source().getDefiningOp();
     }
     bool hasSiblingCopy = false;
+    if (parentOp == nullptr || parentOp->getNumResults() <= 0) {
+        return false;
+    }
     for (auto siblingOp : parentOp->getResult(0).getUsers()) {
         if (!mlir::isa<IERT::CopyOp>(*siblingOp)) {
             if (!mlir::isa<IERT::SubViewOp>(*siblingOp)) {
