@@ -44,6 +44,17 @@
 
 #include <unordered_map>
 
+// Base of frequency values used in tables (in MHz).
+static constexpr uint32_t FREQ_BASE = 700;
+// Step of frequency for each entry in tables (in MHz).
+static constexpr uint32_t FREQ_STEP = 100;
+// Base of bandwidth values used in tables (in MB/s).
+static constexpr uint32_t BW_BASE = 2000;
+// Step of bandwidth values used in tables (in MB/s).
+static constexpr uint32_t BW_STEP = 100;
+// Num entries in table, each entry contains set of values for particular frequency
+static constexpr uint32_t NUM_ENTRIES = 5;
+
 using namespace vpux;
 
 namespace {
@@ -213,6 +224,49 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     builder.add_processor_frequencies(processorFrequency);
     builder.add_memory_bandwidth(memoryBandwidthVec);
     return builder.Finish();
+}
+
+flatbuffers::Offset<MVCNN::PerformanceMetrics> createPerformanceMetrics(VPUIP::BlobWriter& writer) {
+    MVCNN::PerformanceMetricsBuilder PMBuilder(writer);
+    PMBuilder.add_freq_base(FREQ_BASE);
+    PMBuilder.add_freq_step(FREQ_STEP);
+    PMBuilder.add_bw_base(BW_BASE);
+    PMBuilder.add_bw_step(BW_STEP);
+
+    // value in [0.0..1.0] range indicating scalability of network for a given DDR bandwidth.
+    static const SmallVector<float> byBWScales({0.0F, 0.2F, 0.4F, 0.6F, 0.8F});
+    SmallVector<flatbuffers::Offset<MVCNN::ScalabilityByBandwidth>> scaleByFreq;
+    MVCNN::ScalabilityByBandwidthBuilder scalabilityByBandwidthBuilder(writer);
+
+    // expected ticks (based on FRC @37.5MHz) an inference should take for a given DDR bandwidth.
+    static const SmallVector<uint64_t> byBWTicks({10UL, 12UL, 14UL, 16UL, 18UL});
+    SmallVector<flatbuffers::Offset<MVCNN::InferenceTimingByBandwidth>> inferenceTimingByFreq;
+    MVCNN::InferenceTimingByBandwidthBuilder inferenceTimingByBandwidthBuilder(writer);
+
+    for (uint32_t i = 0; i < NUM_ENTRIES; ++i) {
+        // create set of values for particular frequency
+        scalabilityByBandwidthBuilder.add_by_bw(writer.createVector(byBWScales));
+        auto scalabilityByBandwidth = scalabilityByBandwidthBuilder.Finish();
+        scaleByFreq.push_back(scalabilityByBandwidth);
+
+        inferenceTimingByBandwidthBuilder.add_by_bw(writer.createVector(byBWTicks));
+        auto inferenceTimingByBandwidth = inferenceTimingByBandwidthBuilder.Finish();
+        inferenceTimingByFreq.push_back(inferenceTimingByBandwidth);
+    }
+
+    // Scalability by frequency & bandwidth.
+    MVCNN::ScalabilityBuilder scalabilityBuilder(writer);
+    scalabilityBuilder.add_by_freq(writer.createVector(scaleByFreq));
+    auto scalability = scalabilityBuilder.Finish();
+    PMBuilder.add_scalability(scalability);
+
+    // InferenceTiming by frequency & bandwidth.
+    MVCNN::InferenceTimingBuilder inferenceTimingBuilder(writer);
+    inferenceTimingBuilder.add_by_freq(writer.createVector(inferenceTimingByFreq));
+    auto timing = inferenceTimingBuilder.Finish();
+    PMBuilder.add_timing(timing);
+
+    return PMBuilder.Finish();
 }
 
 flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
@@ -406,6 +460,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     const auto serializedResults = writer.createVector(ovRes);
     const auto serializedPreProcInfo = writer.createVector(preprocInfo);
     const auto serializedActKernelsRuntime = createActKernelRuntime(writer, module, netFunc, log);
+    const auto serializedPerformanceMetrics = createPerformanceMetrics(writer);
 
     MVCNN::SummaryHeaderBuilder builder(writer);
     builder.add_version(serializedVersion);
@@ -424,6 +479,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     builder.add_device(VPUIP::mapTargetDevice(VPU::getArch(module)));
     builder.add_device_revision(VPUIP::mapTargetDeviceRevision(VPU::getArch(module)));
     builder.add_act_kernel_runtime(serializedActKernelsRuntime);
+    builder.add_performance_metrics(serializedPerformanceMetrics);
     return builder.Finish();
 }
 
