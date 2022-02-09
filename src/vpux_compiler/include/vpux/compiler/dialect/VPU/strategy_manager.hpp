@@ -142,10 +142,12 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(Concr
     // Specify the order
     const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(origOp.input()).toAffineMap(origOp.getContext()));
 
+    // Element type
+    auto elemType = origOp.input().getType().template cast<mlir::ShapedType>().getElementType();
+
     // Create DistributedTensorType
-    const auto activationTensorDistributedTensorType =
-            vpux::VPU::DistributedTensorType::get(origOp.getContext(), inputShape.raw(), origOp.input().getType(),
-                                                  order, memSpace, activationTensorDistributedTensorAttr);
+    const auto activationTensorDistributedTensorType = vpux::VPU::DistributedTensorType::get(
+            origOp.getContext(), inputShape.raw(), elemType, order, memSpace, activationTensorDistributedTensorAttr);
 
     _log.trace("Wrap copy operation for activation into NCEClusterTilingOp");
 
@@ -160,9 +162,8 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(Concr
         builder.create<VPU::YieldOp>(loc, activationTensorDistributedCopyOp->getResults());
     };
 
-    auto distributedActivationCopyOp =
-            builder.create<VPU::NCEClusterTilingOp>(origOp->getLoc(), activationTensorDistributedTensorType,
-                                                    origOp->getOperands(), activationTensorBodyBuilder);
+    auto distributedActivationCopyOp = builder.create<VPU::NCEClusterTilingOp>(
+            origOp->getLoc(), activationTensorDistributedTensorType, origOp.input(), activationTensorBodyBuilder);
     return distributedActivationCopyOp;
 }
 
@@ -189,21 +190,21 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedWeightsTensor(Concrete
                                                   origOp.padAttr(), numClusters, origOp.getContext());
 
     // Specify the inputShape
-    const auto inputShape = getShape(origOp.input());
+    const auto inputShape = getShape(origOp.filter());
 
     // Specify the memSpace
     const auto memSpace =
             vpux::IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
 
     // Specify the order
-    //TODO improve this
-    const auto order =
-            mlir::AffineMapAttr::get(DimsOrder::fromNumDims(inputShape.size()).toAffineMap(origOp.getContext()));
+    const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(origOp.input()).toAffineMap(origOp.getContext()));
+
+    // Element type
+    auto elemType = origOp.filter().getType().template cast<mlir::ShapedType>().getElementType();
 
     // Create DistributedTensorType
-    const auto weightsTensorDistributedTensorType =
-            vpux::VPU::DistributedTensorType::get(origOp.getContext(), inputShape.raw(), origOp.input().getType(),
-                                                  order, memSpace, weightsTensorDistributedTensorAttr);
+    const auto weightsTensorDistributedTensorType = vpux::VPU::DistributedTensorType::get(
+            origOp.getContext(), inputShape.raw(), elemType, order, memSpace, weightsTensorDistributedTensorAttr);
 
     _log.trace("Wrap copy operation for weights into NCEClusterTilingOp");
 
@@ -219,7 +220,7 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedWeightsTensor(Concrete
         builder.create<VPU::YieldOp>(loc, weightsTensorDistributedCopyOp->getResults());
     };
     auto distributedWeightsCopyOp = builder.create<VPU::NCEClusterTilingOp>(
-            origOp->getLoc(), weightsTensorDistributedTensorType, origOp->getOperands(), weightsTensorBodyBuilder);
+            origOp->getLoc(), weightsTensorDistributedTensorType, origOp.filter(), weightsTensorBodyBuilder);
     return distributedWeightsCopyOp;
 }
 
@@ -254,9 +255,12 @@ vpux::VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorT
     // Specify the order
     const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(origOp.output()).toAffineMap(origOp.getContext()));
 
+    // Element type
+    auto elemType = origOp.filter().getType().template cast<mlir::ShapedType>().getElementType();
+
     // Create DistributedTensorType
-    return vpux::VPU::DistributedTensorType::get(origOp.getContext(), outputShape.raw(), origOp.output().getType(),
-                                                 order, memSpace, outputTensorDistributedTensorAttr);
+    return vpux::VPU::DistributedTensorType::get(origOp.getContext(), outputShape.raw(), elemType, order, memSpace,
+                                                 outputTensorDistributedTensorAttr);
 }
 
 }  // namespace vpux
