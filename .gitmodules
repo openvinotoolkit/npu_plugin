@@ -1,6 +1,6 @@
 [submodule "thirdparty/gapi_sipp"]
 	path = thirdparty/gapi_sipp
-	url = https://github.com/intel-innersource/applications.ai.vpu-accelerators.vpu-graph-api.git
+	url = git@gitlab-icv.inn.intel.com:G-API/g-api-vpu.git
 [submodule "thirdparty/flatbuffers"]
 	path = thirdparty/flatbuffers
 	url = https://github.com/google/flatbuffers.git
