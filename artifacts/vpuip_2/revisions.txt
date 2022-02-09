@@ -1,1 +1,2 @@
-commit:a76f1c704bd4303dd417d5d15529b905e07c45f7
+tag:ci_tag_vpu_release_22ww07.2.1
+commit:92c456bf427eaef5a492aa257a24df29069794cc
