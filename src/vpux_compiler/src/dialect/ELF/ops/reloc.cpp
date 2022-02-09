@@ -1,4 +1,4 @@
-#include <elf/writer.hpp>
+#include <vpux_elf/writer.hpp>
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 
 void vpux::ELF::RelocOp::serialize(elf::writer::Relocation* relocation, vpux::ELF::SymbolMapType& symbolMap) {

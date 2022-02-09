@@ -13,19 +13,25 @@
 
 #pragma once
 
-#include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
-#include "vpux_compiler.hpp"
+#ifdef __leon__
 
-#include <vpux_elf/writer.hpp>
+#include <cassert>
+#define VPUX_ELF_THROW(...) assert(__VA_ARGS__)
 
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Support/Timing.h>
+#define VPUX_ELF_THROW_UNLESS(_condition_, ...) \
+    if(!(_condition_))                            \
+    VPUX_ELF_THROW(__VA_ARGS__)
 
-namespace vpux {
-namespace ELF {
+#define VPUX_ELF_THROW_WHEN(_condition_, ...) \
+    if((_condition_))                             \
+    VPUX_ELF_THROW(__VA_ARGS__)
 
-std::vector<uint8_t> exportToELF(mlir::ModuleOp module, Logger log = Logger::global());
+#else
 
-}  // namespace ELF
-}  // namespace vpux
+#include <vpux/utils/core/error.hpp>
+
+#define VPUX_ELF_THROW(...) VPUX_THROW(__VA_ARGS__)
+#define VPUX_ELF_THROW_UNLESS(__condition__, ...) VPUX_THROW_UNLESS(__condition__, __VA_ARGS__)
+#define VPUX_ELF_THROW_WHEN(__condition__, ...) VPUX_THROW_WHEN(__condition__, __VA_ARGS__)
+
+#endif

@@ -1,4 +1,4 @@
-#include <elf/writer.hpp>
+#include <vpux_elf/writer.hpp>
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 
 void vpux::ELF::CreateSymbolTableSectionOp::serialize(elf::Writer& writer, vpux::ELF::SectionMapType& sectionMap,

@@ -11,8 +11,8 @@
 // included with the Software Package for additional details.
 //
 
-#include <elf/writer.hpp>
-#include <elf/reader.hpp>
+#include <vpux_elf/writer.hpp>
+#include <vpux_elf/reader.hpp>
 
 #include <gtest/gtest.h>
 
@@ -79,7 +79,7 @@ TEST(ELFWriter, ELFHeaderForEmptyELFIsCorrect) {
 TEST(ELFWriter, BinaryDataSection) {
     constexpr int testAlignment = 64;
     const auto testName = std::string(".test");
-    
+
     struct TestObject {
         int a;
         float b;
@@ -141,10 +141,10 @@ TEST(ELFWriter, SymbolSection) {
     constexpr int symbolSize = 42;
     constexpr int symbolValue = 2;
     constexpr auto symbolType = elf::STT_SECTION;
-    
+
     elf::Writer writer;
     auto emptySection = writer.addEmptySection();
-    
+
     auto refSection = writer.addSymbolSection(testName);
 
     auto refSymbol = refSection->addSymbolEntry(testName);

@@ -11,21 +11,27 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include <vpux_elf/writer/empty_section.hpp>
 
-#include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
-#include "vpux_compiler.hpp"
+using namespace elf;
+using namespace elf::writer;
 
-#include <vpux_elf/writer.hpp>
+EmptySection::EmptySection(const std::string& name) : Section(name) {
+    m_header.sh_type = elf::SHT_NOBITS;
+}
 
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Support/Timing.h>
+Elf_Xword EmptySection::getSize() const {
+    return m_header.sh_size;
+}
 
-namespace vpux {
-namespace ELF {
+void EmptySection::setSize(Elf_Xword size) {
+    m_header.sh_size = size;
+}
 
-std::vector<uint8_t> exportToELF(mlir::ModuleOp module, Logger log = Logger::global());
+Elf_Word EmptySection::getType() const {
+    return m_header.sh_type;
+}
 
-}  // namespace ELF
-}  // namespace vpux
+void EmptySection::setType(Elf_Word type) {
+    m_header.sh_type = type;
+}

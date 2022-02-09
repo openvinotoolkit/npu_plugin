@@ -11,21 +11,21 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include <vpux_elf/types/relocation_entry.hpp>
 
-#include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
-#include "vpux_compiler.hpp"
+using namespace elf;
 
-#include <vpux_elf/writer.hpp>
+//! Extract symbol index from info
+Elf_Word elf::elf64RSym(Elf_Xword info) {
+    return info >> 32;
+}
 
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Support/Timing.h>
+//! Extract relocation type from info
+Elf_Word elf::elf64RType(Elf_Xword info) {
+    return static_cast<Elf_Word>(info);
+}
 
-namespace vpux {
-namespace ELF {
-
-std::vector<uint8_t> exportToELF(mlir::ModuleOp module, Logger log = Logger::global());
-
-}  // namespace ELF
-}  // namespace vpux
+//! Pack relocation type and symbol index into info
+Elf_Xword elf::elf64RInfo(Elf_Word sym, Elf_Word type) {
+    return (static_cast<Elf_Xword>(sym) << 32) + (static_cast<Elf_Xword>(type));
+}

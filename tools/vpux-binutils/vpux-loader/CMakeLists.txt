@@ -11,15 +11,21 @@
 # included with the Software Package for additional details.
 #
 
-add_subdirectory(model-comparator)
+set(TARGET_NAME "vpux-loader")
 
-add_subdirectory(test_classification)
-add_subdirectory(single-image-test)
+file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_subdirectory(vpux-opt)
-add_subdirectory(vpux-translate)
-add_subdirectory(vpux-lsp-server)
+add_executable(${TARGET_NAME} ${SOURCES})
+set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tools")
 
-add_subdirectory(profiling_parser)
+enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
+vpux_enable_clang_format(${TARGET_NAME})
 
-add_subdirectory(vpux-binutils)
+target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        vpux_elf
+        vpux_utils
+        vpux_mlir_compiler_static
+        vpux_translate_utils_static
+)

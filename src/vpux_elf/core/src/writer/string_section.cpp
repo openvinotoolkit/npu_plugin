@@ -11,21 +11,24 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include <vpux_elf/writer/string_section.hpp>
 
-#include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
-#include "vpux_compiler.hpp"
+using namespace elf;
+using namespace elf::writer;
 
-#include <vpux_elf/writer.hpp>
+StringSection::StringSection(const std::string& name) : Section(name) {
+    m_header.sh_type = SHT_STRTAB;
+    m_data.push_back('\0');
+}
 
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Support/Timing.h>
+size_t StringSection::addString(const std::string& name) {
+    if (name.empty()) {
+        return 0;
+    }
 
-namespace vpux {
-namespace ELF {
+    const auto pos = m_data.size();
+    const auto str = name.c_str();
+    m_data.insert(m_data.end(), str, str + name.size() + 1);
 
-std::vector<uint8_t> exportToELF(mlir::ModuleOp module, Logger log = Logger::global());
-
-}  // namespace ELF
-}  // namespace vpux
+    return pos;
+}

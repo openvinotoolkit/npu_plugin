@@ -23,7 +23,7 @@
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/stl_extras.hpp"
 
-#include <elf/writer.hpp>
+#include <vpux_elf/writer.hpp>
 
 namespace vpux {
 namespace ELF {

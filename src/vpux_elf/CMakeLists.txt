@@ -1,5 +1,5 @@
 #
-# Copyright 2021 Intel Corporation.
+# Copyright Intel Corporation.
 #
 # LEGAL NOTICE: Your use of this software and any required dependent software
 # (the "Software Package") is subject to the terms and conditions of
@@ -27,11 +27,7 @@ list(FILTER SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/example/.*")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADERS} ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
-target_include_directories(${TARGET_NAME}
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-)
-
+target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/core/include" "${CMAKE_CURRENT_SOURCE_DIR}/loader/include")
 target_link_libraries(${TARGET_NAME} PRIVATE vpux_utils)
 
 enable_warnings_as_errors(${TARGET_NAME})

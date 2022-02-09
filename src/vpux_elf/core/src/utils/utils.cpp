@@ -11,21 +11,19 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include <vpux_elf/utils/utils.hpp>
 
-#include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
-#include "vpux_compiler.hpp"
+#include <vpux_elf/types/elf_header.hpp>
 
-#include <vpux_elf/writer.hpp>
+#include <vpux_elf/utils/error.hpp>
 
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Support/Timing.h>
+using namespace elf;
 
-namespace vpux {
-namespace ELF {
-
-std::vector<uint8_t> exportToELF(mlir::ModuleOp module, Logger log = Logger::global());
-
-}  // namespace ELF
-}  // namespace vpux
+void utils::checkELFMagic(const unsigned char* elfIdent) {
+    if (elfIdent[elf::EI_MAG0] != elf::ELFMAG0 ||
+        elfIdent[elf::EI_MAG1] != elf::ELFMAG1 ||
+        elfIdent[elf::EI_MAG2] != elf::ELFMAG2 ||
+        elfIdent[elf::EI_MAG3] != elf::ELFMAG3) {
+        VPUX_ELF_THROW("Incorrect ELF magic");
+    }
+}

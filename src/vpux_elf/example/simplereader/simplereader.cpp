@@ -11,9 +11,9 @@
 // included with the Software Package for additional details.
 //
 
-#include <elf/reader.hpp>
+#include <vpux_elf/reader.hpp>
 
-#include <elf/types/symbol_entry.hpp>
+#include <vpux_elf/types/symbol_entry.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Example usage is ./simplereader <path-to-elf>" << '\n';
         return 1;
     }
-    
+
     std::ifstream stream(argv[1], std::ios::binary);
     std::vector<uint8_t> elfBlob((std::istreambuf_iterator<char>(stream)), (std::istreambuf_iterator<char>()));
     stream.close();
@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Number of sections: " << reader.getSectionsNum() << '\n';
     std::cout << "Number of segments: " << reader.getSegmentsNum() << '\n';
-    
+
     for (size_t i = 0; i < reader.getSectionsNum(); ++i) {
         auto section = reader.getSection(i);
         const auto sectionHeader = section.getHeader();

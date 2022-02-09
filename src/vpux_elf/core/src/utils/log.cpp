@@ -10,22 +10,21 @@
 // to the "third-party-programs.txt" or other similarly-named text file
 // included with the Software Package for additional details.
 //
+#ifndef __leon__
 
-#pragma once
+#include <vpux_elf/utils/log.hpp>
 
-#include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
-#include "vpux_compiler.hpp"
+namespace elf {
+namespace details {
 
-#include <vpux_elf/writer.hpp>
+ElfLogger::ElfLogger() : m_elfLogger("VPUX ELF", vpux::LogLevel::Trace) {};
 
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Support/Timing.h>
+vpux::Logger& ElfLogger::instance() {
+    static ElfLogger obj;
+    return obj.m_elfLogger;
+}
 
-namespace vpux {
-namespace ELF {
+} // namespace details
+} // namespace elf
 
-std::vector<uint8_t> exportToELF(mlir::ModuleOp module, Logger log = Logger::global());
-
-}  // namespace ELF
-}  // namespace vpux
+#endif // __leon__

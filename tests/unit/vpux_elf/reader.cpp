@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include <elf/reader.hpp>
+#include <vpux_elf/reader.hpp>
 
 #include <gtest/gtest.h>
 

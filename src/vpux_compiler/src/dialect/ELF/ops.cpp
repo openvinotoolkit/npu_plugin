@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/ELF/ops.hpp"
-#include <elf/writer.hpp>
+#include <vpux_elf/writer.hpp>
 #include "vpux/compiler/utils/stl_extras.hpp"
 
 //

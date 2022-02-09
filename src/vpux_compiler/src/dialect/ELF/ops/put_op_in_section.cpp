@@ -1,4 +1,4 @@
-#include <elf/writer.hpp>
+#include <vpux_elf/writer.hpp>
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 
 void vpux::ELF::PutOpInSectionOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {

@@ -13,19 +13,23 @@
 
 #pragma once
 
-#include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
-#include "vpux_compiler.hpp"
+#include <vpux_elf/writer/section.hpp>
 
-#include <vpux_elf/writer.hpp>
+namespace elf {
 
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Support/Timing.h>
+class Writer;
 
-namespace vpux {
-namespace ELF {
+namespace writer {
 
-std::vector<uint8_t> exportToELF(mlir::ModuleOp module, Logger log = Logger::global());
+class StringSection final : public Section {
+public:
+    size_t addString(const std::string& name);
 
-}  // namespace ELF
-}  // namespace vpux
+private:
+    explicit StringSection(const std::string& name);
+
+    friend Writer;
+};
+
+} // namespace writer
+} // namespace elf
