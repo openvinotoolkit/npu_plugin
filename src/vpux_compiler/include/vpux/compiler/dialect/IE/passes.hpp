@@ -65,7 +65,7 @@ struct AdjustLayoutOptions : mlir::PassPipelineOptions<AdjustLayoutOptions> {
                                       llvm::cl::init(true)};
 
     BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
-                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(false)};
+                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(true)};
 
     AdjustLayoutOptions() = default;
 
@@ -117,14 +117,14 @@ std::unique_ptr<mlir::Pass> createSwapTransposeWithFQPass(Logger log = Logger::g
 struct LowPrecisionOptions : mlir::PassPipelineOptions<LowPrecisionOptions> {
     BoolOption enableQuantDequantRemoval{*this, "quant-dequant-removal",
                                          llvm::cl::desc("Enable quantize->dequantize sequence removal"),
-                                         llvm::cl::init(false)};
+                                         llvm::cl::init(true)};
 
     BoolOption enableSwapTransposeWithFQ{*this, "swap-transpose-with-fq",
-                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(false)};
+                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(true)};
 
     BoolOption enablePropagateQuantDequant{*this, "propagate-quant-dequant",
                                            llvm::cl::desc("Enable Propagate Quantize Dequantize pass"),
-                                           llvm::cl::init(true)};
+                                           llvm::cl::init(false)};
 
     LowPrecisionOptions() = default;
 

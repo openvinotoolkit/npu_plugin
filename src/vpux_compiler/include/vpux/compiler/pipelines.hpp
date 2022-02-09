@@ -173,7 +173,7 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 
     BoolOption enableQuantDequantRemoval{*this, "quant-dequant-removal",
                                          llvm::cl::desc("Enable quantize->dequantize sequence removal"),
-                                         llvm::cl::init(false)};
+                                         llvm::cl::init(true)};
 
     BoolOption enableUpstreamSlice{*this, "upstream-slice", llvm::cl::desc("Enable upstream-slice pipeline building"),
                                    llvm::cl::init(true)};
@@ -198,14 +198,14 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
                                      ::llvm::cl::init(false)};
 
     BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
-                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(false)};
+                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(true)};
 
     BoolOption enableSwapTransposeWithFQ{*this, "swap-transpose-with-fq",
-                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(false)};
+                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(true)};
 
     BoolOption enablePropagateQuantDequant{*this, "propagate-quant-dequant",
                                            llvm::cl::desc("Enable Propagate Quantize Dequantize pass"),
-                                           llvm::cl::init(true)};
+                                           llvm::cl::init(false)};
 };
 
 void buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options,
