@@ -1250,6 +1250,95 @@ class RaceConditionDPU(MPE):
     def filter_issues(self, args) -> bool:
         return True
 
+class RaceConditionDPUDMAACT(MPE):
+
+    PARAMS = [
+        'mpe_op_class',
+        'input_ttype',
+        'input_shape',
+        'weight_ttype',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'output_order',
+        'kernel_strides',
+        'kernel_pads',
+        'compress',
+        'mpe_cub',
+        'act_op',
+        'iteration_count'
+    ]
+
+    def __init__(self, settings):
+        self.settings = settings
+        settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
+
+    def json_info(self, inputs, output):
+        return {
+            'case_type': 'RaceConditionDPUDMAACT',
+            'input': inputs[0].json_info,
+            'weight': inputs[1].json_info,
+            'output': output.json_info,
+            'conv_op': {
+                'stride': self.settings.kernel_strides,
+                'pad': self.settings.kernel_pads,
+                'group': 1,
+                'dilation': 1,
+                'compress': self.settings.compress,
+                'mpe_cub': self.settings.mpe_cub.name
+            },
+            'activation': {
+                'name' : self.settings.act_op.name
+            },
+            'output_order': self.settings.output_order.name.lower(),
+            'iteration_count' : self.settings.iteration_count
+        }
+
+    def validate(self):
+        pass
+
+    @property
+    def ident(self) -> str:
+        return f'DPU_DMA_ACT_race_cond_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return orderToOrderer(self.settings.output_order)
+
+    @property
+    def data(self) -> dict:
+        return {
+            'MPE Mode': 'DPU_DMA_ACT_race_cond',
+            'Input Type': self.settings.input_ttype.stype,
+            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
+            'Weights Type': self.settings.weight_ttype.stype,
+            'Kernel Channels': str(self.settings.kernel_channels),
+            'Kernel Shape': ', '.join([str(s) for s in self.settings.kernel_shape]),
+            'Output Type': self.settings.output_ttype.stype,
+            'Iteration Count': self.settings.iteration_count.stype
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+        ]
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        lhs, rhs = iduConvCustom(values[0], values[1])
+        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+                        pads = self.settings.kernel_pads,
+                        strides = self.settings.kernel_strides)
+        result = c2d.inference(lhs, rhs)
+        return result
+
+    def filter_issues(self, args) -> bool:
+        return True
+
 def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], bitshift: int) -> Value:
     """Models the hardware PPE"""
     ndarray = data.value if isinstance(data, NBQuantized) else data
@@ -1617,6 +1706,45 @@ def genRaceConditionDPU(input_types=[FP16(4)],
                                                             iteration_count
                                                             ))
 
+def genRaceConditionDPUDMAACT(input_types=[FP16(0)],
+                              input_shapes=[[1, 32, 16, 16]],
+                              weight_types=[FP16(0)],
+                              kernel_channels=[64],
+                              kernel_shapes=[[1, 1]],
+                              output_types=[FP16(4)],
+                              output_orders=[Order.NHWC],
+                              strides=[[1, 1]],
+                              pads=Pad.none,
+                              compress=False,
+                              mpe_cubs=[MPE_CUBES.CUBOID_16x16],
+                              act_types=[ActivationType.HSwish],
+                              iteration_count = 64):
+
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, act_type) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, act_types):
+
+        current_weight_types = weight_types
+        for weight_type in current_weight_types:
+
+            current_output_types = output_types
+            for output_type in current_output_types:
+                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
+                    print("skip", output_order, output_type)
+                    continue
+                yield DPUPipeline(RaceConditionDPUDMAACT.PARAMS, (RaceConditionDPUDMAACT,
+                                                               input_type,
+                                                               input_shape,
+                                                               weight_type,
+                                                               kernel_channel,
+                                                               kernel_shape,
+                                                               output_type,
+                                                               output_order,
+                                                               stride,
+                                                               pad,
+                                                               compress,
+                                                               mpe_cub,
+                                                               act_type,
+                                                               iteration_count
+                                                               ))
 
 def generate_options(args):
     return itertools.chain(
@@ -2198,6 +2326,10 @@ def generate_options(args):
 
         genRaceConditionDPU(
             iteration_count=48
+        ),
+
+        genRaceConditionDPUDMAACT(
+            iteration_count=24
         ),
     )
 

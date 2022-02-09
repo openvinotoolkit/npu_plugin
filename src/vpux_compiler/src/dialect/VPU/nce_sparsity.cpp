@@ -122,8 +122,6 @@ std::vector<uint8_t> getBitPattern(VPU::NCESparsity::Mode mode, ShapeRef kernelS
     return bitPattern;
 }
 
-constexpr int32_t SPARSITY_PTR_WHEN_NO_SPARISTY = 0xFFFFFF;
-
 constexpr std::int32_t ALIGNMENT_REQUIREMENT_IN_ELEMENTS = 16;
 
 int32_t toHex(double realVal) {

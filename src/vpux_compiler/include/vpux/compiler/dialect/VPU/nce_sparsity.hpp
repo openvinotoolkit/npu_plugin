@@ -37,6 +37,8 @@ extern const EnumMap<ArchKind, BiasConverterCb> biasConvertersMap;
 
 enum class Mode { CM_CONV, DW_CONV, POOL };
 
+constexpr int32_t SPARSITY_PTR_WHEN_NO_SPARISTY = 0xFFFFFF;
+
 int64_t getBitPatternSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);
 
 int64_t getActivationWindowSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);

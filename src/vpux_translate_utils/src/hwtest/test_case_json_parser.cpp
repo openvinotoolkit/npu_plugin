@@ -168,6 +168,8 @@ std::string nb::to_string(CaseType case_) {
         return "RaceConditionDMA";
     case CaseType::RaceConditionDPU:
         return "RaceConditionDPU";
+    case CaseType::RaceConditionDPUDMAACT:
+        return "RaceConditionDPUDMAACT";
     default:
         return "unknown";
     }
@@ -193,6 +195,8 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::RaceConditionDMA;
     if (isEqual(str, "RaceConditionDPU"))
         return CaseType::RaceConditionDPU;
+    if (isEqual(str, "RaceConditionDPUDMAACT"))
+        return CaseType::RaceConditionDPUDMAACT;
     return CaseType::Unknown;
 };
 
@@ -481,7 +485,7 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
     // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
     // eltwise needed).
     if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv ||
-        caseType_ == CaseType::RaceConditionDPU) {
+        caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMAACT) {
         wtLayer_ = loadWeightLayer(json_obj);
         convLayer_ = loadConvLayer(json_obj);
 
@@ -491,6 +495,10 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
 
         if (caseType_ == CaseType::RaceConditionDPU) {
             iterationCount_ = loadIterationCount(json_obj);
+        }
+        if (caseType_ == CaseType::RaceConditionDPUDMAACT) {
+            iterationCount_ = loadIterationCount(json_obj);
+            activationLayer_ = loadActivationLayer(json_obj);
         }
         return;
     }
