@@ -26,6 +26,9 @@ __attribute__((aligned(1024)))
 #include <leonUtils.h>
 
 #include <HglBarrier.h>
+#include <OsDrvBootFreq.h>
+
+#include <nn_perf_manager.h>
 
 unsigned char __attribute__((section(".nncmx0.shared.data"), aligned(64))) actShaveData[SHAVE_LIB_DATA_SIZE];
 unsigned int actShaveDataReserved = 0;
@@ -76,11 +79,15 @@ const int ProducerNum = 1;
 const int ConsumerMask = (1 << ConsumerNum);
 const int ProducerMask = (1 << ProducerNum);
 
+perf::ActPerfReport __attribute__((section(".nncmx0.shared.data"), aligned(64))) actPerfReport{0, 0};
+
+PerformanceData* perfData = nullptr;
+
 bool ShaveTaskRunner::enqueTask(Op * operation,
                               const std::vector<OpTensor> &inputs,
                               const std::vector<OpTensor> &outputs,
                               int /*numSHAVEs*/,
-                              PerformanceData *perfData) {
+                              PerformanceData *_perfData) {
 
     actShaveDataReserved = 0;
 
@@ -136,10 +143,12 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     HglBarrierSetProdConsCounts(ConsumerNum, 1, 1);
     HglBarrierSetProdConsCounts(ProducerNum, 1, 0);
 
+    perfData = _perfData;
+
     act_runtime::ActKernelInvocation kInv = {&kRange,
             (void*)(customOp->ops.paramData),
             reinterpret_cast<act_runtime::actKernelDataBuffer>(customOp->ops.paramData),
-            userBariers, gpioBarriers, 0
+            userBariers, gpioBarriers, (perfData ? &actPerfReport : 0)
     };
     kInvo = kInv;
     cache::flush(kInvo);
@@ -161,5 +170,13 @@ bool ShaveTaskRunner::dequeResult() {
         _shaveManager->stopActShavesForTiles();
         _enqued = false;
     }
+
+    if (perfData) {
+        if (perfData->perfCounters)
+            perfData->perfCounters->cycles = actPerfReport.duration;
+        perfData->elapsedTimeNs = (actPerfReport.duration * 1000.0f) / OsDrvBootCalculateBootFrequency();
+        perfData = nullptr;
+    }
+
     return true;
 }

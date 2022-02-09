@@ -58,6 +58,9 @@ uint32_t actPRPackedSize(uint32_t metricMask);
 
 #if defined(__leon__) || defined(__leon_nn__)
 
+void unpackSNNPerfReport(uint32_t metricMask, const void *prPtr, SNNPerfReport &pr);
+void unpackActPerfReport(uint32_t metricMask, const void *prPtr, ActPerfReport &pr);
+
 uint32_t buildMetricMask(bool enableTimestamp, bool enableDuration, const uint8_t *counters, uint32_t ctSize,
                          const uint8_t *stallFilters, uint32_t sfSize);
 
