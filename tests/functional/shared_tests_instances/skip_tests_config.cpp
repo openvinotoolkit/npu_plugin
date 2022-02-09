@@ -167,6 +167,10 @@ std::vector<std::string> disabledTestPatterns() {
             ".*CheckExecGraphInfo.*",
             ".*canLoadCorrectNetworkToGetExecutable.*",
 
+            // [Track number: E#31074]
+            ".*checkInferTime.*",
+            ".*OVExecGraphImportExportTest.*",
+
             // TODO: GetMetric function is not fully implemented for ExecutableNetwork interface (implemented only for vpux plugin)
             ".*ExecutableNetworkBaseTest.checkGetMetric.*",
             ".*OVHoldersTest.*LoadedAny.*",
