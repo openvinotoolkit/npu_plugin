@@ -108,12 +108,37 @@ std::unique_ptr<mlir::Pass> createConvertDeconv2DToConv2DPass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createConvertDepth2SpaceLayerPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createInsertMaxpoolToConcatLReluPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createInsertReorderBetweenTransposeAndConcatPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSwapTransposeWithFQPass(Logger log = Logger::global());
 
 //
 // LowPrecision
 //
 
-void buildLowPrecisionPipeline(mlir::OpPassManager& pm, bool removeQuantDequantSeq = false,
+struct LowPrecisionOptions : mlir::PassPipelineOptions<LowPrecisionOptions> {
+    BoolOption enableQuantDequantRemoval{*this, "quant-dequant-removal",
+                                         llvm::cl::desc("Enable quantize->dequantize sequence removal"),
+                                         llvm::cl::init(false)};
+
+    BoolOption enableSwapTransposeWithFQ{*this, "swap-transpose-with-fq",
+                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(false)};
+
+    BoolOption enablePropagateQuantDequant{*this, "propagate-quant-dequant",
+                                           llvm::cl::desc("Enable Propagate Quantize Dequantize pass"),
+                                           llvm::cl::init(true)};
+
+    LowPrecisionOptions() = default;
+
+    template <
+            class OtherOptions,
+            typename = std::enable_if_t<std::is_base_of<mlir::PassPipelineOptions<OtherOptions>, OtherOptions>::value>>
+    explicit LowPrecisionOptions(const OtherOptions& options) {
+        enableQuantDequantRemoval = options.enableQuantDequantRemoval;
+        enableSwapTransposeWithFQ = options.enableSwapTransposeWithFQ;
+        enablePropagateQuantDequant = options.enablePropagateQuantDequant;
+    }
+};
+
+void buildLowPrecisionPipeline(mlir::OpPassManager& pm, const LowPrecisionOptions& options,
                                Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createSplitFakeQuantPass(Logger log = Logger::global());
