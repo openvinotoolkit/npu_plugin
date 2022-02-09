@@ -144,213 +144,148 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
 }
 
 template <class ConcreteOp>
+static VPU::PaddingAttr getOpPadding(ConcreteOp origOp, mlir::PatternRewriter& rewriter) {
+#define CASE(_OP_)                            \
+    .template Case<_OP_>([](_OP_ defaultOp) { \
+        return defaultOp.pad();               \
+    })
+
+    auto pads = llvm::TypeSwitch<mlir::Operation*, VPU::PaddingAttr>(origOp.getOperation())  //
+            CASE(VPU::NCEConvolutionOp)
+    CASE(VPU::NCEDepthConvolutionOp)
+    CASE(VPU::NCEMaxPoolOp)
+    .template Case<VPU::NCEEltwiseOp>([&rewriter](VPU::NCEEltwiseOp origOp) {
+        auto zeroAttr = getIntAttr(rewriter, 0);
+        return VPU::PaddingAttr::get(zeroAttr, zeroAttr, zeroAttr, zeroAttr, origOp->getContext());
+    }).Default([](mlir::Operation*) -> VPU::PaddingAttr {
+        VPUX_THROW("Unsupported NCE types");
+    });
+#undef CASE
+    return pads;
+}
+
+template <class ConcreteOp>
+static mlir::Value getOpInput(ConcreteOp origOp) {
+#define CASE(_OP_, _INPUT_)                   \
+    .template Case<_OP_>([](_OP_ defaultOp) { \
+        return defaultOp._INPUT_();           \
+    })
+
+    auto input = llvm::TypeSwitch<mlir::Operation*, mlir::Value>(origOp.getOperation())  //
+            CASE(VPU::NCEConvolutionOp, input)
+    CASE(VPU::NCEDepthConvolutionOp, input)
+    CASE(VPU::NCEMaxPoolOp, input)
+    CASE(VPU::NCEEltwiseOp, input1)
+    .Default([](mlir::Operation*) -> mlir::Value {
+        VPUX_THROW("Unsupported NCE types");
+    });
+#undef CASE
+    return input;
+}
+
+template <class ConcreteOp>
+static SmallVector<int64_t> getOpKernelSize(ConcreteOp origOp) {
+#define CASE(_OP_)                                                                                           \
+    .template Case<_OP_>([](_OP_ defaultOp) -> SmallVector<int64_t> {                                        \
+        const auto filterShape = defaultOp.rawFilterShapeAttr() != nullptr                                   \
+                                         ? Shape(parseIntArrayAttr<int64_t>(defaultOp.rawFilterShapeAttr())) \
+                                         : getShape(defaultOp.filter());                                     \
+        const auto KY = filterShape[Dims4D::Filter::KY];                                                     \
+        const auto KX = filterShape[Dims4D::Filter::KX];                                                     \
+        return {KY, KX};                                                                                     \
+    })
+
+    auto kernelSize = llvm::TypeSwitch<mlir::Operation*, SmallVector<int64_t>>(origOp.getOperation())  //
+            CASE(VPU::NCEConvolutionOp)
+    CASE(VPU::NCEDepthConvolutionOp)
+    .template Case<VPU::NCEMaxPoolOp>([](VPU::NCEMaxPoolOp origOp) -> SmallVector<int64_t> {
+        const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+        const auto KY = kernelSize[0];
+        const auto KX = kernelSize[1];
+        return {KY, KX};
+    }).template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp) -> SmallVector<int64_t> {
+        return {1, 1};
+    })
+    .Default([](mlir::Operation*) -> SmallVector<int64_t> {
+        VPUX_THROW("Unsupported NCE types");
+    });
+
+#undef CASE
+
+    return kernelSize;
+}  // namespace
+
+template <class ConcreteOp>
+static SmallVector<int64_t> getOpKernelStride(ConcreteOp origOp) {
+#define CASE(_OP_)                                                                  \
+    .template Case<_OP_>([](_OP_ defaultOp) -> SmallVector<int64_t> {               \
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(defaultOp.strides()); \
+        const auto SY = kernelStrides[0];                                           \
+        const auto SX = kernelStrides[1];                                           \
+        return {SY, SX};                                                            \
+    })
+
+    auto strides = llvm::TypeSwitch<mlir::Operation*, SmallVector<int64_t>>(origOp.getOperation())  //
+            CASE(VPU::NCEConvolutionOp)
+    CASE(VPU::NCEDepthConvolutionOp)
+    CASE(VPU::NCEMaxPoolOp)
+    .template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp) -> SmallVector<int64_t> {
+        return {1, 1};
+    }).Default([](mlir::Operation*) -> SmallVector<int64_t> {
+        VPUX_THROW("Unsupported NCE types");
+    });
+#undef CASE
+    return strides;
+}  // namespace
+
+template <class ConcreteOp>
 mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
                                                                    mlir::PatternRewriter& rewriter) const {
-    const auto outputShape = getShape(origOp.output());
-    auto pads = origOp.pad();
-
-    const auto inElemType = origOp.input().getType().template cast<mlir::RankedTensorType>().getElementType();
-    const auto outElemType = origOp.output().getType().template cast<mlir::RankedTensorType>().getElementType();
-    const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
-                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
-                                     : getShape(origOp.filter());
-    const auto mpeByType = mpeMap.at(_arch);
-    const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
-
-    const auto KY = filterShape[Dims4D::Filter::KY];
-    const auto KX = filterShape[Dims4D::Filter::KX];
-
-    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto SY = kernelStrides[0];
-    const auto SX = kernelStrides[1];
-
-    VPUIP::WorkloadCostParams params;
-    params.kernelSize = {KY, KX};
-    params.kernelStride = {SY, SX};
-    params.numDPU = _numDPU;
-    params.arch = _arch;
-    params.mpeMode = mpeMode;
-    params.dataType = inElemType;
-    params.inputShape = getShape(origOp.input());
-    params.outputShape = getShape(origOp.output());
-    const auto inOrder = DimsOrder::fromValue(origOp.input());
-    const auto isCMajor = inOrder == DimsOrder::NCHW;
-    params.nceTaskType = isCMajor ? VPUIP::NCETaskType::CMCONV : VPUIP::NCETaskType::CONV;
-    params.isZTilingSupported = true;
-    if (isCMajor && mpeMode != VPU::MPEMode::VECTOR) {
-        params.isZTilingSupported = false;
-    }
-    params.padInfo = VPU::toPadInfo(pads);
-
-    rewriter.updateRootInPlace(origOp, [&]() {
-        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch, params);
-    });
-
-    return mlir::success();
-}
-
-//
-// DepthConvolutionNCERewrite
-//
-
-class DepthConvolutionNCERewrite final : public mlir::OpRewritePattern<VPU::NCEDepthConvolutionOp> {
-public:
-    DepthConvolutionNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, Logger log)
-            : mlir::OpRewritePattern<VPU::NCEDepthConvolutionOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(VPU::NCEDepthConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    const int64_t _numDPU;
-    VPU::ArchKind _arch;
-    Logger _log;
-};
-
-mlir::LogicalResult DepthConvolutionNCERewrite::matchAndRewrite(VPU::NCEDepthConvolutionOp origOp,
-                                                                mlir::PatternRewriter& rewriter) const {
-    const auto outputShape = getShape(origOp.output());
-    auto pads = origOp.pad();
-
-    const auto inElemType = origOp.input().getType().template cast<mlir::RankedTensorType>().getElementType();
-    const auto outElemType = origOp.output().getType().template cast<mlir::RankedTensorType>().getElementType();
-    const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
-                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
-                                     : getShape(origOp.filter());
-
-    const auto KY = filterShape[Dims4D::Filter::KY];
-    const auto KX = filterShape[Dims4D::Filter::KX];
-
-    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto SY = kernelStrides[0];
-    const auto SX = kernelStrides[1];
+    auto pads = getOpPadding(origOp, rewriter);
+    auto input = getOpInput(origOp);
+    auto inElemType = input.getType().template cast<mlir::RankedTensorType>().getElementType();
+    auto inputShape = getShape(input);
+    auto outElemType = origOp.output().getType().template cast<mlir::RankedTensorType>().getElementType();
+    auto outputShape = getShape(origOp.output());
 
     const auto mpeByType = mpeMap.at(_arch);
     const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
 
     VPUIP::WorkloadCostParams params;
-    params.kernelSize = {KY, KX};
-    params.kernelStride = {SY, SX};
-    params.numDPU = _numDPU;
-    params.arch = _arch;
-    params.isZTilingSupported = mpeMode == VPU::MPEMode::VECTOR;
     params.mpeMode = mpeMode;
     params.dataType = inElemType;
-    params.inputShape = getShape(origOp.input());
-    params.outputShape = getShape(origOp.output());
-    params.nceTaskType = VPUIP::NCETaskType::DWCONV;
-    params.padInfo = VPU::toPadInfo(pads);
-
-    rewriter.updateRootInPlace(origOp, [&]() {
-        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch, params);
-    });
-
-    return mlir::success();
-}
-
-//
-// MaxPoolNCERewrite
-//
-
-class MaxPoolNCERewrite final : public mlir::OpRewritePattern<VPU::NCEMaxPoolOp> {
-public:
-    MaxPoolNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, Logger log)
-            : mlir::OpRewritePattern<VPU::NCEMaxPoolOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(VPU::NCEMaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    const int64_t _numDPU;
-    VPU::ArchKind _arch;
-    Logger _log;
-};
-
-mlir::LogicalResult MaxPoolNCERewrite::matchAndRewrite(VPU::NCEMaxPoolOp origOp,
-                                                       mlir::PatternRewriter& rewriter) const {
-    const auto outputShape = getShape(origOp.output());
-    auto pads = origOp.pad();
-
-    const auto inElemType = origOp.input().getType().template cast<mlir::RankedTensorType>().getElementType();
-    const auto outElemType = origOp.output().getType().template cast<mlir::RankedTensorType>().getElementType();
-
-    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
-    const auto KY = kernelSize[0];
-    const auto KX = kernelSize[1];
-
-    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto SY = kernelStrides[0];
-    const auto SX = kernelStrides[1];
-
-    const auto mpeByType = mpeMap.at(_arch);
-    const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
-
-    VPUIP::WorkloadCostParams params;
-    params.kernelSize = {KY, KX};
-    params.kernelStride = {SY, SX};
     params.numDPU = _numDPU;
     params.arch = _arch;
-    params.isZTilingSupported = mpeMode == VPU::MPEMode::VECTOR;
-    params.mpeMode = mpeMode;
-    params.dataType = inElemType;
-    params.inputShape = getShape(origOp.input());
-    params.outputShape = getShape(origOp.output());
-    params.nceTaskType = VPUIP::NCETaskType::MAXPOOL;
+    params.inputShape = inputShape;
+    params.outputShape = outputShape;
     params.padInfo = VPU::toPadInfo(pads);
+    params.kernelSize = getOpKernelSize(origOp);
+    params.kernelStride = getOpKernelStride(origOp);
 
-    rewriter.updateRootInPlace(origOp, [&]() {
-        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch, params);
-    });
+    llvm::TypeSwitch<mlir::Operation*, void>(origOp.getOperation())
+            .template Case<VPU::NCEConvolutionOp>([&params](VPU::NCEConvolutionOp origOp) {
+                const auto inOrder = DimsOrder::fromValue(origOp.input());
+                const auto isCMajor = inOrder == DimsOrder::NCHW;
+                params.nceTaskType = isCMajor ? VPUIP::NCETaskType::CMCONV : VPUIP::NCETaskType::CONV;
+                params.isZTilingSupported = !isCMajor || params.mpeMode == VPU::MPEMode::VECTOR;
+            })
+            .template Case<VPU::NCEDepthConvolutionOp>([&params](VPU::NCEDepthConvolutionOp) {
+                params.nceTaskType = VPUIP::NCETaskType::DWCONV;
+                params.isZTilingSupported = params.mpeMode == VPU::MPEMode::VECTOR;
+                return params;
+            })
+            .template Case<VPU::NCEMaxPoolOp>([&params](VPU::NCEMaxPoolOp) {
+                params.nceTaskType = VPUIP::NCETaskType::MAXPOOL;
+                params.isZTilingSupported = params.mpeMode == VPU::MPEMode::VECTOR;
+            })
+            .template Case<VPU::NCEEltwiseOp>([&params](VPU::NCEEltwiseOp) {
+                params.nceTaskType = VPUIP::NCETaskType::ELTWISE;
+                params.isZTilingSupported = false;
+            })
+            .Default([](mlir::Operation*) {
+                VPUX_THROW("Unsupported NCE types");
+            });
 
-    return mlir::success();
-}
-
-//
-// EltwiseNCERewrite
-//
-
-class EltwiseNCERewrite final : public mlir::OpRewritePattern<VPU::NCEEltwiseOp> {
-public:
-    EltwiseNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, Logger log)
-            : mlir::OpRewritePattern<VPU::NCEEltwiseOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(VPU::NCEEltwiseOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    const int64_t _numDPU;
-    VPU::ArchKind _arch;
-    Logger _log;
-};
-
-mlir::LogicalResult EltwiseNCERewrite::matchAndRewrite(VPU::NCEEltwiseOp origOp,
-                                                       mlir::PatternRewriter& rewriter) const {
-    auto* ctx = origOp.getContext();
-
-    const auto outputShape = getShape(origOp.output());
-    auto pads = VPU::PaddingAttr::get(getIntAttr(rewriter, 0), getIntAttr(rewriter, 0), getIntAttr(rewriter, 0),
-                                      getIntAttr(rewriter, 0), ctx);
-
-    const auto inElemType = origOp.input1().getType().cast<mlir::RankedTensorType>().getElementType();
-    const auto outElemType = origOp.output().getType().cast<mlir::RankedTensorType>().getElementType();
-    const auto mpeByType = mpeMap.at(_arch);
-    const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
-
-    VPUIP::WorkloadCostParams params;
-    params.kernelSize = {1, 1};
-    params.kernelStride = {1, 1};
-    params.numDPU = _numDPU;
-    params.arch = _arch;
-    params.isZTilingSupported = false;
-    params.mpeMode = mpeMode;
-    params.dataType = inElemType;
-    params.inputShape = getShape(origOp.input1());
-    params.outputShape = getShape(origOp.output());
-    params.nceTaskType = VPUIP::NCETaskType::ELTWISE;
-    params.padInfo = VPU::toPadInfo(pads);
     rewriter.updateRootInPlace(origOp, [&]() {
         addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch, params);
     });
@@ -392,9 +327,9 @@ void SplitNCEOpsOntoWorkloadsPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<GenericNCERewrite<VPU::NCEConvolutionOp>>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<DepthConvolutionNCERewrite>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<MaxPoolNCERewrite>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<EltwiseNCERewrite>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<GenericNCERewrite<VPU::NCEDepthConvolutionOp>>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<GenericNCERewrite<VPU::NCEMaxPoolOp>>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<GenericNCERewrite<VPU::NCEEltwiseOp>>(&ctx, dpuExec.count(), arch, _log);
 
     mlir::ConversionTarget target(ctx);
 
