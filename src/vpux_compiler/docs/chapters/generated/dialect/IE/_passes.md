@@ -167,12 +167,12 @@ only tiles layers to make at least two tiles could be loaded in CMX memory at th
 The pass is a part of LowPrecision pipeline.
 
 Quantize/Dequantize are propagated through operations
+### `-remove-duplicates`: Remove duplicating operations with a common producer Value
+This pass merges duplicating operations that are identical to each other, combining consumers.
 ### `-remove-quantdequant-seq`: Removes quantize->dequantize ops sequence
 The optional pass in the `LowPrecision` pipeline.
 
 Pass detects pattern quantize -> dequantize and removes it
-### `-remove-duplicates`: Remove duplicating operations with a common producer Value
-This pass merges duplicating operations that are identical to each other, combining consumers.
 ### `-resolve-pwl-post-ops`: Resolve requirements for fused PWL post-ops
 Ensures the correct quantization ranges are used for fused PWL activation functions or
 unfuses them if surrounding tensors are not quantized per-tensor.
