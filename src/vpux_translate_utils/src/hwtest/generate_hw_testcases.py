@@ -45,6 +45,8 @@ import traceback
 import warnings
 from typing import Callable, List, Optional, Sequence, Union
 import numpy.ma as ma
+from openpyxl.styles.alignment import Alignment
+from openpyxl.utils import get_column_letter
 
 
 # TODO: Fix this awful hack, whose purpose in life is to point to where you've
@@ -97,12 +99,25 @@ class Order(Enum):
     NHCW = 4    # XZY
     NCHW = 5    # XYZ
 
+SW2HWOrder = {
+    Order.NHWC: 'ZXY',
+    Order.NWHC: 'ZYX',
+    Order.NWCH: 'YZX',
+    Order.NCWH: 'YXZ',
+    Order.NHCW: 'XZY',
+    Order.NCHW: 'XYZ',
+}
 
 class MPE_CUBES(Enum):
     CUBOID_16x16 = auto()
     CUBOID_8x16 = auto()
     CUBOID_4x16 = auto()
 
+mpeCube2NTHW_NTK = {
+    MPE_CUBES.CUBOID_16x16: '16x4',
+    MPE_CUBES.CUBOID_4x16: '4x16',
+    MPE_CUBES.CUBOID_8x16: '8x8'
+}
 
 def orderToOrderer(order: Order) -> np.ndarray:
     if order == Order.NHWC:
@@ -622,7 +637,7 @@ class MPE(ABC):
     def apply(self, lhs: np.ndarray, rhs: np.ndarray) -> np.ndarray:
         pass
 
-    @abstractmethod 
+    @abstractmethod
     def filter_issues(self, args) -> bool:
         pass
 
@@ -634,7 +649,21 @@ class ZMajorConvolution(MPE):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'weight_ttype', 'kernel_channels', 'kernel_shape', 'output_ttype', 'output_order', 'kernel_strides', 'kernel_pads', 'compress', 'mpe_cub']
+    PARAMS = [
+        'mpe_op_class',
+        'input_ttype',
+        'input_shape',
+        'weight_ttype',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'output_order',
+        'kernel_strides',
+        'kernel_pads',
+        'compress',
+        'mpe_cub'
+    ]
+    NAME = 'Z-Major'
 
     def __init__(self, settings):
         self.settings = settings
@@ -688,13 +717,31 @@ class ZMajorConvolution(MPE):
     @property
     def data(self) -> dict:
         return {
-            'MPE Mode': 'ZMajorConv',
-            'Input Type': self.settings.input_ttype.stype,
-            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
-            'Weights Type': self.settings.weight_ttype.stype,
-            'Kernel Channels': str(self.settings.kernel_channels),
-            'Kernel Shape': ', '.join([str(s) for s in self.settings.kernel_shape]),
-            'Output Type': self.settings.output_ttype.stype
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Weights Type': np.dtype(self.settings.weight_ttype),
+            'Weights Scale': self.settings.weight_ttype.scale if hasattr(self.settings.weight_ttype, 'scale') else 1,
+            'Weights Zero Point': self.settings.weight_ttype.zero if hasattr(self.settings.weight_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'IC': self.settings.input_shape[1],
+            'IH': self.settings.input_shape[2],
+            'IW': self.settings.input_shape[3],
+            'IK': self.settings.kernel_channels,
+            'KH': self.settings.kernel_shape[0],
+            'KW': self.settings.kernel_shape[1],
+            'SH': self.settings.kernel_strides[1],
+            'SW': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
+            'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_cub],
+            'Output Permute': SW2HWOrder[self.settings.output_order],
+            'Compression': int(self.settings.compress),
         }
 
     def generate_inputs(self, rng) -> List[Value]:
@@ -710,7 +757,7 @@ class ZMajorConvolution(MPE):
                         strides = self.settings.kernel_strides)
         result = c2d.inference(lhs, rhs)
         return result
-    
+
     def filter_issues(self, args) -> bool:
         return True
 
@@ -719,7 +766,17 @@ class DepthWiseConv(MPE):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_channels', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
+    PARAMS = [
+        'mpe_op_class',
+        'input_ttype',
+        'input_shape',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'kernel_strides',
+        'kernel_pads'
+    ]
+    NAME = 'DW'
 
     def __init__(self, settings):
         self.settings = settings
@@ -757,13 +814,25 @@ class DepthWiseConv(MPE):
     @property
     def data(self) -> dict:
         return {
-            'MPE Mode': 'DepthWiseConv',
-            'Input Type': self.settings.input_ttype.stype,
-            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
-            'Weights Type': self.settings.input_ttype.stype,
-            'Kernel Channels': str(self.settings.kernel_channels),
-            'Kernel Shape': ', '.join([str(s) for s in self.settings.kernel_shape]),
-            'Output Type': self.settings.output_ttype.stype
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'C': self.settings.input_shape[1],
+            'H': self.settings.input_shape[2],
+            'W': self.settings.input_shape[3],
+            'K': self.settings.kernel_channels,
+            'K_h': self.settings.kernel_shape[0],
+            'K_w': self.settings.kernel_shape[1],
+            'S_h': self.settings.kernel_strides[1],
+            'S_w': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
         }
 
     def generate_inputs(self, rng) -> List[Value]:
@@ -787,6 +856,7 @@ class DepthWiseConv(MPE):
 class EltwiseAdd(MPE):
 
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
+    NAME = 'Add'
 
     def __init__(self, settings):
         self.settings = settings
@@ -817,10 +887,12 @@ class EltwiseAdd(MPE):
     @property
     def data(self) -> dict:
         return {
-            'MPE Mode': 'EltwiseAdd',
-            'Input Type': self.settings.input_ttype.stype,
-            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
-            'Output Type': self.settings.output_ttype.stype
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'C': self.settings.input_shape[1],
+            'H': self.settings.input_shape[2],
+            'W': self.settings.input_shape[3],
         }
 
     def generate_inputs(self, rng) -> List[Value]:
@@ -849,6 +921,7 @@ class EltwiseAdd(MPE):
 class EltwiseMult(MPE):
 
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
+    NAME = 'Mult'
 
     def __init__(self, settings):
         self.settings = settings
@@ -879,10 +952,12 @@ class EltwiseMult(MPE):
     @property
     def data(self) -> dict:
         return {
-            'MPE Mode': 'EltwiseMult',
-            'Input Type': self.settings.input_ttype.stype,
-            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
-            'Output Type': self.settings.output_ttype.stype
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'C': self.settings.input_shape[1],
+            'H': self.settings.input_shape[2],
+            'W': self.settings.input_shape[3],
         }
 
     def generate_inputs(self, rng) -> List[Value]:
@@ -907,6 +982,7 @@ class Maxpool(MPE):
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
+    NAME = 'MaxPool'
 
     def __init__(self, settings):
         self.settings = settings
@@ -942,10 +1018,24 @@ class Maxpool(MPE):
     @property
     def data(self) -> dict:
         return {
-            'MPE Mode': 'MaxPool',
-            'Input Type': self.settings.input_ttype.stype,
-            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
-            'Output Type': self.settings.output_ttype.stype
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'C': self.settings.input_shape[1],
+            'H': self.settings.input_shape[2],
+            'W': self.settings.input_shape[3],
+            'K_h': self.settings.kernel_shape[0],
+            'K_w': self.settings.kernel_shape[1],
+            'S_h': self.settings.kernel_strides[1],
+            'S_w': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
         }
 
     def generate_inputs(self, rng) -> List[Value]:
@@ -967,6 +1057,7 @@ class AvgPool(MPE):
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides']
+    NAME = 'AvgPool'
 
     def __init__(self, settings):
         self.settings = settings
@@ -1004,10 +1095,20 @@ class AvgPool(MPE):
     @property
     def data(self) -> dict:
         return {
-            'MPE Mode': 'AvgPool',
-            'Input Type': self.settings.input_ttype.stype,
-            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
-            'Output Type': self.settings.output_ttype.stype
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'C': self.settings.input_shape[1],
+            'H': self.settings.input_shape[2],
+            'W': self.settings.input_shape[3],
+            'K_h': self.settings.kernel_shape[0],
+            'K_w': self.settings.kernel_shape[1],
+            'S_h': self.settings.kernel_strides[1],
+            'S_w': self.settings.kernel_strides[0],
         }
 
     def generate_inputs(self, rng) -> List[Value]:
@@ -1031,6 +1132,7 @@ class ActivationType(Enum):
 
 class ActKernel(MPE):
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'activation_type']
+    NAME = 'ActKernel'
 
     def __init__(self, settings):
         self.settings = settings
@@ -1040,7 +1142,7 @@ class ActKernel(MPE):
         if self.settings.activation_type[0] == ActivationType.Softmax :
             self.issues.add('EISW-29771')
             self.issues.add('EISW-29786')
-        
+
 
     @property
     def ident(self) -> str:
@@ -1060,11 +1162,19 @@ class ActKernel(MPE):
 
     @property
     def data(self) -> dict:
+        ActivationType2String = {
+            ActivationType.HSwish: 'HSwish',
+            ActivationType.Sigmoid: 'Sigmoid',
+            ActivationType.Softmax: 'Softmax',
+        }
+
         return {
-            'MPE Mode': 'HSwish',
-            'Input Type': self.settings.input_ttype.stype,
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Output Type': np.dtype(self.settings.output_ttype),
             'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
-            'Output Type': self.settings.output_ttype.stype
+            'Type': ActivationType2String[self.settings.activation_type[0]],
+            # ignore activation_type since only HSwish is allowed
         }
 
     def validate(self):
@@ -1090,7 +1200,7 @@ class ActKernel(MPE):
             json['activation']['axis']=self.settings.activation_type[1]
 
         return json
-        
+
     def apply(self, values: List[Value]) -> np.ndarray:
         if self.settings.activation_type[0] == ActivationType.HSwish :
             result = HSwish().inference(values[0].data.astype(np.float32))
@@ -1100,7 +1210,7 @@ class ActKernel(MPE):
             result = Softmax(axis=self.settings.activation_type[1]).inference(values[0].data.astype(np.float32))
         else :
             raise Error(f'Unsupported Act-shave sub-type: {self.settings.activation_type[0].name}')
-        
+
         result = ma.getdata(result)
 
         return result
@@ -1117,6 +1227,7 @@ class ActKernel(MPE):
 class RaceConditionDMA(MPE):
 
     PARAMS = ['mpe_op_class', 'input_ttype', 'output_ttype', 'iteration_count']
+    NAME = 'RaceConditionDMA'
 
     def __init__(self, settings):
         self.settings = settings
@@ -1147,10 +1258,10 @@ class RaceConditionDMA(MPE):
     @property
     def data(self) -> dict:
         return {
-            'MPE Mode': 'DMA_race_cond',
-            'Input Type': self.settings.input_ttype.stype,
-            'Output Type': self.settings.output_ttype.stype,
-            'Iteration Count': self.settings.iteration_count.stype
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Iteration Count': self.settings.iteration_count,
         }
 
     def generate_inputs(self, rng) -> List[Value]:
@@ -1182,6 +1293,7 @@ class RaceConditionDPU(MPE):
         'mpe_cub',
         'iteration_count'
     ]
+    NAME = 'RaceConditionDMA'
 
     def __init__(self, settings):
         self.settings = settings
@@ -1223,14 +1335,32 @@ class RaceConditionDPU(MPE):
     @property
     def data(self) -> dict:
         return {
-            'MPE Mode': 'DPU_race_cond',
-            'Input Type': self.settings.input_ttype.stype,
-            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
-            'Weights Type': self.settings.weight_ttype.stype,
-            'Kernel Channels': str(self.settings.kernel_channels),
-            'Kernel Shape': ', '.join([str(s) for s in self.settings.kernel_shape]),
-            'Output Type': self.settings.output_ttype.stype,
-            'Iteration Count': self.settings.iteration_count.stype
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Weights Type': np.dtype(self.settings.weight_ttype),
+            'Weights Scale': self.settings.weight_ttype.scale if hasattr(self.settings.weight_ttype, 'scale') else 1,
+            'Weights Zero Point': self.settings.weight_ttype.zero if hasattr(self.settings.weight_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'IC': self.settings.input_shape[1],
+            'IH': self.settings.input_shape[2],
+            'IW': self.settings.input_shape[3],
+            'IK': self.settings.kernel_channels,
+            'KH': self.settings.kernel_shape[0],
+            'KW': self.settings.kernel_shape[1],
+            'SH': self.settings.kernel_strides[1],
+            'SW': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
+            'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_cub],
+            'Output Permute': SW2HWOrder[self.settings.output_order],
+            'Compression': int(self.settings.compress),
+            'Iteration Count': self.settings.iteration_count
         }
 
     def generate_inputs(self, rng) -> List[Value]:
@@ -1409,14 +1539,22 @@ class DPUPipeline:
             raise ValidationError(f'validating {self.ident}') from ex
 
     @property
+    def name(self):
+        return self.mpe_op.NAME
+
+    @property
     def ident(self):
         return f'{self.mpe_op.ident}_{self.settings.output_ttype.stype}'
 
     @property
     def data(self):
         return {
-            'Issues': ', '.join(self.issues),
-            **self.mpe_op.data
+            **self.mpe_op.data,
+            'Type': self.mpe_op.NAME,
+            'Content Creation': 0,
+            'ActSpBitsIC': '',
+            'WtSpBitsIC': '',
+            'Issues': ', '.join(self.issues)
         }
 
     def write_data(self, dir: Path):
@@ -2362,11 +2500,35 @@ def create_config_files(args):
             descriptor = option.value()
             json.dump(descriptor, outfile, indent=4)
 
-
 def export_excel(args):
-    df = pd.DataFrame((opt.data for opt in generate_options(args)))
-    df.to_excel(args.filename, sheet_name='DPU Test Cases', index=False)
+    data = {}
+    for case in generate_options(args):
+        if case.name in data:
+            data[case.name].append(case)
+        else:
+            data[case.name] = [case]
 
+    def alignWidth(sheet, header):
+        for index, column in enumerate(sheet.columns):
+            maxWidth = len(header[index])
+            for cell in column:
+                maxWidth = max(maxWidth, len(str(cell.value)))
+            adjustedWidth = (maxWidth + 2) * 1.2
+            sheet.column_dimensions[get_column_letter(index + 1)].width = adjustedWidth
+
+    def centralize(sheet):
+        for column in sheet.columns:
+            for cell in column:
+                cell.alignment = Alignment(horizontal='center')
+
+    with pd.ExcelWriter(args.filename) as writer:
+        for name, values in data.items():
+            header = list(values[0].data.keys())
+            df = pd.DataFrame(value.data for value in values)
+            df.to_excel(writer, sheet_name=name, columns=header, index=False)
+            sheet = writer.sheets[name]
+            centralize(sheet)
+            alignWidth(sheet, header)
 
 def export_csv(args):
     df = pd.DataFrame((opt.data for opt in generate_options(args)))
