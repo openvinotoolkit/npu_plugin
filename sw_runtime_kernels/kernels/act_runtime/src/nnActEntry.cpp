@@ -18,7 +18,7 @@
 
 #include <sys/__moviconfig.h>
 
-#define HARDCODED_PERF_WORKAROUND (1)
+#define LOW_LEVEL_TESTS_PERF (1)
 
 #define P_CFG_SETTING ~0b011110
 
@@ -172,23 +172,23 @@ extern "C" void nnActEntry(void *config, void *scratch) {
             }
         } else {
             writeFRC();
-#if defined(HARDCODED_PERF_WORKAROUND)
+#if defined(LOW_LEVEL_TESTS_PERF)
             if (ki->perfPacketOut_) {
                 perfMetricMask = (0b1 << perf::FRC_TIMESTAMP_EN) | (0b1 << perf::FRC_DURATION_EN);
                 perfPackedSize = actPRPackedSize(perfMetricMask);
                 //configCounters(perfMetricMask); // the call hangs but not need for TIMESTAMP|DURATION
                 resetCounters(pr);
             }
-#endif // HARDCODED_PERF_WORKAROUND
+#endif // LOW_LEVEL_TESTS_PERF
             (kr->kernelEntry_)(ki->kernelArgs_);
-#if defined(HARDCODED_PERF_WORKAROUND)
+#if defined(LOW_LEVEL_TESTS_PERF)
             if (ki->perfPacketOut_) {
                 recordCounters(pr);
                 packActPerfReport(perfMetricMask, pr, reinterpret_cast<void *>(packedPr));
                 memcpy_s(ki->perfPacketOut_, sizeof(ActPerfReport), reinterpret_cast<const void *>(packedPr),
                          perfPackedSize);
             }
-#endif // HARDCODED_PERF_WORKAROUND
+#endif // LOW_LEVEL_TESTS_PERF
         }
 
         HglBarrierProduce(barriers.post_mask_);
