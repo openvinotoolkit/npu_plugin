@@ -140,8 +140,7 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(Concr
             vpux::IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
 
     // Specify the order
-    const auto order =
-            mlir::AffineMapAttr::get(DimsOrder::fromNumDims(inputShape.size()).toAffineMap(origOp.getContext()));
+    const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(origOp.input()).toAffineMap(origOp.getContext()));
 
     // Create DistributedTensorType
     const auto activationTensorDistributedTensorType =
@@ -197,6 +196,7 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedWeightsTensor(Concrete
             vpux::IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
 
     // Specify the order
+    //TODO improve this
     const auto order =
             mlir::AffineMapAttr::get(DimsOrder::fromNumDims(inputShape.size()).toAffineMap(origOp.getContext()));
 
@@ -252,8 +252,7 @@ vpux::VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorT
             vpux::IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
 
     // Specify the order
-    const auto order =
-            mlir::AffineMapAttr::get(DimsOrder::fromNumDims(outputShape.size()).toAffineMap(origOp.getContext()));
+    const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(origOp.output()).toAffineMap(origOp.getContext()));
 
     // Create DistributedTensorType
     return vpux::VPU::DistributedTensorType::get(origOp.getContext(), outputShape.raw(), origOp.output().getType(),
