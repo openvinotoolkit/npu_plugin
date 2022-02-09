@@ -1208,18 +1208,18 @@ bool isZMconv(mv::Data::OpListIterator opIt)
 //Port this model A perf WA until the SOH->spill->SOK for ZM convs is fixed more generally
 bool isModelAWA(mv::Data::OpListIterator opIt)
 {
-    if (opIt->getOpType() == "Conv" && opIt->getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 &&
-        opIt->getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 28 && opIt->getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 28 &&
-        opIt->getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 80 && opIt->getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 28 &&
-        opIt->getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 28 && opIt->getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
+    if (opIt->getOpType() == "Conv" && opIt->getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 80 &&
+        opIt->getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 44 && opIt->getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 44 &&
+        opIt->getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 72 && opIt->getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 22 &&
+        opIt->getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 22 && opIt->getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
         opIt->getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
     {
         return true;
     }
-    if (opIt->getOpType() == "Conv" && opIt->getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 80 &&
-        opIt->getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 28 && opIt->getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 28 &&
-        opIt->getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 72 && opIt->getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 14 &&
-        opIt->getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 14 && opIt->getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
+    if (opIt->getOpType() == "Conv" && opIt->getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 48 &&
+        opIt->getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 22 && opIt->getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 22 &&
+        opIt->getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 48 && opIt->getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 22 &&
+        opIt->getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 22 && opIt->getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
         opIt->getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
     {
         return true;
