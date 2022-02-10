@@ -90,6 +90,12 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
     auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
             origOp, activationTensorDistributionMode, activationTensorNumTiles);
 
+    // Set the output of the VPU::NCEConvolutionOp to be in CMX
+    auto origOutput = origOp->getResult(0);
+    const auto cmxMemSpace =
+            changeMemSpace(origOutput.getType().cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
+    origOutput.setType(cmxMemSpace);
+
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
         mapper.map(origOp->getOperands(), newOperands);
