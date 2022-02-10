@@ -315,16 +315,19 @@ void buildPipeline(mlir::PassManager& pm, const Config& config, mlir::TimingScop
 
     if (compilationMode == VPU::CompilationMode::ReferenceSW) {
         const auto options = ReferenceSWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
+        VPUX_THROW_UNLESS(options != nullptr, "buildPipeline failed to parse COMPILATION_MODE_PARAMS");
         options->enableProfiling = enableProfiling;
 
         buildReferenceSWModePipeline(pm, *options, log.nest());
     } else if (compilationMode == VPU::CompilationMode::ReferenceHW) {
         const auto options = ReferenceHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
+        VPUX_THROW_UNLESS(options != nullptr, "buildPipeline failed to parse COMPILATION_MODE_PARAMS");
         options->enableProfiling = enableProfiling;
 
         buildReferenceHWModePipeline(pm, *options, log.nest());
     } else if (compilationMode == VPU::CompilationMode::DefaultHW) {
         const auto options = DefaultHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
+        VPUX_THROW_UNLESS(options != nullptr, "buildPipeline failed to parse COMPILATION_MODE_PARAMS");
         options->enableProfiling = enableProfiling;
 
         buildDefaultHWModePipeline(pm, *options, log.nest());
