@@ -20,159 +20,6 @@
 using namespace vpux;
 
 namespace {
-
-mlir::Operation* getParentConvOp(mlir::Operation* op) {
-    // for const prefetch ignore cases where activation is handled by
-    // intermediate operations and causes a stall
-    // prefetch is wanted from conv to previous conv
-    mlir::Operation* parentOp = op->getOperand(0).getDefiningOp();
-    auto isOpIgnorable = [](mlir::Operation* op) -> bool {
-        return mlir::isa<IE::AndOp>(op) || mlir::isa<IE::PermuteCastOp>(op) || mlir::isa<IE::ReshapeOp>(op);
-    };
-    while (parentOp && isOpIgnorable(parentOp)) {
-        // skip the Permute, Reshape and And
-        if (parentOp->getOperands().size() < 1) {
-            break;
-        }
-        parentOp = parentOp->getOperand(0).getDefiningOp();
-    }
-    return parentOp;
-}
-
-OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
-    log.trace("Generating prefetch tiles for op {0} at {1}", op->getName(), op->getLoc());
-
-    auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
-    VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
-
-    const auto outputShape = getShape(op->getResult(0));
-    VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
-                      op->getName(), op->getLoc());
-    auto getDimsToTile = [](const Shape& nTilesOnDim) -> SmallVector<Dim> {
-        SmallVector<Dim> res;
-        for (unsigned i = 0; i < nTilesOnDim.size(); i++) {
-            if (nTilesOnDim[Dim(i)] > 1)
-                res.emplace_back(Dim(i));
-        }
-        return res;
-    };
-
-    // step 1: compute a general tiling strategy to fit into the CMX
-    Shape nTilesOnDim = IE::computeGeneralTileStrategy(op, log);
-    auto dimsToTile = getDimsToTile(nTilesOnDim);
-    VPUX_THROW_WHEN(dimsToTile.size() == 0, "Must tile at least on one dimension");
-    auto isolatedTiles = fillDividedTiles(nTilesOnDim, outputShape);
-    if (dimsToTile.size() > 1) {
-        // return general tiling when getting nested tiles.
-        return isolatedTiles;
-    }
-
-    // step 2: increase the general tile strategy to satisfy prefetching
-    const auto targetDim = dimsToTile[0];
-    Shape prefetchableTilesOnDim = nTilesOnDim;
-    auto prefetchableTiles = fillDividedTiles(prefetchableTilesOnDim, outputShape);
-    while (prefetchableTilesOnDim[targetDim] < 3 * nTilesOnDim[targetDim] &&
-           !tilingInfo.isSupportedTiling(prefetchableTiles, log, TilingMode::PREFETCH_TILING)) {
-        // The "3" here is an experimental number from MCM activation prefetch pass.
-        // The purpose is to avoid excessive tiling.
-        prefetchableTilesOnDim[targetDim]++;
-        prefetchableTiles = fillDividedTiles(prefetchableTilesOnDim, outputShape);
-    }
-
-    return tilingInfo.isSupportedTiling(prefetchableTiles, log, TilingMode::PREFETCH_TILING) ? prefetchableTiles
-                                                                                             : isolatedTiles;
-}
-
-SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Operation* parentOp, Logger log) {
-    // Generate a valid supported tiling pattern for an op on the largest dimension possible
-    // satisfy the restrictions of operation tiling
-    // TODO: merge with IE::computeGeneralTileStrategy
-    auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
-    VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
-    auto tilingBuilder = mlir::dyn_cast<IE::TilingBuilderOpInterface>(op);
-    VPUX_THROW_WHEN(tilingBuilder == nullptr, "Operation '{0}' doesn't implement TilingBuilderOpInterface",
-                    op->getName());
-    const auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
-    const auto parentOutputType = parentOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
-    const auto outputShape = outputType.getShape();
-    const auto parentOutputShape = parentOutputType.getShape();
-
-    int64_t minChannelSize = 1;
-    if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
-        minChannelSize = channelsInfo.getOutputChannelAlignment();
-    }
-
-    Shape nTilesOnDim(outputShape.size(), 1);
-    Shape nTilesOnDimParent(parentOutputShape.size(), 1);
-
-    // Try to tile the largest dim (C or H)
-    Dim dimToTile = Dims4D::Act::C;
-    if (outputShape[Dims4D::Act::C] < outputShape[Dims4D::Act::H]) {
-        dimToTile = Dims4D::Act::H;
-    }
-    // check if pattern supported
-    const auto isSupportedTilesPattern = [&]() -> bool {
-        return tilingInfo.isSupportedPrefetchPattern(nTilesOnDim, parentOp, nTilesOnDimParent, log);
-    };
-    const auto isSupportedChannelDivision = [&]() -> bool {
-        if ((outputShape[Dims4D::Act::C] % nTilesOnDim[Dims4D::Act::C]) != 0) {
-            return false;
-        }
-        const auto tileChannels = outputShape[Dims4D::Act::C] / nTilesOnDim[Dims4D::Act::C];
-        return (tileChannels % minChannelSize) == 0;
-    };
-    const auto& maxNumTiles = tilingBuilder.getMaxNumTiles();
-    const auto isDimLeftToTile = [&]() -> bool {
-        return nTilesOnDim[dimToTile] < maxNumTiles[dimToTile.ind()];
-    };
-    // increase tiles on the dimention to tile until the tiling pattern
-    // is supported, do not exceed max tiles (HW req)
-    while (!isSupportedTilesPattern()) {
-        if (!isDimLeftToTile()) {
-            return {Shape(outputShape.size(), 1), Shape(outputShape.size(), 1)};
-        }
-        // increase current op tiles
-        if (dimToTile == Dims4D::Act::C) {
-            do {
-                ++nTilesOnDim[Dims4D::Act::C];
-            } while (!isSupportedChannelDivision());
-        } else {
-            nTilesOnDim[dimToTile]++;
-        }
-    }
-    return {nTilesOnDim, nTilesOnDimParent};
-}
-
-bool prefetchTilingConditionsViolated(mlir::Operation* op, Logger log) {
-    auto parentOp = getParentConvOp(op);
-    if (!parentOp) {
-        return false;
-    }
-    auto opTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
-    auto parentTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(parentOp);
-    if (!opTilingInter || !parentTilingInter) {
-        return false;
-    }
-    // For parallel sub-graphs, the order is undecided yet
-    // Abandon prefetching these cases
-    if (!parentOp->getResult(0).hasOneUse()) {
-        auto user1 = *parentOp->getResult(0).getUsers().begin();
-        for (auto remainUser : parentOp->getResult(0).getUsers()) {
-            if (remainUser != user1) {
-                return false;
-            }
-        }
-    }
-    // Check if tile pattern is supported
-    const auto resShape = getShape(op->getResult(0));
-    const Shape neutralTile(resShape.size(), 1);
-    if (opTilingInter.isSupportedPrefetchPattern(neutralTile, parentOp, neutralTile, log)) {
-        return false;
-    }
-    // Try to tile to satisfy prefetching
-    auto tiles = generatePrefetchPatternTiles(op, parentOp, log.nest());
-    return tiles[0] != neutralTile || tiles[1] != neutralTile;
-}
 //
 // PrefetchTiling
 //
@@ -206,13 +53,12 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
     if (tilingInfo.isSupportedTiling({TileInfo(resShape)}, _log.nest(), TilingMode::ISOLATED_TILING)) {
         // If the current op fits CMX but still run into here
         // The op needs tiling to be prefetched by its parent
-        auto parentOp = getParentConvOp(op);
-        auto tiles = generatePrefetchPatternTiles(op, parentOp, _log.nest());
+        auto parentOp = vpux::IE::getParentTargetOp(op);
+        auto tiles = vpux::IE::generatePrefetchPatternTiles(op, parentOp, _log.nest());
         auto curTiles = fillDividedTiles(tiles[0], resShape);
         return applyTileStrategy(origOp, curTiles, rewriter, _log);
     } else {
-        const auto tiles = generatePrefetchTiles(origOp.getOperation(), _log.nest());
-        std::cout << llvm::formatv("tile: {0}", tiles).str() << std::endl;
+        const auto tiles = vpux::IE::generatePrefetchTiles(origOp.getOperation(), _log.nest());
         _log.nest(1).trace("Create {0} tiles:", tiles.size());
         return applyTileStrategy(origOp, tiles, rewriter, _log);
     }
@@ -246,7 +92,7 @@ void PrefetchTilingPass::safeRunOnFunc() {
             if (!iface.isSupportedTiling({TileInfo(resShape)}, _log.nest(), TilingMode::ISOLATED_TILING)) {
                 return false;
             }
-            if (prefetchTilingConditionsViolated(op, _log)) {
+            if (vpux::IE::prefetchTilingConditionsViolated(op, _log)) {
                 return false;
             }
         }

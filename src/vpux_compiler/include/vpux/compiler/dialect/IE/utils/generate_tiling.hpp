@@ -27,6 +27,10 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
                       Logger log);
 mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, OutputTiling tiles,
                                       mlir::PatternRewriter& rewriter, Logger log);
+mlir::Operation* getParentTargetOp(mlir::Operation* op);
+OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log);
+SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Operation* parentOp, Logger log);
+bool prefetchTilingConditionsViolated(mlir::Operation* op, Logger log);
 
 }  // namespace IE
 }  // namespace vpux
