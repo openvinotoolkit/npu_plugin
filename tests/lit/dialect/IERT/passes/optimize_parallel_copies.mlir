@@ -52,7 +52,7 @@ func @OptimizeParallelNonConstCopies(
 // CHECK: [[VAR2:%.*]] =  IERT.ReLU inputs([[VAR1]] : memref<1x16x112x112xf16, @CMX_NN>)
 // CHECK: [[VAR3:%.*]] =  IERT.Copy inputs([[VAR2]] : memref<1x16x112x112xf16, @CMX_NN>)
 
-// CHECK-NOT: IERT.COPY
+// CHECK-NOT: IERT.Copy
 // CHECK: [[VAR4:%.*]] =  IERT.ReLU inputs([[VAR1]] : memref<1x16x112x112xf16, @CMX_NN>)
 // CHECK: [[VAR5:%.*]] =  IERT.Copy inputs([[VAR4]] : memref<1x16x112x112xf16, @CMX_NN>)
 
@@ -102,9 +102,9 @@ func @OptimizeParallelConstCopies(
 // CHECK: [[VAR2:%.*]] =  IERT.ReLU inputs([[VAR1]] : memref<1x16x112x112xf16, @CMX_NN>)
 // CHECK: [[VAR3:%.*]] =  IERT.Copy inputs([[VAR2]] : memref<1x16x112x112xf16, @CMX_NN>)
 
-// CHECK: [[VAR4:%.*]] =  IERT.Copy inputs([[VAR0]] : memref<1x16x112x112xf16, @DDR>)
-// CHECK: [[VAR5:%.*]] =  IERT.ReLU inputs([[VAR4]] : memref<1x16x112x112xf16, @CMX_NN>)
-// CHECK: [[VAR6:%.*]] =  IERT.Copy inputs([[VAR5]] : memref<1x16x112x112xf16, @CMX_NN>)
+// CHECK-NOT: IERT.Copy
+// CHECK: [[VAR4:%.*]] =  IERT.ReLU inputs([[VAR1]] : memref<1x16x112x112xf16, @CMX_NN>)
+// CHECK: [[VAR5:%.*]] =  IERT.Copy inputs([[VAR4]] : memref<1x16x112x112xf16, @CMX_NN>)
 
 func @OptimizeParallelSubViewPatternCopies(
         %input: memref<1x16x112x113xf16>,
