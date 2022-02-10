@@ -2,6 +2,10 @@
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
+<<<<<<< HEAD
+=======
+// CHECK-LABEL: @ConvNCEtoCMX
+>>>>>>> EISW-30551: Move IsolatedTilingPass after IE->VPU dialect conversion
 func @ConvNCEtoCMX(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}> = #const.Content<dense<1.000000e+00>
         : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]>
@@ -10,7 +14,11 @@ func @ConvNCEtoCMX(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x1
         pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
         rawFilterShape = [16, 16, 1, 1],
         strides = [1, 1]
+<<<<<<< HEAD
     } -> tensor<1x16x16x16xf16, {order = #NHWC}> 
+=======
+    } -> tensor<1x16x16x16xf16, {order = #NHWC}>
+>>>>>>> EISW-30551: Move IsolatedTilingPass after IE->VPU dialect conversion
 
     return %0 : tensor<1x16x16x16xf16, {order = #NHWC}>
 
@@ -32,11 +40,18 @@ func @ConvNCEtoCMX(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x1
 
     // CHECK:       return [[VAL3]] : tensor<1x16x16x16xf16, {order = #NHWC}>
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> EISW-30551: Move IsolatedTilingPass after IE->VPU dialect conversion
 // -----
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
+<<<<<<< HEAD
+=======
+// CHECK-LABEL: @DepthConvNCEtoCMX
+>>>>>>> EISW-30551: Move IsolatedTilingPass after IE->VPU dialect conversion
 func @DepthConvNCEtoCMX(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1x16x37x73xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}> = #const.Content<dense<1.000000e+00>
         : tensor<16x1x4x8xf16>, [#const.Reorder<#NHWC>]>
@@ -71,6 +86,10 @@ func @DepthConvNCEtoCMX(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tenso
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
+<<<<<<< HEAD
+=======
+// CHECK-LABEL: @MaxPoolNCEtoCMX
+>>>>>>> EISW-30551: Move IsolatedTilingPass after IE->VPU dialect conversion
 func @MaxPoolNCEtoCMX(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<1x16x1x4xf16, {order = #NHWC}> {
     %0 = VPU.NCE.MaxPool(%arg0) {
         kernel_size = [1, 1],
@@ -98,6 +117,10 @@ func @MaxPoolNCEtoCMX(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<1x
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
+<<<<<<< HEAD
+=======
+// CHECK-LABEL: @EltwiseAddNCEToCMX
+>>>>>>> EISW-30551: Move IsolatedTilingPass after IE->VPU dialect conversion
 func @EltwiseAddNCEtoCMX(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>,
                          %arg1: tensor<1x64x28x28xf16, {order = #NHWC}>)
                         -> tensor<1x64x28x28xf16, {order = #NHWC}> {
@@ -126,6 +149,10 @@ func @EltwiseAddNCEtoCMX(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>,
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
+<<<<<<< HEAD
+=======
+// CHECK-LABEL: @EltwiseAndSameInputsNCEtoCMX
+>>>>>>> EISW-30551: Move IsolatedTilingPass after IE->VPU dialect conversion
 func @EltwiseAndSameInputsNCEtoCMX(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>)
                                   -> tensor<1x64x28x28xf16, {order = #NHWC}> {
     %0 = VPU.NCE.Eltwise(%arg0, %arg0) {

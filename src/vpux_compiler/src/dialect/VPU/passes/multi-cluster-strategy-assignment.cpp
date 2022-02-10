@@ -98,10 +98,12 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
     };
 
     _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
-    rewriter.replaceOpWithNewOp<VPU::NCEClusterTilingOp>(
-            origOp, distributedOutputTensorType,
+    auto clusterTilingOp = rewriter.create<VPU::NCEClusterTilingOp>(
+            origOp->getLoc(), distributedOutputTensorType,
             mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0)},
             bodyBuilder);
+    auto outputCopyOp = rewriter.create<IE::CopyOp>(clusterTilingOp->getLoc(), clusterTilingOp.getResult(0));
+    rewriter.replaceOp(origOp, outputCopyOp->getResults());
     return mlir::success();
 }
 
@@ -130,10 +132,20 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     strategyManager.computeOptimalMultiClusterStrategy();
 
     auto& ctx = getContext();
-    mlir::OwningRewritePatternList patterns(&ctx);
-    patterns.add<ConvToMultiCluster>(&ctx, strategyManager, _log);
+    mlir::RewritePatternSet patterns(&ctx);
+    patterns.insert<ConvToMultiCluster>(&ctx, strategyManager, _log);
 
-    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
+    mlir::ConversionTarget target(ctx);
+
+    target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
+        if (auto nceConvOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
+            return (op->getParentOfType<VPU::NCEClusterTilingOp>() != nullptr);
+        }
+        return true;
+    });
+    target.addLegalOp<VPU::NCEClusterTilingOp>();
+
+    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
 }
