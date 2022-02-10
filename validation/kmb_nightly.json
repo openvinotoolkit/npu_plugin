@@ -4260,6 +4260,53 @@
             "CI-options" : {
                 "blob_name" : "deeplabv3_fp16"
             }
+        },
+
+        {
+            "name" : "MTL_FP16_INT8_yolo_v4_tiny_cut",
+            "ir" : "yolo-v4-tiny-no-interp/tf/FP16-INT8/yolo-v4-tiny_no_interp.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16",
+                "old_api" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.1"
+                ]
+            },
+            "NetTest-Validate": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.1"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "yolo-v4-tiny-cut"
+            },
+            "comments" : "NHWC layout was chosen on purpose because this model for MTL."
         }
     ]
 }
