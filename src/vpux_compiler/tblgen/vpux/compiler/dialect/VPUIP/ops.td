@@ -1697,8 +1697,7 @@ def VPUIP_PSROIPoolingUPAOp :
     let builders = [
         OpBuilder<
             (ins
-                "mlir::Value":$input,
-                "mlir::Value":$coords,
+                "mlir::Value":$input,"mlir::Value":$coords,
                 "mlir::Value":$output,
                 "mlir::IntegerAttr":$output_dim,
                 "mlir::FloatAttr":$spatial_scale,

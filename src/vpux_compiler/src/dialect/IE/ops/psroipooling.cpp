@@ -1,11 +1,3 @@
-
-//     const auto inType = gelu.input().getType().cast<mlir::ShapedType>();
-//     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
-
-//     return mlir::success();
-// }
-
-
 //
 // Copyright Intel Corporation.
 //
@@ -41,8 +33,6 @@ mlir::LogicalResult vpux::IE::PSROIPoolingOp::inferReturnTypeComponents(
 
     const auto output_dim = psroiPooling.output_dim().getInt();
     const auto group_size = psroiPooling.group_size().getInt();
-    const auto spatial_bins_x = psroiPooling.spatial_bins_x().getInt();
-    const auto spatial_bins_y = psroiPooling.spatial_bins_y().getInt();
     const auto inTypeFeatureMap = psroiPooling.input().getType().cast<mlir::ShapedType>();
     const auto inShapeFeatureMap = inTypeFeatureMap.getShape();
     const auto inTypeCoord = psroiPooling.coords().getType().cast<mlir::ShapedType>();
@@ -66,18 +56,9 @@ mlir::LogicalResult vpux::IE::PSROIPoolingOp::inferReturnTypeComponents(
         return errorAt(loc, "Group size attribute group_size should be positive.");
     }
 
-    if (spatial_bins_x <= 0) {
-        return errorAt(loc, "Number of bins to divide attribute spatial_bins_x should be positive.");
-    }
-
-    if (spatial_bins_y <= 0) {
-        return errorAt(loc, "Number of bins to divide attribute spatial_bins_y should be positive.");
-    }
-
-
     SmallVector<int64_t> output_shape;
-    output_shape.push_back(inShapeCoord[0]);
-    output_shape.push_back(output_dim);
+    output_shape.push_back(inShapeCoord[0]);//num_rois
+    output_shape.push_back(output_dim); //output channel number
     output_shape.push_back(group_size); //pooled_w
     output_shape.push_back(group_size); //pooled_h
 

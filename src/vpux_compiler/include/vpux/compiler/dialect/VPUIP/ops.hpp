@@ -63,6 +63,7 @@ mlir::LogicalResult verifyOp(FakeQuantizeUPAOp op);
 mlir::LogicalResult verifyOp(QuantCastUPAOp op);
 mlir::LogicalResult verifyOp(PerAxisTileUPAOp op);
 mlir::LogicalResult verifyOp(ROIPoolingUPAOp op);
+mlir::LogicalResult verifyOp(PSROIPoolingUPAOp op);
 mlir::LogicalResult verifyOp(ProposalUPAOp op);
 mlir::LogicalResult verifyOp(PermuteUPAOp op);
 mlir::LogicalResult verifyOp(CTCGreedyDecoderUPAOp op);

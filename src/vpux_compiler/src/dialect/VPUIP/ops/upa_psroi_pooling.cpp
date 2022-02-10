@@ -44,9 +44,7 @@ MVCNN::PSROIPoolingMode PSROIPoolingMode2Int32(IE::PSROIPoolingMode mode) {
 }
 }  // namespace
 
-namespace vpux{
-namespace VPUIP{
-mlir::LogicalResult verifyOp(PSROIPoolingUPAOp op) {
+mlir::LogicalResult vpux::VPUIP::verifyOp(PSROIPoolingUPAOp op) {
     const auto inShapeFeatureMap = getShape(op.input());
     const auto inShapeCoord = getShape(op.coords());
 
@@ -79,7 +77,7 @@ void vpux::VPUIP::PSROIPoolingUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir
           spatial_scale, group_size, spatial_bins_x, spatial_bins_y, mode, nullptr);
 }
 
-VPUIP::BlobWriter::SpecificTask PSROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PSROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto _group_size = group_size().hasValue() ? group_size().getValue() : 1;
     const auto _spatial_bins_x = spatial_bins_x().hasValue() ? spatial_bins_x().getValue() : 1;
     const auto _spatial_bins_y = spatial_bins_y().hasValue() ? spatial_bins_y().getValue() : 1;
@@ -128,6 +126,4 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePSROIPooling(mlir::OpBuilder& bui
     return builder.create<VPUIP::PSROIPoolingUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0],
                                                   output_dim, spatialScale, group_size, spatial_bins_x, spatial_bins_y,
                                                   IE::PSROIPoolingModeAttr::get(_ctx, mode));
-}
-}
 }
