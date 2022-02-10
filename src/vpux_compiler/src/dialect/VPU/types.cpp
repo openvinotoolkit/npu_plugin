@@ -81,10 +81,7 @@ void vpux::VPU::DistributedTensorType::print(mlir::DialectAsmPrinter& printer) c
     }
     printer << getElementType();
 
-    const auto order = getOrder();
-    if (!order.isIdentity()) {
-        printer << ", " << order;
-    }
+    printer << ", " << getOrder();
     printer << ", " << getMemSpace();
     printer << ", " << getDistribution();
     printer << ">";
@@ -112,14 +109,12 @@ mlir::Type vpux::VPU::DistributedTensorType::parse(mlir::DialectAsmParser& parse
     mlir::AffineMapAttr order;
     if (parser.parseAttribute(order)) {
         return Type();
-    } else {
-        order = mlir::AffineMapAttr::get(DimsOrder::fromNumDims(shape.size()).toAffineMap(parser.getContext()));
     }
     if (parser.parseComma()) {
         return Type();
     }
 
-    mlir::SymbolRefAttr memSpace;
+    vpux::IndexedSymbolAttr memSpace;
     if (parser.parseAttribute(memSpace)) {
         return Type();
     }
@@ -136,4 +131,9 @@ mlir::Type vpux::VPU::DistributedTensorType::parse(mlir::DialectAsmParser& parse
     }
 
     return get(parser.getContext(), makeArrayRef(shape), elemType, order, memSpace, distribution);
+}
+
+mlir::RankedTensorType vpux::VPU::DistributedTensorType::getCompactType() const {
+    return mlir::RankedTensorType::get(getShape(), getElementType(),
+                                       IE::TensorAttr::get(getOrder(), getMemSpace(), nullptr, getContext()));
 }

@@ -275,6 +275,7 @@ add_rewriters("dialect/IERT")
 
 add_dialect("VPUIP")
 add_op_interfaces("dialect/VPUIP")
+add_types("VPUIP")
 add_enum_attrs("VPUIP")
 add_passes("dialect/VPUIP" "VPUIP")
 

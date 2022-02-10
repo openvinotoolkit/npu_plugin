@@ -246,6 +246,6 @@ This type of tensor is used together with the ClusterTiling operation
 | shape | `::llvm::ArrayRef<int64_t>` |  |
 | elementType | `mlir::Type` |  |
 | order | `mlir::AffineMapAttr` |  |
-| memSpace | `mlir::SymbolRefAttr` |  |
+| memSpace | `vpux::IndexedSymbolAttr` |  |
 | distribution | `DistributedTensorAttr` |  |
 

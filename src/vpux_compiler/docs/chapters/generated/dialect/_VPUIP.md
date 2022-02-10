@@ -18,6 +18,11 @@ It handles such VPU-specifics as:
 
 [TOC]
 
+## Type constraint definition
+
+### VPUIP buffer type to describe the buffer tiling
+This type of buffer is used together with the ClusterTiling operation
+                           to describe a tile operation between clusters
 ## Operation definition
 
 ### `VPUIP.AcoshUPA` (vpux::VPUIP::AcoshUPAOp)
@@ -1179,6 +1184,24 @@ mutually exclusive.
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values or VPURT Sparse Buffer Type
 `profiling_output` | memref of 64-bit unsigned integer values
+
+### `VPUIP.NCEClusterTiling` (vpux::VPUIP::NCEClusterTilingOp)
+
+Operation that encapsulates details of tiling operation between clusters
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputs` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+`output_buffs` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`results` | memref of 16-bit float or bfloat16 type or QuantizedType values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 
@@ -2398,4 +2421,22 @@ operation ::= `VPUIP.YuvToRgbUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
+
+## Type definition
+
+### DistributedBufferType
+
+VPUIP buffer type to describe the buffer tiling
+
+This type of buffer is used together with the ClusterTiling operation
+                           to describe a tile operation between clusters
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| shape | `::llvm::ArrayRef<int64_t>` |  |
+| elementType | `mlir::Type` |  |
+| order | `mlir::AffineMapAttr` |  |
+| memSpace | `vpux::IndexedSymbolAttr` |  |
+| distribution | `VPU::DistributedTensorAttr` |  |
 

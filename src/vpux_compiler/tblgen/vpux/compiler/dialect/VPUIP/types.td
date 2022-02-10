@@ -11,45 +11,53 @@
 // included with the Software Package for additional details.
 //
 
-#ifndef VPUX_COMPILER_DIALECT_VPU_TYPES
-#define VPUX_COMPILER_DIALECT_VPU_TYPES
+#ifndef VPUX_COMPILER_DIALECT_VPUIP_TYPES
+#define VPUX_COMPILER_DIALECT_VPUIP_TYPES
 
-include "vpux/compiler/dialect/VPU/dialect.td"
+include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPU/attributes.td"
+include "vpux/compiler/core/type_interfaces.td"
+include "vpux/compiler/core/attributes.td"
 
 include "mlir/IR/BuiltinDialect.td"
 include "mlir/IR/SubElementInterfaces.td"
 
-// Base class for VPU dialect types.
-class VPU_Type<string name, list<Trait> traits = []>
-    : TypeDef<VPU_Dialect, name, traits> {
+// Base class for VPUIP dialect types.
+class VPUIP_Type<string name, list<Trait> traits = []>
+    : TypeDef<VPUIP_Dialect, name, traits> {
   let mnemonic = name;
 }
 
 //
-// DistributedTensor
+// DistributedBuffer
 //
 
-def VPU_DistributedTensor :
-        VPU_Type<
-            "DistributedTensor",
+def VPUIP_DistributedBuffer :
+        VPUIP_Type<
+            "DistributedBuffer",
             [
-                DeclareTypeInterfaceMethods<SubElementTypeInterface>
+                DeclareTypeInterfaceMethods<SubElementTypeInterface>,
+                DeclareTypeInterfaceMethods<ShapedPropertiesTypeInterface>
             ]
         > {
-    let summary = "VPU tensor type to describe the tensor tiling";
-    let description = [{ This type of tensor is used together with the ClusterTiling operation
+    let summary = "VPUIP buffer type to describe the buffer tiling";
+    let description = [{ This type of buffer is used together with the ClusterTiling operation
                             to describe a tile operation between clusters }];
+    let genAccessors = 0;
+
     let parameters = (ins
         ArrayRefParameter<"int64_t">:$shape,
         "mlir::Type":$elementType,
         "mlir::AffineMapAttr":$order,
         "vpux::IndexedSymbolAttr":$memSpace,
-        "DistributedTensorAttr":$distribution
+        "VPU::DistributedTensorAttr":$distribution
     );
 
     let extraClassDeclaration = [{
-        mlir::RankedTensorType getCompactType() const;
+        mlir::MemRefType getCompactType() const;
+
+        mlir::AffineMapAttr getOrder() const;
+        VPU::DistributedTensorAttr getDistribution() const;
     }];
 }
 
