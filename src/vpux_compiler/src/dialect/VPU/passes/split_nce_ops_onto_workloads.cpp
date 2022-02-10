@@ -191,12 +191,13 @@ static SmallVector<int64_t> getOpKernelSize(ConcreteOp origOp) {
         const auto KY = kernelSize[0];
         const auto KX = kernelSize[1];
         return {KY, KX};
-    }).template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp) -> SmallVector<int64_t> {
-        return {1, 1};
     })
-    .Default([](mlir::Operation*) -> SmallVector<int64_t> {
-        VPUX_THROW("Unsupported NCE types");
-    });
+            .template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp) -> SmallVector<int64_t> {
+                return {1, 1};
+            })
+            .Default([](mlir::Operation*) -> SmallVector<int64_t> {
+                VPUX_THROW("Unsupported NCE types");
+            });
 
 #undef CASE
 
