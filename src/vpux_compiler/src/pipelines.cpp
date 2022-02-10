@@ -377,6 +377,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IERT::createBreakDataFlowPass(log));
     pm.addPass(IERT::createConvertScalarToTensorPass(log));
 
+    // Lowering
+
     buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
     // Handle WeightsTable, which requires statically allocated memory
     pm.addPass(IERT::createPatchWeightsTablePass(log));

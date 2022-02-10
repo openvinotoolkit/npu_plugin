@@ -57,10 +57,9 @@ void PatchWeightsTablePass::safeRunOnFunc() {
         auto wtDecBuf = wTable.getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(wtDecBuf != nullptr, "DeclareBufferOp expected as a weight_table parent");
         VPUIP::NNDMAOp dmaOp;
-        auto wtBuffResult = wtDecBuf.getResult();
-        for (const auto& user : wtBuffResult.getUsers()) {
+        for (const auto& user : wTable.getUsers()) {
             dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(user);
-            if ((dmaOp != nullptr) && (dmaOp.output_buff() == wtBuffResult)) {
+            if ((dmaOp != nullptr) && (dmaOp.output_buff() == wTable)) {
                 break;
             }
         }
