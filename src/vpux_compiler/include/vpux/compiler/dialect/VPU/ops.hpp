@@ -30,12 +30,12 @@
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/VPU/generated/ops.hpp.inc>
 
+namespace vpux {
+namespace VPU {
+
 //
 // Operation verifiers
 //
-
-namespace vpux {
-namespace VPU {
 
 mlir::LogicalResult verifyConv(mlir::Location loc, ArchKind arch, NCEConvolutionOpAdaptor op, mlir::Value output);
 
@@ -45,6 +45,24 @@ mlir::LogicalResult verifyOp(NCEMaxPoolOp op);
 
 mlir::LogicalResult verifyOp(NCEClusterTilingOp op);
 mlir::LogicalResult verifyOp(YieldOp op);
+
+//
+// Tiling
+//
+
+// Adjust paddings attributes for tiled input
+template <typename ConcreteOp>
+void adjustPaddings(ConcreteOp op, const TilingInfo& inputTiling) {
+    VPUX_THROW_UNLESS(inputTiling.pads.hasValue(), "Missing tile information for paddings");
+
+    auto newPadAttr = getPaddingAttr(op->getContext(), inputTiling.pads.getValue());
+
+    op->padAttr(newPadAttr);
+}
+
+//
+// Misc
+//
 
 void print(mlir::OpAsmPrinter& p, VPU::NCEClusterTilingOp op);
 mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);

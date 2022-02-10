@@ -136,11 +136,6 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, NCEInvariant
         return false;
     }
 
-    if (!fitIntoCMX(op, op.strides(), inputType, filterType, outputType)) {
-        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
-        return false;
-    }
-
     return true;
 }
 
@@ -299,4 +294,21 @@ int64_t vpux::VPU::NCEConvolutionOp::getInputChannelAlignment(mlir::ShapedType i
     }
 
     return NCEInvariant::getAlignment(inputType.getElementType());
+}
+
+//
+// TilingBuilderOpInterface
+//
+
+vpux::InputTiling vpux::VPU::NCEConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+    const auto origInputShape = getShape(input());
+    const auto origFilterShape = getShape(filter());
+    const auto origBiasShape = bias().hasValue() ? getShape(bias().getValue().getType()) : ShapeRef();
+    const auto origPadding = toPadInfo(pad());
+
+    return backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
+}
+
+void vpux::VPU::NCEConvolutionOp::adjustAttrs(const TilingInfo& inputTiling) {
+    VPU::adjustPaddings(this, inputTiling);
 }

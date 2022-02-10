@@ -197,10 +197,14 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     pm.addPass(IE::createConvertToMemPermutePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
-    // pm.addPass(IE::createIsolatedTilingPass(log));
+    pm.addPass(createConvertIEToVPUNCEPass(log));
+
+    pm.addPass(IE::createIsolatedTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
-    pm.addPass(createConvertIEToVPUNCEPass(log));
+    pm.addPass(VPU::createAdjustMemorySpacePass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
     pm.addPass(VPU::createConvertPostOpsToPPEPass(log));
 
@@ -327,13 +331,18 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IE::createConvertToMemPermutePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
-    // pm.addPass(IE::createPrefetchTilingPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(grc));
-
     pm.addPass(createConvertIEToVPUNCEPass(log));
+
     pm.addPass(createPrintDotPass("temp.dot"));
     pm.addPass(VPU::createMultiClusterStrategyAssignmentPass(log));
     pm.addPass(createPrintDotPass("temp2.dot"));
+
+    pm.addPass(IE::createPrefetchTilingPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    pm.addPass(VPU::createAdjustMemorySpacePass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
     pm.addPass(VPU::createConvertPostOpsToPPEPass(log));
 

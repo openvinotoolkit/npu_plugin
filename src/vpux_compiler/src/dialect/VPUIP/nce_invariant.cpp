@@ -565,8 +565,10 @@ mlir::ShapedType getAlignedFilterType(const SmallVector<mlir::ShapedType>& tileT
 
 SmallVector<mlir::ShapedType> getTileTypes(IE::ConvolutionOp origOp, const TileInfo& outTile) {
     const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+    const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
+
     auto tileConf = vpux::backInferConvTile(outTile, getShape(origOp.input()), getShape(origOp.filter()), origBiasShape,
-                                            origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+                                            origOp.strides(), origPadding);
 
     SmallVector<mlir::ShapedType> tileTypes;
 
@@ -634,8 +636,10 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::Convolution
 // MaxPool
 
 SmallVector<mlir::ShapedType> getTileTypes(IE::MaxPoolOp origOp, const TileInfo& outTile) {
+    const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
+
     auto tileConf = vpux::backInferPoolTile(outTile, getShape(origOp.input()), origOp.kernel_size(), origOp.strides(),
-                                            origOp.pads_begin(), origOp.pads_end());
+                                            origPadding);
 
     SmallVector<mlir::ShapedType> tileTypes;
 
@@ -714,9 +718,10 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp o
 
 SmallVector<mlir::ShapedType> getTileTypes(IE::GroupConvolutionOp origOp, const TileInfo& outTile) {
     const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
-    auto tileConf =
-            vpux::backInferGroupConvTile(outTile, getShape(origOp.input()), getShape(origOp.filter()), origBiasShape,
-                                         origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+    const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
+
+    auto tileConf = vpux::backInferGroupConvTile(outTile, getShape(origOp.input()), getShape(origOp.filter()),
+                                                 origBiasShape, origOp.strides(), origPadding);
 
     SmallVector<mlir::ShapedType> tileTypes;
 

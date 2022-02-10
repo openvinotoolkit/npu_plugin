@@ -234,9 +234,10 @@ bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logg
         const auto origInputShape = getShape(origOp.input());
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+        const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
 
         const auto inputTiling = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                   origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+                                                   origOp.strides(), origPadding);
 
         const auto& tileConf = inputTiling.tiles;
         VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
@@ -269,9 +270,10 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
         const auto origInputShape = getShape(origOp.input());
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+        const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
 
         const auto inputTiling = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                        origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+                                                        origOp.strides(), origPadding);
 
         const auto& tileConf = inputTiling.tiles;
         VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
@@ -301,9 +303,10 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
         }
 
         const auto origInputShape = getShape(origOp.input());
+        const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
 
-        const auto inputTiling = backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(),
-                                                   origOp.pads_begin(), origOp.pads_end());
+        const auto inputTiling =
+                backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(), origPadding);
 
         const auto& tileConf = inputTiling.tiles;
         VPUX_THROW_UNLESS(!tileConf.empty(), "Got empty tile information");

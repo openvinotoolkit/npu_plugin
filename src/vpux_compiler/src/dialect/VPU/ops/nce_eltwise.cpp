@@ -108,11 +108,6 @@ bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDiffere
         return false;
     }
 
-    if (!fitIntoCMX(op, input1, input2, output)) {
-        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
-        return false;
-    }
-
     return true;
 }
 

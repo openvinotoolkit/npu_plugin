@@ -100,4 +100,25 @@ def ConvertPostOpsToPPE : PassBase<"convert-post-ops-to-ppe", "vpux::FunctionPas
     ];
 }
 
+//
+// AdjustMemorySpace
+//
+
+def AdjustMemorySpace : PassBase<"adjust-memory-space", "vpux::FunctionPass"> {
+    let summary = "Adjusts the tensor location for VPU-driven operations";
+
+    let description = [{
+        The pass adjusts the location of tensors that are used by hardware-driven operations
+
+        Currently, it surrounds VPU-driven nodes with Copy operations to specify that all the data
+        that they consume/produce must reside in CMX
+    }];
+
+    let constructor = "vpux::VPU::createAdjustMemorySpacePass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
 #endif

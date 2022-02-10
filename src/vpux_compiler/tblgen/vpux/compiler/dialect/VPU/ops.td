@@ -113,6 +113,7 @@ def VPU_NCEConvolutionOp :
                 SingleBlock,
                 IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]
         > {
@@ -180,6 +181,7 @@ def VPU_NCEDepthConvolutionOp :
                 SingleBlock,
                 IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]
         > {
@@ -247,6 +249,7 @@ def VPU_NCEMaxPoolOp :
                 SingleBlock,
                 IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]
         > {
@@ -308,6 +311,7 @@ def VPU_NCEEltwiseOp :
                 SingleBlock,
                 IE_EltwiseOp,
                 IE_LayerWithPostOpInterface,
+                IE_TilingBuilderOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]

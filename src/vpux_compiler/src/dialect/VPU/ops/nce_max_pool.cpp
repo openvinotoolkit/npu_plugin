@@ -113,11 +113,6 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, NCEInvariant::LogCb 
         return false;
     }
 
-    if (!fitIntoCMX(op, op.kernel_size(), op.strides(), inputType, outputType)) {
-        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
-        return false;
-    }
-
     return true;
 }
 
@@ -218,4 +213,19 @@ bool vpux::VPU::NCEMaxPoolOp::checkChannelRestrictions(int64_t channels) {
     }
 
     return true;
+}
+
+//
+// TilingBuilderOpInterface
+//
+
+vpux::InputTiling vpux::VPU::NCEMaxPoolOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+    const auto origInputShape = getShape(input());
+    const auto origPadding = toPadInfo(pad());
+
+    return vpux::backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), origPadding);
+}
+
+void vpux::VPU::NCEMaxPoolOp::adjustAttrs(const TilingInfo& inputTiling) {
+    VPU::adjustPaddings(this, inputTiling);
 }

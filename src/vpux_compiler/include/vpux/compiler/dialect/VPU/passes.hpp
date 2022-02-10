@@ -47,6 +47,7 @@ std::unique_ptr<mlir::Pass> createMultiClusterStrategyAssignmentPass(Logger log 
 
 std::unique_ptr<mlir::Pass> createSplitNCEOpsOntoWorkloadsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertPostOpsToPPEPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createAdjustMemorySpacePass(Logger log = Logger::global());
 
 //
 // Generated
