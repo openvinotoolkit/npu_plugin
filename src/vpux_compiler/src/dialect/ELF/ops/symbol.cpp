@@ -30,6 +30,7 @@ mlir::Operation* getParentSectionOp(mlir::Value val) {
     if (op == nullptr) {
         op = val.getDefiningOp();
     }
+    VPUX_THROW_UNLESS(op != nullptr, "Both user and producer operation can't be found.");
 
     auto region = op->getParentRegion();
     VPUX_THROW_UNLESS(region != nullptr, "Unlinked ops are unsupported");

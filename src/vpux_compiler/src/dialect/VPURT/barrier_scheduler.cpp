@@ -408,10 +408,11 @@ void BarrierScheduler::assignTaskPriorities() {
 
     size_t currentPriority = 0;
 
-    operationInDegreeType::iterator itr = _inDegree.begin();
+    auto itr = _inDegree.begin();
     while (itr != _inDegree.end()) {
         auto op = itr->first;
-        if (_inDegree.find(op)->second == 0) {
+        auto opDegreeIt = _inDegree.find(op);
+        if (opDegreeIt != _inDegree.end() && opDegreeIt->second == 0) {
             _log.trace("Adding task {0} to zeroInDegreeNodes ", getUniqueID(op));
             zeroInDegreeNodes[currentPriority % 2].push_back(op);
             _log.trace("The priority for  op {0}  is {1}", getUniqueID(op), currentPriority);
@@ -603,10 +604,11 @@ bool BarrierScheduler::generateScheduleWithBarriers(size_t numberOfBarriers, siz
     _log.trace("Initializing the barrier resource upper state i.e. maximum barrier and maximum producers per barrier");
     initializeBarrierResourceState(numberOfBarriers, maxProducersPerBarrier);
 
-    operationInDegreeType::iterator itr = _inDegree.begin();
+    auto itr = _inDegree.begin();
     while (itr != _inDegree.end()) {
         auto op = itr->first;
-        if (_inDegree.find(op)->second == 0) {
+        auto opDegreeIt = _inDegree.find(op);
+        if (opDegreeIt != _inDegree.end() && opDegreeIt->second == 0) {
             _log.nest().trace("Adding task: {0} to candidate set", getUniqueID(op));
             addTaskToCandidateSet(op);
         }

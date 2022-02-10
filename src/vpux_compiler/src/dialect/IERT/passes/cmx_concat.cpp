@@ -313,7 +313,7 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
         }
     }
     // create new memref in CMX
-    rewriter.setInsertionPointAfter(firstNce.input().getDefiningOp());
+    rewriter.setInsertionPointAfterValue(firstNce.input());
     auto newBufferMemType = getMemRefType(shape, elemType, order, cmxMemSpaceAttr);
     auto newBuffer = rewriter.create<mlir::memref::AllocOp>(masterBufferOutput.getLoc(), newBufferMemType);
 

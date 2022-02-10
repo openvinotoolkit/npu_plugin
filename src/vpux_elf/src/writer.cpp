@@ -170,7 +170,7 @@ StringSection* Writer::addStringSection(const std::string& name) {
 }
 
 elf::ELFHeader Writer::generateELFHeader() const {
-    ELFHeader fileHeader;
+    ELFHeader fileHeader{};
 
     fileHeader.e_ident[EI_MAG0] = ELFMAG0;
     fileHeader.e_ident[EI_MAG1] = ELFMAG1;

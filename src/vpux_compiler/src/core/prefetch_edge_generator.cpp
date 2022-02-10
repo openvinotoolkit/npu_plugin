@@ -181,11 +181,14 @@ vpux::PrefetchEdgeGenerator::prefetchMap vpux::PrefetchEdgeGenerator::generatePr
                         ++temp;
                     }
 
-                    // work-arround for release models performance
+                    // work-around for release models performance
                     // TODO: remove for master and add better heuristic
                     bool prevOp = computeOp->time_ + 1 == dataOp->time_;
                     bool dataGreater = computeOp->resourceSize() < dataOp->resourceSize();
-                    bool dataStall = (dataOp->resourceSize() / computeOp->resourceSize()) > 5;
+
+                    auto computeResSize = computeOp->resourceSize();
+                    VPUX_THROW_UNLESS(computeResSize > 0, "Resources size have to be greater than zero.");
+                    bool dataStall = (dataOp->resourceSize() / computeResSize) > 5;
                     bool sizeExceed = (maxFreeSize - dataOpSize) < bracketForCMXFragmentation;
                     bool hasPrefetch = !_prefetchEdges[computeOp->op_].empty();
 

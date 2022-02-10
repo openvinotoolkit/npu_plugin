@@ -126,8 +126,9 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> shape, mlir::Typ
 
     if (type.isInteger(4)) {
         std::vector<int64_t> uintWrapperShape{shape.begin(), shape.end()};
+        VPUX_THROW_UNLESS(!uintWrapperShape.empty(), "generateWeights: Got empty shape");
         // in NHWC tensor two int4 neighboring elements by C axis will be united into one uint8 element. So we have to
-        // recalculate shape for uint wraper tensor
+        // recalculate shape for uint wrapper tensor
         uintWrapperShape[Dims4D::Filter::OC.ind()] /= 2;
 
         const auto wrapperVecSize = static_cast<std::size_t>(std::accumulate(

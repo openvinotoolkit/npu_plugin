@@ -191,6 +191,18 @@ Cast element type from raw integer to quantized type
 | :-------: | :-------: | ----------- |
 | elemType | `mlir::quant::QuantizedType` |  |
 
+### RelocateWeightsTableAttr
+
+Patches offsets in the weights table
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| weightsPtr | `mlir::IntegerAttr` |  |
+| sparsityPtr | `mlir::IntegerAttr` |  |
+
 ### ReorderAttr
 
 Reorder constant content
