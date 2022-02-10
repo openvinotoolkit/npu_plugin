@@ -35,7 +35,7 @@ mlir::LogicalResult vpux::IE::ClampOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::ClampOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::ClampOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Clamp>(outputs.at(0), min().convertToDouble(), max().convertToDouble());
+    return std::make_unique<opset_latest::Clamp>(outputs.at(0), min().convertToDouble(), max().convertToDouble());
 }

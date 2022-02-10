@@ -42,8 +42,8 @@ mlir::LogicalResult vpux::IE::MVNOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::MVNOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::MVNOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<ngraph::opset4::MVN>(outputs.at(0), across_channels(), normalize_variance(),
+    return std::make_unique<ngraph::opset4::MVN>(outputs.at(0), across_channels(), normalize_variance(),
         eps().convertToDouble());
 }

@@ -24,7 +24,7 @@ namespace vpux {
 namespace IE {
 
 std::shared_ptr<ngraph::Function> exportToNgraph(IE::CNNNetworkOp, mlir::FuncOp netFunc);
-mlir::LogicalResult exportToOpenVINO(mlir::ModuleOp module, llvm::raw_ostream&, const llvm::StringRef filePath);
+mlir::LogicalResult exportToOpenVINO(mlir::ModuleOp module, llvm::raw_ostream&, StringRef filePath);
 
 }  // namespace IE
 }  // namespace vpux

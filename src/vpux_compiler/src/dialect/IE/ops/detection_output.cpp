@@ -66,14 +66,14 @@ mlir::LogicalResult vpux::IE::DetectionOutputOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::DetectionOutputOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::DetectionOutputOp::toNgraph(ngraph::OutputVector &outputs)
 {
     if (outputs.size() == 3) {
-        return std::make_shared<opset_latest::DetectionOutput>(outputs.at(0), outputs.at(1), outputs.at(2),
+        return std::make_unique<opset_latest::DetectionOutput>(outputs.at(0), outputs.at(1), outputs.at(2),
             exportDetectionOutputAttrs(attr()));
     }
     else if (outputs.size() == 5) {
-        return std::make_shared<opset_latest::DetectionOutput>(outputs.at(0), outputs.at(1), outputs.at(2),
+        return std::make_unique<opset_latest::DetectionOutput>(outputs.at(0), outputs.at(1), outputs.at(2),
             outputs.at(3), outputs.at(4), exportDetectionOutputAttrs(attr()));
     }
     VPUX_THROW("IE::DetectionOutputOp has unsupported number of outputs '{0}'", outputs.size());

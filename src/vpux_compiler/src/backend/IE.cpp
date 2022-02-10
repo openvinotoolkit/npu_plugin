@@ -61,8 +61,8 @@ using namespace vpux;
 std::shared_ptr<ngraph::Node> parseDeclareOp(Const::DeclareOp origOp)
 {
     const auto& cont = origOp.content();
-    const mlir::Type elType = cont.getElementType();
-    mlir::MLIRContext* ctx = elType.getContext();
+    const auto elType = cont.getElementType();
+    auto ctx = elType.getContext();
     const auto elShape = cont.getShape();
     const ngraph::Shape sh(elShape.begin(), elShape.end());
     std::vector<int8_t> vals(cont.getTotalSize().count() / 8, 0);
@@ -105,16 +105,14 @@ std::shared_ptr<ngraph::Function> vpux::IE::exportToNgraph(IE::CNNNetworkOp, mli
     ngraph::OutputVector netOutputs;
     netFunc.body().walk([&](mlir::Operation *op) {
         ngraph::OutputVector inputs;
-        for (auto val : op->getOperands())
-        {
+        for (auto val : op->getOperands()) {
             auto it = exportedVals.find(val);
             VPUX_THROW_WHEN(it == exportedVals.end(), "Value not found in mlir to ngraph translation map");
             inputs.push_back(it->second);
         }
         std::shared_ptr<ngraph::Node> node;
-        if (mlir::isa<Const::DeclareOp>(*op)) {
-            auto constOp = mlir::dyn_cast<Const::DeclareOp>(*op);
-            VPUX_THROW_UNLESS(constOp != nullptr, "Op is not of Const::DeclareOp type");
+        if (auto constOp = mlir::dyn_cast<Const::DeclareOp>(*op)) {
+            VPUX_THROW_UNLESS(constOp != nullptr, "Op {0} is not of Const::DeclareOp type", op->getName());
             node = parseDeclareOp(constOp);
             
         }
@@ -122,15 +120,14 @@ std::shared_ptr<ngraph::Function> vpux::IE::exportToNgraph(IE::CNNNetworkOp, mli
             node = parseLSTMSequenceOp(op, inputs);
         }
         else if (mlir::isa<mlir::ReturnOp>(*op)) {
-            for (auto& input : inputs)
-            {
+            for (auto& input : inputs) {
                 auto node = std::make_shared<opset_latest::Result>(input);
                 netOutputs.emplace_back(node);
             }
         }
         else {
             auto opIface = mlir::dyn_cast<vpux::IE::ToNgraphOpInterface>(*op);
-            VPUX_THROW_UNLESS(opIface != nullptr, "Op does not implement IE::ToNgraphOpInterface");
+            VPUX_THROW_UNLESS(opIface != nullptr, "Op {0} does not implement IE::ToNgraphOpInterface", op->getName());
             node = opIface.toNgraph(inputs);
         }
         for (unsigned idx = 0; idx < op->getNumResults(); ++idx) {

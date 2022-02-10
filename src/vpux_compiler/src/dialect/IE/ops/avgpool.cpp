@@ -63,7 +63,7 @@ mlir::LogicalResult vpux::IE::AvgPoolOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::AvgPoolOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::AvgPoolOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const auto strides = parseIntArrayAttr<size_t>(stridesAttr());
     const auto padsBegin = parseIntArrayAttr<size_t>(pads_begin());
@@ -72,7 +72,7 @@ std::shared_ptr<ngraph::Node> vpux::IE::AvgPoolOp::toNgraph(ngraph::OutputVector
     const auto excludePads = exclude_pads();
     const auto roundingType = exportRoundingType(rounding_type());
 
-    return std::make_shared<opset_latest::AvgPool>(outputs.at(0), ngraph::Strides(strides.begin(),strides.end()),
+    return std::make_unique<opset_latest::AvgPool>(outputs.at(0), ngraph::Strides(strides.begin(),strides.end()),
         ngraph::Shape(padsBegin.begin(), padsBegin.end()), ngraph::Shape(padsEnd.begin(), padsEnd.end()),
         ngraph::Shape(kernel.begin(), kernel.end()), excludePads, roundingType);
 }

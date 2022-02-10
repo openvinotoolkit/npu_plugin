@@ -27,19 +27,19 @@ ngraph::op::AutoBroadcastType exportBroadcastType(AutoBroadcastType bType);
 ngraph::op::BroadcastType exportBroadcastMode(BroadcastType bType);
 ngraph::op::RoundingType exportRoundingType(RoundingType roundingType);
 ngraph::element::Type exportElemType(mlir::MLIRContext* ctx, mlir::Type type);
-ngraph::op::DetectionOutputAttrs exportDetectionOutputAttrs(const DetectionOutputAttr& val);
-ngraph::opset7::Interpolate::InterpolateAttrs exportInterpolateAttrs(const InterpolateAttr& val);
+ngraph::op::DetectionOutputAttrs exportDetectionOutputAttrs(DetectionOutputAttr val);
+ngraph::opset7::Interpolate::InterpolateAttrs exportInterpolateAttrs(InterpolateAttr val);
 std::string exportLRN_IERegion(LRN_IERegion region);
-ngraph::op::RecurrentSequenceDirection exportRNNSequenceDirection(const RNNSequenceDirection val);
+ngraph::op::RecurrentSequenceDirection exportRNNSequenceDirection(RNNSequenceDirection val);
 ngraph::op::TopKSortType exportTopKSortType(TopKSortType val);
 ngraph::op::PadMode exportPadMode(PadMode mode);
-ngraph::op::ProposalAttrs exportProposalAttrs(const ProposalAttr& val);
+ngraph::op::ProposalAttrs exportProposalAttrs(ProposalAttr val);
 ngraph::op::v5::Round::RoundMode exportRoundMode(RoundMode val);
 std::string exportROIPoolingMethod(ROIPoolingMethod method);
 ngraph::op::TopKMode exportTopKMode(TopKMode val);
 ngraph::op::TopKSortType exportTopKSortType(TopKSortType val);
-InferenceEngine::TensorDesc exportUserTensor(const mlir::RankedTensorType& tensor);
-ngraph::element::Type toNGraphType(const InferenceEngine::Precision& precision);
+InferenceEngine::TensorDesc exportUserTensor(mlir::RankedTensorType tensor);
+ngraph::element::Type toNGraphType(InferenceEngine::Precision precision);
 InferenceEngine::Precision exportPrecision(mlir::MLIRContext* ctx, mlir::Type type);
 
 }  // namespace IE

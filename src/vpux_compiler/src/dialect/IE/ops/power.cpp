@@ -44,10 +44,10 @@ mlir::LogicalResult vpux::IE::PowerOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::PowerOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::PowerOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const ngraph::op::AutoBroadcastType autoBroadCastType = exportBroadcastType(auto_broadcast());
     const auto auto_broadcast = ngraph::op::AutoBroadcastSpec(autoBroadCastType);
 
-    return std::make_shared<opset_latest::Power>(outputs.at(0), outputs.at(1), auto_broadcast);
+    return std::make_unique<opset_latest::Power>(outputs.at(0), outputs.at(1), auto_broadcast);
 }

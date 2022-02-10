@@ -158,9 +158,9 @@ void vpux::IE::SplitOp::getCanonicalizationPatterns(mlir::OwningRewritePatternLi
     patterns.insert<ConvertConstToAttr>(context);
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::SplitOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::SplitOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const auto numSplits = num_splits();
 
-    return std::make_shared<opset_latest::Split>(outputs.at(0), outputs.at(1), numSplits);
+    return std::make_unique<opset_latest::Split>(outputs.at(0), outputs.at(1), numSplits);
 }

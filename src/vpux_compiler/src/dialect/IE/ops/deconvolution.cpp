@@ -125,7 +125,7 @@ mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::DeconvolutionOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::DeconvolutionOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const auto strides = parseIntArrayAttr<size_t>(stridesAttr());
     const auto padsBegin = parseIntArrayAttr<std::ptrdiff_t>(pads_begin());
@@ -133,13 +133,13 @@ std::shared_ptr<ngraph::Node> vpux::IE::DeconvolutionOp::toNgraph(ngraph::Output
     const auto dil = parseIntArrayAttr<size_t>(dilations());
     const auto outputPadding = parseIntArrayAttr<std::ptrdiff_t>(output_padding());
     if (outputs.size() == 2) {
-        return std::make_shared<opset_latest::ConvolutionBackpropData>(outputs.at(0), outputs.at(1),
+        return std::make_unique<opset_latest::ConvolutionBackpropData>(outputs.at(0), outputs.at(1),
             ngraph::Strides(strides.begin(),strides.end()), ngraph::CoordinateDiff(padsBegin.begin(), padsBegin.end()),
             ngraph::CoordinateDiff(padsEnd.begin(), padsEnd.end()), ngraph::Strides(dil.begin(), dil.end()),
             ngraph::op::PadType::EXPLICIT, ngraph::CoordinateDiff(outputPadding.begin(), outputPadding.end()));
     }
     else if (outputs.size() == 3) {
-        return std::make_shared<opset_latest::ConvolutionBackpropData>(outputs.at(0), outputs.at(1), outputs.at(2),
+        return std::make_unique<opset_latest::ConvolutionBackpropData>(outputs.at(0), outputs.at(1), outputs.at(2),
             ngraph::Strides(strides.begin(),strides.end()), ngraph::CoordinateDiff(padsBegin.begin(), padsBegin.end()),
             ngraph::CoordinateDiff(padsEnd.begin(), padsEnd.end()), ngraph::Strides(dil.begin(), dil.end()),
             ngraph::op::PadType::EXPLICIT, ngraph::CoordinateDiff(outputPadding.begin(), outputPadding.end()));

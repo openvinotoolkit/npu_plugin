@@ -72,9 +72,9 @@ mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute> operands)
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::ConvertOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::ConvertOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const mlir::Type dstElemT = dstElemType();
 
-    return std::make_shared<opset_latest::Convert>(outputs.at(0), exportElemType(dstElemT.getContext(), dstElemT));
+    return std::make_unique<opset_latest::Convert>(outputs.at(0), exportElemType(dstElemT.getContext(), dstElemT));
 }

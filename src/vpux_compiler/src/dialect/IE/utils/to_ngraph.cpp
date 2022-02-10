@@ -84,7 +84,7 @@ ngraph::element::Type IE::exportElemType(mlir::MLIRContext* ctx, mlir::Type type
     }
 }
 
-ngraph::op::DetectionOutputAttrs IE::exportDetectionOutputAttrs(const IE::DetectionOutputAttr& val) {
+ngraph::op::DetectionOutputAttrs IE::exportDetectionOutputAttrs(IE::DetectionOutputAttr val) {
     ngraph::op::DetectionOutputAttrs attrs;
     attrs.num_classes = val.num_classes().getInt();
     attrs.background_label_id = val.background_label_id().getInt();
@@ -114,7 +114,7 @@ ngraph::op::DetectionOutputAttrs IE::exportDetectionOutputAttrs(const IE::Detect
     return attrs;
 }
 
-ngraph::opset7::Interpolate::InterpolateAttrs IE::exportInterpolateAttrs(const IE::InterpolateAttr& val) {
+ngraph::opset7::Interpolate::InterpolateAttrs IE::exportInterpolateAttrs(IE::InterpolateAttr val) {
     ngraph::opset7::Interpolate::InterpolateAttrs attrs;
     // mode
     switch (val.mode().getValue()) {
@@ -209,7 +209,7 @@ std::string IE::exportLRN_IERegion(IE::LRN_IERegion region) {
     }
 }
 
-ngraph::op::RecurrentSequenceDirection IE::exportRNNSequenceDirection(const IE::RNNSequenceDirection val) {
+ngraph::op::RecurrentSequenceDirection IE::exportRNNSequenceDirection(IE::RNNSequenceDirection val) {
     if (val == IE::RNNSequenceDirection::FORWARD) {
         return ngraph::op::RecurrentSequenceDirection::FORWARD;
     } else if (val == IE::RNNSequenceDirection::REVERSE) {
@@ -247,7 +247,7 @@ ngraph::op::PadMode IE::exportPadMode(IE::PadMode mode) {
     }
 }
 
-ngraph::op::ProposalAttrs IE::exportProposalAttrs(const IE::ProposalAttr& val) {
+ngraph::op::ProposalAttrs IE::exportProposalAttrs(IE::ProposalAttr val) {
     ngraph::op::ProposalAttrs attrs;
     attrs.base_size = val.baseSize().getInt();
     attrs.pre_nms_topn = val.preNmsTopN().getInt();
@@ -303,7 +303,7 @@ ngraph::op::TopKMode IE::exportTopKMode(IE::TopKMode val) {
     }
 }
 
-InferenceEngine::TensorDesc IE::exportUserTensor(const mlir::RankedTensorType &tensor) {
+InferenceEngine::TensorDesc IE::exportUserTensor(mlir::RankedTensorType tensor) {
     const Shape shape = tensor.getShape();
     InferenceEngine::SizeVector dims;
     for (auto ddim : shape)
@@ -315,7 +315,7 @@ InferenceEngine::TensorDesc IE::exportUserTensor(const mlir::RankedTensorType &t
     return InferenceEngine::TensorDesc{precision, dims, layout};
 }
 
-ngraph::element::Type IE::toNGraphType(const InferenceEngine::Precision &precision) {
+ngraph::element::Type IE::toNGraphType(InferenceEngine::Precision precision) {
     if (precision == InferenceEngine::Precision::FP32) {
         return ngraph::element::f32;
     } else if (precision == InferenceEngine::Precision::FP16) {

@@ -276,7 +276,7 @@ void vpux::IE::SqueezeOp::getCanonicalizationPatterns(mlir::OwningRewritePattern
     patterns.insert<ConvertConstToAttr>(context);
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::SqueezeOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::SqueezeOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Squeeze>(outputs.at(0), outputs.at(1));
+    return std::make_unique<opset_latest::Squeeze>(outputs.at(0), outputs.at(1));
 }

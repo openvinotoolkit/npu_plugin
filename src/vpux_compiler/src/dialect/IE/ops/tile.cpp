@@ -132,9 +132,9 @@ mlir::OpFoldResult vpux::IE::TileOp::fold(ArrayRef<mlir::Attribute>) {
     return input();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::TileOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::TileOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Tile>(outputs.at(0), outputs.at(1));
+    return std::make_unique<opset_latest::Tile>(outputs.at(0), outputs.at(1));
 }
 
 mlir::LogicalResult vpux::IE::PerAxisTileOp::inferReturnTypeComponents(

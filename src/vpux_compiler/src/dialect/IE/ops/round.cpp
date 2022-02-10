@@ -33,7 +33,7 @@ mlir::LogicalResult vpux::IE::RoundOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::RoundOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::RoundOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Round>(outputs.at(0), exportRoundMode(mode()));
+    return std::make_unique<opset_latest::Round>(outputs.at(0), exportRoundMode(mode()));
 }

@@ -143,7 +143,7 @@ void vpux::IE::GatherOp::getCanonicalizationPatterns(mlir::RewritePatternSet& pa
     patterns.insert<ConvertConstToAttr>(context);
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::GatherOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::GatherOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Gather>(outputs.at(0), outputs.at(1), outputs.at(2));
+    return std::make_unique<opset_latest::Gather>(outputs.at(0), outputs.at(1), outputs.at(2));
 }

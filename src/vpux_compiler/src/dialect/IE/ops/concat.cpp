@@ -488,10 +488,10 @@ void vpux::IE::ConcatOp::getCanonicalizationPatterns(mlir::RewritePatternSet& re
     results.add<FuseConcat>(ctx);
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::ConcatOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::ConcatOp::toNgraph(ngraph::OutputVector &outputs)
 {
     VPUX_THROW_WHEN(per_axisAttr() == nullptr, "per_axis attribute for '{0}' missing", IE::ConcatOp::getOperationName());
     const auto axis = per_axisAttr().axis().getInt();
 
-    return std::make_shared<opset_latest::Concat>(outputs, axis);
+    return std::make_unique<opset_latest::Concat>(outputs, axis);
 }

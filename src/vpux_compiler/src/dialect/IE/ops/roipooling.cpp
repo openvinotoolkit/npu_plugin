@@ -66,12 +66,12 @@ mlir::LogicalResult vpux::IE::ROIPoolingOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::ROIPoolingOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::ROIPoolingOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const auto outputSize = parseIntArrayAttr<size_t>(output_size());
     const auto spatialScale = spatial_scale().convertToDouble();
     const auto meth = exportROIPoolingMethod(method());
 
-    return std::make_shared<opset_latest::ROIPooling>(outputs.at(0), outputs.at(1),
+    return std::make_unique<opset_latest::ROIPooling>(outputs.at(0), outputs.at(1),
         ngraph::Shape(outputSize.begin(), outputSize.end()), spatialScale, meth);
 }

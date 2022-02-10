@@ -198,9 +198,9 @@ void vpux::IE::InterpolateOp::getCanonicalizationPatterns(mlir::OwningRewritePat
     patterns.insert<ConvertInputsToAttr>(context);
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::InterpolateOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::InterpolateOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const ngraph::opset7::Interpolate::InterpolateAttrs attrs = exportInterpolateAttrs(attr());
 
-    return std::make_shared<opset_latest::Interpolate>(outputs.at(0), outputs.at(1), outputs.at(2), outputs.at(3), attrs);
+    return std::make_unique<opset_latest::Interpolate>(outputs.at(0), outputs.at(1), outputs.at(2), outputs.at(3), attrs);
 }

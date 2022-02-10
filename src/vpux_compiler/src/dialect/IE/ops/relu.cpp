@@ -35,7 +35,7 @@ mlir::LogicalResult vpux::IE::ReLUOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::ReLUOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::ReLUOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Relu>(outputs.at(0));
+    return std::make_unique<opset_latest::Relu>(outputs.at(0));
 }

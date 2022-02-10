@@ -40,7 +40,7 @@ mlir::LogicalResult vpux::IE::ReduceMaxOp::inferReturnTypeComponents(
     return IE::inferReduceReturnTypeComponents(loc, input, keepDims, axes, inferredReturnShapes);
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::ReduceMaxOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::ReduceMaxOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::ReduceMax>(outputs.at(0), outputs.at(1), keep_dims());
+    return std::make_unique<opset_latest::ReduceMax>(outputs.at(0), outputs.at(1), keep_dims());
 }

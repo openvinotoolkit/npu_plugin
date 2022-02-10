@@ -47,8 +47,8 @@ mlir::LogicalResult vpux::IE::CTCGreedyDecoderSeqLenOp::inferReturnTypeComponent
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::CTCGreedyDecoderSeqLenOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::CTCGreedyDecoderSeqLenOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::CTCGreedyDecoderSeqLen>(outputs.at(0), outputs.at(1), outputs.at(2),
+    return std::make_unique<opset_latest::CTCGreedyDecoderSeqLen>(outputs.at(0), outputs.at(1), outputs.at(2),
         mergeRepeated());
 }

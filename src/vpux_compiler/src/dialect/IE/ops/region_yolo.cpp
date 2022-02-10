@@ -59,12 +59,12 @@ mlir::LogicalResult vpux::IE::RegionYoloOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::RegionYoloOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::RegionYoloOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const auto msk = parseIntArrayAttr<int64_t>(mask());
     const auto anch = parseFPArrayAttr<float>(anchors());
 
-    return std::make_shared<opset_latest::RegionYolo>(outputs.at(0), coords(), classes(), regions(), do_softmax(),
+    return std::make_unique<opset_latest::RegionYolo>(outputs.at(0), coords(), classes(), regions(), do_softmax(),
         std::vector<int64_t>{msk.begin(), msk.end()}, axis(), end_axis(),
         std::vector<float>{anch.begin(), anch.end()});
 }

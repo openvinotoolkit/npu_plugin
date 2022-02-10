@@ -86,7 +86,7 @@ void vpux::IE::SwishOp::getCanonicalizationPatterns(mlir::RewritePatternSet& pat
     patterns.insert<ConvertConstToAttr>(context);
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::SwishOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::SwishOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Swish>(outputs.at(0));
+    return std::make_unique<opset_latest::Swish>(outputs.at(0));
 }

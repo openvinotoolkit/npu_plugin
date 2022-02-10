@@ -61,11 +61,11 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::TopKOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::TopKOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const mlir::Type elType = element_type();
     mlir::MLIRContext* ctx = elType.getContext();
 
-    return std::make_shared<opset_latest::TopK>(outputs.at(0), outputs.at(1), axis(), exportTopKMode(mode()),
+    return std::make_unique<opset_latest::TopK>(outputs.at(0), outputs.at(1), axis(), exportTopKMode(mode()),
         exportTopKSortType(sort()), exportElemType(ctx, elType));
 }

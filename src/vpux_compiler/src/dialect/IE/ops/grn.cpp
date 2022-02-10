@@ -35,7 +35,7 @@ mlir::LogicalResult vpux::IE::GRNOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::GRNOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::GRNOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::GRN>(outputs.at(0), bias().convertToDouble());
+    return std::make_unique<opset_latest::GRN>(outputs.at(0), bias().convertToDouble());
 }

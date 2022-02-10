@@ -33,7 +33,7 @@ mlir::LogicalResult vpux::IE::FloorOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::FloorOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::FloorOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Floor>(outputs.at(0));
+    return std::make_unique<opset_latest::Floor>(outputs.at(0));
 }

@@ -28,7 +28,7 @@ def IE_ToNgraphOpInterface : OpInterface<"ToNgraphOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Convert to nGraph operation",
-            "std::shared_ptr<ngraph::Node>", "toNgraph", (ins "ngraph::OutputVector&":$outp)
+            "std::unique_ptr<ngraph::Node>", "toNgraph", (ins "ngraph::OutputVector&":$outp)
         >,
     ];
 }

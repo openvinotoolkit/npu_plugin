@@ -394,7 +394,7 @@ void vpux::IE::ReshapeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& p
     patterns.insert<ConvertToAffineReshape>(ctx);
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::ReshapeOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::ReshapeOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Reshape>(outputs.at(0), outputs.at(1), special_zero());
+    return std::make_unique<opset_latest::Reshape>(outputs.at(0), outputs.at(1), special_zero());
 }

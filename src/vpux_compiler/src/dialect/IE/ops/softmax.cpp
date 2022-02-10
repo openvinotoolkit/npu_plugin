@@ -52,9 +52,9 @@ mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(ArrayRef<mlir::Attribute>) {
     return baseContent.convertElemType(output().getType().cast<mlir::ShapedType>().getElementType());
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::SoftMaxOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::SoftMaxOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const auto axisIndVal = axisInd();
     
-    return std::make_shared<opset_latest::Softmax>(outputs.at(0), axisIndVal);
+    return std::make_unique<opset_latest::Softmax>(outputs.at(0), axisIndVal);
 }

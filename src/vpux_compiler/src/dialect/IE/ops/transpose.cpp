@@ -349,7 +349,7 @@ mlir::OpFoldResult vpux::IE::TransposeOp::fold(ArrayRef<mlir::Attribute> operand
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::TransposeOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::TransposeOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Transpose>(outputs.at(0), outputs.at(1));
+    return std::make_unique<opset_latest::Transpose>(outputs.at(0), outputs.at(1));
 }

@@ -46,11 +46,11 @@ mlir::LogicalResult vpux::IE::NormalizeIEOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::NormalizeIEOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::NormalizeIEOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const auto type = getType().getElementType();
     mlir::MLIRContext* ctx = getContext();
 
-    return std::make_shared<ngraph::op::NormalizeIE>(outputs.at(0), outputs.at(1), eps().convertToDouble(),
+    return std::make_unique<ngraph::op::NormalizeIE>(outputs.at(0), outputs.at(1), eps().convertToDouble(),
         across_spatial(), channel_shared(), exportElemType(ctx, type));
 }

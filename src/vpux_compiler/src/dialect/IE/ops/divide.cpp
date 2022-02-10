@@ -43,9 +43,9 @@ mlir::LogicalResult vpux::IE::DivideOp::inferReturnTypeComponents(
     return outShapeRes;
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::DivideOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::DivideOp::toNgraph(ngraph::OutputVector &outputs)
 {
     const ngraph::op::AutoBroadcastType autoBroadCastType = exportBroadcastType(auto_broadcast());
-    return std::make_shared<opset_latest::Divide>(outputs.at(0), outputs.at(1),
+    return std::make_unique<opset_latest::Divide>(outputs.at(0), outputs.at(1),
         ngraph::op::AutoBroadcastSpec(autoBroadCastType));
 }

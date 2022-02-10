@@ -33,7 +33,7 @@ mlir::LogicalResult vpux::IE::MishOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::MishOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::MishOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Mish>(outputs.at(0));
+    return std::make_unique<opset_latest::Mish>(outputs.at(0));
 }

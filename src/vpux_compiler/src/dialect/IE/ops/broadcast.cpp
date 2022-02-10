@@ -76,14 +76,14 @@ mlir::LogicalResult vpux::IE::BroadcastOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::BroadcastOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::BroadcastOp::toNgraph(ngraph::OutputVector &outputs)
 {
     if (outputs.size() == 2) {
         VPUX_THROW_WHEN(modeAttr() == nullptr, "mode attribute for '{0}' missing", IE::BroadcastOp::getOperationName());
         const ngraph::op::BroadcastType broadcastType = exportBroadcastMode(modeAttr().getValue());
-        return std::make_shared<opset_latest::Broadcast>(outputs.at(0), outputs.at(1), ngraph::op::BroadcastModeSpec(broadcastType));
+        return std::make_unique<opset_latest::Broadcast>(outputs.at(0), outputs.at(1), ngraph::op::BroadcastModeSpec(broadcastType));
     }
     else {
-        return std::make_shared<opset_latest::Broadcast>(outputs.at(0), outputs.at(1), outputs.at(2));
+        return std::make_unique<opset_latest::Broadcast>(outputs.at(0), outputs.at(1), outputs.at(2));
     }
 }

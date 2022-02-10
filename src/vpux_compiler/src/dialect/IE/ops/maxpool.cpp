@@ -73,7 +73,7 @@ void vpux::IE::MaxPoolOp::adjustAttrs(const TilingInfo& inputTiling) {
     IE::adjustPaddings(this, inputTiling);
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::MaxPoolOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::MaxPoolOp::toNgraph(ngraph::OutputVector &outputs)
 {
     VPUX_THROW_WHEN(post_opAttr() != nullptr, "post_op attribute for '{0}' is not supported", IE::MaxPoolOp::getOperationName());
     const auto strides = parseIntArrayAttr<size_t>(stridesAttr());
@@ -81,7 +81,7 @@ std::shared_ptr<ngraph::Node> vpux::IE::MaxPoolOp::toNgraph(ngraph::OutputVector
     const auto padsEnd = parseIntArrayAttr<size_t>(pads_end());
     const auto kernel = parseIntArrayAttr<size_t>(kernel_size());
 
-    return std::make_shared<opset_latest::MaxPool>(outputs.at(0), ngraph::Strides(strides.begin(), strides.end()),
+    return std::make_unique<opset_latest::MaxPool>(outputs.at(0), ngraph::Strides(strides.begin(), strides.end()),
         ngraph::Shape(padsBegin.begin(), padsBegin.end()), ngraph::Shape(padsEnd.begin(), padsEnd.end()),
         ngraph::Shape(kernel.begin(), kernel.end()), exportRoundingType(rounding_type()));
 }

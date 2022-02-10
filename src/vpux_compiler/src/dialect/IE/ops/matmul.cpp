@@ -210,7 +210,7 @@ void vpux::IE::MatMulOp::getCanonicalizationPatterns(mlir::RewritePatternSet& pa
     patterns.insert<UseFullyConnected>(context);
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::MatMulOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::MatMulOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::MatMul>(outputs.at(0), outputs.at(1), transpose_a(), transpose_b());
+    return std::make_unique<opset_latest::MatMul>(outputs.at(0), outputs.at(1), transpose_a(), transpose_b());
 }

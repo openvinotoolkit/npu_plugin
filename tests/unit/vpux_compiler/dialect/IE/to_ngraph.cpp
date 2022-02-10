@@ -47,9 +47,9 @@ std::shared_ptr<ngraph::Function> ToNgraphBackendTests::convertToNgraph(const ll
 {
     ctx.getOrLoadDialect<IE::IEDialect>();
     auto module = mlir::parseSourceString(inputIR, &ctx);
-    VPUX_THROW_UNLESS(module.get() != nullptr, "");
+    VPUX_THROW_UNLESS(module.get() != nullptr, "Parsing of MLIR source string failed.");
     auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
-    VPUX_THROW_UNLESS(func != nullptr, "");
+    VPUX_THROW_UNLESS(func != nullptr, "Main function missing in MLIR source string.");
     IE::CNNNetworkOp netOp;
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module.get(), netOp, netFunc);

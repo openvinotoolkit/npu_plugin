@@ -36,7 +36,7 @@ mlir::LogicalResult vpux::IE::NegativeOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-std::shared_ptr<ngraph::Node> vpux::IE::NegativeOp::toNgraph(ngraph::OutputVector &outputs)
+std::unique_ptr<ngraph::Node> vpux::IE::NegativeOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    return std::make_shared<opset_latest::Negative>(outputs.at(0));
+    return std::make_unique<opset_latest::Negative>(outputs.at(0));
 }
