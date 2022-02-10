@@ -50,6 +50,7 @@ public:
     SmallVector<uint32_t> getSplitNumberPool();
 
     uint32_t cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
+    double simpleCost(const OutputTiling& dpuTiles, const vpux::VPUIP::WorkloadCostParams& params);
 
 private:
     Shape selectPadding(ShapeRef original);

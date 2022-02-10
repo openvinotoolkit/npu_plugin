@@ -58,7 +58,7 @@ static VPUNN::Operation getOperationType(VPUIP::NCETaskType taskType) {
         return VPUNN::Operation::ELTWISE;
     case VPUIP::NCETaskType::CMCONV:
         return VPUNN::Operation::CM_CONVOLUTION;
-        // unsupported type for vpunn, use convolution as work around
+    // unsupported type for vpunn, use convolution as work around
     case VPUIP::NCETaskType::IDENTITY:
     case VPUIP::NCETaskType::FCL:
         return VPUNN::Operation::CONVOLUTION;
@@ -111,16 +111,26 @@ inline bool isCostModelInited() {
     return gCostModel != nullptr;
 }
 
-void initCostModel() {
+void initCostModel(VPU::ArchKind archKind) {
     SmallString modelDir;
     // probe for OV_BUILD_DIR
     auto ovBuildDir = InferenceEngine::getIELibraryPath();
 
     modelDir = ovBuildDir;
     llvm::sys::path::append(modelDir, "vpunnd");
-    llvm::sys::path::append(modelDir, "vpu_2_0.vpunn");
+    switch (archKind) {
+    case VPU::ArchKind::KMB:
+    case VPU::ArchKind::TBH:
+        llvm::sys::path::append(modelDir, "vpu_2_0.vpunn");
+        break;
+    case VPU::ArchKind::MTL:
+        llvm::sys::path::append(modelDir, "vpu_2_7.vpunn");
+        break;
+    default:
+        VPUX_THROW("Unsupported VPU arch type: '{0}'", archKind);
+    }
 
-    VPUX_THROW_UNLESS(llvm::sys::fs::exists(modelDir), "vpunnd model {0} is not exist", modelDir);
+    VPUX_THROW_UNLESS(llvm::sys::fs::exists(modelDir), "vpunn model {0} is not exist", modelDir);
     gCostModel = std::make_unique<VPUNN::VPUCostModel>(modelDir.str().str());
 }
 
@@ -163,28 +173,28 @@ bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t max
         }
     }
 
-    SmallVector<uint32_t> max_splits_in_z;
-    SmallVector<uint32_t> max_splits_in_xy;
+    SmallVector<uint32_t> maxSplitsInZ;
+    SmallVector<uint32_t> maxSplitsInXY;
     SmallVector<std::pair<uint8_t, uint8_t>> modes = getModes();
-    for (const auto& z_tile : validZTiles) {
-        max_splits_in_z.push_back(static_cast<uint32_t>(std::ceil(_outShape[Dims4D::Act::C] / (double)z_tile)));
+    for (const auto& zTile : validZTiles) {
+        maxSplitsInZ.push_back(static_cast<uint32_t>(std::ceil(_outShape[Dims4D::Act::C] / (double)zTile)));
     }
     for (const auto& mode : modes) {
-        max_splits_in_xy.push_back(static_cast<uint32_t>(std::ceil(_outShape[Dims4D::Act::H] / (double)mode.first) *
-                                                         std::ceil(_outShape[Dims4D::Act::W] / (double)mode.second)));
+        maxSplitsInXY.push_back(static_cast<uint32_t>(std::ceil(_outShape[Dims4D::Act::H] / (double)mode.first) *
+                                                      std::ceil(_outShape[Dims4D::Act::W] / (double)mode.second)));
     }
-    auto maxSplitInZ = *std::max_element(max_splits_in_z.begin(), max_splits_in_z.end());
-    auto maxSplitInXY = *std::max_element(max_splits_in_xy.begin(), max_splits_in_xy.end());
-    maxSplits = std::min<uint32_t>(maxSplits, std::max(maxSplitInZ, maxSplitInXY));
+    auto maxZ = *std::max_element(maxSplitsInZ.begin(), maxSplitsInZ.end());
+    auto maxXY = *std::max_element(maxSplitsInXY.begin(), maxSplitsInXY.end());
+    maxSplits = std::min<uint32_t>(maxSplits, std::max(maxZ, maxXY));
     std::set<uint32_t> dpuMulSplits;
     for (auto i = numDPU; i < maxSplits + 1; i = i + numDPU) {
         dpuMulSplits.insert(static_cast<uint32_t>(i));
     }
-    for (auto splitsZ : max_splits_in_z) {
+    for (auto splitsZ : maxSplitsInZ) {
         auto zRanges = getSplitsFromRange(splitsZ, maxSplits);
         dpuMulSplits.insert(zRanges.begin(), zRanges.end());
     }
-    for (auto splitsXY : max_splits_in_xy) {
+    for (auto splitsXY : maxSplitsInXY) {
         auto xyRanges = getSplitsFromRange(splitsXY, maxSplits);
         dpuMulSplits.insert(xyRanges.begin(), xyRanges.end());
     }
@@ -278,7 +288,7 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t
 
 uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
     if (!isCostModelInited()) {
-        initCostModel();
+        initCostModel(params.arch);
     }
     const auto opType = getOperationType(params.nceTaskType);
     const auto elemType = getElementType(params.dataType);
@@ -312,18 +322,41 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
                  {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
                   static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
                  getExecutionMode(params.mpeMode)}));
-        llvm::outs() << "workload split " << i << ":{\n";
-        llvm::outs() << "   input:[" << inputTensor.x() << "," << inputTensor.y() << "," << inputTensor.z() << "],";
-        llvm::outs() << "output:[" << outputTensor.x() << "," << outputTensor.y() << "," << outputTensor.z() << "],";
-        llvm::outs() << "kernel:[" << KX << "," << KY << "],";
-        llvm::outs() << "stride :[" << SX << "," << SY << "],";
-        llvm::outs() << "pad :[" << padsTileConf.top << "," << padsTileConf.bottom << "," << padsTileConf.left << ","
-                     << padsTileConf.right << "],";
-        llvm::outs() << "score:" << workloadCost.back() << "\n";
-        llvm::outs() << "}\n";
         i++;
     }
     return VPUNN::dpu_schedule(static_cast<unsigned int>(params.numDPU), workloadCost);
+}
+
+double vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const vpux::VPUIP::WorkloadCostParams& params) {
+    if (!isCostModelInited()) {
+        initCostModel(params.arch);
+    }
+
+    VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
+    VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
+
+    std::pair<int, int> mpeMode(4, 4);
+    if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "VECTOR_FP16") {
+        mpeMode = {1, 4};
+    } else if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "VECTOR") {
+        mpeMode = {1, 16};
+    } else if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "MATRIX") {
+        mpeMode = {4, 4};
+    } else {
+        VPUX_THROW("Failed to support mpeMode");
+    }
+
+    double max_cost = 0;
+
+    for (const auto& dpuTile : dpuTiles) {
+        const auto W = dpuTile.shape[Dims4D::Act::W];
+        const auto H = dpuTile.shape[Dims4D::Act::H];
+        const auto C = dpuTile.shape[Dims4D::Act::C];
+        double cost = ceil(W / mpeMode.first) * ceil(H / mpeMode.second) * ceil(C / 16.0);
+
+        max_cost = std::max(max_cost, cost);
+    }
+    return max_cost;
 }
 
 SmallVector<OutputTiling> vpux::VPUIP::DpuTiler::getSplitPool() {

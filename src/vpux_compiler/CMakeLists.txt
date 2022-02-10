@@ -424,7 +424,6 @@ target_include_directories(${OBJ_TARGET_NAME}
         ${VPUNN_INCLUDE_DIRS}
 )
 
-# enable vpunn cost model on linux platform
 find_package(Git REQUIRED)
 add_custom_target(download_vpu_cost_nn_model ALL
         COMMAND ${GIT_EXECUTABLE} lfs pull

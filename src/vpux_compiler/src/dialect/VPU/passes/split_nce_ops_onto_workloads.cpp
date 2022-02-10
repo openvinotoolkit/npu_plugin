@@ -106,19 +106,12 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     }
 
     // select workload with minimum cost
-    uint32_t bestScore = UINT32_MAX;
+    uint32_t bestScore = std::numeric_limits<uint32_t>::max();
     int best = -1;
-    llvm::outs() << "{\n";
-    origOp->print(llvm::outs());
-    llvm::outs() << "\n";
-    llvm::outs() << "workloads candidates: {\n";
 
     const auto& splitCandidates = dpuTiler.getSplitPool();
     for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
-        llvm::outs() << "workload " << idx << ": {\n";
         auto score = dpuTiler.cost(splitCandidates[idx], costParams);
-        llvm::outs() << "},\n";
-        llvm::outs() << "total score: " << score << "\n";
         if (bestScore > score) {
             bestScore = score;
             best = static_cast<int>(idx);
@@ -127,11 +120,6 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     if (best == -1) {
         VPUX_THROW("no workload splits found!");
     }
-    llvm::outs() << "},\n";
-    if (best != 0) {
-        llvm::outs() << "best candidates:" << best << "\n";
-    }
-    llvm::outs() << "},\n";
     const auto& outTiles = splitCandidates[best];
 
     for (const auto& outTile : outTiles) {
@@ -213,7 +201,7 @@ static SmallVector<int64_t> getOpKernelSize(ConcreteOp origOp) {
 #undef CASE
 
     return kernelSize;
-}  // namespace
+}
 
 template <class ConcreteOp>
 static SmallVector<int64_t> getOpKernelStride(ConcreteOp origOp) {
@@ -236,7 +224,7 @@ static SmallVector<int64_t> getOpKernelStride(ConcreteOp origOp) {
     });
 #undef CASE
     return strides;
-}  // namespace
+}
 
 template <class ConcreteOp>
 mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
@@ -327,8 +315,8 @@ void SplitNCEOpsOntoWorkloadsPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<GenericNCERewrite<VPU::NCEConvolutionOp>>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<GenericNCERewrite<VPU::NCEDepthConvolutionOp>>(&ctx, dpuExec.count(), arch, _log);
     patterns.insert<GenericNCERewrite<VPU::NCEMaxPoolOp>>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<GenericNCERewrite<VPU::NCEDepthConvolutionOp>>(&ctx, dpuExec.count(), arch, _log);
     patterns.insert<GenericNCERewrite<VPU::NCEEltwiseOp>>(&ctx, dpuExec.count(), arch, _log);
 
     mlir::ConversionTarget target(ctx);
