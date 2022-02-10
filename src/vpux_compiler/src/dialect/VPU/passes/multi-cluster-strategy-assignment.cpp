@@ -56,7 +56,7 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped into NCEClusterTiling");
     }
 
-    // Retrieve the strategy
+
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
 
     if (strategy == splitOverHeightOverLappedStrategy) {
@@ -65,7 +65,7 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
         activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 4, 1}));
         weightTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
     } else if (strategy == splitOverHeightStrategy) {
-        activationTensorDistributionMode = vpux::VPU::DistributionMode::overlapped;
+        activationTensorDistributionMode = vpux::VPU::DistributionMode::segmented;
         weightsTensorDistributionMode = vpux::VPU::DistributionMode::multicasted;
         activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 4, 1}));
         weightTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
@@ -121,7 +121,7 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
 
     rewriter.replaceOp(origOp, outputCopyOp->getResults());
     return mlir::success();
-}
+}  // namespace
 
 //
 // MultiClusterStrategyAssignmentPass
@@ -159,6 +159,12 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
         }
         return true;
     });
+
+    // If an operation does not have multi-cluster strategy, it doesn't fit in CMX, it will be tiled instead.
+    target.addDynamicallyLegalOp<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp op) {
+        return !op->hasAttr(multiClusterStrategy);
+    });
+
     target.addLegalOp<VPU::NCEClusterTilingOp>();
 
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
