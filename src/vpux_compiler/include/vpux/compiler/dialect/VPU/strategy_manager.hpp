@@ -256,7 +256,7 @@ vpux::VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorT
     const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(origOp.output()).toAffineMap(origOp.getContext()));
 
     // Element type
-    auto elemType = origOp.filter().getType().template cast<mlir::ShapedType>().getElementType();
+    auto elemType = origOp.output().getType().template cast<mlir::ShapedType>().getElementType();
 
     // Create DistributedTensorType
     return vpux::VPU::DistributedTensorType::get(origOp.getContext(), outputShape.raw(), elemType, order, memSpace,

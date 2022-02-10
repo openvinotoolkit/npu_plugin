@@ -30,12 +30,12 @@
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/VPU/generated/ops.hpp.inc>
 
+namespace vpux {
+namespace VPU {
+
 //
 // Operation verifiers
 //
-
-namespace vpux {
-namespace VPU {
 
 mlir::LogicalResult verifyConv(mlir::Location loc, ArchKind arch, NCEConvolutionOpAdaptor op, mlir::Value output);
 
