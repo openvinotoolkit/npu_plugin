@@ -96,6 +96,33 @@ MVCNN::Permutation nb::to_odu_permutation(llvm::StringRef str) {
     return MVCNN::Permutation::Permutation_MIN;
 }
 
+nb::MemoryLocation nb::to_memory_location(llvm::StringRef str) {
+    if (isEqual(str, "CMX0")) {
+        return nb::MemoryLocation::CMX0;
+    }
+    if (isEqual(str, "CMX1")) {
+        return nb::MemoryLocation::CMX1;
+    }
+    if (isEqual(str, "DDR")) {
+        return nb::MemoryLocation::DDR;
+    }
+
+    return nb::MemoryLocation::Unknown;
+}
+
+std::string nb::to_string(nb::MemoryLocation memoryLocation) {
+    switch (memoryLocation) {
+    case MemoryLocation::CMX0:
+        return "CMX0";
+    case MemoryLocation::CMX1:
+        return "CMX1";
+    case MemoryLocation::DDR:
+        return "DDR";
+    default:
+        return "Unknown";
+    }
+}
+
 nb::ActivationType nb::to_activation_type(llvm::StringRef str) {
     if (!str.size() || isEqual(str, "None")) {
         return nb::ActivationType::None;
@@ -150,6 +177,8 @@ std::string nb::to_string(nb::ActivationType activationType) {
 
 std::string nb::to_string(CaseType case_) {
     switch (case_) {
+    case CaseType::DMA:
+        return "DMA";
     case CaseType::ZMajorConvolution:
         return "ZMajorConvolution";
     case CaseType::DepthWiseConv:
@@ -176,6 +205,8 @@ std::string nb::to_string(CaseType case_) {
 }
 
 nb::CaseType nb::to_case(llvm::StringRef str) {
+    if (isEqual(str, "DMA"))
+        return CaseType::DMA;
     if (isEqual(str, "ZMajorConvolution"))
         return CaseType::ZMajorConvolution;
     if (isEqual(str, "DepthWiseConv"))
@@ -292,6 +323,29 @@ nb::OutputLayer nb::TestCaseJsonDescriptor::loadOutputLayer(llvm::json::Object* 
 
     result.qp = loadQuantizationParams(output);
     result.dtype = to_dtype(output->getString("dtype").getValue().str());
+
+    return result;
+}
+
+nb::DMAparams nb::TestCaseJsonDescriptor::loadDMAParams(llvm::json::Object* jsonObj) {
+    nb::DMAparams result;
+
+    auto* params = jsonObj->getObject("DMA_params");
+    if (!params) {
+        VPUX_THROW("DMA params doesn't provided");
+    }
+
+    auto srcMemLoc = params->getString("src_memory_location");
+    VPUX_THROW_UNLESS(srcMemLoc.hasValue(), "Source memory location doesn't provided");
+    result.srcLocation = to_memory_location(srcMemLoc.getValue());
+
+    auto dstMemLoc = params->getString("dst_memory_location");
+    VPUX_THROW_UNLESS(dstMemLoc.hasValue(), "Destination memory location doesn't provided");
+    result.dstLocation = to_memory_location(dstMemLoc.getValue());
+
+    auto dmaEngine = params->getInteger("dma_engine");
+    VPUX_THROW_UNLESS(dmaEngine.hasValue(), "DMA engine doesn't provided");
+    result.engine = dmaEngine.getValue();
 
     return result;
 }
@@ -484,6 +538,11 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
 
     // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
     // eltwise needed).
+    if (caseType_ == CaseType::DMA) {
+        DMAparams_ = loadDMAParams(json_obj);
+        return;
+    }
+
     if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv ||
         caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMAACT) {
         wtLayer_ = loadWeightLayer(json_obj);

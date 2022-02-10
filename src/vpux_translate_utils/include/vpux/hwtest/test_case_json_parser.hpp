@@ -26,6 +26,7 @@
 
 namespace nb {
 enum class CaseType {
+    DMA,
     ZMajorConvolution,
     DepthWiseConv,
     EltwiseAdd,
@@ -43,6 +44,10 @@ std::string to_string(CaseType case_);
 CaseType to_case(llvm::StringRef str);
 
 enum class DType { U4, I4, U8, I8, I32, FP8, FP16, FP32, BF16, UNK };
+
+enum class MemoryLocation { CMX0, CMX1, DDR, Unknown };
+MemoryLocation to_memory_location(llvm::StringRef str);
+std::string to_string(MemoryLocation memoryLocation);
 
 DType to_dtype(llvm::StringRef str);
 std::string to_string(DType dtype);
@@ -69,6 +74,12 @@ struct WeightLayer {
     QuantParams qp;
     std::array<std::int64_t, 4> shape = {0};
     std::string filename;
+};
+
+struct DMAparams {
+    MemoryLocation srcLocation;
+    MemoryLocation dstLocation;
+    int64_t engine;
 };
 
 struct ConvLayer {
@@ -121,6 +132,9 @@ public:
     OutputLayer getOutputLayer() const {
         return outLayer_;
     }
+    DMAparams getDMAparams() const {
+        return DMAparams_;
+    }
     ConvLayer getConvLayer() const {
         return convLayer_;
     }
@@ -153,6 +167,7 @@ private:
     InputLayer loadInputLayer(llvm::json::Object* jsonObj);
     WeightLayer loadWeightLayer(llvm::json::Object* jsonObj);
     OutputLayer loadOutputLayer(llvm::json::Object* jsonObj);
+    DMAparams loadDMAParams(llvm::json::Object* jsonObj);
     ConvLayer loadConvLayer(llvm::json::Object* jsonObj);
     PoolLayer loadPoolLayer(llvm::json::Object* jsonObj);
     ActivationLayer loadActivationLayer(llvm::json::Object* jsonObj);
@@ -161,6 +176,7 @@ private:
     std::size_t loadIterationCount(llvm::json::Object* obj);
 
     CaseType caseType_;
+    DMAparams DMAparams_;
     ConvLayer convLayer_;
     PoolLayer poolLayer_;
     InputLayer inLayer_;

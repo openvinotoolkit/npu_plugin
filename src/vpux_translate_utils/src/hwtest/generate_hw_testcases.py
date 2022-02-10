@@ -1224,6 +1224,67 @@ class ActKernel(MPE):
             return False
         return True
 
+class MemoryLocation(Enum):
+    DDR = auto()
+    CMX0 = auto()
+    CMX1 = auto()
+
+class DMA(MPE):
+
+    PARAMS = ['mpe_op_class', 'input_ttype', 'output_ttype', 'input_shape', 'src_memloc', 'dst_memloc', 'dma_engine']
+
+    def __init__(self, settings):
+        self.settings = settings
+
+    def json_info(self, input, output):
+        return {
+            'case_type': 'DMA',
+            'input': input[0].json_info,
+            'output': output.json_info,
+            'DMA_params': {
+                'src_memory_location' : self.settings.src_memloc.name,
+                'dst_memory_location' : self.settings.dst_memloc.name,
+                'dma_engine' : self.settings.dma_engine
+            }
+        }
+
+    def validate(self):
+        pass
+
+    @property
+    def ident(self) -> str:
+        return f'DMA_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_from_{self.settings.src_memloc.name}_to_{self.settings.dst_memloc.name}_engine_{self.settings.dma_engine}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def data(self) -> dict:
+        return {
+            'Op Mode': 'MPE_DMA',
+            'Input Type': self.settings.input_ttype.stype,
+            'Output Type': self.settings.output_ttype.stype,
+            'Src location': self.settings.src_memloc.name,
+            'Dst location': self.settings.dst_memloc.name,
+            'Engine': self.settings.dma_engine
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
+        ]
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        return values[0].data
+
+    def filter_issues(self, args) -> bool:
+        return True
+
 class RaceConditionDMA(MPE):
 
     PARAMS = ['mpe_op_class', 'input_ttype', 'output_ttype', 'iteration_count']
@@ -1795,6 +1856,20 @@ def genActShave(input_types,
                act_shave_subtypes):
     for (input_type, input_shape, output_type, act_shave_subtype) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes):
         yield DPUPipeline(ActKernel.PARAMS, (ActKernel, input_type, input_shape, output_type, act_shave_subtype))
+
+AVAILABLE_CMX_SIZE = 1024*1942 # size in Bytes
+HALF_OF_CMX_SIZE = int(AVAILABLE_CMX_SIZE/2)
+
+def genDMA(tensor_types=[FP16(2)], input_shapes=[[1, 16, 32, 32]], src_locations=[MemoryLocation.CMX0], dst_locations=[MemoryLocation.CMX0], dma_engines=[0]):
+    for (tensor_type, input_shape, src_location, dst_location, dma_engine) in itertools.product(tensor_types, input_shapes, src_locations, dst_locations, dma_engines):
+        yield DPUPipeline(DMA.PARAMS, (DMA,
+                                       tensor_type,
+                                       tensor_type,
+                                       input_shape,
+                                       src_location,
+                                       dst_location,
+                                       dma_engine
+                                       ))
 
 def genRaceConditionDMA(input_types=[FP16(2)],
                         output_types=[FP16(2)],
@@ -2455,7 +2530,28 @@ def generate_options(args):
             output_types=[FP16()],
             output_orders=[Order.NCHW],
             pads=[[0, 0, 0, 0]]),
+        # check all datatypes
+        genDMA(
+            tensor_types=[Int4(3), UInt4(3), Int8(3), UInt8(3), FP16(4), BF16(4)],
+            input_shapes=[[1, 16, 32, 32]]
+        ),
 
+        # check all memory locations
+        genDMA(
+            tensor_types=[Int8(3)],
+            input_shapes=[[1, 32, 16, 16]],
+            src_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1, MemoryLocation.DDR],
+            dst_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1, MemoryLocation.DDR],
+            dma_engines=[0, 1]
+        ),
+        # check max aviable CMX
+        genDMA(
+            tensor_types=[UInt8(3)],
+            input_shapes=[[1, 1, 1, HALF_OF_CMX_SIZE]],
+            src_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1],
+            dst_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1],
+            dma_engines=[0, 1]
+        ),
         genRaceConditionDMA(
             input_types=[FP16(2)],
             output_types=[FP16(2)],

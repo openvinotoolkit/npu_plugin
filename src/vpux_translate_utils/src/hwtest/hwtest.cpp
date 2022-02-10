@@ -52,6 +52,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     // This will be handled later based on op type in config json
     auto opType = jsonDesc.getCaseStr();
 
+    bool isDMA = jsonDesc.getCaseType() == nb::CaseType::DMA;
     bool isConv = jsonDesc.getCaseType() == nb::CaseType::ZMajorConvolution;
     bool isDepthwiseConv = jsonDesc.getCaseType() == nb::CaseType::DepthWiseConv;
     bool isEltwiseAdd = jsonDesc.getCaseType() == nb::CaseType::EltwiseAdd;
@@ -73,7 +74,9 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         return weight.shape[1];
     };
 
-    if (isConv) {
+    if (isDMA) {
+        hwtest::buildDMA(jsonDesc, module, builder, log, input_type, output_type);
+    } else if (isConv) {
         if (weightInChannels() > 8 * 1024) {
             hwtest::buildContinuedConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
         } else {
