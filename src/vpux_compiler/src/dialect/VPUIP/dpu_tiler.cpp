@@ -39,6 +39,8 @@ static VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
         return VPUNN::ExecutionMode::CUBOID_16x16;
     case VPU::MPEMode::CUBOID_8x16:
         return VPUNN::ExecutionMode::CUBOID_8x16;
+    case VPU::MPEMode::CUBOID_4x16:
+        return VPUNN::ExecutionMode::CUBOID_4x16;
     default:
         VPUX_THROW("Unsupported MPE mode type: '{0}'", mpeMode);
     }
