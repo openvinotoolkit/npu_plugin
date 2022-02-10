@@ -1626,6 +1626,46 @@ operation ::= `VPUIP.PReluUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.PSROIPoolingUPA` (vpux::VPUIP::PSROIPoolingUPAOp)
+
+PSROIPooling UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.PSROIPoolingUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`output_dim` | mlir::IntegerAttr | Integer attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
+`group_size` | mlir::IntegerAttr | Integer attribute
+`spatial_bins_x` | mlir::IntegerAttr | Integer attribute
+`spatial_bins_y` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::PSROIPoolingModeAttr | PSROIPoolingMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`coords` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.Pad` (vpux::VPUIP::PadUPAOp)
 
 Pad UPA SHAVE kernel

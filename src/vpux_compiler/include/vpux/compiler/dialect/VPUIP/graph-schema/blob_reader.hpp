@@ -96,6 +96,8 @@ private:
                                     ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseROIPooling(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                      ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
+    mlir::Operation* parsePSROIPooling(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                       ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseROIAlign(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                    ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseSoftmax(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs, ArrayRef<mlir::Value> outputs,

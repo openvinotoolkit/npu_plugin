@@ -467,4 +467,21 @@ def IE_ColorFmt :
     let genSpecializedAttr = 1;
     }
 
+//
+// PSROIPoolingMode
+//
+
+def IE_PSROIPoolingMode :
+        StrEnumAttr<
+            "PSROIPoolingMode",
+            "PSROIPoolingMode that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"AVERAGE">,
+                StrEnumAttrCase<"BILINEAR">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
 #endif
