@@ -62,6 +62,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     bool isActShave = jsonDesc.getCaseType() == nb::CaseType::ActShave;
     bool isRaceConditionDMA = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDMA;
     bool isRaceConditionDPU = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDPU;
+    bool isRaceConditionDPUDMA = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDPUDMA;
     bool isRaceConditionDPUDMAACT = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDPUDMAACT;
 
     auto weightType = [&]() {
@@ -99,6 +100,8 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         hwtest::buildRaceConditionDMATest(jsonDesc, module, builder, log, input_type, output_type);
     } else if (isRaceConditionDPU) {
         hwtest::buildRaceConditionDPUTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+    } else if (isRaceConditionDPUDMA) {
+        hwtest::buildRaceConditionDPUDMATest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else if (isRaceConditionDPUDMAACT) {
         hwtest::buildRaceConditionDPUDMAACTTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else {

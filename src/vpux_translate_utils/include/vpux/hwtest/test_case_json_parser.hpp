@@ -36,6 +36,7 @@ enum class CaseType {
     ActShave,
     RaceConditionDMA,
     RaceConditionDPU,
+    RaceConditionDPUDMA,
     RaceConditionDPUDMAACT,
     Unknown
 };

@@ -197,6 +197,8 @@ std::string nb::to_string(CaseType case_) {
         return "RaceConditionDMA";
     case CaseType::RaceConditionDPU:
         return "RaceConditionDPU";
+    case CaseType::RaceConditionDPUDMA:
+        return "RaceConditionDPUDMA";
     case CaseType::RaceConditionDPUDMAACT:
         return "RaceConditionDPUDMAACT";
     default:
@@ -226,6 +228,8 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::RaceConditionDMA;
     if (isEqual(str, "RaceConditionDPU"))
         return CaseType::RaceConditionDPU;
+    if (isEqual(str, "RaceConditionDPUDMA"))
+        return CaseType::RaceConditionDPUDMA;
     if (isEqual(str, "RaceConditionDPUDMAACT"))
         return CaseType::RaceConditionDPUDMAACT;
     return CaseType::Unknown;
@@ -544,7 +548,8 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
     }
 
     if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv ||
-        caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMAACT) {
+        caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMA ||
+        caseType_ == CaseType::RaceConditionDPUDMAACT) {
         wtLayer_ = loadWeightLayer(json_obj);
         convLayer_ = loadConvLayer(json_obj);
 
@@ -552,7 +557,7 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
             odu_permutation_ = to_odu_permutation(json_obj->getString("output_order").getValue());
         }
 
-        if (caseType_ == CaseType::RaceConditionDPU) {
+        if (caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMA) {
             iterationCount_ = loadIterationCount(json_obj);
         }
         if (caseType_ == CaseType::RaceConditionDPUDMAACT) {

@@ -82,6 +82,9 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
 void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
                                mlir::Type outputType);
+void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                  mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                  mlir::Type outputType);
 void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                      mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
                                      mlir::Type outputType);
