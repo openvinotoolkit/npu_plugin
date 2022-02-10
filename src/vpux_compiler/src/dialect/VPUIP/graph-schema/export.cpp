@@ -227,46 +227,27 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
 }
 
 flatbuffers::Offset<MVCNN::PerformanceMetrics> createPerformanceMetrics(VPUIP::BlobWriter& writer) {
-    MVCNN::PerformanceMetricsBuilder PMBuilder(writer);
-    PMBuilder.add_freq_base(FREQ_BASE);
-    PMBuilder.add_freq_step(FREQ_STEP);
-    PMBuilder.add_bw_base(BW_BASE);
-    PMBuilder.add_bw_step(BW_STEP);
-
     // value in [0.0..1.0] range indicating scalability of network for a given DDR bandwidth.
     static const SmallVector<float> byBWScales({0.0F, 0.2F, 0.4F, 0.6F, 0.8F});
-    SmallVector<flatbuffers::Offset<MVCNN::ScalabilityByBandwidth>> scaleByFreq;
-    MVCNN::ScalabilityByBandwidthBuilder scalabilityByBandwidthBuilder(writer);
 
     // expected ticks (based on FRC @37.5MHz) an inference should take for a given DDR bandwidth.
     static const SmallVector<uint64_t> byBWTicks({10UL, 12UL, 14UL, 16UL, 18UL});
+
+    SmallVector<flatbuffers::Offset<MVCNN::ScalabilityByBandwidth>> scaleByFreq;
     SmallVector<flatbuffers::Offset<MVCNN::InferenceTimingByBandwidth>> inferenceTimingByFreq;
-    MVCNN::InferenceTimingByBandwidthBuilder inferenceTimingByBandwidthBuilder(writer);
+    scaleByFreq.reserve(NUM_ENTRIES);
+    inferenceTimingByFreq.reserve(NUM_ENTRIES);
 
     for (uint32_t i = 0; i < NUM_ENTRIES; ++i) {
-        // create set of values for particular frequency
-        scalabilityByBandwidthBuilder.add_by_bw(writer.createVector(byBWScales));
-        auto scalabilityByBandwidth = scalabilityByBandwidthBuilder.Finish();
-        scaleByFreq.push_back(scalabilityByBandwidth);
-
-        inferenceTimingByBandwidthBuilder.add_by_bw(writer.createVector(byBWTicks));
-        auto inferenceTimingByBandwidth = inferenceTimingByBandwidthBuilder.Finish();
-        inferenceTimingByFreq.push_back(inferenceTimingByBandwidth);
+        scaleByFreq.push_back(MVCNN::CreateScalabilityByBandwidth(writer, writer.createVector(byBWScales)));
+        inferenceTimingByFreq.push_back(
+                MVCNN::CreateInferenceTimingByBandwidth(writer, writer.createVector(byBWTicks)));
     }
 
-    // Scalability by frequency & bandwidth.
-    MVCNN::ScalabilityBuilder scalabilityBuilder(writer);
-    scalabilityBuilder.add_by_freq(writer.createVector(scaleByFreq));
-    auto scalability = scalabilityBuilder.Finish();
-    PMBuilder.add_scalability(scalability);
-
-    // InferenceTiming by frequency & bandwidth.
-    MVCNN::InferenceTimingBuilder inferenceTimingBuilder(writer);
-    inferenceTimingBuilder.add_by_freq(writer.createVector(inferenceTimingByFreq));
-    auto timing = inferenceTimingBuilder.Finish();
-    PMBuilder.add_timing(timing);
-
-    return PMBuilder.Finish();
+    return MVCNN::CreatePerformanceMetrics(
+            writer, FREQ_BASE, FREQ_STEP, BW_BASE, BW_STEP,
+            MVCNN::CreateScalability(writer, writer.createVector(scaleByFreq)),
+            MVCNN::CreateInferenceTiming(writer, writer.createVector(inferenceTimingByFreq)));
 }
 
 flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
