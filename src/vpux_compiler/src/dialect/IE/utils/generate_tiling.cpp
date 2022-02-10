@@ -47,7 +47,7 @@ Shape computeGeneralTileStrategy(mlir::Operation* op, Logger log) {
 
     const auto isSupportedTileSize = [&tilingInfo, outputShape, log](ShapeRef nTilesOnDim) -> bool {
         const auto tiles = fillDividedTiles(nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, log);
+        return tilingInfo.isSupportedTiling(tiles, log, TilingMode::ISOLATED_TILING);
     };
 
     const auto isSupportedChannelDivision = [&]() {

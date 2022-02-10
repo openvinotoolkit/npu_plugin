@@ -91,7 +91,7 @@ void IsolatedTilingPass::safeRunOnFunc() {
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
             const auto resShape = getShape(op->getResult(0));
-            return iface.isSupportedTiling({TileInfo(resShape)}, _log.nest());
+            return iface.isSupportedTiling({TileInfo(resShape)}, _log.nest(), TilingMode::ISOLATED_TILING);
         }
 
         return true;
