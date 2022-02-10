@@ -1,7 +1,7 @@
 default_config:
   view_filter: &default_view_filter "\
     -file:/CMakeFiles/,/_deps/,/thirdparty/,/pybind11/,/dependencies/,/opencv/,/boost/\
-    ,/ie_bridges/,/inference_engine/*.cxx,/offline_transformations/*.cxx,/tests/,/test/,/build/kmb_plugin/src/"
+    ,/bindings/,/inference_engine/*.cxx,/offline_transformations/*.cxx,/tests/,/test/,/build/kmb_plugin/src/"
 projects:
   openvino-kmb-release-linux:
     sync:
