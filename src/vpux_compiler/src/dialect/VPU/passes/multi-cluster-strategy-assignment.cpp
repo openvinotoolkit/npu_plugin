@@ -102,7 +102,17 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
             origOp->getLoc(), distributedOutputTensorType,
             mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0)},
             bodyBuilder);
-    auto outputCopyOp = rewriter.create<IE::CopyOp>(clusterTilingOp->getLoc(), clusterTilingOp.getResult(0));
+
+    const auto outputTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
+                                             mlir::ValueRange newOperands) {
+        auto outputTensorDistributedCopyOp = builder.create<IE::CopyOp>(origOp->getLoc(), newOperands[0]);
+        builder.create<VPU::YieldOp>(loc, outputTensorDistributedCopyOp->getResults());
+    };
+
+    auto outputCopyOp =
+            rewriter.create<VPU::NCEClusterTilingOp>(clusterTilingOp->getLoc(), origOp.output().getType(),
+                                                     clusterTilingOp->getResult(0), outputTensorBodyBuilder);
+
     rewriter.replaceOp(origOp, outputCopyOp->getResults());
     return mlir::success();
 }
