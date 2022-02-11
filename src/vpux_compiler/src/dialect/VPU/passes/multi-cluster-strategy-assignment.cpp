@@ -89,6 +89,10 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
     auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
             origOp, activationTensorDistributionMode, activationTensorNumTiles);
 
+    // save original output memspace
+    const auto origOutType = origOp.output().getType();
+    const auto origOutMemSpace = IE::getMemorySpace(origOutType.cast<mlir::RankedTensorType>());
+
     // Set the output of the VPU::NCEConvolutionOp to be in CMX
     auto origOutput = origOp->getResult(0);
     const auto cmxMemSpace =
@@ -110,15 +114,16 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
 
     const auto outputTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
                                              mlir::ValueRange newOperands) {
-        auto outputTensorDistributedCopyOp = builder.create<IE::CopyOp>(origOp->getLoc(), newOperands[0]);
+        auto outputTensorDistributedCopyOp = builder.create<IE::CopyOp>(loc, newOperands[0], origOutMemSpace);
         builder.create<VPU::YieldOp>(loc, outputTensorDistributedCopyOp->getResults());
     };
 
-    auto outputCopyOp =
-            rewriter.create<VPU::NCEClusterTilingOp>(clusterTilingOp->getLoc(), origOp.output().getType(),
-                                                     clusterTilingOp->getResult(0), outputTensorBodyBuilder);
+    auto outputCopyOp = rewriter.create<VPU::NCEClusterTilingOp>(
+            clusterTilingOp->getLoc(), origOutType, clusterTilingOp->getResult(0), outputTensorBodyBuilder);
 
-    rewriter.replaceOp(origOp, outputCopyOp->getResults());
+    origOutput.replaceAllUsesWith(outputCopyOp->getResult(0));
+    rewriter.replaceOp(origOp, outputCopyOp->getResult(0));
+
     return mlir::success();
 }
 
