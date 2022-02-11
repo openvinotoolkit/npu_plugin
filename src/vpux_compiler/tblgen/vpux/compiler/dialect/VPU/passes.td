@@ -70,6 +70,10 @@ def MultiClusterStrategyAssignment : PassBase<"multi-cluster-stragegy-assignment
     }];
 
     let constructor = "vpux::VPU::createMultiClusterStrategyAssignmentPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
 }
 
 //
