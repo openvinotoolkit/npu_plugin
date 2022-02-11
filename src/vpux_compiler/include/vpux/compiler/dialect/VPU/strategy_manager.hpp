@@ -62,7 +62,7 @@ private:
     template <class ConcreteOp>
     bool isOperationSplitOverKernelCompatible(ConcreteOp op);
     template <class ConcreteOp>
-    void assignMultiClusterStrategyForEltwise(ConcreteOp& op);
+    void assignMultiClusterStrategyForEltwiseAndMaxPool(ConcreteOp& op);
     void assignMultiClusterStrategy(mlir::Operation* op);
     double calculateSplitOverHeightEfficency(mlir::Operation* op);
     double calculateSplitOverKernelEfficency(mlir::Operation* op);
@@ -99,7 +99,7 @@ bool StrategyManager::isOperationSplitOverKernelCompatible(ConcreteOp op) {
 }
 
 template <class ConcreteOp>
-void StrategyManager::assignMultiClusterStrategyForEltwise(ConcreteOp& op) {
+void StrategyManager::assignMultiClusterStrategyForEltwiseAndMaxPool(ConcreteOp& op) {
     // If operation is not SOH compatible, then it has to be Clustering
     if (isOperationSplitOverHeightCompatible<ConcreteOp>(op)) {
         op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverH"));
