@@ -60,7 +60,33 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
 
         // Remove redundant CMX2CMX CopyOps
         if (srcMemory == dstMemory && srcMemory == VPU::MemoryKind::CMX_NN) {
-            copyOp.output().replaceAllUsesWith(copyOp.input());
+            // CMX Concat case with subView, update the buffers used
+            auto copySubView = copyOp.output_buff().getDefiningOp<IERT::SubViewOp>();
+            if (copySubView != nullptr) {
+                // retrieve operations to be re-linked
+                auto parentNCE = copyOp.input().getDefiningOp<VPUIP::NCEClusterTaskOp>();
+                if (parentNCE == nullptr) {
+                    return mlir::failure();
+                }
+                auto masterBuffer = copySubView.source().getDefiningOp<mlir::memref::AllocOp>();
+                if (masterBuffer == nullptr) {
+                    return mlir::failure();
+                }
+                // replace the copy with the subView
+                copySubView->moveAfter(parentNCE.input().getDefiningOp());
+                parentNCE.output().setType(copySubView.getType());
+                parentNCE.output_buff().replaceAllUsesWith(copySubView);
+                copyOp.output().replaceAllUsesWith(copyOp.input());
+                copyOp.output().replaceAllUsesWith(copySubView.source());
+
+                // update IR location of the master buffer
+                if (copySubView->isBeforeInBlock(masterBuffer)) {
+                    masterBuffer->moveBefore(copySubView);
+                }
+            } else {
+                // case with no subView
+                copyOp.output().replaceAllUsesWith(copyOp.input());
+            }
             rewriter.eraseOp(copyOp);
             return mlir::success();
         }
