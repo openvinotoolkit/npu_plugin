@@ -33,6 +33,7 @@ constexpr llvm::StringLiteral splitOverHeightOverLapped =
 constexpr llvm::StringLiteral splitOverHeight = "SplitOverHeight";
 constexpr llvm::StringLiteral splitOverKernel = "SplitOverKernel";
 constexpr llvm::StringLiteral clustering = "Clustering";
+enum class multiClusterStrategyRange { Cluster, SplitOverH, SplitOverK, SplitOverHOverlapped };
 
 //
 // StrategyManager
@@ -77,6 +78,8 @@ private:
     double getOperationSOKEfficiency(ConcreteOp op) const;
     template <class ConcreteOp>
     double depthwiseConvolutionTotalDataTransfer(ConcreteOp origOp, const llvm::StringRef strategy) const;
+    double dpuComputeTime(mlir::Operation* op, multiClusterStrategyRange Strategy);
+    double dmaTime(mlir::Operation* op, multiClusterStrategyRange Strategy);
 
     double computeLayerSplitOverHeightEfficency(mlir::Operation* op) const;
     double computeLayerSplitOverKernelEfficency(mlir::Operation* op) const;

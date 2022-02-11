@@ -235,6 +235,42 @@ double StrategyManager::computeLayerSplitOverKernelEfficency(mlir::Operation* op
             });
 }
 
+double StrategyManager::dpuComputeTime(mlir::Operation* op, multiClusterStrategyRange Strategy) {
+    const auto outputShape = getShape(op->getResult(0));
+    auto clusterOutShape = outputShape.toValues();
+    if (Strategy == multiClusterStrategyRange::SplitOverH ||
+        Strategy == multiClusterStrategyRange::SplitOverHOverlapped) {
+        clusterOutShape[Dims4D::Act::H] = outputShape[Dims4D::Act::H] / _numClusters;
+    } else if (Strategy == multiClusterStrategyRange::SplitOverK) {
+        clusterOutShape[Dims4D::Act::C] = outputShape[Dims4D::Act::C] / _numClusters;
+    }
+
+    size_t baseKernelCost;
+    if (mlir::dyn_cast<VPU::NCEEltwiseOp>(op) || mlir::dyn_cast<IE::ConcatOp>(op)) {
+        baseKernelCost = 1;
+    } else if (auto maxPoolOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(op)) {
+        auto kernel = parseIntArrayAttr<int64_t>(maxPoolOp.kernel_size());
+        baseKernelCost = kernel[0] * kernel[1];
+    } else if (mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op) || mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
+        auto weightsShape = getShape(op->getOperand(1));
+        baseKernelCost = weightsShape[Dims4D::Act::H] * weightsShape[Dims4D::Act::W];
+    } else {
+        VPUX_THROW("Invalid operation type");
+    }
+    bool channelAccum = (mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) ? true : false;
+    if (channelAccum) {
+        auto weightsShape = getShape(op->getOperand(1));
+        baseKernelCost *= weightsShape[Dims4D::Act::C];
+    }
+
+    double dpuEff = 1;
+
+    return ((double)(clusterOutShape.totalSize() * baseKernelCost) / dpuEff);
+}
+
+double dmaTime(mlir::Operation* op, multiClusterStrategyRange Strategy) {
+}
+
 // This method computes the multi-cluster efficiency for an operation
 void StrategyManager::computeOptimalMultiClusterStrategy() {
     const auto callback = [&](mlir::Operation* op) {
