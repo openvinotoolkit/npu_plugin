@@ -25,14 +25,13 @@ namespace IE {
 // Experimental number to avoid memory fragmentation when generating tiling.
 static constexpr double FRAGMENTATION_AVOID_RATIO = 0.9;
 
-Shape computeGeneralTileStrategy(mlir::Operation* op, Logger log);
+OutputTiling getTilingStrategy(mlir::Operation* op, Logger log,
+                               const TilingMode& tilingMode = TilingMode::ISOLATED_TILING);
 mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outputTile, mlir::OpBuilder& builder,
                       Logger log);
 mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, OutputTiling tiles,
                                       mlir::PatternRewriter& rewriter, Logger log);
 mlir::Operation* getParentTargetOp(mlir::Operation* op);
-OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log);
-SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Operation* parentOp, Logger log);
 bool prefetchTilingConditionsViolated(mlir::Operation* op, Logger log);
 
 }  // namespace IE
