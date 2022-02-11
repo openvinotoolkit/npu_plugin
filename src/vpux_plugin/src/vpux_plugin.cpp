@@ -248,7 +248,7 @@ IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
 IE::Parameter Engine::GetConfig(const std::string& name,
                                 const std::map<std::string, IE::Parameter>& /*options*/) const {
     if (GetCore()->isNewAPI()) {
-        if (name == ov::streams::num) {
+        if (name == ov::num_streams) {
             return _globalConfig.get<THROUGHPUT_STREAMS>();
         } else if (name == ov::enable_profiling) {
             return _globalConfig.get<PERF_COUNT>();
@@ -314,7 +314,7 @@ IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::str
                     RO_property(ov::range_for_streams.name()),               //
                     RO_property(ov::device::architecture.name()),            //
 
-                    RW_property(ov::streams::num.name()),            //
+                    RW_property(ov::num_streams.name()),            //
                     RW_property(ov::enable_profiling.name()),        //
                     RW_property(ov::hint::performance_mode.name()),  //
                     RW_property(ov::log::level.name()),              //
