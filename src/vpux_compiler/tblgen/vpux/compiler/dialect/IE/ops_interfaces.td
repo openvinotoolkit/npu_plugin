@@ -217,12 +217,6 @@ def IE_TilingInfoOpInterface : OpInterface<"TilingInfoOpInterface"> {
             "bool", "isSupportedTiling",
             (ins "const vpux::OutputTiling&":$tiles, "vpux::Logger":$log, "const vpux::TilingMode&":$tilingMode)
         >,
-
-        InterfaceMethod<
-            "Check, if the pattern (current op and parent op, with specific tiling) supports prefetch with cmx memory checking only",
-            "bool", "isSupportedPrefetchPattern",
-            (ins "ShapeRef":$tileAxis, "mlir::Operation*":$parentOp, "ShapeRef":$parentTileAxis, "vpux::Logger":$log)
-        >,
     ];
 
     let verify = [{

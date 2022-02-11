@@ -33,8 +33,9 @@ namespace vpux {
 //
 
 enum class TilingMode {
-    ISOLATED_TILING,  // Default tiling mode in reference pipeline
-    PREFETCH_TILING   // Tile more to enable prefetching inside one layer
+    ISOLATED_TILING,         // Default tiling mode in reference pipeline
+    PREFETCH_TILING,         // Tile more to enable prefetching inside one layer
+    PATTERN_PREFETCH_TILING  // Tile more to enable prefetching between two adjacent layers
 };
 
 //

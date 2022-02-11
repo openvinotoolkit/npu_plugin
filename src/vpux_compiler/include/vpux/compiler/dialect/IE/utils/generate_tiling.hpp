@@ -22,6 +22,9 @@
 namespace vpux {
 namespace IE {
 
+// Experimental number to avoid memory fragmentation when generating tiling.
+static constexpr double FRAGMENTATION_AVOID_RATIO = 0.9;
+
 Shape computeGeneralTileStrategy(mlir::Operation* op, Logger log);
 mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outputTile, mlir::OpBuilder& builder,
                       Logger log);

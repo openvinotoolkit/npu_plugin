@@ -277,7 +277,8 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
     }
     // check if pattern supported
     const auto isSupportedTilesPattern = [&]() -> bool {
-        return tilingInfo.isSupportedPrefetchPattern(nTilesOnDim, parentOp, nTilesOnDimParent, log);
+        return tilingInfo.isSupportedTiling(fillDividedTiles(nTilesOnDim, outputShape), log,
+                                            TilingMode::PATTERN_PREFETCH_TILING);
     };
     const auto isSupportedChannelDivision = [&]() -> bool {
         if ((outputShape[Dims4D::Act::C] % nTilesOnDim[Dims4D::Act::C]) != 0) {
@@ -290,7 +291,7 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
     const auto isDimLeftToTile = [&]() -> bool {
         return nTilesOnDim[dimToTile] < maxNumTiles[dimToTile.ind()];
     };
-    // increase tiles on the dimention to tile until the tiling pattern
+    // increase tiles on the dimension to tile until the tiling pattern
     // is supported, do not exceed max tiles (HW req)
     while (!isSupportedTilesPattern()) {
         if (!isDimLeftToTile()) {
@@ -331,7 +332,8 @@ bool prefetchTilingConditionsViolated(mlir::Operation* op, Logger log) {
     // Check if tile pattern is supported
     const auto resShape = getShape(op->getResult(0));
     const Shape neutralTile(resShape.size(), 1);
-    if (opTilingInter.isSupportedPrefetchPattern(neutralTile, parentOp, neutralTile, log)) {
+    if (opTilingInter.isSupportedTiling(fillDividedTiles(neutralTile, resShape), log,
+                                        TilingMode::PATTERN_PREFETCH_TILING)) {
         return false;
     }
     // Try to tile to satisfy prefetching
