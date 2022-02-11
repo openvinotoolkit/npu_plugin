@@ -441,7 +441,8 @@ void singleShaveSoftmax(uint32_t lParams) {
             nnLog(MVLOG_DEBUG, ", new_axis %d, new ndims: %d\n", sp->axis, sp->ndims);
         }
     }
-
+    //    Inner 1 dimension added to make the algorithm work in 'calculateSoftMaxOuter' way
+    //    in the case when inner stride  more than size of one tensor element
     if (sp->axis == 0 &&
             (sp->in_strides[0]  > static_cast<int32_t>(sizeof(fp16)) ||
              sp->out_strides[0] > static_cast<int32_t>(sizeof(fp16)))) {
