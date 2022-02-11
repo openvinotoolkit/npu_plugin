@@ -185,7 +185,7 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
     const auto callback = [&](mlir::Operation* op) {
         llvm::TypeSwitch<mlir::Operation*, void>(op)
                 .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {
-
+                    assignMultiClusterStrategy(op);
                 })
                 .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp op) {
                     assignMultiClusterStrategy(op);
@@ -330,7 +330,10 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                                op->getName());
                 }
             })
+            .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp op) {
+                assignMultiClusterStrategyForEltwiseAndMaxPool<VPU::NCEMaxPoolOp>(op);
+            })
             .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp op) {
-                assignMultiClusterStrategyForEltwise<VPU::NCEEltwiseOp>(op);
+                assignMultiClusterStrategyForEltwiseAndMaxPool<VPU::NCEEltwiseOp>(op);
             });
 }

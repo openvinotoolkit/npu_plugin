@@ -120,7 +120,7 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
 
     rewriter.replaceOp(origOp, outputCopyOp->getResults());
     return mlir::success();
-}  // namespace
+}
 
 //
 // MultiClusterStrategyAssignmentPass
