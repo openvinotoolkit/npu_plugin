@@ -20,6 +20,24 @@ This object represents closely a Barrier in the device
 This object represents a set of memory references that compose sparse data
 ## Operation definition
 
+### `VPURT.AllocDistributed` (vpux::VPURT::AllocDistributed)
+
+Alloc VPUIP distributed buffer
+
+
+Syntax:
+
+```
+operation ::= `VPURT.AllocDistributed` attr-dict `->` type(results)
+```
+
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`buffer` | VPUIP buffer type to describe the buffer tiling
+
 ### `VPURT.ConfigureBarrier` (vpux::VPURT::ConfigureBarrierOp)
 
 A task to configure the setup for a barrier

@@ -33,7 +33,7 @@ private:
     void finalize() override;
 
 private:
-    StringSection* m_namesSection;
+    StringSection* m_namesSection = nullptr;
     std::vector<std::unique_ptr<Symbol>> m_symbols;
 
     friend Writer;

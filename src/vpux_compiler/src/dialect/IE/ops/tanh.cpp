@@ -1,4 +1,6 @@
 //
+// Copyright 2022 Intel Corporation.
+//
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
 // the Intel(R) OpenVINO(TM) Distribution License for the Software Package,

@@ -44,9 +44,13 @@ def VPU_DistributedTensor :
         ArrayRefParameter<"int64_t">:$shape,
         "mlir::Type":$elementType,
         "mlir::AffineMapAttr":$order,
-        "mlir::SymbolRefAttr":$memSpace,
+        "vpux::IndexedSymbolAttr":$memSpace,
         "DistributedTensorAttr":$distribution
     );
+
+    let extraClassDeclaration = [{
+        mlir::RankedTensorType getCompactType() const;
+    }];
 }
 
 #endif

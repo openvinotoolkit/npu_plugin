@@ -19,7 +19,9 @@
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
+#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
@@ -36,8 +38,6 @@
 //
 // Generated
 //
-
-#include <vpux/compiler/dialect/VPUIP/generated/dialect.hpp.inc>
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/VPUIP/generated/ops.hpp.inc>
@@ -81,6 +81,10 @@ mlir::LogicalResult verifyOp(ReverseSequenceUPAOp op);
 mlir::LogicalResult verifyOp(TopKUPAOp op);
 mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 mlir::LogicalResult verifyOp(NNDMAOp op);
+mlir::LogicalResult verifyOp(NCEClusterTilingOp op);
+
+void print(mlir::OpAsmPrinter& p, NCEClusterTilingOp op);
+mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);
 
 }  // namespace VPUIP
 }  // namespace vpux

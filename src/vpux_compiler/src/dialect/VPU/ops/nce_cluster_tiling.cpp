@@ -131,7 +131,12 @@ void vpux::VPU::NCEClusterTilingOp::build(mlir::OpBuilder& builder, mlir::Operat
     auto* bodyRegion = result.addRegion();
     auto& bodyBlock = bodyRegion->emplaceBlock();
     for (auto operand : operands) {
-        bodyBlock.addArgument(operand.getType());
+        auto type = operand.getType();
+        if (auto distributedType = type.dyn_cast<DistributedTensorType>()) {
+            type = distributedType.getCompactType();
+        }
+
+        bodyBlock.addArgument(type);
     }
 
     mlir::OpBuilder::InsertionGuard guard(builder);

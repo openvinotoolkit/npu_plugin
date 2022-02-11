@@ -25,6 +25,7 @@ include "vpux/compiler/dialect/VPU/attributes.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
+include "vpux/compiler/dialect/VPUIP/types.td"
 include "vpux/compiler/dialect/VPURT/types.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
@@ -32,6 +33,7 @@ include "mlir/Interfaces/CopyOpInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -2511,6 +2513,10 @@ def VPUIP_GatherUPAOp :
         return vpux::VPUIP::verifyOp(*this);
     }];
 
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
@@ -2874,6 +2880,52 @@ def VPUIP_YuvToRgbUPAOp :
         `->` type(results)
     }];
 
+}
+
+//
+// NCEClusterTiling
+//
+
+def VPUIP_NCEClusterTilingOp :
+        VPUIP_Op<
+            "NCEClusterTiling",
+            [
+                NoTerminator,
+                IsolatedFromAbove,
+                MultiViewOpInterface,
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
+                DeclareOpInterfaceMethods<RegionBranchOpInterface,
+                    ["getSuccessorEntryOperands", "getNumRegionInvocations"]>
+            ]
+        > {
+    let summary = "Operation that encapsulates details of tiling operation between clusters";
+
+    let arguments = (ins
+        Variadic<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$inputs,
+        Variadic<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$output_buffs
+    );
+
+    let results = (outs
+        Variadic<AnyTypeOf<[MemRefOf<[F16, BF16, quant_QuantizedType]>, VPUIP_DistributedBuffer]>>:$results
+    );
+
+    let regions = (region SizedRegion<1>:$body);
+
+    let printer = [{ return vpux::VPUIP::print(p, *this); }];
+    let parser = [{ return vpux::VPUIP::parse$cppClass(parser, result); }];
+    let verifier = [{ return vpux::VPUIP::verifyOp(*this); }];
+
+    let skipDefaultBuilders = 1;
+    let builders = [
+        OpBuilder<(ins "mlir::TypeRange":$resultTypes, "mlir::ValueRange":$operands,
+            "llvm::function_ref<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)>":$bodyBuilder)>,
+    ];
+
+    let extraClassDeclaration = [{
+      using BodyBuilderFn =
+          llvm::function_ref<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)>;
+    }];
 }
 
 #endif

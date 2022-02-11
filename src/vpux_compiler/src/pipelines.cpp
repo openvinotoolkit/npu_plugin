@@ -158,6 +158,9 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     IE::buildAdjustForVPUPipeline(pm, log);
 
+    if (options.enableSwapTransposeWithFQ) {
+        pm.addPass(IE::createSwapTransposeWithFQPass(log));
+    }
     if (options.enableConvertScaleShiftDW) {
         pm.addPass(IE::createConvertScaleShiftToDWPass(log));
     }
@@ -174,7 +177,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     }
 
     if (options.enableLowPrecision) {
-        IE::buildLowPrecisionPipeline(pm, options.enableQuantDequantRemoval, log);
+        IE::buildLowPrecisionPipeline(pm, IE::LowPrecisionOptions(options), log);
     }
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(IE::createResolvePWLPostOpsPass(log));
@@ -207,6 +210,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
+    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // Level 2 : Abstract RunTime
@@ -237,8 +241,8 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Lowering
 
-    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
     buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
+    pm.addPass(IERT::createPatchWeightsTablePass(log));
 
     // Level 1 : VPU RunTime
 
@@ -279,6 +283,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     IE::buildAdjustForVPUPipeline(pm, log);
 
+    if (options.enableSwapTransposeWithFQ) {
+        pm.addPass(IE::createSwapTransposeWithFQPass(log));
+    }
     if (options.enableConvertScaleShiftDW) {
         pm.addPass(IE::createConvertScaleShiftToDWPass(log));
     }
@@ -295,7 +302,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     }
 
     if (options.enableLowPrecision) {
-        IE::buildLowPrecisionPipeline(pm, options.enableQuantDequantRemoval, log);
+        IE::buildLowPrecisionPipeline(pm, IE::LowPrecisionOptions(options), log);
     }
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(IE::createUnrollBatchPass(log));
@@ -333,6 +340,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
+    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
+
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // Level 2 : Abstract RunTime
@@ -347,13 +356,12 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(IERT::createCopyOpLegalizationPass(log));
     pm.addPass(IERT::createCopyOpSplitByPlanesPass(log));
+    pm.addPass(IERT::createCMXConcatPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     if (options.enableProfiling && options.enableDPUProfiling) {
         pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     }
-
-    pm.addPass(IERT::createCMXConcatPass(log));
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
@@ -374,10 +382,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IERT::createBreakDataFlowPass(log));
     pm.addPass(IERT::createConvertScalarToTensorPass(log));
 
-    // Lowering
-
-    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
     buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
+    // Handle WeightsTable, which requires statically allocated memory
+    pm.addPass(IERT::createPatchWeightsTablePass(log));
 
     // Level 1 : VPU RunTime
 

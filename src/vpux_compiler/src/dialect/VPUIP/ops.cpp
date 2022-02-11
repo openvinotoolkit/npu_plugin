@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/dialect/VPURT/types.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
@@ -734,17 +735,6 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
 }  // namespace
 
 //
-// initialize
-//
-
-void vpux::VPUIP::VPUIPDialect::initialize() {
-    addOperations<
-#define GET_OP_LIST
-#include <vpux/compiler/dialect/VPUIP/generated/ops.cpp.inc>
-            >();
-}
-
-//
 // setupExtraInterfaces
 //
 
@@ -788,8 +778,6 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
 //
 // Generated
 //
-
-#include <vpux/compiler/dialect/VPUIP/generated/dialect.cpp.inc>
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/VPUIP/generated/ops.cpp.inc>

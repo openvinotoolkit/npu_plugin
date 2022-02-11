@@ -183,7 +183,7 @@ StringSection* Writer::addStringSection(const std::string& name) {
 }
 
 elf::ELFHeader Writer::generateELFHeader() const {
-    ELFHeader fileHeader;
+    ELFHeader fileHeader{};
 
     fileHeader.e_ident[EI_MAG0] = ELFMAG0;
     fileHeader.e_ident[EI_MAG1] = ELFMAG1;
@@ -201,6 +201,7 @@ elf::ELFHeader Writer::generateELFHeader() const {
 
     fileHeader.e_entry = 0;
     fileHeader.e_flags = 0;
+    fileHeader.e_shstrndx = 0;
 
     fileHeader.e_shnum = m_sections.size();
     fileHeader.e_phnum = m_segments.size();

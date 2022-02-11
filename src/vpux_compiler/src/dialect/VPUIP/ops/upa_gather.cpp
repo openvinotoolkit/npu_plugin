@@ -39,6 +39,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GatherUPAOp::serialize(VPUIP::BlobW
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GatherParams});
 }
 
+void vpux::VPUIP::GatherUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+    IE::fillDefaultLayoutInfo(info);
+}
+
 mlir::Operation* vpux::VPUIP::BlobReader::parseGather(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                                       ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {
     VPUX_THROW_UNLESS(inputs.size() == 2, "GatherUPA supports only 2 inputs", inputs.size());
