@@ -51,9 +51,10 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
     const auto resShape = getShape(op->getResult(0));
     auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
     if (tilingInfo.isSupportedTiling({TileInfo(resShape)}, _log.nest(), TilingMode::ISOLATED_TILING)) {
-        // If the current op fits CMX but still run into here
+        // If the current op fits CMX but still runs into here
         // The op needs tiling to be prefetched by its parent
         auto tiles = vpux::IE::getTilingStrategy(op, _log.nest(), TilingMode::PATTERN_PREFETCH_TILING);
+        _log.nest(1).trace("Create {0} tiles:", tiles.size());
         return applyTileStrategy(origOp, tiles, rewriter, _log);
     } else {
         const auto tiles = vpux::IE::getTilingStrategy(op, _log.nest(), TilingMode::PREFETCH_TILING);

@@ -92,10 +92,10 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
             VPUX_THROW("Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
         }
     }
-    auto resultTiles = fillDividedTiles(nTilesOnDim, outputShape);
+    auto origTiles = fillDividedTiles(nTilesOnDim, outputShape);
 
     if (tilingMode != TilingMode::PREFETCH_TILING) {
-        return resultTiles;
+        return origTiles;
     }
 
     auto getDimsToTile = [](const Shape& nTilesOnDim) -> SmallVector<Dim> {
@@ -109,7 +109,7 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
     auto dimsToTile = getDimsToTile(nTilesOnDim);
     if (dimsToTile.size() > 1) {
         // return general tiling when getting nested tiles.
-        return resultTiles;
+        return origTiles;
     }
 
     // Prefetch Tiling
@@ -129,7 +129,7 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
     auto prefetchableTiles = fillDividedTiles(prefetchableTilesOnDim, outputShape);
 
     return tilingInfo.isSupportedTiling(prefetchableTiles, log, TilingMode::PREFETCH_TILING) ? prefetchableTiles
-                                                                                             : resultTiles;
+                                                                                             : origTiles;
 }
 
 mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outputTile, mlir::OpBuilder& builder,
