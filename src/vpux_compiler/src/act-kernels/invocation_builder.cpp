@@ -60,7 +60,7 @@ void InvocationBuilder::addTensorArg(mlir::Value value, const MVCNN::TensorRefer
     // order
     const auto inOrder = DimsOrder::fromValue(value);
     const auto memShape = inOrder.toMemoryOrder(shape);
-    memrefData.dimsOrder = inOrder.code();
+    memrefData.dimsOrder = inOrder.invertedCode();
 
     // dims
     const auto dimsPatcher = [](sw_params::MemRefData& memrefData, uint32_t updateTo) {
