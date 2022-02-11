@@ -148,6 +148,37 @@ operation ::= `IE.Acosh` `(` operands `)` attr-dict `:` type(operands) `->` type
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.AdaptivePoolOp` (vpux::IE::AdaptivePoolOp)
+
+InferenceEngine AdaptivePool layer
+
+
+Syntax:
+
+```
+operation ::= `IE.AdaptivePoolOp` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`method` | vpux::IE::AdaptivePoolMethodAttr | AdaptivePoolMethod that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Add` (vpux::IE::AddOp)
 
 InferenceEngine Add layer

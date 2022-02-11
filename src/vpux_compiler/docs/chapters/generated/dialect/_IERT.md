@@ -147,6 +147,41 @@ operation ::= `IERT.Acosh` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.AdaptivePool` (vpux::IERT::AdaptivePoolOp)
+
+InferenceEngine run-time AdaptivePool layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.AdaptivePool` attr-dict
+              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`method` | vpux::IE::AdaptivePoolMethodAttr | AdaptivePoolMethod that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float or 32-bit float values
+`input2` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Add` (vpux::IERT::AddOp)
 
 InferenceEngine run-time Add layer

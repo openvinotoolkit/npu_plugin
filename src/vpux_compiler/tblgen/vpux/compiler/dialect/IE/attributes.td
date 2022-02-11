@@ -110,6 +110,24 @@ def IE_ROIPoolingMethod :
 }
 
 //
+// AdaptivePoolMethod
+//
+
+
+def IE_AdaptivePoolMethod :
+        StrEnumAttr<
+            "AdaptivePoolMethod",
+            "AdaptivePoolMethod that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"avg">,
+                StrEnumAttrCase<"max">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
 // ROIAlignMethod
 //
 
