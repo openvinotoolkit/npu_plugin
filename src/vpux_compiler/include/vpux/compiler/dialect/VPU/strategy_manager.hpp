@@ -66,6 +66,9 @@ private:
     void assignMultiClusterStrategy(mlir::Operation* op);
     double calculateSplitOverHeightEfficency(mlir::Operation* op);
     double calculateSplitOverKernelEfficency(mlir::Operation* op);
+    VPU::NCEClusterTilingOp createMaxPoolDistributedActivationTensor(VPU::NCEMaxPoolOp& origOp,
+                                                                     vpux::VPU::DistributionMode distributionMode,
+                                                                     mlir::ArrayAttr numTiles) const;
 
     std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable();
     std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable();

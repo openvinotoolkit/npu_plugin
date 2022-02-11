@@ -25,30 +25,119 @@ using namespace vpux;
 namespace {
 
 //
-// ConvToMultiCluster
+// EltwiseToNCEClusterTiling
 //
 
-class ConvToMultiCluster final : public mlir::OpRewritePattern<VPU::NCEConvolutionOp> {
+// class EltwiseToNCEClusterTiling final : public mlir::OpRewritePattern<VPU::NCEEltwiseOp> {
+// public:
+//     EltwiseToNCEClusterTiling(mlir::MLIRContext* ctx, const StrategyManager& strategyManager, Logger log)
+//             : mlir::OpRewritePattern<VPU::NCEEltwiseOp>(ctx), _strategyManager(strategyManager), _log(log) {
+//     }
+
+// public:
+//     mlir::LogicalResult matchAndRewrite(VPU::NCEEltwiseOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+// private:
+//     const StrategyManager& _strategyManager;
+//     Logger _log;
+// };
+
+// mlir::LogicalResult EltwiseToNCEClusterTiling::matchAndRewrite(VPU::NCEEltwiseOp origOp,
+//                                                                mlir::PatternRewriter& rewriter) const {
+//     vpux::VPU::DistributionMode activationTensorDistributionMode;
+//     mlir::ArrayAttr activationTensorNumTiles;
+
+//     _log.trace("Got operation {0}", origOp);
+
+//     if (origOp->getParentOfType<VPU::NCEClusterTilingOp>() != nullptr) {
+//         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped into NCEClusterTiling");
+//     }
+
+//     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+
+//     if (strategy == splitOverHeightOverLappedStrategy) {
+//         activationTensorDistributionMode = vpux::VPU::DistributionMode::overlapped;
+//         activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 4, 1}));
+//     } else if (strategy == splitOverHeightStrategy) {
+//         activationTensorDistributionMode = vpux::VPU::DistributionMode::segmented;
+//         activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 4, 1}));
+//     } else if (strategy == splitOverKernelStrategy) {
+//         activationTensorDistributionMode = vpux::VPU::DistributionMode::multicasted;
+//         activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+//     } else {
+//         VPUX_THROW("Operation '{0}' does not have a valid multi-cluster strategy", origOp);
+//     }
+
+//     // Create the copy ops for the distributed activation tensor
+//     auto distributedActivationCopyOp = _strategyManager.createDistributedActivationTensor(
+//             origOp, activationTensorDistributionMode, activationTensorNumTiles);
+
+//     // Create the copy ops for the distributed output tensor type
+//     auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
+//             origOp, activationTensorDistributionMode, activationTensorNumTiles);
+
+//     // save original output memspace
+//     const auto origOutType = origOp.output().getType();
+//     const auto origOutMemSpace = IE::getMemorySpace(origOutType.cast<mlir::RankedTensorType>());
+//     Logger::global().error("origOutMemSpace original {0}", origOutMemSpace);
+
+//     // Set the output of the VPU::NCEConvolutionOp to be in CMX
+//     auto origOutput = origOp->getResult(0);
+//     const auto cmxMemSpace =
+//             changeMemSpace(origOutput.getType().cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
+//     origOutput.setType(cmxMemSpace);
+//     Logger::global().error("origOutMemSpace updated {0}", origOutput.getType());
+
+//     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
+//         mlir::BlockAndValueMapping mapper;
+//         mapper.map(origOp->getOperands(), newOperands);
+//         auto* newOp = builder.clone(*origOp, mapper);
+//         builder.create<VPU::YieldOp>(loc, newOp->getResults());
+//     };
+
+//     _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
+//     auto clusterTilingOp = rewriter.create<VPU::NCEClusterTilingOp>(
+//             origOp->getLoc(), distributedOutputTensorType,
+//             mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0)},
+//             bodyBuilder);
+
+//     const auto outputTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
+//                                              mlir::ValueRange newOperands) {
+//         auto outputTensorDistributedCopyOp = builder.create<IE::CopyOp>(loc, newOperands[0], origOutMemSpace);
+//         builder.create<VPU::YieldOp>(loc, outputTensorDistributedCopyOp->getResults());
+//     };
+
+//     auto outputCopyOp = rewriter.create<VPU::NCEClusterTilingOp>(
+//             clusterTilingOp->getLoc(), origOutType, clusterTilingOp->getResult(0), outputTensorBodyBuilder);
+
+//     origOutput.replaceAllUsesWith(outputCopyOp->getResult(0));
+//     rewriter.replaceOp(origOp, outputCopyOp->getResult(0));
+
+//     return mlir::success();
+// }
+
+//
+// MaxPoolToNCEClusterTiling
+//
+
+class MaxPoolToNCEClusterTiling final : public mlir::OpRewritePattern<VPU::NCEMaxPoolOp> {
 public:
-    ConvToMultiCluster(mlir::MLIRContext* ctx, const StrategyManager& strategyManager, Logger log)
-            : mlir::OpRewritePattern<VPU::NCEConvolutionOp>(ctx), _strategyManager(strategyManager), _log(log) {
-        setDebugName("ConvToMultiCluster");
+    MaxPoolToNCEClusterTiling(mlir::MLIRContext* ctx, const StrategyManager& strategyManager, Logger log)
+            : mlir::OpRewritePattern<VPU::NCEMaxPoolOp>(ctx), _strategyManager(strategyManager), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(VPU::NCEConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(VPU::NCEMaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     const StrategyManager& _strategyManager;
     Logger _log;
 };
 
-mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp origOp,
-                                                        mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult MaxPoolToNCEClusterTiling::matchAndRewrite(VPU::NCEMaxPoolOp origOp,
+                                                               mlir::PatternRewriter& rewriter) const {
     vpux::VPU::DistributionMode activationTensorDistributionMode;
-    vpux::VPU::DistributionMode weightsTensorDistributionMode;
     mlir::ArrayAttr activationTensorNumTiles;
-    mlir::ArrayAttr weightTensorNumTiles;
 
     _log.trace("Got operation {0}", origOp);
 
@@ -57,6 +146,101 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
     }
 
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+
+    if (strategy == splitOverHeightOverLappedStrategy) {
+        activationTensorDistributionMode = vpux::VPU::DistributionMode::overlapped;
+        activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 4, 1}));
+    } else if (strategy == splitOverHeightStrategy) {
+        activationTensorDistributionMode = vpux::VPU::DistributionMode::segmented;
+        activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 4, 1}));
+    } else if (strategy == splitOverKernelStrategy) {
+        activationTensorDistributionMode = vpux::VPU::DistributionMode::multicasted;
+        activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else {
+        VPUX_THROW("Operation '{0}' does not have a valid multi-cluster strategy", origOp);
+    }
+
+    // // Create the copy ops for the distributed activation tensor
+    // auto distributedActivationCopyOp = _strategyManager.createDistributedActivationTensor(
+    //         origOp, activationTensorDistributionMode, activationTensorNumTiles);
+
+    // Create the copy ops for the distributed output tensor type
+    // auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
+    //         origOp, activationTensorDistributionMode, activationTensorNumTiles);
+
+    // // save original output memspace
+    // const auto origOutType = origOp.output().getType();
+    // const auto origOutMemSpace = IE::getMemorySpace(origOutType.cast<mlir::RankedTensorType>());
+    // Logger::global().error("origOutMemSpace original {0}", origOutMemSpace);
+
+    // // Set the output of the VPU::NCEConvolutionOp to be in CMX
+    // auto origOutput = origOp->getResult(0);
+    // const auto cmxMemSpace =
+    //         changeMemSpace(origOutput.getType().cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
+    // origOutput.setType(cmxMemSpace);
+    // Logger::global().error("origOutMemSpace updated {0}", origOutput.getType());
+
+    // const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
+    //     mlir::BlockAndValueMapping mapper;
+    //     mapper.map(origOp->getOperands(), newOperands);
+    //     auto* newOp = builder.clone(*origOp, mapper);
+    //     builder.create<VPU::YieldOp>(loc, newOp->getResults());
+    // };
+
+    // _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
+    // auto clusterTilingOp = rewriter.create<VPU::NCEClusterTilingOp>(
+    //         origOp->getLoc(), distributedOutputTensorType,
+    //         mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0)},
+    //         bodyBuilder);
+
+    // const auto outputTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
+    //                                          mlir::ValueRange newOperands) {
+    //     auto outputTensorDistributedCopyOp = builder.create<IE::CopyOp>(loc, newOperands[0], origOutMemSpace);
+    //     builder.create<VPU::YieldOp>(loc, outputTensorDistributedCopyOp->getResults());
+    // };
+
+    // auto outputCopyOp = rewriter.create<VPU::NCEClusterTilingOp>(
+    //         clusterTilingOp->getLoc(), origOutType, clusterTilingOp->getResult(0), outputTensorBodyBuilder);
+
+    // origOutput.replaceAllUsesWith(outputCopyOp->getResult(0));
+    // rewriter.replaceOp(origOp, outputCopyOp->getResult(0));
+
+    return mlir::success();
+}
+
+//
+// GenericNCEtoNCEClusterTiling
+//
+template <class ConcreteOp>
+class GenericNCEtoNCEClusterTiling final : public mlir::OpRewritePattern<ConcreteOp> {
+public:
+    GenericNCEtoNCEClusterTiling(mlir::MLIRContext* ctx, const StrategyManager& strategyManager, Logger log)
+            : mlir::OpRewritePattern<ConcreteOp>(ctx), _strategyManager(strategyManager), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    const StrategyManager& _strategyManager;
+    Logger _log;
+};
+
+template <class ConcreteOp>
+mlir::LogicalResult GenericNCEtoNCEClusterTiling<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
+                                                                              mlir::PatternRewriter& rewriter) const {
+    vpux::VPU::DistributionMode activationTensorDistributionMode;
+    vpux::VPU::DistributionMode weightsTensorDistributionMode;
+    mlir::ArrayAttr activationTensorNumTiles;
+    mlir::ArrayAttr weightTensorNumTiles;
+
+    _log.trace("Got operation {0}", origOp);
+
+    if (origOp->template getParentOfType<VPU::NCEClusterTilingOp>() != nullptr) {
+        return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
+    }
+
+    const auto strategy = origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
 
     if (strategy == splitOverHeightOverLappedStrategy) {
         activationTensorDistributionMode = vpux::VPU::DistributionMode::overlapped;
@@ -74,7 +258,7 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
         activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
         weightTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 4, 1}));
     } else {
-        VPUX_THROW("Operation '{0}' does not have a valid multi-cluster strategy", origOp);
+        VPUX_THROW("This operation '{0}' does not have a valid multi-cluster strategy", origOp);
     }
 
     // Create the copy ops for the distributed activation tensor
@@ -91,13 +275,15 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
 
     // save original output memspace
     const auto origOutType = origOp.output().getType();
-    const auto origOutMemSpace = IE::getMemorySpace(origOutType.cast<mlir::RankedTensorType>());
+    const auto origOutMemSpace = IE::getMemorySpace(origOutType.template cast<mlir::RankedTensorType>());
+    Logger::global().error("origOutMemSpace original {0}", origOutMemSpace);
 
     // Set the output of the VPU::NCEConvolutionOp to be in CMX
     auto origOutput = origOp->getResult(0);
     const auto cmxMemSpace =
-            changeMemSpace(origOutput.getType().cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
+            changeMemSpace(origOutput.getType().template cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
     origOutput.setType(cmxMemSpace);
+    Logger::global().error("origOutMemSpace updated {0}", origOutput.getType());
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
@@ -153,7 +339,13 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
 
     auto& ctx = getContext();
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ConvToMultiCluster>(&ctx, strategyManager, _log);
+
+    patterns.insert<GenericNCEtoNCEClusterTiling<VPU::NCEConvolutionOp>>(&ctx, strategyManager, _log);
+    patterns.insert<GenericNCEtoNCEClusterTiling<VPU::NCEDepthConvolutionOp>>(&ctx, strategyManager, _log);
+    patterns.insert<MaxPoolToNCEClusterTiling>(&ctx, strategyManager, _log);
+    // patterns.insert<EltwiseToNCEClusterTiling<VPU::NCEEltwiseOp>>(&ctx, strategyManager, _log);
+
+    // patterns.insert<ConvToMultiCluster>(&ctx, strategyManager, _log);
 
     mlir::ConversionTarget target(ctx);
 
