@@ -182,6 +182,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ConvolutionBackpropData>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::AvgPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::MaxPool>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::AdaptiveAvgPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ShuffleChannels>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Gather>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::NV12toRGB>& origNode);
@@ -285,6 +286,7 @@ private:
     IE::InterpolateAttr importInterpolateAttrs(const opset_latest::Interpolate::InterpolateAttrs& val);
     IE::DetectionOutputAttr importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val);
     IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
+    IE::AdaptivePoolMethodAttr NGraphImporter::importAdaptivePoolMethod(const std::string& method);
     IE::ROIAlignMethodAttr importROIAlignMethod(const ngraph::op::v3::ROIAlign::PoolingMode& mode);
     IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
     IE::RoundModeAttr importRoundMode(const ngraph::op::v5::Round::RoundMode val);
@@ -329,6 +331,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::ConvolutionBackpropData),
             MAP_ENTRY(opset_latest::AvgPool),
             MAP_ENTRY(opset_latest::MaxPool),
+            MAP_ENTRY(ngraph::opset8::AdaptiveAvgPool),
             MAP_ENTRY(opset_latest::ShuffleChannels),
             MAP_ENTRY(opset_latest::Gather),
             MAP_ENTRY(ngraph::opset8::NV12toRGB),
@@ -768,6 +771,19 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     auto op = builder.create<IE::MaxPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
                                             attrPadsBegin, attrPadsEnd, attrRoundingType, nullptr);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::AdaptiveAvgPool>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v8::AdaptiveAvgPool>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto method = importAdaptivePoolMethod(origNode->get_mode());
+    auto op = builder.create<IE::AdaptiveAvgPoolOp>(createLocation(origNode), inputs[0], inputs[1], method);
     addOutputs(origNode, op);
 }
 
@@ -2381,6 +2397,18 @@ IE::ROIPoolingMethodAttr NGraphImporter::importROIPoolingMethod(const std::strin
         attr = IE::ROIPoolingMethodAttr::get(_ctx, IE::ROIPoolingMethod::bilinear);
     } else {
         VPUX_THROW("Unknown ROIPoolingMethod");
+    }
+    return attr;
+}
+
+IE::AdaptivePoolMethodAttr NGraphImporter::importAdaptivePoolMethod(const std::string& method) {
+    IE::AdaptivePoolMethodAttr attr;
+    if (method == "avg") {
+        attr = IE::AdaptivePoolMethodAttr::get(_ctx, IE::AdaptivePoolMethod::avg);
+    } else if (method == "max") {
+        attr = IE::AdaptivePoolMethodAttr::get(_ctx, IE::AdaptivePoolMethod::max);
+    } else {
+        VPUX_THROW("Unknown AdaptivePoolMethod");
     }
     return attr;
 }

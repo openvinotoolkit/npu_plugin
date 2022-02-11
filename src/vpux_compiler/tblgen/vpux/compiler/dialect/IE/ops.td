@@ -980,6 +980,29 @@ def IE_MaxPoolOp :
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
 }
 
+
+//
+// AdaPoolingOp
+//
+
+def IE_AdaptivePoolOp :
+        IE_LayerOp<
+            "AdaptivePoolOp"
+        > {
+    let summary = "InferenceEngine AdaptivePool layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AdaptivePoolMethod:$method
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
 //
 // ShuffleChannelsOp
 //
