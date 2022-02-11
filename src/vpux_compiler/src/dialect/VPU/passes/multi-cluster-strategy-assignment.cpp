@@ -56,7 +56,6 @@ mlir::LogicalResult ConvToMultiCluster::matchAndRewrite(VPU::NCEConvolutionOp or
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped into NCEClusterTiling");
     }
 
-
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
 
     if (strategy == splitOverHeightOverLappedStrategy) {
@@ -153,16 +152,12 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
 
-    target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
-        if (auto nceConvOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
-            return (op->getParentOfType<VPU::NCEClusterTilingOp>() != nullptr);
-        }
-        return true;
-    });
-
     // If an operation does not have multi-cluster strategy, it doesn't fit in CMX, it will be tiled instead.
-    target.addDynamicallyLegalOp<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp op) {
-        return !op->hasAttr(multiClusterStrategy);
+    target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
+        if (op->hasAttr(multiClusterStrategy)) {
+            return (op->getParentOfType<VPU::NCEClusterTilingOp>() != nullptr);
+        } else
+            return true;
     });
 
     target.addLegalOp<VPU::NCEClusterTilingOp>();
