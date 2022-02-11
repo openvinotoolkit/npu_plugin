@@ -608,7 +608,7 @@ def iduConvCustom(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray
         warnings.warn(f'Possible accuracy loss during conversion from {weights.data.dtype} -> {np.float16}')
     return input.data.astype(np.float16), weights.data.astype(np.float16)
 
-class MPE(ABC):
+class Operation(ABC):
     """Abstract base class for MPE operations."""
     def json_info(self, inputs) -> dict:
         pass
@@ -645,7 +645,7 @@ class MPE(ABC):
 def shape_to_str(shape: Sequence[int]) -> str:
     return 'x'.join([str(d) for d in shape])
 
-class ZMajorConvolution(MPE):
+class ZMajorConvolution(Operation):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
@@ -762,7 +762,7 @@ class ZMajorConvolution(MPE):
         return True
 
 
-class DepthWiseConv(MPE):
+class DepthWiseConv(Operation):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
@@ -853,7 +853,7 @@ class DepthWiseConv(MPE):
         return True
 
 
-class EltwiseAdd(MPE):
+class EltwiseAdd(Operation):
 
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
     NAME = 'Add'
@@ -918,7 +918,7 @@ class EltwiseAdd(MPE):
         return True
 
 
-class EltwiseMult(MPE):
+class EltwiseMult(Operation):
 
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
     NAME = 'Mult'
@@ -977,7 +977,7 @@ class EltwiseMult(MPE):
     def filter_issues(self, args) -> bool:
         return True
 
-class Maxpool(MPE):
+class Maxpool(Operation):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
@@ -1052,7 +1052,7 @@ class Maxpool(MPE):
         return True
 
 
-class AvgPool(MPE):
+class AvgPool(Operation):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
@@ -1130,7 +1130,7 @@ class ActivationType(Enum):
     Sigmoid = auto()
     Softmax = auto()
 
-class ActKernel(MPE):
+class ActKernel(Operation):
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'activation_type']
     NAME = 'ActKernel'
 
@@ -1229,7 +1229,7 @@ class MemoryLocation(Enum):
     CMX0 = auto()
     CMX1 = auto()
 
-class DMA(MPE):
+class DMA(Operation):
 
     PARAMS = ['mpe_op_class', 'input_ttype', 'output_ttype', 'input_shape', 'src_memloc', 'dst_memloc', 'dma_engine']
 
@@ -1285,7 +1285,7 @@ class DMA(MPE):
     def filter_issues(self, args) -> bool:
         return True
 
-class RaceConditionDMA(MPE):
+class RaceConditionDMA(Operation):
 
     PARAMS = ['mpe_op_class', 'input_ttype', 'output_ttype', 'iteration_count']
     NAME = 'RaceConditionDMA'
@@ -1337,7 +1337,7 @@ class RaceConditionDMA(MPE):
     def filter_issues(self, args) -> bool:
         return True
 
-class RaceConditionDPU(MPE):
+class RaceConditionDPU(Operation):
 
     PARAMS = [
         'mpe_op_class',
@@ -1441,7 +1441,7 @@ class RaceConditionDPU(MPE):
     def filter_issues(self, args) -> bool:
         return True
 
-class RaceConditionDPUDMA(MPE):
+class RaceConditionDPUDMA(Operation):
 
     PARAMS = [
         'mpe_op_class',
@@ -1526,8 +1526,7 @@ class RaceConditionDPUDMA(MPE):
     def filter_issues(self, args) -> bool:
         return True
 
-class RaceConditionDPUDMAACT(MPE):
-
+class RaceConditionDPUDMAACT(Operation):
     PARAMS = [
         'mpe_op_class',
         'input_ttype',
@@ -1614,6 +1613,51 @@ class RaceConditionDPUDMAACT(MPE):
 
     def filter_issues(self, args) -> bool:
         return True
+
+class RaceCondition:
+    PARAMS = ['operation', 'iteration_count', 'requested_cluster', 'requested_unit']
+
+    def __init__(self, operation, iter_count, requested_cluster, requested_unit):
+        self.operation = operation
+        self.mpe_op = operation.mpe_op
+        self.iter_count = iter_count
+        self.requested_cluster = requested_cluster
+        self.requested_unit = requested_unit
+        self.issues = set()
+        if self.operation.settings.mpe_op_class == ActKernel and self.requested_cluster == 2 :
+            self.issues.add('EISW-30347')
+
+    def json_info(self):
+        return {
+            'case_type': 'RaceCondition',
+            'iteration_count' : self.iter_count,
+            'requested_clusters' : self.requested_cluster,
+            'requested_units' : self.requested_unit
+        }
+
+    def validate(self):
+        self.operation.validate()
+
+    @property
+    def ident(self) -> str:
+        return f'race_cond_{self.operation.ident}_iters_{self.iter_count}_clusters_{self.requested_cluster}_shaves_{self.requested_unit}'
+
+    def compute_values(self):
+        self.operation.compute_values()
+
+    def write_data(self, dir: Path):
+        self.operation.write_data(dir)
+
+    def value(self):
+        json = self.json_info()
+        json['operation'] = self.operation.value()
+        return json
+
+    def filter_issues(self, args):
+        if 'EISW-30347' in self.issues:
+            # Filter unsupported cluster param
+            return False
+        return self.mpe_op.filter_issues(args)
 
 def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], bitshift: int) -> Value:
     """Models the hardware PPE"""
@@ -1715,6 +1759,9 @@ class DPUPipeline:
             **self.mpe_op.json_info(self.inputs, self.o),
         }
 
+    def filter_issues(self, args):
+        return self.mpe_op.filter_issues(args)
+
 
 class Pad:
     # The padding order is top|left|bottom|right
@@ -1744,7 +1791,7 @@ class Pad:
 
 def filter_issues(args, p: DPUPipeline) -> bool:
     # TODO: Add arguments to selectively filter by issues.
-    return p.mpe_op.filter_issues(args)
+    return p.filter_issues(args)
 
 
 _ZMCONV_VALID_WEIGHT_TYPES = {
@@ -1965,6 +2012,12 @@ def genRaceConditionDMA(input_types=[FP16(2)],
                                                     output_type,
                                                     iteration_count
                                                     ))
+def genRaceCondition(ops,
+                    iteration_counts=[64],
+                    requested_clusters=[1],
+                    requested_units=[1]):
+    for (op, iteration_count, requested_cluster, requested_unit) in itertools.product(ops, iteration_counts, requested_clusters, requested_units):
+        yield RaceCondition(op, iteration_count, requested_cluster, requested_unit)
 
 def genRaceConditionDPU(input_types=[FP16(4)],
                         input_shapes=[[1, 32, 16, 16]],
@@ -2652,7 +2705,8 @@ def generate_options(args):
             kernel_shapes=[[1, 1]],
             output_types=[FP16()],
             output_orders=[Order.NCHW],
-            pads=[[0, 0, 0, 0]]),
+            pads=[[0, 0, 0, 0]]
+        ),
         # check all datatypes
         genDMA(
             tensor_types=[Int4(3), UInt4(3), Int8(3), UInt8(3), FP16(4), BF16(4)],
@@ -2692,6 +2746,24 @@ def generate_options(args):
         genRaceConditionDPUDMAACT(
             iteration_count=24
         ),
+
+        genRaceCondition(
+            ops = genActShave(
+                input_types=[FP16(0)],
+                input_shapes=[[1, 10, 2, 3]],
+                output_types=[FP16()],
+                act_shave_subtypes=[
+                    [ActivationType.HSwish],
+                    [ActivationType.Sigmoid], # Sigmoid testcase fails. Inference result is close enough to NumericBench reference, but not bit-exact
+                    [ActivationType.Softmax, 1],  # axis C
+                    [ActivationType.Softmax, 2],  # axis H
+                    [ActivationType.Softmax, 3],  # axis W
+                ]
+            ),
+            iteration_counts=[10],
+            requested_clusters=[1, 2],
+            requested_units=[1, 2]
+        )
     )
 
 

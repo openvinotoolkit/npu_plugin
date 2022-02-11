@@ -213,8 +213,7 @@ void createAndRunConvTest() {
     std::stringstream in_file_buffer;
     in_file_buffer << in_file.rdbuf();
 
-    nb::TestCaseJsonDescriptor desc;
-    desc.parse(in_file_buffer.str());
+    nb::TestCaseJsonDescriptor desc(in_file_buffer.str());
 
     nb::InputLayer input = desc.getInputLayer();
     ASSERT_EQ(nb::to_string(input.dtype), "uint8");

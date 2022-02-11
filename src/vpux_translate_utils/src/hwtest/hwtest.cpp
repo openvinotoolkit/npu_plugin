@@ -42,12 +42,6 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
 
     nb::TestCaseJsonDescriptor jsonDesc(sourceJson);
 
-    nb::InputLayer input = jsonDesc.getInputLayer();
-    nb::OutputLayer output = jsonDesc.getOutputLayer();
-
-    mlir::Type input_type = hwtest::parseInputType(builder, input);
-    mlir::Type output_type = hwtest::parseOutputType(builder, output);
-
     // TODO:
     // This will be handled later based on op type in config json
     auto opType = jsonDesc.getCaseStr();
@@ -64,14 +58,23 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     bool isRaceConditionDPU = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDPU;
     bool isRaceConditionDPUDMA = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDPUDMA;
     bool isRaceConditionDPUDMAACT = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDPUDMAACT;
+    bool isRaceCondition = jsonDesc.getCaseType() == nb::CaseType::RaceCondition;
+
+    auto mainOpJsonDesc = isRaceCondition ? *jsonDesc.getUnderlyingOp() : jsonDesc;
+
+    nb::InputLayer input = mainOpJsonDesc.getInputLayer();
+    nb::OutputLayer output = mainOpJsonDesc.getOutputLayer();
+
+    mlir::Type input_type = hwtest::parseInputType(builder, input);
+    mlir::Type output_type = hwtest::parseOutputType(builder, output);
 
     auto weightType = [&]() {
-        nb::WeightLayer weight = jsonDesc.getWeightLayer();
+        nb::WeightLayer weight = mainOpJsonDesc.getWeightLayer();
         return hwtest::parseWeightsType(builder, weight);
     };
 
     auto weightInChannels = [&]() {
-        nb::WeightLayer weight = jsonDesc.getWeightLayer();
+        nb::WeightLayer weight = mainOpJsonDesc.getWeightLayer();
         return weight.shape[1];
     };
 
@@ -104,6 +107,8 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         hwtest::buildRaceConditionDPUDMATest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else if (isRaceConditionDPUDMAACT) {
         hwtest::buildRaceConditionDPUDMAACTTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+    } else if (isRaceCondition) {
+        hwtest::buildRaceConditionTest(jsonDesc, module, builder, log, input_type, output_type);
     } else {
         VPUX_THROW("Unknown type: {0}", opType);
     }

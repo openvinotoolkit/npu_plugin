@@ -20,6 +20,41 @@
 
 #include "vpux/hwtest/test_case_json_parser.hpp"
 
+namespace {
+
+llvm::json::Object parse2JSON(llvm::StringRef jsonString) {
+    // Since the string we're parsing may come from a LIT test, strip off
+    // trivial '//' comments.  NB The standard regex library requires C++17 in
+    // order to anchor newlines, so we use the LLVM implementation instead.
+    static llvm::Regex commentRE{"^ *//.*$", llvm::Regex::Newline};
+
+    auto filteredJSON = jsonString.str();
+    for (;;) {
+        auto replaced = commentRE.sub("", filteredJSON);
+        if (filteredJSON == replaced) {
+            break;
+        }
+        filteredJSON = replaced;
+    }
+
+    if (filteredJSON.empty()) {
+        throw std::runtime_error{"Expected non-empty filtered JSON"};
+    }
+
+    llvm::Expected<llvm::json::Value> exp = llvm::json::parse(filteredJSON);
+
+    if (!exp) {
+        auto err = exp.takeError();
+        throw std::runtime_error{llvm::formatv("HWTEST JSON parsing failed: {0}", err).str()};
+    }
+
+    auto json_object = exp->getAsObject();
+    if (!json_object) {
+        throw std::runtime_error{"Expected to get JSON as an object"};
+    }
+    return *json_object;
+}
+
 static bool isEqual(llvm::StringRef a, const char* b) {
     if (a.size() != strlen(b)) {
         return false;
@@ -29,6 +64,8 @@ static bool isEqual(llvm::StringRef a, const char* b) {
     };
     return std::equal(a.begin(), a.end(), b, predicate);
 }
+
+}  // namespace
 
 nb::DType nb::to_dtype(llvm::StringRef str) {
     if (isEqual(str, "uint8"))
@@ -201,6 +238,8 @@ std::string nb::to_string(CaseType case_) {
         return "RaceConditionDPUDMA";
     case CaseType::RaceConditionDPUDMAACT:
         return "RaceConditionDPUDMAACT";
+    case CaseType::RaceCondition:
+        return "RaceCondition";
     default:
         return "unknown";
     }
@@ -221,9 +260,8 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::MaxPool;
     if (isEqual(str, "AvgPool"))
         return CaseType::AvgPool;
-    if (isEqual(str, "ActShave")) {
+    if (isEqual(str, "ActShave"))
         return CaseType::ActShave;
-    }
     if (isEqual(str, "RaceConditionDMA"))
         return CaseType::RaceConditionDMA;
     if (isEqual(str, "RaceConditionDPU"))
@@ -232,6 +270,8 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::RaceConditionDPUDMA;
     if (isEqual(str, "RaceConditionDPUDMAACT"))
         return CaseType::RaceConditionDPUDMAACT;
+    if (isEqual(str, "RaceCondition"))
+        return CaseType::RaceCondition;
     return CaseType::Unknown;
 };
 
@@ -246,6 +286,15 @@ nb::QuantParams nb::TestCaseJsonDescriptor::loadQuantizationParams(llvm::json::O
         result.high_range = static_cast<std::int64_t>(qp->getNumber("high_range").getValue());
     }
     return result;
+}
+
+nb::RaceConditionParams nb::TestCaseJsonDescriptor::loadRaceConditionParams(llvm::json::Object* jsonObj) {
+    nb::RaceConditionParams params;
+    params.iterationsCount = jsonObj->getInteger("iteration_count").getValue();
+    params.requestedClusters = jsonObj->getInteger("requested_clusters").getValue();
+    params.requestedUnits = jsonObj->getInteger("requested_units").getValue();
+
+    return params;
 }
 
 nb::InputLayer nb::TestCaseJsonDescriptor::loadInputLayer(llvm::json::Object* jsonObj) {
@@ -495,99 +544,80 @@ std::size_t nb::TestCaseJsonDescriptor::loadIterationCount(llvm::json::Object* j
 
 nb::TestCaseJsonDescriptor::TestCaseJsonDescriptor(llvm::StringRef jsonString) {
     if (!jsonString.empty()) {
-        parse(jsonString);
+        parse(parse2JSON(jsonString));
     }
 }
 
-void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
-    // Since the string we're parsing may come from a LIT test, strip off
-    // trivial '//' comments.  NB The standard regex library requires C++17 in
-    // order to anchor newlines, so we use the LLVM implementation instead.
-    static llvm::Regex commentRE{"^ *//.*$", llvm::Regex::Newline};
+nb::TestCaseJsonDescriptor::TestCaseJsonDescriptor(llvm::json::Object jsonObject) {
+    parse(jsonObject);
+}
 
-    auto filteredJSON = jsonString.str();
-    for (;;) {
-        auto replaced = commentRE.sub("", filteredJSON);
-        if (filteredJSON == replaced) {
-            break;
-        }
-        filteredJSON = replaced;
-    }
-
-    if (filteredJSON.empty()) {
-        throw std::runtime_error{"Expected non-empty filtered JSON"};
-    }
-
-    llvm::Expected<llvm::json::Value> exp = llvm::json::parse(filteredJSON);
-
-    if (!exp) {
-        auto err = exp.takeError();
-        throw std::runtime_error{llvm::formatv("HWTEST JSON parsing failed: {0}", err).str()};
-    }
-
-    auto* json_obj = exp->getAsObject();
-    if (!json_obj) {
-        throw std::runtime_error{"Expected to get JSON as an object"};
-    }
-
-    auto case_type = json_obj->getString("case_type");
+void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
+    auto case_type = json_obj.getString("case_type");
     if (!case_type) {
         throw std::runtime_error{"Failed to get case type"};
     }
 
     caseType_ = nb::to_case(case_type.getValue());
     caseTypeStr_ = case_type.getValue().str();
-    inLayer_ = loadInputLayer(json_obj);
-    outLayer_ = loadOutputLayer(json_obj);
+    inLayer_ = loadInputLayer(&json_obj);
+    outLayer_ = loadOutputLayer(&json_obj);
 
     // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
     // eltwise needed).
     if (caseType_ == CaseType::DMA) {
-        DMAparams_ = loadDMAParams(json_obj);
+        DMAparams_ = loadDMAParams(&json_obj);
         return;
     }
 
     if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv ||
         caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMA ||
         caseType_ == CaseType::RaceConditionDPUDMAACT) {
-        wtLayer_ = loadWeightLayer(json_obj);
-        convLayer_ = loadConvLayer(json_obj);
+        wtLayer_ = loadWeightLayer(&json_obj);
+        convLayer_ = loadConvLayer(&json_obj);
 
         if (caseType_ == CaseType::ZMajorConvolution) {
-            odu_permutation_ = to_odu_permutation(json_obj->getString("output_order").getValue());
+            odu_permutation_ = to_odu_permutation(json_obj.getString("output_order").getValue());
         }
 
         if (caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMA) {
-            iterationCount_ = loadIterationCount(json_obj);
+            iterationCount_ = loadIterationCount(&json_obj);
         }
         if (caseType_ == CaseType::RaceConditionDPUDMAACT) {
-            iterationCount_ = loadIterationCount(json_obj);
-            activationLayer_ = loadActivationLayer(json_obj);
+            iterationCount_ = loadIterationCount(&json_obj);
+            activationLayer_ = loadActivationLayer(&json_obj);
         }
         return;
     }
 
     if (caseType_ == CaseType::EltwiseAdd || caseType_ == CaseType::EltwiseMult) {
-        wtLayer_ = loadWeightLayer(json_obj);
+        wtLayer_ = loadWeightLayer(&json_obj);
         return;
     }
 
     if (caseType_ == CaseType::MaxPool || caseType_ == CaseType::AvgPool) {
-        poolLayer_ = loadPoolLayer(json_obj);
+        poolLayer_ = loadPoolLayer(&json_obj);
         return;
     }
 
     if (caseType_ == CaseType::ActShave) {
-        activationLayer_ = loadActivationLayer(json_obj);
+        activationLayer_ = loadActivationLayer(&json_obj);
         return;
     }
 
     if (caseType_ == CaseType::RaceConditionDMA) {
-        iterationCount_ = loadIterationCount(json_obj);
+        iterationCount_ = loadIterationCount(&json_obj);
         return;
     }
 
-    throw std::runtime_error{llvm::formatv("Unsupported case type: {0} 1", caseTypeStr_).str()};
+    if (caseType_ == CaseType::RaceCondition) {
+        auto underlyingOp = json_obj.getObject("operation");
+        this->underlyingOp_ = std::make_shared<TestCaseJsonDescriptor>(*underlyingOp);
+        raceConditionParams_ = loadRaceConditionParams(&json_obj);
+        return;
+    }
+
+    throw std::runtime_error{llvm::formatv("Unsupported case type: {0}", caseTypeStr_).str()};
 }
 
 nb::CaseType nb::TestCaseJsonDescriptor::loadCaseType(llvm::json::Object* jsonObj) {

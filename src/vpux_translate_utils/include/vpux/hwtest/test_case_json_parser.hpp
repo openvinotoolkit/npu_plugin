@@ -38,6 +38,7 @@ enum class CaseType {
     RaceConditionDPU,
     RaceConditionDPUDMA,
     RaceConditionDPUDMAACT,
+    RaceCondition,
     Unknown
 };
 
@@ -101,6 +102,16 @@ struct PoolLayer {
     std::int64_t dilation = 0;
 };
 
+struct RaceConditionParams {
+    size_t iterationsCount;
+    size_t requestedClusters;
+
+    // requested DPU's per cluster for DPUop case
+    // requested ActShave's per cluster for ActShaveOp case
+    // requested DMA engines for DMAop case
+    size_t requestedUnits;
+};
+
 struct OutputLayer {
     std::array<std::int64_t, 4> shape = {0};
     DType dtype = DType::UNK;
@@ -123,7 +134,8 @@ struct ActivationLayer {
 class TestCaseJsonDescriptor {
 public:
     TestCaseJsonDescriptor(llvm::StringRef jsonString = "");
-    void parse(llvm::StringRef jsonString);
+    TestCaseJsonDescriptor(llvm::json::Object jsonObject);
+    void parse(llvm::json::Object jsonObject);
     InputLayer getInputLayer() const {
         return inLayer_;
     }
@@ -145,6 +157,9 @@ public:
     ActivationLayer getActivationLayer() const {
         return activationLayer_;
     }
+    RaceConditionParams getRaceConditionParams() const {
+        return raceConditionParams_;
+    }
     CaseType getCaseType() const {
         return caseType_;
     }
@@ -163,6 +178,9 @@ public:
     std::size_t getIterationCount() const {
         return iterationCount_;
     }
+    std::shared_ptr<TestCaseJsonDescriptor> getUnderlyingOp() const {
+        return underlyingOp_;
+    }
 
 private:
     InputLayer loadInputLayer(llvm::json::Object* jsonObj);
@@ -174,6 +192,7 @@ private:
     ActivationLayer loadActivationLayer(llvm::json::Object* jsonObj);
     CaseType loadCaseType(llvm::json::Object* jsonObj);
     QuantParams loadQuantizationParams(llvm::json::Object* obj);
+    RaceConditionParams loadRaceConditionParams(llvm::json::Object* obj);
     std::size_t loadIterationCount(llvm::json::Object* obj);
 
     CaseType caseType_;
@@ -190,6 +209,8 @@ private:
     vpux::VPU::PPEMode ppeLayerType_ = vpux::VPU::PPEMode::ADD;
     MVCNN::Permutation odu_permutation_ = MVCNN::Permutation::Permutation_ZXY;
     std::size_t iterationCount_;
+    std::shared_ptr<TestCaseJsonDescriptor> underlyingOp_;
+    RaceConditionParams raceConditionParams_;
 };
 
 }  // namespace nb
