@@ -46,60 +46,72 @@ public:
     }
 
 public:
-    class ConcatOpConverter;
+    struct ConcatPart {
+        ConcatPart() {
+            _copyOp = nullptr;
+            _nceOp = nullptr;
+        }
+        ConcatPart(IE::CopyOp copyOp, VPU::NCEOpInterface nceOp, size_t inputIdx) {
+            _copyOp = copyOp;
+            _nceOp = nceOp;
+            _inputIdx = inputIdx;
+        }
+        bool isValidPart() {
+            return _nceOp != nullptr;
+        }
+        bool hasCopyOp() {
+            return _copyOp != nullptr;
+        }
+        size_t _inputIdx;
+        IE::CopyOp _copyOp;
+        VPU::NCEOpInterface _nceOp;
+    };
+
+    struct ConcatPattern {
+        ConcatPattern() {
+            _concat = nullptr;
+        }
+        void setConcat(IE::ConcatOp concat) {
+            _concat = concat;
+        }
+        void addConcatPart(ConcatPart concatPart) {
+            _concatParts.push_back(concatPart);
+        }
+        bool isValidPatern() {
+            return _concat != nullptr;
+        }
+        SmallVector<ConcatPart> _concatParts;
+        IE::ConcatOp _concat;
+    };
 
 private:
     void safeRunOnFunc();
 
 private:
     Logger _log;
+
+private:
+    size_t getSize(mlir::Value val);
+    ConcatPattern getInputPattern(IE::ConcatOp concat);
+    bool isSplitSupportedOnDPU(IE::SliceOp sliceOp);
+    ConcatPattern getOutputPattern(IE::ConcatOp concat);
+    bool concatOperationDoesNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
+    bool isThisAComplexConcat(IE::ConcatOp concat, ConcatPattern concatPattern);
+    bool inputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
+    bool childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
+    bool outputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
+    IE::SliceOp convertCopyToSlice(IE::CopyOp copyOp);
+    void rewriteInputPattern(ConcatPattern concatPattern);
+    void rewriteOutputPattern(ConcatPattern concatPattern);
 };
 
-struct ConcatPart {
-    ConcatPart() {
-        _copyOp = nullptr;
-        _nceOp = nullptr;
-    }
-    ConcatPart(IE::CopyOp copyOp, VPU::NCEOpInterface nceOp, size_t inputIdx) {
-        _copyOp = copyOp;
-        _nceOp = nceOp;
-        _inputIdx = inputIdx;
-    }
-    bool isValidPart() {
-        return _nceOp != nullptr;
-    }
-    bool hasCopyOp() {
-        return _copyOp != nullptr;
-    }
-    size_t _inputIdx;
-    IE::CopyOp _copyOp;
-    VPU::NCEOpInterface _nceOp;
-};
-
-struct ConcatPattern {
-    ConcatPattern() {
-        _concat = nullptr;
-    }
-    void setConcat(IE::ConcatOp concat) {
-        _concat = concat;
-    }
-    void addConcatPart(ConcatPart concatPart) {
-        _concatParts.push_back(concatPart);
-    }
-    bool isValidPatern() {
-        return _concat != nullptr;
-    }
-    SmallVector<ConcatPart> _concatParts;
-    IE::ConcatOp _concat;
-};
-
-size_t getSize(mlir::Value val) {
+size_t CMXConcatPass::getSize(mlir::Value val) {
     const auto valueShape = getShape(val).raw();
     const auto totalSize = vpux::details::calcTotalShapeSize(valueShape);
     return static_cast<size_t>(totalSize);
 }
 
-ConcatPattern getInputPattern(IE::ConcatOp concat) {
+CMXConcatPass::ConcatPattern CMXConcatPass::getInputPattern(IE::ConcatOp concat) {
     ConcatPattern concatPattern;
     // store all required input info in a struct
     for (size_t inputIdx = 0; inputIdx < concat.inputs().size(); inputIdx++) {
@@ -121,7 +133,7 @@ ConcatPattern getInputPattern(IE::ConcatOp concat) {
     return concatPattern;
 }
 
-bool isSplitSupportedOnDPU(IE::SliceOp silceOp) {
+bool CMXConcatPass::isSplitSupportedOnDPU(IE::SliceOp silceOp) {
     // Check if SubView performs a split along major dimension taking into accout order in memory
     // For NCHW that would be split along C
     // For NHWC that would be split along H
@@ -164,7 +176,7 @@ bool isSplitSupportedOnDPU(IE::SliceOp silceOp) {
     return false;
 }
 
-ConcatPattern getOutputPattern(IE::ConcatOp concat) {
+CMXConcatPass::ConcatPattern CMXConcatPass::getOutputPattern(IE::ConcatOp concat) {
     ConcatPattern concatPattern;
     // store all required output info in a struct
     for (auto user : concat.output().getUsers()) {
@@ -191,7 +203,7 @@ ConcatPattern getOutputPattern(IE::ConcatOp concat) {
     return concatPattern;
 }
 
-bool concatOperationDoesNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
+bool CMXConcatPass::concatOperationDoesNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
     // check if the concat can fit in CMX
     // in order to CMX a concat the entire output buffer + inputs for the
     // largest tile must fit in CMX at the same time
@@ -212,11 +224,12 @@ bool concatOperationDoesNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPat
         maxUserSize = std::max<size_t>(maxUserSize, currUserSize);
     }
 
+    _log.nest(3).trace("Concat size '{0}'", (concatSize + maxUserSize));
     // return concat size smaller than CMX size
     return (concatSize + maxUserSize) > cmxSize;
 }
 
-bool isThisAComplexConcat(IE::ConcatOp concat, ConcatPattern concatPattern) {
+bool CMXConcatPass::isThisAComplexConcat(IE::ConcatOp concat, ConcatPattern concatPattern) {
     // avoid concats which are complex, where the inputs to the concat are used
     // by other operations
     for (auto concatPart : concatPattern._concatParts) {
@@ -240,14 +253,16 @@ bool isThisAComplexConcat(IE::ConcatOp concat, ConcatPattern concatPattern) {
     return false;
 }
 
-bool inputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
+bool CMXConcatPass::inputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
     // if concat is a Result operation
     if (concat.output().isa<mlir::BlockArgument>()) {
+        _log.nest(2).trace("Concat output is part of network output");
         return false;
     }
 
     // assert that the concat will fit in CMX
     if (concatOperationDoesNotFitInCMX(concat, concatPattern, cmxSize)) {
+        _log.nest(2).trace("Concat does not fit in cmx");
         return false;
     }
 
@@ -255,13 +270,14 @@ bool inputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, si
         // TODO implement complex concat
         // where part of the concatinated buffer is also used by another operation
         // visible in yolo-v4-tiny concatinate 4
+        _log.nest(2).trace("Concat is complex");
         return false;
     }
 
     return true;
 }
 
-bool childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
+bool CMXConcatPass::childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
     // check if the child operations - operations using the concat output buffer
     // will fit in CMX along with their inputs and output
     // auto output = concat.getResult();
@@ -287,137 +303,107 @@ bool childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPatte
         maxConsumerSize = std::max<size_t>(maxConsumerSize, currentConsumerSize);
     }
 
+    _log.nest(3).trace("Concat consumer max size '{0}'", (maxConsumerSize + concatSize));
     // return concat size greater than CMX size
     return (maxConsumerSize + concatSize) > cmxSize;
 }
 
-bool outputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
+bool CMXConcatPass::outputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
     // verify the following operation can fit in CMX
     if (childOperationsDoNotFitInCMX(concat, concatPattern, cmxSize)) {
+        _log.nest(2).trace("Concat consumers do not fit in cmx");
         return false;
     }
 
     return true;
 }
 
-void rewriteInputPattern(ConcatPattern concatPattern, mlir::PatternRewriter& rewriter) {
-    if (false) {
-        rewriter.getBoolAttr(true);
-    }
+void CMXConcatPass::rewriteInputPattern(ConcatPattern concatPattern) {
+    /*
+        From DDR IR
 
-    // convert using the above
+        NCE      NCE
+         |        |
+        Copy     Copy
+           \    /
+           Concat
 
+        TO NNCMX IR
+
+        NCE      NCE
+         |        |
+      SubView   SubView (added in IERT)
+          \    /
+          Concat
+    */
     for (auto concatPart : concatPattern._concatParts) {
+        _log.nest(1).trace("Removing input Copy to DDR '{0}' at '{1}'", concatPart._copyOp->getName(),
+                           concatPart._copyOp->getLoc());
         concatPart._copyOp.output().replaceAllUsesWith(concatPart._copyOp.input());
     }
-
-    // for (const auto p : zip(concatPattern._concatParts, staticOffsets)) {
-    //     auto concatPart = std::get<0>(p);
-    //     auto curOffsets = std::get<1>(p);
-
-    //     const auto outputType = concatPart._copyOp.getResult().getType().cast<mlir::ShapedType>();
-    //     const auto outShape = outputType.getShape();
-
-    //     auto slice = rewriter.replaceOpWithNewOp<IE::SliceOp>(concatPart._copyOp, concatPart._copyOp.getType(),
-    //                                                           concatPart._copyOp.input(), curOffsets,
-    //                                                           getIntArrayAttr(ctx, outShape));
-
-    //     slice.result().setType(slice.source().getType());  // removes the slices from IR
-
-    //     slice->setLoc(concatPattern._concat.getLoc());
-
-    //     concatPattern._concat->setOperand(concatPart._inputIdx, slice.result());
-
-    //     // concatPattern._concat->getOperand(0).dump();
-    //     // slice.dump();
-    // }
 }
 
-void rewriteOutputPattern(ConcatPattern concatPattern, mlir::PatternRewriter& rewriter) {
-    if (false) {
-        rewriter.getBoolAttr(true);
-    }
+void CMXConcatPass::rewriteOutputPattern(ConcatPattern concatPattern) {
+    /*
+                            From DDR IR
 
-    // Copy from DDR to NNCMX
-    if (concatPattern._concatParts.size() == 1) {
-        auto concatPart = concatPattern._concatParts.front();
-        // update user and result type
-        // concatPart._copyOp.output().setType(concatPart._copyOp.input().getType());
+           Concat
+           /    \
+        Slice   Slice                              Concat
+         |        |                                  |
+        Copy     Copy                               Copy
+         |        |                                  |
+        NCE      NCE                                NCE
+                            TO NNCMX IR
+
+           Concat                                  Concat
+           /    \                                    |
+        Slice   Slice                               NCE
+         |        |
+        NCE      NCE
+    */
+    for (auto concatPart : concatPattern._concatParts) {
+        _log.nest(1).trace("Removing output Copy to DDR '{0}' at '{1}'", concatPart._copyOp->getName(),
+                           concatPart._copyOp->getLoc());
         concatPattern._concat.output().setType(concatPart._copyOp.output().getType());
-
         concatPart._copyOp.output().replaceAllUsesWith(concatPart._copyOp.input());
-        // concatPart._copyOp.erase();
-    } else {
-        for (auto concatPart : concatPattern._concatParts) {
-            // remove the copy op
-            // TODO: case with Slices
-            concatPattern._concat.output().setType(concatPart._copyOp.output().getType());
-            concatPart._copyOp.output().replaceAllUsesWith(concatPart._copyOp.input());
-        }
     }
-}
-
-//
-// ConcatOpConverter
-//
-
-class CMXConcatPass::ConcatOpConverter final : public mlir::OpRewritePattern<IE::ConcatOp> {
-public:
-    ConcatOpConverter(mlir::MLIRContext* ctx, size_t cmxSize, Logger log)
-            : mlir::OpRewritePattern<IE::ConcatOp>(ctx), _cmxSize(cmxSize), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::ConcatOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    size_t _cmxSize;
-    Logger _log;
-};
-
-mlir::LogicalResult CMXConcatPass::ConcatOpConverter::matchAndRewrite(IE::ConcatOp origOp,
-                                                                      mlir::PatternRewriter& rewriter) const {
-    auto inputPattern = getInputPattern(origOp);
-    if (!inputPattern.isValidPatern()) {
-        return mlir::failure();
-    }
-    auto outputPattern = getOutputPattern(origOp);
-    if (!outputPattern.isValidPatern()) {
-        std::cout << "output pattern not valid" << std::endl;
-        return mlir::failure();
-    }
-
-    if (!inputPatternCanBeCMXed(origOp, inputPattern, _cmxSize)) {
-        std::cout << "input pattern can not be cmx-ed" << std::endl;
-        return mlir::failure();
-    }
-    if (!outputPatternCanBeCMXed(origOp, outputPattern, _cmxSize)) {
-        std::cout << "output pattern can not be cmx-ed" << std::endl;
-        return mlir::failure();
-    }
-    // rewrite from DDR to NNCMX
-    rewriteInputPattern(inputPattern, rewriter);
-    rewriteOutputPattern(outputPattern, rewriter);
-    // origOp->getOperand(0).dump();
-    origOp.getLoc().dump();
-
-    return mlir::success();
 }
 
 void CMXConcatPass::safeRunOnFunc() {
-    auto& ctx = getContext();
     auto func = getFunction();
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
     auto availableMem = IE::getAvailableMemory(module, VPU::MemoryKind::CMX_NN);
     const auto cmxSize = checked_cast<size_t>(availableMem.size().count());
 
-    mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ConcatOpConverter>(&ctx, cmxSize, _log);
-
-    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
-        signalPassFailure();
-    }
+    func->walk([&](IE::ConcatOp concat) {
+        // check concat input pattern
+        _log.trace("Got '{0}' at '{1}'", concat->getName(), concat->getLoc());
+        auto inputPattern = getInputPattern(concat);
+        if (!inputPattern.isValidPatern()) {
+            _log.nest(1).trace("Concat input pattern not valid");
+            return;
+        }
+        if (!inputPatternCanBeCMXed(concat, inputPattern, cmxSize)) {
+            _log.nest(1).trace("Concat input pattern can not be cmx-ed");
+            return;
+        }
+        // check concat output pattern
+        auto outputPattern = getOutputPattern(concat);
+        if (!outputPattern.isValidPatern()) {
+            _log.nest(1).trace("Concat output pattern not valid");
+            return;
+        }
+        if (!outputPatternCanBeCMXed(concat, outputPattern, cmxSize)) {
+            _log.nest(1).trace("Concat output pattern can not be cmx-ed");
+            return;
+        }
+        // rewrite from DDR to NNCMX
+        rewriteInputPattern(inputPattern);
+        rewriteOutputPattern(outputPattern);
+        _log.trace("Concat '{0}' at '{1}' was cmx-ed", concat->getName(), concat->getLoc());
+    });
 }
 
 }  // namespace
