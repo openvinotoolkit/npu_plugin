@@ -2889,9 +2889,9 @@ def VPUIP_ExtractImagePatchesUPAOp :
         AnyMemRef:$data,
         AnyMemRef:$output_buff,
 
-        I32ArrayAttr:$sizes,
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$rates,
+        I64ArrayAttr:$sizes,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$rates,
         IE_PadType:$auto_pad,
 
         OptionalAttr<IntAttr>:$maxShaves

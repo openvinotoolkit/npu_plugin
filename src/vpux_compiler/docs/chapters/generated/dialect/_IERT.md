@@ -819,9 +819,9 @@ operation ::= `IERT.ExtractImagePatches` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`sizes` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`rates` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `auto_pad` | vpux::IE::PadTypeAttr | PadType that the InferenceEngine supports
 
 #### Operands:

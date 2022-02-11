@@ -38,10 +38,23 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 //     InferenceEngine::SizeVector {1, 3, 10, 10}
 // };
 
-const std::vector<std::vector<size_t>> inputShape = {{1, 1, 10, 10}, {1, 3, 10, 10}};
-const std::vector<std::vector<size_t>> sizes = {{2, 2}, {3, 3}, {4, 4}, {1, 3}, {4, 2}};
-const std::vector<std::vector<size_t>> strides = {{3, 3}, {5, 5}, {9, 9}, {1, 3}, {6, 2}};
-const std::vector<std::vector<size_t>> rates = {{1, 1}, {1, 2}, {2, 1}, {2, 2}};
+/*
+    //  Input  : 1x1x10x10
+    //  Output : 1x9x2x2
+    auto batch = 1;
+    auto depth = 1;
+    auto in_rows = 10;
+    auto in_cols = 10;
+    std::vector<unsigned int> sizes = {3, 3};
+    std::vector<unsigned int> strides = {5, 5};
+    std::vector<unsigned int> rates = {1, 1};
+    std::string auto_pad = "valid";
+*/
+
+const std::vector<std::vector<size_t>> inputShape = {{1, 1, 10, 10}};//{{1, 1, 10, 10}, {1, 3, 10, 10}};
+const std::vector<std::vector<size_t>> sizes = {{3, 3}};//{{2, 2}, {3, 3}, {4, 4}, {1, 3}, {4, 2}};
+const std::vector<std::vector<size_t>> strides = {{5, 5}};//{{3, 3}, {5, 5}, {9, 9}, {1, 3}, {6, 2}};
+const std::vector<std::vector<size_t>> rates = {{1, 1}};//{{1, 1}, {1, 2}, {2, 1}, {2, 2}};
 // const std::vector<PadType> paddingType = {PadType::VALID, PadType::SAME_UPPER, PadType::SAME_LOWER};
 
 const auto testExtractImagePatchesParams = ::testing::Combine(

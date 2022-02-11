@@ -39,11 +39,10 @@ mlir::LogicalResult vpux::IE::ExtractImagePatchesOp::inferReturnTypeComponents(
     const auto inShape = inType.getShape();
 
     if (inShape.size() != 4) {
-        return errorAt(loc, "Dimension of the input data should be 4. Got {0} D tensor",
-                        inShape.size());
+        return errorAt(loc, "Dimension of the input data should be 4. Got {0} D tensor", inShape.size());
     }
 
-    const auto sizes = parseIntArrayAttr<int32_t>(extractImagePatches.sizes());
+    const auto sizes = parseIntArrayAttr<int64_t>(extractImagePatches.sizes());
 
     if (sizes.size() != 2) {
         return errorAt(loc, "Dimension of sizes attributes is expected to be equal to 2. Got {0}", sizes.size());
@@ -53,7 +52,7 @@ mlir::LogicalResult vpux::IE::ExtractImagePatchesOp::inferReturnTypeComponents(
         return errorAt(loc, "Sizes attributes sizeRows and sizeCols should be positive.");
     }
 
-    const auto strides = parseIntArrayAttr<int32_t>(extractImagePatches.strides());
+    const auto strides = parseIntArrayAttr<int64_t>(extractImagePatches.strides());
     
     if (strides.size() != 2) {
         return errorAt(loc, "Dimension of strides attributes is expected to be equal to 2. Got {0}", strides.size());
@@ -63,7 +62,7 @@ mlir::LogicalResult vpux::IE::ExtractImagePatchesOp::inferReturnTypeComponents(
         return errorAt(loc, "strides attributes stridesRows and stridesCols should be positive.");
     }
 
-    const auto rates = parseIntArrayAttr<int32_t>(extractImagePatches.rates());
+    const auto rates = parseIntArrayAttr<int64_t>(extractImagePatches.rates());
     
     if (rates.size() != 2) {
         return errorAt(loc, "Dimension of rates attributes is expected to be equal to 2. Got {0}", rates.size());
@@ -74,23 +73,54 @@ mlir::LogicalResult vpux::IE::ExtractImagePatchesOp::inferReturnTypeComponents(
     }
 
     SmallVector<int64_t> output_shape;
+    //     data: the 4-D tensor of type T with shape [batch, depth, in_rows, in_cols].
+    //     output: 4-D tensor with shape [batch, size[0] * size[1] * depth, out_rows, out_cols]
 
-    if (paddingType == IE::PadType::SAME_UPPER || paddingType == IE::PadType::SAME_LOWER) {
-//      SMTH - the input is padded by zeros to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
-//      output_shape = ;
-    } else if (paddingType == IE::PadType::VALID) {
-//      SMTH -  do not use padding
-//      output_shape = ;
+    if (inType.hasStaticShape()){
+
+//        if (inType[2].hasStaticShape && inType[3].hasStaticShape){ 
+
+            int32_t input_rows = inShape[2];//.get_length();
+            int32_t input_cols = inShape[3];//.get_length();
+            int32_t out_rows(0);
+            int32_t out_cols(0);
+            if (input_rows == 0 || input_cols == 0) {
+                
+                output_shape.push_back(inType.getShape()[3]); //out_cols
+                output_shape.push_back(inType.getShape()[2]); //out_rows
+                output_shape.push_back(inType.getShape()[1] * sizes[0] * sizes[1]); // size[0] * size[1] * depth
+                output_shape.push_back(inType.getShape()[0]); //batch
+
+                inferredReturnShapes.emplace_back(output_shape, inType.getElementType());
+                return mlir::success();
+            }
+
+            if (paddingType == IE::PadType::SAME_UPPER || paddingType == IE::PadType::SAME_LOWER) {
+            //      SMTH - the input is padded by zeros to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
+                out_rows = 1 + ( input_rows - 1 ) / strides[0]; 
+                out_cols = 1 + ( input_cols - 1 ) / strides[1]; 
+            } else if (paddingType == IE::PadType::VALID) {
+            //      SMTH -  do not use padding
+                out_rows = ( input_rows - rates[0] * ( sizes[0] - 1) - 1 ) / strides[0] + 1 ;
+                out_cols = ( input_cols - rates[1] * ( sizes[1] - 1) - 1 ) / strides[1] + 1 ;
+
+            }
+
+            if ( out_rows < 0 )
+                out_rows = 0 ;
+
+            if ( out_cols < 0 )
+                out_cols = 0 ;
+
+            output_shape.push_back(out_cols); //out_cols
+            output_shape.push_back(out_rows); //out_rows
+            output_shape.push_back(inType.getShape()[1] * sizes[0] * sizes[1]); // size[0] * size[1] * depth
+            output_shape.push_back(inType.getShape()[0]); //batch
+
+//        }
+  
     }
-//     data: the 4-D tensor of type T with shape [batch, depth, in_rows, in_cols].
-//     output: 4-D tensor with shape [batch, size[0] * size[1] * depth, out_rows, out_cols]
-
-    output_shape.push_back(inType.getShape()[0]); // ?? - batch
-//     output_shape.push_back(inType.getShape()[1] * ... * ... ); // ?? - size[0] * size[1] * depth
-//     output_shape.push_back(..); // ?? -  out_rows
-//     output_shape.push_back(..); // ?? - out_cols
-//     Note out_rows and out_cols are the dimensions of the output patches.
-
+    
     inferredReturnShapes.emplace_back(output_shape, inType.getElementType());
     return mlir::success();
 }

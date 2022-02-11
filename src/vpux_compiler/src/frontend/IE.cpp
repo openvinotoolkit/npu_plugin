@@ -1997,13 +1997,13 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                       origNode->get_friendly_name(), inputs.size());
     //TODO
 
-    const auto sizes = getIntArrayAttr(_ctx, origNode->get_sizes());
-    const auto strides = getIntArrayAttr(_ctx, origNode->get_strides());
-    const auto rates = getIntArrayAttr(_ctx, origNode->get_rates());
-    const auto auto_pad = importPadType(origNode->get_auto_pad());
+    const auto sizesAttr = getIntArrayAttr(_ctx, origNode->get_sizes());
+    const auto stridesAttr = getIntArrayAttr(_ctx, origNode->get_strides());
+    const auto ratesAttr = getIntArrayAttr(_ctx, origNode->get_rates());
+    const auto auto_padAttr = importPadType(origNode->get_auto_pad());
 
-    auto op = builder.create<IE::ExtractImagePatchesOp>(createLocation(origNode), inputs[0], sizes,
-                                                 strides, rates, auto_pad);
+    auto op = builder.create<IE::ExtractImagePatchesOp>(createLocation(origNode), inputs[0], sizesAttr,
+                                                 stridesAttr, ratesAttr, auto_padAttr);
     addOutputs(origNode, op);
 }
 

@@ -28,8 +28,8 @@ using namespace vpux;
 void vpux::VPUIP::ExtractImagePatchesUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
                                       mlir::Value data, mlir::Value output,
                                       mlir::ArrayAttr sizes, mlir::ArrayAttr strides, mlir::ArrayAttr rates,
-                                      IE::PadTypeAttr paddingType) {
-   build(odsBuilder, odsState, data, output, sizes, strides, rates, paddingType);
+                                      IE::PadTypeAttr auto_pad) {
+   build(odsBuilder, odsState, data, output, sizes, strides, rates, auto_pad);
 }
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(ExtractImagePatchesUPAOp op) {
@@ -39,7 +39,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ExtractImagePatchesUPAOp op) {
         return errorAt(op, "Dimension of the input data should be 4D tensor. Got {0} D tensor", inShape.size());
     }
 
-    const auto sizes = parseIntArrayAttr<int32_t>(op.sizes());
+    const auto sizes = parseIntArrayAttr<int64_t>(op.sizes());
     if (sizes.size() != 2) {
         return errorAt(op, "Dimension of sizes attributes is expected to be equal to 2. Got {0}", sizes.size());
     }
@@ -48,7 +48,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ExtractImagePatchesUPAOp op) {
         return errorAt(op, "Sizes attributes sizeRows and sizeCols should be positive.");
     }
 
-    const auto strides = parseIntArrayAttr<int32_t>(op.strides());
+    const auto strides = parseIntArrayAttr<int64_t>(op.strides());
     
     if (strides.size() != 2) {
         return errorAt(op, "Dimension of strides attributes is expected to be equal to 2. Got {0}", strides.size());
@@ -58,7 +58,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ExtractImagePatchesUPAOp op) {
         return errorAt(op, "strides attributes stridesRows and stridesCols should be positive.");
     }
 
-    const auto rates = parseIntArrayAttr<int32_t>(op.rates());
+    const auto rates = parseIntArrayAttr<int64_t>(op.rates());
     
     if (rates.size() != 2) {
         return errorAt(op, "Dimension of rates attributes is expected to be equal to 2. Got {0}", rates.size());
@@ -86,9 +86,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExtractImagePatchesUPAOp::serialize
         VPUX_THROW("Unsupported pad type {0}", this->auto_pad());
     }
 
-    const auto sizes = parseIntArrayAttr<int32_t>(sizesAttr());
-    const auto strides = parseIntArrayAttr<int32_t>(stridesAttr());
-    const auto rates = parseIntArrayAttr<int32_t>(ratesAttr());
+    const auto sizes = parseIntArrayAttr<int64_t>(sizesAttr());
+    const auto strides = parseIntArrayAttr<int64_t>(stridesAttr());
+    const auto rates = parseIntArrayAttr<int64_t>(ratesAttr());
 
     //sizes is a size [size_rows, size_cols] 
     builder.add_sizeRows(checked_cast<int32_t>(sizes[0]));

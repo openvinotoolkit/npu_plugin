@@ -3174,9 +3174,9 @@ def IERT_ExtractImagePatchesOp :
         AnyMemRef:$data,
         AnyMemRef:$output_buff,
 
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$sizes,
-        I32ArrayAttr:$rates,
+        I64ArrayAttr:$sizes,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$rates,
         IE_PadType:$auto_pad
     );
 
