@@ -57,19 +57,20 @@ void InvocationBuilder::addTensorArg(mlir::Value value, const MVCNN::TensorRefer
     const auto shape = getShape(value);
     memrefData.numDims = checked_cast<uint32_t>(shape.size());
 
+    // order
+    const auto inOrder = DimsOrder::fromValue(value);
+    const auto memShape = inOrder.toMemoryOrder(shape);
+    memrefData.dimsOrder = inOrder.code();
+
     // dims
     const auto dimsPatcher = [](sw_params::MemRefData& memrefData, uint32_t updateTo) {
         memrefData.dimsAddr = updateTo;
     };
     _deferredPointers.push_back(createPatchPoint<sw_params::MemRefData>(dimsPatcher));
 
-    for (auto& dim : shape) {
+    for (auto& dim : memShape | reversed) {
         appendValue(_arrayStorage, checked_cast<int32_t>(dim));
     }
-
-    // order
-    const auto inOrder = DimsOrder::fromValue(value);
-    memrefData.dimsOrder = inOrder.code();
 
     // strides
     auto stridesPatcher = [](sw_params::MemRefData& memrefData, uint32_t updateTo) {
@@ -77,8 +78,8 @@ void InvocationBuilder::addTensorArg(mlir::Value value, const MVCNN::TensorRefer
     };
     _deferredPointers.push_back(createPatchPoint<sw_params::MemRefData>(stridesPatcher));
 
-    const auto strides = getStrides(value);
-    for (auto&& stride : strides) {
+    const auto memStrides = getMemStrides(value);
+    for (auto&& stride : memStrides | reversed) {
         appendValue(_arrayStorage, stride);
     }
 

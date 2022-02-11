@@ -18,6 +18,20 @@
 using namespace vpux;
 using namespace mlir;
 
+namespace {
+// special format of axis/order available only on kernel-FW side
+int64_t computeReverseMemDim(Value tensorArg, int64_t axisIdx) {
+    const auto inOrder = DimsOrder::fromValue(tensorArg);
+    MemDim md = inOrder.toMemDim(Dim(axisIdx));
+    inOrder.printFormat(llvm::outs());
+    md.printFormat(llvm::outs());
+
+    const auto shape = getShape(tensorArg);
+    auto nDims = checked_cast<uint32_t>(shape.size());
+    return nDims - 1 - md.ind();
+}
+}  // namespace
+
 namespace vpux {
 namespace VPUIP {
 
@@ -73,7 +87,10 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"sigmoid_fp16"}, {"sigmoid_fp16.c"}};
             })
             .Case<IERT::SoftMaxOp>([&](IERT::SoftMaxOp softmax) {
-                return IERT::KernelInfo{SmallVector<mlir::Attribute>{softmax.axisIndAttr()},
+                // input tensor, to transform axis
+                const auto axisParam = computeReverseMemDim(softmax->getOpOperand(0).get(), softmax.axisInd());
+                const auto axisParamAttr = getIntAttr(softmax.getContext(), axisParam);
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr},
                                         {"singleShaveSoftmax"},
                                         {"single_shave_softmax.cpp"}};
             })

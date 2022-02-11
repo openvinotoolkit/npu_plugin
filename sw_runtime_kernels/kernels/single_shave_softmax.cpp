@@ -411,17 +411,8 @@ void singleShaveSoftmax(uint32_t lParams) {
     t_MvSoftMaxParamNClasses softmaxParamsCMX;
     t_MvSoftMaxParamNClasses* sp = &softmaxParamsCMX;
 
-    // rebuild axis order - kernel expect strides and dims in following order
-    // W H C N - etc, so 3,2,1,0 - according to given order lets rebuild permutation
-    bool bres = false;
-    auto permutation = orderNDToPermutation(layerParams->input.dimsOrder, bres);
-    // TODO: bres status not handled.
-    if (!bres) {
-        return;
-    }
-
     // parameters specific for softmax in customCpp parameter buffer
-    sp->axis = permutation[layerParams->axis];  // axis in arguments in memory notation because tensors are represented as TensorRefNDData
+    sp->axis = layerParams->axis;  // axis in arguments in memory notation because tensors are represented as TensorRefNDData
                                                 // which is in memory notation too
     sp->inputInCmx = true;//(layerParams->input.location == sw_params::Location::NN_CMX || layerParams->input.location == sw_params::Location::UPA_CMX);
     sp->outputInCmx = true;//(layerParams->output.location == sw_params::Location::NN_CMX || layerParams->output.location == sw_params::Location::UPA_CMX);
@@ -432,10 +423,9 @@ void singleShaveSoftmax(uint32_t lParams) {
     int64_t *oPStrides = (int64_t *)(layerParams->output.stridesAddr);
 
     for (int i = 0; i < layerParams->input.numDims; i++) {
-        int map_index = permutation[i];
-        sp->in_dims[i] = pDims[map_index];
-        sp->in_strides[i] = iPStrides[map_index] / CHAR_BIT;
-        sp->out_strides[i] = oPStrides[map_index] / CHAR_BIT;
+        sp->in_dims[i] = pDims[i];
+        sp->in_strides[i] = iPStrides[i] / CHAR_BIT;
+        sp->out_strides[i] = oPStrides[i] / CHAR_BIT;
     }
 
     // excluding dim == 1 from dims
