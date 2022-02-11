@@ -317,6 +317,33 @@ def VPUIP_PoolingUPAOp :
     }];
 }
 
+def VPUIP_AdaAvgPoolOp :
+        VPUIP_UPATaskOp<1, "AdaAvgPoolUPA",
+            [
+                ViewLikeOpInterface,
+            ]
+        > {
+    let summary = "AdaAvgPool UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input1,
+        F16MemRef:$input2,
+
+    IE_AdaAvgPoolMethod:$method
+    );
+
+let results = (outs
+    F16MemRef:$output
+);
+
+let assemblyFormat = [{
+    attr-dict
+    `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+    `outputs` `(` $output_buff `:` type($output_buff) `)`
+    `->` type(results)
+    }];
+}
+
 //
 // ConvolutionUPAOp
 //
