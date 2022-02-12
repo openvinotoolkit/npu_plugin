@@ -351,6 +351,13 @@ bool isDivisibleTile(mlir::Operation* op, ShapeRef tileAxis, Dim tileDim, int64_
     }
 }
 
+bool checkPatternPrefetchMem(mlir::Operation* op, const OutputTiling& tiles, Logger log) {
+    auto parentOp = IE::getParentTargetOp(op);
+    const auto parentShape = getShape(parentOp->getResult(0));
+    return mlir::succeeded(
+            vpux::VPUIP::NCEInvariant::verifyPrefetchPatternCMX(op, tiles, parentOp, {TileInfo(parentShape)}, log));
+}
+
 bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logger log,
                                const TilingMode& tilingMode) {
     auto outputShape = getShape(origOp.output());
@@ -359,11 +366,17 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const OutputTiling& til
     if (tileDims.size() != 1) {
         return false;
     }
+    if (tilingMode == vpux::TilingMode::ISOLATED_TILING) {
+        return isSupportedIsolatedTiling(origOp, tiles, log);
+    }
+
     auto tileDim = tileDims[0];
     auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp.getOperation(), tileResult, log, tilingMode)
-                .succeeded();
+        if (tilingMode == vpux::TilingMode::PREFETCH_TILING) {
+            return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
+        }
+        // Pattern prefetch
+        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
     };
 
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
@@ -386,9 +399,11 @@ bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, const OutputTiling
     }
 
     auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp.getOperation(), tileResult, log, tilingMode)
-                .succeeded();
+        if (tilingMode == vpux::TilingMode::PREFETCH_TILING) {
+            return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
+        }
+        // Pattern prefetch
+        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
     };
 
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
@@ -411,9 +426,11 @@ bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, 
     }
 
     auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp.getOperation(), tileResult, log, tilingMode)
-                .succeeded();
+        if (tilingMode == vpux::TilingMode::PREFETCH_TILING) {
+            return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
+        }
+        // Pattern prefetch
+        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
     };
 
     size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
