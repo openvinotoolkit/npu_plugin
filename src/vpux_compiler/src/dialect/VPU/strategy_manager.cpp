@@ -338,56 +338,32 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
             });
 }
 
-VPU::NCEClusterTilingOp StrategyManager::createMaxPoolDistributedActivationTensor(
-        VPU::NCEMaxPoolOp& origOp, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles) const {
-    // Specify the distribution mode of the tensor  overlapped,duplicated,segmented, multicasted,
-    const auto activationTensorDistributionModeAttr =
-            vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
+VPU::DistributionMode:StrategyManager::getTensorDistributionMode(const llvm::StringRef multiClusterStrategy)
+{
+    if (mlir::isa<VPU::NCEConvolutionOp>(operation)) {
+        return VPU::MPEMode::CUBOID_16x16;
+    } else if (mlir::isa<VPU::NCEDepthConvolutionOp>(operation) || mlir::isa<VPU::NCEMaxPoolOp>(operation)) {
+        return VPU::MPEMode::CUBOID_4x16;
+    } else if (mlir::isa<VPU::NCEEltwiseOp>(operation)) {
+        return VPU::MPEMode::CUBOID_8x16;
+    }
 
-    // Specify the kernel
-    // const auto filterShape = getShape(origOp.filter());
-    // const auto kernel = getIntArrayAttr(
-    //         origOp.getContext(), makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+    return VPU::MPEMode::CUBOID_16x16;
+}
 
-    const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
+mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEDepthConvolutionOp& origOp) {
+    const auto filterShape = getShape(origOp.filter());
+    const auto kernel = getIntArrayAttr(
+            origOp.getContext(), makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+    return kernel;
+}
 
-    // // Create DistributedTensorAttr
-    auto activationTensorDistributedTensorAttr =
-            vpux::VPU::DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, origOp.kernel_size(),
-                                                  origOp.strides(), origOp.padAttr(), numClusters, origOp.getContext());
-
-    // // Specify the inputShape
-    // const auto inputShape = getShape(origOp.input());
-
-    // // Specify the memSpace
-    // const auto memSpace =
-    //         vpux::IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
-
-    // // Specify the order
-    // const auto order =
-    // mlir::AffineMapAttr::get(DimsOrder::fromValue(origOp.input()).toAffineMap(origOp.getContext()));
-
-    // // Element type
-    // auto elemType = origOp.input().getType().template cast<mlir::ShapedType>().getElementType();
-
-    // // Create DistributedTensorType
-    // const auto activationTensorDistributedTensorType = vpux::VPU::DistributedTensorType::get(
-    //         origOp.getContext(), inputShape.raw(), elemType, order, memSpace, activationTensorDistributedTensorAttr);
-
-    // _log.trace("Wrap copy operation for activation into NCEClusterTilingOp");
-
-    // // Create IE::Copy Op
-    // OpBuilderLogger builderLog(_log.nest());
-    // mlir::OpBuilder builder(origOp, &builderLog);
-    // builder.setInsertionPoint(origOp);
-    // const auto activationTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
-    //                                              mlir::ValueRange newOperands) {
-    //     const auto memSpace = IndexedSymbolAttr::get(builder.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
-    //     auto activationTensorDistributedCopyOp = builder.create<IE::CopyOp>(origOp->getLoc(), newOperands[0],
-    //     memSpace); builder.create<VPU::YieldOp>(loc, activationTensorDistributedCopyOp->getResults());
-    // };
-
-    // auto distributedActivationCopyOp = builder.create<VPU::NCEClusterTilingOp>(
-    //         origOp->getLoc(), activationTensorDistributedTensorType, origOp.input(), activationTensorBodyBuilder);
-    // return distributedActivationCopyOp;
+mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEConvolutionOp& origOp) {
+    const auto filterShape = getShape(origOp.filter());
+    const auto kernel = getIntArrayAttr(
+            origOp.getContext(), makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+    return kernel;
+}
+mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEMaxPoolOp& origOp) {
+    return origOp.kernel_size();
 }

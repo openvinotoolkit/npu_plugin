@@ -66,9 +66,9 @@ private:
     void assignMultiClusterStrategy(mlir::Operation* op);
     double calculateSplitOverHeightEfficency(mlir::Operation* op);
     double calculateSplitOverKernelEfficency(mlir::Operation* op);
-    VPU::NCEClusterTilingOp createMaxPoolDistributedActivationTensor(VPU::NCEMaxPoolOp& origOp,
-                                                                     vpux::VPU::DistributionMode distributionMode,
-                                                                     mlir::ArrayAttr numTiles) const;
+    static mlir::ArrayAttr getKernelSize(VPU::NCEDepthConvolutionOp& origOp);
+    static mlir::ArrayAttr getKernelSize(VPU::NCEConvolutionOp& origOp);
+    static mlir::ArrayAttr getKernelSize(VPU::NCEMaxPoolOp& origOp);
 
     std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable();
     std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable();
@@ -124,9 +124,7 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(Concr
             vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
 
     // Specify the kernel
-    const auto filterShape = getShape(origOp.filter());
-    const auto kernel = getIntArrayAttr(
-            origOp.getContext(), makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+    auto kernel = getKernelSize(origOp);
 
     const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
 
@@ -235,11 +233,7 @@ vpux::VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorT
             vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
 
     // Specify the kernel
-    const auto filterShape = origOp.rawFilterShape().hasValue()
-                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape().getValue()))
-                                     : getShape(origOp.filter());
-    const auto kernel = getIntArrayAttr(
-            origOp.getContext(), makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+    auto kernel = getKernelSize(origOp);
 
     const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
 
