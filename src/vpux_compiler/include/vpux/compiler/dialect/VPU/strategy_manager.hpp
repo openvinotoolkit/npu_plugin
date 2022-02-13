@@ -55,6 +55,17 @@ public:
     vpux::VPU::DistributedTensorType createDistributedOutputTensorType(ConcreteOp& origOp,
                                                                        vpux::VPU::DistributionMode distributionMode,
                                                                        mlir::ArrayAttr numTiles) const;
+    VPU::NCEClusterTilingOp createDistributedActivationTensorforMaxPool(VPU::NCEMaxPoolOp& origOp,
+                                                                        vpux::VPU::DistributionMode distributionMode,
+                                                                        mlir::ArrayAttr numTiles) const;
+
+    VPU::DistributedTensorType createDistributedOutputTensorTypeforMaxPool(VPU::NCEMaxPoolOp& origOp,
+                                                                           vpux::VPU::DistributionMode distributionMode,
+                                                                           mlir::ArrayAttr numTiles) const;
+    static VPU::DistributionMode getActivationTensorDistributionMode(const llvm::StringRef multiClusterStrategy);
+    static VPU::DistributionMode getWeightsTensorDistributionMode(const llvm::StringRef multiClusterStrategy);
+    static llvm::ArrayRef<int32_t> getActivationTensorNumTiles(const llvm::StringRef multiClusterStrategy);
+    static llvm::ArrayRef<int32_t> getWeightsTensorNumTiles(const llvm::StringRef multiClusterStrategy);
 
 private:
     template <class ConcreteOp>
@@ -66,9 +77,9 @@ private:
     void assignMultiClusterStrategy(mlir::Operation* op);
     double calculateSplitOverHeightEfficency(mlir::Operation* op);
     double calculateSplitOverKernelEfficency(mlir::Operation* op);
-    static mlir::ArrayAttr getKernelSize(VPU::NCEDepthConvolutionOp& origOp);
-    static mlir::ArrayAttr getKernelSize(VPU::NCEConvolutionOp& origOp);
-    static mlir::ArrayAttr getKernelSize(VPU::NCEMaxPoolOp& origOp);
+    mlir::ArrayAttr getKernelSize(VPU::NCEDepthConvolutionOp& origOp) const;
+    mlir::ArrayAttr getKernelSize(VPU::NCEConvolutionOp& origOp) const;
+    mlir::ArrayAttr getKernelSize(VPU::NCEMaxPoolOp& origOp) const;
 
     std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable();
     std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable();
