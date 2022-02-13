@@ -66,6 +66,11 @@ find_package(Git REQUIRED)
 function(vpux_gf_version_generate SRC_DIR DST_DIR)
 
     execute_process(
+        COMMAND ${GIT_EXECUTABLE} fetch --unshallow
+        WORKING_DIRECTORY ${SRC_DIR}
+    )
+
+    execute_process(
         COMMAND ${GIT_EXECUTABLE} describe --tags
         WORKING_DIRECTORY ${SRC_DIR}
         OUTPUT_VARIABLE GIT_DESCRIBE_DIRTY
