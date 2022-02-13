@@ -55,13 +55,7 @@ public:
     vpux::VPU::DistributedTensorType createDistributedOutputTensorType(ConcreteOp& origOp,
                                                                        vpux::VPU::DistributionMode distributionMode,
                                                                        mlir::ArrayAttr numTiles) const;
-    VPU::NCEClusterTilingOp createDistributedActivationTensorforMaxPool(VPU::NCEMaxPoolOp& origOp,
-                                                                        vpux::VPU::DistributionMode distributionMode,
-                                                                        mlir::ArrayAttr numTiles) const;
 
-    VPU::DistributedTensorType createDistributedOutputTensorTypeforMaxPool(VPU::NCEMaxPoolOp& origOp,
-                                                                           vpux::VPU::DistributionMode distributionMode,
-                                                                           mlir::ArrayAttr numTiles) const;
     static VPU::DistributionMode getActivationTensorDistributionMode(const llvm::StringRef multiClusterStrategy);
     static VPU::DistributionMode getWeightsTensorDistributionMode(const llvm::StringRef multiClusterStrategy);
     static llvm::ArrayRef<int32_t> getActivationTensorNumTiles(const llvm::StringRef multiClusterStrategy);
