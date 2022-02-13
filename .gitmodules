@@ -33,4 +33,4 @@
 [submodule "thirdparty/vpucostmodel"]
 	path = thirdparty/vpucostmodel
 	url = https://github.com/intel-innersource/libraries.performance.modeling.vpu.nn-cost-model.git
-	branch = main
+	branch = lx/fix_for_ci

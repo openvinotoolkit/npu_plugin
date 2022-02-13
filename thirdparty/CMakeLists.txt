@@ -304,4 +304,5 @@ endif()
 #
 
 set(VPUNN_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
+set(VPUNN_ENABLE_AVX512 OFF CACHE BOOL "" FORCE)
 add_subdirectory(vpucostmodel)

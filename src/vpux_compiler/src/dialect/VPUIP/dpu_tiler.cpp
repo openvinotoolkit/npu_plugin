@@ -25,7 +25,7 @@
 
 using namespace vpux;
 
-std::unique_ptr<VPUNN::VPUCostModel> gCostModel{nullptr};
+static std::unique_ptr<VPUNN::VPUCostModel> gCostModel{nullptr};
 
 static VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
     switch (mpeMode) {
@@ -384,6 +384,12 @@ SmallVector<std::pair<uint8_t, uint8_t>> vpux::VPUIP::DpuTiler::getModes() {
             break;
         case VPU::MPEMode::CUBOID_16x16:
             modes.push_back({16, 16});
+            break;
+        case VPU::MPEMode::CUBOID_8x16:
+            modes.push_back({8, 16});
+            break;
+        case VPU::MPEMode::CUBOID_4x16:
+            modes.push_back({4, 16});
             break;
         default:
             break;
