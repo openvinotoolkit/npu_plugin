@@ -7,7 +7,7 @@ cpu=${cpunum}xx
 
 if [ -z ${FIRMWARE_VPU_DIR} ]; then FIRMWARE_VPU_DIR=${VPUIP_2_DIR}; fi
 if [ -z "${MV_TOOLS_DIR}" ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
-if [ -z "${KERNEL_DIR}" ]; then echo "KERNEL_DIR is not set"; env_is_set=0; fi
+if [ -z "${KERNEL_DIR}" ]; then KERNEL_DIR=..; fi
 if [ -z "${MV_TOOLS_VERSION}" ]; then 
 mv_tools_version_str=`grep "mv_tools_version" ${KERNEL_DIR}/../firmware_vpu_revision.txt`
 mv_tools_version_arr=($mv_tools_version_str)

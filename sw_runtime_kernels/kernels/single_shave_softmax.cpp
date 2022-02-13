@@ -432,6 +432,7 @@ void singleShaveSoftmax(uint32_t lParams) {
     for (int i = sp->ndims - 1; i >= 0; --i) {
         if (sp->ndims <= 1)
             break;
+//        if (sp->in_dims[i] == 1 && sp->axis != i) {
         if (sp->in_dims[i] == 1) {
             nnLog(MVLOG_DEBUG, "excluded: i %d, idim %d, istride %d, ostride %d, axis %d", i,
                     sp->in_dims[i], sp->in_strides[i], sp->out_strides[i], sp->axis);
