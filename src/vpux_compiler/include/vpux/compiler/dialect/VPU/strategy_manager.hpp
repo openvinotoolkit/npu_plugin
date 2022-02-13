@@ -55,6 +55,17 @@ public:
     vpux::VPU::DistributedTensorType createDistributedOutputTensorType(ConcreteOp& origOp,
                                                                        vpux::VPU::DistributionMode distributionMode,
                                                                        mlir::ArrayAttr numTiles) const;
+    VPU::NCEClusterTilingOp createDistributedActivationTensorforMaxPool(VPU::NCEMaxPoolOp& origOp,
+                                                                        vpux::VPU::DistributionMode distributionMode,
+                                                                        mlir::ArrayAttr numTiles) const;
+
+    VPU::DistributedTensorType createDistributedOutputTensorTypeforMaxPool(VPU::NCEMaxPoolOp& origOp,
+                                                                           vpux::VPU::DistributionMode distributionMode,
+                                                                           mlir::ArrayAttr numTiles) const;
+    static VPU::DistributionMode getActivationTensorDistributionMode(const llvm::StringRef multiClusterStrategy);
+    static VPU::DistributionMode getWeightsTensorDistributionMode(const llvm::StringRef multiClusterStrategy);
+    static llvm::ArrayRef<int32_t> getActivationTensorNumTiles(const llvm::StringRef multiClusterStrategy);
+    static llvm::ArrayRef<int32_t> getWeightsTensorNumTiles(const llvm::StringRef multiClusterStrategy);
 
 private:
     template <class ConcreteOp>
@@ -66,6 +77,9 @@ private:
     void assignMultiClusterStrategy(mlir::Operation* op);
     double calculateSplitOverHeightEfficency(mlir::Operation* op);
     double calculateSplitOverKernelEfficency(mlir::Operation* op);
+    mlir::ArrayAttr getKernelSize(VPU::NCEDepthConvolutionOp& origOp) const;
+    mlir::ArrayAttr getKernelSize(VPU::NCEConvolutionOp& origOp) const;
+    mlir::ArrayAttr getKernelSize(VPU::NCEMaxPoolOp& origOp) const;
 
     std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable();
     std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable();
@@ -121,9 +135,7 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensor(Concr
             vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
 
     // Specify the kernel
-    const auto filterShape = getShape(origOp.filter());
-    const auto kernel = getIntArrayAttr(
-            origOp.getContext(), makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+    auto kernel = getKernelSize(origOp);
 
     const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
 
@@ -232,11 +244,7 @@ vpux::VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorT
             vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
 
     // Specify the kernel
-    const auto filterShape = origOp.rawFilterShape().hasValue()
-                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape().getValue()))
-                                     : getShape(origOp.filter());
-    const auto kernel = getIntArrayAttr(
-            origOp.getContext(), makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+    auto kernel = getKernelSize(origOp);
 
     const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
 
