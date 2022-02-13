@@ -337,3 +337,158 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                 assignMultiClusterStrategyForEltwiseAndMaxPool<VPU::NCEEltwiseOp>(op);
             });
 }
+
+VPU::DistributionMode StrategyManager::getActivationTensorDistributionMode(const llvm::StringRef multiClusterStrategy) {
+    if (multiClusterStrategy == splitOverHeightOverLappedStrategy) {
+        return VPU::DistributionMode::overlapped;
+    } else if (multiClusterStrategy == splitOverHeightStrategy) {
+        return VPU::DistributionMode::segmented;
+    } else if (multiClusterStrategy == splitOverKernelStrategy) {
+        return VPU::DistributionMode::multicasted;
+    } else {
+        VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a distribution mode "
+                   "for the weights tensor");
+    }
+}
+
+VPU::DistributionMode StrategyManager::getWeightsTensorDistributionMode(const llvm::StringRef multiClusterStrategy) {
+    if (multiClusterStrategy == splitOverHeightOverLappedStrategy) {
+        return VPU::DistributionMode::multicasted;
+    } else if (multiClusterStrategy == splitOverHeightStrategy) {
+        return VPU::DistributionMode::multicasted;
+    } else if (multiClusterStrategy == splitOverKernelStrategy) {
+        return VPU::DistributionMode::segmented;
+    } else {
+        VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a distribution mode "
+                   "for the activation tensor");
+    }
+}
+
+llvm::ArrayRef<int32_t> StrategyManager::getActivationTensorNumTiles(const llvm::StringRef multiClusterStrategy) {
+    if (multiClusterStrategy == splitOverHeightOverLappedStrategy) {
+        return ArrayRef<int32_t>{1, 1, 4, 1};  // Use num clusters from IR
+    } else if (multiClusterStrategy == splitOverHeightStrategy) {
+        return ArrayRef<int32_t>{1, 1, 4, 1};  // Use num clusters from IR
+    } else if (multiClusterStrategy == splitOverKernelStrategy) {
+        return ArrayRef<int32_t>{1, 1, 1, 1};  // Use num clusters from IR
+    } else {
+        VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
+                   "for the activation tensor");
+    }
+}
+
+llvm::ArrayRef<int32_t> StrategyManager::getWeightsTensorNumTiles(const llvm::StringRef multiClusterStrategy) {
+    if (multiClusterStrategy == splitOverHeightOverLappedStrategy) {
+        return ArrayRef<int32_t>{1, 1, 1, 1};  // Use num clusters from IR
+    } else if (multiClusterStrategy == splitOverHeightStrategy) {
+        return ArrayRef<int32_t>{1, 1, 1, 1};  // Use num clusters from IR
+    } else if (multiClusterStrategy == splitOverKernelStrategy) {
+        return ArrayRef<int32_t>{1, 1, 4, 1};  // Use num clusters from IR
+    } else {
+        VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
+                   "for the weights tensor");
+    }
+}
+
+mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEDepthConvolutionOp& origOp) const {
+    const auto filterShape = getShape(origOp.filter());
+    return getIntArrayAttr(const_cast<mlir::FuncOp&>(_func).getContext(),
+                           makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+}
+
+mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEConvolutionOp& origOp) const {
+    const auto filterShape = getShape(origOp.filter());
+    return getIntArrayAttr(const_cast<mlir::FuncOp&>(_func).getContext(),
+                           makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+}
+
+mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEMaxPoolOp& origOp) const {
+    return origOp.kernel_size();
+}
+
+VPU::NCEClusterTilingOp StrategyManager::createDistributedActivationTensorforMaxPool(
+        VPU::NCEMaxPoolOp& origOp, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles) const {
+    // Specify the distribution mode of the tensor  overlapped,duplicated,segmented, multicasted,
+    const auto activationTensorDistributionModeAttr =
+            vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
+
+    // Specify the kernel
+    // auto kernel = getKernelSize(origOp);
+    auto kernel = getKernelSize(origOp);
+
+    const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
+
+    // Create DistributedTensorAttr
+    auto activationTensorDistributedTensorAttr =
+            vpux::VPU::DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, kernel,
+                                                  origOp.strides(), origOp.padAttr(), numClusters, origOp.getContext());
+
+    // Specify the inputShape
+    const auto inputShape = getShape(origOp.input());
+
+    // Specify the memSpace
+    const auto memSpace =
+            vpux::IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
+
+    // Specify the order
+    const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(origOp.input()).toAffineMap(origOp.getContext()));
+
+    // Element type
+    auto elemType = origOp.input().getType().template cast<mlir::ShapedType>().getElementType();
+
+    // Create DistributedTensorType
+    const auto activationTensorDistributedTensorType = vpux::VPU::DistributedTensorType::get(
+            origOp.getContext(), inputShape.raw(), elemType, order, memSpace, activationTensorDistributedTensorAttr);
+
+    _log.trace("Wrap copy operation for activation into NCEClusterTilingOp");
+
+    // Create IE::Copy Op
+    OpBuilderLogger builderLog(_log.nest());
+    mlir::OpBuilder builder(origOp, &builderLog);
+    builder.setInsertionPoint(origOp);
+    const auto activationTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
+                                                 mlir::ValueRange newOperands) {
+        const auto memSpace = IndexedSymbolAttr::get(builder.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
+        auto activationTensorDistributedCopyOp = builder.create<IE::CopyOp>(origOp->getLoc(), newOperands[0], memSpace);
+        builder.create<VPU::YieldOp>(loc, activationTensorDistributedCopyOp->getResults());
+    };
+
+    auto distributedActivationCopyOp = builder.create<VPU::NCEClusterTilingOp>(
+            origOp->getLoc(), activationTensorDistributedTensorType, origOp.input(), activationTensorBodyBuilder);
+    return distributedActivationCopyOp;
+}
+
+VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorTypeforMaxPool(
+        VPU::NCEMaxPoolOp& origOp, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles) const {
+    // Specify the distribution mode of the tensor  overlapped,duplicated,segmented, multicasted,
+    const auto outputTensorDistributionModeAttr =
+            vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
+
+    // Specify the kernel
+    // auto kernel = getKernelSize(origOp);
+    auto kernel = getKernelSize(origOp);
+
+    const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
+
+    // Create DistributedTensorAttr
+    auto outputTensorDistributedTensorAttr =
+            vpux::VPU::DistributedTensorAttr::get(outputTensorDistributionModeAttr, numTiles, kernel, origOp.strides(),
+                                                  origOp.padAttr(), numClusters, origOp.getContext());
+
+    // Specify the outputShape
+    const auto outputShape = getShape(origOp.output());
+
+    // Specify the memSpace
+    const auto memSpace =
+            vpux::IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(origOp.getContext(), VPU::MemoryKind::CMX_NN));
+
+    // Specify the order
+    const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(origOp.output()).toAffineMap(origOp.getContext()));
+
+    // Element type
+    auto elemType = origOp.output().getType().template cast<mlir::ShapedType>().getElementType();
+
+    // Create DistributedTensorType
+    return vpux::VPU::DistributedTensorType::get(origOp.getContext(), outputShape.raw(), elemType, order, memSpace,
+                                                 outputTensorDistributedTensorAttr);
+}
