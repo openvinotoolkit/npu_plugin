@@ -16,6 +16,12 @@
 
 using namespace vpux;
 
+// This pass assigns multi-clustering strategies to layers and converts them in NCEClusterTiling.
+// It considers layers in isolation and computes the hardware efficiency of the layers if they
+// they were to be split over height (SOH) or split over kernel (SOK). It then chooses the more
+// stratey. A prerequisite is that the layer fits in CMX when multi-clustered. If the layer does not  
+// fit in CMX then it is not converted to NCEClustertiling. 
+
 StrategyManager::StrategyManager(mlir::FuncOp func, Logger log): _log(log), _func(func) {
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
