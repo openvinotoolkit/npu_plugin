@@ -383,13 +383,17 @@ llvm::ArrayRef<int32_t> StrategyManager::getWeightsTensorNumTiles(const llvm::St
 }
 
 mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEDepthConvolutionOp& origOp) const {
-    const auto filterShape = getShape(origOp.filter());
+    const Shape filterShape = origOp.rawFilterShape().hasValue()
+                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape().getValue()))
+                                      : getShape(origOp.filter()).toValues();
     return getIntArrayAttr(const_cast<mlir::FuncOp&>(_func).getContext(),
                            makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
 }
 
 mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEConvolutionOp& origOp) const {
-    const auto filterShape = getShape(origOp.filter());
+    const Shape filterShape = origOp.rawFilterShape().hasValue()
+                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape().getValue()))
+                                      : getShape(origOp.filter()).toValues();
     return getIntArrayAttr(const_cast<mlir::FuncOp&>(_func).getContext(),
                            makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
 }

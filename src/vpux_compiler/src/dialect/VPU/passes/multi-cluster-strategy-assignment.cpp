@@ -62,13 +62,12 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<ConcreteOp>::matchAndRewrite(Co
             getIntArrayAttr(origOp.getContext(), StrategyManager::getWeightsTensorNumTiles(strategy));
 
     // Create the copy ops for the distributed activation tensor
-    auto distributedActivationCopyOp = _strategyManager.createDistributedActivationTensor(
+    auto distributedActivationCopyOp = _strategyManager.createDistributedInputTensor(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
 
     // Create the copy ops for the distributed weights tensor
-
-    auto distributedWeightsCopyOp = _strategyManager.createDistributedWeightsTensor(
-            origOp, weightsTensorDistributionMode, weightTensorNumTiles);
+    auto distributedWeightsCopyOp = _strategyManager.createDistributedInputTensor(
+            origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
 
     // Create tensor type for the distributed output tensor
     auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
@@ -130,7 +129,7 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<VPU::NCEMaxPoolOp>::matchAndRew
             getIntArrayAttr(origOp.getContext(), StrategyManager::getActivationTensorNumTiles(strategy));
 
     // Create the copy ops for the distributed activation tensor
-    auto distributedActivationCopyOp = _strategyManager.createDistributedActivationTensor(
+    auto distributedActivationCopyOp = _strategyManager.createDistributedInputTensor(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
 
     // Create tensor type for the distributed output tensor
@@ -192,11 +191,11 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<VPU::NCEEltwiseOp>::matchAndRew
             getIntArrayAttr(origOp.getContext(), StrategyManager::getActivationTensorNumTiles(strategy));
 
     // Create the copy ops for the first distributed activation tensor
-    auto distributedActivationCopyOp1 = _strategyManager.createDistributedActivationTensor(
+    auto distributedActivationCopyOp1 = _strategyManager.createDistributedInputTensor(
             origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles);
 
     // Create the copy ops for the second distributed activation tensor
-    auto distributedActivationCopyOp2 = _strategyManager.createDistributedActivationTensor(
+    auto distributedActivationCopyOp2 = _strategyManager.createDistributedInputTensor(
             origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles);
 
     // Create tensor type for the distributed output tensor
