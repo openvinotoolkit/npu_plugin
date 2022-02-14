@@ -113,7 +113,7 @@ func @DepthConvToNCEClusterTilingSOH(%arg0: tensor<1x80x28x28xf16, {order = #NHW
     //CHECK:        [[OUT_CMX:%.*]] = VPU.NCE.ClusterTiling (
     //CHECK-SAME:             [[INPUT_CMX]] as %arg1: tensor<1x80x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
     //CHECK-SAME:             [[WEIGHTS_CMX]] as %arg2: tensor<80x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>) 
-    //CHECK-SAME:   !VPU.DistributedTensor<1x80x28x28xf16, #NHWC, @CMX_NN, {kernel = [1, 1], mode = "segmented", num_clusters = 4 : i64, num_tiles = [1, 1, 4, 1], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1]}> {
+    //CHECK-SAME:   !VPU.DistributedTensor<1x80x28x28xf16, #NHWC, @CMX_NN, {kernel = [3, 3], mode = "segmented", num_clusters = 4 : i64, num_tiles = [1, 1, 4, 1], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1]}> {
     //CHECK:            [[RES2:%.*]] = VPU.NCE.DepthConvolution(%arg1, %arg2) {
     //CHECK-SAME:                 multiClusterStrategy = "SplitOverHeight", pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
     //CHECK-SAME:                 rawFilterShape = [80, 1, 3, 3], strides = [1, 1]
@@ -158,7 +158,7 @@ func @DepthConvToNCEClusterTilingSOK(%arg0: tensor<1x64x28x28xf16, {order = #NHW
     //CHECK:        [[OUT_CMX:%.*]] = VPU.NCE.ClusterTiling (
     //CHECK-SAME:             [[INPUT_CMX]] as %arg1: tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
     //CHECK-SAME:             [[WEIGHTS_CMX]] as %arg2: tensor<64x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>) 
-    //CHECK-SAME:   !VPU.DistributedTensor<1x64x28x28xf16, #NHWC, @CMX_NN, {kernel = [1, 1], mode = "multicasted", num_clusters = 4 : i64, num_tiles = [1, 1, 1, 1], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1]}> {
+    //CHECK-SAME:   !VPU.DistributedTensor<1x64x28x28xf16, #NHWC, @CMX_NN, {kernel = [3, 3], mode = "multicasted", num_clusters = 4 : i64, num_tiles = [1, 1, 1, 1], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1]}> {
     //CHECK:            [[RES2:%.*]] = VPU.NCE.DepthConvolution(%arg1, %arg2) {
     //CHECK-SAME:                 multiClusterStrategy = "SplitOverKernel", pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
     //CHECK-SAME:                 rawFilterShape = [64, 1, 3, 3], strides = [1, 1]
