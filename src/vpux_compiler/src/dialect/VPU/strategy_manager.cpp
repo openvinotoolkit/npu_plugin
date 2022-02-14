@@ -52,89 +52,125 @@ std::map<int64_t, std::map<int64_t, double>> StrategyManager::channelMajorEffici
     }};
 }
 
-double getAlignment(double input, size_t unit) {
+double getChannelAlignment(double input, size_t unit) {
     return std::ceil(input / unit) * unit;
 }
 
-double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
-    const auto splitOverHeightFormula = [&](double OH, double OW, double OC) {
-        double outputTensorVolume = OC * OH * OW;
-        return std::max((outputTensorVolume / _numClusters) /
-                                getAlignment((getAlignment(std::ceil(OH / _numClusters), _numClusters) *
-                                              getAlignment(OW, _numClusters) * getAlignment(OC, _numChannelAlignment)),
-                                             _numDPUPerCluster),
-                        (outputTensorVolume / _numClusters) /
-                                getAlignment((getAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
-                                              getAlignment(OW, 1) * getAlignment(OC, _numChannelAlignment)),
-                                             _numDPUPerCluster));
-    };
+double StrategyManager::computeChannelMajorConvolutionSplitOverHeightEfficency(VPU::NCEConvolutionOp origOp) {
+    const auto outputShape = getShape(origOp.output().getType().cast<mlir::ShapedType>());
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
+    const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const double OC = outputShape[Dims4D::Act::C];
+    const double OH = outputShape[Dims4D::Act::H];
+    const double OW = outputShape[Dims4D::Act::W];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    auto efficiencyConstant = channelMajorEfficiencyTable()[KY][strides[0]];
+    const double outputTensorVolume = OC * OH * OW;
 
+    // TODO: Can this be simpler?
+    double efficency = efficiencyConstant *
+                       std::max(outputTensorVolume / (getChannelAlignment(OH, _numChannelAlignment) *
+                                                      getChannelAlignment(OH, _numDPU) *
+                                                      getChannelAlignment(OC, _numChannelAlignment)),
+                                outputTensorVolume / (getChannelAlignment(OH, _numChannelAlignment * _numClusters) *
+                                                      getChannelAlignment(OW, _numDPUPerCluster) *
+                                                      getChannelAlignment(OC, _numChannelAlignment)));
+    return efficency;
+}
+// This method computes the SOH efficiency for z-major type operations
+// i.e. z-major convolution and depthwise convolution
+double StrategyManager::computeZMajorConvolutionSplitOverHeightEfficency(mlir::Operation* op) {
+    double efficiencyConstant = 0;
+    double outputTensorVolume = 0;
+    double OC;
+    double OH;
+    double OW;
+    if (auto depthwiseConvolutionOp = mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op)) {
+        const auto outputShape = getShape(depthwiseConvolutionOp.output().getType().cast<mlir::ShapedType>());
+        OC = outputShape[Dims4D::Act::C];
+        OH = outputShape[Dims4D::Act::H];
+        OW = outputShape[Dims4D::Act::W];
+        const auto filterShape = Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShapeAttr()));
+        const auto strides = parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.strides());
+        const auto KY = filterShape[Dims4D::Filter::KY];
+        efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
+
+    } else if (auto convolutionOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
+        const auto outputShape = getShape(convolutionOp.output().getType().cast<mlir::ShapedType>());
+        OC = outputShape[Dims4D::Act::C];
+        OH = outputShape[Dims4D::Act::H];
+        OW = outputShape[Dims4D::Act::W];
+        efficiencyConstant = 1.0;
+    } else {
+        VPUX_THROW("Attempting to calculate the hardware efficiency for operation {0}, which is not a z-major "
+                   "compatible operation",
+                   op->getName());
+    }
+
+    outputTensorVolume = OC * OH * OW;
+
+    return efficiencyConstant *
+           std::max((outputTensorVolume / _numClusters) /
+                            getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
+                                                 getChannelAlignment(OW, _numClusters) *
+                                                 getChannelAlignment(OC, _numChannelAlignment)),
+                                                _numDPUPerCluster),
+                    (outputTensorVolume / _numClusters) /
+                            getChannelAlignment(
+                                    (getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
+                                     getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
+                                    _numDPUPerCluster));
+}
+// This method computes the SOH hardware efficiency of all NCE operations
+double StrategyManager::computeLayerSplitOverHeightEfficency(mlir::Operation* op) {
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
             .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp origOp) {
-                const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
-                const auto outputShape = getShape(outputType);
-                const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-                const double OC = outputShape[Dims4D::Act::C];
-                const double OH = outputShape[Dims4D::Act::H];
-                const double OW = outputShape[Dims4D::Act::W];
-                const auto KY = filterShape[Dims4D::Filter::KY];
-
-                const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-                const double outputTensorVolume = OC * OH * OW;
-                double efficency = 0;
-
-                // Different efficency formula required for CM Conv and ZM Conv
-                // CM Conv
+                // A different efficency formula is required for channel-major and z-major convolutions
+                // Channel-major convolution
+                double efficiency = 0;
                 if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
-                    auto efficiencyConstant = channelMajorEfficiencyTable()[KY][strides[0]];
-                    efficency = efficiencyConstant *
-                                std::max(outputTensorVolume /
-                                                 (getAlignment(OH, _numChannelAlignment) * getAlignment(OH, _numDPU) *
-                                                  getAlignment(OC, _numChannelAlignment)),
-                                         outputTensorVolume / (getAlignment(OH, _numChannelAlignment * _numClusters) *
-                                                               getAlignment(OW, _numDPUPerCluster) *
-                                                               getAlignment(OC, _numChannelAlignment)));
-                } else {  // ZM Conv
-                    efficency = splitOverHeightFormula(OH, OW, OC);
+                    efficiency = computeChannelMajorConvolutionSplitOverHeightEfficency(origOp);
+                    // Z-major convolution
+                } else {
+                    efficiency = computeZMajorConvolutionSplitOverHeightEfficency(origOp.getOperation());
                 }
-                _log.trace("The SOH efficiency for the convolution is {0}", efficency);
-                return efficency;
+                _log.trace("The SOH efficiency for the convolution {0} is {1}", origOp->getName(), efficiency);
+                return efficiency;
             })
-            .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {
-                return 1;
+            .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp origOp) {
+                double efficiency = 1;
+                _log.trace("The SOH efficiency for MaxPool operation {0} is 1 as it should be assigned SOH {1}",
+                           origOp->getName(), efficiency);
+                return efficiency;
             })
-            .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp) {
-                _log.trace("Eltwise {0} operation detected. SOH wil be assigned", op->getName());
-                return 1;
+            .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp origOp) {
+                double efficiency = 1;
+                _log.trace("The SOH efficiency for Eltwsie operation {0} is 1 as it should be assigned SOH {1}",
+                           origOp->getName(), efficiency);
+                return efficiency;
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
-                const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
-                const auto outputShape = getShape(outputType);
-                const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-                const double OC = outputShape[Dims4D::Act::C];
-                const double OH = outputShape[Dims4D::Act::H];
-                const double OW = outputShape[Dims4D::Act::W];
-                const auto KY = filterShape[Dims4D::Filter::KY];
-                const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-
-                auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
-                double efficency = efficiencyConstant * splitOverHeightFormula(OH, OW, OC);
-                //_log.trace("The SOH efficiency for the group convolution is {0}", efficency);
-                return efficency;
+                double efficiency = computeZMajorConvolutionSplitOverHeightEfficency(origOp.getOperation());
+                _log.trace("The SOH efficiency for the depthwise convolution {0} is {0}", origOp->getName(),
+                           efficiency);
+                return efficiency;
             });
 }
 
-double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
+// This method computes the SOK hardware efficiency of all NCE operations
+double StrategyManager::computeLayerSplitOverKernelEfficency(mlir::Operation* op) {
     const auto splitOverKernelFormula = [&](double OH, double OW, double OC) {
         double outputTensorVolume = OC * OH * OW;
         return std::max((outputTensorVolume / _numClusters) /
-                                getAlignment((getAlignment(OH, _numClusters) * getAlignment(OW, _numClusters) *
-                                              getAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                             _numDPUPerCluster),
+                                getChannelAlignment(
+                                        (getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
+                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                        _numDPUPerCluster),
                         (outputTensorVolume / _numClusters) /
-                                getAlignment((getAlignment(OH, _numChannelAlignment) * getAlignment(OW, 1) *
-                                              getAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                             _numDPUPerCluster));
+                                getChannelAlignment(
+                                        (getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
+                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                        _numDPUPerCluster));
     };
 
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
@@ -175,8 +211,8 @@ double StrategyManager::calculateSplitOverKernelEfficency(mlir::Operation* op) {
             });
 }
 
-// Computes the multi-cluster efficiency value for operation
-// If it is not compatible with the multi-cluster strategy the efficiency is 0
+// This method computes the multi-cluster efficiency value for operation
+// If it is not compatible with the multi-cluster strategy, then the efficiency is 0
 void StrategyManager::computeOptimalMultiClusterStrategy() {
     const auto callback = [&](mlir::Operation* op) {
         llvm::TypeSwitch<mlir::Operation*, void>(op)
@@ -189,13 +225,13 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                 .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp op) {
                     // Check if the operation SOH compatible, otherwise the efficiency is 0
                     if (isOperationSplitOverHeightCompatible<VPU::NCEConvolutionOp>(op)) {
-                        _splitOverHeightEfficencies.insert({op, calculateSplitOverHeightEfficency(op)});
+                        _splitOverHeightEfficencies.insert({op, computeLayerSplitOverHeightEfficency(op)});
                     } else {
                         _splitOverHeightEfficencies.insert({op, 0});
                     }
                     // Check if the operation SOK compatible, otherwise the efficiency is 0
                     if (isOperationSplitOverKernelCompatible<VPU::NCEConvolutionOp>(op)) {
-                        _splitOverKernelEfficencies.insert({op, calculateSplitOverKernelEfficency(op)});
+                        _splitOverKernelEfficencies.insert({op, computeLayerSplitOverKernelEfficency(op)});
                     } else {
                         _splitOverKernelEfficencies.insert({op, 0});
                     }
@@ -205,13 +241,13 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                 .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp op) {
                     // Check if the operation SOH compatible, otherwise the efficiency is 0
                     if (isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op)) {
-                        _splitOverHeightEfficencies.insert({op, calculateSplitOverHeightEfficency(op)});
+                        _splitOverHeightEfficencies.insert({op, computeLayerSplitOverHeightEfficency(op)});
                     } else {
                         _splitOverHeightEfficencies.insert({op, 0});
                     }
                     // Check if the operation SOK compatible, otherwise the efficiency is 0
                     if (isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
-                        _splitOverKernelEfficencies.insert({op, calculateSplitOverKernelEfficency(op)});
+                        _splitOverKernelEfficencies.insert({op, computeLayerSplitOverKernelEfficency(op)});
                     } else {
                         _splitOverKernelEfficencies.insert({op, 0});
                     }
@@ -331,38 +367,38 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
 }
 
 VPU::DistributionMode StrategyManager::getActivationTensorDistributionMode(const llvm::StringRef multiClusterStrategy) {
-    if (multiClusterStrategy == splitOverHeightOverLappedStrategy) {
+    if (multiClusterStrategy == splitOverHeightOverLapped) {
         return VPU::DistributionMode::overlapped;
-    } else if (multiClusterStrategy == splitOverHeightStrategy) {
+    } else if (multiClusterStrategy == splitOverHeight) {
         return VPU::DistributionMode::segmented;
-    } else if (multiClusterStrategy == splitOverKernelStrategy) {
+    } else if (multiClusterStrategy == splitOverKernel) {
         return VPU::DistributionMode::multicasted;
     } else {
         VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a distribution mode "
-                   "for the activation tensor");
+                   "for the activation tensor");  // TODO, add operation
     }
 }
 
 VPU::DistributionMode StrategyManager::getWeightsTensorDistributionMode(const llvm::StringRef multiClusterStrategy) {
-    if (multiClusterStrategy == splitOverHeightOverLappedStrategy) {
+    if (multiClusterStrategy == splitOverHeightOverLapped) {
         return VPU::DistributionMode::multicasted;
-    } else if (multiClusterStrategy == splitOverHeightStrategy) {
+    } else if (multiClusterStrategy == splitOverHeight) {
         return VPU::DistributionMode::multicasted;
-    } else if (multiClusterStrategy == splitOverKernelStrategy) {
+    } else if (multiClusterStrategy == splitOverKernel) {
         return VPU::DistributionMode::segmented;
     } else {
         VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a distribution mode "
-                   "for the weights tensor");
+                   "for the weights tensor");  // TODO, add operation
     }
 }
 
 llvm::ArrayRef<int32_t> StrategyManager::getActivationTensorNumTiles(const llvm::StringRef multiClusterStrategy) {
-    if (multiClusterStrategy == splitOverHeightOverLappedStrategy) {
-        return ArrayRef<int32_t>{1, 1, 4, 1};  // Use num clusters from IR
-    } else if (multiClusterStrategy == splitOverHeightStrategy) {
-        return ArrayRef<int32_t>{1, 1, 4, 1};  // Use num clusters from IR
-    } else if (multiClusterStrategy == splitOverKernelStrategy) {
-        return ArrayRef<int32_t>{1, 1, 1, 1};  // Use num clusters from IR
+    if (multiClusterStrategy == splitOverHeightOverLapped) {
+        return ArrayRef<int32_t>{1, 1, 4, 1};  // TODO: Use num clusters from IR
+    } else if (multiClusterStrategy == splitOverHeight) {
+        return ArrayRef<int32_t>{1, 1, 4, 1};  // TODO: Use num clusters from IR
+    } else if (multiClusterStrategy == splitOverKernel) {
+        return ArrayRef<int32_t>{1, 1, 1, 1};  // TODO: Use num clusters from IR
     } else {
         VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
                    "for the activation tensor");
@@ -370,12 +406,12 @@ llvm::ArrayRef<int32_t> StrategyManager::getActivationTensorNumTiles(const llvm:
 }
 
 llvm::ArrayRef<int32_t> StrategyManager::getWeightsTensorNumTiles(const llvm::StringRef multiClusterStrategy) {
-    if (multiClusterStrategy == splitOverHeightOverLappedStrategy) {
-        return ArrayRef<int32_t>{1, 1, 1, 1};  // Use num clusters from IR
-    } else if (multiClusterStrategy == splitOverHeightStrategy) {
-        return ArrayRef<int32_t>{1, 1, 1, 1};  // Use num clusters from IR
-    } else if (multiClusterStrategy == splitOverKernelStrategy) {
-        return ArrayRef<int32_t>{1, 1, 4, 1};  // Use num clusters from IR
+    if (multiClusterStrategy == splitOverHeightOverLapped) {
+        return ArrayRef<int32_t>{1, 1, 1, 1};  // TODO: Use num clusters from IR
+    } else if (multiClusterStrategy == splitOverHeight) {
+        return ArrayRef<int32_t>{1, 1, 1, 1};  // TODO: Use num clusters from IR
+    } else if (multiClusterStrategy == splitOverKernel) {
+        return ArrayRef<int32_t>{1, 1, 4, 1};  // TODO: Use num clusters from IR
     } else {
         VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
                    "for the weights tensor");
@@ -436,4 +472,12 @@ vpux::VPU::PaddingAttr StrategyManager::getPad(VPU::NCEMaxPoolOp& origOp) const 
 
 vpux::VPU::PaddingAttr StrategyManager::getPad(VPU::NCEEltwiseOp& origOp) const {
     return VPU::getPaddingAttr(origOp.getContext(), 0, 0, 0, 0);
+}
+
+void StrategyManager::removeStrategyAttribute() {
+    _func->walk([](mlir::Operation* op) {
+        if (op->hasAttr(multiClusterStrategy)) {
+            op->removeAttr(multiClusterStrategy);
+        }
+    });
 }
