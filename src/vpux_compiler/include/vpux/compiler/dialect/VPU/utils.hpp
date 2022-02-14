@@ -27,6 +27,8 @@
 namespace vpux {
 namespace VPU {
 
+unsigned align(unsigned x, unsigned mult);
+
 //
 // DW Convolution utility
 //

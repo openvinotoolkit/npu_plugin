@@ -143,6 +143,10 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
 
 }  // namespace
 
+unsigned vpux::VPU::align(unsigned x, unsigned mult) {
+    return ((x + mult - 1) / mult) * mult;
+}
+
 mlir::Value vpux::VPU::alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc,
                                                    mlir::Value origFilter) {
     const auto filterShape = getShape(origFilter);

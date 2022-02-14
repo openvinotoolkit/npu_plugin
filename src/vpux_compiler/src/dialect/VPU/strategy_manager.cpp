@@ -263,12 +263,86 @@ double StrategyManager::dpuComputeTime(mlir::Operation* op, multiClusterStrategy
         baseKernelCost *= weightsShape[Dims4D::Act::C];
     }
 
+    // [QA]
+    // Todo: can I use calculateSplitOverHeightEfficency API here to get wanted dpuEff?
     double dpuEff = 1;
 
     return ((double)(clusterOutShape.totalSize() * baseKernelCost) / dpuEff);
 }
 
-double dmaTime(mlir::Operation* op, multiClusterStrategyRange Strategy) {
+double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange Strategy) {
+    // Todo: put them in proper place and consider tbh case
+    auto LATENCY_CMX_ = 5;          // Cycles, attempt to capture cost accessing CMX
+    auto LATENCY_DDR_ = 100;        // Cycles, attempt to capture cost of setup DMA
+    auto DDR_BANDWIDTH_ = 8 * 0.6;  // bytes per cycle times derating factor
+    auto CMX_BANDWIDTH_ = 15;       // 32 * 1.0; //bytes per cycle times derating factor
+
+    const auto inOrder = DimsOrder::fromValue(op->getOperand(0));
+    // [QA]
+    // In what kind of cases, we should consider cmajor impact for dma time?
+    const auto isCMajor = inOrder == DimsOrder::NCHW;
+
+    // Each layer calculates the cost to move it's weights (if they exist), and it's activations
+    double weightsCycles = 0;
+    double outputTime = 0;
+    double inputCycles = 0;
+
+    // Each DMA cost is modelled as latency + size*transfer_rate
+    if (mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op) || mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
+        size_t outChannels = getShape(op->getResult(0))[Dims4D::Act::C];
+        size_t alignedOutChannels = VPU::align(outChannels, 16);
+        size_t alignedSplitOutChannels = alignedOutChannels;
+        if (Strategy == multiClusterStrategyRange::SplitOverK) {
+            alignedSplitOutChannels = VPU::align(alignedSplitOutChannels / _numClusters, 16);
+        }
+
+        size_t weightsSize = 0;
+        auto weights = op->getOperand(1);
+        auto weightsShape = getShape(weights);
+        if (mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
+            size_t alignedInputChannels = VPU::align(weightsShape[Dims4D::Act::N], 16);
+            // [QA]
+            // here I don't multiple "dtypeMultiplier" as I don't find how to get it in vpux
+            // and also it's a constant value for different strategy so can be ignored I suppose
+            weightsSize += (alignedInputChannels * alignedSplitOutChannels * weightsShape[Dims4D::Act::H] *
+                            weightsShape[Dims4D::Act::W]);
+            if (Strategy == multiClusterStrategyRange::SplitOverK) {
+                weightsSize *= _numClusters;
+            }
+        } else {  // Depthwise
+            // [QA]
+            // is there any cost calculation diff with conv?
+            // Mcm use a complex API Tensor::computeTotalSize() to get weightsSize
+            // It considers padding , sparsityMap and so on
+            // Do we still need it in vpux?
+            // TODO
+            weightsSize += 0;
+        }
+        // [QA]
+        // Hope to know where the magic number 16 is from?
+        std::size_t weightTableSize = 16 * alignedSplitOutChannels;  // weights table size
+        weightsSize += weightTableSize;
+        weightsCycles = (LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+    }
+
+    // [QA]
+    // As we don't consider spilling in current phase
+    // So the input cost by spilling can be removed
+    // On the other hand, we should have same input cost for different strategys
+    // So input cost still is a constant, which can be ignored?
+    inputCycles += 0;
+
+    // [QA]
+    // This section is for output cost, no spilling considered too
+    // "It captures the cost to multicast to all clusters" from mcm
+    // What's the multicast cost? Why only SOK & Cluster have it?
+    // Also it depends on API computeTotalSize(), vpux seems not to have that.
+    if (Strategy == multiClusterStrategyRange::SplitOverK || Strategy == multiClusterStrategy::Cluster) {
+        // Todo: output cost of multicast
+        outputTime += 0;
+    }
+
+    return inputCycles + weightsCycles + outputTime;
 }
 
 // This method computes the multi-cluster efficiency for an operation
