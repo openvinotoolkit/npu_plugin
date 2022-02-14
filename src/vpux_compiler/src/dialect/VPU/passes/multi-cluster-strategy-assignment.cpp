@@ -265,7 +265,7 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     auto func = getFunction();
     StrategyManager strategyManager(func, _log);
     strategyManager.computeOptimalMultiClusterStrategy();
-    strategyManager.removeStrategyAttribute();
+    //strategyManager.removeStrategyAttribute();
 
     auto& ctx = getContext();
     mlir::RewritePatternSet patterns(&ctx);
