@@ -89,9 +89,11 @@ private:
 
 private:
     Logger _log;
+    int64_t WEIGHT_TABLE_NUM_ELEMENTS_PER_OC = 4;
 
 private:
     size_t getSize(mlir::Value val);
+    size_t calculateExtraConstSize(VPU::NCEOpInterface nce);
     ConcatPattern getInputPattern(IE::ConcatOp concat);
     bool isSplitSupportedOnDPU(IE::SliceOp sliceOp);
     ConcatPattern getOutputPattern(IE::ConcatOp concat);
@@ -106,9 +108,15 @@ private:
 };
 
 size_t CMXConcatPass::getSize(mlir::Value val) {
-    const auto valueShape = getShape(val).raw();
-    const auto totalSize = vpux::details::calcTotalShapeSize(valueShape);
-    return static_cast<size_t>(totalSize);
+    return static_cast<size_t>(getTotalSize(val).count());
+}
+
+size_t CMXConcatPass::calculateExtraConstSize(VPU::NCEOpInterface nce) {
+    // calculate weights table size
+    const auto OC = getShape(nce->getResult(0))[Dims4D::Act::C];
+    auto weightsTableSize = OC * WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;
+
+    return weightsTableSize.count();
 }
 
 CMXConcatPass::ConcatPattern CMXConcatPass::getInputPattern(IE::ConcatOp concat) {
@@ -188,15 +196,26 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getOutputPattern(IE::ConcatOp concat
         if (outputSliceOp && !isSplitSupportedOnDPU(outputSliceOp)) {
             return concatPattern;
         }
+        SmallVector<IE::CopyOp> copyOutOps;
         if (outputSliceOp) {
-            std::cout << "output slice" << std::endl;
-        }
-        for (auto subUser : user->getUsers()) {
-            auto childNCEOpWithSlice = mlir::dyn_cast<VPU::NCEOpInterface>(subUser);
-            if (childNCEOpWithSlice == nullptr) {
-                return concatPattern;
+            for (auto copyOp : outputSliceOp.result().getUsers()) {
+                auto childCopyOp = mlir::dyn_cast<IE::CopyOp>(copyOp);
+                if (childCopyOp) {
+                    return concatPattern;
+                }
+                copyOutOps.push_back(childCopyOp);
             }
-            concatPattern.addConcatPart(ConcatPart(outputCopyOp, childNCEOpWithSlice, 0));
+        } else {
+            copyOutOps.push_back(outputCopyOp);
+        }
+        for (auto& copuOutOp : copyOutOps) {
+            for (auto copyUser : copuOutOp.getResult().getUsers()) {
+                auto childNCEOp = mlir::dyn_cast<VPU::NCEOpInterface>(copyUser);
+                if (childNCEOp == nullptr) {
+                    return concatPattern;
+                }
+                concatPattern.addConcatPart(ConcatPart(copuOutOp, childNCEOp, 0));
+            }
         }
     }
     concatPattern.setConcat(concat);
@@ -217,10 +236,8 @@ bool CMXConcatPass::concatOperationDoesNotFitInCMX(IE::ConcatOp concat, ConcatPa
         for (auto input : concatPart._nceOp->getOperands()) {
             currUserSize += getSize(input);
         }
-        // subtract output as reference in inputs
-        for (auto output : concatPart._nceOp->getResults()) {
-            currUserSize -= getSize(output);
-        }
+        // add weight table and activation window size
+        currUserSize += calculateExtraConstSize(concatPart._nceOp);
         maxUserSize = std::max<size_t>(maxUserSize, currUserSize);
     }
 
@@ -285,10 +302,6 @@ bool CMXConcatPass::childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPatt
     size_t maxConsumerSize = 0;
 
     for (auto& concatPart : concatPattern._concatParts) {
-        if (!concatPart.isValidPart()) {
-            return false;
-        }
-
         size_t currentConsumerSize = 0;
         for (auto input : concatPart._nceOp->getOperands()) {
             if (input.getDefiningOp() == concatPart._copyOp.getOperation()) {
@@ -299,7 +312,8 @@ bool CMXConcatPass::childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPatt
         for (auto output : concatPart._nceOp->getResults()) {
             currentConsumerSize += getSize(output);
         }
-
+        // add weight table and activation window size
+        currentConsumerSize += calculateExtraConstSize(concatPart._nceOp);
         maxConsumerSize = std::max<size_t>(maxConsumerSize, currentConsumerSize);
     }
 
@@ -403,6 +417,21 @@ void CMXConcatPass::safeRunOnFunc() {
         rewriteInputPattern(inputPattern);
         rewriteOutputPattern(outputPattern);
         _log.trace("Concat '{0}' at '{1}' was cmx-ed", concat->getName(), concat->getLoc());
+    });
+
+    // 4. Remove left over operations with no users
+    func->walk([](IE::LayerOpInterface op) {
+        bool canRemove = true;
+        for (const auto res : op->getResults()) {
+            if (!res.use_empty()) {
+                canRemove = false;
+                break;
+            }
+        }
+
+        if (canRemove) {
+            op->erase();
+        }
     });
 }
 
