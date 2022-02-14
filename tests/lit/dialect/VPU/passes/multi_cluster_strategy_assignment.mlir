@@ -89,6 +89,51 @@ func @ConvToNCEClusterTilingSOK(%arg0: tensor<1x128x28x28xf16, {order = #NHWC}>)
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
+// CHECK-LABEL: @CMConvToNCEClusterTilingSOH
+func @CMConvToNCEClusterTilingSOH(%arg0: tensor<1x3x28x28xf16, {order = #NCHW}>) -> tensor<1x16x28x28xf16, {order = #NHWC}> {
+    %cst = const.Declare tensor<16x1x1x16xf16, {order = #NHWC}> = #const.Content<dense<1.000000e+00> : tensor<16x3x1x1xf16>, [#const.Reorder<#NHWC>, #const.Reorder<#NCHW>, #const.Reshape<[16, 1, 1, 3]>, #const.PadWithZero<[0, 0, 0, 0], [0, 0, 0, 13]>, #const.Reorder<#NHWC>]>
+    %0 = VPU.NCE.Convolution(%arg0, %cst) {pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, rawFilterShape = [16, 3, 1, 1], strides = [1, 1]} -> tensor<1x16x28x28xf16, {order = #NHWC}>
+    return %0 : tensor<1x16x28x28xf16, {order = #NHWC}>
+
+    //CHECK:        [[WEIGHTS:%.*]] = const.Declare tensor<16x1x1x16xf16, {order = #NHWC}> 
+    //CHECK-SAME    = #const.Content<dense<1.000000e+00> : tensor<16x3x1x1xf16>, [#const.Reorder<#NHWC>, #const.Reorder<#NCHW>, #const.Reshape<[16, 1, 1, 3]>, #const.PadWithZero<[0, 0, 0, 0], [0, 0, 0, 13]>, #const.Reorder<#NHWC>]>
+
+    //CHECK:        [[INPUT_CMX:%.*]] = VPU.NCE.ClusterTiling (%arg0 as %arg1: tensor<1x3x28x28xf16, {order = #NCHW}>) 
+    //CHECK-SAME    -> !VPU.DistributedTensor<1x3x28x28xf16, #NCHW, @CMX_NN, {kernel = [1, 1], mode = "overlapped", num_clusters = 4 : i64, num_tiles = [1, 1, 4, 1], pads = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, strides = [1, 1]}> {
+    //CHECK:            [[RES0:%.*]] = IE.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x3x28x28xf16, {order = #NCHW}> -> tensor<1x3x28x28xf16, {mem_space = @CMX_NN, order = #NCHW}>
+    //CHECK:            VPU.Yield [[RES0]]
+    //CHECK:        }
+
+    //CHECK:        [[WEIGHTS_CMX:%.*]] = VPU.NCE.ClusterTiling ([[WEIGHTS]] as %arg1: tensor<16x1x1x16xf16, {order = #NHWC}>) 
+    //CHECK-SAME    -> !VPU.DistributedTensor<16x1x1x16xf16, #NHWC, @CMX_NN, {kernel = [1, 1], mode = "multicasted", num_clusters = 4 : i64, num_tiles = [1, 1, 1, 1], pads = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, strides = [1, 1]}> {
+    //CHECK:            [[RES1:%.*]] = IE.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<16x1x1x16xf16, {order = #NHWC}> -> tensor<16x1x1x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    //CHECK:            VPU.Yield [[RES1]]
+    //CHECK:        }
+
+    //CHECK:        [[OUT_CMX:%.*]] = VPU.NCE.ClusterTiling (
+    //CHECK-SAME:             [[INPUT_CMX]] as %arg1: tensor<1x3x28x28xf16, {mem_space = @CMX_NN, order = #NCHW}>
+    //CHECK-SAME:             [[WEIGHTS_CMX]] as %arg2: tensor<16x1x1x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) 
+    //CHECK-SAME:   -> !VPU.DistributedTensor<1x16x28x28xf16, #NHWC, @CMX_NN, {kernel = [1, 1], mode = "overlapped", num_clusters = 4 : i64, num_tiles = [1, 1, 4, 1], pads = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, strides = [1, 1]}> {
+    //CHECK:            [[RES2:%.*]] = VPU.NCE.Convolution(%arg1, %arg2) {
+    //CHECK-SAME:                 multiClusterStrategy = "SplitOverHeightOverLapped", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, 
+    //CHECK-SAME:                 rawFilterShape = [16, 3, 1, 1], strides = [1, 1]
+    //CHECK-SAME:             } -> tensor<1x16x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    //CHECK:            VPU.Yield [[RES2]]
+    //CHECK:        }
+
+    //CHECK:        [[OUT:%.*]] = VPU.NCE.ClusterTiling ([[OUT_CMX]] as %arg1: tensor<1x16x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x16x28x28xf16, {order = #NHWC}> {
+    //CHECK:            [[RES3:%.*]] = IE.Copy(%arg1) : tensor<1x16x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x16x28x28xf16, {order = #NHWC}>
+    //CHECK:            VPU.Yield [[RES3]]
+    //CHECK:        }
+
+    //CHECK:        return [[OUT]] : tensor<1x16x28x28xf16, {order = #NHWC}>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+
 // CHECK-LABEL: @DepthConvToNCEClusterTilingSOH
 func @DepthConvToNCEClusterTilingSOH(%arg0: tensor<1x80x28x28xf16, {order = #NHWC}>) -> tensor<1x80x28x28xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<80x16x1x1xf16, {order = #NHWC}> = #const.Content<dense<1.000000e+00> : tensor<80x1x1x3x3xf16>, [#const.Reshape<[80, 1, 3, 3]>, #const.Reorder<#NHWC>, #const.Reorder<#NCHW>, #const.Reshape<[80, 9, 1, 1]>, #const.PadWithZero<[0, 0, 0, 0], [0, 7, 0, 0]>, #const.Reorder<#NHWC>]>
