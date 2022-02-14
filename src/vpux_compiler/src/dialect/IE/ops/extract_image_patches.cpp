@@ -75,36 +75,39 @@ mlir::LogicalResult vpux::IE::ExtractImagePatchesOp::inferReturnTypeComponents(
     SmallVector<int64_t> output_shape;
     //     data: the 4-D tensor of type T with shape [batch, depth, in_rows, in_cols].
     //     output: 4-D tensor with shape [batch, size[0] * size[1] * depth, out_rows, out_cols]
+    
+    const auto  input_shape = inShape.begin();
 
-    if (inType.hasStaticShape()){
 
-//        if (inType[2].hasStaticShape && inType[3].hasStaticShape){ 
+    int64_t input_rows = input_shape[2];
+    int64_t input_cols = input_shape[3];
+    //openvino
+    // int32_t input_rows = input_shape[2].get_length();
+    // int32_t input_cols = input_shape[3].get_length();
+    
+    int64_t out_rows(0);
+    int64_t out_cols(0);
 
-            int32_t input_rows = inShape[2];//.get_length();
-            int32_t input_cols = inShape[3];//.get_length();
-            int32_t out_rows(0);
-            int32_t out_cols(0);
-            if (input_rows == 0 || input_cols == 0) {
+    if (input_rows == 0 || input_cols == 0) {
                 
-                output_shape.push_back(inType.getShape()[3]); //out_cols
-                output_shape.push_back(inType.getShape()[2]); //out_rows
-                output_shape.push_back(inType.getShape()[1] * sizes[0] * sizes[1]); // size[0] * size[1] * depth
-                output_shape.push_back(inType.getShape()[0]); //batch
+        output_shape.push_back(inShape[0]); //batch
+        output_shape.push_back(inShape[1] * sizes[0] * sizes[1]); // size[0] * size[1] * depth
+        output_shape.push_back(inShape[2]); //out_rows
+        output_shape.push_back(inShape[3]); //out_cols
 
-                inferredReturnShapes.emplace_back(output_shape, inType.getElementType());
-                return mlir::success();
-            }
+        } else { 
 
             if (paddingType == IE::PadType::SAME_UPPER || paddingType == IE::PadType::SAME_LOWER) {
             //      SMTH - the input is padded by zeros to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
                 out_rows = 1 + ( input_rows - 1 ) / strides[0]; 
                 out_cols = 1 + ( input_cols - 1 ) / strides[1]; 
-            } else if (paddingType == IE::PadType::VALID) {
-            //      SMTH -  do not use padding
-                out_rows = ( input_rows - rates[0] * ( sizes[0] - 1) - 1 ) / strides[0] + 1 ;
-                out_cols = ( input_cols - rates[1] * ( sizes[1] - 1) - 1 ) / strides[1] + 1 ;
-
-            }
+            } else {
+                    if (paddingType == IE::PadType::VALID) {
+                        //      SMTH -  do not use padding
+                        out_rows = ( input_rows - rates[0] * ( sizes[0] - 1) - 1 ) / strides[0] + 1 ;
+                        out_cols = ( input_cols - rates[1] * ( sizes[1] - 1) - 1 ) / strides[1] + 1 ;
+                    }
+                }
 
             if ( out_rows < 0 )
                 out_rows = 0 ;
@@ -112,15 +115,28 @@ mlir::LogicalResult vpux::IE::ExtractImagePatchesOp::inferReturnTypeComponents(
             if ( out_cols < 0 )
                 out_cols = 0 ;
 
-            output_shape.push_back(out_cols); //out_cols
-            output_shape.push_back(out_rows); //out_rows
-            output_shape.push_back(inType.getShape()[1] * sizes[0] * sizes[1]); // size[0] * size[1] * depth
-            output_shape.push_back(inType.getShape()[0]); //batch
+            /*
+            openvino
+            auto out_rows_cast = static_cast<typename DimType::value_type>(out_rows);
+            auto out_cols_cast = static_cast<typename DimType::value_type>(out_cols);
+            */
 
-//        }
-  
-    }
-    
+//             //eroare ->
+            // output_shape.push_back(out_cols); //out_cols
+            // output_shape.push_back(out_rows); //out_rows
+            // output_shape.push_back(inType.getShape()[1] * sizes[0] * sizes[1]); // size[0] * size[1] * depth
+            // output_shape.push_back(inType.getShape()[0]); //batch
+
+//             // Segmentation fault (core dumped) ->
+            output_shape.push_back(inShape[0]); //batch
+            output_shape.push_back(inShape[1] * sizes[0] * sizes[1]); // size[0] * size[1] * depth
+            output_shape.push_back(out_rows); //out_rows
+            output_shape.push_back(out_cols); //out_cols
+
+        }
+
+
     inferredReturnShapes.emplace_back(output_shape, inType.getElementType());
     return mlir::success();
+
 }

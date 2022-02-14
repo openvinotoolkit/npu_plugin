@@ -33,11 +33,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 // data the 4-D tensor of type T with shape [batch, depth, in_rows, in_cols].
 
-// const std::vector<InferenceEngine::SizeVector> inputShapes = {
-//     InferenceEngine::SizeVector {1, 1, 10, 10}, 
-//     InferenceEngine::SizeVector {1, 3, 10, 10}
-// };
-
 /*
     //  Input  : 1x1x10x10
     //  Output : 1x9x2x2
@@ -48,7 +43,8 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     std::vector<unsigned int> sizes = {3, 3};
     std::vector<unsigned int> strides = {5, 5};
     std::vector<unsigned int> rates = {1, 1};
-    std::string auto_pad = "valid";
+    std::string auto_pad = "valid"; 
+    
 */
 
 const std::vector<std::vector<size_t>> inputShape = {{1, 1, 10, 10}};//{{1, 1, 10, 10}, {1, 3, 10, 10}};

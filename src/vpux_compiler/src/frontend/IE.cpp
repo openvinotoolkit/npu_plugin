@@ -1995,7 +1995,6 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph ExtractImagePatches node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
-    //TODO
 
     const auto sizesAttr = getIntArrayAttr(_ctx, origNode->get_sizes());
     const auto stridesAttr = getIntArrayAttr(_ctx, origNode->get_strides());
