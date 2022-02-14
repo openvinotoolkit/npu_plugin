@@ -347,7 +347,7 @@ VPU::DistributionMode StrategyManager::getActivationTensorDistributionMode(const
         return VPU::DistributionMode::multicasted;
     } else {
         VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a distribution mode "
-                   "for the weights tensor");
+                   "for the activation tensor");
     }
 }
 
@@ -360,7 +360,7 @@ VPU::DistributionMode StrategyManager::getWeightsTensorDistributionMode(const ll
         return VPU::DistributionMode::segmented;
     } else {
         VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a distribution mode "
-                   "for the activation tensor");
+                   "for the weights tensor");
     }
 }
 
@@ -404,4 +404,40 @@ mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEConvolutionOp& origOp) co
 
 mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEMaxPoolOp& origOp) const {
     return origOp.kernel_size();
+}
+
+mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEEltwiseOp& origOp) const {
+    return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1}));
+}
+
+mlir::ArrayAttr StrategyManager::getStride(VPU::NCEDepthConvolutionOp& origOp) const {
+    return origOp.strides();
+}
+
+mlir::ArrayAttr StrategyManager::getStride(VPU::NCEConvolutionOp& origOp) const {
+    return origOp.strides();
+}
+
+mlir::ArrayAttr StrategyManager::getStride(VPU::NCEMaxPoolOp& origOp) const {
+    return origOp.strides();
+}
+
+mlir::ArrayAttr StrategyManager::getStride(VPU::NCEEltwiseOp& origOp) const {
+    return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1}));
+}
+
+vpux::VPU::PaddingAttr StrategyManager::getPad(VPU::NCEDepthConvolutionOp& origOp) const {
+    return origOp.padAttr();
+}
+
+vpux::VPU::PaddingAttr StrategyManager::getPad(VPU::NCEConvolutionOp& origOp) const {
+    return origOp.padAttr();
+}
+
+vpux::VPU::PaddingAttr StrategyManager::getPad(VPU::NCEMaxPoolOp& origOp) const {
+    return origOp.padAttr();
+}
+
+vpux::VPU::PaddingAttr StrategyManager::getPad(VPU::NCEEltwiseOp& origOp) const {
+    return VPU::getPaddingAttr(origOp.getContext(), 0, 0, 0, 0);
 }
