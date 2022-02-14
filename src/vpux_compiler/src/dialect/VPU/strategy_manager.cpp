@@ -72,11 +72,8 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
             .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp origOp) {
                 const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
-                const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
                 const auto outputShape = getShape(outputType);
-                const auto inputShape = getShape(inputType);
                 const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-                const auto IC = inputShape[Dims4D::Act::C];
                 const double OC = outputShape[Dims4D::Act::C];
                 const double OH = outputShape[Dims4D::Act::H];
                 const double OW = outputShape[Dims4D::Act::W];
@@ -88,7 +85,7 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
 
                 // Different efficency formula required for CM Conv and ZM Conv
                 // CM Conv
-                if (IC == 3) {
+                if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
                     auto efficiencyConstant = channelMajorEfficiencyTable()[KY][strides[0]];
                     efficency = efficiencyConstant *
                                 std::max(outputTensorVolume /
@@ -97,8 +94,7 @@ double StrategyManager::calculateSplitOverHeightEfficency(mlir::Operation* op) {
                                          outputTensorVolume / (getAlignment(OH, _numChannelAlignment * _numClusters) *
                                                                getAlignment(OW, _numDPUPerCluster) *
                                                                getAlignment(OC, _numChannelAlignment)));
-                    // ZM Conv
-                } else {
+                } else {  // ZM Conv
                     efficency = splitOverHeightFormula(OH, OW, OC);
                 }
                 _log.trace("The SOH efficiency for the convolution is {0}", efficency);
@@ -239,12 +235,8 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                 }
                 // Compare the SOH and SOK efficiencies and select SOH if they are equal
                 else if (_splitOverHeightEfficencies.find(op)->second >= _splitOverKernelEfficencies.find(op)->second) {
-                    const auto inputType = op.input().getType().cast<mlir::ShapedType>();
-                    const auto inputShape = getShape(inputType);
-                    const auto IC = inputShape[Dims4D::Act::C];
-
                     // A channel major conv should be have SplitOverHOverLapped strategy
-                    if (IC <= 3) {
+                    if (DimsOrder::fromValue(op.input()) == DimsOrder::NCHW) {
                         op->setAttr(multiClusterStrategy,
                                     mlir::StringAttr::get(op->getContext(), "SplitOverHeightOverLapped"));
                         _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
