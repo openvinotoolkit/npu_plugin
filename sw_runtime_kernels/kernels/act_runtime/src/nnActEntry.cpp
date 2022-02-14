@@ -27,8 +27,6 @@
 
 #include <sys/__moviconfig.h>
 
-#define LOW_LEVEL_TESTS_PERF (1)
-
 #define P_CFG_SETTING ~0b011110
 
 #if defined(USE_SHAVE_NN_PRINT)
