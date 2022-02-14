@@ -44,7 +44,26 @@ void RemoveQuantDequantSeqPass::safeRunOnFunc() {
         if (dequantizeOp == nullptr) {
             return;
         }
-        dequantizeOp.replaceAllUsesWith(quantizeOp.input());
+#if 0
+        const auto elemType = quantizeOp.getType().cast<mlir::ShapedType>().getElementType();
+#endif
+        const auto elemType = quantizeOp.getType().cast<mlir::ShapedType>().getElementType();
+        const auto quantType = elemType.dyn_cast<mlir::quant::QuantizedType>();
+        VPUX_THROW_UNLESS(quantType != nullptr, "Type must be quantized, but provided {0}", elemType);
+        int64_t levels;
+        float rMin, rMax;
+        if (const auto uniformType = quantType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+            getFakeQuantParams(uniformType, levels, rMin, rMax);
+            mlir::OpBuilder builder(dequantizeOp);
+            const auto min = getFPAttr(&getContext(), rMin);
+            const auto max = getFPAttr(&getContext(), rMax);
+            const auto broadcastType =
+                    vpux::IE::AutoBroadcastTypeAttr::get(&getContext(), IE::AutoBroadcastType::NONE_OR_EXPLICIT);
+            auto andOp = builder.create<IE::AndOp>(quantizeOp->getLoc(), quantizeOp->getOperand(0),
+                                                   quantizeOp->getOperand(0), broadcastType, nullptr);
+            auto clampOp = builder.create<IE::ClampOp>(quantizeOp->getLoc(), andOp->getResult(0), min, max);
+            dequantizeOp.replaceAllUsesWith(clampOp.getOperation());
+        }
     });
 }  // namespace
 
