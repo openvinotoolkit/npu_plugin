@@ -327,7 +327,11 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
             os << ", ";
         }
 
-        os << ((_params.htmlLike) ? htmlEnd : "\n");
+        if (_params.htmlLike) {
+            os << htmlEnd;
+        } else {
+            os << "\n";
+        }
     }
 
     for (auto& attr : op->getAttrs()) {
