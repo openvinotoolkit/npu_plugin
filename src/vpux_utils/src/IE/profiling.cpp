@@ -62,7 +62,7 @@ std::map<std::string, ie::InferenceEngineProfileInfo> vpux::profiling::convertPr
         info.status = ie::InferenceEngineProfileInfo::EXECUTED;
         info.realTime_uSec = layer.duration_ns / 1000;
         info.execution_index = execution_index++;
-        auto typeLen = sizeof(info.exec_type) / sizeof(info.exec_type[0]);
+        auto typeLen = sizeof(info.exec_type);
         if (layer.sw_ns > 0) {
             strncpy(info.exec_type, "SW", typeLen - 1);
         } else if (layer.dpu_ns > 0) {
@@ -70,9 +70,11 @@ std::map<std::string, ie::InferenceEngineProfileInfo> vpux::profiling::convertPr
         } else {
             strncpy(info.exec_type, "DMA", typeLen - 1);
         }
+        info.exec_type[typeLen - 1] = '\0';
         info.cpu_uSec = (layer.dma_ns + layer.sw_ns + layer.dpu_ns) / 1000;
         typeLen = sizeof(info.layer_type);
         strncpy(info.layer_type, layer.layer_type, typeLen - 1);
+        info.layer_type[typeLen - 1] = '\0';
         perfCounts[name] = info;
     }
 
