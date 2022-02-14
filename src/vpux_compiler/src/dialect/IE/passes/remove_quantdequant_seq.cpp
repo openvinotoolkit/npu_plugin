@@ -11,7 +11,9 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 using namespace vpux;
 
@@ -29,6 +31,23 @@ public:
 
 private:
     void safeRunOnFunc() final;
+    // TODO: Code base on fuse_post_ops pass, how to make it common
+    bool canBeMergedWithPreceedingDpu(mlir::Operation* op, IE::ClampOp clampOp) {
+        if (!op->hasOneUse()) {
+            return false;
+        }
+        auto producerOp = mlir::dyn_cast<IE::LayerWithPostOpInterface>(op);
+        if (producerOp == nullptr) {
+            return false;
+        }
+        if (!producerOp.isSupportedPostOp(clampOp)) {
+            return false;
+        }
+        if (producerOp.getPostOp().hasValue()) {
+            return false;
+        }
+        return true;
+    }
 };
 
 void RemoveQuantDequantSeqPass::safeRunOnFunc() {
@@ -36,7 +55,10 @@ void RemoveQuantDequantSeqPass::safeRunOnFunc() {
     // Remove remaining Quantize->Dequantize sequence to not perform explicit FakeQuantize.
     // This might have slight impact on accuracy but gives visible performance improvement
     // TODO: Evaluate possibility of replacing such sequence with ClampOp fused with DPU task
-    func.walk([this](vpux::IE::QuantizeOp quantizeOp) {
+    uint32_t convFused = 0;
+    uint32_t grConvFused = 0;
+    uint32_t maxPoolFused = 0;
+    func.walk([this, &grConvFused, &convFused, &maxPoolFused](vpux::IE::QuantizeOp quantizeOp) {
         if (!quantizeOp->hasOneUse()) {
             return;
         }
@@ -44,9 +66,29 @@ void RemoveQuantDequantSeqPass::safeRunOnFunc() {
         if (dequantizeOp == nullptr) {
             return;
         }
-        dequantizeOp.replaceAllUsesWith(quantizeOp.input());
+
+        const auto elemType = quantizeOp.getType().cast<mlir::ShapedType>().getElementType();
+        const auto quantType = elemType.dyn_cast<mlir::quant::QuantizedType>();
+        VPUX_THROW_UNLESS(quantType != nullptr, "Type must be quantized, but provided {0}", elemType);
+        int64_t levels;
+        float rMin, rMax;
+        if (const auto uniformType = quantType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+            getFakeQuantParams(uniformType, levels, rMin, rMax);
+            mlir::OpBuilder builder(dequantizeOp);
+            const auto min = getFPAttr(&getContext(), rMin);
+            const auto max = getFPAttr(&getContext(), rMax);
+            const auto broadcastType =
+                    vpux::IE::AutoBroadcastTypeAttr::get(&getContext(), IE::AutoBroadcastType::NONE_OR_EXPLICIT);
+            auto andOp = builder.create<IE::AndOp>(quantizeOp->getLoc(), quantizeOp->getOperand(0),
+                                                   quantizeOp->getOperand(0), broadcastType, nullptr);
+            auto clampOp = builder.create<IE::ClampOp>(quantizeOp->getLoc(), quantizeOp->getOperand(0), min, max);
+            if (!canBeMergedWithPreceedingDpu(quantizeOp.input().getDefiningOp(), clampOp)) {
+                clampOp->setOperand(0, andOp);
+            }
+            dequantizeOp.replaceAllUsesWith(clampOp.getOperation());
+        }
     });
-}  // namespace
+}
 
 }  // namespace
 
