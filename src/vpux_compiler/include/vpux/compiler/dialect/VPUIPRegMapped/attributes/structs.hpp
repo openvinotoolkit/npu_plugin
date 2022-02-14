@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright (C) 2022 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,22 +13,12 @@
 
 #pragma once
 
-#include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/ELF/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
-#include "vpux/compiler/dialect/const/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIPRegMapped/attributes/enums.hpp"
 
-#include "vpux/utils/core/logger.hpp"
-
-#include <mlir/IR/Dialect.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/Transforms/DialectConversion.h>
+#include <mlir/IR/BuiltinAttributes.h>
 
 //
 // Generated
 //
 
-#include <vpux/compiler/dialect/const/generated/dialect.hpp.inc>
-
-#define GET_OP_CLASSES
-#include <vpux/compiler/dialect/const/generated/ops.hpp.inc>
+#include <vpux/compiler/dialect/VPUIPRegMapped/generated/attributes/structs.hpp.inc>

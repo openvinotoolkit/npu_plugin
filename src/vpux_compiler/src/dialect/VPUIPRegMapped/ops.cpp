@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright (C) 2022 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,24 +11,30 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
+#include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 
-#include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/ELF/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
-#include "vpux/compiler/dialect/const/ops_interfaces.hpp"
+using namespace vpux;
 
-#include "vpux/utils/core/logger.hpp"
+namespace {}  // namespace
 
-#include <mlir/IR/Dialect.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/Transforms/DialectConversion.h>
+//
+// initialize
+//
+
+void vpux::VPUIPRegMapped::VPUIPRegMappedDialect::initialize() {
+    addOperations<
+#define GET_OP_LIST
+#include <vpux/compiler/dialect/VPUIPRegMapped/generated/ops.cpp.inc>
+            >();
+}
 
 //
 // Generated
 //
 
-#include <vpux/compiler/dialect/const/generated/dialect.hpp.inc>
+#include <vpux/compiler/dialect/VPUIPRegMapped/generated/dialect.cpp.inc>
 
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/const/generated/ops.hpp.inc>
+#include <vpux/compiler/dialect/VPUIPRegMapped/generated/ops.cpp.inc>

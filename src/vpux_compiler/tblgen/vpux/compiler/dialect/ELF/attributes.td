@@ -28,9 +28,9 @@ include "vpux/compiler/dialect/ELF/dialect.td"
 //   for the detailed description of the case values.
 
 // I64EnumAttr has uint64_t as the underlying type, which is OK for all cases.
-def ELF_SectionTypeAttr2 :
+def ELF_SectionTypeAttr :
         I64EnumAttr<
-            "SectionTypeAttr2",
+            "SectionTypeAttr",
             "Enum for describing ELF section header types",
             [
                 I64EnumAttrCase<"SHT_NULL",     0>,
@@ -49,36 +49,6 @@ def ELF_SectionTypeAttr2 :
                 I64EnumAttrCase<"SHT_HIPROC",   0x7FFFFFFF>,
                 I64EnumAttrCase<"SHT_LOUSER",   0x80000000>,
                 I64EnumAttrCase<"SHT_HIUSER",   0xFFFFFFFF>
-            ]
-        > {
-    let cppNamespace = "vpux::ELF";
-    // Don't generate a C++ class! We want to use the AttrDef
-    //let genSpecializedAttr = 0;
-    let genSpecializedAttr = 1;
-}
-
-// StrEnumAttr has signed int as underlying type, which is not OK for all cases.
-def ELF_SectionTypeAttr :
-        StrEnumAttr<
-            "SectionTypeAttr",
-            "Enum for describing ELF section header types",
-            [
-                StrEnumAttrCase<"SHT_NULL",           0>,
-                StrEnumAttrCase<"SHT_PROGBITS",       1>,
-                StrEnumAttrCase<"SHT_SYMTAB",         2>,
-                StrEnumAttrCase<"SHT_STRTAB",         3>,
-                StrEnumAttrCase<"SHT_RELA",           4>,
-                StrEnumAttrCase<"SHT_HASH",           5>,
-                StrEnumAttrCase<"SHT_DYNAMIC",        6>,
-                StrEnumAttrCase<"SHT_NOTE",           7>,
-                StrEnumAttrCase<"SHT_NOBITS",         8>,
-                StrEnumAttrCase<"SHT_REL",            9>,
-                StrEnumAttrCase<"SHT_SHLIB",          10>,
-                StrEnumAttrCase<"SHT_DYNSYM",         11>,
-                StrEnumAttrCase<"SHT_LOPROC",         0x70000000>,
-                StrEnumAttrCase<"SHT_HIPROC",         0x7FFFFFFF>,
-                // error: enumerator value ‘2147483648’ is outside the range of underlying type ‘int’: StrEnumAttrCase<"SHT_LOUSER",         0x80000000>, // NEW
-                //StrEnumAttrCase<"SHT_HIUSER",         0xFFFFFFFF>, // NEW
             ]
         > {
     let cppNamespace = "vpux::ELF";
@@ -140,7 +110,6 @@ def ELF_SectionFlagsAttr :
                 BitEnumAttrCase<"VPU_SHF_USERINPUT",       0x20000000>,
                 BitEnumAttrCase<"VPU_SHF_USEROUTPUT",      0x40000000>,
                 BitEnumAttrCase<"SHF_MASKPROC",            0xF0000000>,
-                BitEnumAttrCase<"SHF_MASKPROC2",           0xF0000001>,
             ]
         > {
     let cppNamespace = "vpux::ELF";

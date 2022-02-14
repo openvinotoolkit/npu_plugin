@@ -26,9 +26,12 @@ mlir::Operation* getParentSectionOp(mlir::Value val) {
             break;
         }
     }
-    // This is for the case BlockArgument (e.g., arg0 value)
+
+    // This happens normally in case val is a BlockArgument (e.g., "arg0" in the .mlir file)
     if (op == nullptr) {
         op = val.getDefiningOp();
+
+        return val.getParentRegion()->getParentOp();
     }
     VPUX_THROW_UNLESS(op != nullptr, "Both user and producer operation can't be found.");
 
@@ -57,12 +60,16 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
       The ticket #29144 plans to handle these last 2 types of sections.
     */
 
+    // We initialize parentSection to nullptr, since inputArg() can be a BlockArgument,
+    //   which has getDefiningOp() equal to nullptr.
     mlir::Operation* parentSection = nullptr;
+
     if (auto inputArgDefOp = inputArg().getDefiningOp()) {
         if (mlir::isa<ELF::ElfSectionInterface>(inputArgDefOp)) {
             parentSection = inputArgDefOp;
         } else {
             parentSection = getParentSectionOp(inputArg());
+
             VPUX_THROW_UNLESS(parentSection != nullptr, "Could not find valid parent section for op");
         }
     }

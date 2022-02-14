@@ -18,6 +18,7 @@ to process encoding attribute in mlir::RankedTensorType
 The pass converts VPUNCE-friendly operations (such as Conv, Pool, Eltwise)
 
 It doesn't change the memory spaces or add any new operations such as Copy
+### `-convert-VPUIP-to-VPUIPRegMapped`: Convert VPUIP Dialect to VPUIPRegMapped Dialect
 ### `-convert-async-ops-to-VPUIP`: Convert Async Dialect Operations to VPUIP Dialect
 This pass inlines 'async.execute' body to parent Block and replaces '!async.token' based dependencies with
 VPUIP virtual barriers.
@@ -26,6 +27,7 @@ VPUIP virtual barriers.
 ### `-convert-nce-cluster-tiling-to-vpuip`: Convert VPU NCEClusterTiling ops to VPUIP
 Convert VPU::NCEClusterTiling ops to VPUIP::NCEClusterTiling.
 ### `-convert-sw-layers-to-VPUIP`: Convert Software Layers Operations to VPUIP SW_kernel
+### `-convert-to-VPUIPRegMapped-and-ELF`: Convert to VPUIPRegMapped Dialect and ELF Dialect
 ### `-convert-view-ops-to-VPUIP`: Convert view-like Operations to VPUIP Dialect
 ### `-convert-vpu-to-vpuip`: Convert NCE ops from VPU to VPUIP
 Convert ops which can be executed on NCE to explicit NCE ops.

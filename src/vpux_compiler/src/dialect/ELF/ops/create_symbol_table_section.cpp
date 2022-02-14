@@ -31,15 +31,17 @@ void vpux::ELF::CreateSymbolTableSectionOp::serialize(elf::Writer& writer, vpux:
             auto actualOp = placeholder.inputArg().getDefiningOp();
             auto symOp = llvm::dyn_cast<vpux::ELF::SymbolOp>(actualOp);
 
-            VPUX_THROW_UNLESS(symOp != nullptr,
-                              "Symbol table section op is expected to have placeholders that point to SymbolOps only."
-                              " Got *actualOp {0}.",
-                              *actualOp);
+            VPUX_THROW_UNLESS(
+                    symOp != nullptr,
+                    "Symbol table section op is expected to have PutOpInSectionOps that point to SymbolOps only."
+                    " Got *actualOp {0}.",
+                    *actualOp);
 
             symOp.serialize(symbol, sectionMap);
             symbolMap[symOp.getOperation()] = symbol;
         } else {
-            VPUX_THROW("Symbol table section op is expected to have either SymbolOps or placeholders that point to "
+            VPUX_THROW("Symbol table section op is expected to have either SymbolOps or PutOpInSectionOps that have as "
+                       "params "
                        "SymbolOps. Got {0}.",
                        op);
         }

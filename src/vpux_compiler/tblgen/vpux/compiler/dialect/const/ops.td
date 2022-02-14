@@ -17,6 +17,9 @@
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/const/dialect.td"
 include "vpux/compiler/dialect/const/attributes.td"
+include "vpux/compiler/dialect/const/ops_interfaces.td"
+include "vpux/compiler/dialect/ELF/ops_interfaces.td"
+
 
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpAsmInterface.td"
@@ -29,7 +32,13 @@ class Const_Op<string mnemonic, list<OpTrait> traits = []> :
         Op<
             Const_Dialect,
             mnemonic,
-            traits
+            !listconcat(
+              traits,
+              [
+                //DeclareOpInterfaceMethods<Const_OpInterface>,
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
+              ]
+            )
         >;
 
 //
