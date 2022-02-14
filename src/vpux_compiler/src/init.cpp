@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
@@ -43,12 +44,13 @@ class MemRefElementTypeModel final : public mlir::MemRefElementTypeInterface::Fa
 }  // namespace
 
 void vpux::registerDialects(mlir::DialectRegistry& registry) {
-    registry.insert<vpux::Const::ConstDialect,  //
-                    vpux::IE::IEDialect,        //
-                    vpux::VPU::VPUDialect,      //
-                    vpux::IERT::IERTDialect,    //
-                    vpux::VPUIP::VPUIPDialect,  //
-                    vpux::VPURT::VPURTDialect,  //
+    registry.insert<vpux::Const::ConstDialect,                    //
+                    vpux::IE::IEDialect,                          //
+                    vpux::VPU::VPUDialect,                        //
+                    vpux::IERT::IERTDialect,                      //
+                    vpux::VPUIP::VPUIPDialect,                    //
+                    vpux::VPURT::VPURTDialect,                    //
+                    vpux::VPUIPRegMapped::VPUIPRegMappedDialect,  //
                     vpux::ELF::ELFDialect>();
 
     registry.insert<mlir::StandardOpsDialect,          //

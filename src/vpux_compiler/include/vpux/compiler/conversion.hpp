@@ -13,9 +13,11 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 
@@ -92,9 +94,13 @@ void buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, const LowerIERT2VPUIP
 
 std::unique_ptr<mlir::Pass> createConvertSWLayers2VPUIPPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertLayers2VPUIPPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertVPUIP2VPUIPRegMappedPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvert2VPUIPRegMappedAndELFPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertDeclarations2VPUIPPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertViewOps2VPUIPPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertAsyncOps2VPUIPPass(Logger log = Logger::global());
+
+void buildLowerVPUIP2VPUIPRegMappedAndELFPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 //
 // registerConversionPipelines

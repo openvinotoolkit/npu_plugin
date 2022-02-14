@@ -53,7 +53,7 @@ def CreateSectionOp :
 
     let arguments = (ins
         StrAttr:$secName,
-        ELF_SectionTypeAttr2:$secType,
+        ELF_SectionTypeAttr:$secType,
         ELF_SectionFlagsAttr:$secFlags,
         IntAttr:$secInfo,
         IntAttr:$secAddrAlign
@@ -104,6 +104,7 @@ def CreateLogicalSectionOp :
     );
 
     let assemblyFormat = [{
+        `secType` `(` $secType `)`
         `secFlags` `(` $secFlags `)`
         attr-dict
         `->` type(results)

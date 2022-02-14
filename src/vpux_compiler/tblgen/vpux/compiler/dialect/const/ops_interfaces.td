@@ -11,24 +11,25 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#ifndef VPUX_COMPILER_DIALECT_CONST_OPS_INTERFACES
+#define VPUX_COMPILER_DIALECT_CONST_OPS_INTERFACES
 
-#include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/ELF/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
-#include "vpux/compiler/dialect/const/ops_interfaces.hpp"
+include "mlir/IR/OpBase.td"
 
-#include "vpux/utils/core/logger.hpp"
+/*
+def Const_OpInterface : OpInterface<"ConstOpInterface"> {
+    let description = "Interface for const Const_Op";
 
-#include <mlir/IR/Dialect.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/Transforms/DialectConversion.h>
+    let cppNamespace = "vpux::Const";
 
-//
-// Generated
-//
+    let methods = [
+        InterfaceMethod<
+            "Serialize the Task to BLOB format",
+            "void",
+            "serialize", (ins "std::vector<uint8_t>&":$buffer)
+        >,
+    ];
+}
+*/
 
-#include <vpux/compiler/dialect/const/generated/dialect.hpp.inc>
-
-#define GET_OP_CLASSES
-#include <vpux/compiler/dialect/const/generated/ops.hpp.inc>
+#endif

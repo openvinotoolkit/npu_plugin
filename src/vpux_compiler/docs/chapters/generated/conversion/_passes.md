@@ -15,6 +15,7 @@ A bufferize pass that bufferizes std.func ops.
 In contrast to MLIR standard analogue pass, this pass uses vpux::BufferizeTypeConverter
 to process encoding attribute in mlir::RankedTensorType
 ### `-convert-IE-to-VPU-NCE`: Convert supported IE layers to VPU NCE operations
+### `-convert-VPUIP-to-VPUIPRegMapped`: Convert VPUIP Dialect to VPUIPRegMapped Dialect
 ### `-convert-async-ops-to-VPUIP`: Convert Async Dialect Operations to VPUIP Dialect
 This pass inlines 'async.execute' body to parent Block and replaces '!async.token' based dependencies with
 VPUIP virtual barriers.
@@ -23,6 +24,7 @@ VPUIP virtual barriers.
 ### `-convert-nce-cluster-tiling-to-vpuip`: Convert VPU NCEClusterTiling ops to VPUIP
 Convert VPU::NCEClusterTiling ops to VPUIP::NCEClusterTiling.
 ### `-convert-sw-layers-to-VPUIP`: Convert Software Layers Operations to VPUIP SW_kernel
+### `-convert-to-VPUIPRegMapped-and-ELF`: Convert to VPUIPRegMapped Dialect and ELF Dialect
 ### `-convert-view-ops-to-VPUIP`: Convert view-like Operations to VPUIP Dialect
 ### `-convert-vpu-to-vpuip`: Convert NCE ops from VPU to VPUIP
 Convert ops which can be executed on NCE to explicit NCE ops.
