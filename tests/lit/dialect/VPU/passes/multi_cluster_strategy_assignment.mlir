@@ -89,8 +89,8 @@ func @ConvToNCEClusterTilingSOK(%arg0: tensor<1x128x28x28xf16, {order = #NHWC}>)
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-// CHECK-LABEL: @CMConvToNCEClusterTilingSOH
-func @CMConvToNCEClusterTilingSOH(%arg0: tensor<1x3x28x28xf16, {order = #NCHW}>) -> tensor<1x16x28x28xf16, {order = #NHWC}> {
+// CHECK-LABEL: @CMConvToNCEClusterTilingSOHOverlapped
+func @CMConvToNCEClusterTilingSOHOverlapped(%arg0: tensor<1x3x28x28xf16, {order = #NCHW}>) -> tensor<1x16x28x28xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<16x1x1x16xf16, {order = #NHWC}> = #const.Content<dense<1.000000e+00> : tensor<16x3x1x1xf16>, [#const.Reorder<#NHWC>, #const.Reorder<#NCHW>, #const.Reshape<[16, 1, 1, 3]>, #const.PadWithZero<[0, 0, 0, 0], [0, 0, 0, 13]>, #const.Reorder<#NHWC>]>
     %0 = VPU.NCE.Convolution(%arg0, %cst) {pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, rawFilterShape = [16, 3, 1, 1], strides = [1, 1]} -> tensor<1x16x28x28xf16, {order = #NHWC}>
     return %0 : tensor<1x16x28x28xf16, {order = #NHWC}>
