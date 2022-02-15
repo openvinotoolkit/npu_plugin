@@ -64,12 +64,12 @@ private:
 
 mlir::LogicalResult ConvertFCToConvPass::FullyConnectedOpConverter::matchAndRewrite(
         IE::FullyConnectedOp origOp, mlir::PatternRewriter& rewriter) const {
-    const auto inputShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
+    const auto inputShape = origOp.input().getType().cast<vpux::NDTypeInterface>().getShape().raw();
     const std::array<int64_t, 4> newInShape = {inputShape[0], inputShape[1], 1, 1};
     const auto inputShapeAttr = getIntArrayAttr(getContext(), newInShape);
     auto newInput = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false, inputShapeAttr);
 
-    const auto weightsShape = origOp.weights().getType().cast<mlir::ShapedType>().getShape();
+    const auto weightsShape = origOp.weights().getType().cast<vpux::NDTypeInterface>().getShape().raw();
     const std::array<int64_t, 4> newWeightsShape = {weightsShape[0], weightsShape[1], 1, 1};
     const auto filterShapeAttr = getIntArrayAttr(getContext(), newWeightsShape);
     auto newFilter =
@@ -77,7 +77,7 @@ mlir::LogicalResult ConvertFCToConvPass::FullyConnectedOpConverter::matchAndRewr
 
     mlir::Value newBias;
     if (origOp.bias() != nullptr) {
-        const auto biasShape = origOp.bias().getType().cast<mlir::ShapedType>().getShape();
+        const auto biasShape = origOp.bias().getType().cast<vpux::NDTypeInterface>().getShape().raw();
         const std::array<int64_t, 4> newBiasShape = {biasShape[0], biasShape[1], 1, 1};
         const auto biasShapeAttr = getIntArrayAttr(getContext(), newBiasShape);
         newBias = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.bias(), nullptr, false, biasShapeAttr);
@@ -90,7 +90,7 @@ mlir::LogicalResult ConvertFCToConvPass::FullyConnectedOpConverter::matchAndRewr
     auto convOp = rewriter.create<IE::ConvolutionOp>(origOp->getLoc(), newInput, newFilter, newBias, newStrides,
                                                      newPadsBegin, newPadsEnd, newDilations, nullptr);
 
-    const auto convShape = convOp.output().getType().cast<mlir::ShapedType>().getShape();
+    const auto convShape = convOp.output().getType().cast<vpux::NDTypeInterface>().getShape().raw();
     const std::array<int64_t, 2> outputShape = {convShape[0], convShape[1]};
     const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, convOp.output(), nullptr, false, outputShapeAttr);

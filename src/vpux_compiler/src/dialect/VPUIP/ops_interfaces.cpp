@@ -57,8 +57,8 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
 
     for (auto& operand : layer.getOpOperands()) {
         const auto opVal = operand.get();
-        const auto type = opVal.getType().cast<mlir::MemRefType>();
-        const auto mem = VPU::getMemoryKind(type);
+        const auto type = opVal.getType().cast<vpux::NDTypeInterface>();
+        const auto mem = type.getMemoryKind();
 
         if (type.getRank() == 0) {
             return errorAt(op, "SCALARS are not supported");

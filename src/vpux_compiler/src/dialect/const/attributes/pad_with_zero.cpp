@@ -32,8 +32,8 @@ namespace {
 
 void fillWithZero(Const::Content& output) {
     if (auto perAxisQType = output.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto outShape = getShape(output.getType());
-        const auto order = DimsOrder::fromType(output.getType());
+        const auto outShape = output.getType().getShape();
+        const auto order = output.getType().getDimsOrder();
         const auto outMemShape = order.toMemoryOrder(outShape);
 
         VPUX_THROW_UNLESS(outShape.size() == 4, "Unsupported shape size {0}", outShape.size());
@@ -169,14 +169,14 @@ mlir::Attribute vpux::Const::PadWithZeroAttr::parse(mlir::DialectAsmParser& pars
 // PadWithZeroAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::PadWithZeroAttr::inferOutputType(mlir::ShapedType input) const {
-    const Bit typeSizeInBits = getElemTypeSize(input);
+vpux::NDTypeInterface vpux::Const::PadWithZeroAttr::inferOutputType(vpux::NDTypeInterface input) const {
+    const Bit typeSizeInBits = input.getElemTypeSize();
     VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in PadWithZeroAttr",
                       input.getElementType());
 
     const auto padBefore = parseIntArrayAttr<int64_t>(getPadBefore());
     const auto padAfter = parseIntArrayAttr<int64_t>(getPadAfter());
-    return getPaddedType(input, ShapeRef(padBefore), ShapeRef(padAfter));
+    return input.pad(ShapeRef(padBefore), ShapeRef(padAfter));
 }
 
 //
@@ -192,12 +192,12 @@ Const::Content vpux::Const::PadWithZeroAttr::transform(vpux::Const::Content& inp
     auto outBuf = output.getRawTempBuf();
 
     const Byte elemSize = getElemTypeSize(input.getStorageElemType());
-    const auto order = DimsOrder::fromType(input.getType());
 
-    const auto inShape = getShape(input.getType());
+    const auto order = input.getType().getDimsOrder();
+    const auto inShape = input.getType().getShape();
     const auto inMemShape = order.toMemoryOrder(inShape);
 
-    const auto outShape = getShape(output.getType());
+    const auto outShape = output.getType().getShape();
     const auto outMemShape = order.toMemoryOrder(outShape);
 
     const auto padBefore = Shape(parseIntArrayAttr<int64_t>(getPadBefore()));

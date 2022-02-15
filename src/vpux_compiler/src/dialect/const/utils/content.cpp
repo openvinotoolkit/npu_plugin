@@ -21,7 +21,7 @@ using namespace vpux;
 // Content::fromRawBuffer
 //
 
-Const::Content vpux::Const::Content::fromRawBuffer(mlir::ShapedType type, ArrayRef<char> data,
+Const::Content vpux::Const::Content::fromRawBuffer(vpux::NDTypeInterface type, ArrayRef<char> data,
                                                    mlir::Type storageElemType, bool isSplat) {
     Const::Content content;
     content._type = type;
@@ -35,7 +35,8 @@ Const::Content vpux::Const::Content::fromRawBuffer(mlir::ShapedType type, ArrayR
 // Content::allocTempBuffer
 //
 
-Const::Content vpux::Const::Content::allocTempBuffer(mlir::ShapedType type, mlir::Type storageElemType, bool isSplat) {
+Const::Content vpux::Const::Content::allocTempBuffer(vpux::NDTypeInterface type, mlir::Type storageElemType,
+                                                     bool isSplat) {
     Const::Content content;
     content._type = type;
     content._storageElemType = storageElemType;
@@ -51,8 +52,8 @@ Const::Content vpux::Const::Content::allocTempBuffer(mlir::ShapedType type, mlir
     return content;
 }
 
-Const::Content vpux::Const::Content::allocTempBuffer(mlir::ShapedType type, mlir::Type storageElemType, bool isSplat,
-                                                     size_t tempBufRawSize) {
+Const::Content vpux::Const::Content::allocTempBuffer(vpux::NDTypeInterface type, mlir::Type storageElemType,
+                                                     bool isSplat, size_t tempBufRawSize) {
     // Overloading for sub-byte cases.
     Const::Content content;
     content._type = type;
@@ -69,7 +70,7 @@ Const::Content vpux::Const::Content::allocTempBuffer(mlir::ShapedType type, mlir
 // Content::moveBuffer
 //
 
-Const::Content vpux::Const::Content::moveBuffer(mlir::ShapedType type, Const::Content&& other) {
+Const::Content vpux::Const::Content::moveBuffer(vpux::NDTypeInterface type, Const::Content&& other) {
     Const::Content content;
     content._type = type;
     content._storageElemType = other._storageElemType;

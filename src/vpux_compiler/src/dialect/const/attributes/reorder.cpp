@@ -81,8 +81,8 @@ mlir::Attribute vpux::Const::ReorderAttr::parse(mlir::DialectAsmParser& parser, 
 // ReorderAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::ReorderAttr::inferOutputType(mlir::ShapedType input) const {
-    const Bit typeSizeInBits = getElemTypeSize(input);
+vpux::NDTypeInterface vpux::Const::ReorderAttr::inferOutputType(vpux::NDTypeInterface input) const {
+    const Bit typeSizeInBits = input.getElemTypeSize();
     VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in ReorderAttr",
                       input.getElementType());
 
@@ -90,7 +90,7 @@ mlir::ShapedType vpux::Const::ReorderAttr::inferOutputType(mlir::ShapedType inpu
     VPUX_THROW_UNLESS(order.numDims() == checked_cast<size_t>(input.getRank()),
                       "DimsOrder '{0}' doesn't match type '{1}'", order, input);
 
-    return changeDimsOrder(input, order);
+    return input.changeDimsOrder(order);
 }
 
 static SmallVector<uint32_t> computeOrder(const DimsOrder inOrder, const DimsOrder outOrder) {
@@ -109,8 +109,8 @@ static SmallVector<uint32_t> computeOrder(const DimsOrder inOrder, const DimsOrd
 
 Const::Content vpux::Const::ReorderAttr::transform(vpux::Const::Content& input) const {
     const auto outType = inferOutputType(input.getType());
-    const auto inOrder = DimsOrder::fromType(input.getType());
-    const auto outOrder = DimsOrder::fromType(outType);
+    const auto inOrder = input.getType().getDimsOrder();
+    const auto outOrder = outType.getDimsOrder();
     const auto memPerm =
             mlir::AffineMap::getPermutationMap(makeArrayRef(computeOrder(inOrder, outOrder)), getContext());
     return Const::details::memPermuteTransformation(input, outType, memPerm);

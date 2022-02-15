@@ -122,7 +122,7 @@ def VPUIP_NNDMAOp :
         }
 
         vpux::DotNodeColor getNodeColor() {
-            const auto memKind = vpux::VPU::getMemoryKind(getType());
+            const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;
@@ -179,7 +179,7 @@ def VPUIP_CompressedDMAOp :
         }
 
         vpux::DotNodeColor getNodeColor() {
-            const auto memKind = vpux::VPU::getMemoryKind(getType());
+            const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;

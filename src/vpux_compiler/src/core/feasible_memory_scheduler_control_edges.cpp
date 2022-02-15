@@ -165,8 +165,8 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
             }
 
             for (const auto& operand : innerOp.getOperands()) {
-                const auto type = operand.getType().dyn_cast<mlir::MemRefType>();
-                if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                const auto type = operand.getType().dyn_cast<vpux::NDTypeInterface>();
+                if (type == nullptr || type.getMemSpace() != _memSpace) {
                     continue;
                 }
 

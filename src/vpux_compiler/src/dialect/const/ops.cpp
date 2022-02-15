@@ -103,7 +103,7 @@ namespace {
 
 mlir::LogicalResult verifyOp(Const::DeclareOp op) {
     const auto attrType = op.contentAttr().getType();
-    const auto opType = op.getType().cast<mlir::ShapedType>();
+    const auto opType = op.getType().cast<vpux::NDTypeInterface>();
 
     if (opType.getShape() != attrType.getShape()) {
         return errorAt(op, "'Const.Declare' has mismatch in value shape '{0}' and result shape '{1}'",
@@ -114,8 +114,8 @@ mlir::LogicalResult verifyOp(Const::DeclareOp op) {
                        attrType.getElementType(), opType.getElementType());
     }
 
-    const auto attrOrder = DimsOrder::fromType(attrType);
-    const auto opOrder = DimsOrder::fromType(opType);
+    const auto attrOrder = attrType.getDimsOrder();
+    const auto opOrder = opType.getDimsOrder();
 
     if (opOrder != attrOrder) {
         return errorAt(op, "'Const.Declare' has mismatch in value DimsOrder '{0}' and result DimsOrder '{1}'",
@@ -132,10 +132,10 @@ mlir::LogicalResult verifyOp(Const::DeclareOp op) {
 //
 
 void Const::ConstDialect::setupExtraInterfaces(mlir::DialectRegistry& registry) {
-    registry.addTypeInterface<Const::ConstDialect, mlir::RankedTensorType, vpux::TensorPropertiesTypeInterface>();
-    registry.addTypeInterface<Const::ConstDialect, mlir::UnrankedTensorType, vpux::TensorPropertiesTypeInterface>();
-    registry.addTypeInterface<Const::ConstDialect, mlir::MemRefType, vpux::MemRefPropertiesTypeInterface>();
-    registry.addTypeInterface<Const::ConstDialect, mlir::UnrankedMemRefType, vpux::MemRefPropertiesTypeInterface>();
+    registry.addTypeInterface<Const::ConstDialect, mlir::RankedTensorType, vpux::TensorNDTypeInterface>();
+    registry.addTypeInterface<Const::ConstDialect, mlir::UnrankedTensorType, vpux::TensorNDTypeInterface>();
+    registry.addTypeInterface<Const::ConstDialect, mlir::MemRefType, vpux::MemRefNDTypeInterface>();
+    registry.addTypeInterface<Const::ConstDialect, mlir::UnrankedMemRefType, vpux::MemRefNDTypeInterface>();
 }
 
 //

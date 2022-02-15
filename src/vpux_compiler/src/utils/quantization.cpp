@@ -431,7 +431,7 @@ void vpux::getFakeQuantParams(mlir::quant::UniformQuantizedPerAxisType qElemType
     });
 }
 
-void vpux::getFakeQuantParams(mlir::ShapedType qType, int64_t& levels, mlir::RankedTensorType& attrType,
+void vpux::getFakeQuantParams(vpux::NDTypeInterface qType, int64_t& levels, mlir::RankedTensorType& attrType,
                               mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr) {
     const auto qElemType = qType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
     VPUX_THROW_WHEN(qElemType == nullptr, "Unsupported Quantized Type '{0}'", qType.getElementType());

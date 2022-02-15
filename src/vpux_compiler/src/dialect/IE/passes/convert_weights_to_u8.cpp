@@ -94,10 +94,10 @@ mlir::LogicalResult ConstRewriter::matchAndRewrite(Const::DeclareOp origOp, OpAd
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter was not set");
 
     const auto origQuantType =
-            origOp.getType().cast<mlir::ShapedType>().getElementType().cast<mlir::quant::QuantizedType>();
+            origOp.getType().cast<vpux::NDTypeInterface>().getElementType().cast<mlir::quant::QuantizedType>();
     const auto storageMin = origQuantType.getStorageTypeMin();
 
-    const auto newType = typeConverter->convertType(origOp.getType()).cast<mlir::ShapedType>();
+    const auto newType = typeConverter->convertType(origOp.getType()).cast<vpux::NDTypeInterface>();
     const auto newQuantType = newType.getElementType().cast<mlir::quant::QuantizedType>();
 
     _log.nest().trace("Convert content from '{0}' to '{1}'", origQuantType, newQuantType);
@@ -163,11 +163,11 @@ void ConvertWeightsToU8Pass::safeRunOnFunc() {
     auto func = getFunction();
 
     mlir::TypeConverter typeConverter;
-    typeConverter.addConversion([](mlir::RankedTensorType tensor) {
+    typeConverter.addConversion([](vpux::NDTypeInterface tensor) {
         if (const auto quantType = tensor.getElementType().dyn_cast_or_null<mlir::quant::QuantizedType>()) {
             if (quantType.isSigned()) {
                 const auto newElemType = changeStorageTypeToU8(quantType);
-                return changeElemType(tensor, newElemType);
+                return tensor.changeElemType(newElemType);
             }
         }
 

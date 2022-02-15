@@ -62,8 +62,8 @@ private:
 
 mlir::LogicalResult ConvertShuffleChannelsPass::ShuffleChannelsOpConverter::matchAndRewrite(
         IE::ShuffleChannelsOp origOp, mlir::PatternRewriter& rewriter) const {
-    const auto inputShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
-    const auto outShape = origOp.output().getType().cast<mlir::ShapedType>().getShape();
+    const auto inputShape = origOp.input().getType().cast<vpux::NDTypeInterface>().getShape().raw();
+    const auto outShape = origOp.output().getType().cast<vpux::NDTypeInterface>().getShape().raw();
     const auto axis = origOp.axis();
     const auto group = origOp.group();
 

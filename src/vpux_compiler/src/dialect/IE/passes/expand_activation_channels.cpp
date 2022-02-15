@@ -47,8 +47,8 @@ Shape calcPadsEnd(ShapeRef origShape, ShapeRef extendedShape) {
     return padsEnd;
 }
 
-Shape calcPadsEnd(mlir::ShapedType origType, int64_t channelAlignment) {
-    const auto origShape = getShape(origType);
+Shape calcPadsEnd(vpux::NDTypeInterface origType, int64_t channelAlignment) {
+    const auto origShape = origType.getShape();
 
     auto extendedShape = origShape.toValues();
     extendedShape[Dims4D::Act::C] = alignVal(origShape[Dims4D::Act::C], channelAlignment);
@@ -72,8 +72,8 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
 
     auto iface = mlir::cast<IE::AlignedChannelsOpInterface>(origOp);
 
-    const auto inputType = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
-    const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
+    const auto inputType = origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
 
     const auto inPadsEnd = calcPadsEnd(inputType, iface.getInputChannelAlignment());
     const auto outPadsEnd = calcPadsEnd(outputType, iface.getOutputChannelAlignment());
@@ -139,7 +139,8 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
         Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
         outPadAfter[Dims4D::Act::C] = outChanPadsEnd;
 
-        const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
+        const auto ndType = origOp.getType().cast<vpux::NDTypeInterface>();
+        const auto newOutputType = ndType.pad(outPadBefore, outPadAfter);
 
         return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
                                               origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
@@ -210,7 +211,8 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
         Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
         outPadAfter[Dims4D::Act::C] = outChanPadEnd;
 
-        const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
+        const auto ndType = origOp.getType().cast<vpux::NDTypeInterface>();
+        const auto newOutputType = ndType.pad(outPadBefore, outPadAfter);
 
         return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), newOutputType, expandedInput, paddedFilter,
                                                   paddedBiases, origOp.strides(), origOp.pads_begin(),
@@ -266,7 +268,8 @@ mlir::LogicalResult EltwiseRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp orig
         Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
         outPadAfter[Dims4D::Act::C] = outChanPadEnd;
 
-        const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
+        const auto ndType = origOp.getType().template cast<vpux::NDTypeInterface>();
+        const auto newOutputType = ndType.pad(outPadBefore, outPadAfter);
 
         return rewriter.create<ConcreteOp>(origOp.getLoc(), newOutputType, expandedInput1, expandedInput2,
                                            origOp.auto_broadcast(), origOp.post_opAttr());
@@ -332,8 +335,9 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
         Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
         outPadAfter[Dims4D::Act::C] = outChanPadEnd;
 
-        const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
-        const auto newConvOutShape = getShape(newOutputType);
+        const auto ndType = origOp.getType().cast<vpux::NDTypeInterface>();
+        const auto newOutputType = ndType.pad(outPadBefore, outPadAfter);
+        const auto newConvOutShape = newOutputType.getShape().toValues();
 
         return rewriter.create<IE::GroupConvolutionOp>(
                 origOp.getLoc(), newOutputType, expandedInput, paddedFilter, paddedBiases, origOp.strides(),

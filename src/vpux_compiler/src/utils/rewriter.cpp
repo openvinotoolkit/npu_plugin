@@ -90,7 +90,7 @@ mlir::LogicalResult vpux::convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> 
 
         log.nest().trace("Process argument #{0}", ind);
 
-        const auto origType = val.getType().cast<mlir::ShapedType>();
+        const auto origType = val.getType().cast<vpux::NDTypeInterface>();
         const auto newType = newArgTypes[ind];
 
         if (newType == origType) {
@@ -135,7 +135,7 @@ mlir::LogicalResult vpux::convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> 
             log.nest(2).trace("Process result #{0}", ind);
 
             const auto origType = val.getType();
-            const auto newType = newResultTypes[ind].cast<mlir::ShapedType>();
+            const auto newType = newResultTypes[ind].cast<vpux::NDTypeInterface>();
 
             if (newType == origType) {
                 log.nest(3).trace("Nothing to change");
@@ -184,11 +184,11 @@ vpux::BufferizeTypeConverter::BufferizeTypeConverter() {
         return type;
     });
 
-    addConversion([](mlir::RankedTensorType type) {
-        const auto shape = getShape(type);
+    addConversion([](vpux::NDTypeInterface type) {
+        const auto shape = type.getShape();
         const auto elemType = type.getElementType();
-        const auto order = DimsOrder::fromType(type);
-        const auto memSpace = IE::getMemorySpace(type);
+        const auto order = type.getDimsOrder();
+        const auto memSpace = type.getMemSpace();
         return getMemRefType(shape, elemType, order, memSpace);
     });
 
@@ -221,31 +221,27 @@ void vpux::inferReturnTypes(mlir::Operation* op, InferShapedTypeMode mode) {
 
     for (auto p : zip(op->getResults(), newTypes)) {
         auto val = std::get<0>(p);
-        auto newType = std::get<1>(p);
+        auto newType = std::get<1>(p).dyn_cast<vpux::NDTypeInterface>();
+        VPUX_THROW_UNLESS(newType != nullptr, "newType has non vpux::NDTypeInterface type '{0}'", std::get<1>(p));
 
         if (!bitEnumContains(mode, InferShapedTypeMode::SHAPE)) {
-            if (const auto oldType = val.getType().dyn_cast<mlir::ShapedType>()) {
-                newType = changeShape(newType.cast<mlir::ShapedType>(), getShape(oldType));
+            if (const auto oldType = val.getType().dyn_cast<vpux::NDTypeInterface>()) {
+                newType = newType.changeShape(oldType.getShape());
             }
         }
         if (!bitEnumContains(mode, InferShapedTypeMode::ELEM_TYPE)) {
-            if (const auto oldType = val.getType().dyn_cast<mlir::ShapedType>()) {
-                newType = changeElemType(newType.cast<mlir::ShapedType>(), oldType.getElementType());
+            if (const auto oldType = val.getType().dyn_cast<vpux::NDTypeInterface>()) {
+                newType = newType.changeElemType(oldType.getElementType());
             }
         }
         if (!bitEnumContains(mode, InferShapedTypeMode::LAYOUT)) {
-            if (const auto oldType = val.getType().dyn_cast<mlir::ShapedType>()) {
-                newType = changeDimsOrder(newType.cast<mlir::ShapedType>(), DimsOrder::fromType(oldType));
+            if (const auto oldType = val.getType().dyn_cast<vpux::NDTypeInterface>()) {
+                newType = newType.changeDimsOrder(oldType.getDimsOrder());
             }
         }
         if (!bitEnumContains(mode, InferShapedTypeMode::MEM_SPACE)) {
-            if (const auto oldType = val.getType().dyn_cast<mlir::RankedTensorType>()) {
-                newType = changeMemSpace(newType.cast<mlir::RankedTensorType>(), IE::getMemorySpace(oldType));
-            } else if (const auto oldType = val.getType().dyn_cast<mlir::MemRefType>()) {
-                newType = changeMemSpace(newType.cast<mlir::MemRefType>(),
-                                         oldType.getMemorySpace() != nullptr
-                                                 ? oldType.getMemorySpace().cast<IndexedSymbolAttr>()
-                                                 : nullptr);
+            if (const auto oldType = val.getType().dyn_cast<vpux::NDTypeInterface>()) {
+                newType = newType.changeMemSpace(oldType.getMemSpace());
             }
         }
         if (!bitEnumContains(mode, InferShapedTypeMode::SPARSITY)) {

@@ -32,8 +32,8 @@ namespace {
 
 std::pair<VPUIP::BlobWriter::Vector<uint16_t>, VPUIP::BlobWriter::Vector<uint16_t>> serializeScalesAndZeroPoints(
         mlir::Value input, mlir::Value output, VPUIP::BlobWriter& writer) {
-    const auto inType = input.getType().cast<mlir::MemRefType>().getElementType();
-    const auto outType = output.getType().cast<mlir::MemRefType>().getElementType();
+    const auto inType = input.getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outType = output.getType().cast<vpux::NDTypeInterface>().getElementType();
 
     const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
                                                                 : outType.cast<mlir::quant::QuantizedType>();
@@ -67,8 +67,8 @@ std::pair<VPUIP::BlobWriter::Vector<uint16_t>, VPUIP::BlobWriter::Vector<uint16_
 }  // namespace
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
-    const auto inType = op.input().getType().cast<mlir::MemRefType>().getElementType();
-    const auto outType = op.output().getType().cast<mlir::MemRefType>().getElementType();
+    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outType = op.output().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     if (!((inType.isF16() && outType.isa<mlir::quant::QuantizedType>()) ||
           (inType.isa<mlir::quant::QuantizedType>() && outType.isF16()))) {
@@ -90,8 +90,8 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
 }
 
 void vpux::VPUIP::QuantCastUPAOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
-    const auto inType = origOp->getOperand(0).getType().cast<mlir::ShapedType>().getElementType();
-    const auto outType = origOp->getResult(0).getType().cast<mlir::ShapedType>().getElementType();
+    const auto inType = origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>().getElementType();
 
     const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
                                                                 : outType.cast<mlir::quant::QuantizedType>();

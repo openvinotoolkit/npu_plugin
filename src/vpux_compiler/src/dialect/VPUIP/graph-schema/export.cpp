@@ -346,7 +346,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
         auto userInfo = p.value();
         const auto val = netFunc.getArgument(ind);
 
-        const auto userType = userInfo.userType().cast<mlir::ShapedType>();
+        const auto userType = userInfo.userType().cast<vpux::NDTypeInterface>();
 
         graphInputs.push_back(writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkInput, ind, 0));
 
@@ -366,7 +366,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
         auto userInfo = p.value();
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
-        const auto userType = userInfo.userType().cast<mlir::ShapedType>();
+        const auto userType = userInfo.userType().cast<vpux::NDTypeInterface>();
 
         graphOutputs.push_back(
                 writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkOutput, ind, 0));
@@ -520,7 +520,7 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
         const auto type = attr.getType();
         const auto content = attr.fold();
 
-        const auto totalByteSize = static_cast<Byte>(getTotalSize(type));
+        const auto totalByteSize = type.cast<vpux::NDTypeInterface>().getTotalAllocSize();
         bufs[static_cast<size_t>(ind)].resize(
                 alignVal(static_cast<size_t>(totalByteSize.count()), sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
@@ -537,7 +537,7 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
 
         log.trace("Got constant at '{0}' with type '{1}'", constOp->getLoc(), constOp.getType());
 
-        binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<mlir::ShapedType>());
+        binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<vpux::NDTypeInterface>());
 
         writer.createTensorRef(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
                                VPURT::BufferSection::Constant, checked_cast<uint32_t>(constTensorInd), 0);

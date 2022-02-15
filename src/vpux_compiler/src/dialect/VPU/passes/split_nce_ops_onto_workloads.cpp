@@ -250,9 +250,9 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
                                                                    mlir::PatternRewriter& rewriter) const {
     auto pads = getOpPadding(origOp, rewriter);
     auto input = getOpInput(origOp);
-    auto inElemType = input.getType().template cast<mlir::RankedTensorType>().getElementType();
+    auto inElemType = input.getType().template cast<vpux::NDTypeInterface>().getElementType();
     auto inputShape = getShape(input);
-    auto outElemType = origOp.output().getType().template cast<mlir::RankedTensorType>().getElementType();
+    auto outElemType = origOp.output().getType().template cast<vpux::NDTypeInterface>().getElementType();
     auto outputShape = getShape(origOp.output());
 
     const auto mpeByType = mpeMap.at(_arch);

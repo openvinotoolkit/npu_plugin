@@ -18,7 +18,7 @@ using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::TopKUPAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
     auto axis = axisAttr().getInt();
-    const auto inType = input().getType().cast<mlir::ShapedType>();
+    const auto inType = input().getType().cast<vpux::NDTypeInterface>();
     const auto inputDimension = inType.getRank();
     if (axis < 0) {
         axis = axis + inputDimension;

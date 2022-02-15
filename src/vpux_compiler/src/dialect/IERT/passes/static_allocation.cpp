@@ -143,8 +143,8 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
         SmallVector<mlir::Value> newBufs;
 
         for (auto val : usedBufs) {
-            const auto type = val.getType().cast<mlir::MemRefType>();
-            if (type.getMemorySpace() != _memSpace) {
+            const auto type = val.getType().cast<vpux::NDTypeInterface>();
+            if (type.getMemSpace() != _memSpace) {
                 continue;
             }
 
@@ -172,8 +172,8 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
         _log = _log.nest();
 
         for (auto val : usedBufs) {
-            const auto type = val.getType().cast<mlir::MemRefType>();
-            if (type.getMemorySpace() != _memSpace) {
+            const auto type = val.getType().cast<vpux::NDTypeInterface>();
+            if (type.getMemSpace() != _memSpace) {
                 continue;
             }
 
@@ -205,7 +205,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
         // Gather information about buffers for a given operation to later
         // generate control edges for overlapping resources
         for (auto& buf : usedBufs) {
-            if (buf.getType().cast<mlir::MemRefType>().getMemorySpace() != _memSpace) {
+            if (buf.getType().cast<vpux::NDTypeInterface>().getMemSpace() != _memSpace) {
                 continue;
             }
             auto addressStart = scan.handler().getAddress(buf);
@@ -257,8 +257,8 @@ void StaticAllocationPass::safeRunOnModule() {
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<IERT::IERTDialect>();
     target.addDynamicallyLegalOp<mlir::memref::AllocOp>([&](mlir::memref::AllocOp op) {
-        const auto type = op.memref().getType().dyn_cast<mlir::MemRefType>();
-        return type == nullptr || type.getMemorySpace() != _memSpace;
+        const auto type = op.memref().getType().dyn_cast<vpux::NDTypeInterface>();
+        return type == nullptr || type.getMemSpace() != _memSpace;
     });
 
     mlir::RewritePatternSet patterns(&ctx);

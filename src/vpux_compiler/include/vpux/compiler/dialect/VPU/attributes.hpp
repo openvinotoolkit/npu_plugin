@@ -66,14 +66,6 @@ void setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups 
 ArchKind getArch(mlir::Operation* op);
 
 //
-// MemoryKind
-//
-
-MemoryKind getMemoryKind(mlir::RankedTensorType tensor);
-MemoryKind getMemoryKind(mlir::MemRefType memref);
-MemoryKind getMemoryKind(mlir::ShapedType type);
-
-//
 // CompilationMode
 //
 

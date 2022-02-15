@@ -118,13 +118,14 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
         return mlir::failure();
     }
 
-    const auto compareShape = [&cnnOp](mlir::ShapedType funcType, mlir::ShapedType userType, size_t ind) {
+    const auto compareShape = [&cnnOp](vpux::NDTypeInterface funcType, vpux::NDTypeInterface userType, size_t ind) {
         if (funcType == nullptr) {
-            return errorAt(cnnOp, "entryPoint '@{0}' input #{1} is not a 'ShapedType'", cnnOp.entryPoint(), ind);
+            return errorAt(cnnOp, "entryPoint '@{0}' input #{1} is not a 'vpux::NDTypeInterface'", cnnOp.entryPoint(),
+                           ind);
         }
 
         if (userType == nullptr) {
-            return errorAt(cnnOp, "User input #{0} is not a 'ShapedType'", ind);
+            return errorAt(cnnOp, "User input #{0} is not a 'vpux::NDTypeInterface'", ind);
         }
 
         if (funcType.getNumElements() != userType.getNumElements()) {
@@ -137,8 +138,8 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
 
     const auto netFuncType = netFunc.getType();
     for (const auto ind : irange(inputsInfo.size())) {
-        const auto funcType = netFuncType.getInput(static_cast<uint32_t>(ind)).dyn_cast<mlir::ShapedType>();
-        const auto userType = inputsInfo[ind].userType().dyn_cast<mlir::ShapedType>();
+        const auto funcType = netFuncType.getInput(static_cast<uint32_t>(ind)).dyn_cast<vpux::NDTypeInterface>();
+        const auto userType = inputsInfo[ind].userType().dyn_cast<vpux::NDTypeInterface>();
 
         if (compareShape(funcType, userType, ind).failed()) {
             return mlir::failure();
@@ -146,8 +147,8 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
     }
 
     for (const auto ind : irange(outputsInfo.size())) {
-        const auto funcType = netFuncType.getResult(static_cast<uint32_t>(ind)).dyn_cast<mlir::ShapedType>();
-        const auto userType = outputsInfo[ind].userType().dyn_cast<mlir::ShapedType>();
+        const auto funcType = netFuncType.getResult(static_cast<uint32_t>(ind)).dyn_cast<vpux::NDTypeInterface>();
+        const auto userType = outputsInfo[ind].userType().dyn_cast<vpux::NDTypeInterface>();
 
         if (compareShape(funcType, userType, ind).failed()) {
             return mlir::failure();
@@ -275,5 +276,5 @@ mlir::LogicalResult vpux::IE::verifyOp(DataInfoOp op) {
 }
 
 DimsOrder vpux::IE::DataInfoOp::getDimsOrder() {
-    return DimsOrder::fromType(userType().cast<mlir::RankedTensorType>());
+    return userType().cast<vpux::NDTypeInterface>().getDimsOrder();
 }

@@ -156,12 +156,12 @@ def VPU_NCEConvolutionOp :
 
     let extraClassDeclaration = [{
         static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
-                               mlir::ShapedType input, mlir::ShapedType filter,
-                               mlir::ShapedType output);
+                               vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                               vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
-        static int64_t getInputChannelAlignment(mlir::ShapedType inputType);
+        static int64_t getInputChannelAlignment(vpux::NDTypeInterface inputType);
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
@@ -223,8 +223,8 @@ def VPU_NCEDepthConvolutionOp :
 
     let extraClassDeclaration = [{
         static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
-                               mlir::ShapedType input, mlir::ShapedType filter,
-                               mlir::ShapedType output);
+                               vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                               vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::GroupConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
@@ -285,7 +285,7 @@ def VPU_NCEMaxPoolOp :
 
     let extraClassDeclaration = [{
         static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernel_size, mlir::ArrayAttr strides,
-                               mlir::ShapedType input, mlir::ShapedType output);
+                               vpux::NDTypeInterface input, vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::MaxPoolOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
@@ -342,8 +342,8 @@ def VPU_NCEEltwiseOp :
 
     let extraClassDeclaration = [{
         static bool fitIntoCMX(mlir::Operation* op,
-                               mlir::ShapedType input1, mlir::ShapedType input2,
-                               mlir::ShapedType output);
+                               vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
+                               vpux::NDTypeInterface output);
 
         static bool isSupported(mlir::Operation* op, bool allowDifferentScales, bool allowDifferentZp,
                                 vpux::VPU::NCEInvariant::LogCb logCb);

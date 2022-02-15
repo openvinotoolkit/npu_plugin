@@ -27,12 +27,12 @@ using namespace vpux;
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(mlir::Operation* op, mlir::ShapedType input1, mlir::ShapedType input2,
-                                         mlir::ShapedType output) {
+bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(mlir::Operation* op, vpux::NDTypeInterface input1,
+                                         vpux::NDTypeInterface input2, vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
     for (const auto& type : {input1, input2, output}) {
-        requiredCMX += getTotalSize(type);
+        requiredCMX += type.getTotalAllocSize();
     }
 
     return requiredCMX <= getTotalCMXSize(op);
@@ -44,9 +44,9 @@ bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(mlir::Operation* op, mlir::ShapedType i
 
 bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDifferentScales, bool allowDifferentZp,
                                           NCEInvariant::LogCb logCb) {
-    const auto input1 = op->getOperand(0).getType().cast<mlir::ShapedType>();
-    const auto input2 = op->getOperand(1).getType().cast<mlir::ShapedType>();
-    const auto output = op->getResult(0).getType().cast<mlir::ShapedType>();
+    const auto input1 = op->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+    const auto input2 = op->getOperand(1).getType().cast<vpux::NDTypeInterface>();
+    const auto output = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
 
     if (input1.getRank() != 4 || input2.getRank() != 4 || output.getRank() != 4) {
         logCb(llvm::formatv("Only 4D tensors are supported"));
@@ -99,9 +99,9 @@ bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDiffere
         return false;
     }
 
-    const auto inputOrder1 = DimsOrder::fromType(input1);
-    const auto inputOrder2 = DimsOrder::fromType(input2);
-    const auto outputOrder = DimsOrder::fromType(output);
+    const auto inputOrder1 = input1.getDimsOrder();
+    const auto inputOrder2 = input2.getDimsOrder();
+    const auto outputOrder = output.getDimsOrder();
 
     if (inputOrder1 != DimsOrder::NHWC || inputOrder2 != DimsOrder::NHWC || outputOrder != DimsOrder::NHWC) {
         logCb(llvm::formatv("Unsupported layout"));
@@ -138,7 +138,7 @@ mlir::LogicalResult vpux::VPU::NCEEltwiseOp::inferReturnTypeComponents(
         return errorAt(loc, "Broadcasting is not supported for {0} operation", NCEEltwiseOp::getOperationName());
     }
 
-    const auto elemType1 = op.input1().getType().cast<mlir::ShapedType>().getElementType();
+    const auto elemType1 = op.input1().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     inferredReturnShapes.emplace_back(shape1.raw(), elemType1);
     return mlir::success();

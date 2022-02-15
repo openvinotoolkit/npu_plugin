@@ -26,8 +26,7 @@ using namespace vpux;
 namespace {
 
 mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::Location loc, const mlir::Value& padValue,
-                                                  const mlir::ArrayAttr& padAttr,
-                                                  const mlir::ArrayRef<int64_t>& inputShape) {
+                                                  const mlir::ArrayAttr& padAttr, vpux::ShapeRef inputShape) {
     if (padAttr != nullptr) {
         return parseIntArrayAttr<int64_t>(padAttr);
     } else if (padValue != nullptr) {
@@ -62,7 +61,7 @@ mlir::LogicalResult vpux::IE::PadOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = pad.input().getType().cast<mlir::RankedTensorType>();
+    const auto inType = pad.input().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inType.getShape();
 
     auto padBegin = extractPads(loc, pad.pads_begin(), pad.pads_begin_attr(), inputShape);
@@ -78,8 +77,9 @@ mlir::LogicalResult vpux::IE::PadOp::inferReturnTypeComponents(
         return errorAt(loc, "pad_mode is CONSTANT but pad_value hasn't provided");
     }
 
-    const auto newType = getPaddedType(inType, ShapeRef(padBegin.getValue()), ShapeRef(padEnd.getValue()));
-    inferredReturnShapes.emplace_back(newType.getShape(), newType.getElementType());
+    const auto newType = inType.pad(ShapeRef(padBegin.getValue()), ShapeRef(padEnd.getValue()));
+    const auto newTensorType = newType.cast<mlir::RankedTensorType>();
+    inferredReturnShapes.emplace_back(newTensorType.getShape(), newTensorType.getElementType());
 
     return mlir::success();
 }
@@ -103,7 +103,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::PadOp padOp, mlir::P
         return mlir::failure();
     }
 
-    const auto inType = padOp.input().getType().cast<mlir::ShapedType>();
+    const auto inType = padOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inType.getShape();
 
     // convert pads_begin

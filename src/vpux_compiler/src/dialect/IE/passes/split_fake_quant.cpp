@@ -119,7 +119,7 @@ mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
 
     innerLog.trace("Try to use Quantize/[QuantizeCast]/Dequantize operations");
 
-    const auto realType = origOp.input().getType().cast<mlir::ShapedType>();
+    const auto realType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
     const auto inQuantizeElemType =
@@ -261,7 +261,7 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
 
     innerLog.trace("Try to use constant dequantize");
 
-    const auto realType = inConstAttr.getType();
+    const auto realType = inConstAttr.getType().cast<vpux::NDTypeInterface>();
     const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
     const auto lowContent = inLowConst.contentAttr().fold();
@@ -274,7 +274,7 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
 
     innerLog.trace("Use quantized element type '{0}'", qElemType);
 
-    const auto qType = changeElemType(realType, qElemType);
+    const auto qType = realType.changeElemType(qElemType);
 
     const auto newInConstAttr = inConstAttr.convertElemType(normalizeQuantStorageType(qElemType)).quantCast(qElemType);
     auto newInOp = rewriter.create<Const::DeclareOp>(inConst->getLoc(), qType, newInConstAttr);

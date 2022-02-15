@@ -45,7 +45,7 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
     auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
     VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
 
-    const auto outputShape = getShape(op->getResult(0).getType().cast<mlir::ShapedType>());
+    const auto outputShape = getShape(op->getResult(0));
     VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
                       op->getName(), op->getLoc());
     auto getDimsToTile = [](const Shape& nTilesOnDim) -> SmallVector<Dim> {
@@ -90,10 +90,10 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
     auto tilingBuilder = mlir::dyn_cast<IE::TilingBuilderOpInterface>(op);
     VPUX_THROW_WHEN(tilingBuilder == nullptr, "Operation '{0}' doesn't implement TilingBuilderOpInterface",
                     op->getName());
-    const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
-    const auto parentOutputType = parentOp->getResult(0).getType().cast<mlir::ShapedType>();
-    const auto outputShape = getShape(outputType);
-    const auto parentOutputShape = getShape(parentOutputType);
+    const auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    const auto parentOutputType = parentOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    const auto outputShape = outputType.getShape();
+    const auto parentOutputShape = parentOutputType.getShape();
 
     int64_t minChannelSize = 1;
     if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {

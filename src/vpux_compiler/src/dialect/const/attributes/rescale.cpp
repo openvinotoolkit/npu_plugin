@@ -70,8 +70,8 @@ mlir::Attribute vpux::Const::RescaleAttr::parse(mlir::DialectAsmParser& parser, 
 // RescaleAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::RescaleAttr::inferOutputType(mlir::ShapedType input) const {
-    const Bit typeSizeInBits = getElemTypeSize(input);
+vpux::NDTypeInterface vpux::Const::RescaleAttr::inferOutputType(vpux::NDTypeInterface input) const {
+    const Bit typeSizeInBits = input.getElemTypeSize();
     VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in RescaleAttr",
                       input.getElementType());
 

@@ -340,7 +340,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
-        StringRef name, mlir::ShapedType type, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
+        StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
         int64_t byteOffset, ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, int8_t postShift,
         ArrayRef<uint8_t> zeroPoints, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset) {
     const auto serializedName = createString(name);
@@ -348,7 +348,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
     const auto serializedDataType = VPUIP::createDType(type.getElementType());
     const auto serializedDims = createDims(type);
     const auto serializedStrides = createStrides(type);
-    const auto dimsOrder = DimsOrder::fromType(type);
+    const auto dimsOrder = type.getDimsOrder();
 
     const auto serializedDataReference =
             createIndirectDataReference(byteOffset, sparsityMapOffset, storageElementOffset);
@@ -384,7 +384,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
-        StringRef name, mlir::ShapedType type, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
+        StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
         int64_t byteOffset, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset) {
     SmallVector<uint8_t> zeroPoints;
     SmallVector<uint16_t> mult;
@@ -416,7 +416,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
                            storageElementOffset);
 }
 
-VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(StringRef name, mlir::ShapedType type,
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(StringRef name, vpux::NDTypeInterface type,
                                                                             VPURT::BufferSection section,
                                                                             int64_t sectionIndex, int64_t byteOffset,
                                                                             Optional<int64_t> sparsityMapOffset,
@@ -429,8 +429,8 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         mlir::Value val, StringRef name, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
         int64_t byteOffset, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset) {
     VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value '{0}' was already serialized", val.getLoc());
-    const auto ref = createTensorRef(name, val.getType().cast<mlir::ShapedType>(), section, sectionIndex, byteOffset,
-                                     sparsityMapOffset, storageElementOffset);
+    const auto ref = createTensorRef(name, val.getType().cast<vpux::NDTypeInterface>(), section, sectionIndex,
+                                     byteOffset, sparsityMapOffset, storageElementOffset);
     _tensors.insert({val, ref});
     return ref;
 }
@@ -575,8 +575,8 @@ VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(ShapeRef
                         }));
 }
 
-VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(mlir::ShapedType type) {
-    return createDims(getShape(type));
+VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(vpux::NDTypeInterface type) {
+    return createDims(type.getShape());
 }
 
 VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesRef strides, Bit elemSize) {
@@ -595,18 +595,18 @@ VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesR
     return createVector(temp | transformed(cvtBitStrideToByteFP));
 }
 
-VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(mlir::ShapedType type) {
-    if (const auto memref = type.dyn_cast<mlir::MemRefType>()) {
-        return createStrides(getStrides(memref), getElemTypeSize(type));
+VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(vpux::NDTypeInterface type) {
+    if (type.isa<mlir::MemRefType>()) {
+        return createStrides(type.getStrides(), type.getElemTypeSize());
     }
 
-    const auto order = DimsOrder::fromType(type);
+    const auto order = type.getDimsOrder();
 
     const auto stridesReqs = StrideReqs::simple(checked_cast<size_t>(type.getRank()));
     const auto memStrides = stridesReqs.calcStrides(order, type);
     const auto strides = order.toLogicalOrder(memStrides);
 
-    return createStrides(strides, getElemTypeSize(type));
+    return createStrides(strides, type.getElemTypeSize());
 }
 
 VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirectDataReference(
@@ -627,8 +627,9 @@ VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirect
 }
 
 VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ArrayRef<uint64_t> content,
-                                                                        mlir::ShapedType type, bool csram_cacheable) {
-    const auto totalByteSize = static_cast<Byte>(getTotalSize(type));
+                                                                        vpux::NDTypeInterface type,
+                                                                        bool csram_cacheable) {
+    const auto totalByteSize = type.getTotalAllocSize();
     const auto serializedContent = createVector(content);
 
     MVCNN::BinaryDataBuilder builder(_impl);

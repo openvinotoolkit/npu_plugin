@@ -204,9 +204,9 @@ llvm::Optional<double> calculateQuantScaleVectorForEltwise(VPU::NCEEltwiseOp ori
     const auto input2 = origOp.input2();
     const auto output = origOp.output();
 
-    const auto input1ElementType = input1.getType().cast<mlir::ShapedType>().getElementType();
-    const auto input2ElementType = input2.getType().cast<mlir::ShapedType>().getElementType();
-    const auto outputElementType = output.getType().cast<mlir::ShapedType>().getElementType();
+    const auto input1ElementType = input1.getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto input2ElementType = input2.getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outputElementType = output.getType().cast<vpux::NDTypeInterface>().getElementType();
 
     // In case of fully not quantized operation return
     if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>() &&
@@ -282,8 +282,8 @@ void ConvertPostOpsToPPEPass::updatePPETasks(ConcreteOp op, VPU::ArchKind arch) 
         return;
     }
 
-    const auto inElemType = op.input().getType().template cast<mlir::RankedTensorType>().getElementType();
-    const auto outElemType = op.output().getType().template cast<mlir::RankedTensorType>().getElementType();
+    const auto inElemType = op.input().getType().template cast<vpux::NDTypeInterface>().getElementType();
+    const auto outElemType = op.output().getType().template cast<vpux::NDTypeInterface>().getElementType();
     const auto postOpParams = parsePostOp(op.post_opAttr(), inElemType, outElemType, arch, op.getLoc());
 
     if (!postOpParams.hasValue()) {
@@ -301,9 +301,9 @@ void ConvertPostOpsToPPEPass::updateNCEEltwisePPETasks(VPU::NCEEltwiseOp op, VPU
     int64_t LreluMult = 1;
     int64_t LreluShift = 0;
 
-    auto origOutType = op.output().getType().cast<mlir::RankedTensorType>();
+    auto origOutType = op.output().getType().cast<vpux::NDTypeInterface>();
     auto outElemType = origOutType.getElementType();
-    const auto inElemType = op.input1().getType().cast<mlir::RankedTensorType>().getElementType();
+    const auto inElemType = op.input1().getType().cast<vpux::NDTypeInterface>().getElementType();
     if (auto outElemQType = outElemType.dyn_cast<mlir::quant::QuantizedType>()) {
         const auto zps = extractScalesAndZeroPoints(outElemType).second;
 

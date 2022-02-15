@@ -40,8 +40,8 @@ private:
 
 bool isCopyFusable(IERT::CopyOp copyOp) {
     // Check 1: copy DDR->CMX
-    const auto srcMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
-    const auto dstMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
+    const auto srcMemory = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+    const auto dstMemory = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
     if (srcMemory == dstMemory || srcMemory == VPU::MemoryKind::CMX_NN) {
         return false;
     }
@@ -100,10 +100,10 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
                 if (childCopyOfSiblingOp == nullptr) {
                     return false;
                 }
-                if (VPU::getMemoryKind(childCopyOfSiblingOp.input().getType().cast<mlir::MemRefType>()) !=
-                            VPU::MemoryKind::CMX_NN ||
-                    VPU::getMemoryKind(childCopyOfSiblingOp.output().getType().cast<mlir::MemRefType>()) !=
-                            VPU::MemoryKind::DDR) {
+                const auto input = childCopyOfSiblingOp.input().getType().cast<vpux::NDTypeInterface>();
+                const auto output = childCopyOfSiblingOp.output().getType().cast<vpux::NDTypeInterface>();
+                if (input.getMemoryKind() != VPU::MemoryKind::CMX_NN ||
+                    output.getMemoryKind() != VPU::MemoryKind::DDR) {
                     return false;
                 }
             }

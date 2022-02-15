@@ -103,7 +103,7 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
                 const auto arch = VPU::getArch(convOp);
 
                 const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(
-                        arch, convOp.input().getType().cast<mlir::ShapedType>());
+                        arch, convOp.input().getType().cast<vpux::NDTypeInterface>());
 
                 if (info.getInput(0) == DimsOrder::NCHW && canUseCMajor) {
                     info.setInput(0, DimsOrder::NCHW);
@@ -414,7 +414,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
 
     for (const auto& operand : op.getOpOperands()) {
         const auto val = VPURT::SparseBufferType::getData(operand.get());
-        const auto type = val.getType().cast<mlir::MemRefType>().getElementType();
+        const auto type = val.getType().cast<vpux::NDTypeInterface>().getElementType();
 
         if (arch != VPU::ArchKind::MTL && type.isBF16()) {
             return errorAt(op, "BF16 is only supported by MTL");
@@ -479,9 +479,9 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
 
     const auto checkMemoryKind = [&op](mlir::ValueRange operands, EnumSet<VPU::MemoryKind> acceptedMemoryKinds) {
         for (const auto& val : operands) {
-            const auto type = VPURT::SparseBufferType::getDataType(val).cast<mlir::MemRefType>();
+            const auto type = val.getType().cast<vpux::NDTypeInterface>();
 
-            const auto mem = VPU::getMemoryKind(type);
+            const auto mem = type.getMemoryKind();
             if (llvm::find(acceptedMemoryKinds, mem) == acceptedMemoryKinds.end())
                 return errorAt(op, "Can't operate with '{0}' MemoryKind.", mem);
         }
@@ -496,7 +496,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
     // TODO revisit memory checks for parent operands
 
     for (const auto& val : op.getOperands()) {
-        const auto type = VPURT::SparseBufferType::getDataType(val).cast<mlir::MemRefType>();
+        const auto type = val.getType().cast<vpux::NDTypeInterface>();
         const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(type.getRank() - 1)));
 
         if (!strideReqs.checkStrides(val)) {
@@ -657,7 +657,7 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
     // Get also ZP from output
     SmallVector<uint8_t> quantZeroPoints;
 
-    auto outputType = VPURT::SparseBufferType::getDataType(nceTask.output()).cast<mlir::ShapedType>();
+    auto outputType = VPURT::SparseBufferType::getDataType(nceTask.output()).cast<vpux::NDTypeInterface>();
     auto outputElementType = outputType.getElementType();
     if (const auto uniformQuantType = outputElementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         quantZeroPoints.push_back(checked_cast<uint8_t>(uniformQuantType.getZeroPoint()));

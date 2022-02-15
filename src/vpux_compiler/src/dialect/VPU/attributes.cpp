@@ -189,47 +189,6 @@ VPU::ArchKind vpux::VPU::getArch(mlir::Operation* op) {
 }
 
 //
-// MemoryKind
-//
-
-VPU::MemoryKind vpux::VPU::getMemoryKind(mlir::RankedTensorType tensor) {
-    const auto memSpace = IE::getMemorySpace(tensor);
-
-    if (memSpace == nullptr) {
-        return MemoryKind::DDR;
-    }
-
-    return VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).getValue();
-}
-
-VPU::MemoryKind vpux::VPU::getMemoryKind(mlir::MemRefType memref) {
-    auto memSpace = memref.getMemorySpace();
-
-    if (memSpace == nullptr) {
-        return MemoryKind::DDR;
-    }
-
-    if (auto symRef = memSpace.dyn_cast<IndexedSymbolAttr>()) {
-        return VPU::symbolizeEnum<VPU::MemoryKind>(symRef.getLeafName()).getValue();
-    }
-
-    VPUX_THROW("Unsupported memory space '{0}'", memSpace);
-}
-
-VPU::MemoryKind vpux::VPU::getMemoryKind(mlir::ShapedType type) {
-    return llvm::TypeSwitch<mlir::ShapedType, VPU::MemoryKind>(type)
-            .Case<mlir::MemRefType>([&](mlir::MemRefType memref) {
-                return getMemoryKind(memref);
-            })
-            .Case<mlir::RankedTensorType>([&](mlir::RankedTensorType tensor) {
-                return getMemoryKind(tensor);
-            })
-            .Default([](mlir::ShapedType type) -> VPU::MemoryKind {
-                VPUX_THROW("Unsupported ShapedType '{0}'", type);
-            });
-}
-
-//
 // CompilationMode
 //
 

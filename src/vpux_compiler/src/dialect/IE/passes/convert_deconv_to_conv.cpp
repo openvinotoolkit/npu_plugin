@@ -97,8 +97,9 @@ mlir::LogicalResult DeconvolutionConversion::matchAndRewrite(IE::DeconvolutionOp
     auto padsEnd = getIntArrayAttr(getContext(), SmallVector<int64_t>{0, 0});
     auto dilations = getIntArrayAttr(getContext(), SmallVector<int64_t>{1, 1});
 
-    const auto elemType = origOp.feature().getType().cast<mlir::ShapedType>().getElementType();
-    auto dataStorageType = mlir::RankedTensorType::get(to_small_vector(filterShape), elemType);
+    const auto elemType = origOp.feature().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto dataStorageType =
+            mlir::RankedTensorType::get(to_small_vector(filterShape), elemType).cast<vpux::NDTypeInterface>();
 
     VPUX_THROW_UNLESS(origOp.filter().getDefiningOp<Const::DeclareOp>() != nullptr,
                       "Non constant filter is not supported");
@@ -118,11 +119,12 @@ mlir::LogicalResult DeconvolutionConversion::matchAndRewrite(IE::DeconvolutionOp
     filterShape[Dims4D::Filter::OC] = filterShape[Dims4D::Filter::IC];
     filterShape[Dims4D::Filter::IC] = C_IN;
 
-    const auto newDataStorageType = changeShape(dataStorageType, ShapeRef(filterShape));
-    dataStorageType = changeElemType(dataStorageType, mlir::Float16Type::get(getContext()));
-    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(reversedVals));
+    const auto newConstType = dataStorageType.changeShape(ShapeRef(filterShape));
+    const auto newDataStorageType =
+            dataStorageType.changeElemType(mlir::Float16Type::get(getContext())).cast<mlir::RankedTensorType>();
+    const auto dataAttr = mlir::DenseElementsAttr::get(newDataStorageType, makeArrayRef(reversedVals));
     const auto content = Const::ContentAttr::get(dataAttr).convertElemType(elemType).transpose(DimsOrder::IOYX);
-    auto reshapedFilter = rewriter.create<Const::DeclareOp>(origOp.getLoc(), newDataStorageType, content);
+    auto reshapedFilter = rewriter.create<Const::DeclareOp>(origOp.getLoc(), newConstType, content);
 
     rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(origOp, newUpsamplingOp.output(), reshapedFilter.output(), nullptr,
                                                    strides, padsBegin, padsEnd, dilations, nullptr);

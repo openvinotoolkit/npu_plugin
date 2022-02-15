@@ -121,7 +121,22 @@ getIsCompatibleLayout() {
 
 }  // namespace
 
-TEST(MLIR_DimsOrderTest, ValidateCodeTest) {
+class MLIR_DimsOrderTest : public testing::Test {
+public:
+    mlir::MLIRContext ctx;
+
+public:
+    void SetUp() override {
+        mlir::DialectRegistry registry;
+        registerDialects(registry);
+
+        ctx.appendDialectRegistry(registry);
+        ctx.loadDialect<Const::ConstDialect>();
+        ctx.loadDialect<IERT::IERTDialect>();
+    }
+};
+
+TEST_F(MLIR_DimsOrderTest, ValidateCodeTest) {
     auto orders = getOrders();
 
     std::for_each(orders.begin(), orders.end(), [](const DimsOrder& order) {
@@ -134,7 +149,7 @@ TEST(MLIR_DimsOrderTest, ValidateCodeTest) {
     EXPECT_ANY_THROW(DimsOrder::validateCode(-10));
 }
 
-TEST(MLIR_DimsOrderTest, ValidateNumDimsTest) {
+TEST_F(MLIR_DimsOrderTest, ValidateNumDimsTest) {
     auto orders2dims = getOrders2Dims();
 
     std::for_each(orders2dims.begin(), orders2dims.end(), [](const std::pair<DimsOrder, size_t>& order2dim) {
@@ -142,7 +157,7 @@ TEST(MLIR_DimsOrderTest, ValidateNumDimsTest) {
     });
 }
 
-TEST(MLIR_DimsOrderTest, ValidatePermutationTest) {
+TEST_F(MLIR_DimsOrderTest, ValidatePermutationTest) {
     std::vector<DimArr> validPermutation{
             {Dim(0)},
 
@@ -180,7 +195,7 @@ TEST(MLIR_DimsOrderTest, ValidatePermutationTest) {
     });
 }
 
-TEST(MLIR_DimsOrderTest, getCodeFromNumDimsTest) {
+TEST_F(MLIR_DimsOrderTest, getCodeFromNumDimsTest) {
     std::vector<DimsOrder> defOrders{DimsOrder::C, DimsOrder::NC, DimsOrder::CHW, DimsOrder::NCHW, DimsOrder::NCDHW};
 
     for (size_t i = 0; i < defOrders.size(); ++i) {
@@ -188,7 +203,7 @@ TEST(MLIR_DimsOrderTest, getCodeFromNumDimsTest) {
     }
 }
 
-TEST(MLIR_DimsOrderTest, getCodeFromPermutationTest) {
+TEST_F(MLIR_DimsOrderTest, getCodeFromPermutationTest) {
     auto perms2orders = getPerm2Order();
 
     std::for_each(perms2orders.begin(), perms2orders.end(),
@@ -197,7 +212,7 @@ TEST(MLIR_DimsOrderTest, getCodeFromPermutationTest) {
                   });
 }
 
-TEST(MLIR_DimsOrderTest, fromCodeTest) {
+TEST_F(MLIR_DimsOrderTest, fromCodeTest) {
     auto codes2orders = getCode2Order();
 
     std::for_each(codes2orders.begin(), codes2orders.end(),
@@ -206,7 +221,7 @@ TEST(MLIR_DimsOrderTest, fromCodeTest) {
                   });
 }
 
-TEST(MLIR_DimsOrderTest, fromNumDimsTest) {
+TEST_F(MLIR_DimsOrderTest, fromNumDimsTest) {
     std::vector<std::pair<size_t, DimsOrder>> numDims2DimsOrderTable{
             std::make_pair(1, DimsOrder::C), std::make_pair(2, DimsOrder::NC), std::make_pair(3, DimsOrder::CHW),
             std::make_pair(4, DimsOrder::NCHW), std::make_pair(5, DimsOrder::NCDHW)};
@@ -217,7 +232,7 @@ TEST(MLIR_DimsOrderTest, fromNumDimsTest) {
                   });
 }
 
-TEST(MLIR_DimsOrderTest, FromPermutationTest) {
+TEST_F(MLIR_DimsOrderTest, FromPermutationTest) {
     auto perms2orders = getPerm2Order();
 
     std::for_each(perms2orders.begin(), perms2orders.end(),
@@ -226,7 +241,7 @@ TEST(MLIR_DimsOrderTest, FromPermutationTest) {
                   });
 }
 
-TEST(MLIR_DimsOrderTest, codeTest) {
+TEST_F(MLIR_DimsOrderTest, codeTest) {
     DimsOrder dim;
     EXPECT_EQ(dim.code(), 0);
 
@@ -238,7 +253,7 @@ TEST(MLIR_DimsOrderTest, codeTest) {
                   });
 }
 
-TEST(MLIR_DimsOrderTest, emptyTest) {
+TEST_F(MLIR_DimsOrderTest, emptyTest) {
     DimsOrder dim;
     EXPECT_TRUE(dim.empty());
 
@@ -249,7 +264,7 @@ TEST(MLIR_DimsOrderTest, emptyTest) {
     });
 }
 
-TEST(MLIR_DimsOrderTest, numDimsTest) {
+TEST_F(MLIR_DimsOrderTest, numDimsTest) {
     auto orders2dims = getOrders2Dims();
 
     std::for_each(orders2dims.begin(), orders2dims.end(), [](const std::pair<DimsOrder, size_t>& order2dim) {
@@ -257,7 +272,7 @@ TEST(MLIR_DimsOrderTest, numDimsTest) {
     });
 }
 
-TEST(MLIR_DimsOrderTest, hasDimsTest) {
+TEST_F(MLIR_DimsOrderTest, hasDimsTest) {
     auto orders2dims = getOrders2Dims();
 
     std::for_each(orders2dims.begin(), orders2dims.end(), [](const std::pair<DimsOrder, size_t>& order2dim) {
@@ -271,7 +286,7 @@ TEST(MLIR_DimsOrderTest, hasDimsTest) {
     });
 }
 
-TEST(MLIR_DimsOrderTest, dimPosTest) {
+TEST_F(MLIR_DimsOrderTest, dimPosTest) {
     auto orders2dims = getOrders2Dims();
 
     std::for_each(orders2dims.begin(), orders2dims.end(), [](const std::pair<DimsOrder, size_t>& order2dim) {
@@ -285,7 +300,7 @@ TEST(MLIR_DimsOrderTest, dimPosTest) {
     });
 }
 
-TEST(MLIR_DimsOrderTest, dimPosTest_4D) {
+TEST_F(MLIR_DimsOrderTest, dimPosTest_4D) {
     EXPECT_EQ(DimsOrder::NCHW.dimPos(Dim(3)), 3);
     EXPECT_EQ(DimsOrder::NCHW.dimPos(Dim(2)), 2);
     EXPECT_EQ(DimsOrder::NCHW.dimPos(Dim(1)), 1);
@@ -297,7 +312,7 @@ TEST(MLIR_DimsOrderTest, dimPosTest_4D) {
     EXPECT_EQ(DimsOrder::NHWC.dimPos(Dim(0)), 0);
 }
 
-TEST(MLIR_DimsOrderTest, dimAtTest) {
+TEST_F(MLIR_DimsOrderTest, dimAtTest) {
     auto orders2dims = getOrders2Dims();
 
     std::for_each(orders2dims.begin(), orders2dims.end(), [](const std::pair<DimsOrder, size_t>& order2dim) {
@@ -311,7 +326,7 @@ TEST(MLIR_DimsOrderTest, dimAtTest) {
     });
 }
 
-TEST(MLIR_DimsOrderTest, dimAtTest_4D) {
+TEST_F(MLIR_DimsOrderTest, dimAtTest_4D) {
     EXPECT_EQ(DimsOrder::NCHW.dimAt(0), Dim(0));
     EXPECT_EQ(DimsOrder::NCHW.dimAt(1), Dim(1));
     EXPECT_EQ(DimsOrder::NCHW.dimAt(2), Dim(2));
@@ -323,7 +338,7 @@ TEST(MLIR_DimsOrderTest, dimAtTest_4D) {
     EXPECT_EQ(DimsOrder::NHWC.dimAt(3), Dim(1));
 }
 
-TEST(MLIR_DimsOrderTest, toPermutationTest) {
+TEST_F(MLIR_DimsOrderTest, toPermutationTest) {
     auto perms2orders = getPerm2Order();
 
     std::for_each(
@@ -332,7 +347,7 @@ TEST(MLIR_DimsOrderTest, toPermutationTest) {
             });
 }
 
-TEST(MLIR_DimsOrderTest, MemDim_4D) {
+TEST_F(MLIR_DimsOrderTest, MemDim_4D) {
     EXPECT_EQ(DimsOrder::NCHW.toMemDim(Dim(0)), MemDim(0));
     EXPECT_EQ(DimsOrder::NCHW.toMemDim(Dim(1)), MemDim(1));
     EXPECT_EQ(DimsOrder::NCHW.toMemDim(Dim(2)), MemDim(2));
@@ -344,7 +359,7 @@ TEST(MLIR_DimsOrderTest, MemDim_4D) {
     EXPECT_EQ(DimsOrder::NHWC.toMemDim(Dim(3)), MemDim(2));
 }
 
-TEST(MLIR_DimsOrderTest, fromIETest) {
+TEST_F(MLIR_DimsOrderTest, fromIETest) {
     EXPECT_EQ(DimsOrder(), DimsOrder::fromIE(InferenceEngine::Layout::SCALAR));
     EXPECT_EQ(DimsOrder::C, DimsOrder::fromIE(InferenceEngine::Layout::C));
     EXPECT_EQ(DimsOrder::NC, DimsOrder::fromIE(InferenceEngine::Layout::NC));
@@ -369,7 +384,7 @@ TEST(MLIR_DimsOrderTest, fromIETest) {
     EXPECT_ANY_THROW(DimsOrder::fromIE(InferenceEngine::Layout::BLOCKED));
 }
 
-TEST(MLIR_DimsOrderTest, toIETest) {
+TEST_F(MLIR_DimsOrderTest, toIETest) {
     EXPECT_EQ(DimsOrder().toIE(), InferenceEngine::Layout::SCALAR);
     EXPECT_EQ(DimsOrder::C.toIE(), InferenceEngine::Layout::C);
     EXPECT_EQ(DimsOrder::NC.toIE(), InferenceEngine::Layout::NC);
@@ -384,12 +399,12 @@ TEST(MLIR_DimsOrderTest, toIETest) {
     EXPECT_ANY_THROW(DimsOrder::HCW.toIE());
 }
 
-TEST(MLIR_DimsOrderTest, TryToSetIncorrectDimIndx) {
+TEST_F(MLIR_DimsOrderTest, TryToSetIncorrectDimIndx) {
     EXPECT_ANY_THROW(Dim(-1));
     EXPECT_ANY_THROW(Dim(-123456));
 }
 
-TEST(MLIR_DimsOrderTest, getCanonicalName) {
+TEST_F(MLIR_DimsOrderTest, getCanonicalName) {
     auto orders2name = getOrders2Name();
 
     std::for_each(orders2name.begin(), orders2name.end(), [](const std::pair<DimsOrder, StringRef>& order2name) {
@@ -402,22 +417,20 @@ TEST(MLIR_DimsOrderTest, getCanonicalName) {
     ASSERT_FALSE(nonDefault.hasValue());
 }
 
-TEST(MLIR_DimsOrderTest, fromMemRefTypeSimpleTest) {
+TEST_F(MLIR_DimsOrderTest, fromMemRefTypeSimpleTest) {
     const auto testData = getFromType();
 
-    mlir::MLIRContext ctx;
     for (const auto& shape : testData) {
         const auto memRefType = mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx));
 
-        const auto actualOrder = DimsOrder::fromType(memRefType);
+        const auto actualOrder = memRefType.cast<vpux::NDTypeInterface>().getDimsOrder();
         EXPECT_EQ(DimsOrder::fromNumDims(shape.size()), actualOrder);
     }
 }
 
-TEST(MLIR_DimsOrderTest, fromMemRefTypeWithLayoutTest) {
+TEST_F(MLIR_DimsOrderTest, fromMemRefTypeWithLayoutTest) {
     const auto testData = getFromMemRefTypeWithLayout();
 
-    mlir::MLIRContext ctx;
     for (const auto& testCase : testData) {
         DimsOrder expOrder;
         SmallVector<int64_t> shape;
@@ -425,27 +438,25 @@ TEST(MLIR_DimsOrderTest, fromMemRefTypeWithLayoutTest) {
 
         const auto memRefType = getMemRefType(ShapeRef(shape), mlir::Float16Type::get(&ctx), expOrder, nullptr);
 
-        const auto actualOrder = DimsOrder::fromType(memRefType);
+        const auto actualOrder = memRefType.cast<vpux::NDTypeInterface>().getDimsOrder();
         EXPECT_EQ(expOrder, actualOrder);
     }
 }
 
-TEST(MLIR_DimsOrderTest, fromTensorTypeTest) {
+TEST_F(MLIR_DimsOrderTest, fromTensorTypeTest) {
     const auto testData = getFromType();
 
-    mlir::MLIRContext ctx;
     for (const auto& shape : testData) {
         const auto tensorType = mlir::RankedTensorType::get(shape, mlir::Float16Type::get(&ctx));
 
-        const auto actualOrder = DimsOrder::fromType(tensorType);
+        const auto actualOrder = tensorType.cast<vpux::NDTypeInterface>().getDimsOrder();
         EXPECT_EQ(DimsOrder::fromNumDims(shape.size()), actualOrder);
     }
 }
 
-TEST(MLIR_DimsOrderTest, fromTensorTypeTest_WithMaps) {
+TEST_F(MLIR_DimsOrderTest, fromTensorTypeTest_WithMaps) {
     const auto testData = getFromTensorType();
 
-    mlir::MLIRContext ctx;
     for (const auto& testCase : testData) {
         DimsOrder expOrder;
         SmallVector<int64_t> shape{};
@@ -454,19 +465,13 @@ TEST(MLIR_DimsOrderTest, fromTensorTypeTest_WithMaps) {
 
         const auto tensorType = getTensorType(ShapeRef(shape), mlir::Float16Type::get(&ctx), expOrder, nullptr);
 
-        const auto actualOrder = DimsOrder::fromType(tensorType);
+        const auto actualOrder = tensorType.cast<vpux::NDTypeInterface>().getDimsOrder();
         EXPECT_EQ(expOrder, actualOrder);
     }
 }
 
-TEST(MLIR_DimsOrderTest, isCompatibleLayoutTest) {
+TEST_F(MLIR_DimsOrderTest, isCompatibleLayoutTest) {
     const auto testData = getIsCompatibleLayout();
-
-    mlir::DialectRegistry registry;
-    registerDialects(registry);
-
-    mlir::MLIRContext ctx(registry);
-    ctx.loadDialect<IERT::IERTDialect>();
 
     for (const auto& testCase : testData) {
         DimsOrder expOrder;

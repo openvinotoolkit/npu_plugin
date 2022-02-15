@@ -80,7 +80,7 @@ mlir::Attribute vpux::Const::RelocateWeightsTableAttr::parse(mlir::DialectAsmPar
 // RelocateWeightsTableAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::RelocateWeightsTableAttr::inferOutputType(mlir::ShapedType input) const {
+vpux::NDTypeInterface vpux::Const::RelocateWeightsTableAttr::inferOutputType(vpux::NDTypeInterface input) const {
     return input;
 }
 

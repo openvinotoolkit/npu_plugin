@@ -50,7 +50,7 @@ mlir::LogicalResult MergeQuantDequant::matchAndRewrite(IE::DequantizeOp dequanti
 
     _log.trace("Got Quantize ('{0}') -> Dequantize ('{1}') pair", quantizeOp.getLoc(), dequantizeOp.getLoc());
 
-    const auto quantizeType = dequantizeOp.input().getType().cast<mlir::ShapedType>();
+    const auto quantizeType = dequantizeOp.input().getType().cast<vpux::NDTypeInterface>();
 
     int64_t levels = 0;
     mlir::RankedTensorType attrType;
@@ -99,8 +99,8 @@ mlir::LogicalResult MergeQuantCastDequant::matchAndRewrite(IE::DequantizeOp dequ
     _log.trace("Got Quantize ('{0}') -> QuantizeCast ('{1}') -> Dequantize ('{2}') ops", quantizeOp.getLoc(),
                quantizeCastOp.getLoc(), dequantizeOp.getLoc());
 
-    const auto inputQuantizeType = quantizeCastOp.input().getType().cast<mlir::ShapedType>();
-    const auto outputQuantizeCastType = dequantizeOp.input().getType().cast<mlir::ShapedType>();
+    const auto inputQuantizeType = quantizeCastOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto outputQuantizeCastType = dequantizeOp.input().getType().cast<vpux::NDTypeInterface>();
 
     int64_t inLevels = 0, outLevels = 0;
     mlir::RankedTensorType inAttrType, outAttrType;

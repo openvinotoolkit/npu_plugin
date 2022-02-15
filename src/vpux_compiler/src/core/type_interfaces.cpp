@@ -32,10 +32,10 @@ using namespace vpux;
 #include <vpux/compiler/core/generated/type_interfaces.cpp.inc>
 
 //
-// TensorPropertiesTypeInterface
+// TensorNDTypeInterface
 //
 
-vpux::ShapeRef TensorPropertiesTypeInterface::getShape(mlir::Type type) const {
+vpux::ShapeRef TensorNDTypeInterface::getShape(mlir::Type type) const {
     return llvm::TypeSwitch<mlir::Type, vpux::ShapeRef>(type)
             .Case<mlir::RankedTensorType, mlir::UnrankedTensorType>([](auto tensor) {
                 return vpux::ShapeRef(tensor.getShape());
@@ -45,7 +45,7 @@ vpux::ShapeRef TensorPropertiesTypeInterface::getShape(mlir::Type type) const {
             });
 }
 
-vpux::MemShape TensorPropertiesTypeInterface::getMemShape(mlir::Type type) const {
+vpux::MemShape TensorNDTypeInterface::getMemShape(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getMemShape'. Got '{0}'", type);
     const auto dimsOrder = getDimsOrder(type);
@@ -53,24 +53,24 @@ vpux::MemShape TensorPropertiesTypeInterface::getMemShape(mlir::Type type) const
     return dimsOrder.toMemoryOrder(shape);
 }
 
-bool TensorPropertiesTypeInterface::hasRank(mlir::Type type) const {
+bool TensorNDTypeInterface::hasRank(mlir::Type type) const {
     return type.isa<mlir::RankedTensorType>();
 }
 
-int64_t TensorPropertiesTypeInterface::getRank(mlir::Type type) const {
+int64_t TensorNDTypeInterface::getRank(mlir::Type type) const {
     VPUX_THROW_UNLESS(hasRank(type), "Type '{0}' has no rank", type);
     const auto tensor = type.cast<mlir::RankedTensorType>();
     return tensor.getRank();
 }
 
-int64_t TensorPropertiesTypeInterface::getNumElements(mlir::Type type) const {
+int64_t TensorNDTypeInterface::getNumElements(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getNumElements'. Got '{0}'", type);
     const auto tensor = type.cast<mlir::RankedTensorType>();
     return tensor.getNumElements();
 }
 
-mlir::Type TensorPropertiesTypeInterface::getElementType(mlir::Type type) const {
+mlir::Type TensorNDTypeInterface::getElementType(mlir::Type type) const {
     return llvm::TypeSwitch<mlir::Type, mlir::Type>(type)
             .Case<mlir::RankedTensorType, mlir::UnrankedTensorType>([](auto tensor) {
                 return tensor.getElementType();
@@ -80,21 +80,21 @@ mlir::Type TensorPropertiesTypeInterface::getElementType(mlir::Type type) const 
             });
 }
 
-vpux::DimsOrder TensorPropertiesTypeInterface::getDimsOrder(mlir::Type type) const {
+vpux::DimsOrder TensorNDTypeInterface::getDimsOrder(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getDimsOrder'. Got '{0}'", type);
     const auto tensor = type.cast<mlir::RankedTensorType>();
     return DimsOrder::fromAffineMap(IE::getOrder(tensor));
 }
 
-vpux::IndexedSymbolAttr TensorPropertiesTypeInterface::getMemSpace(mlir::Type type) const {
+vpux::IndexedSymbolAttr TensorNDTypeInterface::getMemSpace(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getMemSpace'. Got '{0}'", type);
     const auto tensor = type.cast<mlir::RankedTensorType>();
     return IE::getMemorySpace(tensor);
 }
 
-vpux::VPU::MemoryKind TensorPropertiesTypeInterface::getMemoryKind(mlir::Type type) const {
+vpux::VPU::MemoryKind TensorNDTypeInterface::getMemoryKind(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getMemoryKind'. Got '{0}'", type);
     const auto memSpace = getMemSpace(type);
@@ -106,7 +106,7 @@ vpux::VPU::MemoryKind TensorPropertiesTypeInterface::getMemoryKind(mlir::Type ty
     return vpux::VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).getValue();
 }
 
-vpux::Strides TensorPropertiesTypeInterface::getStrides(mlir::Type type) const {
+vpux::Strides TensorNDTypeInterface::getStrides(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getStrides'. Got '{0}'", type);
     const auto memStrides = getMemStrides(type);
@@ -114,7 +114,7 @@ vpux::Strides TensorPropertiesTypeInterface::getStrides(mlir::Type type) const {
     return order.toLogicalOrder(memStrides);
 }
 
-vpux::MemStrides TensorPropertiesTypeInterface::getMemStrides(mlir::Type type) const {
+vpux::MemStrides TensorNDTypeInterface::getMemStrides(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getMemStrides'. Got '{0}'", type);
     const auto tensor = type.cast<mlir::RankedTensorType>();
@@ -123,11 +123,11 @@ vpux::MemStrides TensorPropertiesTypeInterface::getMemStrides(mlir::Type type) c
     return StrideReqs::compact(order.numDims()).calcStrides(order, tensor);
 }
 
-vpux::Bit TensorPropertiesTypeInterface::getElemTypeSize(mlir::Type type) const {
+vpux::Bit TensorNDTypeInterface::getElemTypeSize(mlir::Type type) const {
     return vpux::getElemTypeSize(type);
 }
 
-vpux::Byte TensorPropertiesTypeInterface::getTotalAllocSize(mlir::Type type) const {
+vpux::Byte TensorNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getTotalAllocSize'. Got '{0}'", type);
     if (getRank(type) == 0) {
@@ -143,7 +143,7 @@ vpux::Byte TensorPropertiesTypeInterface::getTotalAllocSize(mlir::Type type) con
     return Byte(memStrides.front() * memShape.front());
 }
 
-vpux::Byte TensorPropertiesTypeInterface::getCompactAllocSize(mlir::Type type) const {
+vpux::Byte TensorNDTypeInterface::getCompactAllocSize(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getCompactAllocSize'. Got '{0}'", type);
     const auto typeSize = static_cast<Bit>(getElemTypeSize(type));
@@ -155,8 +155,7 @@ vpux::Byte TensorPropertiesTypeInterface::getCompactAllocSize(mlir::Type type) c
     return shape.totalSize() * typeSize;
 }
 
-vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::changeShape(mlir::Type type,
-                                                                               vpux::ShapeRef shape) const {
+vpux::NDTypeInterface TensorNDTypeInterface::changeShape(mlir::Type type, vpux::ShapeRef shape) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'changeShape'. Got '{0}'", type);
 
@@ -164,8 +163,14 @@ vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::changeShape(m
     const auto origOrder = getDimsOrder(type);
     const auto newOrder = origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder;
 
-    const auto newType =
-            vpux::getTensorType(shape, getElementType(type), newOrder, getMemSpace(type), IE::isSparse(tensor));
+    auto elemType = getElementType(type);
+    if (auto perAxisType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto axis = vpux::getQuantizedAxis(perAxisType.getQuantizedDimension(), getShape(type), shape);
+        if (axis.hasValue()) {
+            elemType = changeAxis(perAxisType, axis.getValue());
+        }
+    }
+    const auto newType = vpux::getTensorType(shape, elemType, newOrder, getMemSpace(type), IE::isSparse(tensor));
 
     const auto loc = mlir::UnknownLoc::get(type.getContext());
     VPUX_THROW_UNLESS(vpux::validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
@@ -173,8 +178,7 @@ vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::changeShape(m
     return newType;
 }
 
-vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::changeElemType(mlir::Type type,
-                                                                                  mlir::Type elemType) const {
+vpux::NDTypeInterface TensorNDTypeInterface::changeElemType(mlir::Type type, mlir::Type elemType) const {
     auto newType = llvm::TypeSwitch<mlir::Type, mlir::ShapedType>(type)
                            .Case<mlir::RankedTensorType>([&](mlir::RankedTensorType tensor) {
                                return vpux::getTensorType(getShape(type), elemType, getDimsOrder(type),
@@ -193,16 +197,14 @@ vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::changeElemTyp
     return newType;
 }
 
-vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::changeDimsOrder(mlir::Type type,
-                                                                                   vpux::DimsOrder order) const {
+vpux::NDTypeInterface TensorNDTypeInterface::changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'changeDimsOrder'. Got '{0}'", type);
     const auto tensor = type.cast<mlir::RankedTensorType>();
     return vpux::getTensorType(getShape(type), getElementType(type), order, getMemSpace(type), IE::isSparse(tensor));
 }
 
-vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::changeMemSpace(
-        mlir::Type type, vpux::IndexedSymbolAttr memSpace) const {
+vpux::NDTypeInterface TensorNDTypeInterface::changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'changeMemSpace'. Got '{0}'", type);
     const auto tensor = type.cast<mlir::RankedTensorType>();
@@ -210,9 +212,8 @@ vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::changeMemSpac
                                IE::isSparse(tensor));
 }
 
-vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::extractDenseTile(mlir::Type type,
-                                                                                    vpux::ShapeRef tileOffsets,
-                                                                                    vpux::ShapeRef tileShape) const {
+vpux::NDTypeInterface TensorNDTypeInterface::extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets,
+                                                              vpux::ShapeRef tileShape) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'extractDenseTile'. Got '{0}'", type);
     const auto tensor = type.cast<mlir::RankedTensorType>();
@@ -230,8 +231,8 @@ vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::extractDenseT
     return newType;
 }
 
-vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::pad(mlir::Type type, vpux::ShapeRef padBefore,
-                                                                       vpux::ShapeRef padAfter) const {
+vpux::NDTypeInterface TensorNDTypeInterface::pad(mlir::Type type, vpux::ShapeRef padBefore,
+                                                 vpux::ShapeRef padAfter) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(), "Only RankedTensorType is supported for 'pad'. Got '{0}'",
                       type);
     const auto tensor = type.cast<mlir::RankedTensorType>();
@@ -261,10 +262,10 @@ vpux::ShapedPropertiesTypeInterface TensorPropertiesTypeInterface::pad(mlir::Typ
 }
 
 //
-// MemRefPropertiesTypeInterface
+// MemRefNDTypeInterface
 //
 
-vpux::ShapeRef MemRefPropertiesTypeInterface::getShape(mlir::Type type) const {
+vpux::ShapeRef MemRefNDTypeInterface::getShape(mlir::Type type) const {
     return llvm::TypeSwitch<mlir::Type, vpux::ShapeRef>(type)
             .Case<mlir::MemRefType, mlir::UnrankedMemRefType>([](auto memref) {
                 return vpux::ShapeRef(memref.getShape());
@@ -274,31 +275,31 @@ vpux::ShapeRef MemRefPropertiesTypeInterface::getShape(mlir::Type type) const {
             });
 }
 
-vpux::MemShape MemRefPropertiesTypeInterface::getMemShape(mlir::Type type) const {
+vpux::MemShape MemRefNDTypeInterface::getMemShape(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'getMemShape'. Got '{0}'", type);
     const auto dimsOrder = getDimsOrder(type);
     const auto shape = getShape(type);
     return dimsOrder.toMemoryOrder(shape);
 }
 
-bool MemRefPropertiesTypeInterface::hasRank(mlir::Type type) const {
+bool MemRefNDTypeInterface::hasRank(mlir::Type type) const {
     return type.isa<mlir::MemRefType>();
 }
 
-int64_t MemRefPropertiesTypeInterface::getRank(mlir::Type type) const {
+int64_t MemRefNDTypeInterface::getRank(mlir::Type type) const {
     VPUX_THROW_UNLESS(hasRank(type), "Type '{0}' has no rank", type);
     const auto memref = type.cast<mlir::MemRefType>();
     return memref.getRank();
 }
 
-int64_t MemRefPropertiesTypeInterface::getNumElements(mlir::Type type) const {
+int64_t MemRefNDTypeInterface::getNumElements(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'getNumElements'. Got '{0}'",
                       type);
     const auto memref = type.cast<mlir::MemRefType>();
     return memref.getNumElements();
 }
 
-mlir::Type MemRefPropertiesTypeInterface::getElementType(mlir::Type type) const {
+mlir::Type MemRefNDTypeInterface::getElementType(mlir::Type type) const {
     return llvm::TypeSwitch<mlir::Type, mlir::Type>(type)
             .Case<mlir::MemRefType, mlir::UnrankedMemRefType>([](auto memref) {
                 return memref.getElementType();
@@ -308,7 +309,7 @@ mlir::Type MemRefPropertiesTypeInterface::getElementType(mlir::Type type) const 
             });
 }
 
-vpux::DimsOrder MemRefPropertiesTypeInterface::getDimsOrder(mlir::Type type) const {
+vpux::DimsOrder MemRefNDTypeInterface::getDimsOrder(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'getDimsOrder'. Got '{0}'", type);
     const auto memref = type.cast<mlir::MemRefType>();
     const auto layout = memref.getLayout();
@@ -321,7 +322,7 @@ vpux::DimsOrder MemRefPropertiesTypeInterface::getDimsOrder(mlir::Type type) con
     VPUX_THROW("Missing layout information");
 }
 
-vpux::IndexedSymbolAttr MemRefPropertiesTypeInterface::getMemSpace(mlir::Type type) const {
+vpux::IndexedSymbolAttr MemRefNDTypeInterface::getMemSpace(mlir::Type type) const {
     return llvm::TypeSwitch<mlir::Type, vpux::IndexedSymbolAttr>(type)
             .Case<mlir::MemRefType, mlir::UnrankedMemRefType>([](auto memref) {
                 const auto memSpaceAttr = memref.getMemorySpace();
@@ -339,7 +340,7 @@ vpux::IndexedSymbolAttr MemRefPropertiesTypeInterface::getMemSpace(mlir::Type ty
             });
 }
 
-vpux::VPU::MemoryKind MemRefPropertiesTypeInterface::getMemoryKind(mlir::Type type) const {
+vpux::VPU::MemoryKind MemRefNDTypeInterface::getMemoryKind(mlir::Type type) const {
     const auto memSpace = getMemSpace(type);
 
     if (memSpace == nullptr) {
@@ -349,7 +350,7 @@ vpux::VPU::MemoryKind MemRefPropertiesTypeInterface::getMemoryKind(mlir::Type ty
     return vpux::VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).getValue();
 }
 
-vpux::Strides MemRefPropertiesTypeInterface::getStrides(mlir::Type type) const {
+vpux::Strides MemRefNDTypeInterface::getStrides(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'getStrides'. Got '{0}'", type);
 
     const auto memref = type.cast<mlir::MemRefType>();
@@ -377,7 +378,7 @@ vpux::Strides MemRefPropertiesTypeInterface::getStrides(mlir::Type type) const {
     VPUX_THROW("Unsupported MemRefType layout '{0}'", layout);
 }
 
-vpux::MemStrides MemRefPropertiesTypeInterface::getMemStrides(mlir::Type type) const {
+vpux::MemStrides MemRefNDTypeInterface::getMemStrides(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'getMemStrides'. Got '{0}'",
                       type);
     const auto order = getDimsOrder(type);
@@ -385,11 +386,11 @@ vpux::MemStrides MemRefPropertiesTypeInterface::getMemStrides(mlir::Type type) c
     return order.toMemoryOrder(strides);
 }
 
-vpux::Bit MemRefPropertiesTypeInterface::getElemTypeSize(mlir::Type type) const {
+vpux::Bit MemRefNDTypeInterface::getElemTypeSize(mlir::Type type) const {
     return vpux::getElemTypeSize(type);
 }
 
-vpux::Byte MemRefPropertiesTypeInterface::getTotalAllocSize(mlir::Type type) const {
+vpux::Byte MemRefNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'getTotalAllocSize'. Got '{0}'",
                       type);
     if (getRank(type) == 0) {
@@ -405,7 +406,7 @@ vpux::Byte MemRefPropertiesTypeInterface::getTotalAllocSize(mlir::Type type) con
     return Byte(memStrides.front() * memShape.front());
 }
 
-vpux::Byte MemRefPropertiesTypeInterface::getCompactAllocSize(mlir::Type type) const {
+vpux::Byte MemRefNDTypeInterface::getCompactAllocSize(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'getCompactAllocSize'. Got '{0}'",
                       type);
     const auto typeSize = static_cast<Bit>(getElemTypeSize(type));
@@ -417,8 +418,7 @@ vpux::Byte MemRefPropertiesTypeInterface::getCompactAllocSize(mlir::Type type) c
     return shape.totalSize() * typeSize;
 }
 
-vpux::ShapedPropertiesTypeInterface MemRefPropertiesTypeInterface::changeShape(mlir::Type type,
-                                                                               vpux::ShapeRef shape) const {
+vpux::NDTypeInterface MemRefNDTypeInterface::changeShape(mlir::Type type, vpux::ShapeRef shape) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'changeShape'. Got '{0}'", type);
 
     const auto elemType = getElementType(type);
@@ -435,8 +435,7 @@ vpux::ShapedPropertiesTypeInterface MemRefPropertiesTypeInterface::changeShape(m
     return newType;
 }
 
-vpux::ShapedPropertiesTypeInterface MemRefPropertiesTypeInterface::changeElemType(mlir::Type type,
-                                                                                  mlir::Type elemType) const {
+vpux::NDTypeInterface MemRefNDTypeInterface::changeElemType(mlir::Type type, mlir::Type elemType) const {
     auto newType =
             llvm::TypeSwitch<mlir::Type, mlir::ShapedType>(type)
                     .Case<mlir::MemRefType>([&](mlir::MemRefType) {
@@ -455,15 +454,13 @@ vpux::ShapedPropertiesTypeInterface MemRefPropertiesTypeInterface::changeElemTyp
     return newType;
 }
 
-vpux::ShapedPropertiesTypeInterface MemRefPropertiesTypeInterface::changeDimsOrder(mlir::Type type,
-                                                                                   vpux::DimsOrder order) const {
+vpux::NDTypeInterface MemRefNDTypeInterface::changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'changeDimsOrder'. Got '{0}'",
                       type);
     return vpux::getMemRefType(getShape(type), getElementType(type), order, getMemSpace(type));
 }
 
-vpux::ShapedPropertiesTypeInterface MemRefPropertiesTypeInterface::changeMemSpace(
-        mlir::Type type, vpux::IndexedSymbolAttr memSpace) const {
+vpux::NDTypeInterface MemRefNDTypeInterface::changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const {
     return llvm::TypeSwitch<mlir::Type, mlir::ShapedType>(type)
             .Case<mlir::MemRefType>([&](mlir::MemRefType) {
                 return vpux::getMemRefType(getShape(type), getElementType(type), getDimsOrder(type), getStrides(type),
@@ -477,17 +474,16 @@ vpux::ShapedPropertiesTypeInterface MemRefPropertiesTypeInterface::changeMemSpac
             });
 }
 
-vpux::ShapedPropertiesTypeInterface MemRefPropertiesTypeInterface::extractDenseTile(mlir::Type type,
-                                                                                    vpux::ShapeRef tileOffsets,
-                                                                                    vpux::ShapeRef tileShape) const {
+vpux::NDTypeInterface MemRefNDTypeInterface::extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets,
+                                                              vpux::ShapeRef tileShape) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'extractDenseTile'. Got '{0}'",
                       type);
     const auto memref = type.cast<mlir::MemRefType>();
     return vpux::eraseTiledInfo(vpux::getViewTileType(memref, tileOffsets, tileShape));
 }
 
-vpux::ShapedPropertiesTypeInterface MemRefPropertiesTypeInterface::pad(mlir::Type type, vpux::ShapeRef padBefore,
-                                                                       vpux::ShapeRef padAfter) const {
+vpux::NDTypeInterface MemRefNDTypeInterface::pad(mlir::Type type, vpux::ShapeRef padBefore,
+                                                 vpux::ShapeRef padAfter) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'pad'. Got '{0}'", type);
     const auto order = getDimsOrder(type);
     const auto memSpace = getMemSpace(type);

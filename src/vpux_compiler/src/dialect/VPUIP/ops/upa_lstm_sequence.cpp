@@ -22,7 +22,7 @@ vpux::VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LSTMSequenceUPAOp::serialize(
     MVCNN::LSTMCellParamsBuilder builder(writer);
     builder.add_RNNForward(direction() == IE::RNNSequenceDirection::FORWARD ? 1 : 0);
     builder.add_nCells(checked_cast<int32_t>(sequenceLength()));
-    const auto inputDataShape = inputData().getType().cast<mlir::ShapedType>().getShape();
+    const auto inputDataShape = inputData().getType().cast<vpux::NDTypeInterface>().getShape().raw();
     VPUX_THROW_UNLESS(inputDataShape.size() == 3, "LSTMSequenceUPAOp inputData shape must be 3D");
     const auto batchSize = inputDataShape[0];
     builder.add_nBatches(checked_cast<int32_t>(batchSize));

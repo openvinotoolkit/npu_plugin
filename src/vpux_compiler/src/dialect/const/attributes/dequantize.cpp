@@ -36,15 +36,15 @@ void vpux::Const::DequantizeAttr::walkImmediateSubElements(llvm::function_ref<vo
 // DequantizeAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::DequantizeAttr::inferOutputType(mlir::ShapedType input) const {
-    const Bit typeSizeInBits = getElemTypeSize(input);
+vpux::NDTypeInterface vpux::Const::DequantizeAttr::inferOutputType(vpux::NDTypeInterface input) const {
+    const Bit typeSizeInBits = input.getElemTypeSize();
     VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in DequantizeAttr",
                       input.getElementType());
 
     const auto qElemType = input.getElementType().dyn_cast<mlir::quant::QuantizedType>();
     VPUX_THROW_UNLESS(qElemType != nullptr, "Got non quantized type '{0}' in 'DequantizeAttr'");
 
-    return changeElemType(input, qElemType.getExpressedType());
+    return input.changeElemType(qElemType.getExpressedType());
 }
 
 //
@@ -73,9 +73,9 @@ Const::Content vpux::Const::DequantizeAttr::transform(vpux::Const::Content& inpu
         const auto zeroPoints = uniformType.getZeroPoints();
         const auto axis = Dim(uniformType.getQuantizedDimension());
 
-        const auto dimsOrder = DimsOrder::fromType(input.getType());
+        const auto dimsOrder = input.getType().getDimsOrder();
         const auto memAxis = dimsOrder.toMemDim(axis);
-        const auto memShape = dimsOrder.toMemoryOrder(getShape(input.getType()));
+        const auto memShape = dimsOrder.toMemoryOrder(input.getType().getShape());
 
         const auto innerSize = memShape[memAxis];
         const auto outerSize = subspace::getTotalLines(memShape, memAxis);

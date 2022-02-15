@@ -205,8 +205,8 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(vpux::VPUIP::NCEClusterTilingOp op) {
     const auto checkShape = [&](mlir::ValueRange operands) {
         for (auto operand : operands) {
             auto operandType = operand.getType();
-            if (auto shapedType = operand.getType().dyn_cast<vpux::ShapedPropertiesTypeInterface>()) {
-                auto rank = shapedType.getRank();
+            if (auto ndType = operand.getType().dyn_cast<vpux::NDTypeInterface>()) {
+                auto rank = ndType.getRank();
                 if (rank != 4) {
                     return errorAt(op->getLoc(), "Only 4D tensors are supported. Got {0}", rank);
                 }

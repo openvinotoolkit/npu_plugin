@@ -117,7 +117,7 @@ struct ExtendedShape final {
 ExtendedShape extendInputShapeTo4D(IE::FakeQuantizeOp origOp) {
     // If present, axis will be pointing to the channel dimension
     const auto axis = IE::getFQAxisIndex(origOp);
-    const auto inShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
+    const auto inShape = origOp.input().getType().cast<vpux::NDTypeInterface>().getShape().raw();
 
     const auto perAxisCase = [](const auto& inShape, const auto& axis) -> SmallVector<int64_t> {
         // We are trying to place inShape[*axis] dimension to the outShape[1]
@@ -215,15 +215,15 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     };
 
     mlir::TypeConverter typeConverter;
-    typeConverter.addConversion([](mlir::RankedTensorType tensor) {
-        if (tensor.getRank() == TARGET_TENSOR_DIM) {
-            return tensor;
-        } else if (tensor.getRank() > TARGET_TENSOR_DIM) {
+    typeConverter.addConversion([](vpux::NDTypeInterface type) {
+        if (type.getRank() == TARGET_TENSOR_DIM) {
+            return type;
+        } else if (type.getRank() > TARGET_TENSOR_DIM) {
             VPUX_THROW("Tensors with rank > 4 are not supported");
         } else {
-            SmallVector<int64_t> newShape(TARGET_TENSOR_DIM - tensor.getRank(), 1);
-            newShape.append(tensor.getShape().begin(), tensor.getShape().end());
-            return changeShape(tensor, ShapeRef(newShape));
+            SmallVector<int64_t> newShape(TARGET_TENSOR_DIM - type.getRank(), 1);
+            newShape.append(type.getShape().begin(), type.getShape().end());
+            return type.changeShape(ShapeRef(newShape));
         }
     });
     typeConverter.addSourceMaterialization(reshape);
@@ -235,8 +235,8 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     };
 
     const auto isLegalFqOp = [&](IE::FakeQuantizeOp op) {
-        const auto inShape = op.input().getType().cast<mlir::ShapedType>().getShape();
-        const auto outShape = op.output().getType().cast<mlir::ShapedType>().getShape();
+        const auto inShape = op.input().getType().cast<vpux::NDTypeInterface>().getShape();
+        const auto outShape = op.output().getType().cast<vpux::NDTypeInterface>().getShape();
 
         VPUX_THROW_WHEN(inShape != outShape,
                         "FakeQuantize must have the same shape for input and output. Got: {0} != {1}", inShape,

@@ -138,8 +138,9 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
     //
     auto newOutputResult =
             mlir::MemRefType::get({static_cast<int64_t>(totalSize / sizeof(uint32_t))}, getUInt32Type(ctx));
-    auto outputUserResult = getTensorType(getShape(newOutputResult), newOutputResult.getElementType(),
-                                          DimsOrder::fromType(newOutputResult), nullptr);
+    auto newOutputShapedType = newOutputResult.cast<vpux::NDTypeInterface>();
+    auto outputUserResult = getTensorType(newOutputShapedType.getShape(), newOutputShapedType.getElementType(),
+                                          newOutputShapedType.getDimsOrder(), nullptr);
     auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&profilingOutputs.front(), &builderLog);
     userInfoBuilder.create<IE::DataInfoOp>(
             mlir::NameLoc::get(mlir::Identifier::get("combinedProfilingDataOutputInfo", ctx)),

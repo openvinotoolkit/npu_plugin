@@ -47,30 +47,20 @@ int64_t vpux::details::calcTotalShapeSize(ArrayRef<int64_t> shape) {
 // Shape
 //
 
-ShapeRef vpux::getShape(mlir::ShapedType type) {
-    return ShapeRef(type.getShape());
-}
-
 ShapeRef vpux::getShape(mlir::Value val) {
-    auto type = VPURT::SparseBufferType::getDataType(val).dyn_cast<mlir::ShapedType>();
-    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
-    return getShape(type);
+    auto type = val.getType().dyn_cast<vpux::NDTypeInterface>();
+    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non vpux::NDTypeInterface '{1}'", val, val.getType());
+    return type.getShape();
 }
 
 //
 // MemShape
 //
 
-MemShape vpux::getMemShape(mlir::ShapedType type) {
-    const auto dimsOrder = DimsOrder::fromType(type);
-    const auto shape = getShape(type);
-    return dimsOrder.toMemoryOrder(shape);
-}
-
 MemShape vpux::getMemShape(mlir::Value val) {
-    auto type = VPURT::SparseBufferType::getDataType(val).dyn_cast<mlir::ShapedType>();
-    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
-    return getMemShape(type);
+    auto type = val.getType().dyn_cast<vpux::NDTypeInterface>();
+    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non vpux::NDTypeInterface '{1}'", val, val.getType());
+    return type.getMemShape();
 }
 
 MemShape vpux::getMemIndexND(int64_t memIndex1D, MemShapeRef memShape) {

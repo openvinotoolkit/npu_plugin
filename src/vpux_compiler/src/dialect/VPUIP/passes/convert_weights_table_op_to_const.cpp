@@ -59,7 +59,7 @@ int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
         // Weights table contains both activation window and weights.
         // Check that weights have expected alignment.
         // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
-        const auto origFilterType = createWTableOp.weights().getType().cast<mlir::ShapedType>();
+        const auto origFilterType = createWTableOp.weights().getType().cast<vpux::NDTypeInterface>();
         const auto depthwiseConvAlignment = VPU::NCEInvariant::getAlignment(origFilterType.getElementType());
         const auto weightsElementCount = IC * KY * KX;
         VPUX_THROW_UNLESS(weightsElementCount % depthwiseConvAlignment == 0,
@@ -103,20 +103,19 @@ mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTabl
     const auto sparsityPtrOffset = 0;
     const auto weightPtrStep = getWeightPtrStep(createWTableOp);
 
-    const auto op_inElemType = createWTableOp.op_input().getType().cast<mlir::ShapedType>().getElementType();
-    const auto op_outElemType = createWTableOp.op_output().getType().cast<mlir::ShapedType>().getElementType();
+    const auto op_inElemType = createWTableOp.op_input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto op_outElemType = createWTableOp.op_output().getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto op_weightsElemType =
-            createWTableOp.weights() ? createWTableOp.weights().getType().cast<mlir::ShapedType>().getElementType()
+            createWTableOp.weights() ? createWTableOp.weights().getType().cast<vpux::NDTypeInterface>().getElementType()
                                      : nullptr;
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
             op_inElemType, op_outElemType, weightPtrOffset, weightPtrStep, sparsityPtrOffset, _arch, OC,
             op_weightsElemType, createWTableOp.biasAttr(), createWTableOp.ppeAttr());
 
-    const auto outType = createWTableOp.output().getType();
-    const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
+    const auto outType = createWTableOp.output().getType().cast<vpux::NDTypeInterface>();
 
     const auto dataStorageType =
-            mlir::RankedTensorType::get(shapedType.getShape(), getSInt32Type(rewriter.getContext()));
+            mlir::RankedTensorType::get(outType.getShape().raw(), getSInt32Type(rewriter.getContext()));
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(weightsTable));
 
     rewriter.replaceOpWithNewOp<Const::DeclareOp>(createWTableOp, outType, Const::ContentAttr::get(dataAttr));

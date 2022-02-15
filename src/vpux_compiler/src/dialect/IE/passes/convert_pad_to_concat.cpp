@@ -70,8 +70,8 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
                       origPadOp->getLoc());
     const auto padValue = origPadOp.pad_value_attr().getValue().convertToDouble();
 
-    const auto inputShape = origPadOp.input().getType().cast<mlir::ShapedType>().getShape();
-    const auto outputShape = origPadOp.output().getType().cast<mlir::ShapedType>().getShape();
+    const auto inputShape = origPadOp.input().getType().cast<vpux::NDTypeInterface>().getShape().raw();
+    const auto outputShape = origPadOp.output().getType().cast<vpux::NDTypeInterface>().getShape().raw();
 
     const auto createConstOp = [&](SmallVector<mlir::Value>& values, size_t axis, ArrayRef<int64_t> padSize) {
         if (padSize[axis] == 0) {
@@ -84,7 +84,7 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
         }
         constShape[axis] = padSize[axis];
 
-        const auto origElemType = origPadOp.input().getType().cast<mlir::ShapedType>().getElementType();
+        const auto origElemType = origPadOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
 
         const auto padDataStorageType = mlir::RankedTensorType::get(constShape, mlir::Float32Type::get(getContext()));
         const auto padDataStorage = mlir::DenseElementsAttr::get(padDataStorageType, static_cast<float>(padValue));

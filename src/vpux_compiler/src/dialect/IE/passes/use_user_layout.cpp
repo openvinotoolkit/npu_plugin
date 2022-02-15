@@ -57,10 +57,10 @@ void UseUserLayoutPass::safeRunOnModule() {
         for (const auto& p : userDataInfo | indexed) {
             const auto ind = checked_cast<uint32_t>(p.index());
 
-            const auto origType = originTypes[ind].cast<mlir::ShapedType>();
+            const auto origType = originTypes[ind].cast<vpux::NDTypeInterface>();
             const auto userDimsOrder = p.value().getDimsOrder();
 
-            newTypes[ind] = changeDimsOrder(origType, userDimsOrder);
+            newTypes[ind] = origType.changeDimsOrder(userDimsOrder);
         }
     };
 
@@ -71,8 +71,8 @@ void UseUserLayoutPass::safeRunOnModule() {
     getTypesWithUserLayout(userOutputs, funcType.getResults(), newResultTypes);
 
     const auto cvtOpBuilder = [](mlir::OpBuilder& builder, mlir::Location loc, mlir::Value val,
-                                 mlir::Type newType) -> mlir::Operation* {
-        const auto order = DimsOrder::fromType(newType.cast<mlir::ShapedType>());
+                                 vpux::NDTypeInterface newType) -> mlir::Operation* {
+        const auto order = newType.getDimsOrder();
         return builder.create<IE::ReorderOp>(loc, newType, val, order.toAffineMap(builder.getContext()));
     };
 

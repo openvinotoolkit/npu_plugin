@@ -56,10 +56,10 @@ void UseUserPrecisionPass::safeRunOnModule() {
     for (const auto& p : funcType.getInputs() | indexed) {
         const auto ind = checked_cast<uint32_t>(p.index());
 
-        const auto origType = p.value().cast<mlir::ShapedType>();
-        const auto userType = userInputs[ind].userType().cast<mlir::ShapedType>();
+        const auto origType = p.value().cast<vpux::NDTypeInterface>();
+        const auto userType = userInputs[ind].userType().cast<vpux::NDTypeInterface>();
 
-        const auto newType = changeElemType(origType, userType.getElementType());
+        const auto newType = origType.changeElemType(userType.getElementType());
         newArgTypes[ind] = newType;
     }
 
@@ -68,17 +68,16 @@ void UseUserPrecisionPass::safeRunOnModule() {
     for (const auto& p : funcType.getResults() | indexed) {
         const auto ind = checked_cast<uint32_t>(p.index());
 
-        const auto origType = p.value().cast<mlir::ShapedType>();
-        const auto userType = userOutputs[ind].userType().cast<mlir::ShapedType>();
+        const auto origType = p.value().cast<vpux::NDTypeInterface>();
+        const auto userType = userOutputs[ind].userType().cast<vpux::NDTypeInterface>();
 
-        const auto newType = changeElemType(origType, userType.getElementType());
+        const auto newType = origType.changeElemType(userType.getElementType());
         newResultTypes[ind] = newType;
     }
 
     const auto cvtOpBuilder = [](mlir::OpBuilder& builder, mlir::Location loc, mlir::Value val,
-                                 mlir::Type newType) -> mlir::Operation* {
-        return builder.create<IE::ConvertOp>(loc, newType, val,
-                                             mlir::TypeAttr::get(newType.cast<mlir::ShapedType>().getElementType()));
+                                 vpux::NDTypeInterface newType) -> mlir::Operation* {
+        return builder.create<IE::ConvertOp>(loc, newType, val, mlir::TypeAttr::get(newType.getElementType()));
     };
 
     if (mlir::failed(convertFunc(netFunc, newArgTypes, newResultTypes, cvtOpBuilder, _log))) {

@@ -27,10 +27,10 @@ using namespace vpux;
 // memPermuteTransformation
 //
 
-Const::Content Const::details::memPermuteTransformation(vpux::Const::Content& input, mlir::ShapedType outType,
+Const::Content Const::details::memPermuteTransformation(vpux::Const::Content& input, vpux::NDTypeInterface outType,
                                                         mlir::AffineMap memPerm) {
-    const auto inOrder = DimsOrder::fromType(input.getType());
-    const auto outOrder = DimsOrder::fromType(outType);
+    const auto inOrder = input.getType().getDimsOrder();
+    const auto outOrder = outType.getDimsOrder();
     const auto permOrder = DimsOrder::fromAffineMap(memPerm);
     VPUX_THROW_UNLESS(inOrder.numDims() == outOrder.numDims(), "Can't reorder from '{0}' to '{1}'", inOrder, outOrder);
     VPUX_THROW_UNLESS(inOrder.numDims() == permOrder.numDims(), "Can't reorder from '{0}' to '{1}'", inOrder,
@@ -40,7 +40,7 @@ Const::Content Const::details::memPermuteTransformation(vpux::Const::Content& in
         return Const::Content::moveBuffer(outType, std::move(input));
     } else {
         const Byte elemSize = getElemTypeSize(input.getStorageElemType());
-        const auto inShape = getShape(input.getType());
+        const auto inShape = input.getType().getShape();
         const auto inMemShape = inOrder.toMemoryOrder(inShape);
 
         static const std::unordered_set<DimsOrder> optimizedCases = {
@@ -77,7 +77,7 @@ Const::Content Const::details::memPermuteTransformation(vpux::Const::Content& in
             cvtBlobLayout(inBlob, outBlob);
         } else {
             // Use generic algorithm
-            const auto outShape = getShape(outType);
+            const auto outShape = outType.getShape();
             const auto outMemShape = outOrder.toMemoryOrder(outShape);
 
             loop_1d(LoopExecPolicy::Parallel, input.getType().getNumElements(), [&](int64_t inMemInd1D) {

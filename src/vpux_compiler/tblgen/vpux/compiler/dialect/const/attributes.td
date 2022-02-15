@@ -43,13 +43,13 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
     let parameters = (ins
         "mlir::ElementsAttr":$baseContent,
         "mlir::ArrayAttr":$transformations,
-        "mlir::ShapedType":$finalType
+        "vpux::NDTypeInterface":$finalType
     );
 
     let builders = [
         AttrBuilderWithInferredContext<
             (ins "mlir::ElementsAttr":$baseContent), [{
-                return $_get(baseContent.getContext(), baseContent, mlir::ArrayAttr(), baseContent.getType());
+                return $_get(baseContent.getContext(), baseContent, mlir::ArrayAttr(), baseContent.getType().cast<vpux::NDTypeInterface>());
             }]
         >,
 
@@ -71,7 +71,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         >,
 
         AttrBuilderWithInferredContext<
-            (ins "mlir::ElementsAttr":$baseContent, "mlir::ArrayAttr":$transformations, "mlir::ShapedType":$finalType), [{
+            (ins "mlir::ElementsAttr":$baseContent, "mlir::ArrayAttr":$transformations, "vpux::NDTypeInterface":$finalType), [{
                 return $_get(baseContent.getContext(), baseContent, transformations, finalType);
             }]
         >
@@ -89,7 +89,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
 
         mlir::ElementsAttr getBaseContent() const;
         vpux::SmallVector<vpux::Const::TransformAttrInterface> getTransformations() const;
-        mlir::ShapedType getType() const;
+        vpux::NDTypeInterface getType() const;
 
         vpux::Const::ContentAttr broadcast(Dim axis, int64_t value) const;
         vpux::Const::ContentAttr convertElemType(mlir::Type newElemType) const;
