@@ -15,9 +15,83 @@
 #include <math.h>
 
 static const std::size_t WT_ELEMENTS_PER_CHANNEL = 4;
-static const std::size_t ALU_HALT_OPCODE = 6;
-static const std::size_t ALU_LOAD = 2;
+
 static const std::size_t MAX_CLUSTERS = 4;
+static const std::size_t ALU_NOP = 0;
+static const std::size_t ALU_CLEAR = 1;
+static const std::size_t ALU_LOAD = 2;
+static const std::size_t ALU_STORE = 3;
+static const std::size_t ALU_HALT_OPCODE = 6;
+static const std::size_t ALU_ADD = 8;
+static const std::size_t ALU_SUB = 9;
+static const std::size_t ALU_MAX = 11;
+static const std::size_t ALU_XOR = 15;
+static const std::size_t ALU_NOT = 16;
+static const std::size_t ALU_ABS = 17;
+static const std::size_t ALU_NEG = 18;
+static const std::size_t ALU_FLEXARB = 39;
+static const std::size_t ALU_RELU = 41;
+static const std::size_t ALU_PRELU = 42;
+
+static const std::size_t ALU_REG0 = 0;
+static const std::size_t ALU_REG1 = 1;
+static const std::size_t ALU_REG2 = 2;
+static const std::size_t ALU_REG3 = 3;
+static const std::size_t ALU_RR = 4;
+static const std::size_t ALU_MPE0 = 16;//
+static const std::size_t ALU_MPE1 = 17;//
+static const std::size_t ALU_MPE2 = 18;
+static const std::size_t ALU_MPE3 = 19;
+static const std::size_t ALU_MPE4 = 20;//
+static const std::size_t ALU_MPE5 = 21;//
+static const std::size_t ALU_MPE6 = 22;
+static const std::size_t ALU_MPE7 = 23;
+static const std::size_t ALU_MPE8 = 24;//
+static const std::size_t ALU_MPE9 = 25;//
+static const std::size_t ALU_MPE10 = 26;
+static const std::size_t ALU_MPE11 = 27;
+static const std::size_t ALU_MPE12 = 28;//
+static const std::size_t ALU_MPE13 = 29;//
+static const std::size_t ALU_MPE14 = 30;
+static const std::size_t ALU_MPE15 = 31;
+static const std::size_t ALU_ODU = 0;
+static const std::size_t ALU_MEM = 16;
+
+static const std::size_t T_I32 = 4;//MUST BE 3
+static const std::size_t T_U8 = 2;
+static const std::size_t T_I8 = 3;
+
+static const std::size_t ADDR_OF_DEST = 11;
+static const std::size_t ADDR_OF_TDEST = 7;
+static const std::size_t ADDR_OF_S0 = 27;
+static const std::size_t ADDR_OF_S1 = 19;
+static const std::size_t ADDR_OF_TS0 = 24;
+static const std::size_t ADDR_OF_TS1 = 16;
+static const std::size_t ADDR_OF_MRM_MODE = 6;
+/*
+static uint32_t genClear(const std::size_t reg, const std::size_t type) {
+    return (reg << ADDR_OF_DEST) | (type << ADDR_OF_TDEST) | (ALU_CLEAR);
+}
+static uint32_t genStore(const std::size_t reg, const std::size_t type) {
+    return (reg << ADDR_OF_S0) | (type << ADDR_OF_TS0) | (ALU_STORE);
+}
+static uint32_t genNeg(const std::size_t dreg, const std::size_t dtype, const std::size_t sreg, const std::size_t stype) {
+    return (sreg << ADDR_OF_S0) | (stype << ADDR_OF_TS0) | (dreg << ADDR_OF_DEST) | (dtype << ADDR_OF_TDEST) | (ALU_NEG);
+}
+static uint32_t genReLU(const std::size_t dreg, const std::size_t dtype, const std::size_t sreg, const std::size_t stype) {
+    return (sreg << ADDR_OF_S0) | (stype << ADDR_OF_TS0) | (dreg << ADDR_OF_DEST) | (dtype << ADDR_OF_TDEST) | (ALU_RELU);
+}
+static uint32_t genMax(const std::size_t dreg, const std::size_t dtype, const std::size_t s0reg, const std::size_t s0type, const std::size_t s1reg, const std::size_t s1type) {
+    return (s0reg << ADDR_OF_S0) | (s0type << ADDR_OF_TS0) | (s1reg << ADDR_OF_S1) | (s1type << ADDR_OF_TS1) | (dreg << ADDR_OF_DEST) | (dtype << ADDR_OF_TDEST) | (ALU_ADD) | (0 << ADDR_OF_MRM_MODE);
+}
+static uint32_t genNop(const std::size_t dreg, const std::size_t dtype, const std::size_t s0reg, const std::size_t s0type, const std::size_t s1reg, const std::size_t s1type) {
+    return (s0reg << ADDR_OF_S0) | (s0type << ADDR_OF_TS0) | (s1reg << ADDR_OF_S1) | (s1type << ADDR_OF_TS1) | (dreg << ADDR_OF_DEST) | (dtype << ADDR_OF_TDEST) | (ALU_NOP) | (0 << ADDR_OF_MRM_MODE);
+}
+*/
+static uint32_t genOp(const std::size_t op, const std::size_t dreg, const std::size_t dtype, const std::size_t s0reg, const std::size_t s0type, const std::size_t s1reg, const std::size_t s1type) {
+    return (s0reg << ADDR_OF_S0) | (s0type << ADDR_OF_TS0) | (s1reg << ADDR_OF_S1) | (s1type << ADDR_OF_TS1) | (dreg << ADDR_OF_DEST) | (dtype << ADDR_OF_TDEST) | (op) | (0 << ADDR_OF_MRM_MODE);
+}
+
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void generateAndPopulateInstructionListTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -784,57 +858,563 @@ void populateInstructionListMap(mv::Data::TensorIterator instructionListTable, s
     std::vector<uint32_t> template_table(instructionListShape.totalSize(), 0);
 
     // NOTE: first 2 are hardware reserved areas
-    std::size_t ADDR_OF_RESERVED = 6;
-    std::size_t ADDR_OF_ADDR_FLEX = 11;
     std::size_t ADDR_OF_FIRST2_BITS = 9;
     std::size_t ADDR_OF_REST_BITS = 16;
-    std::size_t ADDR_OF_VALUE = 19;
+    std::size_t ADDR_OF_PWL_VALUE = 19;
     std::size_t MASK_FIRST2_BITS = 3;
     std::size_t first2_bits, last3_bits;
+    /*std::vector<int> range_vector;
+    std::vector<int> shift_vector;
+    std::vector<int> bias_vector;*/
+    std::function<double(double)> refFunction;
 
-    //Populate the instruction list from the table
+    /*if (pwlType == "LeakyRelu") {*/
+        range_vector = {-128, -109, -90, -72, -54, -36, -18, 0, 128};
+        shift_vector = {1, -1, 0, 0, 0, -1, -1, -4};
+        bias_vector = {-119, 44, -43, -31, -19, 18, 10, 0};
+    /*} else if (pwlType == "Mish") {
+        range_vector = {-128, -109, -90, -72, -54, -36, -18, 0, 128};
+        shift_vector = {-12, -12, -12, -12, -12, -12, -12, 0};
+        bias_vector = {1, 1, 1, 1, 1, 1, 1, 0};
+    }*/
+    /*range_vector = {-270, -244, -204, -164, -124, -84, -44, 0, 228};
+    shift_vector = {-1, -1, -1, -1, -1, -1, -1, -4};
+    bias_vector = {108, 96, 80, 64, 48, 32, 16, 0};*/
+
+    /*range_vector = {-128, -114, -94, -74, -54, -34, -14, 0, 128};
+    shift_vector = {0, 0, 0, 0, 0, 0, 0, -4};
+    bias_vector = {-68, -56, -44, -32, -20, -8, 4, 0};*/
+
+    /*range_vector = {-1280, -114, -94, -74, -54, -34, -14, 0, 128};
+    shift_vector = {-1, 0, 0, 0, 0, 0, 0, -4};
+    bias_vector = {56, -56, -44, -32, -20, -8, 4, 0};*/
+
+    /*range_vector = {-1280, -180, -150, -120, -90, -60, -30, 0, 128};
+    shift_vector = {-1, -1, -1, -1, -1, -1, -1, -4};
+    bias_vector = {84, 72, 60, 48, 36, 26, 12, 0};*/
+
+    range_vector = {-1280, -180, -150, -120, -90, -60, -30, 0, 128};
+    shift_vector = {-1+4, -1+4, -1+4, -1+4, -1+4, -1+4, -1+4, -4+4};
+    bias_vector = {84/16, 72/16, 60/16, 48/16, 36/16, 26/16, 12/16, 0/16};
+
+    /*range_vector = {-1280, 128};
+    shift_vector = {-1+4};
+    bias_vector = {84/16};*/
+
+    /*range_vector = {-1280, 0, 128};
+    shift_vector = {-1, -4};
+    bias_vector = {12, 0};*/
+
+    /*range_vector = {-1280, -240, -200, -160, -120, -80, -40, 0, 128};
+    shift_vector = {-1, -1, -1, -1, -1, -1, -1, -4};
+    bias_vector = {112, 96, 80, 64, 48, 32, 16, 0};*/
+
+    /*range_vector = {-1280, -314, -234, -154, -74, -34, -14, 0, 128};
+    shift_vector = {-1, -1, -1, -1, -1, -1, -1, -4};
+    bias_vector = {148, 116, 84, 52, 28, -8, 4, 0};*/
+
+#if 1
     std::size_t k = 0;
-    for (std::size_t j = 0; j < 32; j++) {
+    for (std::size_t j = 0; j < template_table.size(); j++)
+    {
+        template_table[j] = 0;
         first2_bits = j & MASK_FIRST2_BITS;
         last3_bits = j >> 2;
 
         if (j == 15)
-            template_table[j] = (ALU_HALT_OPCODE);
-        else if (j > 25)
-            template_table[j] = (ALU_HALT_OPCODE);
-        else {
-            if (j < range_vector.size()) {
-                template_table[j] = ((range_vector[j] << ADDR_OF_VALUE) | (last3_bits << ADDR_OF_REST_BITS) |
-                                     (8 << ADDR_OF_ADDR_FLEX) | (first2_bits << ADDR_OF_FIRST2_BITS) |
-                                     (0 << ADDR_OF_RESERVED) | ALU_LOAD);
-            } else if (j < range_vector.size() + shift_vector.size() + 1) {
+            template_table[j] = 0;
+        else if (j == 31)
+            template_table[j] = 0;
+        else if (j == 31+16)
+            template_table[j] = 0;
+        else
+        {
+            if (j < range_vector.size())
+            {
+                template_table[j] = ((range_vector[j] << ADDR_OF_PWL_VALUE) |
+                                     (last3_bits << ADDR_OF_REST_BITS) |
+                                     (8 << ADDR_OF_DEST) |
+                                     (first2_bits << ADDR_OF_FIRST2_BITS) |
+                                     ALU_LOAD);
+            }
+            else if (j < range_vector.size() + shift_vector.size() + 1)
+            {
                 if (j < 16)
-                    template_table[j] = ((shift_vector[j - range_vector.size()] << ADDR_OF_VALUE) |
-                                         (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
-                                         (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
-                else {
+                    template_table[j] = ((shift_vector[j - range_vector.size()] << ADDR_OF_PWL_VALUE)
+                        | (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_DEST)
+                        | (first2_bits << ADDR_OF_FIRST2_BITS) | ALU_LOAD);
+                 else
+                {
                     k = j - 1;
                     first2_bits = k & MASK_FIRST2_BITS;
                     last3_bits = k >> 2;
-                    template_table[j] = ((shift_vector[k - range_vector.size()] << ADDR_OF_VALUE) |
-                                         (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
-                                         (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                    template_table[j] = ((shift_vector[k - range_vector.size()] << ADDR_OF_PWL_VALUE)
+                        | (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_DEST)
+                        | (first2_bits << ADDR_OF_FIRST2_BITS) | ALU_LOAD);
                 }
-            } else if (j < range_vector.size() + shift_vector.size() + bias_vector.size() + 1) {
+            }
+            else if (j < range_vector.size() + shift_vector.size() + bias_vector.size() + 1)
+            {
+                if (j < 16)
+                    template_table[j] = ((shift_vector[j - range_vector.size()] << ADDR_OF_PWL_VALUE)
+                                         | (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_DEST)
+                                         | (first2_bits << ADDR_OF_FIRST2_BITS) | ALU_LOAD);
+                else
+                {
                 k = j - 1;
                 first2_bits = k & MASK_FIRST2_BITS;
                 last3_bits = k >> 2;
-                template_table[j] = ((bias_vector[k - range_vector.size() - shift_vector.size()] << ADDR_OF_VALUE) |
-                                     (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
-                                     (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                template_table[j] = ((bias_vector[k - range_vector.size() - shift_vector.size()] << ADDR_OF_PWL_VALUE)
+                        | (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_DEST)
+                        | (first2_bits << ADDR_OF_FIRST2_BITS) | ALU_LOAD);
+                }
+            }
+            else
+            {
+
             }
         }
     }
+    template_table[30] = genOp(ALU_FLEXARB, ALU_MEM, T_U8, ALU_RR, T_I32, 0, 0);
+    template_table[31] = genOp(ALU_FLEXARB, ALU_MEM, T_U8, ALU_RR, T_I32, 0, 0);
+#endif
+
+#if 1
+    //static const int step = 2;
+    //int start_op_num = 0;
+    //for (int i = start_op_num++; i < 16; i+=step)
+    //    template_table[i] = genOp(ALU_STORE, ALU_MEM, T_U8, ALU_RR, T_I32, 0, 0);
+    //for (int i = start_op_num++; i < 16; i+=step)
+    //    template_table[i] = genOp(ALU_STORE, ALU_MEM, T_U8, ALU_RR, T_I32, 0, 0);
+    //for (int i = start_op_num++; i < 16; i+=step)
+    //    template_table[i] = genOp(ALU_NOT, ALU_MEM, T_U8, ALU_RR, T_I32, 0, 0);
+    //for (int i = start_op_num++; i < 16; i+=step)
+    //    template_table[i] = genOp(ALU_NOT, ALU_MEM, T_U8, ALU_RR, T_I32, 0, 0);
+    //template_table[0] = genOp(ALU_RELU, ALU_MEM, T_I32, ALU_RR, T_I32, 0, 0);
+    //template_table[1] = genOp(ALU_RELU, ALU_MEM, T_I32, ALU_RR, T_I32, 0, 0);
+    //template_table[2] = genOp(ALU_STORE, ALU_MEM, T_I32, ALU_RR, T_I32, 0, 0);
+    //template_table[3] = genOp(ALU_STORE, ALU_MEM, T_I32, ALU_RR, T_I32, 0, 0);
+    //for (int i = 0; i < 14; i+=1)
+    //    template_table[i] = 0;
+    //for (int i = 4; i < 16; i+=1)
+    //    template_table[i] = 0;
+    //for (int i = 0; i < 14; i+=2) {
+    //    template_table[i+0] = genOp(ALU_LOAD, 0, T_I32, 0, 0, 0, 0);
+    //    template_table[i+1] = genOp(ALU_LOAD, 0, T_I32, 0, 0, 0, 0) | (1 << 6);
+    //}
+    //template_table[2] = genOp(ALU_LOAD, 0, T_I32, 0, 0, 0, 0) | (1 << 6);
+    //template_table[3] = genOp(ALU_LOAD, 0, T_I32, 0, 0, 0, 0);
+/*
+    for (int i = 0; i < 8; i+=1)
+        template_table[i] = genOp(ALU_ADD, ALU_MEM, T_I32, ALU_RR, T_I32, 1, T_I32);
+    for (int i = 8; i < 16; i+=1)
+        template_table[i] = genOp(ALU_ADD, ALU_MEM, T_I32, ALU_RR, T_I32, 1, T_I32);
+    template_table[0] = genOp(ALU_CLEAR, 1, T_I32, 0, 0, 0, 0);
+    template_table[1] = genOp(ALU_LOAD, 1, T_I32, 1, 0, 0, 0);
+    template_table[2] = genOp(ALU_LOAD, 1, T_I32, 1, 0, 0, 0);
+    template_table[4] = genOp(ALU_LOAD, 1, T_I32, 1, 0, 0, 0);
+
+    for (int i = 0+0*16; i < 16+0*16; i+=1)
+        template_table[i] = genOp(ALU_CLEAR, 1, T_I32, 0, 0, 0, 0);
+    for (int i = 0+1*16; i < 16+1*16; i+=1)
+        template_table[i] = genOp(ALU_LOAD, 1, T_I32, 10, 0, 0, 0);
+    for (int i = 0+2*16; i < 16+2*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_LOAD, 1, T_I32, 10, 0, 0, 0);
+    for (int i = 0+3*16; i < 16+3*16; i+=1)
+        template_table[i] = genOp(ALU_ADD, ALU_MEM, T_U8, ALU_RR, T_I32, 1, T_I32);
+
+    for (int i = 0+0*16; i < 16+0*16; i+=1)
+        template_table[i] = genOp(ALU_CLEAR, 0, T_I32, 0, 0, 0, 0);
+    for (int i = 0+1*16; i < 16+1*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_MAX, ALU_MEM, T_I32, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+2*16; i < 16+2*16; i+=1)
+        template_table[i] = genOp(ALU_MAX, ALU_MEM, T_I32, ALU_RR, T_I32, 0, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, 1, T_I32, 0, T_I32);//0;//genOp(ALU_LOAD, 1, T_I32, 10, 0, 0, 0);
+    for (int i = 0+3*16; i < 16+3*16; i+=1)
+        template_table[i] = genOp(ALU_MAX, ALU_MEM, T_I32, ALU_RR, T_I32, 0, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+4*16; i < 16+4*16; i+=1)
+        template_table[i] = genOp(ALU_MAX, ALU_MEM, T_I32, ALU_RR, T_I32, 0, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+
+
+
+
+
+
+
+
+
+    for (int i = 0+0*16; i < 16+0*16; i+=1)
+        template_table[i] = genOp(ALU_CLEAR, 1, T_I32, 0, 0, 0, 0);
+    for (int i = 0+1*16; i < 16+1*16; i+=1)
+        template_table[i] = genOp(ALU_LOAD, 1, T_I32, 100, 0, 0, 0);
+    for (int i = 0+2*16; i < 16+2*16; i+=1)
+        template_table[i] = genOp(ALU_CLEAR, 2, T_I32, 0, 0, 0, 0);
+    for (int i = 0+3*16; i < 16+3*16; i+=1)
+        template_table[i] = genOp(ALU_ADD, 2, T_I32, 1, T_I32, 1, T_I32);//genOp(ALU_STORE, 2, T_I32, ALU_RR, T_I32, ALU_RR, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+4*16; i < 16+4*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_MAX, 2, T_I32, ALU_RR, T_I32, 1, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+5*16; i < 16+5*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_MAX, 2, T_I32, ALU_RR, T_I32, ALU_RR, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+6*16; i < 16+6*16; i+=1)
+        template_table[i] = genOp(ALU_ADD, ALU_MEM, T_U8, ALU_RR, T_I32, 2, T_I32);//genOp(ALU_NEG, 2, T_I32, ALU_RR, T_I32, 0, 0);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+7*16; i < 16+7*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+
+*/
+/*
+    for (int i = 0+0*16; i < 16+0*16; i+=1) {
+        template_table[i*2+0] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+        template_table[i*2+1] = genOp(ALU_STORE, ALU_MEM + i, T_I32, 0, T_I32, 0, 0);
+    }
+*/
+    /*for (int i = 0+0*16; i < 16+0*16; i+=1) {
+        template_table[i*3+0] = genOp(ALU_STORE, ALU_REG0, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+        template_table[i*3+1] = genOp(ALU_ADD, ALU_REG0, T_I32, ALU_REG0, T_I32, ALU_REG0, T_I32);
+        template_table[i*3+2] = genOp(ALU_STORE, ALU_MEM + i, T_I32, ALU_REG0, T_I32, 0, 0);
+
+        template_table[i*3+0] = genOp(ALU_STORE, ALU_MEM + i, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+        template_table[i*3+1] = genOp(ALU_STORE, ALU_MEM + i, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+        template_table[i*3+2] = genOp(ALU_STORE, ALU_MEM + i, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+        //template_table[i] = genOp(ALU_RELU, ALU_MEM + 0, T_I32, ALU_RR, T_I32, 0, 0);
+        //template_table[i*2+1] = genOp(ALU_STORE, ALU_MEM + i, T_I32, 0, T_I32, 0, 0);
+    }*/
+    /*for (int i = 0+0*16; i < 16+0*16; i+=1) {
+        template_table[i*3+0] = genOp(ALU_STORE, ALU_REG0, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+        template_table[i*3+1] = genOp(ALU_ADD, ALU_REG0, T_I32, ALU_REG0, T_I32, ALU_REG0, T_I32);
+        template_table[i*3+2] = genOp(ALU_STORE, ALU_MEM + i, T_I32, ALU_REG0, T_I32, 0, 0);
+
+        template_table[i*3+0] = genOp(ALU_STORE, ALU_MEM + i, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+        template_table[i*3+1] = genOp(ALU_STORE, ALU_MEM + i, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+        template_table[i*3+2] = genOp(ALU_STORE, ALU_MEM + i, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+        //template_table[i] = genOp(ALU_RELU, ALU_MEM + 0, T_I32, ALU_RR, T_I32, 0, 0);
+        //template_table[i*2+1] = genOp(ALU_STORE, ALU_MEM + i, T_I32, 0, T_I32, 0, 0);
+    }*/
+    for (size_t i = 0; i < template_table.size(); i+=1) {
+        template_table[i] = genOp(ALU_NOP, 0, 0, 0, 0, 0, 0);
+
+        //template_table[i*2+0] = genOp(ALU_NEG, ALU_REG0, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+        //template_table[i*2+1] = genOp(ALU_NEG, ALU_MEM + i, T_I32, ALU_REG0, T_I32, 0, 0);
+
+        //template_table[i*2+1] = genOp(ALU_STORE, ALU_MEM + i, T_I32, 0, T_I32, 0, 0);
+    }
+    for (int i = 0; i < 16; i+=1) {
+        //template_table[i+0] = genOp(ALU_NEG, ALU_MEM + i, T_I32, ALU_MPE0 + 0, T_I32, 0, 0);
+
+        //template_table[i*2+0] = genOp(ALU_NEG, ALU_REG0 + i, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+        //template_table[i*2+1] = genOp(ALU_NEG, ALU_MEM + i, T_I32, ALU_REG0 + i, T_I32, 0, 0);
+
+        //template_table[i*2+1] = genOp(ALU_STORE, ALU_MEM + i, T_I32, 0, T_I32, 0, 0);
+    }
+/*
+    int i = 0;
+    template_table[i] = genOp(ALU_CLEAR, ALU_REG3, T_I32, 0, 0, 0, 0); i++;
+    template_table[i] = genOp(ALU_LOAD, ALU_REG3, T_I32, 0, 0, 0, 1); i++;
+
+    for (int j = 0; j < 16; j++) {
+        template_table[i] = genOp(ALU_PRELU, ALU_REG0, T_I32, ALU_MPE0 + j, T_I32, 0, 0); i++;
+        template_table[i] = genOp(ALU_ADD, ALU_MEM + j, T_I32, ALU_REG0, T_I32, ALU_REG3, T_I32); i++;
+    }
+    template_table[i] = genOp(ALU_HALT_OPCODE, 0, 0, 0, 0, 0, 0); i++;do you
+*/
+    /*for (int i = 0; i < 16*1; i+=1) {
+        template_table[i+16*7] = genOp(ALU_NEG, ALU_MEM + i/1, T_I32, ALU_MPE0 + i/1, T_I32, 0, 0);
+    }*/
+#if 1
+    /*for (int i = 0+0*16; i < 16+0*16; i+=1)
+        template_table[i] = genOp(ALU_CLEAR, 1, T_I32, 0, 0, 0, 0);
+    for (int i = 0+1*16; i < 16+1*16; i+=1)
+        template_table[i] = genOp(ALU_LOAD, 1, T_I32, 0, 0, 0, 32);
+    for (int i = 0+2*16; i < 16+2*16; i+=1)
+        template_table[i] = genOp(ALU_CLEAR, 2, T_I32, 0, 0, 0, 0);
+    for (int i = 0+3*16; i < 16+3*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_ADD, 2, T_I32, 2, T_I32, 1, T_I32);//genOp(ALU_STORE, 2, T_I32, ALU_RR, T_I32, ALU_RR, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+4*16; i < 16+4*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_MAX, 2, T_I32, ALU_RR, T_I32, 1, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+5*16; i < 16+5*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_ADD, 1, T_I32, ALU_MPE0+i%16, T_I32, 1, T_I32);//0;//genOp(ALU_MAX, 2, T_I32, ALU_RR, T_I32, ALU_RR, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+6*16; i < 16+6*16; i+=1)
+        template_table[i+((i%16)*1)+0] = 0;//genOp(ALU_ADD, 2, T_I32, ALU_MPE0+i%16, T_I32, 1, T_I32);;//genOp(ALU_ADD, ALU_MEM, T_U8, ALU_RR, T_I32, 2, T_I32);//genOp(ALU_NEG, 2, T_I32, ALU_RR, T_I32, 0, 0);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+6*16; i < 16+6*16; i+=1)
+        template_table[i+((i%16)*0)+16] = genOp(ALU_ADD, ALU_MEM+i%16, T_I32, 2, T_I32, ALU_MPE0+i%16, T_I32);//0;//genOp(ALU_ADD, ALU_MEM, T_I32, ALU_RR, T_I32, 1, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+*/
+    for (int i = 0; i < 16; i+=1) {
+        template_table[7*16+i] = genOp(ALU_NEG, ALU_MEM + i, T_I32, ALU_MPE0 + i, T_I32, 0, 0);
+    }
+
+#endif
+    for (size_t i = 0; i < template_table.size(); i+=1) {
+        printf("opcode %u\n", template_table[i]);
+    }
+
+
+
+
+
+
+
+
+    for (int i = 0+0*16; i < 16+0*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_NEG, ALU_MPE0+i, T_I32, ALU_MPE0+i, T_I32, 0, 0);
+    for (int i = 0+1*16; i < 16+1*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_LOAD, 1, T_I32, 100, 0, 0, 0);
+    for (int i = 0+2*16; i < 16+2*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_NEG, ALU_MPE0+i, T_I32, ALU_MPE0+i, T_I32, 0, 0);//genOp(ALU_CLEAR, 2, T_I32, 0, 0, 0, 0);
+    for (int i = 0+3*16; i < 16+3*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_ADD, 2, T_I32, ALU_RR, T_I32, 1, T_I32);//genOp(ALU_STORE, 2, T_I32, ALU_RR, T_I32, ALU_RR, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+4*16; i < 16+4*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_MAX, 2, T_I32, ALU_RR, T_I32, 1, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+5*16; i < 16+5*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_MAX, 2, T_I32, ALU_RR, T_I32, ALU_RR, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+6*16; i < 16+6*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_NEG, 2, T_I32, ALU_RR, T_I32, 0, 0);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+7*16; i < 16+7*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_ADD, ALU_MEM, T_U8, ALU_RR, T_I32, 2, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+
+    int i = 0;
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+1, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+2, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+3, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+4, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+5, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+6, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+7, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+8, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+9, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+10, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+11, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+12, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+13, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+14, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_NEG, 0, T_I32, ALU_MPE0+15, T_I32, 0, 0);
+    template_table[i++] = genOp(ALU_STORE, ALU_MEM, T_I32, 0, T_I32, 0, 0);
+
+/*
+    for (int i = 0+0*16; i < 16+0*16; i+=1)
+        template_table[i] = genOp(ALU_CLEAR, 1, T_I32, 0, 0, 0, 0);//genOp(ALU_RELU, 2, T_I32, ALU_MPE0+i, T_I32, 0, 0)|(1<<6);
+    for (int i = 0+1*16; i < 16+1*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_ADD, ALU_MEM, T_U8, 2, T_I32, 2, T_I32);;//genOp(ALU_LOAD, 1, T_I32, 100, 0, 0, 0);
+    for (int i = 0+2*16; i < 16+2*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_ADD, 1, T_I32, ALU_RR, T_I32, 1, T_I32);//genOp(ALU_RELU, 2, T_I32, ALU_MPE1, T_I32, 0, 0);
+    for (int i = 0+3*16; i < 16+3*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_STORE, 2, T_I32, ALU_RR, T_I32, ALU_RR, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+4*16; i < 16+4*16; i+=1)
+        template_table[i] = genOp(ALU_ADD, ALU_MEM, T_U8, ALU_RR, T_I32, 1, T_I32);//genOp(ALU_MAX, 2, T_I32, ALU_RR, T_I32, 1, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+5*16; i < 16+5*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_MAX, 2, T_I32, ALU_RR, T_I32, ALU_RR, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+6*16; i < 16+6*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_NEG, 2, T_I32, ALU_RR, T_I32, 0, 0);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+    for (int i = 0+7*16; i < 16+7*16; i+=1)
+        template_table[i] = 0;//genOp(ALU_ADD, ALU_MEM, T_U8, ALU_RR, T_I32, 2, T_I32);//genOp(ALU_MAX, ALU_MEM, T_U8, ALU_RR, T_I32, 0, T_I32);
+*/
+/*
+    for (int i = 0+0*16; i < 16+0*16; i+=1)
+        template_table[i] = genOp(ALU_CLEAR, 1, T_I32, 0, 0, 0, 0);
+    for (int i = 0+1*16; i < 16+1*16; i+=1)
+        template_table[i] = genOp(ALU_LOAD, 1, T_I32, 10, 0, 0, 0);
+    for (int i = 0+2*16; i < 16+2*16; i+=1)
+        template_table[i] = genOp(ALU_RELU, 2, T_I32, ALU_RR, T_I32, 0, 0);
+    for (int i = 0+3*16; i < 16+3*16; i+=1)
+        template_table[i] = genOp(ALU_RELU, ALU_MEM, T_U8, 2, T_I32, 0, 0);
+*/
+#endif
+    //template_table[10] = genOp(ALU_XOR, 0, T_I32, 0, T_I32, 0, T_I32);
+    //template_table[11] = genOp(ALU_XOR, 0, T_I32, 0, T_I32, 0, T_I32);
+    //template_table[14] = genOp(ALU_XOR, 0, T_I32, 0, T_I32, 0, T_I32);
+    //template_table[15] = genOp(ALU_XOR, 0, T_I32, 0, T_I32, 0, T_I32);
+
+
+
+
+    //template_table[2] = genOp(ALU_STORE, ALU_REG1, T_I32, ALU_RR, T_I32, 0, 0);
+    //template_table[3] = genOp(ALU_STORE, ALU_MEM, T_I32, ALU_REG1, T_I32, 0, 0);
+    //template_table[4] = genOp(ALU_STORE, ALU_REG1, T_I32, ALU_RR, T_I32, 0, 0);
+    //template_table[5] = genOp(ALU_STORE, ALU_MEM, T_I32, ALU_REG1, T_I32, 0, 0);
+    //template_table[6] = genOp(ALU_STORE, ALU_REG1, T_I32, ALU_RR, T_I32, 0, 0);
+    //template_table[7] = genOp(ALU_STORE, ALU_MEM, T_I32, ALU_REG1, T_I32, 0, 0);
+    //template_table[2] = genOp(ALU_RELU, ALU_MEM, T_U8, ALU_REG0, T_I32, 0, 0);
+    //template_table[1] = genOp(ALU_RELU, ALU_MEM, T_U8, ALU_REG0, T_I32, 0, 0);
+    //for (int i = 0; i < 16; i++) 4-7
+    //    template_table[i] = genOp(ALU_RELU, ALU_MEM, T_U8, ALU_RR, T_I32, 0, 0);
+    //for (int i = 1; i < 16; i++)
+    //    template_table[i] = 0;//genOp(0, ALU_MEM, T_U8, ALU_RR, T_I32, 0, 0);
+
+    /*for (int i = 17; i < 32; i++)
+        template_table[i] = genOp(ALU_FLEXARB, ALU_MEM, T_U8, ALU_RR, T_I32, 0, 0);*/
+
+    //int i = 0;
+
+    //std::size_t MASK_FIRST2_BITS = 3;
+    //first2_bits = j & MASK_FIRST2_BITS;
+    //last3_bits = j >> 2;
+    //std::size_t ADDR_OF_RESERVED = 6;
+    //std::size_t ADDR_OF_FIRST2_BITS = 9;
+    //std::size_t ADDR_OF_DEST = 11;
+    //std::size_t ADDR_OF_REST_BITS = 16;
+    //std::size_t ADDR_OF_PWL_VALUE = 19;
+
+    //template_table[j] = (range_vector[j] << ADDR_OF_PWL_VALUE) |
+    //                    (     last3_bits << ADDR_OF_REST_BITS) |
+    //                    (              8 << ADDR_OF_DEST) |
+    //                    (    first2_bits << ADDR_OF_FIRST2_BITS) |
+    //                    (              0 << ADDR_OF_RESERVED) |
+    //                    (ALU_LOAD);
+
+    //template_table[i++] = genClear(ALU_REG1, T_I32);
+    //template_table[i++] = genStore(ALU_REG1, T_I32);
+    //template_table[i++] = genReLU(ALU_MEM, T_U8, ALU_RR, T_I32);
+    //template_table[i++] = genNeg(ALU_MEM, T_I32, ALU_RR, T_I32);
+
+    /*template_table[i++] = genMax(ALU_REG0, T_I32, ALU_MPE0,  T_I32, ALU_MPE1,  T_I32);
+    template_table[i++] = genMax(ALU_REG1, T_I32, ALU_MPE4,  T_I32, ALU_MPE5,  T_I32);
+    template_table[i++] = genMax(ALU_REG2, T_I32, ALU_MPE8,  T_I32, ALU_MPE9,  T_I32);
+    template_table[i++] = genMax(ALU_REG3, T_I32, ALU_MPE12, T_I32, ALU_MPE13, T_I32);
+    template_table[i++] = genMax(ALU_MPE0, T_I32, ALU_REG0, T_I32, ALU_REG1, T_I32);
+    template_table[i++] = genMax(ALU_MPE4, T_I32, ALU_REG2, T_I32, ALU_REG3, T_I32);
+
+    template_table[i++] = genMax(ALU_REG0, T_I32, ALU_MPE2,  T_I32, ALU_MPE3,  T_I32);
+    template_table[i++] = genMax(ALU_REG1, T_I32, ALU_MPE6,  T_I32, ALU_MPE7,  T_I32);
+    template_table[i++] = genMax(ALU_REG2, T_I32, ALU_MPE10, T_I32, ALU_MPE11, T_I32);
+    template_table[i++] = genMax(ALU_REG3, T_I32, ALU_MPE14, T_I32, ALU_MPE15, T_I32);
+    template_table[i++] = genMax(ALU_MPE1, T_I32, ALU_REG0, T_I32, ALU_REG1, T_I32);
+    template_table[i++] = genMax(ALU_MPE5, T_I32, ALU_REG2, T_I32, ALU_REG3, T_I32);
+
+    template_table[i++] = genNop(ALU_MPE12, T_I8, ALU_MPE12, T_I8, ALU_MPE1, T_I8);
+    template_table[i++] = genNop(ALU_MPE13, T_I8, ALU_MPE13, T_I8, ALU_MPE1, T_I8);
+    template_table[i++] = genNop(ALU_MPE14, T_I8, ALU_MPE14, T_I8, ALU_MPE1, T_I8);
+    template_table[i++] = genNop(ALU_MPE15, T_I8, ALU_MPE15, T_I8, ALU_MPE1, T_I8);*/
+
+    /*template_table[i++] = ALU_CLEAR | (ALU_REG0 << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST);
+    template_table[i++] = (ALU_REG1 << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_REG1 << ADDR_OF_S1) | (T_I32 << ADDR_OF_TS1) | (ALU_REG1 << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST) | ALU_XOR;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = (ALU_REG1 << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_MEM << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST) | ALU_STORE;
+    template_table[i++] = (ALU_REG1 << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_ODU << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST) | ALU_STORE;
+    template_table[i++] = (ALU_REG0 << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_MEM << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST) | ALU_NEG;
+    template_table[i++] = (ALU_REG0 << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_ODU << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST) | ALU_NEG;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;*/
+    //template_table[i++] = (ALU_RR << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_REG0 << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST) | ALU_NEG;
+    //template_table[i++] = (ALU_RR << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_MEM << ADDR_OF_DEST)  | (T_U8F << ADDR_OF_TDEST) | ALU_NEG;
+    //template_table[i++] = ALU_LOAD | (ALU_REG0 << ADDR_OF_DEST);
+    /*template_table[i++] = (ALU_RR << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_MEM << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST) | ALU_STORE;
+    template_table[i++] = (ALU_RR << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_ODU << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST) | ALU_STORE;
+    template_table[i++] = (ALU_MPE0 << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_MEM << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST) | ALU_STORE;
+    template_table[i++] = (ALU_MPE0 << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_ODU << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST) | ALU_STORE;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    //template_table[i++] = (ALU_RR << ADDR_OF_S0) | (T_I32 << ADDR_OF_TS0) | (ALU_ODU << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST) | ALU_STORE;
+    //template_table[i++] = ALU_STORE | (ALU_ODU << ADDR_OF_DEST) | (T_I32 << ADDR_OF_TDEST);
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;*/
+
+    /*template_table[i++] = 1;
+    template_table[i++] = ALU_HALT_OPCODE;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_LOAD | (0 << ADDR_OF_DEST);
+    template_table[i++] = ALU_STORE | (1 << ADDR_OF_DEST);
+    //template_table[i++] = ALU_STORE | (2 << ADDR_OF_DEST);
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_ADD;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_STORE | (0 << ADDR_OF_DEST);
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;
+    template_table[i++] = ALU_NOP;*/
+
+    //template_table[i] = genOp(2, ALU_REG0, T_I32, ALU_RR, T_I32, ALU_RR, T_I32);
+
+    /*for (int i=0; i < template_table.size(); i++)
+    {
+        template_table[i] = genOp(ALU_NOP, 0, 0, 0, 0, 0, 0);
+        template_table[i] = (ALU_HALT_OPCODE);
+        if (i == 15)
+            template_table[i] = (ALU_HALT_OPCODE);
+        else if (i == 31)
+            template_table[i] = (ALU_HALT_OPCODE);
+        else if (i == 31+16)
+            template_table[i] = (ALU_HALT_OPCODE);
+        //else
+        //    template_table[i] = genReLU(ALU_REG1, T_U8, ALU_RR, T_I32);
+    }*/
+
+    //template_table[0] = genOp(ALU_CLEAR, ALU_REG0, T_I32, ALU_REG0, T_I32, ALU_REG0, T_I32);
+    //template_table[1] = genOp(ALU_LOAD, ALU_REG0, T_I32, 0, 0, 0, 65535);
+    //template_table[2] = genOp(ALU_LOAD, ALU_REG0, T_I32, 0, 0, 0, 65535) | (1 << 6);
+
+    //template_table[0] = genOp(ALU_ADD, ALU_MEM, T_U8, ALU_RR, T_I32, 0, 0);
+    //template_table[2] = genOp(ALU_RELU, ALU_REG1, T_I32, ALU_REG0, T_I32, ALU_REG0, T_I32);
+    //template_table[4] = genOp(ALU_ADD, ALU_REG0, T_I32, ALU_REG0, T_I32, ALU_REG1, T_I32);
+    //template_table[8] = genOp(ALU_RELU, ALU_MEM, T_U8, ALU_REG0, T_I32, ALU_REG0, T_I32);
 
     std::vector<int64_t> template_table_appropriate_type(template_table.begin(), template_table.end());
 
     instructionListTable->populate(template_table_appropriate_type, mv::Order("NHWC"));
 }
+
+/*
+UART: block 1 instr	 0 = 10000 100 10001 100 00000 0100 0 001011
+UART: block 1 instr	 1 = 10100 100 10101 100 00001 0100 0 001011
+UART: block 1 instr	 2 = 11000 100 11001 100 00010 0100 0 001011
+UART: block 1 instr	 3 = 11100 100 11101 100 00011 0100 0 001011
+UART: block 1 instr	 4 = 00000 100 00001 100 10000 0100 0 001011
+UART: block 1 instr	 5 = 00010 100 00011 100 10100 0100 0 001011
+UART: block 1 instr	 6 = 10010 100 10011 100 00000 0100 0 001011
+UART: block 1 instr	 7 = 10110 100 10111 100 00001 0100 0 001011
+UART: block 1 instr	 8 = 11010 100 11011 100 00010 0100 0 001011
+UART: block 1 instr	 9 = 11110 100 11111 100 00011 0100 0 001011
+UART: block 1 instr	10 = 00000 100 00001 100 10001 0100 0 001011
+UART: block 1 instr	11 = 00010 100 00011 100 10101 0100 0 001011
+UART: block 1 instr	12 = 11100 011 10001 011 11100 0011 0 000000
+UART: block 1 instr	13 = 11101 011 10001 011 11101 0011 0 000000
+UART: block 1 instr	14 = 11110 011 10001 011 11110 0011 0 000000
+UART: block 1 instr	15 = 11111 011 10001 011 11111 0011 0 000000
+                             00100 101 11011 101 10000 0100 0 101000
+ */
 
 static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -906,8 +1486,8 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
 }
 
 mv::Data::TensorIterator createInstructionListTable(std::string instructionListTableName, mv::OpModel& om) {
-    const std::size_t numberOfInstructions = 25;
-    const std::size_t alignedInstructions = mv::round_up(numberOfInstructions, 16);
+    const std::size_t numberOfInstructions = 16;
+    const std::size_t alignedInstructions = mv::round_up(numberOfInstructions, 16*8);
     mv::Shape shape({alignedInstructions, 1, 1, 1});
     std::vector<int64_t> instructionListTableData(shape.totalSize(), 0);
     auto instructionListTable = om.constantInt(instructionListTableName, instructionListTableData, shape,
