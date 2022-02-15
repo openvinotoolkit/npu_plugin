@@ -158,6 +158,8 @@ SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLim
 
 bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits,
                                                     ArrayRef<uint32_t> supportedZTiles) {
+    // Refer workload number pool implementation at
+    // https://github.com/intel-innersource/frameworks.ai.vpu.presilicon.fathom/blob/main/src/Controllers/WorkloadGen.py#L84
     SmallVector<uint32_t> validZTiles(supportedZTiles.begin(), supportedZTiles.end());
     if (validZTiles.empty()) {
         for (size_t i = 4; i < 8; ++i) {
