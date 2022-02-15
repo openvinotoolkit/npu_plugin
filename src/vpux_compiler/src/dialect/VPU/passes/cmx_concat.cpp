@@ -302,6 +302,9 @@ bool CMXConcatPass::childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPatt
     size_t maxConsumerSize = 0;
 
     for (auto& concatPart : concatPattern._concatParts) {
+        if (!concatPart.isValidPart()) {
+            return false;
+        }
         size_t currentConsumerSize = 0;
         for (auto input : concatPart._nceOp->getOperands()) {
             if (input.getDefiningOp() == concatPart._copyOp.getOperation()) {
@@ -351,9 +354,10 @@ void CMXConcatPass::rewriteInputPattern(ConcatPattern concatPattern) {
           Concat
     */
     for (auto concatPart : concatPattern._concatParts) {
-        _log.nest(1).trace("Removing input Copy to DDR '{0}' at '{1}'", concatPart._copyOp->getName(),
+        _log.nest(1).trace("Removing input Copy from NNCMX to DDR '{0}' at '{1}'", concatPart._copyOp->getName(),
                            concatPart._copyOp->getLoc());
-        concatPart._copyOp.output().replaceAllUsesWith(concatPart._copyOp.input());
+        // modify only current concat input as it may have multiple uses
+        concatPattern._concat.setOperand(concatPart._inputIdx, concatPart._copyOp.input());
     }
 }
 
@@ -377,7 +381,7 @@ void CMXConcatPass::rewriteOutputPattern(ConcatPattern concatPattern) {
         NCE      NCE
     */
     for (auto concatPart : concatPattern._concatParts) {
-        _log.nest(1).trace("Removing output Copy to DDR '{0}' at '{1}'", concatPart._copyOp->getName(),
+        _log.nest(1).trace("Removing output Copy from DDR to NNCMX '{0}' at '{1}'", concatPart._copyOp->getName(),
                            concatPart._copyOp->getLoc());
         concatPattern._concat.output().setType(concatPart._copyOp.output().getType());
         concatPart._copyOp.output().replaceAllUsesWith(concatPart._copyOp.input());
