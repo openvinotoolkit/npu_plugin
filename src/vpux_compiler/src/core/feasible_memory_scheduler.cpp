@@ -806,7 +806,7 @@ size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
     }
 
     for (auto bufferUser : buffer.getUsers()) {
-        if (bufferUser->hasAttr("CMXConcat")) {
+        if (mlir::isa<IERT::ConcatViewOp>(bufferUser)) {
             cmxConcatable = true;
         }
     }
