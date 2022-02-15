@@ -133,7 +133,7 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
 }
 
 template <class ConcreteOp>
-static VPU::PaddingAttr getOpPadding(ConcreteOp origOp, mlir::PatternRewriter& rewriter) {
+VPU::PaddingAttr getOpPadding(ConcreteOp origOp, mlir::PatternRewriter& rewriter) {
     auto pads =
             llvm::TypeSwitch<mlir::Operation*, VPU::PaddingAttr>(origOp.getOperation())
                     .template Case<VPU::NCEConvolutionOp>([](VPU::NCEConvolutionOp concreteOp) {
@@ -156,7 +156,7 @@ static VPU::PaddingAttr getOpPadding(ConcreteOp origOp, mlir::PatternRewriter& r
 }
 
 template <class ConcreteOp>
-static mlir::Value getOpInput(ConcreteOp origOp) {
+mlir::Value getOpInput(ConcreteOp origOp) {
     auto input = llvm::TypeSwitch<mlir::Operation*, mlir::Value>(origOp.getOperation())
                          .template Case<VPU::NCEConvolutionOp>([](VPU::NCEConvolutionOp convolutionOp) {
                              return convolutionOp.input();
@@ -177,7 +177,7 @@ static mlir::Value getOpInput(ConcreteOp origOp) {
 }
 
 template <class ConcreteOp>
-static SmallVector<int64_t> getKernelSizeUsingOpFilter(ConcreteOp origOp) {
+SmallVector<int64_t> getKernelSizeUsingOpFilter(ConcreteOp origOp) {
     const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
                                      : getShape(origOp.filter());
@@ -187,7 +187,7 @@ static SmallVector<int64_t> getKernelSizeUsingOpFilter(ConcreteOp origOp) {
 }
 
 template <class ConcreteOp>
-static SmallVector<int64_t> getOpKernelSize(ConcreteOp origOp) {
+SmallVector<int64_t> getOpKernelSize(ConcreteOp origOp) {
     auto kernelSize =
             llvm::TypeSwitch<mlir::Operation*, SmallVector<int64_t>>(origOp.getOperation())
                     .template Case<VPU::NCEConvolutionOp>([](VPU::NCEConvolutionOp convolutionOp) {
@@ -212,7 +212,7 @@ static SmallVector<int64_t> getOpKernelSize(ConcreteOp origOp) {
 }
 
 template <class ConcreteOp>
-static SmallVector<int64_t> getOpKernelStride(ConcreteOp origOp) {
+SmallVector<int64_t> getOpKernelStride(ConcreteOp origOp) {
     auto strides = llvm::TypeSwitch<mlir::Operation*, SmallVector<int64_t>>(origOp.getOperation())  //
                            .template Case<VPU::NCEConvolutionOp>(
                                    [](VPU::NCEConvolutionOp convolutionOp) -> SmallVector<int64_t> {
