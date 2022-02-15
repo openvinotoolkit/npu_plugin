@@ -175,11 +175,11 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     if (options.enableHandleAsymmetricStrides) {
         pm.addPass(IE::createHandleAsymmetricStridesPass(log));
     }
+    pm.addPass(IE::createFusePostOpsPass(log));
 
     if (options.enableLowPrecision) {
         IE::buildLowPrecisionPipeline(pm, IE::LowPrecisionOptions(options), log);
     }
-    pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(IE::createResolvePWLPostOpsPass(log));
 
     IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
@@ -300,11 +300,11 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     if (options.enableHandleAsymmetricStrides) {
         pm.addPass(IE::createHandleAsymmetricStridesPass(log));
     }
+    pm.addPass(IE::createFusePostOpsPass(log));
 
     if (options.enableLowPrecision) {
         IE::buildLowPrecisionPipeline(pm, IE::LowPrecisionOptions(options), log);
     }
-    pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(IE::createUnrollBatchPass(log));
     pm.addPass(IE::createResolvePWLPostOpsPass(log));
     if (options.enableLowPrecision) {
