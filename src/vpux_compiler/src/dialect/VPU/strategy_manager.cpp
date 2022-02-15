@@ -16,19 +16,21 @@
 
 using namespace vpux;
 
-// This pass assigns multi-clustering strategies to layers and converts them in NCEClusterTiling.
+// This pass assigns multi-clustering strategies to layers and converts them into NCEClusterTiling operations.
 // It considers layers in isolation and computes the hardware efficiency of the layers if they
-// they were to be split over height (SOH) or split over kernel (SOK). It then chooses the more
-// stratey. A prerequisite is that the layer fits in CMX when multi-clustered. If the layer does not  
-// fit in CMX then it is not converted to NCEClustertiling. 
+// they were to be split over height (SOH) or split over kernel (SOK). It then chooses the more optimal
+// stratey. A prerequisite is that the layer fits in CMX when multi-clustered. If the layer does not
+// fit in CMX then it is not converted to NCEClustertiling.
 
-StrategyManager::StrategyManager(mlir::FuncOp func, Logger log): _log(log), _func(func) {
+StrategyManager::StrategyManager(mlir::FuncOp func, Logger log, mlir::MLIRContext* ctx)
+        : _log(log), _func(func), _ctx(ctx) {
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
     auto nceOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
     auto dpuOp = nceOp.getSubExecutor(VPU::ExecutorKindAttr::get(module->getContext(), VPU::ExecutorKind::DPU));
 
-    _numClusters = nceOp.count();
+    _numClusters = 4;  // TODO: = nceOp.count(); // returns 1
+
     _numDPUPerCluster = dpuOp.count();
 
     _numDPU = _numClusters * _numDPUPerCluster;
@@ -229,13 +231,13 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     assignMultiClusterStrategy(op);
                 })
                 .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp op) {
-                    // Check if the operation SOH compatible, otherwise the efficiency is 0
+                    // Check if the operation SOH compatible, otherwise set the efficiency to 0
                     if (isOperationSplitOverHeightCompatible<VPU::NCEConvolutionOp>(op)) {
                         _splitOverHeightEfficencies.insert({op, computeLayerSplitOverHeightEfficency(op)});
                     } else {
                         _splitOverHeightEfficencies.insert({op, 0});
                     }
-                    // Check if the operation SOK compatible, otherwise the efficiency is 0
+                    // Check if the operation SOK compatible, otherwise set the efficiency to 0
                     if (isOperationSplitOverKernelCompatible<VPU::NCEConvolutionOp>(op)) {
                         _splitOverKernelEfficencies.insert({op, computeLayerSplitOverKernelEfficency(op)});
                     } else {
@@ -245,13 +247,13 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     assignMultiClusterStrategy(op);
                 })
                 .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp op) {
-                    // Check if the operation SOH compatible, otherwise the efficiency is 0
+                    // Check if the operation SOH compatible, otherwise set the efficiency to 0
                     if (isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                         _splitOverHeightEfficencies.insert({op, computeLayerSplitOverHeightEfficency(op)});
                     } else {
                         _splitOverHeightEfficencies.insert({op, 0});
                     }
-                    // Check if the operation SOK compatible, otherwise the efficiency is 0
+                    // Check if the operation SOK compatible, otherwise set the efficiency to 0
                     if (isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                         _splitOverKernelEfficencies.insert({op, computeLayerSplitOverKernelEfficency(op)});
                     } else {
@@ -370,58 +372,6 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
             .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp op) {
                 assignMultiClusterStrategyForEltwiseAndMaxPool<VPU::NCEEltwiseOp>(op);
             });
-}
-
-VPU::DistributionMode StrategyManager::getActivationTensorDistributionMode(const llvm::StringRef multiClusterStrategy) {
-    if (multiClusterStrategy == splitOverHeightOverLapped) {
-        return VPU::DistributionMode::overlapped;
-    } else if (multiClusterStrategy == splitOverHeight) {
-        return VPU::DistributionMode::segmented;
-    } else if (multiClusterStrategy == splitOverKernel) {
-        return VPU::DistributionMode::multicasted;
-    } else {
-        VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a distribution mode "
-                   "for the activation tensor");  // TODO, add operation
-    }
-}
-
-VPU::DistributionMode StrategyManager::getWeightsTensorDistributionMode(const llvm::StringRef multiClusterStrategy) {
-    if (multiClusterStrategy == splitOverHeightOverLapped) {
-        return VPU::DistributionMode::multicasted;
-    } else if (multiClusterStrategy == splitOverHeight) {
-        return VPU::DistributionMode::multicasted;
-    } else if (multiClusterStrategy == splitOverKernel) {
-        return VPU::DistributionMode::segmented;
-    } else {
-        VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a distribution mode "
-                   "for the weights tensor");  // TODO, add operation
-    }
-}
-
-llvm::ArrayRef<int32_t> StrategyManager::getActivationTensorNumTiles(const llvm::StringRef multiClusterStrategy) {
-    if (multiClusterStrategy == splitOverHeightOverLapped) {
-        return ArrayRef<int32_t>{1, 1, 4, 1};  // TODO: Use num clusters from IR
-    } else if (multiClusterStrategy == splitOverHeight) {
-        return ArrayRef<int32_t>{1, 1, 4, 1};  // TODO: Use num clusters from IR
-    } else if (multiClusterStrategy == splitOverKernel) {
-        return ArrayRef<int32_t>{1, 1, 1, 1};  // TODO: Use num clusters from IR
-    } else {
-        VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
-                   "for the activation tensor");
-    }
-}
-
-llvm::ArrayRef<int32_t> StrategyManager::getWeightsTensorNumTiles(const llvm::StringRef multiClusterStrategy) {
-    if (multiClusterStrategy == splitOverHeightOverLapped) {
-        return ArrayRef<int32_t>{1, 1, 1, 1};  // TODO: Use num clusters from IR
-    } else if (multiClusterStrategy == splitOverHeight) {
-        return ArrayRef<int32_t>{1, 1, 1, 1};  // TODO: Use num clusters from IR
-    } else if (multiClusterStrategy == splitOverKernel) {
-        return ArrayRef<int32_t>{1, 1, 4, 1};  // TODO: Use num clusters from IR
-    } else {
-        VPUX_THROW("Operation was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
-                   "for the weights tensor");
-    }
 }
 
 mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEDepthConvolutionOp& origOp) const {
