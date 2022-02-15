@@ -25,9 +25,10 @@
 
 using namespace vpux;
 
-static std::unique_ptr<VPUNN::VPUCostModel> gCostModel{nullptr};
+namespace {
+std::unique_ptr<VPUNN::VPUCostModel> gCostModel{nullptr};
 
-static VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
+VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
     switch (mpeMode) {
     case VPU::MPEMode::VECTOR:
         return VPUNN::ExecutionMode::VECTOR;
@@ -46,7 +47,7 @@ static VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
     }
 }
 
-static VPUNN::Operation getOperationType(VPUIP::NCETaskType taskType) {
+VPUNN::Operation getOperationType(VPUIP::NCETaskType taskType) {
     switch (taskType) {
     case VPUIP::NCETaskType::CONV:
         return VPUNN::Operation::CONVOLUTION;
@@ -69,7 +70,7 @@ static VPUNN::Operation getOperationType(VPUIP::NCETaskType taskType) {
     }
 }
 
-static VPUNN::DataType getElementType(mlir::Type type) {
+VPUNN::DataType getElementType(mlir::Type type) {
     if (type.isBF16()) {
         return VPUNN::DataType::BFLOAT16;
     } else if (type.isF16()) {
@@ -78,19 +79,15 @@ static VPUNN::DataType getElementType(mlir::Type type) {
         return VPUNN::DataType::INT8;
     } else if (type.isUnsignedInteger(CHAR_BIT * sizeof(int8_t))) {
         return VPUNN::DataType::UINT8;
-    } else {
-        auto qType = type.dyn_cast<mlir::quant::QuantizedType>();
-        if (qType) {
-            if (qType.isSigned()) {
-                return VPUNN::DataType::INT8;
-            }
-            return VPUNN::DataType::UINT8;
+    } else if (auto qType = type.dyn_cast<mlir::quant::QuantizedType>()) {
+        if (qType.getStorageTypeIntegralWidth() == 8) {
+            return qType.isSigned() ? VPUNN::DataType::INT8 : VPUNN::DataType::UINT8;
         }
-        VPUX_THROW("Unsupported data type: '{0}'", type);
     }
+    VPUX_THROW("Unsupported data type: '{0}'", type);
 }
 
-static VPUNN::VPUDevice getVPUDeviceType(VPU::ArchKind archKind) {
+VPUNN::VPUDevice getVPUDeviceType(VPU::ArchKind archKind) {
     switch (archKind) {
     case VPU::ArchKind::KMB:
     case VPU::ArchKind::TBH:
@@ -102,14 +99,14 @@ static VPUNN::VPUDevice getVPUDeviceType(VPU::ArchKind archKind) {
     }
 }
 
-static VPUNN::VPUTensor getOutputTensor(const TileInfo& tileInfo, VPUNN::DataType dataType) {
+VPUNN::VPUTensor getOutputTensor(const TileInfo& tileInfo, VPUNN::DataType dataType) {
     return VPUNN::VPUTensor({static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::W]),
                              static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::H]),
                              static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::C]), 1},
                             dataType);
 }
 
-inline bool isCostModelInited() {
+bool isCostModelInited() {
     return gCostModel != nullptr;
 }
 
@@ -132,30 +129,22 @@ void initCostModel(VPU::ArchKind archKind) {
         VPUX_THROW("Unsupported VPU arch type: '{0}'", archKind);
     }
 
-    VPUX_THROW_UNLESS(llvm::sys::fs::exists(modelDir), "vpunn model {0} is not exist", modelDir);
+    VPUX_THROW_UNLESS(llvm::sys::fs::exists(modelDir), "vpunn model {0} does not exist", modelDir);
     gCostModel = std::make_unique<VPUNN::VPUCostModel>(modelDir.str().str());
 }
 
 static const uint32_t DEFAULT_ZTILE_VALUE = 16;
 template <typename T>
-static T divRoundUp(T x, T m) {
+T divRoundUp(T x, T m) {
     return (x + m - 1) / m;
 }
 
 template <typename T>
-static T padRoundUp(T x, T m) {
+T padRoundUp(T x, T m) {
     return divRoundUp(x, m) * m;
 }
 
-static double splitEfficiency(ShapeRef tensorzShape, ShapeRef paddedTensorShape) {
-    VPUX_THROW_WHEN(tensorzShape.size() != paddedTensorShape.size(), "Unmatched tensor dims!");
-    return static_cast<double>(std::accumulate(tensorzShape.begin(), tensorzShape.end(), static_cast<int64_t>(1),
-                                               std::multiplies<int64_t>())) /
-           static_cast<double>(std::accumulate(paddedTensorShape.begin(), paddedTensorShape.end(),
-                                               static_cast<int64_t>(1), std::multiplies<int64_t>()));
-}
-
-static SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLimit) {
+SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLimit) {
     SmallVector<uint32_t> splits;
     for (uint32_t idx = 0; idx < std::log2(maxSplitRange); idx++) {
         auto powIdx = static_cast<uint32_t>(std::pow(2, idx));
@@ -165,29 +154,36 @@ static SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t
     }
     return splits;
 }
+}  // namespace
 
 bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits,
-                                                    SmallVector<uint32_t> validZTiles) {
+                                                    ArrayRef<uint32_t> supportedZTiles) {
+    SmallVector<uint32_t> validZTiles(supportedZTiles.begin(), supportedZTiles.end());
     if (validZTiles.empty()) {
         for (size_t i = 4; i < 8; ++i) {
             validZTiles.push_back(static_cast<uint32_t>(std::pow(2, i)));
-            validZTiles.push_back(validZTiles.back() + 16);
+            validZTiles.push_back(validZTiles.back() + DEFAULT_ZTILE_VALUE);
         }
     }
 
     SmallVector<uint32_t> maxSplitsInZ;
     SmallVector<uint32_t> maxSplitsInXY;
-    SmallVector<std::pair<uint8_t, uint8_t>> modes = getModes();
+    auto mode = getMode();
     for (const auto& zTile : validZTiles) {
-        maxSplitsInZ.push_back(static_cast<uint32_t>(std::ceil(_outShape[Dims4D::Act::C] / (double)zTile)));
+        maxSplitsInZ.push_back(
+                static_cast<uint32_t>(std::ceil(_outShape[Dims4D::Act::C] / static_cast<double>(zTile))));
     }
-    for (const auto& mode : modes) {
-        maxSplitsInXY.push_back(static_cast<uint32_t>(std::ceil(_outShape[Dims4D::Act::H] / (double)mode.first) *
-                                                      std::ceil(_outShape[Dims4D::Act::W] / (double)mode.second)));
-    }
+    maxSplitsInXY.push_back(
+            static_cast<uint32_t>(std::ceil(_outShape[Dims4D::Act::H] / static_cast<double>(mode.first)) *
+                                  std::ceil(_outShape[Dims4D::Act::W] / static_cast<double>(mode.second))));
+
     auto maxZ = *std::max_element(maxSplitsInZ.begin(), maxSplitsInZ.end());
     auto maxXY = *std::max_element(maxSplitsInXY.begin(), maxSplitsInXY.end());
     maxSplits = std::min<uint32_t>(maxSplits, std::max(maxZ, maxXY));
+    if (maxSplits == 0) {
+        return false;
+    }
+
     std::set<uint32_t> dpuMulSplits;
     for (auto i = numDPU; i < maxSplits + 1; i = i + numDPU) {
         dpuMulSplits.insert(static_cast<uint32_t>(i));
@@ -205,7 +201,7 @@ bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t max
     return true;
 }
 
-bool vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
+void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
     const int64_t minTileSize = 1;
 
     const int64_t minTilesCount = 1;
@@ -219,13 +215,9 @@ bool vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
 
     const auto outTiles = fillDividedTiles(nTilesOnDim, _outShape);
     _splitPool.push_back(std::move(outTiles));
-    return true;
 }
 
-bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles, bool sparse,
-                                      bool has_se) {
-    VPUX_UNUSED(sparse);
-    VPUX_UNUSED(has_se);
+bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles) {
     OutputTiling outputTiles;
     if (_outShape.size() < 2 || splitNumber == 0) {
         return false;
@@ -253,7 +245,6 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t
     Shape originalShape(4, 1);
     originalShape[Dims4D::Act::W] = W;
     originalShape[Dims4D::Act::H] = H;
-    auto bestPadding = selectPadding(originalShape);
 
     uint32_t remainedChannel = static_cast<uint32_t>(C);
     for (uint32_t idx = 0; idx < splitNumber; idx++) {
@@ -303,7 +294,6 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
     const auto SX = static_cast<unsigned int>(params.kernelStride[1]);
 
     std::vector<unsigned int> workloadCost;
-    int i = 0;
     for (const auto& dpuTile : dpuTiles) {
         const auto padsTileConf = backInferPadsTile(dpuTile, params.outputShape, params.padInfo);
         VPUNN::VPUTensor outputTensor = getOutputTensor(dpuTile, elemType);
@@ -324,12 +314,11 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
                  {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
                   static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
                  getExecutionMode(params.mpeMode)}));
-        i++;
     }
     return VPUNN::dpu_schedule(static_cast<unsigned int>(params.numDPU), workloadCost);
 }
 
-double vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const vpux::VPUIP::WorkloadCostParams& params) {
+double vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
     if (!isCostModelInited()) {
         initCostModel(params.arch);
     }
@@ -337,17 +326,7 @@ double vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const vpu
     VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
     VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
 
-    std::pair<int, int> mpeMode(4, 4);
-    if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "VECTOR_FP16") {
-        mpeMode = {1, 4};
-    } else if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "VECTOR") {
-        mpeMode = {1, 16};
-    } else if (vpux::VPU::stringifyMPEMode(params.mpeMode) == "MATRIX") {
-        mpeMode = {4, 4};
-    } else {
-        VPUX_THROW("Failed to support mpeMode");
-    }
-
+    auto mpeMode = getMode();
     double max_cost = 0;
 
     for (const auto& dpuTile : dpuTiles) {
@@ -369,50 +348,21 @@ SmallVector<uint32_t> vpux::VPUIP::DpuTiler::getSplitNumberPool() {
     return _splitNumberPool;
 }
 
-SmallVector<std::pair<uint8_t, uint8_t>> vpux::VPUIP::DpuTiler::getModes() {
-    SmallVector<std::pair<uint8_t, uint8_t>> modes;
-    for (auto mode : _mpeModeList) {
-        switch (mode) {
-        case VPU::MPEMode::MATRIX:
-            modes.push_back({4, 4});
-            break;
-        case VPU::MPEMode::VECTOR:
-            modes.push_back({1, 16});
-            break;
-        case VPU::MPEMode::VECTOR_FP16:
-            modes.push_back({1, 4});
-            break;
-        case VPU::MPEMode::CUBOID_16x16:
-            modes.push_back({16, 16});
-            break;
-        case VPU::MPEMode::CUBOID_8x16:
-            modes.push_back({8, 16});
-            break;
-        case VPU::MPEMode::CUBOID_4x16:
-            modes.push_back({4, 16});
-            break;
-        default:
-            break;
-        }
+std::pair<uint8_t, uint8_t> vpux::VPUIP::DpuTiler::getMode() {
+    switch (_mpeMode) {
+    case VPU::MPEMode::MATRIX:
+        return {4, 4};
+    case VPU::MPEMode::VECTOR:
+        return {1, 16};
+    case VPU::MPEMode::VECTOR_FP16:
+        return {1, 4};
+    case VPU::MPEMode::CUBOID_16x16:
+        return {16, 16};
+    case VPU::MPEMode::CUBOID_8x16:
+        return {8, 16};
+    case VPU::MPEMode::CUBOID_4x16:
+        return {4, 16};
+    default:
+        VPUX_THROW("Unsupported MPE mode {0}", _mpeMode);
     }
-    return modes;
-}
-
-Shape VPUIP::DpuTiler::selectPadding(ShapeRef original) {
-    auto modeList = getModes();
-    VPUX_THROW_WHEN(modeList.empty(), "Mode list empty!");
-    double bestEfficiency = 0.0;
-    Shape bestMode(original.size(), 1);
-    for (auto& mode : modeList) {
-        Shape padded(original.size(), 1);
-        padded[Dims4D::Act::H] = padRoundUp(original[Dims4D::Act::H], static_cast<int64_t>(mode.first));
-        padded[Dims4D::Act::W] = padRoundUp(original[Dims4D::Act::W], static_cast<int64_t>(mode.second));
-        auto efficiency = splitEfficiency(original, padded);
-        if (bestEfficiency < efficiency) {
-            bestEfficiency = efficiency;
-            bestMode[Dims4D::Act::H] = mode.first;
-            bestMode[Dims4D::Act::W] = mode.second;
-        }
-    }
-    return bestMode;
 }

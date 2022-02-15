@@ -95,9 +95,12 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     const auto mpeByType = mpeMap.at(arch);
     auto mpeMode = mpeByType(inElemType, outElemType, origOp);
 
-    VPUIP::DpuTiler dpuTiler(outputShape, {mpeMode});
+    VPUIP::DpuTiler dpuTiler(outputShape, mpeMode);
     dpuTiler.tileOverH(numDPU);
-    dpuTiler.generateSplitNumberPool(numDPU, 5);
+
+    // This value is aligned with the limitation value in NCEClusterTask Op
+    static const size_t MAX_SPLIT_NUMBER = 5;
+    dpuTiler.generateSplitNumberPool(numDPU, MAX_SPLIT_NUMBER);
     auto splitNumPool = dpuTiler.getSplitNumberPool();
     if (costParams.isZTilingSupported) {
         for (auto& splitNum : splitNumPool) {
@@ -106,21 +109,19 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
     }
 
     // select workload with minimum cost
-    uint32_t bestScore = std::numeric_limits<uint32_t>::max();
-    int best = -1;
+    uint32_t minimumHardwareExecutionCost = std::numeric_limits<uint32_t>::max();
+    size_t miniCostIdx = 0;
 
     const auto& splitCandidates = dpuTiler.getSplitPool();
     for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
-        auto score = dpuTiler.cost(splitCandidates[idx], costParams);
-        if (bestScore > score) {
-            bestScore = score;
-            best = static_cast<int>(idx);
+        auto hardwareExecutionCost = dpuTiler.cost(splitCandidates[idx], costParams);
+        if (minimumHardwareExecutionCost > hardwareExecutionCost) {
+            minimumHardwareExecutionCost = hardwareExecutionCost;
+            miniCostIdx = idx;
         }
     }
-    if (best == -1) {
-        VPUX_THROW("no workload splits found!");
-    }
-    const auto& outTiles = splitCandidates[best];
+
+    const auto& outTiles = splitCandidates[miniCostIdx];
 
     for (const auto& outTile : outTiles) {
         const auto padsTileConf = backInferPadsTile(outTile, outputShape, VPU::toPadInfo(pads));
@@ -133,97 +134,114 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
 
 template <class ConcreteOp>
 static VPU::PaddingAttr getOpPadding(ConcreteOp origOp, mlir::PatternRewriter& rewriter) {
-#define CASE(_OP_)                            \
-    .template Case<_OP_>([](_OP_ defaultOp) { \
-        return defaultOp.pad();               \
-    })
-
-    auto pads = llvm::TypeSwitch<mlir::Operation*, VPU::PaddingAttr>(origOp.getOperation())  //
-            CASE(VPU::NCEConvolutionOp)
-    CASE(VPU::NCEDepthConvolutionOp)
-    CASE(VPU::NCEMaxPoolOp)
-    .template Case<VPU::NCEEltwiseOp>([&rewriter](VPU::NCEEltwiseOp origOp) {
-        auto zeroAttr = getIntAttr(rewriter, 0);
-        return VPU::PaddingAttr::get(zeroAttr, zeroAttr, zeroAttr, zeroAttr, origOp->getContext());
-    }).Default([](mlir::Operation*) -> VPU::PaddingAttr {
-        VPUX_THROW("Unsupported NCE types");
-    });
-#undef CASE
+    auto pads =
+            llvm::TypeSwitch<mlir::Operation*, VPU::PaddingAttr>(origOp.getOperation())
+                    .template Case<VPU::NCEConvolutionOp>([](VPU::NCEConvolutionOp concreteOp) {
+                        return concreteOp.pad();
+                    })
+                    .template Case<VPU::NCEDepthConvolutionOp>([](VPU::NCEDepthConvolutionOp depthConvolutionOp) {
+                        return depthConvolutionOp.pad();
+                    })
+                    .template Case<VPU::NCEMaxPoolOp>([](VPU::NCEMaxPoolOp maxPoolOp) {
+                        return maxPoolOp.pad();
+                    })
+                    .template Case<VPU::NCEEltwiseOp>([&rewriter](VPU::NCEEltwiseOp eltwiseOp) {
+                        auto zeroAttr = getIntAttr(rewriter, 0);
+                        return VPU::PaddingAttr::get(zeroAttr, zeroAttr, zeroAttr, zeroAttr, eltwiseOp->getContext());
+                    })
+                    .Default([](mlir::Operation*) -> VPU::PaddingAttr {
+                        VPUX_THROW("Unsupported NCE types");
+                    });
     return pads;
 }
 
 template <class ConcreteOp>
 static mlir::Value getOpInput(ConcreteOp origOp) {
-#define CASE(_OP_, _INPUT_)                   \
-    .template Case<_OP_>([](_OP_ defaultOp) { \
-        return defaultOp._INPUT_();           \
-    })
-
-    auto input = llvm::TypeSwitch<mlir::Operation*, mlir::Value>(origOp.getOperation())  //
-            CASE(VPU::NCEConvolutionOp, input)
-    CASE(VPU::NCEDepthConvolutionOp, input)
-    CASE(VPU::NCEMaxPoolOp, input)
-    CASE(VPU::NCEEltwiseOp, input1)
-    .Default([](mlir::Operation*) -> mlir::Value {
-        VPUX_THROW("Unsupported NCE types");
-    });
-#undef CASE
+    auto input = llvm::TypeSwitch<mlir::Operation*, mlir::Value>(origOp.getOperation())
+                         .template Case<VPU::NCEConvolutionOp>([](VPU::NCEConvolutionOp convolutionOp) {
+                             return convolutionOp.input();
+                         })
+                         .template Case<VPU::NCEDepthConvolutionOp>([](VPU::NCEDepthConvolutionOp depthConvolutionOp) {
+                             return depthConvolutionOp.input();
+                         })
+                         .template Case<VPU::NCEMaxPoolOp>([](VPU::NCEMaxPoolOp maxPoolOp) {
+                             return maxPoolOp.input();
+                         })
+                         .template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp eltwiseOp) {
+                             return eltwiseOp.input1();
+                         })
+                         .Default([](mlir::Operation*) -> mlir::Value {
+                             VPUX_THROW("Unsupported NCE types");
+                         });
     return input;
 }
 
 template <class ConcreteOp>
+static SmallVector<int64_t> getKernelSizeUsingOpFilter(ConcreteOp origOp) {
+    const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
+                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
+                                     : getShape(origOp.filter());
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+    return {KY, KX};
+}
+
+template <class ConcreteOp>
 static SmallVector<int64_t> getOpKernelSize(ConcreteOp origOp) {
-#define CASE(_OP_)                                                                                           \
-    .template Case<_OP_>([](_OP_ defaultOp) -> SmallVector<int64_t> {                                        \
-        const auto filterShape = defaultOp.rawFilterShapeAttr() != nullptr                                   \
-                                         ? Shape(parseIntArrayAttr<int64_t>(defaultOp.rawFilterShapeAttr())) \
-                                         : getShape(defaultOp.filter());                                     \
-        const auto KY = filterShape[Dims4D::Filter::KY];                                                     \
-        const auto KX = filterShape[Dims4D::Filter::KX];                                                     \
-        return {KY, KX};                                                                                     \
-    })
-
-    auto kernelSize = llvm::TypeSwitch<mlir::Operation*, SmallVector<int64_t>>(origOp.getOperation())  //
-            CASE(VPU::NCEConvolutionOp)
-    CASE(VPU::NCEDepthConvolutionOp)
-    .template Case<VPU::NCEMaxPoolOp>([](VPU::NCEMaxPoolOp origOp) -> SmallVector<int64_t> {
-        const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
-        const auto KY = kernelSize[0];
-        const auto KX = kernelSize[1];
-        return {KY, KX};
-    })
-            .template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp) -> SmallVector<int64_t> {
-                return {1, 1};
-            })
-            .Default([](mlir::Operation*) -> SmallVector<int64_t> {
-                VPUX_THROW("Unsupported NCE types");
-            });
-
-#undef CASE
-
+    auto kernelSize =
+            llvm::TypeSwitch<mlir::Operation*, SmallVector<int64_t>>(origOp.getOperation())
+                    .template Case<VPU::NCEConvolutionOp>([](VPU::NCEConvolutionOp convolutionOp) {
+                        return getKernelSizeUsingOpFilter(convolutionOp);
+                    })
+                    .template Case<VPU::NCEDepthConvolutionOp>([](VPU::NCEDepthConvolutionOp depthConvolutionOp) {
+                        return getKernelSizeUsingOpFilter(depthConvolutionOp);
+                    })
+                    .template Case<VPU::NCEMaxPoolOp>([](VPU::NCEMaxPoolOp origOp) -> SmallVector<int64_t> {
+                        const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+                        const auto KY = kernelSize[0];
+                        const auto KX = kernelSize[1];
+                        return {KY, KX};
+                    })
+                    .template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp) -> SmallVector<int64_t> {
+                        return {1, 1};
+                    })
+                    .Default([](mlir::Operation*) -> SmallVector<int64_t> {
+                        VPUX_THROW("Unsupported NCE types");
+                    });
     return kernelSize;
 }
 
 template <class ConcreteOp>
 static SmallVector<int64_t> getOpKernelStride(ConcreteOp origOp) {
-#define CASE(_OP_)                                                                  \
-    .template Case<_OP_>([](_OP_ defaultOp) -> SmallVector<int64_t> {               \
-        const auto kernelStrides = parseIntArrayAttr<int64_t>(defaultOp.strides()); \
-        const auto SY = kernelStrides[0];                                           \
-        const auto SX = kernelStrides[1];                                           \
-        return {SY, SX};                                                            \
-    })
-
     auto strides = llvm::TypeSwitch<mlir::Operation*, SmallVector<int64_t>>(origOp.getOperation())  //
-            CASE(VPU::NCEConvolutionOp)
-    CASE(VPU::NCEDepthConvolutionOp)
-    CASE(VPU::NCEMaxPoolOp)
-    .template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp) -> SmallVector<int64_t> {
-        return {1, 1};
-    }).Default([](mlir::Operation*) -> SmallVector<int64_t> {
-        VPUX_THROW("Unsupported NCE types");
-    });
-#undef CASE
+                           .template Case<VPU::NCEConvolutionOp>(
+                                   [](VPU::NCEConvolutionOp convolutionOp) -> SmallVector<int64_t> {
+                                       const auto kernelStrides = parseIntArrayAttr<int64_t>(convolutionOp.strides());
+                                       const auto SY = kernelStrides[0];
+                                       const auto SX = kernelStrides[1];
+                                       return {SY, SX};
+                                   })
+                           .template Case<VPU::NCEDepthConvolutionOp>(
+                                   [](VPU::NCEDepthConvolutionOp depthConvolutionOp) -> SmallVector<int64_t> {
+                                       const auto kernelStrides =
+                                               parseIntArrayAttr<int64_t>(depthConvolutionOp.strides());
+                                       const auto SY = kernelStrides[0];
+                                       const auto SX = kernelStrides[1];
+                                       return {SY, SX};
+                                   })
+                           .template Case<VPU::NCEMaxPoolOp>([](VPU::NCEMaxPoolOp maxPoolOp) -> SmallVector<int64_t> {
+                               const auto kernelStrides = parseIntArrayAttr<int64_t>(maxPoolOp.strides());
+                               const auto SY = kernelStrides[0];
+                               const auto SX = kernelStrides[1];
+                               return {SY, SX};
+                           })
+
+                           .template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp) -> SmallVector<int64_t> {
+                               return {1, 1};
+                           })
+                           .Default([](mlir::Operation*) -> SmallVector<int64_t> {
+                               VPUX_THROW("Unsupported NCE types");
+                           });
     return strides;
 }
 

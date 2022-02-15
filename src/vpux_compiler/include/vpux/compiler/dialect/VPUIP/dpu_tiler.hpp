@@ -38,26 +38,23 @@ struct WorkloadCostParams {
 
 class DpuTiler final {
 public:
-    DpuTiler(const ShapeRef& outShape, SmallVector<VPU::MPEMode> mpeModeList)
-            : _outShape(outShape), _mpeModeList(mpeModeList) {
+    DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode): _outShape(outShape.raw()), _mpeMode(mpeMode) {
     }
 
-    bool generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits = 50, SmallVector<uint32_t> validZTiles = {});
-    bool tileOverH(int64_t numDPU);
-    bool tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles = {}, bool sparse = false,
-                   bool has_se = false);
+    bool generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits = 50, ArrayRef<uint32_t> validZTiles = {});
+    void tileOverH(int64_t numDPU);
+    bool tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles = {});
     SmallVector<OutputTiling> getSplitPool();
     SmallVector<uint32_t> getSplitNumberPool();
 
     uint32_t cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
-    double simpleCost(const OutputTiling& dpuTiles, const vpux::VPUIP::WorkloadCostParams& params);
+    double simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
 
 private:
-    Shape selectPadding(ShapeRef original);
-    SmallVector<std::pair<uint8_t, uint8_t>> getModes();
+    std::pair<uint8_t, uint8_t> getMode();
 
-    ShapeRef _outShape;
-    SmallVector<VPU::MPEMode> _mpeModeList;
+    Shape _outShape;
+    VPU::MPEMode _mpeMode;
     SmallVector<uint32_t> _splitNumberPool;
     SmallVector<OutputTiling> _splitPool;
 };
