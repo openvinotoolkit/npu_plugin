@@ -105,7 +105,6 @@ func @DepthConvWithLReluRewriter(%arg0: tensor<1x16x40x80xf16, {mem_space = @CMX
 
     // CHECK:       [[VAL0:%.+]] = VPU.NCE.DepthConvolution(%arg0, [[CST]]) {
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
-    // CHECK-NOT:       post_op
     // CHECK-SAME:      ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64,
     // CHECK-SAME:              lrelu_mult = 102 : i64, lrelu_shift = 10 : i64, mode = "LPRELU"},
     // CHECK-SAME:      strides = [1, 1]}
