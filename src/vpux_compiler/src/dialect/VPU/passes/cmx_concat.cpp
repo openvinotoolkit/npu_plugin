@@ -47,23 +47,21 @@ public:
 
 public:
     struct ConcatPart {
-        ConcatPart() {
-            _copyOp = nullptr;
-            _nceOp = nullptr;
-        }
-        ConcatPart(IE::CopyOp copyOp, VPU::NCEOpInterface nceOp, size_t inputIdx) {
+        ConcatPart(IE::CopyOp copyOp, IE::SliceOp sliceOp, VPU::NCEOpInterface nceOp, size_t inputIdx) {
             _copyOp = copyOp;
+            _sliceOp = sliceOp;
             _nceOp = nceOp;
             _inputIdx = inputIdx;
         }
         bool isValidPart() {
             return _nceOp != nullptr;
         }
-        bool hasCopyOp() {
-            return _copyOp != nullptr;
+        bool hasSliceOp() {
+            return _sliceOp != nullptr;
         }
         size_t _inputIdx;
         IE::CopyOp _copyOp;
+        IE::SliceOp _sliceOp;
         VPU::NCEOpInterface _nceOp;
     };
 
@@ -98,7 +96,7 @@ private:
     bool isSplitSupportedOnDPU(IE::SliceOp sliceOp);
     ConcatPattern getOutputPattern(IE::ConcatOp concat);
     bool concatOperationDoesNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
-    bool isThisAComplexConcat(IE::ConcatOp concat, ConcatPattern concatPattern);
+    bool isThisAComplexConcat(ConcatPattern concatPattern);
     bool inputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
     bool childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
     bool outputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
@@ -134,7 +132,7 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getInputPattern(IE::ConcatOp concat)
             return concatPattern;
         }
 
-        concatPattern.addConcatPart(ConcatPart(inputCopyOp, parentNCEOp, inputIdx));
+        concatPattern.addConcatPart(ConcatPart(inputCopyOp, nullptr, parentNCEOp, inputIdx));
     }
     // make valid by adding concat
     concatPattern.setConcat(concat);
@@ -200,7 +198,7 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getOutputPattern(IE::ConcatOp concat
         if (outputSliceOp) {
             for (auto copyOp : outputSliceOp.result().getUsers()) {
                 auto childCopyOp = mlir::dyn_cast<IE::CopyOp>(copyOp);
-                if (childCopyOp) {
+                if (childCopyOp == nullptr) {
                     return concatPattern;
                 }
                 copyOutOps.push_back(childCopyOp);
@@ -208,9 +206,9 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getOutputPattern(IE::ConcatOp concat
         } else {
             copyOutOps.push_back(outputCopyOp);
         }
-        for (auto& copuOutOp : copyOutOps) {
+        for (auto& copyOutOp : copyOutOps) {
             SmallVector<VPU::NCEOpInterface> nceUsers;
-            for (auto copyUser : copuOutOp.getResult().getUsers()) {
+            for (auto copyUser : copyOutOp.getResult().getUsers()) {
                 auto childNCEOp = mlir::dyn_cast<VPU::NCEOpInterface>(copyUser);
                 if (childNCEOp == nullptr) {
                     return concatPattern;
@@ -223,7 +221,7 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getOutputPattern(IE::ConcatOp concat
                     }
                 }
                 nceUsers.push_back(childNCEOp);
-                concatPattern.addConcatPart(ConcatPart(copuOutOp, childNCEOp, 0));
+                concatPattern.addConcatPart(ConcatPart(copyOutOp, outputSliceOp, childNCEOp, 0));
             }
         }
     }
@@ -255,22 +253,15 @@ bool CMXConcatPass::concatOperationDoesNotFitInCMX(IE::ConcatOp concat, ConcatPa
     return (concatSize + maxUserSize) > cmxSize;
 }
 
-bool CMXConcatPass::isThisAComplexConcat(IE::ConcatOp concat, ConcatPattern concatPattern) {
+bool CMXConcatPass::isThisAComplexConcat(ConcatPattern concatPattern) {
     // avoid concats which are complex, where the inputs to the concat are used
     // by other operations
     for (auto concatPart : concatPattern._concatParts) {
         for (auto result : concatPart._nceOp->getResults()) {
             for (auto resultUser : result.getUsers()) {
-                if (concatPart.hasCopyOp()) {
-                    if (resultUser != concatPart._copyOp.getOperation()) {
-                        // the NCE contains a different user
-                        return true;
-                    }
-                } else {
-                    if (resultUser != concat.getOperation()) {
-                        // the NCE contains a different user
-                        return true;
-                    }
+                if (resultUser != concatPart._copyOp.getOperation()) {
+                    // the NCE contains a different user
+                    return true;
                 }
             }
         }
@@ -292,7 +283,7 @@ bool CMXConcatPass::inputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern co
         return false;
     }
 
-    if (isThisAComplexConcat(concat, concatPattern)) {
+    if (isThisAComplexConcat(concatPattern)) {
         // TODO implement complex concat
         // where part of the concatinated buffer is also used by another operation
         // visible in yolo-v4-tiny concatinate 4
@@ -392,7 +383,22 @@ void CMXConcatPass::rewriteOutputPattern(ConcatPattern concatPattern) {
     for (auto concatPart : concatPattern._concatParts) {
         _log.nest(1).trace("Removing output Copy from DDR to NNCMX '{0}' at '{1}'", concatPart._copyOp->getName(),
                            concatPart._copyOp->getLoc());
-        concatPattern._concat.output().setType(concatPart._copyOp.output().getType());
+        // change memory space for concat output
+        const auto origType = concatPattern._concat.output().getType().dyn_cast<mlir::RankedTensorType>();
+        VPUX_THROW_UNLESS(origType != nullptr, "Got non RankedTensorType '{0}'",
+                          concatPattern._concat.output().getType());
+        const auto newType = changeMemSpace(origType, VPU::MemoryKind::CMX_NN);
+        concatPattern._concat.output().setType(newType);
+        // and for slice op
+        if (concatPart.hasSliceOp()) {
+            concatPart._sliceOp.source().setType(newType);
+            const auto sliceOrigType = concatPart._sliceOp.result().getType().dyn_cast<mlir::RankedTensorType>();
+            VPUX_THROW_UNLESS(sliceOrigType != nullptr, "Got non RankedTensorType '{0}'",
+                              concatPattern._concat.output().getType());
+            const auto sliceNewType = changeMemSpace(sliceOrigType, VPU::MemoryKind::CMX_NN);
+            concatPart._sliceOp.result().setType(sliceNewType);
+        }
+        // remove the copy out op
         concatPart._copyOp.output().replaceAllUsesWith(concatPart._copyOp.input());
     }
 }
