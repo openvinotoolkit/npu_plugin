@@ -2349,7 +2349,7 @@ operation ::= `IE.ReLU` `(` operands `)` attr-dict `:` type(operands) `->` type(
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
-### `IE. ReduceLogicalAnd` (vpux::IE::ReduceLogicalAndOp)
+### `IE.ReduceLogicalAnd` (vpux::IE::ReduceLogicalAndOp)
 
 InferenceEngine  ReduceLogicalAnd layer
 
@@ -2357,7 +2357,7 @@ InferenceEngine  ReduceLogicalAnd layer
 Syntax:
 
 ```
-operation ::= `IE. ReduceLogicalAnd` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+operation ::= `IE.ReduceLogicalAnd` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
 ```
 
 

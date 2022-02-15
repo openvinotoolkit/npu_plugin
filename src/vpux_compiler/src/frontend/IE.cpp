@@ -20,7 +20,6 @@
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/types.hpp"
-
 #include "vpux/passes/align_scales.hpp"
 #include "vpux/passes/clean_up_fq.hpp"
 #include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"

@@ -1368,7 +1368,7 @@ def IE_ReduceSumOp :
 
 def IE_ReduceLogicalAndOp :
         IE_LayerOp<
-            " ReduceLogicalAnd"
+            "ReduceLogicalAnd"
         > {
     let summary = "InferenceEngine  ReduceLogicalAnd layer";
 

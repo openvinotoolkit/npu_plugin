@@ -77,6 +77,9 @@ namespace LayerTestsDefinitions {
 using namespace LayerTestsDefinitions;
 
 namespace {
+    const std::vector<InferenceEngine::Precision> boool = {
+            InferenceEngine::Precision::BOOL
+    };
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP16
     };
@@ -218,7 +221,7 @@ namespace {
                 testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::Values(true, false),
                 testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
-                testing::ValuesIn(netPrecisions),
+                testing::ValuesIn(boool),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
@@ -226,7 +229,6 @@ namespace {
                 testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
         KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
     );
-
 
     // [Track number: E#22733]
     INSTANTIATE_TEST_SUITE_P(

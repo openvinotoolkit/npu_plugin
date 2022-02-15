@@ -172,7 +172,7 @@ def createReduceLogicalAndUPAOp :
                 $_loc, $0, $1, $2, $3,
                 vpux::VPUIP::ReduceLayerTypeAttr::get(
                     $_builder.getContext(),
-                    vpux::VPUIP::ReduceLayerType::MAX
+                    vpux::VPUIP::ReduceLayerType::LOGICALAND
                 ))
         }]>;
 
@@ -393,7 +393,7 @@ def RewriteSqrt :
             (IERT_SqrtOp $input, $output),
             (createSqrtUPAOp $input, $output)
         >;
-        
+
 //
 // IERT.Sinh -> VPUIP.SinhUPA
 //
@@ -454,7 +454,6 @@ def RewriteAcosh :
             (IERT_AcoshOp $input, $output),
             (createAcoshUPAOp $input, $output)
         >;
-        
 
 //
 // IERT.Log -> VPUIP.LogUPA

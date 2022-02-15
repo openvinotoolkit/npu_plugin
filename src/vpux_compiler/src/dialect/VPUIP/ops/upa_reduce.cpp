@@ -31,6 +31,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceUPAOp::serialize(VPUIP::BlobW
     case VPUIP::ReduceLayerType::SUM:
         type = writer.createString("sum");
         break;
+    case VPUIP::ReduceLayerType::LOGICALAND:
+        type = writer.createString("logicalAnd");
+        break;
     default:
         VPUX_THROW("Unsupported ReduceLayerType {0}", this->type());
     }
@@ -58,6 +61,8 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseReduce(mlir::OpBuilder& builder, 
         type = VPUIP::ReduceLayerType::MEAN;
     } else if (typeStr == std::string("sum")) {
         type = VPUIP::ReduceLayerType::SUM;
+    } else if (typeStr == std::string("logicalAnd")) {
+        type = VPUIP::ReduceLayerType::LOGICALAND;
     } else {
         VPUX_THROW("Unsupported ReduceLayerType {0}", typeStr);
     }

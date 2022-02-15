@@ -40,4 +40,3 @@ mlir::LogicalResult vpux::IE::ReduceLogicalAndOp::inferReturnTypeComponents(
     return IE::inferReduceReturnTypeComponents(loc, input, keepDims, axes, inferredReturnShapes);
 }
 
-
