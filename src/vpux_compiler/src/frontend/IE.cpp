@@ -265,6 +265,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalOr>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalXor>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::SpaceToDepth>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ExtractImagePatches>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Abs>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Atan>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Asin>& origNode);
@@ -293,6 +294,7 @@ private:
     IE::RNNSequenceDirectionAttr importRNNSequenceDirection(const ngraph::op::RecurrentSequenceDirection val);
     IE::DepthToSpaceModeAttr importDepthToSpaceMode(const ngraph::op::v0::DepthToSpace::DepthToSpaceMode val);
     IE::SpaceToDepthModeAttr importSpaceToDepthMode(const ngraph::op::SpaceToDepth::SpaceToDepthMode val);
+    IE::PadTypeAttr importPadType(const ngraph::op::PadType& autoPads);
 
     mlir::MLIRContext* _ctx = nullptr;
     std::shared_ptr<const ngraph::Function> _netGraph;
@@ -413,6 +415,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::LogicalOr),
             MAP_ENTRY(opset_latest::LogicalXor),
             MAP_ENTRY(opset_latest::SpaceToDepth),
+            MAP_ENTRY(opset_latest::ExtractImagePatches),
             MAP_ENTRY(opset_latest::Abs),
             MAP_ENTRY(opset_latest::Atan),
             MAP_ENTRY(opset_latest::Asin),
@@ -2046,6 +2049,23 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ExtractImagePatches>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v3::ExtractImagePatches>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph ExtractImagePatches node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto sizesAttr = getIntArrayAttr(_ctx, origNode->get_sizes());
+    const auto stridesAttr = getIntArrayAttr(_ctx, origNode->get_strides());
+    const auto ratesAttr = getIntArrayAttr(_ctx, origNode->get_rates());
+    const auto auto_padAttr = importPadType(origNode->get_auto_pad());
+
+    auto op = builder.create<IE::ExtractImagePatchesOp>(createLocation(origNode), inputs[0], sizesAttr,
+                                                 stridesAttr, ratesAttr, auto_padAttr);
+    addOutputs(origNode, op);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Abs>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Abs>::value,
                   "opset operation mismatch");
@@ -2490,6 +2510,20 @@ IE::SpaceToDepthModeAttr NGraphImporter::importSpaceToDepthMode(const ngraph::op
         break;
     default:
         VPUX_THROW("Unknown SpaceToDepthMode");
+    }
+    return attr;
+}
+
+IE::PadTypeAttr NGraphImporter::importPadType(const ngraph::op::PadType& padding) {
+    IE::PadTypeAttr attr;
+    if (padding == ngraph::op::PadType::SAME_UPPER) {
+        attr = IE::PadTypeAttr::get(_ctx, IE::PadType::SAME_UPPER);
+    } else if (padding == ngraph::op::PadType::SAME_LOWER) {
+        attr = IE::PadTypeAttr::get(_ctx, IE::PadType::SAME_LOWER);
+    } else if (padding == ngraph::op::PadType::VALID) {
+            attr = IE::PadTypeAttr::get(_ctx, IE::PadType::VALID);
+    } else {
+            VPUX_THROW("Unknown PadType");
     }
     return attr;
 }

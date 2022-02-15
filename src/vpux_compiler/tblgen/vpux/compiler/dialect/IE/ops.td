@@ -3212,6 +3212,30 @@ def IE_CopyOp :
     let checkInferredSparsity = 1;
 }
 
+//
+// ExtractImagePatchesOp
+//
+
+def IE_ExtractImagePatchesOp :
+        IE_LayerOp<
+            "ExtractImagePatches"
+        > {
+    let summary = "InferenceEngine ExtractImagePatches layer";
+
+    let arguments = (ins
+        4DTensorOf<[AnyType]>:$data,
+
+        I64ArrayAttr:$sizes,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$rates,
+        IE_PadType:$auto_pad
+    );
+
+    let results = (outs
+        4DTensorOf<[AnyType]>:$output
+    );
+}
+
 // YuvToRgbOp
 //  Conversions:
 //   NV12toRGB, NV12toBGR,

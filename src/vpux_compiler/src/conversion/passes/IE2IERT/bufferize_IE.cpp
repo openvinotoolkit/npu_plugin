@@ -1098,6 +1098,12 @@ mlir::Operation* createRTLayer(IE::SpaceToDepthOp origOp, ArrayRef<mlir::Value> 
                                           origOp.mode());
 }
 
+mlir::Operation* createRTLayer(IE::ExtractImagePatchesOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ExtractImagePatchesOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ExtractImagePatchesOp>(origOp.getLoc(), newOp.data(), newOp.output_buff(),
+                                                 origOp.sizesAttr(), origOp.stridesAttr(), origOp.ratesAttr(), origOp.auto_padAttr());
+}
+
 mlir::Operation* createRTLayer(IE::CopyOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::CopyOp::Adaptor newOp(allBufs);
     return b.create<IERT::CopyOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
@@ -1240,6 +1246,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::GreaterOp)
     CASE(IE::GreaterEqualOp)
     CASE(IE::SpaceToDepthOp)
+    CASE(IE::ExtractImagePatchesOp)
     CASE(IE::TopKOp)
     CASE(IE::LogicalNotOp)
     CASE(IE::LogicalOrOp)

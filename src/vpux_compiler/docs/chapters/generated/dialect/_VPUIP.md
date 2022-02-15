@@ -755,6 +755,44 @@ operation ::= `VPUIP.ExpUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.ExtractImagePatchesUPA` (vpux::VPUIP::ExtractImagePatchesUPAOp)
+
+ExtractImagePatches UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ExtractImagePatchesUPA` attr-dict
+              `inputs` `(` $data `:` type($data) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`auto_pad` | vpux::IE::PadTypeAttr | PadType that the InferenceEngine supports
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `VPUIP.FakeQuantizeUPA` (vpux::VPUIP::FakeQuantizeUPAOp)
 
 FakeQuantize UPA SHAVE kernel

@@ -940,6 +940,43 @@ operation ::= `IERT.Exp` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ExtractImagePatches` (vpux::IERT::ExtractImagePatchesOp)
+
+InferenceEngine run-time Convolution layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ExtractImagePatches` attr-dict
+              `inputs` `(` $data `:` type($data) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`auto_pad` | vpux::IE::PadTypeAttr | PadType that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.FakeQuantize` (vpux::IERT::FakeQuantizeOp)
 
 InferenceEngine FakeQuantize layer

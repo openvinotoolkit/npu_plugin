@@ -1087,6 +1087,39 @@ operation ::= `IE.Expand` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.ExtractImagePatches` (vpux::IE::ExtractImagePatchesOp)
+
+InferenceEngine ExtractImagePatches layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ExtractImagePatches` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`auto_pad` | vpux::IE::PadTypeAttr | PadType that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | 4D tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of any type values
+
 ### `IE.FakeQuantize` (vpux::IE::FakeQuantizeOp)
 
 InferenceEngine FakeQuantize layer

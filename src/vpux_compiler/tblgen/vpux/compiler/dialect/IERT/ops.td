@@ -3409,4 +3409,38 @@ def IERT_YuvToRgbOp :
     }];
 }
 
+//
+// ExtractImagePatchesOp
+//
+
+def IERT_ExtractImagePatchesOp :
+        IERT_LayerOp<1, "ExtractImagePatches",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time Convolution layer";
+
+    let arguments = (ins
+        AnyMemRef:$data,
+        AnyMemRef:$output_buff,
+
+        I64ArrayAttr:$sizes,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$rates,
+        IE_PadType:$auto_pad
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $data `:` type($data) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif

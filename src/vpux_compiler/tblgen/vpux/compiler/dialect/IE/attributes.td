@@ -467,4 +467,22 @@ def IE_ColorFmt :
     let genSpecializedAttr = 1;
     }
 
+//
+// PadType
+//
+
+def IE_PadType :
+        StrEnumAttr<
+            "PadType",
+            "PadType that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"SAME_UPPER">,
+                StrEnumAttrCase<"SAME_LOWER">,
+                StrEnumAttrCase<"VALID">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
 #endif

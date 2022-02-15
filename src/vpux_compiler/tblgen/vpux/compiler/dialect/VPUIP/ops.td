@@ -3200,4 +3200,62 @@ def VPUIP_NCEClusterTilingOp :
     }];
 }
 
+//
+// ExtractImagePatchesUPAOp
+//
+
+def VPUIP_ExtractImagePatchesUPAOp :
+        VPUIP_UPATaskOp<1, "ExtractImagePatchesUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "ExtractImagePatches UPA SHAVE kernel";
+
+    let arguments = (ins
+        AnyMemRef:$data,
+        AnyMemRef:$output_buff,
+
+        I64ArrayAttr:$sizes,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$rates,
+        IE_PadType:$auto_pad,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$data, 
+                "mlir::Value":$output,
+                "mlir::ArrayAttr":$sizes, 
+                "mlir::ArrayAttr":$strides,
+                "mlir::ArrayAttr":$rates, 
+                "vpux::IE::PadTypeAttr":$auto_pad
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $data `:` type($data) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+
+    //let extraClassDeclaration = [{
+   //     static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+   // }] # commonExtraClassDeclaration;
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+}
+
 #endif
