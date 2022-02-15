@@ -1,1 +1,1 @@
-tag: ci_tag_vpu_release_21ww41.2.1
+tag: ci_tag_dKMB_BDK4_vpu_release_22ww08.1.1
