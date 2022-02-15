@@ -50,40 +50,31 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<ConcreteOp>::matchAndRewrite(Co
     if (origOp->template getParentOfType<VPU::NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
-
-    const llvm::StringRef strategy =
-            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
-
-    auto activationTensorDistributionMode = StrategyManager::getActivationTensorDistributionMode(strategy);
-    auto weightsTensorDistributionMode = StrategyManager::getWeightsTensorDistributionMode(strategy);
-    auto activationTensorNumTiles =
-            getIntArrayAttr(origOp.getContext(), StrategyManager::getActivationTensorNumTiles(strategy));
-    auto weightTensorNumTiles =
-            getIntArrayAttr(origOp.getContext(), StrategyManager::getWeightsTensorNumTiles(strategy));
-
-    // Create the copy ops for the distributed activation tensor
+    std::cout << "here" << std::endl;
+    auto activationTensorDistributionMode = _strategyManager.getActivationTensorDistributionMode(origOp);
+    std::cout << "here" << std::endl;
+    auto weightsTensorDistributionMode = _strategyManager.getWeightsTensorDistributionMode(origOp);
+    std::cout << "here" << std::endl;
+    auto activationTensorNumTiles = _strategyManager.getActivationTensorNumTiles(origOp);
+    std::cout << "here" << std::endl;
+    auto weightTensorNumTiles = _strategyManager.getWeightsTensorNumTiles(origOp);
+    std::cout << "here" << std::endl;
     auto distributedActivationCopyOp = _strategyManager.createDistributedInputTensor(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
 
-    // Create the copy ops for the distributed weights tensor
     auto distributedWeightsCopyOp = _strategyManager.createDistributedInputTensor(
             origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
 
-    // Create tensor type for the distributed output tensor
     auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
             origOp, activationTensorDistributionMode, activationTensorNumTiles);
 
-    // save original output memspace
     const auto origOutType = origOp.output().getType();
     const auto origOutMemSpace = IE::getMemorySpace(origOutType.template cast<mlir::RankedTensorType>());
-    Logger::global().error("origOutMemSpace original {0}", origOutMemSpace);
 
-    // Set the output of the VPU::NCEConvolutionOp/NCEDepthConvolutionOp to be in CMX
     auto origOutput = origOp->getResult(0);
     const auto cmxMemSpace =
             changeMemSpace(origOutput.getType().template cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
     origOutput.setType(cmxMemSpace);
-    Logger::global().error("origOutMemSpace updated {0}", origOutput.getType());
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
@@ -124,29 +115,23 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<VPU::NCEMaxPoolOp>::matchAndRew
 
     const llvm::StringRef strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
 
-    auto activationTensorDistributionMode = StrategyManager::getActivationTensorDistributionMode(strategy);
-    auto activationTensorNumTiles =
-            getIntArrayAttr(origOp.getContext(), StrategyManager::getActivationTensorNumTiles(strategy));
-
-    // Create the copy ops for the distributed activation tensor
+    std::cout << "here" << std::endl;
+    auto activationTensorDistributionMode = _strategyManager.getActivationTensorDistributionMode(origOp);
+    auto activationTensorNumTiles = _strategyManager.getActivationTensorNumTiles(origOp);
+    std::cout << "here1" << std::endl;
     auto distributedActivationCopyOp = _strategyManager.createDistributedInputTensor(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
 
-    // Create tensor type for the distributed output tensor
     auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
             origOp, activationTensorDistributionMode, activationTensorNumTiles);
 
-    // save original output memspace
     const auto origOutType = origOp.output().getType();
     const auto origOutMemSpace = IE::getMemorySpace(origOutType.template cast<mlir::RankedTensorType>());
-    Logger::global().error("origOutMemSpace original {0}", origOutMemSpace);
 
-    // Set the output of the VPU::NCEMaxPoolOp to be in CMX
     auto origOutput = origOp->getResult(0);
     const auto cmxMemSpace =
             changeMemSpace(origOutput.getType().template cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
     origOutput.setType(cmxMemSpace);
-    Logger::global().error("origOutMemSpace updated {0}", origOutput.getType());
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
@@ -184,35 +169,24 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<VPU::NCEEltwiseOp>::matchAndRew
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
 
-    const llvm::StringRef strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+    auto activationTensorDistributionMode = _strategyManager.getActivationTensorDistributionMode(origOp);
+    auto activationTensorNumTiles = _strategyManager.getActivationTensorNumTiles(origOp);
 
-    auto activationTensorDistributionMode = StrategyManager::getActivationTensorDistributionMode(strategy);
-    auto activationTensorNumTiles =
-            getIntArrayAttr(origOp.getContext(), StrategyManager::getActivationTensorNumTiles(strategy));
-
-    // Create the copy ops for the first distributed activation tensor
     auto distributedActivationCopyOp1 = _strategyManager.createDistributedInputTensor(
             origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles);
 
-    // Create the copy ops for the second distributed activation tensor
     auto distributedActivationCopyOp2 = _strategyManager.createDistributedInputTensor(
             origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles);
 
-    // Create tensor type for the distributed output tensor
     auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
             origOp, activationTensorDistributionMode, activationTensorNumTiles);
 
-    // save original output memspace
     const auto origOutType = origOp.output().getType();
     const auto origOutMemSpace = IE::getMemorySpace(origOutType.template cast<mlir::RankedTensorType>());
-    Logger::global().error("origOutMemSpace original {0}", origOutMemSpace);
-
-    // Set the output of the VPU::NCEEltwiseOp to be in CMX
     auto origOutput = origOp->getResult(0);
     const auto cmxMemSpace =
             changeMemSpace(origOutput.getType().template cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
     origOutput.setType(cmxMemSpace);
-    Logger::global().error("origOutMemSpace updated {0}", origOutput.getType());
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
@@ -263,11 +237,11 @@ private:
 
 void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     auto func = getFunction();
-    StrategyManager strategyManager(func, _log);
-    strategyManager.computeOptimalMultiClusterStrategy();
-    //strategyManager.removeStrategyAttribute();
-
     auto& ctx = getContext();
+    StrategyManager strategyManager(func, _log, &ctx);
+    strategyManager.computeOptimalMultiClusterStrategy();
+    // strategyManager.removeStrategyAttribute();
+
     mlir::RewritePatternSet patterns(&ctx);
 
     patterns.insert<GenericNCEtoNCEClusterTiling<VPU::NCEConvolutionOp>>(&ctx, strategyManager, _log);

@@ -39,7 +39,7 @@ constexpr llvm::StringLiteral splitOverKernel = "SplitOverKernel";
 
 class StrategyManager final {
 public:
-    explicit StrategyManager(mlir::FuncOp func, Logger log);
+    explicit StrategyManager(mlir::FuncOp func, Logger log, mlir::MLIRContext* ctx);
 
 public:
     void computeOptimalMultiClusterStrategy();
@@ -51,11 +51,14 @@ public:
     vpux::VPU::DistributedTensorType createDistributedOutputTensorType(ConcreteOp& origOp,
                                                                        vpux::VPU::DistributionMode distributionMode,
                                                                        mlir::ArrayAttr numTiles) const;
-
-    static VPU::DistributionMode getActivationTensorDistributionMode(const llvm::StringRef multiClusterStrategy);
-    static VPU::DistributionMode getWeightsTensorDistributionMode(const llvm::StringRef multiClusterStrategy);
-    static llvm::ArrayRef<int32_t> getActivationTensorNumTiles(const llvm::StringRef multiClusterStrategy);
-    static llvm::ArrayRef<int32_t> getWeightsTensorNumTiles(const llvm::StringRef multiClusterStrategy);
+    template <class ConcreteOp>
+    VPU::DistributionMode getActivationTensorDistributionMode(ConcreteOp origOp) const;
+    template <class ConcreteOp>
+    VPU::DistributionMode getWeightsTensorDistributionMode(ConcreteOp origOp) const;
+    template <class ConcreteOp>
+    mlir::ArrayAttr getActivationTensorNumTiles(ConcreteOp origOp) const;
+    template <class ConcreteOp>
+    mlir::ArrayAttr getWeightsTensorNumTiles(ConcreteOp origOp) const;
     void removeStrategyAttribute();
 
 private:
@@ -93,11 +96,12 @@ private:
     std::map<mlir::Operation*, double> _splitOverHeightEfficencies;
     std::map<mlir::Operation*, double> _splitOverKernelEfficencies;
     Logger _log;
-    long int _numClusters;
+    int32_t _numClusters;
     size_t _numDPUPerCluster = 5;
     size_t _numDPU;
     size_t _numChannelAlignment = 16;  // TODO: read this from some hardware config
     mlir::FuncOp _func;
+    mlir::MLIRContext* _ctx;
 };
 
 template <class ConcreteOp>
@@ -111,7 +115,8 @@ template <class ConcreteOp>
 bool StrategyManager::isOperationSplitOverKernelCompatible(ConcreteOp op) {
     const auto outputShape = getShape(op.output());
     const auto OC = outputShape[Dims4D::Act::C];
-    return OC >= _minimumOutputChannelsPerCluster * 4;  // TODO: Use numCluster from IR when rebased on master
+    return OC >=
+           _minimumOutputChannelsPerCluster * _numClusters;  // TODO: Use numCluster from IR when rebased on master
 }
 
 // Initially for the greedy cost model, which assigns a strategy to a layer in isolation, without considering
@@ -144,7 +149,7 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedInputTensor(ConcreteOp
     const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
 
     auto activationTensorDistributedTensorAttr = vpux::VPU::DistributedTensorAttr::get(
-            activationTensorDistributionModeAttr, numTiles, kernel, stride, pad, numClusters, origOp.getContext());
+            activationTensorDistributionModeAttr, numTiles, kernel, pad, stride, numClusters, origOp.getContext());
 
     const auto inputShape = getShape(input);
     const auto memSpace =
@@ -186,7 +191,7 @@ vpux::VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorT
     const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
 
     auto outputTensorDistributedTensorAttr = vpux::VPU::DistributedTensorAttr::get(
-            outputTensorDistributionModeAttr, numTiles, kernel, stride, pad, numClusters, origOp.getContext());
+            outputTensorDistributionModeAttr, numTiles, kernel, pad, stride, numClusters, origOp.getContext());
 
     const auto outputShape = getShape(origOp.output());
     const auto memSpace =
@@ -198,4 +203,77 @@ vpux::VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorT
     return vpux::VPU::DistributedTensorType::get(origOp.getContext(), outputShape.raw(), elemType, order, memSpace,
                                                  outputTensorDistributedTensorAttr);
 }
+
+template <class ConcreteOp>
+mlir::ArrayAttr StrategyManager::getActivationTensorNumTiles(ConcreteOp origOp) const {
+    const llvm::StringRef strategy =
+            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+    if (strategy == splitOverHeightOverLapped) {
+        return getIntArrayAttr(_ctx, makeArrayRef({1, 1, _numClusters, 1}));
+    } else if (strategy == splitOverHeight) {
+        return getIntArrayAttr(_ctx, makeArrayRef({1, 1, _numClusters, 1}));
+    } else if (strategy == splitOverKernel) {
+        return getIntArrayAttr(_ctx, makeArrayRef({1, 1, 1, 1}));
+    } else {
+        VPUX_THROW(
+                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
+                "for the activation tensor",
+                origOp->getName());
+    }
+}
+
+template <class ConcreteOp>
+mlir::ArrayAttr StrategyManager::getWeightsTensorNumTiles(ConcreteOp origOp) const {
+    const llvm::StringRef strategy =
+            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+    if (strategy == splitOverHeightOverLapped) {
+        return getIntArrayAttr(_ctx, makeArrayRef({1, 1, 1, 1}));
+    } else if (strategy == splitOverHeight) {
+        return getIntArrayAttr(_ctx, makeArrayRef({1, 1, 1, 1}));
+    } else if (strategy == splitOverKernel) {
+        return getIntArrayAttr(_ctx, makeArrayRef({1, 1, _numClusters, 1}));
+    } else {
+        VPUX_THROW(
+                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
+                "for the weights tensor",
+                origOp->getName());
+    }
+}
+
+template <class ConcreteOp>
+VPU::DistributionMode StrategyManager::getActivationTensorDistributionMode(ConcreteOp origOp) const {
+    const llvm::StringRef strategy =
+            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+    if (strategy == splitOverHeightOverLapped) {
+        return VPU::DistributionMode::overlapped;
+    } else if (strategy == splitOverHeight) {
+        return VPU::DistributionMode::segmented;
+    } else if (strategy == splitOverKernel) {
+        return VPU::DistributionMode::multicasted;
+    } else {
+        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a distribution "
+                   "mode "
+                   "for the activation tensor",
+                   origOp->getName());
+    }
+}
+
+template <class ConcreteOp>
+VPU::DistributionMode StrategyManager::getWeightsTensorDistributionMode(ConcreteOp origOp) const {
+    const llvm::StringRef strategy =
+            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+    if (strategy == splitOverHeightOverLapped) {
+        return VPU::DistributionMode::multicasted;
+    } else if (strategy == splitOverHeight) {
+        return VPU::DistributionMode::multicasted;
+    } else if (strategy == splitOverKernel) {
+        return VPU::DistributionMode::segmented;
+    } else {
+        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a distribution "
+                   "mode "
+                   "for the weights tensor",
+                   origOp->getName());
+    }
+}
+
 }  // namespace vpux
