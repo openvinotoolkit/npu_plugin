@@ -50,15 +50,11 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<ConcreteOp>::matchAndRewrite(Co
     if (origOp->template getParentOfType<VPU::NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
-    std::cout << "here" << std::endl;
     auto activationTensorDistributionMode = _strategyManager.getActivationTensorDistributionMode(origOp);
-    std::cout << "here" << std::endl;
     auto weightsTensorDistributionMode = _strategyManager.getWeightsTensorDistributionMode(origOp);
-    std::cout << "here" << std::endl;
     auto activationTensorNumTiles = _strategyManager.getActivationTensorNumTiles(origOp);
-    std::cout << "here" << std::endl;
     auto weightTensorNumTiles = _strategyManager.getWeightsTensorNumTiles(origOp);
-    std::cout << "here" << std::endl;
+
     auto distributedActivationCopyOp = _strategyManager.createDistributedInputTensor(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
 
@@ -115,10 +111,9 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<VPU::NCEMaxPoolOp>::matchAndRew
 
     const llvm::StringRef strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
 
-    std::cout << "here" << std::endl;
     auto activationTensorDistributionMode = _strategyManager.getActivationTensorDistributionMode(origOp);
     auto activationTensorNumTiles = _strategyManager.getActivationTensorNumTiles(origOp);
-    std::cout << "here1" << std::endl;
+
     auto distributedActivationCopyOp = _strategyManager.createDistributedInputTensor(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
 

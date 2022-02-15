@@ -32,6 +32,7 @@ constexpr llvm::StringLiteral splitOverHeightOverLapped =
         "SplitOverHeightOverLapped";  // Strategy is for channel major convolution
 constexpr llvm::StringLiteral splitOverHeight = "SplitOverHeight";
 constexpr llvm::StringLiteral splitOverKernel = "SplitOverKernel";
+constexpr llvm::StringLiteral clustering = "Clustering";
 
 //
 // StrategyManager
@@ -214,6 +215,8 @@ mlir::ArrayAttr StrategyManager::getActivationTensorNumTiles(ConcreteOp origOp) 
         return getIntArrayAttr(_ctx, makeArrayRef({1, 1, _numClusters, 1}));
     } else if (strategy == splitOverKernel) {
         return getIntArrayAttr(_ctx, makeArrayRef({1, 1, 1, 1}));
+    } else if (strategy == clustering) {
+        return getIntArrayAttr(_ctx, makeArrayRef({1, 1, 1, 1}));
     } else {
         VPUX_THROW(
                 "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
@@ -232,6 +235,8 @@ mlir::ArrayAttr StrategyManager::getWeightsTensorNumTiles(ConcreteOp origOp) con
         return getIntArrayAttr(_ctx, makeArrayRef({1, 1, 1, 1}));
     } else if (strategy == splitOverKernel) {
         return getIntArrayAttr(_ctx, makeArrayRef({1, 1, _numClusters, 1}));
+    } else if (strategy == clustering) {
+        return getIntArrayAttr(_ctx, makeArrayRef({1, 1, 1, 1}));
     } else {
         VPUX_THROW(
                 "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
@@ -249,6 +254,8 @@ VPU::DistributionMode StrategyManager::getActivationTensorDistributionMode(Concr
     } else if (strategy == splitOverHeight) {
         return VPU::DistributionMode::segmented;
     } else if (strategy == splitOverKernel) {
+        return VPU::DistributionMode::multicasted;
+    } else if (strategy == clustering) {
         return VPU::DistributionMode::multicasted;
     } else {
         VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a distribution "
@@ -268,6 +275,8 @@ VPU::DistributionMode StrategyManager::getWeightsTensorDistributionMode(Concrete
         return VPU::DistributionMode::multicasted;
     } else if (strategy == splitOverKernel) {
         return VPU::DistributionMode::segmented;
+    } else if (strategy == clustering) {
+        return VPU::DistributionMode::multicasted;
     } else {
         VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a distribution "
                    "mode "
