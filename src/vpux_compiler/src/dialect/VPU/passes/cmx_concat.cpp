@@ -209,11 +209,20 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getOutputPattern(IE::ConcatOp concat
             copyOutOps.push_back(outputCopyOp);
         }
         for (auto& copuOutOp : copyOutOps) {
+            SmallVector<VPU::NCEOpInterface> nceUsers;
             for (auto copyUser : copuOutOp.getResult().getUsers()) {
                 auto childNCEOp = mlir::dyn_cast<VPU::NCEOpInterface>(copyUser);
                 if (childNCEOp == nullptr) {
                     return concatPattern;
                 }
+                for (auto& nceUser : nceUsers) {
+                    if (childNCEOp == nceUser) {
+                        // avoid multiple reads from the same location at the same time
+                        _log.nest(2).trace("Concat input used twice by the same operation, can not cmx");
+                        return concatPattern;
+                    }
+                }
+                nceUsers.push_back(childNCEOp);
                 concatPattern.addConcatPart(ConcatPart(copuOutOp, childNCEOp, 0));
             }
         }
