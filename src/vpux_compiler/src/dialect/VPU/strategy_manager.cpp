@@ -142,25 +142,25 @@ double StrategyManager::computeLayerSplitOverHeightEfficency(mlir::Operation* op
                 } else {
                     efficiency = computeZMajorConvolutionSplitOverHeightEfficency(origOp.getOperation());
                 }
-                _log.trace("The SOH efficiency for the convolution {0} is {1}", origOp->getName(), efficiency);
+                //_log.trace("The SOH efficiency for the convolution {0} is {1}", origOp->getName(), efficiency);
                 return efficiency;
             })
             .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp origOp) {
                 double efficiency = 1;
-                _log.trace("The SOH efficiency for MaxPool operation {0} is 1 as it should be assigned SOH {1}",
-                           origOp->getName(), efficiency);
+                //_log.trace("The SOH efficiency for MaxPool operation {0} is 1 as it should be assigned SOH {1}",
+                //           origOp->getName(), efficiency);
                 return efficiency;
             })
             .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp origOp) {
                 double efficiency = 1;
-                _log.trace("The SOH efficiency for Eltwsie operation {0} is 1 as it should be assigned SOH {1}",
-                           origOp->getName(), efficiency);
+                //_log.trace("The SOH efficiency for Eltwsie operation {0} is 1 as it should be assigned SOH {1}",
+                //           origOp->getName(), efficiency);
                 return efficiency;
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
                 double efficiency = computeZMajorConvolutionSplitOverHeightEfficency(origOp.getOperation());
-                _log.trace("The SOH efficiency for the depthwise convolution {0} is {0}", origOp->getName(),
-                           efficiency);
+                //_log.trace("The SOH efficiency for the depthwise convolution {0} is {0}", origOp->getName(),
+                //           efficiency);
                 return efficiency;
             });
 }
@@ -191,14 +191,14 @@ double StrategyManager::computeLayerSplitOverKernelEfficency(mlir::Operation* op
                 const double OW = outputShape[Dims4D::Act::W];
                 const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
                 double efficency = splitOverKernelFormula(OH, OW, OC);
-                _log.trace("The SOK efficiency for the convolution is {0}", efficency);
+                //_log.trace("The SOK efficiency for the convolution is {0}", efficency);
                 return efficency;
             })
             .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {
                 return 1;
             })
             .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp) {
-                _log.trace("Eltwise {0} operation detected. SOH wil be assigned", op->getName());
+                //_log.trace("Eltwise {0} operation detected. SOH wil be assigned", op->getName());
                 return 1;
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
@@ -214,7 +214,7 @@ double StrategyManager::computeLayerSplitOverKernelEfficency(mlir::Operation* op
                 auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
 
                 double efficency = efficiencyConstant * splitOverKernelFormula(OH, OW, OC);
-                _log.trace("The SOK efficiency for the group convolution is {0}", efficency);
+                //_log.trace("The SOK efficiency for the group convolution is {0}", efficency);
                 return efficency;
             });
 }
