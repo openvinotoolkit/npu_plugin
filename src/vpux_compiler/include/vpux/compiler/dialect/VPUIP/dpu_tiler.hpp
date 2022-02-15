@@ -41,9 +41,9 @@ public:
     DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode): _outShape(outShape.raw()), _mpeMode(mpeMode) {
     }
 
-    bool generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits = 50, ArrayRef<uint32_t> validZTiles = {});
+    bool generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits = 50);
     void tileOverH(int64_t numDPU);
-    bool tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles = {});
+    bool tileOverZ(uint32_t splitNumber);
     SmallVector<OutputTiling> getSplitPool();
     SmallVector<uint32_t> getSplitNumberPool();
 

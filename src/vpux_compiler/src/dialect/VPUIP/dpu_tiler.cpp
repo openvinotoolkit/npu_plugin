@@ -156,16 +156,13 @@ SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLim
 }
 }  // namespace
 
-bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits,
-                                                    ArrayRef<uint32_t> supportedZTiles) {
+bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits) {
     // Refer workload number pool implementation at
     // https://github.com/intel-innersource/frameworks.ai.vpu.presilicon.fathom/blob/main/src/Controllers/WorkloadGen.py#L84
-    SmallVector<uint32_t> validZTiles(supportedZTiles.begin(), supportedZTiles.end());
-    if (validZTiles.empty()) {
-        for (size_t i = 4; i < 8; ++i) {
-            validZTiles.push_back(static_cast<uint32_t>(std::pow(2, i)));
-            validZTiles.push_back(validZTiles.back() + DEFAULT_ZTILE_VALUE);
-        }
+    SmallVector<uint32_t> validZTiles;
+    for (size_t i = 4; i < 8; ++i) {
+        validZTiles.push_back(static_cast<uint32_t>(std::pow(2, i)));
+        validZTiles.push_back(validZTiles.back() + DEFAULT_ZTILE_VALUE);
     }
 
     SmallVector<uint32_t> maxSplitsInZ;
@@ -219,7 +216,7 @@ void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
     _splitPool.push_back(std::move(outTiles));
 }
 
-bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t> validZTiles) {
+bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
     OutputTiling outputTiles;
     if (_outShape.size() < 2 || splitNumber == 0) {
         return false;
@@ -230,17 +227,8 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t
     auto C = _outShape.size() >= 3 ? _outShape[Dims4D::Act::C] : 0;
 
     auto maxChannelPerWL = divRoundUp(static_cast<uint32_t>(C), splitNumber);
-    std::set<uint32_t> validZTileSet(validZTiles.begin(), validZTiles.end());
-    if (!validZTiles.empty()) {
-        for (const auto& zTile : validZTileSet) {
-            maxChannelPerWL = padRoundUp(maxChannelPerWL, zTile);
-            if (validZTileSet.find(maxChannelPerWL) != validZTileSet.end()) {
-                break;
-            }
-        }
-    } else {
-        maxChannelPerWL = padRoundUp(maxChannelPerWL, DEFAULT_ZTILE_VALUE);
-    }
+    std::set<uint32_t> validZTileSet;
+    maxChannelPerWL = padRoundUp(maxChannelPerWL, DEFAULT_ZTILE_VALUE);
     if (maxChannelPerWL < DEFAULT_ZTILE_VALUE) {
         return false;
     }
@@ -265,11 +253,6 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber, SmallVector<uint32_t
         outTile.offsets[Dims4D::Act::C] = idx * maxChannelPerWL;
         if (outTile.shape[Dims4D::Act::C] % DEFAULT_ZTILE_VALUE != 0) {
             return false;
-        }
-        if (!validZTiles.empty()) {
-            if (validZTileSet.find(static_cast<uint32_t>(outTile.shape[Dims4D::Act::C])) == validZTileSet.end()) {
-                return false;
-            }
         }
         outputTiles.push_back(std::move(outTile));
 
