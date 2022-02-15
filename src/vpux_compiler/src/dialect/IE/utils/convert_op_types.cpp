@@ -72,8 +72,8 @@ mlir::LogicalResult ConvertOpTypes::matchAndRewrite(mlir::Operation* origOp, vpu
 
 void vpux::IE::setupConvertPrecision(mlir::TypeConverter& typeConverter,
                                      FuncRef<mlir::Type(mlir::Type)> elemTypeConversionCb) {
-    typeConverter.addConversion([elemTypeConversionCb](mlir::RankedTensorType tensor) {
-        return changeElemType(tensor, elemTypeConversionCb(tensor.getElementType()));
+    typeConverter.addConversion([elemTypeConversionCb](vpux::NDTypeInterface tensor) {
+        return tensor.changeElemType(elemTypeConversionCb(tensor.getElementType()));
     });
 
     const auto convert = [](mlir::OpBuilder& builder, mlir::RankedTensorType type, mlir::ValueRange inputs,

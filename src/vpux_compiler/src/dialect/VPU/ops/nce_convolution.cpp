@@ -29,25 +29,25 @@ using namespace vpux;
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides, mlir::ShapedType input,
-                                             mlir::ShapedType filter, mlir::ShapedType output) {
-    const auto filterShape = getShape(filter);
+bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides, vpux::NDTypeInterface input,
+                                             vpux::NDTypeInterface filter, vpux::NDTypeInterface output) {
+    const auto filterShape = filter.getShape();
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto IC = filterShape[Dims4D::Filter::IC];
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
-    const auto inOrder = DimsOrder::fromType(input);
+    const auto inOrder = input.getDimsOrder();
 
     Byte requiredCMX(0);
 
-    requiredCMX += getTotalSize(input);
-    requiredCMX += getTotalSize(output);
+    requiredCMX += input.getTotalAllocSize();
+    requiredCMX += output.getTotalAllocSize();
 
     requiredCMX += NCEInvariant::getWeightsTableSize(OC);
 
     if (inOrder == DimsOrder::NHWC) {
-        requiredCMX += getTotalSize(filter);
+        requiredCMX += filter.getTotalAllocSize();
     } else if (inOrder == DimsOrder::NCHW) {
         const auto alignment = NCEInvariant::getAlignment(output.getElementType());
 
@@ -57,7 +57,8 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAtt
         const auto padding = (remainder > 0) ? (alignment - remainder) : 0;
 
         const auto alignedFilterShape = SmallVector<int64_t>{OC, 1, 1, IC * KY * KX + padding};
-        const auto alignedFilter = mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType());
+        const auto alignedFilter =
+                mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType()).cast<vpux::NDTypeInterface>();
 
         const auto kernelSize = Shape{KY, KX};
 
@@ -67,7 +68,7 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAtt
         const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::CM_CONV, kernelSize,
                                                                                SX, input.getElementType(), IC);
 
-        requiredCMX += getTotalSize(alignedFilter);
+        requiredCMX += alignedFilter.getTotalAllocSize();
         requiredCMX += activationWindowSize * 1_Byte;
     } else {
         VPUX_THROW("[{0}] Unsupported input layout '{1}'", op->getLoc(), inOrder);
@@ -107,9 +108,9 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, NCEInvariant
         return false;
     }
 
-    const auto inputType = op.input().getType().cast<mlir::ShapedType>();
-    const auto filterType = op.filter().getType().cast<mlir::ShapedType>();
-    const auto outputType = op.output().getType().cast<mlir::ShapedType>();
+    const auto inputType = op.input().getType().cast<vpux::NDTypeInterface>();
+    const auto filterType = op.filter().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = op.output().getType().cast<vpux::NDTypeInterface>();
 
     if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignment(inputType)) ||
         !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignment(outputType))) {
@@ -119,9 +120,9 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, NCEInvariant
 
     const auto arch = getArch(op);
 
-    const auto inputOrder = DimsOrder::fromType(inputType);
-    const auto filterOrder = DimsOrder::fromType(filterType);
-    const auto outputOrder = DimsOrder::fromType(outputType);
+    const auto inputOrder = inputType.getDimsOrder();
+    const auto filterOrder = filterType.getDimsOrder();
+    const auto outputOrder = outputType.getDimsOrder();
 
     if (inputOrder != DimsOrder::NHWC && inputOrder != DimsOrder::NCHW) {
         logCb(llvm::formatv("Unsupported input layout '{0}'", inputOrder));
@@ -175,7 +176,8 @@ mlir::LogicalResult vpux::VPU::verifyConv(mlir::Location loc, ArchKind arch, NCE
                 return errorAt(loc, "Number of Biases values do not match output channels");
             }
         } else {
-            const auto biasShape = getShape(biasType);
+            const auto propBiasType = biasType.cast<vpux::NDTypeInterface>();
+            const auto biasShape = propBiasType.getShape();
 
             if (biasShape[Dims4D::Act::N] != 1 || biasShape[Dims4D::Act::H] != 1 || biasShape[Dims4D::Act::W] != 1) {
                 return errorAt(loc, "Biases must have 1 elements for N, H and W dimensions");
@@ -257,7 +259,7 @@ mlir::LogicalResult vpux::VPU::NCEConvolutionOp::inferReturnTypeComponents(
                                                  return checked_cast<int64_t>(val);
                                              }));
 
-    const auto elemType = op.input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto elemType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     inferredReturnShapes.emplace_back(outputShape, elemType);
     return mlir::success();
@@ -270,7 +272,8 @@ mlir::LogicalResult vpux::VPU::NCEConvolutionOp::inferReturnTypeComponents(
 void vpux::VPU::NCEConvolutionOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
     const auto arch = VPU::getArch(*this);
 
-    const auto canUseCMajor = NCEInvariant::isChannelMajorCompatible(arch, input().getType().cast<mlir::ShapedType>());
+    const auto canUseCMajor =
+            NCEInvariant::isChannelMajorCompatible(arch, input().getType().cast<vpux::NDTypeInterface>());
 
     if (info.getInput(0) == DimsOrder::NCHW && canUseCMajor) {
         info.setInput(0, DimsOrder::NCHW);
@@ -291,8 +294,8 @@ void vpux::VPU::NCEConvolutionOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
 // AlignedChannelsOpInterface
 //
 
-int64_t vpux::VPU::NCEConvolutionOp::getInputChannelAlignment(mlir::ShapedType inputType) {
-    const auto inOrder = DimsOrder::fromType(inputType);
+int64_t vpux::VPU::NCEConvolutionOp::getInputChannelAlignment(vpux::NDTypeInterface inputType) {
+    const auto inOrder = inputType.getDimsOrder();
     if (inOrder == DimsOrder::NCHW) {
         // C-major convolution has no specific requirements
         return 1;

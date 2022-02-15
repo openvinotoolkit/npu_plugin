@@ -113,7 +113,7 @@ mlir::LogicalResult FuseConstantPadWithConv::matchAndRewrite(IE::ConvolutionOp o
                                                              mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got Convolution layer at '{1}'", getDebugName(), origConvolutionOp->getLoc());
 
-    const auto kernelSize = origConvolutionOp.filter().getType().cast<mlir::ShapedType>().getShape();
+    const auto kernelSize = origConvolutionOp.filter().getType().cast<vpux::NDTypeInterface>().getShape();
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), kernelSize);
 
     return generalFusion(
@@ -150,7 +150,7 @@ mlir::LogicalResult FuseConstantPadWithGroupConv::matchAndRewrite(IE::GroupConvo
                                                                   mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got GroupConvolution layer at '{1}'", getDebugName(), origGroupConvolutionOp->getLoc());
 
-    const auto kernelSize = origGroupConvolutionOp.filter().getType().cast<mlir::ShapedType>().getShape();
+    const auto kernelSize = origGroupConvolutionOp.filter().getType().cast<vpux::NDTypeInterface>().getShape();
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), kernelSize);
 
     return generalFusion(

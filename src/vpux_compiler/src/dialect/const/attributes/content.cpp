@@ -92,7 +92,7 @@ void vpux::Const::ContentAttr::walkImmediateSubElements(llvm::function_ref<void(
 
 mlir::LogicalResult vpux::Const::ContentAttr::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
                                                      mlir::ElementsAttr baseContent, mlir::ArrayAttr transformations,
-                                                     mlir::ShapedType finalType) {
+                                                     vpux::NDTypeInterface finalType) {
     if (baseContent == nullptr) {
         return printTo(emitError(), "Got NULL 'baseContent' in 'ContentAttr'");
     }
@@ -121,7 +121,7 @@ mlir::LogicalResult vpux::Const::ContentAttr::verify(FuncRef<mlir::InFlightDiagn
 
     if (transformations != nullptr) {
         const auto transormationList = transformations.getValue();
-        auto inferedFinalType = baseContent.getType();
+        auto inferedFinalType = baseContent.getType().cast<vpux::NDTypeInterface>();
 
         for (const auto attr : transormationList) {
             const auto trAttr = attr.dyn_cast<Const::TransformAttrInterface>();
@@ -163,7 +163,8 @@ Const::Content wrapBaseContent(mlir::ElementsAttr baseContent) {
                           "Got invalid opaque buffer");
     }
 
-    return Const::Content::fromRawBuffer(baseContent.getType(), data, baseContent.getType().getElementType(), isSplat);
+    return Const::Content::fromRawBuffer(baseContent.getType().cast<vpux::NDTypeInterface>(), data,
+                                         baseContent.getType().getElementType(), isSplat);
 }
 
 }  // namespace
@@ -208,7 +209,7 @@ SmallVector<Const::TransformAttrInterface> vpux::Const::ContentAttr::getTransfor
 // ContentAttr::getType
 //
 
-mlir::ShapedType vpux::Const::ContentAttr::getType() const {
+vpux::NDTypeInterface vpux::Const::ContentAttr::getType() const {
     return getImpl()->finalType;
 }
 
@@ -251,7 +252,7 @@ mlir::Attribute vpux::Const::ContentAttr::parse(mlir::DialectAsmParser& parser, 
         return nullptr;
     }
 
-    auto finalType = baseContent.getType();
+    auto finalType = baseContent.getType().cast<vpux::NDTypeInterface>();
 
     if (transformations != nullptr) {
         for (const auto attr : transformations.getValue()) {

@@ -34,7 +34,7 @@ class createDeclareTensorOp<string section> :
 
 class HasMemSpace<string physicalMemory> :
         Constraint<CPred<[{
-            vpux::VPU::getMemoryKind($0.getType().cast<mlir::MemRefType>()) == vpux::VPU::MemoryKind::}] # physicalMemory
+            $0.getType().cast<vpux::NDTypeInterface>().getMemoryKind() == vpux::VPU::MemoryKind::}] # physicalMemory
         >>;
 
 def RewriteStaticAllocDDR :

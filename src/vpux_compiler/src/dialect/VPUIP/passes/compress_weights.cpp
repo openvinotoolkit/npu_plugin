@@ -93,8 +93,8 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
 
     // TODO find out whether the destination shape also has to be flat.
     const Shape flatDstShape{checked_cast<int64_t>(origData.size()), 1, 1, 1};
-    const auto newDstType =
-            getMemRefType(flatDstShape, elemTypeU8, DimsOrder::NCHW, vpux::getMemorySpace(outBufferOp.getType()));
+    const auto outBuffType = outBufferOp.getType().cast<vpux::NDTypeInterface>();
+    const auto newDstType = getMemRefType(flatDstShape, elemTypeU8, DimsOrder::NCHW, outBuffType.getMemSpace());
 
     auto newDstBufferOp =
             rewriter.create<VPURT::DeclareBufferOp>(origOp->getLoc(), newDstType, outBufferOp.sectionAttr(),
@@ -103,8 +103,8 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
     const Shape flatSrcShape{checked_cast<int64_t>(compressedData.size()), 1, 1, 1};
     const auto newSrcStorageType = mlir::RankedTensorType::get(flatSrcShape.raw(), elemTypeU8);
     const auto newSrcContentAttr = mlir::DenseElementsAttr::get(newSrcStorageType, makeArrayRef(compressedData));
-    const auto inType = origOp.input().getType().cast<mlir::MemRefType>();
-    const auto newSrcType = getMemRefType(flatSrcShape, elemTypeU8, DimsOrder::NCHW, vpux::getMemorySpace(inType));
+    const auto inType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto newSrcType = getMemRefType(flatSrcShape, elemTypeU8, DimsOrder::NCHW, inType.getMemSpace());
 
     auto newSrcConstOp =
             rewriter.create<Const::DeclareOp>(origOp->getLoc(), newSrcType, Const::ContentAttr::get(newSrcContentAttr));

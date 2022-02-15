@@ -35,13 +35,13 @@ mlir::LogicalResult vpux::IE::CopyOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = copyOp.input().getType().dyn_cast<mlir::RankedTensorType>();
-    if (inType == nullptr) {
-        return errorAt(loc, "IE::CopyOp operand must have RankedTensor type");
+    const auto ndInType = copyOp.input().getType().dyn_cast<vpux::NDTypeInterface>();
+    if (ndInType == nullptr) {
+        return errorAt(loc, "IE::CopyOp operand must have vpux::NDTypeInterface type");
     }
 
     const auto outMemSpace = copyOp.out_mem_space();
-    const auto outType = changeMemSpace(inType, outMemSpace);
+    const auto outType = ndInType.changeMemSpace(outMemSpace).cast<mlir::RankedTensorType>();
 
     inferredReturnShapes.emplace_back(outType.getShape(), outType.getElementType(), outType.getEncoding());
     return mlir::success();

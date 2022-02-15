@@ -32,7 +32,7 @@ constexpr vpux::StringRef DDR_NAME = "DDR";
 
 }
 
-TEST(MLIR_ShapedPropertiesTypeInterface, DistributedBufferType) {
+TEST(MLIR_NDTypeInterface, DistributedBufferType) {
     mlir::DialectRegistry registry;
     vpux::registerDialects(registry);
 
@@ -92,31 +92,31 @@ TEST(MLIR_ShapedPropertiesTypeInterface, DistributedBufferType) {
                 continue;
             }
 
-            auto shapedType = distributedBuffer.dyn_cast<vpux::ShapedPropertiesTypeInterface>();
-            EXPECT_TRUE(shapedType != nullptr) << "Operand is DistributedBufferType but not supports vpux::ShapedPropertiesTypeInterface";
+            auto ndType = distributedBuffer.dyn_cast<vpux::NDTypeInterface>();
+            EXPECT_TRUE(ndType != nullptr) << "Operand is DistributedBufferType but not supports vpux::NDTypeInterface";
 
-            EXPECT_EQ(shapedType.getShape(), vpux::ShapeRef({1, 32, 16, 16}));
-            EXPECT_EQ(shapedType.getMemShape(), vpux::MemShape({1, 16, 16, 32}));
+            EXPECT_EQ(ndType.getShape(), vpux::ShapeRef({1, 32, 16, 16}));
+            EXPECT_EQ(ndType.getMemShape(), vpux::MemShape({1, 16, 16, 32}));
 
-            EXPECT_TRUE(shapedType.hasRank());
-            EXPECT_EQ(shapedType.getRank(), 4);
-            EXPECT_EQ(shapedType.getNumElements(), 32*16*16);
+            EXPECT_TRUE(ndType.hasRank());
+            EXPECT_EQ(ndType.getRank(), 4);
+            EXPECT_EQ(ndType.getNumElements(), 32*16*16);
 
-            EXPECT_TRUE(shapedType.getElementType().isa<mlir::Float16Type>());
+            EXPECT_TRUE(ndType.getElementType().isa<mlir::Float16Type>());
 
-            EXPECT_EQ(shapedType.getDimsOrder(), vpux::DimsOrder::NHWC);
+            EXPECT_EQ(ndType.getDimsOrder(), vpux::DimsOrder::NHWC);
 
-            EXPECT_EQ(shapedType.getMemSpace().getLeafName(), CMX_NAME);
-            EXPECT_EQ(shapedType.getMemoryKind(), vpux::VPU::MemoryKind::CMX_NN);
+            EXPECT_EQ(ndType.getMemSpace().getLeafName(), CMX_NAME);
+            EXPECT_EQ(ndType.getMemoryKind(), vpux::VPU::MemoryKind::CMX_NN);
 
             const SmallVector<vpux::Bit> strides({131072_Bit, 16_Bit, 8192_Bit, 512_Bit});
             const SmallVector<vpux::Bit> memStrides({131072_Bit, 8192_Bit, 512_Bit, 16_Bit});
-            EXPECT_EQ(shapedType.getStrides().raw(), strides);
-            EXPECT_EQ(shapedType.getMemStrides().raw(), memStrides);
+            EXPECT_EQ(ndType.getStrides().raw(), strides);
+            EXPECT_EQ(ndType.getMemStrides().raw(), memStrides);
 
-            EXPECT_EQ(shapedType.getElemTypeSize().count(), 16);
-            EXPECT_EQ(shapedType.getTotalAllocSize().count(), 16384);
-            EXPECT_EQ(shapedType.getCompactAllocSize().count(), 16384);
+            EXPECT_EQ(ndType.getElemTypeSize().count(), 16);
+            EXPECT_EQ(ndType.getTotalAllocSize().count(), 16384);
+            EXPECT_EQ(ndType.getCompactAllocSize().count(), 16384);
         }
     }
 }

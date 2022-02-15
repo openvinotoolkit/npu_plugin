@@ -152,8 +152,8 @@ mlir::LogicalResult SplitRewrite::matchAndRewrite(IE::SplitOp origOp, OpAdaptor 
         return matchFailed(rewriter, origOp, "Got non constant axis");
     }
 
-    const auto inputType = newArgs.input().getType().cast<mlir::ShapedType>();
-    const auto inputShape = getShape(inputType);
+    const auto inputType = newArgs.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputShape = inputType.getShape();
 
     const auto axis = Dim(origOp.axis_value().getValue());
 
@@ -169,8 +169,8 @@ mlir::LogicalResult SplitRewrite::matchAndRewrite(IE::SplitOp origOp, OpAdaptor 
     const auto offsetStep = inputShape[axis] / origOp.num_splits();
 
     for (auto i : irange(origOp->getNumResults())) {
-        const auto origOutputType = origOp.getResult(i).getType().cast<mlir::ShapedType>();
-        const auto svSizes = origOutputType.getShape();
+        const auto origOutputType = origOp.getResult(i).getType().cast<vpux::NDTypeInterface>();
+        const auto svSizes = origOutputType.getShape().raw();
 
         _log.trace("Create SubView for output #'{0}'", i);
         auto subView = rewriter.create<IERT::SubViewOp>(origOp.getLoc(), newArgs.input(), svOffsets, svSizes);
@@ -236,8 +236,8 @@ SmallVector<mlir::Value> ConcatRewrite::rewriteWithAxis(IE::ConcatOp origOp, OpA
 
     for (auto i : irange(origOp->getNumOperands())) {
         const auto newInput = newArgs.inputs()[i];
-        const auto newInputType = newInput.getType().cast<mlir::ShapedType>();
-        const auto svSizes = newInputType.getShape();
+        const auto newInputType = newInput.getType().cast<vpux::NDTypeInterface>();
+        const auto svSizes = newInputType.getShape().raw();
 
         _log.trace("Create SubView for input #'{0}'", i);
         mlir::Value subViewVal;
@@ -268,7 +268,7 @@ SmallVector<mlir::Value> ConcatRewrite::rewriteWithOffsets(IE::ConcatOp origOp, 
     for (const auto p : zip(newArgs.inputs(), allOffsets)) {
         const auto newInput = std::get<0>(p);
 
-        const auto curShape = newInput.getType().cast<mlir::ShapedType>().getShape();
+        const auto curShape = newInput.getType().cast<vpux::NDTypeInterface>().getShape().raw();
         const auto curOffsets = parseIntArrayAttr<int64_t>(std::get<1>(p));
 
         auto subViewOp = rewriter.create<IERT::SubViewOp>(origOp->getLoc(), allocatedBufs[0], curOffsets, curShape);
@@ -358,7 +358,7 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, OpAdapto
     VPUX_THROW_UNLESS(typeConverter != nullptr, "ExpandRewrite: failed to get type converter");
 
     auto expandedBuffer = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.output());
-    const auto inputType = newArgs.input().getType().cast<mlir::ShapedType>();
+    const auto inputType = newArgs.input().getType().cast<vpux::NDTypeInterface>();
 
     auto subOffsetsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
     auto subShape = to_small_vector(inputType.getShape());

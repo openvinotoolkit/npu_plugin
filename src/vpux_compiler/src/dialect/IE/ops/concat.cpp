@@ -96,10 +96,10 @@ Dim normalizeAxis(IE::ConcatOpAdaptor concat) {
 }
 
 mlir::FailureOr<Shape> inferOutShapeWithAxis(IE::ConcatOpAdaptor concat, mlir::Location loc) {
-    const auto inType = concat.inputs().front().getType().cast<mlir::RankedTensorType>();
+    const auto inType = concat.inputs().front().getType().cast<vpux::NDTypeInterface>();
     const auto axis = normalizeAxis(concat);
 
-    auto outShape = getShape(inType).toValues();
+    auto outShape = inType.getShape().toValues();
 
     for (const auto val : concat.inputs().drop_front()) {
         const auto curShape = getShape(val);
@@ -137,7 +137,7 @@ mlir::FailureOr<Shape> inferOutShapeWithOffsets(IE::ConcatOpAdaptor concat, mlir
                        concat.static_offsets().size(), concat.inputs().size());
     }
 
-    const auto inType = concat.inputs().front().getType().cast<mlir::RankedTensorType>();
+    const auto inType = concat.inputs().front().getType().cast<vpux::NDTypeInterface>();
     const auto allOffsets = concat.static_offsets().getAsRange<mlir::ArrayAttr>();
 
     Shape outShape(checked_cast<size_t>(inType.getRank()), 0);
@@ -170,7 +170,7 @@ mlir::FailureOr<Shape> inferOutShapeWithOffsets(IE::ConcatOpAdaptor concat, mlir
 }
 
 mlir::FailureOr<mlir::Type> inferOutElemTypeWithAxis(IE::ConcatOpAdaptor concat, mlir::Location loc) {
-    const auto inType = concat.inputs().front().getType().cast<mlir::RankedTensorType>();
+    const auto inType = concat.inputs().front().getType().cast<vpux::NDTypeInterface>();
     const auto inElemType = inType.getElementType();
 
     const auto perAxisQType = inElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
@@ -185,7 +185,7 @@ mlir::FailureOr<mlir::Type> inferOutElemTypeWithAxis(IE::ConcatOpAdaptor concat,
     }
 
     for (const auto val : concat.inputs().drop_front()) {
-        const auto curType = val.getType().cast<mlir::RankedTensorType>();
+        const auto curType = val.getType().cast<vpux::NDTypeInterface>();
         const auto curElemType = curType.getElementType();
 
         if (inPerAxisQTypes.empty()) {
@@ -239,7 +239,7 @@ std::unordered_set<Dim> getConcatAxesFromOffsets(IE::ConcatOpAdaptor concat, Sha
 
 mlir::FailureOr<mlir::Type> inferOutElemTypeWithOffsets(IE::ConcatOpAdaptor concat, ShapeRef outShape,
                                                         mlir::Location loc) {
-    const auto inType = concat.inputs().front().getType().cast<mlir::RankedTensorType>();
+    const auto inType = concat.inputs().front().getType().cast<vpux::NDTypeInterface>();
     const auto inElemType = inType.getElementType();
 
     const auto perAxisQType = inElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
@@ -257,7 +257,7 @@ mlir::FailureOr<mlir::Type> inferOutElemTypeWithOffsets(IE::ConcatOpAdaptor conc
 
     if (!isConcatOverPerAxisQuantization) {
         for (const auto val : concat.inputs().drop_front()) {
-            const auto curType = val.getType().cast<mlir::RankedTensorType>();
+            const auto curType = val.getType().cast<vpux::NDTypeInterface>();
             const auto curElemType = curType.getElementType();
 
             if (curElemType != inElemType) {
@@ -276,7 +276,7 @@ mlir::FailureOr<mlir::Type> inferOutElemTypeWithOffsets(IE::ConcatOpAdaptor conc
     for (const auto p : zip(concat.inputs(), allOffsets)) {
         const auto curVal = std::get<0>(p);
 
-        const auto curType = curVal.getType().cast<mlir::RankedTensorType>();
+        const auto curType = curVal.getType().cast<vpux::NDTypeInterface>();
         const auto curElemType = curType.getElementType();
         const auto curPerAxisQType = curElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
 
@@ -385,7 +385,7 @@ public:
 };
 
 const mlir::ArrayAttr inferOffsetsAttrWithAxis(IE::ConcatOp origOp, const int64_t& axis) {
-    auto rank = origOp.output().getType().cast<mlir::ShapedType>().getRank();
+    auto rank = origOp.output().getType().cast<vpux::NDTypeInterface>().getRank();
 
     SmallVector<SmallVector<int64_t>> finalOffsets;
     finalOffsets.push_back(SmallVector<int64_t>(rank, 0));
@@ -411,7 +411,7 @@ mlir::LogicalResult ConvertPerAxisToOffsets::matchAndRewrite(IE::ConcatOp origOp
         return mlir::failure();
     }
 
-    const auto outType = origOp.output().getType().cast<mlir::RankedTensorType>();
+    const auto outType = origOp.output().getType().cast<vpux::NDTypeInterface>();
     const auto axis = origOp.per_axisAttr().axis().getValue().getSExtValue();
     const auto finalOffsetsAttr = inferOffsetsAttrWithAxis(origOp, axis);
 

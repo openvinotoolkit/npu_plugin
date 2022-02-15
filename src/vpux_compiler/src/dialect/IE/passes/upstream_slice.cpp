@@ -77,8 +77,8 @@ bool isUpstreamPossible(IE::LayerOpInterface sliceOp, mlir::Value tensor) {
     // It does not support datatypes generically
     // so we can't afford changing datatype of this operation.
     if (mlir::isa<IE::StridedSliceOp>(sliceOp)) {
-        auto sliceOpElementType = tensor.getType().cast<mlir::RankedTensorType>().getElementType();
-        auto parentOpElementType = parentOp->getOperand(0).getType().cast<mlir::RankedTensorType>().getElementType();
+        auto sliceOpElementType = tensor.getType().cast<vpux::NDTypeInterface>().getElementType();
+        auto parentOpElementType = parentOp->getOperand(0).getType().cast<vpux::NDTypeInterface>().getElementType();
         if (sliceOpElementType != parentOpElementType)
             return false;
     }

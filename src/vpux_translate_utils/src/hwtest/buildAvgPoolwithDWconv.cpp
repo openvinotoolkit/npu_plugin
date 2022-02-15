@@ -142,7 +142,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     auto weight_data_ddr = VPUIP::alignDepthWiseWeightsTensor(funcbuilder, loc, weight.getResult());
 
-    auto wt_data_shape_padded = weight_data_ddr.getType().cast<mlir::ShapedType>().getShape();
+    auto wt_data_shape_padded = weight_data_ddr.getType().cast<vpux::NDTypeInterface>().getShape().raw();
 
     // weights cmx tensor
     auto wtData_cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, to_vector<4>(wt_data_shape_padded), weightsType,

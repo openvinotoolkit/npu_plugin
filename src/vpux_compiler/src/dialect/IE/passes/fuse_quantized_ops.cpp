@@ -332,8 +332,8 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
         }
 
         if (!newConcatInputs.empty()) {
-            const auto prevElemType = newConcatInputs.back().getType().cast<mlir::ShapedType>().getElementType();
-            const auto curElemType = inputDequantizeOp.input().getType().cast<mlir::ShapedType>().getElementType();
+            const auto prevElemType = newConcatInputs.back().getType().cast<vpux::NDTypeInterface>().getElementType();
+            const auto curElemType = inputDequantizeOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
 
             if (const auto prevPerAxisType = prevElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
                 if (const auto curPerAxisType = curElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
@@ -464,7 +464,7 @@ template <class ConcreteOp>
 mlir::LogicalResult FuseWithEltwiseConverter<ConcreteOp>::matchAndRewrite(IE::QuantizeOp quantizeOp,
                                                                           mlir::PatternRewriter& rewriter) const {
     const auto quantOutType = quantizeOp.output().getType();
-    auto quantElemOutType = quantOutType.cast<mlir::ShapedType>().getElementType();
+    auto quantElemOutType = quantOutType.cast<vpux::NDTypeInterface>().getElementType();
     if (quantElemOutType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         return mlir::failure();
     }
@@ -478,8 +478,8 @@ mlir::LogicalResult FuseWithEltwiseConverter<ConcreteOp>::matchAndRewrite(IE::Qu
         return mlir::failure();
     }
 
-    if (eltwiseOp.input1().getType().template cast<mlir::ShapedType>().getShape() !=
-        eltwiseOp.input2().getType().template cast<mlir::ShapedType>().getShape()) {
+    if (eltwiseOp.input1().getType().template cast<vpux::NDTypeInterface>().getShape() !=
+        eltwiseOp.input2().getType().template cast<vpux::NDTypeInterface>().getShape()) {
         return mlir::failure();
     }
 
@@ -489,7 +489,7 @@ mlir::LogicalResult FuseWithEltwiseConverter<ConcreteOp>::matchAndRewrite(IE::Qu
         }
 
         const auto dequantInType = dequantOp.input().getType();
-        auto dequantElemInType = dequantInType.template cast<mlir::ShapedType>().getElementType();
+        auto dequantElemInType = dequantInType.template cast<vpux::NDTypeInterface>().getElementType();
         if (!dequantElemInType.template isa<mlir::quant::UniformQuantizedType>()) {
             return mlir::failure();
         }
@@ -507,8 +507,10 @@ mlir::LogicalResult FuseWithEltwiseConverter<ConcreteOp>::matchAndRewrite(IE::Qu
         return mlir::failure();
     }
 
-    const auto input1Type = input1DequantizeOp.input().getType().template cast<mlir::ShapedType>().getElementType();
-    const auto input2Type = input2DequantizeOp.input().getType().template cast<mlir::ShapedType>().getElementType();
+    const auto input1Type =
+            input1DequantizeOp.input().getType().template cast<vpux::NDTypeInterface>().getElementType();
+    const auto input2Type =
+            input2DequantizeOp.input().getType().template cast<vpux::NDTypeInterface>().getElementType();
     if (mlir::failed(_checkInputTypes(input1Type, input2Type))) {
         return mlir::failure();
     }

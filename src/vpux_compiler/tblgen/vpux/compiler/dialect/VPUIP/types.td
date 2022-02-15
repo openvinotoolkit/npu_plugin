@@ -37,7 +37,7 @@ def VPUIP_DistributedBuffer :
             "DistributedBuffer",
             [
                 DeclareTypeInterfaceMethods<SubElementTypeInterface>,
-                DeclareTypeInterfaceMethods<ShapedPropertiesTypeInterface>
+                DeclareTypeInterfaceMethods<NDTypeInterface>
             ]
         > {
     let summary = "VPUIP buffer type to describe the buffer tiling";

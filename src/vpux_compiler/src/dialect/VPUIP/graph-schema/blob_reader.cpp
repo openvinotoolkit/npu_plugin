@@ -159,8 +159,9 @@ void vpux::VPUIP::BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog
                 const auto& inputName = tensorReference->name();
 
                 const auto memref = parseTensorRef(tensorReference);
+                const auto ndType = memref.cast<vpux::NDTypeInterface>();
                 const auto tensor =
-                        getTensorType(getShape(memref), memref.getElementType(), DimsOrder::fromType(memref), nullptr);
+                        getTensorType(ndType.getShape(), ndType.getElementType(), ndType.getDimsOrder(), nullptr);
 
                 const auto nameAttr = mlir::StringAttr::get(_ctx, inputName->str());
                 const auto userTypeAttr = mlir::TypeAttr::get(tensor);

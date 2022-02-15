@@ -88,17 +88,16 @@ mlir::Attribute vpux::Const::ReshapeAttr::parse(mlir::DialectAsmParser& parser, 
 // ReshapeAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::ReshapeAttr::inferOutputType(mlir::ShapedType input) const {
-    const Bit typeSizeInBits = getElemTypeSize(input);
-    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in ReshapeAttr",
-                      input.getElementType());
+vpux::NDTypeInterface vpux::Const::ReshapeAttr::inferOutputType(vpux::NDTypeInterface input) const {
+    const Bit typeSizeInBits = input.getElemTypeSize();
+    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in ReshapeAttr", typeSizeInBits);
 
-    const auto inOrder = DimsOrder::fromType(input);
+    const auto inOrder = input.getDimsOrder();
     VPUX_THROW_UNLESS(inOrder == DimsOrder::fromNumDims(input.getRank()),
                       "Can't apply Reshape transformation to DimsOrder '{0}'", inOrder);
 
     const auto newShape = parseIntArrayAttr<int64_t>(getShape());
-    return changeShape(input, ShapeRef(newShape));
+    return input.changeShape(ShapeRef(newShape));
 }
 
 //

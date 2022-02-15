@@ -120,8 +120,8 @@ mlir::Attribute vpux::Const::SubViewAttr::parse(mlir::DialectAsmParser& parser, 
 // SubViewAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::SubViewAttr::inferOutputType(mlir::ShapedType input) const {
-    const Bit typeSizeInBits = getElemTypeSize(input);
+vpux::NDTypeInterface vpux::Const::SubViewAttr::inferOutputType(vpux::NDTypeInterface input) const {
+    const Bit typeSizeInBits = input.getElemTypeSize();
     VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in SubViewAttr",
                       input.getElementType());
 
@@ -131,7 +131,7 @@ mlir::ShapedType vpux::Const::SubViewAttr::inferOutputType(mlir::ShapedType inpu
     VPUX_THROW_UNLESS(shape.size() == checked_cast<size_t>(input.getRank()),
                       "View shape and input shape are not consistent in 'SubViewAttr'");
 
-    return getDenseTileType(input, ShapeRef(offset), ShapeRef(shape));
+    return input.extractDenseTile(ShapeRef(offset), ShapeRef(shape));
 }
 
 //
@@ -149,12 +149,12 @@ Const::Content vpux::Const::SubViewAttr::transform(vpux::Const::Content& input) 
         std::copy_n(inBuf.data(), inBuf.size(), outBuf.data());
     } else {
         const Byte elemSize = getElemTypeSize(input.getStorageElemType());
-        const auto order = DimsOrder::fromType(input.getType());
+        const auto order = input.getType().getDimsOrder();
 
-        const auto inShape = vpux::getShape(input.getType());
+        const auto inShape = input.getShape();
         const auto inMemShape = order.toMemoryOrder(inShape);
 
-        const auto outShape = vpux::getShape(output.getType());
+        const auto outShape = output.getShape();
         const auto outMemShape = order.toMemoryOrder(outShape);
 
         const auto offset = Shape(parseIntArrayAttr<int64_t>(getOffset()));

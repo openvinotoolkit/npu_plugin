@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/init.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/range.hpp"
@@ -72,6 +73,10 @@ public:
 
 public:
     void SetUp() override {
+        mlir::DialectRegistry registry;
+        registerDialects(registry);
+
+        ctx.appendDialectRegistry(registry);
         ctx.loadDialect<Const::ConstDialect>();
     }
 };
@@ -686,9 +691,9 @@ TEST_F(MLIR_ConstContentAttrTest, BitPack) {
     ASSERT_NE(contentAttr, nullptr);
 
     const auto content = contentAttr.fold();
-    const auto expectedType = changeElemType(
-            baseType,
-            mlir::IntegerType::get(baseType.getContext(), bitWidth, mlir::IntegerType::SignednessSemantics::Signed));
+    const auto ndBaseType = baseType.cast<vpux::NDTypeInterface>();
+    const auto expectedType = ndBaseType.changeElemType(mlir::IntegerType::get(
+            ndBaseType.getContext(), bitWidth, mlir::IntegerType::SignednessSemantics::Signed));
     EXPECT_EQ(content.getType(), expectedType);
 
     std::vector<int8_t> actVals(vals.size() / 2, 0);
@@ -730,7 +735,7 @@ TEST_F(MLIR_ConstContentAttrTest, BitPackQuant) {
     const auto expectedQuantType = mlir::quant::UniformQuantizedType::get(
             mlir::quant::QuantizationFlags::Signed, mlir::IntegerType::get(&ctx, bitWidth, mlir::IntegerType::Signed),
             mlir::Float32Type::get(&ctx), scale, zeroPoint, storageTypeMin, storageTypeMax);
-    const auto expectedType = changeElemType(baseType, expectedQuantType);
+    const auto expectedType = baseType.cast<vpux::NDTypeInterface>().changeElemType(expectedQuantType);
     EXPECT_EQ(content.getType(), expectedType);
 
     std::vector<int8_t> actVals(vals.size() / 2, 0);
@@ -803,9 +808,9 @@ TEST_F(MLIR_ConstContentAttrTest, BitPackIsLast) {
     ASSERT_ANY_THROW(contentAttr.subview({0, 0, 0, 0}, {IN, IC, IH, IW}));
     ASSERT_ANY_THROW(contentAttr.transpose(DimsOrder::NHWC));
 
-    const auto quantType = mlir::quant::UniformQuantizedType::get(mlir::quant::QuantizationFlags::Signed,
-                                                                  getSInt4Type(&ctx), mlir::Float32Type::get(&ctx),
-                                                                  0.078431372549019607, 0, -4, 3);
+    const auto quantType =
+            mlir::quant::UniformQuantizedType::get(mlir::quant::QuantizationFlags::Signed, getSInt4Type(&ctx),
+                                                   mlir::Float32Type::get(&ctx), 0.078431372549019607, 0, -4, 3);
     const auto quantContentAttr = contentAttr.quantCast(quantType);
     ASSERT_NE(quantContentAttr, nullptr);
 }

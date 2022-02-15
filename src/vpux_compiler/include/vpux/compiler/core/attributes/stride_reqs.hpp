@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include "vpux/compiler/core/type_interfaces.hpp"
+
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
@@ -155,10 +157,10 @@ public:
     void calcStrides(MemStrides& memStrides, Bit elemSize, MemShapeRef memShape) const;
 
     MemStrides calcStrides(Bit elemSize, MemShapeRef memShape) const;
-    MemStrides calcStrides(DimsOrder order, mlir::ShapedType memShape) const;
+    MemStrides calcStrides(DimsOrder order, vpux::NDTypeInterface type) const;
 
 public:
-    bool checkStrides(mlir::MemRefType type) const;
+    bool checkStrides(vpux::NDTypeInterface type) const;
     bool checkStrides(mlir::Value val) const;
     bool checkStrides(MemStridesRef memStrides, Bit elemSize, MemShapeRef memShape) const;
 
@@ -258,10 +260,10 @@ public:
     void calcStrides(MemStrides& memStrides, Bit elemSize, MemShapeRef memShape) const;
 
     MemStrides calcStrides(Bit elemSize, MemShapeRef memShape) const;
-    MemStrides calcStrides(DimsOrder order, mlir::ShapedType memShape) const;
+    MemStrides calcStrides(DimsOrder order, vpux::NDTypeInterface type) const;
 
 public:
-    bool checkStrides(mlir::MemRefType type) const;
+    bool checkStrides(vpux::NDTypeInterface type) const;
     bool checkStrides(mlir::Value val) const;
     bool checkStrides(MemStridesRef memStrides, Bit elemSize, MemShapeRef memShape) const;
 

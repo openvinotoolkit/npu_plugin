@@ -105,7 +105,7 @@ mlir::MemRefType vpux::VPUIP::DistributedBufferType::getCompactType() const {
 }
 
 //
-// ShapedPropertiesTypeInterface
+// NDTypeInterface
 //
 
 vpux::MemShape vpux::VPUIP::DistributedBufferType::getMemShape() const {
@@ -186,27 +186,26 @@ vpux::Byte vpux::VPUIP::DistributedBufferType::getCompactAllocSize() const {
     return shape.totalSize() * typeSize;
 }
 
-vpux::ShapedPropertiesTypeInterface vpux::VPUIP::DistributedBufferType::changeShape(vpux::ShapeRef) const {
+vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeShape(vpux::ShapeRef) const {
     VPUX_THROW("Not yet implemented");
 }
 
-vpux::ShapedPropertiesTypeInterface vpux::VPUIP::DistributedBufferType::changeElemType(mlir::Type) const {
+vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeElemType(mlir::Type) const {
     VPUX_THROW("Not yet implemented");
 }
 
-vpux::ShapedPropertiesTypeInterface vpux::VPUIP::DistributedBufferType::changeDimsOrder(vpux::DimsOrder) const {
+vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeDimsOrder(vpux::DimsOrder) const {
     VPUX_THROW("Not yet implemented");
 }
 
-vpux::ShapedPropertiesTypeInterface vpux::VPUIP::DistributedBufferType::changeMemSpace(vpux::IndexedSymbolAttr) const {
+vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeMemSpace(vpux::IndexedSymbolAttr) const {
     VPUX_THROW("Not yet implemented");
 }
 
-vpux::ShapedPropertiesTypeInterface vpux::VPUIP::DistributedBufferType::extractDenseTile(vpux::ShapeRef,
-                                                                                         vpux::ShapeRef) const {
+vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::extractDenseTile(vpux::ShapeRef, vpux::ShapeRef) const {
     VPUX_THROW("Not yet implemented");
 }
 
-vpux::ShapedPropertiesTypeInterface vpux::VPUIP::DistributedBufferType::pad(vpux::ShapeRef, vpux::ShapeRef) const {
+vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::pad(vpux::ShapeRef, vpux::ShapeRef) const {
     VPUX_THROW("Not yet implemented");
 }

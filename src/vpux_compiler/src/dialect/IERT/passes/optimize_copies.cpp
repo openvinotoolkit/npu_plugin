@@ -55,8 +55,8 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
     auto parentCopyOp = copyOp.input().getDefiningOp<IERT::CopyOp>();
     if (parentCopyOp == nullptr) {
         // Check current CopyOp source and destination
-        const auto srcMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
-        const auto dstMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
+        const auto srcMemory = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+        const auto dstMemory = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
 
         // Remove redundant CMX2CMX CopyOps
         if (srcMemory == dstMemory && srcMemory == VPU::MemoryKind::CMX_NN) {
@@ -92,8 +92,8 @@ void fuseLastCopy(IERT::CopyOp copyOp, const AliasesInfo& aliasesInfo, Logger lo
         return;
     }
 
-    auto inSourceMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
-    auto outSourceMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
+    auto inSourceMemory = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+    auto outSourceMemory = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
     if (inSourceMemory != outSourceMemory) {
         return;
     }

@@ -52,10 +52,7 @@ bool LinearScanHandler::isFixedAlloc(mlir::Value val) {
 }
 
 AddressType LinearScanHandler::getSize(mlir::Value val) {
-    const auto type = val.getType().dyn_cast<mlir::MemRefType>();
-    VPUX_THROW_UNLESS(type != nullptr, "StaticAllocation can work only with MemRef Type, got '{0}'", val.getType());
-
-    const Byte totalSize = getTotalSize(type);
+    const Byte totalSize = getTotalSize(val);
     return checked_cast<AddressType>(totalSize.count());
 }
 

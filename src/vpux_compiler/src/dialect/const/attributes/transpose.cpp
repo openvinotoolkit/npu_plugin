@@ -81,8 +81,8 @@ mlir::Attribute vpux::Const::TransposeAttr::parse(mlir::DialectAsmParser& parser
 // TransposeAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::TransposeAttr::inferOutputType(mlir::ShapedType input) const {
-    const Bit typeSizeInBits = getElemTypeSize(input);
+vpux::NDTypeInterface vpux::Const::TransposeAttr::inferOutputType(vpux::NDTypeInterface input) const {
+    const Bit typeSizeInBits = input.getElemTypeSize();
     VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in TransposeAttr",
                       input.getElementType());
 
@@ -90,13 +90,13 @@ mlir::ShapedType vpux::Const::TransposeAttr::inferOutputType(mlir::ShapedType in
     VPUX_THROW_UNLESS(order.numDims() == checked_cast<size_t>(input.getRank()),
                       "DimsOrder '{0}' doesn't match type '{1}'", order, input);
 
-    const auto inputShape = getShape(input);
+    const auto inputShape = input.getShape();
     Shape newShape(inputShape.size());
     for (size_t idx = 0; idx < newShape.size(); idx++) {
         newShape[Dim(idx)] = inputShape[order.dimAt(idx)];
     }
 
-    return changeShape(input, newShape);
+    return input.changeShape(newShape);
 }
 
 //
@@ -106,7 +106,7 @@ mlir::ShapedType vpux::Const::TransposeAttr::inferOutputType(mlir::ShapedType in
 Const::Content vpux::Const::TransposeAttr::transform(vpux::Const::Content& input) const {
     // This is basically reorder with subsequent reshape.
     const auto outType = inferOutputType(input.getType());
-    const auto inputOrder = DimsOrder::fromType(input.getType());
+    const auto inputOrder = input.getType().getDimsOrder();
     const auto inPerm = inputOrder.toAffineMap(getContext());
     const auto memPerm = inPerm.compose(getOrder().getValue());
 

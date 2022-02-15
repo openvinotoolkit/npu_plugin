@@ -209,8 +209,8 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, m
                                                   firstOpKernelAttr, firstOpPadBegin, firstOpPadEnd,
                                                   origOp.rounding_typeAttr(), origOp.exclude_padsAttr());
 
-    const auto firstOpOutputShapeType = firstOp.output().getType().cast<mlir::ShapedType>();
-    const auto firstOpOutputShape = firstOpOutputShapeType.getShape();
+    const auto firstOpOutputShapeType = firstOp.output().getType().cast<vpux::NDTypeInterface>();
+    const auto firstOpOutputShape = firstOpOutputShapeType.getShape().raw();
 
     auto firstAvgPoolOutput = firstOp.output();
     auto checkStrideRelation = [](const int64_t strideLeft, const int64_t strideRight) -> bool {
@@ -448,8 +448,8 @@ void HandleLargeKernelsPass::safeRunOnFunc() {
         if (hasSupportedKernels(kernelSize)) {
             return true;
         }
-        const auto inDataType = op.input().getType().cast<mlir::ShapedType>();
-        const auto inDataShape = inDataType.getShape();
+        const auto inDataType = op.input().getType().cast<vpux::NDTypeInterface>();
+        const auto inDataShape = inDataType.getShape().raw();
         const auto strides = parseIntArrayAttr<int64_t>(op.strides());
         const auto maxKernelSizeSupported = 121;  // we can only get 2 factors and max kernel should be 11 * 11 = 121
         auto unsupportedKernelCheck = [&](int32_t kernelInd, int32_t actInd, int32_t strideInd) {

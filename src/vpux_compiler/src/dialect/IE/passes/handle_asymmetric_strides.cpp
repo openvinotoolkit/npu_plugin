@@ -44,10 +44,11 @@ struct OperationPart {
 };
 
 mlir::Operation* createFQ(mlir::PatternRewriter& rewriter, mlir::Operation* inputOp, IE::FakeQuantizeOp fq) {
-    return rewriter.create<IE::FakeQuantizeOp>(
-            fq.getLoc(), changeShape(fq.output().getType().cast<mlir::ShapedType>(), getShape(inputOp->getResult(0))),
-            inputOp->getResult(0), fq.input_low(), fq.input_high(), fq.output_low(), fq.output_high(), fq.levels(),
-            fq.auto_broadcast());
+    const auto outputType = fq.output().getType().cast<vpux::NDTypeInterface>();
+    const auto newOutputType = outputType.changeShape(getShape(inputOp->getResult(0)));
+    return rewriter.create<IE::FakeQuantizeOp>(fq.getLoc(), newOutputType, inputOp->getResult(0), fq.input_low(),
+                                               fq.input_high(), fq.output_low(), fq.output_high(), fq.levels(),
+                                               fq.auto_broadcast());
 }
 
 mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewriter& rewriter,

@@ -52,7 +52,7 @@ llvm::Optional<int64_t> vpux::IE::getQuantAxisIndex(mlir::Operation* op) {
     llvm::Optional<int64_t> axis = None;
     const auto getPerAxisQType = [](mlir::Value tensor) {
         return tensor.getType()
-                .cast<mlir::ShapedType>()
+                .cast<vpux::NDTypeInterface>()
                 .getElementType()
                 .dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
     };

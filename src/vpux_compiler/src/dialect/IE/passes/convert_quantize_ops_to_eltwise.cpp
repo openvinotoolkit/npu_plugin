@@ -100,7 +100,7 @@ mlir::LogicalResult ConvertQuantizeOpsToEltwisePass::DequantizeToAddRewriter::ma
     const auto broadcastType =
             vpux::IE::AutoBroadcastTypeAttr::get(getContext(), IE::AutoBroadcastType::NONE_OR_EXPLICIT);
 
-    auto inElemType = originOp.input().getType().cast<mlir::ShapedType>().getElementType();
+    auto inElemType = originOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
     auto uniformQInElemType = inElemType.dyn_cast<mlir::quant::UniformQuantizedType>();
     const auto scale = uniformQInElemType.getScale();
     // originQElemType = <u8:fp32, scale>
@@ -143,7 +143,7 @@ mlir::LogicalResult ConvertQuantizeOpsToEltwisePass::QuantizeToAddRewriter::matc
     const auto broadcastType =
             vpux::IE::AutoBroadcastTypeAttr::get(getContext(), IE::AutoBroadcastType::NONE_OR_EXPLICIT);
 
-    auto outElemType = originOp.output().getType().cast<mlir::ShapedType>().getElementType();
+    auto outElemType = originOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
     auto uniformQOutElemType = outElemType.dyn_cast<mlir::quant::UniformQuantizedType>();
     const auto scale = uniformQOutElemType.getScale();
     // originQElemType = <u8:fp32, scale>
@@ -175,7 +175,7 @@ void ConvertQuantizeOpsToEltwisePass::safeRunOnFunc() {
     // HW Eltwise supports only per-tensor bias/scale parameters
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::QuantizeOp>([&](IE::QuantizeOp quantizeOp) {
-        auto outType = quantizeOp.output().getType().cast<mlir::ShapedType>();
+        auto outType = quantizeOp.output().getType().cast<vpux::NDTypeInterface>();
         const auto isPerChannelQuantized = outType.getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>();
         const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(arch, outType);
 
@@ -187,7 +187,7 @@ void ConvertQuantizeOpsToEltwisePass::safeRunOnFunc() {
         return (anyUserIsConv && canUseCMajor) || isPerChannelQuantized;
     });
     target.addDynamicallyLegalOp<IE::DequantizeOp>([&](IE::DequantizeOp dequantizeOp) {
-        auto inElemType = dequantizeOp.input().getType().cast<mlir::ShapedType>().getElementType();
+        auto inElemType = dequantizeOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
         return inElemType.isa<mlir::quant::UniformQuantizedPerAxisType>();
     });
     target.addLegalOp<IE::AndOp>();

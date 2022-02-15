@@ -129,9 +129,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     VPUX_THROW_UNLESS(WEIGHTSTABLE_CMX_OFFSET % alignment == 0,
                       "WEIGHTSTABLE_CMX_OFFSET must be multiple of {0}, got {1}", alignment, WEIGHTSTABLE_CMX_OFFSET);
 
-    const auto outputParamType = changeDimsOrder(
-            getMemRefType(vpux::VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC),
-            outputLayout);
+    auto ndOutputType =
+            getMemRefType(vpux::VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC)
+                    .cast<vpux::NDTypeInterface>();
+    const auto outputParamType = ndOutputType.changeDimsOrder(outputLayout);
     llvm::SmallVector<mlir::Type, 2> inputTypes;
     inputTypes.push_back(getMemRefType(VPURT::BufferSection::NetworkInput, inputShape, inputType, DimsOrder::NHWC));
     inputTypes.push_back(outputParamType);
@@ -163,8 +164,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto weightsDDRType =
             getMemRefType(VPURT::BufferSection::Constant, weightsShape, weightsType, DimsOrder::NHWC);
 
-    auto weightsStrides = vpux::getStrides(weightsDDRType);
-    auto inputStrides = vpux::getStrides(functionInput.getType().cast<mlir::ShapedType>());
+    auto weightsStrides = weightsDDRType.cast<vpux::NDTypeInterface>().getStrides();
+    auto inputStrides = vpux::getStrides(functionInput);
 
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
     if (isInputPaddingRequired) {
@@ -205,8 +206,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
             functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType, weightsAttribute);
 
     auto outputCMXpadded = getMemRefType(VPURT::BufferSection::CMX_NN, outputCMXShape, outputType, outputLayout);
+    auto ndOutputCMXpadded = outputCMXpadded.cast<vpux::NDTypeInterface>();
     auto outputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
-                                           outputLayout, vpux::getStrides(outputCMXpadded), 0, OUTPUT_CMX_OFFSET);
+                                           outputLayout, ndOutputCMXpadded.getStrides(), 0, OUTPUT_CMX_OFFSET);
 
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(

@@ -35,8 +35,8 @@ namespace {
 
 OutputTiling generateTiles(IE::TilingBuilderOpInterface origOp, Logger log) {
     auto* op = origOp.getOperation();
-    const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
-    const auto outputShape = getShape(outputType);
+    const auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    const auto outputShape = outputType.getShape();
     auto nTilesOnDim = IE::computeGeneralTileStrategy(op, log);
     return vpux::fillDividedTiles(nTilesOnDim, outputShape);
 }

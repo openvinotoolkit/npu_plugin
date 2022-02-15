@@ -67,8 +67,8 @@ mlir::LogicalResult ConvertScalarToTensorPass::ScalarConverter::matchAndRewrite(
     _log.debug("Need to convert indices to tensor");
 
     const std::array<int64_t, 1> indicesShape = {1};
-    const auto newIndicesType =
-            changeShape(origOp.indices().getType().cast<mlir::ShapedType>(), ShapeRef(indicesShape));
+    const auto indicesType = origOp.indices().getType().cast<vpux::NDTypeInterface>();
+    const auto newIndicesType = indicesType.changeShape(ShapeRef(indicesShape));
 
     auto newIndices = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newIndicesType, origOp.indices());
 

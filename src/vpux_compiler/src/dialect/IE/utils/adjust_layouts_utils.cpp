@@ -51,8 +51,8 @@ void insertReorderForOutput(mlir::Operation* op, mlir::Value output, DimsOrder d
 }
 
 void changeDimsOrder(mlir::Value val, DimsOrder newOrder, Logger log) {
-    const auto origType = val.getType().cast<mlir::ShapedType>();
-    const auto newType = changeDimsOrder(origType, newOrder);
+    const auto origType = val.getType().cast<vpux::NDTypeInterface>();
+    const auto newType = origType.changeDimsOrder(newOrder);
 
     log.trace("Change Value type to '{0}'", newType);
     val.setType(newType);

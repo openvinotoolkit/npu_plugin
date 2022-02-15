@@ -32,18 +32,18 @@ using namespace vpux;
 //
 
 bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernel_size, mlir::ArrayAttr strides,
-                                         mlir::ShapedType input, mlir::ShapedType output) {
+                                         vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
     const auto arch = getArch(op);
 
     Byte requiredCMX(0);
 
     for (const auto& type : {input, output}) {
-        requiredCMX += getTotalSize(type);
+        requiredCMX += type.getTotalAllocSize();
     }
 
     // MTL hw doesn't require weights table and activation window for max/average pool ops
     if (arch != VPU::ArchKind::MTL) {
-        const auto outputShape = getShape(output);
+        const auto outputShape = output.getShape();
         const auto OC = outputShape[Dims4D::Act::C];
 
         const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(kernel_size));
@@ -96,8 +96,8 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, NCEInvariant::LogCb 
         return false;
     }
 
-    const auto inputType = op.input().getType().cast<mlir::ShapedType>();
-    const auto outputType = op.output().getType().cast<mlir::ShapedType>();
+    const auto inputType = op.input().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = op.output().getType().cast<vpux::NDTypeInterface>();
 
     if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignment(inputType)) ||
         !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignment(outputType))) {
@@ -105,8 +105,8 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, NCEInvariant::LogCb 
         return false;
     }
 
-    const auto inputOrder = DimsOrder::fromType(inputType);
-    const auto outputOrder = DimsOrder::fromType(outputType);
+    const auto inputOrder = inputType.getDimsOrder();
+    const auto outputOrder = outputType.getDimsOrder();
 
     if (inputOrder != DimsOrder::NHWC || outputOrder != DimsOrder::NHWC) {
         logCb(llvm::formatv("Unsupported layout"));
@@ -190,7 +190,7 @@ mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::inferReturnTypeComponents(
                                                  return checked_cast<int64_t>(val);
                                              }));
 
-    const auto elemType = op.input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto elemType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     inferredReturnShapes.emplace_back(outputShape, elemType);
     return mlir::success();

@@ -73,7 +73,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ROIPoolingUPAOp op) {
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const float spatial_scale_val = static_cast<float>(spatial_scale().convertToDouble());
-    uint32_t num_rois = checked_cast<uint32_t>(coords().getType().cast<mlir::ShapedType>().getShape()[0]);
+    uint32_t num_rois = checked_cast<uint32_t>(coords().getType().cast<vpux::NDTypeInterface>().getShape().raw()[0]);
     const auto output_size = parseIntArrayAttr<int64_t>(output_sizeAttr());
 
     MVCNN::ROIPoolingParamsBuilder builder(writer);

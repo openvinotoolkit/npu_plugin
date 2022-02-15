@@ -48,7 +48,7 @@ def VPURT_SparseBuffer :
         VPURT_Type<
             "SparseBuffer",
             [
-                ShapedPropertiesTypeInterface
+                NDTypeInterface
             ]
         > {
     let summary = "VPURT Sparse Buffer Type";
@@ -94,12 +94,12 @@ def VPURT_SparseBuffer :
         vpux::Bit getElemTypeSize() const;
         vpux::Byte getTotalAllocSize() const;
         vpux::Byte getCompactAllocSize() const;
-        vpux::ShapedPropertiesTypeInterface changeShape(vpux::ShapeRef shape) const;
-        vpux::ShapedPropertiesTypeInterface changeElemType(mlir::Type elemType) const;
-        vpux::ShapedPropertiesTypeInterface changeDimsOrder(vpux::DimsOrder order) const;
-        vpux::ShapedPropertiesTypeInterface changeMemSpace(vpux::IndexedSymbolAttr memSpace) const;
-        vpux::ShapedPropertiesTypeInterface extractDenseTile(vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;
-        vpux::ShapedPropertiesTypeInterface pad(vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
+        vpux::NDTypeInterface changeShape(vpux::ShapeRef shape) const;
+        vpux::NDTypeInterface changeElemType(mlir::Type elemType) const;
+        vpux::NDTypeInterface changeDimsOrder(vpux::DimsOrder order) const;
+        vpux::NDTypeInterface changeMemSpace(vpux::IndexedSymbolAttr memSpace) const;
+        vpux::NDTypeInterface extractDenseTile(vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;
+        vpux::NDTypeInterface pad(vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
     }];
 }
 

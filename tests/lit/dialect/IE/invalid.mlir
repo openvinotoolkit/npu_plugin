@@ -66,7 +66,7 @@ func @main(%arg0: tensor<1x3x16x16xf32>) {
 // CHECK-LABEL: @wrong_entry_point_sig
 module @wrong_entry_point_sig {
 
-// expected-error@+1 {{User input #0 is not a 'ShapedType'}}
+// expected-error@+1 {{User input #0 is not a 'vpux::NDTypeInterface'}}
 IE.CNNNetwork
     entryPoint: @main
     inputsInfo : {

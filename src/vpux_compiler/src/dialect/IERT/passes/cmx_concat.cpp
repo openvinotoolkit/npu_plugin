@@ -52,9 +52,9 @@ private:
 };
 
 size_t getSize(mlir::Value val) {
-    const auto type = val.getType().dyn_cast<mlir::MemRefType>();
+    const auto type = val.getType().dyn_cast<vpux::NDTypeInterface>();
     VPUX_THROW_UNLESS(type != nullptr, "CMX Concat can work only with MemRef Type, got '{0}'", val.getType());
-    const Byte totalSize = getTotalSize(type);
+    const Byte totalSize = type.getTotalAllocSize();
     return checked_cast<size_t>(totalSize.count());
 }
 
@@ -143,8 +143,8 @@ bool isSplitSupportedOnDPU(IERT::SubViewOp subViewOp) {
     // Only such cases are supported by DPU IDU becasue only then input to DPU is a contiguous
     // block in memory. Otherwise this behavior needs to be performed by DMA
     const auto inputTypeShape = getShape(subViewOp.source()).raw();
-    const auto outputType = subViewOp.result().getType().dyn_cast<mlir::MemRefType>();
-    const auto outputTypeShape = outputType.getShape();
+    const auto outputType = subViewOp.result().getType().cast<vpux::NDTypeInterface>();
+    const auto outputTypeShape = outputType.getShape().raw();
 
     if (inputTypeShape.size() != outputTypeShape.size() || inputTypeShape.size() != 4) {
         return false;
@@ -152,7 +152,7 @@ bool isSplitSupportedOnDPU(IERT::SubViewOp subViewOp) {
 
     size_t dimsDifference = 0;
     size_t dimsDifferenceCount = 0;
-    const auto order = DimsOrder::fromType(outputType);
+    const auto order = outputType.getDimsOrder();
 
     for (size_t i = 0; i < 4; i++) {
         if (inputTypeShape[i] != outputTypeShape[i]) {
@@ -253,7 +253,7 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
                     return mlir::failure();
                 }
                 auto copyOut = mlir::dyn_cast<IERT::CopyOp>(subUser);
-                const auto dstMemory = VPU::getMemoryKind(copyOut.output().getType().cast<mlir::MemRefType>());
+                const auto dstMemory = copyOut.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
                 // If failed to obtain, or the destination is not CMX
                 if (dstMemory != VPU::MemoryKind::CMX_NN) {
                     return mlir::failure();
@@ -265,7 +265,7 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
             }
         } else if (mlir::isa<IERT::CopyOp>(*user)) {
             auto copyOut = mlir::dyn_cast<IERT::CopyOp>(user);
-            const auto dstMemory = VPU::getMemoryKind(copyOut.output().getType().cast<mlir::MemRefType>());
+            const auto dstMemory = copyOut.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             // If failed to obtain, or the destination is not CMX
             if (dstMemory != VPU::MemoryKind::CMX_NN) {
                 return mlir::failure();
@@ -297,13 +297,13 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
 
     // create a new CMX memref and AllocOp
     auto masterBufferOutput = concat.getResult();
-    auto masterBufferOutputMemRefType = masterBufferOutput.getType().cast<mlir::MemRefType>();
+    auto masterBufferOutputMemRefType = masterBufferOutput.getType().cast<vpux::NDTypeInterface>();
 
     // retrieve attributes of the DDR memref
     const auto cmxMemSpaceAttr = VPU::MemoryKind::CMX_NN;
     const auto shape = ShapeRef(masterBufferOutputMemRefType.getShape());
     const auto elemType = masterBufferOutputMemRefType.getElementType();
-    const auto order = DimsOrder::fromType(masterBufferOutputMemRefType);
+    const auto order = masterBufferOutputMemRefType.getDimsOrder();
 
     // find IR location that is dominated by all NCE Tiles
     auto firstNce = nceTiles.front();

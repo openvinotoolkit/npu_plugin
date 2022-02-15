@@ -38,8 +38,8 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ConvertUPAOp op) {
             {GF_U8, GF_FP32},   {GF_FP16, GF_U8},    {GF_FP32, GF_U8},   {GF_INT32, GF_U8},
     };
 
-    const auto inType = op.input().getType().cast<mlir::ShapedType>().getElementType();
-    const auto outType = op.output().getType().cast<mlir::ShapedType>().getElementType();
+    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outType = op.output().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     if (supportedConversions.find({inType, outType}) == supportedConversions.end()) {
         return errorAt(op, "Unsupported conversion type : '{0}' -> '{1}'", inType, outType);

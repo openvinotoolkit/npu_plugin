@@ -23,8 +23,8 @@ Shape computeGeneralTileStrategy(mlir::Operation* op, Logger log) {
     VPUX_THROW_WHEN(tilingBuilder == nullptr, "Operation '{0}' doesn't implement TilingBuilderOpInterface",
                     op->getName());
 
-    const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
-    const auto outputShape = getShape(outputType);
+    const auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    const auto outputShape = outputType.getShape();
 
     VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
                       op->getName(), op->getLoc());
@@ -115,8 +115,8 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
 
     tiledBuilderOp.adjustAttrs(inputTiling);
 
-    const auto baseResType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
-    const auto tiledResType = getDenseTileType(baseResType, outputTile.offsets, outputTile.shape);
+    const auto baseResType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    const auto tiledResType = baseResType.extractDenseTile(outputTile.offsets, outputTile.shape);
 
     auto tiledRes = tiledOp->getResult(0);
     tiledRes.setType(tiledResType);

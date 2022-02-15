@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/utils/core/func_ref.hpp"
@@ -60,7 +61,7 @@ bool isAttrsSupported(ArchKind arch, int64_t KY, int64_t KX, int64_t SY, int64_t
 
 int64_t getAlignment(mlir::Type elemType);
 
-bool isActTypeSupported(mlir::ShapedType type, int64_t alignment, LogCb logCb = emptyLogCb);
+bool isActTypeSupported(vpux::NDTypeInterface type, int64_t alignment, LogCb logCb = emptyLogCb);
 
 //
 // PostOp checks
@@ -78,7 +79,7 @@ Byte getWeightsTableSize(int64_t OC);
 // Channel major Convolution
 //
 
-bool isChannelMajorCompatible(ArchKind arch, mlir::ShapedType inputType);
+bool isChannelMajorCompatible(ArchKind arch, vpux::NDTypeInterface inputType);
 
 //
 // Fuse PadOp check

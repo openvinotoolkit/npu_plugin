@@ -31,15 +31,15 @@ using namespace vpux;
 //
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
-    const auto inType = op.input().getType().dyn_cast<mlir::ShapedType>();
-    const auto outType = op.output().getType().dyn_cast<mlir::ShapedType>();
+    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>();
+    const auto outType = op.output().getType().cast<vpux::NDTypeInterface>();
 
     if (inType.getRank() > outType.getRank()) {
         return errorAt(op, "Input rank {0} doesn't match output rank {1}", inType.getRank(), outType.getRank());
     }
 
     const auto order = DimsOrder::fromAffineMap(op.order_value());
-    const auto inShape = getShape(inType);
+    const auto inShape = inType.getShape();
 
     if (order.numDims() > inShape.size()) {
         return errorAt(op, "Order vector size {0} doesn't match input rank {1}", order.numDims(), inShape.size());

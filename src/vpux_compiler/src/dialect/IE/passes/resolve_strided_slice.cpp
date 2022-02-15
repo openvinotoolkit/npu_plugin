@@ -88,7 +88,7 @@ ngraph::SlicePlan ResolveStridedSlicePass::SlicePlanning::getSlicePlan(IE::Strid
     const auto shrinkAxisMask = getAxisSetArr(origOp.shrink_axis_mask());
     const auto ellipsisMask = getAxisSetArr(origOp.ellipsis_mask());
 
-    const auto inDataType = origOp.input().getType().cast<mlir::ShapedType>();
+    const auto inDataType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto inDataShape = inDataType.getShape();
 
     return ngraph::make_slice_plan(ngraph::Shape(inDataShape.begin(), inDataShape.end()), beginsVec, endsVec,

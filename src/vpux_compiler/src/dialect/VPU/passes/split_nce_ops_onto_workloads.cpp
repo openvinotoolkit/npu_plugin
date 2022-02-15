@@ -121,8 +121,8 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
     const auto outputShape = getShape(origOp.output());
     auto pads = origOp.pad();
 
-    const auto inElemType = origOp.input().getType().template cast<mlir::RankedTensorType>().getElementType();
-    const auto outElemType = origOp.output().getType().template cast<mlir::RankedTensorType>().getElementType();
+    const auto inElemType = origOp.input().getType().template cast<vpux::NDTypeInterface>().getElementType();
+    const auto outElemType = origOp.output().getType().template cast<vpux::NDTypeInterface>().getElementType();
 
     rewriter.updateRootInPlace(origOp, [&]() {
         addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch);
@@ -158,8 +158,8 @@ mlir::LogicalResult EltwiseNCERewrite::matchAndRewrite(VPU::NCEEltwiseOp origOp,
     auto pads = VPU::PaddingAttr::get(getIntAttr(rewriter, 0), getIntAttr(rewriter, 0), getIntAttr(rewriter, 0),
                                       getIntAttr(rewriter, 0), ctx);
 
-    const auto inElemType = origOp.input1().getType().cast<mlir::RankedTensorType>().getElementType();
-    const auto outElemType = origOp.output().getType().cast<mlir::RankedTensorType>().getElementType();
+    const auto inElemType = origOp.input1().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outElemType = origOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     rewriter.updateRootInPlace(origOp, [&]() {
         addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch);

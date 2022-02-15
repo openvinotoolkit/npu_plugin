@@ -82,7 +82,7 @@ void CopyOpHoistingPass::safeRunOnFunc() {
     const auto needToHoist = [this](IERT::CopyOp copyOp) {
         _log.trace("Check '{0}' operation at '{1}'", copyOp->getName(), copyOp->getLoc());
 
-        const auto sourceMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
+        const auto sourceMemory = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
 
         if (sourceMemory != VPU::MemoryKind::CMX_NN) {
             _log.nest().trace("It doesn't work with CMX_NN input");

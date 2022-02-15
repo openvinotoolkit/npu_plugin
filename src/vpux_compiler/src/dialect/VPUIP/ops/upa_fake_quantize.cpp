@@ -89,10 +89,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
 
     const auto numChannels = inShape[C];
 
-    const auto inLowShape = getShape(op.input_low().getType());
-    const auto inHighShape = getShape(op.input_high().getType());
-    const auto outLowShape = getShape(op.output_low().getType());
-    const auto outHighShape = getShape(op.output_high().getType());
+    const auto inLowShape = op.input_low().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto inHighShape = op.input_high().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto outLowShape = op.output_low().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto outHighShape = op.output_high().getType().cast<vpux::NDTypeInterface>().getShape();
 
     if (!checkFakeQuantizeParamsShape(inLowShape, numChannels)) {
         return errorAt(op, "input_low shape is not per-tensor/per-channel : '{0}'", inLowShape);

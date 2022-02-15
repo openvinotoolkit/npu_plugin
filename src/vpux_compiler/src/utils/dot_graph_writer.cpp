@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
+#include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
 #include "vpux/utils/core/error.hpp"
@@ -306,8 +307,8 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
 
         // Print resultant types
         for (const auto type : op->getResultTypes()) {
-            if (const auto shape = type.dyn_cast<mlir::ShapedType>()) {
-                appendShapeLabel(os, shape.getShape(), shape.getElementType(), DimsOrder::fromType(shape));
+            if (const auto ndType = type.dyn_cast<vpux::NDTypeInterface>()) {
+                appendShapeLabel(os, ndType.getShape().raw(), ndType.getElementType(), ndType.getDimsOrder());
                 if (const auto memref = type.dyn_cast<mlir::MemRefType>()) {
                     if (memref.getMemorySpace() != nullptr) {
                         os << " at " << memref.getMemorySpace();

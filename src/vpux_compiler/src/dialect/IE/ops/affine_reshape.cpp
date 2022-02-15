@@ -137,6 +137,7 @@ mlir::LogicalResult vpux::IE::AffineReshapeOp::inferReturnTypeComponents(
     const auto outShape = parseIntArrayAttr<int64_t>(affineReshape.shape_value());
     const auto input = affineReshape.input();
     const auto inType = input.getType().cast<mlir::RankedTensorType>();
+    const auto ndInType = inType.cast<vpux::NDTypeInterface>();
     const auto inOrder = DimsOrder::fromValue(input);
 
     const auto outputLayout = inferOutputLayout(inOrder.toPermutation(), affineReshape.dim_mapping());
@@ -144,12 +145,11 @@ mlir::LogicalResult vpux::IE::AffineReshapeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto outDesc =
-            IE::getTensorAttr(ctx, outputLayout.getValue(), IE::getMemorySpace(inType), IE::isSparse(inType));
+    const auto outDesc = IE::getTensorAttr(ctx, outputLayout.getValue(), ndInType.getMemSpace(), IE::isSparse(inType));
 
-    const auto elemTypeInferResult = inferElemType(affineReshape, inType.getElementType());
+    const auto elemTypeInferResult = inferElemType(affineReshape, ndInType.getElementType());
     if (mlir::failed(elemTypeInferResult)) {
-        inferredReturnShapes.emplace_back(outShape, inType.getElementType(), outDesc);
+        inferredReturnShapes.emplace_back(outShape, ndInType.getElementType(), outDesc);
     } else {
         inferredReturnShapes.emplace_back(outShape, elemTypeInferResult.getValue(), outDesc);
     }

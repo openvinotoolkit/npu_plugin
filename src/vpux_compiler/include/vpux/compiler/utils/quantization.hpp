@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
+#include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -67,7 +68,7 @@ void getFakeQuantParams(mlir::quant::UniformQuantizedType qElemType, int64_t& le
 void getFakeQuantParams(mlir::quant::UniformQuantizedPerAxisType qElemType, int64_t& levels,
                         SmallVectorImpl<float>& rMinVals, SmallVectorImpl<float>& rMaxVals);
 
-void getFakeQuantParams(mlir::ShapedType qType, int64_t& levels, mlir::RankedTensorType& attrType,
+void getFakeQuantParams(vpux::NDTypeInterface qType, int64_t& levels, mlir::RankedTensorType& attrType,
                         mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr);
 
 std::tuple<double, int64_t> calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax, bool isSigned);

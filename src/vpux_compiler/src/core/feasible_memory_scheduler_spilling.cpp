@@ -307,9 +307,9 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
                                        llvm::formatv("spill_write_{0}", _depsInfo.getIndex(opThatWasSpilled)).str());
     _log.trace("Insert Spill Write copyOp - '{0}'", spillWriteNameLoc);
 
-    auto opToSpillMemRefType = bufferToSpill.getType().dyn_cast<mlir::MemRefType>();
+    auto opToSpillNDType = bufferToSpill.getType().cast<vpux::NDTypeInterface>();
 
-    auto spillBufferMemType = changeMemSpace(opToSpillMemRefType, _secondLvlMemSpace);
+    auto spillBufferNDType = opToSpillNDType.changeMemSpace(_secondLvlMemSpace);
 
     // Update address of the buffer that is to be spilled as spillWrite source buffer
     // is not correctly configured during scheduler memory allocation
@@ -318,7 +318,8 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
     // Create buffer in second level memory
     mlir::OpBuilder builder(_allocOpInsertionPoint);
     builder.setInsertionPoint(_allocOpInsertionPoint);
-    auto spillBuffer = builder.create<mlir::memref::AllocOp>(spillWriteNameLoc, spillBufferMemType);
+    auto spillBuffer =
+            builder.create<mlir::memref::AllocOp>(spillWriteNameLoc, spillBufferNDType.cast<mlir::MemRefType>());
 
     // Create new AsyncExecOp
     builder.setInsertionPointAfter(insertAfterExecOp);
@@ -364,15 +365,15 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     // Get information about spill write returned memref type and prepare new one with proper memory location
     auto spillWriteResult = spillWriteExecOp.results()[0];
     auto spillWriteAsyncType = spillWriteResult.getType().dyn_cast<mlir::async::ValueType>();
-    auto spillWriteMemRefType = spillWriteAsyncType.getValueType().cast<mlir::MemRefType>();
-    auto newBufferMemType = changeMemSpace(spillWriteMemRefType, _memSpace);
+    auto spillWriteNDType = spillWriteAsyncType.getValueType().cast<vpux::NDTypeInterface>();
+    auto newBufferNDType = spillWriteNDType.changeMemSpace(_memSpace);
 
     // Create buffer in first level memory to bring back spilled buffer. Configure its
     // address as since it is a new buffer corresponding AllocOp operation was not set
     // an address
     mlir::OpBuilder builder(_allocOpInsertionPoint);
     builder.setInsertionPoint(_allocOpInsertionPoint);
-    auto newBuffer = builder.create<mlir::memref::AllocOp>(spillReadNameLoc, newBufferMemType);
+    auto newBuffer = builder.create<mlir::memref::AllocOp>(spillReadNameLoc, newBufferNDType.cast<mlir::MemRefType>());
     _scan.handler().setAddress(newBuffer.memref(), allocatedAddress);
 
     _log.trace("newBuffer - '{0}'", newBuffer);

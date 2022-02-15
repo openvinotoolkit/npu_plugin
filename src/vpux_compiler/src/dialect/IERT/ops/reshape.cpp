@@ -22,8 +22,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IERT::verifyOp(GenericReshapeOp op) {
-    const auto inType = op.input().getType().cast<mlir::MemRefType>();
-    const auto outType = op.output().getType().cast<mlir::MemRefType>();
+    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>();
+    const auto outType = op.output().getType().cast<vpux::NDTypeInterface>();
 
     if (inType.getNumElements() != outType.getNumElements()) {
         return errorAt(op, "Reshape input and output must have the same number of elements");

@@ -166,10 +166,10 @@ public:
             return 1;
         }
 
-        const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
+        const auto inputType = op->getOperand(0).getType().cast<vpux::NDTypeInterface>();
 
         if (mlir::isa<IE::ConvolutionOp>(op)) {
-            const auto inOrder = DimsOrder::fromType(inputType);
+            const auto inOrder = inputType.getDimsOrder();
             if (inOrder == DimsOrder::NCHW) {
                 // C-major convolution has no specific requirements
                 return 1;
@@ -184,7 +184,7 @@ public:
             return 1;
         }
 
-        const auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>();
+        const auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
         return VPU::NCEInvariant::getAlignment(outputType.getElementType());
     }
 
@@ -227,9 +227,9 @@ private:
 //
 
 bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
-    const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
-    const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
-    const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+    const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         const auto origInputShape = getShape(origOp.input());
@@ -245,9 +245,9 @@ bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logg
         const auto& inputTile = tileConf[0];
         const auto& filterTile = tileConf[1];
 
-        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
-        const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
-        const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
+        const auto inputTileType = inputType.extractDenseTile(inputTile.offsets, inputTile.shape);
+        const auto filterTileType = filterType.extractDenseTile(filterTile.offsets, filterTile.shape);
+        const auto outputTileType = outputType.extractDenseTile(outputTile.offsets, outputTile.shape);
 
         return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(
                 origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(), inputTileType, filterTileType,
@@ -256,9 +256,9 @@ bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logg
 }
 
 bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
-    const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
-    const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
-    const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+    const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
 
     auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
 
@@ -280,9 +280,9 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
         const auto& inputTile = tileConf[0];
         const auto& filterTile = tileConf[1];
 
-        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
-        const auto filterTileType = getDenseTileType(filterType, filterTile.offsets, filterTile.shape);
-        const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
+        const auto inputTileType = inputType.extractDenseTile(inputTile.offsets, inputTile.shape);
+        const auto filterTileType = filterType.extractDenseTile(filterTile.offsets, filterTile.shape);
+        const auto outputTileType = outputType.extractDenseTile(outputTile.offsets, outputTile.shape);
 
         return mlir::succeeded(VPUIP::NCEInvariant::verifyGroupConvCMX(
                 origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(), inputTileType, filterTileType,
@@ -291,8 +291,8 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
 }
 
 bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger log) {
-    const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
-    const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+    const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
 
     auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
 
@@ -310,8 +310,8 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
         VPUX_THROW_UNLESS(!tileConf.empty(), "Got empty tile information");
         const auto& inputTile = tileConf[0];
 
-        const auto inputTileType = getDenseTileType(inputType, inputTile.offsets, inputTile.shape);
-        const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
+        const auto inputTileType = inputType.extractDenseTile(inputTile.offsets, inputTile.shape);
+        const auto outputTileType = outputType.extractDenseTile(outputTile.offsets, outputTile.shape);
 
         return mlir::succeeded(VPUIP::NCEInvariant::verifyPoolCMX(
                 origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(), inputTileType, outputTileType,
@@ -458,14 +458,14 @@ public:
             return true;
         }
 
-        const auto input1Type = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
-        const auto input2Type = origOp->getOperand(1).getType().cast<mlir::ShapedType>();
-        const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
+        const auto input1Type = origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+        const auto input2Type = origOp->getOperand(1).getType().cast<vpux::NDTypeInterface>();
+        const auto outputType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
 
         return llvm::all_of(tiles, [&](const TileInfo& tile) {
-            const auto input1TileType = getDenseTileType(input1Type, tile.offsets, tile.shape);
-            const auto input2TileType = getDenseTileType(input2Type, tile.offsets, tile.shape);
-            const auto outputTileType = getDenseTileType(outputType, tile.offsets, tile.shape);
+            const auto input1TileType = input1Type.extractDenseTile(tile.offsets, tile.shape);
+            const auto input2TileType = input2Type.extractDenseTile(tile.offsets, tile.shape);
+            const auto outputTileType = outputType.extractDenseTile(tile.offsets, tile.shape);
 
             return mlir::succeeded(
                     VPUIP::NCEInvariant::verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),

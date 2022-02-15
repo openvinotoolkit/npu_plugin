@@ -35,7 +35,7 @@ void vpux::VPU::NCEInvariant::emptyLogCb(const llvm::formatv_object_base&) {
 
 bool vpux::VPU::NCEInvariant::isPrecisionSupported(ArchKind arch, mlir::ValueRange vals, LogCb logCb) {
     for (const auto& val : vals) {
-        const auto elemType = val.getType().cast<mlir::ShapedType>().getElementType();
+        const auto elemType = val.getType().cast<vpux::NDTypeInterface>().getElementType();
 
         if (elemType.isBF16() && arch != ArchKind::MTL) {
             logCb(llvm::formatv("BF16 is only supported by MTL"));
@@ -136,14 +136,14 @@ int64_t vpux::VPU::NCEInvariant::getAlignment(mlir::Type elemType) {
     return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
 }
 
-bool vpux::VPU::NCEInvariant::isActTypeSupported(mlir::ShapedType type, int64_t alignment, LogCb logCb) {
+bool vpux::VPU::NCEInvariant::isActTypeSupported(vpux::NDTypeInterface type, int64_t alignment, LogCb logCb) {
     if (type.getRank() != 4) {
         logCb(llvm::formatv("Activation has unsupported rank: {0}", type.getRank()));
         return false;
     }
 
-    const auto shape = getShape(type);
-    const auto order = DimsOrder::fromType(type);
+    const auto shape = type.getShape();
+    const auto order = type.getDimsOrder();
     const auto memShape = order.toMemoryOrder(shape);
 
     const auto innerDim = memShape.back();
@@ -188,12 +188,12 @@ Byte vpux::VPU::NCEInvariant::getWeightsTableSize(int64_t OC) {
 // Channel major Convolution
 //
 
-bool vpux::VPU::NCEInvariant::isChannelMajorCompatible(ArchKind arch, mlir::ShapedType inputType) {
+bool vpux::VPU::NCEInvariant::isChannelMajorCompatible(ArchKind arch, vpux::NDTypeInterface inputType) {
     if (arch != ArchKind::KMB) {
         return false;
     }
 
-    const auto inputShape = getShape(inputType);
+    const auto inputShape = inputType.getShape();
     if (inputShape.size() < 4) {
         return false;
     }

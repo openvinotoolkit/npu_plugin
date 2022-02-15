@@ -143,7 +143,7 @@ mlir::LogicalResult ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::matchAndRewr
     const auto kernelX = kernel[1];
     const float weightsScaleFactor = 1.0f / static_cast<float>(kernelY * kernelX);
 
-    const auto elemType = origOp.input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto elemType = origOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
     const SmallVector<int64_t> weightShape = {OC, 1, kernelY, kernelX};
     const auto dataStorageType = mlir::RankedTensorType::get(weightShape, elemType);
 
