@@ -129,6 +129,52 @@ double StrategyManager::computeZMajorConvolutionSplitOverHeightEfficency(mlir::O
                                      getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
                                     _numDPUPerCluster));
 }
+
+// This method computes the SOH efficiency for z-major type operations
+// i.e. z-major convolution and depthwise convolution
+double StrategyManager::computeZMajorConvolutionSplitOverKernelEfficency(mlir::Operation* op) {
+    double efficiencyConstant = 0;
+    double outputTensorVolume = 0;
+    double OC;
+    double OH;
+    double OW;
+    if (auto depthwiseConvolutionOp = mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op)) {
+        const auto outputShape = getShape(depthwiseConvolutionOp.output().getType().cast<mlir::ShapedType>());
+        OC = outputShape[Dims4D::Act::C];
+        OH = outputShape[Dims4D::Act::H];
+        OW = outputShape[Dims4D::Act::W];
+        const auto filterShape = Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShapeAttr()));
+        const auto strides = parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.strides());
+        const auto KY = filterShape[Dims4D::Filter::KY];
+        efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
+
+    } else if (auto convolutionOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
+        const auto outputShape = getShape(convolutionOp.output().getType().cast<mlir::ShapedType>());
+        OC = outputShape[Dims4D::Act::C];
+        OH = outputShape[Dims4D::Act::H];
+        OW = outputShape[Dims4D::Act::W];
+        efficiencyConstant = 1.0;
+    } else {
+        VPUX_THROW("Attempting to calculate the hardware efficiency for operation {0}, which is not a z-major "
+                   "compatible operation",
+                   op->getName());
+    }
+
+    outputTensorVolume = OC * OH * OW;
+
+    return efficiencyConstant *
+           std::max((outputTensorVolume / _numClusters) /
+                            getChannelAlignment(
+                                    (getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
+                                     getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                    _numDPUPerCluster),
+                    (outputTensorVolume / _numClusters) /
+                            getChannelAlignment(
+                                    (getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
+                                     getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                    _numDPUPerCluster));
+}
+
 // This method computes the SOH hardware efficiency of all NCE operations
 double StrategyManager::computeLayerSplitOverHeightEfficency(mlir::Operation* op) {
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
@@ -167,55 +213,26 @@ double StrategyManager::computeLayerSplitOverHeightEfficency(mlir::Operation* op
 
 // This method computes the SOK hardware efficiency of all NCE operations
 double StrategyManager::computeLayerSplitOverKernelEfficency(mlir::Operation* op) {
-    const auto splitOverKernelFormula = [&](double OH, double OW, double OC) {
-        double outputTensorVolume = OC * OH * OW;
-        return std::max((outputTensorVolume / _numClusters) /
-                                getChannelAlignment(
-                                        (getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
-                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                        _numDPUPerCluster),
-                        (outputTensorVolume / _numClusters) /
-                                getChannelAlignment(
-                                        (getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
-                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                        _numDPUPerCluster));
-    };
-
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
             .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp origOp) {
-                const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
-                const auto outputShape = getShape(outputType);
-                const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-                const double OC = outputShape[Dims4D::Act::C];
-                const double OH = outputShape[Dims4D::Act::H];
-                const double OW = outputShape[Dims4D::Act::W];
-                const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-                double efficency = splitOverKernelFormula(OH, OW, OC);
+                double efficiency = computeZMajorConvolutionSplitOverKernelEfficency(origOp.getOperation());
                 //_log.trace("The SOK efficiency for the convolution is {0}", efficency);
-                return efficency;
+                return efficiency;
             })
             .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {
+                //_log.trace("The SOK efficiency for MaxPool operation {0} is 1 as it should be assigned SOH {1}",
+                //           origOp->getName(), efficiency);
                 return 1;
             })
             .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp) {
-                //_log.trace("Eltwise {0} operation detected. SOH wil be assigned", op->getName());
+                //_log.trace("The SOK efficiency for Eltwsie operation {0} is 1 as it should be assigned SOH {1}",
+                //           origOp->getName(), efficiency);
                 return 1;
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
-                const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
-                const auto outputShape = getShape(outputType);
-                const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-                const double OC = outputShape[Dims4D::Act::C];
-                const double OH = outputShape[Dims4D::Act::H];
-                const double OW = outputShape[Dims4D::Act::W];
-                const auto KY = filterShape[Dims4D::Filter::KY];
-                const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-
-                auto efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
-
-                double efficency = efficiencyConstant * splitOverKernelFormula(OH, OW, OC);
+                double efficiency = computeZMajorConvolutionSplitOverKernelEfficency(origOp.getOperation());
                 //_log.trace("The SOK efficiency for the group convolution is {0}", efficency);
-                return efficency;
+                return efficiency;
             });
 }
 

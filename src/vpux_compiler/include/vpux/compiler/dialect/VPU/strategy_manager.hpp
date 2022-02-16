@@ -74,6 +74,7 @@ private:
     double computeLayerSplitOverKernelEfficency(mlir::Operation* op);
     double computeChannelMajorConvolutionSplitOverHeightEfficency(VPU::NCEConvolutionOp origOp);
     double computeZMajorConvolutionSplitOverHeightEfficency(mlir::Operation* op);
+    double computeZMajorConvolutionSplitOverKernelEfficency(mlir::Operation* op);
     mlir::ArrayAttr getKernelSize(VPU::NCEDepthConvolutionOp& origOp) const;
     mlir::ArrayAttr getKernelSize(VPU::NCEConvolutionOp& origOp) const;
     mlir::ArrayAttr getKernelSize(VPU::NCEMaxPoolOp& origOp) const;
