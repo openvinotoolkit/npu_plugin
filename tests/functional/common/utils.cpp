@@ -9,4 +9,8 @@
 
 std::string getBackendName(const ov::Core& core) {
     return core.get_property("VPUX", VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
-} 
+}
+
+std::vector<std::string> getAvailableDevices(const ov::Core& core) {
+    return core.get_property("VPUX", METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+}

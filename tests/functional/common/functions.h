@@ -11,6 +11,7 @@
 InferenceEngine::CNNNetwork buildSingleLayerSoftMaxNetwork();
 
 std::string getBackendName(const InferenceEngine::Core& core);
+std::vector<std::string> getAvailableDevices(const InferenceEngine::Core& core);
 
 // class encupsulated VPUXPlatform getting from environmental variable
 class PlatformEnvironment {
