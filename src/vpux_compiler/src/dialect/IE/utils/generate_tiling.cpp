@@ -69,7 +69,8 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
         return tileShape[dimToTile] < maxNumTiles[dimToTile.ind()];
     };
 
-    while (!isSupportedTileSize(nTilesOnDim, TilingMode::ISOLATED_TILING)) {
+    const auto tilingModeToCheck = tilingMode == TilingMode::PREFETCH_TILING ? TilingMode::ISOLATED_TILING : tilingMode;
+    while (!isSupportedTileSize(nTilesOnDim, tilingModeToCheck)) {
         if (!isDimLeftToTile(nTilesOnDim)) {
             dimToTile = *(++tileDimIter);
         }
@@ -270,9 +271,10 @@ bool prefetchTilingConditionSatisfied(mlir::Operation* op, Logger log) {
     }
     // For parallel sub-graphs, the order is undecided yet
     // Abandon prefetching these cases
-    if (!parentOp->getResult(0).hasOneUse()) {
-        auto user1 = *parentOp->getResult(0).getUsers().begin();
-        for (auto remainUser : parentOp->getResult(0).getUsers()) {
+    mlir::Operation* realParentOp = op->getOperand(0).getDefiningOp();
+    if (!realParentOp->getResult(0).hasOneUse()) {
+        auto user1 = *realParentOp->getResult(0).getUsers().begin();
+        for (auto remainUser : realParentOp->getResult(0).getUsers()) {
             if (remainUser != user1) {
                 return false;
             }
