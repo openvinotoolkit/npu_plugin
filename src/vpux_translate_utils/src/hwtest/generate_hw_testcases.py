@@ -60,7 +60,7 @@ else:
     sys.path.append(numericBenchPath)
 
 from operators.compute_core import bfloat16
-from operators.vpu26 import Add, Mult, MTLConv2D, MaxPool, AveragePool
+from operators.vpu26 import Add, Mult, MTLConv2D, MaxPool, AveragePool, PRelu, RequantFuseWithPRelu
 from operators.vpu26 import HSwish, Sigmoid, Softmax
 from operators.platform.quantize_info import QuantizationInfo
 from operators.platform.quantized_tensor import NBQuantized
@@ -421,13 +421,17 @@ class UInt8(TType):
         return data.round().clip(0, 255)
 
 class Int8(TType):
-    def __init__(self, bitwidth=7):
+    def __init__(self, bitwidth=7, value=None):
         super().__init__(np.int8, 'int8', 'int8', bitwidth, True)
         self.bitsize = 8
         self.low = np.int8(-(2 ** bitwidth))
         self.high = np.int8((2 ** bitwidth) - 1)
+        self.value = value
 
     def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
+        if self.value:
+            self.low = self.high = self.value
+
         return Value(self,
                       filename,
                       rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.int8),
@@ -479,18 +483,23 @@ class Int32(TType):
 
 
 class FP16(TType):
-    def __init__(self, bitwidth=16):
+    def __init__(self, bitwidth=16, value=None):
         super().__init__(np.float16, 'fp16', None, bitwidth, True)
         self.bitsize = 16
+        self.value = value
 
     def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
-        data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
+        if self.value:
+            data = np.full(shape, self.value, dtype=np.float16)
+        else:
+            data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
+            data = (data * (2. ** self.bitwidth)).astype(np.float16)
 
         return Value(self,
                       filename,
-                      (data * (2. ** self.bitwidth)).astype(np.float16),
+                      data,
                       self.bitwidth,
                       self.bitsize,
                       True,
@@ -644,6 +653,33 @@ class Operation(ABC):
 
 def shape_to_str(shape: Sequence[int]) -> str:
     return 'x'.join([str(d) for d in shape])
+
+class PReLU:
+    def __init__(self, slope, out_type=np.float16):
+        self.slope = slope
+        self.out_type = out_type
+        if self.out_type is np.int8:
+            self.out_type_desc = 'int8'
+        elif self.out_type is np.uint8:
+            self.out_type_desc = 'uint8'
+        else:
+            self.out_type_desc = 'fp16'
+
+    def __str__(self):
+
+        return 'prelu_{}_{}'.format(self.slope, self.out_type_desc)
+
+    @property
+    def json_info(self):
+        return {'name': 'PReLU', 'alpha': self.slope, 'output_type': self.out_type_desc}
+
+    def __call__(self, values, scale=None, zero_point=None):
+        (PReLU)
+        if isinstance(values, NBQuantized):
+            return RequantFuseWithPRelu().inference(values, self.slope, scale, zero_point)
+        else:
+            return PRelu(output_data_type=np.float16).inference(values, self.slope)
+
 
 class ZMajorConvolution(Operation):
 
@@ -1659,28 +1695,65 @@ class RaceCondition:
             return False
         return self.mpe_op.filter_issues(args)
 
-def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], bitshift: int) -> Value:
+def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], activation=None) -> Value:
     """Models the hardware PPE"""
-    ndarray = data.value if isinstance(data, NBQuantized) else data
+    def getValue(collection):
+        return collection.value if isinstance(collection, NBQuantized) else collection
 
+    ndarray = getValue(data)
     rescale = not output_ttype.is_float
+    output_type = output_ttype
+    output_scale = 1.
+    output_zero_point = 0
+
+    result_bitwidth = math.ceil(np.log2(np.amax(abs(ndarray))))
+    bitshift = max(result_bitwidth - output_type.bitwidth, 0)
+
     if rescale:
         if np.issubdtype(ndarray.dtype, np.integer):
             ndarray = ndarray.astype(np.float64)
-        ndarray /= (1. * (1 << bitshift))
-        # if np.issubdtype(ndarray.dtype, np.integer):
-        #     ndarray = np.right_shift(ndarray, bitshift)
-        # else:
-        #     ndarray /= (1. * (1 << bitshift))
 
-    ndarray = output_ttype.clip(ndarray).astype(output_ttype.dtype)
-    value = Value(output_ttype, 'output-0.bin', ndarray, output_ttype.bitwidth, output_ttype.bitsize, output_ttype.signed, None)
+        if isinstance(activation, PReLU):
+            activated = np.where(ndarray < 0, ndarray * activation.slope, ndarray)
+            max_ = max(np.amax(activated), 0)
+            min_ = min(np.amin(activated), 0)
+
+            if activation.out_type is np.int8:
+                distance = max(-min_, max_)
+                zero_point = 0
+                scale = distance / 127.
+
+            if activation.out_type is np.uint8:
+                length = max_ - min_
+                zero_point = np.round((-min_ * 255.) / length)
+                scale = length / 255.
+
+            output_type = Int8() if activation.out_type is np.int8 else UInt8()
+            output_scale = scale
+            output_zero_point = zero_point
+        else:
+            # replace with quantization (#-29828)
+            ndarray /= (1. * (1 << bitshift))
+
+    if activation:
+        data = activation(data, np.float32(output_scale), activation.out_type(output_zero_point))
+        ndarray = getValue(data)
+    else:
+        ndarray = output_type.clip(ndarray).astype(output_type.dtype)
+
+    value = Value(output_type, 'output-0.bin', ndarray, output_type.bitwidth, output_type.bitsize, output_type.signed, None)
 
     if rescale:
         if isinstance(data, NBQuantized):
-            value.zero = int(data.zero_point)
-            value.scale = (1 << bitshift)
+            if isinstance(activation, PReLU):
+                value.zero = output_zero_point
+                value.scale = output_scale
+            else:
+                # replace with quantization (#-29828)
+                value.zero = int(data.zero_point)
+                value.scale = (1 << bitshift)
         else:
+            # replace with quantization (#-29828)
             value.scale = (1 << bitshift)
 
     return value
@@ -1697,7 +1770,7 @@ class Settings:
 
 
 class DPUPipeline:
-    def __init__(self, option_names, option_values):
+    def __init__(self, option_names, option_values, activation=None):
         settings = Settings()
         self.settings = settings
         self.issues = set()
@@ -1705,18 +1778,14 @@ class DPUPipeline:
             setattr(settings, name, value)
 
         self.mpe_op = settings.mpe_op_class(settings)
+        self.activation = activation
 
     def compute_values(self):
         try:
             self.inputs = self.mpe_op.generate_inputs(default_rng(1))
             mpe_data = self.mpe_op.apply(self.inputs)
-            if isinstance(mpe_data, NBQuantized):
-                self.mpe_data = mpe_data.value
-            else:
-                self.mpe_data = mpe_data
-            result_bitwidth = math.ceil(np.log2(np.amax(abs(self.mpe_data))))
-            bitshift = max(result_bitwidth - self.settings.output_ttype.bitwidth, 0)
-            ppe_value = ppe(self.inputs, self.settings.output_ttype, mpe_data, bitshift)
+            self.mpe_data = mpe_data.value if isinstance(mpe_data, NBQuantized) else mpe_data
+            ppe_value = ppe(self.inputs, self.settings.output_ttype, mpe_data, self.activation)
             self.o = odu(ppe_value)
             self.o.check_entropy()
         except Exception as ex:
@@ -1734,11 +1803,12 @@ class DPUPipeline:
 
     @property
     def ident(self):
-        return f'{self.mpe_op.ident}_{self.settings.output_ttype.stype}'
+        activation_ident = str(self.activation or self.settings.output_ttype.stype)
+        return f'{self.mpe_op.ident}_{activation_ident}'
 
     @property
     def data(self):
-        return {
+        data = {
             **self.mpe_op.data,
             'Type': self.mpe_op.NAME,
             'Content Creation': 0,
@@ -1746,6 +1816,9 @@ class DPUPipeline:
             'WtSpBitsIC': '',
             'Issues': ', '.join(self.issues)
         }
+        if self.activation:
+            data['PPE'] = str(self.activation)
+        return data
 
     def write_data(self, dir: Path):
         orderer = self.mpe_op.orderer
@@ -1755,9 +1828,13 @@ class DPUPipeline:
         orderer(self.mpe_data).tofile(dir / 'mpe_raw.bin')
 
     def value(self):
-        return {
-            **self.mpe_op.json_info(self.inputs, self.o),
-        }
+        value = self.mpe_op.json_info(self.inputs, self.o)
+        if self.activation:
+            value['activation'] = self.activation.json_info
+        return value
+
+    def filter_issues(self, args) -> bool:
+        return not self.issues and self.mpe_op.filter_issues(args)
 
     def filter_issues(self, args):
         return self.mpe_op.filter_issues(args)
@@ -1831,9 +1908,10 @@ def genZMConvs(input_types=[UInt8(2)],
                strides=[[1, 1]],
                pads=Pad.none,
                compress=False,
-               mpe_cubs=[MPE_CUBES.CUBOID_16x16]):
+               mpe_cubs=[MPE_CUBES.CUBOID_16x16],
+               activations=[None]):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs):
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, activation) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, activations):
 
         if weight_types is None:
             current_weight_types = _ZMCONV_VALID_WEIGHT_TYPES[input_type.__class__]
@@ -1863,8 +1941,7 @@ def genZMConvs(input_types=[UInt8(2)],
                                                              stride,
                                                              pad,
                                                              compress,
-                                                             mpe_cub
-                                                             ))
+                                                             mpe_cub), activation)
 
 
 def genEltwiseAdds(input_types=[Int8(6)],
@@ -2763,7 +2840,47 @@ def generate_options(args):
             iteration_counts=[10],
             requested_clusters=[1, 2],
             requested_units=[1, 2]
-        )
+        ),
+
+        genZMConvs(
+            input_types=[Int8(2)],
+            input_shapes=[[1, 16, 16, 16]],
+            weight_types=[Int8(2)],
+            kernel_channels=[16],
+            kernel_shapes=[[1, 1]],
+            output_types=[Int32()],
+            pads=[[0, 0, 0, 0]],
+            activations=[
+                PReLU(0.1, np.int8),
+                PReLU(0.1, np.uint8),
+                PReLU(0.5, np.int8),
+                PReLU(0.5, np.uint8),
+                PReLU(1, np.int8),
+                PReLU(1, np.uint8),
+                PReLU(1.5, np.int8),
+                PReLU(1.5, np.uint8),
+            ]
+        ),
+
+        genZMConvs(
+            input_types=[FP16(2)],
+            input_shapes=[[1, 16, 16, 16]],
+            weight_types=[FP16(2)],
+            kernel_channels=[16],
+            kernel_shapes=[[1, 1]],
+            output_types=[FP16()],
+            pads=[[0, 0, 0, 0]],
+            activations=[
+                PReLU(0.1),
+                PReLU(0.5),
+                PReLU(1),
+                PReLU(1.5),
+                PReLU(-0.1),
+                PReLU(-0.5),
+                PReLU(-1),
+                PReLU(-1.5),
+            ]
+        ),
     )
 
 

@@ -1,5 +1,4 @@
 // RUN: vpux-translate --mlir-elide-elementsattrs-if-larger=16 --import-HWTEST %s | FileCheck %s
-
 {
     "case_type": "MaxPool",
     "input": {
@@ -48,10 +47,6 @@
             "low_range": -65536,
             "high_range": 65535
         }
-    },
-    "activation": {
-        "name": null
     }
 }
-
 // CHECK-LABEL: module @mainModule

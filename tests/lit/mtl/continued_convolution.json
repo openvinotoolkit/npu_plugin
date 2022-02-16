@@ -1,5 +1,4 @@
 // RUN: vpux-translate --mlir-elide-elementsattrs-if-larger=16 --import-HWTEST %s | FileCheck %s
-
 {
     "case_type": "ZMajorConvolution",
     "input": {
@@ -61,10 +60,6 @@
             "high_range": 65535
         }
     },
-    "output_order": "nhwc",
-    "activation": {
-        "name": null
-    }
+    "output_order": "nhwc"
 }
-
 // CHECK-LABEL: module @mainModule

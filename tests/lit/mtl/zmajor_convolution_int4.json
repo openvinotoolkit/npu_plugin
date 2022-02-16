@@ -1,5 +1,4 @@
 // RUN: vpux-translate --import-HWTEST %s
-
 {
     "case_type": "ZMajorConvolution",
     "input": {
@@ -63,8 +62,5 @@
         "compress": false,
         "mpe_cub": "CUBOID_16x16"
     },
-    "output_order": "nhwc",
-    "activation": {
-        "name": null
-    }
+    "output_order": "nhwc"
 }

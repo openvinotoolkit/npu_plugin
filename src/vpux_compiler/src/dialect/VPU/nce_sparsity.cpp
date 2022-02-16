@@ -131,11 +131,11 @@ int32_t toHex(double realVal) {
     };
 
     f32toint32 biasVal;
-    biasVal.m_f32 = static_cast<float>(realVal);
+    biasVal.m_f32 = checked_cast<float>(realVal);
     return biasVal.m_i32;
 }
 
-constexpr int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::Type) {
+constexpr int32_t getKMBScale(uint8_t shift, uint16_t mult, double, mlir::Type) {
     // FIXME: set value when PPE is LPRELU in quant mode
     int32_t PRELU_SCALE_OFFSET = 0;
     int32_t PRELU_SCALE_VALUE = 1;
@@ -154,7 +154,7 @@ constexpr int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::Type)
            (ROUND_MODE_VALUE << ROUND_MODE_OFFSET) | (PPE_MULT_VALUE << PPE_MULT_OFFSET);
 }
 
-int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Type inputType) {
+int32_t getMTLScale(uint8_t shift, uint16_t mult, double rescale, mlir::Type inputType) {
     // MTL expects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
     if (inputType.isF16() || inputType.isBF16() || inputType.isF32()) {
         return toHex(rescale);
@@ -257,10 +257,10 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
 
         const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
         return [rescale = std::move(rescale), ppeConverter, inElemType, ppe, updateMultForPPE](size_t oc) {
-            uint32_t shift = 0;
-            uint32_t mult = 0;
-            vpux::VPU::NCESparsity::computeQuantMultShift(rescale[oc], shift, mult);
-            int32_t multShift = ppeConverter(shift, mult, rescale[oc], inElemType);
+            const auto quantScale = rescale[oc];
+            const auto mult = vpux::getQuantMultFromScale(quantScale);
+            const auto shift = vpux::getQuantShiftFromScale(quantScale);
+            auto multShift = ppeConverter(shift, mult, rescale[oc], inElemType);
             updateMultForPPE(multShift, ppe);
             return multShift;
         };

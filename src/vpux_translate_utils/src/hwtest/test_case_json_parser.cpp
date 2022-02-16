@@ -164,7 +164,7 @@ nb::ActivationType nb::to_activation_type(llvm::StringRef str) {
     if (!str.size() || isEqual(str, "None")) {
         return nb::ActivationType::None;
     }
-    if (isEqual(str, "LeakyReLU")) {
+    if (isEqual(str, "LeakyReLU") || isEqual(str, "PReLU")) {
         return nb::ActivationType::LeakyReLU;
     }
     if (isEqual(str, "ReLU")) {
@@ -562,6 +562,7 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
     caseTypeStr_ = case_type.getValue().str();
     inLayer_ = loadInputLayer(&json_obj);
     outLayer_ = loadOutputLayer(&json_obj);
+    activationLayer_ = loadActivationLayer(&json_obj);
 
     // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
     // eltwise needed).
@@ -601,7 +602,6 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
     }
 
     if (caseType_ == CaseType::ActShave) {
-        activationLayer_ = loadActivationLayer(&json_obj);
         return;
     }
 
