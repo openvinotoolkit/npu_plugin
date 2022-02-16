@@ -20,7 +20,6 @@
 #include "vpux/compiler/dialect/VPURT/types.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
-
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -98,7 +97,9 @@ private:
     bool concatOperationDoesNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
     bool isThisAComplexConcat(ConcatPattern concatPattern);
     bool inputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
-    bool childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
+    bool childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t parallelConsumerCount,
+                                      size_t cmxSize);
+    size_t getParallelConsumerCount(ConcatPattern concatPattern);
     bool outputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
     IE::SliceOp convertCopyToSlice(IE::CopyOp copyOp);
     void rewriteInputPattern(ConcatPattern concatPattern);
@@ -113,6 +114,12 @@ size_t CMXConcatPass::calculateExtraConstSize(VPU::NCEOpInterface nce) {
     // calculate weights table size
     const auto OC = getShape(nce->getResult(0))[Dims4D::Act::C];
     auto weightsTableSize = OC * WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;
+
+    // calculate activation window size
+    // const auto IC = getShape(concatPart._nceOp->getOperand(0))[Dims4D::Act::C];
+    // const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
+    //             VPU::NCESparsity::Mode::CM_CONV, kernelSize, kernelStridesVals[Dims4D::Strides::X],
+    //             inputType.getElementType(), IC);
 
     return weightsTableSize.count();
 }
@@ -294,40 +301,76 @@ bool CMXConcatPass::inputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern co
     return true;
 }
 
-bool CMXConcatPass::childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
+bool CMXConcatPass::childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern,
+                                                 size_t parallelConsumerCount, size_t cmxSize) {
     // check if the child operations - operations using the concat output buffer
     // will fit in CMX along with their inputs and output
     // auto output = concat.getResult();
     size_t concatSize = getSize(concat.getResult());
     size_t maxConsumerSize = 0;
+    size_t parallelConsumerCost = 0;
 
     for (auto& concatPart : concatPattern._concatParts) {
         if (!concatPart.isValidPart()) {
             return false;
         }
-        size_t currentConsumerSize = 0;
+        size_t currentConsumerInputSize = 0;
+        size_t currentConsumerOutputSize = 0;
         for (auto input : concatPart._nceOp->getOperands()) {
             if (input.getDefiningOp() == concatPart._copyOp.getOperation()) {
                 continue;
             }
-            currentConsumerSize += getSize(input);
+            currentConsumerInputSize += getSize(input);
         }
         for (auto output : concatPart._nceOp->getResults()) {
-            currentConsumerSize += getSize(output);
+            currentConsumerOutputSize += getSize(output);
         }
         // add weight table and activation window size
-        currentConsumerSize += calculateExtraConstSize(concatPart._nceOp);
-        maxConsumerSize = std::max<size_t>(maxConsumerSize, currentConsumerSize);
+        currentConsumerInputSize += calculateExtraConstSize(concatPart._nceOp);
+        maxConsumerSize = std::max<size_t>(maxConsumerSize, (currentConsumerInputSize + currentConsumerOutputSize));
+        if (parallelConsumerCount > 1) {
+            // in cases of multiple parallel users assume that the output
+            // of the nce will stay in NNCMX
+            parallelConsumerCost += currentConsumerOutputSize;
+        }
     }
 
-    _log.nest(3).trace("Concat consumer max size '{0}'", (maxConsumerSize + concatSize));
+    _log.nest(3).trace("Concat consumer max size '{0}'", (maxConsumerSize + parallelConsumerCost + concatSize));
     // return concat size greater than CMX size
-    return (maxConsumerSize + concatSize) > cmxSize;
+    return (maxConsumerSize + parallelConsumerCost + concatSize) > cmxSize;
+}
+
+size_t CMXConcatPass::getParallelConsumerCount(ConcatPattern concatPattern) {
+    // avoid concats with multiple parallel consumers due to spills
+    SmallVector<mlir::Location> locations;
+    size_t parallelConsumerCount = 0;
+
+    for (auto concatPart : concatPattern._concatParts) {
+        // for fused loc ignore tiling details
+        if (const auto fused = concatPart._nceOp.getLoc().dyn_cast<mlir::FusedLoc>()) {
+            auto nceLoc = fused.getLocations().front();
+            if (llvm::find(locations, nceLoc) == locations.end()) {
+                ++parallelConsumerCount;
+                locations.push_back(nceLoc);
+            }
+        } else {
+            auto nceLoc = concatPart._nceOp.getLoc();
+            if (llvm::find(locations, nceLoc) == locations.end()) {
+                ++parallelConsumerCount;
+                locations.push_back(nceLoc);
+            }
+        }
+    }
+
+    _log.nest(3).trace("Parallel consumer count '{0}'", parallelConsumerCount);
+    return parallelConsumerCount;
 }
 
 bool CMXConcatPass::outputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
     // verify the following operation can fit in CMX
-    if (childOperationsDoNotFitInCMX(concat, concatPattern, cmxSize)) {
+    size_t parallelConsumerCount = getParallelConsumerCount(concatPattern);
+
+    if (childOperationsDoNotFitInCMX(concat, concatPattern, parallelConsumerCount, cmxSize)) {
         _log.nest(2).trace("Concat consumers do not fit in cmx");
         return false;
     }
