@@ -430,9 +430,9 @@ add_custom_target(download_vpunn_model ALL
         WORKING_DIRECTORY ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel)
 add_custom_target(copy-vpunn-model ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory  ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpunn
-        DEPENDS ${OBJ_TARGET_NAME} download_vpunn_model)
+        DEPENDS download_vpunn_model)
 
-add_dependencies(${OBJ_TARGET_NAME} inferenceStatic)
+add_dependencies(${OBJ_TARGET_NAME} inferenceStatic copy-vpunn-model)
 
 link_system_libraries(${OBJ_TARGET_NAME}
     PUBLIC
