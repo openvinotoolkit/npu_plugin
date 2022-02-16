@@ -148,8 +148,8 @@ bool CMXConcatPass::isSplitSupportedOnDPU(IE::SliceOp silceOp) {
     const auto inputTypeShape = getShape(silceOp.getOperand()).raw();
     const auto outputType = silceOp.result().getType();
 
-    auto shapedType = outputType.dyn_cast<vpux::ShapedPropertiesTypeInterface>();
-    VPUX_THROW_WHEN(shapedType == nullptr, "Got non shaped type '{0}'", outputType);
+    auto shapedType = outputType.dyn_cast<vpux::NDTypeInterface>();
+    VPUX_THROW_WHEN(shapedType == nullptr, "Got non NDTypeInterface type '{0}'", outputType);
     const auto outputTypeShape = shapedType.getShape().raw();
 
     if (inputTypeShape.size() != outputTypeShape.size() || inputTypeShape.size() != 4) {
@@ -384,18 +384,18 @@ void CMXConcatPass::rewriteOutputPattern(ConcatPattern concatPattern) {
         _log.nest(1).trace("Removing output Copy from DDR to NNCMX '{0}' at '{1}'", concatPart._copyOp->getName(),
                            concatPart._copyOp->getLoc());
         // change memory space for concat output
-        const auto origType = concatPattern._concat.output().getType().dyn_cast<mlir::RankedTensorType>();
-        VPUX_THROW_UNLESS(origType != nullptr, "Got non RankedTensorType '{0}'",
+        const auto origType = concatPattern._concat.output().getType().dyn_cast<vpux::NDTypeInterface>();
+        VPUX_THROW_UNLESS(origType != nullptr, "Got non NDTypeInterface '{0}'",
                           concatPattern._concat.output().getType());
-        const auto newType = changeMemSpace(origType, VPU::MemoryKind::CMX_NN);
+        const auto newType = origType.changeMemSpace(VPU::MemoryKind::CMX_NN);
         concatPattern._concat.output().setType(newType);
         // and for slice op
         if (concatPart.hasSliceOp()) {
             concatPart._sliceOp.source().setType(newType);
-            const auto sliceOrigType = concatPart._sliceOp.result().getType().dyn_cast<mlir::RankedTensorType>();
-            VPUX_THROW_UNLESS(sliceOrigType != nullptr, "Got non RankedTensorType '{0}'",
+            const auto sliceOrigType = concatPart._sliceOp.result().getType().dyn_cast<vpux::NDTypeInterface>();
+            VPUX_THROW_UNLESS(sliceOrigType != nullptr, "Got non NDTypeInterface '{0}'",
                               concatPattern._concat.output().getType());
-            const auto sliceNewType = changeMemSpace(sliceOrigType, VPU::MemoryKind::CMX_NN);
+            const auto sliceNewType = sliceOrigType.changeMemSpace(VPU::MemoryKind::CMX_NN);
             concatPart._sliceOp.result().setType(sliceNewType);
         }
         // remove the copy out op
