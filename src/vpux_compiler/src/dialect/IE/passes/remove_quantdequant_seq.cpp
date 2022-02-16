@@ -33,6 +33,9 @@ private:
     void safeRunOnFunc() final;
     // TODO: Code base on fuse_post_ops pass, how to make it common
     bool canBeMergedWithPreceedingDpu(mlir::Operation* op, IE::ClampOp clampOp) {
+        if (op == nullptr) {
+            return false;
+        }
         if (!op->hasOneUse()) {
             return false;
         }

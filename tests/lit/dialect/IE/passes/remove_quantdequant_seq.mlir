@@ -17,11 +17,17 @@ func @RemoveQuantDequantSequence(%arg0: tensor<1x3x16x16xf16>) -> (tensor<1x3x14
   return %6, %4 : tensor<1x3x14x14xf16>, tensor<1x3x14x14xf16>
 
   //CHECK: [[VAL1:%.*]] = IE.Quantize(%arg0) {dstElemType = !qElemType0} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType0>
+  //CHECK: [[VALA:%.*]] = IE.And(%arg0, %arg0) {auto_broadcast = "NONE_OR_EXPLICIT"} : tensor<1x3x16x16xf16>, tensor<1x3x16x16xf16> -> tensor<1x3x16x16xf16>
+  //CHECK: [[VALB:%.*]] = IE.Clamp([[VALA]]) {max = 146.48577880859375 : f64, min = -147.63922119140625 : f64} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16xf16>
+
   //CHECK: [[VAL0:%.*]] = const.Declare tensor<3x3x3x3x!qElemType1> =
   //CHECK-SAME:                 #const.Content<dense<1.000000e+00> : tensor<3x3x3x3xf16>,
   //CHECK-SAME:                 [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType1>]>
+
   //CHECK: [[VAL2:%.*]] = IE.Dequantize(%cst) {dstElemType = f16} : tensor<3x3x3x3x!qElemType1> -> tensor<3x3x3x3xf16>
 
-  //CHECK: [[VAL3:%.*]] = IE.Convolution(%arg0, [[VAL2]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<1x3x16x16xf16>, tensor<3x3x3x3xf16> -> tensor<1x3x14x14xf16>
-  //CHECK: return [[VAL3]], [[VAL3]]
+  //CHECK: [[VAL3:%.*]] = IE.Convolution([[VALB]], [[VAL2]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<1x3x16x16xf16>, tensor<3x3x3x3xf16> -> tensor<1x3x14x14xf16>
+  //CHECK: [[VALE:%.*]] = IE.And([[VAL3]], [[VAL3]]) {auto_broadcast = "NONE_OR_EXPLICIT"} : tensor<1x3x14x14xf16>, tensor<1x3x14x14xf16> -> tensor<1x3x14x14xf16>
+  //CHECK: [[VALF:%.*]] = IE.Clamp([[VALE]]) {max = 6.280000e+02 : f64, min = 0.000000e+00 : f64} : tensor<1x3x14x14xf16> -> tensor<1x3x14x14xf16>
+  //CHECK: return [[VALF]], [[VAL3]]
 }
