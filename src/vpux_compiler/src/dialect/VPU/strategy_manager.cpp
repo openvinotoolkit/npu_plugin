@@ -391,60 +391,55 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
             });
 }
 
-mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEDepthConvolutionOp& origOp) const {
-    const Shape filterShape = origOp.rawFilterShape().hasValue()
-                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape().getValue()))
-                                      : getShape(origOp.filter()).toValues();
-    return getIntArrayAttr(const_cast<mlir::FuncOp&>(_func).getContext(),
-                           makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+mlir::ArrayAttr StrategyManager::getKernelSize(mlir::Operation* origOp) const {
+    if (auto depthwiseConvolutionOp = mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(origOp)) {
+        const Shape filterShape =
+                depthwiseConvolutionOp.rawFilterShape().hasValue()
+                        ? Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShape().getValue()))
+                        : getShape(depthwiseConvolutionOp.filter()).toValues();
+        return getIntArrayAttr(const_cast<mlir::FuncOp&>(_func).getContext(),
+                               makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+    } else if (auto convolutionOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(origOp)) {
+        const Shape filterShape = convolutionOp.rawFilterShape().hasValue()
+                                          ? Shape(parseIntArrayAttr<int64_t>(convolutionOp.rawFilterShape().getValue()))
+                                          : getShape(convolutionOp.filter()).toValues();
+        return getIntArrayAttr(const_cast<mlir::FuncOp&>(_func).getContext(),
+                               makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+    } else if (auto maxPoolOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(origOp)) {
+        return maxPoolOp.kernel_size();
+    } else if (auto eltwiseOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(origOp)) {
+        return getIntArrayAttr(eltwiseOp.getContext(), makeArrayRef({1, 1}));
+    } else {
+        VPUX_THROW("Attempting to get kernel for operation {0}, which is not a NCE Task", origOp->getName());
+    }
 }
 
-mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEConvolutionOp& origOp) const {
-    const Shape filterShape = origOp.rawFilterShape().hasValue()
-                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape().getValue()))
-                                      : getShape(origOp.filter()).toValues();
-    return getIntArrayAttr(const_cast<mlir::FuncOp&>(_func).getContext(),
-                           makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
+mlir::ArrayAttr StrategyManager::getStride(mlir::Operation* origOp) const {
+    if (auto depthwiseConvolutionOp = mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(origOp)) {
+        return depthwiseConvolutionOp.strides();
+    } else if (auto convolutionOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(origOp)) {
+        return convolutionOp.strides();
+    } else if (auto maxPoolOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(origOp)) {
+        return maxPoolOp.strides();
+    } else if (auto eltwiseOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(origOp)) {
+        return getIntArrayAttr(eltwiseOp.getContext(), makeArrayRef({1, 1}));
+    } else {
+        VPUX_THROW("Attempting to get stride for operation {0}, which is not a NCE Task", origOp->getName());
+    }
 }
 
-mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEMaxPoolOp& origOp) const {
-    return origOp.kernel_size();
-}
-
-mlir::ArrayAttr StrategyManager::getKernelSize(VPU::NCEEltwiseOp& origOp) const {
-    return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1}));
-}
-
-mlir::ArrayAttr StrategyManager::getStride(VPU::NCEDepthConvolutionOp& origOp) const {
-    return origOp.strides();
-}
-
-mlir::ArrayAttr StrategyManager::getStride(VPU::NCEConvolutionOp& origOp) const {
-    return origOp.strides();
-}
-
-mlir::ArrayAttr StrategyManager::getStride(VPU::NCEMaxPoolOp& origOp) const {
-    return origOp.strides();
-}
-
-mlir::ArrayAttr StrategyManager::getStride(VPU::NCEEltwiseOp& origOp) const {
-    return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1}));
-}
-
-vpux::VPU::PaddingAttr StrategyManager::getPad(VPU::NCEDepthConvolutionOp& origOp) const {
-    return origOp.padAttr();
-}
-
-vpux::VPU::PaddingAttr StrategyManager::getPad(VPU::NCEConvolutionOp& origOp) const {
-    return origOp.padAttr();
-}
-
-vpux::VPU::PaddingAttr StrategyManager::getPad(VPU::NCEMaxPoolOp& origOp) const {
-    return origOp.padAttr();
-}
-
-vpux::VPU::PaddingAttr StrategyManager::getPad(VPU::NCEEltwiseOp& origOp) const {
-    return VPU::getPaddingAttr(origOp.getContext(), 0, 0, 0, 0);
+vpux::VPU::PaddingAttr StrategyManager::getPad(mlir::Operation* origOp) const {
+    if (auto depthwiseConvolutionOp = mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(origOp)) {
+        return depthwiseConvolutionOp.padAttr();
+    } else if (auto convolutionOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(origOp)) {
+        return convolutionOp.padAttr();
+    } else if (auto maxPoolOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(origOp)) {
+        return maxPoolOp.padAttr();
+    } else if (auto eltwiseOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(origOp)) {
+        return VPU::getPaddingAttr(eltwiseOp.getContext(), 0, 0, 0, 0);
+    } else {
+        VPUX_THROW("Attempting to get pad for operation {0}, which is not a NCE Task", origOp->getName());
+    }
 }
 
 void StrategyManager::removeStrategyAttribute() {

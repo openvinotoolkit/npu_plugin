@@ -75,18 +75,9 @@ private:
     double computeChannelMajorConvolutionSplitOverHeightEfficency(VPU::NCEConvolutionOp origOp);
     double computeZMajorConvolutionSplitOverHeightEfficency(mlir::Operation* op);
     double computeZMajorConvolutionSplitOverKernelEfficency(mlir::Operation* op);
-    mlir::ArrayAttr getKernelSize(VPU::NCEDepthConvolutionOp& origOp) const;
-    mlir::ArrayAttr getKernelSize(VPU::NCEConvolutionOp& origOp) const;
-    mlir::ArrayAttr getKernelSize(VPU::NCEMaxPoolOp& origOp) const;
-    mlir::ArrayAttr getKernelSize(VPU::NCEEltwiseOp& origOp) const;
-    mlir::ArrayAttr getStride(VPU::NCEDepthConvolutionOp& origOp) const;
-    mlir::ArrayAttr getStride(VPU::NCEConvolutionOp& origOp) const;
-    mlir::ArrayAttr getStride(VPU::NCEMaxPoolOp& origOp) const;
-    mlir::ArrayAttr getStride(VPU::NCEEltwiseOp& origOp) const;
-    vpux::VPU::PaddingAttr getPad(VPU::NCEDepthConvolutionOp& origOp) const;
-    vpux::VPU::PaddingAttr getPad(VPU::NCEConvolutionOp& origOp) const;
-    vpux::VPU::PaddingAttr getPad(VPU::NCEMaxPoolOp& origOp) const;
-    vpux::VPU::PaddingAttr getPad(VPU::NCEEltwiseOp& origOp) const;
+    mlir::ArrayAttr getKernelSize(mlir::Operation* origOp) const;
+    mlir::ArrayAttr getStride(mlir::Operation* origOp) const;
+    vpux::VPU::PaddingAttr getPad(mlir::Operation* origOp) const;
 
     std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable();
     std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable();
@@ -145,7 +136,7 @@ VPU::NCEClusterTilingOp StrategyManager::createDistributedInputTensor(ConcreteOp
     const auto activationTensorDistributionModeAttr =
             vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
 
-    auto kernel = getKernelSize(origOp);
+    auto kernel = getKernelSize(origOp.getOperation());
     auto stride = getStride(origOp);
     auto pad = getPad(origOp);
     const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
@@ -187,7 +178,7 @@ vpux::VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorT
     const auto outputTensorDistributionModeAttr =
             vpux::VPU::DistributionModeAttr::get(origOp.getContext(), distributionMode);
 
-    auto kernel = getKernelSize(origOp);
+    auto kernel = getKernelSize(origOp.getOperation());
     auto stride = getStride(origOp);
     auto pad = getPad(origOp);
     const auto numClusters = getIntAttr(origOp.getContext(), _numClusters);
