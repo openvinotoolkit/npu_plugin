@@ -1775,7 +1775,7 @@
         {
             "name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013_compressed",
             "ir" : "scale/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013.xml",
-            "category" : "MLIR/precommit/SKIP",
+            "category" : "MLIR/precommit/SKIP_ALL",
             "3720": {
                 "disabled" : true
             },
@@ -2043,7 +2043,7 @@
         {
             "name" : "BDK_Deblur_AA",
             "ir" : "models/clientmodels/BDK3/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml",
-            "category" : "MLIR",
+            "category" : "MLIR/SKIP_WIN",
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "PERFORMANCE_HINT": "THROUGHPUT",
