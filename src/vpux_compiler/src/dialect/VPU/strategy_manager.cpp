@@ -283,19 +283,37 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                     if (DimsOrder::fromValue(op.input()) == DimsOrder::NCHW) {
                         op->setAttr(multiClusterStrategy,
                                     mlir::StringAttr::get(op->getContext(), "SplitOverHeightOverLapped"));
-                        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                                   op->getAttr(multiClusterStrategy), op->getName());
+                        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                                   op->getAttr(multiClusterStrategy), op->getName(),
+                                   _splitOverHeightEfficencies.find(op)->second);
+                        std::cout << llvm::formatv("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                                                   op->getAttr(multiClusterStrategy), op->getName(),
+                                                   _splitOverHeightEfficencies.find(op)->second)
+                                             .str()
+                                  << std::endl;
                     } else {
                         op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
-                        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                                   op->getAttr(multiClusterStrategy), op->getName());
+                        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                                   op->getAttr(multiClusterStrategy), op->getName(),
+                                   _splitOverHeightEfficencies.find(op)->second);
+                        std::cout << llvm::formatv("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                                                   op->getAttr(multiClusterStrategy), op->getName(),
+                                                   _splitOverHeightEfficencies.find(op)->second)
+                                             .str()
+                                  << std::endl;
                     }
                 }
                 // SOK is more efficient than SOH
                 else if (_splitOverHeightEfficencies.find(op)->second < _splitOverKernelEfficencies.find(op)->second) {
                     op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
-                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
-                               op->getName());
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                               op->getAttr(multiClusterStrategy), op->getName(),
+                               _splitOverKernelEfficencies.find(op)->second);
+                    std::cout << llvm::formatv("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                                               op->getAttr(multiClusterStrategy), op->getName(),
+                                               _splitOverKernelEfficencies.find(op)->second)
+                                         .str()
+                              << std::endl;
                 }
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp op) {
@@ -331,19 +349,37 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                     if (_numClusters * inputTensorVolume + weightTensorVolume <
                         inputTensorVolume + (_numClusters * weightTensorVolume)) {
                         op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
-                        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                                   op->getAttr(multiClusterStrategy), op->getName());
+                        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                                   op->getAttr(multiClusterStrategy), op->getName(),
+                                   _splitOverKernelEfficencies.find(op)->second);
+                        std::cout << llvm::formatv("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                                                   op->getAttr(multiClusterStrategy), op->getName(),
+                                                   _splitOverKernelEfficencies.find(op)->second)
+                                             .str()
+                                  << std::endl;
                     } else {
                         op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
-                        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'",
-                                   op->getAttr(multiClusterStrategy), op->getName());
+                        _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                                   op->getAttr(multiClusterStrategy), op->getName(),
+                                   _splitOverHeightEfficencies.find(op)->second);
+                        std::cout << llvm::formatv("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                                                   op->getAttr(multiClusterStrategy), op->getName(),
+                                                   _splitOverHeightEfficencies.find(op)->second)
+                                             .str()
+                                  << std::endl;
                     }
                 } else if ((_splitOverHeightEfficencies.find(op)->second >
                             _splitOverKernelEfficencies.find(op)->second) &&
                            isOperationSplitOverHeightCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                     op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverHeight"));
-                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
-                               op->getName());
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                               op->getAttr(multiClusterStrategy), op->getName(),
+                               _splitOverHeightEfficencies.find(op)->second);
+                    std::cout << llvm::formatv("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                                               op->getAttr(multiClusterStrategy), op->getName(),
+                                               _splitOverHeightEfficencies.find(op)->second)
+                                         .str()
+                              << std::endl;
 
                 } else if ((_splitOverHeightEfficencies.find(op)->second >
                             _splitOverKernelEfficencies.find(op)->second) &&
@@ -355,8 +391,14 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) {
                             _splitOverKernelEfficencies.find(op)->second) &&
                            isOperationSplitOverKernelCompatible<VPU::NCEDepthConvolutionOp>(op)) {
                     op->setAttr(multiClusterStrategy, mlir::StringAttr::get(op->getContext(), "SplitOverKernel"));
-                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}'", op->getAttr(multiClusterStrategy),
-                               op->getName());
+                    _log.trace("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                               op->getAttr(multiClusterStrategy), op->getName(),
+                               _splitOverKernelEfficencies.find(op)->second);
+                    std::cout << llvm::formatv("Assign multi-cluster strategy '{0}' to layer '{1}', eff {2}",
+                                               op->getAttr(multiClusterStrategy), op->getName(),
+                                               _splitOverKernelEfficencies.find(op)->second)
+                                         .str()
+                              << std::endl;
 
                 } else if ((_splitOverHeightEfficencies.find(op)->second <
                             _splitOverKernelEfficencies.find(op)->second) &&

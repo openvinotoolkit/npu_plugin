@@ -62,7 +62,7 @@ def InitCompiler : PassBase<"init-compiler", "vpux::ModulePass"> {
 // Multi-cluster strategy assignment
 //
 
-def MultiClusterStrategyAssignment : PassBase<"multi-cluster-stragegy-assignment", "vpux::FunctionPass"> {
+def MultiClusterStrategyAssignment : PassBase<"multi-cluster-strategy-assignment", "vpux::FunctionPass"> {
     let summary = "Determines which multi-cluster strategy is the most optimal for a given layer";
 
     let description = [{
