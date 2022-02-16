@@ -116,7 +116,7 @@ void initCostModel(VPU::ArchKind archKind) {
     auto ovBuildDir = InferenceEngine::getIELibraryPath();
 
     modelDir = ovBuildDir;
-    llvm::sys::path::append(modelDir, "vpunnd");
+    llvm::sys::path::append(modelDir, "vpunn");
     switch (archKind) {
     case VPU::ArchKind::KMB:
     case VPU::ArchKind::TBH:

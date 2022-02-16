@@ -425,12 +425,12 @@ target_include_directories(${OBJ_TARGET_NAME}
 )
 
 find_package(Git REQUIRED)
-add_custom_target(download_vpu_cost_nn_model ALL
+add_custom_target(download_vpunn_model ALL
         COMMAND ${GIT_EXECUTABLE} lfs pull
         WORKING_DIRECTORY ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel)
-add_custom_target(copy-vpunnd-model ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory  ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpunnd
-        DEPENDS ${OBJ_TARGET_NAME} download_vpu_cost_nn_model)
+add_custom_target(copy-vpunn-model ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory  ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpunn
+        DEPENDS ${OBJ_TARGET_NAME} download_vpunn_model)
 
 add_dependencies(${OBJ_TARGET_NAME} inferenceStatic)
 
