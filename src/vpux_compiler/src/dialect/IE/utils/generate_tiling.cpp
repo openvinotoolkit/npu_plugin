@@ -56,8 +56,8 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
         return tilingInfo.isSupportedTiling(tiles, log, tilingMode);
     };
 
-    const auto isSupportedChannelDivision = [&]() {
-        if ((outputShape[Dims4D::Act::C] % nTilesOnDim[Dims4D::Act::C]) != 0) {
+    const auto isSupportedChannelDivision = [&](ShapeRef tileDim) {
+        if ((outputShape[Dims4D::Act::C] % tileDim[Dims4D::Act::C]) != 0) {
             return false;
         }
         const auto tileChannels = outputShape[Dims4D::Act::C] / nTilesOnDim[Dims4D::Act::C];
@@ -84,7 +84,7 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
         if (dimToTile == Dims4D::Act::C) {
             do {
                 ++nTilesOnDim[Dims4D::Act::C];
-            } while (!isSupportedChannelDivision());
+            } while (!isSupportedChannelDivision(nTilesOnDim));
         } else if (dimToTile == Dims4D::Act::H || dimToTile == Dims4D::Act::W) {
             nTilesOnDim[dimToTile]++;
         } else {
@@ -108,7 +108,7 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
     };
     auto dimsToTile = getDimsToTile(nTilesOnDim);
     if (dimsToTile.size() > 1) {
-        // return general tiling when getting nested tiles.
+        // return isolated tiling when getting nested tiles.
         return origTiles;
     }
 
@@ -116,11 +116,15 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
 
     const auto targetDim = dimsToTile[0];
     Shape prefetchableTilesOnDim = nTilesOnDim;
-    while (prefetchableTilesOnDim[targetDim] < 3 * nTilesOnDim[targetDim] &&
+    while (prefetchableTilesOnDim[targetDim] < IE::MAX_PREFETCH_TILING_TIME * nTilesOnDim[targetDim] &&
            !isSupportedTileSize(prefetchableTilesOnDim, TilingMode::PREFETCH_TILING)) {
-        // The "3" here is an experimental number from MCM activation prefetch pass.
-        // The purpose is to avoid excessive tiling.
-        prefetchableTilesOnDim[targetDim]++;
+        if (targetDim == Dims4D::Act::C) {
+            do {
+                ++prefetchableTilesOnDim[Dims4D::Act::C];
+            } while (!isSupportedChannelDivision(prefetchableTilesOnDim));
+        } else {
+            prefetchableTilesOnDim[dimToTile]++;
+        }
         if (!isDimLeftToTile(prefetchableTilesOnDim)) {
             prefetchableTilesOnDim[targetDim]--;
             break;
@@ -252,7 +256,7 @@ mlir::Operation* getParentTargetOp(mlir::Operation* op) {
     return parentOp;
 }
 
-bool prefetchTilingConditionsViolated(mlir::Operation* op, Logger log) {
+bool prefetchTilingConditionSatisfied(mlir::Operation* op, Logger log) {
     auto parentOp = getParentTargetOp(op);
     if (!parentOp) {
         return false;

@@ -91,7 +91,7 @@ void PrefetchTilingPass::safeRunOnFunc() {
             if (!iface.isSupportedTiling({TileInfo(resShape)}, _log.nest(), TilingMode::ISOLATED_TILING)) {
                 return false;
             }
-            if (vpux::IE::prefetchTilingConditionsViolated(op, _log)) {
+            if (vpux::IE::prefetchTilingConditionSatisfied(op, _log)) {
                 return false;
             }
         }
