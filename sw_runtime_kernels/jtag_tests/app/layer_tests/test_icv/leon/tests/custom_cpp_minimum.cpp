@@ -72,8 +72,6 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Minimum)) {
         void initData() override {
             m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
 
-            paramContainer.resize(((int)sizeof(sw_params::MinimumParams) + 7) / 8);
-
             initElfBuffer();
             initTestCase();
             const Dimensions& dimIn = m_currentTest->inDim;
@@ -96,10 +94,10 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Minimum)) {
             allocBuffer(m_referenceOutputTensor);
 
             const SingleTest* test = m_currentTest;
-            m_minimumParams = reinterpret_cast<sw_params::MinimumParams*>(paramContainer.data());
+            m_minimumParams = reinterpret_cast<sw_params::MinimumParams*>(paramContainer);
             *m_minimumParams = sw_params::MinimumParams();
-            m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
-            m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
+            m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
+            m_params.paramDataLen = sizeof(sw_params::MinimumParams);
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[1]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_minimumParams);
 
@@ -214,9 +212,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Minimum)) {
     private:
         ListIterator<SingleTest> m_testsLoop;
 
-        // Additional buffer to avoid convertion back and forth
         Tensor<fp16> m_inputTensor2;
-        std::vector<uint64_t> paramContainer;
         sw_params::MinimumParams* m_minimumParams;
     };
 
