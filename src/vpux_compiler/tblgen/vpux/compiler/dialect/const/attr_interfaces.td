@@ -30,8 +30,8 @@ def Const_TransformAttrInterface : AttrInterface<"TransformAttrInterface"> {
     let methods = [
         InterfaceMethod<
             "Infer output type",
-            "mlir::ShapedType", "inferOutputType",
-            (ins "mlir::ShapedType":$input)
+            "vpux::NDTypeInterface", "inferOutputType",
+            (ins "vpux::NDTypeInterface":$input)
         >,
 
         InterfaceMethod<

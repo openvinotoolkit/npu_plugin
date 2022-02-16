@@ -150,7 +150,7 @@ It provides and API to get transformed values on the fly.
 | :-------: | :-------: | ----------- |
 | baseContent | `mlir::ElementsAttr` |  |
 | transformations | `mlir::ArrayAttr` |  |
-| finalType | `mlir::ShapedType` |  |
+| finalType | `vpux::NDTypeInterface` |  |
 
 ### ConvertElemTypeAttr
 
@@ -190,6 +190,18 @@ Cast element type from raw integer to quantized type
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | elemType | `mlir::quant::QuantizedType` |  |
+
+### RelocateWeightsTableAttr
+
+Patches offsets in the weights table
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| weightsPtr | `mlir::IntegerAttr` |  |
+| sparsityPtr | `mlir::IntegerAttr` |  |
 
 ### ReorderAttr
 

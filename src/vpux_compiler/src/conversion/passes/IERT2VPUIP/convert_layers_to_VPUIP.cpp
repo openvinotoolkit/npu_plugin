@@ -16,6 +16,7 @@
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -173,13 +174,13 @@ mlir::LogicalResult FullyConnectedRewrite::matchAndRewrite(IERT::FullyConnectedO
         return mlir::success();
     }
 
-    const auto origBiasType = origOp.bias().getType().cast<mlir::ShapedType>();
+    const auto origBiasType = origOp.bias().getType().cast<vpux::NDTypeInterface>();
 
-    const auto origBiasShape = origBiasType.getShape();
+    const auto origBiasShape = origBiasType.getShape().raw();
     VPUX_THROW_UNLESS(origBiasShape[0] == 1, "Biases batch size is not equal 1");
 
     const std::array<int64_t, 1> newBiasShape = {origBiasShape[1]};
-    const auto newBiasType = changeShape(origBiasType, ShapeRef(newBiasShape));
+    const auto newBiasType = origBiasType.changeShape(ShapeRef(newBiasShape));
 
     auto newBias = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newBiasType, origOp.bias());
 
@@ -218,11 +219,11 @@ mlir::LogicalResult RewriteConvolution::matchAndRewrite(IERT::ConvolutionOp orig
         return mlir::success();
     }
 
-    const auto origBiasType = origOp.bias().getType().cast<mlir::ShapedType>();
-    const auto origBiasShape = origBiasType.getShape();
+    const auto origBiasType = origOp.bias().getType().cast<vpux::NDTypeInterface>();
+    const auto origBiasShape = origBiasType.getShape().raw();
 
     const std::array<int64_t, 1> newBiasShape = {origBiasShape[1]};
-    const auto newBiasType = changeShape(origBiasType, ShapeRef(newBiasShape));
+    const auto newBiasType = origBiasType.changeShape(ShapeRef(newBiasShape));
     auto newBias = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newBiasType, origOp.bias());
     rewriter.replaceOpWithNewOp<VPUIP::ConvolutionUPAOp>(origOp, origOp.input(), origOp.filter(), newBias.output(),
                                                          origOp.output_buff(), origOp.strides(), origOp.dilations(),
@@ -249,12 +250,12 @@ private:
 mlir::LogicalResult TimestampRewrite::matchAndRewrite(IERT::TimestampOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found Timestamp Operation '{0}'", origOp->getLoc());
 
-    auto origType = origOp.getType();
+    auto origType = origOp.getType().cast<vpux::NDTypeInterface>();
     VPUX_THROW_UNLESS(origType.getNumElements() == 1, "Got wrong elements number for TimestampOp");
     VPUX_THROW_UNLESS(origType.getElementType() == getUInt32Type(getContext()),
                       "Got wrong element type for TimestampOp");
 
-    const auto timerType = changeMemSpace(origType, VPU::MemoryKind::Register);
+    const auto timerType = origType.changeMemSpace(VPU::MemoryKind::Register);
 
     auto bufferOp = rewriter.create<VPURT::DeclareBufferOp>(origOp->getLoc(), timerType, VPURT::BufferSection::Register,
                                                             VPUIP::HW_TIMER_ABSOLUTE_ADDR);
@@ -286,10 +287,10 @@ mlir::LogicalResult TopKRewrite::matchAndRewrite(IERT::TopKOp origOp, mlir::Patt
     _log.trace("Found TopK Operation '{0}'", origOp->getLoc());
 
     // Change value k from scalars (0D tensor) to 1D tensor
-    auto kType = origOp.k().getType().cast<mlir::MemRefType>();
+    auto kType = origOp.k().getType().cast<vpux::NDTypeInterface>();
     const std::array<int64_t, 1> newKShape = {1};
     ShapeRef newShape(newKShape);
-    auto newShapedKType = changeShape(kType, newShape);
+    auto newShapedKType = kType.changeShape(newShape);
     auto k1DTensor = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newShapedKType, origOp.k());
 
     rewriter.replaceOpWithNewOp<VPUIP::TopKUPAOp>(origOp, origOp.input(), k1DTensor, origOp.output_values_buff(),

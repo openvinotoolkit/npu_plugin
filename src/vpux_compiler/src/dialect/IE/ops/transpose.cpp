@@ -321,7 +321,7 @@ mlir::LogicalResult CollapseMutualTransposes::matchAndRewrite(IE::TransposeOp tr
     auto firstTranspose = reshapeIn.getDefiningOp<IE::TransposeOp>();
     const auto firstTransposeIn = firstTranspose.input();
 
-    const auto shape = transposeOp.output().getType().cast<mlir::ShapedType>().getShape();
+    const auto shape = transposeOp.output().getType().cast<vpux::NDTypeInterface>().getShape();
     const auto newShape = to_small_vector(shape);
     const auto newShapeAttr = getIntArrayAttr(rewriter.getContext(), newShape);
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(transposeOp, firstTransposeIn, nullptr, false, newShapeAttr);

@@ -63,9 +63,9 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
     auto createWeightsTableOp = builder.create<VPUIP::WeightsTableOp>(loc, dataType, op_input, op_output, weights,
                                                                       activationWindow, bias, ppeTaskAttr);
 
-    const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
+    const auto dataTypeCMX = dataType.cast<vpux::NDTypeInterface>().changeMemSpace(VPU::MemoryKind::CMX_NN);
 
-    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
+    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX.cast<mlir::MemRefType>());
     auto copyOp = builder.create<IERT::CopyOp>(loc, createWeightsTableOp.output(), dataAllocOp);
 
     return copyOp.output();
@@ -115,9 +115,9 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
     const auto dataType = mlir::MemRefType::get(fakeSparsityShape, elemType);
     auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataType, Const::ContentAttr::get(dataAttr));
 
-    const auto dataTypeCMX = changeMemSpace(dataType, VPU::MemoryKind::CMX_NN);
+    const auto dataTypeCMX = dataType.cast<vpux::NDTypeInterface>().changeMemSpace(VPU::MemoryKind::CMX_NN);
 
-    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
+    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX.cast<mlir::MemRefType>());
     auto copyOp = builder.create<IERT::CopyOp>(loc, dataConstOp.output(), dataAllocOp);
 
     return copyOp.output();
@@ -177,7 +177,7 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     mlir::Value activationWindow;
 
     if (isCMajor) {
-        const auto origInputType = origOp.input().getType().cast<mlir::ShapedType>();
+        const auto origInputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
 
         const auto kernelSize = Shape{KY, KX};
         const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
@@ -260,8 +260,8 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, O
     // Get dimensions
     //
 
-    const auto origInputType = newArgs.input().getType().cast<mlir::MemRefType>();
-    const auto inputShape = getShape(origInputType);
+    const auto origInputType = newArgs.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputShape = origInputType.getShape();
 
     const auto IC = inputShape[Dims4D::Act::C];
 
@@ -355,9 +355,9 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
     // Generate activation window
     //
 
-    const auto origInputType = newArgs.input().getType().cast<mlir::MemRefType>();
+    const auto origInputType = newArgs.input().getType().cast<vpux::NDTypeInterface>();
 
-    const auto origInputShape = getShape(origInputType);
+    const auto origInputShape = origInputType.getShape();
     const auto IC = origInputShape[Dims4D::Act::C];
 
     const auto kernelSize = Shape{KY, KX};

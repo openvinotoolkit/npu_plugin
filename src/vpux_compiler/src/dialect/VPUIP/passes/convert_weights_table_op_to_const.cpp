@@ -59,7 +59,7 @@ int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
         // Weights table contains both activation window and weights.
         // Check that weights have expected alignment.
         // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
-        const auto origFilterType = createWTableOp.weights().getType().cast<mlir::ShapedType>();
+        const auto origFilterType = createWTableOp.weights().getType().cast<vpux::NDTypeInterface>();
         const auto depthwiseConvAlignment = VPU::NCEInvariant::getAlignment(origFilterType.getElementType());
         const auto weightsElementCount = IC * KY * KX;
         VPUX_THROW_UNLESS(weightsElementCount % depthwiseConvAlignment == 0,
@@ -69,19 +69,6 @@ int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
 
     const Byte eltSize = getElemTypeSize(createWTableOp.weights().getType());
     return checked_cast<int32_t>(IC * KY * KX * eltSize.count());
-}
-
-Optional<int32_t> getTensorPtrOffset(mlir::Value input, const AliasesInfo* aliasInfo) {
-    if (input == nullptr) {
-        return None;
-    }
-
-    auto roots = aliasInfo->getRoots(input);
-    VPUX_THROW_UNLESS(roots.size() == 1, "Value '{0}' expected to have only one root. Got {1}", input, roots.size());
-    auto output_buff = *roots.begin();
-    auto tensor = output_buff.getDefiningOp<IERT::StaticAllocOp>();
-    VPUX_THROW_UNLESS(tensor != nullptr, "Cannot get offset");
-    return checked_cast<int32_t>(tensor.offset());
 }
 
 //
@@ -108,25 +95,27 @@ private:
 mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTableOp createWTableOp,
                                                               mlir::PatternRewriter& rewriter) const {
     const auto OC = getOC(createWTableOp);
-
-    const auto weightPtrOffset = getTensorPtrOffset(createWTableOp.weights(), _aliasInfo);
-    const auto sparsityPtrOffset = getTensorPtrOffset(createWTableOp.activation_window(), _aliasInfo);
+    // Actual weight and sparsity pointers are not known at this stage, so the constant
+    // is filled only with offsets from the base pointers. Once the memory scheduler
+    // allocates the memory and the pointers are known the transformation is added to the
+    // constant. Finally the transformation shall add the base pointers to the offsets.
+    const auto weightPtrOffset = 0;
+    const auto sparsityPtrOffset = 0;
     const auto weightPtrStep = getWeightPtrStep(createWTableOp);
 
-    const auto op_inElemType = createWTableOp.op_input().getType().cast<mlir::ShapedType>().getElementType();
-    const auto op_outElemType = createWTableOp.op_output().getType().cast<mlir::ShapedType>().getElementType();
+    const auto op_inElemType = createWTableOp.op_input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto op_outElemType = createWTableOp.op_output().getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto op_weightsElemType =
-            createWTableOp.weights() ? createWTableOp.weights().getType().cast<mlir::ShapedType>().getElementType()
+            createWTableOp.weights() ? createWTableOp.weights().getType().cast<vpux::NDTypeInterface>().getElementType()
                                      : nullptr;
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
             op_inElemType, op_outElemType, weightPtrOffset, weightPtrStep, sparsityPtrOffset, _arch, OC,
             op_weightsElemType, createWTableOp.biasAttr(), createWTableOp.ppeAttr());
 
-    const auto outType = createWTableOp.output().getType();
-    const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
+    const auto outType = createWTableOp.output().getType().cast<vpux::NDTypeInterface>();
 
     const auto dataStorageType =
-            mlir::RankedTensorType::get(shapedType.getShape(), getSInt32Type(rewriter.getContext()));
+            mlir::RankedTensorType::get(outType.getShape().raw(), getSInt32Type(rewriter.getContext()));
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(weightsTable));
 
     rewriter.replaceOpWithNewOp<Const::DeclareOp>(createWTableOp, outType, Const::ContentAttr::get(dataAttr));

@@ -1,5 +1,4 @@
 // RUN: vpux-translate --import-HWTEST %s
-
 {
     "case_type": "ZMajorConvolution",
     "network": "",
@@ -61,8 +60,5 @@
         "group": 1,
         "dilation": 1
     },
-    "output_order": "nhwc",
-    "activation": {
-        "name": null
-    }
+    "output_order": "nhwc"
 }

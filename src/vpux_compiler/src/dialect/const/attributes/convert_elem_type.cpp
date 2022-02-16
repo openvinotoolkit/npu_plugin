@@ -82,14 +82,14 @@ mlir::Attribute vpux::Const::ConvertElemTypeAttr::parse(mlir::DialectAsmParser& 
 // ConvertElemTypeAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::ConvertElemTypeAttr::inferOutputType(mlir::ShapedType input) const {
-    const Bit typeSizeInBits = getElemTypeSize(input);
+vpux::NDTypeInterface vpux::Const::ConvertElemTypeAttr::inferOutputType(vpux::NDTypeInterface input) const {
+    const Bit typeSizeInBits = input.getElemTypeSize();
     VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in ConvertElemTypeAttr",
                       input.getElementType());
     VPUX_THROW_UNLESS(input.getElementType().isIntOrFloat(), "Can't convert '{0}' element type to '{1}'",
                       input.getElementType(), getElemType());
 
-    return changeElemType(input, getElemType());
+    return input.changeElemType(getElemType());
 }
 
 //

@@ -55,9 +55,6 @@ public:
 using Strides = details::DimValues<Dim, Bit, details::StridesTag>;
 using StridesRef = details::DimValuesRef<Dim, Bit, details::StridesTag>;
 
-Strides getStrides(mlir::RankedTensorType type);
-Strides getStrides(mlir::MemRefType type);
-Strides getStrides(mlir::ShapedType type);
 Strides getStrides(mlir::Value val);
 
 //
@@ -67,9 +64,6 @@ Strides getStrides(mlir::Value val);
 using MemStrides = details::DimValues<MemDim, Bit, details::StridesTag>;
 using MemStridesRef = details::DimValuesRef<MemDim, Bit, details::StridesTag>;
 
-MemStrides getMemStrides(mlir::RankedTensorType type);
-MemStrides getMemStrides(mlir::MemRefType type);
-MemStrides getMemStrides(mlir::ShapedType type);
 MemStrides getMemStrides(mlir::Value val);
 
 }  // namespace vpux

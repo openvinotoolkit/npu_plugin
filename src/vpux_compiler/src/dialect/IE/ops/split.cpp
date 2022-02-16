@@ -101,7 +101,7 @@ mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
 
     const auto num_splits = split.num_splits().getInt();
 
-    auto outShape = getShape(inType).toValues();
+    auto outShape = inType.cast<vpux::NDTypeInterface>().getShape().toValues();
     if ((outShape[*axis] < num_splits) || (outShape[*axis] % num_splits != 0)) {
         return errorAt(loc, "Unsupported num_splits parameter");
     }

@@ -112,8 +112,8 @@ bool FeasibleMemoryScheduler::isDataOp(operationIdxType opIdx) {
         if (mlir::isa<IERT::CopyOp>(innerOp)) {
             if (auto copyOp = mlir::dyn_cast<IERT::CopyOp>(innerOp)) {
                 // DMA from DDR to NN_CMX
-                auto srcMemSpace = copyOp.input().getType().dyn_cast<mlir::MemRefType>().getMemorySpace();
-                auto dstMemSpace = copyOp.output().getType().dyn_cast<mlir::MemRefType>().getMemorySpace();
+                auto srcMemSpace = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemSpace();
+                auto dstMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemSpace();
                 return (_memSpace == dstMemSpace && _memSpace != srcMemSpace);
             }
         }
@@ -133,7 +133,7 @@ bool FeasibleMemoryScheduler::isCopyOutOp(operationIdxType opIdx) {
         if (mlir::isa<IERT::CopyOp>(innerOp)) {
             if (auto copyOp = mlir::dyn_cast<IERT::CopyOp>(innerOp)) {
                 // DMA to DDR
-                auto dstMemSpace = copyOp.output().getType().dyn_cast<mlir::MemRefType>().getMemorySpace();
+                auto dstMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemSpace();
                 return _memSpace != dstMemSpace;
             }
         }
@@ -204,8 +204,8 @@ bool FeasibleMemoryScheduler::isComputeOpWithSomeActiveInputs(operationIdxType o
         VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", operand,
                           rootBuffers.size());
         const auto rootBuffer = *rootBuffers.begin();
-        const auto type = rootBuffer.getType().cast<mlir::MemRefType>();
-        if (type.getMemorySpace() != _memSpace) {
+        const auto type = rootBuffer.getType().cast<vpux::NDTypeInterface>();
+        if (type.getMemSpace() != _memSpace) {
             continue;
         }
         if (_scan.handler().isAlive(rootBuffer)) {
@@ -224,16 +224,16 @@ vpux::AddressType FeasibleMemoryScheduler::calculateOpSize(operationIdxType opId
         if (mlir::isa<IERT::LayerOpInterface>(op)) {
             auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(op).getOutputs();
             for (const auto& output : outputs) {
-                const auto type = output.getType().dyn_cast<mlir::MemRefType>();
-                if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
+                if (type == nullptr || type.getMemSpace() != _memSpace) {
                     continue;
                 }
                 opSize += _scan.handler().getSize(output);
             }
             auto inputs = mlir::dyn_cast<IERT::LayerOpInterface>(op).getInputs();
             for (const auto& input : inputs) {
-                const auto type = input.getType().dyn_cast<mlir::MemRefType>();
-                if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                const auto type = input.getType().dyn_cast<vpux::NDTypeInterface>();
+                if (type == nullptr || type.getMemSpace() != _memSpace) {
                     continue;
                 }
                 opSize += _scan.handler().getSize(input);
@@ -383,30 +383,8 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::getNonAliveBuffersUsedByOperat
                           rootBuffers.size());
         const auto rootBuffer = *rootBuffers.begin();
 
-        // Below is a temporary solution to not account inputs of WeightsTableOp
-        // as this operation is in fact a constant.
-        // This code can be removed after EISW-25951 is integrated
-        bool weightTableOpBuffer = false;
-        for (auto* user : rootBuffer.getUsers()) {
-            if (user->getParentOp() == op.getOperation()) {
-                if (mlir::isa_and_nonnull<VPUIP::WeightsTableOp>(user)) {
-                    weightTableOpBuffer = true;
-                    break;
-                } else if (mlir::isa_and_nonnull<IERT::SubViewOp>(user)) {
-                    // if a subview check the user of the result
-                    if (mlir::isa_and_nonnull<VPUIP::WeightsTableOp>(*(user->getResult(0).getUsers().begin()))) {
-                        weightTableOpBuffer = true;
-                        break;
-                    }
-                }
-            }
-        }
-        if (weightTableOpBuffer) {
-            continue;
-        }
-
-        const auto type = rootBuffer.getType().cast<mlir::MemRefType>();
-        if (type.getMemorySpace() != _memSpace || _scan.handler().isAlive(rootBuffer)) {
+        const auto type = rootBuffer.getType().cast<vpux::NDTypeInterface>();
+        if (type.getMemSpace() != _memSpace || _scan.handler().isAlive(rootBuffer)) {
             continue;
         }
         operationBuffers.push_back(rootBuffer);
@@ -880,8 +858,8 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
             if (mlir::isa<IERT::LayerOpInterface>(op)) {
                 auto layerOp = mlir::dyn_cast<IERT::LayerOpInterface>(op);
                 for (auto output : layerOp.getOutputs()) {
-                    const auto type = output.getType().dyn_cast<mlir::MemRefType>();
-                    if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                    const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
+                    if (type == nullptr || type.getMemSpace() != _memSpace) {
                         continue;
                     }
 

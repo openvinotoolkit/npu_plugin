@@ -69,7 +69,6 @@ public:
 using Shape = details::DimValues<Dim, int64_t, details::ShapeTag>;
 using ShapeRef = details::DimValuesRef<Dim, int64_t, details::ShapeTag>;
 
-ShapeRef getShape(mlir::ShapedType type);
 ShapeRef getShape(mlir::Value val);
 
 //
@@ -79,7 +78,6 @@ ShapeRef getShape(mlir::Value val);
 using MemShape = details::DimValues<MemDim, int64_t, details::ShapeTag>;
 using MemShapeRef = details::DimValuesRef<MemDim, int64_t, details::ShapeTag>;
 
-MemShape getMemShape(mlir::ShapedType type);
 MemShape getMemShape(mlir::Value val);
 
 MemShape getMemIndexND(int64_t memIndex1D, MemShapeRef memShape);

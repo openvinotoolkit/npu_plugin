@@ -8,7 +8,7 @@ The interface for Attributes, which holds information about lazy constant foldin
 #### `inferOutputType`
 
 ```c++
-mlir::ShapedType inferOutputType(mlir::ShapedType input);
+vpux::NDTypeInterface inferOutputType(vpux::NDTypeInterface input);
 ```
 Infer output type
 NOTE: This method *must* be implemented by the user.

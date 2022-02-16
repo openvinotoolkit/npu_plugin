@@ -31,9 +31,10 @@ using namespace vpux;
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides, mlir::ShapedType input,
-                                                  mlir::ShapedType filter, mlir::ShapedType output) {
-    const auto filterShape = getShape(filter);
+bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
+                                                  vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                                  vpux::NDTypeInterface output) {
+    const auto filterShape = filter.getShape();
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
@@ -54,12 +55,13 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::Arr
     const int64_t padding = (remainder > 0) ? (alignment - remainder) : 0;
 
     const std::array<int64_t, 4> alignedFilterShape{OC, 1, 1, KY * KX + padding};
-    const mlir::ShapedType alignedFilter = mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType());
+    const auto alignedFilter =
+            mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType()).cast<vpux::NDTypeInterface>();
 
     Byte requiredCMX(0);
 
     for (const auto& type : {input, alignedFilter, output}) {
-        requiredCMX += getTotalSize(type);
+        requiredCMX += type.getTotalAllocSize();
     }
 
     requiredCMX += NCEInvariant::getWeightsTableSize(OC);
@@ -125,9 +127,9 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, NC
         return false;
     }
 
-    const auto inputType = op.input().getType().cast<mlir::ShapedType>();
-    const auto filterType = op.filter().getType().cast<mlir::ShapedType>();
-    const auto outputType = op.output().getType().cast<mlir::ShapedType>();
+    const auto inputType = op.input().getType().cast<vpux::NDTypeInterface>();
+    const auto filterType = op.filter().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = op.output().getType().cast<vpux::NDTypeInterface>();
 
     if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignment(inputType)) ||
         !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignment(outputType))) {
@@ -135,9 +137,9 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, NC
         return false;
     }
 
-    const auto inputOrder = DimsOrder::fromType(inputType);
-    const auto filterOrder = DimsOrder::fromType(filterType);
-    const auto outputOrder = DimsOrder::fromType(outputType);
+    const auto inputOrder = inputType.getDimsOrder();
+    const auto filterOrder = filterType.getDimsOrder();
+    const auto outputOrder = outputType.getDimsOrder();
 
     if (inputOrder != DimsOrder::NHWC || filterOrder != DimsOrder::OYXI || outputOrder != DimsOrder::NHWC) {
         logCb(llvm::formatv("Unsupported layout"));
@@ -162,7 +164,8 @@ mlir::LogicalResult vpux::VPU::verifyOp(NCEDepthConvolutionOp op) {
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
-    const auto alignment = NCEInvariant::getAlignment(op.filter().getType().cast<mlir::ShapedType>().getElementType());
+    const auto alignment =
+            NCEInvariant::getAlignment(op.filter().getType().cast<vpux::NDTypeInterface>().getElementType());
 
     const int64_t remainder = (filtersPerInChan * KY * KX) % alignment;
     if (remainder > 0) {
@@ -222,7 +225,7 @@ mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::inferReturnTypeComponents(
                                                  return checked_cast<int64_t>(val);
                                              }));
 
-    const auto elemType = op.input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto elemType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     inferredReturnShapes.emplace_back(outputShape, elemType);
     return mlir::success();

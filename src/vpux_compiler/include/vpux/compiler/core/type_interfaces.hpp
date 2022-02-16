@@ -32,8 +32,7 @@
 
 namespace vpux {
 
-class TensorPropertiesTypeInterface :
-        public ShapedPropertiesTypeInterface::FallbackModel<TensorPropertiesTypeInterface> {
+class TensorNDTypeInterface : public NDTypeInterface::FallbackModel<TensorNDTypeInterface> {
 public:
     vpux::ShapeRef getShape(mlir::Type type) const;
     vpux::MemShape getMemShape(mlir::Type type) const;
@@ -49,17 +48,15 @@ public:
     vpux::Bit getElemTypeSize(mlir::Type type) const;
     vpux::Byte getTotalAllocSize(mlir::Type type) const;
     vpux::Byte getCompactAllocSize(mlir::Type type) const;
-    vpux::ShapedPropertiesTypeInterface changeShape(mlir::Type type, vpux::ShapeRef shape) const;
-    vpux::ShapedPropertiesTypeInterface changeElemType(mlir::Type type, mlir::Type elemType) const;
-    vpux::ShapedPropertiesTypeInterface changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const;
-    vpux::ShapedPropertiesTypeInterface changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const;
-    vpux::ShapedPropertiesTypeInterface extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets,
-                                                         vpux::ShapeRef tileShape) const;
-    vpux::ShapedPropertiesTypeInterface pad(mlir::Type type, vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
+    vpux::NDTypeInterface changeShape(mlir::Type type, vpux::ShapeRef shape) const;
+    vpux::NDTypeInterface changeElemType(mlir::Type type, mlir::Type elemType) const;
+    vpux::NDTypeInterface changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const;
+    vpux::NDTypeInterface changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const;
+    vpux::NDTypeInterface extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;
+    vpux::NDTypeInterface pad(mlir::Type type, vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
 };
 
-class MemRefPropertiesTypeInterface :
-        public vpux::ShapedPropertiesTypeInterface::FallbackModel<MemRefPropertiesTypeInterface> {
+class MemRefNDTypeInterface : public vpux::NDTypeInterface::FallbackModel<MemRefNDTypeInterface> {
 public:
     vpux::ShapeRef getShape(mlir::Type type) const;
     vpux::MemShape getMemShape(mlir::Type type) const;
@@ -75,13 +72,12 @@ public:
     vpux::Bit getElemTypeSize(mlir::Type type) const;
     vpux::Byte getTotalAllocSize(mlir::Type type) const;
     vpux::Byte getCompactAllocSize(mlir::Type type) const;
-    vpux::ShapedPropertiesTypeInterface changeShape(mlir::Type type, vpux::ShapeRef shape) const;
-    vpux::ShapedPropertiesTypeInterface changeElemType(mlir::Type type, mlir::Type elemType) const;
-    vpux::ShapedPropertiesTypeInterface changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const;
-    vpux::ShapedPropertiesTypeInterface changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const;
-    vpux::ShapedPropertiesTypeInterface extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets,
-                                                         vpux::ShapeRef tileShape) const;
-    vpux::ShapedPropertiesTypeInterface pad(mlir::Type type, vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
+    vpux::NDTypeInterface changeShape(mlir::Type type, vpux::ShapeRef shape) const;
+    vpux::NDTypeInterface changeElemType(mlir::Type type, mlir::Type elemType) const;
+    vpux::NDTypeInterface changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const;
+    vpux::NDTypeInterface changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const;
+    vpux::NDTypeInterface extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;
+    vpux::NDTypeInterface pad(mlir::Type type, vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
 };
 
 }  // namespace vpux

@@ -58,23 +58,6 @@ def IE_TensorAttr :
         >;
 
 //
-// EpsMode
-//
-
-def IE_EpsMode :
-        StrEnumAttr<
-            "EpsMode",
-            "EpsMode that the InferenceEngine supports",
-            [
-                StrEnumAttrCase<"ADD">,
-                StrEnumAttrCase<"MAX">,
-            ]
-        > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
-}
-
-//
 // TopKMode
 //
 

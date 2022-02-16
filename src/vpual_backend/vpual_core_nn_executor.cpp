@@ -28,8 +28,8 @@
 #include <utility>
 #include <vector>
 
-#include "vpux/utils/plugin/profiling_parser.hpp"
 #include "vpux/utils/core/enums.hpp"
+#include "vpux/utils/plugin/profiling_parser.hpp"
 
 #if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
 #include "mmapped_pointer.hpp"

@@ -55,8 +55,8 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
     auto parentCopyOp = copyOp.input().getDefiningOp<IERT::CopyOp>();
     if (parentCopyOp == nullptr) {
         // Check current CopyOp source and destination
-        const auto srcMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
-        const auto dstMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
+        const auto srcMemory = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+        const auto dstMemory = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
 
         // Remove redundant CMX2CMX CopyOps
         if (srcMemory == dstMemory && srcMemory == VPU::MemoryKind::CMX_NN) {
@@ -71,18 +71,6 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
     if (parentCopyOp.output_buff().isa<mlir::BlockArgument>() ||
         !isBufAllocOp(parentCopyOp.output_buff().getDefiningOp())) {
         return mlir::failure();
-    }
-
-    // retrieve weight tables using this buffer
-    SmallVector<mlir::Operation*> wtUsingOutBuf;
-    for (auto use : copyOp.output_buff().getUsers()) {
-        if (mlir::isa<VPUIP::WeightsTableOp>(*use)) {
-            wtUsingOutBuf.push_back(use);
-        }
-    }
-    // update all weight tables using this buffer
-    for (auto wt : wtUsingOutBuf) {
-        wt->setOperand(0, parentCopyOp.output_buff());
     }
 
     rewriter.replaceOpWithNewOp<IERT::CopyOp>(copyOp, parentCopyOp.input(), copyOp.output_buff());
@@ -104,8 +92,8 @@ void fuseLastCopy(IERT::CopyOp copyOp, const AliasesInfo& aliasesInfo, Logger lo
         return;
     }
 
-    auto inSourceMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
-    auto outSourceMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
+    auto inSourceMemory = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+    auto outSourceMemory = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
     if (inSourceMemory != outSourceMemory) {
         return;
     }

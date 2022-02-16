@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/VPURT/attributes.hpp"
 
+#include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/utils/core/error.hpp"
 
 #include <llvm/ADT/StringExtras.h>
@@ -63,7 +64,8 @@ VPURT::BufferSection vpux::VPURT::getBufferSection(VPU::MemoryKind memKind) {
 }
 
 bool vpux::VPURT::isMemoryCompatible(BufferSection section, mlir::MemRefType memref) {
-    return VPURT::getMemoryKind(section) == VPU::getMemoryKind(memref);
+    const auto ndType = memref.cast<vpux::NDTypeInterface>();
+    return VPURT::getMemoryKind(section) == ndType.getMemoryKind();
 }
 
 //

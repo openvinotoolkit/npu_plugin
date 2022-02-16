@@ -43,7 +43,7 @@ vcl_tensor_layout_t getLayout(const char* value) {
         return VCL_TENSOR_LAYOUT_NDHWC;
     } else if (!strcmp(value, "nchw") || !strcmp(value, "NCHW")) {
         return VCL_TENSOR_LAYOUT_NCHW;
-    } else if (!strcmp(value, "nhwc") || !strcmp(value, "nhwc")) {
+    } else if (!strcmp(value, "nhwc") || !strcmp(value, "NHWC")) {
         return VCL_TENSOR_LAYOUT_NHWC;
     } else if (!strcmp(value, "chw") || !strcmp(value, "CHW")) {
         return VCL_TENSOR_LAYOUT_CHW;

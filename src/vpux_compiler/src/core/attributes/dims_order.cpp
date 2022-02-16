@@ -292,41 +292,10 @@ mlir::AffineMap vpux::DimsOrder::toAffineMap(mlir::MLIRContext* ctx) const {
     return permutation.empty() ? mlir::AffineMap::get(ctx) : mlir::AffineMap::getPermutationMap(permutation, ctx);
 }
 
-DimsOrder vpux::DimsOrder::fromType(mlir::ShapedType type) {
-    return llvm::TypeSwitch<mlir::ShapedType, DimsOrder>(type)
-            .Case<mlir::RankedTensorType>([](mlir::RankedTensorType tensor) {
-                return DimsOrder::fromType(tensor);
-            })
-            .Case<mlir::MemRefType>([](mlir::MemRefType memref) {
-                return DimsOrder::fromType(memref);
-            })
-            .Default([](mlir::ShapedType type) -> DimsOrder {
-                VPUX_THROW("Can't get DimsOrder from Type '{0}'", type);
-            });
-}
-
-DimsOrder vpux::DimsOrder::fromType(mlir::RankedTensorType type) {
-    return DimsOrder::fromAffineMap(IE::getOrder(type));
-}
-
-DimsOrder vpux::DimsOrder::fromType(mlir::MemRefType type) {
-    const auto layout = type.getLayout();
-
-    if (const auto mapAttr = layout.dyn_cast<mlir::AffineMapAttr>()) {
-        return fromAffineMap(mapAttr.getValue());
-    }
-
-    if (const auto descAttr = layout.dyn_cast<IERT::MemRefAttr>()) {
-        return fromAffineMap(descAttr.order().getValue());
-    }
-
-    VPUX_THROW("Unsupported MemRefType layout '{0}'", layout);
-}
-
 DimsOrder vpux::DimsOrder::fromValue(mlir::Value val) {
-    const auto type = VPURT::SparseBufferType::getDataType(val).dyn_cast<mlir::ShapedType>();
-    VPUX_THROW_UNLESS(type != nullptr, "Can't get DimsOrder from Type '{0}'", val.getType());
-    return fromType(type);
+    const auto type = val.getType().dyn_cast<vpux::NDTypeInterface>();
+    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non vpux::NDTypeInterface '{1}'", val, val.getType());
+    return type.getDimsOrder();
 }
 
 bool vpux::DimsOrder::isCompatibleLayout(mlir::MemRefType type) const {
@@ -334,7 +303,7 @@ bool vpux::DimsOrder::isCompatibleLayout(mlir::MemRefType type) const {
         return false;
     }
 
-    const auto logicalStrides = getStrides(type);
+    const auto logicalStrides = type.cast<vpux::NDTypeInterface>().getStrides();
     const auto currPerm = toPermutation();
 
     if (currPerm.size() <= 1) {

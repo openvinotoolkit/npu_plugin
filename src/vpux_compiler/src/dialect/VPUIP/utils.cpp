@@ -114,9 +114,10 @@ mlir::Value getAlignedConstWeights(mlir::OpBuilder& builder, mlir::Location loc,
     const auto OC = flatWeightShape[Dims4D::Filter::OC];
     const auto flatWeightChannelsCount = flatWeightShape[Dims4D::Filter::IC];
     const auto alignedWeightShape = SmallVector<int64_t>{OC, flatWeightChannelsCount + padding, 1, 1};
-    const auto origFilterType = weightsConst.output().getType().cast<mlir::ShapedType>();
-    const auto outAllocType = mlir::MemRefType::get(alignedWeightShape, origFilterType.getElementType());
-    const auto outAllocTypeNHWC = changeDimsOrder(outAllocType, DimsOrder::NHWC);
+    const auto origFilterType = weightsConst.output().getType().cast<vpux::NDTypeInterface>();
+    const auto outAllocType =
+            mlir::MemRefType::get(alignedWeightShape, origFilterType.getElementType()).cast<vpux::NDTypeInterface>();
+    const auto outAllocTypeNHWC = outAllocType.changeDimsOrder(DimsOrder::NHWC);
     auto alignedWeightsOp = builder.create<Const::DeclareOp>(loc, outAllocTypeNHWC, nhwcWeightsContentAttr);
 
     return alignedWeightsOp.output();
@@ -126,13 +127,13 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
                                       Shape flatWeightShape, int64_t padding) {
     auto ctx = builder.getContext();
     // Step 1: Flatten input to OCxICx1x1, where IC = filters * KY * KX.
-    const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
+    const auto origFilterType = origFilter.getType().cast<vpux::NDTypeInterface>();
     const auto flatWeightType =
-            changeDimsOrder(changeShape(origFilterType, flatWeightShape), DimsOrder::fromValue(origFilter));
+            origFilterType.changeShape(flatWeightShape).changeDimsOrder(DimsOrder::fromValue(origFilter));
     auto flatWeightsOp = builder.create<IERT::GenericReshapeOp>(loc, flatWeightType, origFilter);
 
     // Step 2: Permute flat input to NCHW.
-    auto flatWeightTypeNCHWType = changeDimsOrder(flatWeightType, DimsOrder::NCHW);
+    auto flatWeightTypeNCHWType = flatWeightType.changeDimsOrder(DimsOrder::NCHW);
     const auto nchwAttr = mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(ctx));
     const auto flatWeightsDimsAttr =
             mlir::AffineMapAttr::get(DimsOrder::fromValue(flatWeightsOp.output()).toAffineMap(ctx));
@@ -143,22 +144,25 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
     const auto OC = flatWeightShape[Dims4D::Filter::OC];
     const auto flatWeightChannelsCount = flatWeightShape[Dims4D::Filter::IC];
     const auto alignedWeightShape = SmallVector<int64_t>{OC, flatWeightChannelsCount + padding, 1, 1};
-    const auto outAllocType = changeDimsOrder(
-            mlir::MemRefType::get(alignedWeightShape, origFilterType.getElementType()), DimsOrder::NCHW);
+    const auto outShapedType =
+            mlir::MemRefType::get(alignedWeightShape, origFilterType.getElementType()).cast<vpux::NDTypeInterface>();
+    const auto outAllocType = outShapedType.changeDimsOrder(DimsOrder::NCHW);
 
     const auto padShape = SmallVector<int64_t>{OC, padding, 1, 1};
     const auto padValues = std::vector<ngraph::float16>(OC * padding, 0.f);
-    const auto padType =
-            changeDimsOrder(mlir::RankedTensorType::get(padShape, origFilterType.getElementType()), DimsOrder::NCHW);
-    const auto padAttr = mlir::DenseElementsAttr::get(padType, makeArrayRef(padValues));
+    const auto padShapedType =
+            mlir::RankedTensorType::get(padShape, origFilterType.getElementType()).cast<vpux::NDTypeInterface>();
+    const auto padType = padShapedType.changeDimsOrder(DimsOrder::NCHW);
+    const auto padAttr = mlir::DenseElementsAttr::get(padType.cast<mlir::RankedTensorType>(), makeArrayRef(padValues));
     const auto padContentAttr = Const::ContentAttr::get(padAttr);
 
-    const auto padAllocType = mlir::MemRefType::get(padShape, origFilterType.getElementType());
-    const auto padAllocTypeNHWC = changeDimsOrder(padAllocType, DimsOrder::NCHW);
+    const auto padAllocType =
+            mlir::MemRefType::get(padShape, origFilterType.getElementType()).cast<vpux::NDTypeInterface>();
+    const auto padAllocTypeNHWC = padAllocType.changeDimsOrder(DimsOrder::NCHW);
     auto paddedTensor = builder.create<Const::DeclareOp>(loc, padAllocTypeNHWC, padContentAttr);
 
     // Step 4: Concatenate flat NCHW input with padding.
-    auto subViewAlloc = builder.create<mlir::memref::AllocOp>(loc, outAllocType);
+    auto subViewAlloc = builder.create<mlir::memref::AllocOp>(loc, outAllocType.cast<mlir::MemRefType>());
 
     const SmallVector<int64_t> filterOffsets = {0, 0, 0, 0};
     const auto filterOffsetsAttr = getIntArrayAttr(ctx, filterOffsets);
@@ -178,7 +182,7 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
             loc, SmallVector<mlir::Value>{subViewFilterCopy.output(), subViewPaddingCopy.output()}, subViewAlloc);
 
     // Step 5: Permute the result to NHWC.
-    auto outNHWCType = changeDimsOrder(outAllocType, DimsOrder::NHWC);
+    auto outNHWCType = outAllocType.changeDimsOrder(DimsOrder::NHWC);
     const auto nhwcAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx));
 
     auto outOpNCHW = builder.create<IERT::PermuteCastOp>(loc, outNHWCType, concatViewOp.output(), nhwcAttr, nchwAttr);
@@ -196,7 +200,7 @@ mlir::Value vpux::VPUIP::alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, m
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
-    const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
+    const auto origFilterType = origFilter.getType().cast<vpux::NDTypeInterface>();
     const auto alignment = VPU::NCEInvariant::getAlignment(origFilterType.getElementType());
 
     const auto remainder = (filtersPerInChan * KY * KX) % alignment;

@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/dialect/VPURT/types.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
@@ -32,10 +33,12 @@ namespace {
 // %6 = VPUIP.SomeTaskUPA inputs(%1 : memref, %2 : memref) outputs(%3 : memref) waits(%4 : !VPUIP.Barrier) updates(%5 :
 // !VPUIP.Barrier)) numOperands() == 5 <==> %1, %2, %3, %4, %5 getLastMemRefPosition() == 3  <==> %1, %2 and %3
 ptrdiff_t getLastMemRefPosition(mlir::ValueRange vals) {
-    return std::find_if(vals.begin(), vals.end(),
-                        [](mlir::Value val) {
-                            return !val.getType().isa<mlir::MemRefType, VPURT::SparseBufferType>();
-                        }) -
+    return std::find_if(
+                   vals.begin(), vals.end(),
+                   [](mlir::Value val) {
+                       return !val.getType()
+                                       .isa<mlir::MemRefType, VPURT::SparseBufferType, VPUIP::DistributedBufferType>();
+                   }) -
            vals.begin();
 }
 
@@ -191,13 +194,13 @@ mlir::LogicalResult vpux::IERT::verifySameElementType(mlir::Operation* op) {
     auto inputs = layer.getInputs();
 
     const auto firstInput = inputs.front();
-    auto mainElemType = firstInput.getType().cast<mlir::ShapedType>().getElementType();
+    auto mainElemType = firstInput.getType().cast<vpux::NDTypeInterface>().getElementType();
     if (auto qType = mainElemType.dyn_cast<mlir::quant::QuantizedType>()) {
         mainElemType = qType.getStorageType();
     }
 
     for (const auto& val : layer.getOpOperands()) {
-        auto elemType = val.get().getType().cast<mlir::ShapedType>().getElementType();
+        auto elemType = val.get().getType().cast<vpux::NDTypeInterface>().getElementType();
         if (auto qType = elemType.dyn_cast<mlir::quant::QuantizedType>()) {
             elemType = qType.getStorageType();
         }

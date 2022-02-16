@@ -75,14 +75,15 @@ mlir::Attribute vpux::Const::BroadcastAttr::parse(mlir::DialectAsmParser& parser
 // BroadcastAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::BroadcastAttr::inferOutputType(mlir::ShapedType input) const {
-    const Bit typeSizeInBits = getElemTypeSize(input);
+vpux::NDTypeInterface vpux::Const::BroadcastAttr::inferOutputType(vpux::NDTypeInterface input) const {
+    const Bit typeSizeInBits = input.getElemTypeSize();
     VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in BroadcastAttr",
                       input.getElementType());
 
     const auto value = getValue().getInt();
     const auto axis = Dim(getAxis().getInt());
-    const auto inShape = getShape(input);
+
+    const auto inShape = input.getShape();
 
     VPUX_THROW_UNLESS(value >= inShape[axis],
                       "Value cannot be broadcasted due to new value's size is less than old one: {0} < {1}", value,
@@ -93,7 +94,7 @@ mlir::ShapedType vpux::Const::BroadcastAttr::inferOutputType(mlir::ShapedType in
     Shape padAfter(inShape.size(), 0);
     padAfter[axis] = value - inShape[axis];
 
-    return getPaddedType(input, padBefore, padAfter);
+    return input.pad(padBefore, padAfter);
 }
 
 //

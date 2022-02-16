@@ -23,7 +23,7 @@ namespace details {
 // memPermuteTransformation
 //
 
-vpux::Const::Content memPermuteTransformation(vpux::Const::Content& input, mlir::ShapedType outType,
+vpux::Const::Content memPermuteTransformation(vpux::Const::Content& input, vpux::NDTypeInterface outType,
                                               mlir::AffineMap memPerm);
 
 }  // namespace details

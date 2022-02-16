@@ -168,3 +168,96 @@ func @OptimizeParallelSubViewPatternCopies(
 // CHECK-NOT: IERT.COPY
 // CHECK: [[VAR5:%.*]] =  IERT.ReLU inputs([[VAR2]] : memref<1x16x112x112xf16, @CMX_NN>)
 // CHECK: [[VAR6:%.*]] =  IERT.Copy inputs([[VAR5]] : memref<1x16x112x112xf16, @CMX_NN>)
+
+// -----
+
+func @SkipInputSubViewPatternCopies(
+        %input: memref<1x16x112x113xf16, @DDR>,
+        %output1: memref<1x16x112x112xf16, @DDR>,
+        %output2: memref<1x16x112x112xf16, @DDR>)
+         -> (memref<1x16x112x112xf16, @DDR>, memref<1x16x112x112xf16, @DDR>){
+    %0 = memref.alloc() : memref<1x16x112x113xf16, @DDR>
+
+    %2 = memref.alloc() : memref<1x16x112x112xf16, @CMX_NN>
+    %3 = IERT.SubView %input [0, 0, 0, 0] [1, 16, 112, 112] :
+                memref<1x16x112x113xf16, @DDR> to memref<1x16x112x112xf16, {
+                    order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [202496, 12656, 113, 1]
+                }, @DDR>
+    %4 = IERT.Copy
+            inputs(%3 : memref<1x16x112x112xf16, {
+                order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [202496, 12656, 113, 1]
+            }, @DDR>)
+            outputs(%2 : memref<1x16x112x112xf16, @CMX_NN>)
+             -> memref<1x16x112x112xf16, @CMX_NN>
+    %5 = memref.alloc() : memref<1x16x112x112xf16, @CMX_NN>
+    %6 = IERT.ReLU
+            inputs(%4 : memref<1x16x112x112xf16, @CMX_NN>)
+            outputs(%5 : memref<1x16x112x112xf16, @CMX_NN>)
+            -> memref<1x16x112x112xf16, @CMX_NN>
+    %7 = IERT.Copy
+            inputs(%6 : memref<1x16x112x112xf16, @CMX_NN>)
+            outputs(%output1 : memref<1x16x112x112xf16, @DDR>)
+            -> memref<1x16x112x112xf16, @DDR>
+
+    %8 = memref.alloc() : memref<1x16x112x112xf16, @CMX_NN>
+    %9 = IERT.SubView %input [0, 0, 0, 0] [1, 16, 112, 112] :
+                memref<1x16x112x113xf16, @DDR> to memref<1x16x112x112xf16, {
+                    order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [202496, 12656, 113, 1]
+                }, @DDR>
+    %10 = IERT.Copy
+            inputs(%9 : memref<1x16x112x112xf16, {
+                order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [202496, 12656, 113, 1]
+            }, @DDR>)
+            outputs(%8 : memref<1x16x112x112xf16, @CMX_NN>)
+             -> memref<1x16x112x112xf16, @CMX_NN>
+    %11 = memref.alloc() : memref<1x16x112x112xf16, @CMX_NN>
+    %12 = IERT.ReLU
+            inputs(%10 : memref<1x16x112x112xf16, @CMX_NN>)
+            outputs(%11 : memref<1x16x112x112xf16, @CMX_NN>)
+            -> memref<1x16x112x112xf16, @CMX_NN>
+    %13 = IERT.Copy
+            inputs(%12 : memref<1x16x112x112xf16, @CMX_NN>)
+            outputs(%output1 : memref<1x16x112x112xf16, @DDR>)
+            -> memref<1x16x112x112xf16, @DDR>
+
+    return %7, %13 : memref<1x16x112x112xf16, @DDR>, memref<1x16x112x112xf16, @DDR>
+}
+
+// CHECK: %[[ALLOC_DDR:.*]] = memref.alloc() : memref<1x16x112x113xf16, @DDR>
+// CHECK: %[[ALLOC_CMX_1:.*]] = memref.alloc() : memref<1x16x112x112xf16, @CMX_NN>
+
+// CHECK: %[[SUBVIEW_1:.*]] = IERT.SubView %arg0 [0, 0, 0, 0] [1, 16, 112, 112] :
+// CHECK-SAME:  memref<1x16x112x113xf16, @DDR> to memref<1x16x112x112xf16, {order = #NCHW, strides = [202496, 12656, 113, 1]}, @DDR>
+
+// CHECK: %[[DDR2CMX_1:.*]] = IERT.Copy inputs(%[[SUBVIEW_1]] :
+// CHECK-SAME:  memref<1x16x112x112xf16, {order = #NCHW, strides = [202496, 12656, 113, 1]}, @DDR>)
+// CHECK-SAME:  outputs(%[[ALLOC_CMX_1]] : memref<1x16x112x112xf16, @CMX_NN>) -> memref<1x16x112x112xf16, @CMX_NN>
+
+// CHECK: %[[ALLOC_RELU_CMX:.*]] = memref.alloc() : memref<1x16x112x112xf16, @CMX_NN>
+// CHECK: %[[RELU_1:.*]] = IERT.ReLU
+// CHECK-SAME:  inputs(%[[DDR2CMX_1]] : memref<1x16x112x112xf16, @CMX_NN>)
+// CHECK-SAME:  outputs(%[[ALLOC_RELU_CMX:.*]] : memref<1x16x112x112xf16, @CMX_NN>) -> memref<1x16x112x112xf16, @CMX_NN>
+
+// CHECK: %[[CMX2DDR_1:.*]] = IERT.Copy
+// CHECK-SAME:  inputs(%[[RELU_1]] : memref<1x16x112x112xf16, @CMX_NN>)
+// CHECK-SAME:  outputs(%arg1 : memref<1x16x112x112xf16, @DDR>) -> memref<1x16x112x112xf16, @DDR>
+
+// CHECK: %[[ALLOC_CMX_2:.*]] = memref.alloc() : memref<1x16x112x112xf16, @CMX_NN>
+// CHECK: %[[SUBVIEW_2:.*]] = IERT.SubView %arg0 [0, 0, 0, 0] [1, 16, 112, 112] :
+// CHECK-SAME:  memref<1x16x112x113xf16, @DDR> to memref<1x16x112x112xf16, {order = #NCHW, strides = [202496, 12656, 113, 1]}, @DDR>
+
+// CHECK: %[[DDR2CMX_2:.*]] = IERT.Copy
+// CHECK-SAME:  inputs(%[[SUBVIEW_2]] : memref<1x16x112x112xf16, {order = #NCHW, strides = [202496, 12656, 113, 1]}, @DDR>)
+// CHECK-SAME:  outputs(%[[ALLOC_CMX_2]] : memref<1x16x112x112xf16, @CMX_NN>) -> memref<1x16x112x112xf16, @CMX_NN>
+
+// CHECK: %[[ALLOC_CMX_3:.*]] = memref.alloc() : memref<1x16x112x112xf16, @CMX_NN>
+// CHECK: %[[RELU_2:.*]] = IERT.ReLU
+// CHECK-SAME:  inputs(%[[DDR2CMX_2]] : memref<1x16x112x112xf16, @CMX_NN>)
+// CHECK-SAME:  outputs(%[[ALLOC_CMX_3]] : memref<1x16x112x112xf16, @CMX_NN>) -> memref<1x16x112x112xf16, @CMX_NN>
+
+// CHECK: %[[CMX2DDR_2:.*]] = IERT.Copy
+// CHECK-SAME:  inputs(%[[RELU_2]] : memref<1x16x112x112xf16, @CMX_NN>)
+// CHECK-SAME:  outputs(%arg1 : memref<1x16x112x112xf16, @DDR>) -> memref<1x16x112x112xf16, @DDR>
+
+// CHECK:   return %[[CMX2DDR_1]], %[[CMX2DDR_2]] : memref<1x16x112x112xf16, @DDR>, memref<1x16x112x112xf16, @DDR>
+

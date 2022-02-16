@@ -1666,17 +1666,17 @@
             "BenchmarkApp" : {
                 "disabled" : true
             },
-             "Compile" : {
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "Compile" : {
                 "input_layout" : "NHWC",
                 "output_layout" : "NHWC",
                 "input_precision" : "FP16",
                 "output_precision" : "FP16",
                 "old_api" : true
-            },
-            "extra_config": {
-                "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
-                "VPUX_INFERENCE_SHAVES": "16"
             },
             "NetTest-CalcRef" : {
                 "disabled" : true
@@ -1703,18 +1703,18 @@
             "BenchmarkApp" : {
                 "disabled" : true
             },
-             "Compile" : {
-                "input_layout" : "NHWC",
-                "output_layout" : "NHWC",
-                "input_precision" : "U8",
-                "output_precision" : "FP16",
-                "old_api" : true
-            },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "PERFORMANCE_HINT": "THROUGHPUT",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_IMD_MV_RUN_TIMEOUT": "3600"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "U8",
+                "output_precision" : "FP16",
+                "old_api" : true
             },
             "NetTest-CalcRef": {
                 "inputs" : [["224x224/husky.bmp"]],
@@ -1970,7 +1970,7 @@
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -2194,7 +2194,7 @@
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -2223,7 +2223,7 @@
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {

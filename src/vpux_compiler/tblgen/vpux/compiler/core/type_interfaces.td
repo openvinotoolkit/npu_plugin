@@ -17,10 +17,10 @@
 include "mlir/IR/OpBase.td"
 
 //
-// ShapedPropertiesTypeInterface
+// NDTypeInterface
 //
 
-def ShapedPropertiesTypeInterface : TypeInterface<"ShapedPropertiesTypeInterface"> {
+def NDTypeInterface : TypeInterface<"NDTypeInterface"> {
     let description = [{
         Interface for extracting shape, element type, layout, memory space and other tensor related properties from the type.
     }];
@@ -100,34 +100,44 @@ def ShapedPropertiesTypeInterface : TypeInterface<"ShapedPropertiesTypeInterface
 
        InterfaceMethod<
             "Returns the type with the new shape",
-            "vpux::ShapedPropertiesTypeInterface", "changeShape", (ins "vpux::ShapeRef":$shape)
+            "vpux::NDTypeInterface", "changeShape", (ins "vpux::ShapeRef":$shape)
         >,
 
         InterfaceMethod<
             "Returns the type with the new element type",
-            "vpux::ShapedPropertiesTypeInterface", "changeElemType", (ins "mlir::Type":$elemType)
+            "vpux::NDTypeInterface", "changeElemType", (ins "mlir::Type":$elemType)
         >,
 
         InterfaceMethod<
             "Returns the type with the new order",
-            "vpux::ShapedPropertiesTypeInterface", "changeDimsOrder", (ins "vpux::DimsOrder":$order)
+            "vpux::NDTypeInterface", "changeDimsOrder", (ins "vpux::DimsOrder":$order)
         >,
 
         InterfaceMethod<
             "Returns the type with the new memory space",
-            "vpux::ShapedPropertiesTypeInterface", "changeMemSpace", (ins "vpux::IndexedSymbolAttr":$memSpace)
+            "vpux::NDTypeInterface", "changeMemSpace", (ins "vpux::IndexedSymbolAttr":$memSpace)
         >,
 
         InterfaceMethod<
             "Returns a tile from the type",
-            "vpux::ShapedPropertiesTypeInterface", "extractDenseTile", (ins "vpux::ShapeRef":$tileOffsets, "vpux::ShapeRef":$tileShape)
+            "vpux::NDTypeInterface", "extractDenseTile", (ins "vpux::ShapeRef":$tileOffsets, "vpux::ShapeRef":$tileShape)
         >,
 
         InterfaceMethod<
             "Returns the padded type",
-            "vpux::ShapedPropertiesTypeInterface", "pad", (ins "vpux::ShapeRef":$padBefore, "vpux::ShapeRef":$padAfter)
+            "vpux::NDTypeInterface", "pad", (ins "vpux::ShapeRef":$padBefore, "vpux::ShapeRef":$padAfter)
         >,
     ];
+
+    let extraClassDeclaration = [{
+        template <typename Enum, typename OutT = vpux::NDTypeInterface>
+        using nd_type_if = enable_t<OutT, std::is_enum<Enum>, details::HasStringifyEnum<Enum>>;
+
+        template <typename Enum>
+        nd_type_if<Enum> changeMemSpace(Enum kind) const {
+            return changeMemSpace(vpux::IndexedSymbolAttr::get(getContext(), stringifyEnum(kind)));
+        }
+    }];
 }
 
 #endif

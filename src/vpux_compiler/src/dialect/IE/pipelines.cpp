@@ -46,6 +46,10 @@ void vpux::IE::buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLa
         pm.addPass(IE::createUseUserLayout(log));
     }
 
+    if (options.enableForceZMajorConcat) {
+        pm.addPass(IE::createInsertReorderBetweenTransposeAndConcatPass(log));
+    }
+
     pm.addPass(IE::createAdjustLayoutsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
@@ -85,14 +89,19 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
 // LowPrecision
 //
 
-void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, bool removeQuantDequantSeq, Logger log) {
+void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, const LowPrecisionOptions& options, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(IE::createSplitFakeQuantPass(log));
     pm.addPass(IE::createFuseConvertWithQuantizePass(log));
-    pm.addPass(IE::createPropagateQuantizeDequantizePass(log));
+    if (options.enablePropagateQuantDequant) {
+        pm.addPass(IE::createPropagateQuantizeDequantizePass(log));
+    }
+    if (options.enableSwapTransposeWithFQ) {
+        pm.addPass(IE::createSwapTransposeWithFQPass(log));
+    }
     pm.addPass(IE::createFuseQuantizedOpsPass(log));
-    if (removeQuantDequantSeq) {
+    if (options.enableQuantDequantRemoval) {
         pm.addPass(IE::createRemoveQuantDequantSeqPass(log));
     }
     pm.addPass(IE::createConvertWeightsToU8Pass(log));
@@ -126,7 +135,9 @@ void vpux::IE::registerIEPipelines() {
                                          IE::buildAdjustForVPUPipeline(pm);
                                      });
 
-    mlir::PassPipelineRegistration<>("low-precision", "Low precision transformations", [](mlir::OpPassManager& pm) {
-        IE::buildLowPrecisionPipeline(pm);
-    });
+    mlir::PassPipelineRegistration<LowPrecisionOptions>(
+            "low-precision", "Low precision transformations",
+            [](mlir::OpPassManager& pm, const LowPrecisionOptions& options) {
+                IE::buildLowPrecisionPipeline(pm, options);
+            });
 }

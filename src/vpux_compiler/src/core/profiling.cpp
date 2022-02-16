@@ -32,9 +32,11 @@ mlir::BlockArgument vpux::addNewProfilingOutput(mlir::MLIRContext* ctx, mlir::Fu
     // If you hit this, IR have CNNNetworkOp without profilingOutputInfo region
     VPUX_THROW_WHEN(netOp.profilingOutputsInfo().empty(), "Cound not add profiling output: no region added");
 
+    const auto ndOutputType = outputType.cast<vpux::NDTypeInterface>();
+
     // Adding output to the user info
     auto outputUserResult =
-            getTensorType(getShape(outputType), outputType.getElementType(), DimsOrder::fromType(outputType), nullptr);
+            getTensorType(ndOutputType.getShape(), ndOutputType.getElementType(), ndOutputType.getDimsOrder(), nullptr);
     auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.profilingOutputsInfo().front().front());
     userInfoBuilder.create<IE::DataInfoOp>(mlir::NameLoc::get(mlir::Identifier::get("profilingDataOutputInfo", ctx)),
                                            mlir::StringAttr::get(ctx, name), mlir::TypeAttr::get(outputUserResult));

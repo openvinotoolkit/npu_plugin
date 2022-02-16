@@ -41,8 +41,8 @@ bool vpux::IE::ConvertOp::areCastCompatible(mlir::TypeRange inputs, mlir::TypeRa
         return false;
     }
 
-    const auto input = inputs.front().dyn_cast<mlir::RankedTensorType>();
-    const auto output = outputs.front().dyn_cast<mlir::RankedTensorType>();
+    const auto input = inputs.front().dyn_cast<vpux::NDTypeInterface>();
+    const auto output = outputs.front().dyn_cast<vpux::NDTypeInterface>();
 
     if (!input || !output || input.getShape() != output.getShape()) {
         return false;

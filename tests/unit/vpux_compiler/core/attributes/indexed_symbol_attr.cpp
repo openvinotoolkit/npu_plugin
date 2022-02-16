@@ -114,13 +114,13 @@ TEST(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
 
     for (auto& op : func.getOps()) {
         if (auto allocOp = mlir::dyn_cast<mlir::memref::AllocOp>(op)) {
-            const auto type = allocOp.memref().getType().cast<mlir::MemRefType>();
-            auto memSpace = vpux::getMemorySpace(type);
+            const auto type = allocOp.memref().getType().cast<vpux::NDTypeInterface>();
+            auto memSpace = type.getMemSpace();
 
             checkCMXSpace(memSpace, 0);
         } else if (auto copyOp = mlir::dyn_cast<vpux::IERT::CopyOp>(op)) {
-            auto inMemSpace = vpux::getMemorySpace(copyOp.input().getType().cast<mlir::MemRefType>());
-            auto outMemSpace = vpux::getMemorySpace(copyOp.output().getType().cast<mlir::MemRefType>());
+            auto inMemSpace = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemSpace();
+            auto outMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemSpace();
 
             ASSERT_NE(inMemSpace, outMemSpace);
             ASSERT_TRUE(inMemSpace.getLeafName() == DDR_NAME || inMemSpace.getLeafName() == CMX_NAME);

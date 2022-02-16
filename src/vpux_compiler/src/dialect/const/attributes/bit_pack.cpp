@@ -89,7 +89,7 @@ mlir::Attribute vpux::Const::BitPackAttr::parse(mlir::DialectAsmParser& parser, 
 // BitPackAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::BitPackAttr::inferOutputType(mlir::ShapedType input) const {
+vpux::NDTypeInterface vpux::Const::BitPackAttr::inferOutputType(vpux::NDTypeInterface input) const {
     // Check that we're not trying to pack any floating point values.
     VPUX_THROW_WHEN(input.getElementType().isa<mlir::FloatType>(), "Bit pack does not support float inputs.");
     const auto bitWidth = checked_cast<unsigned>(getWidth().getInt());
@@ -115,8 +115,7 @@ mlir::ShapedType vpux::Const::BitPackAttr::inferOutputType(mlir::ShapedType inpu
     } else {
         VPUX_THROW("Got unsupported input element type '{0}' in bitpack", input.getElementType());
     }
-    const auto outputType = changeElemType(input, outElementType);
-    return outputType;
+    return input.changeElemType(outElementType);
 }
 
 //
@@ -130,7 +129,7 @@ Const::Content vpux::Const::BitPackAttr::transform(vpux::Const::Content& input) 
     const auto inBuf = input.getValues<uint8_t>();
     VPUX_THROW_UNLESS((inBuf.size() % 2) == 0, "Storage buffer size is odd, which is unexpected for 4 bit packing.");
     const auto outputType = inferOutputType(input.getType());
-    const Byte outputByteSize = getTotalSize(outputType);
+    const Byte outputByteSize = outputType.getTotalAllocSize();
     const size_t tempBufferSize = outputByteSize.count();
     auto output =
             Const::Content::allocTempBuffer(outputType, getUInt8Type(getContext()), input.isSplat(), tempBufferSize);

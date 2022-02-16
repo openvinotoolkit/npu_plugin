@@ -141,8 +141,8 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
     const auto weightsDDRType =
             getMemRefType(VPURT::BufferSection::Constant, weightsShape, weightsType, DimsOrder::NHWC);
 
-    auto weightsStrides = vpux::getStrides(weightsDDRType);
-    auto inputStrides = vpux::getStrides(functionInput.getType().cast<mlir::ShapedType>());
+    auto weightsStrides = weightsDDRType.cast<vpux::NDTypeInterface>().getStrides();
+    auto inputStrides = functionInput.getType().cast<vpux::NDTypeInterface>().getStrides();
 
     auto weightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsShape, weightsType,
                                             DimsOrder::OYXI, weightsStrides, 0, WEIGHTS_CMX_OFFSET);

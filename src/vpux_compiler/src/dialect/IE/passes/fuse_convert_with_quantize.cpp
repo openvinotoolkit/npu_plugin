@@ -49,7 +49,7 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::QuantizeOp quantizeOp, ml
         return mlir::failure();
     }
 
-    auto inElemType = convertOp.input().getType().cast<mlir::ShapedType>().getElementType();
+    auto inElemType = convertOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
     if (!inElemType.isInteger(CHAR_BIT)) {
         return mlir::failure();
     }

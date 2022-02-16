@@ -60,7 +60,7 @@ private:
 
 mlir::LogicalResult DeletePerAxisQuantizationPass::DequantizeRewriter::matchAndRewrite(
         IE::DequantizeOp originOp, mlir::PatternRewriter& rewriter) const {
-    const auto outElemType = originOp.input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto outElemType = originOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
     if (outElemType.isa<mlir::quant::UniformQuantizedType>()) {
         return mlir::failure();
     }

@@ -33,7 +33,7 @@ bool isDefinedAbove(mlir::Value val, mlir::Operation* user) {
         return true;
     }
 
-    if (user != nullptr && producer->getBlock() == user->getBlock()) {
+    if (producer->getBlock() == user->getBlock()) {
         return producer->isBeforeInBlock(user);
     }
 

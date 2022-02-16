@@ -43,13 +43,13 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
     let parameters = (ins
         "mlir::ElementsAttr":$baseContent,
         "mlir::ArrayAttr":$transformations,
-        "mlir::ShapedType":$finalType
+        "vpux::NDTypeInterface":$finalType
     );
 
     let builders = [
         AttrBuilderWithInferredContext<
             (ins "mlir::ElementsAttr":$baseContent), [{
-                return $_get(baseContent.getContext(), baseContent, mlir::ArrayAttr(), baseContent.getType());
+                return $_get(baseContent.getContext(), baseContent, mlir::ArrayAttr(), baseContent.getType().cast<vpux::NDTypeInterface>());
             }]
         >,
 
@@ -71,7 +71,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         >,
 
         AttrBuilderWithInferredContext<
-            (ins "mlir::ElementsAttr":$baseContent, "mlir::ArrayAttr":$transformations, "mlir::ShapedType":$finalType), [{
+            (ins "mlir::ElementsAttr":$baseContent, "mlir::ArrayAttr":$transformations, "vpux::NDTypeInterface":$finalType), [{
                 return $_get(baseContent.getContext(), baseContent, transformations, finalType);
             }]
         >
@@ -89,13 +89,14 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
 
         mlir::ElementsAttr getBaseContent() const;
         vpux::SmallVector<vpux::Const::TransformAttrInterface> getTransformations() const;
-        mlir::ShapedType getType() const;
+        vpux::NDTypeInterface getType() const;
 
         vpux::Const::ContentAttr broadcast(Dim axis, int64_t value) const;
         vpux::Const::ContentAttr convertElemType(mlir::Type newElemType) const;
         vpux::Const::ContentAttr quantCast(mlir::quant::QuantizedType newElemType = nullptr) const;
         vpux::Const::ContentAttr dequantize() const;
         vpux::Const::ContentAttr rescale(double scale) const;
+        vpux::Const::ContentAttr relocateWeightsTablePointers(uint64_t weightsPtr, uint64_t sparsityPtr) const;
         vpux::Const::ContentAttr add(double bias) const;
         vpux::Const::ContentAttr reshape(vpux::ShapeRef newShape) const;
         vpux::Const::ContentAttr reorder(vpux::DimsOrder newOrder) const;
@@ -392,6 +393,31 @@ def Const_TransposeAttr : Const_Attr<"Transpose",
 
     let storageNamespace = "details";
     let genVerifyDecl = 1;
+    let skipDefaultBuilders = 1;
+}
+
+//
+// WeightsTablePtrs
+//
+
+def Const_RelocateWeightsTableAttr : Const_Attr<"RelocateWeightsTable",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+    let summary = "Patches offsets in the weights table";
+
+    let parameters = (ins
+        "mlir::IntegerAttr":$weightsPtr,
+        "mlir::IntegerAttr":$sparsityPtr
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::IntegerAttr":$weightsPtr, "mlir::IntegerAttr":$sparsityPtr), [{
+                return $_get(weightsPtr.getContext(), weightsPtr, sparsityPtr);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
     let skipDefaultBuilders = 1;
 }
 

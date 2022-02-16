@@ -40,8 +40,8 @@ private:
 
 bool isCopyFusable(IERT::CopyOp copyOp) {
     // Check 1: copy DDR->CMX
-    const auto srcMemory = VPU::getMemoryKind(copyOp.input().getType().cast<mlir::MemRefType>());
-    const auto dstMemory = VPU::getMemoryKind(copyOp.output().getType().cast<mlir::MemRefType>());
+    const auto srcMemory = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+    const auto dstMemory = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
     if (srcMemory == dstMemory || srcMemory == VPU::MemoryKind::CMX_NN) {
         return false;
     }
@@ -66,6 +66,9 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
         parentOp = mlir::dyn_cast<IERT::SubViewOp>(parentOp).source().getDefiningOp();
     }
     bool hasSiblingCopy = false;
+    if (parentOp == nullptr || parentOp->getNumResults() <= 0) {
+        return false;
+    }
     for (auto siblingOp : parentOp->getResult(0).getUsers()) {
         if (!mlir::isa<IERT::CopyOp>(*siblingOp)) {
             if (!mlir::isa<IERT::SubViewOp>(*siblingOp)) {
@@ -97,10 +100,10 @@ bool isCopyFusable(IERT::CopyOp copyOp) {
                 if (childCopyOfSiblingOp == nullptr) {
                     return false;
                 }
-                if (VPU::getMemoryKind(childCopyOfSiblingOp.input().getType().cast<mlir::MemRefType>()) !=
-                            VPU::MemoryKind::CMX_NN ||
-                    VPU::getMemoryKind(childCopyOfSiblingOp.output().getType().cast<mlir::MemRefType>()) !=
-                            VPU::MemoryKind::DDR) {
+                const auto input = childCopyOfSiblingOp.input().getType().cast<vpux::NDTypeInterface>();
+                const auto output = childCopyOfSiblingOp.output().getType().cast<vpux::NDTypeInterface>();
+                if (input.getMemoryKind() != VPU::MemoryKind::CMX_NN ||
+                    output.getMemoryKind() != VPU::MemoryKind::DDR) {
                     return false;
                 }
             }
@@ -162,23 +165,6 @@ mlir::LogicalResult fuseParallelCopyOp(IERT::CopyOp copyOp, Logger log) {
     auto siblingCopies = getSiblingCopies();
     for (auto siblingCopy : siblingCopies) {
         log.trace("Fuse copy op {0} to {1}", copyOp->getLoc(), siblingCopy->getLoc());
-        SmallVector<mlir::Operation*> wtUsingOutBuf;
-        for (auto use : siblingCopy.output_buff().getUsers()) {
-            if (mlir::isa<VPUIP::WeightsTableOp>(*use)) {
-                wtUsingOutBuf.push_back(use);
-            }
-        }
-        for (auto wt : wtUsingOutBuf) {
-            unsigned int index = 0;
-            for (const auto operand : wt->getOperands()) {
-                if (operand == siblingCopy.output_buff()) {
-                    break;
-                }
-                index++;
-            }
-            wt->setOperand(index, copyOp.output_buff());
-        }
-
         siblingCopy.getOperation()->replaceAllUsesWith(copyOp.getOperation());
         siblingCopy->erase();
     }

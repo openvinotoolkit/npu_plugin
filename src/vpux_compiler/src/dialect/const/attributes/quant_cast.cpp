@@ -77,20 +77,20 @@ mlir::Attribute vpux::Const::QuantCastAttr::parse(mlir::DialectAsmParser& parser
 // QuantCastAttr::inferOutputType
 //
 
-mlir::ShapedType vpux::Const::QuantCastAttr::inferOutputType(mlir::ShapedType input) const {
+vpux::NDTypeInterface vpux::Const::QuantCastAttr::inferOutputType(vpux::NDTypeInterface input) const {
     if (const auto elemTypeVal = getElemType()) {
         const auto quantStorateType = normalizeQuantStorageType(elemTypeVal);
 
         VPUX_THROW_UNLESS(input.getElementType() == quantStorateType, "Can't cast '{0}' element type to '{1}'",
                           input.getElementType(), getElemType());
 
-        return changeElemType(input, elemTypeVal);
+        return input.changeElemType(elemTypeVal);
     }
 
     const auto quantType = input.getElementType().dyn_cast<mlir::quant::QuantizedType>();
     VPUX_THROW_UNLESS(quantType != nullptr, "Unable to restore storage type from non-quantized type");
 
-    return changeElemType(input, normalizeQuantStorageType(quantType));
+    return input.changeElemType(normalizeQuantStorageType(quantType));
 }
 
 //

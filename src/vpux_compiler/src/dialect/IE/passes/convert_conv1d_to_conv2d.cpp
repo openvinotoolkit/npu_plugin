@@ -31,7 +31,7 @@ mlir::Value extendTensor(mlir::PatternRewriter& rewriter, mlir::Location loc, ml
     }
 
     // Extend shape with Height = 1. [N C W] -> [N C 1 W]
-    const auto shape = input.getType().cast<mlir::ShapedType>().getShape();
+    const auto shape = input.getType().cast<vpux::NDTypeInterface>().getShape();
 
     auto newShape = to_small_vector(shape);
     newShape.insert(newShape.end() - 1, 1);
@@ -80,7 +80,7 @@ mlir::LogicalResult ConvolutionExpansion::matchAndRewrite(IE::ConvolutionOp orig
     auto newConvOp = rewriter.create<IE::ConvolutionOp>(origOp->getLoc(), newInput, newFilter, newBias, newStrides,
                                                         newPadsBegin, newPadsEnd, newDilations, origOp.post_opAttr());
 
-    const auto outputShape = origOp.output().getType().cast<mlir::ShapedType>().getShape();
+    const auto outputShape = origOp.output().getType().cast<vpux::NDTypeInterface>().getShape();
     const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, newConvOp.output(), nullptr, false, outputShapeAttr);
 
@@ -124,7 +124,7 @@ mlir::LogicalResult GroupConvolutionExpansion::matchAndRewrite(IE::GroupConvolut
                                                              newPadsBegin, newPadsEnd, newDilations,
                                                              origOp.groupsAttr(), origOp.post_opAttr());
 
-    const auto outputShape = origOp.output().getType().cast<mlir::ShapedType>().getShape();
+    const auto outputShape = origOp.output().getType().cast<vpux::NDTypeInterface>().getShape();
     const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, newConvOp.output(), nullptr, false, outputShapeAttr);
 
@@ -151,12 +151,12 @@ void ConvertConv1DToConv2DPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     const auto isLegalConvOp = [&](IE::ConvolutionOp conv) {
-        const auto inputShape = conv.input().getType().cast<mlir::ShapedType>().getShape();
+        const auto inputShape = conv.input().getType().cast<vpux::NDTypeInterface>().getShape();
         return inputShape.size() != 3;
     };
 
     const auto isLegalGroupConvOp = [&](IE::GroupConvolutionOp groupConv) {
-        const auto inputShape = groupConv.filter().getType().cast<mlir::ShapedType>().getShape();
+        const auto inputShape = groupConv.filter().getType().cast<vpux::NDTypeInterface>().getShape();
         const auto hasGroups = groupConv.groups().getValueOr(0) != 0;
         return (inputShape.size() + hasGroups) != 4;
     };

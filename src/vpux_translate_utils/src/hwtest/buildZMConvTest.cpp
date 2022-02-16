@@ -23,6 +23,7 @@
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -30,6 +31,20 @@
 
 namespace vpux {
 namespace hwtest {
+
+namespace {
+
+vpux::VPU::PPEMode getPPEMode(nb::ActivationType activationType) {
+    switch (activationType) {
+    case nb::ActivationType::LeakyReLU:
+        return vpux::VPU::PPEMode::LPRELU;
+        break;
+    default:
+        VPUX_THROW("Encountered unsupported activation type '{0}'", nb::to_string(activationType));
+    }
+}
+
+}  // namespace
 
 //
 //       [input]
@@ -129,9 +144,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     VPUX_THROW_UNLESS(WEIGHTSTABLE_CMX_OFFSET % alignment == 0,
                       "WEIGHTSTABLE_CMX_OFFSET must be multiple of {0}, got {1}", alignment, WEIGHTSTABLE_CMX_OFFSET);
 
-    const auto outputParamType = changeDimsOrder(
-            getMemRefType(vpux::VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC),
-            outputLayout);
+    auto ndOutputType =
+            getMemRefType(vpux::VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC)
+                    .cast<vpux::NDTypeInterface>();
+    const auto outputParamType = ndOutputType.changeDimsOrder(outputLayout);
     llvm::SmallVector<mlir::Type, 2> inputTypes;
     inputTypes.push_back(getMemRefType(VPURT::BufferSection::NetworkInput, inputShape, inputType, DimsOrder::NHWC));
     inputTypes.push_back(outputParamType);
@@ -163,8 +179,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto weightsDDRType =
             getMemRefType(VPURT::BufferSection::Constant, weightsShape, weightsType, DimsOrder::NHWC);
 
-    auto weightsStrides = vpux::getStrides(weightsDDRType);
-    auto inputStrides = vpux::getStrides(functionInput.getType().cast<mlir::ShapedType>());
+    auto weightsStrides = weightsDDRType.cast<vpux::NDTypeInterface>().getStrides();
+    auto inputStrides = vpux::getStrides(functionInput);
 
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
     if (isInputPaddingRequired) {
@@ -205,8 +221,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
             functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType, weightsAttribute);
 
     auto outputCMXpadded = getMemRefType(VPURT::BufferSection::CMX_NN, outputCMXShape, outputType, outputLayout);
+    auto ndOutputCMXpadded = outputCMXpadded.cast<vpux::NDTypeInterface>();
     auto outputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
-                                           outputLayout, vpux::getStrides(outputCMXpadded), 0, OUTPUT_CMX_OFFSET);
+                                           outputLayout, ndOutputCMXpadded.getStrides(), 0, OUTPUT_CMX_OFFSET);
 
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
@@ -261,6 +278,21 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                          paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
 
     nceTask.addDPUTask(functionBuilder, start, end, pad, conv.cube_mode);
+
+    const auto ppeConfiguration = testDesc.getActivationLayer();
+    if (ppeConfiguration.activationType != nb::ActivationType::None) {
+        const auto outputScale = 1.0 / output.qp.scale;
+        const auto quantMult = vpux::getQuantMultFromScale(outputScale);
+        const auto quantShifts = vpux::getQuantShiftAndPostShiftFromScale(outputScale);
+
+        const auto preluScale = ppeConfiguration.alpha;
+        const auto preluMult = vpux::getPReLUMultFromScale(preluScale);
+        const auto preluShift = vpux::getPReLUShiftFromScale(preluScale);
+
+        nceTask.addPPETask(functionBuilder, getPPEMode(ppeConfiguration.activationType),
+                           std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max(), preluMult,
+                           preluShift, quantMult, quantShifts.first, quantShifts.second);
+    }
 
     functionBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), functionOutput);
 

@@ -56,7 +56,7 @@ mlir::LogicalResult FusableOpRewriter::ensureRequantizationRange(IE::LayerWithPo
                                                                  const VPU::PwlQuantReqs& quantReqs) const {
     _log.nest().trace("Ensure requantization range for {0}", origOp->getName());
 
-    const auto origType = origOp->getResult(0).getType().cast<mlir::RankedTensorType>();
+    const auto origType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
     const auto qType = origType.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>();
     VPUX_THROW_UNLESS(qType != nullptr, "Output tensor expected to be quantized per-tensor. Got {0}", origType);
 
@@ -67,8 +67,8 @@ mlir::LogicalResult FusableOpRewriter::ensureRequantizationRange(IE::LayerWithPo
             origOp.getLoc(), qType.getFlags(), qType.getStorageType(), qType.getExpressedType(), quantReqs.output.scale,
             quantReqs.output.zeroPoint, qType.getStorageTypeMin(), qType.getStorageTypeMax());
 
-    const auto pwlInType = changeElemType(origType, pwlInElemType);
-    const auto pwlOutType = changeElemType(origType, pwlOutElemType);
+    const auto pwlInType = origType.changeElemType(pwlInElemType);
+    const auto pwlOutType = origType.changeElemType(pwlOutElemType);
 
     const auto alreadyRequantized = [&](mlir::Operation* user) {
         if (auto quantizeCastOp = mlir::dyn_cast<IE::QuantizeCastOp>(user)) {
@@ -115,8 +115,8 @@ mlir::LogicalResult FusableOpRewriter::matchAndRewrite(IE::LayerWithPostOpInterf
     _log.trace("[{0}] Got operation '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
 
     const auto isQuantizedPerTensor = [](mlir::Operation* op) -> bool {
-        auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>().getElementType();
-        auto outputType = op->getResult(0).getType().cast<mlir::ShapedType>().getElementType();
+        auto inputType = op->getOperand(0).getType().cast<vpux::NDTypeInterface>().getElementType();
+        auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>().getElementType();
         return inputType.isa<mlir::quant::UniformQuantizedType>() &&
                outputType.isa<mlir::quant::UniformQuantizedType>();
     };

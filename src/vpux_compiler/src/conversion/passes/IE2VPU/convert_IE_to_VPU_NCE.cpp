@@ -95,7 +95,8 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
-    const auto newOutType = changeMemSpace(origOp.getType().cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
+    const auto outputType = origOp.getType().cast<vpux::NDTypeInterface>();
+    const auto newOutType = outputType.changeMemSpace(VPU::MemoryKind::CMX_NN);
 
     auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), newOutType, inputCMX, filterCMX, bias,
                                                         origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
@@ -156,7 +157,8 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
-    const auto newOutType = changeMemSpace(origOp.getType().cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
+    const auto outputType = origOp.getType().cast<vpux::NDTypeInterface>();
+    const auto newOutType = outputType.changeMemSpace(VPU::MemoryKind::CMX_NN);
 
     auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(origOp->getLoc(), newOutType, inputCMX, filterCMX, bias,
                                                              origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
@@ -200,7 +202,8 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
-    const auto newOutType = changeMemSpace(origOp.getType().cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
+    const auto outputType = origOp.getType().cast<vpux::NDTypeInterface>();
+    const auto newOutType = outputType.changeMemSpace(VPU::MemoryKind::CMX_NN);
 
     auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(origOp->getLoc(), newOutType, inputCMX, origOp.kernel_sizeAttr(),
                                                     origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
@@ -253,8 +256,8 @@ mlir::LogicalResult EltwiseToNCE<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
                                    ? inputCMX1
                                    : copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input2-CMX"), origOp.input2());
 
-    const auto memSpace = IndexedSymbolAttr::get(this->getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
-    const auto newOutType = changeMemSpace(origOp.getType(), memSpace);
+    const auto outputType = origOp.getType().template cast<vpux::NDTypeInterface>();
+    const auto newOutType = outputType.changeMemSpace(VPU::MemoryKind::CMX_NN);
 
     auto nceOp = rewriter.create<VPU::NCEEltwiseOp>(origOp->getLoc(), newOutType, inputCMX1, inputCMX2,
                                                     VPU::EltwiseTypeAttr::get(this->getContext(), _opType),

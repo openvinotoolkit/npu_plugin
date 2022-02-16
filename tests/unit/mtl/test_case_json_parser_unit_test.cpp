@@ -176,16 +176,6 @@ void createCaseGeneratorODUPermutationJson(llvm::json::OStream& j) {
     j.attribute("output_order", order);
 }
 
-void createCaseGeneratorActivationJson(llvm::json::OStream& j) {
-    j.attributeBegin("activation");
-    {
-        j.objectBegin();
-        j.attribute("name", nullptr);
-        j.objectEnd();
-    }
-    j.attributeEnd();
-}
-
 void createAndRunConvTest() {
     auto testConfigFile = "conv_test.json";
 
@@ -202,7 +192,6 @@ void createAndRunConvTest() {
         createCaseGeneratorConvJson(j);
         createCaseGeneratorOutputJson(j);
         createCaseGeneratorODUPermutationJson(j);
-        createCaseGeneratorActivationJson(j);
 
         j.objectEnd();
     };

@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include "vpux/compiler/core/type_interfaces.hpp"
+
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/logger.hpp"
@@ -29,7 +31,7 @@ namespace vpux {
 // convertFunc
 //
 
-using CvtOpBuilderCb = FuncRef<mlir::Operation*(mlir::OpBuilder&, mlir::Location, mlir::Value, mlir::Type)>;
+using CvtOpBuilderCb = FuncRef<mlir::Operation*(mlir::OpBuilder&, mlir::Location, mlir::Value, vpux::NDTypeInterface)>;
 
 mlir::LogicalResult convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
                                 ArrayRef<mlir::Type> newResultTypes, CvtOpBuilderCb cvtOpBuilder,

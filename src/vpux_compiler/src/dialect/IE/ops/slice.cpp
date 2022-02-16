@@ -51,9 +51,9 @@ mlir::LogicalResult vpux::IE::SliceOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto origType = sliceOp.source().getType().dyn_cast<mlir::RankedTensorType>();
+    const auto origType = sliceOp.source().getType().dyn_cast<vpux::NDTypeInterface>();
     if (origType == nullptr) {
-        return errorAt(loc, "IE::SliceOp operand must have RankedTensor type");
+        return errorAt(loc, "IE::SliceOp operand must have vpux::NDTypeInterface type");
     }
 
     const auto sliceShape = parseIntArrayAttr<int64_t>(sliceOp.static_sizes());
@@ -67,8 +67,10 @@ mlir::LogicalResult vpux::IE::SliceOp::inferReturnTypeComponents(
                        origType.getRank());
     }
 
-    const auto newType = getDenseTileType(origType, ShapeRef(sliceOffsets), ShapeRef(sliceShape));
-    inferredReturnShapes.emplace_back(newType.getShape(), newType.getElementType(), newType.getEncoding());
+    const auto newType = origType.extractDenseTile(ShapeRef(sliceOffsets), ShapeRef(sliceShape));
+    const auto newTensorType = newType.cast<mlir::RankedTensorType>();
+    inferredReturnShapes.emplace_back(newTensorType.getShape(), newTensorType.getElementType(),
+                                      newTensorType.getEncoding());
 
     return mlir::success();
 }

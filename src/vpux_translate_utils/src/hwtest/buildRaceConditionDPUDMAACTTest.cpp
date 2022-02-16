@@ -172,7 +172,7 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
     auto outputCMX_2 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
                                              DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET_2);  // ActShave result
 
-    auto weightsStrides = vpux::getStrides(weightsDDRType);
+    auto weightsStrides = weightsDDRType.cast<vpux::NDTypeInterface>().getStrides();
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
 
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);

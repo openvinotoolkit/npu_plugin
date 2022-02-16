@@ -75,18 +75,18 @@ void SetInternalMemorySpacePass::safeRunOnFunc() {
             _log.nest().trace("Process alias buffer '{0}'", var);
 
             if (const auto futureType = var.getType().dyn_cast<mlir::async::ValueType>()) {
-                const auto origType = futureType.getValueType().dyn_cast<mlir::MemRefType>();
-                VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}'", var.getType());
+                const auto origType = futureType.getValueType().dyn_cast<vpux::NDTypeInterface>();
+                VPUX_THROW_UNLESS(origType != nullptr, "Got non vpux::NDTypeInterface Type '{0}'", var.getType());
 
-                const auto newType = changeMemSpace(origType, _memSpace);
+                const auto newType = origType.changeMemSpace(_memSpace);
                 const auto newFutureType = mlir::async::ValueType::get(newType);
 
                 var.setType(newFutureType);
             } else {
-                const auto origType = var.getType().dyn_cast<mlir::MemRefType>();
-                VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}'", var.getType());
+                const auto origType = var.getType().dyn_cast<vpux::NDTypeInterface>();
+                VPUX_THROW_UNLESS(origType != nullptr, "Got non vpux::NDTypeInterface Type '{0}'", var.getType());
 
-                const auto newType = changeMemSpace(origType, _memSpace);
+                const auto newType = origType.changeMemSpace(_memSpace);
                 var.setType(newType);
             }
         }

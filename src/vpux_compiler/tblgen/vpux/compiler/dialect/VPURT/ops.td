@@ -16,6 +16,7 @@
 
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
+include "vpux/compiler/dialect/VPUIP/types.td"
 include "vpux/compiler/dialect/VPURT/attributes.td"
 include "vpux/compiler/dialect/VPURT/types.td"
 include "vpux/compiler/dialect/VPURT/dialect.td"
@@ -287,6 +288,29 @@ def VPURT_TaskOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         attr-dict-with-keyword
         $body
+    }];
+}
+
+//
+// AllocDistributed
+//
+
+def VPURT_AllocDistributed :
+        VPURT_Op<
+            "AllocDistributed",
+            [
+                DeclarationOp,
+                DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+            ]
+        > {
+    let summary = "Alloc VPUIP distributed buffer";
+
+    let results = (outs
+        VPUIP_DistributedBuffer:$buffer
+    );
+
+    let assemblyFormat = [{
+        attr-dict `->` type(results)
     }];
 }
 

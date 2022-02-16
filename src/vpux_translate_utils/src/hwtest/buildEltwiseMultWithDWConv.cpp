@@ -189,7 +189,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     auto padded_weights_type =
             getMemRefType(VPURT::BufferSection::CMX_NN, weights_pad_shape, weightsType, DimsOrder::NHWC);
-    auto padded_weights_strides = vpux::getStrides(padded_weights_type);
+    auto padded_weights_strides = padded_weights_type.cast<vpux::NDTypeInterface>().getStrides();
     // Tensors - concat input/output
     auto weights_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, weights_shape, weightsType,
                                              DimsOrder::NHWC, padded_weights_strides, 0, WEIGHTS_PAD_CMX_OFFSET);

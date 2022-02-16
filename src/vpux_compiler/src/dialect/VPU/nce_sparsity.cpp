@@ -131,11 +131,11 @@ int32_t toHex(double realVal) {
     };
 
     f32toint32 biasVal;
-    biasVal.m_f32 = static_cast<float>(realVal);
+    biasVal.m_f32 = checked_cast<float>(realVal);
     return biasVal.m_i32;
 }
 
-constexpr int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::Type) {
+constexpr int32_t getKMBScale(uint8_t shift, uint16_t mult, double, mlir::Type) {
     // FIXME: set value when PPE is LPRELU in quant mode
     int32_t PRELU_SCALE_OFFSET = 0;
     int32_t PRELU_SCALE_VALUE = 1;
@@ -154,7 +154,7 @@ constexpr int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::Type)
            (ROUND_MODE_VALUE << ROUND_MODE_OFFSET) | (PPE_MULT_VALUE << PPE_MULT_OFFSET);
 }
 
-int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Type inputType) {
+int32_t getMTLScale(uint8_t shift, uint16_t mult, double rescale, mlir::Type inputType) {
     // MTL expects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
     if (inputType.isF16() || inputType.isBF16() || inputType.isF32()) {
         return toHex(rescale);
@@ -257,10 +257,10 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
 
         const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
         return [rescale = std::move(rescale), ppeConverter, inElemType, ppe, updateMultForPPE](size_t oc) {
-            uint32_t shift = 0;
-            uint32_t mult = 0;
-            vpux::VPU::NCESparsity::computeQuantMultShift(rescale[oc], shift, mult);
-            int32_t multShift = ppeConverter(shift, mult, rescale[oc], inElemType);
+            const auto quantScale = rescale[oc];
+            const auto mult = vpux::getQuantMultFromScale(quantScale);
+            const auto shift = vpux::getQuantShiftFromScale(quantScale);
+            auto multShift = ppeConverter(shift, mult, rescale[oc], inElemType);
             updateMultForPPE(multShift, ppe);
             return multShift;
         };
@@ -361,8 +361,8 @@ std::vector<uint8_t> vpux::VPU::NCESparsity::getFakeSparsity(Mode mode, ShapeRef
 }
 
 std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemType, mlir::Type outElemType,
-                                                             Optional<int32_t> weightPtrOffset, int32_t weightPtrStep,
-                                                             Optional<int32_t> sparsityPtrOffset, ArchKind arch,
+                                                             Optional<int32_t> weightPtr, int32_t weightPtrStep,
+                                                             Optional<int32_t> sparsityPtr, VPU::ArchKind arch,
                                                              int64_t OC, mlir::Type weightsElemType,
                                                              Const::ContentAttr bias, VPU::PPETaskAttr ppe) {
     VPUX_THROW_WHEN(inElemType == nullptr || outElemType == nullptr,
@@ -371,14 +371,21 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
     auto getMultShift = getMultShiftFunc(inElemType, outElemType, weightsElemType, ppe, arch, checked_cast<size_t>(OC));
     auto getBiasFP = getBiasFunc(inElemType, outElemType, weightsElemType, bias, arch, checked_cast<size_t>(OC));
 
-    // In case of dense operation use sparsityPtr beyond CMX memory range to satisfy HW requirements
-    auto sparsityPtr = sparsityPtrOffset.hasValue() ? sparsityPtrOffset.getValue() : SPARSITY_PTR_WHEN_NO_SPARISTY;
-    if (weightsElemType == nullptr && arch == ArchKind::MTL) {
-        sparsityPtr = SPARSITY_PTR_WHEN_NO_SPARISTY;
-    }
-    auto weightPtr = weightPtrOffset.hasValue() ? weightPtrOffset.getValue() : 0;
+    auto weightPtrOffset = weightPtr.hasValue() ? weightPtr.getValue() : 0;
+    std::vector<std::int32_t> weightsTableVals(OC * VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
 
-    std::vector<int32_t> weightsTableVals(OC * VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
+    // In case of dense operation use sparsityPtrOffset beyond CMX memory range to satisfy HW requirements
+    auto sparsityPtrOffset = sparsityPtr.hasValue() ? sparsityPtr.getValue() : SPARSITY_PTR_WHEN_NO_SPARISTY;
+    int32_t sparsityPtrStep = 0;
+    if (arch == VPU::ArchKind::MTL) {
+        if (weightsElemType) {
+            auto elementBitSize = static_cast<Bit>(getElemTypeSize(weightsElemType));
+            sparsityPtrStep = static_cast<int32_t>(
+                    static_cast<Byte>(Bit(weightPtrStep * CHAR_BIT / elementBitSize.count())).count());
+        } else {
+            sparsityPtrOffset = SPARSITY_PTR_WHEN_NO_SPARISTY;
+        }
+    }
 
     const auto weightsElementTypeBitSize =
             weightsElemType ? static_cast<Bit>(getElemTypeSize(weightsElemType)).count() : 0;
@@ -388,22 +395,17 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
 
         if (weightsElemType) {
             const auto alignment = (ALIGNMENT_REQUIREMENT_IN_ELEMENTS * weightsElementTypeBitSize) / CHAR_BIT;
-            VPUX_THROW_UNLESS(weightPtr % alignment == 0, "weightsPtrOffset must be multiple of {0}, got {1} on oc {2}",
-                              alignment, weightPtr, oc);
+            VPUX_THROW_UNLESS(weightPtrOffset % alignment == 0,
+                              "weightsPtrOffset must be multiple of {0}, got {1} on oc {2}", alignment, weightPtr, oc);
         }
 
-        weightsTableVals[wtInd + 0] = weightPtr;
-        weightsTableVals[wtInd + 1] = sparsityPtr;
+        weightsTableVals[wtInd + 0] = weightPtrOffset;
+        weightsTableVals[wtInd + 1] = sparsityPtrOffset;
         weightsTableVals[wtInd + 2] = getMultShift(oc);
         weightsTableVals[wtInd + 3] = getBiasFP(oc);
 
-        weightPtr += weightPtrStep;
-        if (arch == VPU::ArchKind::MTL && weightsElemType) {
-            auto elementBitSize = static_cast<Bit>(getElemTypeSize(weightsElemType));
-            sparsityPtr += static_cast<int32_t>(
-                    static_cast<Byte>(Bit(weightPtrStep * CHAR_BIT / elementBitSize.count())).count());
-        }
+        weightPtrOffset += weightPtrStep;
+        sparsityPtrOffset += sparsityPtrStep;
     }
-
     return weightsTableVals;
 }

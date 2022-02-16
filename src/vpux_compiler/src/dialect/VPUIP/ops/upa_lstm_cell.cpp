@@ -16,7 +16,7 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 
 vpux::VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LSTMCellUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto inputDataShape = inputData().getType().cast<mlir::ShapedType>().getShape();
+    const auto inputDataShape = inputData().getType().cast<vpux::NDTypeInterface>().getShape().raw();
     VPUX_THROW_UNLESS(inputDataShape.size() == 2, "LSTMCellUPAOp inputData shape must be 2D");
 
     const auto batchSize = inputDataShape[0];

@@ -49,6 +49,8 @@ It handles such VPU-specifics as:
     ];
 
     let extraClassDeclaration = [{
+        void registerTypes();
+
         static void setupExtraInterfaces(mlir::DialectRegistry& registry);
     }];
 }

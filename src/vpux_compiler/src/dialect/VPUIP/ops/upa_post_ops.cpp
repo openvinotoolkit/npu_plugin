@@ -56,7 +56,7 @@ mlir::LogicalResult vpux::VPUIP::verifyPostOp(mlir::Operation* op) {
         const auto opVal = operand.get();
         // TODO : can we fix that limitation?
         const auto strideReqs =
-                StrideReqs::compact(opVal.getType().cast<mlir::ShapedType>().getRank()).remove(MemDim(1));
+                StrideReqs::compact(opVal.getType().cast<vpux::NDTypeInterface>().getRank()).remove(MemDim(1));
 
         if (!strideReqs.checkStrides(opVal)) {
             return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", opVal, strideReqs);

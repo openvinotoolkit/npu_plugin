@@ -49,10 +49,11 @@ mlir::LogicalResult DequantizeConst::matchAndRewrite(IE::DequantizeOp dCastOp, m
 
     _log.trace("Got DequantizeCast Operation '{0}' with Constant input '{1}'", dCastOp->getLoc(), inputConst.getLoc());
 
-    const auto qType = inputConst.getType().cast<mlir::ShapedType>();
+    const auto qType = inputConst.getType().cast<vpux::NDTypeInterface>();
     const auto qElemType = qType.getElementType().cast<mlir::quant::QuantizedType>();
 
-    const auto newConstType = changeElemType(dCastOp.getType().cast<mlir::ShapedType>(), qElemType.getExpressedType());
+    const auto outType = dCastOp.getType().cast<vpux::NDTypeInterface>();
+    const auto newConstType = outType.changeElemType(qElemType.getExpressedType());
     const auto newConstAttr = inputConst.contentAttr().dequantize();
     rewriter.replaceOpWithNewOp<Const::DeclareOp>(dCastOp, newConstType, newConstAttr)->setLoc(inputConst->getLoc());
 

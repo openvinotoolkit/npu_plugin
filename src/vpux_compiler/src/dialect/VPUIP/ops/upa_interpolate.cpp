@@ -47,7 +47,7 @@ const EnumMap<IE::InterpolateCoordMode, int> coordTransformModeMap = {
 }  // namespace
 
 void vpux::VPUIP::InterpolateUPAOp::inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info) {
-    auto inputShape = op->getOperand(0).getType().cast<mlir::ShapedType>().getShape();
+    auto inputShape = op->getOperand(0).getType().cast<vpux::NDTypeInterface>().getShape().raw();
     VPUX_THROW_UNLESS(inputShape.size() == 4, "Interpolate input shape expected to have 4 dimensions, but has {0}",
                       inputShape.size());
 

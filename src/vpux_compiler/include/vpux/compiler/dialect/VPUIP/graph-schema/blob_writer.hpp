@@ -106,16 +106,16 @@ public:
     const ActShavesKernelDataMap& getKernelData() const;
 
 public:
-    TensorReference createTensorRef(StringRef name, mlir::ShapedType type, VPURT::BufferSection section,
+    TensorReference createTensorRef(StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section,
                                     ArrayRef<int64_t> sectionIndex, int64_t byteOffset, ArrayRef<uint16_t> mult,
                                     ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints,
                                     Optional<int64_t> sparsityMapOffset = None,
                                     Optional<int64_t> storageElementOffset = None);
-    TensorReference createTensorRef(StringRef name, mlir::ShapedType type, VPURT::BufferSection section,
+    TensorReference createTensorRef(StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section,
                                     ArrayRef<int64_t> sectionIndex, int64_t byteOffset,
                                     Optional<int64_t> sparsityMapOffset = None,
                                     Optional<int64_t> storageElementOffset = None);
-    TensorReference createTensorRef(StringRef name, mlir::ShapedType type, VPURT::BufferSection section,
+    TensorReference createTensorRef(StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section,
                                     int64_t sectionIndex, int64_t byteOffset,
                                     Optional<int64_t> sparsityMapOffset = None,
                                     Optional<int64_t> storageElementOffset = None);
@@ -129,7 +129,7 @@ public:
     TensorReference getTensorRef(mlir::Value val) const;
 
 public:
-    BinaryData createBinaryData(ArrayRef<uint64_t> content, mlir::ShapedType type, bool csram_cacheable = false);
+    BinaryData createBinaryData(ArrayRef<uint64_t> content, vpux::NDTypeInterface type, bool csram_cacheable = false);
 
 public:
     Barrier createBarrier(mlir::Value val, Optional<int64_t> physicalID = None);
@@ -141,9 +141,9 @@ public:
 
 public:
     Vector<uint32_t> createDims(ShapeRef shape);
-    Vector<uint32_t> createDims(mlir::ShapedType type);
+    Vector<uint32_t> createDims(vpux::NDTypeInterface type);
     Vector<float> createStrides(StridesRef strides, Bit elemSize);
-    Vector<float> createStrides(mlir::ShapedType type);
+    Vector<float> createStrides(vpux::NDTypeInterface type);
     IndirectDataReference createIndirectDataReference(int64_t dataIndex, Optional<int64_t> sparsityIndex = None,
                                                       Optional<int64_t> storageElementIndex = None,
                                                       Optional<int64_t> storageElementSize = None);

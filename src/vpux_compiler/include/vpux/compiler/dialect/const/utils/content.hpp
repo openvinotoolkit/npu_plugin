@@ -14,6 +14,7 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -146,14 +147,15 @@ class Content final {
 public:
     // `data` storage might have different element type than base `type`.
     // The `getValues` / `getSplatValue` methods accept template type parameter and convert element type on the fly.
-    static Content fromRawBuffer(mlir::ShapedType type, ArrayRef<char> data, mlir::Type storageElemType, bool isSplat);
-    static Content allocTempBuffer(mlir::ShapedType type, mlir::Type storageElemType, bool isSplat);
-    static Content allocTempBuffer(mlir::ShapedType type, mlir::Type storageElemType, bool isSplat,
+    static Content fromRawBuffer(vpux::NDTypeInterface type, ArrayRef<char> data, mlir::Type storageElemType,
+                                 bool isSplat);
+    static Content allocTempBuffer(vpux::NDTypeInterface type, mlir::Type storageElemType, bool isSplat);
+    static Content allocTempBuffer(vpux::NDTypeInterface type, mlir::Type storageElemType, bool isSplat,
                                    size_t tempBufRawSize);
-    static Content moveBuffer(mlir::ShapedType type, Content&& other);
+    static Content moveBuffer(vpux::NDTypeInterface type, Content&& other);
 
 public:
-    mlir::ShapedType getType() const {
+    vpux::NDTypeInterface getType() const {
         return _type;
     }
 
@@ -162,7 +164,7 @@ public:
     }
 
     ShapeRef getShape() const {
-        return vpux::getShape(getType());
+        return getType().getShape();
     }
 
     int64_t getNumElements() const {
@@ -174,11 +176,12 @@ public:
     }
 
     Bit getElemTypeSize() const {
-        return vpux::getElemTypeSize(getType());
+        return getType().getElemTypeSize();
     }
 
     Bit getTotalSize() const {
-        return Bit(getType().getSizeInBits());
+        VPUX_THROW_UNLESS(getType().isa<mlir::ShapedType>(), "Expected mlir::ShapedType. Got '{0}'", getType());
+        return Bit(getType().cast<mlir::ShapedType>().getSizeInBits());
     }
 
 public:
@@ -189,8 +192,8 @@ public:
             return details::makeConvertCb<InT, OutT>();
         });
 
-        return details::ContentRange<OutT>(_data, _isSplat, vpux::getElemTypeSize(_storageElemType), getNumElements(),
-                                           std::move(cvtOp));
+        const auto storageElemTypeSize = vpux::getElemTypeSize(_storageElemType);
+        return details::ContentRange<OutT>(_data, _isSplat, storageElemTypeSize, getNumElements(), std::move(cvtOp));
     }
 
     template <typename OutT>
@@ -296,7 +299,7 @@ private:
     }
 
 private:
-    mlir::ShapedType _type;
+    vpux::NDTypeInterface _type;
     ArrayRef<char> _data;
     mlir::Type _storageElemType;
     bool _isSplat = false;
