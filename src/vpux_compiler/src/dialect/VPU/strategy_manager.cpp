@@ -62,7 +62,7 @@ double getChannelAlignment(double input, size_t unit) {
 }
 
 double StrategyManager::computeChannelMajorConvolutionSplitOverHeightEfficency(VPU::NCEConvolutionOp origOp) const {
-    const auto outputShape = getShape(origOp.output().getType().cast<mlir::ShapedType>());
+    const auto outputShape = getShape(origOp.output());
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
     const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
     const double OC = outputShape[Dims4D::Act::C];
@@ -91,7 +91,7 @@ double StrategyManager::computeZMajorConvolutionSplitOverHeightEfficency(mlir::O
     double OH;
     double OW;
     if (auto depthwiseConvolutionOp = mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op)) {
-        const auto outputShape = getShape(depthwiseConvolutionOp.output().getType().cast<mlir::ShapedType>());
+        const auto outputShape = getShape(depthwiseConvolutionOp.output());
         OC = outputShape[Dims4D::Act::C];
         OH = outputShape[Dims4D::Act::H];
         OW = outputShape[Dims4D::Act::W];
@@ -101,7 +101,7 @@ double StrategyManager::computeZMajorConvolutionSplitOverHeightEfficency(mlir::O
         efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
 
     } else if (auto convolutionOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
-        const auto outputShape = getShape(convolutionOp.output().getType().cast<mlir::ShapedType>());
+        const auto outputShape = getShape(convolutionOp.output());
         OC = outputShape[Dims4D::Act::C];
         OH = outputShape[Dims4D::Act::H];
         OW = outputShape[Dims4D::Act::W];
@@ -136,7 +136,7 @@ double StrategyManager::computeZMajorConvolutionSplitOverKernelEfficency(mlir::O
     double OH;
     double OW;
     if (auto depthwiseConvolutionOp = mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op)) {
-        const auto outputShape = getShape(depthwiseConvolutionOp.output().getType().cast<mlir::ShapedType>());
+        const auto outputShape = getShape(depthwiseConvolutionOp.output());
         OC = outputShape[Dims4D::Act::C];
         OH = outputShape[Dims4D::Act::H];
         OW = outputShape[Dims4D::Act::W];
@@ -146,7 +146,7 @@ double StrategyManager::computeZMajorConvolutionSplitOverKernelEfficency(mlir::O
         efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
 
     } else if (auto convolutionOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
-        const auto outputShape = getShape(convolutionOp.output().getType().cast<mlir::ShapedType>());
+        const auto outputShape = getShape(convolutionOp.output());
         OC = outputShape[Dims4D::Act::C];
         OH = outputShape[Dims4D::Act::H];
         OW = outputShape[Dims4D::Act::W];

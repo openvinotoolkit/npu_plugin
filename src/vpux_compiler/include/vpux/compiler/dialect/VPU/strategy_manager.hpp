@@ -255,8 +255,7 @@ mlir::ArrayAttr StrategyManager::getActivationTensorNumTiles(ConcreteOp origOp) 
 
 template <class ConcreteOp>
 double StrategyManager::depthwiseConvolutionTotalDataTransfer(ConcreteOp origOp, const llvm::StringRef strategy) const {
-    const auto inputType = origOp.input().getType().template cast<mlir::ShapedType>();
-    const auto inputShape = getShape(inputType);
+    const auto inputShape = getShape(origOp.input());
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
     const auto IC = inputShape[Dims4D::Act::C];
     const auto IH = inputShape[Dims4D::Act::H];
@@ -271,6 +270,10 @@ double StrategyManager::depthwiseConvolutionTotalDataTransfer(ConcreteOp origOp,
         return inputTensorVolume + (_numClusters * weightTensorVolume);
     } else if (strategy == splitOverKernel) {
         return ((_numClusters * inputTensorVolume) + weightTensorVolume);
+    } else {
+        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine total data "
+                   "movement ",
+                   origOp->getName());
     }
 }
 

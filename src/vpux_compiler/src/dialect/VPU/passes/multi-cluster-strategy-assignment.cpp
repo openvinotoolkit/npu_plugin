@@ -64,12 +64,11 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<ConcreteOp>::matchAndRewrite(Co
     auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
             origOp, activationTensorDistributionMode, activationTensorNumTiles);
 
-    const auto origOutType = origOp.output().getType();
-    const auto origOutMemSpace = IE::getMemorySpace(origOutType.template cast<mlir::RankedTensorType>());
-
     auto origOutput = origOp->getResult(0);
-    const auto cmxMemSpace =
-            changeMemSpace(origOutput.getType().template cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
+    const auto origOutType = origOutput.getType().template cast<vpux::NDTypeInterface>();
+    const auto origOutMemSpace = origOutType.getMemSpace();
+
+    const auto cmxMemSpace = origOutType.changeMemSpace(VPU::MemoryKind::CMX_NN);
     origOutput.setType(cmxMemSpace);
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
@@ -120,12 +119,11 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<VPU::NCEMaxPoolOp>::matchAndRew
     auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
             origOp, activationTensorDistributionMode, activationTensorNumTiles);
 
-    const auto origOutType = origOp.output().getType();
-    const auto origOutMemSpace = IE::getMemorySpace(origOutType.template cast<mlir::RankedTensorType>());
-
     auto origOutput = origOp->getResult(0);
-    const auto cmxMemSpace =
-            changeMemSpace(origOutput.getType().template cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
+    const auto origOutType = origOutput.getType().cast<vpux::NDTypeInterface>();
+    const auto origOutMemSpace = origOutType.getMemSpace();
+
+    const auto cmxMemSpace = origOutType.changeMemSpace(VPU::MemoryKind::CMX_NN);
     origOutput.setType(cmxMemSpace);
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
@@ -176,11 +174,11 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<VPU::NCEEltwiseOp>::matchAndRew
     auto distributedOutputTensorType = _strategyManager.createDistributedOutputTensorType(
             origOp, activationTensorDistributionMode, activationTensorNumTiles);
 
-    const auto origOutType = origOp.output().getType();
-    const auto origOutMemSpace = IE::getMemorySpace(origOutType.template cast<mlir::RankedTensorType>());
     auto origOutput = origOp->getResult(0);
-    const auto cmxMemSpace =
-            changeMemSpace(origOutput.getType().template cast<mlir::RankedTensorType>(), VPU::MemoryKind::CMX_NN);
+    const auto origOutType = origOutput.getType().cast<vpux::NDTypeInterface>();
+    const auto origOutMemSpace = origOutType.getMemSpace();
+
+    const auto cmxMemSpace = origOutType.changeMemSpace(VPU::MemoryKind::CMX_NN);
     origOutput.setType(cmxMemSpace);
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
