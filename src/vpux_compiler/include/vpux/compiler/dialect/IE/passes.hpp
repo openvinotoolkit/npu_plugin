@@ -65,7 +65,7 @@ struct AdjustLayoutOptions : mlir::PassPipelineOptions<AdjustLayoutOptions> {
                                       llvm::cl::init(true)};
 
     BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
-                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(false)};
+                                       llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(true)};
 
     AdjustLayoutOptions() = default;
 
@@ -120,11 +120,11 @@ struct LowPrecisionOptions : mlir::PassPipelineOptions<LowPrecisionOptions> {
                                          llvm::cl::init(false)};
 
     BoolOption enableSwapTransposeWithFQ{*this, "swap-transpose-with-fq",
-                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(false)};
+                                         ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(true)};
 
     BoolOption enablePropagateQuantDequant{*this, "propagate-quant-dequant",
                                            llvm::cl::desc("Enable Propagate Quantize Dequantize pass"),
-                                           llvm::cl::init(true)};
+                                           llvm::cl::init(false)};
 
     LowPrecisionOptions() = default;
 

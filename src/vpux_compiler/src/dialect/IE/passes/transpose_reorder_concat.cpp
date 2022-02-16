@@ -107,6 +107,14 @@ void InsertReorderBetweenTransposeAndConcat::safeRunOnFunc() {
             return true;
         }
 
+        if (op.per_axis().hasValue() && op.per_axisAttr().offset()) {
+            return true;
+        }
+
+        if (op.per_axis().hasValue() && op.per_axisAttr().stride()) {
+            return true;
+        }
+
         for (const auto& concatInput : concatInputList) {
             const auto maybeTransposeOp = concatInput.getDefiningOp<IE::TransposeOp>();
             if (maybeTransposeOp != nullptr) {
