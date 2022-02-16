@@ -244,6 +244,8 @@ mlir::Operation* getParentTargetOp(mlir::Operation* op) {
     // Prefetch is wanted from current op to previous op which is not ignored.
     mlir::Operation* parentOp = op->getOperand(0).getDefiningOp();
     auto isOpIgnorable = [](mlir::Operation* op) -> bool {
+        // These operations has little memory/DPU occupation
+        // The current operation can be prefetched ignoring these operations
         return mlir::isa<IE::AndOp>(op) || mlir::isa<IE::PermuteCastOp>(op) || mlir::isa<IE::ReshapeOp>(op);
     };
     while (parentOp && isOpIgnorable(parentOp)) {
