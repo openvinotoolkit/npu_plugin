@@ -408,7 +408,7 @@ mlir::ArrayAttr StrategyManager::getKernelSize(mlir::Operation* origOp) const {
     } else if (auto maxPoolOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(origOp)) {
         return maxPoolOp.kernel_size();
     } else if (auto eltwiseOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(origOp)) {
-        return getIntArrayAttr(eltwiseOp.getContext(), makeArrayRef({1, 1}));
+        return nullptr;
     } else {
         VPUX_THROW("Attempting to get kernel for operation {0}, which is not a NCE Task", origOp->getName());
     }
@@ -422,7 +422,7 @@ mlir::ArrayAttr StrategyManager::getStride(mlir::Operation* origOp) const {
     } else if (auto maxPoolOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(origOp)) {
         return maxPoolOp.strides();
     } else if (auto eltwiseOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(origOp)) {
-        return getIntArrayAttr(eltwiseOp.getContext(), makeArrayRef({1, 1}));
+        return nullptr;
     } else {
         VPUX_THROW("Attempting to get stride for operation {0}, which is not a NCE Task", origOp->getName());
     }
@@ -436,7 +436,7 @@ vpux::VPU::PaddingAttr StrategyManager::getPad(mlir::Operation* origOp) const {
     } else if (auto maxPoolOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(origOp)) {
         return maxPoolOp.padAttr();
     } else if (auto eltwiseOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(origOp)) {
-        return VPU::getPaddingAttr(eltwiseOp.getContext(), 0, 0, 0, 0);
+        return nullptr;
     } else {
         VPUX_THROW("Attempting to get pad for operation {0}, which is not a NCE Task", origOp->getName());
     }
