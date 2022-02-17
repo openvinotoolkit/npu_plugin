@@ -94,13 +94,12 @@ private:
     ConcatPattern getInputPattern(IE::ConcatOp concat);
     bool isSplitSupportedOnDPU(IE::SliceOp sliceOp);
     ConcatPattern getOutputPattern(IE::ConcatOp concat);
-    bool concatOperationDoesNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
+    bool concatOperationDoesNotFitInCMX(ConcatPattern concatPattern, size_t cmxSize);
     bool isThisAComplexConcat(ConcatPattern concatPattern);
-    bool inputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
-    bool childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t parallelConsumerCount,
-                                      size_t cmxSize);
+    bool inputPatternCanBeCMXed(ConcatPattern concatPattern, size_t cmxSize);
+    bool childOperationsDoNotFitInCMX(ConcatPattern concatPattern, size_t parallelConsumerCount, size_t cmxSize);
     size_t getParallelConsumerCount(ConcatPattern concatPattern);
-    bool outputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize);
+    bool outputPatternCanBeCMXed(ConcatPattern concatPattern, size_t cmxSize);
     IE::SliceOp convertCopyToSlice(IE::CopyOp copyOp);
     void rewriteInputPattern(ConcatPattern concatPattern);
     void rewriteOutputPattern(ConcatPattern concatPattern);
@@ -115,20 +114,14 @@ size_t CMXConcatPass::calculateExtraConstSize(VPU::NCEOpInterface nce) {
     const auto OC = getShape(nce->getResult(0))[Dims4D::Act::C];
     auto weightsTableSize = OC * WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;
 
-    // calculate activation window size
-    // const auto IC = getShape(concatPart._nceOp->getOperand(0))[Dims4D::Act::C];
-    // const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
-    //             VPU::NCESparsity::Mode::CM_CONV, kernelSize, kernelStridesVals[Dims4D::Strides::X],
-    //             inputType.getElementType(), IC);
-
-    return weightsTableSize.count();
+    return static_cast<size_t>(weightsTableSize.count());
 }
 
 CMXConcatPass::ConcatPattern CMXConcatPass::getInputPattern(IE::ConcatOp concat) {
     ConcatPattern concatPattern;
     // store all required input info in a struct
     for (size_t inputIdx = 0; inputIdx < concat.inputs().size(); inputIdx++) {
-        auto input = concat.getOperand(inputIdx);
+        auto input = concat.getOperand(static_cast<int>(inputIdx));
         auto inputCopyOp = input.getDefiningOp<IE::CopyOp>();
         if (inputCopyOp == nullptr) {
             return concatPattern;
@@ -236,11 +229,11 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getOutputPattern(IE::ConcatOp concat
     return concatPattern;
 }
 
-bool CMXConcatPass::concatOperationDoesNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
+bool CMXConcatPass::concatOperationDoesNotFitInCMX(ConcatPattern concatPattern, size_t cmxSize) {
     // check if the concat can fit in CMX
     // in order to CMX a concat the entire output buffer + inputs for the
     // largest tile must fit in CMX at the same time
-    size_t concatSize = getSize(concat.getResult());
+    size_t concatSize = getSize(concatPattern._concat.getResult());
     size_t maxUserSize = 0;
     size_t currUserSize = 0;
 
@@ -277,15 +270,15 @@ bool CMXConcatPass::isThisAComplexConcat(ConcatPattern concatPattern) {
     return false;
 }
 
-bool CMXConcatPass::inputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
+bool CMXConcatPass::inputPatternCanBeCMXed(ConcatPattern concatPattern, size_t cmxSize) {
     // if concat is a Result operation
-    if (concat.output().isa<mlir::BlockArgument>()) {
+    if (concatPattern._concat.output().isa<mlir::BlockArgument>()) {
         _log.nest(2).trace("Concat output is part of network output");
         return false;
     }
 
     // assert that the concat will fit in CMX
-    if (concatOperationDoesNotFitInCMX(concat, concatPattern, cmxSize)) {
+    if (concatOperationDoesNotFitInCMX(concatPattern, cmxSize)) {
         _log.nest(2).trace("Concat does not fit in cmx");
         return false;
     }
@@ -301,12 +294,12 @@ bool CMXConcatPass::inputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern co
     return true;
 }
 
-bool CMXConcatPass::childOperationsDoNotFitInCMX(IE::ConcatOp concat, ConcatPattern concatPattern,
-                                                 size_t parallelConsumerCount, size_t cmxSize) {
+bool CMXConcatPass::childOperationsDoNotFitInCMX(ConcatPattern concatPattern, size_t parallelConsumerCount,
+                                                 size_t cmxSize) {
     // check if the child operations - operations using the concat output buffer
     // will fit in CMX along with their inputs and output
     // auto output = concat.getResult();
-    size_t concatSize = getSize(concat.getResult());
+    size_t concatSize = getSize(concatPattern._concat.getResult());
     size_t maxConsumerSize = 0;
     size_t parallelConsumerCost = 0;
 
@@ -366,11 +359,11 @@ size_t CMXConcatPass::getParallelConsumerCount(ConcatPattern concatPattern) {
     return parallelConsumerCount;
 }
 
-bool CMXConcatPass::outputPatternCanBeCMXed(IE::ConcatOp concat, ConcatPattern concatPattern, size_t cmxSize) {
+bool CMXConcatPass::outputPatternCanBeCMXed(ConcatPattern concatPattern, size_t cmxSize) {
     // verify the following operation can fit in CMX
     size_t parallelConsumerCount = getParallelConsumerCount(concatPattern);
 
-    if (childOperationsDoNotFitInCMX(concat, concatPattern, parallelConsumerCount, cmxSize)) {
+    if (childOperationsDoNotFitInCMX(concatPattern, parallelConsumerCount, cmxSize)) {
         _log.nest(2).trace("Concat consumers do not fit in cmx");
         return false;
     }
@@ -400,7 +393,7 @@ void CMXConcatPass::rewriteInputPattern(ConcatPattern concatPattern) {
         _log.nest(1).trace("Removing input Copy from NNCMX to DDR '{0}' at '{1}'", concatPart._copyOp->getName(),
                            concatPart._copyOp->getLoc());
         // modify only current concat input as it may have multiple uses
-        concatPattern._concat.setOperand(concatPart._inputIdx, concatPart._copyOp.input());
+        concatPattern._concat.setOperand(static_cast<int>(concatPart._inputIdx), concatPart._copyOp.input());
     }
 }
 
@@ -461,7 +454,7 @@ void CMXConcatPass::safeRunOnFunc() {
             _log.nest(1).trace("Concat input pattern not valid");
             return;
         }
-        if (!inputPatternCanBeCMXed(concat, inputPattern, cmxSize)) {
+        if (!inputPatternCanBeCMXed(inputPattern, cmxSize)) {
             _log.nest(1).trace("Concat input pattern can not be cmx-ed");
             return;
         }
@@ -471,7 +464,7 @@ void CMXConcatPass::safeRunOnFunc() {
             _log.nest(1).trace("Concat output pattern not valid");
             return;
         }
-        if (!outputPatternCanBeCMXed(concat, outputPattern, cmxSize)) {
+        if (!outputPatternCanBeCMXed(outputPattern, cmxSize)) {
             _log.nest(1).trace("Concat output pattern can not be cmx-ed");
             return;
         }
