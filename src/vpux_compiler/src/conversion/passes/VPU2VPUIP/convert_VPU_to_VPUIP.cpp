@@ -157,9 +157,9 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     // Get dimensions
     //
 
-    const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
-                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
-                                     : getShape(newArgs.filter());
+    const Shape filterShape = origOp.rawFilterShapeAttr() != nullptr
+                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
+                                      : getShape(newArgs.filter()).toValues();
 
     const auto IC = filterShape[Dims4D::Filter::IC];
     const auto OC = filterShape[Dims4D::Filter::OC];
@@ -343,9 +343,9 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
     // Get dimensions
     //
 
-    const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
-                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
-                                     : getShape(newArgs.filter());
+    const Shape filterShape = origOp.rawFilterShapeAttr() != nullptr
+                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
+                                      : getShape(newArgs.filter()).toValues();
 
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto KY = filterShape[Dims4D::Filter::KY];

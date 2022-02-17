@@ -35,6 +35,8 @@ constexpr int64_t WEIGHT_TABLE_NUM_ELEMENTS_PER_OC = 4;
 constexpr int64_t KMB_CMCONV_WIDTH_ALIGNMENT = 16;
 constexpr int64_t KMB_CMCONV_CHANNELS_LIMIT = 16;
 
+constexpr int64_t SUPPORTED_BATCH_SIZE = 1;
+
 //
 // Logging callback
 //

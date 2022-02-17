@@ -342,8 +342,8 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
         auto copyInSubView = mlir::dyn_cast<IERT::SubViewOp>(copyInSubViews[idx].getDefiningOp());
         copyInSubView.result().replaceAllUsesWith(newInSubViews[idx]);
         // remove usused
-        copyInOps[idx].erase();
-        copyInSubView.erase();
+        rewriter.eraseOp(copyInOps[idx]);
+        rewriter.eraseOp(copyInSubView);
     }
 
     // create new CMX-out SubViewOps
@@ -356,7 +356,7 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
         copyOutSubViews[idx].result().replaceAllUsesWith(newOutSubView);
         copyOutOpsWithSubView[idx].output().replaceAllUsesWith(newOutSubView);
         copyOutOpsWithSubView[idx].output_buff().replaceAllUsesWith(newOutSubView);
-        copyOutOpsWithSubView[idx].erase();
+        rewriter.eraseOp(copyOutOpsWithSubView[idx]);
     }
     for (size_t idx = 0; idx < copyOutOps.size(); idx++) {
         // Case 2. Without child streaming

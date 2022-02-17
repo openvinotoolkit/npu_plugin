@@ -18,10 +18,6 @@ std::vector<std::string> devices = {
     std::string(CommonTestUtils::DEVICE_KEEMBAY),
 };
 
-std::pair<std::string, std::string> plugins[] = {
-        std::make_pair(std::string("openvino_intel_vpux_plugin"), std::string(CommonTestUtils::DEVICE_KEEMBAY)),
-};
-
 //
 // Executable Network GetMetric
 //

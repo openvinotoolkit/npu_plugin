@@ -106,7 +106,8 @@ void vpux::VPUIP::QuantCastUPAOp::inferLayoutInfo(mlir::Operation* origOp, IE::L
             VPUX_THROW("Unsupported rank '{0}'", numDims);
         }
     } else {
-        info.fill(info.getInput(0));
+        IERT::inferLayoutInfoSameInOutSpecificDimsOrder(
+                info, {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
     }
 }
 

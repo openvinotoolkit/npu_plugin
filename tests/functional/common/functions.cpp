@@ -41,3 +41,7 @@ const std::string PlatformEnvironment::PLATFORM = []() -> std::string {
 std::string getBackendName(const InferenceEngine::Core& core) {
 	return core.GetMetric("VPUX", VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
 }
+
+std::vector<std::string> getAvailableDevices(const InferenceEngine::Core& core) {
+    return core.GetMetric("VPUX", METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+}

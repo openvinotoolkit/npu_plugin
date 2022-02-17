@@ -23,6 +23,7 @@
 #include "vpux/compiler/core/mem_live_range_info.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/linear_scan.hpp"
 
@@ -124,6 +125,7 @@ mlir::LogicalResult StaticAllocationPass::initialize(mlir::MLIRContext* ctx) {
 }
 
 LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
+    auto& aliasInfo = getChildAnalysis<AliasesInfo>(netFunc);
     auto& liveRangeInfo = getChildAnalysis<MemLiveRangeInfo>(netFunc);
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
 
@@ -202,15 +204,67 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
         allocNewBuffers(usedBufs);
 
         auto opIndex = depsInfo.getIndex(curExecOp);
-        // Gather information about buffers for a given operation to later
-        // generate control edges for overlapping resources
-        for (auto& buf : usedBufs) {
-            if (buf.getType().cast<vpux::NDTypeInterface>().getMemSpace() != _memSpace) {
+
+        // buffers used by operation, both inputs and outputs
+        mlir::DenseSet<mlir::Value> inputBuffers;
+        mlir::DenseSet<mlir::Value> outputBuffers;
+
+        // Get operation buffers for all operands. Go through each layer op and
+        // store in a set all root buffers
+        auto* bodyBlock = &curExecOp.body().front();
+        for (auto& innerOp : bodyBlock->getOperations()) {
+            if (!mlir::isa<IERT::LayerOpInterface>(innerOp)) {
+                continue;
+            }
+
+            auto inputs = mlir::dyn_cast<IERT::LayerOpInterface>(innerOp).getInputs();
+            for (const auto& input : inputs) {
+                const auto type = input.getType().cast<vpux::NDTypeInterface>();
+                if (type == nullptr || type.getMemSpace() != _memSpace) {
+                    continue;
+                }
+                auto rootBuffers = aliasInfo.getRoots(input);
+                VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", input,
+                                  rootBuffers.size());
+                auto rootBuffer = *rootBuffers.begin();
+                inputBuffers.insert(rootBuffer);
+            }
+
+            auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(innerOp).getOutputs();
+            for (const auto& output : outputs) {
+                const auto type = output.getType().cast<vpux::NDTypeInterface>();
+                if (type == nullptr || type.getMemSpace() != _memSpace) {
+                    continue;
+                }
+                auto rootBuffers = aliasInfo.getRoots(output);
+                VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}",
+                                  output, rootBuffers.size());
+                auto rootBuffer = *rootBuffers.begin();
+                outputBuffers.insert(rootBuffer);
+            }
+        }
+
+        // For all identified buffers used by operation create separate entries with information
+        // about memory ranges to properly identify range producer and consumers at a given time
+        for (auto& buf : inputBuffers) {
+            if (!isBufAllocOp(buf.getDefiningOp())) {
                 continue;
             }
             auto addressStart = scan.handler().getAddress(buf);
             auto addressEnd = addressStart + scan.handler().getSize(buf) - 1;
-            scheduledOpsResources.push_back(ScheduledOpOneResource(opIndex, addressStart, addressEnd));
+            _log.trace("op = '{0}'\t input = [{1} - {2}]", opIndex, addressStart, addressEnd);
+            scheduledOpsResources.push_back(ScheduledOpOneResource(opIndex, addressStart, addressEnd,
+                                                                   ScheduledOpOneResource::EResRelation::CONSUMER));
+        }
+        for (auto& buf : outputBuffers) {
+            if (!isBufAllocOp(buf.getDefiningOp())) {
+                continue;
+            }
+            auto addressStart = scan.handler().getAddress(buf);
+            auto addressEnd = addressStart + scan.handler().getSize(buf) - 1;
+            _log.trace("op = '{0}'\t output = [{1} - {2}]", opIndex, addressStart, addressEnd);
+            scheduledOpsResources.push_back(ScheduledOpOneResource(opIndex, addressStart, addressEnd,
+                                                                   ScheduledOpOneResource::EResRelation::PRODUCER));
         }
 
         freeDeadBuffers(usedBufs, curExecOp);

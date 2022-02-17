@@ -152,8 +152,9 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
     for (auto& scheduledOp : scheduledOps) {
         VPUX_THROW_UNLESS(scheduledOp.isOriginalOp(), "Invalid operation identified for control edge insertion");
 
-        // buffers used by operation, both inputs adnd outputs
-        mlir::DenseSet<mlir::Value> operationBuffers;
+        // buffers used by operation, both inputs and outputs
+        mlir::DenseSet<mlir::Value> inputBuffers;
+        mlir::DenseSet<mlir::Value> outputBuffers;
 
         // Get operation buffers for all operands. Go through each layer op and
         // store in a set all root buffers
@@ -164,29 +165,64 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
                 continue;
             }
 
-            for (const auto& operand : innerOp.getOperands()) {
-                const auto type = operand.getType().dyn_cast<vpux::NDTypeInterface>();
+            auto inputs = mlir::dyn_cast<IERT::LayerOpInterface>(innerOp).getInputs();
+            for (const auto& input : inputs) {
+                const auto type = input.getType().dyn_cast<vpux::NDTypeInterface>();
                 if (type == nullptr || type.getMemSpace() != _memSpace) {
                     continue;
                 }
-
-                auto rootBuffers = _aliasInfo.getRoots(operand);
-                VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}",
-                                  operand, rootBuffers.size());
+                auto rootBuffers = _aliasInfo.getRoots(input);
+                VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", input,
+                                  rootBuffers.size());
                 auto rootBuffer = *rootBuffers.begin();
-                operationBuffers.insert(rootBuffer);
+                inputBuffers.insert(rootBuffer);
+            }
+
+            auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(innerOp).getOutputs();
+            for (const auto& output : outputs) {
+                const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
+                if (type == nullptr || type.getMemSpace() != _memSpace) {
+                    continue;
+                }
+                auto rootBuffers = _aliasInfo.getRoots(output);
+                VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}",
+                                  output, rootBuffers.size());
+                auto rootBuffer = *rootBuffers.begin();
+                outputBuffers.insert(rootBuffer);
             }
         }
 
-        // For all identified buffers used by operation create seperate entries
-        // with information about memory ranges to properly identify range owner at a given time
-        for (auto& buf : operationBuffers) {
+        // For all identified buffers used by operation create seperate entries with information
+        // about memory ranges to properly identify range producer and consumers at a given time
+        for (auto& buf : inputBuffers) {
             if (!isBufAllocOp(buf.getDefiningOp())) {
                 continue;
             }
             auto addressStart = _scan.handler().getAddress(buf);
-            auto addressEnd = addressStart + _scan.handler().getSize(buf) - 1;
-            scheduledOpsResources.push_back(ScheduledOpOneResource(scheduledOp.op_, addressStart, addressEnd));
+            auto bufSize = _scan.handler().getSize(buf);
+            if (bufSize == 0) {
+                continue;
+            }
+            auto addressEnd = addressStart + bufSize - 1;
+            _log.trace("op = '{0}'\t time = '{1}'\t input = [{2} - {3}]", scheduledOp.op_, scheduledOp.time_,
+                       addressStart, addressEnd);
+            scheduledOpsResources.push_back(ScheduledOpOneResource(scheduledOp.op_, addressStart, addressEnd,
+                                                                   ScheduledOpOneResource::EResRelation::CONSUMER));
+        }
+        for (auto& buf : outputBuffers) {
+            if (!isBufAllocOp(buf.getDefiningOp())) {
+                continue;
+            }
+            auto addressStart = _scan.handler().getAddress(buf);
+            auto bufSize = _scan.handler().getSize(buf);
+            if (bufSize == 0) {
+                continue;
+            }
+            auto addressEnd = addressStart + bufSize - 1;
+            _log.trace("op = '{0}'\t time = '{1}'\t output = [{2} - {3}]", scheduledOp.op_, scheduledOp.time_,
+                       addressStart, addressEnd);
+            scheduledOpsResources.push_back(ScheduledOpOneResource(scheduledOp.op_, addressStart, addressEnd,
+                                                                   ScheduledOpOneResource::EResRelation::PRODUCER));
         }
     }
 

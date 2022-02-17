@@ -189,6 +189,13 @@ void ConvertAvgPoolToDWConvPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     const auto isLegal = [&](IE::AvgPoolOp origOp) {
+        const auto inputShape = getShape(origOp.input());
+        const auto inputBatch = inputShape[Dims4D::Act::N];
+        // Batch unrolling is actually possible for GroupConv, but leads to a large amount of NCE tasks
+        // At this point, uPA task seems more effective.
+        if (inputBatch != vpux::VPU::NCEInvariant::SUPPORTED_BATCH_SIZE) {
+            return true;
+        }
         const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
         const auto KY = kernelSize[0];
         const auto KX = kernelSize[1];

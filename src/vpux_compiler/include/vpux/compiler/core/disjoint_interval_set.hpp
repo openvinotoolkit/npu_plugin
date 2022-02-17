@@ -27,6 +27,7 @@ struct IntervalTraits {
 
     static UnitType intervalBegin(const IntervalType&);
     static UnitType intervalEnd(const IntervalType&);
+    static bool isIntervalProducer(const IntervalType&);
     static void setInterval(IntervalType&, const UnitType& beg, const UnitType& end);
 };  // struct IntervalTraits //
 
@@ -246,7 +247,32 @@ public:
         }
     };  // struct EndPointType //
 
-    using EndPointTreeType = std::map<EndPointType, Element>;
+    // Struct for storing ownership of interval
+    // Each interval must have one producer and can have multiple users
+    struct ProdConsType {
+        Element _producer;
+        std::set<Element> _consumers;
+
+        ProdConsType(Element prod): _producer(prod) {
+        }
+        ProdConsType(Element prod, std::set<Element> cons): _producer(prod), _consumers(cons) {
+        }
+
+        bool operator==(const ProdConsType& o) const {
+            return (_producer == o._producer) && (_consumers == o._consumers);
+        }
+
+        void newProducer(Element prod) {
+            _producer = prod;
+            _consumers.clear();
+        }
+
+        void addConsumer(Element cons) {
+            _consumers.insert(cons);
+        }
+    };  // struct ProdConsType //
+
+    using EndPointTreeType = std::map<EndPointType, ProdConsType>;
     using ConstEndPointIteratorType = typename EndPointTreeType::const_iterator;
 
     // Invariant: itrBegin_ should always point to
@@ -276,8 +302,15 @@ public:
             return *this;
         }
 
-        // Precondition: itrBegin_ != itrEnd_ //
-        const Element& operator*() const {
+        const Element& getProducer() const {
+            return itrBegin_->second._producer;
+        }
+
+        const std::set<Element>& getConsumers() const {
+            return itrBegin_->second._consumers;
+        }
+
+        const ProdConsType& getProdCons() const {
             return itrBegin_->second;
         }
 
@@ -298,7 +331,7 @@ public:
         ConstEndPointIteratorType itrEnd_;
     };  // class IntervalIteratorType //
 
-    bool insert(const Unit& ibeg, const Unit& iend, const Element& e) {
+    bool insert(const Unit& ibeg, const Unit& iend, const Element& prod) {
         assert(ibeg <= iend);
         EndPointType lkey(ibeg, LEFT_END), rkey(iend, RIGHT_END);
         ConstEndPointIteratorType itr = _tree.lower_bound(lkey);
@@ -306,8 +339,23 @@ public:
         if (!isIntervalDisjoint(lkey, rkey, itr)) {
             return false;
         }
-        _tree.insert(itr /*hint*/, std::make_pair(lkey, e));
-        _tree.insert(itr /*hint*/, std::make_pair(rkey, e));
+
+        _tree.insert(itr /*hint*/, std::make_pair(lkey, prod));
+        _tree.insert(itr /*hint*/, std::make_pair(rkey, prod));
+        return true;
+    }
+
+    bool insert(const Unit& ibeg, const Unit& iend, const ProdConsType& prodCons) {
+        assert(ibeg <= iend);
+        EndPointType lkey(ibeg, LEFT_END), rkey(iend, RIGHT_END);
+        ConstEndPointIteratorType itr = _tree.lower_bound(lkey);
+
+        if (!isIntervalDisjoint(lkey, rkey, itr)) {
+            return false;
+        }
+
+        _tree.insert(itr /*hint*/, std::make_pair(lkey, prodCons));
+        _tree.insert(itr /*hint*/, std::make_pair(rkey, prodCons));
         return true;
     }
 

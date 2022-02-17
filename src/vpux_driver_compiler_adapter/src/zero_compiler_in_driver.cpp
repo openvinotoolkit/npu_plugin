@@ -173,7 +173,7 @@ ze_graph_argument_precision_t toZePrecision(const IE::Precision precision) {
 }
 
 //------------------------------------------------------------------------------
-LevelZeroCompilerInDriver::LevelZeroCompilerInDriver(): _logger("LevelZeroCompilerInDriver", LogLevel::None) {
+LevelZeroCompilerInDriver::LevelZeroCompilerInDriver(): _logger("LevelZeroCompilerInDriver", LogLevel::Warning) {
     auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
     if (ZE_RESULT_SUCCESS != result) {
         IE_THROW() << "Failed to initialize zeAPI. Error code: " << std::hex << result;
