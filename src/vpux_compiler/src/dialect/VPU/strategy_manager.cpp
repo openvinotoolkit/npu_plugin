@@ -18,12 +18,12 @@ using namespace vpux;
 
 // This pass assigns multi-clustering strategies to layers and converts them into NCEClusterTiling operations.
 // It considers layers in isolation and computes the hardware efficiency of the layers if they
-// they were to be split over height (SOH) or split over kernel (SOK). It then chooses the more optimal
+// were to be split over height (SOH) or split over kernel (SOK). It then chooses the most optimal
 // stratey. A prerequisite is that the layer fits in CMX when multi-clustered. If the layer does not
 // fit in CMX then it is not converted to NCEClustertiling.
 
 StrategyManager::StrategyManager(mlir::FuncOp func, Logger log, mlir::MLIRContext* ctx)
-        : _log(log), _func(func), _ctx(ctx) {
+        : _func(func), _log(log), _ctx(ctx) {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
     auto dpuOp = nceOp.getSubExecutor(VPU::ExecutorKindAttr::get(module->getContext(), VPU::ExecutorKind::DPU));
@@ -33,7 +33,33 @@ StrategyManager::StrategyManager(mlir::FuncOp func, Logger log, mlir::MLIRContex
     _numDPU = _numClusters * _numDPUPerCluster;
 }
 
-// This channel major efficiency table is from the ArchBench tool
+double StrategyManager::getDepthwiseEfficiencyConstant(const int64_t& kernel, const int64_t& stride) const {
+    if (depthwiseEfficiencyTable().count(kernel)) {
+        auto table = depthwiseEfficiencyTable()[kernel];
+        if (table.count(stride)) {
+            return depthwiseEfficiencyTable()[kernel][stride];
+        } else {
+            VPUX_THROW("The stide size {0} does not exist in the depthwise efficiency table", stride);
+        }
+    } else {
+        VPUX_THROW("The kernel size {0} does not exist in the depthwise efficiency table", kernel);
+    }
+}
+
+double StrategyManager::getChannelMajorEfficiencyConstant(const int64_t& kernel, const int64_t& stride) const {
+    if (channelMajorEfficiencyTable().count(kernel)) {
+        auto table = depthwiseEfficiencyTable()[kernel];
+        if (table.count(stride)) {
+            return channelMajorEfficiencyTable()[kernel][stride];
+        } else {
+            VPUX_THROW("The stide size {0} does not exist in the channel major convolution efficiency table", stride);
+        }
+    } else {
+        VPUX_THROW("The kernel size {0} does not exist in the channel major convolution efficiency table", kernel);
+    }
+}
+
+// This depthwise convolution efficiency table is from the ArchBench tool
 // It returns a h/w efficiency constant for a given stride and kernel size
 std::map<int64_t, std::map<int64_t, double>> StrategyManager::depthwiseEfficiencyTable() const {
     return {{
@@ -45,7 +71,7 @@ std::map<int64_t, std::map<int64_t, double>> StrategyManager::depthwiseEfficienc
     }};
 }
 
-// This depthwise convolution efficiency table is from the ArchBench tool
+// This channel-major convolution efficiency table is from the ArchBench tool
 // It returns a h/w efficiency constant for a given stride and kernel size
 std::map<int64_t, std::map<int64_t, double>> StrategyManager::channelMajorEfficiencyTable() const {
     return {{
@@ -61,7 +87,7 @@ double getChannelAlignment(double input, size_t unit) {
     return std::ceil(input / unit) * unit;
 }
 
-double StrategyManager::computeChannelMajorConvolutionSplitOverHeightEfficency(VPU::NCEConvolutionOp origOp) const {
+double StrategyManager::computeChannelMajorConvolutionSplitOverHeightEfficency(VPU::NCEConvolutionOp& origOp) const {
     const auto outputShape = getShape(origOp.output());
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
     const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
@@ -69,7 +95,7 @@ double StrategyManager::computeChannelMajorConvolutionSplitOverHeightEfficency(V
     const double OH = outputShape[Dims4D::Act::H];
     const double OW = outputShape[Dims4D::Act::W];
     const auto KY = filterShape[Dims4D::Filter::KY];
-    auto efficiencyConstant = channelMajorEfficiencyTable()[KY][strides[0]];
+    auto efficiencyConstant = getChannelMajorEfficiencyConstant(KY, strides[0]);
     const double outputTensorVolume = OC * OH * OW;
 
     double efficency = efficiencyConstant *
@@ -98,7 +124,7 @@ double StrategyManager::computeZMajorConvolutionSplitOverHeightEfficency(mlir::O
         const auto filterShape = Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShapeAttr()));
         const auto strides = parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.strides());
         const auto KY = filterShape[Dims4D::Filter::KY];
-        efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
+        efficiencyConstant = getDepthwiseEfficiencyConstant(KY, strides[0]);
 
     } else if (auto convolutionOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
         const auto outputShape = getShape(convolutionOp.output());
