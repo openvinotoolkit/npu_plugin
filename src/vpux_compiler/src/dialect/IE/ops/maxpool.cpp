@@ -68,6 +68,6 @@ InputTiling vpux::IE::MaxPoolOp::backInferTileInfo(const vpux::TileInfo& outputT
     return backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), origPadding);
 }
 
-void vpux::IE::MaxPoolOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
+void vpux::IE::MaxPoolOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& /*outputTile*/) {
     IE::adjustPaddings(this, inputTiling);
 }

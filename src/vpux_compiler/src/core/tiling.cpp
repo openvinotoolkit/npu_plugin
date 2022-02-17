@@ -272,7 +272,7 @@ PlaneTileSolution solutionForOutputTile(const PlaneTile& output, int64_t kernelX
 //
 
 InputTiling vpux::backInferConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
-                                    ShapeRef origBiasShape, mlir::ArrayAttr strides, PadInfo origPadding) {
+                                    ShapeRef origBiasShape, mlir::ArrayAttr strides, const PadInfo& origPadding) {
     PlaneTile output;
     output.height.begin = outputTile.offsets[Dims4D::Act::H];
     output.height.end = outputTile.offsets[Dims4D::Act::H] + outputTile.shape[Dims4D::Act::H];
@@ -311,7 +311,7 @@ InputTiling vpux::backInferConvTile(const TileInfo& outputTile, ShapeRef origInp
 }
 
 InputTiling vpux::backInferGroupConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
-                                         ShapeRef origBiasShape, mlir::ArrayAttr strides, PadInfo origPadding) {
+                                         ShapeRef origBiasShape, mlir::ArrayAttr strides, const PadInfo& origPadding) {
     auto res = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides, origPadding);
 
     auto& inputTiles = res.tiles;
@@ -327,7 +327,7 @@ InputTiling vpux::backInferGroupConvTile(const TileInfo& outputTile, ShapeRef or
 //
 
 InputTiling vpux::backInferPoolTile(const TileInfo& outputTile, ShapeRef origInputShape, mlir::ArrayAttr kernel_size,
-                                    mlir::ArrayAttr strides, PadInfo origPadding) {
+                                    mlir::ArrayAttr strides, const PadInfo& origPadding) {
     PlaneTile output;
     output.height.begin = outputTile.offsets[Dims4D::Act::H];
     output.height.end = outputTile.offsets[Dims4D::Act::H] + outputTile.shape[Dims4D::Act::H];

@@ -52,7 +52,7 @@ mlir::LogicalResult verifyOp(YieldOp op);
 
 // Adjust paddings attributes for tiled input
 template <typename ConcreteOp>
-void adjustPaddings(ConcreteOp op, const TilingInfo& inputTiling) {
+void adjustPaddings(ConcreteOp* op, const TilingInfo& inputTiling) {
     VPUX_THROW_UNLESS(inputTiling.pads.hasValue(), "Missing tile information for paddings");
 
     auto newPadAttr = getPaddingAttr(op->getContext(), inputTiling.pads.getValue());
@@ -62,7 +62,7 @@ void adjustPaddings(ConcreteOp op, const TilingInfo& inputTiling) {
 
 // Adjust bias attribute for specific output tile
 template <typename ConcreteOp>
-void adjustBias(ConcreteOp op, const TileInfo& outputTile) {
+void adjustBias(ConcreteOp* op, const TileInfo& outputTile) {
     auto biasOffset = Shape(outputTile.offsets);
     auto biasShape = Shape(outputTile.shape);
     for (const auto axis : {Dims4D::Act::N, Dims4D::Act::H, Dims4D::Act::W}) {
@@ -77,7 +77,7 @@ void adjustBias(ConcreteOp op, const TileInfo& outputTile) {
 
 // Adjust rawFilterShape attribute for specific output tile
 template <typename ConcreteOp>
-void adjustRawFilterShape(ConcreteOp op, const TileInfo& outputTile) {
+void adjustRawFilterShape(ConcreteOp* op, const TileInfo& outputTile) {
     auto newRawFilterShape = Shape(parseIntArrayAttr<int64_t>(op->rawFilterShapeAttr()));
 
     newRawFilterShape[Dims4D::Filter::OC] = outputTile.shape[Dims4D::Act::C];
