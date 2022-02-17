@@ -178,3 +178,31 @@ func @main() -> tensor<1x2x4x2xf16> {
 }
 
 }
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NWHC = affine_map<(d0, d1, d2, d3) -> (d0, d3, d2, d1)>
+
+// CHECK-LABEL: @UPA_ReLU_BadLayout
+module @UPA_ReLU_BadLayout {
+
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        DataInfo "input" : tensor<1x2x4x2xf16, {order = #NWHC}>
+    }
+    outputsInfo : {
+        DataInfo "output" : tensor<1x2x4x2xf16, {order = #NWHC}>
+    }
+
+func @main(%arg0: tensor<1x2x4x2xf16, {order = #NWHC}>) -> tensor<1x2x4x2xf16, {order = #NWHC}> {
+    %0 = IE.ReLU(%arg0) : tensor<1x2x4x2xf16, {order = #NWHC}> -> tensor<1x2x4x2xf16, {order = #NWHC}>
+    return %0 : tensor<1x2x4x2xf16, {order = #NWHC}>
+
+    // CHECK: VPUIP.PermuteUPA
+    // CHECK: VPUIP.ReLUUPA
+    // CHECK: VPUIP.PermuteUPA
+}
+
+}
