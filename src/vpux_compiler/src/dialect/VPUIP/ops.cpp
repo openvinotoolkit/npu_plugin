@@ -256,7 +256,7 @@ bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logg
     });
 }
 
-bool isSupportedTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
+bool isSupportedTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, Logger /*log*/) {
     const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
@@ -320,12 +320,10 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
     });
 }
 
-bool isSupportedTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
+bool isSupportedTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& tiles, Logger /*log*/) {
     const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
-
-    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         const auto origInputShape = getShape(origOp.input());
@@ -380,7 +378,7 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     });
 }
 
-bool isSupportedTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiles, Logger log) {
+bool isSupportedTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiles, Logger /*log*/) {
     const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
 

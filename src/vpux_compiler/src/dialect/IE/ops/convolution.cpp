@@ -155,7 +155,7 @@ InputTiling vpux::IE::ConvolutionOp::backInferTileInfo(const vpux::TileInfo& out
     return backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
 }
 
-void vpux::IE::ConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
+void vpux::IE::ConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& /*outputTile*/) {
     IE::adjustPaddings(this, inputTiling);
 }
 
@@ -275,7 +275,7 @@ InputTiling vpux::IE::GroupConvolutionOp::backInferTileInfo(const vpux::TileInfo
     return backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
 }
 
-void vpux::IE::GroupConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
+void vpux::IE::GroupConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& /*outputTile*/) {
     const auto& inputTiles = inputTiling.tiles;
     VPUX_THROW_UNLESS(inputTiles.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
                       inputTiles.size());

@@ -34,26 +34,26 @@ using namespace vpux;
 bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                                   vpux::NDTypeInterface output) {
     const auto filterShape = filter.getShape();
-    const auto kernelsNum = filterShape[Dims4D::Filter::OC];
-    const auto kernelHeight = filterShape[Dims4D::Filter::KY];
-    const auto kernelWidth = filterShape[Dims4D::Filter::KX];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
-    const Shape kernelSize{kernelHeight, kernelWidth};
+    const Shape kernelSize{KY, KX};
 
     const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides()));
     const auto strideW = kernelStrides[Dims4D::Strides::X];
 
     const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::DW_CONV, kernelSize,
-                                                                           strideW, input.getElementType(), kernelsNum);
+                                                                           strideW, input.getElementType(), OC);
 
     const auto alignment = NCEInvariant::getAlignment(output.getElementType());
 
-    const auto remainder = (kernelHeight * kernelWidth) % alignment;
+    const auto remainder = (KY * KX) % alignment;
     VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
 
     const int64_t padding = (remainder > 0) ? (alignment - remainder) : 0;
 
-    const std::array<int64_t, 4> alignedFilterShape{kernelsNum, 1, 1, kernelHeight * kernelWidth + padding};
+    const std::array<int64_t, 4> alignedFilterShape{OC, 1, 1, KY * KX + padding};
     const auto alignedFilter =
             mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType()).cast<vpux::NDTypeInterface>();
 
@@ -63,7 +63,7 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, v
         requiredCMX += type.getTotalAllocSize();
     }
 
-    requiredCMX += NCEInvariant::getWeightsTableSize(kernelsNum);
+    requiredCMX += NCEInvariant::getWeightsTableSize(OC);
     requiredCMX += activationWindowSize * 1_Byte;
 
     return requiredCMX <= getTotalCMXSize(getOperation());
