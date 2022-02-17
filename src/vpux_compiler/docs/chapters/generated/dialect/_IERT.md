@@ -2233,6 +2233,41 @@ operation ::= `IERT.ReLU` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ReduceLogicalAnd` (vpux::IERT::ReduceLogicalAndOp)
+
+InferenceEngine run-time ReduceLogicalAnd layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReduceLogicalAnd` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`axes` | memref of 64-bit signed integer or 32-bit signed integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.ReduceMax` (vpux::IERT::ReduceMaxOp)
 
 InferenceEngine run-time reduceMax layer

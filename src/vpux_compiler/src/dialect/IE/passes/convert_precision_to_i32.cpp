@@ -57,6 +57,7 @@ void ConvertPrecisionToI32Pass::safeRunOnModule() {
     target.addDynamicallyLegalOp<IE::GatherOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::BroadcastOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceMaxOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::ReduceLogicalAndOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceMeanOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceSumOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::TopKOp>(isLegalOp);

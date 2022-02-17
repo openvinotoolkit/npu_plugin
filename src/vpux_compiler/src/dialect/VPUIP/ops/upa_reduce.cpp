@@ -25,6 +25,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceUPAOp::serialize(VPUIP::BlobW
     case VPUIP::ReduceLayerType::MAX:
         type = writer.createString("max");
         break;
+    case VPUIP::ReduceLayerType::LOGICALAND:
+        type = writer.createString("logicalAnd");
+        break;
     case VPUIP::ReduceLayerType::MEAN:
         type = writer.createString("mean");
         break;
@@ -54,6 +57,8 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseReduce(mlir::OpBuilder& builder, 
     VPUIP::ReduceLayerType type;
     if (typeStr == std::string("max")) {
         type = VPUIP::ReduceLayerType::MAX;
+    } else if (typeStr == std::string("logicalAnd")) {
+        type = VPUIP::ReduceLayerType::LOGICALAND;
     } else if (typeStr == std::string("mean")) {
         type = VPUIP::ReduceLayerType::MEAN;
     } else if (typeStr == std::string("sum")) {

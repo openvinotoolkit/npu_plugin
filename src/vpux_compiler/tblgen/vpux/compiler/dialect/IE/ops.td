@@ -1325,6 +1325,28 @@ def IE_ReduceMaxOp :
 }
 
 //
+// ReduceLogicalAndOp
+//
+
+def IE_ReduceLogicalAndOp :
+        IE_LayerOp<
+            "ReduceLogicalAnd"
+        > {
+    let summary = "InferenceEngine  ReduceLogicalAnd layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$axes,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
 // ReduceMeanOp
 //
 

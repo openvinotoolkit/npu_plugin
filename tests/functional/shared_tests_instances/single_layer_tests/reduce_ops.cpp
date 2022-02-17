@@ -81,6 +81,10 @@ namespace {
             InferenceEngine::Precision::FP16
     };
 
+    const std::vector<InferenceEngine::Precision> boool = {
+            InferenceEngine::Precision::BOOL
+    };
+
     const std::vector<bool> keepDims = {
             true,
             false,
@@ -194,14 +198,14 @@ namespace {
     );
 
     INSTANTIATE_TEST_CASE_P(
-        smoke_ReduceMax,
+        smoke_ReduceLogicalAnd,
         KmbReduceOpsLayerWithSpecificInputTest,
         testing::Combine(
                 testing::ValuesIn(decltype(axes) {{0}}),
                 testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::Values(true, false),
-                testing::Values(ngraph::helpers::ReductionType::Max),
-                testing::ValuesIn(netPrecisions),
+                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
+                testing::ValuesIn(boool),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
