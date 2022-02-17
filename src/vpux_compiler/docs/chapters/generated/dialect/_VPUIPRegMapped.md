@@ -80,37 +80,6 @@ operation ::= `VPUIPRegMapped.DPUTask` attr-dict
 `pad` | vpux::VPUIPRegMapped::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPUIPRegMapped::MPEModeAttr | MPE Mode
 
-### `VPUIPRegMapped.DeclareBuffer` (vpux::VPUIPRegMapped::DeclareBufferOp)
-
-TensorReference value declaration
-
-
-Syntax:
-
-```
-operation ::= `VPUIPRegMapped.DeclareBuffer` $locale custom<LocaleIndex>($localeIndex) `<` $dataIndex `>` attr-dict `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`locale` | vpux::VPUIPRegMapped::MemoryLocationAttr | Values indicating which type of memory a tensor resides in
-`localeIndex` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`dataIndex` | mlir::IntegerAttr | Integer attribute
-`sparsityIndex` | mlir::IntegerAttr | Integer attribute
-`storageElementIndex` | mlir::IntegerAttr | Integer attribute
-`storageElementSize` | mlir::IntegerAttr | Integer attribute
-`leadingOffset` | mlir::IntegerAttr | Integer attribute
-`trailingOffset` | mlir::IntegerAttr | Integer attribute
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`memory` | memref of any type values
-
 ### `VPUIPRegMapped.DeclareVirtualBarrier` (vpux::VPUIPRegMapped::DeclareVirtualBarrierOp)
 
 VPUIPRegMapped virtual Barrier declaration

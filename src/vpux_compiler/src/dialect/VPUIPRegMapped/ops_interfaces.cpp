@@ -15,7 +15,6 @@
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/effects.hpp"
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -37,26 +36,6 @@ void vpux::VPUIPRegMapped::getTaskEffects(mlir::Operation* op, SmallVectorImpl<M
     // TODO:: do VPUIPRegMapped ops have modelable effects?
 
     return;
-}
-
-mlir::SymbolRefAttr vpux::VPUIPRegMapped::getDMAEngine(uint32_t& numUnits, mlir::MLIRContext* ctx,
-                                                       VPUIPRegMapped::DMAEngine engine) {
-    VPUX_UNUSED(engine);
-
-    numUnits = 1;
-    return mlir::SymbolRefAttr::get(ctx, "DMAEngine_str");
-}
-
-mlir::SymbolRefAttr vpux::VPUIPRegMapped::getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits) {
-    auto task = mlir::cast<VPUIPRegMapped::TaskOpInterface>(op);
-    const auto taskType = task.getTaskType();
-
-    switch (taskType) {
-    case VPUIPRegMapped::TaskType::NNDMA:
-        return VPUIPRegMapped::getDMAEngine(numUnits, op->getContext(), VPUIPRegMapped::DMAEngine::DMA_NN);
-    default:
-        VPUX_THROW("Unsupported task type '{0}'", taskType);
-    }
 }
 
 //

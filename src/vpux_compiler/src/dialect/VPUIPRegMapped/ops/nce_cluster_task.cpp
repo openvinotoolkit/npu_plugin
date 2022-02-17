@@ -179,26 +179,6 @@ mlir::LogicalResult vpux::VPUIPRegMapped::verifyOp(VPUIPRegMapped::NCEClusterTas
         }
     }
 
-    for (const auto& operand : op.getOpOperands()) {
-        const auto val = operand.get();
-        const auto type = val.getType().cast<mlir::MemRefType>();
-
-        auto mem = getPhysicalMemory(type);
-        if (mlir::failed(mem)) {
-            return errorAt(op, "Unsupported memory space '{0}'", type.getMemorySpace());
-        }
-        if (!((mem.getValue() == PhysicalMemory::CMX_NN) || (mem.getValue() == PhysicalMemory::Register))) {
-            return errorAt(op, "Can't operate with '{0}' PhysicalMemory. Only '{1}' or '{2} PhysicalMemory is allowed",
-                           mem.getValue(), PhysicalMemory::CMX_NN, PhysicalMemory::Register);
-        }
-
-        const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(type.getRank() - 1)));
-
-        if (!strideReqs.checkStrides(val)) {
-            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", val, strideReqs);
-        }
-    }
-
     return mlir::success();
 }
 

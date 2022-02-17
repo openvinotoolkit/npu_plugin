@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright (C) 2022 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -16,8 +16,6 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
-
-// #include "llvm/Support/Debug.h"
 
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -116,45 +114,6 @@ private:
     }
 };
 
-class ConvertVPURTDeclareBufferOp final : public mlir::OpRewritePattern<VPURT::DeclareBufferOp> {
-public:
-    ConvertVPURTDeclareBufferOp(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<VPURT::DeclareBufferOp>(ctx), _log(log) {
-    }
-
-    mlir::LogicalResult matchAndRewrite(VPURT::DeclareBufferOp origOp, mlir::PatternRewriter& rewriter) const {
-        _log.info("Entered ConvertVPURTDeclareBufferOp::matchAndRewrite().");
-
-        vpux::VPUIPRegMapped::MemoryLocation locale;
-        if (origOp.section() == vpux::VPURT::BufferSection::DDR) {
-            locale = vpux::VPUIPRegMapped::MemoryLocation::VPU_DDR_Heap;
-        } else if (origOp.section() == vpux::VPURT::BufferSection::CMX_NN) {
-            locale = vpux::VPUIPRegMapped::MemoryLocation::VPU_CMX_NN;
-        } else if (origOp.section() == vpux::VPURT::BufferSection::CMX_UPA) {
-            locale = vpux::VPUIPRegMapped::MemoryLocation::VPU_CMX_UPA;
-        }
-        int64_t dataIndex = 0;  // TODO: initialize - maybe we should put sectionIndex() here
-
-        _log.info("ConvertVPURTDeclareBufferOp::matchAndRewrite(): byteOffset() = {0}.", origOp.byteOffset());
-        _log.info("ConvertVPURTDeclareBufferOp::matchAndRewrite(): origOp.sectionIndex() = {0}.",
-                  origOp.sectionIndex());
-        _log.info("ConvertVPURTDeclareBufferOp::matchAndRewrite(): section() = {0}.",
-                  stringifyBufferSection(origOp.section()));
-
-        rewriter.replaceOpWithNewOp<VPUIPRegMapped::DeclareBufferOp>(
-                origOp, origOp.getOperation()->getResult(0).getType(), locale,
-                dataIndex  // TODO: maybe we should put sectionIndex() here
-        );
-
-        _log.info("Exiting ConvertVPURTDeclareBufferOp::matchAndRewrite().");
-
-        return mlir::success();
-    }
-
-private:
-    Logger _log;
-};
-
 class ConvertVPURTConfigureBarrierOp final : public mlir::OpRewritePattern<VPURT::ConfigureBarrierOp> {
 public:
     ConvertVPURTConfigureBarrierOp(mlir::MLIRContext* ctx, Logger log)
@@ -220,11 +179,10 @@ void ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc() {
     mlir::ConversionTarget target(*ctx);
     target.addLegalDialect<VPUIPRegMapped::VPUIPRegMappedDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
-    target.addLegalOp<VPUIP::NNDMAOp>();
+    target.addLegalOp<VPURT::DeclareBufferOp>();
 
     mlir::RewritePatternSet patterns(ctx);
 
-    patterns.insert<ConvertVPURTDeclareBufferOp>(ctx, _log);
     patterns.insert<ConvertVPURTConfigureBarrierOp>(ctx, _log);
 
     if (mlir::failed(mlir::applyFullConversion(funcOp, target, std::move(patterns)))) {

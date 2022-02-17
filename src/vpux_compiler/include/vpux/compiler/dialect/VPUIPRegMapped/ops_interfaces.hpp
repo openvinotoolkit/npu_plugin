@@ -13,12 +13,10 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/attributes/enums.hpp"
-
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
+#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIPRegMapped/attributes/enums.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 
@@ -49,10 +47,6 @@ namespace VPUIPRegMapped {
 
 using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
 void getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
-
-mlir::SymbolRefAttr getDMAEngine(uint32_t& numUnits, mlir::MLIRContext* ctx, VPUIPRegMapped::DMAEngine engine);
-
-mlir::SymbolRefAttr getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits);
 
 //
 // Legacy4D
