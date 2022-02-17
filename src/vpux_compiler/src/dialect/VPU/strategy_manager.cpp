@@ -84,6 +84,10 @@ std::map<int64_t, std::map<int64_t, double>> StrategyManager::channelMajorEffici
 }
 
 double getChannelAlignment(double input, size_t unit) {
+    if (!unit) {
+        VPUX_THROW("Invalid alignment to {0} requested", unit);
+    }
+
     return std::ceil(input / unit) * unit;
 }
 
