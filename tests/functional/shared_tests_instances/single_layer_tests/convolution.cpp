@@ -309,7 +309,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_MultiCluster, KmbConvolutionLayerTes
                                            ::testing::Values(Precision::FP16),                 // outPrc
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
-                                           ::testing::ValuesIn<SizeVector>({{1, 64, 56, 56}}),  // inputShapes
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 40, 40}}),  // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         ConvolutionLayerTest::getTestCaseName);
 
