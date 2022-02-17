@@ -225,6 +225,6 @@ vpux::InputTiling vpux::VPU::NCEMaxPoolOp::backInferTileInfo(const vpux::TileInf
     return vpux::backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), origPadding);
 }
 
-void vpux::VPU::NCEMaxPoolOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
+void vpux::VPU::NCEMaxPoolOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& /*outputTile*/) {
     VPU::adjustPaddings(this, inputTiling);
 }
