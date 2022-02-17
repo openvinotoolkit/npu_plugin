@@ -53,34 +53,36 @@ public:
                                                                        vpux::VPU::DistributionMode distributionMode,
                                                                        mlir::ArrayAttr numTiles) const;
     template <class ConcreteOp>
-    VPU::DistributionMode getActivationTensorDistributionMode(ConcreteOp origOp) const;
+    VPU::DistributionMode getActivationTensorDistributionMode(ConcreteOp& origOp) const;
     template <class ConcreteOp>
-    VPU::DistributionMode getWeightsTensorDistributionMode(ConcreteOp origOp) const;
+    VPU::DistributionMode getWeightsTensorDistributionMode(ConcreteOp& origOp) const;
     template <class ConcreteOp>
-    mlir::ArrayAttr getActivationTensorNumTiles(ConcreteOp origOp) const;
+    mlir::ArrayAttr getActivationTensorNumTiles(ConcreteOp& origOp) const;
     template <class ConcreteOp>
-    mlir::ArrayAttr getWeightsTensorNumTiles(ConcreteOp origOp) const;
+    mlir::ArrayAttr getWeightsTensorNumTiles(ConcreteOp& origOp) const;
     void removeStrategyAttribute();
 
 private:
     template <class ConcreteOp>
-    bool isOperationSplitOverHeightCompatible(ConcreteOp op) const;
+    bool isOperationSplitOverHeightCompatible(ConcreteOp& op) const;
     template <class ConcreteOp>
-    bool isOperationSplitOverKernelCompatible(ConcreteOp op) const;
+    bool isOperationSplitOverKernelCompatible(ConcreteOp& op) const;
     template <class ConcreteOp>
     void assignMultiClusterStrategyForEltwiseAndMaxPool(ConcreteOp& op) const;
     template <class ConcreteOp>
-    bool isOperationMultiClusterCompatible(ConcreteOp op) const;
+    bool isOperationMultiClusterCompatible(ConcreteOp& op) const;
     template <class ConcreteOp>
-    double getOperationSOHEfficiency(ConcreteOp op) const;
+    double getOperationSOHEfficiency(ConcreteOp& op) const;
     template <class ConcreteOp>
-    double getOperationSOKEfficiency(ConcreteOp op) const;
+    double getOperationSOKEfficiency(ConcreteOp& op) const;
     template <class ConcreteOp>
-    double depthwiseConvolutionTotalDataTransfer(ConcreteOp origOp, const llvm::StringRef strategy) const;
+    double depthwiseConvolutionTotalDataTransfer(ConcreteOp& origOp, const llvm::StringRef strategy) const;
 
+    double getDepthwiseEfficiencyConstant(const int64_t& kernel, const int64_t& stride) const;
+    double getChannelMajorEfficiencyConstant(const int64_t& kernel, const int64_t& stride) const;
     double computeLayerSplitOverHeightEfficency(mlir::Operation* op) const;
     double computeLayerSplitOverKernelEfficency(mlir::Operation* op) const;
-    double computeChannelMajorConvolutionSplitOverHeightEfficency(VPU::NCEConvolutionOp origOp) const;
+    double computeChannelMajorConvolutionSplitOverHeightEfficency(VPU::NCEConvolutionOp& origOp) const;
     double computeZMajorConvolutionSplitOverHeightEfficency(mlir::Operation* op) const;
     double computeZMajorConvolutionSplitOverKernelEfficency(mlir::Operation* op) const;
     void setOperationStrategy(const llvm::StringRef strategy, mlir::Operation* origOp) const;
@@ -93,35 +95,44 @@ private:
     std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable() const;
     std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable() const;
 
-    const long int _minimumHeightForSOH = 20;
-    const long int _minimumOutputChannelsPerCluster = 16;
     std::map<mlir::Operation*, double> _splitOverHeightEfficencies;
     std::map<mlir::Operation*, double> _splitOverKernelEfficencies;
-    Logger _log;
     int32_t _numClusters;
     size_t _numDPUPerCluster;
     size_t _numDPU;
-    size_t _numChannelAlignment = 16;  // TODO: read this from some hardware config
+    const long int _minimumHeightForSOH = 20;
+    const long int _minimumOutputChannelsPerCluster = 16;
+    const size_t _numChannelAlignment = 16;  // TODO: read this from some hardware config
     mlir::FuncOp _func;
+    Logger _log;
     mlir::MLIRContext* _ctx;
 };
 
+// An operation is SOH compitable if it has an output height of at least 20
+// The reason is because the output tensor in each cluster will only have a
+// height of 5 (20/4, assuming 4 cluster compilation).
+// There are 5 DPUs in a cluster so each DPU will compute at least one output line
 template <class ConcreteOp>
-bool StrategyManager::isOperationSplitOverHeightCompatible(ConcreteOp op) const {
+bool StrategyManager::isOperationSplitOverHeightCompatible(ConcreteOp& op) const {
     const auto outputShape = getShape(op.output());
     const auto OH = outputShape[Dims4D::Act::H];
     return OH >= _minimumHeightForSOH;
 }
 
+// An operation is SOK compitable if it has at least 64 output channels
+// The reason is because on VPU 2.0 output channels must be aligned to 16
+// When an operation is SOK, 1/4 of its weights are present in each cluster (assuming 4 cluster compilation)
+// Therefore, 64 / 4 = 16 implies that the operation must have at least 64 output channels in order to have
+// at least 16 output channel in each cluster if it is SOK
 template <class ConcreteOp>
-bool StrategyManager::isOperationSplitOverKernelCompatible(ConcreteOp op) const {
+bool StrategyManager::isOperationSplitOverKernelCompatible(ConcreteOp& op) const {
     const auto outputShape = getShape(op.output());
     const auto OC = outputShape[Dims4D::Act::C];
     return OC >= _minimumOutputChannelsPerCluster * _numClusters;
 }
 
 template <class ConcreteOp>
-bool StrategyManager::isOperationMultiClusterCompatible(ConcreteOp op) const {
+bool StrategyManager::isOperationMultiClusterCompatible(ConcreteOp& op) const {
     if (!isOperationSplitOverHeightCompatible<ConcreteOp>(op) &&
         !isOperationSplitOverKernelCompatible<ConcreteOp>(op)) {
         return false;
@@ -131,7 +142,7 @@ bool StrategyManager::isOperationMultiClusterCompatible(ConcreteOp op) const {
 }
 
 template <class ConcreteOp>
-double StrategyManager::getOperationSOHEfficiency(ConcreteOp op) const {
+double StrategyManager::getOperationSOHEfficiency(ConcreteOp& op) const {
     if (_splitOverHeightEfficencies.find(op) != _splitOverHeightEfficencies.end()) {
         return _splitOverHeightEfficencies.find(op)->second;
     } else {
@@ -140,7 +151,7 @@ double StrategyManager::getOperationSOHEfficiency(ConcreteOp op) const {
 }
 
 template <class ConcreteOp>
-double StrategyManager::getOperationSOKEfficiency(ConcreteOp op) const {
+double StrategyManager::getOperationSOKEfficiency(ConcreteOp& op) const {
     if (_splitOverKernelEfficencies.find(op) != _splitOverKernelEfficencies.end()) {
         return _splitOverKernelEfficencies.find(op)->second;
     } else {
@@ -234,7 +245,7 @@ vpux::VPU::DistributedTensorType StrategyManager::createDistributedOutputTensorT
 }
 
 template <class ConcreteOp>
-mlir::ArrayAttr StrategyManager::getActivationTensorNumTiles(ConcreteOp origOp) const {
+mlir::ArrayAttr StrategyManager::getActivationTensorNumTiles(ConcreteOp& origOp) const {
     const llvm::StringRef strategy =
             origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
     if (strategy == splitOverHeightOverLapped) {
@@ -254,7 +265,8 @@ mlir::ArrayAttr StrategyManager::getActivationTensorNumTiles(ConcreteOp origOp) 
 }
 
 template <class ConcreteOp>
-double StrategyManager::depthwiseConvolutionTotalDataTransfer(ConcreteOp origOp, const llvm::StringRef strategy) const {
+double StrategyManager::depthwiseConvolutionTotalDataTransfer(ConcreteOp& origOp,
+                                                              const llvm::StringRef strategy) const {
     const auto inputShape = getShape(origOp.input());
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
     const auto IC = inputShape[Dims4D::Act::C];
@@ -278,7 +290,7 @@ double StrategyManager::depthwiseConvolutionTotalDataTransfer(ConcreteOp origOp,
 }
 
 template <class ConcreteOp>
-mlir::ArrayAttr StrategyManager::getWeightsTensorNumTiles(ConcreteOp origOp) const {
+mlir::ArrayAttr StrategyManager::getWeightsTensorNumTiles(ConcreteOp& origOp) const {
     const llvm::StringRef strategy =
             origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
     if (strategy == splitOverHeightOverLapped) {
@@ -298,7 +310,7 @@ mlir::ArrayAttr StrategyManager::getWeightsTensorNumTiles(ConcreteOp origOp) con
 }
 
 template <class ConcreteOp>
-VPU::DistributionMode StrategyManager::getActivationTensorDistributionMode(ConcreteOp origOp) const {
+VPU::DistributionMode StrategyManager::getActivationTensorDistributionMode(ConcreteOp& origOp) const {
     const llvm::StringRef strategy =
             origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
     if (strategy == splitOverHeightOverLapped) {
@@ -318,7 +330,7 @@ VPU::DistributionMode StrategyManager::getActivationTensorDistributionMode(Concr
 }
 
 template <class ConcreteOp>
-VPU::DistributionMode StrategyManager::getWeightsTensorDistributionMode(ConcreteOp origOp) const {
+VPU::DistributionMode StrategyManager::getWeightsTensorDistributionMode(ConcreteOp& origOp) const {
     const llvm::StringRef strategy =
             origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
     if (strategy == splitOverHeightOverLapped) {
