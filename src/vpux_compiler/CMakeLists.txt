@@ -429,7 +429,7 @@ add_custom_target(download_vpunn_model ALL
         COMMAND ${GIT_EXECUTABLE} lfs pull
         WORKING_DIRECTORY ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel)
 add_custom_target(copy-vpunn-model ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory  ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpunn
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpunn
         DEPENDS download_vpunn_model)
 
 add_dependencies(${OBJ_TARGET_NAME} inferenceStatic copy-vpunn-model)
@@ -470,7 +470,7 @@ target_link_libraries(mlir-dependencies INTERFACE
     MLIRTranslation
 )
 target_include_directories(mlir-dependencies
-    SYSTEM INTERFACE 
+    SYSTEM INTERFACE
         ${MLIR_INCLUDE_DIRS}
 )
 
@@ -509,5 +509,10 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
 
 install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/"
-        DESTINATION "${IE_CPACK_LIBRARY_PATH}/vpunn"
+        DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpunn"
         COMPONENT    ${VPUX_PLUGIN_COMPONENT})
+
+install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/"
+        DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpunn"
+        COMPONENT    tests)
+
