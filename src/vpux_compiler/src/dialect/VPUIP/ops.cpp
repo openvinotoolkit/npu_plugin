@@ -498,9 +498,9 @@ bool isSupportedIsolatedTiling(mlir::Operation* origOp, const OutputTiling& tile
     const auto input2Type = origOp->getOperand(1).getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
     return llvm::all_of(tiles, [&](const TileInfo& tile) {
-        const auto input1TileType = getDenseTileType(input1Type, tile.offsets, tile.shape);
-        const auto input2TileType = getDenseTileType(input2Type, tile.offsets, tile.shape);
-        const auto outputTileType = getDenseTileType(outputType, tile.offsets, tile.shape);
+        const auto input1TileType = input1Type.extractDenseTile(tile.offsets, tile.shape);
+        const auto input2TileType = input2Type.extractDenseTile(tile.offsets, tile.shape);
+        const auto outputTileType = outputType.extractDenseTile(tile.offsets, tile.shape);
 
         return mlir::succeeded(
                 VPUIP::NCEInvariant::verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
