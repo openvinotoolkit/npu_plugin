@@ -252,7 +252,17 @@ mlir::Operation* getParentTargetOp(mlir::Operation* op) {
     while (parentOp && isOpIgnorable(parentOp)) {
         // skip the Permute, Reshape and And
         if (parentOp->getOperands().size() < 1) {
-            break;
+            return nullptr;
+        }
+        // For parallel sub-graphs, the order is undecided yet
+        // Abandon prefetching these cases
+        if (!parentOp->getResult(0).hasOneUse()) {
+            auto user1 = *parentOp->getResult(0).getUsers().begin();
+            for (auto remainUser : parentOp->getResult(0).getUsers()) {
+                if (remainUser != user1) {
+                    return nullptr;
+                }
+            }
         }
         parentOp = parentOp->getOperand(0).getDefiningOp();
     }
@@ -261,7 +271,7 @@ mlir::Operation* getParentTargetOp(mlir::Operation* op) {
 
 bool prefetchTilingConditionSatisfied(mlir::Operation* op, Logger log) {
     auto parentOp = getParentTargetOp(op);
-    if (!parentOp) {
+    if (parentOp == nullptr) {
         return false;
     }
     auto opTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
@@ -269,17 +279,7 @@ bool prefetchTilingConditionSatisfied(mlir::Operation* op, Logger log) {
     if (!opTilingInter || !parentTilingInter) {
         return false;
     }
-    // For parallel sub-graphs, the order is undecided yet
-    // Abandon prefetching these cases
-    mlir::Operation* realParentOp = op->getOperand(0).getDefiningOp();
-    if (!realParentOp->getResult(0).hasOneUse()) {
-        auto user1 = *realParentOp->getResult(0).getUsers().begin();
-        for (auto remainUser : realParentOp->getResult(0).getUsers()) {
-            if (remainUser != user1) {
-                return false;
-            }
-        }
-    }
+
     // Check if tile pattern is supported
     const auto resShape = getShape(op->getResult(0));
     const Shape neutralTile(resShape.size(), 1);

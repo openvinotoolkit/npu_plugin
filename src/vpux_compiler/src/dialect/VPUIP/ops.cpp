@@ -363,14 +363,7 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const OutputTiling& til
     auto outputShape = getShape(origOp.output());
     auto tileAxis = tiles.begin()->axis;
     auto tileDims = getTileDims(tileAxis);
-    if (tileDims.size() != 1) {
-        return false;
-    }
-    if (tilingMode == vpux::TilingMode::ISOLATED_TILING) {
-        return isSupportedIsolatedTiling(origOp, tiles, log);
-    }
 
-    auto tileDim = tileDims[0];
     auto isMemPrefetchable = [&]() -> bool {
         if (tilingMode == vpux::TilingMode::PREFETCH_TILING) {
             return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
@@ -379,6 +372,20 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const OutputTiling& til
         return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
     };
 
+    // neutral tiling check
+    if (tileDims.size() == 0 && tilingMode == vpux::TilingMode::PATTERN_PREFETCH_TILING) {
+        return isMemPrefetchable();
+    }
+
+    // Prefetch tiling is only triggered when the isolated tiling is not nested
+    if (tileDims.size() != 1) {
+        return false;
+    }
+    if (tilingMode == vpux::TilingMode::ISOLATED_TILING) {
+        return isSupportedIsolatedTiling(origOp, tiles, log);
+    }
+
+    auto tileDim = tileDims[0];
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
            isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
@@ -388,15 +395,6 @@ bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, const OutputTiling
     auto outputShape = getShape(origOp.output());
     auto tileAxis = tiles.begin()->axis;
     auto tileDims = getTileDims(tileAxis);
-    if (tileDims.size() != 1) {
-        return false;
-    }
-    auto tileDim = tileDims[0];
-
-    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
-    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
-        return false;
-    }
 
     auto isMemPrefetchable = [&]() -> bool {
         if (tilingMode == vpux::TilingMode::PREFETCH_TILING) {
@@ -406,6 +404,24 @@ bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, const OutputTiling
         return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
     };
 
+    // neutral tiling check
+    if (tileDims.size() == 0 && tilingMode == vpux::TilingMode::PATTERN_PREFETCH_TILING) {
+        return isMemPrefetchable();
+    }
+
+    // Prefetch tiling is only triggered when the isolated tiling is not nested
+    if (tileDims.size() != 1) {
+        return false;
+    }
+    auto tileDim = tileDims[0];
+
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
+        return false;
+    }
+    if (!isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim])) {
+    }
+
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
            isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
@@ -414,6 +430,21 @@ bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, 
                                const TilingMode& tilingMode) {
     auto tileAxis = tiles.begin()->axis;
     auto tileDims = getTileDims(tileAxis);
+
+    auto isMemPrefetchable = [&]() -> bool {
+        if (tilingMode == vpux::TilingMode::PREFETCH_TILING) {
+            return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
+        }
+        // Pattern prefetch
+        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
+    };
+
+    // neutral tiling check
+    if (tileDims.size() == 0 && tilingMode == vpux::TilingMode::PATTERN_PREFETCH_TILING) {
+        return isMemPrefetchable();
+    }
+
+    // Prefetch tiling is only triggered when the isolated tiling is not nested
     if (tileDims.size() != 1) {
         return false;
     }
@@ -424,14 +455,6 @@ bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, 
     if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
         return false;
     }
-
-    auto isMemPrefetchable = [&]() -> bool {
-        if (tilingMode == vpux::TilingMode::PREFETCH_TILING) {
-            return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
-        }
-        // Pattern prefetch
-        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
-    };
 
     size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim,
