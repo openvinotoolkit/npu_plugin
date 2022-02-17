@@ -38,29 +38,30 @@ extern "C" {
 void hswish_fp16(uint32_t lParamsAddr) {
     const HSwishParams* lParams = reinterpret_cast<const HSwishParams*>(lParamsAddr);
 
-    half8* __restrict__ p_act_data = reinterpret_cast<half8*>(lParams->input.dataAddr);  // 0x1F000000
-    half8* __restrict__ p_act_out = reinterpret_cast<half8*>(lParams->output.dataAddr);  // 0x1F004000
+    half* __restrict__ p_act_data = reinterpret_cast<half*>(lParams->input.dataAddr);  // 0x1F000000
+    half* __restrict__ p_act_out = reinterpret_cast<half*>(lParams->output.dataAddr);  // 0x1F004000
     int32_t* pDims = (int32_t*)(lParams->input.dimsAddr);
 
-    const half8 add_val_3 = 3.0f;
-    const half8 max_val_6 = 6.0f;
-
     int32_t nElements = 1;
-    int32_t i = 0;
-    for (i = 0; i != lParams->input.numDims; i++) {
+    for (int i = 0; i != lParams->input.numDims; i++) {
         // TODO: check overflow
         nElements *= pDims[i];
     }
 
-    const int numVectors = nElements / VECTOR_SIZE;
-    const int remElements = nElements % VECTOR_SIZE;
-
-    for(i = 0; i < numVectors; ++i){
-        p_act_out[i] =  __builtin_shave_cmu_clamp0_f16_rr_half8(p_act_data[i] + add_val_3, max_val_6) * p_act_data[i] / max_val_6;
+    int32_t i = 0;
+    const float max_val_6 = 6.0f;
+    const float inv_max_val_6 = 1.f/max_val_6;
+#ifndef __shavenn_ISA__
+    const half8 hmax_val_6 = max_val_6;
+    const half8 add_val_3 = 3.0f;
+    for(; i < nElements - (VECTOR_SIZE - 1); i += VECTOR_SIZE){
+        half8 ri = ((half8*)(p_act_data + i))[0];
+        ((half8*)(p_act_out + i))[0] =  __builtin_shave_cmu_clamp0_f16_rr_half8(ri + add_val_3, hmax_val_6) * ri * inv_max_val_6;
     }
+#endif
 
-    for(int j = 0; j < remElements; j++){
-        p_act_out[numVectors][j] = p_act_data[numVectors][j] * MIN(6.f, MAX(0.f, p_act_data[numVectors][j] + 3.f)) * 0.16666f;
+    for(; i < nElements; i++){
+        p_act_out[i] = p_act_data[i] * MIN(6.f, MAX(0.f, p_act_data[i] + 3.f)) * inv_max_val_6;
     }
 }
 
