@@ -57,7 +57,7 @@ mlir::LogicalResult verifyOp(DataInfoOp op);
 
 // Adjust paddings attributes for tiled input
 template <typename ConcreteOp>
-void adjustPaddings(ConcreteOp op, const TilingInfo& inputTiling) {
+void adjustPaddings(ConcreteOp* op, const TilingInfo& inputTiling) {
     const auto& inputTilePads = inputTiling.pads;
     VPUX_THROW_UNLESS(inputTilePads.hasValue(), "Missing tile information for paddings");
 

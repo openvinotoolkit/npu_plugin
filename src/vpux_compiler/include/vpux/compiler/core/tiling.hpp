@@ -121,16 +121,16 @@ using InputTiling = TilingInfo;
 //
 
 InputTiling backInferConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
-                              ShapeRef origBiasShape, mlir::ArrayAttr strides, PadInfo origPadding);
+                              ShapeRef origBiasShape, mlir::ArrayAttr strides, const PadInfo& origPadding);
 
 InputTiling backInferGroupConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
-                                   ShapeRef origBiasShape, mlir::ArrayAttr strides, PadInfo origPadding);
+                                   ShapeRef origBiasShape, mlir::ArrayAttr strides, const PadInfo& origPadding);
 
 //
 // Pooling tiling
 //
 
 InputTiling backInferPoolTile(const TileInfo& outputTile, ShapeRef origInputShape, mlir::ArrayAttr kernel_size,
-                              mlir::ArrayAttr strides, PadInfo origPadding);
+                              mlir::ArrayAttr strides, const PadInfo& origPadding);
 
 }  // namespace vpux

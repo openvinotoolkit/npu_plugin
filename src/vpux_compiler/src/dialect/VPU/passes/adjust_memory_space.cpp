@@ -58,17 +58,24 @@ mlir::LogicalResult CopiesForNCEOp::matchAndRewrite(VPU::NCEOpInterface origOp, 
     const auto memSpaceCMX = IndexedSymbolAttr::get(rewriter.getContext(), stringifyEnum(MemoryKind::CMX_NN));
 
     llvm::DenseMap<mlir::Value, mlir::Value> copiedInputs;
-    for (const auto inputOperandIdx : irange(origOp->getNumOperands())) {
-        auto& inputOperand = origOp->getOpOperand(inputOperandIdx);
+    for (auto& inputOperand : origOp->getOpOperands()) {
         auto origInputValue = inputOperand.get();
         // No need to copy the data if due to some reason it's in CMX already
-        const auto inputMemSpace = IE::getMemorySpace(origInputValue.getType().cast<mlir::RankedTensorType>());
+        const auto inputMemSpace = origInputValue.getType().cast<vpux::NDTypeInterface>().getMemSpace();
         if (inputMemSpace == memSpaceCMX) {
             continue;
         }
-        // Make sure that we copy each piece of data into CMX only once
+
+        /// Make sure that we copy each piece of data into CMX only once
+        /// @example
+        /// Bad:
+        ///   Input --> Copy -> NCEEltwise(Abs)
+        ///        \--> Copy --/
+        /// OK:
+        ///   Input -> Copy -> NCEEltwise(Abs)
+        ///                \--/
         if (copiedInputs.count(origInputValue) == 0) {
-            const auto locationSuffix = llvm::formatv("input-{0}-CMX", inputOperandIdx).str();
+            const auto locationSuffix = llvm::formatv("input-{0}-CMX", inputOperand.getOperandNumber()).str();
             const auto inputCMX = copyIntoMemSpace(rewriter, appendLoc(origOp->getLoc(), locationSuffix),
                                                    origInputValue, memSpaceCMX);
             copiedInputs[origInputValue] = inputCMX;
@@ -116,19 +123,13 @@ void AdjustMemorySpacePass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     // NCE operations are only legal if all their outputs and inputs (incl. weights) reside in CMX
-    const auto isLegalOp = [&](mlir::Operation* op) {
-        if (auto iface = mlir::dyn_cast<VPU::NCEOpInterface>(op)) {
-            const auto memSpaceCMX = IndexedSymbolAttr::get(&ctx, stringifyEnum(MemoryKind::CMX_NN));
-            for (auto operand : iface->getOperands()) {
-                if (IE::getMemorySpace(operand.getType().cast<mlir::RankedTensorType>()) != memSpaceCMX) {
-                    return false;
-                }
-            }
-            for (auto result : iface->getResults()) {
-                if (IE::getMemorySpace(result.getType().cast<mlir::RankedTensorType>()) != memSpaceCMX) {
-                    return false;
-                }
-            }
+    const auto isLegalOp = [](mlir::Operation* op) {
+        if (auto nce_op = mlir::dyn_cast<VPU::NCEOpInterface>(op)) {
+            const auto verify_location_in_cmx = [](mlir::Value operand) {
+                return operand.getType().cast<vpux::NDTypeInterface>().getMemoryKind() == MemoryKind::CMX_NN;
+            };
+            return llvm::all_of(nce_op->getOperands(), verify_location_in_cmx) &&
+                   llvm::all_of(nce_op->getResults(), verify_location_in_cmx);
         }
         return true;
     };

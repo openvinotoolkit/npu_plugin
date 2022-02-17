@@ -417,8 +417,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IE::MaxPoolOp origOp, L
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(VPU::NCEMaxPoolOp origOp, Logger log) {
     return verifyPoolCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
                          origOp.input().getType().cast<vpux::NDTypeInterface>(),
-                         origOp.output().getType().cast<vpux::NDTypeInterface>(), origOp.kernel_size(), origOp.strides(),
-                         log);
+                         origOp.output().getType().cast<vpux::NDTypeInterface>(), origOp.kernel_size(),
+                         origOp.strides(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::MaxPoolOp origOp, Logger log) {
