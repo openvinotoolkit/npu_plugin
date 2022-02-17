@@ -95,14 +95,6 @@ public:
 class EltwiseStrategy : public BaseLayerStrategy {
 public:
     EltwiseStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
-    }
-
-    bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
-};
-
-//
-// StrategyManager
-//
 
 // Higher level strategy manager class
 // Its current purpose is to globally assign strategies
