@@ -381,10 +381,6 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const OutputTiling& til
     if (tileDims.size() != 1) {
         return false;
     }
-    if (tilingMode == vpux::TilingMode::ISOLATED_TILING) {
-        return isSupportedIsolatedTiling(origOp, tiles, log);
-    }
-
     auto tileDim = tileDims[0];
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
            isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);

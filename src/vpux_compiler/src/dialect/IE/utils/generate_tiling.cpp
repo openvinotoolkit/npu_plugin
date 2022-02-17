@@ -127,7 +127,6 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
             prefetchableTilesOnDim[dimToTile]++;
         }
         if (!isDimLeftToTile(prefetchableTilesOnDim)) {
-            prefetchableTilesOnDim[targetDim]--;
             break;
         }
     }
@@ -254,16 +253,6 @@ mlir::Operation* getParentTargetOp(mlir::Operation* op) {
         if (parentOp->getOperands().size() < 1) {
             return nullptr;
         }
-        // For parallel sub-graphs, the order is undecided yet
-        // Abandon prefetching these cases
-        if (!parentOp->getResult(0).hasOneUse()) {
-            auto user1 = *parentOp->getResult(0).getUsers().begin();
-            for (auto remainUser : parentOp->getResult(0).getUsers()) {
-                if (remainUser != user1) {
-                    return nullptr;
-                }
-            }
-        }
         parentOp = parentOp->getOperand(0).getDefiningOp();
     }
     return parentOp;
@@ -278,6 +267,16 @@ bool prefetchTilingConditionSatisfied(mlir::Operation* op, Logger log) {
     auto parentTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(parentOp);
     if (!opTilingInter || !parentTilingInter) {
         return false;
+    }
+    // For parallel sub-graphs, the order is undecided yet
+    // Abandon prefetching these cases
+    if (!parentOp->getResult(0).hasOneUse()) {
+        auto user1 = *parentOp->getResult(0).getUsers().begin();
+        for (auto remainUser : parentOp->getResult(0).getUsers()) {
+            if (remainUser != user1) {
+                return false;
+            }
+        }
     }
 
     // Check if tile pattern is supported
