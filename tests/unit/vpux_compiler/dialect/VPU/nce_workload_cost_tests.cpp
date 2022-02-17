@@ -12,24 +12,19 @@
 //
 
 #include "vpux/compiler/core/tiling.hpp"
-#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/init.hpp"
 
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Parser.h>
-#include <mlir/Pass/PassManager.h>
 
 #include <gtest/gtest.h>
 
 namespace {
 
 constexpr int64_t numDPU = 5;
-llvm::ArrayRef<vpux::VPU::MPEMode> mpeModeList{vpux::VPU::MPEMode::VECTOR_FP16, vpux::VPU::MPEMode::VECTOR,
-                                               vpux::VPU::MPEMode::MATRIX, vpux::VPU::MPEMode::CUBOID_4x16};
 
 vpux::VPUIP::WorkloadCostParams buildWorkloadCost(vpux::VPU::NCEConvolutionOp convolutionOp,
                                                   vpux::VPU::MPEMode mpeMode) {
@@ -92,6 +87,9 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
 
     auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
+
+    llvm::SmallVector<vpux::VPU::MPEMode> mpeModeList{vpux::VPU::MPEMode::VECTOR_FP16, vpux::VPU::MPEMode::VECTOR,
+                                                      vpux::VPU::MPEMode::MATRIX, vpux::VPU::MPEMode::CUBOID_4x16};
 
     for (auto& op : func.getOps()) {
         if (auto convolutionOp = mlir::dyn_cast<vpux::VPU::NCEConvolutionOp>(op)) {
