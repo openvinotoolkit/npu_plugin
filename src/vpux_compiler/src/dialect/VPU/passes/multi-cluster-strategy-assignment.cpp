@@ -108,8 +108,6 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<VPU::NCEMaxPoolOp>::matchAndRew
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
 
-    const llvm::StringRef strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
-
     auto activationTensorDistributionMode = _strategyManager.getActivationTensorDistributionMode(origOp);
     auto activationTensorNumTiles = _strategyManager.getActivationTensorNumTiles(origOp);
 
