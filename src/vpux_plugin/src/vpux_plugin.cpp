@@ -41,6 +41,7 @@
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
+#include "vpux/utils/plugin/plugin_name.hpp"
 
 namespace vpux {
 namespace IE = InferenceEngine;
@@ -305,14 +306,12 @@ IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::str
         };
 
         if (name == ov::supported_properties) {
-            static const std::vector<ov::PropertyName> supportedProperties{
+            static const std::vector<ov::PropertyName> baseProperties{
                     RO_property(ov::supported_properties.name()),            //
                     RO_property(ov::available_devices.name()),               //
-                    RO_property(ov::device::full_name.name()),               //
                     RO_property(ov::device::capabilities.name()),            //
                     RO_property(ov::range_for_async_infer_requests.name()),  //
                     RO_property(ov::range_for_streams.name()),               //
-                    RO_property(ov::device::architecture.name()),            //
 
                     RW_property(ov::num_streams.name()),            //
                     RW_property(ov::enable_profiling.name()),        //
@@ -320,6 +319,15 @@ IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::str
                     RW_property(ov::log::level.name()),              //
                     RW_property(ov::device::id.name()),              //
             };
+            static const std::vector<ov::PropertyName> supportedProperties =
+            [&]() {
+                std::vector<ov::PropertyName> retProperties = baseProperties;
+                if (!_metrics->GetAvailableDevicesNames().empty()) {
+                    retProperties.push_back(RO_property(ov::device::full_name.name()));
+                    retProperties.push_back(RO_property(ov::device::architecture.name()));
+                }
+                return retProperties;
+            }();
             return supportedProperties;
         } else if (name == ov::available_devices) {
             return _metrics->GetAvailableDevicesNames();
@@ -365,7 +373,7 @@ IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::str
     VPUX_THROW("Unsupported metric {0}", name);
 }
 
-static const IE::Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_intel_vpux_plugin"};
+static const IE::Version version = {{2, 1}, CI_BUILD_NUMBER, vpux::VPUX_PLUGIN_LIB_NAME};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
 
 }  // namespace vpux

@@ -8,6 +8,7 @@
 #include "common/functions.h"
 #include "vpux_private_config.hpp"
 #include "vpux_private_metrics.hpp"
+#include "vpux/utils/plugin/plugin_name.hpp"
 
 using namespace BehaviorTestsDefinitions;
 using IEClassGetMetricTest_nightly = IEClassGetMetricTest;
@@ -19,7 +20,7 @@ std::vector<std::string> devices = {
 };
 
 std::pair<std::string, std::string> plugins[] = {
-        std::make_pair(std::string("openvino_intel_vpux_plugin"), std::string(CommonTestUtils::DEVICE_KEEMBAY)),
+        std::make_pair(std::string(vpux::VPUX_PLUGIN_LIB_NAME), std::string(CommonTestUtils::DEVICE_KEEMBAY)),
 };
 
 //
