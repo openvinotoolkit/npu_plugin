@@ -133,12 +133,7 @@ bool StrategyManager::isOperationSplitOverKernelCompatible(ConcreteOp& op) const
 
 template <class ConcreteOp>
 bool StrategyManager::isOperationMultiClusterCompatible(ConcreteOp& op) const {
-    if (!isOperationSplitOverHeightCompatible<ConcreteOp>(op) &&
-        !isOperationSplitOverKernelCompatible<ConcreteOp>(op)) {
-        return false;
-    } else {
-        return true;
-    }
+    return isOperationSplitOverHeightCompatible<ConcreteOp>(op) || isOperationSplitOverKernelCompatible<ConcreteOp>(op);
 }
 
 template <class ConcreteOp>
