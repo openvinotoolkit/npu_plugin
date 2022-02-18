@@ -383,7 +383,30 @@ void FeasibleMemoryScheduler::getReadyComputeList() {
     _log = _log.unnest();
 }
 
-SmallVector<mlir::Value> FeasibleMemoryScheduler::sortUsedBuffers(mlir::DenseSet<mlir::Value>& operationBuffers) {
+SmallVector<mlir::Value> FeasibleMemoryScheduler::sortUsedBuffers(operationIdxType opIdx,
+                                                                  mlir::DenseSet<mlir::Value>& operationBuffers) {
+    // retrieve operation output buffers so they can be allocated first
+    auto execOp = _depsInfo.getExecuteOpAtIndex(opIdx);
+    auto* bodyBlock = &execOp.body().front();
+    mlir::DenseSet<mlir::Value> operationOutputBuffers;
+    for (auto& innerOp : bodyBlock->getOperations()) {
+        if (!mlir::isa<IERT::LayerOpInterface>(innerOp)) {
+            continue;
+        }
+        auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(innerOp).getOutputs();
+        for (const auto& output : outputs) {
+            const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
+            if (type == nullptr || type.getMemSpace() != _memSpace) {
+                continue;
+            }
+            auto rootBuffers = _aliasInfo.getRoots(output);
+            VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", output,
+                              rootBuffers.size());
+            auto rootBuffer = *rootBuffers.begin();
+            operationOutputBuffers.insert(rootBuffer);
+        }
+    }
+    // add a heuristic for order of buffers - size
     SmallVector<std::pair<vpux::AddressType, mlir::Value>> buffersWithSize;
     for (auto& val : operationBuffers) {
         auto opSize = _scan.handler().getSize(val);
@@ -557,7 +580,7 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
         scheduleInputOpForComputeOp(inputIdx, maxInputDelay - 1);
     }
 
-    auto sortedBuffers = sortUsedBuffers(buffersNeedingAllocation);
+    auto sortedBuffers = sortUsedBuffers(opIdx, buffersNeedingAllocation);
 
     // allocate buffers using LinearScan
     _log.nest().trace("Allocate memory for the alive buffers");
