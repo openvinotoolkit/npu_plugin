@@ -27,7 +27,7 @@ Simulator::Simulator(llvm::StringLiteral instanceName, SimArch arch, Logger& log
 
     auto moviLogLevel = VpuAccessInterface::vpuxLogToMovisim.find(m_logger.level())->second;
     // Will always enable pipePrint for now. Need it for polling of app-end;
-    m_interface.setVerbosity(moviLogLevel | static_cast<uint32_t>(VpuAccessInterface::moviLog::MOVISIM_PIPEPRINT));
+    m_interface.setVerbosity(static_cast<uint32_t>(VpuAccessInterface::moviLog::MOVISIM_NONE));
 
     m_logger.debug("Setting verbosity of MoviSim service to {0}",
                    moviLogLevel | static_cast<uint32_t>(VpuAccessInterface::moviLog::MOVISIM_PIPEPRINT));
@@ -35,12 +35,18 @@ Simulator::Simulator(llvm::StringLiteral instanceName, SimArch arch, Logger& log
         args.emplace_back("-nodasm");
     }
 
+    if (m_logger.level() >= vpux::LogLevel::Debug) {
+        args.emplace_back("-q");
+    }
+
+    args.emplace_back("-simLevel:fast");
+
     args.emplace_back(m_archStringMap.find(m_arch)->second.data());
 
     m_interface.initialize(args.size(), const_cast<char**>(args.data()),
                            const_cast<char*>(MV_TOOLS_PATH "/linux64/bin"));
 
-    m_logger.trace("Movisim  setting external memAdrrRange: {0} size {1}", VPU_DEFAULT_BASE_MEMORY_ADDRESS,
+    m_logger.trace("Movisim  setting external memAdrrRange: {0:x} size {1}", VPU_DEFAULT_BASE_MEMORY_ADDRESS,
                    VPU_DEFAULT_MEMORY_SIZE);
     m_interface.setExternalMemoryAddressRange(VPU_DEFAULT_BASE_MEMORY_ADDRESS, VPU_DEFAULT_MEMORY_SIZE);
 }

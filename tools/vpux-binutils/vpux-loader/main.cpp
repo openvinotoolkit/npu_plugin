@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
     inputStream.close();
 
     vpux::binutils::HardCodedSymtabToCluster0 singleClusterSymTab;
-    vpux::binutils::FlatHexBufferManager bufferManager(baseAddr, memSize);
+    vpux::binutils::OwningFlatHexBufferManager bufferManager(baseAddr, memSize);
 
     vpux::binutils::HexMappedInferenceEntry* hexEntry = reinterpret_cast<vpux::binutils::HexMappedInferenceEntry*>(
             bufferManager.allocate(1, sizeof(vpux::binutils::HexMappedInferenceEntry)).cpu_addr());

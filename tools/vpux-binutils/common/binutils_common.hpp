@@ -22,11 +22,11 @@ using namespace elf;
 
 namespace vpux {
 namespace binutils {
-
 class FlatHexBufferManager : public BufferManager {
 public:
-    FlatHexBufferManager(uint32_t startAddr, size_t size)
-            : m_startAddr(startAddr), m_totalSize(size), m_buffer(new uint8_t[m_totalSize]), m_tracker(m_buffer) {
+    FlatHexBufferManager(uint32_t startAddr, size_t size, uint8_t* const buffer)
+                : m_startAddr(startAddr), m_totalSize(size), m_buffer(buffer), m_tracker(m_buffer) {
+
     }
 
     DeviceBuffer allocate(size_t alignment, size_t size) override {
@@ -53,10 +53,6 @@ public:
         (void)devBuffer;
     }
 
-    ~FlatHexBufferManager() {
-        delete m_buffer;
-    }
-
     size_t copy(elf::DeviceBuffer& to, const uint8_t* from, size_t count) {
         memcpy(to.cpu_addr(), from, count);
         return count;
@@ -73,7 +69,7 @@ public:
         return m_startAddr;
     }
 
-private:
+protected:
     template <typename T>
     bool isPowerOfTwo(T val) {
         return val && ((val & (val - 1)) == 0);
@@ -97,6 +93,16 @@ private:
     uint8_t* m_tracker;
 };
 
+class OwningFlatHexBufferManager : public FlatHexBufferManager {
+public:
+    OwningFlatHexBufferManager(uint32_t startAddr, size_t size)
+                : FlatHexBufferManager(startAddr, size, new uint8_t[size]) {
+                }
+
+    ~OwningFlatHexBufferManager() {
+        delete[] m_buffer;
+    }
+};
 // TODO(EISW-23975): This beautiful piece of code contains the "special symtab" that normally needs to be queried from
 // the runtime. In IMDemo example we have a similar class that constructs this symTab based on data from the
 // InferenceRuntimeService. Since we cannot include that in kmb-plugin, we will occasionally manually check the values,

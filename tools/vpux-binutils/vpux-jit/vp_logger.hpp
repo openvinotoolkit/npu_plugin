@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_set>
 #include <utility>
+#include <mutex>
 
 #include <vpux/utils/core/logger.hpp>
 
@@ -12,6 +13,16 @@
 
 namespace vpux {
 namespace movisim {
+
+template<typename T>
+class vpuPtr {
+    vpuPtr() = delete;
+    vpuPtr(T* cpuAddr, uint64_t vpuAddr) : m_cpuAddr(cpuAddr), m_vpuAddr(vpuAddr) {
+    }
+private:
+    uint64_t m_vpuAddr;
+    T* m_cpuAddr;
+};
 
 class VpuAccessInterface final : public ::movisim::VpInterface {
 public:
@@ -25,8 +36,11 @@ public:
               m_logger(logger),
               m_expectedResults{},
               m_vpuMemory(new uint8_t[vpuMemSize]),
-              m_vpuBaseAddr(vpuBaseAddr) {
-        bzero(m_vpuMemory.get(), vpuMemSize);
+              m_vpuMemSize(vpuMemSize),
+              m_vpuBaseAddr(vpuBaseAddr),
+              m_isVpuMemRequested(false) {
+        bzero(m_vpuMemory, vpuMemSize);
+        m_executionMutex.unlock();
     }
 
     // callback function called by movisim on Prints and log requests
@@ -41,13 +55,22 @@ public:
     void addExpectedResult(std::string output);
     bool waitForResults(const std::chrono::seconds timeout);
 
+    uint8_t* vpuWindow(const uint64_t vpuAddr) const{
+        return m_vpuMemory + (vpuAddr - m_vpuBaseAddr);
+    }
+
+    std::timed_mutex m_executionMutex;
 private:
     llvm::StringLiteral m_instanceName;
     Logger m_logger;
     std::unordered_set<std::string> m_expectedResults;
 
-    std::unique_ptr<uint8_t> m_vpuMemory;
+    uint8_t* m_vpuMemory;
+    const uint64_t m_vpuMemSize;
     const uint64_t m_vpuBaseAddr;
+
+    bool m_isVpuMemRequested;
+
 };
 
 }  // namespace movisim

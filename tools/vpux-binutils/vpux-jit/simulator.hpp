@@ -57,7 +57,12 @@ public:
         m_interface.stop();
     }
     void resume() {
+        m_vpInterface.m_executionMutex.lock();
         m_interface.resume();
+    }
+
+    uint8_t* vpuWindow(const uint64_t vpuAddr) const {
+        return m_vpInterface.vpuWindow(vpuAddr);
     }
 
     template <typename T>
@@ -82,18 +87,6 @@ private:
 };
 
 template <typename T>
-void Simulator::read(const std::uint32_t startAddress, T* const location, const std::uint32_t size) {
-    std::size_t cycles;
-    const std::uint32_t sizeInBytes = size * sizeof(T);
-    const std::uint32_t prePadding = startAddress % m_chunkSize;
-    const std::uint32_t postPadding = m_chunkSize - (startAddress + sizeInBytes) % m_chunkSize;
-
-    std::vector<char> bytes(prePadding + sizeInBytes + postPadding);
-    m_interface.movisimMemRead(startAddress - prePadding, bytes.size(), bytes.data(), cycles);
-    std::copy_n(reinterpret_cast<const T*>(bytes.data() + prePadding), size, location);
-}
-
-template <typename T>
 void Simulator::write(std::uint32_t& startAddress, const T* const data, const std::uint32_t size) {
     const std::uint32_t sizeInBytes = size * sizeof(T);
     const std::uint32_t prePadding = startAddress % m_chunkSize;
@@ -112,6 +105,18 @@ void Simulator::write(std::uint32_t& startAddress, const T* const data, const st
     for (std::uint32_t offset = 0; offset < bytes.size(); offset += m_chunkSize)
         m_interface.movisimMemWrite(paddedStartAddress + offset, m_chunkSize, bytes.data() + offset);
     startAddress += sizeInBytes;
+}
+
+template <typename T>
+void Simulator::read(const std::uint32_t startAddress, T* const location, const std::uint32_t size) {
+    std::size_t cycles;
+    const std::uint32_t sizeInBytes = size * sizeof(T);
+    const std::uint32_t prePadding = startAddress % m_chunkSize;
+    const std::uint32_t postPadding = m_chunkSize - (startAddress + sizeInBytes) % m_chunkSize;
+
+    std::vector<char> bytes(prePadding + sizeInBytes + postPadding);
+    m_interface.movisimMemRead(startAddress - prePadding, bytes.size(), bytes.data(), cycles);
+    std::copy_n(reinterpret_cast<const T*>(bytes.data() + prePadding), size, location);
 }
 
 template <typename T>

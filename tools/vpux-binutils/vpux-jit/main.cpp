@@ -36,15 +36,12 @@ namespace ie = InferenceEngine;
 
 namespace {
 
+//these are the configs for the ImDemo FW app that the simulator is running. Manually checked...
 constexpr uint32_t DEFAULT_BASE_BUFF = 0x80000000;
-constexpr uint32_t DEFAULT_BUF_SIZE = 128 * 1024 * 1024;
+constexpr uint32_t DEFAULT_BUF_SIZE = 72 * 1024 * 1024;
+constexpr int DEFAULT_SIMULATION_TIMEOUT_SECONDS = 100;
 
 enum InputSource { Random, Zeroes, Ones, CheckerBoard, Files };
-
-// enum ExecutionMode {MLIR, ELF};
-
-// llvm::cl::opt<std::string> inputFilePath(llvm::cl::Positional, llvm::cl::Required, llvm::cl::value_desc("filename"),
-//                                         llvm::cl::desc("<Input MLIR File>"));
 
 llvm::cl::OptionCategory executionMode("Execution mode", "These option control the execution mode of the program");
 
@@ -75,6 +72,12 @@ llvm::cl::opt<size_t> memSize("size", llvm::cl::value_desc("memSize"), llvm::cl:
                               llvm::cl::desc("DEVELOPER ONLY: Maximum size of the allocated buffer on VPU side"
                                              "for the Loaded and linked hex-file. This value needs to reflect"
                                              "the InferenceManagerDemoHex application configuration"));
+
+llvm::cl::opt<int> simulationTimeout("timeout", llvm::cl::value_desc("timeout_seconds"), llvm::cl::init(DEFAULT_SIMULATION_TIMEOUT_SECONDS),
+                                    llvm::cl::desc("Timeout in seconds for the simulation. There is no particular error"
+                                                    "signaling mechanism from simulated VPU FW to host, so need a"
+                                                    "timeout in case of FW issues. May need to increase for"
+                                                    "large networks."));
 
 llvm::cl::opt<bool> verboseL1("v", llvm::cl::desc("enable verbose execution"));
 llvm::cl::opt<bool> verboseL2("vv", llvm::cl::desc("higher level of verbosity"), llvm::cl::Hidden);
@@ -143,7 +146,7 @@ public:
     IMDemoSimulator(vpux::Logger logger)
             : m_sim("MTL_VPUX_JIT", Simulator::ARCH_MTL, logger),
               m_singleClusterSymTab(),
-              m_bufferManager(baseAddr, memSize),
+              m_bufferManager(baseAddr, memSize, m_sim.vpuWindow(baseAddr)),
               m_entry(reinterpret_cast<vpux::binutils::HexMappedInferenceEntry*>(m_bufferManager.allocate(1, sizeof(vpux::binutils::HexMappedInferenceEntry)).cpu_addr())),
               m_logger(logger)
 
@@ -160,8 +163,8 @@ public:
 
         m_entry->elfEntryPtr = static_cast<uint32_t>(loader.getEntry());
 
-        allocIO(&m_bufferManager, m_inputs, m_inputSizes, &m_entry->inputsPtr, &m_entry->inputSizesPtr, &m_entry->inputsCount);
-        allocIO(&m_bufferManager, m_outputs, m_outputSizes, &m_entry->outputsPtr, &m_entry->outputSizesPtr, &m_entry->outputsCount);
+        allocIO(reinterpret_cast<BufferManager*>(&m_bufferManager), m_inputs, m_inputSizes, &m_entry->inputsPtr, &m_entry->inputSizesPtr, &m_entry->inputsCount);
+        allocIO(reinterpret_cast<BufferManager*>(&m_bufferManager), m_outputs, m_outputSizes, &m_entry->outputsPtr, &m_entry->outputSizesPtr, &m_entry->outputsCount);
 
         loader.applyJitRelocations(m_inputs, m_outputs);
     }
@@ -172,10 +175,6 @@ public:
 
     std::vector<elf::DeviceBuffer>& getOutputs() {
         return m_outputs;
-    }
-
-    void readInto(uint32_t addr, std::vector<uint8_t>& targetVec) {
-        m_sim.read(addr, targetVec.data(), targetVec.size());
     }
 
     void setInputs(std::vector<std::vector<uint8_t>>& inputs) {
@@ -198,28 +197,17 @@ public:
         }
     }
 
-    void run(/*mlir::ModuleOp module, llvm::ArrayRef<llvm::ArrayRef<uint8_t>> inputs,
-             llvm::ArrayRef<llvm::ArrayRef<uint8_t>> outputs*/) {
+    void run() {
 
         m_entry->totalSize = static_cast<uint32_t>(m_bufferManager.size());
 
-        m_sim.write(m_bufferManager.vpuBaseAddr(), m_bufferManager.buffer(), m_bufferManager.size());
         m_sim.expectOutput("PIPE:\t: IMDEMOHEXT_FINISH\r\n");
 
-        m_sim.resume();
-        llvm::outs() << " 4 \n";
+        m_sim.resume(); //TODO: Peter to check
 
-        llvm::outs() << " 5 \n";
-
-        m_sim.resume();
-        llvm::outs() << " 6 \n";
-
-        m_sim.waitForExpectedOutputs(std::chrono::seconds(100));
+        m_sim.waitForExpectedOutputs(std::chrono::seconds(simulationTimeout));
 
         m_sim.reset();
-        // while (1) {
-        llvm::outs() << " FINISHED SIM \n";
-        // };
 
         return;
     }
@@ -284,12 +272,9 @@ void dumpOutputs(const std::vector<elf::DeviceBuffer>& vec, IMDemoSimulator& sim
         llvm::outs() << llvm::formatv("\t {0}: {1:x} -> size {2}\n", i, vec[i].vpu_addr(), vec[i].size());
 
         std::ofstream outFileStream;
-        std::vector<uint8_t> tempVec(vec[i].size());
-        sim.readInto(vec[i].vpu_addr(), tempVec);
-
         auto fileName = llvm::formatv("output-{0}.bin",i);
         outFileStream.open(fileName, std::ios::out | std::ios::binary);
-        outFileStream.write(reinterpret_cast<const char*>(tempVec.data()), tempVec.size());
+        outFileStream.write(reinterpret_cast<const char*>(vec[i].cpu_addr()), vec[i].size());
         outFileStream.close();
     }
 }
