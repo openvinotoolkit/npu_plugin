@@ -61,6 +61,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_customnet1_tf_int8_dense_grayscale_fash
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_customnet_sigmoid) {
+    SKIP_INFER("Leads to 'DDR MemMgr failed to free segment'");  // [Track number: E#27630]
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet_sigmoid.xml")
                 .setUserInputPrecision("input", Precision::U8)
@@ -133,6 +134,7 @@ TEST_F(KmbClassifyNetworkTest, efficient_b0_cars) {
 
 TEST_F(KmbClassifyNetworkTest, precommit_efficient_b0_dogs) {
     SKIP_ON("EMULATOR", "Wrong results due to missing implementation for eltwise UPATask");
+    SKIP_INFER("Leads to 'DDR MemMgr failed to free segment'");  // [Track number: E#27630]
     runTest(
             TestNetworkDesc("efficientnet-b0-stanford-dogs/caffe2/FP16-INT8/efficientnet-b0-stanford-dogs.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -167,6 +169,7 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v3_cars) {
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v3_dogs) {
     SKIP_ON("HDDL2", "Bad accuracy");
     SKIP_ON("EMULATOR", "Wrong results due to missing implementation for eltwise UPATask");
+    SKIP_INFER("Leads to 'DDR MemMgr failed to free segment'");  // [Track number: E#27630]
     runTest(
             TestNetworkDesc("mobilenet-v3-small-stanford-dogs/caffe2/FP16-INT8/mobilenet-v3-small-stanford-dogs.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -241,6 +244,7 @@ const static std::vector<InferenceEngine::Precision> inputPrecision = {
 INSTANTIATE_TEST_SUITE_P(PrecisionCase, ModelAdk, ::testing::ValuesIn(inputPrecision));
 
 TEST_F(KmbClassifyNetworkTest, precommit_MobilenetV2_ADK3) {
+    SKIP_INFER("Leads to 'DDR MemMgr failed to free segment'");  // [Track number: E#27630]
     runTest(
             TestNetworkDesc("ADK3/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
