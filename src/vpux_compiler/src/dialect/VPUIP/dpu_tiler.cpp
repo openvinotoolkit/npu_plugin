@@ -18,9 +18,9 @@
 #include <file_utils.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
+#include <llvm/Support/Threading.h>
 #include <mlir/Support/FileUtilities.h>
 #include <vpu_cost_model.h>
-#include <functional>
 #include <numeric>
 #include <set>
 
@@ -33,7 +33,7 @@ constexpr uint32_t DEFAULT_ZTILE_VALUE = 16;
 constexpr size_t MIN_VALID_ZTILE_EXPONENT = 4;
 constexpr size_t MAX_VALID_ZTILE_EXPONENT = 8;
 
-std::unique_ptr<VPUNN::VPUCostModel> gCostModel{nullptr};
+llvm::once_flag initializeCostModelFlag;
 
 VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
     switch (mpeMode) {
@@ -113,13 +113,72 @@ VPUNN::VPUTensor getOutputTensor(const TileInfo& tileInfo, VPUNN::DataType dataT
                             dataType);
 }
 
-bool isCostModelInited() {
-    return gCostModel != nullptr;
+SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLimit) {
+    SmallVector<uint32_t> splits;
+    for (uint32_t idx = 0; idx < std::log2(maxSplitRange); idx++) {
+        auto powIdx = static_cast<uint32_t>(std::pow(2, idx));
+        auto splitCandidate = maxSplitRange / powIdx;
+        if (maxSplitRange % powIdx == 0 && splitCandidate <= maxLimit) {
+            splits.push_back(splitCandidate);
+        }
+    }
+    return splits;
 }
 
-void initCostModel(VPU::ArchKind archKind) {
+class CostModelWrapper {
+public:
+    unsigned int cost(const TileInfo& dpuTile, const vpux::VPUIP::WorkloadCostParams& params);
+
+    static void init(VPU::ArchKind archKind);
+    static CostModelWrapper& instance();
+
+private:
+    static CostModelWrapper& getInstanceImpl(StringRef modelPath = {});
+
+    explicit CostModelWrapper(StringRef modelPath);
+    std::unique_ptr<VPUNN::VPUCostModel> _costModel;
+};
+
+CostModelWrapper::CostModelWrapper(StringRef modelPath)
+        : _costModel(std::make_unique<VPUNN::VPUCostModel>(modelPath.str())) {
+    VPUX_THROW_WHEN(_costModel == nullptr, "Create VPUNN cost model failed");
+}
+
+unsigned int CostModelWrapper::cost(const TileInfo& dpuTile, const vpux::VPUIP::WorkloadCostParams& params) {
+    VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
+    const auto KY = static_cast<unsigned int>(params.kernelSize[0]);
+    const auto KX = static_cast<unsigned int>(params.kernelSize[1]);
+    VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
+    const auto SY = static_cast<unsigned int>(params.kernelStride[0]);
+    const auto SX = static_cast<unsigned int>(params.kernelStride[1]);
+
+    const auto opType = getOperationType(params.nceTaskType);
+    const auto elemType = getElementType(params.dataType);
+    const auto padsTileConf = backInferPadsTile(dpuTile, params.outputShape, params.padInfo);
+
+    VPUNN::VPUTensor outputTensor = getOutputTensor(dpuTile, elemType);
+    VPUNN::VPUTensor inputTensor({(outputTensor.x() - 1) * SX + KX - static_cast<unsigned int>(padsTileConf.left) -
+                                          static_cast<unsigned int>(padsTileConf.right),
+                                  (outputTensor.y() - 1) * SY + KY - static_cast<unsigned int>(padsTileConf.top) -
+                                          static_cast<unsigned int>(padsTileConf.bottom),
+                                  static_cast<unsigned int>(params.inputShape[Dims4D::Act::C]), 1},
+                                 elemType);
+
+    return _costModel->DPU(
+            {getVPUDeviceType(params.arch),
+             opType,
+             {inputTensor},
+             {outputTensor},
+             {KX, KY},
+             {SX, SY},
+             {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
+              static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
+             getExecutionMode(params.mpeMode)});
+}
+
+void CostModelWrapper::init(VPU::ArchKind archKind) {
     SmallString modelDir;
-    // probe for OV_BUILD_DIR
+    // probe for OpenVINO runtime dir
     auto ovBuildDir = InferenceEngine::getIELibraryPath();
 
     modelDir = ovBuildDir;
@@ -135,21 +194,18 @@ void initCostModel(VPU::ArchKind archKind) {
     default:
         VPUX_THROW("Unsupported VPU arch type: '{0}'", archKind);
     }
-
     VPUX_THROW_UNLESS(llvm::sys::fs::exists(modelDir), "vpunn model {0} does not exist", modelDir);
-    gCostModel = std::make_unique<VPUNN::VPUCostModel>(modelDir.str().str());
+
+    getInstanceImpl(modelDir);
 }
 
-SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLimit) {
-    SmallVector<uint32_t> splits;
-    for (uint32_t idx = 0; idx < std::log2(maxSplitRange); idx++) {
-        auto powIdx = static_cast<uint32_t>(std::pow(2, idx));
-        auto splitCandidate = maxSplitRange / powIdx;
-        if (maxSplitRange % powIdx == 0 && splitCandidate <= maxLimit) {
-            splits.push_back(maxSplitRange / powIdx);
-        }
-    }
-    return splits;
+CostModelWrapper& CostModelWrapper::instance() {
+    return getInstanceImpl();
+}
+
+CostModelWrapper& CostModelWrapper::getInstanceImpl(StringRef modelPath) {
+    static CostModelWrapper object(modelPath);
+    return object;
 }
 }  // namespace
 
@@ -158,7 +214,7 @@ SmallVector<uint32_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t num
 
     // Note: refer the values from workload number pool implementation at
     // https://github.com/intel-innersource/frameworks.ai.vpu.presilicon.fathom/blob/main/src/Controllers/WorkloadGen.py#L84
-    // 2^4 equals to the CMX word siz in bytes,  2^8 is an up bound to limit the number of splits
+    // 2^4 equals to the CMX word size in bytes,  2^8 is an up bound to limit the number of splits
     for (size_t i = MIN_VALID_ZTILE_EXPONENT; i < MAX_VALID_ZTILE_EXPONENT; ++i) {
         validZTiles.push_back(static_cast<uint32_t>(std::pow(2, i)));
         validZTiles.push_back(validZTiles.back() + DEFAULT_ZTILE_VALUE);
@@ -259,48 +315,17 @@ void vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
 }
 
 uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
-    if (!isCostModelInited()) {
-        initCostModel(params.arch);
-    }
-    const auto opType = getOperationType(params.nceTaskType);
-    const auto elemType = getElementType(params.dataType);
-    VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
-    const auto KY = static_cast<unsigned int>(params.kernelSize[0]);
-    const auto KX = static_cast<unsigned int>(params.kernelSize[1]);
-
-    VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
-    const auto SY = static_cast<unsigned int>(params.kernelStride[0]);
-    const auto SX = static_cast<unsigned int>(params.kernelStride[1]);
+    llvm::call_once(initializeCostModelFlag, CostModelWrapper::init, params.arch);
 
     std::vector<unsigned int> workloadCost;
     for (const auto& dpuTile : dpuTiles) {
-        const auto padsTileConf = backInferPadsTile(dpuTile, params.outputShape, params.padInfo);
-        VPUNN::VPUTensor outputTensor = getOutputTensor(dpuTile, elemType);
-        VPUNN::VPUTensor inputTensor({(outputTensor.x() - 1) * SX + KX - static_cast<unsigned int>(padsTileConf.left) -
-                                              static_cast<unsigned int>(padsTileConf.right),
-                                      (outputTensor.y() - 1) * SY + KY - static_cast<unsigned int>(padsTileConf.top) -
-                                              static_cast<unsigned int>(padsTileConf.bottom),
-                                      static_cast<unsigned int>(params.inputShape[Dims4D::Act::C]), 1},
-                                     elemType);
-
-        workloadCost.push_back(gCostModel->DPU(
-                {getVPUDeviceType(params.arch),
-                 opType,
-                 {inputTensor},
-                 {outputTensor},
-                 {KX, KY},
-                 {SX, SY},
-                 {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
-                  static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
-                 getExecutionMode(params.mpeMode)}));
+        workloadCost.push_back(CostModelWrapper::instance().cost(dpuTile, params));
     }
     return VPUNN::dpu_schedule(static_cast<unsigned int>(params.numDPU), workloadCost);
 }
 
 double vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
-    if (!isCostModelInited()) {
-        initCostModel(params.arch);
-    }
+    llvm::call_once(initializeCostModelFlag, CostModelWrapper::init, params.arch);
 
     VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
     VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");

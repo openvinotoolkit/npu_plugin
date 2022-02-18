@@ -94,7 +94,7 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp,
     VPUIP::DpuTiler dpuTiler(costParams.outputShape, costParams.mpeMode);
     dpuTiler.tileOverH(costParams.numDPU);
 
-    // This value is aligned with the limitation value in NCEClusterTask Op
+    // This value is aligned with the max DPU task value in NCEClusterTask Op
     static const size_t MAX_SPLIT_NUMBER = 5;
     const auto& splitNumPool = dpuTiler.generateSplitNumberPool(costParams.numDPU, MAX_SPLIT_NUMBER);
     if (costParams.isZTilingSupported) {

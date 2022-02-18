@@ -11,9 +11,9 @@
 // included with the Software Package for additional details.
 //
 
-#include "attributes.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/tiling.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
