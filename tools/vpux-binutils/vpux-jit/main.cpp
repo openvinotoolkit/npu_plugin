@@ -36,7 +36,7 @@ namespace ie = InferenceEngine;
 
 namespace {
 
-//these are the configs for the ImDemo FW app that the simulator is running. Manually checked...
+// these are the configs for the ImDemo FW app that the simulator is running. Manually checked...
 constexpr uint32_t DEFAULT_BASE_BUFF = 0x80000000;
 constexpr uint32_t DEFAULT_BUF_SIZE = 72 * 1024 * 1024;
 constexpr int DEFAULT_SIMULATION_TIMEOUT_SECONDS = 100;
@@ -45,11 +45,11 @@ enum InputSource { Random, Zeroes, Ones, CheckerBoard, Files };
 
 llvm::cl::OptionCategory executionMode("Execution mode", "These option control the execution mode of the program");
 
-llvm::cl::opt<std::string> mlirFilePath("mlir",
-                                    llvm::cl::desc("Use MLIR file as input. Run translation then loader then execute"),
-                                    llvm::cl::cat(executionMode));
+llvm::cl::opt<std::string> mlirFilePath(
+        "mlir", llvm::cl::desc("Use MLIR file as input. Run translation then loader then execute"),
+        llvm::cl::cat(executionMode));
 llvm::cl::opt<std::string> elfFilePath("elf", llvm::cl::desc("Use ELF file as input. Run the loader, then executer"),
-                                   llvm::cl::cat(executionMode));
+                                       llvm::cl::cat(executionMode));
 
 llvm::cl::opt<InputSource> inputSource(
         "i",
@@ -73,11 +73,12 @@ llvm::cl::opt<size_t> memSize("size", llvm::cl::value_desc("memSize"), llvm::cl:
                                              "for the Loaded and linked hex-file. This value needs to reflect"
                                              "the InferenceManagerDemoHex application configuration"));
 
-llvm::cl::opt<int> simulationTimeout("timeout", llvm::cl::value_desc("timeout_seconds"), llvm::cl::init(DEFAULT_SIMULATION_TIMEOUT_SECONDS),
-                                    llvm::cl::desc("Timeout in seconds for the simulation. There is no particular error"
-                                                    "signaling mechanism from simulated VPU FW to host, so need a"
-                                                    "timeout in case of FW issues. May need to increase for"
-                                                    "large networks."));
+llvm::cl::opt<int> simulationTimeout(
+        "timeout", llvm::cl::value_desc("timeout_seconds"), llvm::cl::init(DEFAULT_SIMULATION_TIMEOUT_SECONDS),
+        llvm::cl::desc("Timeout in seconds for the simulation. There is no particular error"
+                       "signaling mechanism from simulated VPU FW to host, so need a"
+                       "timeout in case of FW issues. May need to increase for"
+                       "large networks."));
 
 llvm::cl::opt<bool> verboseL1("v", llvm::cl::desc("enable verbose execution"));
 llvm::cl::opt<bool> verboseL2("vv", llvm::cl::desc("higher level of verbosity"), llvm::cl::Hidden);
@@ -97,8 +98,7 @@ void setLogLevel() {
     if (verboseL3) {
         vpuxElfLogLevelSet(VPUX_ELF_TRACE_LEVEL);
         appLogger.setLevel(vpux::LogLevel::Trace);
-    }
-    else{
+    } else {
         vpuxElfLogLevelSet(VPUX_ELF_WARN_LEVEL);
     }
 }
@@ -147,7 +147,8 @@ public:
             : m_sim("MTL_VPUX_JIT", Simulator::ARCH_MTL, logger),
               m_singleClusterSymTab(),
               m_bufferManager(baseAddr, memSize, m_sim.vpuWindow(baseAddr)),
-              m_entry(reinterpret_cast<vpux::binutils::HexMappedInferenceEntry*>(m_bufferManager.allocate(1, sizeof(vpux::binutils::HexMappedInferenceEntry)).cpu_addr())),
+              m_entry(reinterpret_cast<vpux::binutils::HexMappedInferenceEntry*>(
+                      m_bufferManager.allocate(1, sizeof(vpux::binutils::HexMappedInferenceEntry)).cpu_addr())),
               m_logger(logger)
 
     {
@@ -163,8 +164,10 @@ public:
 
         m_entry->elfEntryPtr = static_cast<uint32_t>(loader.getEntry());
 
-        allocIO(reinterpret_cast<BufferManager*>(&m_bufferManager), m_inputs, m_inputSizes, &m_entry->inputsPtr, &m_entry->inputSizesPtr, &m_entry->inputsCount);
-        allocIO(reinterpret_cast<BufferManager*>(&m_bufferManager), m_outputs, m_outputSizes, &m_entry->outputsPtr, &m_entry->outputSizesPtr, &m_entry->outputsCount);
+        allocIO(reinterpret_cast<BufferManager*>(&m_bufferManager), m_inputs, m_inputSizes, &m_entry->inputsPtr,
+                &m_entry->inputSizesPtr, &m_entry->inputsCount);
+        allocIO(reinterpret_cast<BufferManager*>(&m_bufferManager), m_outputs, m_outputSizes, &m_entry->outputsPtr,
+                &m_entry->outputSizesPtr, &m_entry->outputsCount);
 
         loader.applyJitRelocations(m_inputs, m_outputs);
     }
@@ -178,32 +181,37 @@ public:
     }
 
     void setInputs(std::vector<std::vector<uint8_t>>& inputs) {
-        VPUX_THROW_WHEN(inputs.size() != m_inputs.size(), "Input count mismatch. Provided {0}. Required {1}", inputs.size(), m_inputs.size());
-        for(size_t i = 0; i < inputs.size(); ++i) {
+        VPUX_THROW_WHEN(inputs.size() != m_inputs.size(), "Input count mismatch. Provided {0}. Required {1}",
+                        inputs.size(), m_inputs.size());
+        for (size_t i = 0; i < inputs.size(); ++i) {
             auto& input = inputs[i];
-            VPUX_THROW_WHEN(m_inputs[i].size() != input.size(), "Input size mismatch for input {0}. Provided {1}. Required {2}", i, input.size(), m_inputs[i].size());
+            VPUX_THROW_WHEN(m_inputs[i].size() != input.size(),
+                            "Input size mismatch for input {0}. Provided {1}. Required {2}", i, input.size(),
+                            m_inputs[i].size());
 
             std::copy(input.begin(), input.end(), m_inputs[i].cpu_addr());
         }
     }
 
     void setOutputs(std::vector<std::vector<uint8_t>>& outputs) {
-        VPUX_ELF_THROW_WHEN(outputs.size() != m_outputs.size(), "Output count mismatch. Provided {0}. Required {1}", outputs.size(), m_outputs.size());
-        for(size_t i = 0; i < outputs.size(); ++i) {
+        VPUX_ELF_THROW_WHEN(outputs.size() != m_outputs.size(), "Output count mismatch. Provided {0}. Required {1}",
+                            outputs.size(), m_outputs.size());
+        for (size_t i = 0; i < outputs.size(); ++i) {
             auto& output = outputs[i];
-            VPUX_THROW_WHEN(output.size() != m_outputs.size(), "Output size mismatch for output {0}. Provided {1}. Required {2}", i, output.size(), m_outputs.size());
+            VPUX_THROW_WHEN(output.size() != m_outputs.size(),
+                            "Output size mismatch for output {0}. Provided {1}. Required {2}", i, output.size(),
+                            m_outputs.size());
 
             std::copy(output.begin(), output.end(), m_outputs[i].cpu_addr());
         }
     }
 
     void run() {
-
         m_entry->totalSize = static_cast<uint32_t>(m_bufferManager.size());
 
         m_sim.expectOutput("PIPE:\t: IMDEMOHEXT_FINISH\r\n");
 
-        m_sim.resume(); //TODO: Peter to check
+        m_sim.resume();  // TODO: Peter to check
 
         m_sim.waitForExpectedOutputs(std::chrono::seconds(simulationTimeout));
 
@@ -214,7 +222,7 @@ public:
 
 private:
     void allocIO(BufferManager* mngr, std::vector<DeviceBuffer>& ioVec, details::ArrayRef<DeviceBuffer> sizes,
-                uint32_t* ioPtrs, uint32_t* ioSizesP, uint32_t* ioSize) {
+                 uint32_t* ioPtrs, uint32_t* ioSizesP, uint32_t* ioSize) {
         auto ioPtrBuf = mngr->allocate(1, sizes.size() * sizeof(uint32_t));
         auto ioSizesBuf = mngr->allocate(1, sizes.size() * sizeof(uint32_t));
 
@@ -254,15 +262,14 @@ void dumpInputs(const std::vector<elf::DeviceBuffer>& vec) {
     for (size_t i = 0; i < vec.size(); ++i) {
         llvm::outs() << llvm::formatv("\t {0}: {1:x} -> size {2}\n", i, vec[i].vpu_addr(), vec[i].size());
 
-        if(inputSource != InputSource::Files) {
+        if (inputSource != InputSource::Files) {
             std::ofstream outFileStream;
 
-            auto fileName = llvm::formatv("input-{0}.bin",i);
+            auto fileName = llvm::formatv("input-{0}.bin", i);
             outFileStream.open(fileName, std::ios::out | std::ios::binary);
             outFileStream.write(reinterpret_cast<const char*>(vec[i].cpu_addr()), vec[i].size());
             outFileStream.close();
         }
-
     }
 }
 
@@ -272,7 +279,7 @@ void dumpOutputs(const std::vector<elf::DeviceBuffer>& vec, IMDemoSimulator& sim
         llvm::outs() << llvm::formatv("\t {0}: {1:x} -> size {2}\n", i, vec[i].vpu_addr(), vec[i].size());
 
         std::ofstream outFileStream;
-        auto fileName = llvm::formatv("output-{0}.bin",i);
+        auto fileName = llvm::formatv("output-{0}.bin", i);
         outFileStream.open(fileName, std::ios::out | std::ios::binary);
         outFileStream.write(reinterpret_cast<const char*>(vec[i].cpu_addr()), vec[i].size());
         outFileStream.close();
@@ -285,7 +292,7 @@ int main(int argc, char* argv[]) {
 
     IMDemoSimulator appRunner(appLogger);
 
-    if(mlirFilePath.size()) {
+    if (mlirFilePath.size()) {
         appLogger.error("temporarily not supported :(");
         return 1;
         // auto mlirFile = mlir::openInputFile(mlirFilePath, &errorMessage);
@@ -302,7 +309,7 @@ int main(int argc, char* argv[]) {
 
         // auto module = mlir::OwningModuleRef(mlir::parseSourceFile(sourceMgr, &context));
 
-    } else if(elfFilePath.size()) {
+    } else if (elfFilePath.size()) {
         std::ifstream inputStream(elfFilePath.data(), std::ios::binary);
         std::vector<uint8_t> elfFile((std::istreambuf_iterator<char>(inputStream)), (std::istreambuf_iterator<char>()));
         inputStream.close();

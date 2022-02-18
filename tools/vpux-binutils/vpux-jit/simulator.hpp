@@ -98,7 +98,7 @@ void Simulator::write(std::uint32_t& startAddress, const T* const data, const st
     std::copy_n(reinterpret_cast<const char*>(data), sizeInBytes, std::next(bytes.begin(), prePadding));
 
     auto xx = m_chunkSize;
-    VPUX_THROW_UNLESS(bytes.size() % m_chunkSize == 0, "Invalid chunk size RW {0} {1}",bytes.size(), xx);
+    VPUX_THROW_UNLESS(bytes.size() % m_chunkSize == 0, "Invalid chunk size RW {0} {1}", bytes.size(), xx);
     static_assert(m_chunkSize <= m_maximumWriteSize, "chunk size larger than maximum write size");
 
     const std::uint32_t paddedStartAddress = startAddress - prePadding;

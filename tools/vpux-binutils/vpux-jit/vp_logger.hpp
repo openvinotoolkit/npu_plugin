@@ -2,10 +2,10 @@
 
 #include <chrono>
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <unordered_set>
 #include <utility>
-#include <mutex>
 
 #include <vpux/utils/core/logger.hpp>
 
@@ -13,16 +13,6 @@
 
 namespace vpux {
 namespace movisim {
-
-template<typename T>
-class vpuPtr {
-    vpuPtr() = delete;
-    vpuPtr(T* cpuAddr, uint64_t vpuAddr) : m_cpuAddr(cpuAddr), m_vpuAddr(vpuAddr) {
-    }
-private:
-    uint64_t m_vpuAddr;
-    T* m_cpuAddr;
-};
 
 class VpuAccessInterface final : public ::movisim::VpInterface {
 public:
@@ -55,11 +45,12 @@ public:
     void addExpectedResult(std::string output);
     bool waitForResults(const std::chrono::seconds timeout);
 
-    uint8_t* vpuWindow(const uint64_t vpuAddr) const{
+    uint8_t* vpuWindow(const uint64_t vpuAddr) const {
         return m_vpuMemory + (vpuAddr - m_vpuBaseAddr);
     }
 
     std::timed_mutex m_executionMutex;
+
 private:
     llvm::StringLiteral m_instanceName;
     Logger m_logger;
@@ -70,7 +61,6 @@ private:
     const uint64_t m_vpuBaseAddr;
 
     bool m_isVpuMemRequested;
-
 };
 
 }  // namespace movisim

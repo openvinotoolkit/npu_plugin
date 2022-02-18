@@ -25,8 +25,7 @@ namespace binutils {
 class FlatHexBufferManager : public BufferManager {
 public:
     FlatHexBufferManager(uint32_t startAddr, size_t size, uint8_t* const buffer)
-                : m_startAddr(startAddr), m_totalSize(size), m_buffer(buffer), m_tracker(m_buffer) {
-
+            : m_startAddr(startAddr), m_totalSize(size), m_buffer(buffer), m_tracker(m_buffer) {
     }
 
     DeviceBuffer allocate(size_t alignment, size_t size) override {
@@ -96,8 +95,8 @@ protected:
 class OwningFlatHexBufferManager : public FlatHexBufferManager {
 public:
     OwningFlatHexBufferManager(uint32_t startAddr, size_t size)
-                : FlatHexBufferManager(startAddr, size, new uint8_t[size]) {
-                }
+            : FlatHexBufferManager(startAddr, size, new uint8_t[size]) {
+    }
 
     ~OwningFlatHexBufferManager() {
         delete[] m_buffer;
