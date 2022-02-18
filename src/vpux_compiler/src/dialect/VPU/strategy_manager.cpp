@@ -34,7 +34,7 @@ StrategyManager::StrategyManager(mlir::FuncOp func, Logger log, mlir::MLIRContex
     _numDPU = _numClusters * _numDPUPerCluster;
 }
 
-double StrategyManager::getDepthwiseEfficiencyConstant(const int64_t& kernel, const int64_t& stride) const {
+double StrategyManager::getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride) const {
     if (depthwiseEfficiencyTable().count(kernel)) {
         auto table = depthwiseEfficiencyTable()[kernel];
         if (table.count(stride)) {
@@ -47,7 +47,7 @@ double StrategyManager::getDepthwiseEfficiencyConstant(const int64_t& kernel, co
     }
 }
 
-double StrategyManager::getChannelMajorEfficiencyConstant(const int64_t& kernel, const int64_t& stride) const {
+double StrategyManager::getChannelMajorEfficiencyConstant(int64_t kernel, int64_t stride) const {
     if (channelMajorEfficiencyTable().count(kernel)) {
         auto table = depthwiseEfficiencyTable()[kernel];
         if (table.count(stride)) {
@@ -92,7 +92,7 @@ double getChannelAlignment(double input, size_t unit) {
     return std::ceil(input / unit) * unit;
 }
 
-double StrategyManager::computeChannelMajorConvolutionSplitOverHeightEfficency(NCEConvolutionOp& origOp) const {
+double StrategyManager::computeChannelMajorConvolutionSplitOverHeightEfficency(NCEConvolutionOp origOp) const {
     const auto outputShape = getShape(origOp.output());
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
     const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
@@ -234,6 +234,10 @@ double StrategyManager::computeLayerSplitOverHeightEfficency(mlir::Operation* op
                 _log.trace("The SOH efficiency for the depthwise convolution {0} is {0}", origOp->getName(),
                            efficiency);
                 return efficiency;
+            })
+            .Default([](mlir::Operation* unknownOp) -> double {
+                VPUX_THROW("Operation '{0}' at '{1}' does not support split over H as a strategy", unknownOp->getName(),
+                           unknownOp->getLoc());
             });
 }
 
@@ -249,6 +253,10 @@ double StrategyManager::computeLayerSplitOverKernelEfficency(mlir::Operation* op
                 double efficiency = computeZMajorConvolutionSplitOverKernelEfficency(origOp.getOperation());
                 _log.trace("The SOK efficiency for the group convolution is {0}", efficiency);
                 return efficiency;
+            })
+            .Default([](mlir::Operation* unknownOp) -> double {
+                VPUX_THROW("Operation '{0}' at '{1}' does not support split over K as a strategy", unknownOp->getName(),
+                           unknownOp->getLoc());
             });
 }
 
@@ -296,6 +304,11 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     }
                     // Assign the most optimal strategy
                     assignMultiClusterStrategy(op);
+                })
+                .Default([](mlir::Operation* unknownOp) -> void {
+                    VPUX_THROW("Operation '{0}' at '{1}' is not supported by the NCE therefore it should not have a "
+                               "multi-cluster strategy",
+                               unknownOp->getName(), unknownOp->getLoc());
                 });
     };
 
@@ -374,6 +387,11 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) const {
             })
             .Case<NCEEltwiseOp>([&](NCEEltwiseOp op) {
                 assignMultiClusterStrategyForEltwiseAndMaxPool<NCEEltwiseOp>(op);
+            })
+            .Default([](mlir::Operation* unknownOp) -> void {
+                VPUX_THROW("Operation '{0}' at '{1}' is not supported by the NCE therefore it should not have a "
+                           "multi-cluster strategy",
+                           unknownOp->getName(), unknownOp->getLoc());
             });
 }
 
@@ -444,7 +462,7 @@ bool StrategyManager::isSOHandSOKEfficiencyEqual(mlir::Operation* origOp) const 
     }
 }
 
-void StrategyManager::setOperationStrategy(const llvm::StringRef strategy, mlir::Operation* origOp) const {
+void StrategyManager::setOperationStrategy(const StringRef strategy, mlir::Operation* origOp) const {
     if (strategy == splitOverHeightOverLapped) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeightOverLapped"));
         _log.trace("Assiging multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
