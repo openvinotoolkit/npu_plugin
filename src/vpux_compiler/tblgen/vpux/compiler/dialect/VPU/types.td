@@ -16,6 +16,7 @@
 
 include "vpux/compiler/dialect/VPU/dialect.td"
 include "vpux/compiler/dialect/VPU/attributes.td"
+include "vpux/compiler/core/type_interfaces.td"
 
 include "mlir/IR/BuiltinDialect.td"
 include "mlir/IR/SubElementInterfaces.td"
@@ -34,7 +35,8 @@ def VPU_DistributedTensor :
         VPU_Type<
             "DistributedTensor",
             [
-                DeclareTypeInterfaceMethods<SubElementTypeInterface>
+                DeclareTypeInterfaceMethods<SubElementTypeInterface>,
+                DeclareTypeInterfaceMethods<NDTypeInterface>
             ]
         > {
     let summary = "VPU tensor type to describe the tensor tiling";
@@ -48,8 +50,13 @@ def VPU_DistributedTensor :
         "DistributedTensorAttr":$distribution
     );
 
+    let genAccessors = 0;
+
     let extraClassDeclaration = [{
         mlir::RankedTensorType getCompactType() const;
+
+        mlir::AffineMapAttr getOrder() const;
+        DistributedTensorAttr getDistribution() const;
     }];
 }
 

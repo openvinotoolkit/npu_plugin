@@ -375,7 +375,7 @@ def VPUIP_ReLUUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -412,7 +412,7 @@ def VPUIP_SigmoidUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -449,7 +449,7 @@ def VPUIP_HSwishUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -486,7 +486,7 @@ def VPUIP_ErfUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -523,7 +523,7 @@ def VPUIP_MishUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -560,7 +560,7 @@ def VPUIP_FloorUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -597,7 +597,7 @@ def VPUIP_RoundUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -636,7 +636,7 @@ def VPUIP_ClampUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -676,7 +676,7 @@ def VPUIP_EluUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -715,7 +715,7 @@ def VPUIP_TanhUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -752,7 +752,7 @@ def VPUIP_SqrtUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -789,7 +789,7 @@ def VPUIP_SinhUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -826,7 +826,7 @@ def VPUIP_CoshUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -863,7 +863,7 @@ def VPUIP_AsinhUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -900,7 +900,7 @@ def VPUIP_AcoshUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -937,7 +937,7 @@ def VPUIP_LogUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -974,7 +974,7 @@ def VPUIP_GeluUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -1011,7 +1011,7 @@ def VPUIP_ExpUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -1439,7 +1439,7 @@ def VPUIP_ScaleShiftUPAOp :
                 AttrSizedOperandSegments,
                 ViewLikeOpInterface,
                 IERT_SameElementType,
-                IERT_SameDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -1455,10 +1455,6 @@ def VPUIP_ScaleShiftUPAOp :
     let results = (outs
         F16MemRef:$output
     );
-
-    let extraClassDeclaration = [{
-        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
-    }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
         attr-dict
@@ -2605,7 +2601,7 @@ def VPUIP_CeilingUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {

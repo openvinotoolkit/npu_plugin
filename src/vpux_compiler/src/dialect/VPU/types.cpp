@@ -30,7 +30,7 @@ using namespace vpux;
 // VPUDialect::registerTypes
 //
 
-void vpux::VPU::VPUDialect::registerTypes() {
+void VPU::VPUDialect::registerTypes() {
     addTypes<
 #define GET_TYPEDEF_LIST
 #include <vpux/compiler/dialect/VPU/generated/types.cpp.inc>
@@ -41,7 +41,7 @@ void vpux::VPU::VPUDialect::registerTypes() {
 // Dialect hooks
 //
 
-mlir::Type vpux::VPU::VPUDialect::parseType(mlir::DialectAsmParser& parser) const {
+mlir::Type VPU::VPUDialect::parseType(mlir::DialectAsmParser& parser) const {
     StringRef mnemonic;
     if (mlir::failed(parser.parseKeyword(&mnemonic))) {
         printTo(parser.emitError(parser.getCurrentLocation()), "Failed to get VPU Type mnemonic");
@@ -56,84 +56,30 @@ mlir::Type vpux::VPU::VPUDialect::parseType(mlir::DialectAsmParser& parser) cons
     return type;
 }
 
-void vpux::VPU::VPUDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& os) const {
+void VPU::VPUDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& os) const {
     VPUX_THROW_UNLESS(mlir::succeeded(generatedTypePrinter(type, os)), "Got unsupported Type : {0}", type);
 }
 
 //
-// vpux::VPU::DistributedTensorType
+// VPU::DistributedTensorType accessors
 //
 
-void vpux::VPU::DistributedTensorType::walkImmediateSubElements(llvm::function_ref<void(mlir::Attribute)> walkAttrsFn,
-                                                                llvm::function_ref<void(Type)> walkTypesFn) const {
-    walkTypesFn(getElementType());
-    if (!getOrder().isIdentity()) {
-        walkAttrsFn(getOrder());
-    }
-    walkAttrsFn(getMemSpace());
-    walkAttrsFn(getDistribution());
+ShapeRef VPU::DistributedTensorType::getShape() const {
+    return ShapeRef(getImpl()->shape);
 }
 
-void vpux::VPU::DistributedTensorType::print(mlir::DialectAsmPrinter& printer) const {
-    printer << getMnemonic() << "<";
-    for (auto& dim : getShape()) {
-        printer << dim << "x";
-    }
-    printer << getElementType();
-
-    printer << ", " << getOrder();
-    printer << ", " << getMemSpace();
-    printer << ", " << getDistribution();
-    printer << ">";
+mlir::Type VPU::DistributedTensorType::getElementType() const {
+    return getImpl()->elementType;
 }
 
-mlir::Type vpux::VPU::DistributedTensorType::parse(mlir::DialectAsmParser& parser) {
-    if (parser.parseLess())
-        return Type();
-
-    SmallVector<int64_t> shape;
-
-    int64_t dim = 0;
-    while (parser.parseOptionalInteger(dim).hasValue() && parser.parseXInDimensionList().succeeded()) {
-        shape.push_back(dim);
-    }
-
-    mlir::Type elemType;
-    if (parser.parseType(elemType)) {
-        return Type();
-    }
-    if (parser.parseComma()) {
-        return Type();
-    }
-
-    mlir::AffineMapAttr order;
-    if (parser.parseAttribute(order)) {
-        return Type();
-    }
-    if (parser.parseComma()) {
-        return Type();
-    }
-
-    vpux::IndexedSymbolAttr memSpace;
-    if (parser.parseAttribute(memSpace)) {
-        return Type();
-    }
-    if (parser.parseComma()) {
-        return Type();
-    }
-
-    DistributedTensorAttr distribution;
-    if (parser.parseAttribute(distribution)) {
-        return Type();
-    }
-    if (parser.parseGreater()) {
-        return Type();
-    }
-
-    return get(parser.getContext(), makeArrayRef(shape), elemType, order, memSpace, distribution);
+mlir::AffineMapAttr VPU::DistributedTensorType::getOrder() const {
+    return getImpl()->order;
 }
 
-mlir::RankedTensorType vpux::VPU::DistributedTensorType::getCompactType() const {
-    return mlir::RankedTensorType::get(getShape(), getElementType(),
-                                       IE::TensorAttr::get(getOrder(), getMemSpace(), nullptr, getContext()));
+IndexedSymbolAttr VPU::DistributedTensorType::getMemSpace() const {
+    return getImpl()->memSpace;
+}
+
+VPU::DistributedTensorAttr VPU::DistributedTensorType::getDistribution() const {
+    return getImpl()->distribution;
 }

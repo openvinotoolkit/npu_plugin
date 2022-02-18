@@ -258,14 +258,15 @@ def VPU_PPETaskAttr :
 //
 
 def VPU_DistributionMode :
-        StrEnumAttr<
+        BitEnumAttr<
             "DistributionMode",
             "Tensor distribution mode",
             [
-                StrEnumAttrCase<"overlapped">,
-                StrEnumAttrCase<"duplicated">,
-                StrEnumAttrCase<"segmented">,
-                StrEnumAttrCase<"multicasted">
+                BitEnumAttrCase<"NONE",         0x0>,
+                BitEnumAttrCase<"OVERLAPPED",   0x1>,
+                BitEnumAttrCase<"DUPLICATED",   0x2>,
+                BitEnumAttrCase<"SEGMENTED",    0x4>,
+                BitEnumAttrCase<"MULTICASTED",  0x8>
             ]
         > {
     let cppNamespace = "vpux::VPU";

@@ -20,12 +20,12 @@
 namespace vpux {
 namespace driverCompilerAdapter {
 
-LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(): _logger("LevelZeroCompilerAdapter", LogLevel::None) {
+LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(): _logger("LevelZeroCompilerAdapter", LogLevel::Warning) {
     apiAdapter = std::make_shared<LevelZeroCompilerInDriver>();
 }
 
 LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(const IExternalCompiler::Ptr& compilerAdapter)
-        : apiAdapter(compilerAdapter), _logger("LevelZeroCompilerAdapter", LogLevel::None) {
+        : apiAdapter(compilerAdapter), _logger("LevelZeroCompilerAdapter", LogLevel::Warning) {
 }
 
 std::shared_ptr<INetworkDescription> LevelZeroCompilerAdapter::compile(

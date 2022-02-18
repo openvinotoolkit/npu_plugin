@@ -1,7 +1,7 @@
 #! /bin/bash
 env_is_set=1
 #optimization=-O3
-alwaye_inline=-DCONFIG_ALWAYS_INLINE
+always_inline=-DCONFIG_ALWAYS_INLINE
 cpunum=3010
 cpu=${cpunum}xx
 
@@ -27,13 +27,13 @@ rm -f "${KERNEL_DIR}/prebuild/single_shave_MVN_${cpu}.o" "${KERNEL_DIR}/prebuild
  -I "${KERNEL_DIR}/common/inc" \
  -I "${KERNEL_DIR}/inc/3720" \
  -I "${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc" \
- -D CONFIG_TARGET_SOC_3720 -D__shave_nn__ ${alwaye_inline}
+ -D CONFIG_TARGET_SOC_3720 -D__shave_nn__ ${always_inline}
 
 obj_files="${KERNEL_DIR}/prebuild/single_shave_MVN_${cpu}.o"
 
 if [ $? -ne 0 ]; then exit $?; fi
 
-if [ -z ${alwaye_inline} ]
+if [ -z ${always_inline} ]
  then
 "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile" -mcpu=${cpu} ${optimization} \
  -c "${KERNEL_DIR}/common/src/mvSubspaces.cpp" -o "${KERNEL_DIR}/prebuild/mvSubspaces_${cpu}.o" \

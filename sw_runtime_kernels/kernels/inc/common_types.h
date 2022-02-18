@@ -20,6 +20,8 @@ namespace sw_params {
 
 enum {
     MAX_ND_DIMS = 15,
+    MAX_KERNEL_INPUTS = 8,
+    MAX_KERNEL_OUTPUTS = 8,
 };
 
 enum DataType : uint32_t {
