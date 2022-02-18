@@ -44,7 +44,7 @@ TEST(MLIR_NDTypeInterface, DistributedBufferType) {
 
         !InputDistributed = type !VPUIP.DistributedBuffer<
             1x32x16x16xf16, #NHWC, @CMX_NN, {
-            mode = "overlapped",
+            mode = OVERLAPPED,
             num_tiles = [1, 1, 4, 1],
             kernel = [3, 3],
             pads = {bottom = 1, left = 1, right = 1, top = 1}
@@ -117,6 +117,18 @@ TEST(MLIR_NDTypeInterface, DistributedBufferType) {
             EXPECT_EQ(ndType.getElemTypeSize().count(), 16);
             EXPECT_EQ(ndType.getTotalAllocSize().count(), 16384);
             EXPECT_EQ(ndType.getCompactAllocSize().count(), 16384);
+
+            const SmallVector<int64_t> newShape({0, 16, 64, 8});
+            ASSERT_ANY_THROW(ndType.changeShape(vpux::ShapeRef(newShape)));
+            ASSERT_ANY_THROW(ndType.changeElemType(mlir::Float32Type::get(op.getContext())));
+            ASSERT_ANY_THROW(ndType.changeDimsOrder(DimsOrder::NCHW));
+            ASSERT_ANY_THROW(ndType.changeMemSpace(vpux::IndexedSymbolAttr::get(op.getContext(), DDR_NAME)));
+
+            const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
+            const SmallVector<int64_t> tileShape({1, 32, 32, 8});
+            ASSERT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
+            const SmallVector<int64_t> pads({0, 0, 2, 2});
+            ASSERT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
         }
     }
 }

@@ -86,7 +86,7 @@ func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> 
 
 !InputDistributed = type !VPUIP.DistributedBuffer<
     1x32x16x16xf16, #NHWC, @CMX_NN, {
-    mode = "overlapped",
+    mode = OVERLAPPED,
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
     pads = {bottom = 1, left = 1, right = 1, top = 1}
@@ -94,17 +94,17 @@ func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> 
 
 !WeightsDistributed = type !VPUIP.DistributedBuffer<
     64x32x3x3xf16, #NHWC, @CMX_NN, {
-    mode = "duplicated"
+    mode = DUPLICATED
 }>
 
 !WeightsTableDistributed = type !VPUIP.DistributedBuffer<
     64x1x1x4xsi32, #NCHW, @CMX_NN, {
-    mode = "duplicated"
+    mode = DUPLICATED
 }>
 
 !OutputDistributed = type !VPUIP.DistributedBuffer<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
-    mode = "segmented",
+    mode = SEGMENTED,
     num_tiles = [1, 1, 4, 1]
 }>
 
@@ -205,33 +205,33 @@ func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
 
     //CHECK:        %cst = const.Declare memref<64x32x3x3xf16, #NHWC, @DDR>
     //CHECK:        [[INPUT_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN,
-    //CHECK-SAME:                           {kernel = [3, 3], mode = "overlapped", num_tiles = [1, 1, 4, 1],
+    //CHECK-SAME:                           {mode = OVERLAPPED, num_tiles = [1, 1, 4, 1], kernel = [3, 3],
     //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}}>
     //CHECK:        %token = async.execute attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
     //CHECK:              %5 = VPUIP.NCEClusterTiling inputs(%arg0 as %arg1: memref<1x32x16x16xf16, #NHWC, @DDR>)
     //CHECK-SAME:               outputs([[INPUT_CMX]] as %arg2: memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
     //CHECK-SAME:               attributes {operand_segment_sizes = dense<1> : vector<2xi32>}
-    //CHECK-SAME:               -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN, {kernel = [3, 3], mode = "overlapped", num_tiles = [1, 1, 4, 1], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}}> {
+    //CHECK-SAME:               -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = OVERLAPPED, num_tiles = [1, 1, 4, 1], kernel = [3, 3], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}}> {
     //CHECK:                %6 = IERT.Copy {out_mem_space = @CMX_NN} inputs(%arg1 : memref<1x32x16x16xf16, #NHWC, @DDR>)
     //CHECK-SAME:                   outputs(%arg2 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x32x16x16xf16, #NHWC, @CMX_NN>
     //CHECK:              }
     //CHECK:              async.yield
     //CHECK:        }
 
-    //CHECK:        [[WEIGHTS_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<64x32x3x3xf16, #NHWC, @CMX_NN, {mode = "duplicated"}>
+    //CHECK:        [[WEIGHTS_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<64x32x3x3xf16, #NHWC, @CMX_NN, {mode = DUPLICATED}>
     //CHECK:        %token_0 = async.execute attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
     //CHECK:              %5 = VPUIP.NCEClusterTiling inputs(%cst as %arg1: memref<64x32x3x3xf16, #NHWC, @DDR>)
     //CHECK-SAME:               outputs([[WEIGHTS_CMX]] as %arg2: memref<64x32x3x3xf16, #NHWC, @CMX_NN>)
     //CHECK-SAME:               attributes {operand_segment_sizes = dense<1> : vector<2xi32>}
-    //CHECK-SAME:               -> !VPUIP.DistributedBuffer<64x32x3x3xf16, #NHWC, @CMX_NN, {mode = "duplicated"}> {
+    //CHECK-SAME:               -> !VPUIP.DistributedBuffer<64x32x3x3xf16, #NHWC, @CMX_NN, {mode = DUPLICATED}> {
     //CHECK:                %6 = IERT.Copy {out_mem_space = @CMX_NN} inputs(%arg1 : memref<64x32x3x3xf16, #NHWC, @DDR>)
     //CHECK-SAME:                   outputs(%arg2 : memref<64x32x3x3xf16, #NHWC, @CMX_NN>) -> memref<64x32x3x3xf16, #NHWC, @CMX_NN>
     //CHECK:              }
     //CHECK:              async.yield
     //CHECK:        }
 
-    //CHECK:        [[OUTPUT_BUFF_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "segmented", num_tiles = [1, 1, 4, 1]}>
-    //CHECK:        [[WEIGHTS_TABLE_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<64x1x1x4xsi32, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "duplicated"}>
+    //CHECK:        [[OUTPUT_BUFF_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1]}>
+    //CHECK:        [[WEIGHTS_TABLE_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<64x1x1x4xsi32, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = DUPLICATED}>
     //CHECK:        %token_1 = async.execute attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
     //CHECK:              %5 = VPUIP.NCEClusterTiling inputs(
     //CHECK-SAME:                   [[INPUT_CMX]] as %arg1: memref<1x32x16x16xf16, #NHWC, @CMX_NN>,
@@ -239,7 +239,7 @@ func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
     //CHECK-SAME:                   [[WEIGHTS_CMX]] as %arg3: memref<64x32x3x3xf16, #NHWC, @CMX_NN>)
     //CHECK-SAME:               outputs([[WEIGHTS_TABLE_CMX]] as %arg4: memref<64x1x1x4xsi32, @CMX_NN>)
     //CHECK-SAME:               attributes {operand_segment_sizes = dense<[3, 1]> : vector<2xi32>}
-    //CHECK-SAME:               -> !VPUIP.DistributedBuffer<64x1x1x4xsi32, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "duplicated"}> {
+    //CHECK-SAME:               -> !VPUIP.DistributedBuffer<64x1x1x4xsi32, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = DUPLICATED}> {
     //CHECK:                %6 = VPUIP.WeightsTableOp op_input(%arg1 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) op_output(%arg2 : memref<1x64x16x16xf16, #NHWC, @CMX_NN>) weights(%arg3 : memref<64x32x3x3xf16, #NHWC, @CMX_NN>) -> memref<64x1x1x4xsi32>
     //CHECK:                %7 = IERT.Copy {out_mem_space = @CMX_NN} inputs(%6 : memref<64x1x1x4xsi32>) outputs(%arg4 : memref<64x1x1x4xsi32, @CMX_NN>) -> memref<64x1x1x4xsi32, @CMX_NN>
     //CHECK:              }
