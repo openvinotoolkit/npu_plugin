@@ -176,6 +176,27 @@ def ConvertDeclarations2VPUIP : PassBase<"convert-declarations-to-VPUIP", "vpux:
 }
 
 //
+// AdaptViewOps2VPUIP
+//
+
+def AdaptViewOps2VPUIP : PassBase<"adapt-view-ops-to-VPUIP", "vpux::FunctionPass"> {
+    let summary = "Adapt view-like Operations to VPUIP Dialect";
+
+    let description = [{
+        This pass checks if the subview offset address with stride on major dimension exceeds NNCMX size
+        and if so converts the offset from invariant to variant. The subview static offsets will be set to 0s
+        and the offset will be accounted for using the workloads, by incrementing the correct axis.
+    }];
+
+    let constructor = "vpux::createAdaptViewOps2VPUIPPass()";
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect",
+        "vpux::VPURT::VPURTDialect"
+    ];
+}
+
+//
 // ConvertViewOps2VPUIP
 //
 

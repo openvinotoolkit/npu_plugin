@@ -46,6 +46,7 @@ void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, const LowerIERT
     pm.addPass(createConvertLayers2VPUIPPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(createConvertDeclarations2VPUIPPass(log));
+    pm.addPass(createAdaptViewOps2VPUIPPass(log));
     pm.addPass(createConvertViewOps2VPUIPPass(log));
     if (options.enableCompressWeights) {
         pm.addPass(vpux::VPUIP::createCompressWeightsPass(log));
