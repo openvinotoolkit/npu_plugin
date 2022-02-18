@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 #include <file_utils.h>
 #include <llvm/Support/FileSystem.h>
@@ -26,6 +27,14 @@
 using namespace vpux;
 
 namespace {
+
+constexpr uint32_t DEFAULT_ZTILE_VALUE = 16;
+
+// Note: refer the values from workload number pool implementation at
+// https://github.com/intel-innersource/frameworks.ai.vpu.presilicon.fathom/blob/main/src/Controllers/WorkloadGen.py#L84
+constexpr size_t MIN_VALID_ZTILE_EXPONENT = 4;
+constexpr size_t MAX_VALID_ZTILE_EXPONENT = 8;
+
 std::unique_ptr<VPUNN::VPUCostModel> gCostModel{nullptr};
 
 VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
@@ -133,22 +142,12 @@ void initCostModel(VPU::ArchKind archKind) {
     gCostModel = std::make_unique<VPUNN::VPUCostModel>(modelDir.str().str());
 }
 
-static const uint32_t DEFAULT_ZTILE_VALUE = 16;
-template <typename T>
-T divRoundUp(T x, T m) {
-    return (x + m - 1) / m;
-}
-
-template <typename T>
-T padRoundUp(T x, T m) {
-    return divRoundUp(x, m) * m;
-}
-
 SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLimit) {
     SmallVector<uint32_t> splits;
     for (uint32_t idx = 0; idx < std::log2(maxSplitRange); idx++) {
         auto powIdx = static_cast<uint32_t>(std::pow(2, idx));
-        if (maxSplitRange % powIdx == 0 && maxSplitRange / powIdx <= maxLimit) {
+        auto splitCandidate = maxSplitRange / powIdx;
+        if (maxSplitRange % powIdx == 0 && splitCandidate <= maxLimit) {
             splits.push_back(maxSplitRange / powIdx);
         }
     }
@@ -156,11 +155,9 @@ SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLim
 }
 }  // namespace
 
-bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits) {
-    // Refer workload number pool implementation at
-    // https://github.com/intel-innersource/frameworks.ai.vpu.presilicon.fathom/blob/main/src/Controllers/WorkloadGen.py#L84
+SmallVector<uint32_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits) {
     SmallVector<uint32_t> validZTiles;
-    for (size_t i = 4; i < 8; ++i) {
+    for (size_t i = MIN_VALID_ZTILE_EXPONENT; i < MAX_VALID_ZTILE_EXPONENT; ++i) {
         validZTiles.push_back(static_cast<uint32_t>(std::pow(2, i)));
         validZTiles.push_back(validZTiles.back() + DEFAULT_ZTILE_VALUE);
     }
@@ -179,9 +176,7 @@ bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t max
     auto maxZ = *std::max_element(maxSplitsInZ.begin(), maxSplitsInZ.end());
     auto maxXY = *std::max_element(maxSplitsInXY.begin(), maxSplitsInXY.end());
     maxSplits = std::min<uint32_t>(maxSplits, std::max(maxZ, maxXY));
-    if (maxSplits == 0) {
-        return false;
-    }
+    VPUX_THROW_WHEN(maxSplits == 0, "Invalid max split number: {0}", maxSplits);
 
     std::set<uint32_t> dpuMulSplits;
     for (auto i = numDPU; i < maxSplits + 1; i = i + numDPU) {
@@ -196,8 +191,7 @@ bool vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t max
         dpuMulSplits.insert(xyRanges.begin(), xyRanges.end());
     }
     dpuMulSplits.insert(1);
-    _splitNumberPool = SmallVector<uint32_t>(dpuMulSplits.begin(), dpuMulSplits.end());
-    return true;
+    return SmallVector<uint32_t>(dpuMulSplits.begin(), dpuMulSplits.end());
 }
 
 void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
@@ -212,31 +206,30 @@ void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
     Shape nTilesOnDim(_outShape.size(), minTilesCount);
     nTilesOnDim[Dims4D::Act::H] = tilesCount;
 
-    const auto outTiles = fillDividedTiles(nTilesOnDim, _outShape);
+    auto outTiles = fillDividedTiles(nTilesOnDim, _outShape);
     _splitPool.push_back(std::move(outTiles));
 }
 
-bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
+void vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
     OutputTiling outputTiles;
-    if (_outShape.size() < 2 || splitNumber == 0) {
-        return false;
-    }
+    VPUX_THROW_WHEN(_outShape.size() < 2, "Invalid output shape size: {0}", _outShape.size());
+    VPUX_THROW_WHEN(splitNumber == 0, "Invalid split number: {0}", splitNumber);
 
     auto W = _outShape[Dims4D::Act::W];
     auto H = _outShape[Dims4D::Act::H];
     auto C = _outShape.size() >= 3 ? _outShape[Dims4D::Act::C] : 0;
 
-    auto maxChannelPerWL = divRoundUp(static_cast<uint32_t>(C), splitNumber);
+    auto maxChannelPerWL = divUp(static_cast<uint32_t>(C), splitNumber);
     std::set<uint32_t> validZTileSet;
-    maxChannelPerWL = padRoundUp(maxChannelPerWL, DEFAULT_ZTILE_VALUE);
+    maxChannelPerWL = alignVal(maxChannelPerWL, DEFAULT_ZTILE_VALUE);
     if (maxChannelPerWL < DEFAULT_ZTILE_VALUE) {
-        return false;
+        return;
     }
     Shape originalShape(4, 1);
     originalShape[Dims4D::Act::W] = W;
     originalShape[Dims4D::Act::H] = H;
 
-    uint32_t remainedChannel = static_cast<uint32_t>(C);
+    auto remainedChannel = static_cast<uint32_t>(C);
     for (uint32_t idx = 0; idx < splitNumber; idx++) {
         TileInfo outTile(_outShape.size());
         outTile.shape[Dims4D::Act::W] = W;
@@ -252,7 +245,7 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
         outTile.offsets[Dims4D::Act::H] = 0;
         outTile.offsets[Dims4D::Act::C] = idx * maxChannelPerWL;
         if (outTile.shape[Dims4D::Act::C] % DEFAULT_ZTILE_VALUE != 0) {
-            return false;
+            return;
         }
         outputTiles.push_back(std::move(outTile));
 
@@ -261,7 +254,6 @@ bool vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
         }
     }
     _splitPool.push_back(std::move(outputTiles));
-    return true;
 }
 
 uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
@@ -327,10 +319,6 @@ double vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const Wor
 
 SmallVector<OutputTiling> vpux::VPUIP::DpuTiler::getSplitPool() {
     return _splitPool;
-}
-
-SmallVector<uint32_t> vpux::VPUIP::DpuTiler::getSplitNumberPool() {
-    return _splitNumberPool;
 }
 
 std::pair<uint8_t, uint8_t> vpux::VPUIP::DpuTiler::getMode() {

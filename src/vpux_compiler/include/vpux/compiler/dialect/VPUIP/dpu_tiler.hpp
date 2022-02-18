@@ -28,8 +28,8 @@ struct WorkloadCostParams {
     mlir::Type dataType;
     VPU::ArchKind arch;
     VPU::MPEMode mpeMode;
-    ShapeRef inputShape;
-    ShapeRef outputShape;
+    Shape inputShape;
+    Shape outputShape;
     PadInfo padInfo;
     int64_t numDPU;
     SmallVector<int64_t> kernelSize;
@@ -41,11 +41,10 @@ public:
     DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode): _outShape(outShape.raw()), _mpeMode(mpeMode) {
     }
 
-    bool generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits = 50);
+    SmallVector<uint32_t> generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits);
     void tileOverH(int64_t numDPU);
-    bool tileOverZ(uint32_t splitNumber);
+    void tileOverZ(uint32_t splitNumber);
     SmallVector<OutputTiling> getSplitPool();
-    SmallVector<uint32_t> getSplitNumberPool();
 
     uint32_t cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
     double simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
@@ -55,7 +54,6 @@ private:
 
     Shape _outShape;
     VPU::MPEMode _mpeMode;
-    SmallVector<uint32_t> _splitNumberPool;
     SmallVector<OutputTiling> _splitPool;
 };
 

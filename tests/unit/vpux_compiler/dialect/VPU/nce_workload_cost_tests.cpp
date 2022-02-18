@@ -25,6 +25,7 @@
 namespace {
 
 constexpr int64_t numDPU = 5;
+constexpr int64_t maxSplitNum = 5;
 
 vpux::VPUIP::WorkloadCostParams buildWorkloadCost(vpux::VPU::NCEConvolutionOp convolutionOp,
                                                   vpux::VPU::MPEMode mpeMode) {
@@ -37,8 +38,8 @@ vpux::VPUIP::WorkloadCostParams buildWorkloadCost(vpux::VPU::NCEConvolutionOp co
 
     vpux::VPUIP::WorkloadCostParams costParams;
     costParams.dataType = convolutionOp.input().getType().template cast<mlir::RankedTensorType>().getElementType();
-    costParams.inputShape = inputShape;
-    costParams.outputShape = outputShape;
+    costParams.inputShape = inputShape.raw();
+    costParams.outputShape = outputShape.raw();
     costParams.padInfo = vpux::VPU::toPadInfo(convolutionOp.pad());
     costParams.kernelSize = {filterShape[vpux::Dims4D::Filter::KY], filterShape[vpux::Dims4D::Filter::KX]};
     costParams.kernelStride = {kernelStrides[0], kernelStrides[1]};
@@ -97,14 +98,14 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
                 auto costParams = buildWorkloadCost(convolutionOp, mpeMode);
                 const auto outputShape = vpux::getShape(convolutionOp.output());
                 vpux::VPUIP::DpuTiler dpuTiler(outputShape, mpeMode);
-                dpuTiler.generateSplitNumberPool(numDPU);
+                const auto& splitPool = dpuTiler.generateSplitNumberPool(numDPU, maxSplitNum);
 
                 vpux::Shape nTilesOnDim(outputShape.size(), 1);
-                const auto outTilesWithSingleSplit = vpux::fillDividedTiles(nTilesOnDim, outputShape);
+                const auto& outTilesWithSingleSplit = vpux::fillDividedTiles(nTilesOnDim, outputShape);
                 auto baseHardwareExecutionCost = dpuTiler.cost(outTilesWithSingleSplit, costParams);
 
                 dpuTiler.tileOverH(numDPU);
-                for (auto& splitNum : dpuTiler.getSplitNumberPool()) {
+                for (auto& splitNum : splitPool) {
                     dpuTiler.tileOverZ(splitNum);
                 }
 

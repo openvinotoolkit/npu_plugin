@@ -89,95 +89,66 @@ private:
     Logger _log;
 };
 
-void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VPU::PaddingAttr pads,
-                 const mlir::Type inElemType, const mlir::Type outElemType, ShapeRef outputShape, int64_t numDPU,
-                 VPU::ArchKind arch, const VPUIP::WorkloadCostParams& costParams) {
-    const auto mpeByType = mpeMap.at(arch);
-    auto mpeMode = mpeByType(inElemType, outElemType, origOp);
-
-    VPUIP::DpuTiler dpuTiler(outputShape, mpeMode);
-    dpuTiler.tileOverH(numDPU);
+void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp,
+                 const VPUIP::WorkloadCostParams& costParams) {
+    VPUIP::DpuTiler dpuTiler(costParams.outputShape, costParams.mpeMode);
+    dpuTiler.tileOverH(costParams.numDPU);
 
     // This value is aligned with the limitation value in NCEClusterTask Op
     static const size_t MAX_SPLIT_NUMBER = 5;
-    dpuTiler.generateSplitNumberPool(numDPU, MAX_SPLIT_NUMBER);
-    auto splitNumPool = dpuTiler.getSplitNumberPool();
+    const auto& splitNumPool = dpuTiler.generateSplitNumberPool(costParams.numDPU, MAX_SPLIT_NUMBER);
     if (costParams.isZTilingSupported) {
-        for (auto& splitNum : splitNumPool) {
+        for (const auto& splitNum : splitNumPool) {
             dpuTiler.tileOverZ(splitNum);
         }
     }
 
     // select workload with minimum cost
     uint32_t minimumHardwareExecutionCost = std::numeric_limits<uint32_t>::max();
-    size_t miniCostIdx = 0;
+    size_t minCostIdx = 0;
 
     const auto& splitCandidates = dpuTiler.getSplitPool();
     for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
         auto hardwareExecutionCost = dpuTiler.cost(splitCandidates[idx], costParams);
         if (minimumHardwareExecutionCost > hardwareExecutionCost) {
             minimumHardwareExecutionCost = hardwareExecutionCost;
-            miniCostIdx = idx;
+            minCostIdx = idx;
         }
     }
 
-    const auto& outTiles = splitCandidates[miniCostIdx];
+    const auto& outTiles = splitCandidates[minCostIdx];
 
     for (const auto& outTile : outTiles) {
-        const auto padsTileConf = backInferPadsTile(outTile, outputShape, VPU::toPadInfo(pads));
+        const auto padsTileConf = backInferPadsTile(outTile, costParams.outputShape, costParams.padInfo);
         const auto tilePad = VPU::getPaddingAttr(rewriter.getContext(), padsTileConf);
 
-        origOp.addWorkload(rewriter, origOp.getLoc(), outTile.offsets, outTile.shape, tilePad,
-                           mpeByType(inElemType, outElemType, origOp));
+        origOp.addWorkload(rewriter, origOp.getLoc(), outTile.offsets, outTile.shape, tilePad, costParams.mpeMode);
     }
 }
 
 template <class ConcreteOp>
-VPU::PaddingAttr getOpPadding(ConcreteOp origOp, mlir::PatternRewriter& rewriter) {
-    auto pads =
-            llvm::TypeSwitch<mlir::Operation*, VPU::PaddingAttr>(origOp.getOperation())
-                    .template Case<VPU::NCEConvolutionOp>([](VPU::NCEConvolutionOp concreteOp) {
-                        return concreteOp.pad();
-                    })
-                    .template Case<VPU::NCEDepthConvolutionOp>([](VPU::NCEDepthConvolutionOp depthConvolutionOp) {
-                        return depthConvolutionOp.pad();
-                    })
-                    .template Case<VPU::NCEMaxPoolOp>([](VPU::NCEMaxPoolOp maxPoolOp) {
-                        return maxPoolOp.pad();
-                    })
-                    .template Case<VPU::NCEEltwiseOp>([&rewriter](VPU::NCEEltwiseOp eltwiseOp) {
-                        auto zeroAttr = getIntAttr(rewriter, 0);
-                        return VPU::PaddingAttr::get(zeroAttr, zeroAttr, zeroAttr, zeroAttr, eltwiseOp->getContext());
-                    })
-                    .Default([](mlir::Operation*) -> VPU::PaddingAttr {
-                        VPUX_THROW("Unsupported NCE types");
-                    });
-    return pads;
+VPU::PaddingAttr getOpPadding(ConcreteOp origOp) {
+    return origOp.pad();
+}
+
+template <>
+VPU::PaddingAttr getOpPadding(VPU::NCEEltwiseOp origOp) {
+    auto zeroAttr = getIntAttr(origOp->getContext(), 0);
+    return VPU::PaddingAttr::get(zeroAttr, zeroAttr, zeroAttr, zeroAttr, origOp->getContext());
 }
 
 template <class ConcreteOp>
 mlir::Value getOpInput(ConcreteOp origOp) {
-    auto input = llvm::TypeSwitch<mlir::Operation*, mlir::Value>(origOp.getOperation())
-                         .template Case<VPU::NCEConvolutionOp>([](VPU::NCEConvolutionOp convolutionOp) {
-                             return convolutionOp.input();
-                         })
-                         .template Case<VPU::NCEDepthConvolutionOp>([](VPU::NCEDepthConvolutionOp depthConvolutionOp) {
-                             return depthConvolutionOp.input();
-                         })
-                         .template Case<VPU::NCEMaxPoolOp>([](VPU::NCEMaxPoolOp maxPoolOp) {
-                             return maxPoolOp.input();
-                         })
-                         .template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp eltwiseOp) {
-                             return eltwiseOp.input1();
-                         })
-                         .Default([](mlir::Operation*) -> mlir::Value {
-                             VPUX_THROW("Unsupported NCE types");
-                         });
-    return input;
+    return origOp.input();
+}
+
+template <>
+mlir::Value getOpInput(NCEEltwiseOp origOp) {
+    return origOp.input1();
 }
 
 template <class ConcreteOp>
-SmallVector<int64_t> getKernelSizeUsingOpFilter(ConcreteOp origOp) {
+SmallVector<int64_t> getOpKernelSize(ConcreteOp origOp) {
     const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
                                      : getShape(origOp.filter());
@@ -186,74 +157,43 @@ SmallVector<int64_t> getKernelSizeUsingOpFilter(ConcreteOp origOp) {
     return {KY, KX};
 }
 
-template <class ConcreteOp>
-SmallVector<int64_t> getOpKernelSize(ConcreteOp origOp) {
-    auto kernelSize =
-            llvm::TypeSwitch<mlir::Operation*, SmallVector<int64_t>>(origOp.getOperation())
-                    .template Case<VPU::NCEConvolutionOp>([](VPU::NCEConvolutionOp convolutionOp) {
-                        return getKernelSizeUsingOpFilter(convolutionOp);
-                    })
-                    .template Case<VPU::NCEDepthConvolutionOp>([](VPU::NCEDepthConvolutionOp depthConvolutionOp) {
-                        return getKernelSizeUsingOpFilter(depthConvolutionOp);
-                    })
-                    .template Case<VPU::NCEMaxPoolOp>([](VPU::NCEMaxPoolOp origOp) -> SmallVector<int64_t> {
-                        const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
-                        const auto KY = kernelSize[0];
-                        const auto KX = kernelSize[1];
-                        return {KY, KX};
-                    })
-                    .template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp) -> SmallVector<int64_t> {
-                        return {1, 1};
-                    })
-                    .Default([](mlir::Operation*) -> SmallVector<int64_t> {
-                        VPUX_THROW("Unsupported NCE types");
-                    });
-    return kernelSize;
+template <>
+SmallVector<int64_t> getOpKernelSize(VPU::NCEMaxPoolOp origOp) {
+    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+    const auto KY = kernelSize[0];
+    const auto KX = kernelSize[1];
+    return {KY, KX};
+}
+
+template <>
+SmallVector<int64_t> getOpKernelSize(VPU::NCEEltwiseOp origOp) {
+    VPUX_UNUSED(origOp);
+    return {1, 1};
 }
 
 template <class ConcreteOp>
 SmallVector<int64_t> getOpKernelStride(ConcreteOp origOp) {
-    auto strides = llvm::TypeSwitch<mlir::Operation*, SmallVector<int64_t>>(origOp.getOperation())  //
-                           .template Case<VPU::NCEConvolutionOp>(
-                                   [](VPU::NCEConvolutionOp convolutionOp) -> SmallVector<int64_t> {
-                                       const auto kernelStrides = parseIntArrayAttr<int64_t>(convolutionOp.strides());
-                                       const auto SY = kernelStrides[0];
-                                       const auto SX = kernelStrides[1];
-                                       return {SY, SX};
-                                   })
-                           .template Case<VPU::NCEDepthConvolutionOp>(
-                                   [](VPU::NCEDepthConvolutionOp depthConvolutionOp) -> SmallVector<int64_t> {
-                                       const auto kernelStrides =
-                                               parseIntArrayAttr<int64_t>(depthConvolutionOp.strides());
-                                       const auto SY = kernelStrides[0];
-                                       const auto SX = kernelStrides[1];
-                                       return {SY, SX};
-                                   })
-                           .template Case<VPU::NCEMaxPoolOp>([](VPU::NCEMaxPoolOp maxPoolOp) -> SmallVector<int64_t> {
-                               const auto kernelStrides = parseIntArrayAttr<int64_t>(maxPoolOp.strides());
-                               const auto SY = kernelStrides[0];
-                               const auto SX = kernelStrides[1];
-                               return {SY, SX};
-                           })
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+    return {SY, SX};
+}
 
-                           .template Case<VPU::NCEEltwiseOp>([](VPU::NCEEltwiseOp) -> SmallVector<int64_t> {
-                               return {1, 1};
-                           })
-                           .Default([](mlir::Operation*) -> SmallVector<int64_t> {
-                               VPUX_THROW("Unsupported NCE types");
-                           });
-    return strides;
+template <>
+SmallVector<int64_t> getOpKernelStride(VPU::NCEEltwiseOp origOp) {
+    VPUX_UNUSED(origOp);
+    return {1, 1};
 }
 
 template <class ConcreteOp>
 mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
                                                                    mlir::PatternRewriter& rewriter) const {
-    auto pads = getOpPadding(origOp, rewriter);
     auto input = getOpInput(origOp);
     auto inElemType = input.getType().template cast<vpux::NDTypeInterface>().getElementType();
-    auto inputShape = getShape(input);
     auto outElemType = origOp.output().getType().template cast<vpux::NDTypeInterface>().getElementType();
+    auto inputShape = getShape(input);
     auto outputShape = getShape(origOp.output());
+    auto pads = getOpPadding(origOp);
 
     const auto mpeByType = mpeMap.at(_arch);
     const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
@@ -263,8 +203,8 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
     params.dataType = inElemType;
     params.numDPU = _numDPU;
     params.arch = _arch;
-    params.inputShape = inputShape;
-    params.outputShape = outputShape;
+    params.inputShape = inputShape.raw();
+    params.outputShape = outputShape.raw();
     params.padInfo = VPU::toPadInfo(pads);
     params.kernelSize = getOpKernelSize(origOp);
     params.kernelStride = getOpKernelStride(origOp);
@@ -290,11 +230,11 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
                 params.isZTilingSupported = false;
             })
             .Default([](mlir::Operation*) {
-                VPUX_THROW("Unsupported NCE types");
+                VPUX_THROW("Unsupported NCE type");
             });
 
     rewriter.updateRootInPlace(origOp, [&]() {
-        addDPUTasks(rewriter, origOp, pads, inElemType, outElemType, outputShape, _numDPU, _arch, params);
+        addDPUTasks(rewriter, origOp, params);
     });
 
     return mlir::success();
