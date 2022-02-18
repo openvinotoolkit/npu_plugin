@@ -65,9 +65,26 @@ void PatchWeightsTablePass::safeRunOnFunc() {
             }
         }
         VPUX_THROW_UNLESS(dmaOp != nullptr, "DmaOp expected, but not found for the weight table");
-        const auto dmaInput = dmaOp.input();
+        auto dmaInput = dmaOp.input();
         auto cst = dmaInput.getDefiningOp<Const::DeclareOp>();
-        VPUX_THROW_UNLESS(cst != nullptr, "Constant expected as DMA input for weights table.");
+
+        // In case weights table was spilled there can be a sequence of DMAs
+        // Need to resolve it and update this DMA to have const as input directly
+        while (cst == nullptr) {
+            dmaOp = nullptr;
+            for (const auto& user : dmaInput.getUsers()) {
+                dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(user);
+                if ((dmaOp != nullptr) && (dmaOp.output_buff() == dmaInput)) {
+                    break;
+                }
+            }
+            VPUX_THROW_UNLESS(dmaOp != nullptr, "Next DMA op as source operation expected");
+
+            cst = dmaOp.input().getDefiningOp<Const::DeclareOp>();
+            dmaInput = dmaOp.input();
+        }
+
+        VPUX_THROW_UNLESS(cst != nullptr, "Constant expected as DMA input for weights table - {0}", dmaOp);
 
         // On top of existing transformation a new transformation is added to the content attribute
         // of weight table const. The new transformation will patch offsets in this constant
