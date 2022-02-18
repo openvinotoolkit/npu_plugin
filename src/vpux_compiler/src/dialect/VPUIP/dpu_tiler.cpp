@@ -30,8 +30,6 @@ namespace {
 
 constexpr uint32_t DEFAULT_ZTILE_VALUE = 16;
 
-// Note: refer the values from workload number pool implementation at
-// https://github.com/intel-innersource/frameworks.ai.vpu.presilicon.fathom/blob/main/src/Controllers/WorkloadGen.py#L84
 constexpr size_t MIN_VALID_ZTILE_EXPONENT = 4;
 constexpr size_t MAX_VALID_ZTILE_EXPONENT = 8;
 
@@ -157,6 +155,10 @@ SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLim
 
 SmallVector<uint32_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits) {
     SmallVector<uint32_t> validZTiles;
+
+    // Note: refer the values from workload number pool implementation at
+    // https://github.com/intel-innersource/frameworks.ai.vpu.presilicon.fathom/blob/main/src/Controllers/WorkloadGen.py#L84
+    // 2^4 equals to the CMX word siz in bytes,  2^8 is an up bound to limit the number of splits
     for (size_t i = MIN_VALID_ZTILE_EXPONENT; i < MAX_VALID_ZTILE_EXPONENT; ++i) {
         validZTiles.push_back(static_cast<uint32_t>(std::pow(2, i)));
         validZTiles.push_back(validZTiles.back() + DEFAULT_ZTILE_VALUE);
