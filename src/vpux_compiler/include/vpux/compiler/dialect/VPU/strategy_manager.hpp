@@ -309,13 +309,13 @@ VPU::DistributionMode StrategyManager::getActivationTensorDistributionMode(Concr
     const llvm::StringRef strategy =
             origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
     if (strategy == splitOverHeightOverLapped) {
-        return VPU::DistributionMode::overlapped;
+        return VPU::DistributionMode::OVERLAPPED;
     } else if (strategy == splitOverHeight) {
-        return VPU::DistributionMode::segmented;
+        return VPU::DistributionMode::SEGMENTED;
     } else if (strategy == splitOverKernel) {
-        return VPU::DistributionMode::multicasted;
+        return VPU::DistributionMode::MULTICASTED;
     } else if (strategy == clustering) {
-        return VPU::DistributionMode::multicasted;
+        return VPU::DistributionMode::MULTICASTED;
     } else {
         VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a distribution "
                    "mode "
@@ -329,13 +329,13 @@ VPU::DistributionMode StrategyManager::getWeightsTensorDistributionMode(Concrete
     const llvm::StringRef strategy =
             origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
     if (strategy == splitOverHeightOverLapped) {
-        return VPU::DistributionMode::multicasted;
+        return VPU::DistributionMode::MULTICASTED;
     } else if (strategy == splitOverHeight) {
-        return VPU::DistributionMode::multicasted;
+        return VPU::DistributionMode::MULTICASTED;
     } else if (strategy == splitOverKernel) {
-        return VPU::DistributionMode::segmented;
+        return VPU::DistributionMode::SEGMENTED;
     } else if (strategy == clustering) {
-        return VPU::DistributionMode::multicasted;
+        return VPU::DistributionMode::MULTICASTED;
     } else {
         VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a distribution "
                    "mode "
