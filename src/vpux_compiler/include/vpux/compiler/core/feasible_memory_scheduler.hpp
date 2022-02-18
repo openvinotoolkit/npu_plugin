@@ -309,6 +309,7 @@ private:
     HeapElement popFromCompletionTimeHeap();
     HeapElement const* topElementGen(ArrayRef<HeapElement> heap) const;
     bool isDataOp(operationIdxType opIdx);
+    bool isNonComputeChainOp(operationIdxType opIdx);
     bool isCopyOutOp(operationIdxType opIdx);
     void unscheduleOp(const HeapElement& helement);
     bool isComputeOpWithSomeActiveInputs(operationIdxType opIdx);
@@ -346,6 +347,11 @@ private:
     std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort> _readyComputeOps;
     // data operations with 0 in-degree
     std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort> _readyDataOps;
+    // operations which do not belong to main compute chain for activations from network
+    // input to output. Such operations need to be distinguished from other ops as scheduler
+    // is focused on scheduling ops along compute chain. Such operation will only be considered
+    // for scheduling once all input dependency data and/or compute ops have been executed
+    std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort> _nonComputeChainOps;
     // operation in-degree, number of incoming edges
     std::unordered_map<operationIdxType, size_t> _inDegreeTable;
     // operation out-degree, number of outgoing edges
