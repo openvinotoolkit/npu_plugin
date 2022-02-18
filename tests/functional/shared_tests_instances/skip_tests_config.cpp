@@ -20,6 +20,7 @@ public:
         const auto corePtr = PluginCache::get().ie();
         if (corePtr != nullptr) {
             _name = getBackendName(*corePtr);
+            _availableDevices = ::getAvailableDevices(*corePtr);
         } else {
             std::cout << "Failed to get IE Core!" << std::endl;
         }
@@ -49,8 +50,13 @@ public:
         return _name == "EMULATOR";
     }
 
+    std::vector<std::string> getAvailableDevices() const {
+        return _availableDevices;
+    }
+
 private:
     std::string _name;
+    std::vector<std::string> _availableDevices;
 };
 
 class Platform {
@@ -145,6 +151,14 @@ std::vector<std::string> disabledTestPatterns() {
             ".*IEClassLoadNetworkTest.*HETERO.*",
             ".*IEClassLoadNetworkTest.*MULTI.*",
 
+            // TODO Hetero plugin doesn't throw an exception in case of big device ID
+            // [Track number: E#30810]
+            ".*OVClassLoadNetworkTest.*LoadNetworkHETEROWithBigDeviceIDThrows.*",
+
+            // TODO VPUX Plugin doesn't handle DEVICE_ID in QueryNetwork implementation
+            // [Track number: E#30815]
+            ".*OVClassQueryNetworkTest.*",
+
             // Cannot detect vpu platform when it's not passed
             // Skip tests on Yocto which passes device without platform
             // [Track number: E#12774]
@@ -154,6 +168,9 @@ std::vector<std::string> disabledTestPatterns() {
 
             // [Track number: E#28335]
             ".*smoke_LoadNetworkToDefaultDeviceNoThrow.*",
+
+            // [Track number: E#32241]
+            ".*LoadNetwork.*CheckDeviceInBlob.*",
 
             // double free detected
             // [Track number: S#27343]
@@ -174,11 +191,18 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: GetMetric function is not fully implemented for ExecutableNetwork interface (implemented only for vpux plugin)
             ".*ExecutableNetworkBaseTest.checkGetMetric.*",
             ".*OVHoldersTest.*LoadedAny.*",
+            ".*OVClassExecutableNetworkGetMetricTest.*",
 
             // TODO: SetConfig function is not implemented for ExecutableNetwork interface (implemented only for vpux plugin)
             ".*ExecutableNetworkBaseTest.canSetConfigToExecNet.*",
             ".*ExecutableNetworkBaseTest.canSetConfigToExecNetAndCheckConfigAndCheck.*",
             ".*CanSetConfigToExecNet.*",
+            ".*OVClassExecutableNetworkGetMetricTest.*",
+            ".*OVClassExecutableNetworkGetConfigTest.*",
+
+            // TODO Exception "Not implemented"
+            // [Track number: E#30822]
+            ".*OVClassNetworkTestP.*LoadNetworkCreateDefaultExecGraphResult.*",
 
             // Async tests failed on dKMB
             // TODO: [Track number: S#14836]
@@ -216,7 +240,13 @@ std::vector<std::string> disabledTestPatterns() {
             ".*InferRequestCheckTensorPrecision.*type=u1.*",
             ".*InferRequestCheckTensorPrecision.*type=u4.*",
             ".*InferRequestCheckTensorPrecision.*type=u16.*",
+            ".*InferRequestCheckTensorPrecision.*type=u32.*",
             ".*InferRequestCheckTensorPrecision.*type=u64.*",
+
+            // TODO Exception during loading to the device
+            // [Track number: E#32075]
+            ".*OVClassLoadNetworkTest.*LoadNetworkHETEROwithMULTINoThrow.*",
+            ".*OVClassLoadNetworkTest.*LoadNetworkMULTIwithHETERONoThrow.*",
             }
         );
 
@@ -248,6 +278,16 @@ std::vector<std::string> disabledTestPatterns() {
                 // Cannot compile network without explicit specifying of the platform in case of no devices
                 ".*OVExecGraphImportExportTest.*",
                 ".*OVHoldersTest.*",
+                ".*OVClassExecutableNetworkGetMetricTest.*",
+                ".*OVClassExecutableNetworkGetConfigTest.*",
+                ".*OVClassNetworkTestP.*SetAffinityWithConstantBranches.*",
+                ".*OVClassNetworkTestP.*SetAffinityWithKSO.*",
+                ".*OVClassNetworkTestP.*LoadNetwork.*",
+
+                // Exception in case of network compilation without devices in system
+                // [Track number: E#30824]
+                ".*OVClassImportExportTestP.*",
+                ".*OVClassLoadNetworkTest.*LoadNetwork.*",
             }
         );
 
@@ -284,6 +324,15 @@ std::vector<std::string> disabledTestPatterns() {
                 }
         );
 
+        // [Track number: E#32244]
+        _skipRegistry.addPatterns(
+                backendName.isZero(),
+                "Device failure with 0x700000001",
+                {
+                        "smoke_BehaviorTests.InferRequestPerfCountersTest.*",
+                }
+        );
+
         _skipRegistry.addPatterns(
             platform.isARM(),  
             "CumSum layer is not supported by ARM platform",
@@ -298,6 +347,15 @@ std::vector<std::string> disabledTestPatterns() {
             "LoadNetwork throws an exception",
             {
                 ".*KmbGatherLayerTest.CompareWithRefs/.*",
+            }
+        );
+
+        _skipRegistry.addPatterns(
+            backendName.getAvailableDevices().size() > 1,
+            "Some VPUX Plugin metrics require single device to work in auto mode or set particular device",
+            {
+            ".*OVClassGetConfigTest.*GetConfigNoThrow.*",
+            ".*OVClassGetConfigTest.*GetConfigHeteroNoThrow.*",
             }
         );
 

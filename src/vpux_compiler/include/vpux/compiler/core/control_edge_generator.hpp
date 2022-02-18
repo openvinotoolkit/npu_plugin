@@ -49,6 +49,10 @@ struct IntervalTraits<ScheduledOpOneResource> {
     static UnitType intervalEnd(const IntervalType& interval) {
         return interval._addressEnd;
     }
+
+    static bool isIntervalProducer(const IntervalType& interval) {
+        return (interval._resRelation == ScheduledOpOneResource::EResRelation::PRODUCER);
+    }
 };  // struct IntervalTraits<ScheduledOpOneResource> //
 
 class ControlEdgeSet {
@@ -81,6 +85,7 @@ public:
     using IntervalType = typename Traits::IntervalType;
     using IntervalUtilsType = IntervalUtils<IntervalType>;
     using IntervalTreeType = DisjointIntervalSet<UnitType, IntervalType>;
+    using ProdConsType = typename IntervalTreeType::ProdConsType;
     using IntervalQueryIteratorType = typename IntervalTreeType::IntervalIteratorType;
     struct NoopFunctorType {
         void operator()(const IntervalType&, const IntervalType&) {
@@ -90,16 +95,19 @@ public:
     ControlEdgeGenerator(): _intervalTree() {
     }
 
+    // Iterate over provided intervals from begin to end. Track ranges producer and consumers
+    // and for any overlaps create new dependecy (control edge) in the output
     template <typename IntervalIterator, typename OutputFunctor = NoopFunctorType>
-    size_t generateControlEdges(IntervalIterator begin, IntervalIterator end, OutputFunctor& output = OutputFunctor()) {
+    size_t generateControlEdges(IntervalIterator begin, IntervalIterator end,
+                                OutputFunctor& outputDependency = OutputFunctor()) {
         size_t edgeCount = 0UL;
-        for (; begin != end; ++begin) {
-            const auto currBeg = Traits::intervalBegin(*begin);
-            const auto currEnd = Traits::intervalEnd(*begin);
+        for (auto currIntervalIt = begin; currIntervalIt != end; ++currIntervalIt) {
+            const auto currBeg = Traits::intervalBegin(*currIntervalIt);
+            const auto currEnd = Traits::intervalEnd(*currIntervalIt);
             if (currBeg > currEnd) {
                 continue;
             }
-            edgeCount += processNextInterval(*begin, output);
+            edgeCount += processNextInterval(*currIntervalIt, outputDependency);
         }
         return edgeCount;
     }
@@ -109,12 +117,22 @@ protected:
         return IntervalUtilsType::intersects(qitr.intervalBegin(), qitr.intervalEnd(), ibegin, iend);
     }
 
+    // Process new interval and add it on top of existing ones.
+    // If range is unoccupied then just new range is tracked. No control edge is needed
+    // If there is some overlap then:
+    //  - For intersecting part update the range:
+    //    - If added interval is range producer then create control edge from previous users to this new producer
+    //      Update range ownership with new producer
+    //    - If added interval is range consumer then create control edge from range producer to this new consumer
+    //      Add to range ownership new user. Do not remove previous producer and users
+    //  - For not intersecting parts leave previous ownership for those ranges
     template <typename OutputFunctor = NoopFunctorType>
-    size_t processNextInterval(const IntervalType& currInterval, OutputFunctor& output = OutputFunctor()) {
+    size_t processNextInterval(const IntervalType& currInterval, OutputFunctor& outputDependency = OutputFunctor()) {
         size_t edgeCount = 0UL;
         const auto currBeg = Traits::intervalBegin(currInterval);
         const auto currEnd = Traits::intervalEnd(currInterval);
         assert(currBeg <= currEnd);
+        const auto isCurrIntervalProducer = Traits::isIntervalProducer(currInterval);
 
         auto qitr = _intervalTree.query(currBeg, currEnd);
         auto qitrEnd = _intervalTree.end(), qitrNext = qitrEnd;
@@ -123,19 +141,45 @@ protected:
         // current interval which does not overlap intervals until qitr //
         auto currRemBeg = currBeg, currRemEnd = currEnd;
         while ((qitr != qitrEnd) && overlaps(qitr, currRemBeg, currRemEnd)) {  // foreach overlap //
-            auto qinterval = *qitr;
 
             assert((currRemBeg <= currRemEnd) && (currBeg <= currRemBeg) && (currRemEnd <= currEnd));
 
-            // output the control edge //
-            output(qinterval, currInterval);
-            ++edgeCount;
-
             // we now have an overlap between [qbeg,qend] and
             // [currRemBeg,currRemEnd] //
-
             auto qbeg = qitr.intervalBegin();
             auto qend = qitr.intervalEnd();
+            auto qintProd = qitr.getProducer();
+
+            auto qitrProdCons = qitr.getProdCons();
+            auto newProdCons = qitrProdCons;
+            ProdConsType currIntervalProdCons(currInterval);
+            if (isCurrIntervalProducer) {
+                if (qitrProdCons._consumers.empty()) {
+                    // If previous interval had no consumers just
+                    // output the control edge from it to new producer
+                    // of this interval
+                    outputDependency(qintProd, currInterval);
+                    ++edgeCount;
+                } else {
+                    // If previous interval had consumers output
+                    // control edges from all of them to new producer
+                    // of this interval
+                    for (auto& cons : qitrProdCons._consumers) {
+                        outputDependency(cons, currInterval);
+                        ++edgeCount;
+                    }
+                }
+                // Set new producer for new interval. This will
+                // also clear previous info about users
+                newProdCons.newProducer(currInterval);
+            } else {
+                // Add edge from interval producer to new user
+                outputDependency(qintProd, currInterval);
+                ++edgeCount;
+
+                // Update interval owners with new user
+                newProdCons.addConsumer(currInterval);
+            }
 
             // erase the current interval //
             qitrNext = qitr;
@@ -148,7 +192,7 @@ protected:
             assert(interBeg <= interEnd);
 
             UnitType resultBeg[2UL], resultEnd[2UL];
-            IntervalType const* resultVal[2UL];
+            ProdConsType const* resultVal[2UL];
             size_t rcount;
 
             // now compute the xor interval(s) //
@@ -160,7 +204,7 @@ protected:
 
             if (!rcount) {
                 // no xor intervals //
-                const bool status = _intervalTree.insert(interBeg, interEnd, currInterval);
+                const bool status = _intervalTree.insert(interBeg, interEnd, newProdCons);
                 assert(status);
                 std::ignore = status;
             } else {
@@ -179,10 +223,10 @@ protected:
                 //          (--------------]
                 for (size_t r = 0; r < rcount; r++) {
                     if (IntervalUtilsType::isSubset(resultBeg[r], resultEnd[r], currRemBeg, currRemEnd)) {
-                        resultVal[r] = &currInterval;
+                        resultVal[r] = &currIntervalProdCons;
                     } else {
                         assert(IntervalUtilsType::isSubset(resultBeg[r], resultEnd[r], qbeg, qend));
-                        resultVal[r] = &qinterval;
+                        resultVal[r] = &qitrProdCons;
                     }
                 }
 
@@ -196,11 +240,11 @@ protected:
                 }
 
                 // insert the intersection part //
-                _intervalTree.insert(interBeg, interEnd, currInterval);
+                _intervalTree.insert(interBeg, interEnd, newProdCons);
 
                 // process the interval above the intersection part //
                 if (nextXorIntervalIndex < rcount) {
-                    if (resultVal[nextXorIntervalIndex] != &currInterval) {
+                    if (resultVal[nextXorIntervalIndex] != &currIntervalProdCons) {
                         // need to insert this part back in the interval tree //
                         _intervalTree.insert(resultBeg[nextXorIntervalIndex], resultEnd[nextXorIntervalIndex],
                                              *(resultVal[nextXorIntervalIndex]));
@@ -227,17 +271,26 @@ protected:
         }
 
         // TODO: do the merging within the update itself //
-        mergeAbuttingIntervals(currInterval);
+        if (isCurrIntervalProducer) {
+            mergeAbuttingIntervals(currInterval);
+        }
         return edgeCount;
     }
 
+    // If there are abutting intervals which have the same producer then
+    // they can be replaced with a single interval covering whole range.
+    // This function should be called after new interval producer has
+    // been processed
     void mergeAbuttingIntervals(const IntervalType& currInterval) {
+        VPUX_THROW_UNLESS(Traits::isIntervalProducer(currInterval),
+                          "Abutting intervals can be merged only for new resource producer");
         UnitType ibeg = Traits::intervalBegin(currInterval);
         UnitType iend = Traits::intervalEnd(currInterval);
         IntervalQueryIteratorType qitr = _intervalTree.query(ibeg, iend);
         IntervalQueryIteratorType qitrEnd = _intervalTree.end(), qitrNext, qitrStart;
+        const ProdConsType currIntervalProdCons(currInterval);
 
-        if ((qitr == qitrEnd) || !(*qitr == currInterval)) {
+        if ((qitr == qitrEnd) || !(qitr.getProdCons() == currIntervalProdCons)) {
             return;
         }
 
@@ -246,7 +299,8 @@ protected:
         UnitType prevRightEnd = qitr.intervalEnd();
 
         ++qitr;
-        while ((qitr != qitrEnd) && ((*qitr == currInterval) && ((prevRightEnd + 1) == qitr.intervalBegin()))) {
+        while ((qitr != qitrEnd) &&
+               ((qitr.getProdCons() == currIntervalProdCons) && ((prevRightEnd + 1) == qitr.intervalBegin()))) {
             prevRightEnd = qitr.intervalEnd();
             // TODO: implement an erase using iterators instead of
             // end point values so that this takes O(1) time.
@@ -258,7 +312,7 @@ protected:
 
         if (prevRightEnd > qitrStart.intervalEnd()) {
             _intervalTree.erase(qitrStart.intervalBegin(), qitrStart.intervalEnd());
-            _intervalTree.insert(prevLeftEnd, prevRightEnd, currInterval);
+            _intervalTree.insert(prevLeftEnd, prevRightEnd, currIntervalProdCons);
         }
     }
 

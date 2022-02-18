@@ -470,6 +470,12 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
     };
     auto nnCMXOperands = SmallVector<mlir::Value>();
 
+    const auto inputShape = getShape(op.input());
+    const auto inputBatch = inputShape[Dims4D::Act::N];
+    if (inputBatch != vpux::VPU::NCEInvariant::SUPPORTED_BATCH_SIZE) {
+        return errorAt(op, "Got unsupported input batch '{0}' expected '{1}'", inputBatch,
+                       vpux::VPU::NCEInvariant::SUPPORTED_BATCH_SIZE);
+    }
     appendToVector(nnCMXOperands, op.input());
     appendToVector(nnCMXOperands, op.weights());
     appendToVector(nnCMXOperands, op.weight_table());

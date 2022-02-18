@@ -25,7 +25,6 @@ addIeTargetTest(
         openvino_intel_vpux_plugin
     LINK_LIBRARIES
         IE::funcSharedTests
-        vpux_utils
         IE::ngraph
         IE::ngraph_reference
         IE::format_reader
