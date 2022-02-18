@@ -119,15 +119,15 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
     Shape prefetchableTilesOnDim = nTilesOnDim;
     while (prefetchableTilesOnDim[targetDim] < IE::MAX_PREFETCH_TILING_TIME * nTilesOnDim[targetDim] &&
            !isSupportedTileSize(prefetchableTilesOnDim, TilingMode::PREFETCH_TILING)) {
+        if (!isDimLeftToTile(prefetchableTilesOnDim)) {
+            break;
+        }
         if (targetDim == Dims4D::Act::C) {
             do {
                 ++prefetchableTilesOnDim[Dims4D::Act::C];
             } while (!isSupportedChannelDivision(prefetchableTilesOnDim));
         } else {
             prefetchableTilesOnDim[dimToTile]++;
-        }
-        if (!isDimLeftToTile(prefetchableTilesOnDim)) {
-            break;
         }
     }
     auto prefetchableTiles = fillDividedTiles(prefetchableTilesOnDim, outputShape);
