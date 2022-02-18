@@ -35,6 +35,8 @@ constexpr llvm::StringLiteral splitOverHeight = "SplitOverHeight";
 constexpr llvm::StringLiteral splitOverKernel = "SplitOverKernel";
 constexpr llvm::StringLiteral clustering = "Clustering";
 
+constexpr int64_t MAXPOOL_AND_ELTWISE_SOH_EFFICIENCY = 1;
+constexpr int64_t MAXPOOL_AND_ELTWISE_SOK_EFFICIENCY = 0;
 //
 // StrategyManager
 //
@@ -83,7 +85,7 @@ private:
     template <class ConcreteOp>
     double depthwiseConvolutionTotalDataTransfer(ConcreteOp& origOp, const llvm::StringRef strategy) const;
     template <class ConcreteOp>
-    bool isOperationSplitOverHeightFitIntoCMX(ConcreteOp& origOp) const;
+    bool doesSplitOverHeightFitIntoCMX(ConcreteOp& origOp) const;
 
     double getDepthwiseEfficiencyConstant(const int64_t& kernel, const int64_t& stride) const;
     double getChannelMajorEfficiencyConstant(const int64_t& kernel, const int64_t& stride) const;
@@ -123,7 +125,7 @@ template <class ConcreteOp>
 bool StrategyManager::isOperationSplitOverHeightCompatible(ConcreteOp& op) const {
     const auto outputShape = getShape(op.output());
     const auto OH = outputShape[Dims4D::Act::H];
-    return (OH >= _minimumHeightForSOH) && isOperationSplitOverHeightFitIntoCMX(op);
+    return (OH >= _minimumHeightForSOH) && doesSplitOverHeightFitIntoCMX(op);
 }
 
 // An operation is SOK compitable if it has at least 64 output channels
@@ -268,10 +270,10 @@ mlir::ArrayAttr StrategyManager::getActivationTensorNumTiles(ConcreteOp& origOp)
     } else if (strategy == clustering) {
         return getIntArrayAttr(_ctx, makeArrayRef({1, 1, 1, 1}));
     } else {
-        VPUX_THROW(
-                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
-                "for the activation tensor",
-                origOp->getName());
+        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the number of "
+                   "tiles "
+                   "for the activation tensor",
+                   origOp->getName());
     }
 }
 
@@ -294,8 +296,8 @@ double StrategyManager::depthwiseConvolutionTotalDataTransfer(ConcreteOp& origOp
     } else if (strategy == splitOverKernel) {
         return ((_numClusters * inputTensorVolume) + weightTensorVolume);
     } else {
-        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine total data "
-                   "movement ",
+        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the total data "
+                   "movement required",
                    origOp->getName());
     }
 }
@@ -313,10 +315,10 @@ mlir::ArrayAttr StrategyManager::getWeightsTensorNumTiles(ConcreteOp& origOp) co
     } else if (strategy == clustering) {
         return getIntArrayAttr(_ctx, makeArrayRef({1, 1, 1, 1}));
     } else {
-        VPUX_THROW(
-                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a number of tiles "
-                "for the weights tensor",
-                origOp->getName());
+        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the number of "
+                   "tiles "
+                   "for the weights tensor",
+                   origOp->getName());
     }
 }
 
@@ -333,10 +335,11 @@ VPU::DistributionMode StrategyManager::getActivationTensorDistributionMode(Concr
     } else if (strategy == clustering) {
         return VPU::DistributionMode::MULTICASTED;
     } else {
-        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a distribution "
-                   "mode "
-                   "for the activation tensor",
-                   origOp->getName());
+        VPUX_THROW(
+                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the distribution "
+                "mode "
+                "for the activation tensor",
+                origOp->getName());
     }
 }
 
@@ -353,15 +356,16 @@ VPU::DistributionMode StrategyManager::getWeightsTensorDistributionMode(Concrete
     } else if (strategy == clustering) {
         return VPU::DistributionMode::MULTICASTED;
     } else {
-        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine a distribution "
-                   "mode "
-                   "for the weights tensor",
-                   origOp->getName());
+        VPUX_THROW(
+                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the distribution "
+                "mode "
+                "for the weights tensor",
+                origOp->getName());
     }
 }
 
 template <class ConcreteOp>
-bool StrategyManager::isOperationSplitOverHeightFitIntoCMX(ConcreteOp& origOp) const {
+bool StrategyManager::doesSplitOverHeightFitIntoCMX(ConcreteOp& origOp) const {
     auto activationTensorDistributionMode = VPU::DistributionMode::SEGMENTED;
     auto activationTensorNumTiles = getIntArrayAttr(_ctx, makeArrayRef({1, 1, _numClusters, 1}));
     auto weightsTensorDistributionMode = VPU::DistributionMode::MULTICASTED;
@@ -455,7 +459,7 @@ bool StrategyManager::isOperationSplitOverHeightFitIntoCMX(ConcreteOp& origOp) c
                            distributedInput2TensorType.getTotalAllocSize() +
                            distributedOutputTensorType.getTotalAllocSize();
     } else {
-        VPUX_THROW("Attempting to get pad for operation {0}, which is not a NCE Task", origOp->getName());
+        VPUX_THROW("Attempting to get the padding for operation {0}, which is not a NCE Task", origOp->getName());
     }
 
     return totalMemorySize <= VPU::getTotalCMXSize(origOp.getOperation());
