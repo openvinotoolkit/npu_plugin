@@ -29,6 +29,8 @@
 namespace vpux {
 namespace VPU {
 
+constexpr int64_t MAXPOOL_AND_ELTWISE_SOH_EFFICIENCY = 1;
+constexpr int64_t MAXPOOL_AND_ELTWISE_SOK_EFFICIENCY = 0;
 //
 // BaseLayerStrategy
 //
