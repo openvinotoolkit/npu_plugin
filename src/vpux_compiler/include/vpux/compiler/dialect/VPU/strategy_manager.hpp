@@ -16,6 +16,7 @@
 #include <map>
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
@@ -367,18 +368,39 @@ bool StrategyManager::isOperationSplitOverHeightFitIntoCMX(ConcreteOp& origOp) c
     auto weightTensorNumTiles = getIntArrayAttr(_ctx, makeArrayRef({1, 1, 1, 1}));
     auto distributedOutputTensorType =
             createDistributedOutputTensorType(origOp, activationTensorDistributionMode, activationTensorNumTiles);
+    auto outputShape = getShape(origOp.output());
+    auto OC = outputShape[Dims4D::Act::C];
     Byte totalMemorySize(0);
+    int64_t activationWindowSize = 0;
 
     if (auto convolutionOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(origOp.getOperation())) {
         auto distributedActivationTensorType = createDistributedInputTensorType(
                 convolutionOp, convolutionOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
         auto distributeddWeightsTensorType = createDistributedInputTensorType(
                 convolutionOp, convolutionOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
+        auto weightsTable = VPU::NCEInvariant::getWeightsTableSize(OC);
+
+        if (DimsOrder::fromValue(convolutionOp.input()) == DimsOrder::NCHW) {
+            // TODO: Simplify?
+            const auto filterShape =
+                    convolutionOp.rawFilterShape().hasValue()
+                            ? Shape(parseIntArrayAttr<int64_t>(convolutionOp.rawFilterShape().getValue()))
+                            : getShape(convolutionOp.filter()).toValues();
+            const auto IC = filterShape[Dims4D::Filter::IC];
+            const auto KY = filterShape[Dims4D::Filter::KY];
+            const auto KX = filterShape[Dims4D::Filter::KX];
+            const auto kernelSize = Shape{KY, KX};
+            const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(convolutionOp.strides()));
+            const auto SX = kernelStrides[Dims4D::Strides::X];
+            auto elemType = convolutionOp.input().getType().template cast<mlir::ShapedType>().getElementType();
+            activationWindowSize = VPU::NCESparsity::getActivationWindowSize(VPU::NCESparsity::Mode::CM_CONV,
+                                                                             kernelSize, SX, elemType, IC);
+        }
 
         totalMemorySize += distributedActivationTensorType.getTotalAllocSize() +
                            distributeddWeightsTensorType.getTotalAllocSize() +
-                           distributedOutputTensorType.getTotalAllocSize();
-        // TODO: add weightsTable and sparsityMap
+                           distributedOutputTensorType.getTotalAllocSize() + weightsTable +
+                           activationWindowSize * 1_Byte;
     } else if (auto depthwiseConvolutionOp = mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(origOp.getOperation())) {
         auto distributedActivationTensorType =
                 createDistributedInputTensorType(depthwiseConvolutionOp, depthwiseConvolutionOp.input(),
@@ -386,18 +408,43 @@ bool StrategyManager::isOperationSplitOverHeightFitIntoCMX(ConcreteOp& origOp) c
         auto distributeddWeightsTensorType =
                 createDistributedInputTensorType(depthwiseConvolutionOp, depthwiseConvolutionOp.filter(),
                                                  weightsTensorDistributionMode, weightTensorNumTiles);
+        auto weightsTable = VPU::NCEInvariant::getWeightsTableSize(OC);
+
+        const auto filterShape =
+                depthwiseConvolutionOp.rawFilterShape().hasValue()
+                        ? Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShape().getValue()))
+                        : getShape(depthwiseConvolutionOp.filter()).toValues();
+        const auto IC = filterShape[Dims4D::Filter::IC];
+        const auto KY = filterShape[Dims4D::Filter::KY];
+        const auto KX = filterShape[Dims4D::Filter::KX];
+        const auto kernelSize = Shape{KY, KX};
+        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.strides()));
+        const auto SX = kernelStrides[Dims4D::Strides::X];
+        auto elemType = depthwiseConvolutionOp.input().getType().template cast<mlir::ShapedType>().getElementType();
+        activationWindowSize = VPU::NCESparsity::getActivationWindowSize(VPU::NCESparsity::Mode::DW_CONV, kernelSize,
+                                                                         SX, elemType, IC);
 
         totalMemorySize += distributedActivationTensorType.getTotalAllocSize() +
                            distributeddWeightsTensorType.getTotalAllocSize() +
-                           distributedOutputTensorType.getTotalAllocSize();
-        // TODO: add weightsTable and sparsityMap
+                           distributedOutputTensorType.getTotalAllocSize() + weightsTable +
+                           activationWindowSize * 1_Byte;
     } else if (auto maxPoolOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(origOp.getOperation())) {
         auto distributedActivationTensorType = createDistributedInputTensorType(
                 maxPoolOp, maxPoolOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
+        auto weightsTable = VPU::NCEInvariant::getWeightsTableSize(OC);
 
-        totalMemorySize +=
-                distributedActivationTensorType.getTotalAllocSize() + distributedOutputTensorType.getTotalAllocSize();
-        // TODO: add weightsTable and sparsityMap
+        const auto inputShape = getShape(maxPoolOp.input());
+        const auto IC = inputShape[Dims4D::Act::C];
+        const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(maxPoolOp.kernel_size()));
+        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(maxPoolOp.strides()));
+        const auto SX = kernelStrides[Dims4D::Strides::X];
+        auto elemType = maxPoolOp.input().getType().template cast<mlir::ShapedType>().getElementType();
+        activationWindowSize =
+                VPU::NCESparsity::getActivationWindowSize(VPU::NCESparsity::Mode::POOL, kernelSize, SX, elemType, IC);
+
+        totalMemorySize += distributedActivationTensorType.getTotalAllocSize() +
+                           distributedOutputTensorType.getTotalAllocSize() + weightsTable +
+                           activationWindowSize * 1_Byte;
     } else if (auto eltwiseOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(origOp.getOperation())) {
         auto distributedInput1TensorType = createDistributedInputTensorType(
                 eltwiseOp, eltwiseOp.input1(), activationTensorDistributionMode, activationTensorNumTiles);
@@ -407,7 +454,6 @@ bool StrategyManager::isOperationSplitOverHeightFitIntoCMX(ConcreteOp& origOp) c
         totalMemorySize += distributedInput1TensorType.getTotalAllocSize() +
                            distributedInput2TensorType.getTotalAllocSize() +
                            distributedOutputTensorType.getTotalAllocSize();
-        // TODO: add weightsTable and sparsityMap
     } else {
         VPUX_THROW("Attempting to get pad for operation {0}, which is not a NCE Task", origOp->getName());
     }
