@@ -80,6 +80,7 @@ TEST_F(KmbYoloV1NetworkTest, precommit_INT8_Dense_TF_DarkNet_TinyYoloV1) {
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32_no_align) {
+    SKIP_INFER("Leads to 'DDR MemMgr failed to free segment'");  // [Track number: E#27630]
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -91,6 +92,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_facenet_20180408_102900_tf_dense_int8_IRv10_from_fp32) {
+    SKIP_INFER("Leads to 'DDR MemMgr failed to free segment'");  // [Track number: E#27630]
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/facenet-20180408-102900/facenet_20180408_102900_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -104,7 +106,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_facenet_20180408_102900_tf_dense_int8_I
 // [Track number: H#18012385770]
 // [Track number: H#18013202155]
 TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
-    SKIP_INFER_ON("EMULATOR", "Wrong results");
+    SKIP_INFER("Wrong results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
                     .setUserInputPrecision("input", Precision::U8),
@@ -196,6 +198,7 @@ TEST_F(PersonAttrRecNetworkTest, precommit_person_attribute_recognitnion_crossro
 
 TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
     SKIP_INFER_ON("VPUAL", "exception - load graph to device");
+    SKIP_INFER("Leads to 'DDR MemMgr failed to free segment'");  // [Track number: E#27630]
     runTest(
             TestNetworkDesc("KMB_models/FP16-INT8/public/aclnet-des-53-vpu/aclnet-des-53-vpu.xml")
                     .setUserInputPrecision("input", Precision::FP16),

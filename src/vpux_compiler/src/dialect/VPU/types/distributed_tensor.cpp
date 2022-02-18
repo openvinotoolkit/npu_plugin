@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright 2022 Intel Corporation
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,10 +11,11 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/dialect/VPUIP/types.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/types.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 
 #include <llvm/ADT/TypeSwitch.h>
 
@@ -24,8 +25,8 @@ using namespace vpux;
 // SubElementTypeInterface
 //
 
-void vpux::VPUIP::DistributedBufferType::walkImmediateSubElements(
-        llvm::function_ref<void(mlir::Attribute)> walkAttrsFn, llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
+void VPU::DistributedTensorType::walkImmediateSubElements(llvm::function_ref<void(mlir::Attribute)> walkAttrsFn,
+                                                          llvm::function_ref<void(Type)> walkTypesFn) const {
     walkTypesFn(getElementType());
     if (!getOrder().isIdentity()) {
         walkAttrsFn(getOrder());
@@ -38,7 +39,7 @@ void vpux::VPUIP::DistributedBufferType::walkImmediateSubElements(
 // print/parse
 //
 
-void vpux::VPUIP::DistributedBufferType::print(mlir::DialectAsmPrinter& printer) const {
+void VPU::DistributedTensorType::print(mlir::DialectAsmPrinter& printer) const {
     printer << getMnemonic() << "<";
     for (auto& dim : getShape()) {
         printer << dim << "x";
@@ -70,7 +71,7 @@ void vpux::VPUIP::DistributedBufferType::print(mlir::DialectAsmPrinter& printer)
     printer << ">";
 }
 
-mlir::Type vpux::VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& parser) {
+mlir::Type VPU::DistributedTensorType::parse(mlir::DialectAsmParser& parser) {
     if (parser.parseLess()) {
         return Type();
     }
@@ -184,112 +185,125 @@ mlir::Type vpux::VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& par
 // getCompactType
 //
 
-mlir::MemRefType vpux::VPUIP::DistributedBufferType::getCompactType() const {
-    return mlir::MemRefType::get(getShape().raw(), getElementType(), getOrder().getValue(), getMemSpace());
+mlir::RankedTensorType vpux::VPU::DistributedTensorType::getCompactType() const {
+    return mlir::RankedTensorType::get(getShape().raw(), getElementType(),
+                                       IE::TensorAttr::get(getOrder(), getMemSpace(), nullptr, getContext()));
 }
 
 //
 // NDTypeInterface
 //
 
-vpux::MemShape vpux::VPUIP::DistributedBufferType::getMemShape() const {
-    const auto dimsOrder = DimsOrder::fromAffineMap(getOrder().getValue());
+MemShape VPU::DistributedTensorType::getMemShape() const {
+    const auto dimsOrder = getDimsOrder();
     const auto shape = getShape();
     return dimsOrder.toMemoryOrder(shape);
 }
 
-bool vpux::VPUIP::DistributedBufferType::hasRank() const {
+bool VPU::DistributedTensorType::hasRank() const {
     return true;
 }
 
-int64_t vpux::VPUIP::DistributedBufferType::getRank() const {
-    return checked_cast<int64_t>(getShape().size());
+int64_t VPU::DistributedTensorType::getRank() const {
+    return static_cast<int64_t>(getShape().size());
 }
 
-int64_t vpux::VPUIP::DistributedBufferType::getNumElements() const {
-    auto shape = getShape().raw();
-    VPUX_THROW_UNLESS(!vpux::details::isDynamicDimValues(shape), "Cannot get element count of dynamic shaped type");
-    return vpux::details::calcTotalShapeSize(shape);
-}
-
-vpux::DimsOrder vpux::VPUIP::DistributedBufferType::getDimsOrder() const {
+DimsOrder VPU::DistributedTensorType::getDimsOrder() const {
     return DimsOrder::fromAffineMap(getOrder().getValue());
 }
 
-vpux::VPU::MemoryKind vpux::VPUIP::DistributedBufferType::getMemoryKind() const {
-    const auto memSpace = getMemSpace();
-    if (memSpace == nullptr) {
-        return vpux::VPU::MemoryKind::DDR;
-    }
-
-    return vpux::VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).getValue();
+int64_t VPU::DistributedTensorType::getNumElements() const {
+    return vpux::details::calcTotalShapeSize(getShape().raw());
 }
 
-vpux::Strides vpux::VPUIP::DistributedBufferType::getStrides() const {
+VPU::MemoryKind VPU::DistributedTensorType::getMemoryKind() const {
+    const auto memSpace = getMemSpace();
+    if (memSpace == nullptr) {
+        return VPU::MemoryKind::DDR;
+    }
+    return VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).getValue();
+}
+
+Strides VPU::DistributedTensorType::getStrides() const {
     const auto mapAttr = getOrder();
     VPUX_THROW_UNLESS(mapAttr.getValue().isPermutation(), "Got non permutation layout attribute '{0}'", mapAttr);
 
+    const auto memStrides = getMemStrides();
     const auto order = getDimsOrder();
-    const auto memShape = getMemShape();
-    const auto memStrides = StrideReqs::compact(order.numDims()).calcStrides(getElemTypeSize(), memShape);
-
     return order.toLogicalOrder(memStrides);
 }
 
-vpux::MemStrides vpux::VPUIP::DistributedBufferType::getMemStrides() const {
+MemStrides VPU::DistributedTensorType::getMemStrides() const {
     const auto order = getDimsOrder();
-    const auto strides = getStrides();
-    return order.toMemoryOrder(strides);
+    // Tensors are always compact
+    const auto elemSize = getElemTypeSize();
+    const auto shape = getShape();
+    const auto memShape = order.toMemoryOrder(shape);
+    return StrideReqs::compact(order.numDims()).calcStrides(elemSize, memShape);
 }
 
-vpux::Bit vpux::VPUIP::DistributedBufferType::getElemTypeSize() const {
+Bit VPU::DistributedTensorType::getElemTypeSize() const {
     return vpux::getElemTypeSize(getElementType());
 }
 
-vpux::Byte vpux::VPUIP::DistributedBufferType::getTotalAllocSize() const {
-    if (getRank() == 0) {
-        return getElemTypeSize();
+Byte VPU::DistributedTensorType::getTotalAllocSize() const {
+    // Tensors are always compact
+    return getCompactAllocSize();
+}
+
+Byte VPU::DistributedTensorType::getCompactAllocSize() const {
+    auto shape = getShape();
+    const auto distribution = getDistribution();
+    const auto tilingScheme = parseIntArrayAttr<int64_t>(distribution.num_tiles());
+    const auto distributionMode = distribution.mode();
+
+    auto tiledShape = SmallVector<int64_t>(shape.size());
+    if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::SEGMENTED)) {
+        std::transform(shape.begin(), shape.end(), tilingScheme.begin(), tiledShape.begin(),
+                       [](int64_t dim, int64_t tile) {
+                           return divUp(dim, tile);
+                       });
+    } else if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::OVERLAPPED)) {
+        VPUX_THROW("OVERLAPPED distribution mode is not supported yet");
+    } else {
+        tiledShape = to_small_vector(shape);
     }
 
-    const auto memShape = getMemShape();
-    const auto memStrides = getMemStrides();
-
-    VPUX_THROW_UNLESS(memShape.size() == memStrides.size(), "Shape and strides mismatch : {0} vs {1}", memShape,
-                      memStrides);
-
-    return Byte(memStrides.front() * memShape.front());
+    return Byte(getElemTypeSize()) * vpux::details::calcTotalShapeSize(tiledShape);
 }
 
-vpux::Byte vpux::VPUIP::DistributedBufferType::getCompactAllocSize() const {
-    const auto typeSize = static_cast<Bit>(getElemTypeSize());
-    if (getRank() == 0) {
-        return typeSize;
+NDTypeInterface VPU::DistributedTensorType::changeShape(ShapeRef shape) const {
+    auto elemType = getElementType();
+    if (auto perAxisType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto axis = getQuantizedAxis(perAxisType.getQuantizedDimension(), getShape(), shape);
+        if (axis.hasValue()) {
+            elemType = changeAxis(perAxisType, axis.getValue());
+        }
     }
-
-    const auto shape = getShape();
-    return shape.totalSize() * typeSize;
+    return VPU::DistributedTensorType::get(getContext(), shape.raw(), elemType, getOrder(), getMemSpace(),
+                                           getDistribution());
 }
 
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeShape(vpux::ShapeRef) const {
-    VPUX_THROW("changeShape method is not implemented for DistributedBufferType");
+NDTypeInterface VPU::DistributedTensorType::changeElemType(mlir::Type elemType) const {
+    return VPU::DistributedTensorType::get(getContext(), getShape().raw(), elemType, getOrder(), getMemSpace(),
+                                           getDistribution());
 }
 
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeElemType(mlir::Type) const {
-    VPUX_THROW("changeElemType method is not implemented for DistributedBufferType");
+NDTypeInterface VPU::DistributedTensorType::changeDimsOrder(DimsOrder order) const {
+    return VPU::DistributedTensorType::get(getContext(), getShape().raw(), getElementType(),
+                                           mlir::AffineMapAttr::get(order.toAffineMap(getContext())), getMemSpace(),
+                                           getDistribution());
 }
 
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeDimsOrder(vpux::DimsOrder) const {
-    VPUX_THROW("changeDimsOrder method is not implemented for DistributedBufferType");
+NDTypeInterface VPU::DistributedTensorType::changeMemSpace(IndexedSymbolAttr memSpace) const {
+    return VPU::DistributedTensorType::get(getContext(), getShape().raw(), getElementType(), getOrder(), memSpace,
+                                           getDistribution());
 }
 
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeMemSpace(vpux::IndexedSymbolAttr) const {
-    VPUX_THROW("changeMemSpace method is not implemented for DistributedBufferType");
+NDTypeInterface VPU::DistributedTensorType::extractDenseTile(ShapeRef /*tileOffsets*/, ShapeRef /*tileShape*/) const {
+    VPUX_THROW("extractDenseTile method is not implemented for DistributedTensorType");
 }
 
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::extractDenseTile(vpux::ShapeRef, vpux::ShapeRef) const {
-    VPUX_THROW("extractDenseTile method is not implemented for DistributedBufferType");
-}
-
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::pad(vpux::ShapeRef, vpux::ShapeRef) const {
-    VPUX_THROW("pad method is not implemented for DistributedBufferType");
+NDTypeInterface VPU::DistributedTensorType::pad(ShapeRef /*padBefore*/, ShapeRef /*padAfter*/) const {
+    VPUX_THROW("pad method is not implemented for DistributedTensorType");
 }

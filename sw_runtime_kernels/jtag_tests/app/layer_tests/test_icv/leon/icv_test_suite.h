@@ -19,10 +19,6 @@
 #include <sw_tensor_ref.h>
 #include <mvTensorUtil.h>
 
-#ifndef TOTAL_NUM_SHAVES
-# define TOTAL_NUM_SHAVES MVTENSOR_MAX_SHAVES /* AE: temporary. what is MVTENSOR_MAX_SHAVES for MTL? */
-#endif
-
 using namespace nn::shave_lib;
 /* Note that external variable "__l2_config" declared twice with different linkage:
  *

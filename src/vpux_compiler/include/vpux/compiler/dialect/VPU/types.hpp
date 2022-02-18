@@ -13,7 +13,9 @@
 
 #pragma once
 
+#include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>

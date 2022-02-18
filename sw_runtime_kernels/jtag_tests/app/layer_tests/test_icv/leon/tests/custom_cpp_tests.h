@@ -47,8 +47,17 @@ public:
     explicit CustomCppTests() = default;
     virtual ~CustomCppTests() = default;
 protected:
-    void initData() override
-    {
+    void initData() override {
+        sw_params::BaseKernelParams emptyParamData;
+        m_params = {
+            0xFFFFFFFF,
+            m_elfBuffer,
+            0,
+            nullptr,
+            emptyParamData,
+            MAX_LOCAL_PARAMS,
+            0
+        };
         initElfBuffer();
         initTestCase();
         const Dimensions& dimIn = m_currentTest->inDim;

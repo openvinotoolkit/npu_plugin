@@ -205,6 +205,19 @@ The pass is a part of `HardwareMode` pipeline.
 
 It inserts `Reorder` operation between `Transpose` and `Concat` operation when possible.
 This transormation reduces the number of `MemPermute` operations in resulting graph.
+### `-transpose-to-permute-cast`: Converts Transpose operation to PermuteCast with Reorder
+It is possible to replace a `Transpose` operation with a combination of `PermuteCast` and `Reorder`.
+To compute the permutation cast, which is required for the source tensor, one must inverse the
+affine map from the original `Transpose` operation. For example, consider the following transposition:
+`1x16x32x64 -> 1x64x16x32`, its affine map is: `(d0, d1, d2, d3) -> (d0, d3, d1, d2)`.
+The inverse will be:
+```
+    d0, d3, d1, d2   ->  d0, d1, d2, d3
+    aN, aC, aH, aW   ->  aN, aH, aW, aC
+```
+Which gives permutation cast into NHWC.
+In order to maintain the layout in data flow, `Reorder` must always rearrange `PermuteCast` result into the
+order of original `Transpose` operation.
 ### `-uniquify-ops`: Remove duplicating operations with a common producer Value
 The pass is a part of `AdjustForVPU` pipeline.
 

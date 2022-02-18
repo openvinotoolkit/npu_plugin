@@ -55,7 +55,7 @@ struct EXCLUSIVE_ASYNC_REQUESTS final : OptionBase<EXCLUSIVE_ASYNC_REQUESTS, boo
 
 struct THROUGHPUT_STREAMS final : OptionBase<THROUGHPUT_STREAMS, int64_t> {
     static StringRef key() {
-        return ov::num_streams.name();
+        return ov::streams::num.name();
     }
 
     static int64_t defaultValue() {

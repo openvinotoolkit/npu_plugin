@@ -1,6 +1,16 @@
-/*
- * {% copyright %}
- */
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
 #pragma once
 
 #include <stdint.h>
@@ -58,7 +68,6 @@ extern uint32_t SLK_ROIPoolingKernel;
 extern uint32_t SLK_custom_ocl;
 extern uint32_t SLK_custom_cpp;
 extern uint32_t SLK_edsl;
-extern uint32_t SLK_Dummy;
 extern uint32_t SLK_proposal;
 extern uint32_t SLK_regionYoloKernel_CHW;
 extern uint32_t SLK_regionYoloKernel_HWC;
@@ -125,8 +134,6 @@ extern uint32_t SLK_swConvolutionPreamble;
 
 extern uint32_t SLK_preQuantizer;
 extern uint32_t SLK_preQuantizer_EqualScales_StridedIn_CompactOut;
-extern uint32_t SLK_dummyPreamble;
-extern uint32_t SLK_cleanDummy;
 extern uint32_t SLK_interpPreamble;
 extern uint32_t SLK_fullyConnectedPreamble;
 extern uint32_t SLK_preNormalize;
@@ -145,6 +152,7 @@ extern uint32_t SLK_hswish_fp16;
 extern uint32_t SLK_singleShaveMVN;
 extern uint32_t SLK_elu_fp16;
 extern uint32_t SLK_exp_fp16;
+extern uint32_t SLK_dummy;
 extern uint32_t SLK_tanh_fp16;
 extern uint32_t SLK_maximum;
 extern uint32_t SLK_minimum;

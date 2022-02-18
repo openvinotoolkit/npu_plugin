@@ -1,6 +1,16 @@
-/*
-* {% copyright %}
-*/
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
 #ifndef SW_NN_RUNTIME_TYPES_H_2490__
 #define SW_NN_RUNTIME_TYPES_H_2490__
 
@@ -8,6 +18,7 @@
 #include <sw_layer.h>
 #include <sw_shave_lib_common.h>
 #include <sw_shave_res_manager.h>
+#include <common_types.h>
 
 // TODO: Better macro expansion allows these to live in a strongly typed enum
 // now
@@ -33,8 +44,8 @@ namespace nn
 
   namespace shave_lib
   {
-    constexpr uint8_t MAX_INPUT_TENSORS = 8;
-    constexpr uint8_t MAX_OUTPUT_TENSORS = 4;
+    constexpr uint8_t MAX_INPUT_TENSORS = MAX_KERNEL_INPUTS;
+    constexpr uint8_t MAX_OUTPUT_TENSORS = MAX_KERNEL_OUTPUTS;
 
     static_assert(MAX_INPUT_TENSORS < (UINT8_MAX>> 2),
                   "IO tensor count should never come close to UINT8_MAX.");

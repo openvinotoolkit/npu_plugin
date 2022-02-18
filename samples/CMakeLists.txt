@@ -97,16 +97,8 @@ function(add_samples_to_build)
             # check if a subdirectory contains CMakeLists.txt. In this case we can build it.
             file(GLOB is_sample_dir "${CMAKE_CURRENT_SOURCE_DIR}/${dir}/CMakeLists.txt")
             if(is_sample_dir)
-                # check if specified sample/demo is found.
-                if (BUILD_SAMPLE_NAME)
-                    list(FIND BUILD_SAMPLE_NAME ${dir} index)
-                endif()
-                if (index EQUAL -1)
-                    message(STATUS "${dir} SKIPPED")
-                else()
-                    # Include subdirectory to the project.
-                    add_subdirectory(${dir})
-                endif()
+                # Include subdirectory to the project.
+                add_subdirectory(${dir})
             endif()
         endif()
     endforeach()

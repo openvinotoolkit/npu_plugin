@@ -36,6 +36,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Check, KmbShapeOfLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(InferenceEngine::Precision::I64),
                                     ::testing::Values(std::vector<size_t>({10, 10, 10})),
                                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                             ShapeOfLayerTest::getTestCaseName);

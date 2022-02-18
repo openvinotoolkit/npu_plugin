@@ -50,6 +50,7 @@ void vpux::IE::buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLa
         pm.addPass(IE::createInsertReorderBetweenTransposeAndConcatPass(log));
     }
 
+    pm.addPass(IE::createTransposeToPermuteCastPass(log));
     pm.addPass(IE::createAdjustLayoutsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
