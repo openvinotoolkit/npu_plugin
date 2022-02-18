@@ -157,7 +157,7 @@ double StrategyManager::computeZMajorConvolutionSplitOverHeightEfficency(mlir::O
                                     _numDPUPerCluster));
 }
 
-// This method computes the SOH efficiency for z-major type operations
+// This method computes the SOK efficiency for z-major type operations
 // i.e. z-major convolution and depthwise convolution
 double StrategyManager::computeZMajorConvolutionSplitOverKernelEfficency(mlir::Operation* op) const {
     double efficiencyConstant = 0;
@@ -203,10 +203,10 @@ double StrategyManager::computeZMajorConvolutionSplitOverKernelEfficency(mlir::O
 }
 
 // This method computes the SOH hardware efficiency of all NCE operations
+// A different efficency formula is required for channel-major and z-major convolutions
 double StrategyManager::computeLayerSplitOverHeightEfficency(mlir::Operation* op) const {
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
             .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp origOp) {
-                // A different efficency formula is required for channel-major and z-major convolutions
                 // Channel-major convolution
                 double efficiency = 0;
                 if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
@@ -219,16 +219,14 @@ double StrategyManager::computeLayerSplitOverHeightEfficency(mlir::Operation* op
                 return efficiency;
             })
             .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp origOp) {
-                double efficiency = 1;
                 _log.trace("The SOH efficiency for MaxPool operation {0} is 1 as it should be assigned SOH {1}",
-                           origOp->getName(), efficiency);
-                return efficiency;
+                           origOp->getName(), MAXPOOL_AND_ELTWISE_SOH_EFFICIENCY);
+                return MAXPOOL_AND_ELTWISE_SOH_EFFICIENCY;
             })
             .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp origOp) {
-                double efficiency = 1;
                 _log.trace("The SOH efficiency for Eltwsie operation {0} is 1 as it should be assigned SOH {1}",
-                           origOp->getName(), efficiency);
-                return efficiency;
+                           origOp->getName(), MAXPOOL_AND_ELTWISE_SOH_EFFICIENCY);
+                return MAXPOOL_AND_ELTWISE_SOH_EFFICIENCY;
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
                 double efficiency = computeZMajorConvolutionSplitOverHeightEfficency(origOp.getOperation());
@@ -238,25 +236,13 @@ double StrategyManager::computeLayerSplitOverHeightEfficency(mlir::Operation* op
             });
 }
 
-// This method computes the SOK hardware efficiency of all NCE operations
+// This method computes the SOK hardware efficiency of NCE operations that are capable of SOK
 double StrategyManager::computeLayerSplitOverKernelEfficency(mlir::Operation* op) const {
     return llvm::TypeSwitch<mlir::Operation*, double>(op)
             .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp origOp) {
                 double efficiency = computeZMajorConvolutionSplitOverKernelEfficency(origOp.getOperation());
                 _log.trace("The SOK efficiency for the convolution is {0}", efficiency);
                 return efficiency;
-            })
-            .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp origOp) {
-                double efficiency = 1;
-                _log.trace("The SOK efficiency for MaxPool operation {0} is 1 as it should be assigned SOH {1}",
-                           origOp->getName(), efficiency);
-                return 1;
-            })
-            .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp origOp) {
-                double efficiency = 1;
-                _log.trace("The SOK efficiency for Eltwsie operation {0} is 1 as it should be assigned SOH {1}",
-                           origOp->getName(), efficiency);
-                return 1;
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
                 double efficiency = computeZMajorConvolutionSplitOverKernelEfficency(origOp.getOperation());
@@ -279,16 +265,24 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
                     assignMultiClusterStrategy(op);
                 })
                 .Case<VPU::NCEConvolutionOp>([&](VPU::NCEConvolutionOp op) {
-                    // Check if the operation SOH compatible
-                    if (isOperationSplitOverHeightCompatible<VPU::NCEConvolutionOp>(op)) {
-                        _splitOverHeightEfficencies.insert({op, computeLayerSplitOverHeightEfficency(op)});
+                    // For WW10 channel major convolution will not be excecuted in multi-cluster mode
+                    // Only z-major convolution will be considered for multi-cluster mode
+                    if (DimsOrder::fromValue(op.input()) == DimsOrder::NHWC) {
+                        // Check if the operation SOH compatible
+                        if (isOperationSplitOverHeightCompatible<VPU::NCEConvolutionOp>(op)) {
+                            _splitOverHeightEfficencies.insert({op, computeLayerSplitOverHeightEfficency(op)});
+                        }
+                        // Check if the operation SOK compatible
+                        if (isOperationSplitOverKernelCompatible<VPU::NCEConvolutionOp>(op)) {
+                            _splitOverKernelEfficencies.insert({op, computeLayerSplitOverKernelEfficency(op)});
+                        }
+                        // Assign the most optimal strategy
+                        assignMultiClusterStrategy(op);
+                    } else {
+                        _log.trace("For WW10 objective channel major convolution {0} will not be excecuted in "
+                                   "multi-cluster mode}'",
+                                   op->getName());
                     }
-                    // Check if the operation SOK compatible
-                    if (isOperationSplitOverKernelCompatible<VPU::NCEConvolutionOp>(op)) {
-                        _splitOverKernelEfficencies.insert({op, computeLayerSplitOverKernelEfficency(op)});
-                    }
-                    // Assign the most optimal strategy
-                    assignMultiClusterStrategy(op);
                 })
                 .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp op) {
                     // Check if the operation SOH compatible
@@ -320,7 +314,12 @@ void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) const {
                     if (DimsOrder::fromValue(op.input()) == DimsOrder::NCHW) {
                         // TODO: Enable channel-major to be converted to NCEClusterTiling
                         // when splitOverHeightOverLapped is supported in unrolling
-                        setOperationStrategy(splitOverHeightOverLapped, op.getOperation());
+
+                        // setOperationStrategy(splitOverHeightOverLapped, op.getOperation());
+                        _log.trace("For WW10 objective channel major convolution {0} will not be excecuted in "
+                                   "multi-cluster mode}'",
+                                   op->getName());
+
                         // A Z-major convolution
                     } else {
                         setOperationStrategy(splitOverHeight, op.getOperation());
@@ -410,7 +409,7 @@ mlir::ArrayAttr StrategyManager::getStride(mlir::Operation* origOp) const {
     } else if (auto eltwiseOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(origOp)) {
         return nullptr;
     } else {
-        VPUX_THROW("Attempting to get stride for operation {0}, which is not a NCE Task", origOp->getName());
+        VPUX_THROW("Attempting to get the stride for operation {0}, which is not a NCE Task", origOp->getName());
     }
 }
 
