@@ -80,6 +80,9 @@ llvm::cl::opt<int> simulationTimeout(
                        "timeout in case of FW issues. May need to increase for"
                        "large networks."));
 
+llvm::cl::opt<bool> firmwareLogs("enFWPrints", llvm::cl::init(false),
+                                 llvm::cl::desc("Run a version of the FW with printf's enabled"));
+
 llvm::cl::opt<bool> verboseL1("v", llvm::cl::desc("enable verbose execution"));
 llvm::cl::opt<bool> verboseL2("vv", llvm::cl::desc("higher level of verbosity"), llvm::cl::Hidden);
 llvm::cl::opt<bool> verboseL3("vvv", llvm::cl::desc("highest level of verbosity. Recommended for DEV only"),
@@ -149,11 +152,17 @@ public:
               m_bufferManager(baseAddr, memSize, m_sim.vpuWindow(baseAddr)),
               m_entry(reinterpret_cast<vpux::binutils::HexMappedInferenceEntry*>(
                       m_bufferManager.allocate(1, sizeof(vpux::binutils::HexMappedInferenceEntry)).cpu_addr())),
-              m_logger(logger)
+              m_logger(logger) {
+    }
 
-    {
+    void boot(bool enablePrints) {
         m_sim.start();
-        m_sim.loadFile(ie::getIELibraryPath() + "/vpux_jit/VPUX_JIT_FW.elf");
+
+        if (enablePrints) {
+            m_sim.loadFile(ie::getIELibraryPath() + "/vpux_jit/VPUX_JIT_FW.elf");
+        } else {
+            m_sim.loadFile(ie::getIELibraryPath() + "/vpux_jit/VPUX_JIT_FW_noPrints.elf");
+        }
     }
 
     void loadElf(void* elfFile, size_t elfSize) {
@@ -291,6 +300,8 @@ int main(int argc, char* argv[]) {
     setLogLevel();
 
     IMDemoSimulator appRunner(appLogger);
+
+    appRunner.boot(firmwareLogs);
 
     if (mlirFilePath.size()) {
         appLogger.error("temporarily not supported :(");

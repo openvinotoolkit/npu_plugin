@@ -63,6 +63,9 @@ add_custom_target(vpux_jit_copy ALL
     COMMAND ${CMAKE_COMMAND} -E copy
         "${CMAKE_CURRENT_LIST_DIR}/VPUX_JIT_FW.elf"
         "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux_jit"
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${CMAKE_CURRENT_LIST_DIR}/VPUX_JIT_FW_noPrints.elf"
+        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux_jit"
     COMMENT "[VPUX-JIT] Copy vpux-jit VPU firmware"
 )
 
