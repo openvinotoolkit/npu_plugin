@@ -17,293 +17,51 @@
 using namespace vpux;
 using namespace VPU;
 
-// This pass assigns multi-clustering strategies to layers and converts them into NCEClusterTiling operations.
-// It considers layers in isolation and computes the hardware efficiency of the layers if they
-// were to be split over height (SOH) or split over kernel (SOK). It then chooses the most optimal
-// stratey. A prerequisite is that the layer fits in CMX when multi-clustered. If the layer does not
-// fit in CMX then it is not converted to NCEClustertiling.
+// This pass assigns a layer to be SOH if the operation is SOH compitable
+// i.e the OH is > 20 and the layer fits in CMX when multi-clustered
 
 StrategyManager::StrategyManager(mlir::FuncOp func, Logger log, mlir::MLIRContext* ctx)
         : _func(func), _log(log), _ctx(ctx) {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-    auto dpuOp = nceOp.getSubExecutor(ExecutorKindAttr::get(module->getContext(), ExecutorKind::DPU));
 
     _numClusters = nceOp.count();
-    _numDPUPerCluster = dpuOp.count();
-    _numDPU = _numClusters * _numDPUPerCluster;
 }
 
-double StrategyManager::getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride) const {
-    if (depthwiseEfficiencyTable().count(kernel)) {
-        auto table = depthwiseEfficiencyTable()[kernel];
-        if (table.count(stride)) {
-            return depthwiseEfficiencyTable()[kernel][stride];
-        } else {
-            VPUX_THROW("The stide size {0} does not exist in the depthwise efficiency table", stride);
-        }
-    } else {
-        VPUX_THROW("The kernel size {0} does not exist in the depthwise efficiency table", kernel);
-    }
-}
-
-double StrategyManager::getChannelMajorEfficiencyConstant(int64_t kernel, int64_t stride) const {
-    if (channelMajorEfficiencyTable().count(kernel)) {
-        auto table = depthwiseEfficiencyTable()[kernel];
-        if (table.count(stride)) {
-            return channelMajorEfficiencyTable()[kernel][stride];
-        } else {
-            VPUX_THROW("The stide size {0} does not exist in the channel major convolution efficiency table", stride);
-        }
-    } else {
-        VPUX_THROW("The kernel size {0} does not exist in the channel major convolution efficiency table", kernel);
-    }
-}
-
-// This depthwise convolution efficiency table is from the ArchBench tool
-// It returns a h/w efficiency constant for a given stride and kernel size
-std::map<int64_t, std::map<int64_t, double>> StrategyManager::depthwiseEfficiencyTable() const {
-    return {{
-            {3, {{1, 0.165}, {2, 0.128}, {4, 0.128}, {6, 0.165}}},
-            {5, {{1, 0.483}, {2, 0.241}, {4, 0.132}, {6, 0.483}}},
-            {7, {{1, 0.6}, {2, 0.2965}, {4, 0.15}, {6, 0.0395}}},
-            {9, {{1, 0.8008}, {2, 0.4687}, {4, 0.2266}, {6, 0.8008}}},
-            {11, {{1, 0.9023}, {2, 0.4687}, {4, 0.2366}, {6, 0.9023}}},
-    }};
-}
-
-// This channel-major convolution efficiency table is from the ArchBench tool
-// It returns a h/w efficiency constant for a given stride and kernel size
-std::map<int64_t, std::map<int64_t, double>> StrategyManager::channelMajorEfficiencyTable() const {
-    return {{
-            {3, {{1, 0.253}, {2, 0.183594}, {4, 0.183594}}},
-            {5, {{1, 0.535156}, {2, 0.2773}, {4, 0.152344}}},
-            {7, {{1, 0.6}, {2, 0.2965}, {4, 0.15}}},
-            {9, {{1, 0.8008}, {2, 0.4687}, {4, 0.2266}}},
-            {11, {{1, 0.9023}, {2, 0.4687}, {4, 0.2366}}},
-    }};
-}
-
-double getChannelAlignment(double input, size_t unit) {
-    if (!unit) {
-        VPUX_THROW("Invalid alignment to {0} requested", unit);
-    }
-
-    return std::ceil(input / unit) * unit;
-}
-
-double StrategyManager::computeChannelMajorConvolutionSplitOverHeightEfficency(NCEConvolutionOp origOp) const {
-    const auto outputShape = getShape(origOp.output());
-    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-    const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const double OC = outputShape[Dims4D::Act::C];
-    const double OH = outputShape[Dims4D::Act::H];
-    const double OW = outputShape[Dims4D::Act::W];
-    const auto KY = filterShape[Dims4D::Filter::KY];
-    auto efficiencyConstant = getChannelMajorEfficiencyConstant(KY, strides[0]);
-    const double outputTensorVolume = OC * OH * OW;
-
-    double efficency = efficiencyConstant *
-                       std::max(outputTensorVolume / (getChannelAlignment(OH, _numChannelAlignment) *
-                                                      getChannelAlignment(OH, _numDPU) *
-                                                      getChannelAlignment(OC, _numChannelAlignment)),
-                                outputTensorVolume / (getChannelAlignment(OH, _numChannelAlignment * _numClusters) *
-                                                      getChannelAlignment(OW, _numDPUPerCluster) *
-                                                      getChannelAlignment(OC, _numChannelAlignment)));
-    return efficency;
-}
-
-// This method computes the SOH efficiency for z-major type operations
-// i.e. z-major convolution and depthwise convolution
-double StrategyManager::computeZMajorConvolutionSplitOverHeightEfficency(mlir::Operation* op) const {
-    double efficiencyConstant = 0;
-    double outputTensorVolume = 0;
-    double OC;
-    double OH;
-    double OW;
-    if (auto depthwiseConvolutionOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op)) {
-        const auto outputShape = getShape(depthwiseConvolutionOp.output());
-        OC = outputShape[Dims4D::Act::C];
-        OH = outputShape[Dims4D::Act::H];
-        OW = outputShape[Dims4D::Act::W];
-        const auto filterShape = Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShapeAttr()));
-        const auto strides = parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.strides());
-        const auto KY = filterShape[Dims4D::Filter::KY];
-        efficiencyConstant = getDepthwiseEfficiencyConstant(KY, strides[0]);
-
-    } else if (auto convolutionOp = mlir::dyn_cast<NCEConvolutionOp>(op)) {
-        const auto outputShape = getShape(convolutionOp.output());
-        OC = outputShape[Dims4D::Act::C];
-        OH = outputShape[Dims4D::Act::H];
-        OW = outputShape[Dims4D::Act::W];
-        efficiencyConstant = 1.0;
-    } else {
-        VPUX_THROW("Attempting to calculate the hardware efficiency for operation {0}, which is not a z-major "
-                   "compatible operation",
-                   op->getName());
-    }
-
-    outputTensorVolume = OC * OH * OW;
-
-    return efficiencyConstant *
-           std::max((outputTensorVolume / _numClusters) /
-                            getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
-                                                 getChannelAlignment(OW, _numClusters) *
-                                                 getChannelAlignment(OC, _numChannelAlignment)),
-                                                _numDPUPerCluster),
-                    (outputTensorVolume / _numClusters) /
-                            getChannelAlignment(
-                                    (getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
-                                     getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
-                                    _numDPUPerCluster));
-}
-
-// This method computes the SOK efficiency for z-major type operations
-// i.e. z-major convolution and depthwise convolution
-double StrategyManager::computeZMajorConvolutionSplitOverKernelEfficency(mlir::Operation* op) const {
-    double efficiencyConstant = 0;
-    double outputTensorVolume = 0;
-    double OC;
-    double OH;
-    double OW;
-    if (auto depthwiseConvolutionOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op)) {
-        const auto outputShape = getShape(depthwiseConvolutionOp.output());
-        OC = outputShape[Dims4D::Act::C];
-        OH = outputShape[Dims4D::Act::H];
-        OW = outputShape[Dims4D::Act::W];
-        const auto filterShape = Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShapeAttr()));
-        const auto strides = parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.strides());
-        const auto KY = filterShape[Dims4D::Filter::KY];
-        efficiencyConstant = depthwiseEfficiencyTable()[KY][strides[0]];
-
-    } else if (auto convolutionOp = mlir::dyn_cast<NCEConvolutionOp>(op)) {
-        const auto outputShape = getShape(convolutionOp.output());
-        OC = outputShape[Dims4D::Act::C];
-        OH = outputShape[Dims4D::Act::H];
-        OW = outputShape[Dims4D::Act::W];
-        efficiencyConstant = 1.0;
-    } else {
-        VPUX_THROW("Attempting to calculate the hardware efficiency for operation {0}, which is not a z-major "
-                   "compatible operation",
-                   op->getName());
-    }
-
-    outputTensorVolume = OC * OH * OW;
-
-    return efficiencyConstant *
-           std::max((outputTensorVolume / _numClusters) /
-                            getChannelAlignment(
-                                    (getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
-                                     getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                    _numDPUPerCluster),
-                    (outputTensorVolume / _numClusters) /
-                            getChannelAlignment(
-                                    (getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
-                                     getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                    _numDPUPerCluster));
-}
-
-// This method computes the SOH hardware efficiency of all NCE operations
-// A different efficency formula is required for channel-major and z-major convolutions
-double StrategyManager::computeLayerSplitOverHeightEfficency(mlir::Operation* op) const {
-    return llvm::TypeSwitch<mlir::Operation*, double>(op)
-            .Case<NCEConvolutionOp>([&](NCEConvolutionOp origOp) {
-                // Channel-major convolution
-                double efficiency = 0;
-                if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
-                    efficiency = computeChannelMajorConvolutionSplitOverHeightEfficency(origOp);
-                    // Z-major convolution
-                } else {
-                    efficiency = computeZMajorConvolutionSplitOverHeightEfficency(origOp.getOperation());
-                }
-                _log.trace("The SOH efficiency for the convolution {0} is {1}", origOp->getName(), efficiency);
-                return efficiency;
-            })
-            .Case<NCEMaxPoolOp>([&](NCEMaxPoolOp origOp) {
-                _log.trace("The SOH efficiency for MaxPool operation {0} is 1 as it should be assigned SOH {1}",
-                           origOp->getName(), MAXPOOL_AND_ELTWISE_SOH_EFFICIENCY);
-                return MAXPOOL_AND_ELTWISE_SOH_EFFICIENCY;
-            })
-            .Case<NCEEltwiseOp>([&](NCEEltwiseOp origOp) {
-                _log.trace("The SOH efficiency for Eltwsie operation {0} is 1 as it should be assigned SOH {1}",
-                           origOp->getName(), MAXPOOL_AND_ELTWISE_SOH_EFFICIENCY);
-                return MAXPOOL_AND_ELTWISE_SOH_EFFICIENCY;
-            })
-            .Case<NCEDepthConvolutionOp>([&](NCEDepthConvolutionOp origOp) {
-                double efficiency = computeZMajorConvolutionSplitOverHeightEfficency(origOp.getOperation());
-                _log.trace("The SOH efficiency for the depthwise convolution {0} is {0}", origOp->getName(),
-                           efficiency);
-                return efficiency;
-            })
-            .Default([](mlir::Operation* unknownOp) -> double {
-                VPUX_THROW("Operation '{0}' at '{1}' does not support split over H as a strategy", unknownOp->getName(),
-                           unknownOp->getLoc());
-            });
-}
-
-// This method computes the SOK hardware efficiency of NCE operations that are capable of SOK
-double StrategyManager::computeLayerSplitOverKernelEfficency(mlir::Operation* op) const {
-    return llvm::TypeSwitch<mlir::Operation*, double>(op)
-            .Case<NCEConvolutionOp>([&](NCEConvolutionOp origOp) {
-                double efficiency = computeZMajorConvolutionSplitOverKernelEfficency(origOp.getOperation());
-                _log.trace("The SOK efficiency for the convolution is {0}", efficiency);
-                return efficiency;
-            })
-            .Case<NCEDepthConvolutionOp>([&](NCEDepthConvolutionOp origOp) {
-                double efficiency = computeZMajorConvolutionSplitOverKernelEfficency(origOp.getOperation());
-                _log.trace("The SOK efficiency for the group convolution is {0}", efficiency);
-                return efficiency;
-            })
-            .Default([](mlir::Operation* unknownOp) -> double {
-                VPUX_THROW("Operation '{0}' at '{1}' does not support split over K as a strategy", unknownOp->getName(),
-                           unknownOp->getLoc());
-            });
-}
-
-// This method computes the multi-cluster efficiency for an operation
-void StrategyManager::computeOptimalMultiClusterStrategy() {
-    const auto callback = [&](mlir::Operation* op) {
-        llvm::TypeSwitch<mlir::Operation*, void>(op)
-
-                // MaxPool is assigned SOH if it is compitable, otherwise clustering
-                .Case<NCEMaxPoolOp>([&](NCEMaxPoolOp) {
-                    assignMultiClusterStrategy(op);
+void StrategyManager::assignMultiClusterStrategy() {
+    const auto callback = [&](mlir::Operation* origOp) {
+        llvm::TypeSwitch<mlir::Operation*, void>(origOp)
+                .Case<NCEMaxPoolOp>([&](NCEMaxPoolOp origOp) {
+                    if (isOperationSplitOverHeightCompatible<NCEMaxPoolOp>(origOp) &&
+                        doesSplitOverHeightLayerFitIntoCMX<NCEMaxPoolOp>(origOp)) {
+                        origOp->setAttr(multiClusterStrategy,
+                                        mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));
+                    }
                 })
-                // Eltwise is assigned SOH if it is compitable, otherwise clustering
-                .Case<NCEEltwiseOp>([&](NCEEltwiseOp op) {
-                    assignMultiClusterStrategy(op);
+                .Case<NCEEltwiseOp>([&](NCEEltwiseOp origOp) {
+                    if (isOperationSplitOverHeightCompatible<NCEEltwiseOp>(origOp) &&
+                        doesSplitOverHeightLayerFitIntoCMX<NCEEltwiseOp>(origOp)) {
+                        origOp->setAttr(multiClusterStrategy,
+                                        mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));
+                    }
                 })
-                .Case<NCEConvolutionOp>([&](NCEConvolutionOp op) {
+                .Case<NCEConvolutionOp>([&](NCEConvolutionOp origOp) {
                     // For WW10 channel major convolution will not be excecuted in multi-cluster mode
                     // Only z-major convolution will be considered for multi-cluster mode
-                    if (DimsOrder::fromValue(op.input()) == DimsOrder::NHWC) {
-                        // Check if the operation SOH compatible
-                        if (isOperationSplitOverHeightCompatible<NCEConvolutionOp>(op)) {
-                            _splitOverHeightEfficencies.insert({op, computeLayerSplitOverHeightEfficency(op)});
+                    if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
+                        if (isOperationSplitOverHeightCompatible<NCEConvolutionOp>(origOp) &&
+                            doesSplitOverHeightLayerFitIntoCMX<NCEConvolutionOp>(origOp)) {
+                            origOp->setAttr(multiClusterStrategy,
+                                            mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));
                         }
-                        // Check if the operation SOK compatible
-                        if (isOperationSplitOverKernelCompatible<NCEConvolutionOp>(op)) {
-                            _splitOverKernelEfficencies.insert({op, computeLayerSplitOverKernelEfficency(op)});
-                        }
-                        // Assign the most optimal strategy
-                        assignMultiClusterStrategy(op);
-                    } else {
-                        _log.trace("For WW10 objective channel major convolution {0} will not be excecuted in "
-                                   "multi-cluster mode}'",
-                                   op->getName());
                     }
                 })
-                .Case<NCEDepthConvolutionOp>([&](NCEDepthConvolutionOp op) {
-                    // Check if the operation SOH compatible
-                    if (isOperationSplitOverHeightCompatible<NCEDepthConvolutionOp>(op)) {
-                        _splitOverHeightEfficencies.insert({op, computeLayerSplitOverHeightEfficency(op)});
+                .Case<NCEDepthConvolutionOp>([&](NCEDepthConvolutionOp origOp) {
+                    if (isOperationSplitOverHeightCompatible<NCEDepthConvolutionOp>(origOp) &&
+                        doesSplitOverHeightLayerFitIntoCMX<NCEDepthConvolutionOp>(origOp)) {
+                        origOp->setAttr(multiClusterStrategy,
+                                        mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));
                     }
-                    // Check if the operation SOK compatible
-                    if (isOperationSplitOverKernelCompatible<NCEDepthConvolutionOp>(op)) {
-                        _splitOverKernelEfficencies.insert({op, computeLayerSplitOverKernelEfficency(op)});
-                    }
-                    // Assign the most optimal strategy
-                    assignMultiClusterStrategy(op);
                 })
                 .Default([](mlir::Operation* unknownOp) -> void {
                     VPUX_THROW("Operation '{0}' at '{1}' is not supported by the NCE therefore it should not have a "
@@ -313,169 +71,4 @@ void StrategyManager::computeOptimalMultiClusterStrategy() {
     };
 
     _func.walk(callback);
-}
-
-void StrategyManager::assignMultiClusterStrategy(mlir::Operation* op) const {
-    llvm::TypeSwitch<mlir::Operation*, void>(op)
-            .Case<NCEConvolutionOp>([&](NCEConvolutionOp op) {
-                // If operation is neither SOH or SOK compatible, then assign clustering strategy
-                if (!isOperationMultiClusterCompatible<NCEConvolutionOp>(op)) {
-                    setOperationStrategy(clustering, op.getOperation());
-                }
-                // Compare the SOH and SOK efficiencies and select SOH if they are equal
-                else if (getOperationSOHEfficiency(op) >= getOperationSOKEfficiency(op)) {
-                    // A channel major convolution should be have SplitOverHOverLapped strategy
-                    if (DimsOrder::fromValue(op.input()) == DimsOrder::NCHW) {
-                        // TODO: Enable channel-major to be converted to NCEClusterTiling
-                        // when splitOverHeightOverLapped is supported in unrolling
-
-                        // setOperationStrategy(splitOverHeightOverLapped, op.getOperation());
-                        _log.trace("For WW10 objective channel major convolution {0} will not be excecuted in "
-                                   "multi-cluster mode}'",
-                                   op->getName());
-
-                        // A Z-major convolution
-                    } else {
-                        setOperationStrategy(splitOverHeight, op.getOperation());
-                    }
-                }
-                // Else SOK is more efficient than SOH
-                else if (getOperationSOHEfficiency(op) < getOperationSOKEfficiency(op)) {
-                    setOperationStrategy(splitOverKernel, op.getOperation());
-                }
-            })
-            .Case<NCEDepthConvolutionOp>([&](NCEDepthConvolutionOp op) {
-                // If operation is neither SOH or SOK compatible, then it has clustering strategy
-                if (!isOperationMultiClusterCompatible<NCEDepthConvolutionOp>(op)) {
-                    setOperationStrategy(clustering, op.getOperation());
-                }
-                // If the SOH and SOK efficiency values are equal and the operation is both SOH and SOK compatible
-                // then select either SOK or SOH based on the lesser amount of data that has to be moved
-                else if (isSOHandSOKEfficiencyEqual(op.getOperation()) &&
-                         isOperationSplitOverHeightCompatible<NCEDepthConvolutionOp>(op) &&
-                         isOperationSplitOverKernelCompatible<NCEDepthConvolutionOp>(op)) {
-                    // Is the total data transfer for SOK less than SOH
-                    if (depthwiseConvolutionTotalDataTransfer<NCEDepthConvolutionOp>(op, splitOverKernel) <
-                        depthwiseConvolutionTotalDataTransfer<NCEDepthConvolutionOp>(op, splitOverHeight)) {
-                        setOperationStrategy(splitOverKernel, op.getOperation());
-                    } else {
-                        setOperationStrategy(splitOverHeight, op.getOperation());
-                    }
-                    // SOH is more efficent than SOK
-                } else if ((getOperationSOHEfficiency(op) > getOperationSOKEfficiency(op)) &&
-                           isOperationSplitOverHeightCompatible<NCEDepthConvolutionOp>(op)) {
-                    setOperationStrategy(splitOverHeight, op.getOperation());
-
-                    // SOH is more efficent than SOK but the operation is not SOH compitable, then it has clustering
-                    // strategy
-                } else if ((getOperationSOHEfficiency(op) > getOperationSOKEfficiency(op)) &&
-                           !isOperationSplitOverHeightCompatible<NCEDepthConvolutionOp>(op)) {
-                    setOperationStrategy(clustering, op.getOperation());
-                    // SOK is more efficent than SOH
-                } else if ((getOperationSOHEfficiency(op) < getOperationSOKEfficiency(op)) &&
-                           isOperationSplitOverKernelCompatible<NCEDepthConvolutionOp>(op)) {
-                    setOperationStrategy(splitOverKernel, op.getOperation());
-                    // SOK is more efficent than SOH but the operation is not SOK compitable, then it has clustering
-                    // strategy
-                } else if ((getOperationSOHEfficiency(op) < getOperationSOKEfficiency(op)) &&
-                           !isOperationSplitOverKernelCompatible<NCEDepthConvolutionOp>(op)) {
-                    setOperationStrategy(clustering, op.getOperation());
-                }
-            })
-            .Case<NCEMaxPoolOp>([&](NCEMaxPoolOp op) {
-                assignMultiClusterStrategyForEltwiseAndMaxPool<NCEMaxPoolOp>(op);
-            })
-            .Case<NCEEltwiseOp>([&](NCEEltwiseOp op) {
-                assignMultiClusterStrategyForEltwiseAndMaxPool<NCEEltwiseOp>(op);
-            })
-            .Default([](mlir::Operation* unknownOp) -> void {
-                VPUX_THROW("Operation '{0}' at '{1}' is not supported by the NCE therefore it should not have a "
-                           "multi-cluster strategy",
-                           unknownOp->getName(), unknownOp->getLoc());
-            });
-}
-
-mlir::ArrayAttr StrategyManager::getKernelSize(mlir::Operation* origOp) const {
-    if (auto depthwiseConvolutionOp = mlir::dyn_cast<NCEDepthConvolutionOp>(origOp)) {
-        const Shape filterShape =
-                depthwiseConvolutionOp.rawFilterShape().hasValue()
-                        ? Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShape().getValue()))
-                        : getShape(depthwiseConvolutionOp.filter()).toValues();
-        return getIntArrayAttr(const_cast<mlir::FuncOp&>(_func).getContext(),
-                               makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
-    } else if (auto convolutionOp = mlir::dyn_cast<NCEConvolutionOp>(origOp)) {
-        const Shape filterShape = convolutionOp.rawFilterShape().hasValue()
-                                          ? Shape(parseIntArrayAttr<int64_t>(convolutionOp.rawFilterShape().getValue()))
-                                          : getShape(convolutionOp.filter()).toValues();
-        return getIntArrayAttr(const_cast<mlir::FuncOp&>(_func).getContext(),
-                               makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
-    } else if (auto maxPoolOp = mlir::dyn_cast<NCEMaxPoolOp>(origOp)) {
-        return maxPoolOp.kernel_size();
-    } else if (auto eltwiseOp = mlir::dyn_cast<NCEEltwiseOp>(origOp)) {
-        return nullptr;
-    } else {
-        VPUX_THROW("Attempting to get kernel for operation {0}, which is not a NCE Task", origOp->getName());
-    }
-}
-
-mlir::ArrayAttr StrategyManager::getStride(mlir::Operation* origOp) const {
-    if (auto depthwiseConvolutionOp = mlir::dyn_cast<NCEDepthConvolutionOp>(origOp)) {
-        return depthwiseConvolutionOp.strides();
-    } else if (auto convolutionOp = mlir::dyn_cast<NCEConvolutionOp>(origOp)) {
-        return convolutionOp.strides();
-    } else if (auto maxPoolOp = mlir::dyn_cast<NCEMaxPoolOp>(origOp)) {
-        return maxPoolOp.strides();
-    } else if (auto eltwiseOp = mlir::dyn_cast<NCEEltwiseOp>(origOp)) {
-        return nullptr;
-    } else {
-        VPUX_THROW("Attempting to get the stride for operation {0}, which is not a NCE Task", origOp->getName());
-    }
-}
-
-PaddingAttr StrategyManager::getPad(mlir::Operation* origOp) const {
-    if (auto depthwiseConvolutionOp = mlir::dyn_cast<NCEDepthConvolutionOp>(origOp)) {
-        return depthwiseConvolutionOp.padAttr();
-    } else if (auto convolutionOp = mlir::dyn_cast<NCEConvolutionOp>(origOp)) {
-        return convolutionOp.padAttr();
-    } else if (auto maxPoolOp = mlir::dyn_cast<NCEMaxPoolOp>(origOp)) {
-        return maxPoolOp.padAttr();
-    } else if (auto eltwiseOp = mlir::dyn_cast<NCEEltwiseOp>(origOp)) {
-        return nullptr;
-    } else {
-        VPUX_THROW("Attempting to get pad for operation {0}, which is not a NCE Task", origOp->getName());
-    }
-}
-
-void StrategyManager::removeStrategyAttribute() {
-    _func->walk([](mlir::Operation* op) {
-        if (op->hasAttr(multiClusterStrategy)) {
-            op->removeAttr(multiClusterStrategy);
-        }
-    });
-}
-
-bool StrategyManager::isSOHandSOKEfficiencyEqual(mlir::Operation* origOp) const {
-    if (_splitOverHeightEfficencies.find(origOp)->second == _splitOverKernelEfficencies.find(origOp)->second) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-void StrategyManager::setOperationStrategy(const StringRef strategy, mlir::Operation* origOp) const {
-    if (strategy == splitOverHeightOverLapped) {
-        origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeightOverLapped"));
-        _log.trace("Assiging multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
-    } else if (strategy == splitOverHeight) {
-        origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));
-        _log.trace("Assiging multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
-    } else if (strategy == splitOverKernel) {
-        origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverKernel"));
-        _log.trace("Assiging multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
-    } else if (strategy == clustering) {
-        origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "Clustering"));
-        _log.trace("Assiging multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
-    } else {
-        VPUX_THROW("Attempting to assing an invalid strategy to operation {0}", origOp->getName());
-    }
 }

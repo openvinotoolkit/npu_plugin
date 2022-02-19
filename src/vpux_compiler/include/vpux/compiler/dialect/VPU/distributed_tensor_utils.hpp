@@ -70,9 +70,15 @@ inline PaddingAttr getPad<NCEEltwiseOp>(NCEEltwiseOp) {
 }
 
 template <class ConcreteOp>
+<<<<<<< HEAD
 NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input, DistributionMode distributionMode,
                                            mlir::ArrayAttr numTiles) {
     auto inputTensorDistributedTensorType = createDistributedTensorType(origOp, input, distributionMode, numTiles);
+=======
+NCEClusterTilingOp createDistributedInputTensor(ConcreteOp origOp, mlir::Value input, DistributionMode distributionMode,
+                                                mlir::ArrayAttr numTiles) {
+    auto inputTensorDistributedTensorType = createDistributedInputTensorType(origOp, input, distributionMode, numTiles);
+>>>>>>> simplified code for WW10
 
     mlir::OpBuilder builder(origOp);
     builder.setInsertionPoint(origOp);
@@ -90,6 +96,7 @@ NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input,
 }
 
 template <class ConcreteOp>
+<<<<<<< HEAD
 DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input,
                                                   DistributionMode distributionMode, mlir::ArrayAttr numTiles) {
     DistributedTensorAttr distributedActivationTensorAttr;
@@ -124,6 +131,149 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
 
     return DistributedTensorType::get(origOp.getContext(), shape.raw(), elemType, order, memSpace,
                                       distributedActivationTensorAttr);
+=======
+DistributedTensorType createDistributedInputTensorType(ConcreteOp origOp, mlir::Value input,
+                                                       DistributionMode distributionMode, mlir::ArrayAttr numTiles) {
+    const auto inputTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
+
+    auto kernel = getKernelSize(origOp);
+    auto stride = getStride(origOp);
+    auto pad = getPad(origOp);
+    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+
+    const auto numClusters = getIntAttr(origOp.getContext(), nceOp.count());
+
+    auto inputTensorDistributedTensorAttr = DistributedTensorAttr::get(
+            inputTensorDistributionModeAttr, numTiles, kernel, pad, stride, numClusters, origOp.getContext());
+
+    const auto inputShape = getShape(input);
+    const auto memSpace = vpux::IndexedSymbolAttr::get(MemoryKindAttr::get(origOp.getContext(), MemoryKind::CMX_NN));
+
+    const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(input).toAffineMap(origOp.getContext()));
+    auto elemType = input.getType().template cast<mlir::ShapedType>().getElementType();
+
+    const auto inputTensorDistributedTensorType = DistributedTensorType::get(
+            origOp.getContext(), inputShape.raw(), elemType, order, memSpace, inputTensorDistributedTensorAttr);
+
+    return inputTensorDistributedTensorType;
+}
+
+template <class ConcreteOp>
+DistributedTensorType createDistributedOutputTensorType(ConcreteOp origOp, DistributionMode distributionMode,
+                                                        mlir::ArrayAttr numTiles) {
+    const auto outputTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
+
+    auto kernel = getKernelSize(origOp);
+    auto stride = getStride(origOp);
+    auto pad = getPad(origOp);
+
+    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+
+    const auto numClusters = getIntAttr(origOp.getContext(), nceOp.count());
+
+    auto outputTensorDistributedTensorAttr = DistributedTensorAttr::get(
+            outputTensorDistributionModeAttr, numTiles, kernel, pad, stride, numClusters, origOp.getContext());
+
+    const auto outputShape = getShape(origOp.output());
+    const auto memSpace = vpux::IndexedSymbolAttr::get(MemoryKindAttr::get(origOp.getContext(), MemoryKind::CMX_NN));
+
+    const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(origOp.output()).toAffineMap(origOp.getContext()));
+    auto elemType = origOp.output().getType().template cast<mlir::ShapedType>().getElementType();
+
+    return DistributedTensorType::get(origOp.getContext(), outputShape.raw(), elemType, order, memSpace,
+                                      outputTensorDistributedTensorAttr);
+}
+
+template <class ConcreteOp>
+mlir::ArrayAttr getActivationTensorNumTiles(ConcreteOp origOp) {
+    const StringRef strategy =
+            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClusters = nceOp.count();
+
+    if (strategy == splitOverHeightOverLapped) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, static_cast<int>(numClusters), 1}));
+    } else if (strategy == splitOverHeight) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, static_cast<int>(numClusters), 1}));
+    } else if (strategy == splitOverKernel) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else if (strategy == clustering) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else {
+        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the number of "
+                   "tiles "
+                   "for the activation tensor",
+                   origOp->getName());
+    }
+}
+
+template <class ConcreteOp>
+mlir::ArrayAttr getWeightsTensorNumTiles(ConcreteOp origOp) {
+    const StringRef strategy =
+            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClusters = nceOp.count();
+    if (strategy == splitOverHeightOverLapped) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else if (strategy == splitOverHeight) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else if (strategy == splitOverKernel) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, static_cast<int>(numClusters), 1}));
+    } else if (strategy == clustering) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else {
+        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the number of "
+                   "tiles "
+                   "for the weights tensor",
+                   origOp->getName());
+    }
+}
+
+template <class ConcreteOp>
+DistributionMode getActivationTensorDistributionMode(ConcreteOp origOp) {
+    const StringRef strategy =
+            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+    if (strategy == splitOverHeightOverLapped) {
+        return DistributionMode::OVERLAPPED;
+    } else if (strategy == splitOverHeight) {
+        return DistributionMode::SEGMENTED;
+    } else if (strategy == splitOverKernel) {
+        return DistributionMode::MULTICASTED;
+    } else if (strategy == clustering) {
+        return DistributionMode::MULTICASTED;
+    } else {
+        VPUX_THROW(
+                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the distribution "
+                "mode "
+                "for the activation tensor",
+                origOp->getName());
+    }
+}
+
+template <class ConcreteOp>
+DistributionMode getWeightsTensorDistributionMode(ConcreteOp origOp) {
+    const StringRef strategy =
+            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+    if (strategy == splitOverHeightOverLapped) {
+        return DistributionMode::MULTICASTED;
+    } else if (strategy == splitOverHeight) {
+        return DistributionMode::MULTICASTED;
+    } else if (strategy == splitOverKernel) {
+        return DistributionMode::SEGMENTED;
+    } else if (strategy == clustering) {
+        return DistributionMode::MULTICASTED;
+    } else {
+        VPUX_THROW(
+                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the distribution "
+                "mode "
+                "for the weights tensor",
+                origOp->getName());
+    }
+>>>>>>> simplified code for WW10
 }
 
 }  // namespace VPU
