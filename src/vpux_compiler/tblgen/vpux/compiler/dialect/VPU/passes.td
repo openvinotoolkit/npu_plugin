@@ -54,10 +54,6 @@ def InitCompiler : PassBase<"init-compiler", "vpux::ModulePass"> {
     ];
 }
 
-//=================================================================================
-// Multi-cluster strategy assignment
-//=================================================================================
-
 //
 // Multi-cluster strategy assignment
 //
