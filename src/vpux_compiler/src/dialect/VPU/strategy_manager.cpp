@@ -29,23 +29,23 @@ StrategyManager::StrategyManager(mlir::FuncOp func, Logger log, mlir::MLIRContex
 }
 
 void StrategyManager::assignMultiClusterStrategy() {
-    const auto callback = [&](mlir::Operation* origOp) {
+    const auto callback = [this](mlir::Operation* origOp) {
         llvm::TypeSwitch<mlir::Operation*, void>(origOp)
-                .Case<NCEMaxPoolOp>([&](NCEMaxPoolOp origOp) {
+                .Case<NCEMaxPoolOp>([this](NCEMaxPoolOp origOp) {
                     if (isOperationSplitOverHeightCompatible<NCEMaxPoolOp>(origOp) &&
                         doesSplitOverHeightLayerFitIntoCMX<NCEMaxPoolOp>(origOp)) {
                         origOp->setAttr(multiClusterStrategy,
                                         mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));
                     }
                 })
-                .Case<NCEEltwiseOp>([&](NCEEltwiseOp origOp) {
+                .Case<NCEEltwiseOp>([this](NCEEltwiseOp origOp) {
                     if (isOperationSplitOverHeightCompatible<NCEEltwiseOp>(origOp) &&
                         doesSplitOverHeightLayerFitIntoCMX<NCEEltwiseOp>(origOp)) {
                         origOp->setAttr(multiClusterStrategy,
                                         mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));
                     }
                 })
-                .Case<NCEConvolutionOp>([&](NCEConvolutionOp origOp) {
+                .Case<NCEConvolutionOp>([this](NCEConvolutionOp origOp) {
                     // For WW10 channel major convolution will not be excecuted in multi-cluster mode
                     // Only z-major convolution will be considered for multi-cluster mode
                     if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
@@ -56,15 +56,15 @@ void StrategyManager::assignMultiClusterStrategy() {
                         }
                     }
                 })
-                .Case<NCEDepthConvolutionOp>([&](NCEDepthConvolutionOp origOp) {
+                .Case<NCEDepthConvolutionOp>([this](NCEDepthConvolutionOp origOp) {
                     if (isOperationSplitOverHeightCompatible<NCEDepthConvolutionOp>(origOp) &&
                         doesSplitOverHeightLayerFitIntoCMX<NCEDepthConvolutionOp>(origOp)) {
                         origOp->setAttr(multiClusterStrategy,
                                         mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));
                     }
                 })
-                .Default([](mlir::Operation* unknownOp) -> void {
-                    VPUX_THROW("Operation '{0}' at '{1}' is not supported by the NCE therefore it should not have a "
+                .Default([this](mlir::Operation* unknownOp) -> void {
+                    _log.trace("Operation '{0}' at '{1}' is not supported by the NCE therefore it should not have a "
                                "multi-cluster strategy",
                                unknownOp->getName(), unknownOp->getLoc());
                 });
