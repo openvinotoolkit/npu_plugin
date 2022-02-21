@@ -386,6 +386,8 @@ void FeasibleMemoryScheduler::getReadyComputeList() {
 SmallVector<mlir::Value> FeasibleMemoryScheduler::sortUsedBuffers(operationIdxType opIdx,
                                                                   mlir::DenseSet<mlir::Value>& operationBuffers) {
     // retrieve operation output buffers so they can be allocated first
+    // required for exceeding NNCMX invariant by offset + stride in cases
+    // of NNCMX Concat from the runtime side - EISW#30278
     auto execOp = _depsInfo.getExecuteOpAtIndex(opIdx);
     auto* bodyBlock = &execOp.body().front();
     mlir::DenseSet<mlir::Value> operationOutputBuffers;
@@ -821,6 +823,7 @@ size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
     for (auto bufferUser : buffer.getUsers()) {
         if (mlir::isa<IERT::ConcatViewOp>(bufferUser)) {
             cmxConcatable = true;
+            break;
         }
     }
 
