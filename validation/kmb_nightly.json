@@ -17,6 +17,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
@@ -32,7 +33,8 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v2-tiny-ava-0001_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -119,6 +121,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -134,7 +137,8 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v2-ava-0001_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -153,6 +157,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
@@ -168,7 +173,8 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v3_cf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -187,6 +193,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest-CalcRef" : {
@@ -201,7 +208,8 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v3_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -220,6 +228,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -235,7 +244,8 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v4_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -314,6 +324,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -329,7 +340,8 @@
             },
             "CI-options" : {
                 "blob_name" : "bdk_yolo_v4_tiny"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -703,6 +715,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -718,7 +731,8 @@
             },
             "CI-options" : {
                 "blob_name" : "resnet-50-pytorch_onnx"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -798,6 +812,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -814,7 +829,8 @@
             },
             "CI-options" : {
                 "blob_name" : "mobilenet-v2_onnx"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -833,6 +849,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
@@ -848,7 +865,8 @@
             },
             "CI-options" : {
                 "blob_name" : "googlenet-v1_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -929,6 +947,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "299x299"
             },
             "AccuracyCheck" : {
@@ -944,7 +963,8 @@
             },
             "CI-options" : {
                 "blob_name" : "googlenet-v3_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1025,6 +1045,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "227x227"
             },
             "AccuracyCheck" : {
@@ -1040,7 +1061,8 @@
             },
             "CI-options" : {
                 "blob_name" : "squeezenet1-1_cf2"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1092,6 +1114,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "227x227"
             },
             "AccuracyCheck" : {
@@ -1109,7 +1132,10 @@
             "CI-options" : {
                 "blob_name" : "kpi_caffe2_FP16_squeezenet1_1_MCM"
             },
-            "comments" : "NHWC layout was chosen because of performance degradation with default layout EISW-18533."
+            "comments" : [
+                "NHWC layout was chosen because of performance degradation with default layout EISW-18533.",
+                "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
+            ]
         },
 
         {
@@ -1159,6 +1185,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "512x512"
             },
             "NetTest": {
@@ -1177,7 +1204,8 @@
             },
             "CI-options" : {
                 "blob_name" : "ssd512_cf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1196,6 +1224,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "299x299"
             },
             "AccuracyCheck" : {
@@ -1213,7 +1242,10 @@
             "CI-options" : {
                 "blob_name" : "googlenet-v4_tf"
             },
-            "comments" :"AccuracyCheck disabled because model is not a priority."
+            "comments" : [
+                "AccuracyCheck disabled because model is not a priority.",
+                "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
+            ]
         },
 
         {
@@ -1232,6 +1264,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "300x300"
             },
             "NetTest": {
@@ -1250,7 +1283,8 @@
             "CI-options" : {
                 "blob_name" : "ssd-mobilenet-v1-coco_tf",
                 "deprecated" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1270,6 +1304,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "1024x1024"
             },
             "NetTest-CalcRef" : {
@@ -1283,7 +1318,8 @@
             },
             "CI-options" : {
                 "blob_name" : "person-vehicle-bike-detection-crossroad-0078_cf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1302,6 +1338,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
@@ -1317,7 +1354,8 @@
             },
             "CI-options" : {
                 "blob_name" : "resnet-101_cf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1397,6 +1435,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "1024x1024"
             },
             "AccuracyCheck" : {
@@ -1410,7 +1449,8 @@
             },
             "CI-options" : {
                 "blob_name" : "icnet-camvid-ava-0001_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1493,6 +1533,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "300x300"
             },
             "NetTest": {
@@ -1510,7 +1551,8 @@
             },
             "CI-options" : {
                 "blob_name" : "ssd-mobilenet-v2_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1562,6 +1604,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest-CalcRef" : {
@@ -1575,7 +1618,8 @@
             },
             "CI-options" : {
                 "blob_name" : "emotions-recognition-retail-0003_cf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1944,6 +1988,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -1959,7 +2004,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_model-a",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2095,6 +2141,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2112,7 +2159,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_mobilenet-v2",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2131,6 +2179,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2148,7 +2197,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_model-e-v2",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2167,6 +2217,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2183,7 +2234,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_model-e-v3",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2261,7 +2313,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
-                "disabled" :  true,
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2298,6 +2350,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2315,7 +2368,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_mobilenet-v3-small-1.0-224",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2458,6 +2512,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2475,7 +2530,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_modnet_photographic_portrait_matting",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2495,6 +2551,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2512,7 +2569,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_modnet_webcam_portrait_matting",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2531,6 +2589,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2547,7 +2606,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_resnet-50-pytorch",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2566,6 +2626,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2582,7 +2643,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_StackedHourglass",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2667,6 +2729,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2682,7 +2745,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_StyleTransfer",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
         {
             "name" : "BDK_FP16-INT8_SuperRes_AA",
@@ -2700,6 +2764,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest-CalcRef" : {
@@ -2715,7 +2780,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_super_res_aa",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2734,6 +2800,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2749,7 +2816,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_unet-camvid-onnx-0001",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2768,6 +2836,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -2784,7 +2853,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_yolo_v4",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2804,6 +2874,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -2820,7 +2891,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_yolo_v5m",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2875,6 +2947,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest-CalcRef" : {
@@ -2890,7 +2963,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_deeplabv3",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -3112,6 +3186,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -3127,7 +3202,8 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v3-darknet-608_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -4108,6 +4184,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest-CalcRef" : {
@@ -4123,7 +4200,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_edsr3",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -4142,6 +4220,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "512x512"
             },
             "NetTest-CalcRef" : {
@@ -4157,7 +4236,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_modnet_custom",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
