@@ -41,14 +41,12 @@ bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDT
                                          vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
-    if (auto concreteOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(op)) {
-        auto memList = concreteOp.memSizes(input1, input2, output);
-        for (auto memItem : memList) {
-            requiredCMX += memItem;
-        }
+    auto memList = memSizes(input1, input2, output);
+    for (auto memItem : memList) {
+        requiredCMX += memItem;
     }
 
-    return requiredCMX <= getTotalCMXSize(getOperation());
+    return requiredCMX <= getTotalCMXSize(*this);
 }
 
 //

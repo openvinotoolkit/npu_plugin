@@ -158,7 +158,7 @@ def VPU_NCEConvolutionOp :
     let extraClassDeclaration = [{
         SmallVector<Byte> memSizes(mlir::ArrayAttr strides, vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                    vpux::NDTypeInterface output);
-        static bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+        bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
@@ -228,7 +228,7 @@ def VPU_NCEDepthConvolutionOp :
         SmallVector<Byte> memSizes(mlir::ArrayAttr strides,
                                    vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                    vpux::NDTypeInterface output);
-        static bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+        bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::GroupConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
@@ -292,7 +292,7 @@ def VPU_NCEMaxPoolOp :
     let extraClassDeclaration = [{
         SmallVector<Byte> memSizes(mlir::ArrayAttr kernelSize, mlir::ArrayAttr strides,
                                    vpux::NDTypeInterface input, vpux::NDTypeInterface output);
-        static bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
+        bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::MaxPoolOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
@@ -351,7 +351,7 @@ def VPU_NCEEltwiseOp :
     let extraClassDeclaration = [{
         SmallVector<Byte> memSizes(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
                                    vpux::NDTypeInterface output);
-        static bool fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
+        bool fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
                                vpux::NDTypeInterface output);
 
         static bool isSupported(mlir::Operation* op, bool allowDifferentScales, bool allowDifferentZp,

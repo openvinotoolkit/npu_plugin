@@ -81,7 +81,8 @@ SmallVector<Byte> VPU::NCEConvolutionOp::memSizes(mlir::ArrayAttr strides, vpux:
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter, vpux::NDTypeInterface output) {
+bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                             vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
     auto memList = memSizes(strides(), input, filter, output);
