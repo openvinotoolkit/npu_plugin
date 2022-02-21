@@ -1,6 +1,7 @@
 # These owners will be the default reviewers for pull/merge requests in the repo.
 #
 # MLIR Compiler - Vinogradov, Vladislav (@vinograd47) / Kudriavtsev, Nikita (@nikita-kud) / Losev, Sergey (@briangrifiin)
+# Driver compiler adapter / Compiler in Driver - Znamenskiy, Mikhail (@mznamens) / Shumihin, Sergey (@sshumihi) / Skrebkov, Artemy (@ArtemySkrebkov-intel)
 # Quantization / Mixed Datatypes - Shokin, Alexander (@shokinal) / Rotuna, Harald Razvan (@hrotuna) / Zomborat, Zoran (@ZoranZomborat)
 # Strategy Generation - DeFlumere, Ashley (@adeflume)
 # Binaries (RT, vpualHost), Backends - Skrebkov, Artemy (@ArtemySkrebkov-intel) / Znamenskiy, Mikhail (@mznamens)
@@ -49,6 +50,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /src/vpux_al @ArtemySkrebkov-intel @mznamens @sshumihi
 /src/vpux_compiler @vinograd47 @nikita-kud @briangrifiin @sshumihi @andrejsokolov @vadim-intel
 /src/vpux_driver_compiler_adapter @sshumihi @ArtemySkrebkov-intel @mznamens
+/src/VPUXCompilerL0 @mznamens @sshumihi @ArtemySkrebkov-intel
 /src/vpux_elf @AndrewBakalinIntel @szilveszteri @gladilov-gleb
 /src/vpux_ngraph_transformations @shokinal @maxim-kurin
 /src/vpux_plugin @ArtemySkrebkov-intel @mznamens

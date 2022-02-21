@@ -90,7 +90,6 @@ bool CustomCpp::parse(Layer * layer) {
 
     sw_params::BaseKernelParams * kernelParams = &(ops.baseParamData);
 
-
     sw_params::MemRefData* inTensors =
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->inputsOffset);
     for (unsigned i = 0; i < inputVec.size(); i++) {

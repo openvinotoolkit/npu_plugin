@@ -309,10 +309,10 @@ vpux::NDTypeInterface vpux::VPURT::SparseBufferType::changeMemSpace(vpux::Indexe
 
 vpux::NDTypeInterface vpux::VPURT::SparseBufferType::extractDenseTile(vpux::ShapeRef /*tileOffsets*/,
                                                                       vpux::ShapeRef /*tileShape*/) const {
-    VPUX_THROW("Not yet implemented");
+    VPUX_THROW("extractDenseTile method is not implemented for SparseBufferType");
 }
 
 vpux::NDTypeInterface vpux::VPURT::SparseBufferType::pad(vpux::ShapeRef /*padBefore*/,
                                                          vpux::ShapeRef /*padAfter*/) const {
-    VPUX_THROW("Not yet implemented");
+    VPUX_THROW("pad method is not implemented for SparseBufferType");
 }

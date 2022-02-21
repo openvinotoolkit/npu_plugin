@@ -19,6 +19,10 @@
 
 #include <llvm/ADT/TypeSwitch.h>
 
+#include "vpux/compiler/utils/rewriter.hpp"
+
+#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
+
 #include <array>
 
 using namespace vpux;
@@ -84,7 +88,6 @@ void cvtPaddingsToFloorMode(int64_t inputSize, int64_t outputSize, int64_t kerne
     const auto inputSizeFloor = inferInputSizeFloor(outputSize, padBegin, padEnd, kernel, stride);
 
     padEnd = padEnd + (inputSizeFloor - inputSize);
-    padEnd = std::max<int64_t>(padEnd, 0);
 }
 
 void cvtPaddingsToFloorMode(ShapeRef inShape, ShapeRef outShape, ArrayRef<int64_t> kernel, ArrayRef<int64_t> strides,
@@ -117,6 +120,23 @@ void cvtPaddingsToFloorMode(ShapeRef inShape, ShapeRef outShape, ArrayRef<int64_
     cvtPaddingsToFloorMode(inShape[W], outShape[W], kernelX * dilationX - (dilationX - 1), strideX, padBeginX, padEndX);
 }
 
+bool canUseSlice(ShapeRef inShape, ArrayRef<int64_t> padsBegin, ArrayRef<int64_t> padsEnd, ArrayRef<int64_t> strides,
+                 ArrayRef<int64_t> kernel) {
+    VPUX_THROW_UNLESS(inShape.size() == 4, "Wrong input shape");
+    VPUX_THROW_UNLESS(strides.size() == 2 && padsBegin.size() == 2 && padsEnd.size() == 2 && kernel.size() == 2,
+                      "Wrong strides/padsBegin/padsEnd/kernel");
+    static const auto H = vpux::Dims4D::Act::H;
+    static const auto W = vpux::Dims4D::Act::W;
+
+    auto sizeH = (inShape[H] - kernel[0]) % strides[0];
+    auto sizeW = (inShape[W] - kernel[1]) % strides[1];
+
+    if (padsBegin[0] == 0 && padsBegin[1] == 0 && padsEnd[0] == 0 && padsEnd[1] == 0 && (sizeH != 0 && sizeW != 0)) {
+        return true;
+    }
+    return false;
+}
+
 template <class ConcreteOp>
 void ConvertPaddingsToFloorModePass::updatePoolOperation(ConcreteOp op) {
     const auto inShape = getShape(op.input());
@@ -126,8 +146,29 @@ void ConvertPaddingsToFloorModePass::updatePoolOperation(ConcreteOp op) {
     const auto strides = parseIntArrayAttr<int64_t>(op.strides());
     auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
     auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
+    auto useSlice = canUseSlice(inShape, padsBegin, padsEnd, strides, kernel);
 
     cvtPaddingsToFloorMode(inShape, outShape, kernel, strides, {1, 1}, padsBegin, padsEnd);
+    if ((padsEnd.size() == 2) && (padsEnd[0] < 0 || padsEnd[1] < 0) && useSlice) {
+        Shape offsets = Shape(inShape.size(), 0);
+        const auto offsetsAttr = getIntArrayAttr(op.getContext(), offsets);
+
+        Shape sizes = inShape.raw();
+        static const auto H = vpux::Dims4D::Act::H;
+        static const auto W = vpux::Dims4D::Act::W;
+        sizes[H] = sizes[H] - 1;
+        sizes[W] = sizes[W] - 1;
+        const auto sizesAttr = getIntArrayAttr(op.getContext(), sizes);
+
+        mlir::OpBuilder builder(op);
+
+        auto sliceOp = builder.create<IE::SliceOp>(op.getLoc(), op.input(), offsetsAttr, sizesAttr);
+
+        op.setOperand(sliceOp.result());
+    }
+
+    padsEnd[0] = std::max<int64_t>(padsEnd[0], 0);
+    padsEnd[1] = std::max<int64_t>(padsEnd[1], 0);
 
     const auto newPadsBeginAttr = getIntArrayAttr(op.getContext(), padsBegin);
     const auto newPadsEndAttr = getIntArrayAttr(op.getContext(), padsEnd);
@@ -153,6 +194,9 @@ void ConvertPaddingsToFloorModePass::updateConvOperation(ConcreteOp op) {
     auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
 
     cvtPaddingsToFloorMode(inShape, outShape, kernel, strides, dilations, padsBegin, padsEnd);
+    for (size_t i = 0; i < padsEnd.size(); ++i) {
+        padsEnd[i] = std::max<int64_t>(padsEnd[i], 0);
+    }
 
     const auto newPadsBeginAttr = getIntArrayAttr(op.getContext(), padsBegin);
     const auto newPadsEndAttr = getIntArrayAttr(op.getContext(), padsEnd);

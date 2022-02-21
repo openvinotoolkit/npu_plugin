@@ -1,7 +1,7 @@
 #! /bin/bash
 env_is_set=1
 optimization=-O3
-alwaye_inline=-DCONFIG_ALWAYS_INLINE
+always_inline=-DCONFIG_ALWAYS_INLINE
 #cpunum=3720  # compiled under 3010 temporarily due to old movi tools (21.12.1-internal) is used on CI
 cpunum=3010
 cpu=${cpunum}xx
@@ -30,7 +30,7 @@ rm -f ${KERNEL_DIR}/prebuild/tanh_fp16_${cpu}.o ${KERNEL_DIR}/prebuild/tanh_fp16
  -I "${KERNEL_DIR}/common/inc" \
  -I "${KERNEL_DIR}/inc/3720" \
  -I "${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc" \
- -D CONFIG_TARGET_SOC_3720 -D__shave_nn__ ${alwaye_inline} ${USE_3720_INTSTRUCTIONS}
+ -D CONFIG_TARGET_SOC_3720 -D__shave_nn__ ${always_inline} ${USE_3720_INTSTRUCTIONS}
 
 obj_files="${KERNEL_DIR}/prebuild/tanh_fp16_${cpu}.o"
 

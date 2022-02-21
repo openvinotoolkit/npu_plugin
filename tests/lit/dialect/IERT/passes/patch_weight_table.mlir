@@ -92,3 +92,44 @@ func @PatchWeightTableWeightsOnly() -> memref<256x1x1x1xsi32, @CMX_NN> {
     // CHECK-SAME:  weight_table([[WEIGHT_TABLE_BUF]] : memref<256x1x1x1xsi32, @CMX_NN>)
 }
 
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @PatchWeightTableWithSpill
+func @PatchWeightTableWithSpill() ->  memref<1x1008x2x2xf16, #NHWC, @CMX_NN> {
+    %weight_table_1 = VPURT.DeclareBuffer "CMX_NN" <540288> -> memref<1008x1x1x4xsi32, @CMX_NN>
+    %weight_table_DDR = VPURT.DeclareBuffer "DDR" <0> -> memref<1008x1x1x4xsi32, @DDR>
+    %weight_table_2 = VPURT.DeclareBuffer "CMX_NN" <256> -> memref<1008x1x1x4xsi32, @CMX_NN>
+    %weights = VPURT.DeclareBuffer "CMX_NN" <395136> -> memref<1008x64x1x1xf16, #NHWC, @CMX_NN>
+    %act_wind = VPURT.DeclareBuffer "CMX_NN" <524160> -> memref<1008x1x1x16xui8, @CMX_NN>
+    %weight_table_const = const.Declare memref<1008x1x1x4xsi32> = #const.Content<dense<1> : tensor<1008x1x1x4xsi32>>
+
+    %in = VPURT.DeclareBuffer "CMX_NN" <0> -> memref<1x1008x14x14xf16, #NHWC, @CMX_NN>
+    %out = VPURT.DeclareBuffer "CMX_NN" <556416> -> memref<1x1008x2x2xf16, #NHWC, @CMX_NN>
+
+    %2 = VPUIP.NNDMA {port = 0 : i64} inputs(%weight_table_const : memref<1008x1x1x4xsi32>) outputs(%weight_table_1 : memref<1008x1x1x4xsi32, @CMX_NN>) -> memref<1008x1x1x4xsi32, @CMX_NN>
+    %3 = VPUIP.NNDMA {port = 0 : i64} inputs(%weight_table_1 : memref<1008x1x1x4xsi32, @CMX_NN>) outputs(%weight_table_DDR : memref<1008x1x1x4xsi32, @DDR>) -> memref<1008x1x1x4xsi32, @DDR>
+    %4 = VPUIP.NNDMA {port = 0 : i64} inputs(%weight_table_DDR : memref<1008x1x1x4xsi32, @DDR>) outputs(%weight_table_2 : memref<1008x1x1x4xsi32, @CMX_NN>) -> memref<1008x1x1x4xsi32, @CMX_NN>
+
+    %5 = VPUIP.NCEClusterTask {activation_window_channel_length = 98 : i64, kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [7, 7], kernel_strides = [7, 7], task_type = "DWCONV"} input(%in : memref<1x1008x14x14xf16, #NHWC, @CMX_NN>) weights(%weights : memref<1008x64x1x1xf16, #NHWC, @CMX_NN>) weight_table(%weight_table_2 : memref<1008x1x1x4xsi32, @CMX_NN>) activation_window(%act_wind : memref<1008x1x1x16xui8, @CMX_NN>) parent_input(%in : memref<1x1008x14x14xf16, #NHWC, @CMX_NN>) parent_output(%out : memref<1x1008x2x2xf16, #NHWC, @CMX_NN>) outputs(%out : memref<1x1008x2x2xf16, #NHWC, @CMX_NN>) -> memref<1x1008x2x2xf16, #NHWC, @CMX_NN> variants :  {
+        DPUTask {end = [1, 0, 1007], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 0, 0]}
+    } PPE :  {
+    }
+
+    return %5 : memref<1x1008x2x2xf16, #NHWC, @CMX_NN>
+
+    // CHECK:       [[WEIGHT_TABLE_BUF1:%.*]] = VPURT.DeclareBuffer "CMX_NN" <540288> -> memref<1008x1x1x4xsi32, @CMX_NN>
+    // CHECK:       [[WEIGHT_TABLE_BUF_DDR:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1008x1x1x4xsi32, @DDR>
+    // CHECK:       [[WEIGHT_TABLE_BUF2:%.*]] = VPURT.DeclareBuffer "CMX_NN" <256> -> memref<1008x1x1x4xsi32, @CMX_NN>
+    // CHECK:       [[WEIGHTS_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" <[[WEIGHTS_ADDR:[^>]+]]> -> memref<1008x64x1x1xf16, #NHWC, @CMX_NN>
+    // CHECK:       [[ACT_WIN_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" <[[ACT_WIN_ADDR:[^>]+]]> -> memref<1008x1x1x16xui8, @CMX_NN>
+    // CHECK:       [[CONST:%.*]] = const.Declare memref<1008x1x1x4xsi32> = #const.Content<dense<1> : tensor<1008x1x1x4xsi32>, [#const.RelocateWeightsTable<[[WEIGHTS_ADDR]] : i64, [[ACT_WIN_ADDR]] : i64>]>
+    // CHECK:       [[NDMA_OP1:.*]] = VPUIP.NNDMA {port = 0 : i64} inputs([[CONST]] : memref<1008x1x1x4xsi32>) outputs([[WEIGHT_TABLE_BUF1]] : memref<1008x1x1x4xsi32, @CMX_NN>) -> memref<1008x1x1x4xsi32, @CMX_NN>
+    // CHECK:       [[NDMA_OP2:.*]] = VPUIP.NNDMA
+    // CHECK:       [[NDMA_OP3:.*]] = VPUIP.NNDMA
+    // CHECK:       [[NCE_CLUST_TASK_OP:.*]] = VPUIP.NCEClusterTask
+    // CHECK-SAME:  weights([[WEIGHTS_BUF]] : memref<1008x64x1x1xf16, #NHWC, @CMX_NN>)
+    // CHECK-SAME:  weight_table([[WEIGHT_TABLE_BUF2]] : memref<1008x1x1x4xsi32, @CMX_NN>)
+    // CHECK-SAME:  activation_window([[ACT_WIN_BUF]] : memref<1008x1x1x16xui8, @CMX_NN>)
+}

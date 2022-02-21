@@ -2576,6 +2576,23 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
     }
 }
 
+//
+// validateCNNNetwork
+//
+
+void validateCNNNetwork(const InferenceEngine::CNNNetwork& cnnNet) {
+    const auto inputsInfo = cnnNet.getInputsInfo();
+
+    for (const auto& p : inputsInfo) {
+        const auto& name = p.first;
+        const auto& info = p.second;
+        const auto& preProc = info->getPreProcess();
+        const auto meanVariant = preProc.getMeanVariant();
+        VPUX_THROW_UNLESS(meanVariant == InferenceEngine::MeanVariant::NONE,
+                          "MeanVariant pre-processing for input '{0}' is not supported", name);
+    }
+}
+
 }  // namespace
 
 //
@@ -2585,8 +2602,9 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
 std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CNNNetwork& cnnNet,
                                                        std::vector<PreProcessInfo>& preProcInfo,
                                                        mlir::TimingScope& rootTiming, Logger log) {
-    log.setName("IE::FrontEnd");
-    log.trace("Run queryNetwork");
+    log.setName("IE::FrontEnd::queryNetwork");
+
+    validateCNNNetwork(cnnNet);
 
     const auto netGraph = ngraph::clone_function(*(cnnNet.getFunction()));
     VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
@@ -2605,7 +2623,9 @@ std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CN
 mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet,
                                               std::vector<PreProcessInfo>& preProcInfo, bool sharedConstants,
                                               mlir::TimingScope& rootTiming, bool enableProfiling, Logger log) {
-    log.setName("IE::FrontEnd");
+    log.setName("IE::FrontEnd::importNetwork");
+
+    validateCNNNetwork(cnnNet);
 
     log.trace("Load IE::FrontEnd dependent Dialects");
     ctx->loadDialect<IE::IEDialect>();
