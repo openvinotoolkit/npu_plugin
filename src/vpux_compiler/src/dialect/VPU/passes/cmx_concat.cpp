@@ -301,36 +301,29 @@ bool CMXConcatPass::childOperationsDoNotFitInCMX(ConcatPattern concatPattern, si
     // auto output = concat.getResult();
     size_t concatSize = getSize(concatPattern._concat.getResult());
     size_t maxConsumerSize = 0;
-    size_t parallelConsumerCost = 0;
 
     for (auto& concatPart : concatPattern._concatParts) {
         if (!concatPart.isValidPart()) {
             return false;
         }
-        size_t currentConsumerInputSize = 0;
-        size_t currentConsumerOutputSize = 0;
+        size_t currentConsumerSize = 0;
         for (auto input : concatPart._nceOp->getOperands()) {
             if (input.getDefiningOp() == concatPart._copyOp.getOperation()) {
                 continue;
             }
-            currentConsumerInputSize += getSize(input);
+            currentConsumerSize += getSize(input);
         }
         for (auto output : concatPart._nceOp->getResults()) {
-            currentConsumerOutputSize += getSize(output);
+            currentConsumerSize += getSize(output);
         }
         // add weight table and activation window size
-        currentConsumerInputSize += calculateExtraConstSize(concatPart._nceOp);
-        maxConsumerSize = std::max<size_t>(maxConsumerSize, (currentConsumerInputSize + currentConsumerOutputSize));
-        if (parallelConsumerCount > 1) {
-            // in cases of multiple parallel users assume that the output
-            // of the nce will stay in NNCMX
-            parallelConsumerCost += currentConsumerOutputSize;
-        }
+        currentConsumerSize += calculateExtraConstSize(concatPart._nceOp);
+        maxConsumerSize = std::max<size_t>(maxConsumerSize, currentConsumerSize);
     }
 
-    _log.nest(3).trace("Concat consumer max size '{0}'", (maxConsumerSize + parallelConsumerCost + concatSize));
+    _log.nest(3).trace("Concat consumer max size '{0}'", (parallelConsumerCount * (maxConsumerSize + concatSize)));
     // return concat size greater than CMX size
-    return (maxConsumerSize + parallelConsumerCost + concatSize) > cmxSize;
+    return (parallelConsumerCount * (maxConsumerSize + concatSize)) > cmxSize;
 }
 
 size_t CMXConcatPass::getParallelConsumerCount(ConcatPattern concatPattern) {
