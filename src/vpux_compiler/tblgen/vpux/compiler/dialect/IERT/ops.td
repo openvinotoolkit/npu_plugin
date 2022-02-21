@@ -2602,6 +2602,37 @@ def IERT_RegionYoloOp :
 }
 
 //
+// ReorgYoloOp
+//
+
+def IERT_ReorgYoloOp :
+        IERT_LayerOp<1, "ReorgYolo",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReorgYolo layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+
+        IntAttr:$stride
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // SpaceToDepthOp
 //
 

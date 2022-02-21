@@ -918,6 +918,22 @@ def RewriteRegionYolo :
         >;
 
 //
+// IERT.ReorgYolo -> VPUIP.ReorgYoloUPA
+//
+
+def createReorgYoloUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReorgYoloUPAOp>(
+                $_loc, $0, $1, $2)
+        }]>;
+
+def RewriteReorgYolo :
+        Pat<
+            (IERT_ReorgYoloOp $input, $output, $stride),
+            (createReorgYoloUPAOp $input, $output, $stride)
+        >;
+
+//
 // IERT.MVN -> VPUIP.MVNUPA
 //
 

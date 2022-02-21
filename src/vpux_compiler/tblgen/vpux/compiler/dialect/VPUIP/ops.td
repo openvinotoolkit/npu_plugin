@@ -2440,6 +2440,50 @@ def VPUIP_RegionYoloUPAOp :
 }
 
 //
+// ReorgYoloUPAOp
+//
+
+def VPUIP_ReorgYoloUPAOp :
+        VPUIP_UPATaskOp<1, "ReorgYoloUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_AnyDimsOrder
+            ]
+        > {
+    let summary = "ReorgYolo UPA SHAVE kernel";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+
+        IntAttr:$stride,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output,
+                "mlir::IntegerAttr":$stride
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // MVNOp
 //
 

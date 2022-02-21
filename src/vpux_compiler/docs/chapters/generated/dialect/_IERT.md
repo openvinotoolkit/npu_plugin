@@ -2379,6 +2379,40 @@ operation ::= `IERT.RegionYolo` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ReorgYolo` (vpux::IERT::ReorgYoloOp)
+
+InferenceEngine run-time ReorgYolo layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReorgYolo` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`stride` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.ReverseSequence` (vpux::IERT::ReverseSequenceOp)
 
 InferenceEngine Run-Time ReverseSequence layer
