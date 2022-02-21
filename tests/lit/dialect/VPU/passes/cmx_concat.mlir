@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --cmx-concat %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --cmx-concat --canonicalize %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
