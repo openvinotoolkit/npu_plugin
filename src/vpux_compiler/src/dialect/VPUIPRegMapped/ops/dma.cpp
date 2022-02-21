@@ -28,10 +28,13 @@ using namespace vpux;
 
 namespace {
 
-llvm::SmallVector<std::pair<uint32_t, int32_t>> reduce_dims_for_dma(mlir::MemRefType memref) {
-    auto const logicalShape = vpux::getShape(memref);
-    auto const logicalStrides = vpux::getStrides(memref);
-    auto const order = vpux::DimsOrder::fromType(memref);
+llvm::SmallVector<std::pair<uint32_t, int32_t>> reduce_dims_for_dma(mlir::MemRefType memref, mlir::Value val) {
+    // auto const logicalShape = vpux::getShape(memref);
+    auto const logicalShape = vpux::getShape(val);
+    // auto const logicalStrides = vpux::getStrides(memref);
+    auto const logicalStrides = vpux::getStrides(val);
+    // auto const order = vpux::DimsOrder::fromType(memref);
+    auto const order = vpux::DimsOrder::fromValue(val);
     auto const memShape = order.toMemoryOrder(logicalShape);
     auto const memStrides = order.toMemoryOrder(logicalStrides);
 
@@ -110,8 +113,8 @@ void vpux::VPUIPRegMapped::NNDMAOp::serialize(elf::writer::BinaryDataSection<uin
     // TODO: can we have this reduction at a pass at memref level?
     // TODO: need to place some conditions on the DMA, and in some scenarios, may have to do 1*DMA -> n*DMA
     // transaction rewrites
-    auto reduced_dims_input = reduce_dims_for_dma(inputType);
-    auto reduced_dims_output = reduce_dims_for_dma(outputType);
+    auto reduced_dims_input = reduce_dims_for_dma(inputType, input());
+    auto reduced_dims_output = reduce_dims_for_dma(outputType, output());
 
     if (reduced_dims_input.size() > 2 || reduced_dims_output.size() > 2) {
         VPUX_THROW("cannot reduce dims to 2 for DMA");
