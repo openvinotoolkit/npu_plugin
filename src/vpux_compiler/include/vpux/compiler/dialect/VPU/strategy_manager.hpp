@@ -161,7 +161,8 @@ bool StrategyManager::doesSplitOverHeightLayerFitIntoCMX(ConcreteOp origOp) cons
                            distributedInput2TensorType.getTotalAllocSize() +
                            distributedOutputTensorType.getTotalAllocSize();
     } else {
-        VPUX_THROW("Attempting to get the padding for operation {0}, which is not a NCE Task", origOp->getName());
+        VPUX_THROW("Attempting to calculate CMX memory size for operation {0}, which is not a NCE Task",
+                   origOp->getName());
     }
 
     return totalMemorySize <= getTotalCMXSize(origOp.getOperation());
