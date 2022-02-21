@@ -20,8 +20,7 @@ using namespace VPU;
 // This pass assigns a layer to be SOH if the operation is SOH compitable
 // i.e the OH is > 20 and the layer fits in CMX when multi-clustered
 
-StrategyManager::StrategyManager(mlir::FuncOp func, Logger log, mlir::MLIRContext* ctx)
-        : _func(func), _log(log), _ctx(ctx) {
+StrategyManager::StrategyManager(mlir::FuncOp func, Logger log): _func(func), _log(log) {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
 
