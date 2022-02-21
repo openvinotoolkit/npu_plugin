@@ -472,21 +472,6 @@ void CMXConcatPass::safeRunOnFunc() {
         rewriteOutputPattern(outputPattern);
         _log.trace("Concat '{0}' at '{1}' was cmx-ed", concat->getName(), concat->getLoc());
     });
-
-    // 4. Remove left over operations with no users
-    func->walk([](IE::LayerOpInterface op) {
-        bool canRemove = true;
-        for (const auto res : op->getResults()) {
-            if (!res.use_empty()) {
-                canRemove = false;
-                break;
-            }
-        }
-
-        if (canRemove) {
-            op->erase();
-        }
-    });
 }
 
 }  // namespace
