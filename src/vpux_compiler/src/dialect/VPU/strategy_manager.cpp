@@ -238,11 +238,14 @@ double StrategyManager::computeLayerSplitOverKernelEfficency(mlir::Operation* op
 double StrategyManager::dpuComputeTime(mlir::Operation* op, multiClusterStrategyRange Strategy) {
     const auto outputShape = getShape(op->getResult(0));
     auto clusterOutShape = outputShape.toValues();
+    double dpuEff = 0;
     if (Strategy == multiClusterStrategyRange::SplitOverH ||
         Strategy == multiClusterStrategyRange::SplitOverHOverlapped) {
         clusterOutShape[Dims4D::Act::H] = outputShape[Dims4D::Act::H] / _numClusters;
+        dpuEff = computeLayerSplitOverHeightEfficency(op);
     } else if (Strategy == multiClusterStrategyRange::SplitOverK) {
         clusterOutShape[Dims4D::Act::C] = outputShape[Dims4D::Act::C] / _numClusters;
+        dpuEff = computeLayerSplitOverKernelEfficency(op);
     }
 
     size_t baseKernelCost;
@@ -262,10 +265,6 @@ double StrategyManager::dpuComputeTime(mlir::Operation* op, multiClusterStrategy
         auto weightsShape = getShape(op->getOperand(1));
         baseKernelCost *= weightsShape[Dims4D::Act::C];
     }
-
-    // [QA]
-    // Todo: can I use calculateSplitOverHeightEfficency API here to get wanted dpuEff?
-    double dpuEff = 1;
 
     return ((double)(clusterOutShape.totalSize() * baseKernelCost) / dpuEff);
 }
