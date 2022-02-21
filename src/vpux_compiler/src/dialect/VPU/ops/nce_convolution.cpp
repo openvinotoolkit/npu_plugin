@@ -81,18 +81,15 @@ SmallVector<Byte> VPU::NCEConvolutionOp::memSizes(mlir::ArrayAttr strides, vpux:
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides, vpux::NDTypeInterface input,
-                                             vpux::NDTypeInterface filter, vpux::NDTypeInterface output) {
+bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter, vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
-    if (auto concreteOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
-        auto memList = concreteOp.memSizes(strides, input, filter, output);
-        for (auto memItem : memList) {
-            requiredCMX += memItem;
-        }
+    auto memList = memSizes(strides(), input, filter, output);
+    for (auto memItem : memList) {
+        requiredCMX += memItem;
     }
 
-    return requiredCMX <= getTotalCMXSize(op);
+    return requiredCMX <= getTotalCMXSize(*this);
 }
 
 //
@@ -152,11 +149,6 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, NCEInvariant
     }
     if (arch != VPU::ArchKind::MTL && outputOrder != DimsOrder::NHWC) {
         logCb(llvm::formatv("Unsupported output layout '{0}'", outputOrder));
-        return false;
-    }
-
-    if (!fitIntoCMX(op, op.strides(), inputType, filterType, outputType)) {
-        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
         return false;
     }
 
@@ -320,4 +312,23 @@ int64_t vpux::VPU::NCEConvolutionOp::getInputChannelAlignment(vpux::NDTypeInterf
     }
 
     return NCEInvariant::getAlignment(inputType.getElementType());
+}
+
+//
+// TilingBuilderOpInterface
+//
+
+vpux::InputTiling vpux::VPU::NCEConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+    const auto origInputShape = getShape(input());
+    const auto origFilterShape = getShape(filter());
+    const auto origBiasShape = bias().hasValue() ? bias().getValue().getShape() : ShapeRef();
+    const auto origPadding = toPadInfo(pad());
+
+    return backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
+}
+
+void vpux::VPU::NCEConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
+    VPU::adjustPaddings(this, inputTiling);
+    VPU::adjustRawFilterShape(this, outputTile);
+    VPU::adjustBias(this, outputTile);
 }

@@ -64,18 +64,15 @@ SmallVector<Byte> VPU::NCEMaxPoolOp::memSizes(mlir::ArrayAttr kernelSize, mlir::
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernelSize, mlir::ArrayAttr strides,
-                                         vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
+bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
-    if (auto concreteOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(op)) {
-        auto memList = concreteOp.memSizes(kernelSize, strides, input, output);
-        for (auto memItem : memList) {
-            requiredCMX += memItem;
-        }
+    auto memList = memSizes(kernel_size(), strides(), input, output);
+    for (auto memItem : memList) {
+        requiredCMX += memItem;
     }
 
-    return requiredCMX <= getTotalCMXSize(op);
+    return requiredCMX <= getTotalCMXSize(*this);
 }
 
 //
@@ -127,11 +124,6 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, NCEInvariant::LogCb 
 
     if (inputOrder != DimsOrder::NHWC || outputOrder != DimsOrder::NHWC) {
         logCb(llvm::formatv("Unsupported layout"));
-        return false;
-    }
-
-    if (!fitIntoCMX(op, op.kernel_size(), op.strides(), inputType, outputType)) {
-        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
         return false;
     }
 
@@ -235,4 +227,19 @@ bool vpux::VPU::NCEMaxPoolOp::checkChannelRestrictions(int64_t channels) {
     }
 
     return true;
+}
+
+//
+// TilingBuilderOpInterface
+//
+
+vpux::InputTiling vpux::VPU::NCEMaxPoolOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+    const auto origInputShape = getShape(input());
+    const auto origPadding = toPadInfo(pad());
+
+    return vpux::backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), origPadding);
+}
+
+void vpux::VPU::NCEMaxPoolOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& /*outputTile*/) {
+    VPU::adjustPaddings(this, inputTiling);
 }

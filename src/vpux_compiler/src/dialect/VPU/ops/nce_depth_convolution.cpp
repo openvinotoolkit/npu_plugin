@@ -53,7 +53,7 @@ SmallVector<Byte> VPU::NCEDepthConvolutionOp::memSizes(mlir::ArrayAttr strides, 
 
     const auto alignment = NCEInvariant::getAlignment(output.getElementType());
 
-    const int64_t remainder = (KY * KX) % alignment;
+    const auto remainder = (KY * KX) % alignment;
     VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
 
     const int64_t padding = (remainder > 0) ? (alignment - remainder) : 0;
@@ -72,19 +72,16 @@ SmallVector<Byte> VPU::NCEDepthConvolutionOp::memSizes(mlir::ArrayAttr strides, 
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
-                                                  vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                                   vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
-    if (auto concreteOp = mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op)) {
-        auto memList = concreteOp.memSizes(strides, input, filter, output);
-        for (auto memItem : memList) {
-            requiredCMX += memItem;
-        }
+    auto memList = memSizes(strides(), input, filter, output);
+    for (auto memItem : memList) {
+        requiredCMX += memItem;
     }
 
-    return requiredCMX <= getTotalCMXSize(op);
+    return requiredCMX <= getTotalCMXSize(*this);
 }
 
 //
@@ -160,11 +157,6 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, NC
 
     if (inputOrder != DimsOrder::NHWC || filterOrder != DimsOrder::OYXI || outputOrder != DimsOrder::NHWC) {
         logCb(llvm::formatv("Unsupported layout"));
-        return false;
-    }
-
-    if (!fitIntoCMX(op, op.strides(), inputType, filterType, outputType)) {
-        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
         return false;
     }
 
@@ -272,4 +264,23 @@ bool vpux::VPU::NCEDepthConvolutionOp::checkChannelRestrictions(int64_t channels
     }
 
     return true;
+}
+
+//
+// TilingBuilderOpInterface
+//
+
+vpux::InputTiling vpux::VPU::NCEDepthConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+    const auto origInputShape = getShape(input());
+    const auto origFilterShape = getShape(filter());
+    const auto origBiasShape = bias().hasValue() ? bias().getValue().getShape() : ShapeRef();
+    const auto origPadding = toPadInfo(pad());
+
+    return backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
+}
+
+void vpux::VPU::NCEDepthConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
+    VPU::adjustPaddings(this, inputTiling);
+    VPU::adjustRawFilterShape(this, outputTile);
+    VPU::adjustBias(this, outputTile);
 }

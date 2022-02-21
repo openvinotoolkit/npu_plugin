@@ -113,6 +113,7 @@ def VPU_NCEConvolutionOp :
                 SingleBlock,
                 IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]
         > {
@@ -157,8 +158,7 @@ def VPU_NCEConvolutionOp :
     let extraClassDeclaration = [{
         SmallVector<Byte> memSizes(mlir::ArrayAttr strides, vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                    vpux::NDTypeInterface output);
-        static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
-                               vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+        static bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
@@ -182,6 +182,7 @@ def VPU_NCEDepthConvolutionOp :
                 SingleBlock,
                 IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]
         > {
@@ -227,8 +228,7 @@ def VPU_NCEDepthConvolutionOp :
         SmallVector<Byte> memSizes(mlir::ArrayAttr strides,
                                    vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                    vpux::NDTypeInterface output);
-        static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
-                               vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+        static bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::GroupConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
@@ -252,6 +252,7 @@ def VPU_NCEMaxPoolOp :
                 SingleBlock,
                 IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]
         > {
@@ -291,8 +292,7 @@ def VPU_NCEMaxPoolOp :
     let extraClassDeclaration = [{
         SmallVector<Byte> memSizes(mlir::ArrayAttr kernelSize, mlir::ArrayAttr strides,
                                    vpux::NDTypeInterface input, vpux::NDTypeInterface output);
-        static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernelSize, mlir::ArrayAttr strides,
-                               vpux::NDTypeInterface input, vpux::NDTypeInterface output);
+        static bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::MaxPoolOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
@@ -315,6 +315,7 @@ def VPU_NCEEltwiseOp :
                 SingleBlock,
                 IE_EltwiseOp,
                 IE_LayerWithPostOpInterface,
+                IE_TilingBuilderOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]
@@ -350,8 +351,7 @@ def VPU_NCEEltwiseOp :
     let extraClassDeclaration = [{
         SmallVector<Byte> memSizes(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
                                    vpux::NDTypeInterface output);
-        static bool fitIntoCMX(mlir::Operation* op,
-                               vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
+        static bool fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
                                vpux::NDTypeInterface output);
 
         static bool isSupported(mlir::Operation* op, bool allowDifferentScales, bool allowDifferentZp,
