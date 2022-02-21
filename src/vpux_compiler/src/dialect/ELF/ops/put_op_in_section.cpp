@@ -19,24 +19,30 @@ void vpux::ELF::PutOpInSectionOp::serialize(elf::writer::BinaryDataSection<uint8
     auto inputArgDefOp = inputArg().getDefiningOp();
 
     if (llvm::dyn_cast_or_null<vpux::VPURT::DeclareBufferOp>(inputArgDefOp) != nullptr) {
-        // No serialiation, since VPURT::DeclareBufferOp is a simple logical operations.
-        // We don't treat specially VPURT::DeclareBufferOp since it
-        //   doesn't have any data for serialization.
+        // VPURT::DeclareBufferOp is a simple logical operation with no data to serialize.
         return;
     }
 
     auto binaryIface = llvm::dyn_cast_or_null<vpux::ELF::BinaryOpInterface>(inputArgDefOp);
 
-    VPUX_THROW_UNLESS(binaryIface != nullptr, "inputArgDefOp is expected to define elf::BinaryOpInterface");
+    VPUX_THROW_UNLESS(binaryIface != nullptr,
+                      "PutOpInSectionOp::serialize(): inputArgDefOp is expected to define elf::BinaryOpInterface");
 
     binaryIface.serialize(binDataSection);
 }
 
 size_t vpux::ELF::PutOpInSectionOp::getBinarySize() {
     auto inputArgDefOp = inputArg().getDefiningOp();
+
+    if (llvm::dyn_cast_or_null<vpux::VPURT::DeclareBufferOp>(inputArgDefOp) != nullptr) {
+        // VPURT::DeclareBufferOp is a simple logical operation with no data to serialize.
+        return 0;
+    }
+
     auto binaryIface = llvm::dyn_cast_or_null<vpux::ELF::BinaryOpInterface>(inputArgDefOp);
 
-    VPUX_THROW_UNLESS(binaryIface != nullptr, "inputArgDefOp is expected to define elf::BinaryOpInterface");
+    VPUX_THROW_UNLESS(binaryIface != nullptr,
+                      "PutOpInSectionOp::getBinarySize(): inputArgDefOp is expected to define elf::BinaryOpInterface");
 
     return binaryIface.getBinarySize();
 }
