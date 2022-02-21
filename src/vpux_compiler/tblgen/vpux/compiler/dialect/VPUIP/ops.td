@@ -1772,52 +1772,6 @@ def VPUIP_PermuteUPAOp :
 }
 
 //
-// WeightsTableOp
-//
-
-def VPUIP_WeightsTableOp :
-        VPUIP_Op<"WeightsTableOp",
-            [
-                NoSideEffect,
-                AttrSizedOperandSegments,
-                ViewLikeOpInterface
-            ]
-        > {
-    let summary = "Intermediate task for creating weights table based on the addresses of CMX buffers";
-
-    let arguments = (ins
-        AnyTypeOf<[MemRefOf<[F16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$op_input,
-        AnyTypeOf<[MemRefOf<[F16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$op_output,
-        Optional<AnyTypeOf<[MemRefOf<[F16, quant_QuantizedType]>, VPURT_SparseBuffer]>>:$weights,
-        Optional<MemRefOf<[UI8]>>:$activation_window,
-        OptionalAttr<Const_ContentAttr>:$bias,
-        OptionalAttr<VPU_PPETaskAttr>:$ppe
-    );
-
-    let results = (outs
-        MemRefOf<[SI32]>:$output
-    );
-
-    let extraClassDeclaration = [{
-        mlir::Value getViewSource() {
-            return weights() != nullptr ? weights() : activation_window();
-        }
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        `op_input` `(` $op_input `:` type($op_input) `)`
-        `op_output` `(` $op_output `:` type($op_output) `)`
-        (`weights` `(` $weights^ `:` type($weights) `)`)?
-        (`activation_window` `(` $activation_window^ `:` type($activation_window) `)`)?
-        (`bias` `(` $bias^ `)`)?
-        `->` type(results)
-    }];
-
-    let hasCanonicalizer = 1;
-}
-
-//
 // DPUTaskOp
 //
 
