@@ -242,9 +242,9 @@ DistributionMode getActivationTensorDistributionMode(ConcreteOp origOp) {
     } else if (strategy == splitOverHeight) {
         return DistributionMode::SEGMENTED;
     } else if (strategy == splitOverKernel) {
-        return DistributionMode::MULTICASTED;
+        return DistributionMode::DUPLICATED;
     } else if (strategy == clustering) {
-        return DistributionMode::MULTICASTED;
+        return DistributionMode::DUPLICATED;
     } else {
         VPUX_THROW(
                 "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the distribution "
@@ -259,13 +259,13 @@ DistributionMode getWeightsTensorDistributionMode(ConcreteOp origOp) {
     const StringRef strategy =
             origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
     if (strategy == splitOverHeightOverLapped) {
-        return DistributionMode::MULTICASTED;
+        return DistributionMode::DUPLICATED;
     } else if (strategy == splitOverHeight) {
-        return DistributionMode::MULTICASTED;
+        return DistributionMode::DUPLICATED;
     } else if (strategy == splitOverKernel) {
         return DistributionMode::SEGMENTED;
     } else if (strategy == clustering) {
-        return DistributionMode::MULTICASTED;
+        return DistributionMode::DUPLICATED;
     } else {
         VPUX_THROW(
                 "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the distribution "
@@ -274,6 +274,27 @@ DistributionMode getWeightsTensorDistributionMode(ConcreteOp origOp) {
                 origOp->getName());
     }
 >>>>>>> simplified code for WW10
+}
+
+template <class ConcreteOp>
+DistributionMode getOutputTensorDistributionMode(ConcreteOp origOp) {
+    const StringRef strategy =
+            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+    if (strategy == splitOverHeightOverLapped) {
+        return DistributionMode::SEGMENTED;
+    } else if (strategy == splitOverHeight) {
+        return DistributionMode::SEGMENTED;
+    } else if (strategy == splitOverKernel) {
+        return DistributionMode::DUPLICATED;
+    } else if (strategy == clustering) {
+        return DistributionMode::DUPLICATED;
+    } else {
+        VPUX_THROW(
+                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the distribution "
+                "mode "
+                "for the output tensor",
+                origOp->getName());
+    }
 }
 
 }  // namespace VPU
