@@ -298,8 +298,9 @@ def VPUIPRegMapped_NNDMAOp :
         }
 
         vpux::DotNodeColor getNodeColor() {
-            const auto memKind = vpux::VPU::getMemoryKind(getType());
-            return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
+            // TODO: const auto memKind = vpux::VPU::getMemoryKind(getType());
+            // TODO: return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
+            return vpux::DotNodeColor::GREEN;
         }
 
         void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
