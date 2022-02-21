@@ -32,7 +32,7 @@ inline struct BaseKernelParams ToBaseKernelParams(struct MinimumParams * params)
     result.inputsOffset = reinterpret_cast<uint8_t*>(&(params->input)) - reinterpret_cast<uint8_t*>(params);
     result.outputsOffset = reinterpret_cast<uint8_t*>(&(params->output)) - reinterpret_cast<uint8_t*>(params);
 #else
-    result.inputsOffset = (uint8_t*)(&(params->input0)) - (uint8_t*)(params);
+    result.inputsOffset = (uint8_t*)(&(params->input)) - (uint8_t*)(params);
     result.outputsOffset = (uint8_t*)(&(params->output)) - (uint8_t*)(params);
 #endif
     return result;
