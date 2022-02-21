@@ -16,16 +16,27 @@ class KmbLogicalLayerTest:
     void SetUp() override {
         SetupParams();
 
-        auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
-        auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first, logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT ?
-                                                                                   inputShapes.second : ngraph::Shape()});
         ngraph::NodeVector convertedInputs;
-        for (const auto& input : inputs) {
-            convertedInputs.push_back(std::make_shared<ngraph::opset5::Convert>(input, ngraph::element::boolean));
-        }
+        auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        std::shared_ptr<ngraph::Node> logicalNode;
+        if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
+            auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first, inputShapes.second});
+            for (const auto& input : inputs) {
+                convertedInputs.push_back(std::make_shared<ngraph::opset5::Convert>(input, ngraph::element::boolean));
+            }
+            logicalNode = ngraph::builder::makeLogical(convertedInputs[0], convertedInputs[1], logicalOpType);
+            function = std::make_shared<ngraph::Function>(logicalNode, inputs, "Logical");
 
-        const auto logicalNode = ngraph::builder::makeLogical(convertedInputs[0], convertedInputs[1], logicalOpType);
-        function = std::make_shared<ngraph::Function>(logicalNode, inputs, "Logical");
+        } else {
+            auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
+            ngraph::NodeVector convertedInputs;
+            for (const auto& input : inputs) {
+                convertedInputs.push_back(std::make_shared<ngraph::opset5::Convert>(input, ngraph::element::boolean));
+            }
+            logicalNode =
+                    ngraph::builder::makeLogical(convertedInputs[0], ngraph::Output<ngraph::Node>(), logicalOpType);
+            function = std::make_shared<ngraph::Function>(logicalNode, inputs, "Logical");
+        }
     }
 };
 
@@ -67,6 +78,13 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t >>> inputShapes = {
         // {{2, 17, 3, 4}, {{4}, {1, 3, 4}}},
 };
 
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inputShapesNot = {
+        {{5}, {}},
+        {{2, 200}, {}},
+        {{1, 3, 20}, {}},
+        {{1, 17, 3, 4}, {}},
+};
+
 std::vector<InferenceEngine::Precision> inputsPrecisions = {
         InferenceEngine::Precision::FP16,
 };
@@ -100,6 +118,19 @@ const auto LogicalTestParams = ::testing::Combine(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(additional_config));
 
+const auto LogicalTestParamsNot = ::testing::Combine(
+        ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapesNot)),
+        ::testing::Values(ngraph::helpers::LogicalTypes::LOGICAL_NOT),
+        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(inputsPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(additional_config));
+
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, KmbLogicalLayerTest_MLIR, LogicalTestParams, LogicalLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNot, KmbLogicalLayerTest_MLIR, LogicalTestParamsNot, LogicalLayerTest::getTestCaseName);
 }  // namespace

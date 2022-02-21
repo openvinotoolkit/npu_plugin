@@ -18,6 +18,23 @@
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LogicalNotUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    VPUIP::BlobWriter::String type;
+
+    type = writer.createString("logicalnot");
+
+    MVCNN::EltwiseParamsBuilder builder(writer);
+    builder.add_operation(type);
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_EltwiseParams});
+}
+
+void vpux::VPUIP::LogicalNotUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+    // [Track number: E#25740]
+    IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info,
+                                                    {DimsOrder::NCHW, DimsOrder::CHW, DimsOrder::NC, DimsOrder::C});
+}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::BlobWriter& writer) {
     VPUIP::BlobWriter::String type;
@@ -128,6 +145,10 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseEltwise(mlir::OpBuilder& builder,
         type = VPU::EltwiseType::GREATER;
     } else if (strType == "comparege") {
         type = VPU::EltwiseType::GREATER_EQUAL;
+    } else if (strType == "logicalnot") {
+        type = VPU::EltwiseType::LOGICAL_NOT;
+        return builder.create<VPUIP::LogicalNotUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
+                                                      VPU::EltwiseTypeAttr::get(_ctx, type));
     } else if (strType == "logicalor") {
         type = VPU::EltwiseType::LOGICAL_OR;
     } else if (strType == "logicalxor") {

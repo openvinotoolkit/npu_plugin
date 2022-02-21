@@ -1218,6 +1218,41 @@ def VPUIP_EltwiseUPAOp :
 }
 
 //
+// LogicalNotUPAOp
+//
+
+def VPUIP_LogicalNotUPAOp :
+        VPUIP_UPATaskOp<1, "LogicalNotUPA",
+            [
+                ViewLikeOpInterface,
+            ]
+        > {
+    let summary = "Logical Not UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input1,
+        F16MemRef:$output_buff,
+
+        VPU_EltwiseType:$type
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // DetectionOutput
 //
 

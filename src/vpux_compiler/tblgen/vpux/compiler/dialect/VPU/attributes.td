@@ -139,6 +139,7 @@ def VPU_EltwiseType :
                 StrEnumAttrCase<"NOT_EQUAL">,
                 StrEnumAttrCase<"GREATER">,
                 StrEnumAttrCase<"GREATER_EQUAL">,
+                StrEnumAttrCase<"LOGICAL_NOT">,
                 StrEnumAttrCase<"LOGICAL_OR">,
                 StrEnumAttrCase<"LOGICAL_XOR">,
             ]

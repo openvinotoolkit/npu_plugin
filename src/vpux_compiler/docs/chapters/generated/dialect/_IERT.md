@@ -1494,6 +1494,34 @@ operation ::= `IERT.Log` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.LogicalNot` (vpux::IERT::LogicalNotOp)
+
+InferenceEngine run-time Logical Not layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.LogicalNot` attr-dict
+              `inputs` `(` $input1 `:` type($input1)`)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.LogicalOr` (vpux::IERT::LogicalOrOp)
 
 InferenceEngine run-time LogicalOr layer

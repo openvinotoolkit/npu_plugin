@@ -675,6 +675,27 @@ def RewriteGreaterEqual :
         >;
 
 //
+// IERT.LogicalNot -> VPUIP.LogicalNotUPA
+//
+
+def createLogicalNotEltwiseUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::LogicalNotUPAOp>(
+                $_loc, $0,
+                $1,
+                vpux::VPU::EltwiseTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPU::EltwiseType::LOGICAL_NOT
+                ))
+        }]>;
+
+def RewriteLogicalNot :
+        Pat<
+            (IERT_LogicalNotOp $input1, $output),
+            (createLogicalNotEltwiseUPAOp $input1, $output)
+        >;
+
+//
 // IERT.GRN -> VPUIP.GRNUPA
 //
 
