@@ -103,4 +103,40 @@ def AdjustMemorySpace : PassBase<"adjust-memory-space", "vpux::FunctionPass"> {
     ];
 }
 
+//
+// Multi-cluster strategy assignment
+//
+
+def MultiClusterStrategyAssignment : PassBase<"multi-cluster-strategy-assignment", "vpux::FunctionPass"> {
+    let summary = "Determines which multi-cluster strategy is the most optimal for a given layer";
+
+    let description = [{
+        Determines which multi-cluster strategy is the most optimal for a given layer
+    }];
+
+    let constructor = "vpux::VPU::createMultiClusterStrategyAssignmentPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// Wrap multi-cluster layers in NCEClusterTiling
+//
+
+def WrapMultiClusterLayersInNCEClusterTiling : PassBase<"wrap-multi-cluster-layers-in-nceclusteriling", "vpux::FunctionPass"> {
+    let summary = "Wraps multi-cluster layers in NCEClusterTiling";
+
+    let description = [{
+        Wraps multi-cluster layers in NCEClusterTiling.
+    }];
+
+    let constructor = "vpux::VPU::createWrapMultiClusterLayersInNCEClusterTilingPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
 #endif
