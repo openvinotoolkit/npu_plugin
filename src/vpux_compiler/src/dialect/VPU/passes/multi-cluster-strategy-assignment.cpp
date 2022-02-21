@@ -46,8 +46,7 @@ private:
 
 void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     auto func = getFunction();
-    auto& ctx = getContext();
-    StrategyManager strategyManager(func, _log, &ctx);
+    StrategyManager strategyManager(func, _log);
     strategyManager.assignMultiClusterStrategy();
 }
 
