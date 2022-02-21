@@ -7,7 +7,7 @@ module @CaseWithoutChildTiling attributes {VPU.arch = "KMB"} {
     
 IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
 IE.MemoryResource 4194304 bytes of @CMX_UPA {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}
-IE.MemoryResource 3311264 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
+IE.MemoryResource 2361600 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
 
 IE.CNNNetwork
     entryPoint : @main
@@ -99,7 +99,7 @@ module @CaseWithChildTiling attributes {VPU.arch = "KMB"} {
     
 IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
 IE.MemoryResource 4194304 bytes of @CMX_UPA {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}
-IE.MemoryResource 3311264 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
+IE.MemoryResource 3548160 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
 
 IE.CNNNetwork
     entryPoint : @main
