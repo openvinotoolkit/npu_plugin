@@ -17,7 +17,7 @@
 namespace vpux {
 namespace IE {
 
-OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode& tilingMode) {
+OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, TilingMode tilingMode) {
     auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
     VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
     auto tilingBuilder = mlir::dyn_cast<IE::TilingBuilderOpInterface>(op);
@@ -51,7 +51,7 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
     auto dimToTile = *tileDimIter;
 
     const auto isSupportedTileSize = [&tilingInfo, outputShape, log](ShapeRef nTilesOnDim,
-                                                                     const TilingMode& tilingMode) -> bool {
+                                                                     TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(nTilesOnDim, outputShape);
         return tilingInfo.isSupportedTiling(tiles, log, tilingMode);
     };
@@ -75,11 +75,10 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
             dimToTile = *(++tileDimIter);
         }
         if (tileDimIter == tileDimOrder.end()) {
-            VPUX_THROW_WHEN(tilingMode == TilingMode::ISOLATED_TILING, "Failed to tile {0} at '{1}'", op->getName(),
-                            op->getLoc());
-            // If still not find the tiling strategy, fall back to neutral tiling
-            nTilesOnDim = Shape(outputShape.size(), 1);
-            break;
+            VPUX_THROW_WHEN(tilingModeToCheck == TilingMode::ISOLATED_TILING, "Failed to tile {0} at '{1}'",
+                            op->getName(), op->getLoc());
+            // If still not find the tiling strategy in PATTERN_PREFETCH_TILING, fall back to neutral tiling
+            return fillDividedTiles(Shape(outputShape.size(), 1), outputShape);
         }
 
         if (dimToTile == Dims4D::Act::C) {
@@ -117,10 +116,10 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
 
     const auto targetDim = dimsToTile[0];
     Shape prefetchableTilesOnDim = nTilesOnDim;
-    while (prefetchableTilesOnDim[targetDim] < IE::MAX_PREFETCH_TILING_TIME * nTilesOnDim[targetDim] &&
-           !isSupportedTileSize(prefetchableTilesOnDim, TilingMode::PREFETCH_TILING)) {
-        if (!isDimLeftToTile(prefetchableTilesOnDim)) {
-            break;
+    while (!isSupportedTileSize(prefetchableTilesOnDim, TilingMode::PREFETCH_TILING)) {
+        if (prefetchableTilesOnDim[targetDim] >= IE::MAX_PREFETCH_TILING_TIME * nTilesOnDim[targetDim] ||
+            !isDimLeftToTile(prefetchableTilesOnDim)) {
+            return origTiles;
         }
         if (targetDim == Dims4D::Act::C) {
             do {
@@ -130,10 +129,7 @@ OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, const TilingMode
             prefetchableTilesOnDim[dimToTile]++;
         }
     }
-    auto prefetchableTiles = fillDividedTiles(prefetchableTilesOnDim, outputShape);
-
-    return tilingInfo.isSupportedTiling(prefetchableTiles, log, TilingMode::PREFETCH_TILING) ? prefetchableTiles
-                                                                                             : origTiles;
+    return fillDividedTiles(prefetchableTilesOnDim, outputShape);
 }
 
 mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outputTile, mlir::OpBuilder& builder,

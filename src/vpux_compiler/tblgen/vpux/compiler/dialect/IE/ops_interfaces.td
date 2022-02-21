@@ -215,7 +215,7 @@ def IE_TilingInfoOpInterface : OpInterface<"TilingInfoOpInterface"> {
         InterfaceMethod<
             "Check, if the provided tiling configuration is supported by the operation implementation",
             "bool", "isSupportedTiling",
-            (ins "const vpux::OutputTiling&":$tiles, "vpux::Logger":$log, "const vpux::TilingMode&":$tilingMode)
+            (ins "const vpux::OutputTiling&":$tiles, "vpux::Logger":$log, "vpux::TilingMode":$tilingMode)
         >,
     ];
 

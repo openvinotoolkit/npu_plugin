@@ -195,7 +195,7 @@ Interface for operations to provide information about required/supported tiling 
 #### `isSupportedTiling`
 
 ```c++
-bool isSupportedTiling(const vpux::OutputTiling&tiles, vpux::Logger log, const vpux::TilingMode&tilingMode);
+bool isSupportedTiling(const vpux::OutputTiling&tiles, vpux::Logger log, vpux::TilingMode tilingMode);
 ```
 Check, if the provided tiling configuration is supported by the operation implementation
 NOTE: This method *must* be implemented by the user.

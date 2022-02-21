@@ -29,8 +29,7 @@ static constexpr double FRAGMENTATION_AVOID_RATIO = 0.9;
 // The purpose is to avoid excessive tiling.
 static constexpr int MAX_PREFETCH_TILING_TIME = 3;
 
-OutputTiling getTilingStrategy(mlir::Operation* op, Logger log,
-                               const TilingMode& tilingMode = TilingMode::ISOLATED_TILING);
+OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, TilingMode tilingMode = TilingMode::ISOLATED_TILING);
 mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outputTile, mlir::OpBuilder& builder,
                       Logger log);
 mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, OutputTiling tiles,
