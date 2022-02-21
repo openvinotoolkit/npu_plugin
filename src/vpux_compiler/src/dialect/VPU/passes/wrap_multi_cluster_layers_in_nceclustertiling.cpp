@@ -64,6 +64,7 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<ConcreteOp>::matchAndRewrite(Co
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(origOp);
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp);
     auto weightTensorNumTiles = getWeightsTensorNumTiles(origOp);
+    auto outputTensorDistributionMode = getOutputTensorDistributionMode(origOp);
 
     auto distributedActivationCopyOp = createDistributedInputTensor(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
@@ -72,7 +73,7 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<ConcreteOp>::matchAndRewrite(Co
             createDistributedInputTensor(origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
 
     auto distributedOutputTensorType =
-            createDistributedOutputTensorType(origOp, activationTensorDistributionMode, activationTensorNumTiles);
+            createDistributedOutputTensorType(origOp, outputTensorDistributionMode, activationTensorNumTiles);
 
     auto origOutput = origOp->getResult(0);
     const auto origOutType = origOutput.getType().template cast<vpux::NDTypeInterface>();
