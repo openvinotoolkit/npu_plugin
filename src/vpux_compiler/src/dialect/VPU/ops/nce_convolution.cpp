@@ -26,11 +26,16 @@
 using namespace vpux;
 
 //
-// fitIntoCMX
+// memSizes
 //
 
-bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides, vpux::NDTypeInterface input,
-                                             vpux::NDTypeInterface filter, vpux::NDTypeInterface output) {
+SmallVector<Byte> VPU::NCEConvolutionOp::memSizes(mlir::ArrayAttr strides, vpux::NDTypeInterface input,
+                                                  vpux::NDTypeInterface filter, vpux::NDTypeInterface output) {
+    SmallVector<Byte> requiredCMX(5, Byte(0));  // {input, filter, output, weightsTable, activationWindow} in order
+
+    requiredCMX[0] = input.getTotalAllocSize();
+    requiredCMX[2] = output.getTotalAllocSize();
+
     const auto filterShape = filter.getShape();
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto IC = filterShape[Dims4D::Filter::IC];
@@ -38,16 +43,11 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAtt
     const auto KX = filterShape[Dims4D::Filter::KX];
 
     const auto inOrder = input.getDimsOrder();
-
-    Byte requiredCMX(0);
-
-    requiredCMX += input.getTotalAllocSize();
-    requiredCMX += output.getTotalAllocSize();
-
-    requiredCMX += NCEInvariant::getWeightsTableSize(OC);
+    requiredCMX[3] = NCEInvariant::getWeightsTableSize(OC);
 
     if (inOrder == DimsOrder::NHWC) {
-        requiredCMX += filter.getTotalAllocSize();
+        requiredCMX[1] = filter.getTotalAllocSize();
+        //  requiredCMX[4] activationWindow size equals 0
     } else if (inOrder == DimsOrder::NCHW) {
         const auto alignment = NCEInvariant::getAlignment(output.getElementType());
 
@@ -68,10 +68,28 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAtt
         const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::CM_CONV, kernelSize,
                                                                                SX, input.getElementType(), IC);
 
-        requiredCMX += alignedFilter.getTotalAllocSize();
-        requiredCMX += activationWindowSize * 1_Byte;
+        requiredCMX[1] = alignedFilter.getTotalAllocSize();
+        requiredCMX[4] = activationWindowSize * 1_Byte;
     } else {
-        VPUX_THROW("[{0}] Unsupported input layout '{1}'", op->getLoc(), inOrder);
+        VPUX_THROW("[{0}] Unsupported input layout '{1}'", (*this)->getLoc(), inOrder);
+    }
+
+    return requiredCMX;
+}
+
+//
+// fitIntoCMX
+//
+
+bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides, vpux::NDTypeInterface input,
+                                             vpux::NDTypeInterface filter, vpux::NDTypeInterface output) {
+    Byte requiredCMX(0);
+
+    if (auto concreteOp = mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
+        auto memList = concreteOp.memSizes(strides, input, filter, output);
+        for (auto memItem : memList) {
+            requiredCMX += memItem;
+        }
     }
 
     return requiredCMX <= getTotalCMXSize(op);

@@ -155,6 +155,8 @@ def VPU_NCEConvolutionOp :
     }];
 
     let extraClassDeclaration = [{
+        SmallVector<Byte> memSizes(mlir::ArrayAttr strides, vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                   vpux::NDTypeInterface output);
         static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
                                vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                vpux::NDTypeInterface output);
@@ -222,6 +224,9 @@ def VPU_NCEDepthConvolutionOp :
     }];
 
     let extraClassDeclaration = [{
+        SmallVector<Byte> memSizes(mlir::ArrayAttr strides,
+                                   vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                   vpux::NDTypeInterface output);
         static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
                                vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                vpux::NDTypeInterface output);
@@ -284,7 +289,9 @@ def VPU_NCEMaxPoolOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernel_size, mlir::ArrayAttr strides,
+        SmallVector<Byte> memSizes(mlir::ArrayAttr kernelSize, mlir::ArrayAttr strides,
+                                   vpux::NDTypeInterface input, vpux::NDTypeInterface output);
+        static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernelSize, mlir::ArrayAttr strides,
                                vpux::NDTypeInterface input, vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::MaxPoolOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
@@ -341,6 +348,8 @@ def VPU_NCEEltwiseOp :
     }];
 
     let extraClassDeclaration = [{
+        SmallVector<Byte> memSizes(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
+                                   vpux::NDTypeInterface output);
         static bool fitIntoCMX(mlir::Operation* op,
                                vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
                                vpux::NDTypeInterface output);

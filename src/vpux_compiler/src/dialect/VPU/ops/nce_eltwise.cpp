@@ -24,6 +24,16 @@
 using namespace vpux;
 
 //
+// memSizes
+//
+
+SmallVector<Byte> VPU::NCEEltwiseOp::memSizes(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
+                                              vpux::NDTypeInterface output) {
+    // {input1, input2, output} in order
+    return {input1.getTotalAllocSize(), input2.getTotalAllocSize(), output.getTotalAllocSize()};
+}
+
+//
 // fitIntoCMX
 //
 
@@ -31,8 +41,11 @@ bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(mlir::Operation* op, vpux::NDTypeInterf
                                          vpux::NDTypeInterface input2, vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
-    for (const auto& type : {input1, input2, output}) {
-        requiredCMX += type.getTotalAllocSize();
+    if (auto concreteOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(op)) {
+        auto memList = concreteOp.memSizes(input1, input2, output);
+        for (auto memItem : memList) {
+            requiredCMX += memItem;
+        }
     }
 
     return requiredCMX <= getTotalCMXSize(op);

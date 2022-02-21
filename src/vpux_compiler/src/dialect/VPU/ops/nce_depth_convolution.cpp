@@ -28,12 +28,16 @@
 using namespace vpux;
 
 //
-// fitIntoCMX
+// memSizes
 //
 
-bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
-                                                  vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
-                                                  vpux::NDTypeInterface output) {
+SmallVector<Byte> VPU::NCEDepthConvolutionOp::memSizes(mlir::ArrayAttr strides, vpux::NDTypeInterface input,
+                                                       vpux::NDTypeInterface filter, vpux::NDTypeInterface output) {
+    SmallVector<Byte> requiredCMX(5, Byte(0));  // {input, filter, output, weightsTable, activationWindow} in order
+
+    requiredCMX[0] = input.getTotalAllocSize();
+    requiredCMX[2] = output.getTotalAllocSize();
+
     const auto filterShape = filter.getShape();
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto KY = filterShape[Dims4D::Filter::KY];
@@ -57,15 +61,28 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::Arr
     const std::array<int64_t, 4> alignedFilterShape{OC, 1, 1, KY * KX + padding};
     const auto alignedFilter =
             mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType()).cast<vpux::NDTypeInterface>();
+    requiredCMX[1] = alignedFilter.getTotalAllocSize();
+    requiredCMX[3] = NCEInvariant::getWeightsTableSize(OC);
+    requiredCMX[4] = activationWindowSize * 1_Byte;
 
+    return requiredCMX;
+}
+
+//
+// fitIntoCMX
+//
+
+bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
+                                                  vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                                  vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
-    for (const auto& type : {input, alignedFilter, output}) {
-        requiredCMX += type.getTotalAllocSize();
+    if (auto concreteOp = mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op)) {
+        auto memList = concreteOp.memSizes(strides, input, filter, output);
+        for (auto memItem : memList) {
+            requiredCMX += memItem;
+        }
     }
-
-    requiredCMX += NCEInvariant::getWeightsTableSize(OC);
-    requiredCMX += activationWindowSize * 1_Byte;
 
     return requiredCMX <= getTotalCMXSize(op);
 }

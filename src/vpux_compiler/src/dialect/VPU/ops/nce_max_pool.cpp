@@ -28,34 +28,51 @@
 using namespace vpux;
 
 //
+// memSizes
+//
+
+SmallVector<Byte> VPU::NCEMaxPoolOp::memSizes(mlir::ArrayAttr kernelSize, mlir::ArrayAttr strides,
+                                              vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
+    SmallVector<Byte> requiredCMX(5, Byte(0));  // {input, output, weightsTable, activationWindow} in order
+
+    requiredCMX[0] = input.getTotalAllocSize();
+    requiredCMX[1] = output.getTotalAllocSize();
+
+    // MTL hw doesn't require weights table and activation window for max/average pool ops
+    const auto arch = VPU::getArch(*this);
+    if (arch == VPU::ArchKind::MTL) {
+        return requiredCMX;
+    }
+    const auto outputShape = output.getShape();
+    const auto OC = outputShape[Dims4D::Act::C];
+
+    const auto kernelSizeShape = Shape(parseIntArrayAttr<int64_t>(kernelSize));
+
+    const auto kernelStridesShape = Shape(parseIntArrayAttr<int64_t>(strides));
+    const auto SX = kernelStridesShape[Dims4D::Strides::X];
+
+    const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::POOL, kernelSizeShape, SX,
+                                                                           input.getElementType(), OC);
+
+    requiredCMX[2] = NCEInvariant::getWeightsTableSize(OC);
+    requiredCMX[3] = activationWindowSize * 1_Byte;
+
+    return requiredCMX;
+}
+
+//
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernel_size, mlir::ArrayAttr strides,
+bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernelSize, mlir::ArrayAttr strides,
                                          vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
-    const auto arch = getArch(op);
-
     Byte requiredCMX(0);
 
-    for (const auto& type : {input, output}) {
-        requiredCMX += type.getTotalAllocSize();
-    }
-
-    // MTL hw doesn't require weights table and activation window for max/average pool ops
-    if (arch != VPU::ArchKind::MTL) {
-        const auto outputShape = output.getShape();
-        const auto OC = outputShape[Dims4D::Act::C];
-
-        const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(kernel_size));
-
-        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides));
-        const auto SX = kernelStrides[Dims4D::Strides::X];
-
-        const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::POOL, kernelSize, SX,
-                                                                               input.getElementType(), OC);
-
-        requiredCMX += NCEInvariant::getWeightsTableSize(OC);
-        requiredCMX += activationWindowSize * 1_Byte;
+    if (auto concreteOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(op)) {
+        auto memList = concreteOp.memSizes(kernelSize, strides, input, output);
+        for (auto memItem : memList) {
+            requiredCMX += memItem;
+        }
     }
 
     return requiredCMX <= getTotalCMXSize(op);
