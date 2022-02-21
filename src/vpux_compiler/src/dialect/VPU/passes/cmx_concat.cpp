@@ -17,7 +17,6 @@
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPURT/types.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -45,6 +44,8 @@ public:
     }
 
 public:
+    // Storing Concat use chain consiting of NCE -> (Slice) -> Copy -> Concat
+    // or Concat -> (Slice) -> Copy -> NCE
     struct ConcatPart {
         ConcatPart(IE::CopyOp copyOp, IE::SliceOp sliceOp, VPU::NCEOpInterface nceOp, size_t inputIdx) {
             _copyOp = copyOp;
@@ -64,6 +65,7 @@ public:
         VPU::NCEOpInterface _nceOp;
     };
 
+    // Stores multiple Concat parts for a given Concat
     struct ConcatPattern {
         ConcatPattern() {
             _concat = nullptr;
@@ -114,6 +116,7 @@ size_t CMXConcatPass::calculateExtraConstSize(VPU::NCEOpInterface nce) {
     const auto OC = getShape(nce->getResult(0))[Dims4D::Act::C];
     auto weightsTableSize = OC * WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;
 
+    // TODO add activation window size and sparsity data
     return static_cast<size_t>(weightsTableSize.count());
 }
 
@@ -320,14 +323,17 @@ bool CMXConcatPass::childOperationsDoNotFitInCMX(ConcatPattern concatPattern, si
         currentConsumerSize += calculateExtraConstSize(concatPart._nceOp);
         maxConsumerSize = std::max<size_t>(maxConsumerSize, currentConsumerSize);
     }
-
-    _log.nest(3).trace("Concat consumer max size '{0}'", (parallelConsumerCount * (maxConsumerSize + concatSize)));
+    // in cases of parallel consumers the graph level differences could be large and the
+    // NNCMX buffer could be held for many cycles filling up NNCMX space. To avoid this
+    // scenario, ensure that there is space for parallel consumer branches
+    // assume longest branch is equal to number of parallel consumers
+    _log.nest(3).trace("Concat consumer max size '{0}'", ((parallelConsumerCount * maxConsumerSize) + concatSize));
     // return concat size greater than CMX size
-    return (parallelConsumerCount * (maxConsumerSize + concatSize)) > cmxSize;
+    return ((parallelConsumerCount * maxConsumerSize) + concatSize) > cmxSize;
 }
 
 size_t CMXConcatPass::getParallelConsumerCount(ConcatPattern concatPattern) {
-    // avoid concats with multiple parallel consumers due to spills
+    // tiling operations are considered a single consumer
     SmallVector<mlir::Location> locations;
     size_t parallelConsumerCount = 0;
 
