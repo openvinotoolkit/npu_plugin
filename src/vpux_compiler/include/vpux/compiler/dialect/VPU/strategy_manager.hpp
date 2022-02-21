@@ -36,7 +36,7 @@ namespace VPU {
 
 class StrategyManager final {
 public:
-    explicit StrategyManager(mlir::FuncOp func, Logger log, mlir::MLIRContext* ctx);
+    explicit StrategyManager(mlir::FuncOp func, Logger log);
 
 public:
     void assignMultiClusterStrategy();
@@ -52,7 +52,6 @@ private:
     const size_t _numChannelAlignment = 16;
     mlir::FuncOp _func;
     Logger _log;
-    mlir::MLIRContext* _ctx;
 };
 
 // An operation is SOH compitable if it has an output height of at least 20
@@ -69,9 +68,9 @@ bool StrategyManager::isOperationSplitOverHeightCompatible(ConcreteOp origOp) co
 template <class ConcreteOp>
 bool StrategyManager::doesSplitOverHeightLayerFitIntoCMX(ConcreteOp origOp) const {
     auto activationTensorDistributionMode = DistributionMode::SEGMENTED;
-    auto activationTensorNumTiles = getIntArrayAttr(_ctx, makeArrayRef({1, 1, _numClusters, 1}));
+    auto activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, _numClusters, 1}));
     auto weightsTensorDistributionMode = DistributionMode::MULTICASTED;
-    auto weightTensorNumTiles = getIntArrayAttr(_ctx, makeArrayRef({1, 1, 1, 1}));
+    auto weightTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
     auto distributedOutputTensorType =
             createDistributedOutputTensorType(origOp, activationTensorDistributionMode, activationTensorNumTiles);
     auto outputShape = getShape(origOp.output());
