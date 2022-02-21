@@ -4,7 +4,7 @@
 
 ### Folder Structure
 
-```
+```bash
 ── CiD_Linux_XXXX
    ├── data
    ├── lib
@@ -12,20 +12,22 @@
    ├── vpux_compiler_l0.h
    ├── compilerTest
    ├── compilerThreadTest
-   └── compilerThreadTest2
+   ├── compilerThreadTest2
+   └── profilingTest
 ```
 
 - `data` contains an xml and bin for test.
 - `lib` contains compiler module with all dependent dlls.
 - `vpux_compiler_l0.h`  is the header file for exported functions.
-- `compilerTest` `compilerThreadTest` `compilerThreadTest2` are executables for test.
+- `compilerTest` `compilerThreadTest` `compilerThreadTest2` `profilingTest` are executables for test.
 
-```
+```bash
 cd CiD_Linux_XXXX
 LD_LIBRARY_PATH=./lib/ ./compilerTest xxx.xml xxx.bin output.net
 LD_LIBRARY_PATH=./lib/ ./compilerTest xxx.xml xxx.bin output.net FP16 C FP16 C config.file
 LD_LIBRARY_PATH=./lib/ ./compilerThreadTest xxx.xml xxx.bin
 LD_LIBRARY_PATH=./lib/ ./compilerThreadTest2 xxx.xml xxx.bin
+LD_LIBRARY_PATH=./lib/ ./profilingTest xxx.blob profiling-0.bin
 ```
 
 `output.net`  is the generated blob.
@@ -34,42 +36,46 @@ LD_LIBRARY_PATH=./lib/ ./compilerThreadTest2 xxx.xml xxx.bin
 
 ### Folder Structure
 
-```
+```bash
 ── CiD_WIN_XXXX
    ├── data
    ├── lib
    ├── pdb
    ├── README.md
    ├── vpux_compiler_l0.h
-   ├── compilerTest
-   ├── compilerThreadTest
-   └── compilerThreadTest2
+   ├── compilerTest.exe
+   ├── compilerThreadTest.exe
+   ├── compilerThreadTest2.exe
+   └── profilingTest.exe
 ```
 
 - `data` contains an xml and bin for test. E.g. if you want to test resnet-50, you can get its IR from `$KMB_PLUGIN_HOME/temp/models/src/models/KMB_models/FP16/resnet_50_pytorch/`
 - `lib` contains compiler module with all dependent dlls.
 - `pdb` contains pdb files for each dll.
 - `vpux_compiler_l0.h`  is the header file for exported functions.
-- `compilerTest` `compilerThreadTest` `compilerThreadTest2` are executables for test.
+- `compilerTest.exe` `compilerThreadTest.exe` `compilerThreadTest2.exe` `profilingTest.exe` are executables for test.
 
 ### Windows (git bash)
 
-```
+```bash
 cd CiD_WIN_XXXX
 PATH=$PATH:./lib/ ./compilerTest.exe xxx.xml xxx.bin output.net
 PATH=$PATH:./lib/ ./compilerTest.exe xxx.xml xxx.bin output.net FP16 C FP16 C config.file
-PATH=$PATH:./lib/ ./compilerThreadTest xxx.xml xxx.bin
-PATH=$PATH:./lib/ ./compilerThreadTest2 xxx.xml xxx.bin
+PATH=$PATH:./lib/ ./compilerThreadTest.exe xxx.xml xxx.bin
+PATH=$PATH:./lib/ ./compilerThreadTest2.exe xxx.xml xxx.bin
+PATH=$PATH:./lib/ ./profilingTest.exe xxx.blob profiling-0.bin
 ```
+
 ### Windows (PowerShell)
 
-```
+```bash
 cd .\CiD_WIN_XXXX\
 $Env:Path +=";.\lib"
 .\compilerTest.exe xxx.xml xxx.bin output.net
 .\compilerTest.exe xxx.xml xxx.bin output.net FP16 C FP16 C config.file
-.\compilerThreadTest xxx.xml xxx.bin
-.\compilerThreadTest2 xxx.xml xxx.bin
+.\compilerThreadTest.exe xxx.xml xxx.bin
+.\compilerThreadTest2.exe xxx.xml xxx.bin
+.\profilingTest.exe xxx.blob profiling-0.bin
 ```
 
 `output.net`  is the generated blob.
@@ -90,7 +96,8 @@ master
 The main entrance is `vclCompilerCreate`. Check full API demo - compilerTest | compilerThreadTest | compilerThreadTest2.
 
 - Example:
-```
+
+```C
 ...
 vclCompilerCreate
 ...
@@ -111,7 +118,6 @@ vclCompilerDestroy
 ...
 
 ```
-
 
 ### OpenVINO
 

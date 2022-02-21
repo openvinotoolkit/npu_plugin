@@ -81,10 +81,9 @@ std::map<std::string, ie::InferenceEngineProfileInfo> vpux::profiling::convertPr
     return perfCounts;
 }
 
-static void printProfilingAsText(const void* data, size_t data_len, const void* output, size_t output_len,
+static void printProfilingAsText(const uint8_t* blobData, size_t blobSize, const uint8_t* profData, size_t profSize,
                                  std::ostream& out_stream) {
-    std::vector<TaskInfo> taskProfiling;
-    getTaskInfo(data, data_len, output, output_len, taskProfiling, TaskType::ALL);
+    std::vector<TaskInfo> taskProfiling = getTaskInfo(blobData, blobSize, profData, profSize, TaskType::ALL);
 
     uint64_t last_time_ns = 0;
     for (auto& task : taskProfiling) {
@@ -119,8 +118,7 @@ static void printProfilingAsText(const void* data, size_t data_len, const void* 
         }
     }
 
-    std::vector<LayerInfo> layerProfiling;
-    getLayerInfo(data, data_len, output, output_len, layerProfiling);
+    std::vector<LayerInfo> layerProfiling = getLayerInfo(taskProfiling);
     uint64_t total_time = 0;
     for (auto& layer : layerProfiling) {
         out_stream << "Layer: " << std::setw(80) << layer.name << " DPU: " << std::setw(5) << layer.dpu_ns / 1000
@@ -132,12 +130,11 @@ static void printProfilingAsText(const void* data, size_t data_len, const void* 
     out_stream << "TotalTime: " << total_time / 1000 << "us, Real: " << last_time_ns / 1000 << "us" << std::endl;
 }
 
-static void printProfilingAsTraceEvent(const void* data, size_t data_len, const void* output, size_t output_len,
-                                       std::ostream& out_stream) {
-    std::vector<TaskInfo> taskProfiling;
+static void printProfilingAsTraceEvent(const uint8_t* blobData, size_t blobSize, const uint8_t* profData,
+                                       size_t profSize, std::ostream& out_stream) {
     struct TracingEventDesc ted;
     ted.pid = PID;
-    getTaskInfo(data, data_len, output, output_len, taskProfiling, TaskType::ALL);
+    std::vector<TaskInfo> taskProfiling = getTaskInfo(blobData, blobSize, profData, profSize, TaskType::ALL);
 
     out_stream << "{\"traceEvents\":[" << std::endl;
 
@@ -150,8 +147,7 @@ static void printProfilingAsTraceEvent(const void* data, size_t data_len, const 
         out_stream << ted;
     }
 
-    std::vector<LayerInfo> layerProfiling;
-    getLayerInfo(data, data_len, output, output_len, layerProfiling);
+    std::vector<LayerInfo> layerProfiling = getLayerInfo(blobData, blobSize, profData, profSize);
     ted.category = "Layer";
     for (auto& layer : layerProfiling) {
         ted.name = layer.name;
@@ -184,10 +180,10 @@ static void printProfilingAsTraceEvent(const void* data, size_t data_len, const 
     out_stream << "]," << std::endl << "\"displayTimeUnit\": \"ns\"" << std::endl << "}" << std::endl;
 }
 
-static void streamWriter(const OutputType profilingType, const std::vector<char>& blob,
-                         const std::pair<const void*, uint64_t>& profiling, std::ostream& output) {
-    const auto blobData = blob.data();
-    const auto blobSize = blob.size();
+static void streamWriter(const OutputType profilingType, const std::pair<const uint8_t*, uint64_t>& blob,
+                         const std::pair<const uint8_t*, uint64_t>& profiling, std::ostream& output) {
+    const auto blobData = blob.first;
+    const auto blobSize = blob.second;
     const auto profilingData = profiling.first;
     const auto profilingSize = profiling.second;
     switch (profilingType) {
@@ -205,8 +201,8 @@ static void streamWriter(const OutputType profilingType, const std::vector<char>
     }
 };
 
-void vpux::profiling::outputWriter(const OutputType profilingType, const std::vector<char>& blob,
-                                   const std::pair<const void*, uint64_t>& profiling, const std::string& filename) {
+void vpux::profiling::outputWriter(const OutputType profilingType, const std::pair<const uint8_t*, uint64_t>& blob,
+                                   const std::pair<const uint8_t*, uint64_t>& profiling, const std::string& filename) {
     if (filename.empty()) {
         streamWriter(profilingType, blob, profiling, std::cout);
     } else {

@@ -14,13 +14,13 @@
 #include <algorithm>
 #include <cstring>
 #include <fstream>
-#include <iostream>
 #include <ie_version.hpp>
+#include <iostream>
 
 #include <gflags/gflags.h>
 
-#include "vpux/utils/plugin/profiling_parser.hpp"
 #include "vpux/utils/IE/profiling.hpp"
+#include "vpux/utils/plugin/profiling_parser.hpp"
 
 using vpux::profiling::OutputType;
 
@@ -30,7 +30,7 @@ DEFINE_string(f, "json", "Format to use (text or json)");
 DEFINE_string(o, "", "Output file, stdout by default");
 
 static bool validateFile(const char* flagName, const std::string& pathToFile) {
-    if(pathToFile.empty()) {
+    if (pathToFile.empty()) {
         // Default value must fail validation
         return false;
     }
@@ -41,8 +41,7 @@ static bool validateFile(const char* flagName, const std::string& pathToFile) {
     if (isValid) {
         ifile.close();
     } else {
-        std::cerr << "Got error when parsing argument \""
-                  << flagName << "\" with value " << pathToFile << std::endl;
+        std::cerr << "Got error when parsing argument \"" << flagName << "\" with value " << pathToFile << std::endl;
     }
     return isValid;
 }
@@ -67,9 +66,9 @@ static void parseCommandLine(int argc, char* argv[], const std::string& usage) {
     std::cout << std::endl;
 }
 
-int main(int argc, char** argv)
-{
-    const std::string usage = "Usage: prof_parser -b <blob path> -p <output.bin path> [-f json|text] [-o <output.file>]\n";
+int main(int argc, char** argv) {
+    const std::string usage =
+            "Usage: prof_parser -b <blob path> -p <output.bin path> [-f json|text] [-o <output.file>]\n";
     if (argc < 5) {
         std::cout << usage << std::endl;
         return 0;
@@ -80,28 +79,29 @@ int main(int argc, char** argv)
     const std::string profResult(FLAGS_p);
     std::transform(FLAGS_f.begin(), FLAGS_f.end(), FLAGS_f.begin(), ::tolower);
     const OutputType format = (FLAGS_f == "text") ? OutputType::TEXT : OutputType::JSON;
-    
+
     std::ifstream blob_file;
     blob_file.open(blobPath, std::ios::in | std::ios::binary);
-    blob_file.seekg (0, blob_file.end);
+    blob_file.seekg(0, blob_file.end);
     const int blob_length = static_cast<int>(blob_file.tellg());
-    blob_file.seekg (0, blob_file.beg);
+    blob_file.seekg(0, blob_file.beg);
     std::vector<char> blob_bin(blob_length);
-    blob_file.read((char*)blob_bin.data(), blob_length);
+    blob_file.read(blob_bin.data(), blob_length);
     blob_file.close();
 
     std::fstream profiling_results;
     profiling_results.open(profResult, std::ios::in | std::ios::binary);
-    profiling_results.seekg (0, profiling_results.end);
+    profiling_results.seekg(0, profiling_results.end);
     const int profiling_length = static_cast<int>(profiling_results.tellg());
-    profiling_results.seekg (0, profiling_results.beg);
+    profiling_results.seekg(0, profiling_results.beg);
     std::vector<char> output_bin(profiling_length);
-    profiling_results.read((char*)output_bin.data(), profiling_length);
+    profiling_results.read(output_bin.data(), profiling_length);
     profiling_results.close();
 
-    const auto profilingData = std::make_pair(static_cast<const void*>(output_bin.data()), profiling_length);
+    const auto blobData = std::make_pair(reinterpret_cast<uint8_t*>(blob_bin.data()), blob_length);
+    const auto profilingData = std::make_pair(reinterpret_cast<uint8_t*>(output_bin.data()), profiling_length);
 
-    vpux::profiling::outputWriter(format, blob_bin, profilingData, FLAGS_o);
+    vpux::profiling::outputWriter(format, blobData, profilingData, FLAGS_o);
 
     return 0;
 }

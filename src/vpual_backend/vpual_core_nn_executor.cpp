@@ -912,9 +912,10 @@ void VpualCoreNNExecutor::handleProfiling() {
     if (profilingMemoryBlob == nullptr) {
         IE_THROW() << "VPUX Plugin profiling blob is null: " << profilingOutputBlob->first;
     }
-    const auto& blob = _networkDescription->getCompiledNetwork();
+    const auto& blob = std::make_pair(reinterpret_cast<const uint8_t*>(_networkDescription->getNetworkModel()),
+                                      _networkDescription->getNetworkModelSize());
     const auto& profilingData =
-            std::make_pair(profilingMemoryBlob->rmap().as<const void*>(), profilingMemoryBlob->byteSize());
+            std::make_pair(profilingMemoryBlob->rmap().as<const uint8_t*>(), profilingMemoryBlob->byteSize());
     profiling::outputWriter(_profilingType, blob, profilingData, _profilingOutputFile);
 }
 
@@ -995,7 +996,6 @@ bool VpualCoreNNExecutor::isPreProcessingSupported(const PreprocMap&) const {
 }
 
 std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLayerStatistics() {
-    const auto blob = _networkDescription->getCompiledNetwork();
     ie::BlobMap deviceOutputs;
     ie::BlobMap::iterator profilingOutputBlob;
     if (_profilingOutputPhysAddrs.size()) {
@@ -1017,11 +1017,11 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
     if (profilingMemoryBlob == nullptr) {
         IE_THROW() << "VPUX Plugin profiling blob is null: " << profilingOutputBlob->first;
     }
-    const auto& profilingOutput = profilingMemoryBlob->rmap().as<const void*>();
+    const auto& profilingOutput = profilingMemoryBlob->rmap().as<const uint8_t*>();
 
-    std::vector<vpux::profiling::LayerInfo> layerProfiling;
-    vpux::profiling::getLayerInfo(blob.data(), blob.size(), profilingOutput, profilingMemoryBlob->byteSize(),
-                                  layerProfiling);
+    std::vector<vpux::profiling::LayerInfo> layerProfiling = vpux::profiling::getLayerInfo(
+            reinterpret_cast<const uint8_t*>(_networkDescription->getNetworkModel()),
+            _networkDescription->getNetworkModelSize(), profilingOutput, profilingMemoryBlob->byteSize());
 
     return convertProfilingLayersToIEInfo(layerProfiling);
 }

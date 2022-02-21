@@ -1,6 +1,9 @@
 Change Log:
 -----------
 
+VPUXCompilerL0 1.3.0:
+  - Add profiling API
+
 VPUXCompilerL0 1.2.2:
   - Use OpenVINO static frontend.
   - API Change:
