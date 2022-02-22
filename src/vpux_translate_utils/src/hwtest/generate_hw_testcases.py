@@ -116,11 +116,17 @@ class MPE_CUBES(Enum):
     CUBOID_16x16 = auto()
     CUBOID_8x16 = auto()
     CUBOID_4x16 = auto()
+    MATRIX = auto()
+    VECTOR_FP16 = auto()
+    VECTOR = auto()
 
 mpeCube2NTHW_NTK = {
     MPE_CUBES.CUBOID_16x16: '16x4',
     MPE_CUBES.CUBOID_4x16: '4x16',
-    MPE_CUBES.CUBOID_8x16: '8x8'
+    MPE_CUBES.CUBOID_8x16: '8x8',
+    MPE_CUBES.MATRIX: '4x4x16',
+    MPE_CUBES.VECTOR_FP16: '1x4x16',
+    MPE_CUBES.VECTOR: '1x16x16',
 }
 
 def orderToOrderer(order: Order) -> np.ndarray:
@@ -742,8 +748,8 @@ class ZMajorConvolution(Operation):
             name += '_' + self.settings.output_order.name.lower()
         if self.settings.compress:
             name += '_compressed'
-        if self.settings.mpe_cub != MPE_CUBES.CUBOID_16x16:
-            name += '_' + self.settings.mpe_cub.name
+        # if self.settings.mpe_cub != MPE_CUBES.CUBOID_16x16:
+        name += '_' + self.settings.mpe_cub.name
         return name
 
     @property
@@ -1913,7 +1919,7 @@ def genZMConvs(input_types=[UInt8(2)],
                strides=[[1, 1]],
                pads=Pad.none,
                compress=False,
-               mpe_cubs=[MPE_CUBES.CUBOID_16x16],
+               mpe_cubs=[MPE_CUBES.VECTOR],
                activations=[None]):
 
     for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, activation) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, activations):
@@ -2266,7 +2272,8 @@ def generate_options(args):
                    weight_types=[UInt8(2)],
                    kernel_channels=[16],
                    kernel_shapes=[[3, 3]],
-                   output_types=[UInt8()]),
+                   output_types=[UInt8()],
+                   mpe_cubs=[MPE_CUBES.MATRIX]),
         
         # genZMConvs(input_types=[Int8(2)],
         #            input_shapes=[[1, 16, 32, 32]],
@@ -2275,12 +2282,13 @@ def generate_options(args):
         #            kernel_shapes=[[3, 3]],
         #            output_types=[Int8()]),
         
-        genZMConvs(input_types=[FP16(4)],
-                   input_shapes=[[1, 16, 32, 32]],
-                   weight_types=[FP16(4)],
-                   kernel_channels=[16],
-                   kernel_shapes=[[3, 3]],
-                   output_types=[FP16()]),
+        # genZMConvs(input_types=[FP16(4)],
+        #            input_shapes=[[1, 16, 32, 32]],
+        #            weight_types=[FP16(4)],
+        #            kernel_channels=[16],
+        #            kernel_shapes=[[3, 3]],
+        #            output_types=[FP16()],
+        #            mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
         
         # genZMConvs(input_types=[UInt8(2)],
         #            input_shapes=[[1, 32, 16, 16]],

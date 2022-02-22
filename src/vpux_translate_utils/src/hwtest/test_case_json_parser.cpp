@@ -453,6 +453,12 @@ nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* json
             result.cube_mode = vpux::VPU::MPEMode::CUBOID_8x16;
         } else if (mpe_cub.getValue() == "CUBOID_4x16") {
             result.cube_mode = vpux::VPU::MPEMode::CUBOID_4x16;
+        } else if (mpe_cub.getValue() == "MATRIX") {
+            result.cube_mode = vpux::VPU::MPEMode::MATRIX;
+        } else if (mpe_cub.getValue() == "VECTOR_FP16") {
+            result.cube_mode = vpux::VPU::MPEMode::VECTOR_FP16;
+        } else if (mpe_cub.getValue() == "VECTOR") {
+            result.cube_mode = vpux::VPU::MPEMode::VECTOR;
         }
         // TODO: Check for the default (CUBOID_16x16) and log if it's something else.
     }
