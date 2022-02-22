@@ -28,9 +28,9 @@ __attribute__((aligned(1024)))
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
     static constexpr std::initializer_list<SingleTest> pow_test_list {
-       // {{1, 1, 7},   {1, 1, 7},     orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
+          {{1, 1, 7},   {1, 1, 7},     orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
           {{1, 1, 20},   {1, 1, 20},   orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
-       // {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}}
+          {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}}
        };
 
     class CustomCppPowerTest : public CustomCppTests<fp16> {
@@ -51,10 +51,6 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
         void initData() override {
             m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
 
-            //GRESIT ca are 2 intrari
-          #if 0
-            CustomCppTests<fp16>::initData();
-          #else
             initElfBuffer();
             initTestCase();
 
@@ -71,17 +67,13 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
             allocBuffer(m_inTensor[1]);
             allocBuffer(m_outputTensor);
             allocBuffer(m_referenceOutputTensor);
-          #endif
 
-
-            const SingleTest* test = m_currentTest;
-            int32_t ind[subspace::MAX_DIMS] = {0};
-            // subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind); // WTF ???
             m_powParams = reinterpret_cast<sw_params::PowerParams*>(paramContainer);
-            *m_powParams = sw_params::PowerParams(); //default ctor init
+           *m_powParams = sw_params::PowerParams(); //default ctor init obj
+
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
             m_params.paramDataLen = sizeof(sw_params::PowerParams);
-            m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[0]);
+            m_requiredTensorLocation = static_cast<sw_params::Location>(m_currentTest->customLayerParams.layerParams[0]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_powParams);
 
 #ifdef CONFIG_TARGET_SOC_3720
@@ -106,13 +98,13 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
 
             // inputs
             for(int x=0; x<2; x++){
-             /*DBG*/printf("INPUT[%d]:\n", x);
+             // /*DBG*/printf("INPUT[%d]:\n", x);
              m_inTensor[x].forEach(false, [&](const MemoryDims& indices) {
                 float tmp = float(rand() % 600) / 100;
-                /*DBG*/printf("%f, ", tmp);
+                // /*DBG*/printf("%f, ", tmp);
                 m_inTensor[x].at(indices) = f32Tof16(tmp);
              });
-             /*DBG*/printf("\n");
+             // /*DBG*/printf("\n");
             }
         }
         void generateReferenceData() override {
@@ -163,7 +155,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
                 threshold_test_failed |= differ;
 
                 GlobalData::doPrintDiffs = 1;
-                // if (differ && GlobalData::doPrintDiffs)
+                if (differ && GlobalData::doPrintDiffs)
                 {
                     const TensorDims ti = m_outputTensor.toTensor(indices);
                     printf("DIFF HWC [%d:%d:%d] %f %f %f\n", ti.height, ti.width, ti.channels, value, gt_value,
