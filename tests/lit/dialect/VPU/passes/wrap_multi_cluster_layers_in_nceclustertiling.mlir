@@ -135,7 +135,7 @@ func @ConvToNCEClusterTilingClustering(%arg0: tensor<1x64x14x14xf16, {order = #N
 // CHECK-LABEL: @CMConvToNCEClusterTilingSOHOverlapped
 func @CMConvToNCEClusterTilingSOHOverlapped(%arg0: tensor<1x3x224x224xf16, {order = #NCHW}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<32x3x3x16xf16, {order = #NHWC}> = #const.Content<dense<1.000000e+00> : tensor<32x3x3x3xf16>, [#const.Reorder<#NHWC>, #const.Reorder<#NCHW>, #const.Reshape<[32, 3, 3, 3]>, #const.PadWithZero<[0, 0, 0, 0], [0, 0, 0, 13]>, #const.Reorder<#NHWC>]>
-    %0 = VPU.NCE.Convolution(%arg0, %cst) {multiClusterStrategy = "SplitOverHeightOverLapped", pad = {bottom = 1 : i64, left = 0 : i64, right = 1 : i64, top = 0 : i64}, rawFilterShape = [32, 3, 3, 3], strides = [2, 2]} -> tensor<1x32x112x112xf16, {order = #NHWC}>
+    %0 = VPU.NCE.Convolution(%arg0, %cst) {multiClusterStrategy = "SplitOverHeightOverlapped", pad = {bottom = 1 : i64, left = 0 : i64, right = 1 : i64, top = 0 : i64}, rawFilterShape = [32, 3, 3, 3], strides = [2, 2]} -> tensor<1x32x112x112xf16, {order = #NHWC}>
     return %0 : tensor<1x32x112x112xf16, {order = #NHWC}>
 
     //CHECK:        [[WEIGHTS:%.*]] = const.Declare tensor<32x3x3x16xf16, {order = #NHWC}> 
