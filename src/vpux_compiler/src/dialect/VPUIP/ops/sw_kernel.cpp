@@ -60,17 +60,16 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
                       "For now act-kernels with only one output are supported. Got {0}",
                       swKernelOp.output_buffs().size());
 
-    const auto inType = swKernelOp.inputs()[0].getType();
     const auto outType = swKernelOp.output_buffs()[0].getType();
 
-    VPUX_THROW_UNLESS(inType == outType, "Operands of different type not yet supported: {0} vs {1}", inType, outType);
-
-    inferredTypes.push_back(inType);
+    inferredTypes.push_back(outType);
 
     return mlir::success();
 }
 
 IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
+    mlir::MLIRContext* ctx = origOp->getContext();
+
     return llvm::TypeSwitch<mlir::Operation*, IERT::KernelInfo>(origOp)
             .Case<IERT::ExpOp>([&](IERT::ExpOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"exp_fp16"}, {"exp_fp16.cpp"}};
@@ -91,6 +90,26 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr},
                                         {"singleShaveSoftmax"},
                                         {"single_shave_softmax.cpp"}};
+            })
+            .Case<IERT::InterpolateOp>([&](IERT::InterpolateOp Interpolate) {
+                int mode = static_cast<int>(Interpolate.modeAttr().getValue());
+                int coord_mode = static_cast<int>(Interpolate.coord_modeAttr().getValue());
+                int nearest_mode = static_cast<int>(Interpolate.nearest_modeAttr().getValue());
+                bool antialias = static_cast<bool>(Interpolate.antialiasAttr() != nullptr);
+
+                IntegerAttr modeAttr = getIntAttr(ctx, mode);
+                IntegerAttr coord_modeAttr = getIntAttr(ctx, coord_mode);
+                IntegerAttr nearest_modeAttr = getIntAttr(ctx, nearest_mode);
+                IntegerAttr antialiasAttr = getIntAttr(ctx, antialias);
+
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{
+                                                                    modeAttr,
+                                                                    coord_modeAttr,
+                                                                    nearest_modeAttr,
+                                                                    antialiasAttr
+                                                                    },
+                                        {"singleShaveInterpolate"},
+                                        {"single_shave_interpolate.cpp"}};
             })
             .Case<IERT::EluOp>([&](IERT::EluOp elu) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{elu.xAttr()}, {"elu_fp16"}, {"elu_fp16.cpp"}};

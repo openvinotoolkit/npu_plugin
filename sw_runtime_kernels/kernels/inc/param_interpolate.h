@@ -22,14 +22,14 @@
 typedef fp16 half;
 #endif
 
-enum InterpolationMethod : int32_t {
+enum InterpolationMethod : int64_t {
     NEAREST     = 0,
     BILINEAR    = 1,
     BICUBIC     = 2,
     LINEAR_ONNX = 3
 };
 
-enum InterpolationCoordTransMode : int32_t {
+enum InterpolationCoordTransMode : int64_t {
     HALF_PIXEL           = 0,
     PYTORCH_HALF_PIXEL   = 1,
     ASYMMETRIC           = 2,
@@ -37,7 +37,7 @@ enum InterpolationCoordTransMode : int32_t {
     ALIGN_CORNERS        = 4
 };
 
-enum InterpolationNearestMode : int32_t {
+enum InterpolationNearestMode : int64_t {
     ROUND_PREFER_FLOOR   = 0,
     ROUND_PREFER_CEIL    = 1,
     FLOOR                = 2,
@@ -54,7 +54,7 @@ struct __attribute__((packed)) InterpolateParams {
     InterpolationMethod interpolation_mode;
     InterpolationCoordTransMode coord_transform_mode;
     InterpolationNearestMode nearest_mode;
-    uint32_t antialias;
+    int64_t antialias;
 };
 
 inline struct BaseKernelParams ToBaseKernelParams(struct InterpolateParams * params) {

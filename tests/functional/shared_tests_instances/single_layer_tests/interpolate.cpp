@@ -38,6 +38,31 @@ TEST_P(KmbInterpolate1Test, CompareWithRefs_MLIR) {
     Run();
 }
 
+class KmbInterpolateLayerTest_MTL : public InterpolateLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeLoad() override {
+        if (std::getenv("OV_BUILD_DIR") == nullptr) {
+            throw LayerTestsUtils::KmbSkipTestException(
+                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
+        }
+
+#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
+        throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
+#endif
+    }
+    void SkipBeforeInfer() override {
+        // Format of act-shave tensors serialization doesn't match with kernel expectation
+        // [EISW-29786]
+        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+    }
+};
+
+TEST_P(KmbInterpolateLayerTest_MTL, CompareWithRefs_MLIR_MTL) {
+    useCompilerMLIR();
+    setPlatformMTL();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
 
 using namespace ngraph::helpers;
@@ -180,6 +205,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_without_nearest, KmbInterpolateLayerT
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(additional_config)),
                             KmbInterpolateLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_mode_MTL, KmbInterpolateLayerTest_MTL, ::testing::Combine(
+        interpolateCasesNearestMode,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapes),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(additional_config)),
+                            KmbInterpolateLayerTest_MTL::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_without_nearest_MTL, KmbInterpolateLayerTest_MTL, ::testing::Combine(
+        interpolateCasesWithoutNearestMode,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapes),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(additional_config)),
+                            KmbInterpolateLayerTest_MTL::getTestCaseName);
+
 
 const std::vector<std::string> mode = {"nearest", "linear"};
 const std::vector<ngraph::AxisSet> axes ={{2, 3}};
