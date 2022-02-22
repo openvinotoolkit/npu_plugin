@@ -18,7 +18,7 @@ using namespace vpux;
 using namespace VPU;
 
 bool ConvolutionStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const {
-    auto origOp = mlir::dyn_cast<NCEConvolutionOp>(op);
+    auto origOp = mlir::cast<NCEConvolutionOp>(op);
     auto activationTensorDistributionMode = DistributionMode::SEGMENTED;
     auto activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, _numClusters, 1}));
     auto weightsTensorDistributionMode = DistributionMode::DUPLICATED;

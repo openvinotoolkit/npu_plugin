@@ -18,7 +18,7 @@ using namespace vpux;
 using namespace VPU;
 
 bool MaxPoolStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const {
-    auto origOp = mlir::dyn_cast<NCEMaxPoolOp>(op);
+    auto origOp = mlir::cast<NCEMaxPoolOp>(op);
     auto activationTensorDistributionMode = DistributionMode::SEGMENTED;
     auto activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, _numClusters, 1}));
     auto distributedOutputTensorType =
