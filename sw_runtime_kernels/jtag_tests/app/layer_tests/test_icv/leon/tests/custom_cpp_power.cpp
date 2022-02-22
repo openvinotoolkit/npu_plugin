@@ -93,8 +93,6 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
 
         void initTestCase() override {
             m_currentTest = &m_testsLoop.value();
-            // The kernel of implementing Exp with SAU.EXP2 is based on formula: exp( x ) ≈ 2 ^ (x * 0x3dc5) , and
-            // the absolute diff will be greater than 0.02 in a few cases. So the threshold is set to 0.05 to be safe.
             m_test_threshold = 0.05f;
         }
 
@@ -108,10 +106,13 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
 
             // inputs
             for(int x=0; x<2; x++){
+             /*DBG*/printf("INPUT[%d]:\n", x);
              m_inTensor[x].forEach(false, [&](const MemoryDims& indices) {
-                float tmp = float(rand() % 600) / 100 - 3.0f;
+                float tmp = float(rand() % 600) / 100;
+                /*DBG*/printf("%f, ", tmp);
                 m_inTensor[x].at(indices) = f32Tof16(tmp);
              });
+             /*DBG*/printf("\n");
             }
         }
         void generateReferenceData() override {
