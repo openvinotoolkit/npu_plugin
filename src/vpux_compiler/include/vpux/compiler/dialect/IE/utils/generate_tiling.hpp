@@ -22,11 +22,20 @@
 namespace vpux {
 namespace IE {
 
-Shape computeGeneralTileStrategy(mlir::Operation* op, Logger log);
+// Experimental number to avoid memory fragmentation when generating tiling.
+static constexpr double FRAGMENTATION_AVOID_RATIO = 0.9;
+
+// An experimental number from MCM activation prefetch pass.
+// The purpose is to avoid excessive tiling.
+static constexpr int MAX_PREFETCH_TILING_TIME = 3;
+
+OutputTiling getTilingStrategy(mlir::Operation* op, Logger log, TilingMode tilingMode = TilingMode::ISOLATED_TILING);
 mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outputTile, mlir::OpBuilder& builder,
                       Logger log);
 mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, OutputTiling tiles,
                                       mlir::PatternRewriter& rewriter, Logger log);
+mlir::Operation* getParentTargetOp(mlir::Operation* op);
+bool prefetchTilingConditionSatisfied(mlir::Operation* op, Logger log);
 
 }  // namespace IE
 }  // namespace vpux

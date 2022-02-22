@@ -33,14 +33,6 @@ using namespace vpux;
 
 namespace {
 
-OutputTiling generateTiles(IE::TilingBuilderOpInterface origOp, Logger log) {
-    auto* op = origOp.getOperation();
-    const auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
-    const auto outputShape = outputType.getShape();
-    auto nTilesOnDim = IE::computeGeneralTileStrategy(op, log);
-    return vpux::fillDividedTiles(nTilesOnDim, outputShape);
-}
-
 //
 // GenericTiling
 //
@@ -63,7 +55,7 @@ mlir::LogicalResult GenericTiling::matchAndRewrite(IE::TilingBuilderOpInterface 
                                                    mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
 
-    const auto tiles = generateTiles(origOp, _log);
+    const auto tiles = IE::getTilingStrategy(origOp, _log);
     _log.nest(1).trace("Create {0} tiles:", tiles.size());
 
     return applyTileStrategy(origOp, tiles, rewriter, _log);
@@ -91,7 +83,7 @@ void IsolatedTilingPass::safeRunOnFunc() {
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
             const auto resShape = getShape(op->getResult(0));
-            return iface.isSupportedTiling({TileInfo(resShape)}, _log.nest());
+            return iface.isSupportedTiling({TileInfo(resShape)}, _log.nest(), TilingMode::ISOLATED_TILING);
         }
 
         return true;
