@@ -16,12 +16,8 @@
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
-//#include "vpux/compiler/core/attributes/shape.hpp"
-//#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
-
-//TODO
 
 mlir::LogicalResult vpux::IE::ExtractImagePatchesOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
@@ -73,37 +69,29 @@ mlir::LogicalResult vpux::IE::ExtractImagePatchesOp::inferReturnTypeComponents(
     }
 
     SmallVector<int64_t> output_shape;
-    //     data: the 4-D tensor of type T with shape [batch, depth, in_rows, in_cols].
-    //     output: 4-D tensor with shape [batch, size[0] * size[1] * depth, out_rows, out_cols]
 
     const auto  input_shape = inShape.begin();
 
-
     int64_t input_rows = input_shape[2];
     int64_t input_cols = input_shape[3];
-    //openvino
-    // int32_t input_rows = input_shape[2].get_length();
-    // int32_t input_cols = input_shape[3].get_length();
 
     int64_t out_rows(0);
     int64_t out_cols(0);
 
     if (input_rows == 0 || input_cols == 0) {
 
-        output_shape.push_back(inShape[0]); //batch
-        output_shape.push_back(inShape[1] * sizes[0] * sizes[1]); // size[0] * size[1] * depth
-        output_shape.push_back(inShape[2]); //out_rows
-        output_shape.push_back(inShape[3]); //out_cols
+        output_shape.push_back(inShape[0]); 
+        output_shape.push_back(inShape[1] * sizes[0] * sizes[1]); 
+        output_shape.push_back(inShape[2]); 
+        output_shape.push_back(inShape[3]); 
 
         } else {
 
             if (paddingType == IE::PadType::SAME_UPPER || paddingType == IE::PadType::SAME_LOWER) {
-            //      SMTH - the input is padded by zeros to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
                 out_rows = 1 + ( input_rows - 1 ) / strides[0];
                 out_cols = 1 + ( input_cols - 1 ) / strides[1];
             } else {
                     if (paddingType == IE::PadType::VALID) {
-                        //      SMTH -  do not use padding
                         out_rows = ( input_rows - rates[0] * ( sizes[0] - 1) - 1 ) / strides[0] + 1 ;
                         out_cols = ( input_cols - rates[1] * ( sizes[1] - 1) - 1 ) / strides[1] + 1 ;
                     }
@@ -115,23 +103,10 @@ mlir::LogicalResult vpux::IE::ExtractImagePatchesOp::inferReturnTypeComponents(
             if ( out_cols < 0 )
                 out_cols = 0 ;
 
-            /*
-            openvino
-            auto out_rows_cast = static_cast<typename DimType::value_type>(out_rows);
-            auto out_cols_cast = static_cast<typename DimType::value_type>(out_cols);
-            */
-
-//             //eroare ->
-            // output_shape.push_back(out_cols); //out_cols
-            // output_shape.push_back(out_rows); //out_rows
-            // output_shape.push_back(inType.getShape()[1] * sizes[0] * sizes[1]); // size[0] * size[1] * depth
-            // output_shape.push_back(inType.getShape()[0]); //batch
-
-//             // Segmentation fault (core dumped) ->
-            output_shape.push_back(inShape[0]); //batch
-            output_shape.push_back(inShape[1] * sizes[0] * sizes[1]); // size[0] * size[1] * depth
-            output_shape.push_back(out_rows); //out_rows
-            output_shape.push_back(out_cols); //out_cols
+            output_shape.push_back(inShape[0]); 
+            output_shape.push_back(inShape[1] * sizes[0] * sizes[1]); 
+            output_shape.push_back(out_rows); 
+            output_shape.push_back(out_cols); 
 
         }
 

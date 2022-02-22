@@ -778,7 +778,6 @@ operation ::= `VPUIP.ExtractImagePatchesUPA` attr-dict
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `auto_pad` | vpux::IE::PadTypeAttr | PadType that the InferenceEngine supports
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 

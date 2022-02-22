@@ -2642,7 +2642,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph,
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertGELU>();
     manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
-    manager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
+    //manager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
     manager.register_pass<vpux::pass::FuseScaleAfterClamp>();
     addCommonOptimizationsPasses(manager);
 

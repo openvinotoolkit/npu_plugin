@@ -22,7 +22,7 @@ TEST_P(KmbExtractImagePatchesTest, CompareWithRefs_MLIR) {
 }  // namespace LayerTestsDefinitions
 
 // using namespace ngraph::helpers;
-// using ngraph::op::PadType;
+//using ngraph::op::PadType;
 using namespace LayerTestsDefinitions;
 
 namespace {
@@ -31,33 +31,40 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
    InferenceEngine::Precision::FP16,
 };
 
-// data the 4-D tensor of type T with shape [batch, depth, in_rows, in_cols].
-
-/*
-    //  Input  : 1x1x10x10
-    //  Output : 1x9x2x2
-    auto batch = 1;
-    auto depth = 1;
-    auto in_rows = 10;
-    auto in_cols = 10;
-    std::vector<unsigned int> sizes = {3, 3};
-    std::vector<unsigned int> strides = {5, 5};
-    std::vector<unsigned int> rates = {1, 1};
-    std::string auto_pad = "valid";
-
+/* valid
+{64, 3, 10, 10}, sizes - {3,3}, strides - {5,5}, rates {1,1} => {64, 27, 2, 2}
+{64, 3, 10, 10}, sizes - {3,3}, strides - {5,5}, rates {2,2} => {64, 27, 2, 2}
+{64, 3, 9, 9}, sizes - {3,3}, strides - {5,5}, rates {2,2} => {64, 27, 1, 1}
 */
+const std::vector<std::vector<size_t>> inputShape_v = {  {64, 3, 10, 10} , {64, 3, 9, 9} };
+const std::vector<std::vector<size_t>> sizes_v = {  {3, 3} };
+const std::vector<std::vector<size_t>> strides_v = {  {5, 5} };
+const std::vector<std::vector<size_t>> rates_v =  {  {1, 1} , {2, 2} };
+//const std::vector<ngraph::op::PadType> paddingType = {ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_UPPER, ngraph::op::PadType::SAME_LOWER};
 
-const std::vector<std::vector<size_t>> inputShape = {{1, 1, 10, 10}};//{{1, 1, 10, 10}, {1, 3, 10, 10}};
-const std::vector<std::vector<size_t>> sizes = {{3, 3}};//{{2, 2}, {3, 3}, {4, 4}, {1, 3}, {4, 2}};
-const std::vector<std::vector<size_t>> strides = {{5, 5}};//{{3, 3}, {5, 5}, {9, 9}, {1, 3}, {6, 2}};
-const std::vector<std::vector<size_t>> rates = {{1, 1}};//{{1, 1}, {1, 2}, {2, 1}, {2, 2}};
-// const std::vector<PadType> paddingType = {PadType::VALID, PadType::SAME_UPPER, PadType::SAME_LOWER};
+/* same_upper
+{64, 3, 11, 11}, sizes - {3,3}, strides - {5,5}, rates {1,1} => {64, 27, 3, 3}
+{64, 3, 6, 11}, sizes - {3,3}, strides - {5,5}, rates {2,2} => {64, 27, 2, 3}
+*/
+const std::vector<std::vector<size_t>> inputShape_su = {  {64, 3, 11, 11} , {64, 3, 6, 11}  };
+const std::vector<std::vector<size_t>> sizes_su = {  {3, 3} };
+const std::vector<std::vector<size_t>> strides_su =  {  {5, 5} };
+const std::vector<std::vector<size_t>> rates_su =  {  {1, 1} };
 
-const auto testExtractImagePatchesParams = ::testing::Combine(
-       ::testing::ValuesIn(inputShape),
-       ::testing::ValuesIn(sizes),
-       ::testing::ValuesIn(strides),
-       ::testing::ValuesIn(rates),
+/* same_lower 
+{64, 3, 10, 10}, sizes - {3,3}, strides - {5,5}, rates {1,1} => {64, 27, 2, 2}
+{64, 3, 9, 9}, sizes - {3,3}, strides - {5,5}, rates {2,2} => {64, 27, 2, 2}
+*/
+const std::vector<std::vector<size_t>> inputShape_sl = {  {64, 3, 10, 10} , {64, 3, 9, 9}  };
+const std::vector<std::vector<size_t>> sizes_sl = {  {3, 3} };
+const std::vector<std::vector<size_t>> strides_sl = {  {5, 5} };
+const std::vector<std::vector<size_t>> rates_sl =   {  {1, 1} };
+
+const auto testExtractImagePatchesParams_valid = ::testing::Combine(
+       ::testing::ValuesIn(inputShape_v),
+       ::testing::ValuesIn(sizes_v),
+       ::testing::ValuesIn(strides_v),
+       ::testing::ValuesIn(rates_v),
        ::testing::Values(ngraph::op::PadType::VALID),
        ::testing::ValuesIn(netPrecisions),
        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -66,9 +73,45 @@ const auto testExtractImagePatchesParams = ::testing::Combine(
        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches,
+const auto testExtractImagePatchesParams_same_upper = ::testing::Combine(
+       ::testing::ValuesIn(inputShape_su),
+       ::testing::ValuesIn(sizes_su),
+       ::testing::ValuesIn(strides_su),
+       ::testing::ValuesIn(rates_su),
+       ::testing::Values(ngraph::op::PadType::SAME_UPPER),
+       ::testing::ValuesIn(netPrecisions),
+       ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+       ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+       ::testing::Values(InferenceEngine::Layout::ANY),
+       ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+);
+
+const auto testExtractImagePatchesParams_same_lower = ::testing::Combine(
+       ::testing::ValuesIn(inputShape_sl),
+       ::testing::ValuesIn(sizes_sl),
+       ::testing::ValuesIn(strides_sl),
+       ::testing::ValuesIn(rates_sl),
+       ::testing::Values(ngraph::op::PadType::SAME_LOWER),
+       ::testing::ValuesIn(netPrecisions),
+       ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+       ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+       ::testing::Values(InferenceEngine::Layout::ANY),
+       ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches1,
                         KmbExtractImagePatchesTest,
-                        testExtractImagePatchesParams,
+                        testExtractImagePatchesParams_valid,
+                        KmbExtractImagePatchesTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches2,
+                        KmbExtractImagePatchesTest,
+                        testExtractImagePatchesParams_same_upper,
+                        KmbExtractImagePatchesTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches3,
+                        KmbExtractImagePatchesTest,
+                        testExtractImagePatchesParams_same_lower,
                         KmbExtractImagePatchesTest::getTestCaseName);
 
 }  // namespace

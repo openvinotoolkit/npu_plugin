@@ -15,22 +15,9 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
-//#include "vpux/compiler/core/attributes/dim.hpp"
-//#include "vpux/compiler/core/attributes/shape.hpp"
-//#include "vpux/compiler/utils/analysis.hpp"
-//#include "vpux/compiler/utils/subspaces.hpp"
-// #include "vpux/compiler/utils/subspaces.hpp"
-
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
-
-void vpux::VPUIP::ExtractImagePatchesUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
-                                      mlir::Value data, mlir::Value output,
-                                      mlir::ArrayAttr sizes, mlir::ArrayAttr strides, mlir::ArrayAttr rates,
-                                      IE::PadTypeAttr auto_pad) {
-   build(odsBuilder, odsState, data, output, sizes, strides, rates, auto_pad);
-}
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(ExtractImagePatchesUPAOp op) {
     const auto inShape = getShape(op.data());
@@ -90,15 +77,12 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExtractImagePatchesUPAOp::serialize
     const auto strides = parseIntArrayAttr<int64_t>(stridesAttr());
     const auto rates = parseIntArrayAttr<int64_t>(ratesAttr());
 
-    //sizes is a size [size_rows, size_cols]
     builder.add_sizeRows(checked_cast<int32_t>(sizes[0]));
     builder.add_sizeCols(checked_cast<int32_t>(sizes[1]));
 
-    //strides is a distance [stride_rows, stride_cols]
     builder.add_strideRows(checked_cast<int32_t>(strides[0]));
     builder.add_strideCols(checked_cast<int32_t>(strides[1]));
 
-    // rates is the input stride [rate_rows, rate_cols],
     builder.add_rateRows(checked_cast<int32_t>(rates[0]));
     builder.add_rateCols(checked_cast<int32_t>(rates[1]));
 

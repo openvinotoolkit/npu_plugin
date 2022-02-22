@@ -3220,27 +3220,13 @@ def VPUIP_ExtractImagePatchesUPAOp :
         I64ArrayAttr:$sizes,
         I64ArrayAttr:$strides,
         I64ArrayAttr:$rates,
-        IE_PadType:$auto_pad,
+        IE_PadType:$auto_pad
 
-        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs
         AnyMemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$data, 
-                "mlir::Value":$output,
-                "mlir::ArrayAttr":$sizes, 
-                "mlir::ArrayAttr":$strides,
-                "mlir::ArrayAttr":$rates, 
-                "vpux::IE::PadTypeAttr":$auto_pad
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -3248,10 +3234,6 @@ def VPUIP_ExtractImagePatchesUPAOp :
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
-
-    //let extraClassDeclaration = [{
-   //     static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
-   // }] # commonExtraClassDeclaration;
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
