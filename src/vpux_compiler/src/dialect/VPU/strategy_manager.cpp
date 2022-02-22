@@ -31,6 +31,19 @@ StrategyManager::StrategyManager(mlir::FuncOp func, Logger log, mlir::MLIRContex
     _numClusters = nceOp.count();
     _numDPUPerCluster = dpuOp.count();
     _numDPU = _numClusters * _numDPUPerCluster;
+
+    // These latency numbers inferred from KMB db v1.2
+    LATENCY_CMX_ = 5;  // Cycles, attempt to capture cost accessing CMX
+    // DDR latency also measured for kmb at ~100 cycles per dma
+    LATENCY_DDR_ = 100;        // Cycles, attempt to capture cost of setup DMA
+    DDR_BANDWIDTH_ = 8 * 0.6;  // bytes per cycle times derating factor
+    const auto arch = VPU::getArch(func);
+    if (arch == VPU::ArchKind::KMB) {
+        CMX_BANDWIDTH_ = 15;  // 32 * 1.0; //bytes per cycle times derating factor
+    } else if (arch == VPU::ArchKind::TBH) {
+        CMX_BANDWIDTH_ = 30;  // 64 * 1.0; //bytes per cycle times derating factor
+    }
+    // TODO include params for ma3720
 }
 
 // This channel major efficiency table is from the ArchBench tool
@@ -270,78 +283,67 @@ double StrategyManager::dpuComputeTime(mlir::Operation* op, multiClusterStrategy
 }
 
 double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange Strategy) {
-    // Todo: put them in proper place and consider tbh case
-    auto LATENCY_CMX_ = 5;          // Cycles, attempt to capture cost accessing CMX
-    auto LATENCY_DDR_ = 100;        // Cycles, attempt to capture cost of setup DMA
-    auto DDR_BANDWIDTH_ = 8 * 0.6;  // bytes per cycle times derating factor
-    auto CMX_BANDWIDTH_ = 15;       // 32 * 1.0; //bytes per cycle times derating factor
-
-    const auto inOrder = DimsOrder::fromValue(op->getOperand(0));
-    // [QA]
-    // In what kind of cases, we should consider cmajor impact for dma time?
-    const auto isCMajor = inOrder == DimsOrder::NCHW;
+    // Used in depthwise case to affect weights size in mcm
+    // Probably useless in vpux
+    //    const auto inOrder = DimsOrder::fromValue(op->getOperand(0));
+    //    const auto isCMajor = inOrder == DimsOrder::NCHW;
 
     // Each layer calculates the cost to move it's weights (if they exist), and it's activations
     double weightsCycles = 0;
-    double outputTime = 0;
+    double outputCycles = 0;
     double inputCycles = 0;
 
     // Each DMA cost is modelled as latency + size*transfer_rate
     if (mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op) || mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
         size_t outChannels = getShape(op->getResult(0))[Dims4D::Act::C];
-        size_t alignedOutChannels = VPU::align(outChannels, 16);
+        size_t alignedOutChannels = VPU::align(outChannels, _numChannelAlignment);
         size_t alignedSplitOutChannels = alignedOutChannels;
         if (Strategy == multiClusterStrategyRange::SplitOverK) {
-            alignedSplitOutChannels = VPU::align(alignedSplitOutChannels / _numClusters, 16);
+            alignedSplitOutChannels = VPU::align(alignedSplitOutChannels / _numClusters, _numChannelAlignment);
         }
 
         size_t weightsSize = 0;
         auto weights = op->getOperand(1);
         auto weightsShape = getShape(weights);
+        const auto weightsType = weights.getType().cast<mlir::ShapedType>();
+        const auto elementType = weightsType.getElementType();
+        const auto dtypeFactor = elementType.getIntOrFloatBitWidth() / 8;
         if (mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
-            size_t alignedInputChannels = VPU::align(weightsShape[Dims4D::Act::N], 16);
-            // [QA]
-            // here I don't multiple "dtypeMultiplier" as I don't find how to get it in vpux
-            // and also it's a constant value for different strategy so can be ignored I suppose
+            size_t alignedInputChannels = VPU::align(weightsShape[Dims4D::Act::N], _numChannelAlignment);
             weightsSize += (alignedInputChannels * alignedSplitOutChannels * weightsShape[Dims4D::Act::H] *
-                            weightsShape[Dims4D::Act::W]);
+                            weightsShape[Dims4D::Act::W]) *
+                           dtypeFactor;
             if (Strategy == multiClusterStrategyRange::SplitOverK) {
                 weightsSize *= _numClusters;
             }
         } else {  // Depthwise
-            // [QA]
-            // is there any cost calculation diff with conv?
-            // Mcm use a complex API Tensor::computeTotalSize() to get weightsSize
-            // It considers padding , sparsityMap and so on
-            // Do we still need it in vpux?
-            // TODO
-            weightsSize += 0;
+            // TODO: next to implement computeTotalSize() in vpux
+            size_t alignedHW =
+                    VPU::align(weightsShape[Dims4D::Act::H] * weightsShape[Dims4D::Act::W], _numChannelAlignment);
+            weightsSize += (alignedSplitOutChannels * alignedHW * dtypeFactor);
+            if (Strategy == multiClusterStrategyRange::SplitOverK) {
+                weightsSize *= _numClusters;
+            }
         }
-        // [QA]
-        // Hope to know where the magic number 16 is from?
+        // TODO: weightTableSize = sparsity/weights pointer, bias and multi/shfit quantized params
         std::size_t weightTableSize = 16 * alignedSplitOutChannels;  // weights table size
         weightsSize += weightTableSize;
         weightsCycles = (LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
     }
 
-    // [QA]
-    // As we don't consider spilling in current phase
-    // So the input cost by spilling can be removed
-    // On the other hand, we should have same input cost for different strategys
-    // So input cost still is a constant, which can be ignored?
+    // TODO: Overhead for Spilled input should be considered in the future
+    // that we will get spill info here
     inputCycles += 0;
 
-    // [QA]
-    // This section is for output cost, no spilling considered too
-    // "It captures the cost to multicast to all clusters" from mcm
-    // What's the multicast cost? Why only SOK & Cluster have it?
-    // Also it depends on API computeTotalSize(), vpux seems not to have that.
-    if (Strategy == multiClusterStrategyRange::SplitOverK || Strategy == multiClusterStrategy::Cluster) {
-        // Todo: output cost of multicast
-        outputTime += 0;
+    // TODO: Overhead for spilled output
+
+    // This section captures the output cost to multicast to all clusters
+    // TODO: Need implement computeTotalSize() API to get output totalSize
+    if (Strategy == multiClusterStrategyRange::SplitOverK || Strategy == multiClusterStrategyRange::Cluster) {
+        outputCycles += 0;
     }
 
-    return inputCycles + weightsCycles + outputTime;
+    return inputCycles + weightsCycles + outputCycles;
 }
 
 // This method computes the multi-cluster efficiency for an operation

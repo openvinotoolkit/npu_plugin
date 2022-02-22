@@ -107,6 +107,10 @@ private:
     size_t _numChannelAlignment = 16;  // TODO: read this from some hardware config
     mlir::FuncOp _func;
     mlir::MLIRContext* _ctx;
+    double CMX_BANDWIDTH_;
+    double DDR_BANDWIDTH_;
+    double LATENCY_CMX_;
+    double LATENCY_DDR_;
 };
 
 template <class ConcreteOp>
