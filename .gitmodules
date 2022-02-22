@@ -23,10 +23,6 @@
 [submodule "mcm-emulator"]
 	path = src/vpux_emulator
 	url = https://gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git
-[submodule "thirdparty/json"]
-	path = thirdparty/json
-	url = https://github.com/nlohmann/json.git
-	shallow = true
 [submodule "thirdparty/level-zero-ext"]
 	path = thirdparty/level-zero-ext
 	url = https://github.com/intel-innersource/drivers.vpu.user-mode.applications.umd.ze-ext-headers.git
