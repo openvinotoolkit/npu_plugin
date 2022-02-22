@@ -978,6 +978,11 @@ mlir::Operation* createRTLayer(IE::RegionYoloOp origOp, ArrayRef<mlir::Value> al
                                         origOp.axis(), origOp.end_axis(), origOp.anchors());
 }
 
+mlir::Operation* createRTLayer(IE::ReorgYoloOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReorgYoloOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ReorgYoloOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.strideAttr());
+}
+
 mlir::Operation* createRTLayer(IE::MVNOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::MVNOp::Adaptor newOp(allBufs);
     return b.create<IERT::MVNOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.across_channels(),
@@ -1059,6 +1064,11 @@ mlir::Operation* createRTLayer(IE::GreaterOp origOp, ArrayRef<mlir::Value> allBu
 mlir::Operation* createRTLayer(IE::GreaterEqualOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::GreaterEqualOp::Adaptor newOp(allBufs);
     return b.create<IERT::GreaterEqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::LogicalNotOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::LogicalNotOp::Adaptor newOp(allBufs);
+    return b.create<IERT::LogicalNotOp>(origOp.getLoc(), newOp.input1(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::LogicalOrOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -1181,6 +1191,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::InterpolateOp)
     CASE(IE::StridedSliceOp)
     CASE(IE::RegionYoloOp)
+    CASE(IE::ReorgYoloOp)
     CASE(IE::MVNOp)
     CASE(IE::DepthToSpaceOp)
     CASE(IE::SubtractOp)
@@ -1197,6 +1208,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::GreaterEqualOp)
     CASE(IE::SpaceToDepthOp)
     CASE(IE::TopKOp)
+    CASE(IE::LogicalNotOp)
     CASE(IE::LogicalOrOp)
     CASE(IE::LogicalXorOp)
     CASE(IE::CopyOp)

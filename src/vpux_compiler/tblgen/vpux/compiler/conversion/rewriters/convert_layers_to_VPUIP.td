@@ -675,6 +675,27 @@ def RewriteGreaterEqual :
         >;
 
 //
+// IERT.LogicalNot -> VPUIP.LogicalNotUPA
+//
+
+def createLogicalNotEltwiseUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::LogicalNotUPAOp>(
+                $_loc, $0,
+                $1,
+                vpux::VPU::EltwiseTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPU::EltwiseType::LOGICAL_NOT
+                ))
+        }]>;
+
+def RewriteLogicalNot :
+        Pat<
+            (IERT_LogicalNotOp $input1, $output),
+            (createLogicalNotEltwiseUPAOp $input1, $output)
+        >;
+
+//
 // IERT.GRN -> VPUIP.GRNUPA
 //
 
@@ -915,6 +936,22 @@ def RewriteRegionYolo :
         Pat<
             (IERT_RegionYoloOp $input, $output, $coords, $classes, $regions, $do_softmax, $mask, $axis, $end_axis, $anchors),
             (createRegionYoloUPAOp $input, $output, $coords, $classes, $regions, $do_softmax, $mask)
+        >;
+
+//
+// IERT.ReorgYolo -> VPUIP.ReorgYoloUPA
+//
+
+def createReorgYoloUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReorgYoloUPAOp>(
+                $_loc, $0, $1, $2)
+        }]>;
+
+def RewriteReorgYolo :
+        Pat<
+            (IERT_ReorgYoloOp $input, $output, $stride),
+            (createReorgYoloUPAOp $input, $output, $stride)
         >;
 
 //

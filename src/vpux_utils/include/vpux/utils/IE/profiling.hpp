@@ -27,8 +27,8 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> convertProfil
 // This function decodes profiling buffer into readable format.
 // Format can be either regular text or TraceEvent json.
 // outputFile is an optional argument - path to a file to store output. stdout if empty.
-void outputWriter(const OutputType profilingType, const std::vector<char>& blob,
-                  const std::pair<const void*, uint64_t>& profiling, const std::string& outputFile);
+void outputWriter(const OutputType profilingType, const std::pair<const uint8_t*, uint64_t>& blob,
+                  const std::pair<const uint8_t*, uint64_t>& profiling, const std::string& outputFile);
 
 }  // namespace profiling
 }  // namespace vpux

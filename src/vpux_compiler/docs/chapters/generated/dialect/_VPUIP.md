@@ -1052,6 +1052,40 @@ operation ::= `VPUIP.LogUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.LogicalNotUPA` (vpux::VPUIP::LogicalNotUPAOp)
+
+Logical Not UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.LogicalNotUPA` attr-dict
+              `inputs` `(` $input1 `:` type($input1) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`type` | vpux::VPU::EltwiseTypeAttr | Type of Eltwise operation
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.MVNUPA` (vpux::VPUIP::MVNUPAOp)
 
 MVN UPA SHAVE kernel
@@ -1783,6 +1817,41 @@ operation ::= `VPUIP.RegionYoloUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float values
+
+### `VPUIP.ReorgYoloUPA` (vpux::VPUIP::ReorgYoloUPAOp)
+
+ReorgYolo UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ReorgYoloUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`stride` | mlir::IntegerAttr | Integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
 
 ### `VPUIP.ReverseSequenceUPA` (vpux::VPUIP::ReverseSequenceUPAOp)
 

@@ -16,10 +16,16 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 add_subdirectory(src)
 
 add_executable(compilerTest ${CMAKE_CURRENT_SOURCE_DIR}/test/compilerTest.c)
+add_executable(profilingTest ${CMAKE_CURRENT_SOURCE_DIR}/test/profilingTest.c)
 add_executable(compilerThreadTest ${CMAKE_CURRENT_SOURCE_DIR}/test/compilerThreadTest.cpp)
 add_executable(compilerThreadTest2 ${CMAKE_CURRENT_SOURCE_DIR}/test/compilerThreadTest2.cpp)
 
 target_link_libraries(compilerTest
+  PUBLIC
+  VPUXCompilerL0
+)
+
+target_link_libraries(profilingTest
   PUBLIC
   VPUXCompilerL0
 )
@@ -49,6 +55,7 @@ target_link_libraries(compilerThreadTest2
 endif()
 
 ie_add_api_validator_post_build_step(TARGET compilerTest)
+ie_add_api_validator_post_build_step(TARGET profilingTest)
 ie_add_api_validator_post_build_step(TARGET compilerThreadTest)
 ie_add_api_validator_post_build_step(TARGET compilerThreadTest2)
 
@@ -85,6 +92,10 @@ if(WIN32)
     install(FILES $<TARGET_PDB_FILE:compilerTest>
             DESTINATION cid/pdb
             COMPONENT ${CID_COMPONENT})
+
+    install(FILES $<TARGET_PDB_FILE:profilingTest>
+            DESTINATION cid/pdb
+            COMPONENT ${CID_COMPONENT})
 else()
     install(TARGETS VPUXCompilerL0
         LIBRARY DESTINATION cid/lib COMPONENT ${CID_COMPONENT})
@@ -97,4 +108,7 @@ install(TARGETS compilerThreadTest2
         RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})
 
 install(TARGETS compilerTest
+        RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})
+
+install(TARGETS profilingTest
         RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})

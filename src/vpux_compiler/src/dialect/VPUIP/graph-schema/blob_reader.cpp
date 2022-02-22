@@ -434,6 +434,7 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_PoolingParams, &BlobReader::parsePooling},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_PostOpsParams, &BlobReader::parsePostOps},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_QuantizeParams, &BlobReader::parseQuantCast},
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReorgYOLOParams, &BlobReader::parseReorgYolo},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ROIPoolingParams, &BlobReader::parseROIPooling},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ROIAlignParams, &BlobReader::parseROIAlign},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_SoftmaxParams, &BlobReader::parseSoftmax},

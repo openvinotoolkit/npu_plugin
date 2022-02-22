@@ -1494,6 +1494,34 @@ operation ::= `IERT.Log` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.LogicalNot` (vpux::IERT::LogicalNotOp)
+
+InferenceEngine run-time Logical Not layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.LogicalNot` attr-dict
+              `inputs` `(` $input1 `:` type($input1)`)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.LogicalOr` (vpux::IERT::LogicalOrOp)
 
 InferenceEngine run-time LogicalOr layer
@@ -2378,6 +2406,40 @@ operation ::= `IERT.RegionYolo` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.ReorgYolo` (vpux::IERT::ReorgYoloOp)
+
+InferenceEngine run-time ReorgYolo layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReorgYolo` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`stride` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
 
 ### `IERT.ReverseSequence` (vpux::IERT::ReverseSequenceOp)
 

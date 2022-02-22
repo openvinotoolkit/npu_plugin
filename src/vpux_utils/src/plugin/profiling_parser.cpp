@@ -15,6 +15,7 @@
 #include "vpux/utils/core/error.hpp"
 
 #include <map>
+#include <string>
 
 #include <flatbuffers/flatbuffers.h>
 #include <schema/graphfile_generated.h>
@@ -281,15 +282,15 @@ static void parseDPUTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<
     }
 }
 
-void vpux::profiling::getTaskInfo(const void* data, size_t data_len, const void* output, size_t output_len,
-                                  std::vector<TaskInfo>& taskInfo, TaskType type) {
-    (void)data_len;
+std::vector<TaskInfo> vpux::profiling::getTaskInfo(const uint8_t* blobData, size_t blobSize, const uint8_t* profData,
+                                                   size_t profSize, TaskType type) {
+    (void)blobSize;
 
-    if ((nullptr == data) || (nullptr == output)) {
+    if ((nullptr == blobData) || (nullptr == profData)) {
         VPUX_THROW("Empty input data");
     }
 
-    const auto* graphFile = MVCNN::GetGraphFile(data);
+    const auto* graphFile = MVCNN::GetGraphFile(blobData);
     // Obtaining FRC speed from blob //
     auto frc_speed_mhz = get_frc_speed(graphFile);
 
@@ -312,6 +313,8 @@ void vpux::profiling::getTaskInfo(const void* data, size_t data_len, const void*
         }
     }
 
+    std::vector<TaskInfo> taskInfo;
+
     // Finding offsets of different profiling type in the profiling output //
     const auto offsets = get_profilings_offets(graphFile);
     for (size_t i = 0; i < offsets.size(); i++) {
@@ -320,20 +323,17 @@ void vpux::profiling::getTaskInfo(const void* data, size_t data_len, const void*
         if (i < offsets.size() - 1) {
             len = offsets[i + 1].second - offset.second;
         } else {
-            len = output_len - offset.second;
+            len = profSize - offset.second;
         }
 
         if (offset.first == TaskInfo::ExecType::DMA && (type == TaskType::ALL || type == TaskType::DMA)) {
-            auto output_bytes = reinterpret_cast<const uint8_t*>(output);
-            parseDMATaskProfiling(dma_taskList, output_bytes + offset.second, len, frc_speed_mhz, taskInfo);
+            parseDMATaskProfiling(dma_taskList, profData + offset.second, len, frc_speed_mhz, taskInfo);
         }
         if (offset.first == TaskInfo::ExecType::SW && (type == TaskType::ALL || type == TaskType::DPU_SW)) {
-            auto output_bytes = reinterpret_cast<const uint8_t*>(output);
-            parseUPATaskProfiling(upa_taskList, output_bytes + offset.second, len, frc_speed_mhz, taskInfo);
+            parseUPATaskProfiling(upa_taskList, profData + offset.second, len, frc_speed_mhz, taskInfo);
         }
         if (offset.first == TaskInfo::ExecType::DPU && (type == TaskType::ALL || type == TaskType::DPU_SW)) {
-            auto output_bytes = reinterpret_cast<const uint8_t*>(output);
-            parseDPUTaskProfiling(dpu_taskList, output_bytes + offset.second, len, frc_speed_mhz, taskInfo);
+            parseDPUTaskProfiling(dpu_taskList, profData + offset.second, len, frc_speed_mhz, taskInfo);
         }
     }
 
@@ -398,12 +398,16 @@ void vpux::profiling::getTaskInfo(const void* data, size_t data_len, const void*
         }
         layer = &layerInfoTimes[name];
 
+        if (dma_taskList == nullptr) {
+            continue;
+        }
+
         auto barriersList = (*dma_taskList)[task.task_id]->associated_barriers()->update_barriers();
         if (barriersList == nullptr || layer->task_wait_barriers_list == nullptr) {
             continue;
         }
         for (auto barrier : *layer->task_wait_barriers_list) {
-            if (std::find((*barriersList).begin(), (*barriersList).end(), barrier) != (*barriersList).end()) {
+            if (std::find((*barriersList).cbegin(), (*barriersList).cend(), barrier) != (*barriersList).cend()) {
                 if (task_end_ns > layer->dma_end_ns) {
                     layer->dma_end_ns = task_end_ns;
                 }
@@ -413,7 +417,7 @@ void vpux::profiling::getTaskInfo(const void* data, size_t data_len, const void*
 
     // Lets find the minimal offset between timers as we know for sure that DPU/SW task are started after the end of DMA
     // task because they connected via same barrier
-    int64_t dma_task_timer_diff = 0;
+    int64_t dma_task_timer_diff = std::numeric_limits<int64_t>::min();
     for (auto& times : layerInfoTimes) {
         if (times.second.dma_end_ns != 0 && times.second.task_start_ns != std::numeric_limits<uint64_t>::max()) {
             int64_t diff = (int64_t)times.second.dma_end_ns - times.second.task_start_ns;
@@ -423,7 +427,7 @@ void vpux::profiling::getTaskInfo(const void* data, size_t data_len, const void*
         }
     }
 
-    if (!dma_task_timer_diff) {
+    if (dma_task_timer_diff == std::numeric_limits<int64_t>::min()) {
         // Could not calculate offset between timers(Most likely DMA profiling is disabled)
         // -> set offset based on begin time
         if (min_dma_start_ns != std::numeric_limits<uint64_t>::max()) {
@@ -442,32 +446,37 @@ void vpux::profiling::getTaskInfo(const void* data, size_t data_len, const void*
         }
         task.start_time_ns = (start_time_ns > 0) ? start_time_ns : 0;
     }
+
+    return taskInfo;
 }
 
-void vpux::profiling::getLayerInfo(const void* data, size_t data_len, const void* output, size_t output_len,
-                                   std::vector<LayerInfo>& layerInfo) {
-    std::vector<TaskInfo> taskInfo;
+std::vector<LayerInfo> vpux::profiling::getLayerInfo(const uint8_t* blobData, size_t blobSize, const uint8_t* profData,
+                                                     size_t profSize) {
+    std::vector<TaskInfo> taskInfo = getTaskInfo(blobData, blobSize, profData, profSize, TaskType::ALL);
 
-    getTaskInfo(data, data_len, output, output_len, taskInfo, TaskType::ALL);
+    return getLayerInfo(taskInfo);
+}
 
+std::vector<LayerInfo> vpux::profiling::getLayerInfo(const std::vector<TaskInfo>& taskInfo) {
+    std::vector<LayerInfo> layerInfo;
     for (auto& task : taskInfo) {
         LayerInfo* layer;
-        auto name = task.name;
-        auto ptr = strstr(name, "/output tile");
-        if (ptr != nullptr) {
-            *ptr = '\0';
-        }
-        ptr = strstr(name, "/input");
-        if (ptr != nullptr && strstr(name, "tile [") != nullptr) {
-            *ptr = '\0';
+        std::string taskName = std::string(task.name);
+        const auto outputPos = taskName.rfind("/output tile");
+        const auto inputPos = taskName.rfind("/input");
+        const auto tilePos = taskName.rfind("tile [");
+        if (outputPos != std::string::npos) {
+            taskName.erase(outputPos);
+        } else if (inputPos != std::string::npos && tilePos != std::string::npos) {
+            taskName.erase(inputPos);
         }
 
         auto result = std::find_if(begin(layerInfo), end(layerInfo), [&](LayerInfo item) {
-            return strncmp(item.name, task.name, sizeof(LayerInfo::name)) == 0;
+            return taskName == item.name;
         });
         if (result == end(layerInfo)) {
             LayerInfo info = LayerInfo();
-            strncpy(info.name, task.name, sizeof(LayerInfo::name));
+            taskName.copy(info.name, sizeof(info.name) - 1);
             info.name[sizeof(info.name) - 1] = '\0';
             info.status = LayerInfo::layer_status_t::EXECUTED;
             info.start_time_ns = task.start_time_ns;
@@ -500,4 +509,6 @@ void vpux::profiling::getLayerInfo(const void* data, size_t data_len, const void
             layer->dma_ns += task.duration_ns;
         }
     }
+
+    return layerInfo;
 }

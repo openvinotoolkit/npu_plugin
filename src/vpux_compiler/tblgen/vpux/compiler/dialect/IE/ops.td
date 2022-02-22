@@ -740,6 +740,28 @@ def IE_LogicalOrOp :
 }
 
 //
+// LogicalNotOp
+//
+
+def IE_LogicalNotOp :
+        IE_LayerOp<
+            "LogicalNot",
+            [
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Logical Not layer";
+
+    let arguments = (ins
+        RankedTensorOf<[I8, F16, F32]>:$input1
+    );
+
+    let results = (outs
+        RankedTensorOf<[I8, F16, F32]>:$output
+    );
+}
+
+//
 // LogicalXorOp
 //
 

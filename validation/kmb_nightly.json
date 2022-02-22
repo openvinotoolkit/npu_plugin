@@ -4,7 +4,7 @@
         {
             "name" : "por_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
             "ir" : "por/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -17,6 +17,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
@@ -32,7 +33,8 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v2-tiny-ava-0001_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -106,7 +108,7 @@
         {
             "name" : "por_tf_FP16-INT8_yolo-v2-ava-0001",
             "ir" : "por/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -119,6 +121,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -134,13 +137,14 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v2-ava-0001_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "scale_caffe_FP16-INT8_yolo-v3",
             "ir" : "scale/yolo-v3/caffe/FP16-INT8/yolo-v3.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -153,6 +157,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
@@ -168,13 +173,14 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v3_cf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "scale_tf_FP16-INT8_yolo_v3",
             "ir" : "scale/yolo_v3/tf/FP16-INT8/yolo_v3.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -187,6 +193,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest-CalcRef" : {
@@ -201,13 +208,14 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v3_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "por_tf_FP16-INT8_yolo_v4",
             "ir" : "por/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
-            "category" : "MCM/precommit/weekly_public",
+            "category" : "MCM/precommit/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -220,6 +228,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -235,7 +244,8 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v4_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -301,7 +311,7 @@
         {
             "name" : "BDK_tf_FP16-INT8_yolo_v4_tiny",
             "ir" : "models/clientmodels/BDK4/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -314,6 +324,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -329,7 +340,8 @@
             },
             "CI-options" : {
                 "blob_name" : "bdk_yolo_v4_tiny"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -427,7 +439,7 @@
         {
             "name" : "BDK_FP16-INT8_yolo-v2-tiny-ava-0001",
             "ir" : "models/clientmodels/BDK4/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -460,7 +472,7 @@
         {
             "name" : "BDK_FP16-INT8_yolo-v2-ava-0001",
             "ir" : "models/clientmodels/BDK4/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -493,7 +505,7 @@
         {
             "name" : "BDK_FP16-INT8_googlenet-v1",
             "ir" : "models/clientmodels/BDK4/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -527,7 +539,7 @@
         {
             "name" : "BDK_FP16-INT8_googlenet-v3",
             "ir" : "models/clientmodels/BDK4/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -561,7 +573,7 @@
         {
             "name" : "BDK_FP16-INT8_squeezenet1.1",
             "ir" : "models/clientmodels/BDK4/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -595,7 +607,7 @@
         {
             "name" : "BDK_FP16-INT8_openpose-pose",
             "ir" : "models/clientmodels/BDK4/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -690,7 +702,7 @@
         {
             "name" : "por_onnx_FP16-INT8_resnet-50-pytorch",
             "ir" : "por/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -703,6 +715,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -718,7 +731,8 @@
             },
             "CI-options" : {
                 "blob_name" : "resnet-50-pytorch_onnx"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -785,7 +799,7 @@
         {
             "name" : "por_onnx_FP16-INT8_mobilenet-v2",
             "ir" : "por/mobilenet-v2/onnx/FP16-INT8/mobilenet-v2.xml",
-            "category" : "MCM/precommit/weekly_public",
+            "category" : "MCM/precommit/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -798,6 +812,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -814,13 +829,14 @@
             },
             "CI-options" : {
                 "blob_name" : "mobilenet-v2_onnx"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "por_tf_FP16-INT8_googlenet-v1",
             "ir" : "por/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -833,6 +849,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
@@ -848,7 +865,8 @@
             },
             "CI-options" : {
                 "blob_name" : "googlenet-v1_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -916,7 +934,7 @@
         {
             "name" : "por_tf_FP16-INT8_googlenet-v3",
             "ir" : "por/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -929,6 +947,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "299x299"
             },
             "AccuracyCheck" : {
@@ -944,7 +963,8 @@
             },
             "CI-options" : {
                 "blob_name" : "googlenet-v3_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1012,7 +1032,7 @@
         {
             "name" : "por_caffe2_FP16-INT8_squeezenet1.1",
             "ir" : "por/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -1025,6 +1045,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "227x227"
             },
             "AccuracyCheck" : {
@@ -1040,7 +1061,8 @@
             },
             "CI-options" : {
                 "blob_name" : "squeezenet1-1_cf2"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1077,7 +1099,7 @@
         {
             "name" : "por_caffe2_FP16_squeezenet1.1",
             "ir" : "por/squeezenet1.1/caffe2/FP16/squeezenet1.1.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -1092,6 +1114,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "227x227"
             },
             "AccuracyCheck" : {
@@ -1109,7 +1132,10 @@
             "CI-options" : {
                 "blob_name" : "kpi_caffe2_FP16_squeezenet1_1_MCM"
             },
-            "comments" : "NHWC layout was chosen because of performance degradation with default layout EISW-18533."
+            "comments" : [
+                "NHWC layout was chosen because of performance degradation with default layout EISW-18533.",
+                "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
+            ]
         },
 
         {
@@ -1146,7 +1172,7 @@
         {
             "name" : "por_caffe_FP16-INT8_ssd512",
             "ir" : "por/ssd512/caffe/FP16-INT8/ssd512.xml",
-            "category" : "MCM/precommit/weekly_public",
+            "category" : "MCM/precommit/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -1159,6 +1185,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "512x512"
             },
             "NetTest": {
@@ -1177,13 +1204,14 @@
             },
             "CI-options" : {
                 "blob_name" : "ssd512_cf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "scale_tf_FP16-INT8_googlenet-v4",
             "ir" : "scale/googlenet-v4/tf/FP16-INT8/googlenet-v4.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -1196,6 +1224,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "299x299"
             },
             "AccuracyCheck" : {
@@ -1213,13 +1242,16 @@
             "CI-options" : {
                 "blob_name" : "googlenet-v4_tf"
             },
-            "comments" :"AccuracyCheck disabled because model is not a priority."
+            "comments" : [
+                "AccuracyCheck disabled because model is not a priority.",
+                "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
+            ]
         },
 
         {
             "name" : "por_tf_FP16-INT8_ssd_mobilenet_v1_coco",
             "ir" : "por/ssd_mobilenet_v1_coco/tf/FP16-INT8/ssd_mobilenet_v1_coco.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -1232,6 +1264,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "300x300"
             },
             "NetTest": {
@@ -1250,13 +1283,14 @@
             "CI-options" : {
                 "blob_name" : "ssd-mobilenet-v1-coco_tf",
                 "deprecated" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "scale_caffe_FP16-INT8_person-vehicle-bike-detection-crossroad-0078",
             "ir" : "scale/person-vehicle-bike-detection-crossroad-0078/caffe/FP16-INT8/person-vehicle-bike-detection-crossroad-0078.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -1270,6 +1304,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "1024x1024"
             },
             "NetTest-CalcRef" : {
@@ -1283,13 +1318,14 @@
             },
             "CI-options" : {
                 "blob_name" : "person-vehicle-bike-detection-crossroad-0078_cf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "scale_caffe_FP16-INT8_resnet-101",
             "ir" : "scale/resnet-101/caffe/FP16-INT8/resnet-101.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -1302,6 +1338,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
@@ -1317,7 +1354,8 @@
             },
             "CI-options" : {
                 "blob_name" : "resnet-101_cf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1384,7 +1422,7 @@
         {
             "name" : "por_tf_FP16-INT8_icnet-camvid-ava-0001",
             "ir" : "por/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -1397,6 +1435,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "1024x1024"
             },
             "AccuracyCheck" : {
@@ -1410,7 +1449,8 @@
             },
             "CI-options" : {
                 "blob_name" : "icnet-camvid-ava-0001_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1480,7 +1520,7 @@
         {
             "name" : "scale_tf_FP16-INT8_ssd_mobilenet_v2",
             "ir" : "scale/ssd_mobilenet_v2/tf/FP16-INT8/ssd_mobilenet_v2.xml",
-            "category" : "MCM/weekly_public",
+            "category" : "MCM/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -1493,6 +1533,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "300x300"
             },
             "NetTest": {
@@ -1510,7 +1551,8 @@
             },
             "CI-options" : {
                 "blob_name" : "ssd-mobilenet-v2_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1549,7 +1591,7 @@
         {
             "name" : "scale_caffe_FP16-INT8_emotions-recognition-retail-0003",
             "ir" : "scale/emotions-recognition-retail-0003/caffe/FP16-INT8/emotions-recognition-retail-0003.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -1562,6 +1604,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest-CalcRef" : {
@@ -1575,7 +1618,8 @@
             },
             "CI-options" : {
                 "blob_name" : "emotions-recognition-retail-0003_cf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -1698,7 +1742,7 @@
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
-                "disabled" : false
+                "disabled" : true
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -1739,7 +1783,8 @@
             },
             "CI-options" : {
                 "blob_name" : "MTL_scale_tf_fp16-int8_mobilenet-v3-large-1.0-224_tf"
-            }
+            },
+            "comments": "#-32535"
         },
 
         {
@@ -1930,7 +1975,7 @@
         {
             "name" : "BDK_FP16-INT8_ModelA",
             "ir" : "models/clientmodels/BDK3/ModelA/Surface/INT8/ModelA.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -1943,6 +1988,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -1958,7 +2004,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_model-a",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2001,7 +2048,7 @@
         {
             "name" : "BDK_Deblur_AA",
             "ir" : "models/clientmodels/BDK4/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3900" : {
                 "disabled" : true
             },
@@ -2081,7 +2128,7 @@
         {
             "name" : "BDK_caffe2_FP16-INT8_mobilenet-v2",
             "ir" : "models/clientmodels/BDK4/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2094,6 +2141,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2111,13 +2159,14 @@
             "CI-options" : {
                 "blob_name" : "bdk_mobilenet-v2",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "BDK_INT8_ModelE_V2",
             "ir" : "models/clientmodels/BDK3/ModelE-V2/Surface/INT8/ModelE-V2.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2130,6 +2179,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2147,13 +2197,14 @@
             "CI-options" : {
                 "blob_name" : "bdk_model-e-v2",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "BDK_INT8_ModelE_V3",
             "ir" : "models/clientmodels/BDK3/ModelE-V3/Surface/INT8/ModelE-V3.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2166,6 +2217,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2182,7 +2234,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_model-e-v3",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2247,7 +2300,7 @@
         {
             "name" : "BDK_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
             "ir" : "models/clientmodels/BDK3/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2260,7 +2313,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
-                "disabled" :  true,
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2284,7 +2337,7 @@
         {
             "name" : "BDK_tf_FP16-INT8_mobilenet-v3-small-1.0-224",
             "ir" : "models/clientmodels/BDK3/mobilenet-v3-small-1.0-224/tf/FP16-INT8/mobilenet-v3-small-1.0-224.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2297,6 +2350,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2314,7 +2368,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_mobilenet-v3-small-1.0-224",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2375,7 +2430,9 @@
             },
             "CI-options" : {
                 "blob_name" : "scale_tf_fp16-int8_mobilenet-v3-large-1.0-224_tf"
-            }
+            },
+            "disabled": true,
+            "comments": "#-32535"
         },
         {
             "name" : "por_tf_FP16_mobilenet-v3-small-1.0-224",
@@ -2441,7 +2498,7 @@
         {
             "name" : "BDK_caffe2_FP16-INT8_modnet_photographic_portrait_matting",
             "ir" : "models/clientmodels/BDK3/modnet_photographic_portrait_matting/caffe2/FP16-INT8/modnet_photographic_portrait_matting.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -2455,6 +2512,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2472,13 +2530,14 @@
             "CI-options" : {
                 "blob_name" : "bdk_modnet_photographic_portrait_matting",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "BDK_caffe2_FP16-INT8_modnet_webcam_portrait_matting",
             "ir" : "models/clientmodels/BDK3/modnet_webcam_portrait_matting/caffe2/FP16-INT8/modnet_webcam_portrait_matting.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -2492,6 +2551,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2509,13 +2569,14 @@
             "CI-options" : {
                 "blob_name" : "bdk_modnet_webcam_portrait_matting",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "BDK_caffe2_FP16-INT8_resnet-50-pytorch",
             "ir" : "models/clientmodels/BDK4/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2528,6 +2589,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2544,13 +2606,14 @@
             "CI-options" : {
                 "blob_name" : "bdk_resnet-50-pytorch",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "BDK_FP16-INT8_hg-s8-b1-mpii",
             "ir" : "models/clientmodels/BDK4/StackedHourglass/Surface/FP16-INT8/hg-s8-b1-mpii.xml",
-            "category" : "MCM/precommit/weekly_private",
+            "category" : "MCM/precommit/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2563,6 +2626,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2579,7 +2643,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_StackedHourglass",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2651,7 +2716,7 @@
         {
             "name" : "BDK_INT8_StyleTransfer",
             "ir" : "models/clientmodels/BDK4/StyleTransfer/Cyberlink/INT8/StyleTransfer.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2664,6 +2729,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2679,12 +2745,13 @@
             "CI-options" : {
                 "blob_name" : "bdk_StyleTransfer",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
         {
             "name" : "BDK_FP16-INT8_SuperRes_AA",
             "ir" : "models/clientmodels/BDK4/SuperRes/AccuracyAware/SuperRes_INT8_AA.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2697,6 +2764,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest-CalcRef" : {
@@ -2712,13 +2780,14 @@
             "CI-options" : {
                 "blob_name" : "bdk_super_res_aa",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "BDK_FP16-INT8_unet-camvid-onnx-0001",
             "ir" : "models/clientmodels/BDK4/UnetAutoencoder/Surface/FP16-INT8/unet-camvid-onnx-0001.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2731,6 +2800,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2746,13 +2816,14 @@
             "CI-options" : {
                 "blob_name" : "bdk_unet-camvid-onnx-0001",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "BDK_tf_FP16-INT8_yolo_v4",
             "ir" : "models/clientmodels/BDK3/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2765,6 +2836,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -2781,13 +2853,14 @@
             "CI-options" : {
                 "blob_name" : "bdk_yolo_v4",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "BDK_caffe2_FP16-INT8_yolo_v5m",
             "ir" : "models/clientmodels/BDK3/yolo_v5m/caffe2/FP16-INT8/yolo_v5m.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -2801,6 +2874,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -2817,7 +2891,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_yolo_v5m",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -2855,7 +2930,7 @@
         {
             "name" : "BDK_tf_FP16-INT8_deeplabv3",
             "ir" : "models/clientmodels/BDK4/deeplabv3/tf/FP16-INT8/deeplabv3_int8.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "disabled" :  true,
             "3900" : {
                 "disabled" : true
@@ -2872,6 +2947,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest-CalcRef" : {
@@ -2887,13 +2963,14 @@
             "CI-options" : {
                 "blob_name" : "bdk_deeplabv3",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "stereo_U8_640x360",
             "ir" : "Stereo/Stereo_640x360.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2927,7 +3004,7 @@
         {
             "name" : "stereo_U8_640x400",
             "ir" : "Stereo/Stereo_640x400.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2961,7 +3038,7 @@
         {
             "name" : "stereo_U8_640x480",
             "ir" : "Stereo/Stereo_640x480.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2995,7 +3072,7 @@
         {
             "name" : "stereo_U8_1280x720",
             "ir" : "Stereo/Stereo_1280x720.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3029,7 +3106,7 @@
         {
             "name" : "stereo_U8_1280x800",
             "ir" : "Stereo/Stereo_1280x800.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3063,7 +3140,7 @@
         {
             "name" : "stereo_U8_1280x960",
             "ir" : "Stereo/Stereo_1280x960.xml",
-            "category" : "MCM",
+            "category" : "MCM/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3096,7 +3173,7 @@
         {
             "name" : "experimental_tf_FP16-INT8_yolo_v3-darknet-608",
             "ir" : "yolo-v3-darknet-608/tf/FP16-INT8/yolo-v3-darknet-608.xml",
-            "category" : "MCM/precommit/weekly_public",
+            "category" : "MCM/precommit/weekly_public/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3109,6 +3186,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -3124,13 +3202,14 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v3-darknet-608_tf"
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_googlenet-v1",
             "ir" : "por/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3164,7 +3243,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_googlenet-v3",
             "ir" : "por/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3198,7 +3277,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_por_caffe2_FP16-INT8_squeezenet1.1",
             "ir" : "por/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3232,7 +3311,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_por_onnx_FP16_mobilenet-v2",
             "ir" : "por/mobilenet-v2/onnx/FP16/mobilenet-v2.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -3270,7 +3349,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_scale_tf_FP16_mobilenet-v1-0.25-128",
             "ir" : "scale/mobilenet-v1-0.25-128/tf/FP16/mobilenet-v1-0.25-128.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3306,7 +3385,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_por_tf_FP16_googlenet-v1",
             "ir" : "por/googlenet-v1/tf/FP16/googlenet-v1.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3341,7 +3420,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_scale_tf_FP16-INT8_googlenet-v4",
             "ir" : "scale/googlenet-v4/tf/FP16-INT8/googlenet-v4.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3375,7 +3454,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_por_onnx_FP16-INT8_resnet-50-pytorch",
             "ir" : "por/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -3412,7 +3491,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_scale_caffe_FP16-INT8_resnet-152",
             "ir" : "scale/resnet-152/caffe/FP16-INT8/resnet-152.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3446,7 +3525,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_scale_tf_FP16-INT8_mobilenet-v1-0.25-128",
             "ir" : "scale/mobilenet-v1-0.25-128/tf/FP16-INT8/mobilenet-v1-0.25-128.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3480,7 +3559,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_por_onnx_FP16_resnet-50-pytorch",
             "ir" : "por/resnet-50-pytorch/onnx/FP16/resnet-50-pytorch.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -3517,7 +3596,7 @@
         {
             "name" : "por_onnx_FP16_mobilenet-v2",
             "ir" : "por/mobilenet-v2/onnx/FP16/mobilenet-v2.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -3872,7 +3951,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_yolo-v2-ava-0001",
             "ir" : "por/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MCM",
                 "PERFORMANCE_HINT": "LATENCY",
@@ -3906,7 +3985,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
             "ir" : "por/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MCM",
                 "PERFORMANCE_HINT": "LATENCY",
@@ -3940,7 +4019,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_scale_tf_FP16-INT8_yolo_v3",
             "ir" : "scale/yolo_v3/tf/FP16-INT8/yolo_v3.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MCM",
                 "PERFORMANCE_HINT": "LATENCY",
@@ -3976,7 +4055,7 @@
         {
             "name" : "SINGLE_IMAGE_TEST_super_resolution_network_ip_U8_op_FP32",
             "ir" : "models/clientmodels/BDK3/SuperRes/AccuracyAware/SuperRes_INT8_AA.xml",
-            "category" : "MCM/precommit",
+            "category" : "MCM/precommit/SKIP_WIN",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -4086,7 +4165,7 @@
         {
             "name" : "BDK_edsr3",
             "ir" : "models/clientmodels/BDK4/edsr3/FP16-INT8/edsr3.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "disabled" :  true,
             "3900" : {
                 "disabled" : true
@@ -4105,6 +4184,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "224x224"
             },
             "NetTest-CalcRef" : {
@@ -4120,13 +4200,14 @@
             "CI-options" : {
                 "blob_name" : "bdk_edsr3",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
             "name" : "BDK_caffe2_FP16-INT8_modnet_custom",
             "ir" : "models/clientmodels/BDK4/modnet_custom/onnx/FP16-INT8/modnet_custom.xml",
-            "category" : "MCM/weekly_private",
+            "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -4139,6 +4220,7 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
+                "disabled" : true,
                 "input_folder" : "512x512"
             },
             "NetTest-CalcRef" : {
@@ -4154,7 +4236,8 @@
             "CI-options" : {
                 "blob_name" : "bdk_modnet_custom",
                 "special" : true
-            }
+            },
+            "comments": "EISW-31643: BenchmarkApp fails with std::bad_alloc error message"
         },
 
         {
@@ -4260,6 +4343,48 @@
             "CI-options" : {
                 "blob_name" : "deeplabv3_fp16"
             }
+        },
+
+        {
+            "name" : "MTL_FP16_INT8_yolo_v4_tiny_cut",
+            "ir" : "yolo-v4-tiny-no-interp/tf/FP16-INT8/yolo-v4-tiny_no_interp.xml",
+            "category" : "MLIR",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16",
+                "old_api" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.1"
+                ]
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "yolo-v4-tiny-cut"
+            },
+            "comments" : "NHWC layout was chosen on purpose because this model for MTL."
         }
     ]
 }

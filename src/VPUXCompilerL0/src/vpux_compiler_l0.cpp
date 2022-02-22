@@ -18,6 +18,7 @@
 
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
+#include "vpux/utils/plugin/profiling_parser.hpp"
 #include "vpux/vpux_plugin_config.hpp"
 #include "vpux_compiler.hpp"
 #include "vpux_private_config.hpp"
@@ -28,11 +29,22 @@
 #include <string>
 #include <utility>
 
-// Version 1.2.1, used to identify the release
-#define VPUX_COMPILER_L0_ID "1.2.2"
+#define xstr(s) str(s)
+#define str(s) #s
+
+#define COMPILER_MAJOR 1
+#define COMPILER_MINOR 3
+static const char* COMPILER_VERSION = xstr(COMPILER_MAJOR) "." xstr(COMPILER_MINOR);
+
+#define PROFILING_MAJOR 1
+#define PROFILING_MINOR 0
+
 const uint32_t maxNumberOfElements = 10;
 const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
 const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
+
+constexpr uint16_t  = 1;
+constexpr uint16_t PROFILING_MINOR = 0;
 
 using namespace vpux;
 
@@ -206,9 +218,9 @@ VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, s
     _compiler = Compiler::create(parsedConfig);
 
     _compilerDesc = desc;
-    _compilerProp.id = VPUX_COMPILER_L0_ID;
-    _compilerProp.version.major = 1;
-    _compilerProp.version.minor = 2;
+    _compilerProp.id = COMPILER_VERSION;
+    _compilerProp.version.major = COMPILER_MAJOR;
+    _compilerProp.version.minor = COMPILER_MINOR;
     _compilerProp.supportedOpsets = 7;
 }
 
@@ -280,6 +292,94 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const u
     }
     VPUXExecutableL0* exe = new VPUXExecutableL0(networkDesc, enableProfiling);
     return std::pair<VPUXExecutableL0*, vcl_result_t>(exe, VCL_RESULT_SUCCESS);
+}
+
+class VPUXProfilingL0 final {
+public:
+    VPUXProfilingL0(p_vcl_profiling_input_t profInput)
+            : _blobData(profInput->blobData),
+              _blobSize(profInput->blobSize),
+              _profData(profInput->profData),
+              _profSize(profInput->profSize)
+    { }
+    vcl_result_t preprocess();
+    vcl_result_t getTaskInfo(p_vcl_profiling_output_t profOutput);
+    vcl_result_t getLayerInfo(p_vcl_profiling_output_t profOutput);
+    vcl_result_t getRawInfo(p_vcl_profiling_output_t profOutput);
+    vcl_profiling_properties_t getProperties();
+
+private:
+    const uint8_t* _blobData;  ///< Pointer to the buffer with the blob
+    uint64_t _blobSize;        ///< Size of the blob in bytes
+    const uint8_t* _profData;  ///< Pointer to the raw profiling output
+    uint64_t _profSize;        ///< Size of the raw profiling output
+
+    std::vector<profiling::TaskInfo> _taskInfo;    ///< Per-task (DPU, DMA, SW) profiling info
+    std::vector<profiling::LayerInfo> _layerInfo;  ///< Per-layer profiling info
+};
+
+vcl_result_t VPUXProfilingL0::preprocess() {
+    auto result = VCL_RESULT_SUCCESS;
+    try {
+        _taskInfo = profiling::getTaskInfo(_blobData, _blobSize, _profData, _profSize, profiling::TaskType::ALL);
+        _layerInfo = profiling::getLayerInfo(_taskInfo);
+    } catch (const std::exception& error) {
+        std::cerr << error.what() << std::endl;
+        result = VCL_RESULT_ERROR_UNKNOWN;
+    } catch (...) {
+        std::cerr << "Internal exception! Can't parse profiling information." << std::endl;
+        result = VCL_RESULT_ERROR_UNKNOWN;
+    }
+    return result;
+}
+
+vcl_result_t VPUXProfilingL0::getTaskInfo(p_vcl_profiling_output_t profOutput) {
+    if (!profOutput) {
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+
+    if (_taskInfo.empty()) {
+        std::cerr << "There are no tasks to return. Either profiling output was empty or it is not preprocessed."
+                  << std::endl;
+        return VCL_RESULT_ERROR_UNKNOWN;
+    }
+
+    profOutput->data = reinterpret_cast<uint8_t*>(_taskInfo.data());
+    profOutput->size = _taskInfo.size() * sizeof(profiling::TaskInfo);
+    return VCL_RESULT_SUCCESS;
+}
+
+vcl_result_t VPUXProfilingL0::getLayerInfo(p_vcl_profiling_output_t profOutput) {
+    if (!profOutput) {
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+
+    if (_layerInfo.empty()) {
+        std::cerr << "There are no layers to return. Either profiling output was empty or it is not preprocessed."
+                  << std::endl;
+        return VCL_RESULT_ERROR_UNKNOWN;
+    }
+
+    profOutput->data = reinterpret_cast<uint8_t*>(_layerInfo.data());
+    profOutput->size = _layerInfo.size() * sizeof(profiling::LayerInfo);
+    return VCL_RESULT_SUCCESS;
+}
+
+vcl_result_t VPUXProfilingL0::getRawInfo(p_vcl_profiling_output_t profOutput) {
+    if (!profOutput) {
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+
+    profOutput->data = _profData;
+    profOutput->size = _profSize;
+    return VCL_RESULT_SUCCESS;
+}
+
+vcl_profiling_properties_t VPUXProfilingL0::getProperties() {
+    vcl_profiling_properties_t prop;
+    prop.version.major = PROFILING_MAJOR;
+    prop.version.minor = PROFILING_MINOR;
+    return prop;
 }
 
 }  // namespace VPUXCompilerL0
@@ -502,6 +602,67 @@ DLLEXPORT vcl_result_t vclCompilerDestroy(vcl_compiler_handle_t compiler) {
         VPUXCompilerL0::VPUXCompilerL0* pvc = reinterpret_cast<VPUXCompilerL0::VPUXCompilerL0*>(compiler);
         delete pvc;
     }
+    return VCL_RESULT_SUCCESS;
+}
+
+DLLEXPORT vcl_result_t VCL_APICALL vclProfilingCreate(p_vcl_profiling_input_t profilingInput,
+                                                      vcl_profiling_handle_t* profilingHandle) {
+    if (!profilingInput || !profilingHandle) {
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+
+    VPUXCompilerL0::VPUXProfilingL0* profHandle = new (std::nothrow) VPUXCompilerL0::VPUXProfilingL0(profilingInput);
+    if (!profHandle) {
+        return VCL_RESULT_ERROR_OUT_OF_MEMORY;
+    }
+
+    vcl_result_t result = profHandle->preprocess();
+    if (result != VCL_RESULT_SUCCESS) {
+        return result;
+    }
+
+    *profilingHandle = reinterpret_cast<vcl_profiling_handle_t>(profHandle);
+    return VCL_RESULT_SUCCESS;
+}
+DLLEXPORT vcl_result_t VCL_APICALL vclGetDecodedProfilingBuffer(vcl_profiling_handle_t profilingHandle,
+                                                                vcl_profiling_request_type_t requestType,
+                                                                p_vcl_profiling_output_t profilingOutput) {
+    if (!profilingHandle || !profilingOutput) {
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+
+    VPUXCompilerL0::VPUXProfilingL0* prof = reinterpret_cast<VPUXCompilerL0::VPUXProfilingL0*>(profilingHandle);
+    switch (requestType) {
+    case VCL_PROFILING_LAYER_LEVEL:
+        return prof->getLayerInfo(profilingOutput);
+    case VCL_PROFILING_TASK_LEVEL:
+        return prof->getTaskInfo(profilingOutput);
+    case VCL_PROFILING_RAW:
+        return prof->getRawInfo(profilingOutput);
+    default:
+        std::cerr << "Request type is not supported." << std::endl;
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+
+    return VCL_RESULT_SUCCESS;
+}
+
+DLLEXPORT vcl_result_t VCL_APICALL vclProfilingDestroy(vcl_profiling_handle_t profilingHandle) {
+    if (profilingHandle) {
+        VPUXCompilerL0::VPUXProfilingL0* pvp = reinterpret_cast<VPUXCompilerL0::VPUXProfilingL0*>(profilingHandle);
+        delete pvp;
+    }
+    return VCL_RESULT_SUCCESS;
+}
+
+DLLEXPORT vcl_result_t VCL_APICALL vclProfilingGetProperties(vcl_profiling_handle_t profilingHandle,
+                                                             vcl_profiling_properties_t* properties) {
+
+    if (!profilingHandle || !properties) {
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    VPUXCompilerL0::VPUXProfilingL0* pvp = reinterpret_cast<VPUXCompilerL0::VPUXProfilingL0*>(profilingHandle);
+    *properties = pvp->getProperties();
     return VCL_RESULT_SUCCESS;
 }
 

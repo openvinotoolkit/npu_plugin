@@ -1218,6 +1218,41 @@ def VPUIP_EltwiseUPAOp :
 }
 
 //
+// LogicalNotUPAOp
+//
+
+def VPUIP_LogicalNotUPAOp :
+        VPUIP_UPATaskOp<1, "LogicalNotUPA",
+            [
+                ViewLikeOpInterface,
+            ]
+        > {
+    let summary = "Logical Not UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input1,
+        F16MemRef:$output_buff,
+
+        VPU_EltwiseType:$type
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // DetectionOutput
 //
 
@@ -2437,6 +2472,50 @@ def VPUIP_RegionYoloUPAOp :
     let extraClassDeclaration = [{
         static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
     }] # commonExtraClassDeclaration;
+}
+
+//
+// ReorgYoloUPAOp
+//
+
+def VPUIP_ReorgYoloUPAOp :
+        VPUIP_UPATaskOp<1, "ReorgYoloUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_AnyDimsOrder
+            ]
+        > {
+    let summary = "ReorgYolo UPA SHAVE kernel";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+
+        IntAttr:$stride,
+
+        OptionalAttr<IntAttr>:$maxShaves
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output,
+                "mlir::IntegerAttr":$stride
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //

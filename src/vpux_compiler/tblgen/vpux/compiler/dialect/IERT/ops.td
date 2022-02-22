@@ -1669,6 +1669,35 @@ def IERT_LogicalOrOp :
 }
 
 //
+// NotOp
+//
+
+def IERT_LogicalNotOp :
+        IERT_LayerOp<1, "LogicalNot",
+            [
+                ViewLikeOpInterface,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Logical Not layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1)`)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // LogicalXorOp
 //
 
@@ -2591,6 +2620,37 @@ def IERT_RegionYoloOp :
 
     let results = (outs
         MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ReorgYoloOp
+//
+
+def IERT_ReorgYoloOp :
+        IERT_LayerOp<1, "ReorgYolo",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReorgYolo layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+
+        IntAttr:$stride
+    );
+
+    let results = (outs
+        AnyMemRef:$output
     );
 
     let assemblyFormat = [{
