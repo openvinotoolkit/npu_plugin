@@ -1414,7 +1414,6 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
         t.set<bool>("Compression", false);
     }
 
-    csramCacheable = false;
     toBuild->csram_cacheable = csramCacheable;
 
     return toBuild;
