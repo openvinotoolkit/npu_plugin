@@ -472,7 +472,7 @@ bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const OutputTiling& til
            isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
-bool isSupportedPrefetchTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, Logger log,
+bool isSupportedPrefetchTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, Logger /*log*/,
                                TilingMode tilingMode) {
     auto outputShape = getShape(origOp.output());
     auto tileAxis = tiles.begin()->axis;
@@ -483,7 +483,7 @@ bool isSupportedPrefetchTiling(VPU::NCEConvolutionOp origOp, const OutputTiling&
             return origOp.verifyPrefetchCMX(tiles);
         }
         // Pattern prefetch
-        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
+        return origOp.verifyPrefetchPatternCMX(tiles);
     };
 
     // neutral tiling check
@@ -534,7 +534,7 @@ bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, const OutputTiling
            isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
-bool isSupportedPrefetchTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& tiles, Logger log,
+bool isSupportedPrefetchTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& tiles, Logger /*log*/,
                                TilingMode tilingMode) {
     auto outputShape = getShape(origOp.output());
     auto tileAxis = tiles.begin()->axis;
@@ -545,7 +545,7 @@ bool isSupportedPrefetchTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTi
             return origOp.verifyPrefetchCMX(tiles);
         }
         // Pattern prefetch
-        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
+        return origOp.verifyPrefetchPatternCMX(tiles);
     };
 
     // neutral tiling check
@@ -603,7 +603,8 @@ bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, 
            isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
-bool isSupportedPrefetchTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiles, Logger log, TilingMode tilingMode) {
+bool isSupportedPrefetchTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiles, Logger /*log*/,
+                               TilingMode tilingMode) {
     auto tileAxis = tiles.begin()->axis;
     auto tileDims = getTileDims(tileAxis);
 
@@ -612,7 +613,7 @@ bool isSupportedPrefetchTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& til
             return origOp.verifyPrefetchCMX(tiles);
         }
         // Pattern prefetch
-        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
+        return origOp.verifyPrefetchPatternCMX(tiles);
     };
 
     // neutral tiling check

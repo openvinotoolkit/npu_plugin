@@ -140,6 +140,42 @@ bool vpux::VPU::NCEConvolutionOp::verifyPrefetchCMX(const vpux::OutputTiling& ti
 }
 
 //
+// verifyPrefetchPatternCMX
+//
+
+bool vpux::VPU::NCEConvolutionOp::verifyPrefetchPatternCMX(const vpux::OutputTiling& tiling) {
+    if (tiling.size() <= 1) {
+        return false;
+    }
+    if (vpux::IE::isNestedTiling(tiling)) {
+        return false;
+    }
+
+    auto* op = (*this).getOperation();
+    auto parentOp = IE::getParentTargetOp(op);
+    if (parentOp == nullptr) {
+        return false;
+    }
+
+    Byte requiredCMX(0);
+    // Parent CMX size
+    for (auto memItem : VPU::getMemSizes(parentOp)) {
+        requiredCMX += memItem;
+    }
+
+    // CMX size to prefetch
+    auto requiredOperands = getRequiredOperandsForPrefetch(*this, tiling);
+    VPUX_THROW_UNLESS(requiredOperands.size() == 4, "NCEConvolutionOp needs 4 operands for prefetch, got {0}",
+                      requiredOperands.size());
+    requiredCMX += requiredOperands[1].getTotalAllocSize();  // Only tiling over C for PATTERN_PREFETCH_TILING mode
+
+    auto cmxWithFragmentationRatio = Byte(static_cast<int64_t>(
+            std::ceil(static_cast<double>(getTotalCMXSize(*this).count()) * IE::FRAGMENTATION_AVOID_RATIO)));
+
+    return requiredCMX <= cmxWithFragmentationRatio;
+}
+
+//
 // isSupported
 //
 

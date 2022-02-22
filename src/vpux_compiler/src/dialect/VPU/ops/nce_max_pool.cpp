@@ -124,6 +124,16 @@ bool vpux::VPU::NCEMaxPoolOp::verifyPrefetchCMX(const vpux::OutputTiling& tiling
 }
 
 //
+// verifyPrefetchPatternCMX
+//
+
+bool vpux::VPU::NCEMaxPoolOp::verifyPrefetchPatternCMX(const vpux::OutputTiling& /*tiling*/) {
+    //  MaxPool don't have weights
+    //  Always return true to skip PATTERN_PREFETCH_TILING
+    return true;
+}
+
+//
 // isSupported
 //
 

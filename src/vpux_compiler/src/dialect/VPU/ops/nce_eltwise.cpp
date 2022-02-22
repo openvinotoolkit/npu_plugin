@@ -104,6 +104,16 @@ bool vpux::VPU::NCEEltwiseOp::verifyPrefetchCMX(const vpux::OutputTiling& tiling
 }
 
 //
+// verifyPrefetchPatternCMX
+//
+
+bool vpux::VPU::NCEEltwiseOp::verifyPrefetchPatternCMX(const vpux::OutputTiling& /*tiling*/) {
+    //  Eltwise don't have weights
+    //  Always return true to skip PATTERN_PREFETCH_TILING
+    return true;
+}
+
+//
 // isSupported
 //
 
