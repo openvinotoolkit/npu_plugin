@@ -17,6 +17,7 @@
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include <vpu_cost_model.h>
 #pragma once
 
 namespace vpux {
@@ -38,7 +39,8 @@ struct WorkloadCostParams {
 
 class DpuTiler final {
 public:
-    DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode): _outShape(outShape.raw()), _mpeMode(mpeMode) {
+    DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode, VPUNN::VPUCostModel costModel)
+            : _outShape(outShape.raw()), _mpeMode(mpeMode), _costModel(std::move(costModel)) {
     }
 
     SmallVector<uint32_t> generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits);
@@ -54,6 +56,7 @@ private:
 
     Shape _outShape;
     VPU::MPEMode _mpeMode;
+    VPUNN::VPUCostModel _costModel;
     SmallVector<OutputTiling> _splitPool;
 };
 

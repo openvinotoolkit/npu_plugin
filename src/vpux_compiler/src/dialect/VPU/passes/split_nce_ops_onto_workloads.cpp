@@ -28,7 +28,10 @@
 
 #include "vpux/utils/core/enums.hpp"
 
+#include <file_utils.h>
 #include <llvm/ADT/TypeSwitch.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Path.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 using namespace vpux;
@@ -69,6 +72,28 @@ const EnumMap<VPU::ArchKind, GetMpeModeCb> mpeMap = {
         {VPU::ArchKind::MTL, getMpeModeForMtl},
 };
 
+SmallString getVPUNNModelFile(VPU::ArchKind archKind) {
+    SmallString modelDir;
+    // probe for OpenVINO runtime dir
+    auto ovBuildDir = InferenceEngine::getIELibraryPath();
+
+    modelDir = ovBuildDir;
+    llvm::sys::path::append(modelDir, "vpunn");
+    switch (archKind) {
+    case VPU::ArchKind::KMB:
+    case VPU::ArchKind::TBH:
+        llvm::sys::path::append(modelDir, "vpu_2_0.vpunn");
+        break;
+    case VPU::ArchKind::MTL:
+        llvm::sys::path::append(modelDir, "vpu_2_7.vpunn");
+        break;
+    default:
+        VPUX_THROW("Unsupported VPU arch type: '{0}'", archKind);
+    }
+    VPUX_THROW_UNLESS(llvm::sys::fs::exists(modelDir), "vpunn model {0} does not exist", modelDir);
+    return modelDir;
+}
+
 //
 // GenericNCERewrite
 //
@@ -76,8 +101,13 @@ const EnumMap<VPU::ArchKind, GetMpeModeCb> mpeMap = {
 template <class ConcreteOp>
 class GenericNCERewrite final : public mlir::OpRewritePattern<ConcreteOp> {
 public:
-    GenericNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, Logger log)
-            : mlir::OpRewritePattern<ConcreteOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
+    GenericNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, VPUNN::VPUCostModel costModel,
+                      Logger log)
+            : mlir::OpRewritePattern<ConcreteOp>(ctx),
+              _numDPU(numDPU),
+              _arch(arch),
+              _costModel(std::move(costModel)),
+              _log(log) {
     }
 
 public:
@@ -86,12 +116,13 @@ public:
 private:
     const int64_t _numDPU;
     VPU::ArchKind _arch;
+    VPUNN::VPUCostModel _costModel;
     Logger _log;
 };
 
 void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp,
-                 const VPUIP::WorkloadCostParams& costParams) {
-    VPUIP::DpuTiler dpuTiler(costParams.outputShape, costParams.mpeMode);
+                 const VPUIP::WorkloadCostParams& costParams, const VPUNN::VPUCostModel& costModel) {
+    VPUIP::DpuTiler dpuTiler(costParams.outputShape, costParams.mpeMode, costModel);
     dpuTiler.tileOverH(costParams.numDPU);
 
     // This value is aligned with the max DPU task value in NCEClusterTask Op
@@ -234,7 +265,7 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
             });
 
     rewriter.updateRootInPlace(origOp, [&]() {
-        addDPUTasks(rewriter, origOp, params);
+        addDPUTasks(rewriter, origOp, params, _costModel);
     });
 
     return mlir::success();
@@ -271,12 +302,13 @@ void SplitNCEOpsOntoWorkloadsPass::safeRunOnFunc() {
 
     auto dpuExec = nceCluster.getSubExecutor(VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::DPU));
     VPUX_THROW_UNLESS(dpuExec != nullptr, "Failed to get DPU information");
-
+    auto vpunnModelFile = getVPUNNModelFile(arch);
+    VPUNN::VPUCostModel costModel(vpunnModelFile.str().str());
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<GenericNCERewrite<VPU::NCEConvolutionOp>>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<GenericNCERewrite<VPU::NCEMaxPoolOp>>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<GenericNCERewrite<VPU::NCEDepthConvolutionOp>>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<GenericNCERewrite<VPU::NCEEltwiseOp>>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<GenericNCERewrite<VPU::NCEConvolutionOp>>(&ctx, dpuExec.count(), arch, costModel, _log);
+    patterns.insert<GenericNCERewrite<VPU::NCEMaxPoolOp>>(&ctx, dpuExec.count(), arch, costModel, _log);
+    patterns.insert<GenericNCERewrite<VPU::NCEDepthConvolutionOp>>(&ctx, dpuExec.count(), arch, costModel, _log);
+    patterns.insert<GenericNCERewrite<VPU::NCEEltwiseOp>>(&ctx, dpuExec.count(), arch, costModel, _log);
 
     mlir::ConversionTarget target(ctx);
 

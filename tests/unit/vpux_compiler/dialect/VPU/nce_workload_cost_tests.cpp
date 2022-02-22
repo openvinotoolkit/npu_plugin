@@ -16,6 +16,10 @@
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/init.hpp"
 
+#include <file_utils.h>
+#include <llvm/ADT/SmallString.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Path.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Parser.h>
 
@@ -35,6 +39,17 @@ struct NceOpTensorShape {
     vpux::Shape inputShape;
     vpux::Shape outputShape;
 };
+
+vpux::SmallString getVPUNNModelFile() {
+    vpux::SmallString modelDir;
+    // probe for OpenVINO runtime dir
+    auto ovBuildDir = InferenceEngine::getIELibraryPath();
+    modelDir = ovBuildDir;
+    llvm::sys::path::append(modelDir, "vpunn");
+    llvm::sys::path::append(modelDir, "vpu_2_0.vpunn");
+    VPUX_THROW_UNLESS(llvm::sys::fs::exists(modelDir), "vpunn model {0} does not exist", modelDir);
+    return modelDir;
+}
 
 vpux::VPUIP::WorkloadCostParams buildWorkloadCost(const NceOpTensorShape& tensorShape, vpux::VPU::MPEMode mpeMode,
                                                   mlir::MLIRContext* ctx) {
@@ -61,6 +76,8 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
     llvm::SmallVector<vpux::VPU::MPEMode> mpeModeList{vpux::VPU::MPEMode::VECTOR_FP16, vpux::VPU::MPEMode::VECTOR,
                                                       vpux::VPU::MPEMode::MATRIX, vpux::VPU::MPEMode::CUBOID_4x16};
 
+    auto modelPath = getVPUNNModelFile();
+    VPUNN::VPUCostModel costModel(modelPath.str().str());
     llvm::SmallVector<NceOpTensorShape> testTensorLists;
     for (int64_t h = initDimensionValue; h < maxDimensionValue; h *= testStep) {
         for (int64_t w = initDimensionValue; w < maxDimensionValue; w *= testStep) {
@@ -73,7 +90,7 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
     for (auto& testTensor : testTensorLists) {
         for (auto& mpeMode : mpeModeList) {
             auto costParams = buildWorkloadCost(testTensor, mpeMode, &ctx);
-            vpux::VPUIP::DpuTiler dpuTiler(costParams.outputShape, mpeMode);
+            vpux::VPUIP::DpuTiler dpuTiler(costParams.outputShape, mpeMode, costModel);
             const auto& splitPool = dpuTiler.generateSplitNumberPool(numDPU, maxSplitNum);
 
             vpux::Shape nTilesOnDim(costParams.outputShape.size(), 1);
