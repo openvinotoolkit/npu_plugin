@@ -252,8 +252,8 @@ void WrapMultiClusterLayersInNCEClusterTilingPass::safeRunOnFunc() {
     target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
         if (op->hasAttr(multiClusterStrategy)) {
             return (op->getParentOfType<NCEClusterTilingOp>() != nullptr);
-        } else
-            return true;
+        }
+        return true;
     });
 
     target.addLegalOp<NCEClusterTilingOp>();
