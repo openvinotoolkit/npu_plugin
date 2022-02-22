@@ -15,6 +15,8 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -71,6 +73,52 @@ bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTy
     for (auto memItem : memList) {
         requiredCMX += memItem;
     }
+
+    return requiredCMX <= getTotalCMXSize(*this);
+}
+
+SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEMaxPoolOp origOp, const TileInfo& outTile) {
+    const auto origPadding = toPadInfo(origOp.pad());
+
+    auto tileConf = vpux::backInferPoolTile(outTile, getShape(origOp.input()), origOp.kernel_size(), origOp.strides(),
+                                            origPadding);
+
+    return {origOp.input().getType().cast<vpux::NDTypeInterface>().extractDenseTile(tileConf.tiles[0].offsets,
+                                                                                    tileConf.tiles[0].shape),
+            origOp.getType().cast<vpux::NDTypeInterface>().extractDenseTile(outTile.offsets, outTile.shape)};
+}
+
+SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPrefetch(VPU::NCEMaxPoolOp origOp, vpux::OutputTiling tiling) {
+    // The tiling strategy follows last-tile-not-biggest
+    // So just check the first two tiles are enough to make sure prefetchable
+    auto curTile = tiling[0];
+    auto nextTile = tiling[1];
+
+    const auto& curTileTypes = getTileTypes(origOp, curTile);
+    const auto& nextTileTypes = getTileTypes(origOp, nextTile);
+    return {curTileTypes[0], curTileTypes[1], nextTileTypes[0]};
+}
+
+//
+// verifyPrefetchCMX
+//
+
+bool vpux::VPU::NCEMaxPoolOp::verifyPrefetchCMX(const vpux::OutputTiling& tiling) {
+    if (tiling.size() <= 1) {
+        return false;
+    }
+    if (vpux::IE::isNestedTiling(tiling)) {
+        return false;
+    }
+
+    Byte requiredCMX(0);
+    auto requiredOperands = getRequiredOperandsForPrefetch(*this, tiling);
+    VPUX_THROW_UNLESS(requiredOperands.size() == 3, "NCEMaxPoolOp needs 3 operands for prefetch, got {0}",
+                      requiredOperands.size());
+    for (auto memItem : memSizes(kernel_size(), strides(), requiredOperands[0], requiredOperands[1])) {
+        requiredCMX += memItem;
+    }
+    requiredCMX += requiredOperands[2].getTotalAllocSize();
 
     return requiredCMX <= getTotalCMXSize(*this);
 }

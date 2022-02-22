@@ -15,6 +15,8 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -49,16 +51,7 @@ SmallVector<Byte> VPU::NCEConvolutionOp::memSizes(mlir::ArrayAttr strides, vpux:
         requiredCMX[1] = filter.getTotalAllocSize();
         //  requiredCMX[4] activationWindow size equals 0
     } else if (inOrder == DimsOrder::NCHW) {
-        const auto alignment = NCEInvariant::getAlignment(output.getElementType());
-
-        const auto remainder = (IC * KY * KX) % alignment;
-        VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
-
-        const auto padding = (remainder > 0) ? (alignment - remainder) : 0;
-
-        const auto alignedFilterShape = SmallVector<int64_t>{OC, 1, 1, IC * KY * KX + padding};
-        const auto alignedFilter =
-                mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType()).cast<vpux::NDTypeInterface>();
+        const auto alignedFilter = vpux::IE::getAlignedFilterType({input, filter, output});
 
         const auto kernelSize = Shape{KY, KX};
 
@@ -71,7 +64,7 @@ SmallVector<Byte> VPU::NCEConvolutionOp::memSizes(mlir::ArrayAttr strides, vpux:
         requiredCMX[1] = alignedFilter.getTotalAllocSize();
         requiredCMX[4] = activationWindowSize * 1_Byte;
     } else {
-        VPUX_THROW("[{0}] Unsupported input layout '{1}'", (*this)->getLoc(), inOrder);
+        VPUX_THROW("[{0}] Unsupported input layout '{1}'", this->getLoc(), inOrder);
     }
 
     return requiredCMX;
@@ -89,6 +82,59 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::
     for (auto memItem : memList) {
         requiredCMX += memItem;
     }
+
+    return requiredCMX <= getTotalCMXSize(*this);
+}
+
+SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEConvolutionOp origOp, const TileInfo& outTile) {
+    const auto origBiasShape = origOp.bias().hasValue() ? origOp.bias().getValue().getShape() : ShapeRef();
+    const auto origPadding = toPadInfo(origOp.pad());
+
+    auto tileConf = vpux::backInferConvTile(outTile, getShape(origOp.input()), getShape(origOp.filter()), origBiasShape,
+                                            origOp.strides(), origPadding);
+
+    return {origOp.input().getType().cast<vpux::NDTypeInterface>().extractDenseTile(tileConf.tiles[0].offsets,
+                                                                                    tileConf.tiles[0].shape),
+            origOp.filter().getType().cast<vpux::NDTypeInterface>().extractDenseTile(tileConf.tiles[1].offsets,
+                                                                                     tileConf.tiles[1].shape),
+            origOp.getType().cast<vpux::NDTypeInterface>().extractDenseTile(outTile.offsets, outTile.shape)};
+}
+
+SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPrefetch(VPU::NCEConvolutionOp origOp,
+                                                                  vpux::OutputTiling tiling) {
+    // The tiling strategy follows last-tile-not-biggest
+    // So just check the first two tiles are enough to make sure prefetchable
+    auto curTile = tiling[0];
+    auto nextTile = tiling[1];
+    bool isWeightPrefetch = curTile.axis[Dims4D::Act::C] > 1;
+
+    const auto& curTileTypes = getTileTypes(origOp, curTile);
+    const auto& nextTileTypes = getTileTypes(origOp, nextTile);
+
+    return {curTileTypes[0], vpux::IE::getAlignedFilterType(curTileTypes), curTileTypes[2],
+            isWeightPrefetch ? vpux::IE::getAlignedFilterType(nextTileTypes) : nextTileTypes[0]};
+}
+
+//
+// verifyPrefetchCMX
+//
+
+bool vpux::VPU::NCEConvolutionOp::verifyPrefetchCMX(const vpux::OutputTiling& tiling) {
+    if (tiling.size() <= 1) {
+        return false;
+    }
+    if (vpux::IE::isNestedTiling(tiling)) {
+        return false;
+    }
+
+    Byte requiredCMX(0);
+    auto requiredOperands = getRequiredOperandsForPrefetch(*this, tiling);
+    VPUX_THROW_UNLESS(requiredOperands.size() == 4, "NCEConvolutionOp needs 4 operands for prefetch, got {0}",
+                      requiredOperands.size());
+    for (auto memItem : memSizes(strides(), requiredOperands[0], requiredOperands[1], requiredOperands[2])) {
+        requiredCMX += memItem;
+    }
+    requiredCMX += requiredOperands[3].getTotalAllocSize();
 
     return requiredCMX <= getTotalCMXSize(*this);
 }

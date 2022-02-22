@@ -15,6 +15,8 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -45,6 +47,58 @@ bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDT
     for (auto memItem : memList) {
         requiredCMX += memItem;
     }
+
+    return requiredCMX <= getTotalCMXSize(*this);
+}
+
+SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEEltwiseOp origOp, const TileInfo& outTile) {
+    auto* op = origOp.getOperation();
+    auto tileConf = vpux::IE::backInferEltwiseTile(op, outTile);
+
+    SmallVector<vpux::NDTypeInterface> tileTypes;
+
+    tileTypes.push_back(op->getOperand(0).getType().cast<vpux::NDTypeInterface>().extractDenseTile(
+            tileConf.tiles[0].offsets, tileConf.tiles[0].shape));
+    tileTypes.push_back(op->getOperand(1).getType().cast<vpux::NDTypeInterface>().extractDenseTile(
+            tileConf.tiles[1].offsets, tileConf.tiles[1].shape));
+    tileTypes.push_back(
+            op->getResult(0).getType().cast<vpux::NDTypeInterface>().extractDenseTile(outTile.offsets, outTile.shape));
+
+    return tileTypes;
+}
+
+SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPrefetch(VPU::NCEEltwiseOp origOp, vpux::OutputTiling tiling) {
+    // The tiling strategy follows last-tile-not-biggest
+    // So just check the first two tiles are enough to make sure prefetchable
+    auto curTile = tiling[0];
+    auto nextTile = tiling[1];
+
+    const auto& curTileTypes = getTileTypes(origOp, curTile);
+    const auto& nextTileTypes = getTileTypes(origOp, nextTile);
+
+    return {curTileTypes[0], curTileTypes[1], curTileTypes[2], nextTileTypes[0], nextTileTypes[1]};
+}
+
+//
+// verifyPrefetchCMX
+//
+
+bool vpux::VPU::NCEEltwiseOp::verifyPrefetchCMX(const vpux::OutputTiling& tiling) {
+    if (tiling.size() <= 1) {
+        return false;
+    }
+    if (vpux::IE::isNestedTiling(tiling)) {
+        return false;
+    }
+
+    Byte requiredCMX(0);
+    auto requiredOperands = getRequiredOperandsForPrefetch(*this, tiling);
+    VPUX_THROW_UNLESS(requiredOperands.size() == 5, "NCEEltwiseOp needs 5 operands for prefetch, got {0}",
+                      requiredOperands.size());
+    for (auto memItem : memSizes(requiredOperands[0], requiredOperands[1], requiredOperands[2])) {
+        requiredCMX += memItem;
+    }
+    requiredCMX += requiredOperands[3].getTotalAllocSize() + requiredOperands[4].getTotalAllocSize();
 
     return requiredCMX <= getTotalCMXSize(*this);
 }

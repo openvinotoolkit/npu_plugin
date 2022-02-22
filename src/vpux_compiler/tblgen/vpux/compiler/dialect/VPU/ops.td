@@ -160,9 +160,9 @@ def VPU_NCEConvolutionOp :
                                    vpux::NDTypeInterface output);
         bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                vpux::NDTypeInterface output);
+        bool verifyPrefetchCMX(const vpux::OutputTiling& tiling);
 
         static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
-
         static int64_t getInputChannelAlignment(vpux::NDTypeInterface inputType);
     }] # baseExtraClassDeclaration;
 
@@ -230,6 +230,7 @@ def VPU_NCEDepthConvolutionOp :
                                    vpux::NDTypeInterface output);
         bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                vpux::NDTypeInterface output);
+        bool verifyPrefetchCMX(const vpux::OutputTiling& tiling);
 
         static bool isSupported(vpux::IE::GroupConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
@@ -293,6 +294,7 @@ def VPU_NCEMaxPoolOp :
         SmallVector<Byte> memSizes(mlir::ArrayAttr kernelSize, mlir::ArrayAttr strides,
                                    vpux::NDTypeInterface input, vpux::NDTypeInterface output);
         bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
+        bool verifyPrefetchCMX(const vpux::OutputTiling& tiling);
 
         static bool isSupported(vpux::IE::MaxPoolOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
@@ -353,6 +355,7 @@ def VPU_NCEEltwiseOp :
                                    vpux::NDTypeInterface output);
         bool fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
                                vpux::NDTypeInterface output);
+        bool verifyPrefetchCMX(const vpux::OutputTiling& tiling);
 
         static bool isSupported(mlir::Operation* op, bool allowDifferentScales, bool allowDifferentZp,
                                 vpux::VPU::NCEInvariant::LogCb logCb);
