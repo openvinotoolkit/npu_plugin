@@ -327,9 +327,9 @@ bool CMXConcatPass::childOperationsDoNotFitInCMX(ConcatPattern concatPattern, si
     // NNCMX buffer could be held for many cycles filling up NNCMX space. To avoid this
     // scenario, ensure that there is space for parallel consumer branches
     // assume longest branch is equal to number of parallel consumers
-    _log.nest(3).trace("Concat consumer max size '{0}'", ((parallelConsumerCount * maxConsumerSize) + concatSize));
+    _log.nest(3).trace("Concat consumer max size '{0}'", (parallelConsumerCount * (maxConsumerSize + concatSize)));
     // return concat size greater than CMX size
-    return ((parallelConsumerCount * maxConsumerSize) + concatSize) > cmxSize;
+    return (parallelConsumerCount * (maxConsumerSize + concatSize)) > cmxSize;
 }
 
 size_t CMXConcatPass::getParallelConsumerCount(ConcatPattern concatPattern) {
