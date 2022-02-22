@@ -63,6 +63,9 @@ void elu_fp16(uint32_t lParamsAddr) {
     half* p_act_data_s = (half*)(lParams->input.dataAddr);  // 0x1F000000
     half* p_act_out_s = (half*)(lParams->output.dataAddr);  // 0x1F004000
 
+    /*DBG*/printf("elu_fp16 in  @ 0x%x\n", lParams->input.dataAddr);
+    /*DBG*/printf("elu_fp16 out @ 0x%x\n", lParams->output.dataAddr);
+
     const EluParams* layerParams = reinterpret_cast<const EluParams*>(lParams);
     const half alpha = layerParams->alpha;
     int32_t* pDims = (int32_t*)(lParams->input.dimsAddr);
@@ -78,6 +81,10 @@ void elu_fp16(uint32_t lParamsAddr) {
         // TODO: check overflow
         nElements *= pDims[i];
     }
+    /*DBG*/ printf("elu_fp16 dims[%d]:", lParams->input.numDims);
+    /*DBG*/ for(i=0; i<lParams->input.numDims; i++)
+    /*DBG*/   printf("%d, ", pDims[i]);
+    /*DBG*/ printf("\n");
 
     const int numVectors = nElements / VECTOR_SIZE;
 
