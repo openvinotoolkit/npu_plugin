@@ -250,6 +250,12 @@ void UPALayerRunner::setupShave(const ShaveResource &res, const SoftKernel &kern
     nnLog(MVLOG_INFO, "SVU NN RT Entry: %p", kernel.kernelEntry);
 #endif
 
+    /*DBG*/ if(0){
+    /*DBG*/  printf("__SVU NN RT Code : %p size: %ld\n", kernel.codeBaseAddress, kernel.codeSize);
+    /*DBG*/  printf("__SVU NN RT Data : %p size: %ld\n", kernel.dataBaseAddress, kernel.dataSize);
+    /*DBG*/  printf("__SVU NN RT Entry: %p\n", kernel.kernelEntry);
+    /*DBG*/ }
+
     assert(SHAVE_LIB_STACK_MAX_SIZE + kernel.dataSize <= CMX_SLICE_SIZE && "Exceeded SVU NN RT CMX slice total size");
 
     // Copy data area to CMX

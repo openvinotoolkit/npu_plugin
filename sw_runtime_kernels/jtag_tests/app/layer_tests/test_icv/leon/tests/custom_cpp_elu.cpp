@@ -73,6 +73,13 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Elu)) {
             m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
 
             CustomCppTests<fp16>::initData();
+            /*DBG*/ printf("__DEBUG__\n");
+            /*DBG*/ printf("__ m_elfBuffer    @ %p\n", m_elfBuffer);
+            /*DBG*/ printf("__ m_inputTensor  @ %p\n", m_inputTensor.buffer());
+            /*DBG*/ printf("__ m_outputTensor @ %p\n", m_outputTensor.buffer());
+            /*DBG*/ printf("__ paramContainer @ %p (nn-cmx)\n", paramContainer);
+
+
             const SingleTest* test = m_currentTest;
             const Hex alpha_hex = {.i = test->customLayerParams.layerParams[0]};
             m_alpha = alpha_hex.f;

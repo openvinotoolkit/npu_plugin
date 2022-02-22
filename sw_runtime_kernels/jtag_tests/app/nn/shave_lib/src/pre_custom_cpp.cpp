@@ -102,25 +102,34 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
                 reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(cmxParams->argBuffer) + kernelArgs->inputsOffset);
         MemRefData * outs =
                 reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(cmxParams->argBuffer) + kernelArgs->outputsOffset);
+
+        /*DBG*/ printf("__numInputs = %d\n", kernelArgs->numInputs);
         for (unsigned int i = 0; i < kernelArgs->numInputs; i++) {
             ins[i].dataAddr = reinterpret_cast<uint32_t>(resMgr->getAbsoluteInputAddr(i));
+            /*DBG*/ printf("__insA[%d].dataAddr = 0x%x\n", i, ins[i].dataAddr);
             inputLocations[i] = ins[i].location;
             if (cfg->moveToCmxIfNecessary &&
                     (ins[i].location == sw_params::Location::NN_CMX || ins[i].location == sw_params::Location::UPA_CMX)) {
                 unsigned int usedBytes = getTotalBytes(ins[i]);
+                //WOW_1: daca incape in CMX, face o copie
                 if (usedBytes <= cmxParams->availableCmxBytes) {
                     dmaTask.start(reinterpret_cast<uint8_t*>(ins[i].dataAddr), cmxParams->cmxData, usedBytes);
                     dmaTask.wait();
+                   //WOW_2: si patch-uie adresa
                     ins[i].dataAddr = reinterpret_cast<uint32_t>(cmxParams->cmxData);
                     cmxParams->cmxData += usedBytes;
                     cmxParams->availableCmxBytes -= usedBytes;
-                } else {
+                } //WOW_3: altfel, ruleaza din DDR
+                else {
                     ins[i].location = sw_params::Location::DDR;
                 }
             }
+            /*DBG*/ printf("__insB[%d].dataAddr = 0x%x\n", i, ins[i].dataAddr);
         }
+
         for (unsigned int i = 0; i < kernelArgs->numOutputs; i++) {
             outs[i].dataAddr = reinterpret_cast<uint32_t>(resMgr->getAbsoluteOutputAddr(i));
+            /*DBG*/ printf("__outsA[%d].dataAddr = 0x%x\n", i, outs[i].dataAddr);
             outputLocations[i] = outs[i].location;
             if (cfg->moveToCmxIfNecessary &&
                     (outs[i].location == sw_params::Location::NN_CMX || outs[i].location == sw_params::Location::UPA_CMX)) {
@@ -133,6 +142,7 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
                     outs[i].location = sw_params::Location::DDR;
                 }
             }
+            /*DBG*/ printf("__outsB[%d].dataAddr = 0x%x\n", i, outs[i].dataAddr);
         }
 
 #ifdef ENABLE_CUSTOM_KERNEL_PERF_COUNTERS
@@ -152,14 +162,21 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
 #if defined(__leon_rt__) || defined(__leon__)
         nn::cache::flush(cmxParams, sizeof(CustomLayerCppParams));
 #else
+        //===========================================================
+        // WOW: Aici se invoca kernel !!!
         if (cfg->kernel) {
 #ifdef CONFIG_TARGET_SOC_3720
 #endif
+            /*DBG*/ printf("___CALL_KERNEL\n");
             Kernel k = reinterpret_cast<Kernel>(cfg->kernel);
             (*k)(reinterpret_cast<uint32_t>(cmxParams->argBuffer));
         }
 #endif
+        //===========================================================
+
+        //alu: copy back 'outs' to DDR
         if (cfg->moveToCmxIfNecessary) {
+            //alu: se restaureaza adresele temporar modificate (nu tre facut nici un copy)
             for (unsigned int i = 0; i < kernelArgs->numInputs; i++) {
                 if (ins[i].dataAddr != reinterpret_cast<uint32_t>(resMgr->getAbsoluteInputAddr(i)) &&
                         (ins[i].location == sw_params::Location::NN_CMX || ins[i].location == sw_params::Location::UPA_CMX)) {
@@ -168,6 +185,7 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
                 if (inputLocations[i] != ins[i].location)
                     ins[i].location = inputLocations[i];
             }
+            //alu: dma CMX->DDR
             for (unsigned int i = 0; i < kernelArgs->numOutputs; i++) {
                 if (outs[i].dataAddr != reinterpret_cast<uint32_t>(resMgr->getAbsoluteOutputAddr(i)) &&
                         (outs[i].location == sw_params::Location::NN_CMX || outs[i].location == sw_params::Location::UPA_CMX)) {
