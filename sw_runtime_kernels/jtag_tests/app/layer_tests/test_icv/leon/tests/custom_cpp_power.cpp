@@ -27,14 +27,15 @@ __attribute__((aligned(1024)))
 #include "param_power.h"
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
-    static constexpr std::initializer_list<SingleTest> exp_test_list {
-        {{1, 1, 7},   {1, 1, 7},     orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
-        {{1, 1, 20},   {1, 1, 20},   orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
-        {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}}};
+    static constexpr std::initializer_list<SingleTest> pow_test_list {
+       // {{1, 1, 7},   {1, 1, 7},     orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
+          {{1, 1, 20},   {1, 1, 20},   orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
+       // {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}}
+       };
 
     class CustomCppPowerTest : public CustomCppTests<fp16> {
     public:
-        explicit CustomCppPowerTest(): m_testsLoop(exp_test_list, "test") {
+        explicit CustomCppPowerTest(): m_testsLoop(pow_test_list, "test") {
         }
         virtual ~CustomCppPowerTest() {
         }
@@ -56,18 +57,15 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
           #else
             initElfBuffer();
             initTestCase();
-            const Dimensions& dimIn = m_currentTest->inDim;
-            const Dimensions& dimOut = m_currentTest->outDim;
+
+            const Dimensions& dims = m_currentTest->inDim; // inDims == outDims
             const StorageOrder& storageOrder = m_currentTest->storageOrder;
+            const TensorDims tDims(dims.width, dims.height, dims.channels,  1);
 
-
-            const TensorDims dims3In(dimIn.width,   dimIn.height,  dimIn.channels,  1);
-            const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
-
-            m_inTensor[0].init(storageOrder, dims3In);
-            m_inTensor[1].init(storageOrder, dims3In);
-            m_outputTensor.init(storageOrder, dims3Out);
-            m_referenceOutputTensor.init(storageOrder, dims3Out);
+            m_inTensor[0].init(storageOrder, tDims);
+            m_inTensor[1].init(storageOrder, tDims);
+            m_outputTensor.init(storageOrder, tDims);
+            m_referenceOutputTensor.init(storageOrder, tDims);
 
             allocBuffer(m_inTensor[0]);
             allocBuffer(m_inTensor[1]);
@@ -108,19 +106,16 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
             u64 ticks_for_seed = rtems_clock_get_uptime_nanoseconds();
             srand(ticks_for_seed);
 
-            // input
-            m_inTensor[0].forEach(false, [&](const MemoryDims& indices) {
+            // inputs
+            for(int x=0; x<2; x++){
+             m_inTensor[x].forEach(false, [&](const MemoryDims& indices) {
                 float tmp = float(rand() % 600) / 100 - 3.0f;
-                m_inTensor[0].at(indices) = f32Tof16(tmp);
-            });
-
-            m_inTensor[1].forEach(false, [&](const MemoryDims& indices) {
-                float tmp = float(rand() % 500) / 100 - 2.0f;
-                m_inTensor[1].at(indices) = f32Tof16(tmp);
-            });
+                m_inTensor[x].at(indices) = f32Tof16(tmp);
+             });
+            }
         }
         void generateReferenceData() override {
-            m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
+            m_inTensor[0].forEach(false, [&](const MemoryDims& indices) {
                 float val1 = f16Tof32(m_inTensor[0].at(indices));
                 float val2 = f16Tof32(m_inTensor[1].at(indices));
                 float ref  = powf(val1, val2);
@@ -166,7 +161,9 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
 
                 threshold_test_failed |= differ;
 
-                if (differ && GlobalData::doPrintDiffs) {
+                GlobalData::doPrintDiffs = 1;
+                // if (differ && GlobalData::doPrintDiffs)
+                {
                     const TensorDims ti = m_outputTensor.toTensor(indices);
                     printf("DIFF HWC [%d:%d:%d] %f %f %f\n", ti.height, ti.width, ti.channels, value, gt_value,
                            abs_diff);
