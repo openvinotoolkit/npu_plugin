@@ -92,5 +92,8 @@ void adjustRawFilterShape(ConcreteOp* op, const TileInfo& outputTile) {
 void print(mlir::OpAsmPrinter& p, VPU::NCEClusterTilingOp op);
 mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);
 
+// Get memSizes for unknown type operations
+
+SmallVector<Byte> getMemSizes(mlir::Operation* op);
 }  // namespace VPU
 }  // namespace vpux
