@@ -23,6 +23,7 @@
 [submodule "mcm-emulator"]
 	path = src/vpux_emulator
 	url = git@gitlab-icv.inn.intel.com:kmb-emulator/mcm-emulator.git
+	branch = ccrisan/standalone-build-working
 [submodule "thirdparty/json"]
 	path = thirdparty/json
 	url = https://github.com/nlohmann/json.git
