@@ -27,7 +27,7 @@ namespace mv
 
 void fuseImplicitsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    fuseConcatsFcn(pass, model);
+    //fuseConcatsFcn(pass, model);
     fuseCropSliceFcn(pass, model);
     fuseCropStridedSliceFcn(pass, model);
     fuseSliceSliceFcn(pass, model);
