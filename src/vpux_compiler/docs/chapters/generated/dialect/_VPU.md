@@ -62,10 +62,11 @@ NCE version of Convolution layer
 Syntax:
 
 ```
-operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `)`
+operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $weightsTable `)`
+              (`(` `activationWindow` `:` $activationWindow^ `:` custom<OptionalTypes>(type($activationWindow)) `)`)?
               (`(` `bias` `:` $bias^ `)`)?
               attr-dict
-              custom<OptionalTypes>(type($input), type($filter)) ``
+              custom<OptionalTypes>(type($input), type($filter), type($weightsTable)) ``
               `->` type(results)
               custom<OptionalRegion>($workloads)
 ```
@@ -81,6 +82,7 @@ operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `)`
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 `ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
 `rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -88,6 +90,8 @@ operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `)`
 | :-----: | ----------- |
 `input` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
 `filter` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+`weightsTable` | 4D tensor of 32-bit signed integer values
+`activationWindow` | 4D tensor of 8-bit unsigned integer values
 
 #### Results:
 
@@ -103,10 +107,10 @@ NCE version of Depthwise Convolution layer
 Syntax:
 
 ```
-operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `)`
+operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTable `,` $activationWindow `)`
               (`(` `bias` `:` $bias^ `)`)?
               attr-dict
-              custom<OptionalTypes>(type($input), type($filter)) ``
+              custom<OptionalTypes>(type($input), type($filter), type($weightsTable), type($activationWindow)) ``
               `->` type(results)
               custom<OptionalRegion>($workloads)
 ```
@@ -122,6 +126,7 @@ operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `)`
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 `ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
 `rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -129,6 +134,8 @@ operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `)`
 | :-----: | ----------- |
 `input` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
 `filter` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+`weightsTable` | 4D tensor of 32-bit signed integer values
+`activationWindow` | 4D tensor of 8-bit unsigned integer values
 
 #### Results:
 
@@ -181,9 +188,9 @@ NCE version of MaxPool layer
 Syntax:
 
 ```
-operation ::= `VPU.NCE.MaxPool` `(` $input `)`
+operation ::= `VPU.NCE.MaxPool` `(` $input `,` $weightsTable `,` $activationWindow `)`
               attr-dict
-              custom<OptionalTypes>(type($input)) ``
+              custom<OptionalTypes>(type($input), type($weightsTable), type($activationWindow)) ``
               `->` type(results)
               custom<OptionalRegion>($workloads)
 ```
@@ -198,12 +205,15 @@ operation ::= `VPU.NCE.MaxPool` `(` $input `)`
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 `ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
+`activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+`weightsTable` | 4D tensor of 32-bit signed integer values
+`activationWindow` | 4D tensor of 8-bit unsigned integer values
 
 #### Results:
 
