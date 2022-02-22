@@ -143,7 +143,7 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<NCEMaxPoolOp>::matchAndRewrite(
     };
 
     auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
-            origOp->getLoc(), distributedOutputTensorType, mlir::ValueRange{distributedActivationCopyOp->getResult(0)},
+            origOp->getLoc(), distributedOutputTensorType, distributedActivationCopyOp->getResult(0),
             bodyBuilder);
 
     const auto outputTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
