@@ -1265,9 +1265,20 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
                         s["inputMustSpill"] = decideCMXable(op, true);
                         s["outputMustSpill"] = decideCMXable(op, false);
 
+                        if(op.getOpType() == "Conv") {
+                            size_t input, output, weights;
+                            input = output = weights = 0;
+                            std::tie(input, output, weights) = memorySize(op, 4, "SplitOverH", false, false, false,{1,1,1,1,1}, false, false, false);
+                            std::cout << "input = " << input << std::endl;
+                            std::cout << "output = " << output << std::endl;
+                            std::cout << "weights = " << weights << std::endl;
+                            exit(0);
+                        }
+
                         //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                         auto strategyCheck = validateStrategy(op,s);
                         // std::cout << op.getName() << " : " << clustering.toString() << " : " << streamShape.toString() << " : pS " << parentSpilling.toString() << " : S " << spilling.toString() << " : I " << inputSparsity.toString() << " : O " << outputSparsity.toString() << " = " << failure_causes[strategyCheck]<< std::endl;
+                                                
                         if(strategyCheck != FailCause::Pass)
                             continue;
 

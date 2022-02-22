@@ -25,8 +25,8 @@ TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR_SW) {
 }
 
 TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
-    setDefaultHardwareModeMLIR();
+//     useCompilerMLIR();
+//     setDefaultHardwareModeMLIR();
     Run();
 }
 
