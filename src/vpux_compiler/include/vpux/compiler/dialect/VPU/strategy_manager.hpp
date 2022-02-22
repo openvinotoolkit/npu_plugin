@@ -31,9 +31,84 @@ namespace vpux {
 namespace VPU {
 
 //
+// BaseLayerStrategy
+//
+
+// Abstract base class
+// Specific method implimentations for each layer type are required
+// in the derived classes
+// Examples:
+// (1) Does a particular layer with a particular strategy fit in CMX
+// (2) The hardware efficiency for a particular layer with a particular strategy
+//
+// Note: This will probably be replaced by operation interface for operation
+// cost model EISW-26043.
+class BaseLayerStrategy {
+public:
+    explicit BaseLayerStrategy(mlir::FuncOp func, Logger log);
+    virtual ~BaseLayerStrategy() = default;
+
+    virtual bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const = 0;
+    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
+
+    int32_t _numClusters;
+    const long int _minimumOutputHeightForSOH = 20;
+    const size_t _numChannelAlignment = 16;
+    mlir::FuncOp _func;
+    Logger _log;
+};
+
+//
+// ConvolutionStrategy
+//
+class ConvolutionStrategy : public BaseLayerStrategy {
+public:
+    ConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+
+    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+};
+
+//
+// DepthConvolutionStrategy
+//
+class DepthConvolutionStrategy : public BaseLayerStrategy {
+public:
+    DepthConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+};
+
+//
+// MaxPoolStrategy
+//
+class MaxPoolStrategy : public BaseLayerStrategy {
+public:
+    MaxPoolStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+
+    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+};
+
+//
+// EltwiseStrategy
+//
+class EltwiseStrategy : public BaseLayerStrategy {
+public:
+    EltwiseStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+
+    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+};
+
+//
 // StrategyManager
 //
 
+// Higher level strategy manager class
+// It's current purpose is to globally assign strategies
+// In future it may have methods for finding sub-graphs
+// and other strategy related utilites
 class StrategyManager final {
 public:
     explicit StrategyManager(mlir::FuncOp func, Logger log);
@@ -42,129 +117,15 @@ public:
     void assignMultiClusterStrategy();
 
 private:
-    template <class ConcreteOp>
-    bool isOperationSplitOverHeightCompatible(ConcreteOp origOp) const;
-    template <class ConcreteOp>
-    bool doesSplitOverHeightLayerFitIntoCMX(ConcreteOp origOp) const;
+    void setLayerStrategy(const llvm::StringRef strategy, mlir::Operation* origOp) const;
 
-    int32_t _numClusters;
-    const long int _minimumHeightForSOH = 20;
-    const size_t _numChannelAlignment = 16;
     mlir::FuncOp _func;
     Logger _log;
+    ConvolutionStrategy _convolutionStrategy;
+    DepthConvolutionStrategy _depthConvolutionStrategy;
+    MaxPoolStrategy _maxPoolStrategy;
+    EltwiseStrategy _eltwiseStrategy;
 };
 
-// An operation is SOH compitable if it has an output height of at least 20
-// The reason is because the output tensor in each cluster will only have a
-// height of 5 (20/4, assuming 4 cluster compilation).
-// There are 5 DPUs in a cluster so each DPU will compute at least one output line
-template <class ConcreteOp>
-bool StrategyManager::isOperationSplitOverHeightCompatible(ConcreteOp origOp) const {
-    const auto outputShape = getShape(origOp.output());
-    const auto OH = outputShape[Dims4D::Act::H];
-    return OH >= _minimumHeightForSOH;
-}
-
-template <class ConcreteOp>
-bool StrategyManager::doesSplitOverHeightLayerFitIntoCMX(ConcreteOp origOp) const {
-    auto activationTensorDistributionMode = DistributionMode::SEGMENTED;
-    auto activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, _numClusters, 1}));
-    auto weightsTensorDistributionMode = DistributionMode::MULTICASTED;
-    auto weightTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
-    auto distributedOutputTensorType =
-            createDistributedOutputTensorType(origOp, activationTensorDistributionMode, activationTensorNumTiles);
-    auto outputShape = getShape(origOp.output());
-    auto OC = outputShape[Dims4D::Act::C];
-    Byte totalMemorySize(0);
-    int64_t activationWindowSize = 0;
-
-    if (auto convolutionOp = mlir::dyn_cast<NCEConvolutionOp>(origOp.getOperation())) {
-        auto distributedActivationTensorType = createDistributedInputTensorType(
-                convolutionOp, convolutionOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
-        auto distributeddWeightsTensorType = createDistributedInputTensorType(
-                convolutionOp, convolutionOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
-        auto weightsTable = NCEInvariant::getWeightsTableSize(OC);
-
-        if (DimsOrder::fromValue(convolutionOp.input()) == DimsOrder::NCHW) {
-            // TODO: Simplify?
-            const auto filterShape =
-                    convolutionOp.rawFilterShape().hasValue()
-                            ? Shape(parseIntArrayAttr<int64_t>(convolutionOp.rawFilterShape().getValue()))
-                            : getShape(convolutionOp.filter()).toValues();
-            const auto IC = filterShape[Dims4D::Filter::IC];
-            const auto KY = filterShape[Dims4D::Filter::KY];
-            const auto KX = filterShape[Dims4D::Filter::KX];
-            const auto kernelSize = Shape{KY, KX};
-            const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(convolutionOp.strides()));
-            const auto SX = kernelStrides[Dims4D::Strides::X];
-            auto elemType = convolutionOp.input().getType().template cast<mlir::ShapedType>().getElementType();
-            activationWindowSize =
-                    NCESparsity::getActivationWindowSize(NCESparsity::Mode::CM_CONV, kernelSize, SX, elemType, IC);
-        }
-
-        totalMemorySize += distributedActivationTensorType.getTotalAllocSize() +
-                           distributeddWeightsTensorType.getTotalAllocSize() +
-                           distributedOutputTensorType.getTotalAllocSize() + weightsTable +
-                           activationWindowSize * 1_Byte;
-    } else if (auto depthwiseConvolutionOp = mlir::dyn_cast<NCEDepthConvolutionOp>(origOp.getOperation())) {
-        auto distributedActivationTensorType =
-                createDistributedInputTensorType(depthwiseConvolutionOp, depthwiseConvolutionOp.input(),
-                                                 activationTensorDistributionMode, activationTensorNumTiles);
-        auto distributeddWeightsTensorType =
-                createDistributedInputTensorType(depthwiseConvolutionOp, depthwiseConvolutionOp.filter(),
-                                                 weightsTensorDistributionMode, weightTensorNumTiles);
-        auto weightsTable = NCEInvariant::getWeightsTableSize(OC);
-
-        const auto filterShape =
-                depthwiseConvolutionOp.rawFilterShape().hasValue()
-                        ? Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShape().getValue()))
-                        : getShape(depthwiseConvolutionOp.filter()).toValues();
-        const auto IC = filterShape[Dims4D::Filter::IC];
-        const auto KY = filterShape[Dims4D::Filter::KY];
-        const auto KX = filterShape[Dims4D::Filter::KX];
-        const auto kernelSize = Shape{KY, KX};
-        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.strides()));
-        const auto SX = kernelStrides[Dims4D::Strides::X];
-        auto elemType = depthwiseConvolutionOp.input().getType().template cast<mlir::ShapedType>().getElementType();
-        activationWindowSize =
-                NCESparsity::getActivationWindowSize(NCESparsity::Mode::DW_CONV, kernelSize, SX, elemType, IC);
-
-        totalMemorySize += distributedActivationTensorType.getTotalAllocSize() +
-                           distributeddWeightsTensorType.getTotalAllocSize() +
-                           distributedOutputTensorType.getTotalAllocSize() + weightsTable +
-                           activationWindowSize * 1_Byte;
-    } else if (auto maxPoolOp = mlir::dyn_cast<NCEMaxPoolOp>(origOp.getOperation())) {
-        auto distributedActivationTensorType = createDistributedInputTensorType(
-                maxPoolOp, maxPoolOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
-        auto weightsTable = NCEInvariant::getWeightsTableSize(OC);
-
-        const auto inputShape = getShape(maxPoolOp.input());
-        const auto IC = inputShape[Dims4D::Act::C];
-        const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(maxPoolOp.kernel_size()));
-        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(maxPoolOp.strides()));
-        const auto SX = kernelStrides[Dims4D::Strides::X];
-        auto elemType = maxPoolOp.input().getType().template cast<mlir::ShapedType>().getElementType();
-        activationWindowSize =
-                NCESparsity::getActivationWindowSize(NCESparsity::Mode::POOL, kernelSize, SX, elemType, IC);
-
-        totalMemorySize += distributedActivationTensorType.getTotalAllocSize() +
-                           distributedOutputTensorType.getTotalAllocSize() + weightsTable +
-                           activationWindowSize * 1_Byte;
-    } else if (auto eltwiseOp = mlir::dyn_cast<NCEEltwiseOp>(origOp.getOperation())) {
-        auto distributedInput1TensorType = createDistributedInputTensorType(
-                eltwiseOp, eltwiseOp.input1(), activationTensorDistributionMode, activationTensorNumTiles);
-        auto distributedInput2TensorType = createDistributedInputTensorType(
-                eltwiseOp, eltwiseOp.input2(), weightsTensorDistributionMode, weightTensorNumTiles);
-
-        totalMemorySize += distributedInput1TensorType.getTotalAllocSize() +
-                           distributedInput2TensorType.getTotalAllocSize() +
-                           distributedOutputTensorType.getTotalAllocSize();
-    } else {
-        VPUX_THROW("Attempting to calculate CMX memory size for operation {0}, which is not a NCE Task",
-                   origOp->getName());
-    }
-
-    return totalMemorySize <= getTotalCMXSize(origOp.getOperation());
-}
 }  // namespace VPU
 }  // namespace vpux
