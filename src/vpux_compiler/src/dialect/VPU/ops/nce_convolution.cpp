@@ -25,6 +25,10 @@
 
 using namespace vpux;
 
+int64_t round_up(int64_t x, int64_t mult) {
+    return ((x + mult - 1) / mult) * mult;
+}
+
 //
 // fitIntoCMX
 //
@@ -44,7 +48,19 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::
     requiredCMX += input.getTotalAllocSize();
     requiredCMX += output.getTotalAllocSize();
 
-    requiredCMX += NCEInvariant::getWeightsTableSize(OC);
+    if (auto distributedFilter = filter.cast<VPU::DistributedTensorType>()) {
+        if (distributedFilter.getDistribution().mode().getValue() == DistributionMode::SEGMENTED) {
+            auto numTiles = parseIntArrayAttr<int64_t>(distributedFilter.getDistribution().num_tiles());
+            auto channelAlignment = 16;
+            auto alignedChannelSize = round_up(OC, channelAlignment);
+            auto alignedChannelSizePerCluster = round_up(alignedChannelSize / numTiles[1], channelAlignment);
+            requiredCMX += NCEInvariant::getWeightsTableSize(alignedChannelSizePerCluster);
+        } else {
+            requiredCMX += NCEInvariant::getWeightsTableSize(OC);
+        }
+    } else {
+        requiredCMX += NCEInvariant::getWeightsTableSize(OC);
+    }
 
     if (inOrder == DimsOrder::NHWC) {
         requiredCMX += filter.getTotalAllocSize();
