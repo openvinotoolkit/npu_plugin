@@ -27,8 +27,8 @@ using namespace vpux;
 void vpux::VPUIP::DistributedBufferType::walkImmediateSubElements(
         llvm::function_ref<void(mlir::Attribute)> walkAttrsFn, llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
     walkTypesFn(getElementType());
-    if (!getOrder().isIdentity()) {
-        walkAttrsFn(getOrder());
+    if (!getLayout().isIdentity()) {
+        walkAttrsFn(getLayout());
     }
     walkAttrsFn(getMemSpace());
     walkAttrsFn(getDistribution());
@@ -44,7 +44,16 @@ void vpux::VPUIP::DistributedBufferType::print(mlir::DialectAsmPrinter& printer)
         printer << dim << "x";
     }
     printer << getElementType();
-    printer << ", " << getOrder();
+
+    const auto layout = getLayout();
+    if (const auto mapAttr = layout.dyn_cast<mlir::AffineMapAttr>()) {
+        printer << ", " << mapAttr;
+    } else if (const auto descAttr = layout.dyn_cast<IERT::MemRefAttr>()) {
+        printer << ", " << descAttr;
+    } else {
+        VPUX_THROW("Unsupported MemRefType layout '{0}'", layout);
+    }
+
     printer << ", " << getMemSpace();
     printer << ", {";
 
@@ -89,10 +98,18 @@ mlir::Type vpux::VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& par
         return Type();
     }
 
-    mlir::AffineMapAttr order;
-    if (parser.parseAttribute(order)) {
+    mlir::MemRefLayoutAttrInterface layout;
+
+    mlir::AffineMapAttr mapAttr;
+    IERT::MemRefAttr memRefAttr;
+    if (parser.parseOptionalAttribute(mapAttr).hasValue()) {
+        layout = mapAttr;
+    } else if (parser.parseOptionalAttribute(memRefAttr).hasValue()) {
+        layout = memRefAttr;
+    } else {
         return Type();
     }
+
     if (parser.parseComma()) {
         return Type();
     }
@@ -177,7 +194,7 @@ mlir::Type vpux::VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& par
     auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTiles, kernel, pads, strides,
                                                            numClusters, parser.getContext());
     return static_cast<mlir::Type>(
-            get(parser.getContext(), makeArrayRef(shape), elemType, order, memSpace, distributedAttr));
+            get(parser.getContext(), makeArrayRef(shape), elemType, layout, memSpace, distributedAttr));
 }
 
 //
@@ -185,7 +202,7 @@ mlir::Type vpux::VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& par
 //
 
 mlir::MemRefType vpux::VPUIP::DistributedBufferType::getCompactType() const {
-    return mlir::MemRefType::get(getShape().raw(), getElementType(), getOrder().getValue(), getMemSpace());
+    return mlir::MemRefType::get(getShape().raw(), getElementType(), getLayout(), getMemSpace());
 }
 
 //
@@ -193,7 +210,7 @@ mlir::MemRefType vpux::VPUIP::DistributedBufferType::getCompactType() const {
 //
 
 vpux::MemShape vpux::VPUIP::DistributedBufferType::getMemShape() const {
-    const auto dimsOrder = DimsOrder::fromAffineMap(getOrder().getValue());
+    const auto dimsOrder = getDimsOrder();
     const auto shape = getShape();
     return dimsOrder.toMemoryOrder(shape);
 }
@@ -213,7 +230,16 @@ int64_t vpux::VPUIP::DistributedBufferType::getNumElements() const {
 }
 
 vpux::DimsOrder vpux::VPUIP::DistributedBufferType::getDimsOrder() const {
-    return DimsOrder::fromAffineMap(getOrder().getValue());
+    const auto layout = getLayout();
+    if (const auto mapAttr = layout.dyn_cast<mlir::AffineMapAttr>()) {
+        return DimsOrder::fromAffineMap(mapAttr.getValue());
+    }
+
+    if (const auto descAttr = layout.dyn_cast<IERT::MemRefAttr>()) {
+        return DimsOrder::fromAffineMap(descAttr.order().getValue());
+    }
+
+    VPUX_THROW("Missing layout information");
 }
 
 vpux::VPU::MemoryKind vpux::VPUIP::DistributedBufferType::getMemoryKind() const {
@@ -226,14 +252,28 @@ vpux::VPU::MemoryKind vpux::VPUIP::DistributedBufferType::getMemoryKind() const 
 }
 
 vpux::Strides vpux::VPUIP::DistributedBufferType::getStrides() const {
-    const auto mapAttr = getOrder();
-    VPUX_THROW_UNLESS(mapAttr.getValue().isPermutation(), "Got non permutation layout attribute '{0}'", mapAttr);
+    const auto layout = getLayout();
+    if (const auto mapAttr = layout.dyn_cast<mlir::AffineMapAttr>()) {
+        VPUX_THROW_UNLESS(mapAttr.getValue().isPermutation(), "Got non permutation layout attribute '{0}'", layout);
 
-    const auto order = getDimsOrder();
-    const auto memShape = getMemShape();
-    const auto memStrides = StrideReqs::compact(order.numDims()).calcStrides(getElemTypeSize(), memShape);
+        // Missing strides specification means compact strides.
+        const auto order = getDimsOrder();
+        const auto memShape = getMemShape();
+        const auto memStrides = StrideReqs::compact(order.numDims()).calcStrides(getElemTypeSize(), memShape);
 
-    return order.toLogicalOrder(memStrides);
+        return order.toLogicalOrder(memStrides);
+    }
+
+    if (const auto descAttr = layout.dyn_cast<IERT::MemRefAttr>()) {
+        const auto elemStrides = parseIntArrayAttr<int64_t>(descAttr.strides());
+        const auto elemSize = getElemTypeSize();
+
+        return Strides(to_small_vector(elemStrides | transformed([&](int64_t stride) {
+                                           return stride * elemSize;
+                                       })));
+    }
+
+    VPUX_THROW("Unsupported layout attribute type '{0}'", layout);
 }
 
 vpux::MemStrides vpux::VPUIP::DistributedBufferType::getMemStrides() const {

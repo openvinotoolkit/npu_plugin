@@ -86,7 +86,7 @@ operation ::= `VPURT.DeclareBuffer` $section ($sectionIndex^)? ` ``<` $byteOffse
 
 | Result | Description |
 | :----: | ----------- |
-`buffer` | memref of any type values
+`buffer` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPURT.DeclareSparseBuffer` (vpux::VPURT::DeclareSparseBufferOp)
 

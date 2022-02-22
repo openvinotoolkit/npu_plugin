@@ -14,6 +14,7 @@
 #include "vpux/al/config/runtime.hpp"
 
 using namespace vpux;
+using namespace ov::intel_vpux;
 using namespace InferenceEngine::VPUXConfigParams;
 
 //
@@ -43,9 +44,13 @@ void vpux::registerRunTimeOptions(OptionsDesc& desc) {
 //
 
 InferenceEngine::ColorFormat vpux::GRAPH_COLOR_FORMAT::parse(StringRef val) {
-    if (val == VPUX_CONFIG_VALUE(BGR)) {
+    const auto extractColorString = [](InferenceEngine::ColorFormat format) -> std::string {
+        return graph_color_format(format).second.as<std::string>();
+    };
+
+    if (val == extractColorString(InferenceEngine::ColorFormat::BGR)) {
         return InferenceEngine::ColorFormat::BGR;
-    } else if (val == VPUX_CONFIG_VALUE(RGB)) {
+    } else if (val == extractColorString(InferenceEngine::ColorFormat::RGB)) {
         return InferenceEngine::ColorFormat::RGB;
     }
 
@@ -56,13 +61,17 @@ InferenceEngine::ColorFormat vpux::GRAPH_COLOR_FORMAT::parse(StringRef val) {
 // PRINT_PROFILING
 //
 
-InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg vpux::PRINT_PROFILING::parse(StringRef val) {
-    if (val == VPUX_CONFIG_VALUE(NONE)) {
-        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::NONE;
-    } else if (val == VPUX_CONFIG_VALUE(TEXT)) {
-        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::TEXT;
-    } else if (val == VPUX_CONFIG_VALUE(JSON)) {
-        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::JSON;
+ProfilingOutputTypeArg vpux::PRINT_PROFILING::parse(StringRef val) {
+    const auto extractProfilingString = [](ProfilingOutputTypeArg arg) -> std::string {
+        return print_profiling(arg).second.as<std::string>();
+    };
+
+    if (val == extractProfilingString(ProfilingOutputTypeArg::NONE)) {
+        return ProfilingOutputTypeArg::NONE;
+    } else if (val == extractProfilingString(ProfilingOutputTypeArg::TEXT)) {
+        return ProfilingOutputTypeArg::TEXT;
+    } else if (val == extractProfilingString(ProfilingOutputTypeArg::JSON)) {
+        return ProfilingOutputTypeArg::JSON;
     }
 
     VPUX_THROW("Value '{0}' is not a valid PRINT_PROFILING option", val);

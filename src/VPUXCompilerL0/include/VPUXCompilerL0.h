@@ -59,6 +59,21 @@ typedef struct __vcl_compiler_handle_t* vcl_compiler_handle_t;
 typedef struct __vcl_executable_handle_t* vcl_executable_handle_t;
 
 ///////////////////////////////////////////////////////////////////////////////
+/// @brief Profiling handle
+typedef struct __vcl_profiling_handle_t* vcl_profiling_handle_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Defines type of requested data.
+/// Must be in sync with \b _ze_graph_profiling_type_t
+typedef enum __vcl_profiling_request_type_t {
+    VCL_PROFILING_LAYER_LEVEL = 0x1,
+    VCL_PROFILING_TASK_LEVEL = 0x2,
+    VCL_PROFILING_RAW = 0x3,
+
+    VCL_PROFILING_FORCE_UINT32 = 0x7fffffff
+} vcl_profiling_request_type_t;
+
+///////////////////////////////////////////////////////////////////////////////
 /// @brief Defines version info for the VPUXCompilerL0 API
 typedef struct __vcl_version_info_t {
     uint16_t major;
@@ -87,6 +102,13 @@ typedef struct __vcl_compiler_properties_t {
     uint32_t supportedOpsets;
 
 } vcl_compiler_properties_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Defines profiling properties
+typedef struct __vcl_profiling_properties_t {
+    vcl_version_info_t version;                         ///< Profiling module version
+
+} vcl_profiling_properties_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Defines platform for compilation
@@ -156,6 +178,22 @@ typedef struct __vcl_executable_desc_t {
 } vcl_executable_desc_t;
 
 ///////////////////////////////////////////////////////////////////////////////
+/// @brief Defines input that is required to create profiling handler
+typedef struct __vcl_profiling_input_t {
+    const uint8_t* blobData;  ///< Pointer to the buffer with the blob
+    uint64_t blobSize;        ///< Size of the blob in bytes
+    const uint8_t* profData;  ///< Pointer to the raw profiling output
+    uint64_t profSize;        ///< Size of the raw profiling output
+} vcl_profiling_input_t, *p_vcl_profiling_input_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Decoded profiling output
+typedef struct __vcl_profiling_output_t {
+    const uint8_t* data;         ///< Either a pointer to raw data or pointer to the array of structures
+    uint64_t size;               ///< Size of the buffer in bytes
+} vcl_profiling_output_t, *p_vcl_profiling_output_t;
+
+///////////////////////////////////////////////////////////////////////////////
 /// @brief Creates a compiler object and returs the compiler handle
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclCompilerCreate(vcl_compiler_desc_t desc, vcl_compiler_handle_t* compiler);
 
@@ -183,6 +221,36 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableDestroy(vcl_executable_handl
 /// Otherwise the function copies the executable cached blob to the blobBuffer provided by the caller.
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableGetSerializableBlob(vcl_executable_handle_t executable,
                                                                         uint8_t* blobBuffer, uint64_t* blobSize);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Creates a buffer with decoded profiling info.
+/// This is the most computationally expensive profiling API.
+/// It does all memory allocations and postprocessing.
+/// @warning Caller must keep \b p_vcl_profiling_input_t::profData buffer alive until
+/// \b vclProfilingDestroy call if \b VCL_PROFILING_RAW request is expected.
+/// \b vclProfilingCreate function doesn't copy profiling output buffer but will
+/// return pointer to it as a response to \b VCL_PROFILING_RAW request.
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclProfilingCreate(p_vcl_profiling_input_t profilingInput,
+                                                          vcl_profiling_handle_t* profilingHandle);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Provides profiling information based on request argument.
+/// @warning For \b VCL_PROFILING_RAW request it returns a pointer to the buffer that was provided to
+/// \b vclProfilingCreate function call. This means that original buffer with profiling output must
+/// be alive till this call.
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclGetDecodedProfilingBuffer(vcl_profiling_handle_t profilingHandle,
+                                                                    vcl_profiling_request_type_t requestType,
+                                                                    p_vcl_profiling_output_t profilingOutput);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Destroys the buffer with decoded profiling info.
+/// Now caller may safely dispose raw profiling output.
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclProfilingDestroy(vcl_profiling_handle_t profilingHandle);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Get version of post-processing module
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclProfilingGetProperties(vcl_profiling_handle_t profilingHandle,
+                                                                 vcl_profiling_properties_t* properties);
 
 #if defined(__cplusplus)
 }  // extern "C"

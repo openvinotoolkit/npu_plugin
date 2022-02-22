@@ -1588,6 +1588,30 @@ operation ::= `IE.Log` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.LogicalNot` (vpux::IE::LogicalNotOp)
+
+InferenceEngine Logical Not layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LogicalNot` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
 ### `IE.LogicalOr` (vpux::IE::LogicalOrOp)
 
 InferenceEngine LogicalOr layer

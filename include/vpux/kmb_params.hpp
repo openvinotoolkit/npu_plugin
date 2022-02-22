@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2020-2022 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -36,6 +36,7 @@ namespace KmbContextParams {
  * @def KMB_PARAM_KEY(name)
  * @brief Shortcut for defining configuration keys
  * @deprecated Use VPUX_PARAM_KEY instead
+ * Configuration API v1.0
  */
 #define KMB_PARAM_KEY(name) KmbContextParams::PARAM_##name
 
@@ -47,6 +48,7 @@ namespace KmbContextParams {
  * @def DECLARE_KMB_PARAM_KEY(name, ...)
  * @brief Shortcut for defining object parameter keys
  * @deprecated Use DECLARE_VPUX_PARAM_KEY instead
+ * Configuration API v1.0
  */
 #define DECLARE_KMB_PARAM_KEY(name, ...)        \
     static constexpr auto PARAM_##name = #name; \
@@ -55,24 +57,28 @@ namespace KmbContextParams {
 /**
  * @brief Remote memory file descriptor
  * @deprecated Use VPUX_PARAM(REMOTE_MEMORY_FD) instead
+ * Configuration API v1.0
  */
 DECLARE_KMB_PARAM_KEY(REMOTE_MEMORY_FD, KmbRemoteMemoryFD);
 
 /**
  * @brief Remote memory handle
  * @deprecated Use VPUX_PARAM(MEM_HANDLE) instead
+ * Configuration API v1.0
  */
 DECLARE_KMB_PARAM_KEY(MEM_HANDLE, KmbHandleParam);
 
 /**
  * @brief Remote memory offset to map physical address properly
  * @deprecated Use VPUX_PARAM(MEM_OFFSET) instead
+ * Configuration API v1.0
  */
 DECLARE_KMB_PARAM_KEY(MEM_OFFSET, KmbOffsetParam);
 
 /**
  * @brief VPU device ID
  * @deprecated Use VPUX_PARAM(DEVICE_ID) instead
+ * Configuration API v1.0
  */
 DECLARE_KMB_PARAM_KEY(DEVICE_ID, std::string);
 }  // namespace KmbContextParams

@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
@@ -33,7 +34,7 @@ namespace VPURT {
 VPU::MemoryKind getMemoryKind(BufferSection section);
 BufferSection getBufferSection(VPU::MemoryKind memKind);
 
-bool isMemoryCompatible(BufferSection section, mlir::MemRefType memref);
+bool isMemoryCompatible(BufferSection section, vpux::NDTypeInterface ndType);
 
 }  // namespace VPURT
 }  // namespace vpux

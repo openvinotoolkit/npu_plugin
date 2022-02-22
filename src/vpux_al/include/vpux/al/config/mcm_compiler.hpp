@@ -16,7 +16,11 @@
 #include "vpux/utils/IE/config.hpp"
 
 #include "mcm_private_config.hpp"
+#include "mcm_private_properties.hpp"
+#include "vpux/properties.hpp"
 #include "vpux/vpux_compiler_config.hpp"
+
+#include <openvino/runtime/properties.hpp>
 
 namespace vpux {
 
@@ -32,7 +36,7 @@ void registerMcmCompilerOptions(OptionsDesc& desc);
 
 struct MCM_TARGET_DESCRIPTOR_PATH final : OptionBase<MCM_TARGET_DESCRIPTOR_PATH, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR_PATH);
+        return ov::intel_vpux::target_descriptor_path.name();
     }
 
     static std::string defaultValue() {
@@ -50,7 +54,7 @@ struct MCM_TARGET_DESCRIPTOR_PATH final : OptionBase<MCM_TARGET_DESCRIPTOR_PATH,
 
 struct MCM_TARGET_DESCRIPTOR final : OptionBase<MCM_TARGET_DESCRIPTOR, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR);
+        return ov::intel_vpux::target_descriptor.name();
     }
 
     static std::string defaultValue() {
@@ -68,7 +72,7 @@ struct MCM_TARGET_DESCRIPTOR final : OptionBase<MCM_TARGET_DESCRIPTOR, std::stri
 
 struct MCM_COMPILATION_DESCRIPTOR_PATH final : OptionBase<MCM_COMPILATION_DESCRIPTOR_PATH, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR_PATH);
+        return ov::intel_vpux::compilation_descriptor_path.name();
     }
 
     static std::string defaultValue() {
@@ -86,7 +90,7 @@ struct MCM_COMPILATION_DESCRIPTOR_PATH final : OptionBase<MCM_COMPILATION_DESCRI
 
 struct MCM_COMPILATION_DESCRIPTOR final : OptionBase<MCM_COMPILATION_DESCRIPTOR, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR);
+        return ov::intel_vpux::compilation_descriptor.name();
     }
 
     static std::string defaultValue() {
@@ -104,7 +108,7 @@ struct MCM_COMPILATION_DESCRIPTOR final : OptionBase<MCM_COMPILATION_DESCRIPTOR,
 
 struct MCM_LOG_LEVEL final : OptionBase<MCM_LOG_LEVEL, LogLevel> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(LOG_LEVEL);
+        return ov::intel_vpux::log_level.name();
     }
 
     static LogLevel defaultValue() {
@@ -122,7 +126,7 @@ struct MCM_LOG_LEVEL final : OptionBase<MCM_LOG_LEVEL, LogLevel> {
 
 struct MCM_ELTWISE_SCALES_ALIGNMENT final : OptionBase<MCM_ELTWISE_SCALES_ALIGNMENT, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT);
+        return ov::intel_vpux::eltwise_scales_alignment.name();
     }
 
     static bool defaultValue() {
@@ -140,7 +144,7 @@ struct MCM_ELTWISE_SCALES_ALIGNMENT final : OptionBase<MCM_ELTWISE_SCALES_ALIGNM
 
 struct MCM_CONCAT_SCALES_ALIGNMENT final : OptionBase<MCM_CONCAT_SCALES_ALIGNMENT, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT);
+        return ov::intel_vpux::concat_scales_alignment.name();
     }
 
     static bool defaultValue() {
@@ -158,7 +162,7 @@ struct MCM_CONCAT_SCALES_ALIGNMENT final : OptionBase<MCM_CONCAT_SCALES_ALIGNMEN
 
 struct MCM_WEIGHTS_ZERO_POINTS_ALIGNMENT final : OptionBase<MCM_WEIGHTS_ZERO_POINTS_ALIGNMENT, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT);
+        return ov::intel_vpux::weights_zero_points_alignment.name();
     }
 
     static bool defaultValue() {
@@ -176,7 +180,7 @@ struct MCM_WEIGHTS_ZERO_POINTS_ALIGNMENT final : OptionBase<MCM_WEIGHTS_ZERO_POI
 
 struct MCM_COMPILATION_PASS_BAN_LIST final : OptionBase<MCM_COMPILATION_PASS_BAN_LIST, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST);
+        return ov::intel_vpux::compilation_pass_ban_list.name();
     }
 
     static OptionMode mode() {
@@ -190,7 +194,7 @@ struct MCM_COMPILATION_PASS_BAN_LIST final : OptionBase<MCM_COMPILATION_PASS_BAN
 
 struct MCM_SCALE_FUSE_INPUT final : OptionBase<MCM_SCALE_FUSE_INPUT, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(SCALE_FUSE_INPUT);
+        return ov::intel_vpux::scale_fuse_input.name();
     }
 
     static bool defaultValue() {
@@ -208,7 +212,7 @@ struct MCM_SCALE_FUSE_INPUT final : OptionBase<MCM_SCALE_FUSE_INPUT, bool> {
 
 struct MCM_ALLOW_NCHW_MCM_INPUT final : OptionBase<MCM_ALLOW_NCHW_MCM_INPUT, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT);
+        return ov::intel_vpux::allow_nchw_mcm_input.name();
     }
 
     static bool defaultValue() {
@@ -226,7 +230,7 @@ struct MCM_ALLOW_NCHW_MCM_INPUT final : OptionBase<MCM_ALLOW_NCHW_MCM_INPUT, boo
 
 struct MCM_REMOVE_PERMUTE_NOOP final : OptionBase<MCM_REMOVE_PERMUTE_NOOP, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP);
+        return ov::intel_vpux::remove_permute_noop.name();
     }
 
     static bool defaultValue() {
@@ -244,7 +248,7 @@ struct MCM_REMOVE_PERMUTE_NOOP final : OptionBase<MCM_REMOVE_PERMUTE_NOOP, bool>
 
 struct MCM_SERIALIZE_CNN_BEFORE_COMPILE_FILE final : OptionBase<MCM_SERIALIZE_CNN_BEFORE_COMPILE_FILE, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(SERIALIZE_CNN_BEFORE_COMPILE_FILE);
+        return ov::intel_vpux::serialize_cnn_before_compile_file.name();
     }
 
     static OptionMode mode() {
@@ -262,7 +266,7 @@ struct MCM_SERIALIZE_CNN_BEFORE_COMPILE_FILE final : OptionBase<MCM_SERIALIZE_CN
 
 struct MCM_REFERENCE_MODE final : OptionBase<MCM_REFERENCE_MODE, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(REFERENCE_MODE);
+        return ov::intel_vpux::reference_mode.name();
     }
 
     static bool defaultValue() {
@@ -284,7 +288,7 @@ struct MCM_REFERENCE_MODE final : OptionBase<MCM_REFERENCE_MODE, bool> {
 
 struct MCM_ALLOW_U8_INPUT_FOR_FP16_MODELS final : OptionBase<MCM_ALLOW_U8_INPUT_FOR_FP16_MODELS, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(ALLOW_U8_INPUT_FOR_FP16_MODELS);
+        return ov::intel_vpux::allow_u8_input_for_fp16_mode.name();
     }
 
     static bool defaultValue() {
@@ -306,7 +310,7 @@ struct MCM_ALLOW_U8_INPUT_FOR_FP16_MODELS final : OptionBase<MCM_ALLOW_U8_INPUT_
 
 struct MCM_SCALESHIFT_FUSING final : OptionBase<MCM_SCALESHIFT_FUSING, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(SCALESHIFT_FUSING);
+        return ov::intel_vpux::scale_shift_fusing.name();
     }
 
     static bool defaultValue() {
@@ -328,7 +332,7 @@ struct MCM_SCALESHIFT_FUSING final : OptionBase<MCM_SCALESHIFT_FUSING, bool> {
 
 struct MCM_ALLOW_PERMUTE_ND final : OptionBase<MCM_ALLOW_PERMUTE_ND, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(ALLOW_PERMUTE_ND);
+        return ov::intel_vpux::allow_permute_nd.name();
     }
 
     static bool defaultValue() {
@@ -350,7 +354,7 @@ struct MCM_ALLOW_PERMUTE_ND final : OptionBase<MCM_ALLOW_PERMUTE_ND, bool> {
 
 struct MCM_OPTIMIZE_INPUT_PRECISION final : OptionBase<MCM_OPTIMIZE_INPUT_PRECISION, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(OPTIMIZE_INPUT_PRECISION);
+        return ov::intel_vpux::optimize_input_precision.name();
     }
 
     static bool defaultValue() {
@@ -372,7 +376,7 @@ struct MCM_OPTIMIZE_INPUT_PRECISION final : OptionBase<MCM_OPTIMIZE_INPUT_PRECIS
 
 struct MCM_FORCE_PLUGIN_INPUT_QUANTIZATION final : OptionBase<MCM_FORCE_PLUGIN_INPUT_QUANTIZATION, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(FORCE_PLUGIN_INPUT_QUANTIZATION);
+        return ov::intel_vpux::force_plugin_input_quantization.name();
     }
 
     static bool defaultValue() {
@@ -394,7 +398,7 @@ struct MCM_FORCE_PLUGIN_INPUT_QUANTIZATION final : OptionBase<MCM_FORCE_PLUGIN_I
 
 struct MCM_OUTPUT_FP16_TO_FP32_HOST_CONVERSION final : OptionBase<MCM_OUTPUT_FP16_TO_FP32_HOST_CONVERSION, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(OUTPUT_FP16_TO_FP32_HOST_CONVERSION);
+        return ov::intel_vpux::output_fp16_to_fp32_host_conversion.name();
     }
 
     static bool defaultValue() {
@@ -429,7 +433,7 @@ struct MCM_OUTPUT_FP16_TO_FP32_HOST_CONVERSION final : OptionBase<MCM_OUTPUT_FP1
 
 struct MCM_COMPILATION_RESULTS_PATH final : OptionBase<MCM_COMPILATION_RESULTS_PATH, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS_PATH);
+        return ov::intel_vpux::compilation_results_path.name();
     }
 
     static std::string defaultValue() {
@@ -451,7 +455,7 @@ struct MCM_COMPILATION_RESULTS_PATH final : OptionBase<MCM_COMPILATION_RESULTS_P
 
 struct MCM_COMPILATION_RESULTS final : OptionBase<MCM_COMPILATION_RESULTS, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS);
+        return ov::intel_vpux::compilation_results.name();
     }
 
     static OptionMode mode() {
@@ -469,7 +473,7 @@ struct MCM_COMPILATION_RESULTS final : OptionBase<MCM_COMPILATION_RESULTS, std::
 
 struct MCM_GENERATE_BLOB final : OptionBase<MCM_GENERATE_BLOB, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB);
+        return ov::intel_vpux::generate_blob.name();
     }
 
     static bool defaultValue() {
@@ -491,7 +495,7 @@ struct MCM_GENERATE_BLOB final : OptionBase<MCM_GENERATE_BLOB, bool> {
 
 struct MCM_PARSING_ONLY final : OptionBase<MCM_PARSING_ONLY, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(PARSING_ONLY);
+        return ov::intel_vpux::parsing_only.name();
     }
 
     static bool defaultValue() {
@@ -513,7 +517,7 @@ struct MCM_PARSING_ONLY final : OptionBase<MCM_PARSING_ONLY, bool> {
 
 struct MCM_GENERATE_JSON final : OptionBase<MCM_GENERATE_JSON, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(GENERATE_JSON);
+        return ov::intel_vpux::generate_json.name();
     }
 
     static bool defaultValue() {
@@ -535,7 +539,7 @@ struct MCM_GENERATE_JSON final : OptionBase<MCM_GENERATE_JSON, bool> {
 
 struct MCM_GENERATE_DOT final : OptionBase<MCM_GENERATE_DOT, bool> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(GENERATE_DOT);
+        return ov::intel_vpux::generate_dot.name();
     }
 
     static bool defaultValue() {
@@ -557,7 +561,7 @@ struct MCM_GENERATE_DOT final : OptionBase<MCM_GENERATE_DOT, bool> {
 
 struct MCM_LAYER_SPLIT_STRATEGIES final : OptionBase<MCM_LAYER_SPLIT_STRATEGIES, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(LAYER_SPLIT_STRATEGIES);
+        return ov::intel_vpux::layer_split_strategies.name();
     }
 
     static OptionMode mode() {
@@ -575,7 +579,7 @@ struct MCM_LAYER_SPLIT_STRATEGIES final : OptionBase<MCM_LAYER_SPLIT_STRATEGIES,
 
 struct MCM_LAYER_STREAM_STRATEGIES final : OptionBase<MCM_LAYER_STREAM_STRATEGIES, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(LAYER_STREAM_STRATEGIES);
+        return ov::intel_vpux::layer_stream_strategies.name();
     }
 
     static OptionMode mode() {
@@ -593,7 +597,7 @@ struct MCM_LAYER_STREAM_STRATEGIES final : OptionBase<MCM_LAYER_STREAM_STRATEGIE
 
 struct MCM_LAYER_SPARSITY_STRATEGIES final : OptionBase<MCM_LAYER_SPARSITY_STRATEGIES, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(LAYER_SPARSITY_STRATEGIES);
+        return ov::intel_vpux::layer_sparsity_strategies.name();
     }
 
     static OptionMode mode() {
@@ -611,7 +615,7 @@ struct MCM_LAYER_SPARSITY_STRATEGIES final : OptionBase<MCM_LAYER_SPARSITY_STRAT
 
 struct MCM_LAYER_LOCATION_STRATEGIES final : OptionBase<MCM_LAYER_LOCATION_STRATEGIES, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(LAYER_LOCATION_STRATEGIES);
+        return ov::intel_vpux::layer_location_strategies.name();
     }
 
     static OptionMode mode() {

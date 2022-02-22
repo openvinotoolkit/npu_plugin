@@ -15,6 +15,11 @@
 /**
  * @brief A header that defines advanced related properties for VPU compiler.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
+ * Configuration API v1.0
+ * @deprecated Configuration API v1.0 would be deprecated in 2023.1 release.
+ * It was left due to backward compatibility needs.
+ * As such usage of this version of API is discouraged.
+ * Prefer Configuration API v2.0.
  *
  * @file vpu_compiler_config.hpp
  */
@@ -35,24 +40,28 @@ namespace VPUXConfigParams {
 /**
  * @brief [Only for vpu compiler]
  * Type: Arbitrary string. Empty means ("config/target"), default: "";
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR_PATH);
 
 /**
  * @brief [Only for vpu compiler]
  * Type: Arbitrary string. Default: "release_kmb";
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR);
 
 /**
  * @brief [Only for vpu compiler]
  * Type: Arbitrary string. Empty means ("config/compilation"), default: "";
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR_PATH);
 
 /**
  * @brief [Only for vpu compiler]
  * Type: Arbitrary string. Default: "release_kmb";
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR);
 
@@ -62,6 +71,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR);
  * This option should be used with values: PluginConfigParams::LOG_INFO (default),
  * PluginConfigParams::LOG_ERROR, PluginConfigParams::LOG_WARNING,
  * PluginConfigParams::LOG_NONE, PluginConfigParams::LOG_DEBUG, PluginConfigParams::LOG_TRACE
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(LOG_LEVEL);
 
@@ -69,6 +79,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(LOG_LEVEL);
  * @brief [Only for vpu compiler]
  * Type: "YES/NO", default is "YES".
  * Enable or disable eltwise scales alignment
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT);
 
@@ -76,6 +87,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT);
  * @brief [Only for vpu compiler]
  * Type: "YES/NO", default is "YES".
  * Enable or disable concat scales alignment
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT);
 
@@ -83,6 +95,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT);
  * @brief [Only for vpu compiler]
  * Type: "YES/NO", default is "YES".
  * Enable or disable weights zero points alignment
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT);
 
@@ -91,6 +104,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT);
  * Type: std::string, default is empty.
  * Provide path to custom layer binding xml file.
  * If layer is present in such an xml, it would be used during inference even if the layer is natively supported.
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS);
 
@@ -99,6 +113,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS);
  * Type: std::string, default is empty.
  * Semicolon separated list of comma separated group and pass values.
  * Removes {group, pass} value from mcm compilation descriptor.
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST);
 
@@ -106,6 +121,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST);
  * @brief [Only for vpu compiler]
  * Type: "YES/NO", default is "YES".
  * Enable or disable fusing scaleshift
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(SCALE_FUSE_INPUT);
 
@@ -113,6 +129,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(SCALE_FUSE_INPUT);
  * @brief [Only for vpu compiler]
  * Type: "YES/NO", default is "NO".
  * Allow NCHW layout to be set as MCM Model input layout
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT);
 
@@ -121,6 +138,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT);
  * Type: "YES/NO", default is "YES".
  * Permute no-op layer can be used as dummy SW layer
  * Used as workaround in HETERO plugin
+ * Configuration API v1.0
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP);
 

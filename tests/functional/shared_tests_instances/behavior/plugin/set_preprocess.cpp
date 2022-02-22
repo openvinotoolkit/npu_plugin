@@ -13,7 +13,7 @@
 
 #include <base/behavior_test_utils.hpp>
 
-#include "behavior/preprocessing/set_preprocess.hpp"
+#include "behavior/plugin/set_preprocess.hpp"
 #include "common/functions.h"
 
 using namespace LayerTestsUtils;

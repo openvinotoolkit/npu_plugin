@@ -596,17 +596,7 @@ VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesR
 }
 
 VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(vpux::NDTypeInterface type) {
-    if (type.isa<mlir::MemRefType>()) {
-        return createStrides(type.getStrides(), type.getElemTypeSize());
-    }
-
-    const auto order = type.getDimsOrder();
-
-    const auto stridesReqs = StrideReqs::simple(checked_cast<size_t>(type.getRank()));
-    const auto memStrides = stridesReqs.calcStrides(order, type);
-    const auto strides = order.toLogicalOrder(memStrides);
-
-    return createStrides(strides, type.getElemTypeSize());
+    return createStrides(type.getStrides(), type.getElemTypeSize());
 }
 
 VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirectDataReference(
@@ -645,24 +635,24 @@ void vpux::VPUIP::BlobWriter::setAliasForSerializedTensors(mlir::Operation* op) 
         const auto result = layer->getResult(0);
         const auto source = layer.getViewSource();
 
-        VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
+        VPUX_THROW_UNLESS(result.getType().isa<vpux::NDTypeInterface>(), "Only NDType tensors are supported, got '{0}'",
                           result.getType());
-        VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
+        VPUX_THROW_UNLESS(source.getType().isa<vpux::NDTypeInterface>(), "Only NDType tensors are supported, got '{0}'",
                           source.getType());
 
         _tensors.insert({result, getTensorRef(source)});
     } else if (auto multiLayer = mlir::dyn_cast<MultiViewOpInterface>(op)) {
         for (const auto result : multiLayer->getResults()) {
-            VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
-                              "Only MemRef type tensors are supported, got '{0}'", result.getType());
+            VPUX_THROW_UNLESS(result.getType().isa<vpux::NDTypeInterface>(),
+                              "Only NDType tensors are supported, got '{0}'", result.getType());
 
             const auto source = multiLayer.getViewSource(result.getResultNumber());
             if (source == nullptr) {
                 continue;
             }
 
-            VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(),
-                              "Only MemRef type tensors are supported, got '{0}'", source.getType());
+            VPUX_THROW_UNLESS(source.getType().isa<vpux::NDTypeInterface>(),
+                              "Only NDType tensors are supported, got '{0}'", source.getType());
 
             _tensors.insert({result, getTensorRef(source)});
         }

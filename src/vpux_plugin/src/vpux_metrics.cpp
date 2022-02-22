@@ -15,8 +15,10 @@
 #include <ie_metric_helpers.hpp>
 // Plugin
 #include "device_helpers.hpp"
+#include "vpux/properties.hpp"
 #include "vpux_metrics.h"
 #include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
 namespace vpux {
 namespace IE = InferenceEngine;
@@ -30,16 +32,13 @@ Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
             METRIC_KEY(DEVICE_ARCHITECTURE),
     };
 
-    _supportedConfigKeys = {
-            CONFIG_KEY(LOG_LEVEL),
-            CONFIG_KEY(PERF_COUNT),
-            CONFIG_KEY(DEVICE_ID),
-            CONFIG_KEY(PERFORMANCE_HINT),
-            VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
-            KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
-            VPUX_CONFIG_KEY(INFERENCE_SHAVES),
-            VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS),
-    };
+    _supportedConfigKeys = {ov::log::level.name(),
+                            ov::enable_profiling.name(),
+                            ov::device::id.name(),
+                            ov::hint::performance_mode.name(),
+                            ov::num_streams.name(),
+                            ov::intel_vpux::compilation_mode_params.name(),
+                            ov::intel_vpux::inference_shaves.name()};
 }
 
 std::vector<std::string> Metrics::GetAvailableDevicesNames() const {

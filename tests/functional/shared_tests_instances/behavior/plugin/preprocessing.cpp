@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "behavior/preprocessing/preprocessing.hpp"
+#include "behavior/plugin/preprocessing.hpp"
 
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
