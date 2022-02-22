@@ -37,5 +37,9 @@ mlir::LogicalResult applyTileStrategy(IE::TilingBuilderOpInterface origOp, Outpu
 mlir::Operation* getParentTargetOp(mlir::Operation* op);
 bool prefetchTilingConditionSatisfied(mlir::Operation* op, Logger log);
 
+bool isNestedTiling(vpux::OutputTiling tiling);
+
+vpux::NDTypeInterface getAlignedFilterType(const SmallVector<vpux::NDTypeInterface>& tileTypes);
+
 }  // namespace IE
 }  // namespace vpux

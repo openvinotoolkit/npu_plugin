@@ -156,10 +156,13 @@ def VPU_NCEConvolutionOp :
     }];
 
     let extraClassDeclaration = [{
-        bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter, vpux::NDTypeInterface output);
+        SmallVector<Byte> memSizes(mlir::ArrayAttr strides, vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                   vpux::NDTypeInterface output);
+        bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                               vpux::NDTypeInterface output);
+        bool verifyPrefetchCMX(const vpux::OutputTiling& tiling);
 
         static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
-
         static int64_t getInputChannelAlignment(vpux::NDTypeInterface inputType);
     }] # baseExtraClassDeclaration;
 
@@ -222,7 +225,16 @@ def VPU_NCEDepthConvolutionOp :
     }];
 
     let extraClassDeclaration = [{
+<<<<<<< HEAD
         bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter, vpux::NDTypeInterface output);
+=======
+        SmallVector<Byte> memSizes(mlir::ArrayAttr strides,
+                                   vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                   vpux::NDTypeInterface output);
+        bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                               vpux::NDTypeInterface output);
+        bool verifyPrefetchCMX(const vpux::OutputTiling& tiling);
+>>>>>>> e30e7dcd4f... move verifyPrefetchCMX to VPU::NCE operations
 
         static bool isSupported(vpux::IE::GroupConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
@@ -284,6 +296,7 @@ def VPU_NCEMaxPoolOp :
 
     let extraClassDeclaration = [{
         bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
+        bool verifyPrefetchCMX(const vpux::OutputTiling& tiling);
 
         static bool isSupported(vpux::IE::MaxPoolOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
@@ -340,7 +353,15 @@ def VPU_NCEEltwiseOp :
     }];
 
     let extraClassDeclaration = [{
+<<<<<<< HEAD
         bool fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2, vpux::NDTypeInterface output);
+=======
+        SmallVector<Byte> memSizes(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
+                                   vpux::NDTypeInterface output);
+        bool fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
+                               vpux::NDTypeInterface output);
+        bool verifyPrefetchCMX(const vpux::OutputTiling& tiling);
+>>>>>>> e30e7dcd4f... move verifyPrefetchCMX to VPU::NCE operations
 
         static bool isSupported(mlir::Operation* op, bool allowDifferentScales, bool allowDifferentZp,
                                 vpux::VPU::NCEInvariant::LogCb logCb);

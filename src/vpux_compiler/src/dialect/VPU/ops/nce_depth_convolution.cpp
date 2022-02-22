@@ -15,6 +15,8 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -28,11 +30,16 @@
 using namespace vpux;
 
 //
-// fitIntoCMX
+// memSizes
 //
 
-bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
-                                                  vpux::NDTypeInterface output) {
+SmallVector<Byte> VPU::NCEDepthConvolutionOp::memSizes(mlir::ArrayAttr strides, vpux::NDTypeInterface input,
+                                                       vpux::NDTypeInterface filter, vpux::NDTypeInterface output) {
+    SmallVector<Byte> requiredCMX(5, Byte(0));  // {input, filter, output, weightsTable, activationWindow} in order
+
+    requiredCMX[0] = input.getTotalAllocSize();
+    requiredCMX[2] = output.getTotalAllocSize();
+
     const auto filterShape = filter.getShape();
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto KY = filterShape[Dims4D::Filter::KY];
@@ -40,33 +47,87 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, v
 
     const Shape kernelSize{KY, KX};
 
-    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides()));
-    const auto strideW = kernelStrides[Dims4D::Strides::X];
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides));
+    const auto SX = kernelStrides[Dims4D::Strides::X];
 
-    const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::DW_CONV, kernelSize,
-                                                                           strideW, input.getElementType(), OC);
+    const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::DW_CONV, kernelSize, SX,
+                                                                           input.getElementType(), OC);
 
-    const auto alignment = NCEInvariant::getAlignment(output.getElementType());
+    const auto alignedFilter = vpux::IE::getAlignedFilterType({input, filter, output});
+    requiredCMX[1] = alignedFilter.getTotalAllocSize();
+    requiredCMX[3] = NCEInvariant::getWeightsTableSize(OC);
+    requiredCMX[4] = activationWindowSize * 1_Byte;
 
-    const auto remainder = (KY * KX) % alignment;
-    VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
+    return requiredCMX;
+}
 
-    const int64_t padding = (remainder > 0) ? (alignment - remainder) : 0;
+//
+// fitIntoCMX
+//
 
-    const std::array<int64_t, 4> alignedFilterShape{OC, 1, 1, KY * KX + padding};
-    const auto alignedFilter =
-            mlir::RankedTensorType::get(alignedFilterShape, filter.getElementType()).cast<vpux::NDTypeInterface>();
-
+bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                                  vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
-    for (const auto& type : {input, alignedFilter, output}) {
-        requiredCMX += type.getTotalAllocSize();
+    auto memList = memSizes(strides(), input, filter, output);
+    for (auto memItem : memList) {
+        requiredCMX += memItem;
     }
 
-    requiredCMX += NCEInvariant::getWeightsTableSize(OC);
-    requiredCMX += activationWindowSize * 1_Byte;
+    return requiredCMX <= getTotalCMXSize(*this);
+}
 
-    return requiredCMX <= getTotalCMXSize(getOperation());
+SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEDepthConvolutionOp origOp, const TileInfo& outTile) {
+    const auto origBiasShape = origOp.bias().hasValue() ? origOp.bias().getValue().getShape() : ShapeRef();
+    const auto origPadding = toPadInfo(origOp.pad());
+
+    auto tileConf = vpux::backInferGroupConvTile(outTile, getShape(origOp.input()), getShape(origOp.filter()),
+                                                 origBiasShape, origOp.strides(), origPadding);
+
+    return {origOp.input().getType().cast<vpux::NDTypeInterface>().extractDenseTile(tileConf.tiles[0].offsets,
+                                                                                    tileConf.tiles[0].shape),
+            origOp.filter().getType().cast<vpux::NDTypeInterface>().extractDenseTile(tileConf.tiles[1].offsets,
+                                                                                     tileConf.tiles[1].shape),
+            origOp.getType().cast<vpux::NDTypeInterface>().extractDenseTile(outTile.offsets, outTile.shape)};
+}
+
+SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPrefetch(VPU::NCEDepthConvolutionOp origOp,
+                                                                  vpux::OutputTiling tiling) {
+    // The tiling strategy follows last-tile-not-biggest
+    // So just check the first two tiles are enough to make sure prefetchable
+    auto curTile = tiling[0];
+    auto nextTile = tiling[1];
+    bool isWeightPrefetch = curTile.axis[Dims4D::Act::C] > 1;
+
+    const auto& curTileTypes = getTileTypes(origOp, curTile);
+    const auto& nextTileTypes = getTileTypes(origOp, nextTile);
+
+    return {curTileTypes[0], vpux::IE::getAlignedFilterType(curTileTypes), curTileTypes[2],
+            isWeightPrefetch ? vpux::IE::getAlignedFilterType(nextTileTypes) : nextTileTypes[0]};
+}
+
+//
+// verifyPrefetchCMX
+//
+
+bool vpux::VPU::NCEDepthConvolutionOp::verifyPrefetchCMX(const vpux::OutputTiling& tiling) {
+    if (tiling.size() <= 1) {
+        return false;
+    }
+    if (vpux::IE::isNestedTiling(tiling)) {
+        return false;
+    }
+
+    Byte requiredCMX(0);
+    auto requiredOperands = getRequiredOperandsForPrefetch(*this, tiling);
+    VPUX_THROW_UNLESS(requiredOperands.size() == 4, "NCEDepthConvolutionOp needs 4 operands for prefetch, got {0}",
+                      requiredOperands.size());
+    for (auto memItem : memSizes(strides(), requiredOperands[0], requiredOperands[1], requiredOperands[2])) {
+        requiredCMX += memItem;
+    }
+    requiredCMX += requiredOperands[3].getTotalAllocSize();
+
+    return requiredCMX <= getTotalCMXSize(*this);
 }
 
 //

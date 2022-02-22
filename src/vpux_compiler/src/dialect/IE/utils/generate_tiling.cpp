@@ -286,5 +286,35 @@ bool prefetchTilingConditionSatisfied(mlir::Operation* op, Logger log) {
     auto tiles = getTilingStrategy(op, log.nest(), TilingMode::PATTERN_PREFETCH_TILING);
     return tiles.begin()->axis != neutralTile;
 }
+
+bool isNestedTiling(vpux::OutputTiling tiling) {
+    return tiling[0].axis[Dims4D::Act::C] > 1 && tiling[0].axis[Dims4D::Act::H] > 1;
+}
+
+int64_t getAlignment(mlir::Type elemType) {
+    const auto typeSizeInBits = static_cast<Bit>(getElemTypeSize(elemType));
+    return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
+}
+
+vpux::NDTypeInterface getAlignedFilterType(const SmallVector<vpux::NDTypeInterface>& tileTypes) {
+    const auto outputTileType = tileTypes[2];
+    const auto filterTileType = tileTypes[1];
+    const auto filterTileShape = filterTileType.getShape();
+    const auto OC = filterTileShape[Dims4D::Filter::OC];
+    const auto IC = filterTileShape[Dims4D::Filter::IC];
+    const auto KY = filterTileShape[Dims4D::Filter::KY];
+    const auto KX = filterTileShape[Dims4D::Filter::KX];
+
+    const auto alignment = getAlignment(outputTileType.getElementType());
+    const auto remainder = (IC * KY * KX) % alignment;
+    VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
+
+    const auto padding = (remainder > 0) ? (alignment - remainder) : 0;
+
+    const auto alignedWeightShape = SmallVector<int64_t>{OC, 1, 1, IC * KY * KX + padding};
+    const auto alignedFilterType = mlir::RankedTensorType::get(alignedWeightShape, filterTileType.getElementType());
+    return alignedFilterType;
+}
+
 }  // namespace IE
 }  // namespace vpux
