@@ -217,13 +217,13 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<NCEEltwiseOp>::matchAndRewrite(
 }
 
 //
-// WrapMultiClusterLayersInNCEClusterTilingPass
+// WrapVPUOpsInNCEClusterTilingPass
 //
 
-class WrapMultiClusterLayersInNCEClusterTilingPass final :
-        public WrapMultiClusterLayersInNCEClusterTilingBase<WrapMultiClusterLayersInNCEClusterTilingPass> {
+class WrapVPUOpsInNCEClusterTilingPass final :
+        public WrapVPUOpsInNCEClusterTilingBase<WrapVPUOpsInNCEClusterTilingPass> {
 public:
-    explicit WrapMultiClusterLayersInNCEClusterTilingPass(Logger log) {
+    explicit WrapVPUOpsInNCEClusterTilingPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -235,7 +235,7 @@ private:
 // safeRunOnModule
 //
 
-void WrapMultiClusterLayersInNCEClusterTilingPass::safeRunOnFunc() {
+void WrapVPUOpsInNCEClusterTilingPass::safeRunOnFunc() {
     auto func = getFunction();
     auto& ctx = getContext();
 
@@ -272,9 +272,9 @@ void WrapMultiClusterLayersInNCEClusterTilingPass::safeRunOnFunc() {
 }  // namespace
 
 //
-// createWrapMultiClusterLayersInNCEClusterTilingPass
+// createWrapVPUOpsInNCEClusterTilingPass
 //
 
-std::unique_ptr<mlir::Pass> VPU::createWrapMultiClusterLayersInNCEClusterTilingPass(Logger log) {
-    return std::make_unique<WrapMultiClusterLayersInNCEClusterTilingPass>(log);
+std::unique_ptr<mlir::Pass> VPU::createWrapVPUOpsInNCEClusterTilingPass(Logger log) {
+    return std::make_unique<WrapVPUOpsInNCEClusterTilingPass>(log);
 }
