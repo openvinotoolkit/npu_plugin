@@ -27,7 +27,7 @@ namespace mv
 
 void fuseImplicitsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    //fuseConcatsFcn(pass, model);
+    fuseConcatsFcn(pass, model);
     fuseCropSliceFcn(pass, model);
     fuseCropStridedSliceFcn(pass, model);
     fuseSliceSliceFcn(pass, model);
@@ -200,6 +200,7 @@ void fuseConcatsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
     std::vector <std::string> concatChilds;
     storeConcatChildFrequency(acceptableFusedConcats, concatChilds, concatChildApperarences);
 
+    std::cout << "There are " << acceptableFusedConcats.size() << " concats that can be fused in this model " << std::endl;
     for (auto concatPair : acceptableFusedConcats)
     {
         auto concatChild = om.getOp(concatPair.second);
