@@ -59,7 +59,17 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(VPUIP::BlobWrite
 }
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(NNDMAOp op) {
-    return verifyTensorSize(op.getLoc(), op.input());
+    auto loc = op.getLoc();
+
+    if (auto distributedOut = op.output().getType().dyn_cast<VPUIP::DistributedBufferType>()) {
+        auto mode = distributedOut.getDistribution().mode().getValue();
+        if (mode != VPU::DistributionMode::DUPLICATED) {
+            return errorAt(loc, "Only duplicated mode supported for output operand. Got: {0}",
+                           VPU::stringifyDistributionMode(mode));
+        }
+    }
+
+    return verifyTensorSize(loc, op.input());
 }
 
 //

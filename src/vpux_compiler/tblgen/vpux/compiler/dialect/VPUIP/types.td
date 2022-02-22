@@ -48,7 +48,7 @@ def VPUIP_DistributedBuffer :
     let parameters = (ins
         ArrayRefParameter<"int64_t">:$shape,
         "mlir::Type":$elementType,
-        "mlir::AffineMapAttr":$order,
+        "mlir::MemRefLayoutAttrInterface":$layout,
         "vpux::IndexedSymbolAttr":$memSpace,
         "VPU::DistributedTensorAttr":$distribution
     );
@@ -56,7 +56,7 @@ def VPUIP_DistributedBuffer :
     let extraClassDeclaration = [{
         mlir::MemRefType getCompactType() const;
 
-        mlir::AffineMapAttr getOrder() const;
+        mlir::MemRefLayoutAttrInterface getLayout() const;
         VPU::DistributedTensorAttr getDistribution() const;
     }];
 }

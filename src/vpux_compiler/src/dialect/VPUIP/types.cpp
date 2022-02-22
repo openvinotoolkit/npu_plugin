@@ -74,8 +74,8 @@ mlir::Type vpux::VPUIP::DistributedBufferType::getElementType() const {
     return getImpl()->elementType;
 }
 
-mlir::AffineMapAttr vpux::VPUIP::DistributedBufferType::getOrder() const {
-    return getImpl()->order;
+mlir::MemRefLayoutAttrInterface vpux::VPUIP::DistributedBufferType::getLayout() const {
+    return getImpl()->layout;
 }
 
 vpux::IndexedSymbolAttr vpux::VPUIP::DistributedBufferType::getMemSpace() const {

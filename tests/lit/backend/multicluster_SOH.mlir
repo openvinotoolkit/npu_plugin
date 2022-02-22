@@ -3,6 +3,28 @@
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
+!InputDistributed = type !VPUIP.DistributedBuffer<
+    1x16x32x32xf16, #NHWC, @CMX_NN, {
+    mode = "SEGMENTED",
+    num_clusters = 2
+}>
+
+!OutputDistributed = type !VPUIP.DistributedBuffer<
+    1x16x32x32xf16, #NHWC, @CMX_NN, {
+    mode = "SEGMENTED",
+    num_clusters = 2
+}>
+
+!WeightsDistributed = type !VPUIP.DistributedBuffer<
+    16x16x1x1xf16, #NHWC, @CMX_NN, {
+    mode = "DUPLICATED"
+}>
+
+!WeightsTableDistributed = type !VPUIP.DistributedBuffer<
+    16x1x1x4xsi32, #NCHW, @CMX_NN, {
+    mode = "DUPLICATED"
+}>
+
 module @TestMultiClusterSOH attributes {VPU.arch = "KMB"} {
 
 IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
@@ -53,12 +75,21 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
     %output2_ddr = VPURT.DeclareBuffer "DDR" <49152> -> memref<1x16x16x32xf16, #NHWC>
 
     // CMX buffers
-    %input1 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x16x32xf16, #NHWC, @CMX_NN>
-    %input2 = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x16x32xf16, #NHWC, @CMX_NN>
-    %output1 = VPURT.DeclareBuffer "CMX_NN" [0] <16384> -> memref<1x16x16x32xf16, #NHWC, @CMX_NN>
-    %output2 = VPURT.DeclareBuffer "CMX_NN" [1] <16384> -> memref<1x16x16x32xf16, #NHWC, @CMX_NN>
-    %weights = VPURT.DeclareBuffer "CMX_NN" [0, 1] <32768> -> memref<16x16x1x1xf16, #NHWC, @CMX_NN>
-    %weight_table = VPURT.DeclareBuffer "CMX_NN" [0, 1] <33280> -> memref<16x1x1x4xsi32, @CMX_NN>
+    %parent_input_cmx = VPURT.DeclareBuffer "CMX_NN" [0, 1] <0> -> !InputDistributed
+    %input1 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>
+    %input2 = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
+
+    %parent_out_cmx = VPURT.DeclareBuffer "CMX_NN" [0, 1] <16384> -> !OutputDistributed
+    %output1 = VPURT.DeclareBuffer "CMX_NN" [0] <16384> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>
+    %output2 = VPURT.DeclareBuffer "CMX_NN" [1] <16384> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
+
+    %weights = VPURT.DeclareBuffer "CMX_NN" [0, 1] <32768> -> !WeightsDistributed
+    %weights_0 = VPURT.DeclareBuffer "CMX_NN" [0] <32768> -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %weights_1 = VPURT.DeclareBuffer "CMX_NN" [1] <32768> -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 1]>
+
+    %weight_table = VPURT.DeclareBuffer "CMX_NN" [0, 1] <33280> -> !WeightsTableDistributed
+    %weight_table_0 = VPURT.DeclareBuffer "CMX_NN" [0] <33280> -> memref<16x1x1x4xsi32, [@CMX_NN, 0]>
+    %weight_table_1 = VPURT.DeclareBuffer "CMX_NN" [1] <33280> -> memref<16x1x1x4xsi32, [@CMX_NN, 1]>
 
 
     // Upload weights and weights table
@@ -66,15 +97,15 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
     VPURT.Task updates(%bar10: !VPURT.Barrier) {
          VPUIP.NNDMA
             inputs(%weights_cst: memref<16x16x1x1xf16, #NHWC>)
-            outputs(%weights: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
-            -> memref<16x16x1x1xf16, #NHWC, @CMX_NN>
+            outputs(%weights: !WeightsDistributed)
+            -> !WeightsDistributed
     }
 
     VPURT.Task updates(%bar10: !VPURT.Barrier)  {
          VPUIP.NNDMA
             inputs(%weights_table_cst: memref<16x1x1x4xsi32>)
-            outputs(%weight_table: memref<16x1x1x4xsi32, @CMX_NN>)
-            -> memref<16x1x1x4xsi32, @CMX_NN>
+            outputs(%weight_table: !WeightsTableDistributed)
+            -> !WeightsTableDistributed
     }
 
     // Reorder input
@@ -91,8 +122,8 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
     VPURT.Task waits(%bar0: !VPURT.Barrier) updates(%bar1: !VPURT.Barrier) {
          VPUIP.NNDMA
             inputs(%input1_ddr: memref<1x16x16x32xf16, #NHWC>)
-            outputs(%input1: memref<1x16x16x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x16x32xf16, #NHWC, @CMX_NN>
+            outputs(%input1: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>)
+            -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>
     }
 
     // Upload 2nd input tile
@@ -100,8 +131,8 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
     VPURT.Task waits(%bar0: !VPURT.Barrier) updates(%bar1: !VPURT.Barrier) {
          VPUIP.NNDMA
             inputs(%input2_ddr: memref<1x16x16x32xf16, #NHWC>)
-            outputs(%input2: memref<1x16x16x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x16x32xf16, #NHWC, @CMX_NN>
+            outputs(%input2: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
+            -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
     }
 
     // 1st tile
@@ -114,13 +145,13 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
                 task_type = "CONV",
                 is_segmented
             }
-            input(%input1: memref<1x16x16x32xf16, #NHWC, @CMX_NN>)
-            weights(%weights: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
-            weight_table(%weight_table: memref<16x1x1x4xsi32, @CMX_NN>)
-            parent_input(%parent_in: memref<1x16x32x32xf16, #NHWC>)
-            parent_output(%parent_out: memref<1x16x32x32xf16, #NHWC>)
-            outputs(%output1: memref<1x16x16x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x16x32xf16, #NHWC, @CMX_NN>
+            input(%input1: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>)
+            weights(%weights_0: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>)
+            weight_table(%weight_table_0: memref<16x1x1x4xsi32, [@CMX_NN, 0]>)
+            parent_input(%parent_input_cmx: !InputDistributed)
+            parent_output(%parent_out_cmx: !OutputDistributed)
+            outputs(%output1: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>)
+            -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>
             variants : {
                 DPUTask {
                     start = [0, 0, 0],
@@ -142,13 +173,13 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
                 task_type = "CONV",
                 is_segmented
             }
-            input(%input2: memref<1x16x16x32xf16, #NHWC, @CMX_NN>)
-            weights(%weights: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
-            weight_table(%weight_table: memref<16x1x1x4xsi32, @CMX_NN>)
-            parent_input(%parent_in: memref<1x16x32x32xf16, #NHWC>)
-            parent_output(%parent_out: memref<1x16x32x32xf16, #NHWC>)
-            outputs(%output2: memref<1x16x16x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x16x32xf16, #NHWC, @CMX_NN>
+            input(%input2: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
+            weights(%weights_1: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 1]>)
+            weight_table(%weight_table_1: memref<16x1x1x4xsi32, [@CMX_NN, 1]>)
+            parent_input(%parent_input_cmx: !InputDistributed)
+            parent_output(%parent_out_cmx: !OutputDistributed)
+            outputs(%output2: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
+            -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
             variants : {
                 DPUTask {
                     start = [0, 16, 0],
@@ -164,7 +195,7 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 
     VPURT.Task waits(%bar2: !VPURT.Barrier) updates(%bar3: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%output1: memref<1x16x16x32xf16, #NHWC, @CMX_NN>)
+            inputs(%output1: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>)
             outputs(%output1_ddr: memref<1x16x16x32xf16, #NHWC>)
             -> memref<1x16x16x32xf16, #NHWC>
     }
@@ -173,7 +204,7 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 
     VPURT.Task waits(%bar2: !VPURT.Barrier) updates(%bar3: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%output2: memref<1x16x16x32xf16, #NHWC, @CMX_NN>)
+            inputs(%output2: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
             outputs(%output2_ddr: memref<1x16x16x32xf16, #NHWC>)
             -> memref<1x16x16x32xf16, #NHWC>
     }
@@ -211,9 +242,10 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 32.0
 // CHECK:               ],
 // CHECK:                 data_index: 0
-// CHECK:               locale: "VPU_DDR_Heap",
+// CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0
+// CHECK:                 0,
+// CHECK:                 1
 // CHECK:               ],
 // CHECK:               data_dtype: "FP16",
 // CHECK:             parent_output_tensor: {
@@ -230,10 +262,11 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 1024.0,
 // CHECK:                 32.0
 // CHECK:               ],
-// CHECK:                 data_index: 32768
-// CHECK:               locale: "VPU_DDR_Heap",
+// CHECK:                 data_index: 16384
+// CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0
+// CHECK:                 0,
+// CHECK:                 1
 // CHECK:               ],
 // CHECK:               data_dtype: "FP16",
 // CHECK:             input_data: {
@@ -292,8 +325,7 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 data_index: 32768
 // CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0,
-// CHECK:                 1
+// CHECK:                 0
 // CHECK:               ],
 // CHECK:               data_dtype: "FP16",
 // CHECK:             weights_table: {
@@ -313,8 +345,7 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 data_index: 33280
 // CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0,
-// CHECK:                 1
+// CHECK:                 0
 // CHECK:               ],
 // CHECK:               data_dtype: "I32",
 // CHECK:             is_segmented: true
@@ -341,9 +372,10 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 32.0
 // CHECK:               ],
 // CHECK:                 data_index: 0
-// CHECK:               locale: "VPU_DDR_Heap",
+// CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0
+// CHECK:                 0,
+// CHECK:                 1
 // CHECK:               ],
 // CHECK:               data_dtype: "FP16",
 // CHECK:             },
@@ -361,10 +393,11 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 1024.0,
 // CHECK:                 32.0
 // CHECK:               ],
-// CHECK:                 data_index: 32768
-// CHECK:               locale: "VPU_DDR_Heap",
+// CHECK:                 data_index: 16384
+// CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0
+// CHECK:                 0,
+// CHECK:                 1
 // CHECK:               ],
 // CHECK:               data_dtype: "FP16",
 // CHECK:             input_data: {
@@ -424,7 +457,6 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 data_index: 32768
 // CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0,
 // CHECK:                 1
 // CHECK:               ],
 // CHECK:               data_dtype: "FP16",
@@ -445,7 +477,6 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 data_index: 33280
 // CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0,
 // CHECK:                 1
 // CHECK:               ],
 // CHECK:               data_dtype: "I32",

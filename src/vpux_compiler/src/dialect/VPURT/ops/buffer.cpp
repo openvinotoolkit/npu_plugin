@@ -38,12 +38,12 @@ void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::Opera
 }
 
 mlir::LogicalResult vpux::VPURT::verifyOp(DeclareBufferOp op) {
-    const auto type = op.getType();
+    const auto type = op.getType().cast<vpux::NDTypeInterface>();
     const auto section = op.section();
 
     if (!VPURT::isMemoryCompatible(section, type)) {
         return errorAt(op, "BufferSection '{0}' is not compatible with memory space '{1}'", section,
-                       type.getMemorySpace());
+                       type.getMemSpace());
     }
 
     // TODO: check sectionIndex and byteOffset [track: E#21111]

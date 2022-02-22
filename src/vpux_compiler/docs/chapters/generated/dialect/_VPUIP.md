@@ -1207,16 +1207,16 @@ mutually exclusive.
 `weights` | memref of 16-bit float or bfloat16 type or QuantizedType values or VPURT Sparse Buffer Type
 `weight_table` | memref of 32-bit signed integer values
 `activation_window` | memref of 8-bit unsigned integer values
-`parent_input` | memref of any type values or VPURT Sparse Buffer Type
-`parent_output` | memref of any type values or VPURT Sparse Buffer Type
-`output_buff` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values or VPURT Sparse Buffer Type
+`parent_input` | memref of any type values or VPURT Sparse Buffer Type or VPUIP buffer type to describe the buffer tiling
+`parent_output` | memref of any type values or VPURT Sparse Buffer Type or VPUIP buffer type to describe the buffer tiling
+`output_buff` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values or VPURT Sparse Buffer Type or VPUIP buffer type to describe the buffer tiling
 `profiling_data` | memref of 64-bit unsigned integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values or VPURT Sparse Buffer Type
+`output` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values or VPURT Sparse Buffer Type or VPUIP buffer type to describe the buffer tiling
 `profiling_output` | memref of 64-bit unsigned integer values
 
 ### `VPUIP.NCEClusterTiling` (vpux::VPUIP::NCEClusterTilingOp)
@@ -1265,13 +1265,13 @@ operation ::= `VPUIP.NNDMA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of any type values
-`output_buff` | memref of any type values
+`output_buff` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`output` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.NegativeUPA` (vpux::VPUIP::NegativeUPAOp)
 
@@ -2505,7 +2505,7 @@ This type of buffer is used together with the ClusterTiling operation
 | :-------: | :-------: | ----------- |
 | shape | `::llvm::ArrayRef<int64_t>` |  |
 | elementType | `mlir::Type` |  |
-| order | `mlir::AffineMapAttr` |  |
+| layout | `mlir::MemRefLayoutAttrInterface` |  |
 | memSpace | `vpux::IndexedSymbolAttr` |  |
 | distribution | `VPU::DistributedTensorAttr` |  |
 

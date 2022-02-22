@@ -99,7 +99,7 @@ def VPUIP_NNDMAOp :
 
     let arguments = (ins
         AnyMemRef:$input,
-        AnyMemRef:$output_buff,
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
 
         DefaultValuedAttr<IntAttr, "0">:$port,
         UnitAttr:$is_out_of_order,
@@ -107,7 +107,7 @@ def VPUIP_NNDMAOp :
     );
 
     let results = (outs
-        AnyMemRef:$output
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output
     );
 
     let builders = [
@@ -1936,10 +1936,10 @@ def VPUIP_NCEClusterTaskOp :
         Optional<MemRefOf<[SI32]>>:$weight_table,
         Optional<MemRefOf<[UI8]>>:$activation_window,
 
-        AnyTypeOf<[AnyMemRef, VPURT_SparseBuffer]>:$parent_input,
-        AnyTypeOf<[AnyMemRef, VPURT_SparseBuffer]>:$parent_output,
+        AnyTypeOf<[AnyMemRef, VPURT_SparseBuffer, VPUIP_DistributedBuffer]>:$parent_input,
+        AnyTypeOf<[AnyMemRef, VPURT_SparseBuffer, VPUIP_DistributedBuffer]>:$parent_output,
 
-        AnyTypeOf<[MemRefOf<[F16, F32, BF16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$output_buff,
+        AnyTypeOf<[MemRefOf<[F16, F32, BF16, quant_QuantizedType]>, VPURT_SparseBuffer, VPUIP_DistributedBuffer]>:$output_buff,
         Optional<MemRefOf<[UI64]>>:$profiling_data,
 
         VPUIP_NCETaskType:$task_type,
@@ -1953,7 +1953,7 @@ def VPUIP_NCEClusterTaskOp :
     );
 
     let results = (outs
-        AnyTypeOf<[MemRefOf<[F16, F32, BF16, quant_QuantizedType]>, VPURT_SparseBuffer]>:$output,
+        AnyTypeOf<[MemRefOf<[F16, F32, BF16, quant_QuantizedType]>, VPURT_SparseBuffer, VPUIP_DistributedBuffer]>:$output,
         Optional<MemRefOf<[UI64]>>:$profiling_output
     );
 
