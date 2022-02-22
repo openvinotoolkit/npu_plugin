@@ -33,13 +33,23 @@ namespace VPU {
 //
 // BaseLayerStrategy
 //
+
+// Abstract base class
+// Specific method implimentations for each layer type are required
+// in the derived classes
+// Examples:
+// (1) Does a particular layer with a particular strategy fit in CMX
+// (2) The hardware efficiency for a particular layer with a particular strategy
+//
+// Note: This will probably be replaced by operation interface for operation
+// cost model EISW-26043.
 class BaseLayerStrategy {
 public:
     explicit BaseLayerStrategy(mlir::FuncOp func, Logger log);
     virtual ~BaseLayerStrategy() = default;
 
-    virtual bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) = 0;
-    bool isOperationSplitOverHeightCompatible(mlir::Operation* op);
+    virtual bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const = 0;
+    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
 
     int32_t _numClusters;
     const long int _minimumOutputHeightForSOH = 20;
@@ -56,7 +66,7 @@ public:
     ConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) override;
+    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
 };
 
 //
@@ -66,7 +76,7 @@ class DepthConvolutionStrategy : public BaseLayerStrategy {
 public:
     DepthConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
-    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) override;
+    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
 };
 
 //
@@ -77,7 +87,7 @@ public:
     MaxPoolStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) override;
+    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
 };
 
 //
@@ -88,13 +98,17 @@ public:
     EltwiseStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) override;
+    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
 };
 
 //
 // StrategyManager
 //
 
+// Higher level strategy manager class
+// It's current purpose is to globally assign strategies
+// In future it may have methods for finding sub-graphs
+// and other strategy related utilites
 class StrategyManager final {
 public:
     explicit StrategyManager(mlir::FuncOp func, Logger log);
@@ -103,6 +117,8 @@ public:
     void assignMultiClusterStrategy();
 
 private:
+    void setLayerStrategy(const llvm::StringRef strategy, mlir::Operation* origOp) const;
+
     mlir::FuncOp _func;
     Logger _log;
     ConvolutionStrategy _convolutionStrategy;
