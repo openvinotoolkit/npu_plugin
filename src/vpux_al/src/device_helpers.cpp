@@ -14,50 +14,53 @@
 #include <device_helpers.hpp>
 #include <iostream>
 
-namespace ie = InferenceEngine;
-
-const static std::map<uint32_t, ie::VPUXConfigParams::VPUXPlatform> platformIdMap = {
-        {0, ie::VPUXConfigParams::VPUXPlatform::VPU3700},  // KMB A0 / B0
-        {1, ie::VPUXConfigParams::VPUXPlatform::VPU3800},  // TBH prime
-        {2, ie::VPUXConfigParams::VPUXPlatform::VPU3900},  // TBH full
-        {3, ie::VPUXConfigParams::VPUXPlatform::VPU3720},  // MTL
+const static std::map<uint32_t, InferenceEngine::VPUXConfigParams::VPUXPlatform> platformIdMap = {
+        {0, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},  // KMB A0 / B0
+        {1, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800},  // TBH prime
+        {2, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900},  // TBH full
+        {3, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},  // MTL
 };
 
-const static std::map<ie::VPUXConfigParams::VPUXPlatform, std::string> platformNameMap = {
-        {ie::VPUXConfigParams::VPUXPlatform::AUTO, "AUTO"},           // auto detection
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "3400_A0"},  // KMB A0
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3400, "3400"},        // KMB B0 500 MHz
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},        // KMB B0 700 MHz
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3800, "3800"},        // TBH Prime
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3900, "3900"},        // TBH Full
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},        // MTL
+const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::string> platformNameMap = {
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO, "AUTO"},           // auto detection
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "3400_A0"},  // KMB A0
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400, "3400"},        // KMB B0 500 MHz
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},        // KMB B0 700 MHz
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800, "3800"},        // TBH Prime
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900, "3900"},        // TBH Full
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},        // MTL
 };
 
-const static std::map<std::string, ie::VPUXConfigParams::VPUXPlatform> platformNameInverseMap = {
-        {"AUTO", ie::VPUXConfigParams::VPUXPlatform::AUTO},             // auto detection
-        {"3400_A0", ie::VPUXConfigParams::VPUXPlatform::VPU3400_A0},    // KMB A0
-        {"3400", ie::VPUXConfigParams::VPUXPlatform::VPU3400},          // KMB B0 500 MHz
-        {"3700", ie::VPUXConfigParams::VPUXPlatform::VPU3700},          // KMB B0 700 MHz
-        {"3800", ie::VPUXConfigParams::VPUXPlatform::VPU3800},          // TBH Prime
-        {"3900", ie::VPUXConfigParams::VPUXPlatform::VPU3900},          // TBH Full
-        {"3720", ie::VPUXConfigParams::VPUXPlatform::VPU3720},          // MTL
-        {"3400_A0_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},  // Emulator KMB A0
-        {"3400_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator KMB B0 500 MHz
-        {"3700_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator KMB B0 700 MHz
-        {"3800_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator TBH Prime
-        {"3900_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator TBH Full
-        {"3720_EMU", ie::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator MTL
+const static std::map<std::string, InferenceEngine::VPUXConfigParams::VPUXPlatform> platformNameInverseMap = {
+        {"AUTO", InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO},             // auto detection
+        {"3400_A0", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0},    // KMB A0
+        {"3400", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400},          // KMB B0 500 MHz
+        {"3700", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},          // KMB B0 700 MHz
+        {"3800", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800},          // TBH Prime
+        {"3900", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900},          // TBH Full
+        {"3720", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},          // MTL
+        {"3400_A0_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},  // Emulator KMB A0
+        {"3400_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator KMB B0 500 MHz
+        {"3700_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator KMB B0 700 MHz
+        {"3800_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator TBH Prime
+        {"3900_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator TBH Full
+        {"3720_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator MTL
 };
 
 // TODO Need to clarify the full names of devices. Definitely for MTL, possibly for others
-const static std::map<ie::VPUXConfigParams::VPUXPlatform, std::string> platformToFullDeviceNameMap = {
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "Gen3 Intel(R) Movidius(TM) VPU 3400VE"},  // KMB A0
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3400, "Gen3 Intel(R) Movidius(TM) VPU 3400VE"},     // KMB B0 500 MHz
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3700, "Gen3 Intel(R) Movidius(TM) VPU 3700VE"},     // KMB B0 700 MHz
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3800, "Gen3 Intel(R) Movidius(TM) S VPU 3800V"},    // TBH Prime
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3900, "Gen3 Intel(R) Movidius(TM) S VPU 3900V"},    // TBH Full
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3720, "Gen4 Intel(R) Movidius(TM) VPU 3720VE"},     // MTL
-        {ie::VPUXConfigParams::VPUXPlatform::EMULATOR, "Emulator"},                                 // Emulator
+const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::string> platformToFullDeviceNameMap = {
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0,
+         "Gen3 Intel(R) Movidius(TM) VPU 3400VE"},  // KMB A0
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400,
+         "Gen3 Intel(R) Movidius(TM) VPU 3400VE"},  // KMB B0 500 MHz
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700,
+         "Gen3 Intel(R) Movidius(TM) VPU 3700VE"},  // KMB B0 700 MHz
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800,
+         "Gen3 Intel(R) Movidius(TM) S VPU 3800V"},  // TBH Prime
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900,
+         "Gen3 Intel(R) Movidius(TM) S VPU 3900V"},  // TBH Full
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "Gen4 Intel(R) Movidius(TM) VPU 3720VE"},  // MTL
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR, "Emulator"},  // Emulator
 };
 
 bool utils::isVPUDevice(const uint32_t deviceId) {
@@ -123,7 +126,7 @@ int utils::getSliceIdByDeviceName(const std::string& deviceName) {
     IE_THROW() << "Device name conversion error - bad name: " << deviceName;
 }
 
-ie::VPUXConfigParams::VPUXPlatform utils::getPlatformBySwDeviceId(const uint32_t swDevId) {
+InferenceEngine::VPUXConfigParams::VPUXPlatform utils::getPlatformBySwDeviceId(const uint32_t swDevId) {
     // bits 7-4 define platform
     // right shift to omit bits 0-3. after that platform code is stored in bits 3-0
     // apply b1111 mask to discard anything but platform code
@@ -132,7 +135,7 @@ ie::VPUXConfigParams::VPUXPlatform utils::getPlatformBySwDeviceId(const uint32_t
 }
 
 std::string utils::getDeviceNameBySwDeviceId(const uint32_t swDevId) {
-    ie::VPUXConfigParams::VPUXPlatform platform = getPlatformBySwDeviceId(swDevId);
+    InferenceEngine::VPUXConfigParams::VPUXPlatform platform = getPlatformBySwDeviceId(swDevId);
     uint32_t sliceId = getSliceIdBySwDeviceId(swDevId);
     std::string deviceName = platformNameMap.at(platform) + "." + std::to_string(sliceId);
     return deviceName;
@@ -148,7 +151,7 @@ std::string utils::getPlatformNameByDeviceName(const std::string& deviceName) {
     return platformName;
 }
 
-ie::VPUXConfigParams::VPUXPlatform utils::getPlatformByDeviceName(const std::string& deviceName) {
+InferenceEngine::VPUXConfigParams::VPUXPlatform utils::getPlatformByDeviceName(const std::string& deviceName) {
     const auto platformName = getPlatformNameByDeviceName(deviceName);
     if (!isPlatformNameSupported(platformName)) {
         IE_THROW() << "Unexpected device name: " << deviceName;

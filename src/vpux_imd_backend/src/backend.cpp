@@ -17,10 +17,12 @@
 #include "vpux/IMD/parsed_config.hpp"
 #include "vpux/vpux_plugin_params.hpp"
 #include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
 #include "device_helpers.hpp"
 
 using namespace vpux;
+using namespace ov::intel_vpux;
 using namespace InferenceEngine::VPUXConfigParams;
 
 const std::shared_ptr<IDevice> vpux::IMD::BackendImpl::getDevice() const {

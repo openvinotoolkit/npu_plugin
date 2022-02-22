@@ -40,7 +40,7 @@ const std::shared_ptr<IDevice> EmulatorBackend::getDevice(const ie::ParamMap& ma
 
 const std::shared_ptr<IDevice> EmulatorBackend::getDevice(const std::string& name) const {
     // TODO: better check?
-    if (utils::getPlatformByDeviceName(name) == ie::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+    if (utils::getPlatformByDeviceName(name) == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
         return _device;
     }
 

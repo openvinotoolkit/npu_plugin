@@ -16,8 +16,10 @@
 #include "vpux/utils/IE/config.hpp"
 
 #include "mcm_private_config.hpp"
+#include "vpux/properties.hpp"
 #include "vpux/vpux_plugin_config.hpp"
 #include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
 #include <ie_plugin_config.hpp>
 
@@ -37,7 +39,7 @@ StringLiteral stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType val)
 
 struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, InferenceEngine::VPUXConfigParams::CompilerType> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(COMPILER_TYPE);
+        return ov::intel_vpux::compiler_type.name();
     }
 
 #ifdef VPUX_DEVELOPER_BUILD
@@ -71,7 +73,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, InferenceEngine::VPUXConf
 
 struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(COMPILATION_MODE);
+        return ov::intel_vpux::compilation_mode.name();
     }
 
 #ifdef VPUX_DEVELOPER_BUILD
@@ -95,7 +97,7 @@ struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
 
 struct COMPILATION_MODE_PARAMS final : OptionBase<COMPILATION_MODE_PARAMS, std::string> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS);
+        return ov::intel_vpux::compilation_mode_params.name();
     }
 
     static std::string defaultValue() {
@@ -117,7 +119,7 @@ struct COMPILATION_MODE_PARAMS final : OptionBase<COMPILATION_MODE_PARAMS, std::
 
 struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(DPU_GROUPS);
+        return ov::intel_vpux::dpu_groups.name();
     }
 
     static SmallVector<StringRef> deprecatedKeys() {
@@ -139,7 +141,7 @@ struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
 
 struct CUSTOM_LAYERS final : OptionBase<CUSTOM_LAYERS, std::string> {
     static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS);
+        return ov::intel_vpux::custom_layers.name();
     }
 
     static OptionMode mode() {

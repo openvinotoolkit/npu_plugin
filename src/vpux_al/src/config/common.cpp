@@ -14,7 +14,7 @@
 #include "vpux/al/config/common.hpp"
 
 using namespace vpux;
-using namespace InferenceEngine::VPUXConfigParams;
+using namespace ov::intel_vpux;
 
 //
 // register
@@ -115,26 +115,26 @@ StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(VPUXPlatform val)
     }
 }
 
-VPUXPlatform vpux::PLATFORM::parse(StringRef val) {
+InferenceEngine::VPUXConfigParams::VPUXPlatform vpux::PLATFORM::parse(StringRef val) {
     // TODO: Remove deprecated platform names with VPU prefix in future releases
 
     if (val == "AUTO") {
-        return VPUXPlatform::AUTO;
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
     } else if (val == "3400_A0" || val == "VPU3400_A0") {
-        return VPUXPlatform::VPU3400_A0;
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0;
     } else if (val == "3400" || val == "VPU3400") {
-        return VPUXPlatform::VPU3400;
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400;
     } else if (val == "3700" || val == "VPU3700") {
-        return VPUXPlatform::VPU3700;
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700;
     } else if (val == "3800" || val == "VPU3800") {
-        return VPUXPlatform::VPU3800;
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800;
     } else if (val == "3900" || val == "VPU3900") {
-        return VPUXPlatform::VPU3900;
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900;
     } else if (val == "3720" || val == "VPU3720") {
-        return VPUXPlatform::VPU3720;
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720;
     } else if (val == "3400_A0_EMU" || val == "3400_EMU" || val == "3700_EMU" || val == "3800_EMU" ||
                val == "3900_EMU" || val == "3720_EMU") {
-        return VPUXPlatform::EMULATOR;
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR;
     }
 
     VPUX_THROW("Value '{0}' is not a valid PLATFORM option", val);

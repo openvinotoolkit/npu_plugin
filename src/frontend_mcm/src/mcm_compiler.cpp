@@ -20,6 +20,7 @@
 #include "vpux/al/config/common.hpp"
 
 using namespace vpux;
+using namespace ov::intel_vpux;
 using namespace InferenceEngine::VPUXConfigParams;
 
 std::shared_ptr<INetworkDescription> MCMCompiler::compile(const std::shared_ptr<ngraph::Function>& func,

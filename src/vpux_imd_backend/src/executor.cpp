@@ -31,13 +31,13 @@
 
 using namespace vpux;
 using namespace InferenceEngine;
-using namespace InferenceEngine::VPUXConfigParams;
+using namespace ov::intel_vpux;
 
 //
 // parseAppConfig
 //
 
-void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXPlatform platform, const Config& config) {
+void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXConfigParams::VPUXPlatform platform, const Config& config) {
     // InferenceManagerDemo application ELF file
 
     if (platformSupported(platform)) {
@@ -262,7 +262,7 @@ void vpux::IMD::ExecutorImpl::loadNetworkOutputs(StringRef workDir, const BlobMa
 // Base interface API implementation
 //
 
-vpux::IMD::ExecutorImpl::ExecutorImpl(VPUXPlatform platform, const NetworkDescription::Ptr& network,
+vpux::IMD::ExecutorImpl::ExecutorImpl(VPUXConfigParams::VPUXPlatform platform, const NetworkDescription::Ptr& network,
                                       const Config& config)
         : _network(network), _log("InferenceManagerDemo", config.get<LOG_LEVEL>()) {
     parseAppConfig(platform, config);

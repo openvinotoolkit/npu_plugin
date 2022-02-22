@@ -231,12 +231,30 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
             return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
         };
 
+        const auto RW_property = [](const std::string& propertyName) {
+            return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+        };
+
         if (name == ov::supported_properties) {
             static const std::vector<ov::PropertyName> supportedProperties{
-                    RO_property(ov::supported_properties.name()),              //
-                    RO_property(ov::model_name.name()),                        //
-                    RO_property(ov::optimal_number_of_infer_requests.name()),  //
-                    RO_property(ov::device::id.name()),                        //
+                    RO_property(ov::supported_properties.name()),               //
+                    RO_property(ov::model_name.name()),                         //
+                    RO_property(ov::optimal_number_of_infer_requests.name()),   //
+                    RO_property(ov::device::id.name()),                         //
+                    RW_property(ov::intel_vpux::csram_size.name()),             //
+                    RW_property(ov::intel_vpux::executor_streams.name()),       //
+                    RW_property(ov::intel_vpux::graph_color_format.name()),     //
+                    RW_property(ov::intel_vpux::inference_shaves.name()),       //
+                    RW_property(ov::intel_vpux::inference_timeout.name()),      //
+                    RW_property(ov::intel_vpux::preprocessing_lpi.name()),      //
+                    RW_property(ov::intel_vpux::preprocessing_pipes.name()),    //
+                    RW_property(ov::intel_vpux::preprocessing_shaves.name()),   //
+                    RW_property(ov::intel_vpux::print_profiling.name()),        //
+                    RW_property(ov::intel_vpux::profiling_output_file.name()),  //
+                    RW_property(ov::intel_vpux::use_m2i.name()),                //
+                    RW_property(ov::intel_vpux::use_shave_only_m2i.name()),     //
+                    RW_property(ov::intel_vpux::use_sipp.name()),               //
+                    RW_property(ov::intel_vpux::vpux_platform.name())           //
             };
             return supportedProperties;
         } else if (name == ov::model_name) {
@@ -246,6 +264,34 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
             return static_cast<uint32_t>(8);
         } else if (name == ov::device::id) {
             return _config.get<DEVICE_ID>();
+        } else if (name == ov::intel_vpux::csram_size) {
+            return _config.get<CSRAM_SIZE>();
+        } else if (name == ov::intel_vpux::executor_streams) {
+            return _config.get<EXECUTOR_STREAMS>();
+        } else if (name == ov::intel_vpux::graph_color_format) {
+            return _config.get<GRAPH_COLOR_FORMAT>();
+        } else if (name == ov::intel_vpux::inference_shaves) {
+            return _config.get<INFERENCE_SHAVES>();
+        } else if (name == ov::intel_vpux::inference_timeout) {
+            return _config.get<INFERENCE_TIMEOUT_MS>();
+        } else if (name == ov::intel_vpux::preprocessing_lpi) {
+            return _config.get<PREPROCESSING_LPI>();
+        } else if (name == ov::intel_vpux::preprocessing_pipes) {
+            return _config.get<PREPROCESSING_PIPES>();
+        } else if (name == ov::intel_vpux::preprocessing_shaves) {
+            return _config.get<PREPROCESSING_SHAVES>();
+        } else if (name == ov::intel_vpux::print_profiling) {
+            return _config.get<PRINT_PROFILING>();
+        } else if (name == ov::intel_vpux::profiling_output_file) {
+            return _config.get<PROFILING_OUTPUT_FILE>();
+        } else if (name == ov::intel_vpux::use_m2i) {
+            return _config.get<USE_M2I>();
+        } else if (name == ov::intel_vpux::use_shave_only_m2i) {
+            return _config.get<USE_SHAVE_ONLY_M2I>();
+        } else if (name == ov::intel_vpux::use_sipp) {
+            return _config.get<USE_SIPP>();
+        } else if (name == ov::intel_vpux::vpux_platform) {
+            return _config.get<PLATFORM>();
         }
     }
 
