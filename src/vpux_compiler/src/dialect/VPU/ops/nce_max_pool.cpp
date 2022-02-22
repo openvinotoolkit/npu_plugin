@@ -30,36 +30,51 @@
 using namespace vpux;
 
 //
+// memSizes
+//
+
+SmallVector<Byte> VPU::NCEMaxPoolOp::memSizes(mlir::ArrayAttr kernelSize, mlir::ArrayAttr strides,
+                                              vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
+    SmallVector<Byte> requiredCMX(5, Byte(0));  // {input, output, weightsTable, activationWindow} in order
+
+    requiredCMX[0] = input.getTotalAllocSize();
+    requiredCMX[1] = output.getTotalAllocSize();
+
+    // MTL hw doesn't require weights table and activation window for max/average pool ops
+    const auto arch = VPU::getArch(*this);
+    if (arch == VPU::ArchKind::MTL) {
+        return requiredCMX;
+    }
+    const auto outputShape = output.getShape();
+    const auto OC = outputShape[Dims4D::Act::C];
+
+    const auto kernelSizeShape = Shape(parseIntArrayAttr<int64_t>(kernelSize));
+
+    const auto kernelStridesShape = Shape(parseIntArrayAttr<int64_t>(strides));
+    const auto SX = kernelStridesShape[Dims4D::Strides::X];
+
+    const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::POOL, kernelSizeShape, SX,
+                                                                           input.getElementType(), OC);
+
+    requiredCMX[2] = NCEInvariant::getWeightsTableSize(OC);
+    requiredCMX[3] = activationWindowSize * 1_Byte;
+
+    return requiredCMX;
+}
+
+//
 // fitIntoCMX
 //
 
 bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
-    const auto arch = getArch(getOperation());
-
     Byte requiredCMX(0);
 
-    for (const auto& type : {input, output}) {
-        requiredCMX += type.getTotalAllocSize();
+    auto memList = memSizes(kernel_size(), strides(), input, output);
+    for (auto memItem : memList) {
+        requiredCMX += memItem;
     }
 
-    // MTL hw doesn't require weights table and activation window for max/average pool ops
-    if (arch != VPU::ArchKind::MTL) {
-        const auto outputShape = output.getShape();
-        const auto outputChannels = outputShape[Dims4D::Act::C];
-
-        const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(kernel_size()));
-
-        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides()));
-        const auto strideW = kernelStrides[Dims4D::Strides::X];
-
-        const auto activationWindowSize = NCESparsity::getActivationWindowSize(
-                NCESparsity::Mode::POOL, kernelSize, strideW, input.getElementType(), outputChannels);
-
-        requiredCMX += NCEInvariant::getWeightsTableSize(outputChannels);
-        requiredCMX += activationWindowSize * 1_Byte;
-    }
-
-    return requiredCMX <= getTotalCMXSize(getOperation());
+    return requiredCMX <= getTotalCMXSize(*this);
 }
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEMaxPoolOp origOp, const TileInfo& outTile) {

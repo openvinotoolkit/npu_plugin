@@ -26,6 +26,16 @@
 using namespace vpux;
 
 //
+// memSizes
+//
+
+SmallVector<Byte> VPU::NCEEltwiseOp::memSizes(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
+                                              vpux::NDTypeInterface output) {
+    // {input1, input2, output} in order
+    return {input1.getTotalAllocSize(), input2.getTotalAllocSize(), output.getTotalAllocSize()};
+}
+
+//
 // fitIntoCMX
 //
 
@@ -33,11 +43,12 @@ bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDT
                                          vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
-    for (const auto& type : {input1, input2, output}) {
-        requiredCMX += type.getTotalAllocSize();
+    auto memList = memSizes(input1, input2, output);
+    for (auto memItem : memList) {
+        requiredCMX += memItem;
     }
 
-    return requiredCMX <= getTotalCMXSize(getOperation());
+    return requiredCMX <= getTotalCMXSize(*this);
 }
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEEltwiseOp origOp, const TileInfo& outTile) {

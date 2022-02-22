@@ -28,11 +28,16 @@
 using namespace vpux;
 
 //
-// fitIntoCMX
+// memSizes
 //
 
-bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
-                                             vpux::NDTypeInterface output) {
+SmallVector<Byte> VPU::NCEConvolutionOp::memSizes(mlir::ArrayAttr strides, vpux::NDTypeInterface input,
+                                                  vpux::NDTypeInterface filter, vpux::NDTypeInterface output) {
+    SmallVector<Byte> requiredCMX(5, Byte(0));  // {input, filter, output, weightsTable, activationWindow} in order
+
+    requiredCMX[0] = input.getTotalAllocSize();
+    requiredCMX[2] = output.getTotalAllocSize();
+
     const auto filterShape = filter.getShape();
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto IC = filterShape[Dims4D::Filter::IC];

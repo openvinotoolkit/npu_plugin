@@ -479,16 +479,11 @@ bool isSupportedPrefetchTiling(VPU::NCEConvolutionOp origOp, const OutputTiling&
     auto tileDims = getTileDims(tileAxis);
 
     auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
         if (tilingMode == vpux::TilingMode::PREFETCH_TILING) {
             return origOp.verifyPrefetchCMX(tiles);
         }
         // Pattern prefetch
-<<<<<<< HEAD
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
-=======
         return origOp.verifyPrefetchPatternCMX(tiles);
->>>>>>> 46d5eb4863... move verifyPrefetchPatternCMX to VPU::NCE operations
     };
 
     // neutral tiling check
@@ -550,11 +545,7 @@ bool isSupportedPrefetchTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTi
             return origOp.verifyPrefetchCMX(tiles);
         }
         // Pattern prefetch
-<<<<<<< HEAD
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
-=======
         return origOp.verifyPrefetchPatternCMX(tiles);
->>>>>>> 46d5eb4863... move verifyPrefetchPatternCMX to VPU::NCE operations
     };
 
     // neutral tiling check
@@ -622,11 +613,7 @@ bool isSupportedPrefetchTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& til
             return origOp.verifyPrefetchCMX(tiles);
         }
         // Pattern prefetch
-<<<<<<< HEAD
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
-=======
         return origOp.verifyPrefetchPatternCMX(tiles);
->>>>>>> 46d5eb4863... move verifyPrefetchPatternCMX to VPU::NCE operations
     };
 
     // neutral tiling check
