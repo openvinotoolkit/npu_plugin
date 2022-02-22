@@ -15,8 +15,10 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -28,6 +30,9 @@ using namespace vpux;
 namespace {
 
 mlir::Value copyToCMX(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value val) {
+    if (val == nullptr) {
+        return nullptr;
+    }
     const auto memSpace = IndexedSymbolAttr::get(builder.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
     return builder.createOrFold<IE::CopyOp>(loc, val, memSpace);
 }
@@ -35,6 +40,29 @@ mlir::Value copyToCMX(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value 
 mlir::Value copyBack(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value val, mlir::Type origType) {
     const auto memSpace = IE::getMemorySpace(origType.cast<mlir::RankedTensorType>());
     return builder.createOrFold<IE::CopyOp>(loc, val, memSpace);
+}
+
+mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity,
+                                         int64_t numChannels) {
+    const auto elemType = getUInt8Type(builder.getContext());
+    SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
+
+    const auto dataStorageType = mlir::RankedTensorType::get(fakeSparsityShape, elemType);
+    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, fakeSparsity);
+
+    auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataStorageType, Const::ContentAttr::get(dataAttr));
+    return dataConstOp.output();
+}
+
+mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC) {
+    const auto elemType = getSInt32Type(builder.getContext());
+    SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
+
+    const auto dataStorageType = mlir::RankedTensorType::get(weightTableShape, elemType);
+    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, (int32_t)1);
+
+    auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataStorageType, Const::ContentAttr::get(dataAttr));
+    return dataConstOp.output();
 }
 
 //
@@ -84,23 +112,54 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
         bias = biasConstOp.contentAttr();
     }
 
-    const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
-
     auto filter = origOp.filter();
+    const auto filterShape = getShape(filter);
+    const auto IC = filterShape[Dims4D::Filter::IC];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    // Generate activation window
+    mlir::IntegerAttr activationWindowChannelLength;
+    mlir::Value activationWindow = nullptr;
+
     if (isCMajor) {
+        const auto kernelSize = Shape{KY, KX};
+        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
+        const auto origInputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+
+        const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::CM_CONV, kernelSize,
+                                                                        kernelStrides[Dims4D::Strides::X],
+                                                                        origInputType.getElementType(), IC);
+
+        const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::CM_CONV, kernelSize,
+                                                                    kernelStrides[Dims4D::Strides::X],
+                                                                    origInputType.getElementType(), IC, OC);
+
+        activationWindowChannelLength = getIntAttr(getContext(), bitPatternSize);
+        activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
+
         filter = VPU::alignChannelMajorWeightsTensor(rewriter, origOp->getLoc(), filter);
     }
-    const auto rawFilterShape = getIntArrayAttr(rewriter, getShape(origOp.filter()));
+
+    // Generate weights table
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC);
+
+    const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
     const auto filterCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "filter-CMX"), filter);
+    const auto weightsTableCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "weights-table-CMX"), weightsTable);
+    const auto activationWindowCMX =
+            copyToCMX(rewriter, appendLoc(origOp->getLoc(), "activation-window-CMX"), activationWindow);
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
-
     const auto outputType = origOp.getType().cast<vpux::NDTypeInterface>();
     const auto newOutType = outputType.changeMemSpace(VPU::MemoryKind::CMX_NN);
+    const auto rawFilterShape = getIntArrayAttr(rewriter, getShape(origOp.filter()));
 
-    auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), newOutType, inputCMX, filterCMX, bias,
+    auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), newOutType, inputCMX, filterCMX,
+                                                        weightsTableCMX, activationWindowCMX, bias,
                                                         origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
-                                                        /*ppe=*/nullptr, rawFilterShape);
+                                                        /*ppe=*/nullptr, rawFilterShape, activationWindowChannelLength);
 
     const auto newOutput =
             copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());
@@ -137,6 +196,33 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
         return mlir::failure();
     }
 
+    // Get dimensions
+    const auto alignedFilter = VPU::alignDepthWiseWeightsTensor(rewriter, origOp.getLoc(), origOp.filter());
+    const auto filterShape = getShape(alignedFilter);
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    // Generate activation window
+    const auto origInputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto origInputShape = origInputType.getShape();
+    const auto IC = origInputShape[Dims4D::Act::C];
+
+    const auto kernelSize = Shape{KY, KX};
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
+    const auto bitPatternSize =
+            VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::DW_CONV, kernelSize,
+                                                kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC);
+    const auto activationWindowChannelLength = getIntAttr(getContext(), bitPatternSize);
+
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::DW_CONV, kernelSize,
+                                                                kernelStrides[Dims4D::Strides::X],
+                                                                origInputType.getElementType(), IC, OC);
+    const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
+
+    // Generate weights table
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC);
+
     Const::ContentAttr bias;
     if (origOp.bias() != nullptr) {
         auto biasConstOp = origOp.bias().getDefiningOp<Const::DeclareOp>();
@@ -148,21 +234,20 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
         bias = biasConstOp.contentAttr();
     }
 
-    const auto rawFilterShape = getIntArrayAttr(rewriter, getShape(origOp.filter()));
-
     const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
-
-    const auto alignedFilter = VPU::alignDepthWiseWeightsTensor(rewriter, origOp.getLoc(), origOp.filter());
     const auto filterCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "filter-CMX"), alignedFilter);
-
+    const auto weightsTableCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "weights-table-CMX"), weightsTable);
+    const auto activationWindowCMX =
+            copyToCMX(rewriter, appendLoc(origOp->getLoc(), "activation-window-CMX"), activationWindow);
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
-
     const auto outputType = origOp.getType().cast<vpux::NDTypeInterface>();
     const auto newOutType = outputType.changeMemSpace(VPU::MemoryKind::CMX_NN);
+    const auto rawFilterShape = getIntArrayAttr(rewriter, getShape(origOp.filter()));
 
-    auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(origOp->getLoc(), newOutType, inputCMX, filterCMX, bias,
-                                                             origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
-                                                             /*ppe=*/nullptr, rawFilterShape);
+    auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(
+            origOp->getLoc(), newOutType, inputCMX, filterCMX, weightsTableCMX, activationWindowCMX, bias,
+            origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
+            /*ppe=*/nullptr, rawFilterShape, activationWindowChannelLength);
 
     const auto newOutput =
             copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());
@@ -198,16 +283,40 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
         return mlir::failure();
     }
 
+    // Get dimensions
+    const auto origInputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputShape = origInputType.getShape();
+
+    const auto IC = inputShape[Dims4D::Act::C];
+
+    const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(origOp.kernel_size()));
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
+
+    const auto bitPatternSize =
+            VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::POOL, kernelSize,
+                                                kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC);
+
+    // Generate activation window
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, kernelSize,
+                                                                kernelStrides[Dims4D::Strides::X],
+                                                                origInputType.getElementType(), IC, IC);
+    const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, IC);
+    const auto activationWindowChannelLength = getIntAttr(getContext(), static_cast<uint32_t>(bitPatternSize));
+
+    // Generate weights table
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC);
+
     const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
-
+    auto weightsTableCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "weights-table-CMX"), weightsTable);
+    const auto activationWindowCMX =
+            copyToCMX(rewriter, appendLoc(origOp->getLoc(), "activation-window-CMX"), activationWindow);
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
-
     const auto outputType = origOp.getType().cast<vpux::NDTypeInterface>();
     const auto newOutType = outputType.changeMemSpace(VPU::MemoryKind::CMX_NN);
 
-    auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(origOp->getLoc(), newOutType, inputCMX, origOp.kernel_sizeAttr(),
-                                                    origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
-                                                    /*ppe=*/nullptr);
+    auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(
+            origOp->getLoc(), newOutType, inputCMX, weightsTableCMX, activationWindowCMX, origOp.kernel_sizeAttr(),
+            origOp.stridesAttr(), padAttr, origOp.post_opAttr(), /*ppe=*/nullptr, activationWindowChannelLength);
 
     const auto newOutput =
             copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());
