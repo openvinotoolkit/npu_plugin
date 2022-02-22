@@ -35,7 +35,7 @@ namespace VPU {
 //
 
 // Abstract base class
-// Specific method implimentations for each layer type are required
+// Specific method implementations for each layer type are required
 // in the derived classes
 // Examples:
 // (1) Does a particular layer with a particular strategy fit in CMX
@@ -106,7 +106,7 @@ public:
 //
 
 // Higher level strategy manager class
-// It's current purpose is to globally assign strategies
+// Its current purpose is to globally assign strategies
 // In future it may have methods for finding sub-graphs
 // and other strategy related utilites
 class StrategyManager final {

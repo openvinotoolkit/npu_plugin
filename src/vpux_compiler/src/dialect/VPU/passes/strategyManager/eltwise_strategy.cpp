@@ -18,7 +18,7 @@ using namespace vpux;
 using namespace VPU;
 
 bool EltwiseStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const {
-    auto origOp = mlir::dyn_cast<NCEEltwiseOp>(op);
+    auto origOp = mlir::cast<NCEEltwiseOp>(op);
     auto activationTensorDistributionMode = DistributionMode::SEGMENTED;
     auto activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, _numClusters, 1}));
     auto weightsTensorDistributionMode = DistributionMode::DUPLICATED;
