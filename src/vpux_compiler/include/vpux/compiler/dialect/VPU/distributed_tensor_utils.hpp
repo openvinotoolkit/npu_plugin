@@ -221,7 +221,7 @@ mlir::ArrayAttr getWeightsTensorNumTiles(ConcreteOp origOp) {
     } else if (strategy == splitOverHeight) {
         return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
     } else if (strategy == splitOverKernel) {
-        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, static_cast<int>(numClusters), 1, 1}));
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({static_cast<int>(numClusters), 1, 1, 1}));
     } else if (strategy == clustering) {
         return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
     } else {
