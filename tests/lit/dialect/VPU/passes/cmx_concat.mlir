@@ -76,6 +76,9 @@ func @main(%arg0: tensor<1x144x64x64xf16, {order = #NHWC}>) -> tensor<1x144x64x6
     // first tile of NCE task
     // CHECK:       [[VAL0:%.+]] = VPU.NCE.DepthConvolution
 
+    // no copy-out to concatinate in DDR
+    // CHECK-NOT:   IE.Copy
+
     // input to the second tile copy-in (DDR->NNCMX) for activation and weights
     // CHECK:       IE.Slice
     // CHECK-SAME:      [0, 48, 0, 0] [1, 48, 64, 64] : tensor<1x144x64x64xf16, {order = #NHWC}> to tensor<1x48x64x64xf16, {order = #NHWC}>
@@ -84,6 +87,9 @@ func @main(%arg0: tensor<1x144x64x64xf16, {order = #NHWC}>) -> tensor<1x144x64x6
 
     // second tile of NCE task
     // CHECK:       [[VAL1:%.+]] = VPU.NCE.DepthConvolution
+
+    // no copy-out to concatinate in DDR
+    // CHECK-NOT:   IE.Copy
 
     // input to the third tile copy-in (DDR->NNCMX) for activation and weights
     // CHECK:       IE.Slice
@@ -94,9 +100,15 @@ func @main(%arg0: tensor<1x144x64x64xf16, {order = #NHWC}>) -> tensor<1x144x64x6
     // third tile of NCE task
     // CHECK:       [[VAL2:%.+]] = VPU.NCE.DepthConvolution
 
+    // no copy-out to concatinate in DDR
+    // CHECK-NOT:   IE.Copy
+
     // no copy-out (NNCMX->DDR) operations to concatinate in DDR
-    // Concat using results of NCE tiles in NNCMX
+    // Concat in NNCMX using results of NCE tiles in NNCMX
     // CHECK:       [[VAL3:%.+]] = IE.Concat([[VAL0]], [[VAL1]], [[VAL2]])
+
+    // no Concat buffer copy-in to NNCMX
+    // CHECK-NOT:   IE.Copy
 
     // user of the concat uses result of concat without intermediate copy operation
     // CHECK:       VPU.NCE.MaxPool([[VAL3]])
@@ -192,6 +204,9 @@ func @main(%arg0: tensor<1x144x64x64xf16, {order = #NHWC}>) ->
     // first tile of NCE task
     // CHECK:       [[VAL0:%.+]] = VPU.NCE.DepthConvolution
 
+    // no copy-out to concatinate in DDR
+    // CHECK-NOT:   IE.Copy
+
     // input to the second tile copy-in (DDR->NNCMX) for activation and weights
     // CHECK:       IE.Slice
     // CHECK-SAME:      [0, 48, 0, 0] [1, 48, 64, 64] : tensor<1x144x64x64xf16, {order = #NHWC}> to tensor<1x48x64x64xf16, {order = #NHWC}>
@@ -200,6 +215,9 @@ func @main(%arg0: tensor<1x144x64x64xf16, {order = #NHWC}>) ->
 
     // second tile of NCE task
     // CHECK:       [[VAL1:%.+]] = VPU.NCE.DepthConvolution
+
+    // no copy-out to concatinate in DDR
+    // CHECK-NOT:   IE.Copy
 
     // input to the third tile copy-in (DDR->NNCMX) for activation and weights
     // CHECK:       IE.Slice
@@ -210,8 +228,11 @@ func @main(%arg0: tensor<1x144x64x64xf16, {order = #NHWC}>) ->
     // third tile of NCE task
     // CHECK:       [[VAL2:%.+]] = VPU.NCE.DepthConvolution
 
+    // no copy-out to concatinate in DDR
+    // CHECK-NOT:   IE.Copy
+
     // no copy-out (NNCMX->DDR) operations to concatinate in DDR
-    // Concat using results of NCE tiles in NNCMX
+    // Concat in NNCMX using results of NCE tiles in NNCMX
     // CHECK:       [[VAL3:%.+]] = IE.Concat([[VAL0]], [[VAL1]], [[VAL2]])
 
     // users of concat which use part of the master buffer through slices
@@ -219,6 +240,9 @@ func @main(%arg0: tensor<1x144x64x64xf16, {order = #NHWC}>) ->
     // CHECK:       [[VAL4:%.+]] = IE.Slice
     // CHECK-SAME:      [0, 0, 0, 0] [1, 144, 32, 64] : tensor<1x144x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}> to tensor<1x144x32x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
     
+    // no Concat buffer slice copy-in to NNCMX
+    // CHECK-NOT:   IE.Copy
+
     // weight copy in
     // CHECK:       [[VAL5:%.+]] = IE.Copy
 
@@ -229,6 +253,11 @@ func @main(%arg0: tensor<1x144x64x64xf16, {order = #NHWC}>) ->
     // user of second part of concat master buffer
     // CHECK:       [[VAL7:%.+]] = IE.Slice
     // CHECK-SAME:      [0, 144, 0, 0] [1, 144, 32, 64] : tensor<1x144x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}> to tensor<1x144x32x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    
+    // no Concat buffer slice copy-in to NNCMX
+    // CHECK-NOT:   IE.Copy
+    
+    // weight copy in
     // CHECK:       [[VAL8:%.+]] = IE.Copy
 
     // user reading from NNCMX without intermediate copy operation
