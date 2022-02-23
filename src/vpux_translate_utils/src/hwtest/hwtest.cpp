@@ -59,6 +59,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     bool isRaceConditionDPUDMA = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDPUDMA;
     bool isRaceConditionDPUDMAACT = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDPUDMAACT;
     bool isRaceCondition = jsonDesc.getCaseType() == nb::CaseType::RaceCondition;
+    bool isMultiClustering = jsonDesc.getCaseType() == nb::CaseType::MultiClustering;
 
     auto mainOpJsonDesc = isRaceCondition ? *jsonDesc.getUnderlyingOp() : jsonDesc;
 
@@ -109,6 +110,8 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         hwtest::buildRaceConditionDPUDMAACTTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else if (isRaceCondition) {
         hwtest::buildRaceConditionTest(jsonDesc, module, builder, log, input_type, output_type);
+    } else if (isMultiClustering) {
+        hwtest::buildMultiClustering(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else {
         VPUX_THROW("Unknown type: {0}", opType);
     }
