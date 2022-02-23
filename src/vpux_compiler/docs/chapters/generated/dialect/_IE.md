@@ -3543,3 +3543,29 @@ operation ::= `IE.YuvToRgb` `(` operands `)` attr-dict `:` type(operands) `->` t
 | :----: | ----------- |
 `output` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
 
+### `IE.Roll` (vpux::IE::RollOp)
+
+InferenceEngine Roll layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Roll` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | ranked tensor of any type values
+`shift` | ranked tensor of integer values
+`axes` | ranked tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+

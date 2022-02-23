@@ -3409,4 +3409,31 @@ def IERT_YuvToRgbOp :
     }];
 }
 
+def IERT_RollOp :
+        IERT_LayerOp<1, "Roll",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+        let summary = "InferenceEngine run-time Roll layer";
+
+        let arguments = (ins
+            AnyMemRef:$data,
+            MemRefOf<[I64, I32]>:$shift,
+            MemRefOf<[I64, I32]>:$axes,
+            AnyMemRef:$output_buff
+        );
+
+        let results = (outs
+            AnyMemRef:$output
+        );
+
+        let assemblyFormat = [{
+            attr-dict
+            `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
+            `outputs` `(` $output_buff `:` type($output_buff) `)`
+            `->` type(results)
+        }];
+    }
+
 #endif

@@ -1237,4 +1237,19 @@ def RewriteDepthToSpace :
             (createDepthToSpaceUPAOp $input, $output, $block_size, $mode)
         >;
 
+//
+// IERT.Roll -> VPUIP.RollUPA
+//
+
+def createRollUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::RollUPAOp>($_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteRoll :
+        Pat<
+            (IERT_RollOp $data, $shift, $axes, $output),
+            (createRollUPAOp $data, $shift, $axes, $output)
+        >;
+
 #endif

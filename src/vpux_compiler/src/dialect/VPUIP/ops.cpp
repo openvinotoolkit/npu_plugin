@@ -639,6 +639,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::AtanOp, OpModelForSW<VPUIP::AtanUPAOp>>();
     registry.addOpInterface<IE::AsinOp, OpModelForSW<VPUIP::AsinUPAOp>>();
     registry.addOpInterface<IE::AcosOp, OpModelForSW<VPUIP::AcosUPAOp>>();
+    registry.addOpInterface<IE::RollOp, OpModelForSW<VPUIP::RollUPAOp>>();
 }
 
 //
@@ -746,6 +747,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::AtanOp, OpModelForSW>();
     registry.addOpInterface<IERT::AsinOp, OpModelForSW>();
     registry.addOpInterface<IERT::AcosOp, OpModelForSW>();
+    registry.addOpInterface<IERT::RollOp, OpModelForSW>();
 }
 
 }  // namespace

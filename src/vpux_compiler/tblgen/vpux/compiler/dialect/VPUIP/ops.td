@@ -3196,4 +3196,36 @@ def VPUIP_NCEClusterTilingOp :
     }];
 }
 
+//
+// RollUPAOp
+//
+
+def VPUIP_RollUPAOp :
+        VPUIP_UPATaskOp<1, "RollUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "Roll UPA SHAVE kernel";
+
+    let arguments = (ins
+            AnyMemRef:$data,
+            MemRefOf<[I64, I32]>:$shift,
+            MemRefOf<[I64, I32]>:$axes,
+            AnyMemRef:$output_buff
+    );
+
+    let results = (outs
+            AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif

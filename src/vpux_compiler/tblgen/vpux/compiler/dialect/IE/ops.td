@@ -3267,4 +3267,25 @@ def IE_ExpandDilatedOp :
     let hasFolder = 1;
 }
 
+//
+// RollOp
+//
+
+def IE_RollOp :
+        IE_LayerOp<
+            "Roll"
+        > {
+    let summary = "InferenceEngine Roll layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$data,
+        RankedTensorOf<[AnyInteger]>:$shift,
+        RankedTensorOf<[AnyInteger]>:$axes
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
 #endif

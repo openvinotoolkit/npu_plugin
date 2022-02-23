@@ -2640,3 +2640,33 @@ This type of buffer is used together with the ClusterTiling operation
 | memSpace | `vpux::IndexedSymbolAttr` |  |
 | distribution | `VPU::DistributedTensorAttr` |  |
 
+### `VPUIP.RollUPA` (vpux::VPUIP::RollUPAOp)
+
+Roll UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.RollUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of any type values
+`shift` | memref of integer values
+`axes` | memref of integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` |  memref of any type values
+
