@@ -17,6 +17,7 @@
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
@@ -54,12 +55,71 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
     return dataConstOp.output();
 }
 
-mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC) {
+int32_t getWeightPtrStep(::mlir::Value weights, ::mlir::Value activation_window) {
+    if (weights == nullptr) {
+        return 0;
+    }
+
+    const auto filterShape = getShape(weights);
+
+    const auto IC = filterShape[Dims4D::Filter::IC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    if (activation_window != nullptr) {
+        // Channel major and depthwise convolution case.
+        // Weights table contains both activation window and weights.
+        // Check that weights have expected alignment.
+        // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
+        const auto origFilterType = weights.getType().cast<vpux::NDTypeInterface>();
+        const auto convAlignment = VPU::NCEInvariant::getAlignment(origFilterType.getElementType());
+        const auto weightsElementCount = IC * KY * KX;
+        VPUX_THROW_UNLESS(weightsElementCount % convAlignment == 0,
+                          "Channel Major and Depthwise convolution weights size must be a multiple of {0}, got {1}",
+                          convAlignment, weightsElementCount);
+    }
+
+    const Byte eltSize = getElemTypeSize(weights.getType());
+    return checked_cast<int32_t>(IC * KY * KX * eltSize.count());
+}
+
+VPU::PPETaskAttr getPPETaskAttr(mlir::Location loc, mlir::Value opInput, mlir::Value opOutput,
+                                vpux::IE::PostOp postOpAttr, mlir::MLIRContext* context, VPU::ArchKind arch) {
+    const auto inElemType = opInput.getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outElemType = opOutput.getType().cast<vpux::NDTypeInterface>().getElementType();
+
+    const auto postOpParams = VPU::parsePostOp(postOpAttr, inElemType, outElemType, arch, loc);
+
+    VPU::PPETaskAttr ppeTaskAttr;
+    if (postOpParams.hasValue()) {
+        ppeTaskAttr = VPU::getPPEAttr(postOpParams.getValue(), context);
+    }
+
+    return ppeTaskAttr;
+}
+
+std::vector<int32_t> createWeightsTableData(mlir::Value opInput, mlir::Value opOutput, mlir::Value weights,
+                                            mlir::Value activationWindow, Const::ContentAttr bias, int64_t OC,
+                                            vpux::VPU::PPETaskAttr ppeTaskAttr, VPU::ArchKind _arch) {
+    const auto weightPtrOffset = 0;
+    const auto sparsityPtrOffset = 0;
+    const auto weightPtrStep = getWeightPtrStep(weights, activationWindow);
+
+    const auto inElemType = opInput.getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outElemType = opOutput.getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto weightsElemType = weights ? weights.getType().cast<vpux::NDTypeInterface>().getElementType() : nullptr;
+
+    return VPU::NCESparsity::getWeightsTable(inElemType, outElemType, weightPtrOffset, weightPtrStep, sparsityPtrOffset,
+                                             _arch, OC, weightsElemType, bias, ppeTaskAttr);
+}
+
+mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<int32_t> weightsTable,
+                                     int64_t OC) {
     const auto elemType = getSInt32Type(builder.getContext());
     SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
 
     const auto dataStorageType = mlir::RankedTensorType::get(weightTableShape, elemType);
-    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, (int32_t)1);
+    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, weightsTable);
 
     auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataStorageType, Const::ContentAttr::get(dataAttr));
     return dataConstOp.output();
@@ -71,7 +131,8 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
 
 class ConvToNCE final : public mlir::OpRewritePattern<IE::ConvolutionOp> {
 public:
-    ConvToNCE(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ConvolutionOp>(ctx), _log(log) {
+    ConvToNCE(mlir::MLIRContext* ctx, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<IE::ConvolutionOp>(ctx), _arch(arch), _log(log) {
         setDebugName("ConvToNCE");
     }
 
@@ -79,6 +140,7 @@ public:
     mlir::LogicalResult matchAndRewrite(IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    VPU::ArchKind _arch;
     Logger _log;
 };
 
@@ -143,7 +205,11 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
     }
 
     // Generate weights table
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC);
+    auto ppeTaskAttr = getPPETaskAttr(origOp.getLoc(), origOp.input(), origOp.output(), origOp.post_opAttr(),
+                                      origOp.getContext(), _arch);
+    auto weightsTableVec = createWeightsTableData(origOp.input(), origOp.output(), filter, activationWindow, bias, OC,
+                                                  ppeTaskAttr, _arch);
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), weightsTableVec, OC);
 
     const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
     const auto filterCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "filter-CMX"), filter);
@@ -158,8 +224,8 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
 
     auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), newOutType, inputCMX, filterCMX,
                                                         weightsTableCMX, activationWindowCMX, bias,
-                                                        origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
-                                                        /*ppe=*/nullptr, rawFilterShape, activationWindowChannelLength);
+                                                        origOp.stridesAttr(), padAttr, /*post_op=*/nullptr, ppeTaskAttr,
+                                                        rawFilterShape, activationWindowChannelLength);
 
     const auto newOutput =
             copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());
@@ -174,13 +240,15 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
 
 class DepthConvToNCE final : public mlir::OpRewritePattern<IE::GroupConvolutionOp> {
 public:
-    DepthConvToNCE(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::GroupConvolutionOp>(ctx), _log(log) {
+    DepthConvToNCE(mlir::MLIRContext* ctx, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<IE::GroupConvolutionOp>(ctx), _arch(arch), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(IE::GroupConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    VPU::ArchKind _arch;
     Logger _log;
 };
 
@@ -220,9 +288,6 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
                                                                 origInputType.getElementType(), IC, OC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
 
-    // Generate weights table
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC);
-
     Const::ContentAttr bias;
     if (origOp.bias() != nullptr) {
         auto biasConstOp = origOp.bias().getDefiningOp<Const::DeclareOp>();
@@ -233,6 +298,13 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
 
         bias = biasConstOp.contentAttr();
     }
+
+    // Generate weights table
+    auto ppeTaskAttr = getPPETaskAttr(origOp.getLoc(), origOp.input(), origOp.output(), origOp.post_opAttr(),
+                                      origOp.getContext(), _arch);
+    auto weightsTableVec = createWeightsTableData(origOp.input(), origOp.output(), alignedFilter, activationWindow,
+                                                  bias, OC, ppeTaskAttr, _arch);
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), weightsTableVec, OC);
 
     const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
     const auto filterCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "filter-CMX"), alignedFilter);
@@ -246,8 +318,8 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
 
     auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(
             origOp->getLoc(), newOutType, inputCMX, filterCMX, weightsTableCMX, activationWindowCMX, bias,
-            origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
-            /*ppe=*/nullptr, rawFilterShape, activationWindowChannelLength);
+            origOp.stridesAttr(), padAttr, /*post_op=*/nullptr, ppeTaskAttr, rawFilterShape,
+            activationWindowChannelLength);
 
     const auto newOutput =
             copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());
@@ -262,13 +334,15 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
 
 class MaxPoolToNCE final : public mlir::OpRewritePattern<IE::MaxPoolOp> {
 public:
-    MaxPoolToNCE(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::MaxPoolOp>(ctx), _log(log) {
+    MaxPoolToNCE(mlir::MLIRContext* ctx, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<IE::MaxPoolOp>(ctx), _arch(arch), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(IE::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    VPU::ArchKind _arch;
     Logger _log;
 };
 
@@ -304,7 +378,11 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
     const auto activationWindowChannelLength = getIntAttr(getContext(), static_cast<uint32_t>(bitPatternSize));
 
     // Generate weights table
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC);
+    auto ppeTaskAttr = getPPETaskAttr(origOp.getLoc(), origOp.input(), origOp.output(), origOp.post_opAttr(),
+                                      origOp.getContext(), _arch);
+    auto weightsTableVec = createWeightsTableData(origOp.input(), origOp.output(), nullptr, activationWindow, nullptr,
+                                                  IC, ppeTaskAttr, _arch);
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), weightsTableVec, IC);
 
     const auto inputCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "input-CMX"), origOp.input());
     auto weightsTableCMX = copyToCMX(rewriter, appendLoc(origOp->getLoc(), "weights-table-CMX"), weightsTable);
@@ -316,7 +394,7 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
 
     auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(
             origOp->getLoc(), newOutType, inputCMX, weightsTableCMX, activationWindowCMX, origOp.kernel_sizeAttr(),
-            origOp.stridesAttr(), padAttr, origOp.post_opAttr(), /*ppe=*/nullptr, activationWindowChannelLength);
+            origOp.stridesAttr(), padAttr, /*post_op=*/nullptr, ppeTaskAttr, activationWindowChannelLength);
 
     const auto newOutput =
             copyBack(rewriter, appendLoc(origOp->getLoc(), "output-DDR"), nceOp.output(), origOp.getType());
@@ -399,17 +477,19 @@ private:
 
 void ConvertIEToVPUNCEPass::safeRunOnFunc() {
     auto& ctx = getContext();
+    auto func = getFunction();
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
 
     mlir::OwningRewritePatternList patterns(&ctx);
-    patterns.add<ConvToNCE>(&ctx, _log);
-    patterns.add<DepthConvToNCE>(&ctx, _log);
-    patterns.add<MaxPoolToNCE>(&ctx, _log);
+    patterns.add<ConvToNCE>(&ctx, arch, _log);
+    patterns.add<DepthConvToNCE>(&ctx, arch, _log);
+    patterns.add<MaxPoolToNCE>(&ctx, arch, _log);
     patterns.add<EltwiseToNCE<IE::AddOp>>(&ctx, VPU::EltwiseType::ADD, _log);
     patterns.add<EltwiseToNCE<IE::MultiplyOp>>(&ctx, VPU::EltwiseType::MULTIPLY, _log);
     patterns.add<EltwiseToNCE<IE::SubtractOp>>(&ctx, VPU::EltwiseType::SUBTRACT, _log);
     patterns.add<EltwiseToNCE<IE::AndOp>>(&ctx, VPU::EltwiseType::AND, _log);
 
-    auto func = getFunction();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
