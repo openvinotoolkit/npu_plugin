@@ -164,7 +164,7 @@ function run_imd () {
         echo wait-done movisim on ${port}
       else
         if [ $device = "fpga" ]; then
-          timeout 100 make -j CONFIG_FILE=.config_fpga_3720xx run srvIP=${FPGAhostName} srvPort=30001 > ${config_dir}/fpga.log
+          timeout 120 make -j12 CONFIG_FILE=.config run srvIP=${FPGAhostName} srvPort=30001 CONFIG_BLOB_BUFFER_MAX_SIZE_MB=100 SOC_REVISION=B0 > ${config_dir}/fpga.log
         fi
       fi
 

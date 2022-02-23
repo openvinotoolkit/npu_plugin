@@ -254,6 +254,8 @@ std::string nb::to_string(CaseType case_) {
         return "RaceConditionDPUDMAACT";
     case CaseType::RaceCondition:
         return "RaceCondition";
+    case CaseType::MultiClustering:
+        return "MultiClustering";
     default:
         return "unknown";
     }
@@ -300,6 +302,8 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::RaceConditionDPUDMAACT;
     if (isEqual(str, "RaceCondition"))
         return CaseType::RaceCondition;
+    if (isEqual(str, "MultiClustering"))
+        return CaseType::MultiClustering;
     return CaseType::Unknown;
 };
 
@@ -492,6 +496,12 @@ nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* json
             result.cube_mode = vpux::VPU::MPEMode::CUBOID_8x16;
         } else if (mpe_cub.getValue() == "CUBOID_4x16") {
             result.cube_mode = vpux::VPU::MPEMode::CUBOID_4x16;
+        } else if (mpe_cub.getValue() == "MATRIX") {
+            result.cube_mode = vpux::VPU::MPEMode::MATRIX;
+        } else if (mpe_cub.getValue() == "VECTOR_FP16") {
+            result.cube_mode = vpux::VPU::MPEMode::VECTOR_FP16;
+        } else if (mpe_cub.getValue() == "VECTOR") {
+            result.cube_mode = vpux::VPU::MPEMode::VECTOR;
         }
         // TODO: Check for the default (CUBOID_16x16) and log if it's something else.
     }
@@ -618,7 +628,7 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
         caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMA ||
         caseType_ == CaseType::RaceConditionDPUDMAACT || caseType_ == CaseType::ReadAfterWriteDPUDMA ||
         caseType_ == CaseType::ReadAfterWriteDMADPU || caseType_ == CaseType::ReadAfterWriteDPUACT ||
-        caseType_ == CaseType::ReadAfterWriteACTDPU) {
+        caseType_ == CaseType::ReadAfterWriteACTDPU || caseType_ == CaseType::MultiClustering) {
         wtLayer_ = loadWeightLayer(&json_obj);
         convLayer_ = loadConvLayer(&json_obj);
 
