@@ -77,7 +77,6 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
                 parentNCE.output().setType(copySubView.getType());
                 parentNCE.output_buff().replaceAllUsesWith(copySubView);
                 copyOp.output().replaceAllUsesWith(copyOp.input());
-                copyOp.output().replaceAllUsesWith(copySubView.source());
 
                 // update IR location of the master buffer
                 if (copySubView->isBeforeInBlock(masterBuffer)) {
