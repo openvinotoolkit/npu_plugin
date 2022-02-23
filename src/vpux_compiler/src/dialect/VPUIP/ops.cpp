@@ -263,7 +263,9 @@ bool isSupportedTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, 
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         const auto origInputShape = getShape(origOp.input());
-        const auto origFilterShape = getShape(origOp.filter());
+        const auto origFilterShape = origOp.rawFilterShapeAttr() != nullptr
+                                             ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
+                                             : getShape(origOp.filter()).toValues();
         const auto origBiasShape = origOp.bias().hasValue() ? origOp.bias().getValue().getShape() : ShapeRef();
         const auto origPadding = toPadInfo(origOp.pad());
 
@@ -327,7 +329,9 @@ bool isSupportedTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& ti
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         const auto origInputShape = getShape(origOp.input());
-        const auto origFilterShape = getShape(origOp.filter());
+        const auto origFilterShape = origOp.rawFilterShapeAttr() != nullptr
+                                             ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
+                                             : getShape(origOp.filter()).toValues();
         const auto origBiasShape = origOp.bias().hasValue() ? origOp.bias().getValue().getShape() : ShapeRef();
         const auto origPadding = toPadInfo(origOp.pad());
 
