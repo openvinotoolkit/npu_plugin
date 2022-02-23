@@ -1616,7 +1616,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(VPU::NCEConvolutionO
         return mlir::failure();
     }
 
-    const auto filterShape = getShape(origOp.filter());
+    const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
+                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
+                                     : getShape(origOp.filter()).toValues();
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
@@ -1930,7 +1932,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(VPU::NCEDepthConvolu
         return mlir::failure();
     }
 
-    const auto filterShape = getShape(origOp.filter());
+    const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
+                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
+                                     : getShape(origOp.filter()).toValues();
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
