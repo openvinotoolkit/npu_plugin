@@ -17,8 +17,10 @@
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
+#include "vpux/properties.hpp"
 #include "vpux/vpux_plugin_config.hpp"
 #include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
 #include <ie_plugin_config.hpp>
 #include <openvino/runtime/properties.hpp>
@@ -58,12 +60,12 @@ struct THROUGHPUT_STREAMS final : OptionBase<THROUGHPUT_STREAMS, int64_t> {
         return ov::streams::num.name();
     }
 
-    static int64_t defaultValue() {
-        return -1;
-    }
-
     static SmallVector<StringRef> deprecatedKeys() {
         return {VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), KMB_CONFIG_KEY(THROUGHPUT_STREAMS)};
+    }
+
+    static int64_t defaultValue() {
+        return -1;
     }
 
     static OptionMode mode() {
@@ -77,7 +79,7 @@ struct THROUGHPUT_STREAMS final : OptionBase<THROUGHPUT_STREAMS, int64_t> {
 
 struct INFERENCE_SHAVES final : OptionBase<INFERENCE_SHAVES, int64_t> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(INFERENCE_SHAVES);
+        return ov::intel_vpux::inference_shaves.name();
     }
 
     static SmallVector<StringRef> deprecatedKeys() {
@@ -105,7 +107,7 @@ struct INFERENCE_SHAVES final : OptionBase<INFERENCE_SHAVES, int64_t> {
 
 struct CSRAM_SIZE final : OptionBase<CSRAM_SIZE, int64_t> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(CSRAM_SIZE);
+        return ov::intel_vpux::csram_size.name();
     }
 
     static int64_t defaultValue() {
@@ -131,7 +133,7 @@ struct CSRAM_SIZE final : OptionBase<CSRAM_SIZE, int64_t> {
 
 struct GRAPH_COLOR_FORMAT final : OptionBase<GRAPH_COLOR_FORMAT, InferenceEngine::ColorFormat> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(GRAPH_COLOR_FORMAT);
+        return ov::intel_vpux::graph_color_format.name();
     }
 
     static InferenceEngine::ColorFormat defaultValue() {
@@ -155,7 +157,7 @@ struct GRAPH_COLOR_FORMAT final : OptionBase<GRAPH_COLOR_FORMAT, InferenceEngine
 
 struct PREPROCESSING_SHAVES final : OptionBase<PREPROCESSING_SHAVES, int64_t> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(PREPROCESSING_SHAVES);
+        return ov::intel_vpux::preprocessing_shaves.name();
     }
 
     static int64_t defaultValue() {
@@ -182,7 +184,7 @@ struct PREPROCESSING_SHAVES final : OptionBase<PREPROCESSING_SHAVES, int64_t> {
 
 struct PREPROCESSING_LPI final : OptionBase<PREPROCESSING_LPI, int64_t> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(PREPROCESSING_LPI);
+        return ov::intel_vpux::preprocessing_lpi.name();
     }
 
     static int64_t defaultValue() {
@@ -209,7 +211,7 @@ struct PREPROCESSING_LPI final : OptionBase<PREPROCESSING_LPI, int64_t> {
 
 struct PREPROCESSING_PIPES final : OptionBase<PREPROCESSING_PIPES, int64_t> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(PREPROCESSING_PIPES);
+        return ov::intel_vpux::preprocessing_pipes.name();
     }
 
     static int64_t defaultValue() {
@@ -231,7 +233,7 @@ struct PREPROCESSING_PIPES final : OptionBase<PREPROCESSING_PIPES, int64_t> {
 
 struct USE_M2I final : OptionBase<USE_M2I, bool> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(USE_M2I);
+        return ov::intel_vpux::use_m2i.name();
     }
 
     static SmallVector<StringRef> deprecatedKeys() {
@@ -257,7 +259,7 @@ struct USE_M2I final : OptionBase<USE_M2I, bool> {
 
 struct USE_SHAVE_ONLY_M2I final : OptionBase<USE_SHAVE_ONLY_M2I, bool> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(USE_SHAVE_ONLY_M2I);
+        return ov::intel_vpux::use_shave_only_m2i.name();
     }
 
     static SmallVector<StringRef> deprecatedKeys() {
@@ -283,7 +285,7 @@ struct USE_SHAVE_ONLY_M2I final : OptionBase<USE_SHAVE_ONLY_M2I, bool> {
 
 struct USE_SIPP final : OptionBase<USE_SIPP, bool> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(USE_SIPP);
+        return ov::intel_vpux::use_sipp.name();
     }
 
     static SmallVector<StringRef> deprecatedKeys() {
@@ -309,7 +311,7 @@ struct USE_SIPP final : OptionBase<USE_SIPP, bool> {
 
 struct EXECUTOR_STREAMS final : OptionBase<EXECUTOR_STREAMS, int64_t> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(EXECUTOR_STREAMS);
+        return ov::intel_vpux::executor_streams.name();
     }
 
     static SmallVector<StringRef> deprecatedKeys() {
@@ -339,7 +341,7 @@ struct EXECUTOR_STREAMS final : OptionBase<EXECUTOR_STREAMS, int64_t> {
 
 struct INFERENCE_TIMEOUT_MS final : OptionBase<INFERENCE_TIMEOUT_MS, int64_t> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(INFERENCE_TIMEOUT);
+        return ov::intel_vpux::inference_timeout.name();
     }
 
     static int64_t defaultValue() {
@@ -362,7 +364,7 @@ struct INFERENCE_TIMEOUT_MS final : OptionBase<INFERENCE_TIMEOUT_MS, int64_t> {
 
 struct PRINT_PROFILING final : OptionBase<PRINT_PROFILING, InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(PRINT_PROFILING);
+        return ov::intel_vpux::print_profiling.name();
     }
 
     static InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg defaultValue() {
@@ -384,7 +386,7 @@ struct PRINT_PROFILING final : OptionBase<PRINT_PROFILING, InferenceEngine::VPUX
 
 struct PROFILING_OUTPUT_FILE final : OptionBase<PROFILING_OUTPUT_FILE, std::string> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(PROFILING_OUTPUT_FILE);
+        return ov::intel_vpux::profiling_output_file.name();
     }
 
     static std::string defaultValue() {

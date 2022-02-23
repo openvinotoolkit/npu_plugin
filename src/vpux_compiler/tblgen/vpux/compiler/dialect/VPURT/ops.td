@@ -89,7 +89,7 @@ def VPURT_DeclareBufferOp :
     );
 
     let results = (outs
-        AnyMemRef:$buffer
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$buffer
     );
 
     let builders = [

@@ -14,7 +14,7 @@
 #include "vpux/al/config/mcm_compiler.hpp"
 
 using namespace vpux;
-using namespace InferenceEngine::VPUXConfigParams;
+using namespace ov::intel_vpux;
 
 //
 // register

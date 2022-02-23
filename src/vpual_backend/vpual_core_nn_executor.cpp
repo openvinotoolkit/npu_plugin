@@ -62,7 +62,7 @@
 
 namespace ie = InferenceEngine;
 
-using ie::VPUXConfigParams::ProfilingOutputTypeArg;
+using InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg;
 using vpux::profiling::OutputType;
 
 namespace vpux {
@@ -226,7 +226,7 @@ void VpualCoreNNExecutor::PipePrintHandler::threadBody(PipePrintHandler* obj) {
 
 #endif
 
-static vpux::profiling::OutputType argToProfType(const ie::VPUXConfigParams::ProfilingOutputTypeArg argument) {
+static vpux::profiling::OutputType argToProfType(const ProfilingOutputTypeArg argument) {
     switch (argument) {
     case ProfilingOutputTypeArg::NONE:
         return OutputType::NONE;

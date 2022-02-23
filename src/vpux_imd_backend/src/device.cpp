@@ -18,6 +18,7 @@
 #include "vpux/al/config/common.hpp"
 
 using namespace vpux;
+using namespace ov::intel_vpux;
 using namespace InferenceEngine::VPUXConfigParams;
 
 vpux::IMD::DeviceImpl::DeviceImpl(VPUXPlatform platform): _platform(platform) {

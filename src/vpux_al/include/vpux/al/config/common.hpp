@@ -17,6 +17,7 @@
 
 #include "vpux/vpux_plugin_config.hpp"
 #include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
 #include <ie_plugin_config.hpp>
 #include <openvino/runtime/properties.hpp>
@@ -44,7 +45,7 @@ ov::hint::PerformanceMode cvtPerformanceHint(PerformanceHint hint);
 
 struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, PerformanceHint> {
     static StringRef key() {
-        return CONFIG_KEY(PERFORMANCE_HINT);
+        return ov::hint::performance_mode.name();
     }
 
     static PerformanceHint parse(StringRef val);
@@ -56,7 +57,7 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, PerformanceHint> {
 
 struct PERF_COUNT final : OptionBase<PERF_COUNT, bool> {
     static StringRef key() {
-        return CONFIG_KEY(PERF_COUNT);
+        return ov::enable_profiling.name();
     }
 
     static bool defaultValue() {
@@ -72,7 +73,7 @@ ov::log::Level cvtLogLevel(LogLevel lvl);
 
 struct LOG_LEVEL final : OptionBase<LOG_LEVEL, LogLevel> {
     static StringRef key() {
-        return CONFIG_KEY(LOG_LEVEL);
+        return ov::log::level.name();
     }
 
 #ifdef VPUX_DEVELOPER_BUILD
@@ -92,7 +93,7 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, LogLevel> {
 
 struct PLATFORM final : OptionBase<PLATFORM, InferenceEngine::VPUXConfigParams::VPUXPlatform> {
     static StringRef key() {
-        return VPUX_CONFIG_KEY(PLATFORM);
+        return ov::intel_vpux::vpux_platform.name();
     }
 
     static InferenceEngine::VPUXConfigParams::VPUXPlatform defaultValue() {
@@ -112,7 +113,7 @@ struct PLATFORM final : OptionBase<PLATFORM, InferenceEngine::VPUXConfigParams::
 
 struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     static StringRef key() {
-        return CONFIG_KEY(DEVICE_ID);
+        return ov::device::id.name();
     }
 
     static std::string defaultValue() {

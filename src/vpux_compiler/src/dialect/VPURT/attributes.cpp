@@ -63,8 +63,7 @@ VPURT::BufferSection vpux::VPURT::getBufferSection(VPU::MemoryKind memKind) {
     }
 }
 
-bool vpux::VPURT::isMemoryCompatible(BufferSection section, mlir::MemRefType memref) {
-    const auto ndType = memref.cast<vpux::NDTypeInterface>();
+bool vpux::VPURT::isMemoryCompatible(BufferSection section, vpux::NDTypeInterface ndType) {
     return VPURT::getMemoryKind(section) == ndType.getMemoryKind();
 }
 

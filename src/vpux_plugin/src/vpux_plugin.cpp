@@ -51,7 +51,7 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 static Config mergeConfigs(const Config& globalConfig, const std::map<std::string, std::string>& rawConfig,
                            OptionMode mode = OptionMode::Both) {
-    if (globalConfig.get<PLATFORM>() == IE::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+    if (globalConfig.get<PLATFORM>() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
         const auto deviceIdPlatform = rawConfig.find(CONFIG_KEY(DEVICE_ID));
 
         if (deviceIdPlatform != rawConfig.end() && globalConfig.has<DEVICE_ID>()) {
@@ -139,7 +139,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetw
 
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
-    localConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
+    localConfig.update({{ov::intel_vpux::vpux_platform.name(), platform}});
 
     return LoadExeNetwork(network, device, localConfig);
 }
@@ -151,7 +151,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetw
 
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     auto device = _backends->getDevice(context);
-    localConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
+    localConfig.update({{ov::intel_vpux::vpux_platform.name(), platform}});
 
     return LoadExeNetwork(network, device, localConfig);
 }
@@ -249,7 +249,7 @@ IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
 IE::Parameter Engine::GetConfig(const std::string& name,
                                 const std::map<std::string, IE::Parameter>& /*options*/) const {
     if (GetCore()->isNewAPI()) {
-        if (name == ov::streams::num) {
+        if (name == ov::streams::num.name()) {
             return _globalConfig.get<THROUGHPUT_STREAMS>();
         } else if (name == ov::enable_profiling) {
             return _globalConfig.get<PERF_COUNT>();
@@ -260,6 +260,64 @@ IE::Parameter Engine::GetConfig(const std::string& name,
             return cvtLogLevel(_globalConfig.get<LOG_LEVEL>());
         } else if (name == ov::device::id) {
             return _globalConfig.get<DEVICE_ID>();
+        } else if (name == ov::intel_vpux::csram_size) {
+            return _globalConfig.get<CSRAM_SIZE>();
+        } else if (name == ov::intel_vpux::custom_layers) {
+            return _globalConfig.get<CUSTOM_LAYERS>();
+        } else if (name == ov::intel_vpux::dpu_groups) {
+            return _globalConfig.get<DPU_GROUPS>();
+        } else if (name == ov::intel_vpux::eltwise_scales_alignment) {
+            return _globalConfig.get<MCM_ELTWISE_SCALES_ALIGNMENT>();
+        } else if (name == ov::intel_vpux::executor_streams) {
+            return _globalConfig.get<EXECUTOR_STREAMS>();
+        } else if (name == ov::intel_vpux::compilation_descriptor) {
+            return _globalConfig.get<MCM_COMPILATION_DESCRIPTOR>();
+        } else if (name == ov::intel_vpux::compilation_descriptor_path) {
+            return _globalConfig.get<MCM_COMPILATION_DESCRIPTOR_PATH>();
+        } else if (name == ov::intel_vpux::compilation_mode) {
+            return _globalConfig.get<COMPILATION_MODE>();
+        } else if (name == ov::intel_vpux::compilation_mode_params) {
+            return _globalConfig.get<COMPILATION_MODE_PARAMS>();
+        } else if (name == ov::intel_vpux::compilation_pass_ban_list) {
+            return _globalConfig.get<MCM_COMPILATION_PASS_BAN_LIST>();
+        } else if (name == ov::intel_vpux::compiler_type) {
+            return _globalConfig.get<COMPILER_TYPE>();
+        } else if (name == ov::intel_vpux::concat_scales_alignment) {
+            return _globalConfig.get<MCM_CONCAT_SCALES_ALIGNMENT>();
+        } else if (name == ov::intel_vpux::graph_color_format) {
+            return _globalConfig.get<GRAPH_COLOR_FORMAT>();
+        } else if (name == ov::intel_vpux::inference_shaves) {
+            return _globalConfig.get<INFERENCE_SHAVES>();
+        } else if (name == ov::intel_vpux::inference_timeout) {
+            return _globalConfig.get<INFERENCE_TIMEOUT_MS>();
+        } else if (name == ov::intel_vpux::preprocessing_lpi) {
+            return _globalConfig.get<PREPROCESSING_LPI>();
+        } else if (name == ov::intel_vpux::preprocessing_pipes) {
+            return _globalConfig.get<PREPROCESSING_PIPES>();
+        } else if (name == ov::intel_vpux::preprocessing_shaves) {
+            return _globalConfig.get<PREPROCESSING_SHAVES>();
+        } else if (name == ov::intel_vpux::print_profiling) {
+            return _globalConfig.get<PRINT_PROFILING>();
+        } else if (name == ov::intel_vpux::profiling_output_file) {
+            return _globalConfig.get<PROFILING_OUTPUT_FILE>();
+        } else if (name == ov::intel_vpux::remove_permute_noop) {
+            return _globalConfig.get<MCM_REMOVE_PERMUTE_NOOP>();
+        } else if (name == ov::intel_vpux::scale_fuse_input) {
+            return _globalConfig.get<MCM_SCALE_FUSE_INPUT>();
+        } else if (name == ov::intel_vpux::target_descriptor) {
+            return _globalConfig.get<MCM_TARGET_DESCRIPTOR>();
+        } else if (name == ov::intel_vpux::target_descriptor_path) {
+            return _globalConfig.get<MCM_TARGET_DESCRIPTOR_PATH>();
+        } else if (name == ov::intel_vpux::use_m2i) {
+            return _globalConfig.get<USE_M2I>();
+        } else if (name == ov::intel_vpux::use_shave_only_m2i) {
+            return _globalConfig.get<USE_SHAVE_ONLY_M2I>();
+        } else if (name == ov::intel_vpux::use_sipp) {
+            return _globalConfig.get<USE_SIPP>();
+        } else if (name == ov::intel_vpux::vpux_platform) {
+            return _globalConfig.get<PLATFORM>();
+        } else if (name == ov::intel_vpux::weights_zero_points_alignment) {
+            return _globalConfig.get<MCM_WEIGHTS_ZERO_POINTS_ALIGNMENT>();
         }
     }
 
@@ -274,11 +332,11 @@ IE::Parameter Engine::GetConfig(const std::string& name,
                                  ? stringifyEnum(_globalConfig.get<PERFORMANCE_HINT>()).str()
                                  : std::string{};
         return val;
-    } else if ((name == VPUX_CONFIG_KEY(THROUGHPUT_STREAMS)) || (name == KMB_CONFIG_KEY(THROUGHPUT_STREAMS))) {
+    } else if (name == ov::num_streams) {
         return checked_cast<int>(_globalConfig.get<THROUGHPUT_STREAMS>());
-    } else if (name == VPUX_CONFIG_KEY(INFERENCE_SHAVES)) {
+    } else if (name == ov::intel_vpux::inference_shaves) {
         return checked_cast<int>(_globalConfig.get<INFERENCE_SHAVES>());
-    } else if (name == VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS)) {
+    } else if (name == ov::intel_vpux::compilation_mode_params) {
         return _globalConfig.get<COMPILATION_MODE_PARAMS>();
     }
 
@@ -312,12 +370,40 @@ IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::str
                     RO_property(ov::device::capabilities.name()),            //
                     RO_property(ov::range_for_async_infer_requests.name()),  //
                     RO_property(ov::range_for_streams.name()),               //
-
-                    RW_property(ov::streams::num.name()),            //
+                    RW_property(ov::streams::num.name()),             //
                     RW_property(ov::enable_profiling.name()),        //
                     RW_property(ov::hint::performance_mode.name()),  //
                     RW_property(ov::log::level.name()),              //
                     RW_property(ov::device::id.name()),              //
+                    RW_property(ov::intel_vpux::compilation_descriptor.name()),              //
+                    RW_property(ov::intel_vpux::compilation_descriptor_path.name()),              //
+                    RW_property(ov::intel_vpux::compilation_mode.name()),              //
+                    RW_property(ov::intel_vpux::compilation_mode_params.name()),              //
+                    RW_property(ov::intel_vpux::compilation_pass_ban_list.name()),              //
+                    RW_property(ov::intel_vpux::compiler_type.name()),              //
+                    RW_property(ov::intel_vpux::concat_scales_alignment.name()),              //
+                    RW_property(ov::intel_vpux::csram_size.name()),              //
+                    RW_property(ov::intel_vpux::custom_layers.name()),              //
+                    RW_property(ov::intel_vpux::dpu_groups.name()),              //
+                    RW_property(ov::intel_vpux::eltwise_scales_alignment.name()),              //
+                    RW_property(ov::intel_vpux::executor_streams.name()),              //
+                    RW_property(ov::intel_vpux::graph_color_format.name()),              //
+                    RW_property(ov::intel_vpux::inference_shaves.name()),              //
+                    RW_property(ov::intel_vpux::inference_timeout.name()),              //
+                    RW_property(ov::intel_vpux::preprocessing_lpi.name()),              //
+                    RW_property(ov::intel_vpux::preprocessing_pipes.name()),              //
+                    RW_property(ov::intel_vpux::preprocessing_shaves.name()),              //
+                    RW_property(ov::intel_vpux::print_profiling.name()),              //
+                    RW_property(ov::intel_vpux::profiling_output_file.name()),              //
+                    RW_property(ov::intel_vpux::remove_permute_noop.name()),              //
+                    RW_property(ov::intel_vpux::scale_fuse_input.name()),              //
+                    RW_property(ov::intel_vpux::target_descriptor.name()),              //
+                    RW_property(ov::intel_vpux::target_descriptor_path.name()),              //
+                    RW_property(ov::intel_vpux::use_m2i.name()),              //
+                    RW_property(ov::intel_vpux::use_shave_only_m2i.name()),              //
+                    RW_property(ov::intel_vpux::use_sipp.name()),              //
+                    RW_property(ov::intel_vpux::vpux_platform.name()),              //
+                    RW_property(ov::intel_vpux::weights_zero_points_alignment.name()),              //
             };
             static const std::vector<ov::PropertyName> supportedProperties =
             [&]() {

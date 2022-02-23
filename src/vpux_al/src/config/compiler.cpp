@@ -14,7 +14,7 @@
 #include "vpux/al/config/compiler.hpp"
 
 using namespace vpux;
-using namespace InferenceEngine::VPUXConfigParams;
+using namespace ov::intel_vpux;
 
 //
 // register
@@ -32,26 +32,26 @@ void vpux::registerCompilerOptions(OptionsDesc& desc) {
 // COMPILER_TYPE
 //
 
-StringLiteral vpux::stringifyEnum(CompilerType val) {
+StringLiteral vpux::stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType val) {
     switch (val) {
-    case CompilerType::MCM:
+    case InferenceEngine::VPUXConfigParams::CompilerType::MCM:
         return "MCM";
-    case CompilerType::MLIR:
+    case InferenceEngine::VPUXConfigParams::CompilerType::MLIR:
         return "MLIR";
-    case CompilerType::DRIVER:
+    case InferenceEngine::VPUXConfigParams::CompilerType::DRIVER:
         return "DRIVER";
     default:
         return "<UNKNOWN>";
     }
 }
 
-CompilerType vpux::COMPILER_TYPE::parse(StringRef val) {
-    if (val == VPUX_CONFIG_VALUE(MCM)) {
-        return CompilerType::MCM;
-    } else if (val == VPUX_CONFIG_VALUE(MLIR)) {
-        return CompilerType::MLIR;
-    } else if (val == VPUX_CONFIG_VALUE(DRIVER)) {
-        return CompilerType::DRIVER;
+InferenceEngine::VPUXConfigParams::CompilerType vpux::COMPILER_TYPE::parse(StringRef val) {
+    if (val == stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType::MCM)) {
+        return InferenceEngine::VPUXConfigParams::CompilerType::MCM;
+    } else if (val == stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType::MLIR)) {
+        return InferenceEngine::VPUXConfigParams::CompilerType::MLIR;
+    } else if (val == stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType::DRIVER)) {
+        return InferenceEngine::VPUXConfigParams::CompilerType::DRIVER;
     }
 
     VPUX_THROW("Value '{0}' is not a valid COMPILER_TYPE option", val);

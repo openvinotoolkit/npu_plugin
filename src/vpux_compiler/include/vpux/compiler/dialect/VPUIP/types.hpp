@@ -14,10 +14,12 @@
 #pragma once
 
 #include "vpux/compiler/core/type_interfaces.hpp"
+#include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 
+#include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/Types.h>
 

@@ -16,6 +16,7 @@
 #include "vpux/utils/IE/config.hpp"
 
 #include "vpual_private_config.hpp"
+#include "vpual_private_properties.hpp"
 
 namespace vpux {
 
@@ -25,7 +26,7 @@ namespace vpux {
 
 struct VPUAL_REPACK_INPUT_LAYOUT final : OptionBase<VPUAL_REPACK_INPUT_LAYOUT, bool> {
     static StringRef key() {
-        return VPUX_VPUAL_CONFIG_KEY(REPACK_INPUT_LAYOUT);
+        return ov::intel_vpux::repack_input_layout.name();
     }
 
     static bool defaultValue() {
