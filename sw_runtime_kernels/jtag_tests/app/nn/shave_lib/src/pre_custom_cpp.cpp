@@ -103,10 +103,10 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
         MemRefData * outs =
                 reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(cmxParams->argBuffer) + kernelArgs->outputsOffset);
 
-        /*DBG*/ printf("__numInputs = %d\n", kernelArgs->numInputs);
+        // /*DBG*/ printf("__numInputs = %d\n", kernelArgs->numInputs);
         for (unsigned int i = 0; i < kernelArgs->numInputs; i++) {
             ins[i].dataAddr = reinterpret_cast<uint32_t>(resMgr->getAbsoluteInputAddr(i));
-            /*DBG*/ printf("__insA[%d].dataAddr = 0x%x\n", i, ins[i].dataAddr);
+           // /*DBG*/ printf("__insA[%d].dataAddr = 0x%x\n", i, ins[i].dataAddr);
             inputLocations[i] = ins[i].location;
             if (cfg->moveToCmxIfNecessary &&
                     (ins[i].location == sw_params::Location::NN_CMX || ins[i].location == sw_params::Location::UPA_CMX)) {
@@ -124,12 +124,12 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
                     ins[i].location = sw_params::Location::DDR;
                 }
             }
-            /*DBG*/ printf("__insB[%d].dataAddr = 0x%x\n", i, ins[i].dataAddr);
+           // /*DBG*/ printf("__insB[%d].dataAddr = 0x%x\n", i, ins[i].dataAddr);
         }
 
         for (unsigned int i = 0; i < kernelArgs->numOutputs; i++) {
             outs[i].dataAddr = reinterpret_cast<uint32_t>(resMgr->getAbsoluteOutputAddr(i));
-            /*DBG*/ printf("__outsA[%d].dataAddr = 0x%x\n", i, outs[i].dataAddr);
+           // /*DBG*/ printf("__outsA[%d].dataAddr = 0x%x\n", i, outs[i].dataAddr);
             outputLocations[i] = outs[i].location;
             if (cfg->moveToCmxIfNecessary &&
                     (outs[i].location == sw_params::Location::NN_CMX || outs[i].location == sw_params::Location::UPA_CMX)) {
@@ -142,7 +142,7 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
                     outs[i].location = sw_params::Location::DDR;
                 }
             }
-            /*DBG*/ printf("__outsB[%d].dataAddr = 0x%x\n", i, outs[i].dataAddr);
+           // /*DBG*/ printf("__outsB[%d].dataAddr = 0x%x\n", i, outs[i].dataAddr);
         }
 
 #ifdef ENABLE_CUSTOM_KERNEL_PERF_COUNTERS
@@ -167,7 +167,7 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
         if (cfg->kernel) {
 #ifdef CONFIG_TARGET_SOC_3720
 #endif
-            /*DBG*/ printf("___CALL_KERNEL\n");
+            // /*DBG*/ printf("___CALL_KERNEL\n");
             Kernel k = reinterpret_cast<Kernel>(cfg->kernel);
             (*k)(reinterpret_cast<uint32_t>(cmxParams->argBuffer));
         }
