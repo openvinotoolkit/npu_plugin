@@ -77,7 +77,7 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
                                                       vpux::VPU::MPEMode::MATRIX, vpux::VPU::MPEMode::CUBOID_4x16};
 
     auto modelPath = getVPUNNModelFile();
-    VPUNN::VPUCostModel costModel(modelPath.str().str());
+    auto costModel = std::make_shared<VPUNN::VPUCostModel>(modelPath.str().str());
     llvm::SmallVector<NceOpTensorShape> testTensorLists;
     for (int64_t h = initDimensionValue; h < maxDimensionValue; h *= testStep) {
         for (int64_t w = initDimensionValue; w < maxDimensionValue; w *= testStep) {

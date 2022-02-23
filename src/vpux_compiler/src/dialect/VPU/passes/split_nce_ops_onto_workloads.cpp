@@ -101,8 +101,8 @@ SmallString getVPUNNModelFile(VPU::ArchKind archKind) {
 template <class ConcreteOp>
 class GenericNCERewrite final : public mlir::OpRewritePattern<ConcreteOp> {
 public:
-    GenericNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, VPUNN::VPUCostModel costModel,
-                      Logger log)
+    GenericNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch,
+                      std::shared_ptr<VPUNN::VPUCostModel> costModel, Logger log)
             : mlir::OpRewritePattern<ConcreteOp>(ctx),
               _numDPU(numDPU),
               _arch(arch),
@@ -116,12 +116,12 @@ public:
 private:
     const int64_t _numDPU;
     VPU::ArchKind _arch;
-    VPUNN::VPUCostModel _costModel;
+    std::shared_ptr<VPUNN::VPUCostModel> _costModel;
     Logger _log;
 };
 
 void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp,
-                 const VPUIP::WorkloadCostParams& costParams, const VPUNN::VPUCostModel& costModel) {
+                 const VPUIP::WorkloadCostParams& costParams, std::shared_ptr<VPUNN::VPUCostModel> costModel) {
     VPUIP::DpuTiler dpuTiler(costParams.outputShape, costParams.mpeMode, costModel);
     dpuTiler.tileOverH(costParams.numDPU);
 
@@ -303,7 +303,8 @@ void SplitNCEOpsOntoWorkloadsPass::safeRunOnFunc() {
     auto dpuExec = nceCluster.getSubExecutor(VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::DPU));
     VPUX_THROW_UNLESS(dpuExec != nullptr, "Failed to get DPU information");
     auto vpunnModelFile = getVPUNNModelFile(arch);
-    VPUNN::VPUCostModel costModel(vpunnModelFile.str().str());
+    auto costModel = std::make_shared<VPUNN::VPUCostModel>(vpunnModelFile.str().str());
+    VPUX_THROW_WHEN(costModel == nullptr, "Failed to create vpunn cost model");
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<GenericNCERewrite<VPU::NCEConvolutionOp>>(&ctx, dpuExec.count(), arch, costModel, _log);
     patterns.insert<GenericNCERewrite<VPU::NCEMaxPoolOp>>(&ctx, dpuExec.count(), arch, costModel, _log);

@@ -245,7 +245,7 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
                                               static_cast<unsigned int>(padsTileConf.bottom),
                                       static_cast<unsigned int>(params.inputShape[Dims4D::Act::C]), 1},
                                      elemType);
-        auto result = _costModel.DPU(
+        auto result = _costModel->DPU(
                 {getVPUDeviceType(params.arch),
                  opType,
                  {inputTensor},

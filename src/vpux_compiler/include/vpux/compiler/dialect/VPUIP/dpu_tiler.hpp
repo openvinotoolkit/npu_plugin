@@ -39,8 +39,8 @@ struct WorkloadCostParams {
 
 class DpuTiler final {
 public:
-    DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode, VPUNN::VPUCostModel costModel)
-            : _outShape(outShape.raw()), _mpeMode(mpeMode), _costModel(std::move(costModel)) {
+    DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode, std::shared_ptr<VPUNN::VPUCostModel> costModel)
+            : _outShape(outShape.raw()), _mpeMode(mpeMode), _costModel(costModel) {
     }
 
     SmallVector<uint32_t> generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits);
@@ -56,7 +56,7 @@ private:
 
     Shape _outShape;
     VPU::MPEMode _mpeMode;
-    VPUNN::VPUCostModel _costModel;
+    std::shared_ptr<VPUNN::VPUCostModel> _costModel;
     SmallVector<OutputTiling> _splitPool;
 };
 
