@@ -83,7 +83,7 @@ void StrategyManager::assignMultiClusterStrategy() {
     _func.walk(callback);
 }
 
-void StrategyManager::setLayerStrategy(const llvm::StringRef strategy, mlir::Operation* origOp) const {
+void StrategyManager::setLayerStrategy(StringRef strategy, mlir::Operation* origOp) const {
     if (strategy == splitOverHeightOverlapped) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeightOverlapped"));
         _log.trace("Assiging multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
