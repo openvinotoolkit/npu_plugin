@@ -150,7 +150,7 @@ It provides and API to get transformed values on the fly.
 | :-------: | :-------: | ----------- |
 | baseContent | `mlir::ElementsAttr` |  |
 | transformations | `mlir::ArrayAttr` |  |
-| finalType | `vpux::NDTypeInterface` |  |
+| finalType | `mlir::ShapedType` |  |
 
 ### ConvertElemTypeAttr
 
