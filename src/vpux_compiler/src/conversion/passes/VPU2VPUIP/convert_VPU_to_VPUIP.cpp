@@ -173,8 +173,10 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     // Generate activation window
     //
 
+    const auto arch = getArch(origOp);
     mlir::IntegerAttr actWindowChanLen;
     mlir::Value activationWindow;
+    std::vector<uint8_t> fakeSparsity;
 
     if (isCMajor) {
         const auto origInputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
@@ -186,12 +188,19 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
                                                                         kernelStrides[Dims4D::Strides::X],
                                                                         origInputType.getElementType(), IC);
 
-        const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::CM_CONV, kernelSize,
-                                                                    kernelStrides[Dims4D::Strides::X],
-                                                                    origInputType.getElementType(), IC, OC);
+        if (arch != VPU::ArchKind::MTL) {
+            fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::CM_CONV, kernelSize,
+                                                             kernelStrides[Dims4D::Strides::X],
+                                                             origInputType.getElementType(), IC, 1);
+            activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, 1);
+        } else {
+            fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::CM_CONV, kernelSize,
+                                                             kernelStrides[Dims4D::Strides::X],
+                                                             origInputType.getElementType(), IC, OC);
+            activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
+        }
 
         actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
-        activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
     }
 
     //
@@ -276,10 +285,20 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, O
     // Generate activation window
     //
 
-    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, kernelSize,
-                                                                kernelStrides[Dims4D::Strides::X],
-                                                                origInputType.getElementType(), IC, IC);
-    const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, IC);
+    const auto arch = getArch(origOp);
+    std::vector<uint8_t> fakeSparsity;
+    mlir::Value activationWindow;
+    if (arch != VPU::ArchKind::MTL) {
+        fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, kernelSize,
+                                                         kernelStrides[Dims4D::Strides::X],
+                                                         origInputType.getElementType(), IC, 1);
+        activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, 1);
+    } else {
+        fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, kernelSize,
+                                                         kernelStrides[Dims4D::Strides::X],
+                                                         origInputType.getElementType(), IC, IC);
+        activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, IC);
+    }
 
     //
     // Prepare output buffer for DPU
@@ -367,10 +386,20 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
                                                 kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC);
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
 
-    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::DW_CONV, kernelSize,
-                                                                kernelStrides[Dims4D::Strides::X],
-                                                                origInputType.getElementType(), IC, OC);
-    const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
+    const auto arch = getArch(origOp);
+    std::vector<uint8_t> fakeSparsity;
+    mlir::Value activationWindow;
+    if (arch != VPU::ArchKind::MTL) {
+        fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::DW_CONV, kernelSize,
+                                                         kernelStrides[Dims4D::Strides::X],
+                                                         origInputType.getElementType(), IC, 1);
+        activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, 1);
+    } else {
+        fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::DW_CONV, kernelSize,
+                                                         kernelStrides[Dims4D::Strides::X],
+                                                         origInputType.getElementType(), IC, OC);
+        activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
+    }
 
     //
     // Prepare output buffer for DPU
