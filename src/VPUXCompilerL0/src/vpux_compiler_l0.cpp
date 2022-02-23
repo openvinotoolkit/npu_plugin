@@ -43,9 +43,6 @@ const uint32_t maxNumberOfElements = 10;
 const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
 const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
 
-constexpr uint16_t  = 1;
-constexpr uint16_t PROFILING_MINOR = 0;
-
 using namespace vpux;
 
 namespace VPUXCompilerL0 {
