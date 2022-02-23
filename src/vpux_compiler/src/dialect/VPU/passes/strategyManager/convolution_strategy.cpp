@@ -23,16 +23,52 @@ bool ConvolutionStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp);
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(origOp);
     auto weightTensorNumTiles = getWeightsTensorNumTiles(origOp);
-    auto distributedOutputTensorType =
-            createDistributedOutputTensorType(origOp, activationTensorDistributionMode, activationTensorNumTiles);
-    auto distributedActivationTensorType = createDistributedInputTensorType(
+    auto distributedOutputTensorType = createDistributedTensorType(
+            origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedActivationTensorType = createDistributedTensorType(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
-    auto distributeddWeightsTensorType = createDistributedInputTensorType(
-            origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
-
-    auto inputSize = distributedActivationTensorType.getTotalAllocSize();
-    _log.trace("inputSize '{0}' ", inputSize);
+    auto distributeddWeightsTensorType =
+            createDistributedTensorType(origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
 
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);
+}
+
+double ConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op) const {
+    auto origOp = mlir::cast<NCEConvolutionOp>(op);
+    const auto outputShape = getShape(origOp.output());
+    auto OC = outputShape[Dims4D::Act::C];
+    auto OH = outputShape[Dims4D::Act::H];
+    auto OW = outputShape[Dims4D::Act::W];
+    double outputTensorVolume = OC * OH * OW;
+
+    return std::max(
+            (outputTensorVolume / _numClusters) /
+                    getChannelAlignment(
+                            (getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
+                             getChannelAlignment(OW, _numClusters) * getChannelAlignment(OC, _numChannelAlignment)),
+                            _numDPUPerCluster),
+            (outputTensorVolume / _numClusters) /
+                    getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
+                                         getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
+                                        _numDPUPerCluster));
+}
+
+double ConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op) const {
+    auto origOp = mlir::cast<NCEConvolutionOp>(op);
+    const auto outputShape = getShape(origOp.output());
+    auto OC = outputShape[Dims4D::Act::C];
+    auto OH = outputShape[Dims4D::Act::H];
+    auto OW = outputShape[Dims4D::Act::W];
+    double outputTensorVolume = OC * OH * OW;
+
+    return std::max(
+            (outputTensorVolume / _numClusters) /
+                    getChannelAlignment((getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
+                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                        _numDPUPerCluster),
+            (outputTensorVolume / _numClusters) /
+                    getChannelAlignment((getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
+                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                        _numDPUPerCluster));
 }

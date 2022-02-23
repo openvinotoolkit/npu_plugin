@@ -20,7 +20,10 @@ using namespace VPU;
 BaseLayerStrategy::BaseLayerStrategy(mlir::FuncOp func, Logger log): _func(func), _log(log) {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    auto dpuOp = nceOp.getSubExecutor(VPU::ExecutorKindAttr::get(module->getContext(), VPU::ExecutorKind::DPU));
     _numClusters = nceOp.count();
+    _numDPUPerCluster = dpuOp.count();
+    _numDPU = _numClusters * _numDPUPerCluster;
 }
 
 // An operation is SOH compitable if it has an output height of at least 20
@@ -31,6 +34,10 @@ bool BaseLayerStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op
     const auto outputShape = getShape(op->getResult(0));
     const auto OH = outputShape[Dims4D::Act::H];
     return OH >= _minimumOutputHeightForSOH;
+}
+
+double BaseLayerStrategy::getChannelAlignment(double input, size_t unit) const {
+    return std::ceil(input / unit) * unit;
 }
 
 StrategyManager::StrategyManager(mlir::FuncOp func, Logger log)
@@ -84,8 +91,8 @@ void StrategyManager::assignMultiClusterStrategy() {
 }
 
 void StrategyManager::setLayerStrategy(const llvm::StringRef strategy, mlir::Operation* origOp) const {
-    if (strategy == splitOverHeightOverLapped) {
-        origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeightOverLapped"));
+    if (strategy == splitOverHeightOverlapped) {
+        origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeightOverlapped"));
         _log.trace("Assiging multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
     } else if (strategy == splitOverHeight) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));

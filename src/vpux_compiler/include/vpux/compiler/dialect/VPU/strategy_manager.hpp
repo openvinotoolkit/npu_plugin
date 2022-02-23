@@ -35,7 +35,7 @@ namespace VPU {
 //
 
 // Abstract base class
-// Specific method implimentations for each layer type are required
+// Specific method implementations for each layer type are required
 // in the derived classes
 // Examples:
 // (1) Does a particular layer with a particular strategy fit in CMX
@@ -49,9 +49,13 @@ public:
     virtual ~BaseLayerStrategy() = default;
 
     virtual bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const = 0;
+    virtual double computeSplitOverHeightEfficiency(mlir::Operation* op) const = 0;
     bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
+    double getChannelAlignment(double input, size_t unit) const;
 
     int32_t _numClusters;
+    int32_t _numDPUPerCluster;
+    int32_t _numDPU;
     const long int _minimumOutputHeightForSOH = 20;
     const size_t _numChannelAlignment = 16;
     mlir::FuncOp _func;
@@ -67,6 +71,8 @@ public:
     }
 
     bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+    double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
+    double computeSplitOverKernelEfficiency(mlir::Operation* op) const;
 };
 
 //
@@ -77,6 +83,10 @@ public:
     DepthConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
     bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+    double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
+    double computeSplitOverKernelEfficiency(mlir::Operation* op) const;
+    std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable() const;
+    double getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride) const;
 };
 
 //
@@ -88,6 +98,7 @@ public:
     }
 
     bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+    double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
 };
 
 //
@@ -99,6 +110,7 @@ public:
     }
 
     bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+    double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
 };
 
 //
@@ -106,7 +118,7 @@ public:
 //
 
 // Higher level strategy manager class
-// It's current purpose is to globally assign strategies
+// Its current purpose is to globally assign strategies
 // In future it may have methods for finding sub-graphs
 // and other strategy related utilites
 class StrategyManager final {
