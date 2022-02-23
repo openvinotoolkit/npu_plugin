@@ -284,20 +284,20 @@ double StrategyManager::dpuComputeTime(mlir::Operation* op, multiClusterStrategy
 
 double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange Strategy) {
     // Used in depthwise case to affect weights size in mcm
-    // Probably useless in vpux
-    //    const auto inOrder = DimsOrder::fromValue(op->getOperand(0));
-    //    const auto isCMajor = inOrder == DimsOrder::NCHW;
+    // Cmajor conv alignment is different
+    const auto inOrder = DimsOrder::fromValue(op->getOperand(0));
+    const auto isCMajor = inOrder == DimsOrder::NCHW;
 
     // Each layer calculates the cost to move it's weights (if they exist), and it's activations
     double weightsCycles = 0;
     double outputCycles = 0;
     double inputCycles = 0;
+    size_t outChannels = getShape(op->getResult(0))[Dims4D::Act::C];
+    size_t alignedOutChannels = VPU::align(outChannels, _numChannelAlignment);
+    size_t alignedSplitOutChannels = alignedOutChannels;
 
     // Each DMA cost is modelled as latency + size*transfer_rate
     if (mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op) || mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
-        size_t outChannels = getShape(op->getResult(0))[Dims4D::Act::C];
-        size_t alignedOutChannels = VPU::align(outChannels, _numChannelAlignment);
-        size_t alignedSplitOutChannels = alignedOutChannels;
         if (Strategy == multiClusterStrategyRange::SplitOverK) {
             alignedSplitOutChannels = VPU::align(alignedSplitOutChannels / _numClusters, _numChannelAlignment);
         }
@@ -309,15 +309,22 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
         const auto elementType = weightsType.getElementType();
         const auto dtypeFactor = elementType.getIntOrFloatBitWidth() / 8;
         if (mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
-            size_t alignedInputChannels = VPU::align(weightsShape[Dims4D::Act::N], _numChannelAlignment);
-            weightsSize += (alignedInputChannels * alignedSplitOutChannels * weightsShape[Dims4D::Act::H] *
-                            weightsShape[Dims4D::Act::W]) *
-                           dtypeFactor;
+            if (isCMajor) {
+                size_t alignedWidth = VPU::align(weightsShape[Dims4D::Act::W], _numChannelAlignment);
+                weightsSize += (weightsShape[Dims4D::Act::N] * alignedSplitOutChannels * weightsShape[Dims4D::Act::H] *
+                                alignedWidth) *
+                               dtypeFactor;
+            } else {
+                size_t alignedInputChannels = VPU::align(weightsShape[Dims4D::Act::N], _numChannelAlignment);
+                weightsSize += (alignedInputChannels * alignedSplitOutChannels * weightsShape[Dims4D::Act::H] *
+                                weightsShape[Dims4D::Act::W]) *
+                               dtypeFactor;
+            }
+
             if (Strategy == multiClusterStrategyRange::SplitOverK) {
                 weightsSize *= _numClusters;
             }
         } else {  // Depthwise
-            // TODO: next to implement computeTotalSize() in vpux
             size_t alignedHW =
                     VPU::align(weightsShape[Dims4D::Act::H] * weightsShape[Dims4D::Act::W], _numChannelAlignment);
             weightsSize += (alignedSplitOutChannels * alignedHW * dtypeFactor);
@@ -335,12 +342,20 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
     // that we will get spill info here
     inputCycles += 0;
 
+    auto output = op->getResult(0);
+    auto outShape = getShape(output);
+    const auto outDtypeFactor = output.getType().cast<mlir::ShapedType>().getElementType().getIntOrFloatBitWidth() / 8;
     // TODO: Overhead for spilled output
 
     // This section captures the output cost to multicast to all clusters
-    // TODO: Need implement computeTotalSize() API to get output totalSize
     if (Strategy == multiClusterStrategyRange::SplitOverK || Strategy == multiClusterStrategyRange::Cluster) {
-        outputCycles += 0;
+        auto outputSize = (outShape[Dims4D::Act::N] * alignedSplitOutChannels * outShape[Dims4D::Act::H] *
+                           outShape[Dims4D::Act::W]) *
+                          outDtypeFactor;
+        if (Strategy == multiClusterStrategyRange::SplitOverK) {
+            outputSize *= _numClusters;
+        }
+        outputCycles += (_numClusters * LATENCY_CMX_) + ((double)outputSize / CMX_BANDWIDTH_);
     }
 
     return inputCycles + weightsCycles + outputCycles;
