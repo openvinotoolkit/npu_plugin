@@ -17,22 +17,14 @@
 using namespace vpux;
 using namespace VPU;
 
-bool ConvolutionStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const {
-    auto origOp = mlir::dyn_cast<NCEConvolutionOp>(op);
-    auto activationTensorDistributionMode = DistributionMode::SEGMENTED;
-    auto activationTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, _numClusters, 1}));
-    auto weightsTensorDistributionMode = DistributionMode::DUPLICATED;
-    auto weightTensorNumTiles = getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+bool MaxPoolStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const {
+    auto origOp = mlir::dyn_cast<NCEMaxPoolOp>(op);
+    auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp);
+    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp);
     auto distributedOutputTensorType =
             createDistributedOutputTensorType(origOp, activationTensorDistributionMode, activationTensorNumTiles);
     auto distributedActivationTensorType = createDistributedInputTensorType(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
-    auto distributeddWeightsTensorType = createDistributedInputTensorType(
-            origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
 
-    auto inputSize = distributedActivationTensorType.getTotalAllocSize();
-    _log.trace("inputSize '{0}' ", inputSize);
-
-    return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
-                             distributedOutputTensorType);
+    return origOp.fitIntoCMX(distributedActivationTensorType, distributedOutputTensorType);
 }
