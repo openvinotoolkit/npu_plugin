@@ -34,6 +34,8 @@ using namespace vpux;
 bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
                                                   vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
                                                   vpux::NDTypeInterface output) {
+    const auto arch = getArch(op);
+
     const auto filterShape = filter.getShape();
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto KY = filterShape[Dims4D::Filter::KY];
@@ -44,8 +46,14 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::Arr
     const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides));
     const auto SX = kernelStrides[Dims4D::Strides::X];
 
-    const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::DW_CONV, kernelSize, SX,
-                                                                           input.getElementType(), OC);
+    int64_t activationWindowSize = 0;
+    if (arch != VPU::ArchKind::MTL) {
+        activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::DW_CONV, kernelSize, SX,
+                                                                    input.getElementType(), 1, 1);
+    } else {
+        activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::DW_CONV, kernelSize, SX,
+                                                                    input.getElementType(), 1, OC);
+    }
 
     const auto alignment = NCEInvariant::getAlignment(output.getElementType());
 
