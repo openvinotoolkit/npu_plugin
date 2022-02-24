@@ -26,23 +26,6 @@ using namespace vpux;
 
 namespace {
 
-int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
-    if (createWTableOp.weights() != nullptr && createWTableOp.activation_window() != nullptr) {
-        // Depthwise convolution case. Weights table contains both activation window and weights.
-        // FIXME the logic repeats row-major convolution
-        const auto filterShape = getShape(createWTableOp.weights());
-        return filterShape[Dims4D::Filter::OC];
-    }
-
-    if (createWTableOp.weights() != nullptr) {
-        const auto filterShape = getShape(createWTableOp.weights());
-        return filterShape[Dims4D::Filter::OC];
-    }
-
-    const auto fakeSparsity = getShape(createWTableOp.activation_window());
-    return fakeSparsity[Dims4D::Filter::OC];  // actually this is input channel
-}
-
 int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
     if (createWTableOp.weights() == nullptr) {
         return 0;
@@ -94,7 +77,8 @@ private:
 
 mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTableOp createWTableOp,
                                                               mlir::PatternRewriter& rewriter) const {
-    const auto OC = getOC(createWTableOp);
+    auto WToutput = createWTableOp.op_output().getType().cast<vpux::NDTypeInterface>();
+    const auto OC = WToutput.getShape()[Dims4D::Filter::IC];
     // Actual weight and sparsity pointers are not known at this stage, so the constant
     // is filled only with offsets from the base pointers. Once the memory scheduler
     // allocates the memory and the pointers are known the transformation is added to the
