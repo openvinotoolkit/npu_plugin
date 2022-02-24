@@ -56,6 +56,8 @@ uint32_t getPReLUShiftFromScale(double preluMult);
 uint16_t getQuantMultFromScale(double quantScale);
 uint8_t getQuantShiftFromScale(double quantScale);
 std::pair<uint8_t, int8_t> getQuantShiftAndPostShiftFromScale(double quantScale);
+std::pair<int64_t, int64_t> getClampValuesForQuantizedOps(mlir::quant::QuantizedType outElemQType,
+                                                          mlir::Type outElemType);
 
 //
 // FakeQuantize support
