@@ -139,7 +139,7 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
     const auto outputType = origOp.getType().cast<vpux::NDTypeInterface>();
     const auto newOutType = outputType.changeMemSpace(VPU::MemoryKind::CMX_NN);
-    const auto rawFilterShape = getIntArrayAttr(rewriter, getShape(origOp.filter()));
+    const auto rawFilterShape = getIntArrayAttr(rewriter, filterShape);
 
     auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), newOutType, inputCMX, filterCMX,
                                                         weightsTableCMX, activationWindowCMX, bias,
