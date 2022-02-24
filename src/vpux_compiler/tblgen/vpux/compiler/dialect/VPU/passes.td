@@ -69,6 +69,42 @@ def SplitNCEOpsOntoWorkloads : PassBase<"split-NCE-ops-onto-workloads", "vpux::F
 }
 
 //
+// Multi-cluster strategy assignment
+//
+
+def MultiClusterStrategyAssignment : PassBase<"multi-cluster-strategy-assignment", "vpux::FunctionPass"> {
+    let summary = "Determines which multi-cluster strategy is the most optimal for a given layer";
+
+    let description = [{
+        Determines which multi-cluster strategy is the most optimal for a given layer
+    }];
+
+    let constructor = "vpux::VPU::createMultiClusterStrategyAssignmentPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// Wrap multi-cluster layers in NCEClusterTiling
+//
+
+def WrapVPUOpsInNCEClusterTiling : PassBase<"wrap-vpu-ops-in-nceclusteriling", "vpux::FunctionPass"> {
+    let summary = "This pass wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations";
+
+    let description = [{
+        Wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations.
+    }];
+
+    let constructor = "vpux::VPU::createWrapVPUOpsInNCEClusterTilingPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
 // AdjustMemorySpace
 //
 

@@ -289,5 +289,25 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeStrides, KmbConvolutionLayerTes
                                            ::testing::ValuesIn<SizeVector>({{1, 3, 64, 64}}),  // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         ConvolutionLayerTest::getTestCaseName);
+const auto conv2DParams_MultiCluster =
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{1, 1}}),    // kernels
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),  // strides
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padBegins
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padEnds
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // dilations
+                           ::testing::Values(128),                                 // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::EXPLICIT)        // padType
+        );
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_MultiCluster, KmbConvolutionLayerTest,
+                        ::testing::Combine(conv2DParams_MultiCluster,                          //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::FP16),                 // inPrc
+                                           ::testing::Values(Precision::FP16),                 // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 40, 40}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
 
 }  // namespace
