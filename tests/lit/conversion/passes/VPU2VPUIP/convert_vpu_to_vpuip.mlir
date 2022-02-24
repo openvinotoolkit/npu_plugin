@@ -28,13 +28,9 @@ func @Conv(%arg0: memref<1x16x16x16xf16, #NHWC, @CMX_NN>, %arg1: memref<16x16x1x
     return %3 : memref<1x16x16x16xf16, #NHWC, @CMX_NN>
 }
 
-// CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC, @CMX_NN>
 
-// CHECK:       [[WT_CST:%.+]] = VPUIP.WeightsTableOp
-// CHECK-SAME:      op_input(%arg0 : memref<1x16x16x16xf16, #NHWC, @CMX_NN>)
-// CHECK-SAME:      op_output([[OUT_BUF]] : memref<1x16x16x16xf16, #NHWC, @CMX_NN>)
-// CHECK-SAME:      weights(%arg1 : memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
-// CHECK-SAME:      -> memref<16x1x1x4xsi32>
+// CHECK:       [[WT_CST:%.+]] = const.Declare memref<16x1x1x4xsi32>
+// CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC, @CMX_NN>
 // CHECK:       [[WT_BUF:%.+]] = memref.alloc() : memref<16x1x1x4xsi32, @CMX_NN>
 // CHECK:       [[WT:%.+]] = IERT.Copy inputs([[WT_CST]] : memref<16x1x1x4xsi32>)
 // CHECK-SAME:      outputs([[WT_BUF]] : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -101,6 +97,8 @@ func @MaxPool(%arg0: memref<1x16x1x4xf16, #NHWC, @CMX_NN>) -> memref<1x16x1x4xf1
     return %2 : memref<1x16x1x4xf16, #NHWC, @CMX_NN>
 }
 
+// CHECK:       [[WT_CST:%.+]] = const.Declare memref<16x1x1x4xsi32>
+
 // CHECK:       [[ACT_WINDOW_CST:%.+]] = const.Declare memref<16x1x1x16xui8>
 
 // CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC, @CMX_NN>
@@ -109,11 +107,6 @@ func @MaxPool(%arg0: memref<1x16x1x4xf16, #NHWC, @CMX_NN>) -> memref<1x16x1x4xf1
 // CHECK:       [[ACT_WINDOW:%.+]] = IERT.Copy inputs([[ACT_WINDOW_CST]] : memref<16x1x1x16xui8>)
 // CHECK-SAME:      outputs([[ACT_WINDOW_BUF]] : memref<16x1x1x16xui8, @CMX_NN>)
 
-// CHECK:       [[WT_CST:%.+]] = VPUIP.WeightsTableOp
-// CHECK-SAME:      op_input(%arg0 : memref<1x16x1x4xf16, #NHWC, @CMX_NN>)
-// CHECK-SAME:      op_output([[OUT_BUF]] : memref<1x16x1x4xf16, #NHWC, @CMX_NN>)
-// CHECK-SAME:      activation_window([[ACT_WINDOW_BUF]] : memref<16x1x1x16xui8, @CMX_NN>)
-// CHECK-SAME:      -> memref<16x1x1x4xsi32>
 // CHECK:       [[WT_BUF:%.+]] = memref.alloc() : memref<16x1x1x4xsi32, @CMX_NN>
 // CHECK:       [[WT:%.+]] = IERT.Copy inputs([[WT_CST]] : memref<16x1x1x4xsi32>)
 // CHECK-SAME:      outputs([[WT_BUF]] : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -165,6 +158,8 @@ func @DepthConv(%arg0: memref<1x16x40x80xf16, #NHWC, @CMX_NN>, %arg1: memref<16x
     return %3 : memref<1x16x37x73xf16, #NHWC, @CMX_NN>
 }
 
+// CHECK:       [[WT_CST:%.+]] = const.Declare memref<16x1x1x4xsi32>
+
 // CHECK:       [[ACT_WINDOW_CST:%.+]] = const.Declare memref<16x1x1x16xui8>
 
 // CHECK:       [[ACT_WINDOW_BUF:%.+]] = memref.alloc() : memref<16x1x1x16xui8, @CMX_NN>
@@ -173,12 +168,6 @@ func @DepthConv(%arg0: memref<1x16x40x80xf16, #NHWC, @CMX_NN>, %arg1: memref<16x
 
 // CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x37x73xf16, #NHWC, @CMX_NN>
 
-// CHECK:       [[WT_CST:%.+]] = VPUIP.WeightsTableOp
-// CHECK-SAME:      op_input(%arg0 : memref<1x16x40x80xf16, #NHWC, @CMX_NN>)
-// CHECK-SAME:      op_output([[OUT_BUF]] : memref<1x16x37x73xf16, #NHWC, @CMX_NN>)
-// CHECK-SAME:      weights(%arg1 : memref<16x1x4x8xf16, #NHWC, @CMX_NN>)
-// CHECK-SAME:      activation_window([[ACT_WINDOW_BUF]] : memref<16x1x1x16xui8, @CMX_NN>)
-// CHECK-SAME:      -> memref<16x1x1x4xsi32>
 // CHECK:       [[WT_BUF:%.+]] = memref.alloc() : memref<16x1x1x4xsi32, @CMX_NN>
 // CHECK:       [[WT:%.+]] = IERT.Copy inputs([[WT_CST]] : memref<16x1x1x4xsi32>)
 // CHECK-SAME:      outputs([[WT_BUF]] : memref<16x1x1x4xsi32, @CMX_NN>)
